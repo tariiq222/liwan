@@ -1,5 +1,6 @@
 // Opt-in synthetic responses for internal module UI review. Never reads or writes Odoo data.
 import { documentsPreviewData } from './documents-ui-preview-data.mjs'
+import { financeDocumentsPreviewData } from './finance-documents-ui-preview-data.mjs'
 import { hrPreviewData } from './hr-ui-preview-data.mjs'
 
 export const moduleUiCapabilities = [
@@ -21,6 +22,14 @@ export const moduleUiCapabilities = [
   'hr.leave.request',
   'hr.leave.approve',
   'hr.leave.manage',
+  'finance.invoices.read',
+  'finance.invoices.manage',
+  'finance.invoices.post',
+  'finance.payments.read',
+  'finance.payments.manage',
+  'finance.journals.read',
+  'finance.zatca.read',
+  'finance.zatca.submit',
   'documents.items.read',
   'documents.items.manage',
   'pmo.projects.read',
@@ -390,6 +399,7 @@ export function moduleUiPreviewData(path, url) {
 
   if (normalizedPath.startsWith('/api/v1/documents')) return documentsPreviewData(normalizedPath, parsedUrl)
   if (normalizedPath.startsWith('/api/v1/hr/')) return hrPreviewData(normalizedPath, parsedUrl)
+  if (normalizedPath.startsWith('/api/v1/finance/')) return financeDocumentsPreviewData(normalizedPath, parsedUrl)
 
   if (normalizedPath === '/api/v1/admin/users') return page([adminUser], parsedUrl)
   if (normalizedPath === '/api/v1/admin/users/candidates') return page([candidate], parsedUrl)

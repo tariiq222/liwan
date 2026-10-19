@@ -1,0 +1,247 @@
+{
+  "financeDocuments": {
+    "kinds": {
+      "out_invoice": {
+        "title": "Customer invoices",
+        "new": "New invoice",
+        "record": "Customer invoice",
+        "partner": "Customer",
+        "partnerPlaceholder": "Choose a customer",
+        "empty": "No customer invoices yet.",
+        "description": "Customer invoices from draft to payment."
+      },
+      "out_refund": {
+        "title": "Credit notes",
+        "new": "New credit note",
+        "record": "Credit note",
+        "partner": "Customer",
+        "partnerPlaceholder": "Choose a customer",
+        "empty": "No credit notes yet.",
+        "description": "Amounts returned to customers or deducted from their invoices."
+      },
+      "in_invoice": {
+        "title": "Vendor bills",
+        "new": "New vendor bill",
+        "record": "Vendor bill",
+        "partner": "Vendor",
+        "partnerPlaceholder": "Choose a vendor",
+        "empty": "No vendor bills yet.",
+        "description": "Purchase bills owed to vendors."
+      },
+      "in_refund": {
+        "title": "Vendor refunds",
+        "new": "New vendor refund",
+        "record": "Vendor refund",
+        "partner": "Vendor",
+        "partnerPlaceholder": "Choose a vendor",
+        "empty": "No vendor refunds yet.",
+        "description": "Amounts vendors return or deduct from their bills."
+      }
+    },
+    "countTag": "{count} document | {count} documents",
+    "footer": "Showing {shown} of {total} document | Showing {shown} of {total} documents",
+    "forbidden": "You do not have permission to view this page.",
+    "draftNumber": "Draft",
+    "partnerPicker": {
+      "placeholder": "Choose a party"
+    },
+    "states": {
+      "draft": "Draft",
+      "posted": "Posted",
+      "cancel": "Cancelled"
+    },
+    "paymentStates": {
+      "not_paid": "Not paid",
+      "in_payment": "In payment",
+      "paid": "Paid",
+      "partial": "Partially paid",
+      "reversed": "Reversed",
+      "blocked": "Blocked",
+      "invoicing_legacy": "Legacy"
+    },
+    "zatcaStates": {
+      "not_applicable": "Not required",
+      "pending": "Waiting to send",
+      "retry": "Retry",
+      "rejected": "Rejected",
+      "blocked": "Could not process",
+      "unauthorized": "Certificate refused",
+      "accepted": "Accepted"
+    },
+    "columns": {
+      "number": "Number",
+      "date": "Date",
+      "dueDate": "Due",
+      "total": "Total",
+      "residual": "Balance",
+      "state": "Status",
+      "paymentState": "Payment"
+    },
+    "filters": {
+      "search": "Search by number, reference or name",
+      "state": "Status",
+      "allStates": "All statuses",
+      "anyPartner": "All",
+      "dateFrom": "From date",
+      "dateTo": "To date"
+    },
+    "kpi": {
+      "label": "Document figures",
+      "total": "Total",
+      "draft": "Drafts",
+      "posted": "Posted",
+      "cancel": "Cancelled"
+    },
+    "form": {
+      "details": "Basic details",
+      "partnerRequired": "Choose a party",
+      "invoiceDate": "Date",
+      "dueDate": "Due date",
+      "dueBeforeDate": "The due date cannot be before the date",
+      "ref": "Reference",
+      "lines": "Lines",
+      "linesHint": "Tax follows the account defaults unless you choose \"No tax\".",
+      "lineName": "Description",
+      "lineNameRequired": "Enter a description",
+      "quantity": "Quantity",
+      "quantityInvalid": "Invalid quantity",
+      "unitPrice": "Unit price",
+      "priceInvalid": "Invalid price",
+      "discount": "Discount %",
+      "discountInvalid": "Discount must be 0 to 100",
+      "noTax": "No tax",
+      "lineSubtotal": "Before tax",
+      "lineAria": "Line {number}: {field}",
+      "removeLine": "Remove line {number}",
+      "addLine": "Add line",
+      "subtotal": "Subtotal before tax",
+      "taxAtSave": "Tax appears after saving",
+      "requiredHint": "Fields marked with a star are required.",
+      "createDraft": "Create draft"
+    },
+    "record": {
+      "taxes": "Taxes",
+      "lineTotal": "Before tax",
+      "untaxed": "Amount before tax",
+      "tax": "Tax",
+      "total": "Total",
+      "residual": "Balance due",
+      "journal": "Journal",
+      "currency": "Currency",
+      "debitOrigin": "Debit note of",
+      "blockedByPayments": "It has registered payments",
+      "blockedByPaymentsHint": "The document cannot be cancelled or reset to draft until its payments are cancelled or reset to draft.",
+      "viewPayments": "View payments"
+    },
+    "actions": {
+      "post": "Post",
+      "registerPayment": "Register payment",
+      "pdf": "Download PDF",
+      "debitNote": "Debit note",
+      "resetToDraft": "Reset to draft",
+      "cancel": "Cancel document",
+      "delete": "Delete draft",
+      "zatcaSubmit": "Send to ZATCA",
+      "zatcaRetry": "Retry sending to ZATCA",
+      "menuFor": "Actions for {name}"
+    },
+    "confirm": {
+      "delete": "Delete the draft \"{name}\"?",
+      "deleteHint": "The draft is deleted for good and cannot be restored.",
+      "cancel": "Cancel \"{name}\"?",
+      "cancelHint": "The document stays cancelled and can be reset to draft later.",
+      "reset": "Reset \"{name}\" to draft?",
+      "resetHint": "Posting is undone and the lines can be edited again.",
+      "debit": "Create a debit note for \"{name}\"?",
+      "debitReason": "Reason (optional)",
+      "debitCopyLines": "Copy the lines to the note"
+    },
+    "zatca": {
+      "title": "ZATCA",
+      "short": "ZATCA",
+      "state": "Submission status",
+      "sandbox": "Sandbox environment",
+      "mode": "Submission type",
+      "modes": {
+        "clearance": "Clearance (B2B)",
+        "reporting": "Reporting (B2C)"
+      },
+      "confirmedAt": "Confirmed at",
+      "qr": "QR code",
+      "qrPresent": "Available",
+      "qrMissing": "Not available",
+      "errors": "Errors from ZATCA",
+      "warnings": "Notes from ZATCA"
+    },
+    "errors": {
+      "notDraft": "The document is not a draft, so this action is not possible.",
+      "notPosted": "Post the document first.",
+      "hasPayments": "The document has payments: cancel them or reset them to draft first.",
+      "invalidState": "This action is not available in the current status.",
+      "periodLocked": "The accounting period is locked for this date.",
+      "pdfUnavailable": "The PDF could not be produced now. Try again later.",
+      "zatcaNotOnboarded": "The sales journal is not onboarded with ZATCA yet.",
+      "zatcaNotApplicable": "This document is not a posted e-invoice.",
+      "zatcaRejected": "ZATCA rejected the invoice. Fix the errors and retry.",
+      "zatcaUnavailable": "ZATCA did not finish processing. Retry in a moment.",
+      "zatcaLocalError": "The invoice could not be processed before reaching ZATCA.",
+      "zatcaUnauthorized": "ZATCA refused the journal certificate. Onboard the journal again.",
+      "zatcaModeNotAllowed": "This submission type is not allowed for this invoice.",
+      "amountExceedsResidual": "The amount is greater than the open balance.",
+      "journalCurrencyMismatch": "The journal currency differs from the documents currency."
+    },
+    "payments": {
+      "title": "Payments",
+      "description": "Money received from customers and paid to vendors.",
+      "new": "Register payment",
+      "search": "Search by number, memo or name",
+      "empty": "No payments yet.",
+      "draftNumber": "Draft",
+      "partner": "Party",
+      "type": "Type",
+      "allTypes": "All types",
+      "amount": "Amount",
+      "types": {
+        "inbound": "Received",
+        "outbound": "Paid"
+      },
+      "states": {
+        "draft": "Draft",
+        "in_process": "In process",
+        "paid": "Paid",
+        "canceled": "Cancelled",
+        "rejected": "Rejected"
+      },
+      "cancel": "Cancel payment",
+      "resetToDraft": "Reset to draft",
+      "cancelConfirm": "Cancel the payment \"{name}\"?",
+      "cancelHint": "The documents it paid go back to their state before payment.",
+      "resetConfirm": "Reset the payment \"{name}\" to draft?",
+      "resetHint": "The payment becomes a draft that can be processed again.",
+      "actionsFor": "Actions for {name}",
+      "form": {
+        "documents": "Documents being paid",
+        "documentsLabel": "Documents",
+        "pickDocuments": "Choose posted documents",
+        "documentsRequired": "Choose at least one document",
+        "due": "Amount due",
+        "problems": {
+          "not_posted": "Only posted documents can be paid.",
+          "nothing_due": "One of the documents has no balance left.",
+          "partner": "The documents must belong to one party.",
+          "currency": "The documents must share one currency.",
+          "type": "Two different document types cannot be paid together."
+        },
+        "payment": "Payment",
+        "amountRequired": "Enter an amount above zero",
+        "date": "Payment date",
+        "dateRequired": "Choose the payment date",
+        "journal": "Journal",
+        "journalRequired": "Choose the journal",
+        "noJournals": "There are no bank or cash journals.",
+        "memo": "Memo",
+        "submit": "Register payment"
+      }
+    }
+  }
+}
