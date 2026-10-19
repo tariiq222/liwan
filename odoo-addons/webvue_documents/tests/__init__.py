@@ -1,11 +1,4 @@
-from . import (
-    test_dms_boundaries,
-    test_document_access,
-    test_document_access_api,
-    test_document_concurrency,
-    test_document_downloads,
-    test_document_files,
-    test_document_migration_policy,
-    test_documents_api,
-    test_file_concurrency,
-)
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.addons.webvue_core.testing import import_all_tests
+
+import_all_tests(__name__)
