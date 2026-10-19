@@ -26,7 +26,7 @@ inactive, and other-company users are rejected.
   `partners_to`.
 - Send: `message_post` with escaped plain text and at most one inlined file.
 - Read: the current member's `_mark_as_read` only.
-- Downloads: stock `/web/content/<id>?download=true`. Membership is enforced
-  by native attachment ACLs. Stock superuser privileges are not revoked.
+- Downloads: `GET /api/v1/chat/conversations/<id>/attachments/<attachment_id>/download`.
+  Membership of the conversation is enforced, and only its message attachments are served.
 
 GET never marks a conversation read. Unread filtering happens before paging.

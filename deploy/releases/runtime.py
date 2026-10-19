@@ -313,7 +313,7 @@ class LocalRuntime:
         if not isinstance(me,dict) or not isinstance(me.get('id'),int) or me['id']<1:
             raise ReleaseConflict('runtime_session_unreadable')
         probe=tenant.get('attachmentProbe',{})
-        if (set(probe) != {'httpPath','relativePath','sha256'} or not re.fullmatch(r'/web/content/[1-9][0-9]*',probe['httpPath'])
+        if (set(probe) != {'httpPath','relativePath','sha256'} or not re.fullmatch(r'/api/v1/[a-z0-9-]+(?:/[a-z0-9-]+)*/[1-9][0-9]*/attachments/[1-9][0-9]*/download',probe['httpPath'])
                 or not re.fullmatch(r'[a-f0-9]{64}',probe['sha256'])):
             raise ReleaseConflict('attachment_probe_required')
         attachment=get(config['odooUrl'].rstrip('/')+probe['httpPath'],{'Host':binding['database'],'Cookie':'session_id='+sid})

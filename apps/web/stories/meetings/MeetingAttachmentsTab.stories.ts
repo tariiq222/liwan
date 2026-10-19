@@ -5,8 +5,8 @@ import { apiHandlers } from '../handlers/api'
 import { storyContext } from '../support/context'
 
 const attachments = [
-  { id: 1, name: 'جدول الأعمال.pdf', mimetype: 'application/pdf', url: '/web/content/1' },
-  { id: 2, name: 'عرض المشروع.pptx', mimetype: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', url: '/web/content/2' },
+  { id: 1, name: 'جدول الأعمال.pdf', mimetype: 'application/pdf', url: '/api/v1/meetings/1/attachments/1/download' },
+  { id: 2, name: 'عرض المشروع.pptx', mimetype: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', url: '/api/v1/meetings/1/attachments/2/download' },
 ]
 const listing = (items: typeof attachments) => [
   http.get('/api/v1/meetings/:id/attachments', () => HttpResponse.json({ items, total: items.length })),

@@ -117,13 +117,13 @@ class TestSessionOdooSurface(HttpCase):
             with self.subTest(path=path):
                 self.assertEqual(self.url_open(path).status_code, 404)
 
-    def test_attachment_download_rejects_field_selecting_query_keys(self):
+    def test_stock_attachment_download_is_closed_for_sessions(self):
+        # Attachments are served only by the owning /api/v1 routes, which check the app capability.
         self.authenticate('surface_emp', 'surface_emp_pass_123')
         base = f'/web/content/{self.attachment.id}'
-        self.assertEqual(self.url_open(f'{base}?unique=1').status_code, 200)
-        for query in ('model=hr.employee&field=image_1920', 'filename_field=name', 'mimetype=text/html'):
-            with self.subTest(query=query):
-                self.assertEqual(self.url_open(f'{base}?{query}').status_code, 404)
+        for path in (base, f'{base}?download=true', f'{base}?unique=1', f'{base}?model=hr.employee&field=image_1920'):
+            with self.subTest(path=path):
+                self.assertEqual(self.url_open(path).status_code, 404)
 
     def test_image_routes_reject_unexpected_query_strings(self):
         self.authenticate('surface_emp', 'surface_emp_pass_123')
@@ -164,12 +164,6 @@ class TestSessionOdooSurface(HttpCase):
             'db': get_db_name(), 'login': 'surface_emp', 'password': 'surface_emp_pass_123',
         })
         self.assertEqual(login.json()['result']['uid'], self.user.id)
-
-    def test_attachment_download_by_id_still_works(self):
-        self.authenticate('surface_emp', 'surface_emp_pass_123')
-        response = self.url_open(f'/web/content/{self.attachment.id}?download=true')
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, b'surface-bytes')
 
     def test_session_routes_the_app_needs_still_work(self):
         self.authenticate('surface_emp', 'surface_emp_pass_123')

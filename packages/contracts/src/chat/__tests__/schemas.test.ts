@@ -59,7 +59,7 @@ describe('ChatMessageSchema', () => {
   it('accepts a plain-text message with attachments', () => {
     const parsed = ChatMessageSchema.parse({
       ...MESSAGE,
-      attachments: [{ id: 3, name: 'brief.pdf', mimetype: 'application/pdf', url: '/web/content/3?download=true' }],
+      attachments: [{ id: 3, name: 'brief.pdf', mimetype: 'application/pdf', url: '/api/v1/chat/conversations/1/attachments/3/download' }],
     })
     expect(parsed.body).toBe('hello <peer>')
     expect(ChatMessageListSchema.parse({ items: [MESSAGE], total: 1 }).items).toHaveLength(1)

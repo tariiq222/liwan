@@ -42,7 +42,7 @@ export function createMyTasksPreview() {
   return function handle(method, rawUrl, body = {}) {
     const url = new URL(rawUrl, 'http://preview.local'), path = url.pathname
     if (method === 'GET' && path === '/api/v1/people') return reply([ADMIN, SARA].filter(value => !url.searchParams.get('q') || value.name.includes(url.searchParams.get('q'))))
-    const download = /^\/web\/content\/(\d+)$/.exec(path)
+    const download = /^\/api\/v1\/my-tasks\/\d+\/attachments\/(\d+)\/download$/.exec(path)
     if (method === 'GET' && download) {
       const file = [...attachments.values()].flat().find(item => item.id === Number(download[1]))
       if (file) return { status: 200, bytes: Buffer.from(file.data, 'base64'), mimetype: file.mimetype }
@@ -105,7 +105,7 @@ export function createMyTasksPreview() {
       if (method === 'GET') return reply(envelope(items.map(metadata)))
       if (method === 'POST') {
         if (!body.data || !body.name) return fail('اختر ملفًا صالحًا.', 'data')
-        const file = { id: nextId++, name: body.name, mimetype: body.mimetype || 'application/octet-stream', data: body.data }; file.url = `/web/content/${file.id}?download=true`; items.push(file); task.attachment_count = items.length; return reply(metadata(file), 201)
+        const file = { id: nextId++, name: body.name, mimetype: body.mimetype || 'application/octet-stream', data: body.data }; file.url = `/api/v1/my-tasks/${id}/attachments/${file.id}/download`; items.push(file); task.attachment_count = items.length; return reply(metadata(file), 201)
       }
       if (method === 'DELETE') { const index = items.findIndex(value => value.id === Number(match[3])); if (index < 0) return fail('الملف غير موجود.', undefined, 404); items.splice(index, 1); task.attachment_count = items.length; return reply({}) }
     }

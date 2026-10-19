@@ -30,7 +30,8 @@ and real rate-limit behavior under load are NOT RUN; `caddy adapt` structure is 
 
 F5 rate budget (per client IP/min). Odoo's own `/web/assets/*` and `/web/static/*` are
 not served through this edge (guard admits no such route), so nothing is exempted for
-them; `/web/content/*` and `/web/image/*` are ACL-checked and stay limited.
+them; `/web/image/*` is ACL-checked and stays limited, and `/web/content/*` is not served at all
+(attachments download through the owning `/api/v1/.../attachments/<id>/download` routes).
 `/web/session/get_session_info` (browser websocket version probe, `useBus.ts`) was
 matched by the `/web/session/*` auth zone, i.e. it shared the 20/min login bucket; it
 now counts in `webvue_odoo`. Other `/web/session/*`, `/web/login`, `/api/auth/*` stay in
@@ -161,7 +162,7 @@ Client query/body db/database/session_id/sid selectors are rejected; non-JSON Od
 writes denied. Body limit 16 MiB; this intentionally does not support generic Odoo
 multipart routes. Reviewed API attachment JSON remains supported.
 
-Allowed Odoo surface: `/api/v1/*`, `/web/content/*`, `/websocket`, private BFF
+Allowed Odoo surface: `/api/v1/*`, `/websocket`, private BFF
 `/web/session/authenticate` and `/web/session/destroy`. Generic RPC, DB manager,
 Odoo console, raw web login, reports/mail/bus routes are denied; customer UI stays
 Nuxt. WS upgrade copies handshake + bytes in both directions and rewraps cookies.

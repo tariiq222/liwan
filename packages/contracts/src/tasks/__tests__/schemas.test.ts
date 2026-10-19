@@ -88,7 +88,7 @@ describe('the other tasks shapes', () => {
     expect(PersonalTaskCommentSchema.parse(comment)).toEqual(comment)
     expect(PersonalTaskCommentSchema.parse({ ...comment, author: null }).author).toBeNull()
     expect(() => PersonalTaskCommentSchema.parse({ ...comment, author: { id: 2, name: 'x' } })).toThrow()
-    const attachment = { id: 9, name: 'a.pdf', mimetype: 'application/pdf', url: '/web/content/9?download=true' }
+    const attachment = { id: 9, name: 'a.pdf', mimetype: 'application/pdf', url: '/api/v1/my-tasks/4/attachments/9/download' }
     expect(PersonalTaskAttachmentSchema.parse(attachment)).toEqual(attachment)
     expect(ConvertTargetSchema.parse({ id: 3, name: 'P' })).toEqual({ id: 3, name: 'P' })
     expect(ConvertResultSchema.parse({ href: '/projects/3/tasks/1' })).toEqual({ href: '/projects/3/tasks/1' })

@@ -5,6 +5,7 @@ import binascii
 from odoo import fields
 
 from odoo.addons.webvue_api.controllers.common import ApiError, parse_positive_int
+from odoo.addons.webvue_api.serializers.attachment import attachment_download_url
 from odoo.addons.webvue_api.serializers.common import iso
 from odoo.addons.webvue_hr.serializers.dates import parse_optional_date
 
@@ -28,7 +29,8 @@ def dump_document(doc):
             'name': a.name,
             'mimetype': a.mimetype or '',
             'file_size': a.file_size or 0,
-        } for a in doc.attachment_ids],
+            'url': attachment_download_url(f'/api/v1/hr/documents/{doc.id}/attachments', a),
+        } for a in doc._webvue_document_attachments()],
         'expiry_date': fields.Date.to_string(doc.expiry_date) or None,
         'write_date': iso(doc.write_date),
     }

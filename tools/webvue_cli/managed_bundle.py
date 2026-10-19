@@ -20,7 +20,7 @@ CADDYFILE = '''\
 }
 
 :80 {
-    @odoo path /api/v1 /api/v1/* /web/content /web/content/* /web/binary/company_logo
+    @odoo path /api/v1 /api/v1/* /web/binary/company_logo
     handle @odoo {
         reverse_proxy odoo:8069
     }

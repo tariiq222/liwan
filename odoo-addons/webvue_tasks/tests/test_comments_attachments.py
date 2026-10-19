@@ -156,7 +156,7 @@ class TestMyTaskAttachments(TasksFilesCase):
         self.assertEqual(set(text), {'id', 'name', 'mimetype', 'url'})
         self.assertEqual((text['name'], text['mimetype']), ('note.txt', 'text/plain'))
         self.assertEqual(image['mimetype'], 'image/png')
-        self.assertEqual(text['url'], f'/web/content/{text["id"]}?download=true')
+        self.assertEqual(text['url'], f'{path}/{text["id"]}/download')
         record = self.env['ir.attachment'].browse(text['id'])
         self.assertEqual((record.res_model, record.res_id, record.type, record.raw),
                          ('project.task', task['id'], 'binary', b'hello'))
@@ -186,8 +186,10 @@ class TestMyTaskAttachments(TasksFilesCase):
         path = self.attachments_path(task['id'])
         made = self.ok('tasks_bob', 'POST', path, upload())
         self.assertEqual(self.ok('tasks_alice', 'GET', path)['items'], [made])
+        self.assertEqual(self.call('tasks_bob', 'GET', made['url'])[0], 200)
         for method, target, body in (
             ('GET', path, None), ('POST', path, upload()),
+            ('GET', made['url'], None),
             ('DELETE', self.attachments_path(task['id'], made['id']), None),
         ):
             with self.subTest(method=method):
@@ -202,6 +204,8 @@ class TestMyTaskAttachments(TasksFilesCase):
         path = self.attachments_path(task['id'])
         one = self.attachments_path(task['id'], made['id'])
         self.assertError(self.call('tasks_nocap', 'GET', path), 403, 'forbidden')
+        self.assertError(self.call('tasks_nocap', 'GET', made['url']), 403, 'forbidden')
+        self.assertEqual(self.call('tasks_readonly', 'GET', made['url'])[0], 200)
         self.assertEqual(self.ok('tasks_readonly', 'GET', path)['items'], [made])
         for login in ('tasks_nocap', 'tasks_readonly'):
             for method, target, body in (('POST', path, upload()), ('POST', path, {}),

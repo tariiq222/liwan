@@ -88,7 +88,7 @@ async function uploadFile(event: Event) {
           <div class="space-y-3">
             <ul class="grid gap-1 text-sm">
               <li v-for="attachment in query.data.value.attachment_ids" :key="attachment.id">
-                <a :href="`/web/content/${attachment.id}`" class="underline" target="_blank" rel="noreferrer">{{ attachment.name }}</a>
+                <a :href="attachment.url" class="underline" target="_blank" rel="noreferrer">{{ attachment.name }}</a>
               </li>
             </ul>
             <UFormField :label="t('hr.docs.upload')" name="hr-doc-upload">

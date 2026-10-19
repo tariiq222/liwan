@@ -52,7 +52,7 @@ and contracts are in `AGENTS.md`.
   optimistic; transitions and approvals remain pending until the server
   confirms them. Replace cache entries with the server response.
 - The topology is same-origin behind a reverse proxy: Nuxt `/`, Odoo
-  `/api/v1`, `/web/content`, and `/websocket`. Session cookies are used; no CORS or bearer tokens for browser flows.
+  `/api/v1` (attachments download from `.../attachments/<id>/download`) and `/websocket`. Session cookies are used; no CORS or bearer tokens for browser flows.
 
 - `apps/vendor-admin` is the vendor staff console, a separate Nuxt application served on its own `admin` host. It follows
   DESIGN.md and uses the same layers as `apps/web` (`@webvue/ui`, plus `@webvue/commercial-ui` for the shared billing

@@ -314,6 +314,16 @@ class WebVueChatService(models.AbstractModel):
         ))
 
     @api.model
+    def _webvue_channel_attachment(self, channel, attachment_id):
+        """One downloadable file of a comment in ``channel``, found by id without scanning the history."""
+        message = self.env['mail.message'].search(
+            [*self._webvue_comment_domain([channel.id]), ('attachment_ids', 'in', [attachment_id])], limit=1,
+        )
+        return message.attachment_ids.filtered(
+            lambda attachment: attachment.id == attachment_id and attachment.type == 'binary' and not attachment.url,
+        )
+
+    @api.model
     def _webvue_channel_attachments(self, channel):
         messages = self.env['mail.message'].search(self._webvue_comment_domain([channel.id]))
         return messages.attachment_ids.filtered(

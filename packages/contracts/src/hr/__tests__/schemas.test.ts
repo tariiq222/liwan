@@ -51,6 +51,7 @@ const ATTACHMENT = {
   name: 'policy.pdf',
   mimetype: 'application/pdf',
   file_size: 2048,
+  url: '/api/v1/hr/documents/21/attachments/3/download',
 }
 
 const DOCUMENT = {

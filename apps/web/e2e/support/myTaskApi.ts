@@ -80,7 +80,8 @@ export async function fakeApi(page: Page, options: { convertHref?: string; write
     }
     if (action === 'attachments' && method === 'GET') return reply(route, 200, ENVELOPE(attachments))
     if (action === 'attachments' && method === 'POST') {
-      const row = { id: nextId++, name: body.name, mimetype: body.mimetype ?? 'text/plain', url: `/web/content/${nextId}?download=true` }
+      const id = nextId++
+      const row = { id, name: body.name, mimetype: body.mimetype ?? 'text/plain', url: `/api/v1/my-tasks/${task.id}/attachments/${id}/download` }
       attachments.push(row)
       task.attachment_count = attachments.length
       return reply(route, 201, row)

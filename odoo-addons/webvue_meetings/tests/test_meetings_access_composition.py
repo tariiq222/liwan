@@ -21,7 +21,7 @@ ACL = {
 }
 
 
-@tagged('webvue', 'webvue_access')
+@tagged('post_install', '-at_install', 'webvue', 'webvue_access')
 class TestMeetingsAccessComposition(TransactionCase):
     """webvue_meetings owns the three meetings.* capabilities, their groups and
     record rules (spec R2); it runs at install, so it also proves the hooks

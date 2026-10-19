@@ -91,7 +91,7 @@ class RuntimeTests(unittest.TestCase):
                        'tenants': {'tenant_a': {**self.binding, 'host': 'tenant.example',
                            'roles': {'blue': 'runtime_blue', 'green': 'runtime_green'},
                            'probeSessionFile': str(self.root / 'session'),
-                           'attachmentProbe':{'httpPath':'/web/content/11','relativePath':'attachment','sha256':hashlib.sha256(b'existing-tenant-data').hexdigest()},
+                           'attachmentProbe':{'httpPath':'/api/v1/tasks/5/attachments/11/download','relativePath':'attachment','sha256':hashlib.sha256(b'existing-tenant-data').hexdigest()},
                            'filestorePath': str(self.root / 'filestore'),
                            'sessionPath': str(self.root / 'sessions'), 'migration': {}}}}
         for directory, filename in [('filestore', 'attachment'), ('sessions', 'existing_session')]:
@@ -114,7 +114,7 @@ class RuntimeTests(unittest.TestCase):
                 return asset_status, b'export const release = "r2";'
             if path.startswith('/_i18n/'):
                 return 200, {'messages':'verified'}
-            if path == '/web/content/11':
+            if path == '/api/v1/tasks/5/attachments/11/download':
                 return 200,attachment
             if path == '/api/v1/me':
                 if headers.get('Cookie') != 'session_id=existing_session' or headers.get('Host') != self.binding['database']:
@@ -139,7 +139,7 @@ class RuntimeTests(unittest.TestCase):
             result = self.verify_target()
         self.assertTrue(result['ready'])
         self.assertEqual(inspected, [('green', 'r2')])
-        self.assertEqual([path for path, _ in requests], ['/_webvue/release-readiness', '/_nuxt/app.js', '/_i18n/1234abcd/ar/messages.json','/_i18n/1234abcd/en/messages.json','/api/v1/me','/web/content/11'])
+        self.assertEqual([path for path, _ in requests], ['/_webvue/release-readiness', '/_nuxt/app.js', '/_i18n/1234abcd/ar/messages.json','/_i18n/1234abcd/en/messages.json','/api/v1/me','/api/v1/tasks/5/attachments/11/download'])
         self.assertEqual((self.root / 'filestore' / 'attachment').read_bytes(), b'existing-tenant-data')
 
     def test_running_container_does_not_mask_502_missing_chunk_stale_identity_or_session(self):

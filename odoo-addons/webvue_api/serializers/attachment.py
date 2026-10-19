@@ -25,13 +25,22 @@ GENERIC_MIMETYPE = 'application/octet-stream'
 UPLOAD_FIELDS = frozenset({'name', 'mimetype', 'data'})
 
 
-def dump_attachment(attachment):
-    """Return the intentionally small wire shape for one attachment."""
+def attachment_download_url(route, attachment):
+    """The capability-checked download route of ``attachment`` under its owner's attachment ``route``."""
+    return f'{route}/{attachment.id}/download'
+
+
+def dump_attachment(attachment, route):
+    """Return the intentionally small wire shape for one attachment.
+
+    ``route`` is the owning record's attachment collection path, for example
+    ``/api/v1/tasks/7/attachments``; the owner serves ``<route>/<id>/download``.
+    """
     return {
         'id': attachment.id,
         'name': attachment.name,
         'mimetype': attachment.mimetype or '',
-        'url': f'/web/content/{attachment.id}?download=true',
+        'url': attachment_download_url(route, attachment),
     }
 
 

@@ -121,16 +121,16 @@ project = env["project.project"].create({"name": f"PROJECT_{marker}"})  # noqa: 
 task = env["project.task"].create({"name": f"TASK_{marker}", "project_id": project.id, "user_ids": [(6, 0, [user.id])]})  # noqa: F821
 attachment = env["ir.attachment"].create({"name": f"content-{marker}.bin", "res_model": "project.task", "res_id": task.id, "datas": base64.b64encode(f"CONTENT_{marker}".encode())})  # noqa: F821
 env.cr.commit()  # noqa: F821
-print("SEED_OK", project.id, attachment.id)  # noqa: T201
+print("SEED_OK", task.id, project.id, attachment.id)  # noqa: T201
 `
   const { out } = await run([join(ODOO_ROOT, '.venv/bin/python'), join(ODOO_ROOT, 'odoo-bin'), 'shell',
     '--db_host', PG_HOST, '--db_user', PG_USER, '--db_password', PG_PASSWORD,
     '--addons-path', addonsPath(),
     '--data-dir', dataDir, '-d', tenant.database, '--no-http', '--log-level=warn'],
     { env: { ...process.env, PGPASSWORD: PG_PASSWORD }, input: seed, cwd: root })
-  const match = out.match(/SEED_OK (\d+) (\d+)/)
+  const match = out.match(/SEED_OK (\d+) (\d+) (\d+)/)
   if (!match) throw new Error(`seed did not report ids for ${tenant.tenantId}: ${out.slice(-2000)}`)
-  return { projectId: Number(match[1]), attachmentId: Number(match[2]) }
+  return { taskId: Number(match[1]), projectId: Number(match[2]), attachmentId: Number(match[3]) }
 }
 
 test('real-Odoo ten-tenant isolation matrix: dbfilter-selected live Odoo behind the real guard', { timeout: 20 * 60 * 1000 }, async (t) => {
@@ -286,7 +286,7 @@ test('real-Odoo ten-tenant isolation matrix: dbfilter-selected live Odoo behind 
     const r1 = await call('GET', `/api/v1/projects/${aIds.projectId}`, { host: b.host, cookie: cookies.get(b.tenantId) })
     const leaked1 = r1.status === 200 && r1.text.includes(a.marker)
     objectCrossings.push({ surface: 'project', a: a.tenantId, b: b.tenantId, status: r1.status, leaked: leaked1, servedOwn: r1.status === 200 && r1.text.includes(b.marker) })
-    const r2 = await call('GET', `/web/content/${aIds.attachmentId}`, { host: b.host, cookie: cookies.get(b.tenantId) })
+    const r2 = await call('GET', `/api/v1/tasks/${aIds.taskId}/attachments/${aIds.attachmentId}/download`, { host: b.host, cookie: cookies.get(b.tenantId) })
     const leaked2 = r2.status === 200 && r2.text.includes(a.marker)
     objectCrossings.push({ surface: 'content', a: a.tenantId, b: b.tenantId, status: r2.status, leaked: leaked2, servedOwn: r2.status === 200 && r2.text.includes(b.marker) })
   }
@@ -299,7 +299,7 @@ test('real-Odoo ten-tenant isolation matrix: dbfilter-selected live Odoo behind 
   // Own objects still resolve (content route is Odoo-ACL gated, not guard-gated).
   for (const tenant of tenants) {
     const ids = seeded.get(tenant.tenantId)
-    const r = await call('GET', `/web/content/${ids.attachmentId}`, { host: tenant.host, cookie: cookies.get(tenant.tenantId) })
+    const r = await call('GET', `/api/v1/tasks/${ids.taskId}/attachments/${ids.attachmentId}/download`, { host: tenant.host, cookie: cookies.get(tenant.tenantId) })
     assert.equal(r.status, 200, `own attachment failed to resolve for ${tenant.tenantId}: ${r.text.slice(0, 200)}`)
     assert.ok(r.text.includes(tenant.marker))
   }

@@ -63,6 +63,17 @@ class TestMeetingsApi(WebVueMeetingsCase):
         self.assertEqual(set(item), {'id', 'name', 'mimetype', 'url'})
         self.assertEqual((item['name'], item['mimetype']), ('notes.txt', 'text/plain'))
         self.assertEqual(self.api('GET', url).json(), {'items': [item], 'total': 1})
+        self.assertEqual(item['url'], f"{url}/{item['id']}/download")
+        download = self.api('GET', item['url'])
+        self.assertEqual((download.status_code, download.content), (200, b'meeting notes'))
+        self.assertEqual(self.api('GET', f'{url}/{item["id"] + 999}/download').status_code, 404)
+        other = self.env['webvue.meeting.minute'].create({
+            'state': 'draft', 'name': 'Other meeting', 'organizer_id': self.employee.id,
+        })
+        other_file = self.api('POST', f'/api/v1/meetings/{other.id}/attachments', {
+            'name': 'other.txt', 'mimetype': 'text/plain', 'data': base64.b64encode(b'other notes').decode(),
+        }).json()
+        self.assertEqual(self.api('GET', f'{url}/{other_file["id"]}/download').status_code, 404)
         rejected = self.api('POST', url, {'name': 'x.gif', 'data': base64.b64encode(b'GIF89a' + bytes(10)).decode()})
         self.assertEqual(rejected.status_code, 422)
         self.assertEqual(rejected.json()['field'], 'data')

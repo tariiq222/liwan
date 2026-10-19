@@ -7,6 +7,7 @@ from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from .common import WebVuePmoCase
+from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 PDF = b'%PDF-1.7\nattachment fixture\n'
 PNG = b'\x89PNG\r\n\x1a\n' + b'png fixture'
@@ -38,7 +39,7 @@ class TestTaskAttachments(WebVuePmoCase):
         item = response.json()
         self.assertEqual(set(item), {'id', 'name', 'mimetype', 'url'})
         self.assertEqual(item['mimetype'], 'text/plain')
-        self.assertEqual(item['url'], f"/web/content/{item['id']}?download=true")
+        self.assertEqual(item['url'], f"/api/v1/tasks/{self.task_overdue.id}/attachments/{item['id']}/download")
         listing = self.api('GET', f'/api/v1/tasks/{self.task_overdue.id}/attachments')
         self.assertEqual(listing.status_code, 200)
         self.assertEqual(listing.json(), {'items': [item], 'total': 1})
@@ -140,8 +141,7 @@ class TestTaskAttachments(WebVuePmoCase):
         self.assertEqual(download.status_code, 200)
         self.assertEqual(download.content, b'revocable bytes')
 
-        # Removing the only task access grant must also invalidate the stock
-        # /web/content authorization for an already-issued URL.
+        # Removing the only task access grant must also invalidate an already-issued URL.
         manager_task = self.env['project.task'].with_user(self.manager).browse(task.id)
         manager_task.write({'user_ids': [(3, self.employee.id)]})
         manager_task.message_unsubscribe(partner_ids=[self.employee.partner_id.id])
@@ -149,19 +149,16 @@ class TestTaskAttachments(WebVuePmoCase):
         employee_task = self.env['project.task'].with_user(self.employee).browse(task.id)
         self.assertFalse(employee_task.has_access('read'))
         revoked = self.api('GET', item['url'])
-        # Stock /web/content answers 404: the comodel task rules make
-        # ir.attachment._check_access deny the read and /web/content converts
-        # the AccessError into 404, unlike /api/v1 which answers 403 forbidden.
-        self.assertEqual(revoked.status_code, 404)
+        self.assertEqual(revoked.status_code, 403)
         self.assertNotEqual(revoked.content, b'revocable bytes')
 
-    def _assert_capability_revocation_blocks_attachment(self, record, api_path, capability):
+    def _assert_capability_revocation_blocks_attachment(self, record, api_path, capability, url_path):
         content = b'private capability-protected attachment'
         attachment = self.env['ir.attachment'].create({
             'name': 'capability-private.txt', 'raw': content, 'mimetype': 'text/plain',
             'res_model': record._name, 'res_id': record.id, 'public': False,
         })
-        url = f'/web/content/{attachment.id}?download=true'
+        url = url_path(attachment)
         self.authenticate('api_emp', 'api_emp_pass_123')
         self.assertEqual(self.api('GET', api_path).status_code, 200)
         allowed = self.api('GET', url)
@@ -190,7 +187,7 @@ class TestTaskAttachments(WebVuePmoCase):
         self.assertEqual(self.api('GET', api_path).status_code, 403)
 
         denied = self.api('GET', url)
-        self.assertEqual(denied.status_code, 404)
+        self.assertEqual(denied.status_code, 403)
         self.assertNotEqual(denied.content, content)
         self.assertFalse(actor_record.has_access('read'))
         self.assertFalse(actor_record._filtered_access('read'))
@@ -212,12 +209,34 @@ class TestTaskAttachments(WebVuePmoCase):
     def test_capability_revocation_blocks_task_attachment_with_stock_read_access(self):
         self._assert_capability_revocation_blocks_attachment(
             self.task_overdue, f'/api/v1/tasks/{self.task_overdue.id}', 'pmo.tasks.read',
+            lambda attachment: f'/api/v1/tasks/{self.task_overdue.id}/attachments/{attachment.id}/download',
         )
 
-    def test_capability_revocation_blocks_project_attachment_with_stock_read_access(self):
-        self._assert_capability_revocation_blocks_attachment(
-            self.project, f'/api/v1/projects/{self.project.id}', 'pmo.projects.read',
-        )
+    def test_suspended_tenant_hides_the_download(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        item = self._upload(content=b'suspend bytes').json()
+        self.assertEqual(self.api('GET', item['url']).content, b'suspend bytes')
+        profile = self.env.ref('webvue_platform.tenant_profile').with_context(**{OPERATOR_CONTEXT: True})
+        profile.write({'status': 'suspended'})
+        hidden = self.api('GET', item['url'])
+        self.assertEqual((hidden.status_code, hidden.json()['code']), (403, 'tenant_suspended'))
+        self.assertNotEqual(hidden.content, b'suspend bytes')
+
+    def test_download_serves_only_attachments_linked_to_that_task(self):
+        foreign = self.env['ir.attachment'].create({
+            'name': 'foreign.txt', 'raw': b'foreign bytes', 'mimetype': 'text/plain',
+            'res_model': 'project.project', 'res_id': self.project.id,
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        own = self._upload().json()
+        other_task = self._upload(task=self.task_other).json()
+        for attachment_id in (foreign.id, other_task['id']):
+            response = self.api('GET', f'/api/v1/tasks/{self.task_overdue.id}/attachments/{attachment_id}/download')
+            self.assertEqual((response.status_code, response.json()['code']), (404, 'not_found'))
+        ok = self.api('GET', own['url'])
+        self.assertEqual((ok.status_code, ok.content), (200, b'hello attachment'))
+        self.assertRegex(ok.headers['Content-Disposition'], r'^attachment;.*brief\.txt')
+        self.assertEqual(ok.headers['X-Content-Type-Options'], 'nosniff')
 
     def test_capability_denial_filters_mixed_stock_visibility(self):
         private = self.env['project.project'].create({
