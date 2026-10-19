@@ -6,7 +6,7 @@ from odoo.tests import TransactionCase, new_test_user, tagged
 from odoo.tools import mute_logger
 
 
-@tagged('webvue')
+@tagged('post_install', '-at_install', 'webvue')
 class TestHrDocumentAcl(TransactionCase):
 
     @classmethod
