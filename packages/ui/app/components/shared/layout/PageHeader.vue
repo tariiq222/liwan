@@ -36,6 +36,17 @@ const chip = computed(() => {
   const icon = props.icon ?? pageAccent.value?.icon
   return icon ? { icon, accent: pageAccent.value?.accent ?? 'slate' } : null
 })
+// The application's hue, set on the card so the chip and the untoned tags share it.
+const chipStyle = computed(() => chip.value
+  ? { '--chip-bg': `var(--accent-${chip.value.accent}-bg)`, '--chip-fg': `var(--accent-${chip.value.accent}-fg)` }
+  : undefined)
+// A tag with a tone is a state and keeps its status colour; a plain fact (owner, project, count) takes the
+// application's hue, so the heading carries colour without inventing meanings.
+function tagLook(tag: PageHeaderTag) {
+  if (tag.tone) return { color: tag.tone, variant: 'subtle' as const }
+  if (chip.value) return { color: 'neutral' as const, variant: 'soft' as const, class: 'bg-(--chip-bg) text-(--chip-fg)' }
+  return { color: 'neutral' as const, variant: 'subtle' as const }
+}
 // Inside the project workspace the frame is already the page's <h1>.
 const frameOwnsHeading = useFrameOwnsHeading()
 // The frame's own band is the sticky element there, so this header never claims a second sticky slot.
@@ -50,11 +61,16 @@ interface HeaderTrailStep { label: string; to?: RouteLocationRaw }
 const publishedTrail = usePageTrail()
 const route = useRoute()
 const trail = computed<HeaderTrailStep[]>(() => {
-  // The title states the current page, and a step that links to the page the reader is already on
-  // says nothing: both go, so a top-level page ends up with no trail at all instead of a self-link.
-  const ancestors: HeaderTrailStep[] = publishedTrail.value
-    .filter(crumb => crumb.label !== props.title && crumb.to !== route.path)
-    .map(crumb => ({ label: crumb.label, to: crumb.to }))
+  // The title states the current page, so a step with its name goes; a step that points at the page the
+  // reader is on stays as plain text. A page with no ancestor still starts with its application, so every
+  // header shows where it sits.
+  const published: HeaderTrailStep[] = publishedTrail.value
+    .filter(crumb => crumb.label !== props.title)
+    .map(crumb => ({ label: crumb.label, to: crumb.to === route.path ? undefined : crumb.to }))
+  const app = pageAccent.value
+  const ancestors = published.length || !app?.label || app.label === props.title
+    ? published
+    : [{ label: app.label, to: app.to === route.path ? undefined : app.to }]
   if (!props.backTo) return ancestors
   const back: HeaderTrailStep = { label: props.backLabel || t('app.back'), to: props.backTo }
   const nearest = ancestors.at(-1)
@@ -68,31 +84,31 @@ const trail = computed<HeaderTrailStep[]>(() => {
     data-slot="page-header"
     data-empty="false"
     :data-sticky="stickyHead ? 'true' : undefined"
-    class="flex flex-wrap items-center gap-x-3 gap-y-2"
-    :class="{ 'rounded-card bg-default px-(--webvue-subcard-pad) py-2 ring ring-default': !props.hideTitle }"
+    class="flex flex-wrap items-center gap-x-3.5 gap-y-2"
+    :style="chipStyle"
+    :class="{ 'rounded-card bg-default px-4 py-3 ring ring-default': !props.hideTitle }"
   >
     <template v-if="!props.hideTitle">
       <span
         v-if="chip"
         data-slot="page-header-chip"
         aria-hidden="true"
-        class="grid size-(--webvue-control-h) shrink-0 place-items-center rounded-control bg-(--chip-bg) text-(--chip-fg)"
-        :style="{ '--chip-bg': `var(--accent-${chip.accent}-bg)`, '--chip-fg': `var(--accent-${chip.accent}-fg)` }"
-      ><UIcon :name="chip.icon" class="size-4.5" /></span>
+        class="grid size-10 shrink-0 place-items-center rounded-control bg-(--chip-bg) text-(--chip-fg)"
+      ><UIcon :name="chip.icon" class="size-5" /></span>
       <div class="min-w-0 flex-1 basis-40">
         <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <h2 v-if="frameOwnsHeading" class="min-w-0 text-lg/6 font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h2>
-          <h1 v-else class="min-w-0 text-lg/6 font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h1>
+          <h2 v-if="frameOwnsHeading" class="min-w-0 text-lg/7 font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h2>
+          <h1 v-else class="min-w-0 text-lg/7 font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h1>
           <slot name="tags">
             <template v-for="tag in props.tags" :key="tag.label">
               <NuxtLink v-if="tag.to" :to="tag.to" class="rounded-full focus-visible:ring-2 focus-visible:ring-primary">
-                <UBadge :color="tag.tone ?? 'neutral'" variant="subtle" size="sm" :icon="tag.icon" :data-testid="tag.testId">{{ tag.label }}</UBadge>
+                <UBadge v-bind="tagLook(tag)" size="md" :icon="tag.icon" :data-testid="tag.testId">{{ tag.label }}</UBadge>
               </NuxtLink>
-              <UBadge v-else :color="tag.tone ?? 'neutral'" variant="subtle" size="sm" :icon="tag.icon" :data-testid="tag.testId">{{ tag.label }}</UBadge>
+              <UBadge v-else v-bind="tagLook(tag)" size="md" :icon="tag.icon" :data-testid="tag.testId">{{ tag.label }}</UBadge>
             </template>
           </slot>
         </div>
-        <div v-if="trail.length || $slots.back || props.description" class="flex min-w-0 items-center gap-x-2 text-xs/5 text-muted">
+        <div v-if="trail.length || $slots.back || props.description" class="mt-0.5 flex min-w-0 items-center gap-x-2 text-xs/5 text-muted">
           <nav v-if="trail.length || $slots.back" data-testid="page-header-trail" :aria-label="$t('nav.breadcrumb')" class="flex shrink-0 items-center gap-1.5">
             <slot name="back">
               <template v-for="(step, index) in trail" :key="step.label">

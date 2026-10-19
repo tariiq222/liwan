@@ -3,11 +3,12 @@ import { computed, inject, provide, readonly, ref, toValue, type InjectionKey, t
 import type { AccentName } from '../types/shell'
 
 /*
- * The application behind the current page: the shell publishes its icon and hue and the page header
- * draws them as the chip before the title, so no page repeats them. Outside a shell nothing is published.
+ * The application behind the current page: the shell publishes its icon, hue, name and landing page; the page
+ * header draws the chip before the title and starts the trail with the application, so no page repeats them. Outside a shell nothing is published.
  */
 
-export interface PageAccent { icon: string; accent: AccentName }
+/** `label` and `to` name the application and its landing page: the first step of the header trail. */
+export interface PageAccent { icon: string; accent: AccentName; label?: string; to?: string }
 
 const PAGE_ACCENT: InjectionKey<Readonly<Ref<PageAccent | null>>> = Symbol('webvue-page-accent')
 const NO_ACCENT: Readonly<Ref<PageAccent | null>> = readonly(ref<PageAccent | null>(null))

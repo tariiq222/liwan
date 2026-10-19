@@ -21,7 +21,8 @@ providePageTrail(trail)
 // no application owns (account, search) gets the neutral slate chip with a generic icon.
 providePageAccent(() => {
   const owner = rail.value.all.find(item => item.id === activeModule.value)
-  return { icon: owner?.icon ?? 'i-lucide-layout-grid', accent: owner?.accent ?? 'slate' }
+  if (!owner) return { icon: 'i-lucide-layout-grid', accent: 'slate' }
+  return { icon: owner.icon, accent: owner.accent ?? 'slate', label: t(owner.labelKey), to: owner.to }
 })
 const workspaceTheme = computed(() => !pageArea(route.path).plain)
 const noSidebar = computed(() => hasNoContextSidebar(route.path))
