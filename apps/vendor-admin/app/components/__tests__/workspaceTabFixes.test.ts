@@ -7,7 +7,7 @@ import { sharedTenantLoginUrl } from '../../composables/useSharedTenantOnboardin
 import * as subscriptions from '../../utils/vendorSubscriptions'
 import { customerDisplayBadge, operationStatusBadge } from '../../utils/vendorBadges'
 import { buildVendorPolicy } from '../../utils/vendorPolicy'
-import { loadSfc, stripImports } from './sfc'
+import { loadSfc, stripImports, vueApi } from './sfc'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import ts from 'typescript'
@@ -50,7 +50,7 @@ describe('provisioning poll', () => {
     const refresh = vi.fn(async () => {})
     const data = Vue.ref({ tenant_id: 't', job_id: 'j', status: 'provisioning', host: null, admin_login: null, stage: 'verifying', error_code: null })
     const source = stripImports(readFileSync(resolve(import.meta.dirname, '../../composables/useWorkspaceProvisioning.ts'), 'utf8')).replace('export function', 'function').replace('export type WorkspaceProvisioning = ReturnType<typeof useWorkspaceProvisioning>', '')
-    const bindings = { ...Vue, toValue: Vue.toValue, sharedTenantLoginUrl, useVendorApi: () => ({ request: vi.fn() }), useVendorContext: () => ({ sharedOnboardingEnabled: Vue.ref(true) }), useAsyncData: () => ({ data, error: Vue.ref(null), pending: Vue.ref(false), refresh }), onMounted: (fn: () => void) => fn(), onBeforeUnmount: () => {} }
+    const bindings = { ...vueApi, toValue: Vue.toValue, sharedTenantLoginUrl, useVendorApi: () => ({ request: vi.fn() }), useVendorContext: () => ({ sharedOnboardingEnabled: Vue.ref(true) }), useAsyncData: () => ({ data, error: Vue.ref(null), pending: Vue.ref(false), refresh }), onMounted: (fn: () => void) => fn(), onBeforeUnmount: () => {} }
     const code = ts.transpileModule(`${source.replaceAll('import.meta.client', 'true')}\nreturn useWorkspaceProvisioning(id, polling)`, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
     const poll = new Function(...Object.keys(bindings), 'id', 'polling', code)(...Object.values(bindings), Vue.ref('t'), () => polling.value)
     return { poll, refresh }
