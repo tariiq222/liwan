@@ -66,7 +66,9 @@ export function requestPlan(req, registry, token, codec) {
   }
   // Company ids are scoped to the resolved database, never interpreted as tenant ids.
   // An explicit route allowlist excludes database manager, generic RPC and vendor console.
-  const odoo = favicon || avatar || logo || url.pathname.startsWith('/api/v1/') || url.pathname.startsWith('/web/content/') || url.pathname === '/websocket' || (internal && ['/web/session/authenticate', '/web/session/destroy'].includes(url.pathname))
+  // wkhtmltopdf fetches the stateless QR/barcode image through the public host while it renders a report.
+  const barcode = ['GET', 'HEAD'].includes(req.method ?? 'GET') && /^\/report\/barcode\/?$/.test(url.pathname)
+  const odoo = favicon || avatar || logo || barcode || url.pathname.startsWith('/api/v1/') || url.pathname.startsWith('/web/content/') || url.pathname === '/websocket' || (internal && ['/web/session/authenticate', '/web/session/destroy'].includes(url.pathname))
   if (!odoo && /^(\/web(?:\/|$)|\/odoo|\/jsonrpc|\/xmlrpc|\/json\/|\/report|\/bus|\/mail|\/discuss|\/website|\/base_setup)/.test(url.pathname)) throw Error('forbidden_route')
   const headers = { ...req.headers }
   for (const key of Object.keys(headers)) if (forbidden.test(key) && (odoo || !browserHeaders.has(key))) delete headers[key]

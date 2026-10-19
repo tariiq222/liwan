@@ -3,7 +3,7 @@
 {$DOMAIN} {
 	encode zstd gzip
 
-	@odoo path /api/v1/* /web/* /odoo/* /website/translations /base_setup/* /bus/* /json/* /doc/* */static/* /report/* /mail/* /discuss/*
+	@odoo path /api/v1/* /web/* /report/barcode*
 
 	route {
 		rate_limit {
@@ -29,7 +29,7 @@
 			}
 			zone webvue_odoo {
 				match {
-					path /web/* /odoo/* /website/translations /base_setup/* /bus/* /json/* /doc/* */static/* /report/* /mail/* /discuss/*
+					path /web/* /report/barcode*
 					not path /web/session/* /web/login /web/login/* /web/health
 				}
 				match {
@@ -42,7 +42,7 @@
 			}
 			zone webvue_web {
 				match {
-					not path /api/auth/* /api/v1/* /web/* /odoo/* /website/translations /base_setup/* /bus/* /json/* /doc/* */static/* /report/* /mail/* /discuss/* /websocket*
+					not path /api/auth/* /api/v1/* /web/* /report/barcode* /websocket*
 				}
 				key {remote_host}
 				events 600

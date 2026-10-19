@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
 from odoo.tests import HttpCase, get_db_name, new_test_user, tagged
 
@@ -100,7 +101,7 @@ class TestSessionOdooSurface(HttpCase):
         self.authenticate('surface_emp', 'surface_emp_pass_123')
         company = self.env.company
         allowed = (
-            f'/web/image/res.company/{company.id}/logo/32x32',
+            f'/web/image/res.company/{company.id}/logo/32x32?v=0-0123456789ab',
             '/web/binary/company_logo',
         )
         for path in allowed:
@@ -115,6 +116,54 @@ class TestSessionOdooSurface(HttpCase):
         for path in blocked:
             with self.subTest(path=path):
                 self.assertEqual(self.url_open(path).status_code, 404)
+
+    def test_attachment_download_rejects_field_selecting_query_keys(self):
+        self.authenticate('surface_emp', 'surface_emp_pass_123')
+        base = f'/web/content/{self.attachment.id}'
+        self.assertEqual(self.url_open(f'{base}?unique=1').status_code, 200)
+        for query in ('model=hr.employee&field=image_1920', 'filename_field=name', 'mimetype=text/html'):
+            with self.subTest(query=query):
+                self.assertEqual(self.url_open(f'{base}?{query}').status_code, 404)
+
+    def test_image_routes_reject_unexpected_query_strings(self):
+        self.authenticate('surface_emp', 'surface_emp_pass_123')
+        favicon = f'/web/image/res.company/{self.env.company.id}/logo/32x32'
+        version = '0-0123456789ab'
+        self.assertEqual(self.url_open(f'{favicon}?v={version}').status_code, 200)
+        for query in ('', '?v=first', f'?v={version}&width=64', '?download=true'):
+            with self.subTest(query=query):
+                self.assertEqual(self.url_open(f'{favicon}{query}').status_code, 404)
+        self.assertEqual(self.url_open('/web/image/hr.employee/1/avatar_128?x=1').status_code, 404)
+
+    @patch('odoo.addons.base.models.ir_actions_report.IrActionsReport.barcode', return_value=b'png')
+    def test_report_barcode_is_open_for_wkhtmltopdf(self, _barcode):
+        # The image backend of reportlab is not part of every test host; the route itself is stock.
+        qr = '/report/barcode/?barcode_type=QR&value=surface&width=64&height=64'
+        anonymous = self.url_open(qr)
+        self.assertEqual(anonymous.status_code, 200)
+        self.authenticate('surface_emp', 'surface_emp_pass_123')
+        signed_in = self.url_open(qr)
+        self.assertEqual(signed_in.status_code, 200)
+        self.assertEqual(self.url_open('/report/barcode?barcode_type=QR&value=surface').status_code, 200)
+        self.assertEqual(self.url_open('/report/barcode/QR/surface').status_code, 404)
+
+    def test_anonymous_requests_reach_only_what_the_login_needs(self):
+        self.opener.cookies.clear()
+        for path in ('/web/health', '/web/binary/company_logo', '/api/v1/branding'):
+            with self.subTest(path=path):
+                self.assertEqual(self.url_open(path).status_code, 200)
+        closed = (
+            '/web/login', '/web/signup', '/web/reset_password', '/odoo', '/mail/view', '/discuss/channel/1',
+            '/chat/token', '/meet/token', '/web/webclient/translations', '/web/bundle/web.assets_web',
+            '/web/set_profiling', '/rate/token/1', '/dashboard/share/x', f'/web/content/{self.attachment.id}',
+        )
+        for path in closed:
+            with self.subTest(path=path):
+                self.assertEqual(self.url_open(path).status_code, 404)
+        login = self._rpc('/web/session/authenticate', {
+            'db': get_db_name(), 'login': 'surface_emp', 'password': 'surface_emp_pass_123',
+        })
+        self.assertEqual(login.json()['result']['uid'], self.user.id)
 
     def test_attachment_download_by_id_still_works(self):
         self.authenticate('surface_emp', 'surface_emp_pass_123')

@@ -66,7 +66,7 @@ class ManagedLocalTests(unittest.TestCase):
         self.assertEqual(outputs["client_alpha/ORIGIN.txt"], "http://localhost:19110\n")
         self.assertEqual(outputs["client_bravo/ORIGIN.txt"], "http://127.0.0.1:19111\n")
         caddy = outputs["client_alpha/Caddyfile"]
-        self.assertIn("/web/content/*", caddy)
+        self.assertIn("/web/*", caddy)
         self.assertIn("reverse_proxy odoo:8069", caddy)
         self.assertIn("handle /websocket*", caddy)
         self.assertIn("reverse_proxy odoo:8072", caddy)

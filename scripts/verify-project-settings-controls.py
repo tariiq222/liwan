@@ -19,7 +19,6 @@ import threading
 import time
 import urllib.error
 import urllib.request
-import xmlrpc.client
 from datetime import datetime
 from pathlib import Path
 
@@ -204,18 +203,41 @@ def _shell_cmd_for(ctx: dict, database: str, worktree_addons: str) -> list[str]:
     )
 
 
-def _xmlrpc(url: str, database: str, login: str, password: str):
-    common = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/common', allow_none=True)
-    uid = common.authenticate(database, login, password, {})
-    if not uid:
-        message = 'xmlrpc authenticate failed'
-        raise RuntimeError(message)
-    models = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/2/object', allow_none=True)
-    return uid, models
+KW_RUNNER = (
+    'import json, os\n'
+    'from odoo.service.model import call_kw\n'
+    'model, method, args, kwargs = json.loads(os.environ["WEBVUE_KW"])\n'
+    'result = call_kw(env(user=env.ref("base.user_admin").id)[model], method, args, kwargs)\n'
+    'env.cr.commit()\n'
+    'print("KW_RESULT=" + json.dumps(result, default=str))\n'
+)
 
 
-def _kw(models, database, uid, password, model, method, args, kwargs=None):
-    return models.execute_kw(database, uid, password, model, method, args, kwargs or {})
+class ShellModels:
+    """Admin ORM calls through ``odoo shell``: Odoo's generic RPC endpoints are closed."""
+
+    def __init__(self, ctx: dict, database: str):
+        self.cmd = _shell_cmd_for(ctx, database, ctx['addons_path'])
+        self.cwd = str(Path(ctx['odoo_bin']).resolve().parent)
+
+    def call(self, model: str, method: str, args: list, kwargs: dict | None = None):
+        env = {**os.environ, 'WEBVUE_KW': json.dumps([model, method, args, kwargs or {}])}
+        ran = subprocess.run(self.cmd, cwd=self.cwd, input=KW_RUNNER, env=env, check=False,
+                             timeout=120, capture_output=True, text=True)
+        line = next((row for row in (ran.stdout or '').splitlines() if row.startswith('KW_RESULT=')), None)
+        if ran.returncode or line is None:
+            message = f'{model}.{method} failed: {(ran.stderr or ran.stdout or "")[-500:]}'
+            raise RuntimeError(message)
+        return json.loads(line.removeprefix('KW_RESULT='))
+
+
+def _shell_models(ctx: dict, database: str):
+    models = ShellModels(ctx, database)
+    return models.call('res.users', 'search', [[['login', '=', 'admin']]], {'limit': 1})[0], models
+
+
+def _kw(models, model, method, args, kwargs=None):
+    return models.call(model, method, args, kwargs)
 
 
 class JsonSession:
@@ -272,8 +294,8 @@ def _wait_http(url: str, database: str, timeout: int = 90) -> bool:
     return False
 
 
-def _require_pending(models, database, uid, password, task_id: int) -> str | None:
-    row = _kw(models, database, uid, password, 'project.task', 'read', [[task_id], [
+def _require_pending(models, task_id: int) -> str | None:
+    row = _kw(models, 'project.task', 'read', [[task_id], [
         'webvue_completion_pending', 'webvue_completion_revision', 'state',
     ]])[0]
     if not row['webvue_completion_pending'] or row['state'] in ('1_done', '1_canceled'):
@@ -329,12 +351,12 @@ def _race(ctx: dict, database: str, port: int, run_dir: Path) -> int:
         return _fail(started)
     server = started
     try:
-        uid, models = _xmlrpc(url, database, 'admin', 'admin')
+        uid, models = _shell_models(ctx, database)
         password = 'admin'
-        company = _kw(models, database, uid, password, 'res.company', 'search', [[]], {'limit': 1})[0]
+        company = _kw(models, 'res.company', 'search', [[]], {'limit': 1})[0]
         admin_id = uid
         api = JsonSession(url, database, 'admin', password)
-        project = _kw(models, database, uid, password, 'project.project', 'create', [{
+        project = _kw(models, 'project.project', 'create', [{
             'name': f'Race project {run_dir.name}', 'user_id': admin_id,
             'webvue_completion_approval': 'project_manager',
             'date': '2035-12-31', 'company_id': company,
@@ -346,17 +368,16 @@ def _race(ctx: dict, database: str, port: int, run_dir: Path) -> int:
             })
             if patch[0] >= 400:
                 return f'reset policy failed: {patch}'
-            task_id = _kw(models, database, uid, password, 'project.task', 'create', [{
+            task_id = _kw(models, 'project.task', 'create', [{
                 'name': name, 'project_id': project, 'user_ids': [(4, admin_id)],
             }])
             status, body = api.call('POST', f'/api/v1/tasks/{task_id}/completion/request', {})
             if status >= 400:
                 return f'request failed for {name}: {status} {body}'
-            err = _require_pending(models, database, uid, password, task_id)
+            err = _require_pending(models, task_id)
             if err:
                 return err
-            revision = body.get('completion_revision') or _kw(
-                models, database, uid, password, 'project.task', 'read',
+            revision = body.get('completion_revision') or _kw(models, 'project.task', 'read',
                 [[task_id], ['webvue_completion_revision']],
             )[0]['webvue_completion_revision']
             return task_id, int(revision)
@@ -394,7 +415,7 @@ def _race(ctx: dict, database: str, port: int, run_dir: Path) -> int:
             return _fail(f'competing accept expected 1 ok + 1 domain rejection, got {results!r}')
         if not any(token in fails[0][1] for token in ('422', '403', 'invalid')):
             return _fail(f'losing accept was not a domain rejection: {fails[0]!r}')
-        state = _kw(models, database, uid, password, 'project.task', 'read', [[task], ['state', 'webvue_completion_pending']])[0]
+        state = _kw(models, 'project.task', 'read', [[task], ['state', 'webvue_completion_pending']])[0]
         if state['state'] != '1_done' or state['webvue_completion_pending']:
             return _fail(f'final accept state unexpected: {state!r}')
 
@@ -431,7 +452,7 @@ def _race(ctx: dict, database: str, port: int, run_dir: Path) -> int:
             return _fail(hung)
         if len(policy_results) != 2 or any('server-' in item for item in policy_results):
             return _fail(f'policy race incomplete or 5xx: {policy_results!r}')
-        row = _kw(models, database, uid, password, 'project.task', 'read', [[task2], ['state', 'webvue_completion_pending', 'id']])[0]
+        row = _kw(models, 'project.task', 'read', [[task2], ['state', 'webvue_completion_pending', 'id']])[0]
         if row['id'] != task2:
             return _fail('policy/accept race crossed task ids')
         legal = (
@@ -467,13 +488,13 @@ def _race(ctx: dict, database: str, port: int, run_dir: Path) -> int:
         api.call('PATCH', '/api/v1/settings/projects', {
             'deadline_reminders_enabled': False, 'overdue_digest_enabled': True,
         })
-        _kw(models, database, uid, password, 'project.task', 'create', [{
+        _kw(models, 'project.task', 'create', [{
             'name': f'Race overdue {run_dir.name}', 'project_id': project, 'user_ids': [(4, admin_id)],
             'date_deadline': '2099-01-01 10:00:00',
         }])
-        partner = _kw(models, database, uid, password, 'res.users', 'read', [[admin_id], ['partner_id']])[0]['partner_id'][0]
+        partner = _kw(models, 'res.users', 'read', [[admin_id], ['partner_id']])[0]['partner_id'][0]
         expected_key = f'overdue_digest:{company}:{partner}:{DIGEST_NOW.date().isoformat()}'
-        existing = _kw(models, database, uid, password, 'mail.message', 'search_count', [[
+        existing = _kw(models, 'mail.message', 'search_count', [[
             ['webvue_notification_key', '=', expected_key],
         ]])
         if existing:
@@ -519,7 +540,7 @@ def _race(ctx: dict, database: str, port: int, run_dir: Path) -> int:
                 return _fail(f'digest worker failed {digest_out!r}')
         if any('DIGEST_WORKER_OK' not in item for item in digest_out):
             return _fail(f'digest workers missing OK {digest_out!r}')
-        messages = _kw(models, database, uid, password, 'mail.message', 'search_read', [[
+        messages = _kw(models, 'mail.message', 'search_read', [[
             ['webvue_notification_key', '=', expected_key],
         ]], {'fields': ['webvue_notification_key', 'partner_ids', 'webvue_digest_count']})
         if len(messages) != 1:
@@ -578,7 +599,7 @@ def _e2e_fixtures(ctx: dict, database: str, port: int, run_dir: Path) -> int:
         api = JsonSession(url, database, 'admin', 'admin')
     except RuntimeError as error:
         return _fail(str(error))
-    uid, models = _xmlrpc(url, database, 'admin', 'admin')
+    uid, models = _shell_models(ctx, database)
     me_status, me = api.call('GET', '/api/v1/me', None)
     if me_status >= 400:
         return _fail(f'me failed {me_status} {me}')
@@ -608,26 +629,26 @@ def _e2e_fixtures(ctx: dict, database: str, port: int, run_dir: Path) -> int:
         return _fail(f'user grant failed {mgr_user} {emp_user}')
     mgr_id = mgr_user[1]['id']
     emp_id = emp_user[1]['id']
-    project_a = _kw(models, database, uid, 'admin', 'project.project', 'create', [{
+    project_a = _kw(models, 'project.project', 'create', [{
         'name': f'PSC digest A {stamp}', 'user_id': mgr_id, 'privacy_visibility': 'employees',
         'date': '2035-12-31', 'company_id': me['company']['id'],
     }])
-    project_b = _kw(models, database, uid, 'admin', 'project.project', 'create', [{
+    project_b = _kw(models, 'project.project', 'create', [{
         'name': f'PSC digest B {stamp}', 'user_id': mgr_id, 'privacy_visibility': 'employees',
         'date': '2035-12-31', 'company_id': me['company']['id'],
     }])
     task_ids = []
     for index in range(52):
         project_id = project_a if index < 26 else project_b
-        task_ids.append(_kw(models, database, uid, 'admin', 'project.task', 'create', [{
+        task_ids.append(_kw(models, 'project.task', 'create', [{
             'name': f'PSC digest task {stamp} {index}',
             'project_id': project_id,
             'user_ids': [(4, emp_id)],
             'date_deadline': '2099-01-01 10:00:00',
         }]))
     clear_id = task_ids[0]
-    partner = _kw(models, database, uid, 'admin', 'res.users', 'read', [[mgr_id], ['partner_id']])[0]['partner_id'][0]
-    _kw(models, database, uid, 'admin', 'project.project', 'message_subscribe', [[project_b]], {'partner_ids': [partner]})
+    partner = _kw(models, 'res.users', 'read', [[mgr_id], ['partner_id']])[0]['partner_id'][0]
+    _kw(models, 'project.project', 'message_subscribe', [[project_b]], {'partner_ids': [partner]})
     api.call('PATCH', '/api/v1/settings/projects', {
         'deadline_reminders_enabled': False, 'overdue_digest_enabled': True,
     })
@@ -646,12 +667,12 @@ def _e2e_fixtures(ctx: dict, database: str, port: int, run_dir: Path) -> int:
         return _fail('digest cron seed failed')
     company = me['company']['id']
     key = f'overdue_digest:{company}:{partner}:2099-06-15'
-    messages = _kw(models, database, uid, 'admin', 'mail.message', 'search_read', [[
+    messages = _kw(models, 'mail.message', 'search_read', [[
         ['webvue_notification_key', '=', key],
     ]], {'fields': ['id']})
     if not messages:
         return _fail(f'no digest message for {key}')
-    notifs = _kw(models, database, uid, 'admin', 'mail.notification', 'search_read', [[
+    notifs = _kw(models, 'mail.notification', 'search_read', [[
         ['mail_message_id', '=', messages[0]['id']],
         ['res_partner_id', '=', partner],
     ]], {'fields': ['id']})

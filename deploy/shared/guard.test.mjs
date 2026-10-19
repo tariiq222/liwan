@@ -24,6 +24,8 @@ test('raw/tampered/expired/revoked sessions, selectors, header and route bypass 
   for (const cookie of ['session_id=raw', `session_id=${signed}x`, `session_id=${signed}; session_id=${signed}`]) assert.throws(() => requestPlan(req(0, { cookie }), registry, token, codec))
   for (const header of ['x-odoo-database', 'x-openerp-session-id', 'x-forwarded-host', 'forwarded', 'x-webvue-proxy-token']) assert.throws(() => requestPlan(req(0, { [header]: 'forged' }), registry, token, codec))
   for (const path of ['/web/database/list', '/web/session/authenticate', '/jsonrpc', '/xmlrpc/2/object', '/api/v1/me?%64b=db_1', '/websocket?session_id=raw']) assert.throws(() => requestPlan(req(0, {}, path), registry, token, codec))
+  assert.doesNotThrow(() => requestPlan(req(0, {}, '/report/barcode/?barcode_type=QR&value=x'), registry, token, codec))
+  for (const path of ['/report/barcode/QR/x', '/report/pdf/x', '/report/barcode/x/']) assert.throws(() => requestPlan(req(0, {}, path), registry, token, codec))
   assert.throws(() => codec.open(signed, { ...targets[0], registryRevision: 2 }))
   const expired = sessionCodec(keys, 'test', () => 0).seal('sid_a', targets[0])
   assert.throws(() => codec.open(expired, targets[0]))
