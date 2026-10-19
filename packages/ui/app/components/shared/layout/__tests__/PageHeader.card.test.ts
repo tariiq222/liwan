@@ -39,3 +39,23 @@ describe('SharedPageHeader card', () => {
     expect(html).toMatch(/<h1[^>]*>اجتماع<\/h1>/)
   })
 })
+
+describe('SharedPageHeader KPI toggle', () => {
+  // SharedKpiToggle is auto-imported in the app (and tested on its own); here it is a marker element.
+  const stubs = { SharedKpiToggle: Vue.defineComponent({ setup: () => () => Vue.h('i', { 'data-kpi-toggle': '' }) }) }
+  const actions = { actions: () => Vue.h('button', { id: 'act' }, 'x') }
+
+  it('draws the toggle before the actions only with kpiToggle', async () => {
+    const off = clean(await renderShared('PageHeader', { title: 'خطط' }, actions, { ...options(), stubs }))
+    expect(off).not.toContain('data-kpi-toggle')
+    const html = clean(await renderShared('PageHeader', { title: 'خطط', kpiToggle: true }, actions, { ...options(), stubs }))
+    expect(html.indexOf('data-kpi-toggle')).toBeGreaterThan(-1)
+    expect(html.indexOf('data-kpi-toggle')).toBeLessThan(html.indexOf('id="act"'))
+  })
+
+  it('keeps the toggle when the frame owns the heading (hideTitle)', async () => {
+    const html = clean(await renderShared('PageHeader', { title: 'خطط', kpiToggle: true, hideTitle: true }, {}, { ...options(), stubs }))
+    expect(html).toContain('data-kpi-toggle')
+    expect(html).not.toContain('<h1')
+  })
+})

@@ -1,4 +1,4 @@
-import { defineComponent, h } from 'vue'
+import { defineComponent, h, ref } from 'vue'
 import { describe, expect, it } from 'vitest'
 import { renderShared } from '../../../../../test/helpers/renderShared'
 
@@ -21,6 +21,8 @@ const stubs = {
     },
   }),
 }
+// The user's KPI preference (a Nuxt auto-import in the app); the page reads it only to hide its metric row.
+const withKpis = (shown: boolean) => ({ stubs, globals: { useKpiVisibility: () => ({ shown: ref(shown) }) } })
 const chart = () => h('svg', { 'data-chart': '' })
 
 describe('SharedChartPanel', () => {
@@ -95,7 +97,7 @@ describe('SharedDashboardPage', () => {
       actions: () => h('button', 'Export'),
       metrics: () => [h('div', { 'data-metric': '' }, '4'), h('div', { 'data-metric': '' }, '2')],
       default: () => h('section', { 'data-chart-panel': '' }),
-    }, { stubs })
+    }, withKpis(true))
     expect(html).toContain('data-template="dashboard-page"')
     expect(html).toContain('data-layout-width="list"')
     expect(html).toContain('<h1>Projects dashboard</h1>')
@@ -117,17 +119,17 @@ describe('SharedDashboardPage', () => {
       primary: () => h('section', { 'data-primary-block': '' }),
       metrics: () => h('div', { 'data-metric': '' }),
       default: () => h('section', { 'data-chart-panel': '' }),
-    }, { stubs })
+    }, withKpis(true))
     const order = ['<h1>', 'data-filter-bar', 'data-template="dashboard-primary"', 'data-primary-block', 'data-template="dashboard-metrics"', 'data-chart-panel']
     const positions = order.map(marker => html.indexOf(marker))
     expect(positions.every(position => position >= 0)).toBe(true)
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
-    const without = await renderShared('DashboardPage', { title: 'Overview' }, { default: () => h('section') }, { stubs })
+    const without = await renderShared('DashboardPage', { title: 'Overview' }, { default: () => h('section') }, withKpis(true))
     expect(without).not.toContain('dashboard-primary')
   })
 
   it('omits the metric row and the actions when their slots are not given', async () => {
-    const html = await renderShared('DashboardPage', { title: 'Overview' }, { default: () => h('section', { 'data-chart-panel': '' }) }, { stubs })
+    const html = await renderShared('DashboardPage', { title: 'Overview' }, { default: () => h('section', { 'data-chart-panel': '' }) }, withKpis(true))
     expect(html).not.toContain('dashboard-metrics')
     expect(html).not.toContain('data-actions')
     expect(html).toContain('data-chart-panel')
@@ -138,7 +140,7 @@ describe('SharedDashboardPage', () => {
       filters: () => h('div', { 'data-filter-bar': '' }),
       metrics: () => h('div', { 'data-metric': '' }),
       default: () => h('section', { 'data-chart-panel': '' }),
-    }, { stubs })
+    }, withKpis(true))
     const order = ['<h1>', 'data-template="dashboard-filters"', 'data-filter-bar', 'data-template="dashboard-metrics"']
     const positions = order.map(marker => html.indexOf(marker))
     expect(positions.every(position => position >= 0)).toBe(true)
@@ -146,7 +148,7 @@ describe('SharedDashboardPage', () => {
   })
 
   it('omits the filter wrapper without a filters slot', async () => {
-    const html = await renderShared('DashboardPage', { title: 'Overview' }, { default: () => h('section') }, { stubs })
+    const html = await renderShared('DashboardPage', { title: 'Overview' }, { default: () => h('section') }, withKpis(true))
     expect(html).not.toContain('dashboard-filters')
   })
 
@@ -154,10 +156,17 @@ describe('SharedDashboardPage', () => {
     const html = await renderShared('DashboardPage', { title: 'Overview', hideHeader: true }, {
       actions: () => h('button', 'Export'),
       default: () => h('section', { 'data-chart-panel': '' }),
-    }, { stubs })
+    }, withKpis(true))
     expect(html).toContain('data-hide-title')
     expect(html).not.toContain('<h1>')
     expect(html).toContain('Export')
     expect(html).toContain('data-chart-panel')
+  })
+
+  it('hides the metric row with the user\'s KPI choice only when the page marks it as its strip (kpiToggle)', async () => {
+    const slots = { metrics: () => h('div', { 'data-tile': '' }), default: () => h('section') }
+    expect(await renderShared('DashboardPage', { title: 'Overview', kpiToggle: true }, slots, withKpis(false))).not.toContain('data-tile')
+    expect(await renderShared('DashboardPage', { title: 'Overview', kpiToggle: true }, slots, withKpis(true))).toContain('data-tile')
+    expect(await renderShared('DashboardPage', { title: 'Overview' }, slots, withKpis(false))).toContain('data-tile')
   })
 })

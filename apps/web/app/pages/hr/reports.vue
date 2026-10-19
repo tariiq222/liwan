@@ -10,6 +10,7 @@ const router = useRouter()
 const { t, n } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
+const { shown: kpisShown } = useKpiVisibility()
 
 const forbidden = computed(() => !can('hr.employees.manage'))
 const canOpenDocuments = computed(() => can('documents.items.read'))
@@ -69,13 +70,13 @@ function setWindow(value: string) {
 </script>
 
 <template>
-  <SharedListPage :title="t('hr.reports.title')" :description="t('hr.reports.description')">
+  <SharedListPage :title="t('hr.reports.title')" :description="t('hr.reports.description')" :kpi-toggle="!forbidden">
     <SharedForbiddenState v-if="forbidden" :description="t('hr.reports.forbidden')" />
     <div v-else class="webvue-page-stack">
       <SharedRecordSection :title="t('hr.reports.saudization.title')" data-testid="hr-saudization">
         <SharedPageState :loading="saudization.isLoading.value" :error="saudization.error.value" @retry="saudization.refetch">
           <div v-if="overall" class="webvue-page-stack">
-            <div class="grid gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-4" data-testid="hr-saudization-tiles">
+            <div v-if="kpisShown" class="grid gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-4" data-testid="hr-saudization-tiles">
               <SharedMetricTile
                 icon="i-lucide-chart-pie"
                 :label="t('hr.reports.saudization.rate')"

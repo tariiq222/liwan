@@ -267,6 +267,7 @@ async function openProject(id: number) {
     create-test-id="project-new"
     :views="views"
     views-in-filters
+    :kpi-toggle="!archived"
   >
     <template #default="{ view }">
       <!-- The list's controls and rows carry client-generated ids, and the query data can land before hydration starts. Mount the

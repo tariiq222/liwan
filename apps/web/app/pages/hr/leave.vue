@@ -21,6 +21,7 @@ const router = useRouter()
 const { t, n } = useI18n()
 const { period, days } = useHrLeaveFormat()
 const hydrated = useHydrated()
+const { shown: kpisShown } = useKpiVisibility()
 const { can } = useAccess()
 
 const LIMIT = 25
@@ -154,13 +155,14 @@ const allocateTo = computed(() => ({ path: '/hr/leave/allocations/new', query: l
     :create-to="createTo"
     :create-label="t('hr.leave.new')"
     create-test-id="hr-leave-new"
+    kpi-toggle
   >
     <template v-if="canAllocate" #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-calendar-plus" :to="allocateTo" :disabled="!hydrated" :label="t('hr.leave.allocate')" data-testid="hr-leave-allocate" />
     </template>
 
     <div class="webvue-page-stack">
-      <section :aria-label="t('hr.leave.balancesTitle')" data-testid="hr-leave-balances">
+      <section v-if="kpisShown" :aria-label="t('hr.leave.balancesTitle')" data-testid="hr-leave-balances">
         <SharedPageState :loading="balances.isLoading.value" :error="balances.error.value" @retry="balances.refetch">
           <div v-if="balanceItems.length" class="grid gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-3">
             <SharedMetricTile

@@ -1722,19 +1722,17 @@
       ],
       "events": [],
       "slots": [],
-      "nuxtUi": [
-        "USkeleton"
-      ],
+      "nuxtUi": [],
       "stories": [
         {
           "id": "AboveProjectList",
           "name": "فوق قائمة المشاريع",
-          "context": "apps/web/app/pages/projects/index.vue:276"
+          "context": "apps/web/app/pages/projects/index.vue:277"
         },
         {
           "id": "StatusFilterCountsOnly",
           "name": "فلتر حالة: أرقام فقط",
-          "context": "apps/web/app/pages/projects/index.vue:276"
+          "context": "apps/web/app/pages/projects/index.vue:277"
         }
       ]
     },
@@ -2014,19 +2012,17 @@
       ],
       "events": [],
       "slots": [],
-      "nuxtUi": [
-        "USkeleton"
-      ],
+      "nuxtUi": [],
       "stories": [
         {
           "id": "FilteredCountsOnly",
           "name": "فلتر يحدد النسب (متأخرة أو حالة): أرقام فقط",
-          "context": "apps/web/app/pages/tasks.vue:93"
+          "context": "apps/web/app/pages/tasks.vue:94"
         },
         {
           "id": "AboveTaskTable",
           "name": "فوق جدول المهام",
-          "context": "apps/web/app/pages/tasks.vue:93"
+          "context": "apps/web/app/pages/tasks.vue:94"
         }
       ]
     },
@@ -3583,32 +3579,32 @@
         {
           "id": "InPageToolbar",
           "name": "شريط أدوات صفحة",
-          "context": "apps/web/app/pages/projects/index.vue:280"
+          "context": "apps/web/app/pages/projects/index.vue:281"
         },
         {
           "id": "WithActiveFilters",
           "name": "مع فلاتر نشطة",
-          "context": "apps/web/app/pages/projects/index.vue:280"
+          "context": "apps/web/app/pages/projects/index.vue:281"
         },
         {
           "id": "FiltersOpen",
           "name": "نافذة الفلاتر مفتوحة",
-          "context": "apps/web/app/pages/projects/index.vue:280"
+          "context": "apps/web/app/pages/projects/index.vue:281"
         },
         {
           "id": "EmbeddedInCardHeader",
           "name": "مدمج في ترويسة بطاقة (صف واحد)",
-          "context": "apps/web/app/pages/projects/index.vue:280"
+          "context": "apps/web/app/pages/projects/index.vue:281"
         },
         {
           "id": "EmbeddedTaskFilters",
           "name": "مدمج: فلاتر المهام (الأولوية والمسؤول والموعد)",
-          "context": "apps/web/app/pages/projects/index.vue:280"
+          "context": "apps/web/app/pages/projects/index.vue:281"
         },
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/projects/index.vue:280"
+          "context": "apps/web/app/pages/projects/index.vue:281"
         }
       ]
     },
@@ -3796,17 +3792,17 @@
         {
           "id": "WithPager",
           "name": "عدد وترقيم",
-          "context": "apps/web/app/pages/projects/index.vue:342"
+          "context": "apps/web/app/pages/projects/index.vue:343"
         },
         {
           "id": "SinglePage",
           "name": "صفحة واحدة (العدد فقط)",
-          "context": "apps/web/app/pages/projects/index.vue:342"
+          "context": "apps/web/app/pages/projects/index.vue:343"
         },
         {
           "id": "Fetching",
           "name": "أثناء التحميل",
-          "context": "apps/web/app/pages/projects/index.vue:342"
+          "context": "apps/web/app/pages/projects/index.vue:343"
         }
       ]
     },
@@ -4304,7 +4300,7 @@
         {
           "id": "Default",
           "name": "جدول ولوحة",
-          "context": "packages/ui/app/components/shared/layout/ListPage.vue:64"
+          "context": "packages/ui/app/components/shared/layout/ListPage.vue:66"
         }
       ]
     },
@@ -5107,6 +5103,12 @@
           "name": "hideHeader",
           "type": "boolean",
           "required": false
+        },
+        {
+          "name": "kpiToggle",
+          "type": "boolean",
+          "required": false,
+          "description": "The metrics row is the page's KPI strip: the header draws the show/hide toggle and the row follows it."
         }
       ],
       "events": [],
@@ -5215,6 +5217,59 @@
       ]
     },
     {
+      "name": "SharedKpiStrip",
+      "file": "packages/ui/app/components/shared/layout/KpiStrip.vue",
+      "story": "apps/web/stories/shared/KpiStrip.stories.ts",
+      "title": "Shared/KpiStrip",
+      "props": [
+        {
+          "name": "tiles",
+          "type": "readonly KpiTile[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "skeletonCount",
+          "type": "number",
+          "required": false,
+          "description": "Skeleton count while loading; defaults to the number of tiles, or 4 without any."
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false,
+          "description": "The region's accessible name; defaults to \"Key figures\"."
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "USkeleton"
+      ],
+      "stories": [
+        {
+          "id": "FourTiles",
+          "name": "أربع بطاقات",
+          "context": "apps/web/app/components/pmo/tasks/TaskKpiStrip.vue:28"
+        },
+        {
+          "id": "Loading",
+          "name": "قيد التحميل",
+          "context": "apps/web/app/components/pmo/tasks/TaskKpiStrip.vue:28"
+        },
+        {
+          "id": "Hidden",
+          "name": "مخفي (المؤشرات مطفأة)",
+          "context": "apps/web/app/components/pmo/tasks/TaskKpiStrip.vue:28"
+        }
+      ]
+    },
+    {
       "name": "SharedLinkCard",
       "file": "packages/ui/app/components/shared/layout/LinkCard.vue",
       "story": "apps/web/stories/shared/LinkCard.stories.ts",
@@ -5293,17 +5348,17 @@
         {
           "id": "Fill",
           "name": "بحجم الشاشة (لوحة أو خط زمني)",
-          "context": "apps/web/app/pages/tasks.vue:94"
+          "context": "apps/web/app/pages/tasks.vue:95"
         },
         {
           "id": "WithFooter",
           "name": "مع تذييل",
-          "context": "apps/web/app/pages/tasks.vue:94"
+          "context": "apps/web/app/pages/tasks.vue:95"
         },
         {
           "id": "WithFilters",
           "name": "مع صف فلاتر",
-          "context": "apps/web/app/pages/tasks.vue:94"
+          "context": "apps/web/app/pages/tasks.vue:95"
         }
       ]
     },
@@ -5370,6 +5425,12 @@
           "name": "backLabel",
           "type": "string",
           "required": false
+        },
+        {
+          "name": "kpiToggle",
+          "type": "boolean",
+          "required": false,
+          "description": "The page carries a KPI strip: the header draws the one show/hide toggle (SharedPageHeader `kpiToggle`)."
         }
       ],
       "events": [],
@@ -5426,7 +5487,7 @@
         {
           "id": "List",
           "name": "صفحة قائمة",
-          "context": "packages/ui/app/components/shared/layout/ListPage.vue:47"
+          "context": "packages/ui/app/components/shared/layout/ListPage.vue:49"
         },
         {
           "id": "Detail",
@@ -5495,6 +5556,12 @@
           "required": false,
           "default": "true",
           "description": "The heading keeps its place under the floating header while the page scrolls under it\n(`.webvue-sticky-head` in shell.css). Off where another sticky thing owns that slot: a page frame\nthat already carries the identity band, or a docked `SharedListCard fill` board."
+        },
+        {
+          "name": "kpiToggle",
+          "type": "boolean",
+          "required": false,
+          "description": "The page carries a KPI strip: draw the one show/hide toggle for it before the actions (DESIGN.md; the choice is `useKpiVisibility`)."
         }
       ],
       "events": [],
@@ -5517,6 +5584,11 @@
           "context": "apps/web/app/pages/projects/[id]/settings.vue:22"
         },
         {
+          "id": "WithKpiToggle",
+          "name": "مع زر المؤشرات",
+          "context": "packages/ui/app/components/shared/layout/ListPage.vue:50"
+        },
+        {
           "id": "TitleOnly",
           "name": "عنوان فقط",
           "context": "packages/ui/app/components/shared/layout/RecordPage.vue:39"
@@ -5534,7 +5606,7 @@
         {
           "id": "TrailUnderTitle",
           "name": "مسار الأسلاف تحت العنوان",
-          "context": "packages/ui/app/components/shared/layout/ListPage.vue:48"
+          "context": "packages/ui/app/components/shared/layout/ListPage.vue:50"
         },
         {
           "id": "TitleAndDescription",
@@ -5544,12 +5616,12 @@
         {
           "id": "UnifiedHeaderWithFilters",
           "name": "الترويسة والفلاتر الموحدة (شامل المكونات)",
-          "context": "packages/ui/app/components/shared/layout/ListPage.vue:48"
+          "context": "packages/ui/app/components/shared/layout/ListPage.vue:50"
         },
         {
           "id": "StickyHeading",
           "name": "رأس ثابت مع تمرير",
-          "context": "packages/ui/app/components/shared/layout/ListPage.vue:48"
+          "context": "packages/ui/app/components/shared/layout/ListPage.vue:50"
         },
         {
           "id": "HiddenTitle",

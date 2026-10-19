@@ -85,6 +85,7 @@ function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
     :create-label="t('tasks.new')"
     :views="views"
     views-in-filters
+    kpi-toggle
   >
     <!-- Query data may resolve after SSR markup is emitted but before client hydration starts. Mount
          the dynamic surface (and the toolbar in the card header) only after this page has hydrated so
