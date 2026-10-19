@@ -6,7 +6,7 @@
     },
     "odoo-addons/webvue_finance/models/zatca_service.py": {
       "count": 2,
-      "reason": "finance ZATCA e-invoicing: onboarding (stock wizard) and one-invoice submission, after the finance.zatca.manage/submit and current-company checks, sandbox api mode only (owner approved 2026-10-19)"
+      "reason": "finance ZATCA e-invoicing: onboarding (stock wizard) and one-invoice submission, after the finance.zatca.manage/submit and current-company checks; sandbox api mode only until a production policy is approved (owner approved 2026-10-19)"
     }
   }
 }
