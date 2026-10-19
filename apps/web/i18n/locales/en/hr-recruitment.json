@@ -1,0 +1,122 @@
+{
+  "hrRecruitment": {
+    "title": "Recruitment",
+    "description": "Job positions, applicants and the recruitment stages.",
+    "searchApplicants": "Search applicants by name…",
+    "searchValue": "Search: {value}",
+    "newApplicant": "New applicant",
+    "anyJob": "All job positions",
+    "anyStage": "All stages",
+    "noJob": "No job position",
+    "noStage": "No stage",
+    "noDepartment": "No department",
+    "emptyTitle": "No applicants yet",
+    "emptyHint": "Add an applicant to start the recruitment pipeline.",
+    "footer": "{shown} of 1 applicant | {shown} of {total} applicants",
+    "columns": {
+      "applicant": "Applicant",
+      "job": "Job position",
+      "stage": "Stage",
+      "status": "Status",
+      "priority": "Priority"
+    },
+    "status": {
+      "ongoing": "In progress",
+      "hired": "Hired",
+      "refused": "Refused",
+      "archived": "Archived"
+    },
+    "statusFilter": {
+      "all": "All",
+      "ongoing": "In progress",
+      "hired": "Hired",
+      "refused": "Refused",
+      "archived": "Archived"
+    },
+    "priority": {
+      "0": "No priority",
+      "1": "Low",
+      "2": "Medium",
+      "3": "High"
+    },
+    "form": {
+      "details": "Applicant details",
+      "name": "Applicant name",
+      "namePlaceholder": "Full name",
+      "nameRequired": "The applicant name is required.",
+      "job": "Job position",
+      "chooseJob": "Choose a job position",
+      "jobRequired": "The job position is required.",
+      "email": "Email",
+      "phone": "Phone",
+      "availability": "Availability",
+      "availabilityHint": "The date the applicant can start working.",
+      "requiredHint": "Fields marked with * are required.",
+      "submit": "Add applicant",
+      "noJobs": "No active job positions. Create one first."
+    },
+    "detail": {
+      "pipeline": "Recruitment stage",
+      "contact": "Contact details",
+      "appliedOn": "Applied on",
+      "empty": "Not set",
+      "department": "Department",
+      "employee": "Employee",
+      "noEmployee": "Not hired yet",
+      "refuseReason": "Refuse reason",
+      "noRefuseReason": "No refuse reason"
+    },
+    "refuse": {
+      "action": "Refuse applicant",
+      "confirmTitle": "Refuse this applicant?",
+      "reason": "Refuse reason",
+      "chooseReason": "Choose a refuse reason"
+    },
+    "reset": {
+      "action": "Back to the first stage",
+      "confirmTitle": "Move the applicant back to the first stage?",
+      "confirmHint": "The applicant returns to the first stage of the job position."
+    },
+    "hire": {
+      "action": "Hire",
+      "confirmTitle": "Hire {name}?",
+      "confirmHint": "An employee record is created from the applicant."
+    },
+    "jobs": {
+      "title": "Job positions",
+      "description": "Open job positions and how many applicants each one holds.",
+      "new": "New job position",
+      "search": "Search job positions by name…",
+      "emptyTitle": "No job positions",
+      "emptyHint": "Create a job position to start recruiting for it.",
+      "footer": "{shown} of 1 job position | {shown} of {total} job positions",
+      "viewApplicants": "Applicants of this position",
+      "columns": {
+        "name": "Job position",
+        "department": "Department",
+        "target": "Target",
+        "applications": "Applicants",
+        "state": "Status"
+      },
+      "state": {
+        "active": "Active",
+        "archived": "Archived"
+      },
+      "filter": {
+        "true": "Active",
+        "false": "Archived",
+        "all": "All"
+      },
+      "form": {
+        "details": "Job position details",
+        "namePlaceholder": "Job title",
+        "nameRequired": "The job position name is required.",
+        "chooseDepartment": "Choose a department",
+        "targetHint": "How many hires this position targets.",
+        "description": "Description",
+        "active": "Active job position",
+        "requiredHint": "Fields marked with * are required."
+      }
+    }
+  }
+}
