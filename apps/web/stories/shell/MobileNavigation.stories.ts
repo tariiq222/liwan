@@ -16,7 +16,7 @@ type Story = StoryObj<typeof meta>
 
 export const Open: Story = {
   name: 'القائمة مفتوحة',
-  parameters: storyContext('apps/web/app/components/shell/ShellHeader.vue:71'),
+  parameters: storyContext('apps/web/app/components/shell/ShellHeader.vue:64'),
   render: args => ({
     components: { MobileNavigation },
     setup: () => ({ args, open: ref(true), t: useI18n().t }),

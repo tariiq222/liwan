@@ -3,7 +3,9 @@ import { resolve } from 'node:path'
 import { compileScript, parse } from '@vue/compiler-sfc'
 import { renderToString } from '@vue/server-renderer'
 import {
+  Fragment,
   computed,
+  createBlock,
   createCommentVNode,
   createElementBlock,
   createElementVNode,
@@ -14,6 +16,7 @@ import {
   h,
   openBlock,
   ref,
+  renderList,
   renderSlot,
   resolveComponent,
   toDisplayString,
@@ -47,6 +50,7 @@ function loadPageHeader() {
     _defineComponent: defineComponent,
     _unref: unref,
     _renderSlot: renderSlot,
+    _renderList: renderList,
     _createVNode: createVNode,
     _createTextVNode: createTextVNode,
     _toDisplayString: toDisplayString,
@@ -54,15 +58,21 @@ function loadPageHeader() {
     _withCtx: withCtx,
     _openBlock: openBlock,
     _createElementBlock: createElementBlock,
+    _createBlock: createBlock,
     _createCommentVNode: createCommentVNode,
+    _Fragment: Fragment,
     _createElementVNode: createElementVNode,
   }
-  const names = [...Object.keys(runtimeBindings), 'computed', 'usePageHeader', 'useEscapeBack', 'useFrameOwnsHeading']
+  const names = [...Object.keys(runtimeBindings), 'computed', 'usePageHeader', 'useEscapeBack', 'useFrameOwnsHeading', 'usePageTrail', 'useI18n', 'useRoute']
   const values = [
     ...Object.values(runtimeBindings), computed,
     () => undefined,
     () => undefined,
     () => ref(frameOwnsHeading),
+    // No published trail in this harness: the page's own target is the whole trail here.
+    () => ref([]),
+    () => ({ t: (key: string) => key }),
+    () => ({ path: '/current' }),
   ]
   return new Function(...names, javascript)(...values)
 }

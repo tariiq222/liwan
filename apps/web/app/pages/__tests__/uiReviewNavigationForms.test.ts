@@ -126,7 +126,8 @@ describe('reviewed page navigation and form feedback', () => {
   it.each([undefined, 'https://evil.example', '//evil.example', '/unexpected'])('gives the summary a safe Back fallback for %s', async returnTo => {
     const page = await loadPage('projects/[id].vue', { path: '/projects/7/', query: { returnTo } })
     const back = await propsFor(page, 'UButton', props => props['data-testid'] === 'project-workspace-back')
-    expect(back).toMatchObject({ to: '/projects', color: 'neutral', variant: 'ghost' })
+    // The frame's Back is the nearest step of the trail under the project name (DESIGN.md §3).
+    expect(back).toMatchObject({ to: '/projects', color: 'neutral', variant: 'link' })
     const nodes = await page.rendered()
     expect(nodes.filter(node => node.name === 'ProjectWorkspaceTabs')).toHaveLength(1)
     expect(nodes.find(node => node.props['data-testid'] === 'project-workspace-settings')?.props.to).toBe('/projects/7/settings')

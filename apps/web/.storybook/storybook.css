@@ -1,0 +1,8 @@
+/* Storybook compiles Tailwind here, outside Nuxt's UI layer, so the shared components' class names
+   need explicit sources; Nuxt writes the same globs into its own .nuxt/ui.css. Without them a class
+   that only exists in packages/ui (for example the embedded filter row's `md:contents!`) is missing
+   from the preview and the component looks wrong here while it is correct in the app. */
+@import '../../../packages/ui/app/assets/css/main.css';
+@source '../../../packages/ui/app/**/*';
+@source '../../../packages/commercial-ui/app/**/*';
+@source '../../app/**/*';

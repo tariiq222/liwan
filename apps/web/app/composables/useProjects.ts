@@ -1,7 +1,7 @@
 import { toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { z } from 'zod'
-import { PROJECT_STATUSES, ProjectDetailSchema, ProjectListSchema, ProjectRefSchema, type ProjectCharterAction, type ProjectCopyInput, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectPhase, type ProjectStatus } from '@webvue/contracts'
+import { PROJECT_STATUSES, ProjectDashboardSummarySchema, ProjectDetailSchema, ProjectListSchema, ProjectRefSchema, type ProjectCharterAction, type ProjectCopyInput, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectPhase, type ProjectStatus } from '@webvue/contracts'
 import { ApiError } from './useApi'
 import { invalidateProjectCaches, projectKeys } from './projectKeys'
 import { parseOffset } from '../utils/routeQuery'
@@ -161,6 +161,21 @@ export function useProjectList(archived: Ref<boolean>, filters: MaybeRefOrGetter
   return useQuery({
     queryKey: computed(() => [...projectKeys.list, projectListQuery(archived.value, toValue(filters))] as const),
     queryFn: () => $api('/api/v1/projects', { query: projectListQuery(archived.value, toValue(filters)), schema: ProjectListSchema }),
+  })
+}
+
+export type ProjectSummaryFilters = Pick<ProjectListFilters, 'q' | 'mine' | 'status'>
+
+function projectSummaryQuery(filters: ProjectSummaryFilters) {
+  return { q: filters.q?.trim() || undefined, mine: filters.mine ? 1 : undefined, status: filters.status }
+}
+
+// The headline counts above the projects list, for the same filters as the list (no paging).
+export function useProjectSummary(filters: MaybeRefOrGetter<ProjectSummaryFilters>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => projectKeys.summary(projectSummaryQuery(toValue(filters)))),
+    queryFn: () => $api('/api/v1/reports/projects/summary', { query: projectSummaryQuery(toValue(filters)), schema: ProjectDashboardSummarySchema }),
   })
 }
 

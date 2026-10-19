@@ -3,6 +3,15 @@
     "title": "المشاريع",
     "description": "مساحة واحدة لمتابعة المشاريع وحالتها والخطوة التالية.",
     "myDescription": "المشاريع التي تديرها",
+    "kpi": {
+      "label": "ملخص المشاريع",
+      "total": "إجمالي المشاريع",
+      "active": "المشاريع الجارية",
+      "attention": "تحتاج متابعة",
+      "done": "المشاريع المنجزة",
+      "percentOfTotal": "{percent}٪ من الإجمالي",
+      "percentDone": "{percent}٪ منجزة"
+    },
     "empty": "لا مشاريع بعد",
     "emptyHint": "أنشئ مشروعًا لتجميع المهام والمعالم والتحديثات في مكان واحد.",
     "filteredEmpty": "لا مشاريع تطابق الفلاتر",
@@ -32,6 +41,7 @@
     },
     "setStatus": "حالة المشروع",
     "statusUpdated": "تم تحديث حالة المشروع",
+    "noEndDate": "بلا تاريخ انتهاء",
     "progressOf": "لا مهام | {closed} من مهمة واحدة | {closed} من مهمتين | {closed} من {total} مهام | {closed} من {total} مهمة | {closed} من {total} مهمة",
     "projectId": "المشروع #{id}",
     "summary": {
