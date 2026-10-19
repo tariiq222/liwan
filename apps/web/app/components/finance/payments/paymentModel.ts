@@ -1,0 +1,148 @@
+import type { FinanceInvoiceDetail, FinancePayment, FinancePaymentRegister } from '@webvue/contracts'
+import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import { invoiceKindOf } from '../invoices/invoiceKinds'
+
+export const PAYMENTS_PATH = '/finance/payments'
+export const PAYMENT_PAGE_SIZE = 25
+export const PAYMENT_TYPES = ['inbound', 'outbound'] as const satisfies readonly FinancePayment['payment_type'][]
+export const PAYMENT_STATES = ['draft', 'in_process', 'paid', 'canceled', 'rejected'] as const satisfies readonly FinancePayment['state'][]
+/** More ids than this in the link are ignored: a payment settles a handful of documents, not a list. */
+export const MAX_PREFILLED_INVOICES = 20
+
+export const PAYMENT_STATE_TONE: Record<FinancePayment['state'], StatusTone> = {
+  draft: 'neutral',
+  in_process: 'info',
+  paid: 'success',
+  canceled: 'neutral',
+  rejected: 'destructive',
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/
+type Query = Record<string, unknown>
+
+export interface PaymentListFilters {
+  q: string
+  paymentType: FinancePayment['payment_type'] | null
+  state: FinancePayment['state'] | null
+  partnerId: number | null
+  dateFrom: string | null
+  dateTo: string | null
+  page: number
+}
+
+function text(value: unknown): string | null {
+  const first = Array.isArray(value) ? value[0] : value
+  return typeof first === 'string' && first.trim() ? first.trim() : null
+}
+
+function day(value: unknown): string | null {
+  const parsed = text(value)
+  return parsed && DAY.test(parsed) ? parsed : null
+}
+
+export function paymentFiltersFromQuery(query: Query): PaymentListFilters {
+  const type = text(query.payment_type)
+  const state = text(query.state)
+  const partner = Number(text(query.partner_id))
+  const page = Number(text(query.page))
+  const dateFrom = day(query.date_from)
+  const dateTo = day(query.date_to)
+  return {
+    q: text(query.q) ?? '',
+    paymentType: PAYMENT_TYPES.find(value => value === type) ?? null,
+    state: PAYMENT_STATES.find(value => value === state) ?? null,
+    partnerId: Number.isSafeInteger(partner) && partner > 0 ? partner : null,
+    dateFrom,
+    dateTo: !dateFrom || !dateTo || dateFrom <= dateTo ? dateTo : null,
+    page: Number.isSafeInteger(page) && page > 0 ? page : 1,
+  }
+}
+
+export function paymentActiveFilterCount(filters: PaymentListFilters): number {
+  return Number(!!filters.q) + Number(!!filters.paymentType) + Number(!!filters.state) + Number(!!filters.partnerId) + Number(!!filters.dateFrom) + Number(!!filters.dateTo)
+}
+
+export function paymentListParams(filters: PaymentListFilters) {
+  return {
+    ...(filters.paymentType ? { payment_type: filters.paymentType } : {}),
+    ...(filters.state ? { state: filters.state } : {}),
+    ...(filters.partnerId ? { partner_id: filters.partnerId } : {}),
+    ...(filters.dateFrom ? { date_from: filters.dateFrom } : {}),
+    ...(filters.dateTo ? { date_to: filters.dateTo } : {}),
+    ...(filters.q ? { q: filters.q } : {}),
+    limit: PAYMENT_PAGE_SIZE,
+    offset: (filters.page - 1) * PAYMENT_PAGE_SIZE,
+  }
+}
+
+/** `?invoice_ids=3,5` of the register-payment link: positive ids, each once, in order. */
+export function prefilledInvoiceIds(value: unknown): number[] {
+  const raw = text(value)
+  if (!raw) return []
+  const ids = raw.split(',').map(part => Number(part.trim())).filter(id => Number.isSafeInteger(id) && id > 0)
+  return [...new Set(ids)].slice(0, MAX_PREFILLED_INVOICES)
+}
+
+export function registerPaymentLink(invoiceIds: readonly number[], returnTo?: string) {
+  return { path: `${PAYMENTS_PATH}/new`, query: { invoice_ids: invoiceIds.join(','), ...(returnTo ? { returnTo } : {}) } }
+}
+
+export type PayableInvoice = Pick<FinanceInvoiceDetail, 'id' | 'name' | 'move_type' | 'state' | 'partner' | 'currency' | 'amount_residual'>
+export type BatchProblem = 'not_posted' | 'nothing_due' | 'partner' | 'currency' | 'type'
+
+/** Why these documents cannot be paid by one payment (the server refuses the same cases), or null. */
+export function paymentBatchProblem(invoices: readonly PayableInvoice[]): BatchProblem | null {
+  if (invoices.some(invoice => invoice.state !== 'posted')) return 'not_posted'
+  if (invoices.some(invoice => !(invoice.amount_residual > 0))) return 'nothing_due'
+  if (new Set(invoices.map(invoice => invoice.partner?.id ?? 0)).size > 1) return 'partner'
+  if (new Set(invoices.map(invoice => invoice.currency)).size > 1) return 'currency'
+  if (new Set(invoices.map(invoice => invoice.move_type)).size > 1) return 'type'
+  return null
+}
+
+export function paymentDue(invoices: readonly PayableInvoice[]): number {
+  return Math.round(invoices.reduce((sum, invoice) => sum + invoice.amount_residual, 0) * 100) / 100
+}
+
+/** The direction of the money for these documents; null when the batch mixes types. */
+export function paymentDirection(invoices: readonly PayableInvoice[]): FinancePayment['payment_type'] | null {
+  const kinds = new Set(invoices.map(invoice => invoiceKindOf(invoice.move_type)?.direction))
+  return kinds.size === 1 ? ([...kinds][0] ?? null) : null
+}
+
+export interface PaymentDraft {
+  amount: string
+  paymentDate: string | null
+  journalId: number | null
+  memo: string
+}
+
+export type PaymentErrors = Partial<Record<'amount' | 'paymentDate' | 'journalId', 'required' | 'exceeds'>>
+
+export function validatePaymentDraft(draft: PaymentDraft, due: number): PaymentErrors {
+  const amount = draft.amount.trim() === '' ? Number.NaN : Number(draft.amount)
+  return {
+    ...(!(Number.isFinite(amount) && amount > 0) ? { amount: 'required' as const } : amount > due + 0.005 ? { amount: 'exceeds' as const } : {}),
+    ...(draft.paymentDate ? {} : { paymentDate: 'required' as const }),
+    ...(draft.journalId ? {} : { journalId: 'required' as const }),
+  }
+}
+
+export function buildPaymentRegister(invoiceIds: readonly number[], draft: PaymentDraft): FinancePaymentRegister {
+  return {
+    invoice_ids: [...invoiceIds],
+    amount: Number(draft.amount),
+    payment_date: draft.paymentDate!,
+    journal_id: draft.journalId!,
+    ...(draft.memo.trim() ? { memo: draft.memo.trim() } : {}),
+  }
+}
+
+type Can = (capability: string) => boolean
+
+/** Cancelled and rejected payments are final but can be reset; the others can only be cancelled. */
+export function paymentActions(payment: Pick<FinancePayment, 'state'>, can: Can) {
+  const manage = can('finance.payments.manage')
+  const revivable = payment.state === 'canceled' || payment.state === 'rejected'
+  return { cancel: manage && !revivable, resetToDraft: manage && revivable }
+}

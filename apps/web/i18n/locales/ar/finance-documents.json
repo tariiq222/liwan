@@ -1,0 +1,247 @@
+{
+  "financeDocuments": {
+    "kinds": {
+      "out_invoice": {
+        "title": "فواتير المبيعات",
+        "new": "فاتورة جديدة",
+        "record": "فاتورة مبيعات",
+        "partner": "العميل",
+        "partnerPlaceholder": "اختر العميل",
+        "empty": "لا توجد فواتير مبيعات بعد.",
+        "description": "فواتير العملاء من المسودة حتى السداد."
+      },
+      "out_refund": {
+        "title": "إشعارات دائنة",
+        "new": "إشعار دائن جديد",
+        "record": "إشعار دائن",
+        "partner": "العميل",
+        "partnerPlaceholder": "اختر العميل",
+        "empty": "لا توجد إشعارات دائنة بعد.",
+        "description": "مبالغ تُردّ للعملاء أو تُخصم من فواتيرهم."
+      },
+      "in_invoice": {
+        "title": "فواتير الموردين",
+        "new": "فاتورة مورد جديدة",
+        "record": "فاتورة مورد",
+        "partner": "المورّد",
+        "partnerPlaceholder": "اختر المورّد",
+        "empty": "لا توجد فواتير موردين بعد.",
+        "description": "فواتير المشتريات المستحقة للموردين."
+      },
+      "in_refund": {
+        "title": "مرتجعات الموردين",
+        "new": "مرتجع مورد جديد",
+        "record": "مرتجع مورد",
+        "partner": "المورّد",
+        "partnerPlaceholder": "اختر المورّد",
+        "empty": "لا توجد مرتجعات موردين بعد.",
+        "description": "مبالغ يردّها الموردون أو تُخصم من فواتيرهم."
+      }
+    },
+    "countTag": "لا مستندات | مستند واحد | مستندان | {count} مستندات | {count} مستندًا | {count} مستند",
+    "footer": "لا مستندات | عرض {shown} من مستند واحد | عرض {shown} من مستندين | عرض {shown} من {total} مستندات | عرض {shown} من {total} مستندًا | عرض {shown} من {total} مستند",
+    "forbidden": "لا تملك صلاحية عرض هذه الصفحة.",
+    "draftNumber": "مسودة",
+    "partnerPicker": {
+      "placeholder": "اختر الطرف"
+    },
+    "states": {
+      "draft": "مسودة",
+      "posted": "مرحّل",
+      "cancel": "ملغى"
+    },
+    "paymentStates": {
+      "not_paid": "غير مدفوع",
+      "in_payment": "قيد الدفع",
+      "paid": "مدفوع",
+      "partial": "مدفوع جزئيًا",
+      "reversed": "معكوس",
+      "blocked": "موقوف",
+      "invoicing_legacy": "قديم"
+    },
+    "zatcaStates": {
+      "not_applicable": "غير مطلوب",
+      "pending": "بانتظار الإرسال",
+      "retry": "أعد المحاولة",
+      "rejected": "مرفوض",
+      "blocked": "تعذّرت المعالجة",
+      "unauthorized": "الشهادة مرفوضة",
+      "accepted": "مقبول"
+    },
+    "columns": {
+      "number": "الرقم",
+      "date": "التاريخ",
+      "dueDate": "الاستحقاق",
+      "total": "الإجمالي",
+      "residual": "المتبقي",
+      "state": "الحالة",
+      "paymentState": "السداد"
+    },
+    "filters": {
+      "search": "ابحث بالرقم أو المرجع أو الاسم",
+      "state": "الحالة",
+      "allStates": "كل الحالات",
+      "anyPartner": "الكل",
+      "dateFrom": "من تاريخ",
+      "dateTo": "إلى تاريخ"
+    },
+    "kpi": {
+      "label": "أرقام المستندات",
+      "total": "الإجمالي",
+      "draft": "مسودات",
+      "posted": "مرحّلة",
+      "cancel": "ملغاة"
+    },
+    "form": {
+      "details": "البيانات الأساسية",
+      "partnerRequired": "اختر الطرف",
+      "invoiceDate": "التاريخ",
+      "dueDate": "تاريخ الاستحقاق",
+      "dueBeforeDate": "يجب ألا يسبق الاستحقاق التاريخ",
+      "ref": "المرجع",
+      "lines": "البنود",
+      "linesHint": "تُحسب الضريبة تلقائيًا من إعدادات الحساب، إلا إذا اخترت «بدون ضريبة».",
+      "lineName": "الوصف",
+      "lineNameRequired": "اكتب وصف البند",
+      "quantity": "الكمية",
+      "quantityInvalid": "كمية غير صحيحة",
+      "unitPrice": "سعر الوحدة",
+      "priceInvalid": "سعر غير صحيح",
+      "discount": "الخصم %",
+      "discountInvalid": "الخصم بين 0 و100",
+      "noTax": "بدون ضريبة",
+      "lineSubtotal": "قبل الضريبة",
+      "lineAria": "البند {number}: {field}",
+      "removeLine": "حذف البند {number}",
+      "addLine": "إضافة بند",
+      "subtotal": "المجموع قبل الضريبة",
+      "taxAtSave": "تظهر الضريبة بعد الحفظ",
+      "requiredHint": "الحقول التي عليها نجمة مطلوبة.",
+      "createDraft": "إنشاء مسودة"
+    },
+    "record": {
+      "taxes": "الضرائب",
+      "lineTotal": "قبل الضريبة",
+      "untaxed": "المبلغ قبل الضريبة",
+      "tax": "الضريبة",
+      "total": "الإجمالي",
+      "residual": "المتبقي للسداد",
+      "journal": "اليومية",
+      "currency": "العملة",
+      "debitOrigin": "إشعار مدين على",
+      "blockedByPayments": "عليه دفعات مسجّلة",
+      "blockedByPaymentsHint": "لا يمكن إلغاء المستند أو إعادته إلى مسودة قبل إلغاء دفعاته أو إعادتها إلى مسودة.",
+      "viewPayments": "عرض الدفعات"
+    },
+    "actions": {
+      "post": "ترحيل",
+      "registerPayment": "تسجيل دفعة",
+      "pdf": "تنزيل PDF",
+      "debitNote": "إشعار مدين",
+      "resetToDraft": "إعادة إلى مسودة",
+      "cancel": "إلغاء المستند",
+      "delete": "حذف المسودة",
+      "zatcaSubmit": "إرسال إلى هيئة الزكاة",
+      "zatcaRetry": "إعادة الإرسال إلى هيئة الزكاة",
+      "menuFor": "إجراءات {name}"
+    },
+    "confirm": {
+      "delete": "حذف المسودة «{name}»؟",
+      "deleteHint": "تُحذف المسودة نهائيًا ولا يمكن استرجاعها.",
+      "cancel": "إلغاء «{name}»؟",
+      "cancelHint": "يبقى المستند ملغى ويمكن إعادته إلى مسودة لاحقًا.",
+      "reset": "إعادة «{name}» إلى مسودة؟",
+      "resetHint": "يُرفع الترحيل وتصبح البنود قابلة للتعديل من جديد.",
+      "debit": "إنشاء إشعار مدين على «{name}»؟",
+      "debitReason": "السبب (اختياري)",
+      "debitCopyLines": "نسخ البنود إلى الإشعار"
+    },
+    "zatca": {
+      "title": "هيئة الزكاة والضريبة والجمارك",
+      "short": "الزكاة",
+      "state": "حالة الإرسال",
+      "sandbox": "بيئة تجريبية",
+      "mode": "نوع الإرسال",
+      "modes": {
+        "clearance": "تصريح (B2B)",
+        "reporting": "إبلاغ (B2C)"
+      },
+      "confirmedAt": "وقت التأكيد",
+      "qr": "رمز QR",
+      "qrPresent": "متوفر",
+      "qrMissing": "غير متوفر",
+      "errors": "أخطاء من الهيئة",
+      "warnings": "ملاحظات من الهيئة"
+    },
+    "errors": {
+      "notDraft": "المستند ليس مسودة، فلا يمكن تنفيذ هذا الإجراء.",
+      "notPosted": "يجب ترحيل المستند أولًا.",
+      "hasPayments": "على المستند دفعات: ألغِها أو أعدها إلى مسودة أولًا.",
+      "invalidState": "هذا الإجراء غير متاح في الحالة الحالية.",
+      "periodLocked": "الفترة المحاسبية مقفلة لهذا التاريخ.",
+      "pdfUnavailable": "تعذّر إنشاء ملف PDF الآن. حاول لاحقًا.",
+      "zatcaNotOnboarded": "يومية المبيعات غير مفعّلة لدى هيئة الزكاة بعد.",
+      "zatcaNotApplicable": "هذا المستند ليس فاتورة إلكترونية مرحّلة.",
+      "zatcaRejected": "رفضت الهيئة الفاتورة. صحّح الأخطاء ثم أعد المحاولة.",
+      "zatcaUnavailable": "لم تكتمل المعالجة لدى الهيئة. أعد المحاولة بعد قليل.",
+      "zatcaLocalError": "تعذّرت معالجة الفاتورة قبل الوصول إلى الهيئة.",
+      "zatcaUnauthorized": "رفضت الهيئة شهادة اليومية. فعّل اليومية من جديد.",
+      "zatcaModeNotAllowed": "نوع الإرسال غير مسموح لهذه الفاتورة.",
+      "amountExceedsResidual": "المبلغ أكبر من الرصيد المتبقي.",
+      "journalCurrencyMismatch": "عملة اليومية تختلف عن عملة المستندات."
+    },
+    "payments": {
+      "title": "المدفوعات",
+      "description": "المبالغ المقبوضة من العملاء والمدفوعة للموردين.",
+      "new": "تسجيل دفعة",
+      "search": "ابحث بالرقم أو البيان أو الاسم",
+      "empty": "لا توجد دفعات بعد.",
+      "draftNumber": "مسودة",
+      "partner": "الطرف",
+      "type": "النوع",
+      "allTypes": "كل الأنواع",
+      "amount": "المبلغ",
+      "types": {
+        "inbound": "مقبوضة",
+        "outbound": "مدفوعة"
+      },
+      "states": {
+        "draft": "مسودة",
+        "in_process": "قيد المعالجة",
+        "paid": "مدفوعة",
+        "canceled": "ملغاة",
+        "rejected": "مرفوضة"
+      },
+      "cancel": "إلغاء الدفعة",
+      "resetToDraft": "إعادة إلى مسودة",
+      "cancelConfirm": "إلغاء الدفعة «{name}»؟",
+      "cancelHint": "تعود المستندات المرتبطة إلى حالتها قبل السداد.",
+      "resetConfirm": "إعادة الدفعة «{name}» إلى مسودة؟",
+      "resetHint": "تصبح الدفعة مسودة قابلة للمعالجة من جديد.",
+      "actionsFor": "إجراءات {name}",
+      "form": {
+        "documents": "المستندات المدفوعة",
+        "documentsLabel": "المستندات",
+        "pickDocuments": "اختر المستندات المرحّلة",
+        "documentsRequired": "اختر مستندًا واحدًا على الأقل",
+        "due": "المستحق",
+        "problems": {
+          "not_posted": "يمكن دفع المستندات المرحّلة فقط.",
+          "nothing_due": "أحد المستندات لا رصيد متبقيًا عليه.",
+          "partner": "يجب أن تكون المستندات لطرف واحد.",
+          "currency": "يجب أن تكون المستندات بعملة واحدة.",
+          "type": "لا يمكن دفع نوعين مختلفين من المستندات معًا."
+        },
+        "payment": "الدفعة",
+        "amountRequired": "اكتب مبلغًا أكبر من صفر",
+        "date": "تاريخ الدفع",
+        "dateRequired": "اختر تاريخ الدفع",
+        "journal": "اليومية",
+        "journalRequired": "اختر اليومية",
+        "noJournals": "لا توجد يوميات بنك أو صندوق.",
+        "memo": "البيان",
+        "submit": "تسجيل الدفعة"
+      }
+    }
+  }
+}
