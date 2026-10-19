@@ -335,6 +335,27 @@ async function handle(req, res) {
 
   if (!hasSession(req)) return fail(res, 403, 'forbidden', 'not logged in')
 
+  // Meetings: the minutes download is an attachment and the series accepts a quick extra occurrence (series 1 / meeting 1 only).
+  if (method === 'GET' && match(path, '/api/v1/meetings/:id/minutes.pdf')) {
+    res.writeHead(200, { 'content-type': 'application/pdf', 'content-disposition': 'attachment; filename="MTG-001.pdf"', 'cache-control': 'no-store' })
+    res.end('%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n')
+    return
+  }
+  if (method === 'POST' && match(path, '/api/v1/meeting-series/:id/occurrences')) {
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    const seed = moduleUiPreviewData('/api/v1/meetings/1', url)
+    if (!seed || match(path, '/api/v1/meeting-series/:id/occurrences').id !== '1') return fail(res, 404, 'not_found', 'series not found')
+    const wrote = body.start_datetime && body.end_datetime
+    return json(res, 201, {
+      ...seed,
+      id: 2,
+      reference: 'MTG-002',
+      state: 'draft',
+      name: body.name || seed.name,
+      ...(wrote ? { start_datetime: body.start_datetime, end_datetime: body.end_datetime, meeting_date: body.start_datetime.slice(0, 10) } : {}),
+    })
+  }
   if (method === 'GET' && path === '/api/v1/ai/tools') {
     // A reader (cookie mock_caps=reader) may not create projects, so Odoo would not offer it the draft tool.
     const reader = /(?:^|;\s*)mock_caps=reader(?:;|$)/.test(req.headers.cookie ?? '')

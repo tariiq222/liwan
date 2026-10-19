@@ -46,6 +46,22 @@ describe('meeting mutation cache invalidation', () => {
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['meetings'] })
   })
 
+  it('posts a series occurrence and refreshes meeting and series data', async () => {
+    const $api = vi.fn(async () => ({ id: 9 }))
+    ;(globalThis as typeof globalThis & { useApi: () => unknown }).useApi = () => ({ $api })
+    const { useAddSeriesOccurrence } = await import('../useMeetings')
+    const mutation = useAddSeriesOccurrence() as unknown as { mutationFn: (vars: unknown) => Promise<unknown>; onSuccess: () => Promise<void> }
+    await mutation.mutationFn({ seriesId: 4, body: { name: 'Extra', start_datetime: '2026-10-20T09:00:00+03:00', end_datetime: '2026-10-20T10:00:00+03:00' } })
+    expect($api).toHaveBeenCalledWith('/api/v1/meeting-series/4/occurrences', expect.objectContaining({
+      method: 'POST',
+      body: { name: 'Extra', start_datetime: '2026-10-20T09:00:00+03:00', end_datetime: '2026-10-20T10:00:00+03:00' },
+    }))
+    expect(() => mutation.mutationFn({ seriesId: 4, body: { start_datetime: '2026-10-20T09:00:00+03:00' } })).toThrow()
+    await mutation.onSuccess()
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['meetings'] })
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['meeting-series'] })
+  })
+
   it('prefetches each enabled meeting read query during SSR', async () => {
     const { useMeetings, useMeeting, useMeetingAttachments, useMeetingSeriesList, useMeetingSeries } = await import('../useMeetings')
     useMeetings({})

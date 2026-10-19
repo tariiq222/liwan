@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
-import { meetingCreateRoute } from '@/utils/meetingRoutes'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import { SERIES_LIST_PATHS } from '@/modules/meetings/navigation'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
 import MeetingTimeline from '@/components/meetings/MeetingTimeline.vue'
-import { useMeetingSeries } from '@/composables/useMeetings'
+import { useAddSeriesOccurrence, useMeetingSeries } from '@/composables/useMeetings'
+import { useMeetingFormFeedback } from '@/composables/useMeetingFormFeedback'
+import { useMeetingSubmitError } from '@/composables/useMeetingSubmitError'
+import { buildOccurrencePayload, occurrenceFormErrors } from '@/utils/meetingOccurrence'
 import { useMeetingEvents, useMeetingSeriesResolutions } from '@/composables/useMeetingWorkspace'
 import { formatCalendarDate, formatWebVueTime } from '@webvue/ui/app/composables/calendarDate'
 import { isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
@@ -140,6 +142,35 @@ function occurrenceLabel(meeting: { meeting_date: string | null; start_datetime:
   const time = meeting.start_datetime ? localTime(meeting.start_datetime) : ''
   return time ? `${date} · ${time}` : date
 }
+const addingOccurrence = ref(false)
+const occurrenceName = ref('')
+const occurrenceDate = ref('')
+const occurrenceStart = ref('')
+const occurrenceEnd = ref('')
+const occurrenceDateField = computed({ get: () => occurrenceDate.value || null, set: value => { occurrenceDate.value = value || '' } })
+const addOccurrence = useAddSeriesOccurrence()
+const occurrenceErrors = computed(() => occurrenceFormErrors({ name: occurrenceName.value, date: occurrenceDate.value, start: occurrenceStart.value, end: occurrenceEnd.value }))
+const occurrenceForm = ref<HTMLFormElement | null>(null)
+const { visibleErrors: occurrenceVisibleErrors, validate: validateOccurrence } = useMeetingFormFeedback(occurrenceErrors, occurrenceForm)
+const { fieldErrors: occurrenceServerErrors, submitError: occurrenceSubmitError } = useMeetingSubmitError({
+  error: addOccurrence.error,
+  reset: addOccurrence.reset,
+  edits: () => [occurrenceName.value, occurrenceDate.value, occurrenceStart.value, occurrenceEnd.value],
+  fields: { name: 'name', start_datetime: 'start', end_datetime: 'end' },
+})
+function closeOccurrenceForm() {
+  addingOccurrence.value = false
+  occurrenceName.value = occurrenceDate.value = occurrenceStart.value = occurrenceEnd.value = ''
+  addOccurrence.reset()
+}
+async function submitOccurrence() {
+  if (!hydrated.value || addOccurrence.isPending.value || id.value === null || !validateOccurrence()) return
+  await addOccurrence.mutateAsync({
+    seriesId: id.value,
+    body: buildOccurrencePayload({ name: occurrenceName.value, date: occurrenceDate.value, start: occurrenceStart.value, end: occurrenceEnd.value }),
+  })
+  closeOccurrenceForm()
+}
 const canAddOccurrence = computed(() => {
   const series = query.data.value
   const userId = me.value?.id
@@ -209,13 +240,38 @@ function setHistoryPage(page: number) {
   >
     <template #actions>
       <UButton v-if="query.data.value?.can_edit === true" color="neutral" variant="outline" :to="recordChildTo(`/meetings/series/${id}/edit`, route.query, sourcePaths, route.hash)" :label="t('meetingsUx.seriesSettingsLink')" />
-      <UButton v-if="canAddOccurrence" icon="i-lucide-plus" :disabled="!hydrated" :to="meetingCreateRoute(route.fullPath, query.data.value?.project?.id, id ?? undefined)" :label="t('meetingsUi.addOccurrence')" />
+      <UButton v-if="canAddOccurrence && !addingOccurrence" icon="i-lucide-plus" :disabled="!hydrated" :label="t('meetingsUi.addOccurrence')" data-testid="meeting-add-occurrence" @click="addingOccurrence = true" />
     </template>
     <template #tabs>
       <SharedRouteTabs data-testid="meeting-series-tabs" variant="pill" :items="tabLinks" :ariaLabel="t('meetingTimeline.sections')" />
     </template>
 
     <div v-if="query.data.value" class="grid min-w-0 gap-(--webvue-gap-card)">
+      <form v-if="addingOccurrence && canAddOccurrence" ref="occurrenceForm" novalidate data-testid="meeting-occurrence-form" @submit.prevent="submitOccurrence">
+        <SharedFormSection panel :title="t('meetingsUx.occurrence.title')" :description="t('meetingsUx.occurrence.hint')">
+          <div class="webvue-form-grid">
+            <UFormField class="sm:col-span-2" :label="t('meetingsUx.occurrence.name')" name="name" :error="occurrenceServerErrors.name">
+              <UInput id="occurrence-name" v-model="occurrenceName" class="w-full" :disabled="!hydrated || addOccurrence.isPending.value" />
+            </UFormField>
+            <UFormField :label="t('meetingsUi.date')" name="date" :error="occurrenceVisibleErrors.date ? t(`meetingsUx.errors.${occurrenceVisibleErrors.date}`) : undefined">
+              <SharedDateField id="occurrence-date" v-model="occurrenceDateField" class="w-full" :disabled="!hydrated || addOccurrence.isPending.value" :aria-invalid="!!occurrenceVisibleErrors.date" />
+            </UFormField>
+            <UFormField :label="t('meetingsUi.start')" name="start" :error="occurrenceServerErrors.start || (occurrenceVisibleErrors.start ? t(`meetingsUx.errors.${occurrenceVisibleErrors.start}`) : undefined)">
+              <UInput id="occurrence-start" v-model="occurrenceStart" type="time" class="w-full" :disabled="!hydrated || addOccurrence.isPending.value" :aria-invalid="!!occurrenceVisibleErrors.start" />
+            </UFormField>
+            <UFormField :label="t('meetingsUi.end')" name="end" :error="occurrenceServerErrors.end || (occurrenceVisibleErrors.end ? t(`meetingsUx.errors.${occurrenceVisibleErrors.end}`) : undefined)">
+              <UInput id="occurrence-end" v-model="occurrenceEnd" type="time" class="w-full" :disabled="!hydrated || addOccurrence.isPending.value" :aria-invalid="!!occurrenceVisibleErrors.end" />
+            </UFormField>
+          </div>
+        </SharedFormSection>
+        <UAlert v-if="addOccurrence.error.value" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" class="mt-(--webvue-gap-card)" :title="occurrenceSubmitError" />
+        <SharedFormActions class="mt-(--webvue-gap-card)">
+          <div class="flex flex-wrap items-center gap-2">
+            <UButton type="button" color="neutral" variant="outline" :disabled="addOccurrence.isPending.value" :label="t('app.cancel')" @click="closeOccurrenceForm" />
+            <UButton type="submit" :disabled="!hydrated || addOccurrence.isPending.value" :loading="addOccurrence.isPending.value" :label="t('meetingsUx.occurrence.submit')" />
+          </div>
+        </SharedFormActions>
+      </form>
       <section v-if="activeTab === 'sessions'" class="grid gap-(--webvue-gap-card)" data-testid="meeting-series-sessions">
         <SharedRecordSection :title="t('meetingTimeline.scheduleSummary')" :description="t('meetingTimeline.scheduleSummaryHint')">
           <div class="grid w-full min-w-0 gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-4">

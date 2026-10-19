@@ -251,6 +251,19 @@ export const MeetingSeriesCreateSchema = z.object({
   }
 })
 
+// POST /meeting-series/<id>/occurrences: the new meeting inherits the series defaults; the schedule applies only as a pair.
+export const MeetingOccurrenceCreateSchema = z.object({
+  name: z.string().trim().min(1).optional(),
+  start_datetime: z.iso.datetime({ offset: true }).optional(),
+  end_datetime: z.iso.datetime({ offset: true }).optional(),
+}).strict().superRefine((value, ctx) => {
+  if (Boolean(value.start_datetime) !== Boolean(value.end_datetime)) {
+    ctx.addIssue({ code: 'custom', path: [value.start_datetime ? 'end_datetime' : 'start_datetime'], message: 'Set both the start and the end.' })
+  } else if (value.start_datetime && value.end_datetime && Date.parse(value.end_datetime) <= Date.parse(value.start_datetime)) {
+    ctx.addIssue({ code: 'custom', path: ['end_datetime'], message: 'The end must be after the start.' })
+  }
+})
+
 export type MeetingListItem = z.infer<typeof MeetingListItemSchema>
 export type MeetingList = z.infer<typeof MeetingListSchema>
 export type MeetingDetail = z.infer<typeof MeetingDetailSchema>
@@ -259,6 +272,7 @@ export type MeetingMinutesForm = z.infer<typeof MeetingMinutesFormSchema>
 export type MeetingEvent = z.infer<typeof MeetingEventSchema>
 export type MeetingVersion = z.infer<typeof MeetingVersionSchema>
 export type MeetingCreate = z.infer<typeof MeetingCreateSchema>
+export type MeetingOccurrenceCreate = z.infer<typeof MeetingOccurrenceCreateSchema>
 export type MeetingPatch = z.infer<typeof MeetingPatchSchema>
 export type MeetingResolutionCreate = z.infer<typeof MeetingResolutionCreateSchema>
 export type MeetingResolutionPatch = z.infer<typeof MeetingResolutionPatchSchema>

@@ -42,3 +42,8 @@ export function meetingViewOptions(t: (key: string) => string) {
     { value: 'calendar', label: t('nav.meetingCalendar'), icon: 'i-lucide-calendar-days', testId: 'meeting-view-calendar' },
   ]
 }
+
+/** Same-origin download of the current minutes; the backend answers with an attachment. */
+export function meetingMinutesPdfPath(meetingId: number) {
+  return `/api/v1/meetings/${meetingId}/minutes.pdf`
+}

@@ -522,17 +522,17 @@
         {
           "id": "Editable",
           "name": "مع رفع وحذف",
-          "context": "apps/web/app/pages/meetings/[id].vue:290"
+          "context": "apps/web/app/pages/meetings/[id].vue:295"
         },
         {
           "id": "ReadOnly",
           "name": "للقراءة فقط",
-          "context": "apps/web/app/pages/meetings/[id].vue:290"
+          "context": "apps/web/app/pages/meetings/[id].vue:295"
         },
         {
           "id": "Empty",
           "name": "بلا مرفقات",
-          "context": "apps/web/app/pages/meetings/[id].vue:290"
+          "context": "apps/web/app/pages/meetings/[id].vue:295"
         }
       ]
     },
@@ -605,22 +605,22 @@
         {
           "id": "Populated",
           "name": "سجل الأحداث",
-          "context": "apps/web/app/pages/meetings/[id].vue:245"
+          "context": "apps/web/app/pages/meetings/[id].vue:250"
         },
         {
           "id": "Paginated",
           "name": "سجل بصفحات متعددة",
-          "context": "apps/web/app/pages/meetings/series/[id].vue:302"
+          "context": "apps/web/app/pages/meetings/series/[id].vue:358"
         },
         {
           "id": "Empty",
           "name": "بلا أحداث",
-          "context": "apps/web/app/pages/meetings/[id].vue:245"
+          "context": "apps/web/app/pages/meetings/[id].vue:250"
         },
         {
           "id": "Loading",
           "name": "جارٍ التحميل",
-          "context": "apps/web/app/pages/meetings/[id].vue:245"
+          "context": "apps/web/app/pages/meetings/[id].vue:250"
         }
       ]
     },
@@ -691,22 +691,22 @@
         {
           "id": "Structured",
           "name": "محضر منظّم",
-          "context": "apps/web/app/pages/meetings/[id].vue:212"
+          "context": "apps/web/app/pages/meetings/[id].vue:217"
         },
         {
           "id": "Legacy",
           "name": "محضر نصي قديم",
-          "context": "apps/web/app/pages/meetings/[id]/print.vue:84"
+          "context": "apps/web/app/pages/meetings/[id]/print.vue:85"
         },
         {
           "id": "Empty",
           "name": "بلا مواضيع",
-          "context": "apps/web/app/pages/meetings/[id].vue:212"
+          "context": "apps/web/app/pages/meetings/[id].vue:217"
         },
         {
           "id": "Compact",
           "name": "قراءة المحضر داخل الاجتماع",
-          "context": "apps/web/app/pages/meetings/[id].vue:212"
+          "context": "apps/web/app/pages/meetings/[id].vue:217"
         }
       ]
     },
@@ -950,12 +950,12 @@
         {
           "id": "Summary",
           "name": "تبويب الملخص",
-          "context": "apps/web/app/pages/meetings/[id].vue:170"
+          "context": "apps/web/app/pages/meetings/[id].vue:175"
         },
         {
           "id": "LogTab",
           "name": "تبويب السجل بعد الفاصل",
-          "context": "apps/web/app/pages/meetings/[id].vue:170"
+          "context": "apps/web/app/pages/meetings/[id].vue:175"
         }
       ]
     },
@@ -992,12 +992,12 @@
         {
           "id": "WithResolutions",
           "name": "توصيات بحالات مختلفة",
-          "context": "apps/web/app/pages/meetings/[id].vue:287"
+          "context": "apps/web/app/pages/meetings/[id].vue:292"
         },
         {
           "id": "Empty",
           "name": "بلا توصيات",
-          "context": "apps/web/app/pages/meetings/[id].vue:287"
+          "context": "apps/web/app/pages/meetings/[id].vue:292"
         }
       ]
     },
@@ -1060,17 +1060,17 @@
         {
           "id": "Timeline",
           "name": "خط زمني",
-          "context": "apps/web/app/pages/meetings/series/[id].vue:250"
+          "context": "apps/web/app/pages/meetings/series/[id].vue:306"
         },
         {
           "id": "Table",
           "name": "جدول",
-          "context": "apps/web/app/pages/meetings/series/[id].vue:250"
+          "context": "apps/web/app/pages/meetings/series/[id].vue:306"
         },
         {
           "id": "Empty",
           "name": "بلا لقاءات",
-          "context": "apps/web/app/pages/meetings/series/[id].vue:250"
+          "context": "apps/web/app/pages/meetings/series/[id].vue:306"
         }
       ]
     },
@@ -1143,22 +1143,22 @@
         {
           "id": "Populated",
           "name": "نسخ المحضر",
-          "context": "apps/web/app/pages/meetings/[id].vue:257"
+          "context": "apps/web/app/pages/meetings/[id].vue:262"
         },
         {
           "id": "Selected",
           "name": "نسخة محددة",
-          "context": "apps/web/app/pages/meetings/[id].vue:257"
+          "context": "apps/web/app/pages/meetings/[id].vue:262"
         },
         {
           "id": "Empty",
           "name": "بلا نسخ",
-          "context": "apps/web/app/pages/meetings/[id].vue:257"
+          "context": "apps/web/app/pages/meetings/[id].vue:262"
         },
         {
           "id": "Loading",
           "name": "جارٍ التحميل",
-          "context": "apps/web/app/pages/meetings/[id].vue:257"
+          "context": "apps/web/app/pages/meetings/[id].vue:262"
         }
       ]
     },
