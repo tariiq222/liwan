@@ -1,5 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Static gate check for every /api/v1 route of odoo-addons/*/controllers.
+"""Static gate check for every /api/v1 route declared anywhere under an addon's
+``controllers`` package (``odoo-addons/*/controllers/**/*.py``), so a nested area package
+such as ``controllers/shifts/hr_shifts.py`` is checked like a flat module.
 
 Each route must have (a) ``api_handler`` (json2 routes), (b) a feature gate
 (``requires_feature`` / ``requires_registered_feature``, addons of rank 3 and above) and
@@ -363,9 +365,17 @@ def _refuses(node: ast.AST) -> bool:
 
 
 def _service_trees() -> dict[Path, ast.Module]:
-    """Controller and model modules: the places a capability check can live."""
-    paths = [*ADDONS.glob('*/controllers/*.py'), *ADDONS.glob('*/models/*.py')]
-    return {py: ast.parse(py.read_text(encoding='utf-8')) for py in sorted(paths) if py.name != '__init__.py'}
+    """Controller and model modules at any depth: the places a capability check can live.
+
+    Both globs are recursive so the nested area packages of a controller addon (and any
+    nested model package) are indexed too; ``__init__.py`` only imports and never carries a
+    handler or a model, so it is skipped at every depth.
+    """
+    paths = [*ADDONS.glob('*/controllers/**/*.py'), *ADDONS.glob('*/models/**/*.py')]
+    return {
+        py: ast.parse(py.read_text(encoding='utf-8'))
+        for py in sorted({py for py in paths if py.name != '__init__.py'})
+    }
 
 
 def extract_routes(trees: dict[Path, ast.Module] | None = None, service_trees: dict[Path, ast.Module] | None = None) -> list[Route]:
@@ -396,7 +406,7 @@ def _route(raw: dict, paths: list[str], gates: Gates) -> Route:
         route.capability_keys = _literal_keys(decorator)
         route.capability_match = kw_const(decorator, 'match') or 'all'
         return route
-    func = gates.index.func_of.get(id(fn)) or Func(fn, ADDONS / raw['addon'] / raw['file'], raw['class_node'], ())
+    func = gates.index.func_of.get(id(fn)) or Func(fn, REPO / raw['file'], raw['class_node'], ())
     gated, keys, match = gates.scan(func)
     if gated:
         route.capability_source, route.capability_keys, route.capability_match = 'body', sorted(set(keys)), match
@@ -576,11 +586,11 @@ def check() -> list[str]:
 def main() -> int:
     problems = check()
     for problem in problems:
-        print(problem, file=sys.stderr)
+        sys.stderr.write(problem + '\n')
     if problems:
-        print(f'route gate policy: {len(problems)} problem(s)', file=sys.stderr)
+        sys.stderr.write(f'route gate policy: {len(problems)} problem(s)\n')
         return 1
-    print('route gate policy: ok')
+    sys.stdout.write('route gate policy: ok\n')
     return 0
 
 

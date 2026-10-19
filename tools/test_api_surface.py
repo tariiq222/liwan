@@ -1,6 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import ast
+import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
 import api_surface
 import route_gate_policy
@@ -60,6 +63,36 @@ class TestCapabilityMatrix(unittest.TestCase):
         self.assertEqual(gated['feature_keys'], ['hr.enabled'])
         open_route = operations['GET /api/v1/b']
         self.assertEqual((open_route['capability_source'], open_route['no_capability_reason']), ('none', 'own data only'))
+
+
+class NestedPackageTests(unittest.TestCase):
+    """A controller module inside a nested area package (spec §8.7) is parsed like a flat one."""
+
+    NESTED = api_surface.ADDONS / 'webvue_hr' / 'controllers' / 'shifts' / 'probe.py'
+
+    def test_parse_controllers_scans_every_depth_once_in_a_stable_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / 'odoo-addons'
+            (root / 'webvue_hr' / 'controllers' / 'shifts').mkdir(parents=True)
+            (root / 'webvue_hr' / 'controllers' / 'flat.py').write_text('x = 1\n')
+            (root / 'webvue_hr' / 'controllers' / '__init__.py').write_text('from . import flat\n')
+            (root / 'webvue_hr' / 'controllers' / 'shifts' / 'deep.py').write_text('x = 1\n')
+            (root / 'webvue_hr' / 'controllers' / 'shifts' / '__init__.py').write_text('from . import deep\n')
+            with mock.patch.object(api_surface, 'ADDONS', root):
+                trees = api_surface.parse_controllers()
+            keys = [str(path.relative_to(root)) for path in trees]
+        # Both depths are parsed and every __init__.py (which only imports) is skipped.
+        self.assertEqual(keys, ['webvue_hr/controllers/flat.py', 'webvue_hr/controllers/shifts/deep.py'])
+        self.assertEqual(len(keys), len(set(keys)))
+
+    def test_a_nested_module_reports_its_owning_addon_and_repo_path(self):
+        raw = api_surface.extract_routes({self.NESTED: ast.parse(SOURCE)})
+        self.assertEqual([item['handler'] for item in raw], ['static_gate', 'registered_gate', 'row_level'])
+        self.assertEqual({item['addon'] for item in raw}, {'webvue_hr'})
+        self.assertEqual(
+            {item['file'] for item in raw},
+            {'odoo-addons/webvue_hr/controllers/shifts/probe.py'},
+        )
 
 
 if __name__ == '__main__':
