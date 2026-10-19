@@ -34,6 +34,11 @@
       "repo": "OCA/dms",
       "branch": "19.0",
       "commit": "42aec9613f64402ec702e8e21cfb643626a41056"
+    },
+    {
+      "repo": "OCA/hr",
+      "branch": "19.0",
+      "commit": "23e948031779315958c3897652d04da813a058fb"
     }
   ],
   "python_requirements": [
