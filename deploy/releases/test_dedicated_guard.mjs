@@ -58,7 +58,7 @@ const internal = { 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '4
 
 test('dedicated edge routes legacy Odoo paths and passes raw session cookie unchanged', async t => {
   const f = await fixture(t)
-  for (const path of ['/api/v1/me', '/web/content/1', '/web/login', '/odoo/action', '/website/translations', '/base_setup/x', '/bus/x', '/json/x', '/doc/x', '/base/static/a.js', '/report/x', '/mail/x', '/discuss/x']) {
+  for (const path of ['/api/v1/me', '/web/login', '/odoo/action', '/website/translations', '/base_setup/x', '/bus/x', '/json/x', '/doc/x', '/base/static/a.js', '/report/x', '/mail/x', '/discuss/x']) {
     const response = await call(f.url, path, { cookie: 'session_id=existing-raw-cookie; preference=x' })
     assert.equal(response.status, 200); assert.equal(response.body, 'odoo')
     assert.equal(f.observed.at(-1).headers.cookie, 'session_id=existing-raw-cookie; preference=x')
@@ -104,7 +104,7 @@ test('token and identity revision guard internal pin and auth DB parameter', asy
 test('maintenance denies every exposed path while privileged status observes current route', async t => {
   const f = await fixture(t)
   writeFileSync(join(f.root, 'tenant_a.maintenance'), '{}')
-  for (const path of ['/', '/api/v1/me', '/web/content/1', '/web/session/authenticate', '/websocket', '/base/static/a.js']) assert.equal((await call(f.url, path, { origin: 'https://' + binding.host })).status, 503)
+  for (const path of ['/', '/api/v1/me', '/api/v1/tasks/1/attachments/1/download', '/web/session/authenticate', '/websocket', '/base/static/a.js']) assert.equal((await call(f.url, path, { origin: 'https://' + binding.host })).status, 503)
   assert.equal((await call(f.url, '/_webvue/release-status')).status, 403)
   const status = await call(f.url, '/_webvue/release-status', internal)
   assert.equal(status.status, 200)

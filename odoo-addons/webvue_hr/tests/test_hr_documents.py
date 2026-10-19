@@ -204,11 +204,9 @@ class TestHrDocuments(WebVueHrCase):
         self.authenticate('api_emp', 'api_emp_pass_123')
         result = self.api('GET', f'/api/v1/hr/documents/{other_document.id}')
         self.assertEqual((result.status_code, result.json()['code']), (404, 'not_found'))
-        download = self.url_open(f'/web/content/{attachment.id}')
-        # Stock /web/content answers 404 for the hidden cross-company
-        # attachment, while the /api/v1 document route above answers 404
-        # not_found with the WebVue error envelope.
-        self.assertEqual(download.status_code, 404)
+        download = self.api('GET', f'/api/v1/hr/documents/{other_document.id}/attachments/{attachment.id}/download')
+        self.assertEqual((download.status_code, download.json()['code']), (404, 'not_found'))
+        self.assertEqual(self.url_open(f'/web/content/{attachment.id}').status_code, 404)
 
     def test_patch_cannot_reparent(self):
         self.authenticate('hr_doc_admin', 'hr_doc_admin_pass_123')
@@ -235,9 +233,29 @@ class TestHrDocuments(WebVueHrCase):
         self.assertEqual(att['mimetype'], 'application/pdf')
         self.assertGreater(att['file_size'], 0)
 
-        download = self.url_open(f'/web/content/{att["id"]}')
+        self.assertEqual(att['url'], f'/api/v1/hr/documents/{self.doc_a.id}/attachments/{att["id"]}/download')
+        download = self.api('GET', att['url'])
         self.assertEqual(download.status_code, 200)
         self.assertIn(b'%PDF-1.4 test', download.content)
+        # The reader holds hr.documents.read; a file of another document is not served through this one.
+        foreign = self.api('GET', f'/api/v1/hr/documents/{self.doc_b.id}/attachments/{att["id"]}/download')
+        self.assertEqual(foreign.status_code, 404)
+        self.assertEqual(self.url_open(f'/web/content/{att["id"]}').status_code, 404)
+
+    def test_download_requires_the_document_read_capability(self):
+        attachment = self.env['ir.attachment'].create({
+            'name': 'policy.pdf', 'raw': b'%PDF-1.4 private', 'mimetype': 'application/pdf',
+            'res_model': 'webvue.hr.document', 'res_id': self.doc_a.id,
+        })
+        self.doc_a.write({'attachment_ids': [(4, attachment.id)]})
+        path = f'/api/v1/hr/documents/{self.doc_a.id}/attachments/{attachment.id}/download'
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertEqual(self.api('GET', path).status_code, 200)
+        # A managed account with no assignment keeps stock read access to the file but holds no HR capability.
+        self.employee.write({'webvue_access_managed': True})
+        self.employee.flush_recordset(['webvue_access_managed'])
+        denied = self.api('GET', path)
+        self.assertEqual((denied.status_code, denied.json()['code']), (403, 'forbidden'))
 
     def test_employee_upload_is_403(self):
         self.authenticate('api_emp', 'api_emp_pass_123')

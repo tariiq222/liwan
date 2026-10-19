@@ -265,8 +265,8 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         self.assertEqual(odoo['match'][1]['path'], ['/web/session/get_session_info'])
         self.assertNotIn('not', odoo['match'][1])
         # No Odoo asset/attachment prefix is exempted anywhere: /web/content,
-        # /web/assets and /web/static stay inside webvue_odoo (not served via this edge
-        # for assets; /web/content is ACL-checked).
+        # /web/assets and /web/static stay inside webvue_odoo (none is served through this
+        # edge; attachments download from /api/v1/.../attachments/<id>/download).
         for zname in ('webvue_odoo', 'webvue_web'):
             for m in zones[zname]['match']:
                 for neg in m.get('not', []):

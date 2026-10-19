@@ -19,11 +19,10 @@ SESSION_ALLOWLIST = frozenset({
     '/web/session/destroy',
     '/web/health',
 })
-# Static files and the attachment/image routes, also exempt from that logout.
+# Static files and the image routes, also exempt from that logout.
 SESSION_PREFIXES = (
     '/web/assets/',
     '/web/static/',
-    '/web/content',
     '/web/image',
 )
 # Credentials travel in the body of these routes (auth='none'); they are closed
@@ -48,11 +47,8 @@ OPEN_PREFIXES = (*API_PREFIXES, '/websocket', '/web/assets/', '/web/static/')
 AVATAR_PATH = re.compile(r'^/web/image/hr\.employee/[1-9][0-9]{0,9}/avatar_128$')
 FAVICON_PATH = re.compile(r'^/web/image/res\.company/[1-9][0-9]{0,9}/logo/32x32$')
 VERSION_VALUE = re.compile(r'^(?:0|[0-9]{20})-[a-f0-9]{12}$')
-# Attachment downloads by id only, for a signed-in request. Residual risk: any
-# attachment its ACLs allow can be fetched by id; the full fix is an /api/v1
-# download route. Other query keys (model, field, ...) would stream any binary field.
-ATTACHMENT_PATH = re.compile(r'^/web/content/[0-9]+$')
-ATTACHMENT_QUERY_KEYS = frozenset({'download', 'unique', 'access_token'})
+# Attachments are never served by Odoo's /web/content: each owning application streams
+# its own files from /api/v1/.../attachments/<id>/download after its capability check.
 LOGO_QUERY_KEYS = frozenset({'company', 'v'})
 
 
@@ -60,7 +56,7 @@ def _query_keys(httprequest):
     return set(httprequest.args)
 
 
-def _may_reach(httprequest, signed_in):
+def _may_reach(httprequest):
     path = httprequest.path
     keys = _query_keys(httprequest)
     if AVATAR_PATH.match(path):
@@ -70,8 +66,6 @@ def _may_reach(httprequest, signed_in):
         return keys == {'v'} and len(values) == 1 and bool(VERSION_VALUE.match(values[0]))
     if path == '/web/binary/company_logo':
         return keys <= LOGO_QUERY_KEYS
-    if ATTACHMENT_PATH.match(path):
-        return signed_in and keys <= ATTACHMENT_QUERY_KEYS
     return path in OPEN_ROUTES or path.startswith(OPEN_PREFIXES)
 
 
@@ -87,13 +81,11 @@ class WebVuePlatformIrHttp(models.AbstractModel):
             raise NotFound()
         user = request.env.user
         has_user = bool(user) and not user._is_public()
-        # auth='none' routes (/odoo) clear the environment user; the session still knows it.
-        signed_in = bool(request.session.uid) or has_user
         exempt = path in SESSION_ALLOWLIST or path.startswith(SESSION_PREFIXES + API_PREFIXES)
         if has_user and not exempt:
             service = request.env['webvue.entitlement.service'].sudo()
             if service._webvue_session_forbidden(user):
                 request.session.logout(keep_db=True)
                 raise AccessDenied()
-        if not _may_reach(httprequest, signed_in):
+        if not _may_reach(httprequest):
             raise NotFound()

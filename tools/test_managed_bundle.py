@@ -132,10 +132,10 @@ class BundleCase(unittest.TestCase):
         text = self.render()['Caddyfile']
         self.assertEqual(text, bundle.CADDYFILE)
         for required in ['auto_https off', 'admin off', ':80 {', '/api/v1', '/api/v1/*',
-                         '/web/content/*', '/websocket', '/websocket/*',
+                         '/websocket', '/websocket/*',
                          'reverse_proxy odoo:8069', 'reverse_proxy odoo:8072', 'reverse_proxy web:3000']:
             self.assertIn(required, text)
-        for forbidden in ['tls ', 'rate_limit', 'ratelimit', 'https://', 'import ', 'localhost:', '${']:
+        for forbidden in ['/web/content', 'tls ', 'rate_limit', 'ratelimit', 'https://', 'import ', 'localhost:', '${']:
             self.assertNotIn(forbidden, text)
 
     def test_compatible_with_current_probe_named_volume_shape(self):

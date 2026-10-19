@@ -33,6 +33,13 @@ class WebVueHrDocument(models.Model):
         index=True,
     )
 
+    def _webvue_document_attachments(self):
+        """The files stored on this document itself; the one set both the url and the download route use."""
+        self.ensure_one()
+        return self.attachment_ids.filtered(
+            lambda item: item.res_model == self._name and item.res_id == self.id,
+        )
+
     def _webvue_require(self, capability):
         self.env['webvue.access.service']._webvue_require_capability(capability)
 

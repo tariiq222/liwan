@@ -26,7 +26,7 @@ class DedicatedTests(unittest.TestCase):
                 validate_binding(value)
 
     def test_maintenance_blocks_auth_content_and_business_paths(self):
-        for path in ('/web/login', '/web/content/1', '/api/v1/me', '/websocket'):
+        for path in ('/web/login', '/api/v1/tasks/1/attachments/1/download', '/api/v1/me', '/websocket'):
             result = select_dedicated_route(self.local_binding(), 'tenant-a.webvue.test',
                                            {'poolId': 'green', 'releaseId': 'r1', 'state': 'maintenance'}, path=path)
             self.assertFalse(result['allowed'])

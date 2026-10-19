@@ -19,7 +19,7 @@ const departments = [
   { id: 3, name: 'العمليات الميدانية', parent_id: 1, manager: null, child_ids: [], employee_count: 0 },
 ]
 const documents = [
-  { id: 1, name: 'دليل إجراءات التشغيل', department: OPS, body: 'يوضح هذا المستند إجراءات التشغيل المعتمدة للفريق.', attachment_ids: [{ id: 1, name: 'دليل التشغيل.pdf', mimetype: 'application/pdf', file_size: 245760 }], expiry_date: null, write_date: '2026-09-10T08:00:00+03:00' },
+  { id: 1, name: 'دليل إجراءات التشغيل', department: OPS, body: 'يوضح هذا المستند إجراءات التشغيل المعتمدة للفريق.', attachment_ids: [{ id: 1, name: 'دليل التشغيل.pdf', mimetype: 'application/pdf', file_size: 245760, url: '/api/v1/hr/documents/1/attachments/1/download' }], expiry_date: null, write_date: '2026-09-10T08:00:00+03:00' },
   { id: 2, name: 'سياسة الإجازات', department: PEOPLE, body: 'تنظم هذه السياسة الإجازات السنوية والمرضية.', attachment_ids: [], expiry_date: null, write_date: '2026-09-12T08:00:00+03:00' },
   { id: 3, name: 'نموذج تقييم الأداء', department: PEOPLE, body: 'نموذج التقييم السنوي لأداء الموظفين.', attachment_ids: [], expiry_date: null, write_date: '2026-09-14T08:00:00+03:00' },
 ]

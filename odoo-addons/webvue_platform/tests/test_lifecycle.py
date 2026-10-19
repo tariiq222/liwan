@@ -21,13 +21,6 @@ class TestTenantLifecycle(HttpCase):
             cls.env, login='lifecycle_emp', password='lifecycle_emp_pass_123',
             groups='webvue_core.group_employee',
         )
-        cls.attachment = cls.env['ir.attachment'].create({
-            'name': 'lifecycle.txt',
-            'raw': b'secret-bytes',
-            'mimetype': 'text/plain',
-            'res_model': 'res.users',
-            'res_id': cls.employee.id,
-        })
 
     def _operator(self):
         return self.record.with_context(**{OPERATOR_CONTEXT: True})
@@ -88,12 +81,3 @@ class TestTenantLifecycle(HttpCase):
         denied = self._authenticate('admin', 'admin')
         body = denied.json()
         self.assertTrue(body.get('error') or body.get('result', {}).get('uid') in (False, None), denied.text)
-
-    def test_suspended_hides_business_download(self):
-        self.authenticate('lifecycle_emp', 'lifecycle_emp_pass_123')
-        allowed = self.url_open(f'/web/content/{self.attachment.id}')
-        self.assertEqual(allowed.status_code, 200)
-        self._operator().write({'status': 'suspended'})
-        hidden = self.url_open(f'/web/content/{self.attachment.id}')
-        self.assertIn(hidden.status_code, (403, 404))
-        self.assertNotEqual(hidden.content, b'secret-bytes')

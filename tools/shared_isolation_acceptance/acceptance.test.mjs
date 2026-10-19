@@ -94,7 +94,7 @@ test('HTTP/WS mock matrix: each surface has 10 positives and 90 rejected foreign
     guard = createGuard({ registryPath, proxyToken: token, keys, activeKid: 'test', odooUrl: upstream, webUrl, wsUrl: upstream }); track(guard)
     const base = await listen(guard)
     console.log(JSON.stringify({ evidence: 'loopback mock only', upstream, webUrl, guard: base }))
-    for (const [surface, path, method, body] of [['read', '/api/v1/tasks/1', 'GET'], ['write', '/api/v1/tasks/1', 'PATCH', '{"name":"synthetic"}'], ['files', '/web/content/1', 'GET'], ['session', '/api/v1/me', 'GET']]) {
+    for (const [surface, path, method, body] of [['read', '/api/v1/tasks/1', 'GET'], ['write', '/api/v1/tasks/1', 'PATCH', '{"name":"synthetic"}'], ['files', '/api/v1/tasks/1/attachments/1/download', 'GET'], ['session', '/api/v1/me', 'GET']]) {
       counts[surface] = { positive: 0, foreign: 0 }
       for (const a of targets) {
         const own = await call(base, a, path, method, body); assert.equal(own.status, 200)

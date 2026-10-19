@@ -2,6 +2,7 @@
 from odoo import fields
 from odoo.tools import html2plaintext
 
+from odoo.addons.webvue_api.serializers.attachment import dump_attachment
 from odoo.addons.webvue_api.serializers.common import iso
 
 CONVERSATION_KEYS = (
@@ -23,13 +24,8 @@ def dump_user_ref(user):
     return {'id': user.id, 'name': user.name or ''}
 
 
-def dump_attachment(attachment):
-    return {
-        'id': attachment.id,
-        'name': attachment.name or '',
-        'mimetype': attachment.mimetype or '',
-        'url': f'/web/content/{attachment.id}?download=true',
-    }
+def conversation_attachments_route(conversation_id):
+    return f'/api/v1/chat/conversations/{conversation_id}/attachments'
 
 
 def dump_member(user):
@@ -134,7 +130,7 @@ def dump_message(message):
         'author': dump_user_ref(author_user),
         'body': _plain_body(message.body),
         'created_at': iso(message.date),
-        'attachments': [dump_attachment(attachment) for attachment in attachments],
+        'attachments': [dump_attachment(attachment, conversation_attachments_route(message.res_id)) for attachment in attachments],
         'parent': _dump_message_parent(message),
         'edited': 'o-mail-Message-edited' in (message.body or ''),
         'pinned': bool(message.pinned_at),

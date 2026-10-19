@@ -170,7 +170,7 @@ describe('collection envelopes', () => {
 
   it('parses comments, attachments and convert targets as { items, total }', async () => {
     const comment = { id: 1, body: 'hi', author: null, created_at: '2026-10-13T00:00:00Z' }
-    const att = { id: 2, name: 'a.pdf', mimetype: 'application/pdf', url: '/web/content/2' }
+    const att = { id: 2, name: 'a.pdf', mimetype: 'application/pdf', url: '/api/v1/my-tasks/7/attachments/2/download' }
     const c = await fetchMyTaskComments(apiReturning({ items: [comment], total: 1 }) as never, 7)
     expect(c).toEqual({ items: [comment], total: 1 })
     expect((await fetchMyTaskAttachments(apiReturning({ items: [att], total: 1 }) as never, 7)).items).toEqual([att])

@@ -112,6 +112,7 @@ export const HrDocumentAttachmentSchema = z.object({
   name: z.string(),
   mimetype: z.string(),
   file_size: z.number(),
+  url: z.string().min(1),
 }).strict()
 
 export const HrDocumentSchema = z.object({

@@ -3,6 +3,9 @@ from odoo import http
 from odoo.exceptions import MissingError
 from odoo.http import request
 
+from odoo.addons.webvue_api.controllers.attachment_download import (
+    download_linked_attachment,
+)
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -107,6 +110,16 @@ class HrDocumentController(http.Controller):
         vals = parse_document_patch(payload)
         doc.write(vals)
         return dump_document(doc)
+
+    @http.route(
+        '/api/v1/hr/documents/<int:document_id>/attachments/<int:attachment_id>/download',
+        type='http', auth='user', methods=['GET'], readonly=True,
+    )
+    @api_handler
+    @requires_feature('hr.enabled', operation='read')
+    def download_document_attachment(self, document_id, attachment_id, **_):
+        _require('hr.documents.read')
+        return download_linked_attachment(_current_document(document_id)._webvue_document_attachments(), attachment_id)
 
     @http.route(
         '/api/v1/hr/documents/<int:document_id>/attachments',

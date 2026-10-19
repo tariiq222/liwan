@@ -278,3 +278,54 @@ class TestOperationsWorkflow(WebVueApiCase):
         definition = self.env['tier.definition'].search([('operations_process_id', '=', process.id)])
         self.assertEqual(definition.model, 'webvue.operation.request')
         self.assertFalse(definition.allow_write_for_reviewer)
+
+    def _file(self, record, name='quote.txt', raw=b'operation bytes', user=None):
+        return self.env['ir.attachment'].with_user(user or self.employee).create({
+            'name': name, 'raw': raw, 'mimetype': 'text/plain', 'public': False,
+            'res_model': record._name, 'res_id': record.id, 'type': 'binary',
+        })
+
+    def _path(self, record, attachment):
+        return f'/api/v1/operations/requests/{record.id}/attachments/{attachment.id}/download'
+
+    def test_requester_downloads_and_the_wire_url_is_the_download_route(self):
+        record = self._request()
+        attachment = self._file(record)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        listed = self.api('GET', f'/api/v1/operations/requests/{record.id}').json()['attachments']
+        self.assertEqual(listed[0]['url'], self._path(record, attachment))
+        response = self.api('GET', listed[0]['url'])
+        self.assertEqual((response.status_code, response.content), (200, b'operation bytes'))
+        self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
+
+    def test_attachment_of_another_request_is_not_served(self):
+        record, other = self._request(), self._request()
+        foreign = self._file(other, 'other.txt', b'other bytes')
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self.api('GET', self._path(record, foreign))
+        self.assertEqual((response.status_code, response.json()['code']), (404, 'not_found'))
+
+    def test_read_capability_is_required(self):
+        record = self._request()
+        attachment = self._file(record)
+        nocap = new_test_user(self.env, login='ops_nocap', password='ops_nocap_test_123', groups='webvue_core.group_employee')
+        nocap.write({'webvue_access_managed': True})
+        self.authenticate('ops_nocap', 'ops_nocap_test_123')
+        response = self.api('GET', self._path(record, attachment))
+        self.assertEqual((response.status_code, response.json()['code']), (403, 'forbidden'))
+
+    def test_hidden_request_and_other_company_request_are_404(self):
+        record = self._request()
+        attachment = self._file(record)
+        other = new_test_user(self.env, login='ops_other_dl', password='ops_other_dl_test_123', groups='webvue_core.group_employee')
+        self.service._webvue_replace_assignments(other, [{'role_id': self.env.ref('webvue_core.role_employee').id, 'company_id': self.env.company.id}])
+        self.authenticate('ops_other_dl', 'ops_other_dl_test_123')
+        self.assertEqual(self.api('GET', self._path(record, attachment)).status_code, 404)
+        company = self.env['res.company'].create({'name': 'Other download company'})
+        foreign = self._request()
+        foreign_file = self._file(foreign)
+        # Move the stored request to the other company the way an out-of-scope row would exist.
+        self.env.cr.execute('UPDATE webvue_operation_request SET company_id = %s WHERE id = %s', [company.id, foreign.id])
+        foreign.invalidate_recordset()
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertEqual(self.api('GET', self._path(foreign, foreign_file)).status_code, 404)
