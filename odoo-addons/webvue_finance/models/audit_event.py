@@ -13,6 +13,7 @@ class WebVueFinanceAuditEvent(models.Model):
     """
     _name = 'webvue.finance.audit.event'
     _description = 'WebVue finance audit event'
+    _webvue_scope = 'company'
     _order = 'id desc'
 
     company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade')
