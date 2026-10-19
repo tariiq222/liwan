@@ -6,3 +6,5 @@ access_finance_assets_read_asset_group,finance assets read: account.asset.group,
 access_finance_analytic_read_plan,finance analytic read: account.analytic.plan,analytic.model_account_analytic_plan,group_cap_finance_analytic_read,1,0,0,0
 access_finance_analytic_manage_plan,finance analytic manage: account.analytic.plan,analytic.model_account_analytic_plan,group_cap_finance_analytic_manage,1,1,1,0
 access_finance_analytic_manage_account,finance analytic manage: account.analytic.account,analytic.model_account_analytic_account,group_cap_finance_analytic_manage,1,1,1,0
+access_finance_budgets_manage_budget,finance budgets manage: mis.budget.by.account,mis_builder_budget.model_mis_budget_by_account,group_cap_finance_budgets_manage,1,1,1,1
+access_finance_budgets_manage_budget_item,finance budgets manage: mis.budget.by.account.item,mis_builder_budget.model_mis_budget_by_account_item,group_cap_finance_budgets_manage,1,1,1,1

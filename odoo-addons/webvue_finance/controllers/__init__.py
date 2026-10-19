@@ -5,6 +5,7 @@ from . import (
     finance_analytic_reports,
     finance_assets,
     finance_bank,
+    finance_budgets,
     finance_debit_notes,
     finance_documents,
     finance_entries,

@@ -31,6 +31,8 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `POST /assets` (201, a draft), `POST /assets/<id>/validate`, `POST /assets/compute-depreciation` | `finance.assets.manage` |
 | `GET /bank-statements`, `GET /bank-statements/<id>`, `GET /bank-statement-lines/<id>/reconcile-proposals` | `finance.bank.read` |
 | `POST /bank-statements` (201), `POST /bank-statement-lines/<id>/reconcile` | `finance.bank.manage` |
+| `GET /budgets` (`state`, `q`), `GET /budgets/<id>`, `GET /reports/budget-vs-actual?budget_id[&date_to]` | `finance.budgets.read` |
+| `POST /budgets` (201), `PATCH /budgets/<id>`, `POST /budgets/<id>/confirm`, `/cancel`, `/reset-to-draft`, `POST /budgets/<id>/lines` (201), `PATCH` and `DELETE` (204) `/budgets/<id>/lines/<line_id>` | `finance.budgets.manage` |
 | `GET /zatca/status`, `GET /invoices/<id>/zatca` | `finance.zatca.read` |
 | `POST /zatca/journals/<id>/onboard` (`{otp}`) | `finance.zatca.manage` |
 | `POST /invoices/<id>/zatca/submit`, `POST /invoices/<id>/zatca/retry` | `finance.zatca.submit` |
@@ -44,8 +46,8 @@ no partner delete: archive instead. Capability dependencies: `partners.manage` n
 `partners.read`; `invoices.manage` needs `invoices.read`; `invoices.post` needs `invoices.manage`;
 `payments.manage` needs `payments.read` and `invoices.read`; `setup.manage` needs `setup.read`; `entries.manage` needs
 `entries.read`; `entries.post` needs `entries.manage`; `assets.manage` needs `assets.read`; `bank.manage` needs
-`bank.read`; `analytic.manage` needs `analytic.read`; `zatca.read` needs `invoices.read`; `zatca.manage` and `zatca.submit` need `zatca.read`. The built-in
-`finance_manager` role (and `webvue_core`'s vendor support role) holds all twenty-six capabilities.
+`bank.read`; `analytic.manage` needs `analytic.read`; `budgets.manage` needs `budgets.read`; `zatca.read` needs `invoices.read`; `zatca.manage` and `zatca.submit` need `zatca.read`. The built-in
+`finance_manager` role (and `webvue_core`'s vendor support role) holds all twenty-eight capabilities.
 
 ## Write semantics
 
@@ -352,7 +354,7 @@ summary. A customer withholding from a sale is not reported.
 ## OCA-backed reports, assets and bank
 
 `webvue_finance` depends on `account_financial_report`, `partner_statement`, `account_asset_management`,
-`account_reconcile_oca` (which pulls `account_statement_base`) and `mis_builder` from the pinned repositories of
+`account_reconcile_oca` (which pulls `account_statement_base`), `mis_builder` and `mis_builder_budget` from the pinned repositories of
 `deploy/oca-addons.json` (see [docs/oca-addons.md](../../docs/oca-addons.md)); they are AGPL-3 and used unmodified
 through their models, in the caller's own environment (no `sudo()`). `account_tax_balance` and
 `account_fiscal_year` are not used and not declared. All amounts are in the company currency (the partner statement
@@ -433,3 +435,41 @@ The reconcile and proposal routes call private methods of account_reconcile_oca 
 `test_finance_bank`.**
 Not covered: statement file import (OFX, CAMT, CSV), reconcile models and automatic rules, foreign-currency exchange
 differences, unreconciling, cash journals and editing a statement.
+
+## Budgets (`finance.budgets.*`)
+
+**Decision: budgets are OCA `mis_builder_budget`, budget by account.** Odoo 19 Community ships no budget model
+(`account_budget` is Enterprise). `OCA/account-budgeting` 19.0 has only `account_budget_oca`, a port of the old stock
+budget (budgetary positions and analytic-account budget lines, which needs a new repository pin and an analytic account
+on every line). `mis_builder_budget` is in the already pinned `OCA/mis-builder` repository (AGPL-3, used unmodified; no
+new pin), is account-based, and prorates a budget with the engine's own function. Of its two models only
+`mis.budget.by.account` (states `draft | confirmed | cancelled`, items with an account, a period, debit/credit and an
+analytic distribution) is used; the by-KPI budget needs a hand-made MIS template per customer and is not exposed.
+
+- A budget has a name, a period and the current company; a line is `{account_id, amount, date_from?, date_to?, label?,
+  analytic_account_id?}` and defaults to the period of the budget. Lines of one account cannot overlap (the engine
+  refuses with 422 `invalid`). An account group is not a line target: the budget is per account.
+- `amount` is in the company currency, in the natural direction of the account: a debit for assets and expenses, a
+  credit for income, liabilities and equity (stored as the item's `debit` or `credit`). A budget of 10000 on an expense
+  account and a posted expense of 7500 are both positive numbers.
+- Only a draft budget (and its lines) can be edited (422 `not_draft`). `confirm` freezes it, `cancel` closes it from
+  draft or confirmed, `reset-to-draft` reopens a confirmed or cancelled one (422 `invalid_state` otherwise).
+  `state` is not writable through `PATCH`. Changing the period cannot leave a line outside it.
+- `GET /reports/budget-vs-actual?budget_id[&date_to]`: `date_to` defaults to the end of the budget; a line counts from its own
+  start up to `min(line end, date_to)`. Its **budget** is the amount prorated over the days elapsed (mis_builder_budget's own
+  `_intersect_days`); its **actual** is read in one `_read_group` per distinct (period, analytic account): the posted journal
+  items of the account, or, for a line with an analytic account, the analytic lines of that account (a 50% share of a
+  1000 expense counts 500), both in the company currency. Per line `{budget, actual, variance, variance_percent, nature,
+  favorable}`: **variance is budget minus actual** (25 on a 10000 budget with 7500 spent), `variance_percent` is that over
+  the budget (`null` when the budget is zero), `nature` is `debit` or `credit` (the direction the amounts are read in) and
+  `favorable` is true when a debit line is at or under its budget, or a credit line at or over it. `totals` never adds
+  debit and credit lines: `{debit, credit, net}` where `debit` and `credit` carry `{budget, actual, variance,
+  variance_percent}` and `net` is the credit side less the debit side. Draft entries are not counted (`target_move` is
+  always `posted`). The budget detail lines carry `nature` too, but no `favorable` (there is no actual in a detail).
+- The rules live in the ORM too, for any caller: `mis.budget.by.account.item` create, write and unlink are refused unless the
+  budget is a draft; `action_confirm`, `action_cancel` and `action_draft` check the same source states as the routes; a copy
+  of a budget is a draft. A request body that repeats a path key (`budget_id`, `line_id`) is 422 `invalid`.
+- OCA's overlap rule is kept: lines of one account cannot overlap in time, so **one account cannot be budgeted for two
+  analytic accounts in the same period** (use one line for the account, or distinct periods).
+- Not covered: budget by KPI, account-group lines, copying a budget, commitments (purchase orders), budget control on
+  postings, and several analytic accounts or shares on one line.

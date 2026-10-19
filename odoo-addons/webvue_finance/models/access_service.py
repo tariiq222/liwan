@@ -12,6 +12,7 @@ FINANCE_PERMISSIONS = frozenset({
     'finance.assets.read', 'finance.assets.manage',
     'finance.zatca.read', 'finance.zatca.manage', 'finance.zatca.submit',
     'finance.analytic.read', 'finance.analytic.manage',
+    'finance.budgets.read', 'finance.budgets.manage',
 })
 FINANCE_PERMISSION_DEPENDENCIES = {
     'finance.partners.manage': {'finance.partners.read'},
@@ -27,6 +28,7 @@ FINANCE_PERMISSION_DEPENDENCIES = {
     'finance.zatca.manage': {'finance.zatca.read'},
     'finance.zatca.submit': {'finance.zatca.read'},
     'finance.analytic.manage': {'finance.analytic.read'},
+    'finance.budgets.manage': {'finance.budgets.read'},
 }
 
 

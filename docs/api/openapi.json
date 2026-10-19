@@ -7781,6 +7781,866 @@
         ],
         "type": "object"
       },
+      "FinanceBudgetCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "date_from",
+          "date_to"
+        ],
+        "type": "object"
+      },
+      "FinanceBudgetDetailSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "line_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "analytic_account": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "date_from": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "date_to": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "nature": {
+                  "enum": [
+                    "debit",
+                    "credit"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "account",
+                "nature",
+                "analytic_account",
+                "label",
+                "date_from",
+                "date_to",
+                "amount"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "confirmed",
+              "cancelled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "state",
+          "date_from",
+          "date_to",
+          "currency",
+          "line_count",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "FinanceBudgetLineCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "amount": {
+            "exclusiveMaximum": 1000000000000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "analytic_account_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 255,
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "FinanceBudgetLinePatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "amount": {
+            "exclusiveMaximum": 1000000000000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "analytic_account_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 255,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "FinanceBudgetLineSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "analytic_account": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "nature": {
+            "enum": [
+              "debit",
+              "credit"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "account",
+          "nature",
+          "analytic_account",
+          "label",
+          "date_from",
+          "date_to",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "FinanceBudgetListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "currency": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "date_from": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "date_to": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "line_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "state": {
+                  "enum": [
+                    "draft",
+                    "confirmed",
+                    "cancelled"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "description",
+                "state",
+                "date_from",
+                "date_to",
+                "currency",
+                "line_count"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "FinanceBudgetNatureSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "debit",
+          "credit"
+        ],
+        "type": "string"
+      },
+      "FinanceBudgetPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "FinanceBudgetSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "line_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "confirmed",
+              "cancelled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "state",
+          "date_from",
+          "date_to",
+          "currency",
+          "line_count"
+        ],
+        "type": "object"
+      },
+      "FinanceBudgetStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "draft",
+          "confirmed",
+          "cancelled"
+        ],
+        "type": "string"
+      },
+      "FinanceBudgetVsActualLineSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "actual": {
+            "type": "number"
+          },
+          "analytic_account": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "budget": {
+            "type": "number"
+          },
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "favorable": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "nature": {
+            "enum": [
+              "debit",
+              "credit"
+            ],
+            "type": "string"
+          },
+          "variance": {
+            "type": "number"
+          },
+          "variance_percent": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "budget",
+          "actual",
+          "variance",
+          "variance_percent",
+          "id",
+          "account",
+          "nature",
+          "analytic_account",
+          "label",
+          "date_from",
+          "date_to",
+          "favorable"
+        ],
+        "type": "object"
+      },
+      "FinanceBudgetVsActualSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "budget": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "draft",
+                  "confirmed",
+                  "cancelled"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "state"
+            ],
+            "type": "object"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "actual": {
+                  "type": "number"
+                },
+                "analytic_account": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "budget": {
+                  "type": "number"
+                },
+                "date_from": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "date_to": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "favorable": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "nature": {
+                  "enum": [
+                    "debit",
+                    "credit"
+                  ],
+                  "type": "string"
+                },
+                "variance": {
+                  "type": "number"
+                },
+                "variance_percent": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "budget",
+                "actual",
+                "variance",
+                "variance_percent",
+                "id",
+                "account",
+                "nature",
+                "analytic_account",
+                "label",
+                "date_from",
+                "date_to",
+                "favorable"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "target_move": {
+            "const": "posted",
+            "type": "string"
+          },
+          "totals": {
+            "additionalProperties": false,
+            "properties": {
+              "credit": {
+                "additionalProperties": false,
+                "properties": {
+                  "actual": {
+                    "type": "number"
+                  },
+                  "budget": {
+                    "type": "number"
+                  },
+                  "variance": {
+                    "type": "number"
+                  },
+                  "variance_percent": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "budget",
+                  "actual",
+                  "variance",
+                  "variance_percent"
+                ],
+                "type": "object"
+              },
+              "debit": {
+                "additionalProperties": false,
+                "properties": {
+                  "actual": {
+                    "type": "number"
+                  },
+                  "budget": {
+                    "type": "number"
+                  },
+                  "variance": {
+                    "type": "number"
+                  },
+                  "variance_percent": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "budget",
+                  "actual",
+                  "variance",
+                  "variance_percent"
+                ],
+                "type": "object"
+              },
+              "net": {
+                "additionalProperties": false,
+                "properties": {
+                  "actual": {
+                    "type": "number"
+                  },
+                  "budget": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "budget",
+                  "actual"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "debit",
+              "credit",
+              "net"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "budget",
+          "date_from",
+          "date_to",
+          "currency",
+          "target_move",
+          "lines",
+          "totals"
+        ],
+        "type": "object"
+      },
       "FinanceCountryListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -36177,6 +37037,520 @@
         }
       }
     },
+    "/api/v1/finance/budgets": {
+      "get": {
+        "operationId": "webvue_finance.FinanceBudgetController.list_budgets.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Budgets of the current company, filtered by ``state`` and ``q`` (the name).",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBudgetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_budgets",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "webvue_finance.FinanceBudgetController.create_budget.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "A draft budget for a period of the current company.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBudgetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_budget",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/budgets/{budget_id}": {
+      "get": {
+        "operationId": "webvue_finance.FinanceBudgetController.get_budget.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "budget_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "A budget with its lines.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBudgetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_budget",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_finance.FinanceBudgetController.patch_budget.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "budget_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The name, description or period of a draft budget; its lines must stay inside the period.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBudgetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_budget",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/budgets/{budget_id}/cancel": {
+      "post": {
+        "operationId": "webvue_finance.FinanceBudgetController.cancel_budget.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "budget_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Draft or confirmed to cancelled (closed).",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBudgetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "cancel_budget",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/budgets/{budget_id}/confirm": {
+      "post": {
+        "operationId": "webvue_finance.FinanceBudgetController.confirm_budget.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "budget_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Draft to confirmed: the budget and its lines are frozen.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBudgetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "confirm_budget",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/budgets/{budget_id}/lines": {
+      "post": {
+        "operationId": "webvue_finance.FinanceBudgetController.create_line.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "budget_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "A line on a draft budget: an account (and optionally one analytic account) and its amount for a period.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBudgetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_line",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/budgets/{budget_id}/lines/{line_id}": {
+      "delete": {
+        "operationId": "webvue_finance.FinanceBudgetController.delete_line.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "budget_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "delete_line",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBudgetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "delete_line",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_finance.FinanceBudgetController.patch_line.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "budget_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_line",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBudgetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_line",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/budgets/{budget_id}/reset-to-draft": {
+      "post": {
+        "operationId": "webvue_finance.FinanceBudgetController.reset_budget.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "budget_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Confirmed or cancelled back to draft, to change the lines.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBudgetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "reset_budget",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/finance/countries": {
       "get": {
         "operationId": "webvue_finance.FinanceLookupController.list_countries.get",
@@ -37985,6 +39359,46 @@
           ],
           "feature_operation": "read",
           "handler": "balance_sheet",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/reports/budget-vs-actual": {
+      "get": {
+        "operationId": "webvue_finance.FinanceBudgetController.budget_vs_actual.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Per line the budget, the posted actual, the variance (budget minus actual) and that in percent of the budget.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBudgetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "budget_vs_actual",
           "readonly": true,
           "route_type": "json2"
         }

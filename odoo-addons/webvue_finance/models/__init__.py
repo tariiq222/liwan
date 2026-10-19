@@ -2,6 +2,8 @@
 from . import (
     access_service,
     analytic_report,
+    budget,
+    budget_guard,
     feature_registry,
     mis_report,
     res_company,
