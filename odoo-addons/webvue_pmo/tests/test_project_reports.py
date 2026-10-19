@@ -9,7 +9,6 @@ PROJECT_REF_KEYS = {'id', 'name', 'status'}
 TOTALS_KEYS = {
     'currency', 'project_count', 'budgeted_project_count', 'planned', 'actual', 'remaining', 'over_budget_count',
 }
-URL = '/api/v1/reports/projects'
 SUMMARY_URL = '/api/v1/reports/projects/summary'
 ANALYTICS_URL = '/api/v1/reports/projects/analytics'
 
@@ -31,9 +30,8 @@ class TestProjectReports(WebVuePmoCase):
         self._entry(self.project, kind='budget', title='Budget', amount=1000)
         self._entry(self.project, kind='expense', title='Cost', amount=200, expense_date='2030-01-01')
         self.authenticate('api_mgr', 'api_mgr_pass_123')
-        body = self.api('GET', URL).json()
-        self.assertEqual(set(body), {'items', 'total', 'totals'})
-        row = next(item for item in body['items'] if item['project']['id'] == self.project.id)
+        body = self.api('GET', ANALYTICS_URL).json()
+        row = next(item for item in body['projects'] if item['project']['id'] == self.project.id)
         self.assertEqual(set(row), ROW_KEYS)
         self.assertEqual(set(row['project']), PROJECT_REF_KEYS)
         self.assertIsNone(row['project']['status'], "to_define is null on the wire")
@@ -47,13 +45,13 @@ class TestProjectReports(WebVuePmoCase):
         other = self.env['project.project'].create({'company_id': self.env.company.id, 'name': 'Off track project'})
         other.with_user(self.manager)._webvue_set_status('off_track')
         self.authenticate('api_mgr', 'api_mgr_pass_123')
-        body = self.api('GET', f'{URL}?status=on_track').json()
-        self.assertEqual([item['project']['id'] for item in body['items']], [self.project.id])
-        body = self.api('GET', f'{URL}?status=off_track').json()
-        self.assertEqual([item['project']['id'] for item in body['items']], [other.id])
+        body = self.api('GET', f'{ANALYTICS_URL}?status=on_track').json()
+        self.assertEqual([item['project']['id'] for item in body['projects']], [self.project.id])
+        body = self.api('GET', f'{ANALYTICS_URL}?status=off_track').json()
+        self.assertEqual([item['project']['id'] for item in body['projects']], [other.id])
         unset = self.env['project.project'].create({'company_id': self.env.company.id, 'name': 'Unset project'})
-        body = self.api('GET', f'{URL}?status=unset').json()
-        self.assertIn(unset.id, [item['project']['id'] for item in body['items']])
+        body = self.api('GET', f'{ANALYTICS_URL}?status=unset').json()
+        self.assertIn(unset.id, [item['project']['id'] for item in body['projects']])
 
     def test_totals_group_known_budgets_only_and_sum_all_actuals(self):
         self._entry(self.project, kind='budget', title='Budget', amount=1000)
@@ -61,7 +59,7 @@ class TestProjectReports(WebVuePmoCase):
         unbudgeted = self.env['project.project'].create({'company_id': self.env.company.id, 'name': 'Unbudgeted project'})
         self._entry(unbudgeted, kind='expense', title='Loose cost', amount=50, expense_date='2030-01-01')
         self.authenticate('api_mgr', 'api_mgr_pass_123')
-        body = self.api('GET', URL).json()
+        body = self.api('GET', ANALYTICS_URL).json()
         self.assertEqual(len(body['totals']), 1)
         totals = body['totals'][0]
         self.assertEqual(set(totals), TOTALS_KEYS)
@@ -80,7 +78,7 @@ class TestProjectReports(WebVuePmoCase):
         foreign = self.env['project.project'].create({'name': 'Foreign report project', 'company_id': company_b.id})
         companyless = self.env['project.project'].create({'name': 'Companyless report project', 'company_id': False})
         self.authenticate('api_emp', 'api_emp_pass_123')
-        ids = {item['project']['id'] for item in self.api('GET', URL).json()['items']}
+        ids = {item['project']['id'] for item in self.api('GET', ANALYTICS_URL).json()['projects']}
         self.assertNotIn(archived.id, ids)
         self.assertNotIn(private.id, ids)
         self.assertNotIn(foreign.id, ids)
@@ -99,50 +97,14 @@ class TestProjectReports(WebVuePmoCase):
             'user_id': reader.id, 'role_id': role.id, 'company_id': self.env.company.id,
         })
         self.authenticate('report_reader', 'report_reader_pass_123')
-        body = self.api('GET', URL).json()
-        row = next(item for item in body['items'] if item['project']['id'] == self.project.id)
+        body = self.api('GET', ANALYTICS_URL).json()
+        row = next(item for item in body['projects'] if item['project']['id'] == self.project.id)
         self.assertEqual(
             (row['task_count'], row['closed_task_count'], row['overdue_task_count'], row['progress']),
             (None, None, None, None),
         )
         # Finance visibility is not gated by pmo.tasks.read.
         self.assertIsNotNone(row['finance'])
-
-    def test_unsupported_filter_bad_status_and_limit_bounds(self):
-        self.authenticate('api_mgr', 'api_mgr_pass_123')
-        self.assertEqual(self.api('GET', f'{URL}?bogus=1').status_code, 400)
-        self.assertEqual(self.api('GET', f'{URL}?status=nope').status_code, 422)
-        self.assertEqual(self.api('GET', f'{URL}?limit=0').status_code, 422)
-        self.assertEqual(self.api('GET', f'{URL}?limit=201').status_code, 422)
-
-    def test_total_aggregation_beyond_200_with_first_page(self):
-        Project = self.env['project.project']
-        for i in range(201):
-            Project.create({'company_id': self.env.company.id, 'name': f'Bulk report project {i}'})
-        self.authenticate('api_mgr', 'api_mgr_pass_123')
-        body = self.api('GET', URL, timeout=60).json()
-        self.assertGreaterEqual(body['total'], 202)
-        self.assertLessEqual(len(body['items']), 50)
-        totals = body['totals'][0]
-        self.assertGreaterEqual(totals['project_count'], 202)
-
-    def test_totals_are_pagination_independent(self):
-        """The same totals must be reported regardless of limit/offset/page."""
-        self._entry(self.project, kind='budget', title='Budget', amount=1000)
-        self._entry(self.project, kind='expense', title='Cost', amount=200, expense_date='2030-01-01')
-        Project = self.env['project.project']
-        for i in range(10):
-            Project.create({'company_id': self.env.company.id, 'name': f'Pagination project {i}'})
-        self.authenticate('api_mgr', 'api_mgr_pass_123')
-        full = self.api('GET', URL).json()
-        page1 = self.api('GET', f'{URL}?limit=3&offset=0').json()
-        page2 = self.api('GET', f'{URL}?limit=3&offset=3').json()
-        self.assertEqual(full['total'], page1['total'])
-        self.assertEqual(full['total'], page2['total'])
-        self.assertEqual(full['totals'], page1['totals'])
-        self.assertEqual(full['totals'], page2['totals'])
-        self.assertNotEqual([item['project']['id'] for item in page1['items']],
-                             [item['project']['id'] for item in page2['items']])
 
     def test_report_totals_exact_decimal_aggregation_across_many_projects(self):
         """Many 0.01 expenses across many projects must not drift in the totals."""
@@ -156,7 +118,7 @@ class TestProjectReports(WebVuePmoCase):
             self._entry(project, kind='expense', title='E2', amount=0.02, expense_date='2030-01-01')
             self._entry(project, kind='expense', title='E3', amount=0.03, expense_date='2030-01-01')
         self.authenticate('api_mgr', 'api_mgr_pass_123')
-        totals = self.api('GET', URL).json()['totals'][0]
+        totals = self.api('GET', ANALYTICS_URL).json()['totals'][0]
         self.assertEqual(totals['planned'], round(0.10 * len(projects), 2))
         self.assertEqual(totals['actual'], round(0.06 * len(projects), 2))
         self.assertEqual(totals['remaining'], round(0.04 * len(projects), 2))
@@ -172,7 +134,7 @@ class TestProjectReports(WebVuePmoCase):
             'company_id': self.env.company.id,
         })
         self.authenticate('report_system_admin', 'report_system_admin_pass_123')
-        self.assertEqual(self.api('GET', URL).status_code, 403)
+        self.assertEqual(self.api('GET', ANALYTICS_URL).status_code, 403)
 
     def test_dashboard_summary_shape_and_all_project_scope(self):
         self.project.with_user(self.manager)._webvue_set_status('on_track')
@@ -245,7 +207,7 @@ class TestProjectReports(WebVuePmoCase):
         body = self.api('GET', SUMMARY_URL).json()
         ids = {item['project']['id'] for item in body['attention']}
         visible_ids = {
-            item['project']['id'] for item in self.api('GET', URL).json()['items']
+            item['project']['id'] for item in self.api('GET', ANALYTICS_URL).json()['projects']
         }
         self.assertNotIn(archived.id, visible_ids | ids)
         self.assertNotIn(private.id, visible_ids | ids)
