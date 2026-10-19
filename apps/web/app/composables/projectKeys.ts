@@ -10,6 +10,7 @@ export const projectKeys = {
   all: ['projects'] as const,
   list: ['projects', 'list'] as const,
   minimal: ['projects', 'minimal'] as const,
+  summary: (query: object) => ['projects', 'summary', query] as const,
   detail: (id: number) => ['projects', 'detail', id] as const,
   stages: (id: number) => ['projects', 'detail', id, 'stages'] as const,
   followers: (id: number) => ['projects', 'detail', id, 'followers'] as const,
