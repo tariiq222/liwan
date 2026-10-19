@@ -345,17 +345,15 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   }
   /* A docked board card owns the sticky slot under the floating header; the heading scrolls away instead. */
   .webvue-page-stack:has(.webvue-list-card-fill) [data-slot="page-header"][data-sticky="true"] { position: static; }
-  /* The project frame's white band (identity, meta, phase stepper, tabs) is that page's sticky heading. */
-  .webvue-page-band[data-sticky="true"] {
+  /* The project workspace card (identity, phase stepper, tabs) is that page's sticky heading. */
+  .webvue-workspace-head[data-sticky="true"] {
     position: sticky;
     inset-block-start: calc(var(--shell-top) - var(--shell-inset) + 8px);
     z-index: 30;
   }
 }
-/* A full-bleed white band at the top of a page (the project frame): cancels the main padding and re-applies it inside, so content stays aligned with the page below. */
-.webvue-page-band { margin: calc(-1 * var(--webvue-pad-top)) calc(-1 * var(--webvue-pad-x)) 0; padding: 16px var(--webvue-pad-x) 0; }
-/* Under a page band the detail and form widths start at the band's inline edge instead of centring, so records line up with the frame. */
-:is(.webvue-page-band ~ *, .webvue-page-band ~ * *):is(.webvue-page-width-detail, .webvue-page-width-form) { margin-inline: 0; }
+/* Under the project workspace card the detail and form widths start at the card's inline edge instead of centring, so records line up with it. */
+.webvue-project-workspace:has(.webvue-workspace-head) :is(.webvue-page-width-detail, .webvue-page-width-form) { margin-inline: 0; }
 /* Full-bleed only for a WIDE panel (chat owns its own scrolling layout); a default-width panel (AI history) keeps the page padding and scroll. */
 .webvue-shell:has(.webvue-context-sidebar[data-panel="true"][data-panel-width="wide"]) .webvue-shell-main { --webvue-pad-x: 0px; --webvue-pad-top: 0px; padding: 0; overflow: hidden; }
 .webvue-page-content-motion { animation: webvue-page-content-enter 150ms ease both; }

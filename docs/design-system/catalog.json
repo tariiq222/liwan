@@ -1821,22 +1821,22 @@
         {
           "id": "Active",
           "name": "مشروع نشط",
-          "context": "apps/web/app/pages/projects/[id].vue:124"
+          "context": "apps/web/app/pages/projects/[id].vue:125"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/pages/projects/[id].vue:124"
+          "context": "apps/web/app/pages/projects/[id].vue:125"
         },
         {
           "id": "Governance",
           "name": "تبويبات الحوكمة الفرعية",
-          "context": "apps/web/app/pages/projects/[id].vue:124"
+          "context": "apps/web/app/pages/projects/[id].vue:125"
         },
         {
           "id": "Planning",
           "name": "التخطيط: الجدول الزمني والمعالم",
-          "context": "apps/web/app/pages/projects/[id].vue:124"
+          "context": "apps/web/app/pages/projects/[id].vue:125"
         }
       ]
     },
@@ -5174,6 +5174,31 @@
       ]
     },
     {
+      "name": "SharedHeaderTags",
+      "file": "packages/ui/app/components/shared/layout/HeaderTags.vue",
+      "story": "apps/web/stories/shared/HeaderTags.stories.ts",
+      "title": "Shared/HeaderTags",
+      "props": [
+        {
+          "name": "tags",
+          "type": "PageHeaderTag[]",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge"
+      ],
+      "stories": [
+        {
+          "id": "StateAndFacts",
+          "name": "حالة وحقائق",
+          "context": "packages/ui/app/components/shared/layout/PageHeader.vue:92"
+        }
+      ]
+    },
+    {
       "name": "SharedIdentityCard",
       "file": "packages/ui/app/components/shared/layout/IdentityCard.vue",
       "story": "apps/web/stories/shared/IdentityCard.stories.ts",
@@ -5573,7 +5598,6 @@
         "default"
       ],
       "nuxtUi": [
-        "UBadge",
         "UButton",
         "UIcon"
       ],

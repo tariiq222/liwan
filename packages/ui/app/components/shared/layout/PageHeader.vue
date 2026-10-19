@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import type { PageHeaderTag, PageHeaderTagKind } from '../../../utils/pageHeaderTag'
+import type { PageHeaderTag } from '../../../utils/pageHeaderTag'
 
 const props = withDefaults(defineProps<{
   title: string
@@ -37,22 +37,6 @@ const pageApp = usePageApp()
 const chip = computed(() => {
   return props.icon ?? pageApp.value?.icon
 })
-// A state keeps its status colour (`tone`); a plain fact takes the fixed colour of its kind, the same on
-// every page, so a person, a project or a count always reads alike.
-const TAG_KIND_ACCENT: Record<PageHeaderTagKind, string> = {
-  person: 'sky',
-  project: 'blue',
-  schedule: 'violet',
-  count: 'indigo',
-  category: 'amber',
-}
-// Tags are full pills like every chip in the product.
-function tagLook(tag: PageHeaderTag) {
-  if (tag.tone) return { color: tag.tone, variant: 'subtle' as const, class: 'rounded-full' }
-  if (!tag.kind) return { color: 'neutral' as const, variant: 'subtle' as const, class: 'rounded-full' }
-  const hue = TAG_KIND_ACCENT[tag.kind]
-  return { color: 'neutral' as const, variant: 'soft' as const, class: 'rounded-full', style: { backgroundColor: `var(--accent-${hue}-bg)`, color: `var(--accent-${hue}-fg)` } }
-}
 // Inside the project workspace the frame is already the page's <h1>.
 const frameOwnsHeading = useFrameOwnsHeading()
 // The frame's own band is the sticky element there, so this header never claims a second sticky slot.
@@ -105,12 +89,7 @@ const trail = computed<HeaderTrailStep[]>(() => {
           <h2 v-if="frameOwnsHeading" class="min-w-0 text-lg/7 font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h2>
           <h1 v-else class="min-w-0 text-lg/7 font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h1>
           <slot name="tags">
-            <template v-for="tag in props.tags" :key="tag.label">
-              <NuxtLink v-if="tag.to" :to="tag.to" class="rounded-full focus-visible:ring-2 focus-visible:ring-primary">
-                <UBadge v-bind="tagLook(tag)" size="md" :icon="tag.icon" :data-testid="tag.testId">{{ tag.label }}</UBadge>
-              </NuxtLink>
-              <UBadge v-else v-bind="tagLook(tag)" size="md" :icon="tag.icon" :data-testid="tag.testId">{{ tag.label }}</UBadge>
-            </template>
+            <SharedHeaderTags :tags="props.tags" />
           </slot>
         </div>
         <div v-if="trail.length || $slots.back || props.description" class="mt-0.5 flex min-w-0 items-center gap-x-2 text-xs/5 text-muted">

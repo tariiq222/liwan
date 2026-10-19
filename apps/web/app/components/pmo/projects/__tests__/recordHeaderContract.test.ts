@@ -7,12 +7,12 @@ const app = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
 const read = (path: string) => readFileSync(resolve(app, path), 'utf8')
 
 describe('project record header and list contracts', () => {
-  it('draws back, title, status and a labelled settings action on one identity row', () => {
+  it('draws title, status tag, the trail and a labelled settings action in the identity rows', () => {
     const frame = read('pages/projects/[id].vue')
-    const row = frame.slice(frame.indexOf('data-testid="project-workspace-identity"'), frame.indexOf('<ProjectWorkspaceTabs'))
-    expect(row).toContain('data-testid="project-workspace-back"')
+    const row = frame.slice(frame.indexOf('data-testid="project-workspace-identity"'), frame.indexOf('<ProjectPhaseStepper'))
+    expect(row).toContain("'project-workspace-back'")
     expect(row).toContain('data-testid="project-workspace-name"')
-    expect(row).toContain('data-testid="project-status"')
+    expect(frame).toContain("statusTag(projectBadge(value.status), 'project-status')")
     expect(row).toMatch(/data-testid="project-workspace-settings"/)
     expect(row).toContain(":aria-label=\"t('nav.projectSettings')\"")
     expect(row).not.toContain(":label=\"t('nav.projectSettings')\"")

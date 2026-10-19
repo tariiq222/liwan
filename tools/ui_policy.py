@@ -47,7 +47,7 @@ LAYER_COMPONENTS = frozenset(
     + ['shared/layout/' + name + '.vue' for name in (
         'BrandWordmark', 'ConversationLayout', 'CreatePanel', 'DashboardPage', 'FormSection', 'KpiStrip', 'KpiToggle', 'ListPage', 'PageContainer',
         'PageHeader', 'ListCard', 'PropertiesPanel', 'PropertyRow', 'RecordPage', 'RecordSection', 'RouteTabs', 'SettingsPage',
-        'StandalonePage', 'SubCard', 'TimelineFrame', 'LinkCard', 'IdentityCard')]
+        'StandalonePage', 'SubCard', 'TimelineFrame', 'LinkCard', 'IdentityCard', 'HeaderTags')]
     + ['shared/data/' + name + '.vue' for name in (
         'ChartPanel', 'DataTable', 'FilterBar', 'FilterChip', 'FilterChoice', 'FilterField', 'MetricTile', 'Pagination',
         'PersonAvatar', 'Progress', 'RecordNumber', 'RowActions', 'SegmentedControl', 'StatusBadge', 'ViewSwitch', 'ListFooter')]
@@ -119,7 +119,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'shared/data/ChartPanel.vue', 'shared/layout/DashboardPage.vue',
     'shared/layout/TimelineFrame.vue', 'shared/layout/ConversationLayout.vue',
     'shared/data/InvoiceLines.vue', 'shared/data/PersonAvatar.vue', 'pmo/tasks/TaskKpiStrip.vue', 'pmo/projects/ProjectKpiStrip.vue',
-    'shared/layout/SubCard.vue', 'shared/layout/KpiStrip.vue', 'shared/data/Progress.vue', 'shared/layout/LinkCard.vue', 'shared/layout/IdentityCard.vue',
+    'shared/layout/SubCard.vue', 'shared/layout/KpiStrip.vue', 'shared/data/Progress.vue', 'shared/layout/LinkCard.vue', 'shared/layout/IdentityCard.vue', 'shared/layout/HeaderTags.vue',
 ))
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
 META_COMPONENT = re.compile(r'\bcomponent:\s*(\w+)')

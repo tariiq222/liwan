@@ -6,12 +6,12 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Project/ProjectPhaseStepper',
   component: ProjectPhaseStepper,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/projects/[id].vue:119') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/projects/[id].vue:123') },
   args: { current: 'initiating' },
 } satisfies Meta<typeof ProjectPhaseStepper>
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Initiating: Story = { name: 'البدء', parameters: storyContext('apps/web/app/pages/projects/[id].vue:119', 'أول خطوة، لا خطوات منجزة.') }
-export const Executing: Story = { name: 'التنفيذ', args: { current: 'executing' }, parameters: storyContext('apps/web/app/pages/projects/[id].vue:119', 'الخطوات السابقة معلّمة بعلامة صح.') }
-export const Closed: Story = { name: 'مغلق', args: { current: 'closed' }, parameters: storyContext('apps/web/app/pages/projects/[id].vue:119', 'كل الخطوات منجزة ما عدا الأخيرة الحالية.') }
+export const Initiating: Story = { name: 'البدء', parameters: storyContext('apps/web/app/pages/projects/[id].vue:123', 'أول خطوة، لا خطوات منجزة.') }
+export const Executing: Story = { name: 'التنفيذ', args: { current: 'executing' }, parameters: storyContext('apps/web/app/pages/projects/[id].vue:123', 'الخطوات السابقة معلّمة بعلامة صح.') }
+export const Closed: Story = { name: 'مغلق', args: { current: 'closed' }, parameters: storyContext('apps/web/app/pages/projects/[id].vue:123', 'كل الخطوات منجزة ما عدا الأخيرة الحالية.') }
