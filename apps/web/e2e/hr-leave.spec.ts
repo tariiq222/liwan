@@ -168,10 +168,10 @@ test('an employee withdraws a request that is still waiting for a decision', asy
   const withdrawn = page.waitForResponse(response => response.url().endsWith(`/api/v1/hr/leave/requests/${leave.id}/cancel`))
   await page.getByRole('button', { name: 'سحب الطلب' }).last().click()
   expect((await withdrawn).status()).toBe(200)
-  // The request is gone and the day is no longer held against the balance.
+  // The request is gone and its day is no longer held against the balance.
   await expect(page.getByTestId(`hr-leave-row-${leave.id}`)).toHaveCount(0)
   const after = await (await page.request.get('/api/v1/hr/leave/balances')).json() as { items: Array<{ pending: number }> }
-  expect(after.items[0]!.pending).toBe(0)
+  expect(after.items[0]!.pending).toBe(started.items[0]!.pending)
   const gone = await page.request.get(`/api/v1/hr/leave/requests/${leave.id}`)
   expect(gone.status()).toBe(404)
 })
