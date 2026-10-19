@@ -3,3 +3,5 @@ access_finance_assets_read_asset,finance assets read: account.asset,account_asse
 access_finance_assets_read_asset_line,finance assets read: account.asset.line,account_asset_management.model_account_asset_line,group_cap_finance_assets_read,1,0,0,0
 access_finance_assets_read_asset_profile,finance assets read: account.asset.profile,account_asset_management.model_account_asset_profile,group_cap_finance_assets_read,1,0,0,0
 access_finance_assets_read_asset_group,finance assets read: account.asset.group,account_asset_management.model_account_asset_group,group_cap_finance_assets_read,1,0,0,0
+access_finance_budgets_manage_budget,finance budgets manage: mis.budget.by.account,mis_builder_budget.model_mis_budget_by_account,group_cap_finance_budgets_manage,1,1,1,1
+access_finance_budgets_manage_budget_item,finance budgets manage: mis.budget.by.account.item,mis_builder_budget.model_mis_budget_by_account_item,group_cap_finance_budgets_manage,1,1,1,1

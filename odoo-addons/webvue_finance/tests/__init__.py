@@ -5,6 +5,7 @@ from . import (
     test_finance_access,
     test_finance_assets,
     test_finance_bank,
+    test_finance_budgets,
     test_finance_capability_isolation,
     test_finance_debit_notes,
     test_finance_documents,

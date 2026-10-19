@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
     access_service,
+    budget,
+    budget_guard,
     feature_registry,
     mis_report,
     res_company,
