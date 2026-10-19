@@ -36,7 +36,7 @@
         <field name="name">Account grant contacts in current companies</field>
         <field name="model_id" ref="base.model_res_partner"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', '=', company_id)]</field>
-        <field name="groups" eval="[Command.set([ref('group_cap_access_users_grant'), ref('group_cap_settings_branding_manage')])]"/>
+        <field name="groups" eval="[Command.set([ref('group_cap_access_users_grant'), ref('group_cap_settings_branding_manage'), ref('group_cap_settings_company_manage')])]"/>
         <field name="perm_read" eval="False"/>
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="False"/>
@@ -46,7 +46,7 @@
         <field name="name">Branding administration in current companies</field>
         <field name="model_id" ref="base.model_res_company"/>
         <field name="domain_force">[('id', '=', company_id)]</field>
-        <field name="groups" eval="[Command.link(ref('group_cap_settings_branding_manage'))]"/>
+        <field name="groups" eval="[Command.set([ref('group_cap_settings_branding_manage'), ref('group_cap_settings_company_manage')])]"/>
         <field name="perm_read" eval="False"/>
         <field name="perm_write" eval="True"/>
         <field name="perm_create" eval="False"/>

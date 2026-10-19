@@ -37,8 +37,73 @@
         "teal": "Teal",
         "amber": "Amber"
       },
-      "managedIdentity": "The institution name and logo are managed by the system administrator. Here you set the company color used in documents and reports such as invoices and printouts. It does not change the interface colors.",
+      "managedIdentity": "The company name and logo are edited on the Company profile page. Here you set the company color used in documents and reports such as invoices and printouts. It does not change the interface colors.",
       "primaryHint": "Used in invoices, reports and printouts only. It does not change the interface colors."
+    },
+    "company": {
+      "completeness": "{done} of {total} company details completed",
+      "readonly": "You can view the company details only. Editing needs the manage company profile permission.",
+      "identity": {
+        "title": "Company identity"
+      },
+      "registration": {
+        "title": "Registrations and tax numbers"
+      },
+      "address": {
+        "title": "National address",
+        "hint": "This address appears on invoices and official documents."
+      },
+      "contact": {
+        "title": "Contact details"
+      },
+      "logo": "Logo",
+      "logoHint": "PNG or JPEG, up to 2 MB",
+      "logoChoose": "Choose a logo",
+      "logoSaved": "Logo saved",
+      "name": "Company name",
+      "tagline": "Tagline",
+      "taglineHint": "A short line shown with the company name on documents.",
+      "registry": "Commercial registration number",
+      "vat": "VAT number",
+      "vatHint": "15 digits, starting and ending with 3.",
+      "scheme": "Additional identifier type",
+      "schemeNumber": "Additional identifier number",
+      "country": "Country",
+      "state": "Region",
+      "city": "City",
+      "district": "District",
+      "street": "Street",
+      "zip": "Postal code",
+      "building": "Building number",
+      "plot": "Additional number",
+      "email": "Email",
+      "phone": "Phone",
+      "website": "Website",
+      "save": "Save changes",
+      "cancel": "Discard changes",
+      "saved": "Company details saved",
+      "retry": "Retry",
+      "schemes": {
+        "TIN": "Tax identification number",
+        "CRN": "Commercial registration number",
+        "MOM": "Municipal license",
+        "MLS": "Labor ministry license",
+        "700": "Unified number 700",
+        "SAG": "Investment license",
+        "NAT": "National ID",
+        "GCC": "GCC ID",
+        "IQA": "Iqama number",
+        "PAS": "Passport ID",
+        "OTH": "Other ID"
+      },
+      "errors": {
+        "load": "Could not load the company details",
+        "generic": "Could not save the company details. Try again.",
+        "nameRequired": "Enter the company name",
+        "logoFormat": "Use a PNG or JPEG image",
+        "logoSize": "The logo must not exceed 2 MB",
+        "logoRead": "Could not read the logo image"
+      }
     },
     "projects": {
       "title": "Project settings",
@@ -205,6 +270,9 @@
       "overview": "Overview",
       "company": {
         "title": "Company",
+        "profile": "Company profile",
+        "address": "National address",
+        "contact": "Contact",
         "branding": "Identity and documents"
       },
       "team": {

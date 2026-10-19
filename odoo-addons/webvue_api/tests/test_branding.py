@@ -118,9 +118,9 @@ class TestAdminBranding(HttpCase):
             self.assertEqual(response.status_code, 422, response.text)
             self.assertEqual(self.api('GET', '/api/v1/admin/branding').json(), before)
         response = self.api('PATCH', '/api/v1/admin/branding', {'secondary_color': '#ffffff', 'name': 'Forbidden'})
-        self.assertEqual(response.status_code, 403, response.text)
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'name'), response.text)
 
-    def test_identity_patches_are_forbidden_for_admin_and_vendor_atomically(self):
+    def test_identity_belongs_to_the_company_profile_not_branding(self):
         for login, password in [
             ('branding_admin', 'branding_admin_pass_123'),
             ('branding_vendor', 'branding_vendor_pass_123'),
@@ -130,8 +130,8 @@ class TestAdminBranding(HttpCase):
             for identity in [{'name': 'Forbidden rename'}, {'logo': image_base64('PNG')}, {'logo': False}]:
                 for payload in [identity, {'primary_color': '#123456', **identity}]:
                     response = self.api('PATCH', '/api/v1/admin/branding', payload)
-                    self.assertEqual(response.status_code, 403, response.text)
-                    self.assertEqual(response.json()['code'], 'forbidden')
+                    self.assertEqual(response.status_code, 422, response.text)
+                    self.assertEqual(response.json()['code'], 'invalid')
                     self.assertEqual(self.api('GET', '/api/v1/admin/branding').json(), original)
 
     def test_customer_admin_cannot_write_company_identity_through_orm(self):

@@ -86,8 +86,9 @@ test('admin branding and employee self password mutation responses match their s
     expect(patchedBranding.name).toBe(originalBranding.name)
     expect(patchedBranding.primary_color).toBe(updatedColor)
 
-    const forbidden = await page.request.patch('/api/v1/admin/branding', { data: { name: updatedName, primary_color: '#654321' } })
-    expect(forbidden.status()).toBe(403)
+    // The name belongs to the company profile, so branding refuses it whole.
+    const rejected = await page.request.patch('/api/v1/admin/branding', { data: { name: updatedName, primary_color: '#654321' } })
+    expect(rejected.status()).toBe(422)
     expect(BrandingSchema.parse(await (await page.request.get('/api/v1/admin/branding')).json())).toEqual(patchedBranding)
 
     const employeeContext = await browser.newContext({ baseURL: BASE_URL, locale: 'ar-SA' })

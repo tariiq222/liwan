@@ -71,6 +71,7 @@ const TODAY: ReadonlyArray<readonly [string, string | null, boolean]> = [
   ['pmo.tasks.read', 'pmo.enabled', false], ['pmo.tasks.create', 'pmo.enabled', true],
   ['pmo.tasks.write', 'pmo.enabled', true], ['pmo.tasks.approve', 'pmo.enabled', true],
   ['settings.branding.manage', null, true],
+  ['settings.company.read', null, false], ['settings.company.manage', null, true],
   ['meetings.read', 'meetings.enabled', false], ['meetings.create', 'meetings.enabled', true],
   ['webvue.internal', 'chat.enabled', false],
 ]

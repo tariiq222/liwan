@@ -112,9 +112,9 @@ class TestFinanceSetup(WebVueFinanceCase):
         self.assertTrue(body['taxes']['vat_15_present'])
         self.assertNotIn('chart_not_loaded', body['blockers'])
         self.assertIn('company_vat_missing', body['blockers'])
-        result = self._write('PATCH', 'company', self._identity())
-        self.assertEqual(result.status_code, 200, result.text)
-        body = result.json()
+        # The company identity is written by the company profile (/admin/company); setup only reads it.
+        self.fresh.write(self._identity())
+        body = self._get()
         self.assertEqual((body['company']['vat'], body['company']['city']), (VALID_VAT, 'Riyadh'))
         self.assertEqual(body['company']['country']['name'], self.env.ref('base.sa').name)
         # The identity is complete; only the ZATCA onboarding of the sales journal is left.
@@ -165,18 +165,6 @@ class TestFinanceSetup(WebVueFinanceCase):
         self.assertNotIn('action', result.text.lower().replace('unreconciled', ''))
         self.assertFalse(self.company.fiscalyear_lock_date)
 
-    def test_changing_only_the_country_revalidates_the_state(self):
-        self.authenticate(ADMIN_LOGIN, PASSWORD)
-        self.assertEqual(self._write('PATCH', 'company', {'state_id': self.state.id}).status_code, 200)
-        other_country = self.env['res.country.state'].search(
-            [('country_id', '!=', self.env.ref('base.sa').id)], limit=1,
-        ).country_id
-        result = self._write('PATCH', 'company', {'country_id': other_country.id})
-        self.assertEqual((result.status_code, result.json()['code'], result.json()['field']), (422, 'invalid', 'state_id'))
-        self.assertEqual(self.fresh.country_id, self.env.ref('base.sa'))
-        result = self._write('PATCH', 'company', {'country_id': other_country.id, 'state_id': None})
-        self.assertEqual(result.status_code, 200, result.text)
-
     def test_the_chart_load_is_refused_when_it_would_replace_or_recurse(self):
         self.authenticate(ADMIN_LOGIN, PASSWORD)
         self.env['res.company'].create({'name': 'Fresh Branch', 'parent_id': self.fresh.id})
@@ -196,25 +184,6 @@ class TestFinanceSetup(WebVueFinanceCase):
         result = self.api('POST', '/api/v1/finance/setup/chart', json={})
         self.assertEqual((result.status_code, result.json()['code']), (422, 'invalid'), result.text)
         self.assertFalse(self.fresh.chart_template)
-
-    def test_invalid_company_payloads_are_422(self):
-        self.authenticate(ADMIN_LOGIN, PASSWORD)
-        other_state = self.env['res.country.state'].search([('country_id', '!=', self.env.ref('base.sa').id)], limit=1)
-        for body, field in (
-            ({}, None),
-            ({'vat': 'not-a-vat'}, None),
-            ({'vat': 12}, 'vat'),
-            ({'currency': 'USD'}, 'currency'),
-            ({'country_id': 0}, 'country_id'),
-            ({'country_id': 999999999}, 'country_id'),
-            ({'state_id': other_state.id, 'country_id': self.env.ref('base.sa').id}, 'state_id'),
-        ):
-            with self.subTest(body=body):
-                result = self._write('PATCH', 'company', body)
-                self.assertEqual((result.status_code, result.json()['code']), (422, 'invalid'), result.text)
-                if field:
-                    self.assertEqual(result.json()['field'], field)
-        self.assertEqual(self._get()['company']['vat'], '')
 
     def test_invalid_fiscal_payloads_are_422(self):
         self.authenticate(ADMIN_LOGIN, PASSWORD)
@@ -245,21 +214,16 @@ class TestFinanceSetup(WebVueFinanceCase):
         self.assertEqual(set(body), SETUP_KEYS)
         self.assertEqual(body['chart']['template'], 'sa')
         self.assertTrue(body['taxes']['vat_15_present'])
-        result = self._write('PATCH', 'company', self._identity())
-        self.assertEqual(result.status_code, 200, result.text)
-        self.assertEqual(set(result.json()['company']), COMPANY_KEYS)
-        self.assertEqual(result.json()['company']['vat'], VALID_VAT)
+        self.assertEqual(set(self._get()['company']), COMPANY_KEYS)
         result = self._write('PATCH', 'fiscal', {'fiscalyear_last_day': 30, 'fiscalyear_last_month': 6})
         self.assertEqual(result.status_code, 200, result.text)
         self.assertEqual(set(result.json()['fiscal']), FISCAL_KEYS)
         self.assertEqual(result.json()['fiscal']['fiscalyear_last_month'], 6)
 
     def test_a_user_without_the_manage_capability_changes_nothing(self):
-        for login, body in ((READER_LOGIN, {'city': 'Jeddah'}), (OUTSIDER_LOGIN, {'city': 'Jeddah'})):
+        for login in (READER_LOGIN, OUTSIDER_LOGIN):
             self.authenticate(login, PASSWORD if login == READER_LOGIN else OUTSIDER_PASSWORD)
-            for method, route, payload in (
-                ('POST', 'chart', {}), ('PATCH', 'company', body), ('PATCH', 'fiscal', {'fiscalyear_last_day': 30}),
-            ):
+            for method, route, payload in (('POST', 'chart', {}), ('PATCH', 'fiscal', {'fiscalyear_last_day': 30})):
                 with self.subTest(login=login, route=route):
                     result = self._write(method, route, payload)
                     self.assertEqual((result.status_code, result.json()['code']), (403, 'forbidden'), result.text)
@@ -279,7 +243,6 @@ class TestFinanceSetup(WebVueFinanceCase):
         before = sibling.read(['vat', 'city', 'chart_template', 'fiscalyear_last_day', 'tax_lock_date'])
         self.authenticate(MANAGER_NO_ADMIN_LOGIN, PASSWORD)
         self.assertEqual(self.api('POST', '/api/v1/finance/setup/chart', json={}).status_code, 200)
-        self.assertEqual(self._write('PATCH', 'company', self._identity()).status_code, 200)
         self.assertEqual(self._write('PATCH', 'fiscal', {'tax_lock_date': '2026-06-30'}).status_code, 200)
         self.env.invalidate_all()
         self.assertEqual(sibling.read(['vat', 'city', 'chart_template', 'fiscalyear_last_day', 'tax_lock_date']), before)
@@ -289,16 +252,16 @@ class TestFinanceSetup(WebVueFinanceCase):
         setup = self.env['webvue.finance.setup'].with_user(
             self._user('finance_setup_direct', self.fresh, 'webvue_core.group_employee', ['finance.setup.read', 'finance.setup.manage']),
         ).with_company(self.fresh)
-        for vals in ({'name': 'Hacked'}, {'hard_lock_date': '2026-01-01'}, {'currency_id': 1}, {'city': 'Riyadh', 'email': 'x@y.z'}):
+        for vals in ({'name': 'Hacked'}, {'hard_lock_date': '2026-01-01'}, {'currency_id': 1}, {'city': 'Riyadh'}, {'vat': VALID_VAT}, {'fiscalyear_last_day': 30, 'email': 'x@y.z'}):
             with self.subTest(vals=vals), self.assertRaises(AccessError):
                 setup._webvue_write_company(self.fresh, vals)
         with self.assertRaises(AccessError):
-            setup._webvue_write_company(self.company, {'city': 'Riyadh'})
+            setup._webvue_write_company(self.company, {'fiscalyear_last_day': 30})
         with self.assertRaises(AccessError):
             setup._webvue_load_chart(self.other_company)
         with self.assertRaises(AccessError):
-            setup._webvue_write_company(self.fresh | self.company, {'city': 'Riyadh'})
-        self.assertEqual((self.fresh.name, self.company.name, self.company.city), ('Finance Fresh', 'Finance Company A', False))
+            setup._webvue_write_company(self.fresh | self.company, {'fiscalyear_last_day': 30})
+        self.assertEqual((self.fresh.name, self.company.name, self.company.fiscalyear_last_day), ('Finance Fresh', 'Finance Company A', 31))
         self.assertFalse(self.fresh.hard_lock_date)
 
     def test_the_model_methods_check_the_capability_before_they_elevate(self):
@@ -307,8 +270,9 @@ class TestFinanceSetup(WebVueFinanceCase):
         with self.assertRaises(AccessError):
             setup._webvue_load_chart(self.fresh)
         with self.assertRaises(AccessError):
-            setup._webvue_write_company(self.fresh, {'city': 'Riyadh'})
-        self.assertFalse(self.fresh.chart_template or self.fresh.city)
+            setup._webvue_write_company(self.fresh, {'fiscalyear_last_day': 30})
+        self.assertFalse(self.fresh.chart_template)
+        self.assertEqual(self.fresh.fiscalyear_last_day, 31)
 
     def test_the_chart_load_and_the_company_write_leave_a_log_record_and_audit_events(self):
         setup = self.env['webvue.finance.setup'].with_user(
@@ -316,33 +280,31 @@ class TestFinanceSetup(WebVueFinanceCase):
         ).with_company(self.fresh)
         with self.assertLogs('odoo.addons.webvue_finance.models.setup_service', 'INFO') as logs:
             setup._webvue_load_chart(self.fresh)
-            setup._webvue_write_company(self.fresh, {'city': 'Riyadh', 'vat': VALID_VAT})
+            setup._webvue_write_company(self.fresh, {'fiscalyear_last_day': 30, 'fiscalyear_last_month': '6'})
         self.assertEqual(len(logs.records), 2)
         self.assertIn(f'finance.setup.chart_loaded company={self.fresh.id}', logs.output[0])
         self.assertIn(f'finance.setup.company_written company={self.fresh.id}', logs.output[1])
-        self.assertIn('fields=city, vat', logs.output[1])
-        self.assertNotIn(VALID_VAT, '\n'.join(logs.output))
+        self.assertIn('fields=fiscalyear_last_day, fiscalyear_last_month', logs.output[1])
         events = self.env['webvue.finance.audit.event'].search([('company_id', '=', self.fresh.id)], order='id')
         self.assertEqual(events.mapped('action'), ['chart_loaded', 'company_written'])
-        self.assertEqual((events[1].fields_written, events[1].res_id, events[0].outcome), ('city, vat', self.fresh.id, 'sa'))
-        self.assertNotIn(VALID_VAT, str(events.read()))
+        self.assertEqual((events[1].fields_written, events[1].res_id, events[0].outcome), ('fiscalyear_last_day, fiscalyear_last_month', self.fresh.id, 'sa'),
+        )
 
     def test_each_route_needs_its_own_capability(self):
         routes = (
             ('GET', '/api/v1/finance/setup'),
             ('POST', '/api/v1/finance/setup/chart'),
-            ('PATCH', '/api/v1/finance/setup/company'),
             ('PATCH', '/api/v1/finance/setup/fiscal'),
             ('GET', '/api/v1/finance/reports/vat?date_from=2026-10-01&date_to=2026-10-31'),
         )
-        allowed = {OUTSIDER_LOGIN: (), READER_LOGIN: (routes[0],), REPORTER_LOGIN: (routes[4],)}
+        allowed = {OUTSIDER_LOGIN: (), READER_LOGIN: (routes[0],), REPORTER_LOGIN: (routes[3],)}
         for login, password in (
             (OUTSIDER_LOGIN, OUTSIDER_PASSWORD), (READER_LOGIN, PASSWORD), (REPORTER_LOGIN, PASSWORD),
         ):
             self.authenticate(login, password)
             for method, route in routes:
                 with self.subTest(login=login, route=route):
-                    result = self.api(method, route, json={'city': 'Riyadh'} if method == 'PATCH' else {})
+                    result = self.api(method, route, json={'fiscalyear_last_day': 30} if method == 'PATCH' else {})
                     if (method, route) in allowed[login]:
                         self.assertEqual(result.status_code, 200, result.text)
                     else:
@@ -350,16 +312,16 @@ class TestFinanceSetup(WebVueFinanceCase):
 
     def test_writes_touch_only_the_current_company(self):
         self.authenticate(ADMIN_LOGIN, PASSWORD)
-        self.assertEqual(self._write('PATCH', 'company', {'city': 'Dammam'}).status_code, 200)
-        self.assertEqual(self.fresh.city, 'Dammam')
-        self.assertFalse(self.company.city or self.other_company.city)
+        self.assertEqual(self._write('PATCH', 'fiscal', {'fiscalyear_last_day': 30}).status_code, 200)
+        self.assertEqual(self.fresh.fiscalyear_last_day, 30)
+        self.assertEqual((self.company.fiscalyear_last_day, self.other_company.fiscalyear_last_day), (31, 31))
 
     def test_a_closed_feature_refuses_every_setup_route(self):
         set_probe_feature(self, key='finance.enabled', enabled=False)
         self.authenticate(ADMIN_LOGIN, PASSWORD)
         for method, route in (
             ('GET', '/api/v1/finance/setup'), ('POST', '/api/v1/finance/setup/chart'),
-            ('PATCH', '/api/v1/finance/setup/company'), ('PATCH', '/api/v1/finance/setup/fiscal'),
+            ('PATCH', '/api/v1/finance/setup/fiscal'),
         ):
             with self.subTest(route=route):
-                self.assertEqual(self.api(method, route, json={'city': 'Riyadh'}).status_code, 403)
+                self.assertEqual(self.api(method, route, json={'fiscalyear_last_day': 30}).status_code, 403)

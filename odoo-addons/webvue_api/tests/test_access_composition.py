@@ -7,6 +7,7 @@ SYSTEM = frozenset({
     'access.users.read', 'access.users.grant', 'access.users.assign_roles',
     'access.users.disable', 'access.users.reset_password', 'access.roles.read',
     'access.roles.manage', 'access.audit.read', 'settings.branding.manage',
+    'settings.company.read', 'settings.company.manage',
 })
 HR = frozenset({
     'hr.employees.read', 'hr.employees.manage', 'hr.employees.archive',
@@ -38,6 +39,7 @@ DEPENDENCIES = {
     'access.users.disable': {'access.users.read'},
     'access.users.reset_password': {'access.users.read'},
     'access.roles.manage': {'access.roles.read'},
+    'settings.company.manage': {'settings.company.read'},
     'hr.employees.manage': {'hr.employees.read'},
     'hr.employees.archive': {'hr.employees.read'},
     'hr.employees.access_status.read': {'hr.employees.read'},
@@ -88,10 +90,10 @@ class TestAccessComposition(TransactionCase):
     def _group(self, key):
         return self.env.ref(self.Permission.search([('key', '=', key)]).group_xmlid)
 
-    def test_catalog_is_the_same_30_keys_each_owned_by_one_addon(self):
+    def test_catalog_is_the_same_32_keys_each_owned_by_one_addon(self):
         catalog = self.service._webvue_capability_map()
         self.assertEqual(self._release(catalog), CATALOG)
-        self.assertEqual(len(self._release(catalog)), 30)
+        self.assertEqual(len(self._release(catalog)), 32)
         permissions = self.Permission.search([])
         self.assertEqual(sorted(permissions.mapped('key')), sorted(catalog))
         installed = set(self.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))

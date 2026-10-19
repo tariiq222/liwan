@@ -50,12 +50,12 @@ class TestWebVueAccessModels(TransactionCase):
         system_admin = self.env.ref('webvue_core.role_system_admin')
         self.assertTrue(set(system_admin.permission_ids.mapped('key')) >= SYSTEM_PERMISSIONS)
 
-    def test_core_owns_only_the_nine_system_capabilities(self):
+    def test_core_owns_only_the_eleven_system_capabilities(self):
         catalog = self.service._webvue_capability_map()
         self.assertEqual(
             {key for key, item in catalog.items() if item['owner'] == 'webvue_core'}, SYSTEM_PERMISSIONS,
         )
-        self.assertEqual(len(SYSTEM_PERMISSIONS), 9)
+        self.assertEqual(len(SYSTEM_PERMISSIONS), 11)
         self.assertEqual(CAPABILITIES, frozenset(SYSTEM_PERMISSIONS))
         group = self.env.ref('base.group_user')
         with self.assertRaisesRegex(ValidationError, 'record_company_unknown'):

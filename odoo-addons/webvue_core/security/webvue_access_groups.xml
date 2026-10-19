@@ -9,10 +9,12 @@
     <record id="group_cap_access_roles_manage" model="res.groups"><field name="name">Capability: manage roles</field><field name="privilege_id" ref="res_groups_privilege_webvue"/></record>
     <record id="group_cap_access_audit_read" model="res.groups"><field name="name">Capability: read access audit</field><field name="privilege_id" ref="res_groups_privilege_webvue"/></record>
     <record id="group_cap_settings_branding_manage" model="res.groups"><field name="name">Capability: manage branding</field><field name="privilege_id" ref="res_groups_privilege_webvue"/></record>
+    <record id="group_cap_settings_company_read" model="res.groups"><field name="name">Capability: read company profile</field><field name="privilege_id" ref="res_groups_privilege_webvue"/></record>
+    <record id="group_cap_settings_company_manage" model="res.groups"><field name="name">Capability: manage company profile</field><field name="privilege_id" ref="res_groups_privilege_webvue"/><field name="implied_ids" eval="[Command.link(ref('group_cap_settings_company_read'))]"/></record>
 
     <record id="group_access_admin" model="res.groups">
         <field name="name">System Administrator</field><field name="privilege_id" ref="res_groups_privilege_webvue"/>
-        <field name="implied_ids" eval="[Command.set([ref('base.group_user'),ref('group_cap_access_users_read'),ref('group_cap_access_users_grant'),ref('group_cap_access_users_assign_roles'),ref('group_cap_access_users_disable'),ref('group_cap_access_users_reset_password'),ref('group_cap_access_roles_read'),ref('group_cap_access_roles_manage'),ref('group_cap_access_audit_read'),ref('group_cap_settings_branding_manage')])]"/>
+        <field name="implied_ids" eval="[Command.set([ref('base.group_user'),ref('group_cap_access_users_read'),ref('group_cap_access_users_grant'),ref('group_cap_access_users_assign_roles'),ref('group_cap_access_users_disable'),ref('group_cap_access_users_reset_password'),ref('group_cap_access_roles_read'),ref('group_cap_access_roles_manage'),ref('group_cap_access_audit_read'),ref('group_cap_settings_branding_manage'),ref('group_cap_settings_company_read'),ref('group_cap_settings_company_manage')])]"/>
     </record>
     <record id="group_customer_admin" model="res.groups">
         <field name="name">Legacy Customer Administrator</field>

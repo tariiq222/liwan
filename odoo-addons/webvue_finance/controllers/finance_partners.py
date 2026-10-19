@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
-from odoo.exceptions import MissingError, ValidationError
+from odoo.exceptions import MissingError
 from odoo.http import request
 
 from .common import list_page, parse_choice, require_capability
@@ -9,6 +9,7 @@ from odoo.addons.webvue_api.controllers.common import (
     api_handler,
     requires_feature,
 )
+from odoo.addons.webvue_api.controllers.vat import check_vat
 from odoo.addons.webvue_finance.serializers.parsing import require_nonempty
 from odoo.addons.webvue_finance.serializers.partner import (
     dump_partner,
@@ -53,16 +54,6 @@ def _rank(partner, kind, flag):
     return (rank or 1) if flag else 0
 
 
-def _check_vat(country, vat, name):
-    """Odoo's own VAT check for ``country`` (base_vat; Saudi: 15 digits starting and ending with 3)."""
-    if not (vat and country):
-        return
-    try:
-        request.env['res.partner']._run_vat_checks(country, vat, name)
-    except ValidationError as error:
-        raise ApiError(422, 'invalid_vat', str(error), field='vat') from None
-
-
 def _global_record(model, record_id, field):
     """A country or state: shared reference data, not company-scoped."""
     record = request.env[model].browse(record_id).exists()
@@ -99,7 +90,7 @@ def _partner_values(parsed, partner=None):
     if 'state_id' in parsed:
         values['state_id'] = state.id
     if 'vat' in parsed or 'country_id' in parsed:
-        _check_vat(country, parsed.get('vat', partner.vat if partner else ''), parsed.get('name', partner.name if partner else ''))
+        check_vat(country, parsed.get('vat', partner.vat if partner else ''), parsed.get('name', partner.name if partner else ''))
     if not partner:
         values['company_id'] = request.env.company.id
     return values

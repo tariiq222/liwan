@@ -1,4 +1,5 @@
 export * from './branding'
+export * from './company'
 export * from './error'
 export * from './me'
 export * from './password'

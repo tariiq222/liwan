@@ -10,7 +10,6 @@ _logger = logging.getLogger(__name__)
 
 SAUDI_CHART_TEMPLATE = 'sa'
 SETUP_MANAGE = 'finance.setup.manage'
-COMPANY_IDENTITY_FIELDS = frozenset({'vat', 'company_registry', 'street', 'city', 'state_id', 'country_id'})
 # The hard lock date is irreversible in stock Odoo, so it is never writable here.
 COMPANY_FISCAL_FIELDS = frozenset({
     'fiscalyear_last_day', 'fiscalyear_last_month',
@@ -23,7 +22,7 @@ class WebVueFinanceSetup(models.AbstractModel):
 
     Stock refuses a caller who is not an administrator (``account.chart.template`` loads, ``res.company``
     writes), so these two methods are the only elevated places in the module: the documented R7 case
-    "finance setup (chart load, company tax identity)". Each checks ``finance.setup.manage`` itself before
+    "finance setup (chart load, company fiscal settings)". Each checks ``finance.setup.manage`` itself before
     it elevates and acts on the current company only. Each success leaves a log record and an audit event
     (``webvue.finance.audit.event``) created in the caller's environment (no elevation).
     """
@@ -59,11 +58,10 @@ class WebVueFinanceSetup(models.AbstractModel):
 
     @api.model
     def _webvue_write_company(self, company, vals):
-        """Write whitelisted tax-identity or fiscal fields of the current company (sudo: R7 case "finance setup")."""
+        """Write whitelisted fiscal fields of the current company (sudo: R7 case "finance setup")."""
         self.env['webvue.access.service']._webvue_require_capability(SETUP_MANAGE)
         self._webvue_check_current_company(company)
-        allowed = COMPANY_IDENTITY_FIELDS | COMPANY_FISCAL_FIELDS
-        forbidden = sorted(set(vals) - allowed)
+        forbidden = sorted(set(vals) - COMPANY_FISCAL_FIELDS)
         if forbidden:
             raise AccessError(self.env._('Finance setup cannot write the field %s.', forbidden[0]))
         try:

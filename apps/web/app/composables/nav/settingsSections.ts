@@ -15,6 +15,9 @@ export interface SettingsSection {
 }
 
 const COMPANY: SettingsEntry[] = [
+  { id: 'profile', labelKey: 'settings.sections.company.profile', icon: 'i-lucide-building-2', to: '/settings/company/profile', capability: 'settings.company.read' },
+  { id: 'address', labelKey: 'settings.sections.company.address', icon: 'i-lucide-map-pin', to: '/settings/company/address', capability: 'settings.company.read' },
+  { id: 'contact', labelKey: 'settings.sections.company.contact', icon: 'i-lucide-phone', to: '/settings/company/contact', capability: 'settings.company.read' },
   { id: 'branding', labelKey: 'settings.sections.company.branding', icon: 'i-lucide-palette', to: '/settings/company/branding', capability: 'settings.branding.manage' },
 ]
 const TEAM: SettingsEntry[] = [
