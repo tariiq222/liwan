@@ -74,8 +74,16 @@ class TestFinanceStatements(WebVueFinanceOcaCase):
         report = self._get('general-ledger', YEAR + f'&partner_id={self.riyadh.id}')
         rows = self._by_code(report)
         self.assertEqual(rows['102011']['debit'], 345)
-        self.assertEqual(rows['102011']['lines']['items'][0]['partner'], {'id': self.riyadh.id, 'name': 'Riyadh Supplies'})
+        self.assertEqual(rows['102011']['lines'], {'items': [], 'total': 2})
         self.assertNotIn('101001', rows)
+        one = self._get('general-ledger', YEAR + f'&partner_id={self.riyadh.id}&account_id={self.account("102011").id}')
+        self.assertEqual(one['accounts'][0]['lines']['items'][0]['partner'], {'id': self.riyadh.id, 'name': 'Riyadh Supplies'})
+
+    def test_the_general_ledger_without_an_account_lists_totals_only(self):
+        rows = self._by_code(self._get('general-ledger', YEAR))
+        self.assertEqual(rows['101001']['lines'], {'items': [], 'total': 3})
+        self.assertEqual((rows['101001']['initial_balance'], rows['101001']['ending_balance']), (5000, 103000))
+        self.assertEqual(rows['999999']['initial_balance'], -5000)
 
     # --- aged partner balance ---------------------------------------------------------------------------
 

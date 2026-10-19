@@ -53,7 +53,7 @@ export const FinanceLedgerAccountSchema = z.object({
   debit: amount,
   credit: amount,
   ending_balance: amount,
-  /** One page (`limit`/`offset`) of the account's lines in date order. */
+  /** One page (`limit`/`offset`) of the account's lines in date order; `items` is empty unless the request names the account, `total` always counts the period's lines. */
   lines: list(FinanceLedgerLineSchema),
 }).strict()
 
