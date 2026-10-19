@@ -45,6 +45,7 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
     useAccess: () => ({ can: () => pmo }), useRecordPickerAvailable: () => computed(() => pmo),
     useRecordPicker: picker,
     useMeetings: () => ({ data: ref({ total: 60 }), isFetching: ref(false) }),
+    useMeetingListKpis: () => ({ tiles: ref([]), loading: ref(false) }), useMeetingSeriesKpis: () => ({ tiles: ref([]), loading: ref(false) }),
     useMeetingSeriesList: seriesList, usePeople: people, meetingCreateRoute,
     clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery, parseOffset,
     useConvertResolution: () => ({ mutateAsync, isPending: ref(false) }),

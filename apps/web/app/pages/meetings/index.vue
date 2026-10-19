@@ -10,6 +10,7 @@ import { formatCalendarDate, formatWebVueTime } from '@webvue/ui/app/composables
 import { useMeetingListQuerySync } from '@/composables/useMeetingListQuerySync'
 import { usePeople } from '@/composables/usePeople'
 import { useMeetings } from '@/composables/useMeetings'
+import { useMeetingListKpis } from '@/composables/useMeetingKpis'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { meetingStateBadgeProps } from '@/utils/meetingStatus'
@@ -98,6 +99,14 @@ const query = useMeetings(computed(() => ({
   limit,
   offset: offset.value,
 })))
+// The tiles count under the scope filters only; each tile brings its own state and dates.
+const kpis = useMeetingListKpis(() => ({
+  q: debouncedSearch.value.trim() || undefined,
+  mine: routeFilters.value.mine || undefined,
+  project_id: routeFilters.value.projectId,
+  organizer_id: routeFilters.value.organizerId,
+  series_id: routeFilters.value.seriesId,
+}))
 const rows = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
 // The list's total as a tag in the heading, once the first page has arrived.
@@ -249,8 +258,10 @@ function setPage(next: number) {
     :create-to="can('meetings.create') ? createTo : undefined"
     :create-label="t('nav.newMeeting')"
     create-test-id="meeting-new"
+    kpi-toggle
     @click.capture="openCreate"
   >
+    <SharedKpiStrip v-if="hydrated" :tiles="kpis.tiles.value" :loading="kpis.loading.value" :label="t('meetingsKpi.label')" data-testid="meeting-kpi-strip" />
     <SharedListCard>
       <template #filters>
         <FilterBar embedded class="w-full" :active-count="activeFilterCount" :clear-label="t('meetingsUi.clear')" :disabled="!hydrated" @clear="clearFilters">

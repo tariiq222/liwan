@@ -84,6 +84,46 @@ const meeting = {
   project_id: 1,
 }
 
+// Further meetings and recommendations so the KPI totals differ per filter. Dates follow the real clock (upcoming and
+// "this month" are relative to today); meeting 1 stays first, the other fixtures read it by id.
+const dayOffset = days => { const d = new Date(); d.setDate(d.getDate() + days); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+const otherMeeting = (id, state, days, extra = {}) => ({
+  ...meeting, id, reference: `MTG-00${id}`, name: `اجتماع المتابعة ${id}`, state, meeting_date: dayOffset(days),
+  start_datetime: `${dayOffset(days)}T09:00:00+03:00`, end_datetime: `${dayOffset(days)}T10:00:00+03:00`, open_resolution_count: 0, series_id: null, ...extra,
+})
+const meetingRows = [
+  meeting,
+  otherMeeting(2, 'draft', 7),
+  otherMeeting(3, 'confirmed', 14),
+  otherMeeting(4, 'done', 0),
+  otherMeeting(5, 'done', -45),
+]
+const resolutionRows = [
+  { ...resolution, meeting_id: 1, meeting_name: meeting.name },
+  { ...resolution, id: 2, name: 'تحديث سجل المخاطر', deadline: dayOffset(10), state: 'open', execution_state: 'open', meeting_id: 3, meeting_name: 'اجتماع المتابعة 3' },
+  { ...resolution, id: 3, name: 'رفع تقرير الإنجاز', deadline: dayOffset(-3), state: 'open', execution_state: 'open', meeting_id: 4, meeting_name: 'اجتماع المتابعة 4' },
+  { ...resolution, id: 4, name: 'إغلاق بنود الربع السابق', deadline: dayOffset(-30), state: 'done', execution_state: 'done', meeting_id: 5, meeting_name: 'اجتماع المتابعة 5' },
+  { ...resolution, id: 5, name: 'مراجعة العقد القديم', deadline: null, state: 'cancelled', execution_state: 'cancelled', meeting_id: 5, meeting_name: 'اجتماع المتابعة 5' },
+]
+
+// The same filters the Odoo routes apply: meetings by state and date range, recommendations by execution state (active, overdue), both by text.
+const filterMeetings = url => {
+  const q = (url.searchParams.get('q') ?? '').trim()
+  const state = url.searchParams.get('state')
+  const from = url.searchParams.get('date_from')
+  const to = url.searchParams.get('date_to')
+  return meetingRows.filter(row => (!q || `${row.name} ${row.reference}`.includes(q))
+    && (!state || row.state === state) && (!from || row.meeting_date >= from) && (!to || row.meeting_date <= to))
+}
+const filterResolutions = url => {
+  const q = (url.searchParams.get('q') ?? '').trim()
+  const state = url.searchParams.get('state')
+  const today = dayOffset(0)
+  const active = row => ['open', 'in_progress'].includes(row.execution_state)
+  return resolutionRows.filter(row => (!q || `${row.name} ${row.meeting_name}`.includes(q))
+    && (!state || (state === 'active' ? active(row) : state === 'overdue' ? active(row) && row.deadline && row.deadline < today : row.execution_state === state)))
+}
+
 const minutesForm = {
   opening: 'افتتح رئيس الاجتماع الجلسة بالترحيب بالحضور.',
   closing: 'اختتم الاجتماع بتحديد موعد المتابعة القادم.',
@@ -335,7 +375,8 @@ export function moduleUiPreviewData(path, url) {
   const parsedUrl = url instanceof URL ? url : new URL(String(url || 'http://preview.local'), 'http://preview.local')
 
   if (normalizedPath === '/api/v1/people') return PEOPLE
-  if (normalizedPath === '/api/v1/meetings') return page([meeting], parsedUrl)
+  if (normalizedPath === '/api/v1/meetings') return page(filterMeetings(parsedUrl), parsedUrl)
+  if (normalizedPath === '/api/v1/meetings/resolutions') return page(filterResolutions(parsedUrl), parsedUrl)
   if (isId(normalizedPath, '/api/v1/meetings')) return meetingDetail
   if (normalizedPath === '/api/v1/meetings/1/events') return page(events, parsedUrl)
   if (normalizedPath === '/api/v1/meetings/1/versions') return page(versions, parsedUrl)

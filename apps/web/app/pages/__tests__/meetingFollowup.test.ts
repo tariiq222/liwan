@@ -11,6 +11,7 @@ function followup(state: string) {
   const scope = { computed, ref, watch, firstQuery, parseOffset,
     useRoute: () => ({ query: { state }, path: '/meetings/follow-up' }), useRouter: () => ({ replace: () => {} }),
     useI18n: () => ({ t: (key: string) => key, locale: ref('ar') }), useHydrated: () => ref(true), refDebounced: (value: unknown) => value,
+    useMeetingFollowupKpis: () => ({ tiles: ref([]), loading: ref(false) }),
     useMeetingFollowup: (params: unknown) => { request = params; return { data: ref({ items: [], total: 0 }) } },
   }
   const js = ts.transpileModule(script, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText

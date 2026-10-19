@@ -392,5 +392,20 @@
     "signature": "Signature",
     "readOnlyMeeting": "This meeting is finalized or cancelled and cannot be edited.",
     "selectedVersion": "Shown"
+  },
+  "meetingsKpi": {
+    "label": "Meetings summary",
+    "total": "Total meetings",
+    "upcoming": "Upcoming confirmed",
+    "draft": "Drafts",
+    "doneMonth": "Done this month",
+    "series": "Total series",
+    "openResolutions": "Active resolutions",
+    "overdueResolutions": "Overdue resolutions",
+    "allMeetings": "All meetings",
+    "followupTotal": "Total resolutions",
+    "followupActive": "Active resolutions",
+    "followupOverdue": "Overdue resolutions",
+    "followupDone": "Completed resolutions"
   }
 }

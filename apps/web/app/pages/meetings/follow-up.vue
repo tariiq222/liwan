@@ -7,6 +7,7 @@ import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue
 import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import { refDebounced } from '@vueuse/core'
 import { useMeetingFollowup, type MeetingFollowupParams } from '@/composables/useMeetingWorkspace'
+import { useMeetingFollowupKpis } from '@/composables/useMeetingKpis'
 import { formatMeetingDate } from '@/utils/meetingMinutesForm'
 import { resolutionStateBadgeProps } from '@/utils/meetingStatus'
 import { parseOffset, firstQuery } from '@/utils/routeQuery'
@@ -33,6 +34,8 @@ function patch(values: Record<string, string | undefined>) {
 watch(debouncedSearch, value => { if (route.path === '/meetings/follow-up' && value.trim() !== filters.value.q) patch({ q: value.trim() || undefined }) })
 const limit = 25
 const query = useMeetingFollowup(computed<MeetingFollowupParams>(() => ({ ...filters.value, state: filters.value.state === 'all' ? undefined : filters.value.state, limit })))
+// The tiles count under the search and "mine" scope; each tile brings its own state.
+const kpis = useMeetingFollowupKpis(() => ({ q: filters.value.q, mine: filters.value.mine }))
 const rows = computed(() => query.data.value?.items ?? [])
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
 const page = computed(() => Math.floor(filters.value.offset / limit) + 1)
@@ -63,7 +66,8 @@ function setPage(value: number) { if (value >= 1 && value <= pages.value) patch(
 </script>
 
 <template>
-  <SharedListPage :title="t('nav.meetingFollowup')" :description="t('meetingsUx.followupDescription')">
+  <SharedListPage :title="t('nav.meetingFollowup')" :description="t('meetingsUx.followupDescription')" kpi-toggle>
+    <SharedKpiStrip v-if="hydrated" :tiles="kpis.tiles.value" :loading="kpis.loading.value" :label="t('meetingsKpi.label')" data-testid="meeting-followup-kpi-strip" />
     <SharedListCard>
       <template #filters>
         <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">

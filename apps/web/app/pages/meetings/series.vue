@@ -7,6 +7,7 @@ import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import { useMeetingListQuerySync } from '@/composables/useMeetingListQuerySync'
 import { useMeetingSeriesList } from '@/composables/useMeetings'
+import { useMeetingSeriesKpis } from '@/composables/useMeetingKpis'
 import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import { clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery } from '@/utils/meetingListFilters'
@@ -60,6 +61,8 @@ const params = computed(() => ({
   offset: offset.value,
 }))
 const query = useMeetingSeriesList(params)
+// Global figures: the series list has no server filter for resolutions, so none of the tiles follows the search or project filter.
+const kpis = useMeetingSeriesKpis()
 const page = computed(() => Math.floor(offset.value / limit) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
 const rows = computed(() => query.data.value?.items ?? [])
@@ -111,8 +114,10 @@ function setPage(next: number) {
     :create-to="can('meetings.create') ? createTo : undefined"
     :create-label="t('meetingsUi.newSeries')"
     create-test-id="meeting-series-new"
+    kpi-toggle
     @click.capture="openCreate"
   >
+    <SharedKpiStrip v-if="hydrated" :tiles="kpis.tiles.value" :loading="kpis.loading.value" :label="t('meetingsKpi.label')" :skeleton-count="3" data-testid="meeting-series-kpi-strip" />
     <SharedListCard>
       <template #filters>
         <FilterBar embedded class="w-full" :active-count="activeFilterCount" :clear-label="t('meetingsUi.clear')" :disabled="!hydrated" @clear="clearFilters">

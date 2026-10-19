@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 // Plan 6c: /meetings on SharedListPage + SharedDataTable (isolated mock stack).
-// The mock lists one meeting: «اجتماع متابعة التحول الرقمي», MTG-001, 2026-09-15, confirmed, organizer أحمد العتيبي.
+// The mock lists five meetings (the KPI tiles need different totals); the first is «اجتماع متابعة التحول الرقمي», MTG-001, 2026-09-15, confirmed, organizer أحمد العتيبي.
 import { login, open, fitsWidth } from './support/tasmim6'
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Isolated synthetic API only')
 const rows = (page: Page) => page.locator('tbody tr[data-shortcut-row]')
@@ -22,11 +22,11 @@ test.describe('Plan 6c: the meetings list', () => {
       await expect(create).toHaveCount(1)
       await expect(create).toHaveAttribute('data-testid', 'meeting-new')
       await expect(create).toContainText('اجتماع جديد')
-      await expect(rows(page)).toHaveCount(1)
+      await expect(rows(page)).toHaveCount(5)
       await expect(rows(page).first()).toContainText('MTG-001')
-      await expect(page.getByTestId('meeting-row')).toHaveAttribute('href', /\/meetings\/1\?returnTo=/)
-      await expect(page.getByTestId('meeting-row-state')).toHaveText('مؤكد')
-      await expect(page.getByTestId('meeting-row-state')).toHaveAttribute('data-tone', 'info')
+      await expect(page.getByTestId('meeting-row').first()).toHaveAttribute('href', /\/meetings\/1\?returnTo=/)
+      await expect(page.getByTestId('meeting-row-state').first()).toHaveText('مؤكد')
+      await expect(page.getByTestId('meeting-row-state').first()).toHaveAttribute('data-tone', 'info')
       await expect(page.getByTestId('meeting-scope')).toBeVisible()
     })
 
@@ -82,7 +82,7 @@ test.describe('Plan 6c: the meetings list', () => {
 
     test('the mobile rows carry the same information and J skips the hidden table', async ({ page }) => {
       await open(page, '/meetings')
-      await expect(mobileRows(page)).toHaveCount(1)
+      await expect(mobileRows(page)).toHaveCount(5)
       await expect(page.locator('table')).toBeHidden()
       const row = mobileRows(page).first()
       await expect(row).toContainText('اجتماع متابعة التحول الرقمي')
