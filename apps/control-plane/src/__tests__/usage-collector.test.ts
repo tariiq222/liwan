@@ -212,7 +212,8 @@ suite('usage collector (scratch control database)', () => {
   it('stops taking targets once the time budget is spent', async () => {
     await tenant(); await tenant()
     const seen: string[] = []
-    await collectUsage(pool, { runner: async ({ tenant_id }) => { seen.push(tenant_id); await new Promise(r => setTimeout(r, 200)); throw Error('slow') }, now: () => NOW, limit: 1000, budget_ms: 50, log: () => {} })
+    let elapsed = 0
+    await collectUsage(pool, { runner: async ({ tenant_id }) => { seen.push(tenant_id); elapsed += 200; throw Error('slow') }, now: () => NOW, clock: () => elapsed, limit: 1000, budget_ms: 50, log: () => {} })
     expect(seen).toHaveLength(1)
   })
 

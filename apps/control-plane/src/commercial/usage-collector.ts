@@ -63,8 +63,9 @@ async function withDeadline<T>(work: (signal: AbortSignal) => Promise<T>, ms: nu
  * collects at a time across workers (advisory lock; a second caller returns { locked: true }).
  * Nothing is recorded unless the observation names the bound database, is fresh, complete, and the
  * binding is unchanged after the observation; a rejected sample leaves the previous snapshot untouched. */
-export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunner; now?: () => Date; log?: (message: string) => void; limit?: number; timeout_ms?: number; budget_ms?: number; signal?: AbortSignal; busy?: () => Promise<boolean> }) {
+export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunner; now?: () => Date; clock?: () => number; log?: (message: string) => void; limit?: number; timeout_ms?: number; budget_ms?: number; signal?: AbortSignal; busy?: () => Promise<boolean> }) {
   const now = input.now ?? (() => new Date())
+  const clock = input.clock ?? Date.now
   const log = input.log ?? ((message: string) => console.error(`[usage-collector] ${message}`))
   const result: { recorded: number; skipped: number; locked: boolean; busy?: boolean } = { recorded: 0, skipped: 0, locked: false }
   if (input.signal?.aborted) return result
@@ -82,9 +83,9 @@ export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunn
           ORDER BY b.control_tenant_id, s.id) x
         LEFT JOIN usage_collection_attempts a ON a.tenant_id=x.tenant_id
         ORDER BY a.attempted_at ASC NULLS FIRST, x.tenant_id LIMIT $1`, [input.limit ?? DEFAULT_LIMIT, LIVE_STATES])).rows as Array<{ tenant_id: string; database_name: string; registry_revision: string }>
-      const deadline = Date.now() + (input.budget_ms ?? BUDGET_MS)
+      const deadline = clock() + (input.budget_ms ?? BUDGET_MS)
       for (const target of targets) {
-        if (Date.now() >= deadline || input.signal?.aborted) break
+        if (clock() >= deadline || input.signal?.aborted) break
         // A provision, backup or restore owns the shared runtime: an observation container would
         // collide with its writer check, so stop before this tenant (and retry soon). A check
         // that cannot be answered counts as busy.
@@ -93,7 +94,7 @@ export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunn
           // The attempt is recorded before observing, so a hang or failure still moves the tenant to the back.
           await pool.query('INSERT INTO usage_collection_attempts(tenant_id,attempted_at) VALUES($1,clock_timestamp()) ON CONFLICT (tenant_id) DO UPDATE SET attempted_at=excluded.attempted_at', [target.tenant_id])
           const raw = await withDeadline(signal => input.runner({ tenant_id: target.tenant_id, database: target.database_name, signal }),
-            Math.max(1, Math.min(input.timeout_ms ?? PER_TENANT_MS, deadline - Date.now())), input.signal)
+            Math.max(1, Math.min(input.timeout_ms ?? PER_TENANT_MS, deadline - clock())), input.signal)
           const observed = acceptObservation(raw, target.database_name, now())
           if (!observed) { result.skipped++; continue }
           const still = await pool.query('SELECT 1 FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled=true AND database_name=$2 AND registry_revision=$3',
