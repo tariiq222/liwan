@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from .analytic import distribution_shares, parse_distribution
 from .common import dump_day, dump_ref
 from .parsing import (
     parse_day,
@@ -14,7 +15,7 @@ from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_api.serializers.common import iso
 
 WRITABLE_MOVE_TYPES = ('out_invoice', 'in_invoice', 'out_refund', 'in_refund')
-LINE_FIELDS = frozenset({'name', 'quantity', 'price_unit', 'discount', 'tax_ids', 'account_id'})
+LINE_FIELDS = frozenset({'name', 'quantity', 'price_unit', 'discount', 'tax_ids', 'account_id', 'analytic_distribution'})
 EDITABLE_FIELDS = frozenset({'partner_id', 'invoice_date', 'invoice_date_due', 'currency', 'ref', 'lines'})
 CREATE_FIELDS = EDITABLE_FIELDS | {'move_type'}
 
@@ -38,7 +39,7 @@ def dump_invoice(move):
     }
 
 
-def dump_invoice_line(line):
+def dump_invoice_line(line, shares):
     return {
         'id': line.id,
         'name': line.name or '',
@@ -49,6 +50,7 @@ def dump_invoice_line(line):
         'taxes': [dump_ref(tax) for tax in line.tax_ids],
         'price_subtotal': line.price_subtotal,
         'price_total': line.price_total,
+        'analytic_distribution': shares[line],
     }
 
 
@@ -68,12 +70,13 @@ def dump_invoice_zatca(move):
 
 
 def dump_invoice_detail(move):
+    shares = distribution_shares(move.invoice_line_ids)
     return {
         **dump_invoice(move),
         'ref': move.ref or '',
         'debit_origin': dump_ref(move.debit_origin_id),
         'zatca': dump_invoice_zatca(move),
-        'lines': [dump_invoice_line(line) for line in move.invoice_line_ids],
+        'lines': [dump_invoice_line(line, shares) for line in move.invoice_line_ids],
     }
 
 
@@ -97,6 +100,8 @@ def _parse_line(raw, index):
         line['tax_ids'] = parse_id_list(raw['tax_ids'], f'{prefix}.tax_ids')
     if raw.get('account_id') is not None:
         line['account_id'] = parse_id(raw['account_id'], f'{prefix}.account_id')
+    if 'analytic_distribution' in raw:
+        line['analytic_distribution'] = parse_distribution(raw['analytic_distribution'], f'{prefix}.analytic_distribution')
     return line
 
 

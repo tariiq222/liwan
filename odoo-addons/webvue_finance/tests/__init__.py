@@ -1,8 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
+    analytic_common,
     common,
     oca_common,
     test_finance_access,
+    test_finance_analytic,
+    test_finance_analytic_documents,
+    test_finance_analytic_orm_access,
     test_finance_assets,
     test_finance_bank,
     test_finance_capability_isolation,

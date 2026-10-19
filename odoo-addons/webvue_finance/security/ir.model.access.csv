@@ -3,3 +3,6 @@ access_finance_assets_read_asset,finance assets read: account.asset,account_asse
 access_finance_assets_read_asset_line,finance assets read: account.asset.line,account_asset_management.model_account_asset_line,group_cap_finance_assets_read,1,0,0,0
 access_finance_assets_read_asset_profile,finance assets read: account.asset.profile,account_asset_management.model_account_asset_profile,group_cap_finance_assets_read,1,0,0,0
 access_finance_assets_read_asset_group,finance assets read: account.asset.group,account_asset_management.model_account_asset_group,group_cap_finance_assets_read,1,0,0,0
+access_finance_analytic_read_plan,finance analytic read: account.analytic.plan,analytic.model_account_analytic_plan,group_cap_finance_analytic_read,1,0,0,0
+access_finance_analytic_manage_plan,finance analytic manage: account.analytic.plan,analytic.model_account_analytic_plan,group_cap_finance_analytic_manage,1,1,1,0
+access_finance_analytic_manage_account,finance analytic manage: account.analytic.account,analytic.model_account_analytic_account,group_cap_finance_analytic_manage,1,1,1,0

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { FinanceAnalyticShareSchema } from './analytic'
 import { currency, day, FinanceRefSchema, id, list } from './shared'
 import { FinanceZatcaSubmissionSchema } from './zatca'
 
@@ -39,6 +40,7 @@ export const FinanceInvoiceLineSchema = z.object({
   taxes: z.array(FinanceRefSchema),
   price_subtotal: z.number(),
   price_total: z.number(),
+  analytic_distribution: z.array(FinanceAnalyticShareSchema),
 }).strict()
 
 /** ZATCA facts of a Saudi sale document; the QR payload is base64 TLV, null until the document is posted. */
@@ -112,6 +114,7 @@ export type FinancePaymentList = z.infer<typeof FinancePaymentListSchema>
 export type FinanceAccountList = z.infer<typeof FinanceAccountListSchema>
 export type FinanceJournalList = z.infer<typeof FinanceJournalListSchema>
 
+export * from './analytic'
 export * from './assets'
 export * from './bank'
 export * from './journal-entries'

@@ -3,6 +3,7 @@ from odoo import Command, http
 from odoo.exceptions import MissingError
 from odoo.http import request
 
+from .analytic_support import distribution_values, require_plain_distributions
 from .common import filter_domain, list_page, parse_choice, require_capability
 from .finance_partners import company_partners_domain
 from .write_support import attempt, company_records, require_state
@@ -81,6 +82,10 @@ def _line_command(line, index, tax_use):
             [('company_ids', 'in', [request.env.company.id])],
         )
         values['account_id'] = account.id
+    if 'analytic_distribution' in line:
+        values['analytic_distribution'] = distribution_values(
+            line['analytic_distribution'], f'lines[{index}].analytic_distribution',
+        )
     return Command.create(values)
 
 
@@ -173,6 +178,8 @@ class FinanceInvoiceController(http.Controller):
         require_nonempty(payload)
         require_state(invoice, 'draft', 'not_draft')
         parsed = parse_invoice_patch(payload)
+        if 'lines' in parsed:
+            require_plain_distributions(invoice.invoice_line_ids)
         values = _move_values(parsed, invoice.move_type)
         attempt(
             lambda: invoice.write(values), day=values.get('invoice_date') or invoice.date,

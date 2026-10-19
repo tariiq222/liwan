@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { FinanceAnalyticDistributionInputSchema, FinanceAnalyticShareSchema } from './analytic'
 import { currency, day, FinanceRefSchema, id, list, money, PATCH_MESSAGE, requirePatchField, text } from './shared'
 
 export const JournalEntrySchema = z.object({
@@ -19,6 +20,7 @@ export const JournalEntryLineSchema = z.object({
   name: z.string(),
   debit: z.number(),
   credit: z.number(),
+  analytic_distribution: z.array(FinanceAnalyticShareSchema),
 }).strict()
 
 export const JournalEntryDetailSchema = JournalEntrySchema.extend({
@@ -34,6 +36,7 @@ export const JournalEntryLineInputSchema = z.object({
   name: text.trim().min(1),
   debit: money.nonnegative().optional(),
   credit: money.nonnegative().optional(),
+  analytic_distribution: FinanceAnalyticDistributionInputSchema.optional(),
 }).strict().refine(
   line => ((line.debit ?? 0) > 0) !== ((line.credit ?? 0) > 0),
   { message: 'Exactly one of debit or credit must be above zero' },
