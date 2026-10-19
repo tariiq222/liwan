@@ -452,6 +452,118 @@
       "handler": "list_recipients",
       "no_capability_reason": "Chat has no capability keys by design: webvue.chat.service requires an active internal WebVue user and limits every row to the caller's conversations."
     },
+    "GET /api/v1/documents": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "list_documents",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/documents/contexts": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "contexts",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/documents/contexts/{kind}/options": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "options",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/documents/tags": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "tags",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/documents/{document_id}": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "get_document",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/documents/{document_id}/access": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.access.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "get_access",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/documents/{document_id}/files": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "list_files",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/documents/{document_id}/files/{file_id}/download": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "download",
+      "no_capability_reason": null
+    },
     "GET /api/v1/finance/accounts": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -1064,48 +1176,6 @@
       "handler": "get_department",
       "no_capability_reason": null
     },
-    "GET /api/v1/hr/documents": {
-      "addon": "webvue_hr",
-      "auth": "user",
-      "capability_keys": [
-        "hr.documents.read"
-      ],
-      "capability_match": "all",
-      "capability_source": "body",
-      "feature_keys": [
-        "hr.enabled"
-      ],
-      "handler": "list_documents",
-      "no_capability_reason": null
-    },
-    "GET /api/v1/hr/documents/{document_id}": {
-      "addon": "webvue_hr",
-      "auth": "user",
-      "capability_keys": [
-        "hr.documents.read"
-      ],
-      "capability_match": "all",
-      "capability_source": "body",
-      "feature_keys": [
-        "hr.enabled"
-      ],
-      "handler": "get_document",
-      "no_capability_reason": null
-    },
-    "GET /api/v1/hr/documents/{document_id}/attachments/{attachment_id}/download": {
-      "addon": "webvue_hr",
-      "auth": "user",
-      "capability_keys": [
-        "hr.documents.read"
-      ],
-      "capability_match": "all",
-      "capability_source": "body",
-      "feature_keys": [
-        "hr.enabled"
-      ],
-      "handler": "download_document_attachment",
-      "no_capability_reason": null
-    },
     "GET /api/v1/hr/employees": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -1146,6 +1216,62 @@
         "hr.enabled"
       ],
       "handler": "list_expiring",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/leave/balances": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "list_balances",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/leave/requests": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "list_requests",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/leave/requests/{leave_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "get_request",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/leave/types": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "list_leave_types",
       "no_capability_reason": null
     },
     "GET /api/v1/hr/saudization": {
@@ -1995,6 +2121,20 @@
       "handler": "timeline",
       "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
     },
+    "HEAD /api/v1/documents/{document_id}/files/{file_id}/download": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "download",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/admin/branding": {
       "addon": "webvue_api",
       "auth": "user",
@@ -2068,6 +2208,20 @@
       ],
       "handler": "patch_message",
       "no_capability_reason": "Chat has no capability keys by design: webvue.chat.service requires an active internal WebVue user and limits every row to the caller's conversations."
+    },
+    "PATCH /api/v1/documents/{document_id}": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "patch_document",
+      "no_capability_reason": null
     },
     "PATCH /api/v1/finance/analytic-accounts/{account_id}": {
       "addon": "webvue_finance",
@@ -2207,20 +2361,6 @@
         "hr.enabled"
       ],
       "handler": "patch_department",
-      "no_capability_reason": null
-    },
-    "PATCH /api/v1/hr/documents/{document_id}": {
-      "addon": "webvue_hr",
-      "auth": "user",
-      "capability_keys": [
-        "hr.documents.manage"
-      ],
-      "capability_match": "all",
-      "capability_source": "body",
-      "feature_keys": [
-        "hr.enabled"
-      ],
-      "handler": "patch_document",
       "no_capability_reason": null
     },
     "PATCH /api/v1/hr/employees/{employee_id}": {
@@ -2690,6 +2830,124 @@
       ],
       "handler": "notify_typing",
       "no_capability_reason": "Chat has no capability keys by design: webvue.chat.service requires an active internal WebVue user and limits every row to the caller's conversations."
+    },
+    "POST /api/v1/documents": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "create_document",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/documents/tags": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.library.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "create_tag",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/documents/{document_id}/archive": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.archive"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "set_document_active",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/documents/{document_id}/files": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "upload_file",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/documents/{document_id}/files/{file_id}/archive": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "file_action",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/documents/{document_id}/files/{file_id}/lock": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "file_action",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/documents/{document_id}/files/{file_id}/restore": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "file_action",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/documents/{document_id}/files/{file_id}/unlock": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "file_action",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/documents/{document_id}/restore": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.archive"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "set_document_active",
+      "no_capability_reason": null
     },
     "POST /api/v1/finance/analytic-accounts": {
       "addon": "webvue_finance",
@@ -3161,34 +3419,6 @@
       "handler": "create_department",
       "no_capability_reason": null
     },
-    "POST /api/v1/hr/documents": {
-      "addon": "webvue_hr",
-      "auth": "user",
-      "capability_keys": [
-        "hr.documents.manage"
-      ],
-      "capability_match": "all",
-      "capability_source": "body",
-      "feature_keys": [
-        "hr.enabled"
-      ],
-      "handler": "create_document",
-      "no_capability_reason": null
-    },
-    "POST /api/v1/hr/documents/{document_id}/attachments": {
-      "addon": "webvue_hr",
-      "auth": "user",
-      "capability_keys": [
-        "hr.documents.manage"
-      ],
-      "capability_match": "all",
-      "capability_source": "body",
-      "feature_keys": [
-        "hr.enabled"
-      ],
-      "handler": "upload_document_attachment",
-      "no_capability_reason": null
-    },
     "POST /api/v1/hr/employees": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -3229,6 +3459,76 @@
         "hr.enabled"
       ],
       "handler": "unarchive_employee",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/leave/allocations": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "create_allocation",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/leave/requests": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.request"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "create_request",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/leave/requests/{leave_id}/approve": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.approve"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "approve_request",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/leave/requests/{leave_id}/cancel": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.request"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "cancel_request",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/leave/requests/{leave_id}/refuse": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.approve"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "refuse_request",
       "no_capability_reason": null
     },
     "POST /api/v1/me/password": {
@@ -3943,6 +4243,20 @@
       ],
       "handler": "unarchive_task",
       "no_capability_reason": "Task restore: task._webvue_can_archive() answers 404 (MissingError, not 403) unless the caller may archive the task, then write access is checked; the analysis only credits a 403 or AccessError refusal."
+    },
+    "PUT /api/v1/documents/{document_id}/access": {
+      "addon": "webvue_documents",
+      "auth": "user",
+      "capability_keys": [
+        "documents.access.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "documents.enabled"
+      ],
+      "handler": "set_access",
+      "no_capability_reason": null
     },
     "PUT /api/v1/projects/{project_id}/stages/order": {
       "addon": "webvue_pmo",

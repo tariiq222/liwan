@@ -4834,6 +4834,1092 @@
         ],
         "type": "object"
       },
+      "DocumentAccessSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "grants": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "access": {
+                  "enum": [
+                    "reader",
+                    "editor"
+                  ],
+                  "type": "string"
+                },
+                "user": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "user",
+                "access"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "visibility": {
+            "enum": [
+              "company",
+              "restricted"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "visibility",
+          "revision",
+          "grants"
+        ],
+        "type": "object"
+      },
+      "DocumentAccessUpdateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "grants": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "access": {
+                  "enum": [
+                    "reader",
+                    "editor"
+                  ],
+                  "type": "string"
+                },
+                "user_id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "user_id",
+                "access"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "visibility": {
+            "enum": [
+              "company",
+              "restricted"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "visibility",
+          "grants"
+        ],
+        "type": "object"
+      },
+      "DocumentContextListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "label"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "DocumentContextOptionListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "DocumentContextSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "href": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "kind": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "label",
+          "href"
+        ],
+        "type": "object"
+      },
+      "DocumentCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expiry_date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tag_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "DocumentDetailSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "allowed_actions": {
+            "additionalProperties": false,
+            "properties": {
+              "archive": {
+                "type": "boolean"
+              },
+              "manage_access": {
+                "type": "boolean"
+              },
+              "restore": {
+                "type": "boolean"
+              },
+              "update": {
+                "type": "boolean"
+              },
+              "upload_file": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "update",
+              "archive",
+              "restore",
+              "upload_file",
+              "manage_access"
+            ],
+            "type": "object"
+          },
+          "body": {
+            "type": "string"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "href": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "label",
+                  "href"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expiry_date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "file_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "tags": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "visibility": {
+            "enum": [
+              "company",
+              "restricted"
+            ],
+            "type": "string"
+          },
+          "write_date": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "visibility",
+          "active",
+          "expiry_date",
+          "write_date",
+          "revision",
+          "file_count",
+          "tags",
+          "context",
+          "allowed_actions",
+          "body"
+        ],
+        "type": "object"
+      },
+      "DocumentFileListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "allowed_actions": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "archive": {
+                      "type": "boolean"
+                    },
+                    "lock": {
+                      "type": "boolean"
+                    },
+                    "restore": {
+                      "type": "boolean"
+                    },
+                    "unlock": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "archive",
+                    "restore",
+                    "lock",
+                    "unlock"
+                  ],
+                  "type": "object"
+                },
+                "download_url": {
+                  "pattern": "^\\/api\\/v1\\/documents\\/[1-9]\\d*\\/files\\/[1-9]\\d*\\/download$",
+                  "type": "string"
+                },
+                "file_size": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "is_lock_editor": {
+                  "type": "boolean"
+                },
+                "is_locked": {
+                  "type": "boolean"
+                },
+                "mimetype": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "mimetype",
+                "file_size",
+                "active",
+                "is_locked",
+                "is_lock_editor",
+                "download_url",
+                "allowed_actions"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "revision"
+        ],
+        "type": "object"
+      },
+      "DocumentFileSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "allowed_actions": {
+            "additionalProperties": false,
+            "properties": {
+              "archive": {
+                "type": "boolean"
+              },
+              "lock": {
+                "type": "boolean"
+              },
+              "restore": {
+                "type": "boolean"
+              },
+              "unlock": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "archive",
+              "restore",
+              "lock",
+              "unlock"
+            ],
+            "type": "object"
+          },
+          "download_url": {
+            "pattern": "^\\/api\\/v1\\/documents\\/[1-9]\\d*\\/files\\/[1-9]\\d*\\/download$",
+            "type": "string"
+          },
+          "file_size": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "is_lock_editor": {
+            "type": "boolean"
+          },
+          "is_locked": {
+            "type": "boolean"
+          },
+          "mimetype": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "mimetype",
+          "file_size",
+          "active",
+          "is_locked",
+          "is_lock_editor",
+          "download_url",
+          "allowed_actions"
+        ],
+        "type": "object"
+      },
+      "DocumentListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "allowed_actions": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "archive": {
+                      "type": "boolean"
+                    },
+                    "manage_access": {
+                      "type": "boolean"
+                    },
+                    "restore": {
+                      "type": "boolean"
+                    },
+                    "update": {
+                      "type": "boolean"
+                    },
+                    "upload_file": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "update",
+                    "archive",
+                    "restore",
+                    "upload_file",
+                    "manage_access"
+                  ],
+                  "type": "object"
+                },
+                "context": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "href": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "kind": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "label",
+                        "href"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "expiry_date": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "file_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "revision": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "tags": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "visibility": {
+                  "enum": [
+                    "company",
+                    "restricted"
+                  ],
+                  "type": "string"
+                },
+                "write_date": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "visibility",
+                "active",
+                "expiry_date",
+                "write_date",
+                "revision",
+                "file_count",
+                "tags",
+                "context",
+                "allowed_actions"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "DocumentPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expected_revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "expiry_date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tag_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "DocumentRevisionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "DocumentSummarySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "allowed_actions": {
+            "additionalProperties": false,
+            "properties": {
+              "archive": {
+                "type": "boolean"
+              },
+              "manage_access": {
+                "type": "boolean"
+              },
+              "restore": {
+                "type": "boolean"
+              },
+              "update": {
+                "type": "boolean"
+              },
+              "upload_file": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "update",
+              "archive",
+              "restore",
+              "upload_file",
+              "manage_access"
+            ],
+            "type": "object"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "href": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "label",
+                  "href"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expiry_date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "file_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "tags": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "visibility": {
+            "enum": [
+              "company",
+              "restricted"
+            ],
+            "type": "string"
+          },
+          "write_date": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "visibility",
+          "active",
+          "expiry_date",
+          "write_date",
+          "revision",
+          "file_count",
+          "tags",
+          "context",
+          "allowed_actions"
+        ],
+        "type": "object"
+      },
+      "DocumentTagListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "DocumentTagSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "DocumentUploadSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "expected_revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "mimetype": {
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "name",
+          "data"
+        ],
+        "type": "object"
+      },
       "EffectiveCapabilitySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -15081,335 +16167,6 @@
           "manager",
           "child_ids",
           "employee_count"
-        ],
-        "type": "object"
-      },
-      "HrDocumentAttachmentSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "file_size": {
-            "type": "number"
-          },
-          "id": {
-            "exclusiveMinimum": 0,
-            "maximum": 9007199254740991,
-            "type": "integer"
-          },
-          "mimetype": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "url": {
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "mimetype",
-          "file_size",
-          "url"
-        ],
-        "type": "object"
-      },
-      "HrDocumentDetailSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "attachment_ids": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "file_size": {
-                  "type": "number"
-                },
-                "id": {
-                  "exclusiveMinimum": 0,
-                  "maximum": 9007199254740991,
-                  "type": "integer"
-                },
-                "mimetype": {
-                  "type": "string"
-                },
-                "name": {
-                  "type": "string"
-                },
-                "url": {
-                  "minLength": 1,
-                  "type": "string"
-                }
-              },
-              "required": [
-                "id",
-                "name",
-                "mimetype",
-                "file_size",
-                "url"
-              ],
-              "type": "object"
-            },
-            "type": "array"
-          },
-          "body": {
-            "type": "string"
-          },
-          "department": {
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
-                "type": "integer"
-              },
-              "name": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "name"
-            ],
-            "type": "object"
-          },
-          "expiry_date": {
-            "anyOf": [
-              {
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "id": {
-            "exclusiveMinimum": 0,
-            "maximum": 9007199254740991,
-            "type": "integer"
-          },
-          "name": {
-            "type": "string"
-          },
-          "write_date": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "department",
-          "body",
-          "attachment_ids",
-          "expiry_date",
-          "write_date"
-        ],
-        "type": "object"
-      },
-      "HrDocumentListSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "items": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "attachment_ids": {
-                  "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "file_size": {
-                        "type": "number"
-                      },
-                      "id": {
-                        "exclusiveMinimum": 0,
-                        "maximum": 9007199254740991,
-                        "type": "integer"
-                      },
-                      "mimetype": {
-                        "type": "string"
-                      },
-                      "name": {
-                        "type": "string"
-                      },
-                      "url": {
-                        "minLength": 1,
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "name",
-                      "mimetype",
-                      "file_size",
-                      "url"
-                    ],
-                    "type": "object"
-                  },
-                  "type": "array"
-                },
-                "body": {
-                  "type": "string"
-                },
-                "department": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "name": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "name"
-                  ],
-                  "type": "object"
-                },
-                "expiry_date": {
-                  "anyOf": [
-                    {
-                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                      "type": "string"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                },
-                "id": {
-                  "exclusiveMinimum": 0,
-                  "maximum": 9007199254740991,
-                  "type": "integer"
-                },
-                "name": {
-                  "type": "string"
-                },
-                "write_date": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "id",
-                "name",
-                "department",
-                "body",
-                "attachment_ids",
-                "expiry_date",
-                "write_date"
-              ],
-              "type": "object"
-            },
-            "type": "array"
-          },
-          "total": {
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "total"
-        ],
-        "type": "object"
-      },
-      "HrDocumentSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "attachment_ids": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "file_size": {
-                  "type": "number"
-                },
-                "id": {
-                  "exclusiveMinimum": 0,
-                  "maximum": 9007199254740991,
-                  "type": "integer"
-                },
-                "mimetype": {
-                  "type": "string"
-                },
-                "name": {
-                  "type": "string"
-                },
-                "url": {
-                  "minLength": 1,
-                  "type": "string"
-                }
-              },
-              "required": [
-                "id",
-                "name",
-                "mimetype",
-                "file_size",
-                "url"
-              ],
-              "type": "object"
-            },
-            "type": "array"
-          },
-          "body": {
-            "type": "string"
-          },
-          "department": {
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
-                "type": "integer"
-              },
-              "name": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "name"
-            ],
-            "type": "object"
-          },
-          "expiry_date": {
-            "anyOf": [
-              {
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "id": {
-            "exclusiveMinimum": 0,
-            "maximum": 9007199254740991,
-            "type": "integer"
-          },
-          "name": {
-            "type": "string"
-          },
-          "write_date": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "department",
-          "body",
-          "attachment_ids",
-          "expiry_date",
-          "write_date"
         ],
         "type": "object"
       },
@@ -37574,6 +38331,1035 @@
         }
       }
     },
+    "/api/v1/documents": {
+      "get": {
+        "operationId": "webvue_documents.Documents.list_documents.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_documents",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Documents",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_documents",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "webvue_documents.Documents.create_document.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_document",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Documents",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_document",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/contexts": {
+      "get": {
+        "operationId": "webvue_documents.Contexts.contexts.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "contexts",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Contexts",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "contexts",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/contexts/{kind}/options": {
+      "get": {
+        "operationId": "webvue_documents.Contexts.options.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "options",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Contexts",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "options",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/tags": {
+      "get": {
+        "operationId": "webvue_documents.Tags.tags.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "tags",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Tags",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "tags",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "webvue_documents.Tags.create_tag.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_tag",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Tags",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_tag",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}": {
+      "get": {
+        "operationId": "webvue_documents.Documents.get_document.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_document",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Documents",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_document",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_documents.Documents.patch_document.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_document",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Documents",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_document",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/access": {
+      "get": {
+        "operationId": "webvue_documents.Access.get_access.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_access",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Access",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_access",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "put": {
+        "operationId": "webvue_documents.Access.set_access.put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "set_access",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Access",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "set_access",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/archive": {
+      "post": {
+        "operationId": "webvue_documents.Documents.set_document_active.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "set_document_active",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Documents",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "set_document_active",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/files": {
+      "get": {
+        "operationId": "webvue_documents.Files.list_files.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_files",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Files",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_files",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "webvue_documents.Files.upload_file.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "upload_file",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Files",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "upload_file",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/files/{file_id}/archive": {
+      "post": {
+        "operationId": "webvue_documents.Files.file_action.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "file_action",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Files",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "file_action",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/files/{file_id}/download": {
+      "get": {
+        "operationId": "webvue_documents.DocumentDownload.download.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "download",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "documents",
+          "controller": "DocumentDownload",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "download",
+          "readonly": true,
+          "route_type": "http"
+        }
+      },
+      "head": {
+        "operationId": "webvue_documents.DocumentDownload.download.head",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "download",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "documents",
+          "controller": "DocumentDownload",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "download",
+          "readonly": true,
+          "route_type": "http"
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/files/{file_id}/lock": {
+      "post": {
+        "operationId": "webvue_documents.Files.file_action.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "file_action",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Files",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "file_action",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/files/{file_id}/restore": {
+      "post": {
+        "operationId": "webvue_documents.Files.file_action.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "file_action",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Files",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "file_action",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/files/{file_id}/unlock": {
+      "post": {
+        "operationId": "webvue_documents.Files.file_action.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "file_action",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Files",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "file_action",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/restore": {
+      "post": {
+        "operationId": "webvue_documents.Documents.set_document_active.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "set_document_active",
+        "tags": [
+          "webvue_documents"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "Documents",
+          "feature_keys": [
+            "documents.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "set_document_active",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/finance/accounts": {
       "get": {
         "operationId": "webvue_finance.FinanceAccountController.list_accounts.get",
@@ -41795,301 +43581,6 @@
           "handler": "patch_department",
           "readonly": false,
           "route_type": "json2"
-        }
-      }
-    },
-    "/api/v1/hr/documents": {
-      "get": {
-        "operationId": "webvue_hr.HrDocumentController.list_documents.get",
-        "responses": {
-          "200": {
-            "description": "Success (serializer-whitelisted shape)."
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "422": {
-            "$ref": "#/components/responses/Invalid"
-          }
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "summary": "list_documents",
-        "tags": [
-          "webvue_hr"
-        ],
-        "x-webvue": {
-          "addon": "webvue_hr",
-          "api_handler": true,
-          "auth": "user",
-          "body": "application/json (JSON-RPC style params)",
-          "contract_namespace": "hr",
-          "controller": "HrDocumentController",
-          "feature_keys": [
-            "hr.enabled"
-          ],
-          "feature_operation": "read",
-          "handler": "list_documents",
-          "readonly": true,
-          "route_type": "json2"
-        }
-      },
-      "post": {
-        "operationId": "webvue_hr.HrDocumentController.create_document.post",
-        "responses": {
-          "200": {
-            "description": "Success (serializer-whitelisted shape)."
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "422": {
-            "$ref": "#/components/responses/Invalid"
-          }
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "summary": "create_document",
-        "tags": [
-          "webvue_hr"
-        ],
-        "x-webvue": {
-          "addon": "webvue_hr",
-          "api_handler": true,
-          "auth": "user",
-          "body": "application/json (JSON-RPC style params)",
-          "contract_namespace": "hr",
-          "controller": "HrDocumentController",
-          "feature_keys": [
-            "hr.enabled"
-          ],
-          "feature_operation": "write",
-          "handler": "create_document",
-          "readonly": false,
-          "route_type": "json2"
-        }
-      }
-    },
-    "/api/v1/hr/documents/{document_id}": {
-      "get": {
-        "operationId": "webvue_hr.HrDocumentController.get_document.get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "document_id",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success (serializer-whitelisted shape)."
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "422": {
-            "$ref": "#/components/responses/Invalid"
-          }
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "summary": "get_document",
-        "tags": [
-          "webvue_hr"
-        ],
-        "x-webvue": {
-          "addon": "webvue_hr",
-          "api_handler": true,
-          "auth": "user",
-          "body": "application/json (JSON-RPC style params)",
-          "contract_namespace": "hr",
-          "controller": "HrDocumentController",
-          "feature_keys": [
-            "hr.enabled"
-          ],
-          "feature_operation": "read",
-          "handler": "get_document",
-          "readonly": true,
-          "route_type": "json2"
-        }
-      },
-      "patch": {
-        "operationId": "webvue_hr.HrDocumentController.patch_document.patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "document_id",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success (serializer-whitelisted shape)."
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "422": {
-            "$ref": "#/components/responses/Invalid"
-          }
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "summary": "patch_document",
-        "tags": [
-          "webvue_hr"
-        ],
-        "x-webvue": {
-          "addon": "webvue_hr",
-          "api_handler": true,
-          "auth": "user",
-          "body": "application/json (JSON-RPC style params)",
-          "contract_namespace": "hr",
-          "controller": "HrDocumentController",
-          "feature_keys": [
-            "hr.enabled"
-          ],
-          "feature_operation": "write",
-          "handler": "patch_document",
-          "readonly": false,
-          "route_type": "json2"
-        }
-      }
-    },
-    "/api/v1/hr/documents/{document_id}/attachments": {
-      "post": {
-        "operationId": "webvue_hr.HrDocumentController.upload_document_attachment.post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "document_id",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success (serializer-whitelisted shape)."
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "422": {
-            "$ref": "#/components/responses/Invalid"
-          }
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "summary": "upload_document_attachment",
-        "tags": [
-          "webvue_hr"
-        ],
-        "x-webvue": {
-          "addon": "webvue_hr",
-          "api_handler": true,
-          "auth": "user",
-          "body": "application/json (JSON-RPC style params)",
-          "contract_namespace": "hr",
-          "controller": "HrDocumentController",
-          "feature_keys": [
-            "hr.enabled"
-          ],
-          "feature_operation": "write",
-          "handler": "upload_document_attachment",
-          "readonly": false,
-          "route_type": "json2"
-        }
-      }
-    },
-    "/api/v1/hr/documents/{document_id}/attachments/{attachment_id}/download": {
-      "get": {
-        "operationId": "webvue_hr.HrDocumentController.download_document_attachment.get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "document_id",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "attachment_id",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success (serializer-whitelisted shape)."
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
-          },
-          "422": {
-            "$ref": "#/components/responses/Invalid"
-          }
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "summary": "download_document_attachment",
-        "tags": [
-          "webvue_hr"
-        ],
-        "x-webvue": {
-          "addon": "webvue_hr",
-          "api_handler": true,
-          "auth": "user",
-          "contract_namespace": "hr",
-          "controller": "HrDocumentController",
-          "feature_keys": [
-            "hr.enabled"
-          ],
-          "feature_operation": "read",
-          "handler": "download_document_attachment",
-          "readonly": true,
-          "route_type": "http"
         }
       }
     },
@@ -50712,6 +52203,7 @@
     "webvue_api",
     "webvue_chat",
     "webvue_directory",
+    "webvue_documents",
     "webvue_finance",
     "webvue_hr",
     "webvue_integrations_sa",
