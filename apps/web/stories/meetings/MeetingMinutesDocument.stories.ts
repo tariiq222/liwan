@@ -49,20 +49,20 @@ const render: Story['render'] = args => ({
 
 export const Structured: Story = {
   name: 'محضر منظّم',
-  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:212'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:217'),
   render,
 }
 
 export const Legacy: Story = {
   name: 'محضر نصي قديم',
-  parameters: storyContext('apps/web/app/pages/meetings/[id]/print.vue:84'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id]/print.vue:85'),
   args: { form: null, legacyAgenda: '<p>مراجعة خطة الإطلاق</p>', legacyMinutes: '<p>تمت الموافقة على الخطة بالإجماع.</p>' },
   render,
 }
 
 export const Empty: Story = {
   name: 'بلا مواضيع',
-  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:212'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:217'),
   args: { form: { ...form, topics: [] }, recommendations: [], legacyRecommendations: [] },
   render,
 }
@@ -70,6 +70,6 @@ export const Empty: Story = {
 export const Compact: Story = {
   name: 'قراءة المحضر داخل الاجتماع',
   args: { compact: true },
-  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:212'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:217'),
   render,
 }

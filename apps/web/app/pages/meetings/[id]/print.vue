@@ -6,6 +6,7 @@ import { formatMeetingDate, selectMeetingMinutesSource, type MeetingMinutesFormV
 import { useMeeting } from '@/composables/useMeetings'
 import { useMeetingVersion } from '@/composables/useMeetingWorkspace'
 import { ApiError } from '@/composables/useApi'
+import { meetingMinutesPdfPath } from '@/utils/meetingRoutes'
 import { parsePositiveId } from '@/utils/routeParams'
 
 const route = useRoute()
@@ -92,6 +93,8 @@ const signatures = computed(() => [t('meetingMinutesForm.chairperson'), t('meeti
     </SharedPageState>
     <template #footer>
       <UButton color="neutral" variant="outline" :to="backTo" :label="t('app.back')" data-testid="meeting-print-back" />
+      <!-- The PDF always renders the current minutes, so it is offered only when no saved version is shown. -->
+      <UButton v-if="id !== null && !versionId && printReady" color="neutral" variant="outline" icon="i-lucide-file-down" :to="meetingMinutesPdfPath(id)" external :label="t('meetingMinutesForm.downloadPdf')" data-testid="meeting-print-pdf" />
       <UButton type="button" :disabled="!hydrated || !printReady || meetingQuery.isLoading.value || versionQuery.isLoading.value" :label="t('meetingMinutesForm.print')" data-testid="meeting-print-action" @click="printPage" />
     </template>
   </SharedStandalonePage>

@@ -29,20 +29,20 @@ const render: Story['render'] = args => ({
 
 export const Timeline: Story = {
   name: 'خط زمني',
-  parameters: storyContext('apps/web/app/pages/meetings/series/[id].vue:250'),
+  parameters: storyContext('apps/web/app/pages/meetings/series/[id].vue:306'),
   render,
 }
 
 export const Table: Story = {
   name: 'جدول',
-  parameters: storyContext('apps/web/app/pages/meetings/series/[id].vue:250'),
+  parameters: storyContext('apps/web/app/pages/meetings/series/[id].vue:306'),
   args: { view: 'table', preserveOrder: true },
   render,
 }
 
 export const Empty: Story = {
   name: 'بلا لقاءات',
-  parameters: storyContext('apps/web/app/pages/meetings/series/[id].vue:250'),
+  parameters: storyContext('apps/web/app/pages/meetings/series/[id].vue:306'),
   args: { meetings: [], nextMeetingId: null },
   render,
 }

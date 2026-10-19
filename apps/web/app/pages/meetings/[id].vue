@@ -15,6 +15,7 @@ import { useMeetingEvents, useMeetingVersions } from '@/composables/useMeetingWo
 import { useMeetingTransitions } from '@/composables/useMeetingTransitions'
 import { meetingStateBadgeProps, resolutionStateBadgeProps } from '@/utils/meetingStatus'
 import { richTextHasContent } from '@/utils/richText'
+import { meetingMinutesPdfPath } from '@/utils/meetingRoutes'
 import { parsePositiveId } from '@/utils/routeParams'
 import { meetingTabFromRoute, meetingTabQuery, meetingHistoryViewFromRoute, type MeetingTab } from '@/utils/meetingTabs'
 
@@ -83,6 +84,8 @@ const logTabStart = computed(() => meetingTabs.value.findIndex(tab => tab.value 
 const moreActions = computed(() => {
   const m = query.data.value
   const groups = [[{ label: t('meetingMinutesForm.printPreview'), icon: 'i-lucide-printer', to: childTo(`/meetings/${id.value}/print`) }]]
+  // The PDF is a real attachment download served by Odoo for anyone who can read the meeting.
+  if (id.value !== null) groups[0]!.push({ label: t('meetingMinutesForm.downloadPdf'), icon: 'i-lucide-file-down', to: meetingMinutesPdfPath(id.value), external: true } as never)
   if (m?.can_manage && m.state !== 'cancelled' && m.state !== 'done') {
     groups.push([{ label: t('meetingsUx.cancelMeetingAction'), icon: 'i-lucide-ban', color: 'error', disabled: transitioning.value, onSelect: () => requestMeetingAction('cancel') }] as never)
   }

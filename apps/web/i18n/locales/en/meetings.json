@@ -86,7 +86,7 @@
     "mine": "My meetings",
     "newSeries": "New series",
     "emptySeries": "No series visible to you.",
-    "addOccurrence": "Add meeting",
+    "addOccurrence": "Add occurrence",
     "nextMeeting": "Next meeting",
     "recurrenceLabel": "Recurrence",
     "untilCount": "Number of meetings",
@@ -171,6 +171,12 @@
     "confirmResolutionAction": "Confirm this action for “{name}”?",
     "confirmMeetingAction": "Confirm this action for “{name}” ({scope})?",
     "seriesSettingsLink": "Series settings",
+    "occurrence": {
+      "title": "New occurrence in this series",
+      "hint": "The new occurrence inherits the location, attendees and secretary from the series. The name and time are optional; if you set a date, enter both a start and an end time.",
+      "name": "Occurrence name (optional)",
+      "submit": "Add occurrence"
+    },
     "seriesSettingsTitle": "Series settings",
     "seriesSettingsForbidden": "You do not have permission to edit this series.",
     "seriesDefaultsTitle": "Defaults for new meetings",
@@ -381,6 +387,7 @@
     "printKicker": "Meeting minutes",
     "print": "Print",
     "printPreview": "Preview and print",
+    "downloadPdf": "Download minutes PDF",
     "signature": "Signature",
     "readOnlyMeeting": "This meeting is finalized or cancelled and cannot be edited.",
     "selectedVersion": "Shown"

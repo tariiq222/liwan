@@ -6,6 +6,7 @@ import {
   MeetingCreateSchema,
   MeetingDetailSchema,
   MeetingListSchema,
+  MeetingOccurrenceCreateSchema,
   MeetingPatchSchema,
   MeetingResolutionCreateSchema,
   MeetingResolutionSchema,
@@ -15,6 +16,7 @@ import {
   TaskAttachmentListSchema,
   TaskAttachmentSchema,
   type MeetingCreate,
+  type MeetingOccurrenceCreate,
   type MeetingPatch,
   type MeetingResolutionCreate,
   type MeetingSeriesCreate,
@@ -251,6 +253,19 @@ export function useCreateMeetingSeries() {
       method: 'POST',
       body: MeetingSeriesCreateSchema.parse(body),
       schema: MeetingSeriesDetailSchema,
+    }),
+    onSuccess: () => invalidateMeetingCaches(qc),
+  })
+}
+
+export function useAddSeriesOccurrence() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ seriesId, body }: { seriesId: number; body: MeetingOccurrenceCreate }) => $api(`/api/v1/meeting-series/${seriesId}/occurrences`, {
+      method: 'POST',
+      body: MeetingOccurrenceCreateSchema.parse(body),
+      schema: MeetingDetailSchema,
     }),
     onSuccess: () => invalidateMeetingCaches(qc),
   })

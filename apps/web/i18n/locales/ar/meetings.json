@@ -76,7 +76,7 @@
     "mine": "اجتماعاتي",
     "newSeries": "اجتماع دوري جديد",
     "emptySeries": "لا توجد اجتماعات دورية ظاهرة لك.",
-    "addOccurrence": "إضافة لقاء",
+    "addOccurrence": "إضافة موعد",
     "nextMeeting": "اللقاء القادم",
     "recurrenceLabel": "التكرار",
     "untilCount": "عدد اللقاءات",
@@ -171,6 +171,12 @@
     "confirmResolutionAction": "هل تؤكد تنفيذ الإجراء للتوصية «{name}»؟",
     "confirmMeetingAction": "هل تؤكد تنفيذ الإجراء للاجتماع «{name}» ({scope})؟",
     "seriesSettingsLink": "إعدادات الاجتماع الدوري",
+    "occurrence": {
+      "title": "موعد جديد في الاجتماع الدوري",
+      "hint": "يرث الموعد الجديد المكان والحضور والأمين من الاجتماع الدوري. الاسم والوقت اختياريان، وإذا حددت تاريخًا فأدخل وقت البداية والنهاية معًا.",
+      "name": "اسم الموعد (اختياري)",
+      "submit": "إضافة الموعد"
+    },
     "seriesSettingsTitle": "إعدادات الاجتماع الدوري",
     "seriesSettingsForbidden": "لا تملك صلاحية تعديل هذا الاجتماع الدوري.",
     "seriesDefaultsTitle": "الإعدادات الافتراضية للاجتماعات الجديدة",
@@ -381,6 +387,7 @@
     "printKicker": "محضر اجتماع",
     "print": "طباعة",
     "printPreview": "معاينة وطباعة",
+    "downloadPdf": "تنزيل المحضر PDF",
     "signature": "التوقيع",
     "readOnlyMeeting": "هذا الاجتماع نهائي أو ملغى ولا يمكن تعديله.",
     "selectedVersion": "المعروضة"

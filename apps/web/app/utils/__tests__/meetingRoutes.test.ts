@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { meetingCreateRoute, meetingViewRoute } from '../meetingRoutes'
+import { meetingCreateRoute, meetingMinutesPdfPath, meetingViewRoute } from '../meetingRoutes'
 
 it('keeps list filters and chooses the filtered month when opening the calendar', () => {
   expect(meetingViewRoute({ q: 'budget', mine: '1', organizer_id: '7', date_from: '2026-09-10', offset: '25' }, 'calendar')).toEqual({
@@ -32,4 +32,8 @@ describe('meeting create routes', () => {
       query: { series_id: '7', returnTo: '/meetings?series_id=7' },
     })
   })
+})
+
+it('points the minutes PDF at the same-origin attachment route', () => {
+  expect(meetingMinutesPdfPath(42)).toBe('/api/v1/meetings/42/minutes.pdf')
 })
