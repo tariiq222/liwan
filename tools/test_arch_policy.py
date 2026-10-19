@@ -11,12 +11,16 @@ from pathlib import Path
 from arch_policy import (
     app_token,
     collect,
+    commit_parents,
     compare,
     core_depends_violations,
     count,
+    file_at,
     foreign_component_uses,
     is_test_path,
     layer_violations,
+    layer_weakenings,
+    layers_weakened,
     main,
     odoo_access_overrides,
     ratchet_problems,
@@ -169,6 +173,15 @@ class TestPureRules(unittest.TestCase):
         self.assertEqual(sudo_calls("from odoo import SUPERUSER_ID\nenv = api.Environment(cr, SUPERUSER_ID, {})\n"), 1)
         self.assertEqual(sudo_calls("from odoo import SUPERUSER_ID\n"), 0)
 
+    def test_superuser_id_counting_does_not_depend_on_an_import(self):
+        # The removed `imported` set could never hold a name: an ast.ImportFrom subtree carries ast.alias
+        # nodes, never ast.Name, so the exclusion was dead and the counting below is the intended one.
+        self.assertEqual(sudo_calls("def f():\n    from odoo import SUPERUSER_ID\n    return api.Environment(cr, SUPERUSER_ID, {})\n"), 1)
+        self.assertEqual(sudo_calls("from odoo import SUPERUSER_ID as UID\nA = SUPERUSER_ID\n"), 1)
+        self.assertEqual(sudo_calls("A = SUPERUSER_ID\nB = SUPERUSER_ID + 1\n"), 2)
+        self.assertEqual(sudo_calls("A = SUPERUSER_ID\n", superuser_id=False), 0)
+        self.assertEqual(sudo_calls("A = SUPERUSER_ID\n", superuser_id=True), 1)
+
     def test_routes_need_requires_feature(self):
         text = (
             "class C:\n"
@@ -263,6 +276,29 @@ class TestPureRules(unittest.TestCase):
     def test_html_and_own_tags_are_not_foreign(self):
         self.assertEqual(foreign_component_uses('<hr /><hr><Hrx />', '', WEB_APPS), 0)
         self.assertEqual(foreign_component_uses('<LazyChatPanel /><chat-panel />', 'chat', WEB_APPS), 0)
+
+    def test_losing_a_declared_web_app_tag_is_a_weakening(self):
+        # A `tags` list is what R3 matches component names against, so dropping one hides foreign uses.
+        old = {'web_apps': {'pmo': {'components': ['project'], 'pages': ['projects'], 'tags': ['Project', 'Task']}}}
+        kept = {'web_apps': {'pmo': {'components': ['project'], 'pages': ['projects'], 'tags': ['Project']}}}
+        grown = {'web_apps': {'pmo': {'components': ['project'], 'pages': ['projects'],
+                                      'tags': ['Project', 'Task', 'Milestone']}}}
+        self.assertEqual(layers_weakened(old, kept, Path('/nonexistent-arch-root')), ['web app tag Task removed from pmo'])
+        self.assertEqual(layers_weakened(old, grown, Path('/nonexistent-arch-root')), [])
+        self.assertEqual(layers_weakened(old, old, Path('/nonexistent-arch-root')), [])
+
+    def test_a_tag_the_components_folders_derive_is_not_a_weakening(self):
+        # tag_prefixes() derives Project from components/project, so a `tags` entry that only repeats it is
+        # redundant and removing it loses nothing; Task has no component folder behind it and is a real loss.
+        derived = {'web_apps': {'pmo': {'components': ['project'], 'pages': ['projects']}}}
+        redundant = {'web_apps': {'pmo': {'components': ['project'], 'pages': ['projects'], 'tags': ['Project']}}}
+        declared = {'web_apps': {'pmo': {'components': ['project'], 'pages': ['projects'],
+                                         'tags': ['Project', 'Task']}}}
+        self.assertEqual(layers_weakened(redundant, derived, Path('/nonexistent-arch-root')), [])
+        self.assertEqual(
+            layers_weakened(declared, derived, Path('/nonexistent-arch-root')),
+            ['web app tag Task removed from pmo'],
+        )
 
 
 class TestAppToken(unittest.TestCase):
@@ -597,6 +633,59 @@ class TestCollect(unittest.TestCase):
                 'odoo-addons/webvue_pmo/controllers/tasks.py:tasks has no requires_feature': 1,
             },
         )
+
+    def test_a_gated_page_must_declare_the_middleware_in_define_page_meta(self):
+        self.clean_tree()
+        lacking = {
+            'apps/web/app/pages/subscription/comment.vue': "<!-- customer-commercial -->\n<template><div /></template>\n",
+            'apps/web/app/pages/subscription/line-comment.vue': "// customer-commercial\n<template><div /></template>\n",
+            'apps/web/app/pages/subscription/commented-call.vue': "<!--\ndefinePageMeta({ middleware: 'customer-commercial' })\n-->\n<template><div /></template>\n",
+            'apps/web/app/pages/subscription/string-only.vue': "<script setup>const note = 'customer-commercial'</script>\n",
+            'apps/web/app/pages/subscription/other-middleware.vue': "definePageMeta({ middleware: 'auth' })\n",
+        }
+        for rel, text in lacking.items():
+            self.write(rel, text)
+        violations, _ = collect(self.root, self.layers)
+        self.assertEqual(
+            violations['R8'],
+            {f'{rel} lacks customer-commercial middleware': 1 for rel in lacking},
+        )
+
+    def test_a_page_declaring_the_middleware_in_define_page_meta_passes(self):
+        self.clean_tree()
+        self.write('apps/web/app/pages/subscription/plain.vue', "definePageMeta({ middleware: 'customer-commercial' })\n")
+        self.write('apps/web/app/pages/subscription/array.vue', "definePageMeta({ middleware: ['auth', 'customer-commercial'] })\n")
+        # A parenthesis inside an earlier string argument must not truncate the call before the middleware.
+        self.write('apps/web/app/pages/subscription/string-before.vue',
+                   "definePageMeta({ note: 'a)b', middleware: 'customer-commercial' })\n")
+        violations, _ = collect(self.root, self.layers)
+        self.assertEqual(violations['R8'], {})
+
+    def test_a_gated_page_must_declare_the_middleware_property(self):
+        # The name only counts as the `middleware` property's value, not as any string in the argument list.
+        self.clean_tree()
+        lacking = {
+            'apps/web/app/pages/subscription/title-mentions-it.vue':
+                "definePageMeta({ layout: false, title: 'customer-commercial', middleware: 'auth' })\n",
+            'apps/web/app/pages/subscription/string-only.vue':
+                "<script setup>const note = 'customer-commercial'</script>\n",
+        }
+        for rel, text in lacking.items():
+            self.write(rel, text)
+        violations, _ = collect(self.root, self.layers)
+        self.assertEqual(
+            violations['R8'],
+            {f'{rel} lacks customer-commercial middleware': 1 for rel in lacking},
+        )
+
+    def test_a_page_declaring_the_middleware_property_passes(self):
+        self.clean_tree()
+        self.write('apps/web/app/pages/subscription/plain.vue', "definePageMeta({ middleware: 'customer-commercial' })\n")
+        self.write('apps/web/app/pages/subscription/array.vue', "definePageMeta({ middleware: ['auth', 'customer-commercial'] })\n")
+        self.write('apps/web/app/pages/subscription/title-and-middleware.vue',
+                   "definePageMeta({ title: 'customer-commercial', middleware: 'customer-commercial' })\n")
+        violations, _ = collect(self.root, self.layers)
+        self.assertEqual(violations['R8'], {})
 
     def test_application_xml_ids_count_as_r2(self):
         self.clean_tree()
@@ -1022,6 +1111,171 @@ class TestLayersRatchet(BaseRefCase):
         self.assertEqual(self.run_main('--write-baseline', '--base', 'main'), 1)
         self.assertEqual(self.run_main('--base', 'main'), 1)
 
+    def test_a_trailer_on_one_commit_does_not_waive_a_later_unapproved_change(self):
+        self.layers['ranks']['webvue_a'] = 3
+        self.commit_layers(TRAILER)
+        self.layers['exempt'].append('webvue_new')
+        self.commit_layers()
+        # The trailer is read per commit, so one commit without it leaves the whole layers range unapproved.
+        self.assertEqual(self.problems(), ['exempt list grew: webvue_new', 'rank of webvue_a changed 4 -> 3'])
+
+    def test_a_trailer_on_every_layers_commit_waives_the_whole_range(self):
+        self.layers['ranks']['webvue_a'] = 3
+        self.commit_layers(TRAILER)
+        self.layers['exempt'].append('webvue_new')
+        self.commit_layers(TRAILER)
+        self.assertEqual(self.problems(), [])
+
+
+class TestLayersRatchetTags(BaseRefCase):
+    """--base REF reports a dropped web_apps tag prefix, which would hide foreign component uses from R3."""
+
+    def setUp(self):
+        super().setUp()
+        self.layers['web_apps'] = {
+            'pmo': {'components': ['project'], 'pages': ['projects'], 'tags': ['Project', 'Task']},
+            'hr': {'components': ['hr'], 'pages': ['hr'], 'tags': ['Hr']},
+        }
+        self.write_layers()
+        self.commit_base()
+        self.git('checkout', '-q', '-b', 'work')
+
+    def problems(self):
+        return ratchet_problems('main', self.root, self.layers_file, self.baseline_file, {}, False)
+
+    def commit_layers(self, trailer=None):
+        self.write_layers()
+        self.git('add', '-A')
+        self.git('commit', '-q', '--allow-empty', '-m', 'change layers', *(['-m', trailer] if trailer else []))
+
+    def test_an_unchanged_tag_set_passes(self):
+        self.assertEqual(self.problems(), [])
+
+    def test_a_dropped_tag_is_reported(self):
+        self.layers['web_apps']['pmo']['tags'].remove('Task')
+        self.write_layers()
+        self.assertEqual(self.problems(), ['web app tag Task removed from pmo'])
+
+    def test_a_tag_moved_to_another_app_is_reported(self):
+        self.layers['web_apps']['pmo']['tags'].remove('Task')
+        self.layers['web_apps']['hr']['tags'].append('Task')
+        self.write_layers()
+        self.assertEqual(self.problems(), ['web app tag Task removed from pmo'])
+
+    def test_adding_a_tag_is_not_a_weakening(self):
+        self.layers['web_apps']['pmo']['tags'].append('Milestone')
+        self.layers['web_apps']['hr']['tags'].append('Payroll')
+        self.write_layers()
+        self.assertEqual(self.problems(), [])
+
+    def test_a_dropped_tag_with_the_owner_trailer_passes(self):
+        self.layers['web_apps']['pmo']['tags'].remove('Task')
+        self.commit_layers(TRAILER)
+        self.assertEqual(self.problems(), [])
+
+    def test_a_dropped_tag_without_the_trailer_fails(self):
+        self.layers['web_apps']['pmo']['tags'].remove('Task')
+        self.commit_layers()
+        self.assertEqual(self.problems(), ['web app tag Task removed from pmo'])
+
+    def test_an_approved_weakening_and_a_registration_commit_are_approved(self):
+        # Registering an addon touches the same file without weakening it, so the trailer belongs to the
+        # weakening commit alone.
+        self.layers['web_apps']['pmo']['tags'].remove('Task')
+        self.commit_layers(TRAILER)
+        self.layers['ranks']['webvue_new'] = 4
+        (self.root / 'odoo-addons/webvue_new').mkdir()
+        self.commit_layers()
+        self.assertEqual(self.problems(), [])
+
+    def test_a_merge_carrying_an_approved_weakening_needs_no_trailer(self):
+        # The documented integration shape: the owner-approved weakening is committed on its task branch and
+        # then merged. The merge is a weakening against its first parent only, and must not need a trailer.
+        self.layers['web_apps']['pmo']['tags'].remove('Task')
+        self.commit_layers(TRAILER)
+        self.git('checkout', '-q', '-b', 'integration', 'main')
+        self.git('merge', '-q', '--no-ff', '-m', 'merge the approved weakening', 'work')
+        rel = 'tools/arch_layers.json'
+        head = self.git('rev-parse', 'HEAD').stdout.strip()
+        first_parent = self.git('rev-parse', 'HEAD^').stdout.strip()
+        self.assertTrue(
+            layer_weakenings(self.root, file_at(self.root, first_parent, rel), file_at(self.root, head, rel)),
+            'the merge must look like a weakening against its first parent, or this test proves nothing',
+        )
+        self.assertEqual(self.problems(), [])
+
+    def test_a_merge_that_introduces_a_weakening_still_needs_the_trailer(self):
+        # A conflict resolution: the layers file is one line, so the two branches conflict and the merge
+        # carries content no parent holds, including a weakening of its own that no commit approved.
+        self.layers['web_apps']['pmo']['tags'].remove('Task')
+        self.commit_layers(TRAILER)
+        self.git('checkout', '-q', '-b', 'integration', 'main')
+        self.layers['ranks']['webvue_c'] = 4
+        (self.root / 'odoo-addons/webvue_c').mkdir()
+        self.commit_layers()
+        conflict = subprocess.run(
+            ['git', '-c', 'user.name=t', '-c', 'user.email=t@t', 'merge', '--no-ff', 'work'],
+            cwd=self.root, capture_output=True, text=True, check=False, shell=False,
+        )
+        self.assertNotEqual(conflict.returncode, 0, 'this merge must conflict for the test to exercise a resolution')
+        merged = json.loads(self.git('show', 'work:tools/arch_layers.json').stdout)
+        merged['ranks']['webvue_c'] = 4
+        merged['exempt'].append('webvue_new')
+        self.layers_file.write_text(json.dumps(merged), encoding='utf-8')
+        self.git('add', '-A')
+        self.git('commit', '-q', '--no-edit')
+        self.assertEqual(len(commit_parents(self.root, self.git('rev-parse', 'HEAD').stdout.strip())), 2)
+        self.assertEqual(self.problems(), ['exempt list grew: webvue_new', 'web app tag Task removed from pmo'])
+
+    def test_a_merge_of_two_approved_weakenings_needs_no_trailer(self):
+        # Two branches introduce a weakening each, both owner-approved. The merge introduces neither: each
+        # weakening already exists in one of its parents, so the merge itself needs no trailer.
+        self.layers['web_apps']['pmo']['tags'].remove('Task')
+        self.commit_layers(TRAILER)
+        self.git('checkout', '-q', '-b', 'other', 'main')
+        self.layers = json.loads(self.layers_file.read_text())
+        self.layers['exempt'].append('webvue_new')
+        self.commit_layers(TRAILER)
+        self.git('checkout', '-q', 'work')
+        self.layers = json.loads(self.layers_file.read_text())
+        conflict = subprocess.run(
+            ['git', '-c', 'user.name=t', '-c', 'user.email=t@t', 'merge', '--no-ff', 'other'],
+            cwd=self.root, capture_output=True, text=True, check=False, shell=False,
+        )
+        self.assertNotEqual(conflict.returncode, 0, 'this merge must conflict for the test to exercise a resolution')
+        merged = json.loads(self.git('show', 'other:tools/arch_layers.json').stdout)
+        merged['web_apps']['pmo']['tags'].remove('Task')
+        self.layers_file.write_text(json.dumps(merged), encoding='utf-8')
+        self.git('add', '-A')
+        self.git('commit', '-q', '--no-edit')
+        self.assertEqual(self.problems(), [])
+
+    def test_a_merge_introducing_a_weakening_needs_its_own_trailer(self):
+        # The complement: the resolution grows the commercial allowlist, which no parent holds, so the merge
+        # introduces that weakening and needs the owner trailer itself.
+        self.layers['web_apps']['pmo']['tags'].remove('Task')
+        self.commit_layers(TRAILER)
+        self.git('checkout', '-q', '-b', 'other', 'main')
+        self.layers = json.loads(self.layers_file.read_text())
+        self.layers['exempt'].append('webvue_new')
+        self.commit_layers(TRAILER)
+        self.git('checkout', '-q', 'work')
+        self.layers = json.loads(self.layers_file.read_text())
+        conflict = subprocess.run(
+            ['git', '-c', 'user.name=t', '-c', 'user.email=t@t', 'merge', '--no-ff', 'other'],
+            cwd=self.root, capture_output=True, text=True, check=False, shell=False,
+        )
+        self.assertNotEqual(conflict.returncode, 0, 'this merge must conflict for the test to exercise a resolution')
+        merged = json.loads(self.git('show', 'other:tools/arch_layers.json').stdout)
+        merged['web_apps']['pmo']['tags'].remove('Task')
+        merged['commercial']['allowed'].append('apps/web/app/pages/hr/')
+        self.layers_file.write_text(json.dumps(merged), encoding='utf-8')
+        self.git('add', '-A')
+        self.git('commit', '-q', '--no-edit')
+        self.assertIn('commercial allowed list grew: apps/web/app/pages/hr/', self.problems())
+        self.git('commit', '-q', '--amend', '-m', 'merge other', '-m', TRAILER)
+        self.assertEqual(self.problems(), [])
+
 
 class TestDocumentedSudo(BaseRefCase):
     """R7 documented cases: a separate approved allowlist next to the shrink-only baseline."""
@@ -1125,6 +1379,39 @@ class TestDocumentedSudo(BaseRefCase):
         code, text = self.problems()
         self.assertEqual(code, 1)
         self.assertIn(f'R7: {self.b_file}: documented case not described in AGENTS.md', text)
+
+    def test_write_baseline_refuses_a_stale_case_and_leaves_the_baseline_alone(self):
+        self.adopt_documented()
+        before = self.baseline_file.read_text(encoding='utf-8')
+        self.sudo('a', 1)
+        self.sudo('b', 1)
+        code, text = self.problems('--write-baseline')
+        self.assertEqual(code, 1)
+        self.assertIn(f'R7: {self.b_file}: 1 found, documented sudo case says 2', text)
+        self.assertEqual(self.baseline_file.read_text(encoding='utf-8'), before)
+
+    def test_write_baseline_refuses_an_undescribed_case_and_leaves_the_baseline_alone(self):
+        self.adopt_documented()
+        before = self.baseline_file.read_text(encoding='utf-8')
+        self.sudo('a', 1)
+        (self.root / 'AGENTS.md').write_text(self.AGENTS.replace('`webvue_b`', 'webvue_b'), encoding='utf-8')
+        code, text = self.problems('--write-baseline')
+        self.assertEqual(code, 1)
+        self.assertIn(f'R7: {self.b_file}: documented case not described in AGENTS.md', text)
+        self.assertEqual(self.baseline_file.read_text(encoding='utf-8'), before)
+
+    def test_write_baseline_still_passes_on_an_unchanged_tree_and_baseline(self):
+        self.adopt_documented()
+        self.assertEqual(self.problems('--write-baseline'), (0, ''))
+
+    def test_write_baseline_still_writes_when_the_documented_case_matches(self):
+        self.adopt_documented()
+        self.sudo('a', 1)
+        self.assertEqual(self.problems('--write-baseline'), (0, ''))
+        self.assertEqual(
+            json.loads(self.baseline_file.read_text(encoding='utf-8'))['R7'],
+            {'odoo-addons/webvue_a/models/m.py': 1},
+        )
 
 
 class TestRepository(unittest.TestCase):
