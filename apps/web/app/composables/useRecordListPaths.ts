@@ -21,7 +21,7 @@ export function useRecordListPaths(owning: MaybeRefOrGetter<readonly string[]>) 
   const route = useRoute()
   return computed(() => [...new Set([
     ...toValue(owning).filter(path => canReachPath(me.value, path)),
-    ...useNav(me.value).map(item => item.to).filter(path => path !== '/odoo'),
+    ...useNav(me.value).map(item => item.to),
     ...registeredListSources(me.value, [route.query.returnTo, route.query.listOrigin]),
     '/search',
     ...(canReach(me.value, 'webvue.notifications') ? ['/notifications'] : []),

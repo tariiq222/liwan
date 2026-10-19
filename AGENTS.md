@@ -303,6 +303,10 @@ and settings without implicitly granting HR/PMO write access. Project ownership
 contributes contextual PMO capabilities. Legacy groups are migration/ORM support,
 not a substitute for capability checks. Every resource operation also enforces
 current-company and record visibility. Customers do not open Odoo.
+Nobody does: the Odoo web client and Odoo's generic endpoints (`/web/dataset`, `/json/2`,
+`/doc`, `/xmlrpc`, `/jsonrpc`, `/odoo`, `/report`, ...) are closed by the `ir.http` guard in
+`webvue_platform` (default-deny, 404) for every session including system admins. A function that
+was only reachable there moves into WebVue (`/api/v1` and the Nuxt UI).
 
 
 ## Verification boundary

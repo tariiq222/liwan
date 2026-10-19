@@ -235,7 +235,8 @@ test('custom read-only task access is enforced in the page and direct ORM', asyn
     const rpc = await reader.request.post('/web/dataset/call_kw/project.task/write', {
       data: { jsonrpc: '2.0', method: 'call', params: { model: 'project.task', method: 'write', args: [[task.id], { name: 'forbidden' }], kwargs: {} } },
     })
-    expect((await rpc.json()).error).toBeTruthy()
+    // Odoo's generic RPC is closed for every session: a jsonrpc route answers 200 with a 404 error body.
+    expect((await rpc.json()).error.code).toBe(404)
     await reader.goto(`/tasks/${task.id}`)
     await expect(reader.getByTestId('task-title-input')).toHaveCount(0)
     await expect(reader.locator('h1')).toHaveText(task.name)

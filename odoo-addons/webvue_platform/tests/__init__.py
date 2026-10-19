@@ -9,6 +9,7 @@ from . import (
     test_maintenance,
     test_maintenance_concurrency,
     test_maintenance_time,
+    test_odoo_surface,
     test_quotas,
     test_tenant_profile,
     test_terminology_keys,

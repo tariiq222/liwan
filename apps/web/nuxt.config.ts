@@ -120,15 +120,9 @@ export default defineNuxtConfig({
     '/reports': { redirect: { to: '/projects/dashboard', statusCode: 301 } },
     // Keep future security/cache rules outside this proxy-only spread.
     ...(shared ? {} : {
-    // Odoo's public login bootstrap also loads translations outside /web/.
-    '/website/translations': { proxy: `${odoo}/website/translations` },
-    '/base_setup/**': { proxy: `${odoo}/base_setup/**` },
-    '/mail/**': { proxy: `${odoo}/mail/**` },
-    '/discuss/**': { proxy: `${odoo}/discuss/**` },
-    '/bus/**': { proxy: `${odoo}/bus/**` },
+    // The only stock routes left (ir.http guard in webvue_platform): session, assets and images.
     // Keep Odoo's redirects and login Set-Cookie response in the browser.
     '/web/**': { proxy: { to: `${odoo}/web/**`, fetchOptions: { redirect: 'manual' } } },
-    '/odoo/**': { proxy: { to: `${odoo}/odoo/**`, fetchOptions: { redirect: 'manual' } } },
     }),
   },
   // Opt-in diagnostic build: identify actual SSR/client differences during UI acceptance.

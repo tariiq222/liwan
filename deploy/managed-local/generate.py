@@ -125,7 +125,7 @@ def validate(spec: dict[str, Any]) -> tuple[dict[str, str], list[dict[str, Any]]
 
 
 def _caddyfile() -> str:
-    return '''{\n\tauto_https off\n}\n\n:80 {\n\t@odoo path /api/v1/* /web/content/* /web/* /odoo/* /website/translations /base_setup/* /bus/* /json/* /doc/* */static/* /report/* /mail/* /discuss/*\n\thandle @odoo {\n\t\treverse_proxy odoo:8069\n\t}\n\thandle /websocket* {\n\t\treverse_proxy odoo:8072\n\t}\n\thandle {\n\t\treverse_proxy web:3000\n\t}\n}\n'''
+    return '''{\n\tauto_https off\n}\n\n:80 {\n\t@odoo path /api/v1/* /web/* /report/barcode*\n\thandle @odoo {\n\t\treverse_proxy odoo:8069\n\t}\n\thandle /websocket* {\n\t\treverse_proxy odoo:8072\n\t}\n\thandle {\n\t\treverse_proxy web:3000\n\t}\n}\n'''
 
 
 def render(spec: dict[str, Any]) -> dict[str, str]:

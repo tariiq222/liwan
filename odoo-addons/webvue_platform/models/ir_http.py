@@ -1,21 +1,78 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
+
+from werkzeug.exceptions import NotFound
+
 from odoo import models
 from odoo.exceptions import AccessDenied
 from odoo.http import request
 
+# Nobody uses Odoo's web client or its generic RPC: the Nuxt app talks to /api/v1
+# and to the few stock routes listed below. Stock endpoints such as
+# /web/dataset/call_kw, /json/2 and /doc skip the per-capability gates of /api/v1,
+# so every request, signed in (session or API key) or not, reaches nothing outside
+# this allowlist; everything else is a 404. Mirror of deploy/shared/guard.mjs.
+
+# Routes that stay open to a session the tenant lifecycle would otherwise log out.
 SESSION_ALLOWLIST = frozenset({
     '/web/session/authenticate',
     '/web/session/destroy',
     '/web/health',
-    '/api/v1/branding',
 })
+# Static files and the attachment/image routes, also exempt from that logout.
 SESSION_PREFIXES = (
     '/web/assets/',
     '/web/static/',
-    '/web/webclient/',
     '/web/content',
     '/web/image',
 )
+# Credentials travel in the body of these routes (auth='none'); they are closed
+# before any other rule.
+RPC_PREFIXES = ('/xmlrpc', '/jsonrpc')
+# WebVue's own Odoo routes: /api/v1 and the customer-commercial stub (R5 exception).
+API_PREFIXES = ('/api/v1/', '/api/commercial/v1/')
+# Odoo routes the Nuxt app calls itself (login state, bus version probe, logo) and
+# the stateless QR/barcode image generator wkhtmltopdf fetches while it renders a
+# report (the ZATCA QR of a Saudi invoice).
+OPEN_ROUTES = frozenset({
+    *SESSION_ALLOWLIST,
+    '/web/session/get_session_info',
+    '/web/binary/company_logo',
+    '/report/barcode',
+    '/report/barcode/',
+})
+# Open prefixes: WebVue's own routes, the websocket and Odoo's static assets.
+OPEN_PREFIXES = (*API_PREFIXES, '/websocket', '/web/assets/', '/web/static/')
+# The exact image URLs the app builds: employee avatar (no query) and company
+# favicon (a version key only), as in the shared edge.
+AVATAR_PATH = re.compile(r'^/web/image/hr\.employee/[1-9][0-9]{0,9}/avatar_128$')
+FAVICON_PATH = re.compile(r'^/web/image/res\.company/[1-9][0-9]{0,9}/logo/32x32$')
+VERSION_VALUE = re.compile(r'^(?:0|[0-9]{20})-[a-f0-9]{12}$')
+# Attachment downloads by id only, for a signed-in request. Residual risk: any
+# attachment its ACLs allow can be fetched by id; the full fix is an /api/v1
+# download route. Other query keys (model, field, ...) would stream any binary field.
+ATTACHMENT_PATH = re.compile(r'^/web/content/[0-9]+$')
+ATTACHMENT_QUERY_KEYS = frozenset({'download', 'unique', 'access_token'})
+LOGO_QUERY_KEYS = frozenset({'company', 'v'})
+
+
+def _query_keys(httprequest):
+    return set(httprequest.args)
+
+
+def _may_reach(httprequest, signed_in):
+    path = httprequest.path
+    keys = _query_keys(httprequest)
+    if AVATAR_PATH.match(path):
+        return not keys
+    if FAVICON_PATH.match(path):
+        values = httprequest.args.getlist('v')
+        return keys == {'v'} and len(values) == 1 and bool(VERSION_VALUE.match(values[0]))
+    if path == '/web/binary/company_logo':
+        return keys <= LOGO_QUERY_KEYS
+    if ATTACHMENT_PATH.match(path):
+        return signed_in and keys <= ATTACHMENT_QUERY_KEYS
+    return path in OPEN_ROUTES or path.startswith(OPEN_PREFIXES)
 
 
 class WebVuePlatformIrHttp(models.AbstractModel):
@@ -24,15 +81,19 @@ class WebVuePlatformIrHttp(models.AbstractModel):
     @classmethod
     def _authenticate_explicit(cls, auth):
         super()._authenticate_explicit(auth)
-        path = request.httprequest.path
-        if path in SESSION_ALLOWLIST or path.startswith(SESSION_PREFIXES):
-            return
-        if path.startswith('/api/v1'):
-            return
+        httprequest = request.httprequest
+        path = httprequest.path
+        if path.startswith(RPC_PREFIXES):
+            raise NotFound()
         user = request.env.user
-        if not user or user._is_public():
-            return
-        service = request.env['webvue.entitlement.service'].sudo()
-        if service._webvue_session_forbidden(user):
-            request.session.logout(keep_db=True)
-            raise AccessDenied()
+        has_user = bool(user) and not user._is_public()
+        # auth='none' routes (/odoo) clear the environment user; the session still knows it.
+        signed_in = bool(request.session.uid) or has_user
+        exempt = path in SESSION_ALLOWLIST or path.startswith(SESSION_PREFIXES + API_PREFIXES)
+        if has_user and not exempt:
+            service = request.env['webvue.entitlement.service'].sudo()
+            if service._webvue_session_forbidden(user):
+                request.session.logout(keep_db=True)
+                raise AccessDenied()
+        if not _may_reach(httprequest, signed_in):
+            raise NotFound()
