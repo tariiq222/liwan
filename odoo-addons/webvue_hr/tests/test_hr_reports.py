@@ -47,13 +47,6 @@ class TestHrExpiring(WebVueHrCase):
             'trial_date_end': _in_days(-5),
             'identification_expiration_date': _in_days(-1),
         })
-        cls.env['webvue.hr.document'].create({
-            'name': 'Licence', 'department_id': cls.dept.id, 'expiry_date': _in_days(20),
-        })
-        cls.env['webvue.hr.document'].create({
-            'name': 'Far Licence', 'department_id': cls.dept.id, 'expiry_date': _in_days(300),
-        })
-        cls.env['webvue.hr.document'].create({'name': 'No expiry', 'department_id': cls.dept.id})
 
     def _expiring(self, query=''):
         self.authenticate('hr_expiry_admin', 'hr_expiry_admin_pass_123')
@@ -67,19 +60,17 @@ class TestHrExpiring(WebVueHrCase):
             [(item['kind'], item['days_left']) for item in body['items']],
             [
                 ('probation_end', -5), ('identity', -1), ('probation_end', 10),
-                ('document', 20), ('contract_end', 30), ('identity', 45),
+                ('contract_end', 30), ('identity', 45),
             ],
         )
-        self.assertEqual(body['total'], 6)
+        self.assertEqual(body['total'], 5)
         self.assertTrue(all(set(item) == EXPIRING_KEYS for item in body['items']))
         self.assertEqual([item['due_date'] for item in body['items']], sorted(item['due_date'] for item in body['items']))
 
-    def test_employee_and_document_refs(self):
+    def test_employee_refs(self):
         items = {item['kind']: item for item in self._expiring().json()['items']}
         self.assertEqual(items['identity']['employee'], {'id': self.soon.id, 'name': 'Soon Employee'})
         self.assertIsNone(items['identity']['document'])
-        self.assertEqual(items['document']['document']['name'], 'Licence')
-        self.assertIsNone(items['document']['employee'])
         self.assertEqual(items['contract_end']['due_date'], _in_days(30))
 
     def test_within_days_narrows_and_widens_the_window(self):
@@ -88,7 +79,7 @@ class TestHrExpiring(WebVueHrCase):
             [item['days_left'] for item in narrow['items']], [-5, -1, 10],
         )
         wide = self._expiring('?within_days=365').json()
-        self.assertEqual(wide['total'], 8)
+        self.assertEqual(wide['total'], 6)
         self.assertIn(self.far.id, [i['employee']['id'] for i in wide['items'] if i['employee']])
 
     def test_archived_employees_are_left_out(self):
@@ -118,13 +109,6 @@ class TestHrExpiring(WebVueHrCase):
         )
         self.assertEqual(item['days_left'], -3)
 
-    def test_overdue_document_is_listed(self):
-        self.env['webvue.hr.document'].create({
-            'name': 'Lapsed Licence', 'department_id': self.dept.id, 'expiry_date': _in_days(-7),
-        })
-        item = next(i for i in self._expiring().json()['items'] if i['kind'] == 'document' and i['days_left'] < 0)
-        self.assertEqual((item['document']['name'], item['days_left']), ('Lapsed Licence', -7))
-
     def test_window_without_upcoming_items_still_lists_overdue(self):
         body = self._expiring('?within_days=0').json()
         self.assertEqual([item['days_left'] for item in body['items']], [-5, -1])
@@ -149,34 +133,11 @@ class TestHrExpiring(WebVueHrCase):
             'contract_date_start': '2025-01-01',
             'contract_date_end': _in_days(5),
         })
-        department = self.env['hr.department'].create({'name': 'Foreign Dept', 'company_id': other.id})
-        self.env['webvue.hr.document'].create({
-            'name': 'Foreign Licence', 'company_id': other.id,
-            'department_id': department.id, 'expiry_date': _in_days(5),
-        })
         names = {
             (item['employee'] or item['document'])['name']
             for item in self._expiring().json()['items']
         }
         self.assertNotIn('Foreign Employee', names)
-        self.assertNotIn('Foreign Licence', names)
-
-    def test_document_expiry_is_writable_and_validated(self):
-        self.authenticate('hr_expiry_admin', 'hr_expiry_admin_pass_123')
-        created = self.api('POST', '/api/v1/hr/documents', {
-            'name': 'Insurance', 'department_id': self.dept.id, 'expiry_date': _in_days(12),
-        })
-        self.assertEqual(created.status_code, 201)
-        self.assertEqual(created.json()['expiry_date'], _in_days(12))
-        document_id = created.json()['id']
-        patched = self.api('PATCH', f'/api/v1/hr/documents/{document_id}', {'expiry_date': None})
-        self.assertEqual(patched.status_code, 200)
-        self.assertIsNone(patched.json()['expiry_date'])
-        for bad in ('tomorrow', '2026-13-40', 20260101):
-            with self.subTest(bad=bad):
-                res = self.api('PATCH', f'/api/v1/hr/documents/{document_id}', {'expiry_date': bad})
-                self.assertEqual(res.status_code, 422)
-                self.assertEqual(res.json()['field'], 'expiry_date')
 
 
 @tagged('post_install', '-at_install', 'webvue')

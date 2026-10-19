@@ -27,12 +27,15 @@ export const KNOWN_CAPABILITIES = [
   'hr.employees.access_status.read',
   'hr.departments.read',
   'hr.departments.manage',
-  'hr.documents.read',
-  'hr.documents.manage',
   'hr.leave.read',
   'hr.leave.request',
   'hr.leave.approve',
   'hr.leave.manage',
+  'documents.items.read',
+  'documents.items.manage',
+  'documents.items.archive',
+  'documents.access.manage',
+  'documents.library.manage',
   'pmo.projects.read',
   'pmo.projects.create',
   'pmo.projects.manage',
@@ -52,7 +55,7 @@ export type Capability = KnownCapability | (string & {})
 export const CapabilitySchema = z.string().regex(CAPABILITY_KEY_PATTERN)
 
 /** The permission domains (role-screen groups) of today's applications; a newer application adds its own. */
-export const KNOWN_PERMISSION_DOMAINS = ['access', 'hr', 'pmo', 'meetings', 'settings'] as const
+export const KNOWN_PERMISSION_DOMAINS = ['access', 'hr', 'pmo', 'meetings', 'settings', 'documents'] as const
 export type KnownPermissionDomain = typeof KNOWN_PERMISSION_DOMAINS[number]
 export type PermissionDomain = KnownPermissionDomain | (string & {})
 export const PermissionDomainSchema = z.string().regex(IDENTIFIER_PATTERN)

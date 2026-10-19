@@ -213,10 +213,11 @@ class WebVueTenantProfile(models.Model):
         completed = service._webvue_close_unlisted_features(current)
         return completed if completed != current else {}
 
-    def _webvue_lock(self):
+    def _webvue_lock(self, *, shared=False):
         self.ensure_one()
         self.env.cr.execute(
-            'SELECT id FROM webvue_tenant_profile WHERE id = %s FOR UPDATE',
+            ('SELECT id FROM webvue_tenant_profile WHERE id = %s FOR SHARE'
+             if shared else 'SELECT id FROM webvue_tenant_profile WHERE id = %s FOR UPDATE'),
             [self.id],
         )
         self.invalidate_recordset()

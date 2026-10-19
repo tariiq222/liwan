@@ -34,7 +34,7 @@ export const FinanceBankStatementListSchema = list(FinanceBankStatementSchema)
 export const FinanceReconcileProposalSchema = z.object({
   id,
   date: day,
-  entry: z.string(),
+  entry: z.string().nullable(),
   label: z.string(),
   partner: FinanceRefSchema.nullable(),
   account: FinanceRefSchema,

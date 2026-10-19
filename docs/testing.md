@@ -79,7 +79,17 @@ Removing the merged task's worktree, branch and scratch database is `python3 -B 
 
 ### Stage notes
 
-The `odoo` stage covers the release modules; the standalone tasks and tasks/PMO bridge stages cover
+The `odoo` stage covers the release modules and is a matrix of three shards (a job still named `odoo` to
+`ci-result`, so it stays one of the twelve stages). Every shard installs the whole release module list on
+its own Postgres service and runs only its share of the module tests (`--test-tags`), so cross-module
+behaviour is exercised in each. `tools/odoo_shards.py` splits the release modules by their `def test_`
+counts (greedy, heaviest first; weights are test counts, not runtime, so revisit the split after the first real CI runs); `python3 -B tools/odoo_shards.py plan` shows the split. Run one shard
+with `deploy/ci/odoo.sh --shard k/N`, all shards in parallel locally with `python3 -B tools/odoo_shards.py run`
+(same environment as `odoo.sh`; shard k uses `ODOO_PORT + k - 1` and its own scratch database), and the
+unsharded full run with plain `deploy/ci/odoo.sh`. A template database does not help the shards: Odoo
+runs the module tests during `-i`, so each shard has to install anyway (the install is about 17 s). The
+shard count is `SHARD_COUNT` in `tools/odoo_shards.py`; a changed count changes the matrix and the
+`--shard k/N` argument together. The standalone tasks and tasks/PMO bridge stages cover
 independent installations, each on a disposable PostgreSQL database rather than `odoo19`. The
 control-plane PostgreSQL suites run serially because they share their isolated scratch databases.
 `vendor-admin` has its own prepare, types, tests and build checks. The `image` stage builds and checks
@@ -112,7 +122,7 @@ Not measured: the agentic e2e runner (needs model credentials) and the Odoo-back
 ## 1. Odoo tests
 
 Extend `WebVueApiCase` (or `WebVuePmoCase`) from `webvue_api/tests/common.py`. Every `test_*.py`
-is imported by its addon `tests/__init__.py`. Never run them against the dev `odoo19` DB.
+is collected by its addon `tests/__init__.py` (`import_all_tests(__name__)` from `webvue_core.testing`). Never run them against the dev `odoo19` DB.
 
 `tools/odoo_test.py` clones a template with every release module installed and runs `-u` of the
 selected addons, so an `at_install` test of a low-rank addon sees a PARTIAL registry (later modules
@@ -125,6 +135,19 @@ creates users or tasks, or touches rules or fields owned by later modules, must 
 
 `npm test` runs the policy checks, the contracts tests and the web unit tests. Keep pure
 logic in composables so it can be tested here without a browser.
+
+### Contract fixtures (serializer to zod parity)
+
+`packages/contracts/fixtures/manifest.json` lists routes (name, addon, route, status, zod schema
+export). `WebVueApiCase.api()` records the real JSON response of each listed route while the Odoo
+tests run, only when `WEBVUE_CONTRACT_FIXTURES=<dir>` is set (the richest response wins, ids are
+renumbered, timestamps pinned). The committed files in `packages/contracts/fixtures/<app>/` are
+parsed with their strict schema by `src/fixtures.test.ts`, which runs in `npm test`.
+
+- Add a route: add one manifest entry, then refresh.
+- Refresh: `python3 -B tools/contract_fixtures.py` (runs the Odoo tests of the manifest addons on a
+  scratch database, slow). Drift check: `python3 -B tools/contract_fixtures.py --check`. Neither is part
+  of `npm test`.
 
 ## 3. Playwright mock specs
 

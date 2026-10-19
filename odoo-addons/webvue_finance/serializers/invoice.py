@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from .analytic import distribution_shares, parse_distribution
-from .common import dump_day, dump_ref
+from .common import dump_day, dump_number, dump_ref
 from .parsing import (
     parse_day,
     parse_id,
@@ -23,7 +23,7 @@ CREATE_FIELDS = EDITABLE_FIELDS | {'move_type'}
 def dump_invoice(move):
     return {
         'id': move.id,
-        'name': move.name,
+        'name': dump_number(move.name),
         'move_type': move.move_type,
         'state': move.state,
         'payment_state': move.payment_state,

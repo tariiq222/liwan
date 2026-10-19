@@ -40,6 +40,7 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `POST /analytic-plans` (201), `PATCH /analytic-plans/<id>`, `POST /analytic-accounts` (201), `PATCH /analytic-accounts/<id>` (`active` archives) | `finance.analytic.manage` |
 | `GET /fiscal-years`, `GET /fiscal-years/<year>/closing-preview` | `finance.closing.read` |
 | `POST /fiscal-years/<year>/close` | `finance.closing.manage` |
+| `GET /audit-events` (`action`, `date_from`, `date_to`) | `finance.audit.read` |
 | `GET /partners` (`q`, `kind=customer\|vendor`, `archived=true\|false`), `GET /partners/<id>` | `finance.partners.read` |
 | `POST /partners` (201), `PATCH /partners/<id>`, `POST /partners/<id>/archive`, `/unarchive` | `finance.partners.manage` |
 
@@ -49,7 +50,7 @@ no partner delete: archive instead. Capability dependencies: `partners.manage` n
 `payments.manage` needs `payments.read` and `invoices.read`; `setup.manage` needs `setup.read`; `entries.manage` needs
 `entries.read`; `entries.post` needs `entries.manage`; `assets.manage` needs `assets.read`; `bank.manage` needs
 `bank.read`; `analytic.manage` needs `analytic.read`; `budgets.manage` needs `budgets.read`; `zatca.read` needs `invoices.read`; `zatca.manage` and `zatca.submit` need `zatca.read`; `closing.manage` needs `closing.read` and `setup.manage`. The built-in
-`finance_manager` role (and `webvue_core`'s vendor support role) holds all thirty capabilities.
+`finance_manager` role (and `webvue_core`'s vendor support role) holds all thirty-one capabilities.
 
 ## Write semantics
 
@@ -210,8 +211,8 @@ Odoo's translated names, in the language of the request user; nothing is hardcod
 ## Setup elevation (documented `sudo()` cases)
 
 Stock refuses `account.chart.template` loads to non-administrators and `res.company` writes without the
-Access Rights group. After the route's `finance.setup.manage` check, `webvue.finance.setup` elevates in
-exactly two methods, the R7 case "finance setup (chart load, company tax identity)":
+Access Rights group. `webvue.finance.setup` elevates in exactly two methods, each of which checks
+`finance.setup.manage` itself before it elevates (a direct call without it raises `AccessError`), the R7 case "finance setup (chart load, company tax identity)":
 
 1. `_webvue_load_chart`: loads the Saudi template `sa` only, into the current company (`env.company`).
    It refuses (422) when a chart is loaded (`chart_already_loaded`), the company has branches
@@ -228,6 +229,30 @@ without the action link. Changing only `country_id` re-validates the existing `s
 Both re-check that the record is the current company. Reads, validation and serializers stay in the
 caller's environment. A caller without `finance.setup.manage` gets 403 and nothing changes
 (`tests/test_finance_setup.py`).
+
+## Logs and audit trail
+
+The irreversible and elevated actions leave two records, never a secret, a value or an amount (ids and field
+names only): an INFO/WARNING log record with a stable event name, and an audit row in the immutable model
+`webvue.finance.audit.event` (company-scoped by a record rule; actor = `create_uid`, time = `create_date`;
+`write`, `unlink` and a direct `create` raise `AccessError` for everyone, rows are only created by `_webvue_log`
+in the caller's own environment, no `sudo()`; the ACL grants create to the setup, closing and ZATCA capability
+groups). Read: `GET /audit-events` (`finance.audit.read`, in the finance manager role) with `action`, `date_from`,
+`date_to`, `limit`, `offset`, answering `{items, total}` newest first; each item is
+`{id, action, actor, created_at, res_model, res_id, fields_written, outcome}`.
+
+| Event (log) | Audit `action` (record) |
+|---|---|
+| `finance.setup.chart_loaded` | `chart_loaded` (company, outcome = template) |
+| `finance.setup.company_written` (also the lock date of a year close) | `company_written` (company, `fields_written`) |
+| `finance.fiscal_year.closed` | `fiscal_year_closed` (closing entry or company, outcome = `<year>:<state>`) |
+| `finance.zatca.onboarded` | `zatca_onboarded` (journal) |
+| `finance.zatca.onboard_failed` (WARNING; the request rolls back, so only the log survives) | none |
+| `finance.zatca.submitted` (WARNING unless `accepted`) | `zatca_submitted` (invoice, outcome = state) |
+
+Stock also tracks the lock-date change on the company; the audit row is the uniform record. The closing entry has a
+unique index per company and fiscal year (`webvue_closing_year`); a concurrent second close is 422 `already_closed`.
+The backlog and the invoice submission state are parsed from the stock error HTML on every request (a per-request cost).
 
 ## Fiscal year-end closing (`finance.closing.*`)
 
@@ -291,12 +316,15 @@ otherwise.
 **Sandbox only; a release blocker.** Onboarding is sandbox-only in this phase, so **production invoicing for real
 tenants is a release blocker until the simulation/production policy is approved.** The company api mode itself is
 confined: a `res.company` constraint (`models/res_company.py`) refuses any `l10n_sa_api_mode` but `sandbox`, because
-the stock EDI cron sends every pending document in the company's own mode (the shared cron is left active). Onboarding,
+the stock EDI cron sends every pending document in the company's own mode (the shared cron is left active; see below). Onboarding,
 submit and retry also refuse a non-sandbox mode with 422 `zatca_mode_not_allowed` before anything is elevated or sent.
 There is no route that changes the mode.
 
-- `GET /zatca/status`: `{api_mode, private_key_present, journals: [{journal, onboarded, state}], onboarded}`.
-  `state` is `not_started`, `compliance_checked` or `onboarded`.
+- `GET /zatca/status`: `{api_mode, private_key_present, journals: [{journal, onboarded, state}], onboarded, backlog}`.
+  `state` is `not_started`, `compliance_checked` or `onboarded`. `backlog` counts the posted ZATCA documents of the
+  current company still waiting (read in the caller's environment, no `sudo()`): `to_send` (no attempt blocked yet),
+  `retry` (blocked with a warning or info level: no verdict, the cron tries again), `rejected` (error with ZATCA validation codes) and
+  `blocked` (error before any verdict: signing, certificate, chain head). The setup `zatca` block has no backlog.
 - `POST /zatca/journals/<id>/onboard {otp}`: `otp` is the six-digit one-time password of the Fatoora portal (the
   sandbox accepts `123345`). It runs the stock `l10n_sa_edi.otp.wizard` (key and CSR when missing, compliance CSID,
   the six compliance checks, production CSID) for one sales journal of the current company, then updates the
@@ -329,6 +357,14 @@ Error codes: `zatca_unavailable` 502, `zatca_rejected` 422, `zatca_local_error` 
 `zatca_mode_not_allowed` 422, `zatca_not_onboarded` 422,
 `zatca_not_applicable` 422, `invalid_state` 422, plus the usual 403 `forbidden`, 404 `not_found` and 422 `invalid`
 (`otp`: exactly six digits, no other key).
+
+**The cron.** `account_edi.ir_cron_edi_network` ("EDI: Perform web services operations") ships inactive
+(`noupdate`, `active=False`, every 1 day) in stock `account_edi`. Creating an EDI format whose `_needs_web_services()` is
+true activates it (`account.edi.format.create`); `l10n_sa_edi` creates `sa_zatca`, which needs web services, so
+installing it leaves the cron active (`tests/test_finance_zatca_flow.py` pins `active` and the 1-day interval).
+Posting or retrying a document also triggers the cron right away (`_trigger()`), so the day interval is only the
+fallback. The cron skips documents blocked with `error` (the `rejected` and `blocked` backlog); `retry` and `to_send`
+ones are sent again in the company's own api mode, which the company constraint confines to `sandbox`.
 
 **Elevation.** Stock needs `res.company`, `account.journal` and `ir.sequence` writes and system-only fields, which no
 finance group has, so `models/zatca_service.py` (`webvue.finance.zatca`) is the one documented `sudo()` place
@@ -415,12 +451,25 @@ excepted), the current company only. Dates are `YYYY-MM-DD`; `target_move` is `p
   earlier fiscal years sit on the unaffected-earnings account's opening balance). Runs the OCA trial balance
   (`trial.balance.report.wizard` as a virtual record plus `report.account_financial_report.trial_balance`).
 - `GET /reports/general-ledger?date_from&date_to[&account_id][&partner_id][&limit][&offset]`: per account the opening
-  balance, the period debit and credit, the closing balance and a `lines` page `{items, total}` (`limit`/`offset`
-  apply to the lines and need `account_id`: without it 422 `invalid` on `account_id`; every line carries the running
-  `balance`). No centralization or grouping.
+  balance (balance sheet accounts: every earlier item; profit and loss accounts: the fiscal year's; the earlier years
+  sit on the unaffected-earnings account, listed when no account is named), the period debit and credit, the closing
+  balance and `lines` `{items, total}`. `total` counts the period's lines; `items` is one SQL page (`limit`/`offset`,
+  date order) of the one `account_id` they require (without it 422 `invalid` on `account_id`, and `items` is empty),
+  and every line carries the running `balance` of its account. The sums are grouped reads on the journal items and the
+  page is `search(limit, offset)` with one sum for the lines before it, so the cost does not grow with the ledger; the
+  OCA general ledger is the reference of the parity tests, not run by the route. The fiscal year is the company's
+  (`compute_fiscalyear_dates`, so a year ending in June works). Year-end closing entries (`webvue_closing_year`) are
+  ordinary posted entries: they appear as lines of the profit and loss accounts and of the unaffected-earnings account
+  `999999`. Deliberately unlike the OCA engine, a ledger of `999999` alone has the same opening balance as its row of the
+  full ledger (the earlier years' result is added back); the engine leaves it out when an account is named. No
+  centralization or grouping.
 - `GET /reports/aged-partner-balance?date_to[&kind=receivable|payable][&partner_id]`: open balances at `date_to`, aged
   from the due date into `current`, `days_1_30`, `days_31_60`, `days_61_90`, `days_91_120`, `days_over_120` and `total`,
-  per account and partner (a credit balance is negative).
+  per account and partner (a credit balance is negative; items without a partner form the row with `partner` null).
+  One grouped read of `amount_residual` per bucket; a reconciliation dated after `date_to` still counts its amount as
+  open at that date (the OCA engine does so only when `date_to` is in the past). The items it touched are found by a
+  subquery on their partial reconciles within the report's accounts and partner, and aged one by one; the other items
+  are excluded from the bucket sums the same way, so the query count stays constant.
 - `GET /reports/partner-statement?partner_id&date_from&date_to[&kind]` (`partner_id` must be a company or a person, not a
   contact of one: 422 `invalid`): the OCA activity statement (opening balance, the
   period's items with a running balance, aging buckets). `type=outstanding` takes only `date_to` and lists the open

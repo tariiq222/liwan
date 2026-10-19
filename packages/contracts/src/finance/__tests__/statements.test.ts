@@ -46,6 +46,8 @@ describe('finance statement schemas', () => {
     }
     expect(FinanceGeneralLedgerSchema.parse(report)).toEqual(report)
     expect(() => FinanceGeneralLedgerSchema.parse({ ...report, accounts: [{ ...report.accounts[0], lines: [line] }] })).toThrow()
+    const totalsOnly = { ...report, accounts: [{ ...report.accounts[0], lines: { items: [], total: 3 } }] }
+    expect(FinanceGeneralLedgerSchema.parse(totalsOnly)).toEqual(totalsOnly)
   })
 
   it('parse the aged partner balance', () => {

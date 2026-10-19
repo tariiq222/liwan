@@ -3,6 +3,9 @@ from odoo import http
 from odoo.exceptions import AccessError, MissingError
 from odoo.http import request
 
+from odoo.addons.webvue_api.controllers.attachment_download import (
+    download_linked_attachment,
+)
 from odoo.addons.webvue_api.controllers.common import (
     api_handler,
     get_record,
@@ -12,6 +15,7 @@ from odoo.addons.webvue_api.serializers.attachment import (
     dump_attachment,
     parse_attachment_upload,
 )
+from odoo.addons.webvue_pmo.serializers.task import task_attachments_route
 
 
 class TaskAttachmentController(http.Controller):
@@ -29,9 +33,21 @@ class TaskAttachmentController(http.Controller):
         for attachment in attachments:
             attachment.check_access('read')
         return {
-            'items': [dump_attachment(attachment) for attachment in attachments],
+            'items': [dump_attachment(attachment, task_attachments_route(task_id)) for attachment in attachments],
             'total': len(attachments),
         }
+
+    @http.route(
+        '/api/v1/tasks/<int:task_id>/attachments/<int:attachment_id>/download',
+        type='http', auth='user', methods=['GET'], readonly=True,
+    )
+    @api_handler
+    @requires_feature('pmo.enabled', operation='read')
+    def download_task_attachment(self, task_id, attachment_id, **_):
+        """The file of one direct task attachment, for a caller who can see the task."""
+        task = get_record('project.task', task_id)
+        task._webvue_check_visible_current()
+        return download_linked_attachment(task._webvue_task_attachments(), attachment_id)
 
     @http.route(
         '/api/v1/tasks/<int:task_id>/attachments',
@@ -57,7 +73,7 @@ class TaskAttachmentController(http.Controller):
             'res_model': 'project.task',
             'res_id': task.id,
         })
-        return request.make_json_response(dump_attachment(attachment), status=201)
+        return request.make_json_response(dump_attachment(attachment, task_attachments_route(task.id)), status=201)
 
     @http.route(
         '/api/v1/tasks/<int:task_id>/attachments/<int:attachment_id>',

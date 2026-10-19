@@ -10,6 +10,7 @@ from odoo.http import request
 from odoo.tools import html2plaintext
 
 from odoo.addons.webvue_api.controllers.common import ApiError
+from odoo.addons.webvue_api.serializers.attachment import dump_attachment
 from odoo.addons.webvue_api.serializers.common import iso
 from odoo.addons.webvue_pmo.models.project_task import _validate_task_deliverables
 
@@ -167,6 +168,10 @@ def dump_task(task, today=None, counts=None):
     }
 
 
+def task_attachments_route(task_id):
+    return f'/api/v1/tasks/{task_id}/attachments'
+
+
 def dump_task_detail(task, today=None):
     today = _today(task, today)
     counts = task_counts(task | task.child_ids)
@@ -188,10 +193,7 @@ def dump_task_detail(task, today=None):
         'cycle_days': cycle,
         'subtasks': [dump_task(t, today, counts) for t in task.child_ids],
         'depends_on': [{'id': t.id, 'name': t.name, 'state': STATE_TO_API[t.state]} for t in dependencies],
-        'attachments': [{
-            'id': a.id, 'name': a.name, 'mimetype': a.mimetype or '',
-            'url': f'/web/content/{a.id}?download=true',
-        } for a in task._webvue_task_attachments()],
+        'attachments': [dump_attachment(a, task_attachments_route(task.id)) for a in task._webvue_task_attachments()],
         'allowed_actions': [
             'read',
             *(['write'] if task._webvue_can_write() else []),

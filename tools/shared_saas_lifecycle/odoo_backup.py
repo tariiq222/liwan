@@ -2,6 +2,7 @@
 """Opt-in real Odoo capture and isolated restore. No generic target commands."""
 from __future__ import annotations
 import hashlib
+from contextlib import closing
 import inspect
 import json
 import os
@@ -109,29 +110,29 @@ c=configparser.ConfigParser(interpolation=None);c.read('/etc/odoo/odoo.conf'); c
 def connect(name):
  return psycopg2.connect(host=c['db_host'],port=c.get('db_port','5432'),user=c['db_user'],password=c['db_password'],dbname=name)
 '''
-INVENTORY = '''
-with connect(database) as conn:
- conn.set_session(readonly=True)
- with conn.cursor() as cr:
-  cr.execute('SELECT id,store_fname,checksum,COALESCE(file_size,0) FROM ir_attachment ORDER BY id'); attachments=cr.fetchall()
-  cr.execute('SELECT id,type,checksum,COALESCE(file_size,0),octet_length(db_datas) FROM ir_attachment WHERE store_fname IS NULL ORDER BY id')
-  database_rows=cr.fetchall()
-  if len(database_rows)>MAX_MEMBERS or sum(row[4] or 0 for row in database_rows)>MAX_ARCHIVE: raise EffectError('attachment_limit')
-  database_attachments=[]
-  for attachment_id,kind,checksum,size,actual_size in database_rows:
-   def read_chunk(offset,length):
-    cr.execute('SELECT substring(db_datas from %s for %s) FROM ir_attachment WHERE id=%s',(offset+1,length,attachment_id))
-    return cr.fetchone()[0]
-   digest=database_attachment_digest(kind,checksum,size,actual_size,read_chunk)
-   if digest is not None: database_attachments.append([attachment_id,digest['sha256'],digest['size']])
-  cr.execute('SELECT count(*) FROM project_project'); projects=cr.fetchone()[0]
-  cr.execute('SELECT count(*) FROM project_task'); tasks=cr.fetchone()[0]
-  cr.execute("SELECT name,latest_version,state FROM ir_module_module WHERE state IN ('installed','to install','to upgrade','to remove') ORDER BY name"); modules=cr.fetchall()
-  if any(row[2]!='installed' for row in modules): raise Exception('module_state')
-  cr.execute('SELECT row_to_json(p) FROM webvue_tenant_profile p ORDER BY id'); profile=[r[0] for r in cr.fetchall()]
-  if len(profile)!=1 or profile[0].get('policy_revision',0)<1: raise Exception('profile')
-print(json.dumps({'attachments':attachments,'databaseAttachments':database_attachments,'projects':projects,'tasks':tasks,'modules':modules,'profile':profile},default=str,separators=(',',':')))
-'''
+def read_inventory(connect, database):
+    with closing(connect(database)) as conn, conn:
+     conn.set_session(readonly=True)
+     with conn.cursor() as cr:
+      cr.execute('SELECT id,store_fname,checksum,COALESCE(file_size,0) FROM ir_attachment ORDER BY id'); attachments=cr.fetchall()
+      cr.execute('SELECT id,type,checksum,COALESCE(file_size,0),octet_length(db_datas) FROM ir_attachment WHERE store_fname IS NULL ORDER BY id')
+      database_rows=cr.fetchall()
+      if len(database_rows)>MAX_MEMBERS or sum(row[4] or 0 for row in database_rows)>MAX_ARCHIVE: raise EffectError('attachment_limit')
+      database_attachments=[]
+      for attachment_id,kind,checksum,size,actual_size in database_rows:
+       def read_chunk(offset,length):
+        cr.execute('SELECT substring(db_datas from %s for %s) FROM ir_attachment WHERE id=%s',(offset+1,length,attachment_id))
+        return cr.fetchone()[0]
+       digest=database_attachment_digest(kind,checksum,size,actual_size,read_chunk)
+       if digest is not None: database_attachments.append([attachment_id,digest['sha256'],digest['size']])
+      cr.execute('SELECT count(*) FROM project_project'); projects=cr.fetchone()[0]
+      cr.execute('SELECT count(*) FROM project_task'); tasks=cr.fetchone()[0]
+      cr.execute("SELECT name,latest_version,state FROM ir_module_module WHERE state IN ('installed','to install','to upgrade','to remove') ORDER BY name"); modules=cr.fetchall()
+      if any(row[2]!='installed' for row in modules): raise Exception('module_state')
+      cr.execute('SELECT row_to_json(p) FROM webvue_tenant_profile p ORDER BY id'); profile=[r[0] for r in cr.fetchall()]
+      if len(profile)!=1 or profile[0].get('policy_revision',0)<1: raise Exception('profile')
+    return {'attachments':attachments,'databaseAttachments':database_attachments,'projects':projects,'tasks':tasks,'modules':modules,'profile':profile}
+
 
 
 class BackupRunner(Runner):
@@ -211,7 +212,7 @@ class BackupRunner(Runner):
 
     def inventory(self, service, database):
         validation='import hashlib\nclass EffectError(Exception): pass\nMAX_DATABASE_ATTACHMENT='+str(MAX_DATABASE_ATTACHMENT)+'\nMAX_MEMBERS='+str(MAX_MEMBERS)+'\nMAX_ARCHIVE='+str(MAX_ARCHIVE)+'\n'+inspect.getsource(database_attachment_digest)
-        script = CONNECTION + validation + '\ndatabase=' + repr(database) + '\n' + INVENTORY
+        script = CONNECTION + validation + '\nfrom contextlib import closing\n' + inspect.getsource(read_inventory) + '\nprint(json.dumps(read_inventory(connect,' + repr(database) + '),default=str,separators=(\",\",\":\")))'
         # Bounded inventory: selected fixture is intentionally small, fail on overflow.
         output = self.helper(service, 'inventory', script)
         if len(output) >= MAX_OUTPUT:
@@ -305,10 +306,19 @@ print('{}')
             # The observer may exit between the listing and the kill; the writer check decides.
             subprocess.run(['docker', 'kill', name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)
 
+    def apply_owned(self):
+        if self.operation == 'backup' and release_routes_enabled() and self.config.get('releaseBackupConfig'):
+            # This operation owns the admission barrier and must not count itself
+            # as an admitted application writer while draining that same barrier.
+            return self._apply_owned()
+        return super().apply_owned()
+
     def capture(self):
         if release_routes_enabled():
-            # Existing capture stops the whole service; only the new quiescent adapter may capture pools.
-            raise EffectError('release_backup_requires_quiescence')
+            if not self.config.get('releaseBackupConfig'):
+                raise EffectError('release_backup_requires_quiescence')
+            from .release_backup import capture_release_backup
+            return capture_release_backup(self)
         # Refuse a busy project before anything is reserved or stopped (a usage observation opens
         # DB sessions); the check after the stop below still closes the race with a late starter.
         self.assert_no_effect_containers()

@@ -11,7 +11,7 @@ SYSTEM = frozenset({
 HR = frozenset({
     'hr.employees.read', 'hr.employees.manage', 'hr.employees.archive',
     'hr.employees.access_status.read', 'hr.departments.read',
-    'hr.departments.manage', 'hr.documents.read', 'hr.documents.manage',
+    'hr.departments.manage',
     'hr.leave.read', 'hr.leave.request', 'hr.leave.approve', 'hr.leave.manage',
 })
 PMO = frozenset({
@@ -21,7 +21,7 @@ PMO = frozenset({
 })
 MEETINGS = frozenset({'meetings.read', 'meetings.create', 'meetings.manage'})
 EMPLOYEE = frozenset({
-    'hr.employees.read', 'hr.departments.read', 'hr.documents.read',
+    'hr.employees.read', 'hr.departments.read',
     'hr.leave.read', 'hr.leave.request',
     'pmo.projects.read', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write',
     'meetings.read',
@@ -42,7 +42,6 @@ DEPENDENCIES = {
     'hr.employees.archive': {'hr.employees.read'},
     'hr.employees.access_status.read': {'hr.employees.read'},
     'hr.departments.manage': {'hr.departments.read'},
-    'hr.documents.manage': {'hr.documents.read'},
     'hr.leave.read': {'hr.employees.read'},
     'hr.leave.request': {'hr.leave.read'},
     'hr.leave.approve': {'hr.leave.read'},
@@ -89,10 +88,10 @@ class TestAccessComposition(TransactionCase):
     def _group(self, key):
         return self.env.ref(self.Permission.search([('key', '=', key)]).group_xmlid)
 
-    def test_catalog_is_the_same_32_keys_each_owned_by_one_addon(self):
+    def test_catalog_is_the_same_30_keys_each_owned_by_one_addon(self):
         catalog = self.service._webvue_capability_map()
         self.assertEqual(self._release(catalog), CATALOG)
-        self.assertEqual(len(self._release(catalog)), 32)
+        self.assertEqual(len(self._release(catalog)), 30)
         permissions = self.Permission.search([])
         self.assertEqual(sorted(permissions.mapped('key')), sorted(catalog))
         installed = set(self.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))

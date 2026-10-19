@@ -6,10 +6,15 @@ The route half is extracted statically with the ast module from
 The schema half is harvested from ``packages/contracts`` by
 ``tools/contracts_jsonschema.mjs`` (Zod v4 native JSON Schema, via Node).
 
+It also writes docs/api/route-capabilities.json, the route to gate matrix: for every
+``/api/v1`` operation its feature keys, capability keys (decorator or checked in the body) or,
+for a route intentionally without one, the reason from tools/route_gate_allowlist.json.
+Both files come from the same static analysis as tools/route_gate_policy.py.
+
 Usage::
 
-    python3 tools/api_surface.py            # regenerate docs/api/openapi.json
-    python3 tools/api_surface.py --check    # exit 1 when the committed file is stale
+    python3 tools/api_surface.py            # regenerate docs/api/openapi.json and route-capabilities.json
+    python3 tools/api_surface.py --check    # exit 1 when either committed file is stale
 
 Per-route request/response bodies are not yet wired to named components; every
 contract schema is published under components/schemas and each operation
@@ -30,6 +35,7 @@ REPO = Path(__file__).resolve().parent.parent
 ADDONS = REPO / "odoo-addons"
 TOOLS = REPO / "tools"
 OUTPUT = REPO / "docs" / "api" / "openapi.json"
+CAPABILITIES_OUTPUT = REPO / "docs" / "api" / "route-capabilities.json"
 
 PARAM_RE = re.compile(r"<(?:(?P<conv>[a-zA-Z_]\w*):)?(?P<name>[a-zA-Z_]\w*)>")
 CONVERTER_SCHEMAS = {
@@ -103,13 +109,21 @@ def api_version() -> str:
     return str(manifest.get("version", "0.0.0"))
 
 
-def extract_routes() -> list[dict]:
+def parse_controllers() -> dict[Path, ast.Module]:
+    """The parsed ``odoo-addons/*/controllers/*.py`` modules, in a stable order."""
+    return {
+        py: ast.parse(py.read_text())
+        for py in sorted(ADDONS.glob("*/controllers/*.py"))
+        if py.name != "__init__.py"
+    }
+
+
+def extract_routes(trees: dict[Path, ast.Module] | None = None) -> list[dict]:
+    """Every ``@route`` handler of the controller modules. ``decorators``, ``node`` and
+    ``class_node`` serve tools/route_gate_policy.py, which reads the same extraction."""
     routes = []
-    for py in sorted(ADDONS.glob("*/controllers/*.py")):
-        if py.name == "__init__.py":
-            continue
+    for py, tree in (trees if trees is not None else parse_controllers()).items():
         addon = py.parent.parent.name
-        tree = ast.parse(py.read_text())
         for cls in (n for n in tree.body if isinstance(n, ast.ClassDef)):
             for fn in (n for n in cls.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))):
                 names = [decorator_name(d) for d in fn.decorator_list]
@@ -127,6 +141,7 @@ def extract_routes() -> list[dict]:
                 routes.append(
                     {
                         "addon": addon,
+                        "file": str(py.relative_to(REPO)),
                         "controller": cls.name,
                         "handler": fn.name,
                         "summary": docstring.strip().splitlines()[0] if docstring.strip() else None,
@@ -138,6 +153,10 @@ def extract_routes() -> list[dict]:
                         "api_handler": "api_handler" in names,
                         "feature_keys": feature_keys,
                         "feature_operation": feature_operation,
+                        "decorators": names,
+                        "node": fn,
+                        "class_node": cls,
+                        "module": tree,
                     }
                 )
     return routes
@@ -309,6 +328,43 @@ def harvest_contracts() -> dict:
     return json.loads(result.stdout)
 
 
+def capability_matrix(routes: list | None = None, allow: dict | None = None) -> dict:
+    """``{"METHOD /path": gate summary}`` for every /api/v1 operation, derived statically.
+
+    Paths use the openapi.json syntax (``{id}``); the rows come from tools/route_gate_policy.py.
+    """
+    import route_gate_policy  # imported here: the policy module imports this one for the extraction
+
+    routes = routes if routes is not None else route_gate_policy.extract_routes()
+    allow = allow if allow is not None else route_gate_policy.load_allowlist()
+    operations = {}
+    for route in routes:
+        reason = allow["no_capability"].get(route.key)
+        for odoo_path in route.paths:
+            path = openapi_params(odoo_path)[0]
+            for method in route.methods:
+                operations[f"{method} {path}"] = {
+                    "addon": route.addon,
+                    "handler": route.handler,
+                    "auth": route.auth,
+                    "feature_keys": route.feature_keys,
+                    "capability_source": route.capability_source or "none",
+                    "capability_keys": route.capability_keys,
+                    "capability_match": route.capability_match,
+                    "no_capability_reason": reason,
+                }
+    return {
+        "description": (
+            "Route to capability matrix of every /api/v1 operation, paths as in openapi.json. "
+            "capability_source is 'decorator' (requires_capability), 'body' (a check the handler or a "
+            "helper makes before returning data; capability_keys lists the literal keys, empty when a "
+            "helper resolves them) or 'none' (intentionally without one, see no_capability_reason). "
+            "Generated by tools/api_surface.py at integration; never edit by hand."
+        ),
+        "operations": dict(sorted(operations.items(), key=lambda item: (item[0].split(" ", 1)[1], item[0]))),
+    }
+
+
 def serialize(doc: dict) -> str:
     return json.dumps(doc, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
@@ -322,18 +378,24 @@ def main() -> int:
     doc = build_document(routes, harvest_contracts())
     rendered = serialize(doc)
 
+    matrix = serialize(capability_matrix())
+
     if args.check:
-        if not OUTPUT.exists():
-            sys.stderr.write(f"missing {OUTPUT}\n")
+        stale = [
+            f"{path.relative_to(REPO)} is stale — run: python3 tools/api_surface.py"
+            for path, text in ((OUTPUT, rendered), (CAPABILITIES_OUTPUT, matrix))
+            if not path.exists() or path.read_text() != text
+        ]
+        for message in stale:
+            sys.stderr.write(message + "\n")
+        if stale:
             return 1
-        if OUTPUT.read_text() != rendered:
-            sys.stderr.write("docs/api/openapi.json is stale — run: python3 tools/api_surface.py\n")
-            return 1
-        print("openapi.json is up to date")
+        print("openapi.json and route-capabilities.json are up to date")
         return 0
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(rendered)
+    CAPABILITIES_OUTPUT.write_text(matrix)
     operations = sum(len(v) for v in doc["paths"].values())
     print(
         f"wrote {OUTPUT.relative_to(REPO)}: {len(doc['paths'])} paths, "

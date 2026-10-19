@@ -94,6 +94,16 @@ elif "SELECT state" in ' '.join(args): print('installed')
         process = self.execute('odoo')
         self.assertNotEqual(process.returncode, 0)
 
+    def test_odoo_nonzero_exit_fails_even_with_a_green_verdict_line(self):
+        self.fake('odoo-python', """
+log = next(a.split('=',1)[1] for a in args if a.startswith('--logfile='))
+Path(log).write_text('odoo.tests.result: 0 failed, 0 error(s) of 12 tests when loading database\\n')
+sys.exit(3)
+""")
+        process = self.execute('odoo')
+        self.assertNotEqual(process.returncode, 0)
+        self.assertIn('odoo exited 3', process.stderr)
+
     def test_upgrade_without_baseline_is_an_explicit_completed_result(self):
         process = self.execute('upgrade')
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)

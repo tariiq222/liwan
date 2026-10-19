@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
     'name': 'webvue HR',
-    'summary': 'webvue platform: the HR pillar — /api/v1/hr departments, employees, documents, leave',
+    'summary': 'webvue platform: the HR pillar — /api/v1/hr departments, employees, leave',
     'version': '19.0.1.4.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
@@ -16,7 +16,6 @@
     'data': [
         'security/hr_leave_officer_group.xml',
         'security/hr_capability_groups.xml',
-        'security/hr_document_rules.xml',
         'security/ir.model.access.csv',
         'data/hr_access_permissions.xml',
         'data/hr_leave_type_data.xml',

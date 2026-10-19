@@ -1,0 +1,39 @@
+{
+  "amount_total": 500.0,
+  "currency": "SAR",
+  "date": "2026-10-18",
+  "id": 1,
+  "journal": {
+    "id": 2,
+    "name": "Tax Adjustments"
+  },
+  "lines": [
+    {
+      "account": {
+        "id": 4,
+        "name": "400003 Basic Salary"
+      },
+      "analytic_distribution": [],
+      "credit": 0.0,
+      "debit": 500.0,
+      "id": 3,
+      "name": "Rent",
+      "partner": null
+    },
+    {
+      "account": {
+        "id": 6,
+        "name": "500001 Sales Account"
+      },
+      "analytic_distribution": [],
+      "credit": 500.0,
+      "debit": 0.0,
+      "id": 5,
+      "name": "Rent",
+      "partner": null
+    }
+  ],
+  "name": null,
+  "ref": "ADJ-1",
+  "state": "draft"
+}

@@ -1,5 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Commit subject and branch name rules (spec section 4 of the reference architecture)."""
+"""Commit subject and branch name rules (spec section 4 of the reference architecture).
+
+Task branches also never change the generated API files (docs/api/openapi.json and
+docs/api/route-capabilities.json): the orchestrator regenerates them once at integration, so
+parallel branches do not conflict on them.
+"""
 from __future__ import annotations
 
 import argparse
@@ -25,6 +30,9 @@ AREAS = (*FIXED_AREAS[:3], *app_areas(), *FIXED_AREAS[3:])
 # Commits at or before this one predate the policy and are never checked.
 POLICY_START = '7208cf961ecbeb60e988e840fe2ca7cd4c3a3b9d'
 MAX_SUBJECT = 72
+GENERATED = ('docs/api/openapi.json', 'docs/api/route-capabilities.json')
+# Branches that may carry regenerated files: main and the orchestrator's integration branches.
+INTEGRATION_BRANCH = re.compile(r'^codex/tools-integrate-.+$')
 
 SUBJECT = re.compile(rf"^(?:{'|'.join(TYPES)})\((?:{'|'.join(AREAS)})\): \S")
 SLUG = r'[a-z0-9]+(?:-[a-z0-9]+)*'
@@ -51,6 +59,17 @@ def check_branch(name: str) -> str | None:
     return f"branch '{name}' must be main, codex/<area>-<slug> or spike/<slug>; areas: {AREAS}"
 
 
+def check_generated_commits(branch: str, touching: dict[str, list[str]]) -> list[str]:
+    """Problems for the commits of ``branch`` (``{generated path: [sha, ...]}``) that modify a generated file."""
+    if not branch.startswith('codex/') or INTEGRATION_BRANCH.match(branch):
+        return []
+    return [
+        f'{sha}: task branch {branch} must not modify {path}; the orchestrator '
+        f'regenerates it at integration (python3 tools/api_surface.py on codex/tools-integrate-*)'
+        for path, shas in touching.items() for sha in shas
+    ]
+
+
 def _git(*args: str) -> str:
     done = subprocess.run(['git', *args], capture_output=True, text=True, check=False, shell=False)
     if done.returncode != 0:
@@ -63,15 +82,24 @@ def commits(base: str) -> list[tuple[str, str]]:
     return [tuple(line.split('\t', 1)) for line in out.splitlines() if line]
 
 
+def generated_commits(base: str) -> dict[str, list[str]]:
+    return {
+        path: _git('log', '--no-merges', '--format=%h', f'{base}..HEAD', f'^{POLICY_START}', '--', path).split()
+        for path in GENERATED
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--base', required=True, help='git ref to compare against, e.g. origin/main')
     args = parser.parse_args(argv)
     try:
         problems = []
-        branch_problem = check_branch(_git('rev-parse', '--abbrev-ref', 'HEAD').strip())
+        branch = _git('rev-parse', '--abbrev-ref', 'HEAD').strip()
+        branch_problem = check_branch(branch)
         if branch_problem:
             problems.append(branch_problem)
+        problems.extend(check_generated_commits(branch, generated_commits(args.base)))
         for sha, subject in commits(args.base):
             problem = check_subject(subject)
             if problem:

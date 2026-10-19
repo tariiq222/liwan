@@ -1,0 +1,154 @@
+{
+  "no_feature": [
+    {
+      "reason": "Each row's owner feature is checked inside the notify service (see NOTIFICATION_WRITE_ENDPOINTS in webvue_api tests), so marking read keeps working when the owning feature is switched off.",
+      "routes": [
+        "webvue_notify/controllers/notifications.py:mark_all_read",
+        "webvue_notify/controllers/notifications.py:mark_read"
+      ]
+    }
+  ],
+  "no_capability": [
+    {
+      "reason": "Finishes the login of the caller's own pre-authenticated session (auth/totp) or acts only on the caller's own account or profile (/me); no capability applies.",
+      "routes": [
+        "webvue_api/controllers/auth.py:totp",
+        "webvue_api/controllers/me.py:change_password",
+        "webvue_api/controllers/me.py:me",
+        "webvue_api/controllers/me.py:patch_appearance"
+      ]
+    },
+    {
+      "reason": "Public branding for the login page (auth='public'): no session, so no capability and no api_handler.",
+      "routes": [
+        "webvue_api/controllers/branding.py:branding"
+      ]
+    },
+    {
+      "reason": "Gated by maintenance_company(request.env), which requires the maintenance capability in its non-operator branch; the branch is conditional on its operator flag (never set by a route), so the analysis does not credit it.",
+      "routes": [
+        "webvue_api/controllers/maintenance.py:create_booking",
+        "webvue_api/controllers/maintenance.py:maintenance",
+        "webvue_api/controllers/maintenance.py:patch_booking",
+        "webvue_api/controllers/maintenance.py:patch_preference"
+      ]
+    },
+    {
+      "reason": "Chat has no capability keys by design: webvue.chat.service requires an active internal WebVue user and limits every row to the caller's conversations.",
+      "routes": [
+        "webvue_chat/controllers/chat.py:add_members",
+        "webvue_chat/controllers/chat.py:create_conversation",
+        "webvue_chat/controllers/chat.py:download_attachment",
+        "webvue_chat/controllers/chat.py:get_conversation",
+        "webvue_chat/controllers/chat.py:leave_conversation",
+        "webvue_chat/controllers/chat.py:list_attachments",
+        "webvue_chat/controllers/chat.py:list_conversations",
+        "webvue_chat/controllers/chat.py:list_members",
+        "webvue_chat/controllers/chat.py:list_messages",
+        "webvue_chat/controllers/chat.py:list_recipients",
+        "webvue_chat/controllers/chat.py:mark_read",
+        "webvue_chat/controllers/chat.py:notify_typing",
+        "webvue_chat/controllers/chat.py:patch_conversation",
+        "webvue_chat/controllers/chat.py:patch_message",
+        "webvue_chat/controllers/chat.py:pin_message",
+        "webvue_chat/controllers/chat.py:react_to_message",
+        "webvue_chat/controllers/chat.py:remove_member",
+        "webvue_chat/controllers/chat.py:send_message",
+        "webvue_chat/controllers/chat.py:star_message"
+      ]
+    },
+    {
+      "reason": "User-id picker open to any internal user; gated by the registered directory feature and returns id and name only.",
+      "routes": [
+        "webvue_directory/controllers/people.py:list_people"
+      ]
+    },
+    {
+      "reason": "Recipient-owned rows: the notify service returns and updates only the caller's own notifications (digests and the caller's personal stages likewise).",
+      "routes": [
+        "webvue_notify/controllers/notifications.py:list_notifications",
+        "webvue_notify/controllers/notifications.py:mark_all_read",
+        "webvue_notify/controllers/notifications.py:mark_read",
+        "webvue_pmo/controllers/notifications.py:get_digest",
+        "webvue_pmo/controllers/personal_stages.py:personal_stages"
+      ]
+    },
+    {
+      "reason": "The webvue.operation.request/process model checks its operations.* capability inside create(), a stock name the analysis never credits; the route only validates the body.",
+      "routes": [
+        "webvue_operations/controllers/operations.py:create_process",
+        "webvue_operations/controllers/operations.py:create_request"
+      ]
+    },
+    {
+      "reason": "Charter action: project._webvue_charter_<action> (and _webvue_lock_for_write(require_manage=...)) check pmo.projects.manage or the reviewer role in the model, but _run calls them from a branch, which the analysis does not credit.",
+      "routes": [
+        "webvue_pmo/controllers/project_charter.py:approve_charter",
+        "webvue_pmo/controllers/project_charter.py:return_charter",
+        "webvue_pmo/controllers/project_charter.py:submit_charter",
+        "webvue_pmo/controllers/project_charter.py:withdraw_charter"
+      ]
+    },
+    {
+      "reason": "Catalog write: the catalog models (webvue_pmo/models/project_charter_reference.py) require manage in create(), write() and unlink() unless the caller is privileged; those are stock names the analysis never credits.",
+      "routes": [
+        "webvue_pmo/controllers/project_charter_catalogs.py:create_catalog",
+        "webvue_pmo/controllers/project_charter_catalogs.py:delete_catalog_item",
+        "webvue_pmo/controllers/project_charter_catalogs.py:patch_catalog_item"
+      ]
+    },
+    {
+      "reason": "Project policy write: webvue.pmo.settings.set_values raises AccessError unless the caller is a customer administrator; set_values is a stock name the analysis never credits.",
+      "routes": [
+        "webvue_pmo/controllers/settings.py:patch_project_settings"
+      ]
+    },
+    {
+      "reason": "Task restore: task._webvue_can_archive() answers 404 (MissingError, not 403) unless the caller may archive the task, then write access is checked; the analysis only credits a 403 or AccessError refusal.",
+      "routes": [
+        "webvue_pmo/controllers/task_archive.py:unarchive_task"
+      ]
+    },
+    {
+      "reason": "Comment: no capability key; get_record checks read access on the task and mail.thread applies its post access rule in message_post.",
+      "routes": [
+        "webvue_pmo/controllers/timeline.py:post_comment"
+      ]
+    },
+    {
+      "reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage).",
+      "routes": [
+        "webvue_pmo/controllers/milestones.py:list_milestones",
+        "webvue_pmo/controllers/project_charter_catalogs.py:get_catalog_item",
+        "webvue_pmo/controllers/project_followers.py:list_followers",
+        "webvue_pmo/controllers/project_governance.py:get_register",
+        "webvue_pmo/controllers/project_governance.py:get_stakeholder",
+        "webvue_pmo/controllers/project_governance.py:list_raci",
+        "webvue_pmo/controllers/project_governance.py:list_register",
+        "webvue_pmo/controllers/project_governance.py:list_stakeholders",
+        "webvue_pmo/controllers/project_schedule.py:get_schedule",
+        "webvue_pmo/controllers/project_updates.py:list_updates",
+        "webvue_pmo/controllers/task_attachments.py:download_task_attachment",
+        "webvue_pmo/controllers/task_attachments.py:list_task_attachments",
+        "webvue_pmo/controllers/task_dependencies.py:list_candidates",
+        "webvue_pmo/controllers/task_dependencies.py:list_dependencies",
+        "webvue_pmo/controllers/timeline.py:thread_tasks",
+        "webvue_pmo/controllers/timeline.py:timeline"
+      ]
+    },
+    {
+      "reason": "ACL on project.tags plus the pmo.enabled feature only; tags have no capability key.",
+      "routes": [
+        "webvue_pmo/controllers/tags.py:list_tags"
+      ]
+    }
+  ],
+  "no_api_handler": [
+    {
+      "reason": "auth='public' branding read: serves the login page and has no session or error mapping to apply.",
+      "routes": [
+        "webvue_api/controllers/branding.py:branding"
+      ]
+    }
+  ]
+}

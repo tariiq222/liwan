@@ -3,6 +3,9 @@ from odoo import http
 from odoo.exceptions import AccessError, MissingError
 from odoo.http import request
 
+from odoo.addons.webvue_api.controllers.attachment_download import (
+    download_linked_attachment,
+)
 from odoo.addons.webvue_api.controllers.common import (
     api_handler,
     get_record,
@@ -12,6 +15,10 @@ from odoo.addons.webvue_api.serializers.attachment import (
     dump_attachment,
     parse_attachment_upload,
 )
+
+
+def _attachments_route(meeting):
+    return f'/api/v1/meetings/{meeting.id}/attachments'
 
 
 class MeetingAttachmentController(http.Controller):
@@ -32,7 +39,18 @@ class MeetingAttachmentController(http.Controller):
         attachments = self._attachments(meeting)
         for attachment in attachments:
             attachment.check_access('read')
-        return {'items': [dump_attachment(item) for item in attachments], 'total': len(attachments)}
+        return {'items': [dump_attachment(item, _attachments_route(meeting)) for item in attachments], 'total': len(attachments)}
+
+    @http.route(
+        '/api/v1/meetings/<int:meeting_id>/attachments/<int:attachment_id>/download',
+        type='http', auth='user', methods=['GET'], readonly=True,
+    )
+    @api_handler
+    @requires_feature('meetings.enabled', operation='read')
+    def download_meeting_attachment(self, meeting_id, attachment_id, **_):
+        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        meeting = get_record('webvue.meeting.minute', meeting_id)
+        return download_linked_attachment(self._attachments(meeting), attachment_id)
 
     @http.route('/api/v1/meetings/<int:meeting_id>/attachments', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -54,7 +72,7 @@ class MeetingAttachmentController(http.Controller):
             'res_model': 'webvue.meeting.minute',
             'res_id': meeting.id,
         })
-        return request.make_json_response(dump_attachment(attachment), status=201)
+        return request.make_json_response(dump_attachment(attachment, _attachments_route(meeting)), status=201)
 
     @http.route(
         '/api/v1/meetings/<int:meeting_id>/attachments/<int:attachment_id>',

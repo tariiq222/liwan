@@ -5,8 +5,8 @@ import FormSection from '@webvue/ui/app/components/shared/layout/FormSection.vue
 import { storyContext } from '../support/context'
 
 const attachments = ChatAttachmentSchema.array().parse([
-  { id: 31, name: 'محضر-الاجتماع.pdf', mimetype: 'application/pdf', url: '/web/content/31' },
-  { id: 32, name: 'خطة-المشروع-النهائية-بعد-المراجعة.xlsx', mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', url: '/web/content/32' },
+  { id: 31, name: 'محضر-الاجتماع.pdf', mimetype: 'application/pdf', url: '/api/v1/chat/conversations/1/attachments/31/download' },
+  { id: 32, name: 'خطة-المشروع-النهائية-بعد-المراجعة.xlsx', mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', url: '/api/v1/chat/conversations/1/attachments/32/download' },
 ])
 
 const meta = {

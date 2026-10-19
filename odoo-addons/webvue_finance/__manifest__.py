@@ -2,7 +2,7 @@
 {
     'name': 'webvue Finance',
     'summary': 'webvue platform: the Finance application — /api/v1/finance over account and l10n_sa',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -26,6 +26,7 @@
     'data': [
         'security/finance_capability_groups.xml',
         'security/ir.model.access.csv',
+        'security/finance_audit_rules.xml',
         'data/finance_access_permissions.xml',
         'data/finance_mis_reports.xml',
     ],

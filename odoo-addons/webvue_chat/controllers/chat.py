@@ -5,6 +5,9 @@ from odoo import http
 from odoo.http import request
 from odoo.tools.mail import plaintext2html
 
+from odoo.addons.webvue_api.controllers.attachment_download import (
+    download_linked_attachment,
+)
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -12,11 +15,14 @@ from odoo.addons.webvue_api.controllers.common import (
     parse_positive_int,
     requires_feature,
 )
-from odoo.addons.webvue_api.serializers.attachment import parse_attachment_upload
+from odoo.addons.webvue_api.serializers.attachment import (
+    dump_attachment,
+    parse_attachment_upload,
+)
 from odoo.addons.webvue_chat.models.chat_service import MAX_LIMIT
 from odoo.addons.webvue_chat.serializers.chat import (
     REACTION_CONTENTS,
-    dump_attachment,
+    conversation_attachments_route,
     dump_conversation,
     dump_member,
     dump_message,
@@ -391,6 +397,17 @@ class ChatController(http.Controller):
         channel = self._service()._webvue_member_channel(conversation_id)
         attachments = self._service()._webvue_channel_attachments(channel)
         return {
-            'items': [dump_attachment(attachment) for attachment in attachments[offset:offset + limit]],
+            'items': [dump_attachment(attachment, conversation_attachments_route(channel.id)) for attachment in attachments[offset:offset + limit]],
             'total': len(attachments),
         }
+
+    @http.route(
+        '/api/v1/chat/conversations/<int:conversation_id>/attachments/<int:attachment_id>/download',
+        type='http', auth='user', methods=['GET'], readonly=True,
+    )
+    @api_handler
+    @requires_feature('chat.enabled', operation='read')
+    def download_attachment(self, conversation_id, attachment_id, **_):
+        """A file of a message in the conversation, for a member of it."""
+        channel = self._service()._webvue_member_channel(conversation_id)
+        return download_linked_attachment(self._service()._webvue_channel_attachment(channel, attachment_id), attachment_id)

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { hrDepartmentKeys } from '../useHrDepartments'
 import { hrEmployeeKeys } from '../useHrEmployees'
-import { hrDocumentKeys } from '../useHrDocuments'
 import { hrLeaveKeys, hrLeaveRequestQuery } from '../useHrLeave'
 
 describe('hr query keys', () => {
@@ -16,15 +15,6 @@ describe('hr query keys', () => {
 
   it('employee detail is [hr, employee, id]', () => {
     expect(hrEmployeeKeys.detail(10)).toEqual(['hr', 'employee', 10])
-  })
-
-  it('documents list includes params', () => {
-    const params = { q: 'لائحة', department_id: 4 }
-    expect(hrDocumentKeys.list(params)).toEqual(['hr', 'documents', params])
-  })
-
-  it('document detail is [hr, document, id]', () => {
-    expect(hrDocumentKeys.detail(21)).toEqual(['hr', 'document', 21])
   })
 
   it('leave keys share one root so a decision refreshes balances and every list', () => {

@@ -3,6 +3,7 @@ import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 import { operationStatusBadge } from '@/utils/vendorBadges'
 import type { Operation as LegacyOperation, OperationFeed } from '@webvue/commercial-contracts'
 import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { canPublishRestore } from '@/utils/restorePublication'
 import { operationTargetTo } from '@/utils/vendorOperations'
 definePageMeta({ capability: 'vendor.read' })
 type Operation = LegacyOperation | OperationFeed
@@ -18,13 +19,18 @@ const { data, error, pending, refresh } = await useAsyncData(
   () => request<Operation>(`operations/${encodeURIComponent(id.value)}`, { query: { source: source.value } }),
 )
 const { can } = useVendorContext()
+const hydrated = useHydrated()
+const publishOpen = ref(false)
+const publishReason = ref('')
+const publication = computed(() => data.value && 'restore_publication' in data.value ? data.value.restore_publication : undefined)
+const publishAllowed = computed(() => canPublishRestore(data.value, can))
 const busy = ref(false)
 const reason = ref('')
 const actionError = ref<unknown>(null)
 const pollCount = ref(0)
 let pollTimer: ReturnType<typeof setTimeout> | undefined
 
-const isActive = computed(() => data.value?.status === 'queued' || data.value?.status === 'running')
+const isActive = computed(() => data.value?.status === 'queued' || data.value?.status === 'running' || publication.value?.status === 'queued')
 const isShared = computed(() => source.value === 'shared' || (data.value && 'source' in data.value && data.value.source === 'shared'))
 const canRetry = computed(() => !isShared.value && data.value?.status === 'failed' && ['tenant.inspect', 'health'].includes(data.value.type))
 const needsAttention = computed(() => data.value?.status === 'needs_intervention' || data.value?.stage === 'deployment_incomplete')
@@ -61,6 +67,16 @@ watch(isActive, schedulePoll)
 onMounted(schedulePoll)
 onBeforeUnmount(stopPolling)
 
+async function publishRestore() {
+  if (!hydrated.value || !data.value || !publication.value || !publishAllowed.value || busy.value || publishReason.value.trim().length < 3 || publishReason.value.trim().length > 1000) return
+  busy.value = true; actionError.value = null
+  try {
+    await request(`shared/tenants/${data.value.tenant_id}/restore-publications/${publication.value.approvalId}`, {method:'POST',body:{reason:publishReason.value.trim()}})
+    publishOpen.value = false; publishReason.value = ''; await manualRefresh()
+  } catch(cause) { actionError.value = cause }
+  finally { busy.value = false }
+}
+
 async function retry() {
   if (!data.value || !canRetry.value || !can('vendor.operations.run') || busy.value || !reason.value.trim()) return
   busy.value = true
@@ -95,6 +111,16 @@ async function retry() {
       </template>
 
       <div v-if="data" class="space-y-6">
+        <SharedRecordSection v-if="publication" :title="t('vendor.operations.publication.title')">
+          <p role="status">{{ t(`vendor.operations.publication.states.${publication.status}`) }}</p>
+          <UAlert v-if="publication.code" color="warning" :title="t(publication.code === 'commercial_reconciliation_pending' ? 'vendor.operations.publication.reconcile' : 'vendor.operations.publication.failure')" />
+          <p v-if="publication.status === 'published' && publication.host"><bdi>{{ publication.host }}</bdi></p>
+          <UButton v-if="publishAllowed && !publishOpen" class="mt-3" :disabled="!hydrated || busy" @click="publishOpen = true">{{ t('vendor.operations.publication.action') }}</UButton>
+          <SharedInlineConfirm v-if="publishOpen && publishAllowed" :title="t('vendor.operations.publication.confirm')" :confirm-label="t('vendor.operations.publication.action')" :pending="busy" :disabled="!hydrated || busy || publishReason.trim().length < 3 || publishReason.trim().length > 1000" @confirm="publishRestore" @cancel="publishOpen = false">
+            <UFormField :label="t('vendor.operations.publication.reason')" class="mt-3"><UTextarea v-model="publishReason" :maxlength="1000" :disabled="busy" /></UFormField>
+          </SharedInlineConfirm>
+          <UAlert v-if="actionError" class="mt-3" color="error" :title="t('vendor.errors.action')" />
+        </SharedRecordSection>
         <div v-if="isShared || needsAttention || backupUnverified" class="space-y-3">
           <UAlert v-if="isShared" color="info" variant="subtle" :title="t('vendor.operations.sharedExecution')" :description="t('vendor.operations.sharedExecutionHint')" />
           <UAlert v-if="needsAttention" color="warning" variant="subtle" :title="t(deploymentIncomplete ? 'vendor.operations.deploymentIncomplete' : 'vendor.operations.needsAttention')" :description="t('vendor.operations.reconcileHint')" />

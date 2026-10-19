@@ -507,3 +507,22 @@ class ReleaseSubscriptionBoundaryTests(Base):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class RestoreRuntimeTests(unittest.TestCase):
+    def request(self, root):
+        return make_request(fence=1, attemptId='aaaaaaaa-1111-4111-8111-111111111111',
+            config={'schemaVersion':1,'projectName':'webvue-shared-acme','composeFile':str(root/'compose.yml'),
+                    'envFile':str(root/'env'),'stateDir':str(root),'domainSuffix':'example.test',
+                    'releaseBackupConfig':str(root/'release-backup.json')})
+
+    def test_bridge_configuration_keeps_ordinary_subscription_commands_available(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            request=self.request(Path(tmp).resolve())
+            runner=se.ComposeRunner(request)
+            with mock.patch.object(runner,'command',return_value='output') as command:
+                runner.run_script('print(1)','observe')
+            self.assertIn('odoo',command.call_args.args[0])
+            self.assertNotIn('restore-odoo',command.call_args.args[0])
+            request['config']['unknown']=True
+            with self.assertRaisesRegex(EffectError,'runtime_invalid'):se.ComposeRunner(request)

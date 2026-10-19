@@ -131,6 +131,12 @@ class FetchTest(unittest.TestCase):
 
 
 class PinFileTest(unittest.TestCase):
+    def test_dms_is_available_in_the_verified_runtime_path(self):
+        pins = oca_addons.load_pins(oca_addons.PINS)
+        self.assertIn('/opt/oca/dms', oca_addons.image_path().split(','))
+        self.assertEqual(next(item for item in pins['repos'] if item['repo'] == 'OCA/dms')['commit'],
+                         '42aec9613f64402ec702e8e21cfb643626a41056')
+
     def test_image_path_uses_the_image_destination(self):
         for part in oca_addons.image_path().split(','):
             self.assertTrue(part.startswith('/opt/oca/'))

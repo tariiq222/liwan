@@ -142,11 +142,6 @@ class TestEmployeeModel(TransactionCase):
         foreign_department = self.env['hr.department'].create({
             'name': 'Foreign scoped department', 'company_id': other_company.id,
         })
-        foreign_document = self.env['webvue.hr.document'].create({
-            'name': 'Foreign scoped document',
-            'company_id': other_company.id,
-            'department_id': foreign_department.id,
-        })
         foreign_version = foreign.current_version_id
         env_a = self.env(
             user=self.hr_manager,
@@ -154,7 +149,6 @@ class TestEmployeeModel(TransactionCase):
         )
         self.assertNotIn(foreign, env_a['hr.employee'].search([]))
         self.assertNotIn(foreign_department, env_a['hr.department'].search([]))
-        self.assertNotIn(foreign_document, env_a['webvue.hr.document'].search([]))
         self.assertNotIn(foreign_version, env_a['hr.version'].search([]))
         with self.assertRaises(AccessError):
             foreign.with_env(env_a).write({'name': 'Cross-company takeover'})
@@ -162,8 +156,6 @@ class TestEmployeeModel(TransactionCase):
             foreign.with_env(env_a)._webvue_archive()
         with self.assertRaises(AccessError):
             foreign_department.with_env(env_a).write({'name': 'Department takeover'})
-        with self.assertRaises(AccessError):
-            foreign_document.with_env(env_a).write({'name': 'Document takeover'})
         with self.assertRaises(AccessError):
             foreign_version.with_env(env_a).write({'job_title': 'Version takeover'})
 
@@ -178,8 +170,6 @@ class TestEmployeeModel(TransactionCase):
             env_b['hr.employee'].search([])
         with self.assertRaises(AccessError):
             env_b['hr.department'].search([])
-        with self.assertRaises(AccessError):
-            env_b['webvue.hr.document'].search([])
         with self.assertRaises(AccessError):
             env_b['hr.version'].search([])
         with self.assertRaises(AccessError):

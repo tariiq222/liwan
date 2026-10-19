@@ -76,9 +76,9 @@ class TestAttachmentUpload(TransactionCase):
 
     def test_dump_is_the_small_wire_shape(self):
         attachment = self.env['ir.attachment'].create({'name': 'brief.pdf', 'raw': PDF, 'mimetype': 'application/pdf'})
-        self.assertEqual(dump_attachment(attachment), {
+        self.assertEqual(dump_attachment(attachment, '/api/v1/tasks/3/attachments'), {
             'id': attachment.id,
             'name': 'brief.pdf',
             'mimetype': 'application/pdf',
-            'url': f'/web/content/{attachment.id}?download=true',
+            'url': f'/api/v1/tasks/3/attachments/{attachment.id}/download',
         })

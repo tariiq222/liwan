@@ -1,7 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import unittest
 
-from git_policy import check_branch, check_subject
+from unittest import mock
+
+import git_policy
+from git_policy import check_branch, check_generated_commits, check_subject
 
 
 class TestSubject(unittest.TestCase):
@@ -68,3 +71,32 @@ class TestBranch(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestGeneratedFiles(unittest.TestCase):
+    def test_task_branch_commit_touching_a_generated_file_is_refused_with_a_clear_message(self):
+        problems = check_generated_commits('codex/pmo-reorder', {'docs/api/openapi.json': ['abc1234'], 'docs/api/route-capabilities.json': ['def5678']})
+        self.assertEqual(len(problems), 2)
+        self.assertIn('abc1234', problems[0])
+        self.assertIn('docs/api/openapi.json', problems[0])
+        self.assertIn('docs/api/route-capabilities.json', problems[1])
+        self.assertIn('orchestrator regenerates it at integration', problems[0])
+
+    def test_integration_and_main_branches_may_change_them(self):
+        touching = {'docs/api/openapi.json': ['abc1234']}
+        self.assertEqual(check_generated_commits('codex/tools-integrate-finance', touching), [])
+        self.assertEqual(check_generated_commits('main', touching), [])
+
+    def test_other_tools_task_branch_is_still_a_task_branch(self):
+        self.assertEqual(len(check_generated_commits('codex/tools-capability-gate', {'docs/api/openapi.json': ['abc1234']})), 1)
+
+    def test_no_touching_commit_is_fine(self):
+        self.assertEqual(check_generated_commits('codex/pmo-reorder', {'docs/api/openapi.json': []}), [])
+
+    def test_commits_come_from_a_path_limited_git_log_per_generated_file(self):
+        with mock.patch.object(git_policy, '_git', return_value='abc1234\ndef5678\n') as git:
+            found = git_policy.generated_commits('main')
+        self.assertEqual(set(found), set(git_policy.GENERATED))
+        self.assertEqual(found['docs/api/openapi.json'], ['abc1234', 'def5678'])
+        self.assertEqual([call.args[-2:] for call in git.call_args_list],
+                         [('--', path) for path in git_policy.GENERATED])

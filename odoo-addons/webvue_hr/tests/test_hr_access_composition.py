@@ -23,12 +23,12 @@ class TestHrAccessComposition(TransactionCase):
     def _keys(self, role_xmlid):
         return set(self.env.ref(role_xmlid).permission_ids.mapped('key'))
 
-    def test_hr_owns_its_twelve_capabilities_and_their_groups(self):
+    def test_hr_owns_its_ten_capabilities_and_their_groups(self):
         catalog = self.service._webvue_capability_map()
-        self.assertEqual(len(HR_PERMISSIONS), 12)
+        self.assertEqual(len(HR_PERMISSIONS), 10)
         self.assertEqual({key for key, item in catalog.items() if item['owner'] == 'webvue_hr'}, set(HR_PERMISSIONS))
         permissions = self.Permission.search([('key', 'in', sorted(HR_PERMISSIONS))])
-        self.assertEqual(len(permissions), 12)
+        self.assertEqual(len(permissions), 10)
         xmlids = permissions.get_external_id()
         for permission in permissions:
             self.assertTrue(xmlids[permission.id].startswith('webvue_hr.permission_hr_'), permission.key)
@@ -41,7 +41,7 @@ class TestHrAccessComposition(TransactionCase):
         self.assertEqual(self.env['webvue.access.role'].search_count([('key', '=', 'hr_manager')]), 1)
         self.assertFalse(self.env.ref('webvue_core.role_hr_manager', raise_if_not_found=False))
         self.assertFalse(self.env.ref('webvue_core.group_hr_manager', raise_if_not_found=False))
-        self.assertEqual(self._keys('webvue_hr.role_hr_manager'), set(HR_PERMISSIONS))
+        self.assertEqual(self._keys('webvue_hr.role_hr_manager') & set(HR_PERMISSIONS), set(HR_PERMISSIONS))
         self.assertTrue(self._keys('webvue_core.role_employee') >= EMPLOYEE_HR_PERMISSIONS)
         self.assertTrue(self._keys('webvue_core.role_vendor_support') >= HR_PERMISSIONS)
 

@@ -2,6 +2,9 @@
 from odoo import http
 from odoo.http import request
 
+from odoo.addons.webvue_api.controllers.attachment_download import (
+    download_linked_attachment,
+)
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -176,6 +179,14 @@ class OperationsController(http.Controller):
             # only its failure audit, rather than pretending an approval succeeded.
             return error_response(422, 'execution_failed', str(exc))
         return dump_request(record)
+
+    @http.route('/api/v1/operations/requests/<int:request_id>/attachments/<int:attachment_id>/download', type='http', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('operations.enabled', operation='read')
+    def download_attachment(self, request_id, attachment_id, **_):
+        record = find('webvue.operation.request', request_id, 'operations.requests.read')
+        attachments = request.env['ir.attachment'].search([('res_model', '=', record._name), ('res_id', '=', record.id), ('type', '=', 'binary')])
+        return download_linked_attachment(attachments, attachment_id)
 
     @http.route('/api/v1/operations/requests/<int:request_id>/attachments', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

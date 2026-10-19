@@ -1,4 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import functools
+import json
+import os
+import re
+from pathlib import Path
+
 from odoo.tests import HttpCase, new_test_user
 
 from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
@@ -32,6 +38,70 @@ def set_probe_feature(case, key=PROBE_FEATURE, enabled=True, retained=False):
     })
 
 
+FIXTURE_DIR_ENV = 'WEBVUE_CONTRACT_FIXTURES'
+FIXTURE_MANIFEST = Path(__file__).resolve().parents[3] / 'packages' / 'contracts' / 'fixtures' / 'manifest.json'
+DATETIME_PREFIX = re.compile(r'^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}')
+ROUTE_PLACEHOLDER = re.compile(r'\\\{\w+\\\}')  # an escaped {name} in a manifest route
+_recorded_sizes = {}
+
+
+def _normalize_fixture(body):
+    """Renumber positive ids by first appearance and pin the digits of timestamps.
+
+    Separators and suffixes are kept as they are, so a malformed timestamp still fails its schema.
+    """
+    ids = {}
+
+    def walk(value, key=None):
+        if isinstance(value, dict):
+            return {k: walk(v, k) for k, v in value.items()}
+        if isinstance(value, list):
+            return [walk(v, key) for v in value]
+        if key == 'id' and isinstance(value, int) and not isinstance(value, bool) and value > 0:
+            return ids.setdefault(value, len(ids) + 1)
+        if isinstance(value, str) and DATETIME_PREFIX.match(value):
+            return '2026-01-01' + value[10] + '00:00:00' + value[19:]
+        return value
+
+    return walk(body)
+
+
+@functools.lru_cache(maxsize=1)
+def _fixture_routes():
+    """The manifest entries as (method, status, compiled route pattern, name)."""
+    entries = json.loads(FIXTURE_MANIFEST.read_text())['fixtures']
+    return tuple(
+        (entry['method'], entry['status'], re.compile('^' + ROUTE_PLACEHOLDER.sub(r'\\d+', re.escape(entry['route'])) + '$'), entry['name'])
+        for entry in entries
+    )
+
+
+def _fixture_name(method, path, status):
+    """Manifest fixture name for a response, or None when no manifest entry matches it."""
+    route = path.split('?')[0]
+    for entry_method, entry_status, pattern, name in _fixture_routes():
+        if entry_method == method and entry_status == status and pattern.match(route):
+            return name
+    return None
+
+
+def record_contract_fixture(method, path, response):
+    """Opt-in recorder (``WEBVUE_CONTRACT_FIXTURES=<dir>``): keep the richest response per manifest fixture."""
+    directory = os.environ.get(FIXTURE_DIR_ENV)
+    name = directory and _fixture_name(method, path, response.status_code)
+    if not name:
+        return
+    body = _normalize_fixture(response.json())
+    size = len(json.dumps(body))
+    key = (directory, name)
+    if size <= _recorded_sizes.get(key, 0):
+        return
+    _recorded_sizes[key] = size
+    target = Path(directory) / f'{name}.json'
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(body, indent=2, sort_keys=True, ensure_ascii=False) + '\n')
+
+
 class WebVueApiCase(HttpCase):
     """Shared HTTP fixture: the base webvue employee role plus a JSON ``api()`` helper.
 
@@ -54,4 +124,6 @@ class WebVueApiCase(HttpCase):
     def api(self, method, path, json=None, timeout=None):
         headers = {'Content-Type': 'application/json'}
         kwargs = {} if timeout is None else {'timeout': timeout}
-        return self.url_open(path, json=json, headers=headers, method=method, **kwargs)
+        response = self.url_open(path, json=json, headers=headers, method=method, **kwargs)
+        record_contract_fixture(method, path, response)
+        return response

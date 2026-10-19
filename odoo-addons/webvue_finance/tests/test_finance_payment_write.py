@@ -2,6 +2,7 @@
 from odoo.tests import tagged
 
 from .write_common import INVOICES, PAYMENTS, WebVueFinanceWriteCase
+from odoo.addons.webvue_finance.serializers.common import dump_number
 
 PAYMENT_KEYS = {
     'id', 'name', 'payment_type', 'partner_type', 'state', 'partner', 'journal', 'date', 'memo',
@@ -34,6 +35,9 @@ class TestFinancePaymentWrite(WebVueFinanceWriteCase):
         self.assertEqual((paid['amount_residual'], paid['payment_state']), (0, 'paid'))
         listed = self.api('GET', PAYMENTS).json()['items']
         self.assertIn(payment['id'], {row['id'] for row in listed})
+
+    def test_a_number_is_null_until_odoo_assigns_one(self):
+        self.assertEqual([dump_number(name) for name in (False, '', '/', 'PBNK1/2026/00001')], [None, None, None, 'PBNK1/2026/00001'])
 
     def test_a_partial_payment_leaves_the_rest_open(self):
         invoice = self.posted_invoice()

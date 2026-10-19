@@ -1,9 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import date
 
+from psycopg2 import IntegrityError
+
 from odoo import Command
 from odoo.exceptions import ValidationError
 from odoo.tests import tagged
+from odoo.tools import mute_logger
 
 from .common import OUTSIDER_LOGIN, OUTSIDER_PASSWORD
 from .write_common import PASSWORD, WebVueFinanceWriteCase
@@ -238,6 +241,44 @@ class TestFinanceClosing(ClosingCase):
         self.assertRefused(self.close(), 422, 'already_closed')
         self.assertRefused(self.api('GET', f'{YEARS}/2025/closing-preview'), 422, 'already_closed')
         self.assertEqual(self.env['account.move'].search_count([('ref', '=', 'FYC/2025')]), entries)
+
+    def test_a_second_closing_entry_for_the_same_year_and_company_is_refused_by_the_database(self):
+        entry = self.env['account.move'].browse(self.close().json()['closing_entry']['id'])
+        self.assertEqual(entry.webvue_closing_year, 2025)
+        duplicate = self._entry(self.company, '2025-12-30', self.expense, self.cash, 1)
+        with self.assertRaises(IntegrityError), mute_logger('odoo.sql_db'), self.env.cr.savepoint():
+            duplicate.webvue_closing_year = 2025
+            duplicate.flush_recordset()
+        # Another company and another year are not constrained.
+        other = self._entry(self.other_company, '2025-12-30', self._account(self.other_company, 'expense'),
+                            self._account(self.other_company, 'asset_current'), 1)
+        other.webvue_closing_year = 2025
+        duplicate.webvue_closing_year = 2024
+        self.env['account.move'].flush_model()
+
+    def test_the_close_leaves_a_log_record_and_audit_events(self):
+        with self.assertLogs('odoo.addons.webvue_finance.controllers.finance_closing', 'INFO') as logs:
+            year = self.close().json()
+        entry = self.env['account.move'].browse(year['closing_entry']['id'])
+        self.assertEqual(len(logs.records), 1)
+        self.assertIn(
+            f'finance.fiscal_year.closed company={self.company.id} year=2025 user={self.manager.id} entry={entry.id} state=closed',
+            logs.output[0],
+        )
+        events = self.env['webvue.finance.audit.event'].search([('company_id', '=', self.company.id)])
+        closed = events.filtered(lambda event: event.action == 'fiscal_year_closed')
+        self.assertEqual((closed.res_model, closed.res_id, closed.outcome, closed.create_uid), ('account.move', entry.id, '2025:closed', self.manager))
+        written = events.filtered(lambda event: event.action == 'company_written')
+        self.assertEqual(written.fields_written, 'fiscalyear_lock_date')
+
+    def test_a_concurrent_close_of_the_same_year_is_a_422_already_closed(self):
+        # A closing entry the plan cannot see (a draft dated outside the year) holds the unique index.
+        hidden = self._entry(self.company, '2024-01-01', self.expense, self.cash, 1, post=False)
+        hidden.webvue_closing_year = 2025
+        hidden.flush_recordset()
+        self.assertRefused(self.close(), 422, 'already_closed')
+        self.assertFalse(self.company.fiscalyear_lock_date)
+        self.assertFalse(self.env['webvue.finance.audit.event'].search([('action', '=', 'fiscal_year_closed')]))
 
     def test_draft_entries_of_the_year_refuse_the_close(self):
         draft = self._entry(self.company, '2025-11-01', self.expense, self.cash, 5, post=False)

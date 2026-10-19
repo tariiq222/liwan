@@ -28,10 +28,10 @@ const tenants = Array.from({ length: 10 }, (_, i) => {
     host: `t${nn}.isolation-matrix.invalid`, tenantId: `t${nn}`,
     database: `webvue_shared_scratch_${SUFFIX}_t${nn}`, filestore: `webvue_shared_scratch_${SUFFIX}_t${nn}`,
     enabled: true, registryRevision: 1,
-    uid: 101 + i, marker: `ISOLATION_T${nn}`, sid: `sid_t${nn}`, projectId: 5000 + i, contentId: 9000 + i,
+    uid: 101 + i, marker: `ISOLATION_T${nn}`, sid: `sid_t${nn}`, projectId: 5000 + i, taskId: 7000 + i, attachmentId: 9000 + i,
   }
 })
-const targetsOnly = list => list.map(({ uid, marker, sid, projectId, contentId, ...t }) => t)
+const targetsOnly = list => list.map(({ uid, marker, sid, projectId, taskId, attachmentId, ...t }) => t)
 const token = 'matrix-synthetic-proxy-token-00000000'
 const keys = { test: 'matrix-synthetic-session-key-000000' }
 
@@ -80,9 +80,9 @@ test('ten-tenant guard+Nuxt isolation matrix rejects all 90 directional pairs pe
         res.end(JSON.stringify({ id: tenant.projectId, name: `PROJECT_${tenant.marker}` }))
         return
       }
-      const content = req.url.match(/^\/web\/content\/(\d+)/)
+      const content = req.url.match(/^\/api\/v1\/tasks\/(\d+)\/attachments\/(\d+)\/download$/)
       if (content) {
-        if (Number(content[1]) !== tenant.contentId) { res.writeHead(404); res.end('{}'); return }
+        if (Number(content[1]) !== tenant.taskId || Number(content[2]) !== tenant.attachmentId) { res.writeHead(404); res.end('{}'); return }
         res.setHeader('content-type', 'application/octet-stream')
         res.end(Buffer.from(`CONTENT_${tenant.marker}`))
         return
@@ -195,7 +195,7 @@ test('ten-tenant guard+Nuxt isolation matrix rejects all 90 directional pairs pe
         const r1 = await call('GET', `/api/v1/projects/${a.projectId}`, { host: b.host, cookie: cookies.get(b) })
         assert.equal(r1.status, 404, `object id of A(${a.tenantId}) accepted on B(${b.tenantId})`)
         assert.ok(!r1.text.includes(a.marker))
-        const r2 = await call('GET', `/web/content/${a.contentId}`, { host: b.host, cookie: cookies.get(b) })
+        const r2 = await call('GET', `/api/v1/tasks/${a.taskId}/attachments/${a.attachmentId}/download`, { host: b.host, cookie: cookies.get(b) })
         assert.equal(r2.status, 404, `content id of A(${a.tenantId}) accepted on B(${b.tenantId})`)
         assert.ok(!r2.text.includes(a.marker))
       }
@@ -203,7 +203,7 @@ test('ten-tenant guard+Nuxt isolation matrix rejects all 90 directional pairs pe
       for (const tenant of tenants) {
         const r1 = await call('GET', `/api/v1/projects/${tenant.projectId}`, { host: tenant.host, cookie: cookies.get(tenant) })
         assert.equal(r1.status, 200)
-        const r2 = await call('GET', `/web/content/${tenant.contentId}`, { host: tenant.host, cookie: cookies.get(tenant) })
+        const r2 = await call('GET', `/api/v1/tasks/${tenant.taskId}/attachments/${tenant.attachmentId}/download`, { host: tenant.host, cookie: cookies.get(tenant) })
         assert.equal(r2.status, 200)
         assert.ok(r2.text.includes(`CONTENT_${tenant.marker}`))
       }

@@ -1,0 +1,36 @@
+{
+  "currency": "SAR",
+  "date_from": "2026-10-01",
+  "date_to": "2026-10-31",
+  "net_payable": 90.0,
+  "purchases": {
+    "base": 400.0,
+    "tax_amount": 60.0,
+    "taxes": [
+      {
+        "base": 400.0,
+        "rate": 15.0,
+        "tax": {
+          "id": 2,
+          "name": "15%"
+        },
+        "tax_amount": 60.0
+      }
+    ]
+  },
+  "sales": {
+    "base": 1000.0,
+    "tax_amount": 150.0,
+    "taxes": [
+      {
+        "base": 1000.0,
+        "rate": 15.0,
+        "tax": {
+          "id": 1,
+          "name": "15%"
+        },
+        "tax_amount": 150.0
+      }
+    ]
+  }
+}

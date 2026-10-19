@@ -13,10 +13,6 @@ import {
   HrDepartmentCreateSchema,
   HrDepartmentListSchema,
   HrDepartmentPatchSchema,
-  HrDocumentAttachmentSchema,
-  HrDocumentDetailSchema,
-  HrDocumentListSchema,
-  HrDocumentSchema,
   HrEmployeeAccessSchema,
   HrEmployeeContractPatchSchema,
   HrEmployeeContractSchema,
@@ -58,6 +54,7 @@ const ATTACHMENT = {
   name: 'policy.pdf',
   mimetype: 'application/pdf',
   file_size: 2048,
+  url: '/api/v1/hr/documents/21/attachments/3/download',
 }
 
 const DOCUMENT = {
@@ -235,10 +232,8 @@ describe('Phase 3b HR input and compatibility schemas', () => {
   it('keeps every HR list envelope server-counted and rejects invalid totals', () => {
     expect(HrEmployeeListSchema.parse({ items: [EMPLOYEE], total: 1 })).toEqual({ items: [EMPLOYEE], total: 1 })
     expect(HrDepartmentListSchema.parse({ items: [DEPARTMENT], total: 1 }).total).toBe(1)
-    expect(HrDocumentListSchema.parse({ items: [DOCUMENT], total: 1 }).total).toBe(1)
     expect(() => HrEmployeeListSchema.parse({ items: [], total: -1 })).toThrow()
     expect(() => HrDepartmentListSchema.parse({ items: [], total: -1 })).toThrow()
-    expect(() => HrDocumentListSchema.parse({ items: [], total: -1 })).toThrow()
   })
 
   it('accepts strict employee and department writes with nullable relations', () => {
@@ -261,44 +256,6 @@ describe('Phase 3b HR input and compatibility schemas', () => {
     expect(() => HrDepartmentCreateSchema.parse({ name: 'Finance', manager_id: 0 })).toThrow()
     expect(() => HrDepartmentPatchSchema.parse({ manager_id: '9' })).toThrow()
     expect(() => HrDepartmentPatchSchema.parse({ manager_id: 9, extra: true })).toThrow()
-  })
-})
-
-describe('HrDocumentAttachmentSchema', () => {
-  it('accepts a valid attachment dump', () => {
-    const parsed = HrDocumentAttachmentSchema.parse(ATTACHMENT)
-    expect(parsed.file_size).toBe(2048)
-  })
-
-  it('rejects extra keys', () => {
-    expect(() => HrDocumentAttachmentSchema.parse({ ...ATTACHMENT, extra: true })).toThrow()
-  })
-})
-
-describe('HrDocumentSchema', () => {
-  it('accepts a valid document dump', () => {
-    const parsed = HrDocumentSchema.parse(DOCUMENT)
-    expect(parsed.department).toEqual({ id: 4, name: 'الهندسة' })
-    expect(parsed.attachment_ids).toHaveLength(1)
-  })
-
-  it('rejects tags', () => {
-    expect(() => HrDocumentSchema.parse({ ...DOCUMENT, tags: [] })).toThrow()
-  })
-
-  it('rejects extra keys', () => {
-    expect(() => HrDocumentSchema.parse({ ...DOCUMENT, extra: true })).toThrow()
-  })
-})
-
-describe('HrDocumentDetailSchema', () => {
-  it('accepts the same dump as HrDocumentSchema', () => {
-    const parsed = HrDocumentDetailSchema.parse(DOCUMENT)
-    expect(parsed.body).toBe('<p>body</p>')
-  })
-
-  it('rejects tags', () => {
-    expect(() => HrDocumentDetailSchema.parse({ ...DOCUMENT, tags: ['policy'] })).toThrow()
   })
 })
 

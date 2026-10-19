@@ -32,7 +32,7 @@ Ten synthetic host/database/filestore bindings `tenant0..9.acceptance.test` → 
 |---|---:|---:|---|
 | GET `/api/v1/tasks/1` | 10 | 90 | HTTP guard rejects A's signed cookie on B's host; own Host/database and unwrapped SID correct. NOT Odoo reads/ACL |
 | PATCH `/api/v1/tasks/1` | 10 | 90 | Same guard boundary, JSON write body; upstream hit count unchanged on denial. NOT SQL effects |
-| GET `/web/content/1` | 10 | 90 | File route cookie/host binding; NOT real filestore bytes/attachment ACL |
+| GET `/api/v1/tasks/1/attachments/1/download` | 10 | 90 | File route cookie/host binding; NOT real filestore bytes/attachment ACL |
 | GET `/api/v1/me` | 10 | 90 | Session envelope binding; NOT real Odoo login/session store |
 | Upgrade `/websocket` | 10 | 90 | Real local upgraded sockets; wrong-cookie request never reaches mock. NOT Odoo bus subscriptions/delivery |
 | Jobs + backup restore binding | 10 | 90 | Pure reconcile planner returns persist_intent for own; foreign current binding and restore backup rejected. NOT durable worker/execution/fencing |

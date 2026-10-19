@@ -8,7 +8,7 @@ from odoo.addons.webvue_platform.models.entitlement_service import (
     WebVueEntitlementService,
 )
 
-LEGACY_KEYS = frozenset({
+CURRENT_KEYS = frozenset({
     'nav.projects',
     'nav.allProjects',
     'nav.myProjects',
@@ -22,10 +22,8 @@ LEGACY_KEYS = frozenset({
     'nav.organization',
     'nav.employees',
     'nav.departments',
-    'nav.documents',
     'hr.directory.title',
     'hr.depts.title',
-    'hr.docs.title',
     'nav.chat',
     'chat.title',
 })
@@ -37,8 +35,8 @@ OWNED_KEYS = {
     }),
     'webvue_meetings': frozenset({'nav.meetings', 'nav.meetingCalendar', 'nav.meetingSeries'}),
     'webvue_hr': frozenset({
-        'nav.organization', 'nav.employees', 'nav.departments', 'nav.documents',
-        'hr.directory.title', 'hr.depts.title', 'hr.docs.title',
+        'nav.organization', 'nav.employees', 'nav.departments',
+        'hr.directory.title', 'hr.depts.title',
     }),
     'webvue_chat': frozenset({'nav.chat', 'chat.title'}),
 }
@@ -99,12 +97,12 @@ class TestTerminologyKeys(TransactionCase):
             self.assertFalse(seen & own, f'{addon} repeats a key owned by another application')
             seen |= own
 
-    def test_union_covers_legacy_set_with_all_apps(self):
+    def test_union_covers_current_set_with_all_apps(self):
         self.assertEqual(self._installed(), set(APPLICATIONS))
         keys = self.env['webvue.entitlement.service']._webvue_terminology_keys()
-        # A future application may add keys; none of the legacy ones may disappear.
-        self.assertLessEqual(LEGACY_KEYS, keys)
-        self.assertEqual(len(LEGACY_KEYS), 19)
+        # Fixed current release keys; the removed HR document surface owns no keys.
+        self.assertLessEqual(CURRENT_KEYS, keys)
+        self.assertEqual(len(CURRENT_KEYS), 17)
 
     def test_unknown_key_still_rejected_422(self):
         service = self.env['webvue.entitlement.service']
@@ -113,7 +111,13 @@ class TestTerminologyKeys(TransactionCase):
 
     def test_registered_key_accepted(self):
         service = self.env['webvue.entitlement.service']
-        for key in sorted(LEGACY_KEYS):
+        for key in sorted(CURRENT_KEYS):
             self.assertEqual(
                 service._webvue_validate_terminology({'ar': {key: 'x'}}), {'ar': {key: 'x'}}, key,
             )
+
+    def test_removed_hr_document_terms_are_not_a_parallel_contract(self):
+        service = self.env['webvue.entitlement.service']
+        for key in ('hr.docs.title', 'nav.documents'):
+            with self.subTest(key=key), self.assertRaises(ValidationError):
+                service._webvue_validate_terminology({'ar': {key: 'retired'}})

@@ -6,6 +6,7 @@ their secrets, and raw ZATCA responses, are never read into these shapes.
 """
 import html
 import re
+from collections import Counter
 
 MAX_ITEMS = 20
 MAX_TEXT = 500
@@ -64,6 +65,27 @@ def dump_zatca_readiness(company):
         'private_key_present': private_key_present,
         'journals': rows,
         'onboarded': private_key_present and bool(rows) and all(row['onboarded'] for row in rows),
+    }
+
+
+def dump_zatca_backlog(company):
+    """Counts of the posted ZATCA documents of ``company`` still waiting, read in the caller's environment.
+
+    ``to_send`` has no blocking level yet; ``retry`` is blocked with a warning or info level (no verdict, the cron tries
+    again); ``rejected`` and ``blocked`` are the two kinds of error-level documents, told apart by the same
+    classification as a single submission.
+    """
+    waiting = [
+        ('move_id.company_id', '=', company.id), ('move_id.state', '=', 'posted'),
+        ('edi_format_id.code', '=', ZATCA_FORMAT_CODE), ('state', '=', 'to_send'),
+    ]
+    documents = company.env['account.edi.document']
+    by_level = dict(documents._read_group(waiting, groupby=['blocking_level'], aggregates=['__count']))
+    errors = documents.search([*waiting, ('blocking_level', '=', 'error')])
+    kinds = Counter(_classify(document)[0] for document in errors)
+    return {
+        'to_send': by_level.get(False, 0), 'retry': by_level.get('warning', 0) + by_level.get('info', 0),
+        'rejected': kinds['rejected'], 'blocked': kinds['blocked'],
     }
 
 

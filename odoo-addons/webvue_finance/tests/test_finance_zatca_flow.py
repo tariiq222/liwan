@@ -6,8 +6,10 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import tagged
 
 from .common import OUTSIDER_LOGIN, OUTSIDER_PASSWORD
+from .test_finance_zatca import secret_keys
 from .zatca_common import (
     ERROR,
+    SANDBOX_OTP,
     WARNING,
     FakeZatca,
     WebVueZatcaCase,
@@ -48,6 +50,58 @@ class TestFinanceZatcaOnboarding(WebVueZatcaCase):
         status = self._status()
         self.assertEqual((status['api_mode'], status['private_key_present'], status['onboarded']), ('sandbox', True, True))
         self.assertNoSecrets(self.api('GET', STATUS))
+
+    def test_the_stock_edi_cron_is_active_and_runs_daily_with_an_immediate_trigger_per_submission(self):
+        cron = self.env.ref('account_edi.ir_cron_edi_network')
+        self.assertTrue(cron.active)
+        self.assertEqual((cron.interval_number, cron.interval_type), (1, 'days'))
+
+    def test_the_status_reports_the_backlog_of_the_current_company_only(self):
+        self.onboarded_journal()
+        self.assertEqual(self._status()['backlog'], {'to_send': 0, 'retry': 0, 'rejected': 0, 'blocked': 0})
+        retry, rejected, blocked, _pending = (self.sale_invoice() for _index in range(4))
+        # What stock stores: a warning without a verdict, an error with ZATCA's coded line, an error without one.
+        for invoice, level, error in (
+            (retry, 'warning', 'ZATCA could not be reached'),
+            (rejected, 'error', '<p>BR-KSA-F-06-C01 : The invoice type code is not valid</p>'),
+            (blocked, 'error', 'signing failed'),
+        ):
+            self.env['account.move'].browse(invoice['id']).edi_document_ids.write({'blocking_level': level, 'error': error})
+        # A waiting document of another company is not counted.
+        self.env['account.edi.document'].create({
+            'move_id': self.other_invoice.id, 'edi_format_id': self.env.ref('l10n_sa_edi.edi_sa_zatca').id, 'state': 'to_send',
+        })
+        status = self._status()
+        self.assertEqual(status['backlog'], {'to_send': 1, 'retry': 1, 'rejected': 1, 'blocked': 1})
+        self.assertEqual(secret_keys(status), set())
+
+    def test_the_status_backlog_needs_the_zatca_read_capability(self):
+        self.login_as('zatca_reader')
+        self.assertIn('backlog', self.api('GET', STATUS).json())
+        self.authenticate(OUTSIDER_LOGIN, OUTSIDER_PASSWORD)
+        self.assertRefused(self.api('GET', STATUS), 403, 'forbidden')
+
+    def test_a_successful_onboarding_leaves_a_log_record_and_an_audit_event(self):
+        with self.assertLogs('odoo.addons.webvue_finance.models.zatca_service', 'INFO') as logs:
+            self.onboarded_journal()
+        self.assertEqual(
+            [record.getMessage() for record in logs.records],
+            [f'finance.zatca.onboarded company={self.company.id} journal={self.sale_journal.id} user={self.manager.id}'],
+        )
+        event = self.env['webvue.finance.audit.event'].search([('action', '=', 'zatca_onboarded')])
+        self.assertEqual((event.company_id, event.res_model, event.res_id, event.create_uid), (self.company, 'account.journal', self.sale_journal.id, self.manager))
+        self.assertNotIn(SANDBOX_OTP, ' '.join(logs.output) + str(event.read()))
+
+    def test_a_refused_onboarding_logs_a_warning_without_the_otp(self):
+        self.zatca.answers['compliance'] = answer(400, {'message': 'Invalid OTP'})
+        with self.assertLogs('odoo.addons.webvue_finance.models.zatca_service', 'WARNING') as logs:
+            result = self.onboard()
+        self.assertEqual(result.status_code, 422, result.text)
+        self.assertEqual(
+            [record.getMessage() for record in logs.records],
+            [f'finance.zatca.onboard_failed company={self.company.id} journal={self.sale_journal.id} user={self.manager.id} code=zatca_rejected'],
+        )
+        self.assertNotIn(SANDBOX_OTP, ' '.join(logs.output))
 
     def test_onboarding_updates_the_integrations_connection(self):
         self.assertEqual(self._connection().state, 'not_configured')
@@ -221,6 +275,24 @@ class TestFinanceZatcaSubmission(WebVueZatcaCase):
         self.zatca.answers.clear()
         self.assertEqual(self.submit(invoice, 'retry').json()['state'], 'accepted')
 
+    def test_the_submission_outcome_leaves_a_log_record_and_audit_events(self):
+        invoice = self.sale_invoice()
+        self.zatca.answers['invoices/clearance/single'] = lambda _body: reply(503, None, text='UPSTREAM-RAW-BODY')
+        with self.assertLogs('odoo.addons.webvue_finance.models.zatca_service', 'INFO') as logs:
+            self.assertRefused(self.submit(invoice), 502, 'zatca_unavailable')
+            self.zatca.answers.clear()
+            self.assertEqual(self.submit(invoice, 'retry').json()['state'], 'accepted')
+        move = self.env['account.move'].browse(invoice['id'])
+        self.assertEqual([record.levelname for record in logs.records], ['WARNING', 'INFO'])
+        self.assertEqual(
+            logs.records[0].getMessage(),
+            f'finance.zatca.submitted company={self.company.id} move={move.id} user={self.manager.id} retry=False state=retry',
+        )
+        self.assertIn('state=accepted', logs.output[1])
+        self.assertNotIn('UPSTREAM-RAW-BODY', ' '.join(logs.output))
+        events = self.env['webvue.finance.audit.event'].search([('action', '=', 'zatca_submitted'), ('res_id', '=', move.id)], order='id')
+        self.assertEqual(events.mapped('outcome'), ['retry', 'accepted'])
+
     def test_an_accepted_invoice_cannot_be_submitted_again(self):
         invoice = self.sale_invoice()
         self.submit(invoice)
@@ -261,6 +333,15 @@ class TestFinanceZatcaSubmission(WebVueZatcaCase):
         self.assertRefused(self.api('GET', f'/api/v1/finance/invoices/{invoice["id"]}/zatca'), 403, 'forbidden')
         self.login_as('zatca_submitter')
         self.assertEqual(self.submit(invoice).json()['state'], 'accepted')
+
+    def test_a_custom_role_with_the_submit_capability_can_submit_and_the_audit_row_is_written(self):
+        self.onboarded_journal()
+        invoice = self.sale_invoice()
+        self.user_with('zatca_custom_submitter', ['finance.zatca.read', 'finance.zatca.submit', 'finance.invoices.read'])
+        self.login_as('zatca_custom_submitter')
+        self.assertEqual(self.submit(invoice).json()['state'], 'accepted')
+        event = self.env['webvue.finance.audit.event'].search([('action', '=', 'zatca_submitted'), ('res_id', '=', invoice['id'])])
+        self.assertEqual((event.outcome, event.create_uid.login), ('accepted', 'zatca_custom_submitter'))
 
     def test_the_service_checks_the_capability_itself(self):
         service = self.env['webvue.finance.zatca'].with_user(self.reader).with_company(self.company)

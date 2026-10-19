@@ -30,14 +30,13 @@ export function createListReturnTo(linkId: string, routePath: string, fullPath: 
       ? fullPath
       : safeReturnTo(query.returnTo, '/meetings', ['/meetings'])
   }
-  if (linkId === 'new-employee' || linkId === 'new-department' || linkId === 'new-document') {
+  if (linkId === 'new-document') return path === '/documents' ? fullPath : safeReturnTo(query.returnTo, '/documents', ['/documents'])
+  if (linkId === 'new-employee' || linkId === 'new-department') {
     const isHrList = linkId === 'new-employee'
       ? path === '/hr'
-      : linkId === 'new-department'
-        ? path === '/hr/departments'
-        : path === '/hr/documents' || /^\/hr\/departments\/[^/]+\/documents$/.test(path)
+      : path === '/hr/departments'
     if (isHrList) return fullPath
-    const fallback = linkId === 'new-department' ? '/hr/departments' : linkId === 'new-document' ? '/hr/documents' : '/hr'
+    const fallback = linkId === 'new-department' ? '/hr/departments' : '/hr'
     return safeReturnTo(query.returnTo, fallback, ['/hr'])
   }
   return fullPath
@@ -54,10 +53,9 @@ export function createLinkTo(link: { id: string; to: RouteLocationRaw }, route: 
   if (!target) return link.to
   const query: Record<string, string> = returnToQuery(createListReturnTo(link.id, route.path, route.fullPath, route.query))
   if (link.id === 'new-document') {
-    const departmentId = typeof route.query.department_id === 'string'
-      ? route.query.department_id
-      : typeof route.params.departmentId === 'string' ? route.params.departmentId : undefined
-    if (departmentId) query.department_id = departmentId
+    if (typeof route.query.context_kind === 'string' && typeof route.query.context_id === 'string') {
+      query.context_kind = route.query.context_kind; query.context_id = route.query.context_id
+    }
   }
   return { path: target, query }
 }

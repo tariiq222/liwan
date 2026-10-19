@@ -43,6 +43,27 @@ class TestAppXmlidMigration(TransactionCase):
             reason = 'needs webvue_hr, webvue_pmo and webvue_meetings installed'
             raise unittest.SkipTest(reason)
         cls.migration = _load_migration()
+        # The released migration still needs its original rows. The later DMS
+        # replacement retires these four HR IDs; recreate them only in this
+        # rollback-only historical fixture, never in product data or migrations.
+        for action in ('read', 'manage'):
+            group_name = 'group_cap_hr_documents_' + action
+            permission_name = 'permission_hr_documents_' + action
+            group = cls.env.ref('webvue_hr.' + group_name, raise_if_not_found=False)
+            if not group:
+                group = cls.env['res.groups'].create({'name': 'Historical documents ' + action})
+                cls.env['ir.model.data'].create({'module': 'webvue_hr', 'name': group_name,
+                    'model': group._name, 'res_id': group.id, 'noupdate': True})
+            if not cls.env.ref('webvue_hr.' + permission_name, raise_if_not_found=False):
+                permission = cls.env['webvue.access.permission'].create({
+                    'key': 'hr.documents.' + action, 'domain': 'hr', 'resource': 'documents',
+                    'action': action, 'name_ar': 'Historical documents ' + action,
+                    'description_ar': 'Released migration fixture',
+                    'group_xmlid': 'webvue_hr.' + group_name,
+                })
+                cls.env['ir.model.data'].create({'module': 'webvue_hr', 'name': permission_name,
+                    'model': permission._name, 'res_id': permission.id, 'noupdate': True})
+
         cls.moved = [
             (module, name)
             for module, names in cls.migration.MOVED_XMLIDS.items()

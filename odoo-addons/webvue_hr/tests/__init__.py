@@ -1,16 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from . import (
-    common,
-    test_department_model,
-    test_employee_model,
-    test_hr_access,
-    test_hr_access_composition,
-    test_hr_avatar_route,
-    test_hr_contracts,
-    test_hr_departments,
-    test_hr_document_acl,
-    test_hr_documents,
-    test_hr_employees,
-    test_hr_leave,
-    test_hr_reports,
-)
+from odoo.addons.webvue_core.testing import import_all_tests
+
+import_all_tests(__name__)

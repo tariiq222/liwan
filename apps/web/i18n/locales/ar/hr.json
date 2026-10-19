@@ -41,7 +41,9 @@
       "description": "دليل الموظفين وبياناتهم الوظيفية.",
       "filteredEmpty": "لا موظفون يطابقون الفلاتر",
       "filteredEmptyHint": "غيّر الفلاتر أو امسحها.",
-      "footer": { "results": "لا نتائج | عرض {shown} من نتيجة واحدة | عرض {shown} من نتيجتين | عرض {shown} من {total} نتائج | عرض {shown} من {total} نتيجة | عرض {shown} من {total} نتيجة" },
+      "footer": {
+        "results": "لا نتائج | عرض {shown} من نتيجة واحدة | عرض {shown} من نتيجتين | عرض {shown} من {total} نتائج | عرض {shown} من {total} نتيجة | عرض {shown} من {total} نتيجة"
+      },
       "searchValue": "بحث: {value}",
       "clear": "مسح الفلاتر",
       "status": {
@@ -103,7 +105,9 @@
       "general": "عام",
       "assignment": "التبعية التنظيمية",
       "formHint": "احفظ التغييرات بعد مراجعة بيانات القسم.",
-      "footer": { "results": "لا أقسام | قسم واحد | قسمان | {count} أقسام | {count} قسمًا | {count} قسم" },
+      "footer": {
+        "results": "لا أقسام | قسم واحد | قسمان | {count} أقسام | {count} قسمًا | {count} قسم"
+      },
       "children": "الأقسام الفرعية",
       "save": "حفظ",
       "managerLoadError": "تعذر تحميل قائمة الموظفين",
@@ -160,40 +164,6 @@
       "edit": "تعديل الموظف",
       "accessManagedInSettings": "تُدار صلاحيات الدخول من إدارة النظام.",
       "manageAccount": "إدارة الحساب"
-    },
-    "docs": {
-      "noDepartments": "أنشئ قسمًا لإضافة المستندات",
-      "noDepartmentsHint": "المستندات مرتبطة بالأقسام. أنشئ قسمًا أولًا، أو اطلب من المسؤول إضافته.",
-      "title": "المستندات",
-      "new": "مستند جديد",
-      "empty": "لا مستندات",
-      "search": "بحث بالعنوان…",
-      "clearSearch": "مسح البحث",
-      "footer": { "results": "لا نتائج | عرض {shown} من نتيجة واحدة | عرض {shown} من نتيجتين | عرض {shown} من {total} نتائج | عرض {shown} من {total} نتيجة | عرض {shown} من {total} نتيجة" },
-      "newTitle": "عنوان المستند",
-      "titleRequired": "عنوان المستند مطلوب.",
-      "body": "المحتوى",
-      "linkPrompt": "عنوان الرابط",
-      "attachments": "المرفقات",
-      "upload": "رفع ملف",
-      "edit": "تعديل المستند",
-      "saved": "تم حفظ المستند",
-      "download": "تنزيل",
-      "columns": {
-        "name": "العنوان",
-        "updated": "آخر تحديث",
-        "department": "القسم"
-      },
-      "description": "مستندات الموارد البشرية مرتبة حسب القسم.",
-      "allDepartments": "كل الأقسام",
-      "department": "القسم",
-      "chooseDepartment": "اختر قسمًا",
-      "loadError": "تعذّر تحميل المستند.",
-      "departmentsError": "تعذّر تحميل الأقسام.",
-      "retry": "إعادة المحاولة",
-      "previous": "السابق",
-      "next": "التالي",
-      "pagination": "عرض {from}–{to} من {total}"
     },
       "leave": {
         "description": "رصيد الإجازات وطلباتها واعتمادها.",

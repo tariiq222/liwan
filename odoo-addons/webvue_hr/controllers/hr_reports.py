@@ -28,7 +28,7 @@ class HrReportController(http.Controller):
         _require('hr.employees.manage')
         within_days = parse_within_days(request.httprequest.args.get('within_days'))
         items = request.env['webvue.hr.report']._webvue_expiring(
-            within_days, documents=_can('hr.documents.read'),
+            within_days,
         )
         return dump_expiring(items)
 

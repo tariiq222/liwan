@@ -36,7 +36,7 @@ test('task attachments upload, download real bytes, delete, and reload', async (
   await expect(link).toBeVisible()
 
   const href = await link.getAttribute('href')
-  expect(href).toContain('/web/content/')
+  expect(href).toMatch(new RegExp(`^/api/v1/tasks/${taskId}/attachments/\\d+/download$`))
   const downloaded = await page.request.get(href!)
   expect(downloaded.status()).toBe(200)
   expect(await downloaded.body()).toEqual(content)

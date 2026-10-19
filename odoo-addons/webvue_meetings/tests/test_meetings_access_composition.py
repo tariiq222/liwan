@@ -21,7 +21,7 @@ ACL = {
 }
 
 
-@tagged('webvue', 'webvue_access')
+@tagged('post_install', '-at_install', 'webvue', 'webvue_access')
 class TestMeetingsAccessComposition(TransactionCase):
     """webvue_meetings owns the three meetings.* capabilities, their groups and
     record rules (spec R2); it runs at install, so it also proves the hooks
@@ -106,9 +106,15 @@ class TestMeetingsAccessComposition(TransactionCase):
         self.assertTrue(self.service._webvue_repair_builtin_role_grants())
         self.assertEqual({key: role.version for key, role in roles.items()}, versions)
 
+
+@tagged('post_install', '-at_install', 'webvue', 'webvue_access')
+class TestMeetingsLegacyAccess(TransactionCase):
+    """User fixtures run after the complete installed registry is loaded."""
+
     def test_legacy_groups_still_grant_meeting_capabilities(self):
+        service = self.env['webvue.access.service']
         access_admin = new_test_user(self.env, login='meet_comp_access_admin', groups='webvue_core.group_access_admin')
         employee = new_test_user(self.env, login='meet_comp_employee', groups='webvue_core.group_employee')
-        self.assertTrue(self.service._webvue_capability_keys(access_admin) >= MEETINGS_PERMISSIONS)
-        self.assertIn('meetings.read', self.service._webvue_capability_keys(employee))
-        self.assertNotIn('meetings.create', self.service._webvue_capability_keys(employee))
+        self.assertTrue(service._webvue_capability_keys(access_admin) >= MEETINGS_PERMISSIONS)
+        self.assertIn('meetings.read', service._webvue_capability_keys(employee))
+        self.assertNotIn('meetings.create', service._webvue_capability_keys(employee))

@@ -6,6 +6,11 @@ def dump_ref(record):
     return {'id': record.id, 'name': record.display_name} if record else None
 
 
+def dump_number(name):
+    """The assigned document number, or None while Odoo has not numbered it yet (empty or the draft '/')."""
+    return None if not name or name == '/' else name
+
+
 def dump_day(value):
     """ISO-8601 date string of a date field value, or None."""
     return value.isoformat() if value else None

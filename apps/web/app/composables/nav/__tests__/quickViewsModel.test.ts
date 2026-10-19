@@ -96,9 +96,9 @@ describe('meetings quick views', () => {
 
 describe('other modules', () => {
   it('puts the create action of the current HR list first', () => {
-    expect(ids(model('/hr').actions)).toEqual(['new-employee', 'new-department', 'new-document'])
-    expect(ids(model('/hr/departments').actions)).toEqual(['new-department', 'new-employee', 'new-document'])
-    expect(ids(model('/hr/departments/4/documents').actions)[0]).toBe('new-document')
+    expect(ids(model('/hr').actions)).toEqual(['new-employee', 'new-department'])
+    expect(ids(model('/hr/departments').actions)).toEqual(['new-department', 'new-employee'])
+    expect(ids(model('/documents').actions)[0]).toBe('new-document')
     expect(model('/hr/employees/3')).toEqual({ views: [], actions: [] })
   })
 

@@ -9,7 +9,7 @@ const ATTACHMENT = {
   id: 42,
   name: 'brief.pdf',
   mimetype: 'application/pdf',
-  url: '/web/content/42?download=true',
+  url: '/api/v1/tasks/7/attachments/42/download',
 }
 
 describe('TaskAttachmentSchema', () => {

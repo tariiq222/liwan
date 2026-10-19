@@ -4,22 +4,33 @@ from odoo.tools import email_normalize
 
 from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 
-HR_PERMISSIONS = frozenset({
-    'hr.employees.read', 'hr.employees.manage', 'hr.employees.archive',
-    'hr.employees.access_status.read', 'hr.departments.read',
-    'hr.departments.manage', 'hr.documents.read', 'hr.documents.manage',
-    'hr.leave.read', 'hr.leave.request', 'hr.leave.approve', 'hr.leave.manage',
-})
-EMPLOYEE_HR_PERMISSIONS = frozenset({
-    'hr.employees.read', 'hr.departments.read', 'hr.documents.read',
-    'hr.leave.read', 'hr.leave.request',
-})
+HR_PERMISSIONS = frozenset(
+    {
+        'hr.employees.read',
+        'hr.employees.manage',
+        'hr.employees.archive',
+        'hr.employees.access_status.read',
+        'hr.departments.read',
+        'hr.departments.manage',
+        'hr.leave.read',
+        'hr.leave.request',
+        'hr.leave.approve',
+        'hr.leave.manage',
+    },
+)
+EMPLOYEE_HR_PERMISSIONS = frozenset(
+    {
+        'hr.employees.read',
+        'hr.departments.read',
+        'hr.leave.read',
+        'hr.leave.request',
+    },
+)
 HR_PERMISSION_DEPENDENCIES = {
     'hr.employees.manage': {'hr.employees.read'},
     'hr.employees.archive': {'hr.employees.read'},
     'hr.employees.access_status.read': {'hr.employees.read'},
     'hr.departments.manage': {'hr.departments.read'},
-    'hr.documents.manage': {'hr.documents.read'},
     # Every leave route reads hr.employee (the caller's own record, the target of an
     # allocation, and the name on each request), which the HR employee guard requires.
     'hr.leave.read': {'hr.employees.read'},
@@ -31,12 +42,6 @@ HR_PERMISSION_DEPENDENCIES = {
 
 class WebVueHrAccessService(models.AbstractModel):
     _inherit = 'webvue.access.service'
-
-    @api.model
-    def _webvue_configure_hr_record_rules(self):
-        rule = self.env.ref('webvue_hr.webvue_hr_document_company_rule')
-        rule.write({'domain_force': "[('company_id', '=', company_id)]"})
-        return True
 
     @api.model
     def _webvue_capability_definitions(self):
@@ -65,9 +70,8 @@ class WebVueHrAccessService(models.AbstractModel):
     @api.model
     def _webvue_legacy_capability_keys(self, user):
         keys = super()._webvue_legacy_capability_keys(user)
-        if (
-            user.has_group('webvue_hr.group_hr_manager')
-            or user.has_group('hr.group_hr_manager')
+        if user.has_group('webvue_hr.group_hr_manager') or user.has_group(
+            'hr.group_hr_manager',
         ):
             keys |= HR_PERMISSIONS
         if user.has_group('webvue_core.group_employee'):
@@ -83,7 +87,9 @@ class WebVueHrAccessService(models.AbstractModel):
         return [*super()._webvue_legacy_admin_roles(), 'hr_manager']
 
     @api.model
-    def _webvue_disable_linked_user_from_hr(self, employee_id, user_id, expected_user_version):
+    def _webvue_disable_linked_user_from_hr(
+        self, employee_id, user_id, expected_user_version,
+    ):
         self._webvue_require_capability('hr.employees.archive')
         user = self.env['res.users'].browse(user_id).exists()
         if not user:
@@ -99,17 +105,25 @@ class WebVueHrAccessService(models.AbstractModel):
         self._webvue_lock_company(user.company_id)
         self.env.invalidate_all()
         self._webvue_require_capability('hr.employees.archive')
-        user = self.env['res.users'].with_context(active_test=False).browse(user.id).exists()
+        user = (
+            self.env['res.users']
+            .with_context(active_test=False)
+            .browse(user.id)
+            .exists()
+        )
         self._webvue_assert_user_scope(user)
         self._webvue_check_user_version(user, expected_user_version)
         self._webvue_assert_user_scope(user)
         if self._webvue_has_capability(
-            user, 'access.users.assign_roles', company=user.company_id,
+            user,
+            'access.users.assign_roles',
+            company=user.company_id,
         ):
             self._webvue_assert_admin_survives(user.company_id, excluding_user=user)
         user._webvue_access_write({'active': False}, 'hr.employees.archive')
         self.env['webvue.access.audit']._webvue_log(
-            'employee.archived_access_disabled', user,
+            'employee.archived_access_disabled',
+            user,
             before={'active': True, 'employee_id': employee_id},
             after={'active': False, 'employee_id': employee_id},
         )
@@ -146,13 +160,17 @@ class WebVueHrAccessService(models.AbstractModel):
         return self.env.cr.fetchone()
 
     def _webvue_hr_prepare_account(self, employee_id: int, operation: str) -> dict:
-        required = 'access.users.grant' if operation == 'grant' else 'access.users.disable'
+        required = (
+            'access.users.grant' if operation == 'grant' else 'access.users.disable'
+        )
         if operation not in ('grant', 'reactivate'):
             msg = 'invalid'
             raise WebVueAccessRule(msg, 'unsupported account operation')
         if not self._webvue_has_capability(self.env.user, required):
             msg = 'forbidden'
-            raise WebVueAccessRule(msg, f'{required} capability is required', status=403)
+            raise WebVueAccessRule(
+                msg, f'{required} capability is required', status=403,
+            )
         row = self._webvue_hr_employee_row(employee_id)
         if not row:
             msg = 'not_found'
@@ -172,14 +190,16 @@ class WebVueHrAccessService(models.AbstractModel):
         if not self._webvue_has_capability(self.env.user, 'access.users.grant'):
             msg = 'forbidden'
             raise WebVueAccessRule(
-                msg, 'access.users.grant capability is required', status=403,
+                msg,
+                'access.users.grant capability is required',
+                status=403,
             )
         employee = self._webvue_hr_employee_row(employee_id)
         if not employee:
             msg = 'not_found'
             raise WebVueAccessRule(msg, 'employee or user is not available', status=404)
         self.env.cr.execute(
-            "SELECT id, company_id FROM res_users WHERE id = %s LIMIT 1",
+            'SELECT id, company_id FROM res_users WHERE id = %s LIMIT 1',
             [user_id],
         )
         user = self.env.cr.fetchone()
@@ -209,7 +229,7 @@ class WebVueHrAccessService(models.AbstractModel):
         department_id = filters.get('department_id') or None
         employee_id = filters.get('employee_id') or None
         self.env.cr.execute(
-            '''
+            """
                 SELECT employee.user_id
                   FROM hr_employee employee
                   JOIN hr_version version ON version.id = employee.current_version_id
@@ -217,20 +237,26 @@ class WebVueHrAccessService(models.AbstractModel):
                    AND employee.user_id IS NOT NULL
                    AND (%s OR version.department_id = %s)
                    AND (%s OR employee.id = %s)
-            ''',
+            """,
             [
                 self.env.company.id,
-                department_id is None, department_id or 0,
-                employee_id is None, employee_id or 0,
+                department_id is None,
+                department_id or 0,
+                employee_id is None,
+                employee_id or 0,
             ],
         )
-        return fields.Domain('id', 'in', [user_id for user_id, in self.env.cr.fetchall()])
+        return fields.Domain(
+            'id', 'in', [user_id for (user_id,) in self.env.cr.fetchall()],
+        )
 
     def _webvue_hr_employee_refs(self, user_ids: list[int]) -> dict[int, dict | None]:
         if not self._webvue_has_capability(self.env.user, 'access.users.read'):
             msg = 'forbidden'
             raise WebVueAccessRule(
-                msg, 'access.users.read capability is required', status=403,
+                msg,
+                'access.users.read capability is required',
+                status=403,
             )
         if not user_ids:
             return {}
@@ -245,22 +271,33 @@ class WebVueHrAccessService(models.AbstractModel):
             [user_ids, self._webvue_hr_company_ids()],
         )
         refs = {user_id: None for user_id in user_ids}
-        for user_id, employee_id, name, department_id, department_name in self.env.cr.fetchall():
+        for (
+            user_id,
+            employee_id,
+            name,
+            department_id,
+            department_name,
+        ) in self.env.cr.fetchall():
             refs[user_id] = {
                 'id': employee_id,
                 'name': self._webvue_hr_text(name),
                 'department': (
                     {'id': department_id, 'name': self._webvue_hr_text(department_name)}
-                    if department_id else None
+                    if department_id
+                    else None
                 ),
             }
         return refs
 
-    def _webvue_hr_account_candidates(self, filters: dict, limit: int, offset: int) -> dict:
+    def _webvue_hr_account_candidates(
+        self, filters: dict, limit: int, offset: int,
+    ) -> dict:
         if not self._webvue_has_capability(self.env.user, 'access.users.grant'):
             msg = 'forbidden'
             raise WebVueAccessRule(
-                msg, 'access.users.grant capability is required', status=403,
+                msg,
+                'access.users.grant capability is required',
+                status=403,
             )
         company_ids = self._webvue_hr_company_ids()
         where = ['e.company_id = ANY(%s)']
@@ -297,26 +334,40 @@ class WebVueHrAccessService(models.AbstractModel):
         )
         rows = self.env.cr.fetchall()
         self.env.cr.execute(
-            f'''SELECT COUNT(*)
+            f"""SELECT COUNT(*)
                   FROM hr_employee e
                   LEFT JOIN hr_version v ON v.id = e.current_version_id
-                 WHERE {clause}''', params,
+                 WHERE {clause}""",
+            params,
         )
         return {
-            'items': [{
-                'id': employee_id,
-                'name': self._webvue_hr_text(name),
-                'department': (
-                    {'id': department_id, 'name': self._webvue_hr_text(department_name)}
-                    if department_id else None
-                ),
-                'work_email': work_email or None,
-                'active': bool(employee_active),
-                'user_id': user_id or None,
-                'access_active': bool(user_active) if user_id else None,
-            } for (
-                employee_id, name, department_id, department_name, work_email,
-                employee_active, user_id, user_active,
-            ) in rows],
+            'items': [
+                {
+                    'id': employee_id,
+                    'name': self._webvue_hr_text(name),
+                    'department': (
+                        {
+                            'id': department_id,
+                            'name': self._webvue_hr_text(department_name),
+                        }
+                        if department_id
+                        else None
+                    ),
+                    'work_email': work_email or None,
+                    'active': bool(employee_active),
+                    'user_id': user_id or None,
+                    'access_active': bool(user_active) if user_id else None,
+                }
+                for (
+                    employee_id,
+                    name,
+                    department_id,
+                    department_name,
+                    work_email,
+                    employee_active,
+                    user_id,
+                    user_active,
+                ) in rows
+            ],
             'total': self.env.cr.fetchone()[0],
         }

@@ -450,12 +450,14 @@ class ComposeRunner(odoo_effect.Runner):
 
     def __init__(self, request, permit=None):
         config = request['config']
-        if (set(config) != {'schemaVersion', 'projectName', 'composeFile', 'envFile', 'stateDir', 'domainSuffix'}
+        if (set(config) - {'releaseBackupConfig'} != {'schemaVersion', 'projectName', 'composeFile', 'envFile', 'stateDir', 'domainSuffix'}
                 or config['schemaVersion'] != 1
                 or not re.fullmatch(r'webvue-(?:saas|shared)-[a-z0-9-]{3,48}', config['projectName'])):
             raise EffectError('runtime_invalid')
         for key in ('composeFile', 'envFile', 'stateDir'):
             odoo_effect.no_symlink(config[key])
+        if config.get('releaseBackupConfig'):
+            odoo_effect.no_symlink(config['releaseBackupConfig'])
         self.request, self.config = request, config
         self.database = odoo_effect.validate_database(request['tenant']['database'])
         self.root = odoo_effect.Path(config['stateDir'])

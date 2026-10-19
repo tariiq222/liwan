@@ -1,0 +1,28 @@
+{
+  "access": {
+    "active": true,
+    "login": "status_visibility_user",
+    "role": "employee",
+    "user_id": 16
+  },
+  "active": true,
+  "contract": {
+    "end_date": null,
+    "identity_expiry_date": null,
+    "notice_period_days": 0,
+    "probation_end_date": null,
+    "start_date": null,
+    "type": null
+  },
+  "department": {
+    "id": 2,
+    "name": "HR Separation"
+  },
+  "id": 1,
+  "job_title": "",
+  "manager": null,
+  "name": "Separation Employee",
+  "user_id": 16,
+  "work_email": "s.s@example.com",
+  "work_phone": ""
+}

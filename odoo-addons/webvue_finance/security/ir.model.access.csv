@@ -8,3 +8,8 @@ access_finance_analytic_manage_plan,finance analytic manage: account.analytic.pl
 access_finance_analytic_manage_account,finance analytic manage: account.analytic.account,analytic.model_account_analytic_account,group_cap_finance_analytic_manage,1,1,1,0
 access_finance_budgets_manage_budget,finance budgets manage: mis.budget.by.account,mis_builder_budget.model_mis_budget_by_account,group_cap_finance_budgets_manage,1,1,1,1
 access_finance_budgets_manage_budget_item,finance budgets manage: mis.budget.by.account.item,mis_builder_budget.model_mis_budget_by_account_item,group_cap_finance_budgets_manage,1,1,1,1
+access_finance_audit_read_event,finance audit read: webvue.finance.audit.event,model_webvue_finance_audit_event,group_cap_finance_audit_read,1,0,0,0
+access_finance_audit_setup_event,finance audit setup manage: webvue.finance.audit.event,model_webvue_finance_audit_event,group_cap_finance_setup_manage,0,0,1,0
+access_finance_audit_closing_event,finance audit closing manage: webvue.finance.audit.event,model_webvue_finance_audit_event,group_cap_finance_closing_manage,0,0,1,0
+access_finance_audit_zatca_manage_event,finance audit zatca manage: webvue.finance.audit.event,model_webvue_finance_audit_event,group_cap_finance_zatca_manage,0,0,1,0
+access_finance_audit_zatca_submit_event,finance audit zatca submit: webvue.finance.audit.event,model_webvue_finance_audit_event,group_cap_finance_zatca_submit,0,0,1,0

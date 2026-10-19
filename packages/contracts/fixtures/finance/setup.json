@@ -1,0 +1,69 @@
+{
+  "blockers": [
+    "company_vat_missing",
+    "company_registry_missing",
+    "company_address_incomplete",
+    "zatca_not_onboarded"
+  ],
+  "chart": {
+    "accounts_count": 178,
+    "loaded": true,
+    "template": "sa"
+  },
+  "company": {
+    "city": "",
+    "company_registry": "",
+    "country": {
+      "id": 1,
+      "name": "Saudi Arabia"
+    },
+    "currency": "SAR",
+    "missing_fields": [
+      "vat",
+      "company_registry",
+      "street",
+      "city",
+      "state"
+    ],
+    "name": "Finance Company A",
+    "state": null,
+    "street": "",
+    "vat": ""
+  },
+  "fiscal": {
+    "fiscalyear_last_day": 31,
+    "fiscalyear_last_month": 12,
+    "fiscalyear_lock_date": null,
+    "hard_lock_date": null,
+    "purchase_lock_date": null,
+    "sale_lock_date": null,
+    "tax_lock_date": null
+  },
+  "journals": {
+    "bank": 1,
+    "cash": 0,
+    "purchase": 1,
+    "sale": 1
+  },
+  "ready": false,
+  "taxes": {
+    "purchase_count": 14,
+    "sale_count": 3,
+    "vat_15_present": true
+  },
+  "zatca": {
+    "api_mode": "sandbox",
+    "journals": [
+      {
+        "journal": {
+          "id": 2,
+          "name": "Sales"
+        },
+        "onboarded": false,
+        "state": "not_started"
+      }
+    ],
+    "onboarded": false,
+    "private_key_present": false
+  }
+}

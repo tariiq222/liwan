@@ -1,15 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from . import (
-    common,
-    routes_common,
-    test_access,
-    test_comments_attachments,
-    test_feature_gate,
-    test_notifications,
-    test_routes,
-    test_rules,
-    test_serializers,
-    test_service,
-    test_tasks_access_composition,
-    test_tasks_only_routes,
-)
+from odoo.addons.webvue_core.testing import import_all_tests
+
+import_all_tests(__name__)

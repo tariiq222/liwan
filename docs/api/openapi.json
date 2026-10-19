@@ -7255,6 +7255,185 @@
         ],
         "type": "string"
       },
+      "FinanceAuditActionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "chart_loaded",
+          "company_written",
+          "fiscal_year_closed",
+          "zatca_onboarded",
+          "zatca_submitted"
+        ],
+        "type": "string"
+      },
+      "FinanceAuditEventListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "enum": [
+                    "chart_loaded",
+                    "company_written",
+                    "fiscal_year_closed",
+                    "zatca_onboarded",
+                    "zatca_submitted"
+                  ],
+                  "type": "string"
+                },
+                "actor": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "created_at": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                  "type": "string"
+                },
+                "fields_written": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "outcome": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "res_id": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "res_model": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "action",
+                "actor",
+                "created_at",
+                "res_model",
+                "res_id",
+                "fields_written",
+                "outcome"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "FinanceAuditEventSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "chart_loaded",
+              "company_written",
+              "fiscal_year_closed",
+              "zatca_onboarded",
+              "zatca_submitted"
+            ],
+            "type": "string"
+          },
+          "actor": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "type": "string"
+          },
+          "fields_written": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "outcome": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "res_id": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          },
+          "res_model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "actor",
+          "created_at",
+          "res_model",
+          "res_id",
+          "fields_written",
+          "outcome"
+        ],
+        "type": "object"
+      },
       "FinanceBalanceSheetSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -10279,7 +10458,10 @@
             "type": "string"
           },
           "name": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "partner": {
             "anyOf": [
@@ -10742,7 +10924,10 @@
                   "type": "string"
                 },
                 "name": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "partner": {
                   "anyOf": [
@@ -11000,7 +11185,10 @@
             "type": "string"
           },
           "name": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "partner": {
             "anyOf": [
@@ -12102,7 +12290,10 @@
                   "type": "string"
                 },
                 "name": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "partner": {
                   "anyOf": [
@@ -12270,7 +12461,10 @@
             "type": "string"
           },
           "name": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "partner": {
             "anyOf": [
@@ -12441,7 +12635,10 @@
                   "type": "string"
                 },
                 "entry": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "exact": {
                   "type": "boolean"
@@ -12536,7 +12733,10 @@
             "type": "string"
           },
           "entry": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "exact": {
             "type": "boolean"
@@ -14070,6 +14270,39 @@
         ],
         "type": "object"
       },
+      "FinanceZatcaBacklogSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "blocked": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "rejected": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "retry": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "to_send": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "to_send",
+          "retry",
+          "rejected",
+          "blocked"
+        ],
+        "type": "object"
+      },
       "FinanceZatcaErrorCodeSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -14234,6 +14467,109 @@
           "private_key_present",
           "journals",
           "onboarded"
+        ],
+        "type": "object"
+      },
+      "FinanceZatcaStatusSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "api_mode": {
+            "enum": [
+              "sandbox",
+              "preprod",
+              "prod"
+            ],
+            "type": "string"
+          },
+          "backlog": {
+            "additionalProperties": false,
+            "properties": {
+              "blocked": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "rejected": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "retry": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "to_send": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "to_send",
+              "retry",
+              "rejected",
+              "blocked"
+            ],
+            "type": "object"
+          },
+          "journals": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "journal": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "onboarded": {
+                  "type": "boolean"
+                },
+                "state": {
+                  "enum": [
+                    "not_started",
+                    "compliance_checked",
+                    "onboarded"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "journal",
+                "onboarded",
+                "state"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "onboarded": {
+            "type": "boolean"
+          },
+          "private_key_present": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "api_mode",
+          "private_key_present",
+          "journals",
+          "onboarded",
+          "backlog"
         ],
         "type": "object"
       },
@@ -14765,13 +15101,18 @@
           },
           "name": {
             "type": "string"
+          },
+          "url": {
+            "minLength": 1,
+            "type": "string"
           }
         },
         "required": [
           "id",
           "name",
           "mimetype",
-          "file_size"
+          "file_size",
+          "url"
         ],
         "type": "object"
       },
@@ -14796,13 +15137,18 @@
                 },
                 "name": {
                   "type": "string"
+                },
+                "url": {
+                  "minLength": 1,
+                  "type": "string"
                 }
               },
               "required": [
                 "id",
                 "name",
                 "mimetype",
-                "file_size"
+                "file_size",
+                "url"
               ],
               "type": "object"
             },
@@ -14888,13 +15234,18 @@
                       },
                       "name": {
                         "type": "string"
+                      },
+                      "url": {
+                        "minLength": 1,
+                        "type": "string"
                       }
                     },
                     "required": [
                       "id",
                       "name",
                       "mimetype",
-                      "file_size"
+                      "file_size",
+                      "url"
                     ],
                     "type": "object"
                   },
@@ -14990,13 +15341,18 @@
                 },
                 "name": {
                   "type": "string"
+                },
+                "url": {
+                  "minLength": 1,
+                  "type": "string"
                 }
               },
               "required": [
                 "id",
                 "name",
                 "mimetype",
-                "file_size"
+                "file_size",
+                "url"
               ],
               "type": "object"
             },
@@ -17293,7 +17649,10 @@
             "type": "array"
           },
           "name": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "ref": {
             "type": "string"
@@ -17529,7 +17888,10 @@
                   "type": "object"
                 },
                 "name": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "ref": {
                   "type": "string"
@@ -17686,7 +18048,10 @@
             "type": "object"
           },
           "name": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "ref": {
             "type": "string"
@@ -36437,6 +36802,66 @@
         }
       }
     },
+    "/api/v1/chat/conversations/{conversation_id}/attachments/{attachment_id}/download": {
+      "get": {
+        "operationId": "webvue_chat.ChatController.download_attachment.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "A file of a message in the conversation, for a member of it.",
+        "tags": [
+          "webvue_chat"
+        ],
+        "x-webvue": {
+          "addon": "webvue_chat",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "chat",
+          "controller": "ChatController",
+          "feature_keys": [
+            "chat.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "download_attachment",
+          "readonly": true,
+          "route_type": "http"
+        }
+      }
+    },
     "/api/v1/chat/conversations/{conversation_id}/leave": {
       "post": {
         "operationId": "webvue_chat.ChatController.leave_conversation.post",
@@ -37813,6 +38238,46 @@
           "feature_operation": "write",
           "handler": "validate_asset",
           "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/audit-events": {
+      "get": {
+        "operationId": "webvue_finance.FinanceAuditController.list_audit_events.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_audit_events",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAuditController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_audit_events",
+          "readonly": true,
           "route_type": "json2"
         }
       }
@@ -40586,7 +41051,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "The ledger; ``limit``/``offset`` page the lines of the one ``account_id`` they require (date order).",
+        "summary": "The ledger totals per account; ``account_id`` adds its lines, which ``limit``/``offset`` page (date order).",
         "tags": [
           "webvue_finance"
         ],
@@ -41565,6 +42030,66 @@
           "handler": "upload_document_attachment",
           "readonly": false,
           "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/documents/{document_id}/attachments/{attachment_id}/download": {
+      "get": {
+        "operationId": "webvue_hr.HrDocumentController.download_document_attachment.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "download_document_attachment",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "hr",
+          "controller": "HrDocumentController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "download_document_attachment",
+          "readonly": true,
+          "route_type": "http"
         }
       }
     },
@@ -43268,6 +43793,66 @@
         }
       }
     },
+    "/api/v1/meetings/{meeting_id}/attachments/{attachment_id}/download": {
+      "get": {
+        "operationId": "webvue_meetings.MeetingAttachmentController.download_meeting_attachment.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "meeting_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "download_meeting_attachment",
+        "tags": [
+          "webvue_meetings"
+        ],
+        "x-webvue": {
+          "addon": "webvue_meetings",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "pmo",
+          "controller": "MeetingAttachmentController",
+          "feature_keys": [
+            "meetings.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "download_meeting_attachment",
+          "readonly": true,
+          "route_type": "http"
+        }
+      }
+    },
     "/api/v1/meetings/{meeting_id}/cancel": {
       "post": {
         "operationId": "webvue_meetings.MeetingController.cancel_meeting.post",
@@ -44329,6 +44914,66 @@
           "handler": "delete_my_task_attachment",
           "readonly": false,
           "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/my-tasks/{task_id}/attachments/{att_id}/download": {
+      "get": {
+        "operationId": "webvue_tasks.MyTaskAttachmentsController.download_my_task_attachment.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "att_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "download_my_task_attachment",
+        "tags": [
+          "webvue_tasks"
+        ],
+        "x-webvue": {
+          "addon": "webvue_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": null,
+          "controller": "MyTaskAttachmentsController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "download_my_task_attachment",
+          "readonly": true,
+          "route_type": "http"
         }
       }
     },
@@ -45460,6 +46105,66 @@
           "handler": "delete_attachment",
           "readonly": false,
           "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/operations/requests/{request_id}/attachments/{attachment_id}/download": {
+      "get": {
+        "operationId": "webvue_operations.OperationsController.download_attachment.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "download_attachment",
+        "tags": [
+          "webvue_operations"
+        ],
+        "x-webvue": {
+          "addon": "webvue_operations",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "download_attachment",
+          "readonly": true,
+          "route_type": "http"
         }
       }
     },
@@ -49298,6 +50003,66 @@
           "handler": "delete_task_attachment",
           "readonly": false,
           "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/attachments/{attachment_id}/download": {
+      "get": {
+        "operationId": "webvue_pmo.TaskAttachmentController.download_task_attachment.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The file of one direct task attachment, for a caller who can see the task.",
+        "tags": [
+          "webvue_pmo"
+        ],
+        "x-webvue": {
+          "addon": "webvue_pmo",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "pmo",
+          "controller": "TaskAttachmentController",
+          "feature_keys": [
+            "pmo.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "download_task_attachment",
+          "readonly": true,
+          "route_type": "http"
         }
       }
     },

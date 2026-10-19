@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from .common import dump_day, dump_ref
+from .common import dump_day, dump_number, dump_ref
 from .parsing import (
     parse_day,
     parse_id,
@@ -17,7 +17,7 @@ REGISTER_FIELDS = frozenset({'invoice_ids', 'amount', 'payment_date', 'journal_i
 def dump_payment(payment):
     return {
         'id': payment.id,
-        'name': payment.name or '',
+        'name': dump_number(payment.name),
         'payment_type': payment.payment_type,
         'partner_type': payment.partner_type,
         'state': payment.state,

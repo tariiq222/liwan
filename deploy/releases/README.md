@@ -154,7 +154,7 @@ volumes:
 
 On that private edge network assign Caddy the configured fixed IP; only Caddy publishes customer ports. Set BFF `WEBVUE_RELEASE_TENANT_ID=tenant_a`, `WEBVUE_RELEASE_TENANT_HOST=tenant.example.test`, `WEBVUE_RELEASE_IDENTITY_REVISION=1` and `WEBVUE_DEDICATED_PROXY_TOKEN` through its private operator env file. Its `NUXT_ODOO_URL` must point to `http://dedicated-guard:8080`; the renderer requires and emits this configured guard URL for both hosting modes. Configure the BFF with the exact trusted local Host and private proxy token expected by the guard. Its selected release headers must match the lease snapshot. The guard refuses unknown Host, browser private pin headers, stale revision/token combinations and all business routes during maintenance. Dedicated clients retain raw Odoo session cookies; shared SaaS cookie envelopes are not used here.
 
-Import `deploy/releases/Caddyfile.dedicated` **inside the exact dedicated site's route after its existing aggregate rate policy**, replacing all previous web/Odoo path-specific proxies. Its catch-all proxy sends HTTP and WebSocket paths through the guard, including `/api/v1`, `/web/content` and `/websocket`, strips private client routing headers, and supplies trusted client Host/IP/proto. Do not leave an alternate direct Odoo/web route exposed. Caddy policy/network provisioning and live Docker image acceptance remain operator integration steps.
+Import `deploy/releases/Caddyfile.dedicated` **inside the exact dedicated site's route after its existing aggregate rate policy**, replacing all previous web/Odoo path-specific proxies. Its catch-all proxy sends HTTP and WebSocket paths through the guard, including `/api/v1` and `/websocket`, strips private client routing headers, and supplies trusted client Host/IP/proto. Do not leave an alternate direct Odoo/web route exposed. Caddy policy/network provisioning and live Docker image acceptance remain operator integration steps.
 
 ## Existing stateful commands
 
@@ -172,7 +172,7 @@ These commands require the concrete local runtime adapter configuration in `runt
 
 `LocalRuntime.prepare` refuses a missing `sourceGate`. Its `scope` is `product` for complete exported product trees, or `odoo` for an Odoo-only release. Supply canonical `baseRoot` and `targetRoot` containing the full WebVue addon trees and pinned stock dependency manifests. Bind `snapshot_digest` values as `compatibilityEvidence.baseSourceDigest` and `targetSourceDigest`. The runtime compares actual addon bytes and obtains the installed inventory through the serving generation’s stock ORM before classification. Unknown paths remain blocked. Target image provenance and a compatible schema remain independent readiness gates.
 
-Each tenant needs an `attachmentProbe` with an existing caller-readable `/web/content/<id>` path, a relative filestore path and its SHA256. Readiness reads the existing session, exact attachment bytes over target HTTP and disk, hashed JS, and both prerendered Arabic/English message dictionaries. Build i18n dictionaries before append-only asset publication; do not replace an existing release index to add missing bytes.
+Each tenant needs an `attachmentProbe` with an existing caller-readable attachment download path (`/api/v1/<app>/<resource>/<id>/attachments/<id>/download`), a relative filestore path and its SHA256. Readiness reads the existing session, exact attachment bytes over target HTTP and disk, hashed JS, and both prerendered Arabic/English message dictionaries. Build i18n dictionaries before append-only asset publication; do not replace an existing release index to add missing bytes.
 
 `tools.continuous_updates_acceptance.run` is an opt-in source-process lab, not a Docker deployment command. Its explicit JSON config requires mode local, loopback guard/PostgreSQL, ten scratch database bindings, dedicated source-process/PID/config/source hashes, a separate candidate DB role, existing sessions, and an `actorUserId` per tenant. It executes the same release engine while continuously reading and creating actual tasks, then reads back every acknowledged write. `jobsRequired:false` is confined to this HTTP lab; its report explicitly excludes Docker image and cron acceptance. Use new request IDs and preserve failure reports. The separate PostgreSQL driver tests infrastructure role fencing and artifact restoration.
 
@@ -205,3 +205,30 @@ Dockerfile build. Reports distinguish Docker identity, session/attachment reads,
 role fencing and singleton cron polling from business-job execution and complete
 restore acceptance. Never publish its private output configurations or session
 files. See the dated local verification report for actual commands and limits.
+
+## Independent Nitro bundles
+
+Prepare a completed build outside every running output directory. Record the exact source-input digest independently; this argument is an operator assertion, not image/build attestation.
+
+```sh
+python3 -B -m deploy.releases.cli bundle-prepare --source-output /srv/webvue/builds/candidate/.output --releases /srv/webvue/bundles --release-id release_20261019 --source-digest <64-hex-source-input-digest>
+python3 -B -m deploy.releases.cli bundle-verify --bundle /srv/webvue/bundles/release_20261019 --source-digest <64-hex-source-input-digest>
+```
+
+Run the verified bundle's `server/index.mjs` with its matching backend configuration; never run a build in that bundle. Internal Nitro dependency links are materialized, external/cyclic links rejected. Existing release IDs cannot be replaced. Public hashed assets use the existing append-only asset store. Old browser sessions still require the guard's configured asset-store route; copying a bundle alone does not activate a blue/green route.
+
+## Backup without a shared-service stop
+
+`backup-current` uses the same durable tenant maintenance barrier, guard acknowledgement and PostgreSQL role fencing as releases. It refuses an active drain, wrong binding, missing independent candidate role, wrong source image, running candidate cron or changed quiescence. It stops only the declared tenant cron; it never stops the shared HTTP service. Success restores admission to the current runtime role and restarts that tenant's cron. A failure remains in maintenance with `needs_intervention`; replay does not automatically overwrite an artifact or clear an uncertain fence.
+
+```sh
+python3 -B -m deploy.releases.cli backup-current --state /var/lib/webvue/releases --binding /etc/webvue/tenant-binding.json --runtime /etc/webvue/backup-runtime.json --request-id backup_20261019 --output /var/lib/webvue/backups/tenant-a-20261019
+```
+
+The runtime uses the existing `LocalRuntime` schema, two separately bound pool roles and a backup `image` matching the currently serving pool. This is tenant maintenance, not zero downtime for the affected tenant. Measure actual interruption and other-tenant continuity.
+
+For the shared control worker, the optional `releaseBackupConfig` field in its private `SharedRuntimeConfig` references an absolute, canonical JSON file with `stateDir` and `runtime` (the same release adapter configuration). The worker compares queued and registered tenant bindings and the physical PostgreSQL cluster identity, captures through this barrier, and emits the existing verified-backup manifest. The API cannot supply this file, a target, a proof or an image. Without it an enabled release-routed backup refuses rather than falling back to a global stop. Traditional non-release captures retain their explicit shared maintenance behavior.
+
+Restore publication is requested through `POST /v1/shared/tenants/:tenant/restore-publications/:approval` with only `{reason}`. It requires a fresh stepped-up vendor session with operations and tenant-management capabilities; the worker rechecks current grants, tenant state, physical observation and commercial reconciliation before using the existing isolated restore publisher. `GET` on that URL and shared operation detail report queued/published/needs-intervention. A failed/uncertain publication is not automatically requeued.
+
+The default Compose adapter currently supplies source-tenant subscription/usage observation only. It does **not** advertise `observeRestoreSubscription`. Commercial restores remain queued behind `commercial_reconciliation_pending` until an independently verified isolated-target observer and executor are provided; a source observer cannot substitute for them. Legacy tenants without an applied subscription do not require this commercial gate. PostgreSQL seam tests prove authority and queue behavior, not physical commercial restore acceptance. The inherited filesystem-publication/control-transaction recovery window also remains a release gate; this change does not establish crash-safe publication.

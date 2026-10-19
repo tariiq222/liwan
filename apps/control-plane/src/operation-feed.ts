@@ -1,3 +1,4 @@
+import { restorePublicationSchema } from '@webvue/commercial-contracts'
 import type { Pool } from 'pg'
 
 // This is a read projection only. Never copy shared jobs into the legacy queue.
@@ -58,5 +59,14 @@ export async function sharedOperationDetail(pool: Pool, id: string) {
   const events = await pool.query(`SELECT stage,
     CASE stage WHEN 'prepared' THEN 'running' WHEN 'started' THEN 'running' ELSE stage END AS status,
     created_at AS at FROM shared_job_events WHERE job_id=$1 ORDER BY sequence`, [id])
-  return { ...(await withTenantLabels(pool, [result.rows[0]]))[0], events: events.rows }
+  const row=result.rows[0]
+  let publication
+  if(row.type==='restore' && row.status==='verified'){
+    const detail=await pool.query(`SELECT j.payload->>'approvalId' AS "approvalId",COALESCE(p.status,'not_requested') AS status,p.code,p.host
+      FROM shared_jobs j LEFT JOIN shared_restore_publications p ON p.approval_id::text=j.payload->>'approvalId'
+      AND p.control_tenant_id=j.control_tenant_id WHERE j.id=$1`,[id])
+    const parsed=restorePublicationSchema.safeParse(detail.rows[0])
+    if(parsed.success)publication=parsed.data
+  }
+  return { ...(await withTenantLabels(pool, [row]))[0], events: events.rows, ...(publication?{restore_publication:publication}:{}) }
 }

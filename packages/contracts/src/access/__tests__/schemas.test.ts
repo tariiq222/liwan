@@ -44,12 +44,15 @@ const CAPABILITIES = [
   'hr.employees.access_status.read',
   'hr.departments.read',
   'hr.departments.manage',
-  'hr.documents.read',
-  'hr.documents.manage',
   'hr.leave.read',
   'hr.leave.request',
   'hr.leave.approve',
   'hr.leave.manage',
+  'documents.items.read',
+  'documents.items.manage',
+  'documents.items.archive',
+  'documents.access.manage',
+  'documents.library.manage',
   'pmo.projects.read',
   'pmo.projects.create',
   'pmo.projects.manage',
@@ -113,7 +116,7 @@ const AUDIT_SUMMARY = {
 describe('access capability and reference schemas', () => {
   it("lists today's capability catalog and accepts any well-formed key", () => {
     expect(KNOWN_CAPABILITIES).toEqual(CAPABILITIES)
-    expect(KNOWN_CAPABILITIES).toHaveLength(32)
+    expect(KNOWN_CAPABILITIES).toHaveLength(35)
     for (const key of [...CAPABILITIES, 'sales.orders.read', 'sales.orders.write', 'customer_acme.reports.export']) {
       expect(CapabilitySchema.parse(key)).toBe(key)
     }
@@ -232,7 +235,7 @@ describe('role and permission schemas', () => {
       sensitive: false,
     }
     expect(PermissionCatalogSchema.parse({ items: [sales], total: 1, version: 'access-catalog-v1' }).items[0]).toEqual(sales)
-    expect(KNOWN_PERMISSION_DOMAINS).toEqual(['access', 'hr', 'pmo', 'meetings', 'settings'])
+    expect(KNOWN_PERMISSION_DOMAINS).toEqual(['access', 'hr', 'pmo', 'meetings', 'settings', 'documents'])
     for (const domain of ['Sales', 'sales-orders', 'sales.orders', '9sales', '']) {
       expect(() => PermissionDefinitionSchema.parse({ ...sales, domain })).toThrow()
     }

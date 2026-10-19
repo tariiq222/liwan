@@ -84,6 +84,7 @@ class TestFinanceEntries(EntryCase):
 
     def test_post_then_reset_to_draft_then_delete(self):
         entry = self.create_entry()
+        self.assertIsNone(entry['name'])
         posted = self.post_entry(entry['id'])
         self.assertEqual(posted['state'], 'posted')
         self.assertNotEqual(posted['name'], '/')

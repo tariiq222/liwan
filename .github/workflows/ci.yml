@@ -39,6 +39,7 @@ jobs:
     outputs:
       stages: ${{ steps.select.outputs.stages }}
       base: ${{ steps.select.outputs.base }}
+      odoo-shards: ${{ steps.select.outputs.odoo-shards }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,6 +63,7 @@ jobs:
           fi
           echo "base=$base" >> "$GITHUB_OUTPUT"
           echo "stages=$stages" >> "$GITHUB_OUTPUT"
+          echo "odoo-shards=$(python3 -B tools/odoo_shards.py matrix)" >> "$GITHUB_OUTPUT"
           echo "Base $base, stages $stages"
 
   static:
@@ -146,11 +148,18 @@ jobs:
           npm-ci: 'false'
       - run: deploy/ci/vendor-admin.sh
 
+  # One job per shard (tools/odoo_shards.py): each installs every release module on its own Postgres
+  # service and runs the tests of its share of them. fail-fast is off so a red run reports every failing shard.
   odoo:
+    name: odoo (shard ${{ matrix.shard }})
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'odoo')
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.scope.outputs.odoo-shards) }}
     services:
       postgres:
         image: postgres:16
@@ -170,7 +179,7 @@ jobs:
         with:
           node: 'false'
           odoo: 'true'
-      - run: deploy/ci/odoo.sh
+      - run: deploy/ci/odoo.sh --shard ${{ matrix.shard }}/${{ strategy.job-total }}
 
   odoo-tasks-standalone:
     needs: scope

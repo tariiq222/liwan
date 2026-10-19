@@ -70,10 +70,12 @@ test('actual HTTP guard login/MFA/content/BFF, cookie propagation and fresh disa
   const cookie = result.headers['set-cookie'][0].split(';')[0]
   assert.match(result.headers['set-cookie'][0], /HttpOnly; Secure; SameSite=Lax/)
   assert.equal(codec.open(cookie.slice(11), targets[0]), 'odoo_sid')
-  for (const route of ['/api/v1/auth/totp', '/web/content/1']) {
-    result = await call(url, route, { host: targets[0].host, cookie })
-    assert.equal(result.status, 200); assert.equal(calls.at(-1).headers.cookie, 'session_id=odoo_sid')
-  }
+  result = await call(url, '/api/v1/auth/totp', { host: targets[0].host, cookie })
+  assert.equal(result.status, 200); assert.equal(calls.at(-1).headers.cookie, 'session_id=odoo_sid')
+  // Attachments are served only by the owning /api/v1 routes: stock /web/content never reaches Odoo.
+  const beforeContent = calls.length
+  result = await call(url, '/web/content/1', { host: targets[0].host, cookie })
+  assert.equal(result.status, 403); assert.equal(calls.length, beforeContent)
   for (const image of ['/web/image/res.company/7/logo/32x32?v=0-abcdef123456', '/web/image/hr.employee/9/avatar_128']) {
     result = await call(url, image, { host: targets[0].host, cookie })
     assert.equal(result.status, 200)

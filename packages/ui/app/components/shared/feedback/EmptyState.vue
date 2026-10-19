@@ -5,6 +5,7 @@ const props = defineProps<{
   title: string
   description?: string
   bordered?: boolean
+  compact?: boolean
 }>()
 </script>
 
@@ -13,8 +14,8 @@ const props = defineProps<{
     role="status"
     aria-live="polite"
     :data-bordered="props.bordered || undefined"
-    class="flex flex-col items-center justify-center gap-3 rounded-card px-6 py-10 text-center"
-    :class="props.bordered ? 'bg-default ring ring-default' : 'border border-dashed border-default'"
+    class="flex flex-col items-center justify-center gap-3 rounded-card text-center"
+    :class="[props.compact ? 'px-4 py-4' : 'px-6 py-10', props.bordered ? 'bg-default ring ring-default' : 'border border-dashed border-default']"
   >
     <div v-if="$slots.icon" class="text-muted" aria-hidden="true">
       <slot name="icon" />

@@ -4,7 +4,6 @@ from . import (
     entitlement_service,
     feature_registry,
     hr_department,
-    hr_document,
     hr_employee,
     hr_report,
     hr_version,
