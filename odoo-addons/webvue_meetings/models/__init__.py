@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+# `meeting_minute_*` extend the base model of `meeting_minute` and sort after it: keep that order.
 from . import (
     calendar_event,
     entitlement_service,
@@ -9,6 +10,13 @@ from . import (
     meeting_links,
     meeting_mail_message,
     meeting_minute,
+    meeting_minute_activity,
+    meeting_minute_calendar,
+    meeting_minute_followers,
+    meeting_minute_form,
+    meeting_minute_reminders,
+    meeting_minute_schedule_scope,
+    meeting_minute_snapshot,
     meeting_notification_types,
     meeting_resolution,
     meeting_series,
