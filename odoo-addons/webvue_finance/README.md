@@ -451,12 +451,25 @@ excepted), the current company only. Dates are `YYYY-MM-DD`; `target_move` is `p
   earlier fiscal years sit on the unaffected-earnings account's opening balance). Runs the OCA trial balance
   (`trial.balance.report.wizard` as a virtual record plus `report.account_financial_report.trial_balance`).
 - `GET /reports/general-ledger?date_from&date_to[&account_id][&partner_id][&limit][&offset]`: per account the opening
-  balance, the period debit and credit, the closing balance and a `lines` page `{items, total}` (`limit`/`offset`
-  apply to the lines and need `account_id`: without it 422 `invalid` on `account_id`; every line carries the running
-  `balance`). No centralization or grouping.
+  balance (balance sheet accounts: every earlier item; profit and loss accounts: the fiscal year's; the earlier years
+  sit on the unaffected-earnings account, listed when no account is named), the period debit and credit, the closing
+  balance and `lines` `{items, total}`. `total` counts the period's lines; `items` is one SQL page (`limit`/`offset`,
+  date order) of the one `account_id` they require (without it 422 `invalid` on `account_id`, and `items` is empty),
+  and every line carries the running `balance` of its account. The sums are grouped reads on the journal items and the
+  page is `search(limit, offset)` with one sum for the lines before it, so the cost does not grow with the ledger; the
+  OCA general ledger is the reference of the parity tests, not run by the route. The fiscal year is the company's
+  (`compute_fiscalyear_dates`, so a year ending in June works). Year-end closing entries (`webvue_closing_year`) are
+  ordinary posted entries: they appear as lines of the profit and loss accounts and of the unaffected-earnings account
+  `999999`. Deliberately unlike the OCA engine, a ledger of `999999` alone has the same opening balance as its row of the
+  full ledger (the earlier years' result is added back); the engine leaves it out when an account is named. No
+  centralization or grouping.
 - `GET /reports/aged-partner-balance?date_to[&kind=receivable|payable][&partner_id]`: open balances at `date_to`, aged
   from the due date into `current`, `days_1_30`, `days_31_60`, `days_61_90`, `days_91_120`, `days_over_120` and `total`,
-  per account and partner (a credit balance is negative).
+  per account and partner (a credit balance is negative; items without a partner form the row with `partner` null).
+  One grouped read of `amount_residual` per bucket; a reconciliation dated after `date_to` still counts its amount as
+  open at that date (the OCA engine does so only when `date_to` is in the past). The items it touched are found by a
+  subquery on their partial reconciles within the report's accounts and partner, and aged one by one; the other items
+  are excluded from the bucket sums the same way, so the query count stays constant.
 - `GET /reports/partner-statement?partner_id&date_from&date_to[&kind]` (`partner_id` must be a company or a person, not a
   contact of one: 422 `invalid`): the OCA activity statement (opening balance, the
   period's items with a running balance, aging buckets). `type=outstanding` takes only `date_to` and lists the open

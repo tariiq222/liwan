@@ -42,7 +42,7 @@ def _optional_account():
 
 
 class FinanceStatementController(http.Controller):
-    """The OCA account_financial_report and partner_statement reports, as JSON, in the company currency."""
+    """The statement reports as JSON, in the company currency: sums in SQL, and the OCA engines for the trial balance and partner statements."""
 
     @http.route('/api/v1/finance/reports/trial-balance', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
@@ -62,7 +62,7 @@ class FinanceStatementController(http.Controller):
     @api_handler
     @requires_feature('finance.enabled', operation='read')
     def general_ledger(self, **_):
-        """The ledger; ``limit``/``offset`` page the lines of the one ``account_id`` they require (date order)."""
+        """The ledger totals per account; ``account_id`` adds its lines, which ``limit``/``offset`` page (date order)."""
         require_capability('finance.statements.read')
         date_from, date_to = parse_period(request.httprequest.args)
         only_posted = parse_only_posted()
@@ -73,9 +73,9 @@ class FinanceStatementController(http.Controller):
         account, partner = _optional_account(), _optional_partner()
         company = request.env.company
         values = request.env['webvue.finance.statement.report']._webvue_general_ledger(
-            company, date_from, date_to, only_posted, account, partner,
+            company, date_from, date_to, only_posted, account, partner, limit, offset,
         )
-        return dump_general_ledger(company, date_from, date_to, only_posted, values, limit, offset)
+        return dump_general_ledger(company, date_from, date_to, only_posted, values)
 
     @http.route('/api/v1/finance/reports/aged-partner-balance', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

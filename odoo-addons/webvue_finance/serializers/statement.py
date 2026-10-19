@@ -2,15 +2,11 @@
 """Shapes of the statement reports: trial balance, general ledger, aged partner balance, partner statement.
 
 The OCA report models return large dictionaries meant for their QWeb templates; only the figures listed
-here are copied out, rounded to the company currency.
+here are copied out (the general ledger and the aged balance come as plain rows from the statement model), rounded to the company currency.
 """
 from .common import dump_day
+from odoo.addons.webvue_finance.models.statement_report import AGED_BUCKET_NAMES
 
-# The overdue buckets of the aged partner balance, by the key the OCA report uses.
-AGED_BUCKETS = (
-    ('current', 'current'), ('days_1_30', '30_days'), ('days_31_60', '60_days'),
-    ('days_61_90', '90_days'), ('days_91_120', '120_days'), ('days_over_120', 'older'),
-)
 # The same buckets in the partner statement report.
 STATEMENT_BUCKETS = (
     ('current', 'current'), ('days_1_30', 'b_1_30'), ('days_31_60', 'b_30_60'),
@@ -21,6 +17,10 @@ TRIAL_BALANCE_AMOUNTS = ('initial_balance', 'debit', 'credit', 'balance', 'endin
 
 def _account(row):
     return {'id': row['id'], 'code': row['code'], 'name': row['name']}
+
+
+def _account_record(account):
+    return {'id': account.id, 'code': account.code, 'name': account.name}
 
 
 def _partner(partner_id, name):
@@ -53,64 +53,83 @@ def dump_trial_balance(company, date_from, date_to, only_posted, values):
     }
 
 
-def _dump_ledger_line(line, journals, currency):
+def _ledger_label(line):
+    """The journal item's reference and label, joined unless one repeats or lacks the other."""
+    if not line.ref or line.ref == line.name:
+        return line.name or ''
+    return f'{line.ref} - {line.name}' if line.name else line.ref
+
+
+def _dump_ledger_line(entry, currency):
+    line = entry['line']
     return {
-        'id': line['id'],
-        'date': dump_day(line['date']),
-        'entry': line['entry'],
-        'journal': journals[line['journal_id']]['code'],
-        'partner': _partner(line['partner_id'], line['partner_name']),
-        'label': line['ref_label'] or '',
-        'debit': currency.round(line['debit']),
-        'credit': currency.round(line['credit']),
-        'balance': currency.round(line['balance']),
+        'id': line.id,
+        'date': dump_day(line.date),
+        'entry': line.move_name,
+        'journal': line.journal_id.code,
+        'partner': _partner(line.partner_id.id, line.partner_id.display_name),
+        'label': _ledger_label(line),
+        'debit': currency.round(line.debit),
+        'credit': currency.round(line.credit),
+        'balance': currency.round(entry['balance']),
     }
 
 
-def dump_general_ledger(company, date_from, date_to, only_posted, values, limit, offset):
+def dump_general_ledger(company, date_from, date_to, only_posted, rows):
     """Per account: the opening balance, the period debit and credit, the closing balance and one page of lines.
 
-    A line's ``balance`` is the running balance of its account after the line.
+    ``rows`` come from ``_webvue_general_ledger``: ``lines`` holds the page only and ``total`` the count of the
+    period's lines (a ledger without ``account_id`` lists no lines). A line's ``balance`` is the running
+    balance of its account after the line.
     """
     currency = company.currency_id
-    accounts = []
-    for account in values['general_ledger']:
-        lines = account.get('move_lines', [])
-        accounts.append({
-            'account': _account(account),
-            'initial_balance': currency.round(account['init_bal']['balance']),
-            'debit': currency.round(sum(line['debit'] for line in lines)),
-            'credit': currency.round(sum(line['credit'] for line in lines)),
-            'ending_balance': currency.round(account['fin_bal']['balance']),
-            'lines': {
-                'items': [_dump_ledger_line(line, values['journals_data'], currency) for line in lines[offset:offset + limit]],
-                'total': len(lines),
-            },
-        })
-    return {**_period(date_from, date_to, only_posted, currency), 'accounts': accounts}
+    return {
+        **_period(date_from, date_to, only_posted, currency),
+        'accounts': [
+            {
+                'account': _account_record(row['account']),
+                'initial_balance': currency.round(row['initial_balance']),
+                'debit': currency.round(row['debit']),
+                'credit': currency.round(row['credit']),
+                'ending_balance': currency.round(row['ending_balance']),
+                'lines': {'items': [_dump_ledger_line(entry, currency) for entry in row['lines']], 'total': row['total']},
+            }
+            for row in rows
+        ],
+    }
 
 
 def _dump_buckets(source, keys, currency):
     return {name: currency.round(source[key]) for name, key in keys}
 
 
+def _sum_buckets(rows, currency):
+    return {
+        **{name: currency.round(sum(row[name] for row in rows)) for name in AGED_BUCKET_NAMES},
+        'total': currency.round(sum(row['total'] for row in rows)),
+    }
+
+
 def dump_aged_partner_balance(company, date_at, only_posted, account_type, values):
-    """Open receivable (or payable) balances aged from their due date to ``date_at``, per account and partner."""
+    """Open receivable (or payable) balances aged from their due date to ``date_at``, per account and partner.
+
+    ``values`` are the ``(account, partner, buckets)`` triples of ``_webvue_aged_partner_balance``.
+    """
     currency = company.currency_id
+    by_account = {}
+    for account, partner, buckets in values:
+        amounts = {name: currency.round(buckets[name]) for name in AGED_BUCKET_NAMES}
+        by_account.setdefault(account, []).append({
+            'partner': _partner(partner.id, partner.display_name),
+            **amounts,
+            'total': currency.round(sum(amounts.values())),
+        })
     accounts = []
-    for account in values['aged_partner_balance']:
-        partners = []
-        for partner in account['partners']:
-            record = partner['move_lines'][0]['line_rec'].partner_id
-            partners.append({
-                'partner': _partner(record.id, partner['name']),
-                **_dump_buckets(partner, AGED_BUCKETS, currency),
-                'total': currency.round(partner['residual']),
-            })
+    for account in sorted(by_account, key=lambda found: found.code):
+        partners = sorted(by_account[account], key=lambda row: (row['partner'] is None, row['partner']['name'] if row['partner'] else ''))
         accounts.append({
-            'account': _account(account),
-            **_dump_buckets(account, AGED_BUCKETS, currency),
-            'total': currency.round(account['residual']),
+            'account': _account_record(account),
+            **_sum_buckets(partners, currency),
             'partners': partners,
         })
     return {
@@ -119,10 +138,7 @@ def dump_aged_partner_balance(company, date_at, only_posted, account_type, value
         'target_move': 'posted' if only_posted else 'all',
         'currency': currency.name,
         'accounts': accounts,
-        'totals': {
-            **{name: currency.round(sum(account[name] for account in accounts)) for name, _key in AGED_BUCKETS},
-            'total': currency.round(sum(account['total'] for account in accounts)),
-        },
+        'totals': _sum_buckets(accounts, currency),
     }
 
 
