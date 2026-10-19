@@ -1,0 +1,91 @@
+{
+  "hrAssets": {
+    "title": "العهد والأصول",
+    "description": "أجهزة الموظفين وعهدهم ومواعيد الضمان.",
+    "new": "أصل جديد",
+    "search": "بحث بالاسم أو الرقم التسلسلي…",
+    "searchValue": "بحث: {value}",
+    "anyCategory": "كل التصنيفات",
+    "anyEmployee": "كل الموظفين",
+    "unassigned": "غير مُسلَّم",
+    "noCategory": "بلا تصنيف",
+    "noSerial": "بلا رقم تسلسلي",
+    "emptyTitle": "لا أصول بعد",
+    "emptyHint": "أضف أصلًا ليظهر هنا ويمكن تسليمه لموظف.",
+    "footer": "لا أصول | عرض {shown} من أصل واحد | عرض {shown} من أصلين | عرض {shown} من {total} أصول | عرض {shown} من {total} أصلًا | عرض {shown} من {total} أصل",
+    "filter": {
+      "active": "حالة الأصل",
+      "custody": "العهدة"
+    },
+    "assignedFilter": {
+      "all": "الكل",
+      "true": "مُسلَّم",
+      "false": "غير مُسلَّم"
+    },
+    "activeFilter": {
+      "true": "النشطة",
+      "false": "المؤرشفة",
+      "all": "الكل"
+    },
+    "columns": {
+      "name": "الأصل",
+      "category": "التصنيف",
+      "employee": "الموظف",
+      "assignDate": "تاريخ التسليم",
+      "state": "الحالة"
+    },
+    "state": {
+      "active": "نشط",
+      "archived": "مؤرشف"
+    },
+    "form": {
+      "details": "بيانات الأصل",
+      "namePlaceholder": "اسم الجهاز أو الأصل",
+      "nameRequired": "اسم الأصل مطلوب.",
+      "chooseCategory": "اختر تصنيفًا",
+      "serialNo": "الرقم التسلسلي",
+      "model": "الطراز",
+      "warrantyDate": "انتهاء الضمان",
+      "warrantyHint": "التاريخ الذي ينتهي فيه ضمان الأصل.",
+      "requiredHint": "الحقول المعلّمة بـ * مطلوبة.",
+      "submit": "إضافة الأصل"
+    },
+    "custody": {
+      "title": "العهدة",
+      "employee": "المُسلَّم إليه",
+      "since": "مُسلَّم منذ",
+      "never": "لم يُسلَّم بعد",
+      "date": "تاريخ التسليم",
+      "assign": "تسليم العهدة",
+      "assignedHint": "الأصل مُسلَّم حاليًا؛ أرجعه أولًا لتسليمه لموظف آخر.",
+      "chooseEmployee": "اختر موظفًا",
+      "return": "إرجاع العهدة",
+      "returnConfirm": "إرجاع هذا الأصل؟",
+      "returnHint": "يُرفع سجل التسليم ويبقى تاريخ آخر عهدة في سجل الأصل."
+    },
+    "archive": {
+      "action": "أرشفة الأصل",
+      "confirmTitle": "أرشفة هذا الأصل؟",
+      "scrapDate": "تاريخ الإخراج"
+    },
+    "detail": {
+      "empty": "غير محدد"
+    },
+    "categories": {
+      "title": "تصنيفات الأصول",
+      "description": "التصنيفات المتاحة للأصول.",
+      "new": "تصنيف جديد",
+      "emptyTitle": "لا تصنيفات",
+      "emptyHint": "أنشئ تصنيفًا لتنظيم الأصول.",
+      "footer": "لا تصنيفات | تصنيف واحد | تصنيفان | {shown} من {total} تصنيفات | {shown} من {total} تصنيفًا | {shown} من {total} تصنيف",
+      "columns": {
+        "name": "التصنيف"
+      },
+      "form": {
+        "details": "بيانات التصنيف",
+        "namePlaceholder": "اسم التصنيف",
+        "nameRequired": "اسم التصنيف مطلوب."
+      }
+    }
+  }
+}
