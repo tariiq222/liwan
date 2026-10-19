@@ -1,4 +1,4 @@
-import '../../../packages/ui/app/assets/css/main.css'
+import './storybook.css'
 import type { Preview } from '@storybook/vue3-vite'
 import { setup } from '@storybook/vue3-vite'
 import { computed, h } from 'vue'

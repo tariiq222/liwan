@@ -18,7 +18,7 @@ from odoo.addons.webvue_pmo.serializers.project_reports import (
 )
 
 LIST_QUERY = {'q', 'status', 'limit', 'offset'}
-SUMMARY_QUERY = {'q', 'status'}
+SUMMARY_QUERY = {'q', 'status', 'mine'}
 
 
 def _parse_limit(value):
@@ -39,8 +39,13 @@ class ProjectReportsController(http.Controller):
             raise ApiError(
                 422, 'invalid', f"status must be one of {sorted(STATUS_VALUES)} or 'unset'", field='status',
             )
+        mine = args.get('mine')
+        if mine is not None and mine not in ('1', 'true', '0', 'false'):
+            raise ApiError(422, 'invalid', "mine must be '1', 'true', '0' or 'false'", field='mine')
         q = (args.get('q') or '').strip()
         domain = [('active', '=', True), ('company_id', '=', request.env.company.id)]
+        if mine in ('1', 'true'):
+            domain.append(('user_id', '=', request.env.uid))
         if q:
             domain.append(('name', 'ilike', q))
         if status == 'unset':

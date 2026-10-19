@@ -6,6 +6,7 @@ import { onBeforeRouteLeave, type RouteLocationNormalized } from 'vue-router'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import ProjectTable from '@/components/pmo/projects/ProjectTable.vue'
 import ProjectCards from '@/components/pmo/projects/ProjectCards.vue'
+import ProjectKpiStrip from '@/components/pmo/projects/ProjectKpiStrip.vue'
 import {
   PROJECT_PAGE,
   parseProjectListRoute,
@@ -107,6 +108,8 @@ const listFilters = computed(() => ({
   offset: filters.offset,
 }))
 const projectList = useProjectList(archived, listFilters)
+// The KPI strip counts what the filters select, across every page; archived projects have no strip.
+const summaryFilters = computed(() => ({ q: filters.q, mine: filters.mine, status: filters.status === 'all' ? undefined : filters.status }))
 const items = computed(() => projectList.data.value?.items ?? [])
 type CapabilityOutcome = { at: number; allowed: boolean }
 const latestCapability = ref<CapabilityOutcome>({ at: 0, allowed: false })
@@ -255,6 +258,7 @@ async function openProject(id: number) {
 <template>
   <SharedListPage
     :title="t(filters.mine ? 'nav.myProjects' : 'nav.allProjects')"
+    :description="t(filters.mine ? 'projects.myDescription' : 'projects.description')"
     :create-to="createTo"
     :create-label="t('projects.new')"
     create-test-id="project-new"
@@ -266,6 +270,7 @@ async function openProject(id: number) {
            card (filters inside it) only once this page has hydrated, so server and client never disagree about its tree and no
            control's first click is lost; the toolbar's controls stay disabled until then. One card and one filter row serve both
            views: switching only swaps what is under the row. -->
+      <ProjectKpiStrip v-if="hydrated && !archived" :filters="summaryFilters" />
       <SharedListCard v-if="hydrated">
         <template #filters>
           <div class="w-full min-w-0" data-testid="projects-toolbar">

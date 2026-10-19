@@ -7,7 +7,7 @@ const meta = {
   title: 'Project/ProjectMenu',
   component: ProjectMenu,
   args: { project, hideSettings: true },
-  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCardBody.vue:42', 'تذييل بطاقة المشروع. الأرشفة تعرض تأكيدًا ثم خطأ 422 لأن Storybook لا يحاكي تفاصيل المشروع الكاملة.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCardBody.vue:29', 'رأس بطاقة المشروع. الأرشفة تعرض تأكيدًا ثم خطأ 422 لأن Storybook لا يحاكي تفاصيل المشروع الكاملة.'),
   render: args => ({
     components: { ProjectMenu },
     setup: () => ({ args }),

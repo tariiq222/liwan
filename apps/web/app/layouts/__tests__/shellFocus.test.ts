@@ -29,6 +29,13 @@ function loadLayout(route: { path: string }) {
     useHead: () => undefined,
     pageArea: () => ({ plain: false, record: false }),
     hasNoContextSidebar: () => false,
+    // The shell publishes the page trail from the layout (DESIGN.md §3); focus behaviour does not
+    // read it, so the harness stands in with an empty rail and no page title.
+    useHydrated: () => Vue.ref(true),
+    useShellModel: () => ({ rail: Vue.ref({ all: [] }) }),
+    usePageHeaderTitle: () => Vue.ref(null),
+    shellBreadcrumb: () => [],
+    providePageTrail: () => undefined,
     requestAnimationFrame: () => 1, cancelAnimationFrame: () => undefined,
     setTimeout: () => 1, clearTimeout: () => undefined,
   }
