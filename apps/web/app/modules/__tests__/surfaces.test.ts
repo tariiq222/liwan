@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { activeManifests, withManifests } from '../manifests'
-import { bellKindFor, manifestRoutePrefixes, searchProviders, sidebarPanelFor } from '../surfaces'
+import { bellKindFor, manifestRoutePrefixes, recordPickerFor, routeScopeOf, searchProviders, sidebarPanelFor } from '../surfaces'
 import { projectsSearch, tasksSearch } from '../pmo/search'
 import type { AppManifest, AppSearchApi } from '../types'
 
@@ -89,6 +89,36 @@ describe('manifest sidebar panels', () => {
     const panel = { module: 'sales', width: 'default' as const, load: async () => ({ default: {} }) }
     withManifests([...activeManifests(), { ...sales, sidebarPanel: panel }], () => {
       expect(sidebarPanelFor('sales')).toBe(panel)
+    })
+  })
+})
+
+describe('manifest record pickers', () => {
+  it('gives PMO the project picker and no other kind', () => {
+    expect(recordPickerFor('project')?.capability).toBe('pmo.projects.read')
+    expect(recordPickerFor('project')?.taskCapability).toBe('pmo.tasks.create')
+    expect(recordPickerFor('order')).toBeUndefined()
+  })
+  it('finds a picker a newer application declares', () => {
+    const picker = { kind: 'order', capability: 'sales.orders.read', queryKey: ['orders'] as const, options: async () => [{ id: 1, name: 'SO-1' }] }
+    withManifests([...activeManifests(), { ...sales, recordPickers: [picker] }], () => {
+      expect(recordPickerFor('order')).toBe(picker)
+    })
+    expect(recordPickerFor('order')).toBeUndefined()
+  })
+})
+
+describe('manifest route scopes', () => {
+  it('reads the project a PMO path lives inside', () => {
+    expect(routeScopeOf('/projects/12/tasks')).toEqual({ kind: 'project', id: 12 })
+    expect(routeScopeOf('/projects/dashboard')).toBeNull()
+    expect(routeScopeOf('/meetings/12')).toBeNull()
+  })
+  it('reads the record a newer application declares', () => {
+    const scope = { kind: 'order', idFromPath: (path: string) => Number(path.match(/^\/sales\/(\d+)/)?.[1]) || null }
+    withManifests([...activeManifests(), { ...sales, routeScopes: [scope] }], () => {
+      expect(routeScopeOf('/sales/9/lines')).toEqual({ kind: 'order', id: 9 })
+      expect(routeScopeOf('/projects/4')).toEqual({ kind: 'project', id: 4 })
     })
   })
 })

@@ -25,7 +25,7 @@ export function useShellModel() {
   const { t } = useI18n()
   const route = useRoute()
   const { me } = useMe()
-  const { activeModule, module, projectId, project, contextLinks } = useShellNavigation(me)
+  const { activeModule, module, contextLinks } = useShellNavigation(me)
   const contextModule = computed(() => contextModuleFor(activeModule.value))
   const definition = computed(() => shellModuleList().find(item => item.id === contextModule.value) ?? module.value)
   const rail = computed(() => railModel(visibleShellModules(me.value)))
@@ -42,6 +42,6 @@ export function useShellModel() {
 
   return {
     activeModule, contextModule, rail, homePath, contextTitle, contextLabelKey, contextLinks,
-    panel, panelView: panelComponent, motionKey, projectId, project, identity: me, createTo,
+    panel, panelView: panelComponent, motionKey, identity: me, createTo,
   }
 }

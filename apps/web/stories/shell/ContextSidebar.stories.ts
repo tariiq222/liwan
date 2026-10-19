@@ -22,10 +22,10 @@ const render = (titleKey: string) => (args: Story['args']) => ({
   template: `<div class="webvue-shell min-h-svh"><div class="webvue-context-column"><ContextSidebar v-bind="args" :title="t('${titleKey}')" /></div></div>`,
 })
 
-export const Projects: Story = { name: 'المشاريع مع عدّاد', parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:52'), render: render('nav.projects') }
+export const Projects: Story = { name: 'المشاريع مع عدّاد', parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:44'), render: render('nav.projects') }
 export const WithSections: Story = {
   name: 'أقسام بعناوين',
-  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:52'),
+  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:44'),
   args: { createLinks: sectionedSidebar.createLinks, sections: sectionedSidebar.sections, counts: {} },
   render: render('nav.settings'),
 }

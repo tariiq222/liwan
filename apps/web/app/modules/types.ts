@@ -90,6 +90,31 @@ export interface AppSidebarPanel {
   width: 'default' | 'wide'
   load: () => Promise<{ default: Component }>
 }
+/** A record one application lets another application pick or filter by. */
+export interface AppRecordOption { id: number; name: string }
+/**
+ * A kind of record other applications may pick or filter by (the project a meeting belongs to). The
+ * application that owns the kind declares it, so no other application imports that application's code.
+ */
+export interface AppRecordPicker {
+  /** Record kind, unique across manifests. */
+  kind: string
+  /** Capability that reads the options; without it the picker is unavailable. */
+  capability: string
+  /** Capability to create a task in a picked record; absent when the kind cannot hold tasks. */
+  taskCapability?: string
+  /** Vue-query key of the options, so the owning application's writes refresh them. */
+  queryKey: readonly unknown[]
+  /** Every option, walking server pages itself; runs through useApi(). */
+  options: (api: AppSearchApi, signal?: AbortSignal) => Promise<AppRecordOption[]>
+}
+/** The record a route lives inside, such as the project at `/projects/7/tasks`. */
+export interface AppRouteScope {
+  /** Record kind; the same names the record pickers use. */
+  kind: string
+  /** Id of the record `path` lives inside, or null for a path outside every such record. */
+  idFromPath: (path: string) => number | null
+}
 export interface AppManifest {
   id: string                         // 'pmo' | 'meetings' | 'hr' | 'chat' | '<app>'
   feature: string                    // '<app>.enabled'
@@ -116,6 +141,10 @@ export interface AppManifest {
   /** Palette actions (Actions group of the command palette). */
   commands?: AppCommand[]
   sidebarPanel?: AppSidebarPanel
+  /** Record kinds other applications may pick or filter by. */
+  recordPickers?: AppRecordPicker[]
+  /** Records whose routes this application owns, so the shell can tell which record a path lives inside. */
+  routeScopes?: AppRouteScope[]
   /** Extra paths a post-login `next` may return to, beyond the landing paths. */
   returnToPaths?: string[]
   /**

@@ -41,7 +41,8 @@ async function load(file: string, url: RouteLocationRaw) {
     useNuxtApp: () => ({ hook: hooks.hook }),
     useRoute: () => router.currentRoute.value, useRouter: () => router,
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('ar') }), useHydrated: () => Vue.ref(true),
-    useAccess: () => ({ can: () => true }), useMe: () => ({ me: Vue.ref({}) }), useToast: () => ({ add: vi.fn() }),
+    useAccess: () => ({ can: () => true }), useRecordPickerAvailable: () => Vue.computed(() => true),
+    useRecordPicker: () => ({ available: Vue.computed(() => true), query: { data: Vue.ref([]), isLoading: Vue.ref(false), error: Vue.ref(null) } }), useMe: () => ({ me: Vue.ref({}) }), useToast: () => ({ add: vi.fn() }),
     useBranding: () => ({ branding: Vue.ref({}) }), useSsrQuerySeed: () => {}, navigateTo: navigate,
     refDebounced: (value: unknown) => value, createMeetingMinutesForm: () => ({}),
   }

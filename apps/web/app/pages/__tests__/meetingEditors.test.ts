@@ -51,10 +51,10 @@ function evaluatedDetailPage() {
     useHydrated: () => ref(true),
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
     useMeetingSubmitError: () => ({ fieldErrors: computed(() => ({})), submitError: computed(() => '') }),
-    useAccess: () => ({ can: () => true }),
+    useAccess: () => ({ can: () => true }), useRecordPickerAvailable: () => computed(() => true),
     useResolutionAction: () => ({ mutateAsync: runResolution }),
     useConvertResolution: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
-    useProjects: () => ({ data: ref([]), isLoading: ref(false), isFetching: ref(false), error: ref(null) }),
+    useRecordPicker: () => ({ available: computed(() => true), query: { data: ref([]), isLoading: ref(false), isFetching: ref(false), error: ref(null) } }),
     safeReturnTo: (_value: unknown, fallback: string) => fallback,
     returnToQuery: () => ({}),
     filterMeetingResolutions: (items: unknown[]) => items,

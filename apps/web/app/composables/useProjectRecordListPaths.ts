@@ -1,7 +1,7 @@
 import { toValue, type MaybeRefOrGetter } from 'vue'
 import { useRecordListPaths } from './useRecordListPaths'
-import { planningSections, projectSections } from './nav/projectSections'
-import { governanceSections } from './nav/governanceSections'
+import { planningSections, projectSections } from '../modules/pmo/projectSections'
+import { governanceSections } from '../modules/pmo/governanceSections'
 import { canReach } from '../utils/accessPolicy'
 
 /** Existing readable sections of this project are valid cross-section journey sources. */

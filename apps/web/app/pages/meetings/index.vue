@@ -22,6 +22,7 @@ const router = useRouter()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
+const hasProjectFilter = useRecordPickerAvailable('project')
 const routeFilters = computed(() => parseMeetingListFilters(route.query))
 const search = ref(routeFilters.value.q)
 const state = ref(routeFilters.value.state)
@@ -259,7 +260,7 @@ function setPage(next: number) {
           </template>
           <template #default>
             <USelect data-testid="meeting-state" class="w-full md:w-44" icon="i-lucide-activity" :items="stateOptions" :model-value="stateSelect" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="onStateChange" />
-            <MeetingProjectFilter v-if="can('pmo.projects.read')" id="meeting-project" hide-label class="w-full md:w-44" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
+            <MeetingProjectFilter v-if="hasProjectFilter" id="meeting-project" hide-label class="w-full md:w-44" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
             <div class="grid w-full gap-1 md:w-44">
               <USelectMenu
                 id="meeting-organizer"

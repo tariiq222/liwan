@@ -14,10 +14,9 @@ import { hasNoContextSidebar } from './noContextRoutes'
 // Desktop navigation: the module rail and the context sidebar, fed by one model.
 const route = useRoute()
 const showContext = computed(() => !hasNoContextSidebar(route.path))
-const { me } = useMe()
 const { t } = useI18n()
 const quick = useQuickViews()
-const { activeModule, rail, homePath, contextTitle, contextLabelKey, contextLinks, panel, panelView, motionKey, projectId, project, createTo } = useShellModel()
+const { activeModule, rail, homePath, contextTitle, contextLabelKey, contextLinks, panel, panelView, motionKey, createTo } = useShellModel()
 const { expanded, hydrated, toggle, preference } = useContextSidebar()
 const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 const model = computed(() => sidebarModel({
@@ -37,13 +36,6 @@ useEventListener('keydown', (event: KeyboardEvent) => {
   event.preventDefault()
   toggle()
 })
-
-// Remember the last readable project section for re-entry (moved from ContextSidebar).
-const isProject = computed(() => !!projectId.value && activeModule.value === 'projects')
-const { remember } = useProjectWorkspaceMemory()
-watch([() => route.fullPath, () => project.data.value, () => me.value, hydrated], () => {
-  if (isProject.value && project.data.value?.id === projectId.value && !project.error.value) remember(route.path, route.query)
-}, { immediate: true })
 </script>
 
 <template>

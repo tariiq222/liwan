@@ -1,5 +1,7 @@
 import { ProjectNotificationKindSchema, TaskNotificationKindSchema } from '@webvue/contracts'
 import type { AppManifest } from '../types'
+import { projectIdFromPath } from './projectRoutes'
+import { projectPicker } from './recordPicker'
 import { projectsSearch, tasksSearch } from './search'
 
 const isProjectSettings = (path: string) => path === '/projects/settings' || path.startsWith('/projects/settings/')
@@ -55,6 +57,8 @@ const manifest: AppManifest = {
     ],
   },
   search: [projectsSearch, tasksSearch],
+  recordPickers: [projectPicker],
+  routeScopes: [{ kind: 'project', idFromPath: projectIdFromPath }],
   commands: [
     { id: 'pmo.new-project', labelKey: 'nav.newProject', icon: 'i-lucide-folder-kanban', to: '/projects/new', capability: 'pmo.projects.create' },
     { id: 'pmo.new-task', labelKey: 'tasks.new', icon: 'i-lucide-check-square', to: '/tasks/new', capability: 'pmo.tasks.create' },

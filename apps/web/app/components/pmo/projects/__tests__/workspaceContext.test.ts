@@ -3,9 +3,9 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { defineComponent, h, ref } from 'vue'
 import { describe, expect, it } from 'vitest'
 import { loadShared, renderShared } from '@webvue/ui/test/helpers/renderShared'
-import * as projectNavigation from '../../../../composables/nav/projectSections'
-import * as governanceNavigation from '../../../../composables/nav/governanceSections'
-import * as activeRoute from '../../../../composables/nav/activeRoute'
+import * as projectNavigation from '../../../../modules/pmo/projectSections'
+import * as governanceNavigation from '../../../../modules/pmo/governanceSections'
+import * as activeRoute from '../../../../modules/pmo/projectRoutes'
 import * as workspaceMemory from '../../../../utils/projectWorkspaceMemory'
 import * as sectionTabs from '@webvue/ui/app/utils/sectionTabs'
 
@@ -18,9 +18,9 @@ async function links(path: string, level = 'sections') {
       useMe: () => ({ me: ref({ capabilities: ['pmo.projects.read', 'pmo.tasks.read', 'meetings.read'] }) }),
     },
     modules: {
-      '@/composables/nav/projectSections': projectNavigation,
-      '@/composables/nav/governanceSections': governanceNavigation,
-      '@/composables/nav/activeRoute': activeRoute,
+      '@/modules/pmo/projectSections': projectNavigation,
+      '@/modules/pmo/governanceSections': governanceNavigation,
+      '@/modules/pmo/projectRoutes': activeRoute,
       '@/composables/useProjects': { useProject: () => ({ data: ref({ active: true }) }) },
       '@/utils/projectWorkspaceMemory': workspaceMemory,
     },
