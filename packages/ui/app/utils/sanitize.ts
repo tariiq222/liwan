@@ -55,7 +55,6 @@ function decodeEntities(value: string): string {
   // a decoded "java&Tab;script:"), so removing them outright — matching how
   // browsers strip these before treating the value as a URL — is simpler and
   // safer than trying to special-case "only edges" or "only certain slots".
-  // eslint-disable-next-line no-control-regex
   return out.replace(/[\x00-\x20\x7f]/g, '')
 }
 

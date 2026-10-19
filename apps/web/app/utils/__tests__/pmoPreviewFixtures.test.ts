@@ -13,7 +13,7 @@ const TASKS = [101, 102, 103, 104].map(id => ({
   days_remaining: 120, is_overdue: false, is_closed: false, personal_stage: null, stage: { id: 11, name: 'جديد' },
   assignees: [{ id: 2, name: 'Admin' }], tags: [], can_write: true, can_approve: true, allowed_transitions: ['done'],
 }))
-const preview = pmoPreviewData as unknown as (path: string, url: URL, ctx: Record<string, unknown>) => any // eslint-disable-line @typescript-eslint/no-explicit-any
+const preview = pmoPreviewData as unknown as (path: string, url: URL, ctx: Record<string, unknown>) => any
 const get = (path: string) => {
   const url = new URL(`http://x${path}`)
   return preview(url.pathname, url, { PROJECTS: [], TASKS, CURRENCY })
