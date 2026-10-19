@@ -35,11 +35,16 @@
     "odoo-addons/webvue_pmo/controllers/tasks.py": 1,
     "odoo-addons/webvue_pmo/controllers/timeline.py": 2,
     "odoo-addons/webvue_pmo/models/notification_types.py": 1,
+    "odoo-addons/webvue_pmo/models/project_charter.py": 1,
     "odoo-addons/webvue_pmo/models/project_charter_reference.py": 1,
+    "odoo-addons/webvue_pmo/models/project_copy.py": 1,
     "odoo-addons/webvue_pmo/models/project_milestone.py": 1,
-    "odoo-addons/webvue_pmo/models/project_project.py": 19,
-    "odoo-addons/webvue_pmo/models/project_task.py": 2,
+    "odoo-addons/webvue_pmo/models/project_project.py": 7,
+    "odoo-addons/webvue_pmo/models/project_status.py": 6,
+    "odoo-addons/webvue_pmo/models/project_structure.py": 4,
+    "odoo-addons/webvue_pmo/models/project_task.py": 1,
     "odoo-addons/webvue_pmo/models/res_company.py": 1,
+    "odoo-addons/webvue_pmo/models/task_completion.py": 1,
     "odoo-addons/webvue_pmo/models/task_notifications.py": 4,
     "odoo-addons/webvue_pmo/models/webvue_settings.py": 2,
     "odoo-addons/webvue_pmo/serializers/task.py": 5,
@@ -65,6 +70,6 @@
     "sql odoo-addons/webvue_platform/models/tenant_profile.py": 1,
     "sql odoo-addons/webvue_pmo/models/entitlement_service.py": 1,
     "sql odoo-addons/webvue_pmo/models/project_project.py": 2,
-    "sql odoo-addons/webvue_pmo/models/project_task.py": 2
+    "sql odoo-addons/webvue_pmo/models/task_completion.py": 2
   }
 }

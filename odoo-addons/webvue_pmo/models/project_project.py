@@ -1,103 +1,57 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import math
-from datetime import date, datetime
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
-from .project_task import PROJECT_COPY_MARKER
+from .project_charter import WebVueCharterState
+from .project_constants import (
+    ACCESS_USER_CREATE_MARKER,
+    BUDGET_STATES,
+    CHARTER_APPROVAL_FIELDS,
+    CHARTER_RESET_VALS,
+    COMPLETION_APPROVAL_VALUES,
+    DELIVERABLE_KEYS,
+    MANAGER_WRITABLE,
+    OBJECTIVE_KEYS,
+    POLICY_CREATE_MARKER,
+    PRIORITY_VALUES,
+    PROJECT_CREATE_FIELDS,
+    REVISION_CONTENT_FIELDS,
+    STATUS_VALUES,
+    VISIBILITY_VALUES,
+    _validate_charter_rows,
+)
 from .webvue_settings import CREATORS
 from odoo.addons.project.models.project_project import (
     ProjectProject as StockProjectProject,
 )
-from odoo.addons.project.models.project_task import CLOSED_STATES
 
-# The five statuses a manager may set. Odoo's sixth value, 'to_define', means
-# "unset" and is never written by webvue (it is what a project starts as).
-STATUS_VALUES = {'on_track', 'at_risk', 'off_track', 'on_hold', 'done'}
+__all__ = [
+    'BUDGET_STATES',
+    'DELIVERABLE_KEYS',
+    'MAX_COPY_MILESTONES',
+    'MAX_COPY_TASKS',
+    'OBJECTIVE_KEYS',
+    'PRIORITY_VALUES',
+    'PROJECT_CREATORS',
+    'STATUS_VALUES',
+    'VISIBILITY_VALUES',
+    'WebVueCharterState',
+    'WebVueStaleWrite',
+]
+
 # Kept as a distinct exported name: other webvue_pmo modules import
 # PROJECT_CREATORS, not webvue_settings.CREATORS, from here.
 PROJECT_CREATORS = CREATORS
-VISIBILITY_VALUES = ('employees', 'followers')
-ACCESS_USER_CREATE_MARKER = 'webvue_core.access_user_create_depth'
-POLICY_CREATE_MARKER = 'webvue_pmo.policy_create'
-OBJECTIVE_KEYS = ('goal', 'metric', 'target')
-DELIVERABLE_KEYS = ('name', 'description', 'acceptance')
-BUDGET_STATES = ('unknown', 'estimate')
-PRIORITY_VALUES = ('low', 'normal', 'high', 'critical')
-CHARTER_STATES = ('draft', 'submitted', 'approved')
-CHARTER_RETURN_NOTE_MAX = 2000
-CHARTER_TEXT_FIELDS = (
-    'webvue_authority', 'webvue_rationale', 'webvue_benefits', 'webvue_scope',
-    'webvue_exclusions', 'webvue_high_level_requirements', 'webvue_success',
-    'webvue_assumptions', 'webvue_constraints', 'webvue_closure',
-)
-CHARTER_JSON_FIELDS = ('webvue_objectives', 'webvue_deliverables')
-CHARTER_MANAGER_FIELDS = {
-    'webvue_type_id', 'webvue_owning_unit_id', 'webvue_sponsor_id',
-    'webvue_budget_state', 'webvue_budget_amount', 'webvue_priority',
-    *CHARTER_TEXT_FIELDS, *CHARTER_JSON_FIELDS,
-}
-PROTECTED_FIELDS = {'webvue_code', 'webvue_revision'}
-# Written only by the charter transitions (_webvue_charter_*), never by PATCH.
-CHARTER_APPROVAL_FIELDS = {
-    'webvue_charter_state', 'webvue_charter_submitted_by_id', 'webvue_charter_submitted_at',
-    'webvue_charter_approved_by_id', 'webvue_charter_approved_at', 'webvue_charter_return_note',
-}
-# Content a submitted charter locks and an approved one reopens on change.
-# The sponsor is content too: it cannot change while the charter waits (the manager
-# withdraws first), so a manager cannot swap in themself to self-approve.
-CHARTER_CONTENT_FIELDS = CHARTER_MANAGER_FIELDS | {
-    'name', 'description', 'user_id', 'date_start', 'date',
-}
-CHARTER_RESET_VALS = {
-    'webvue_charter_state': 'draft',
-    'webvue_charter_submitted_by_id': False, 'webvue_charter_submitted_at': False,
-    'webvue_charter_approved_by_id': False, 'webvue_charter_approved_at': False,
-}
-# Fields a webvue manager (group or per-project assigned user) may write via
-# _webvue_write_as_manager/_webvue_write_sudo. Anything else must go through a
-# dedicated, explicitly-reviewed path instead of this generic sudo'd write.
-MANAGER_WRITABLE = {
-    'name', 'description', 'user_id', 'privacy_visibility', 'date_start', 'date',
-    'tag_ids', 'active', 'last_update_status', 'allow_milestones', 'allow_task_dependencies', 'type_ids',
-    'webvue_completion_approval', 'webvue_completion_approver_id',
-} | CHARTER_MANAGER_FIELDS
-PROJECT_CREATE_FIELDS = MANAGER_WRITABLE | {'company_id', 'webvue_code'}
-REVISION_CONTENT_FIELDS = MANAGER_WRITABLE | {'company_id'} | CHARTER_APPROVAL_FIELDS
-COMPLETION_APPROVAL_VALUES = ('none', 'project_manager', 'specific_user')
-COMPLETION_BACKFILL_PARAM = 'webvue_pmo.completion_status_backfill_v1_done'
+
+# Copy limits of _webvue_copy_structure, kept here as module-level knobs.
 MAX_COPY_TASKS = 500
 MAX_COPY_MILESTONES = 100
 
 
-def _not_empty(message, count):
-    err = UserError(message)
-    err.webvue_count = count
-    return err
-
-
 class WebVueStaleWrite(Exception):
     """Write token no longer matches the locked row."""
-
-
-class WebVueCharterState(UserError):
-    """The charter is not in a state that allows this action or edit."""
-
-
-def _validate_charter_rows(rows, keys, label):
-    if rows is None or rows is False:
-        return
-    if not isinstance(rows, list):
-        raise ValidationError(f"{label} must be a list.")
-    expected = set(keys)
-    for row in rows:
-        if not isinstance(row, dict) or set(row) != expected:
-            raise ValidationError(f"{label} rows must use exactly {keys}.")
-        if any(not isinstance(row[key], str) for key in keys):
-            raise ValidationError(f"{label} values must be strings.")
-        if not any(row[key].strip() for key in keys):
-            raise ValidationError(f"{label} rows must include at least one non-blank value.")
 
 
 class ProjectProject(models.Model):
@@ -118,13 +72,7 @@ class ProjectProject(models.Model):
         'res.users', string='Completion approver', ondelete='restrict', copy=False, index=True,
     )
     webvue_code = fields.Char(copy=False, index=True)
-    # Set only by _webvue_sync_completion_status: the project became 'done'
-    # because every task closed, and the status it had before, restored when
-    # a task reopens. A manual status change clears both.
-    webvue_status_auto_done = fields.Boolean(copy=False)
-    webvue_status_before_auto_done = fields.Selection(
-        [(value, value) for value in sorted(STATUS_VALUES - {'done'})], copy=False,
-    )
+
     webvue_revision = fields.Integer(default=1, required=True, copy=False)
     webvue_type_id = fields.Many2one(
         'webvue.project.type', ondelete='restrict', check_company=True, index=True,
@@ -497,250 +445,6 @@ class ProjectProject(models.Model):
         """
         return self._webvue_write_sudo(vals, allowed=CHARTER_APPROVAL_FIELDS)
 
-    # --- create --------------------------------------------------------------
-    def _webvue_create_from_policy(self, name, extra=None, user_id=None, date_end=None):
-        """Create a project the webvue way: policy check, defaults, default stages.
-
-        When the company policy lets every employee create projects, the create
-        itself runs in sudo (Odoo's ACL reserves project creation to managers);
-        the policy is the explicit, admin-set widening of that ACL, and
-        ``create_uid``/``user_id`` still record the employee. Second documented
-        ``sudo()`` in webvue_pmo.
-
-        Required-on-create company settings are enforced here for every
-        policy create, including ordinary ORM callers of this helper, even
-        when the subsequent ``create`` is elevated. Stock superuser
-        ``project.create`` used by install/import fixtures is the documented
-        compatibility boundary and is not a caller-controlled exemption.
-        """
-        if not self._webvue_can_create():
-            raise AccessError(self.env._("You are not allowed to create projects."))
-        vals = self._webvue_create_vals(name, user_id=user_id, date_end=date_end)
-        if extra:
-            vals.update(extra)
-        env = self.env if self._webvue_is_manager() else self.sudo().env
-        marker = self.env.cr.precommit.data
-        previous = marker.get(POLICY_CREATE_MARKER)
-        marker[POLICY_CREATE_MARKER] = True
-        try:
-            project = env['project.project'].create(vals)
-        finally:
-            if previous is None:
-                marker.pop(POLICY_CREATE_MARKER, None)
-            else:
-                marker[POLICY_CREATE_MARKER] = previous
-        return self.browse(project.id)
-
-    def _webvue_create_vals(self, name, user_id=None, date_end=None):
-        stages = self.env['webvue.pmo.settings']._default_stage_vals()
-        settings = self.env['webvue.pmo.settings'].get()
-        manager_id = self.env.uid if user_id is None else user_id
-        vals = {
-            'name': name,
-            'user_id': manager_id or False,
-            'company_id': self.env.company.id,
-            'privacy_visibility': 'employees',
-            'allow_milestones': True,
-            'webvue_completion_approval': settings['default_completion_approval'],
-            'type_ids': [(0, 0, s) for s in stages],
-            'webvue_code': self._webvue_next_code(),
-        }
-        if date_end:
-            # Upstream project.create preserves a lone end date. Do not invent
-            # a start date; only persist the supplied end.
-            vals['date'] = date_end
-        return vals
-
-    def _webvue_copy_structure(self, name, start_date, *, serialize=None):
-        """Create a new project holding this project's structure; return it.
-
-        Copies stages, milestones, active top-level tasks (stage, milestone,
-        planned dates, dependencies, tags) and the type / owning unit /
-        dependency setting. Dates move by ``start_date`` minus the source
-        start. Assignees, followers, chatter, state, governance and finance
-        are not copied. The source is read with the caller's own access.
-
-        serialize is supplied only by the private Python caller, never accepted
-        from an HTTP/RPC payload. Serializing before the population scope is
-        cleared lets a caller receive project counts without generic task
-        reads. Any failure rolls back the whole copy and clears the scope.
-        """
-        self.ensure_one()
-        # Only language/company/session context survives. Client defaults must
-        # never seed assignees, parent tasks, followers, activities or schedules.
-        source = self.with_context({
-            key: value for key, value in self.env.context.items()
-            if not key.startswith('default_')
-        }, tracking_disable=True, mail_create_nosubscribe=True)
-        env = source.env
-        source._webvue_check_visible_current()
-        if not env['webvue.access.service']._webvue_has_capability(env.user, 'pmo.tasks.read'):
-            raise AccessError(env._("You are not allowed to copy this project."))
-        if not source._webvue_can_create():
-            raise AccessError(env._("You are not allowed to create projects."))
-        if not isinstance(name, str) or not name.strip() or len(name.strip()) > 255:
-            raise ValidationError(env._("name must be a non-empty string of at most 255 characters."))
-        project_name = name.strip()
-        if isinstance(start_date, str):
-            try:
-                start = date.fromisoformat(start_date)
-            except ValueError as error:
-                raise ValidationError(env._("start_date must be a valid ISO date.")) from error
-            if start.isoformat() != start_date:
-                raise ValidationError(env._("start_date must use YYYY-MM-DD."))
-        elif isinstance(start_date, date) and not isinstance(start_date, datetime):
-            start = start_date
-        else:
-            raise ValidationError(env._("start_date must be a valid ISO date."))
-
-        Task = env['project.task']
-        task_domain = [('project_id', '=', source.id), ('parent_id', '=', False), ('active', '=', True)]
-        if Task.search_count(task_domain) > MAX_COPY_TASKS:
-            raise ValidationError(env._("A project with more than %(max)s tasks cannot be copied.", max=MAX_COPY_TASKS))
-        if len(source.milestone_ids) > MAX_COPY_MILESTONES:
-            raise ValidationError(env._(
-                "A project with more than %(max)s milestones cannot be copied.", max=MAX_COPY_MILESTONES,
-            ))
-        tasks = Task.search(task_domain, order='sequence, id')
-        milestones = source.milestone_ids.sorted(lambda milestone: (milestone.deadline or date.max, milestone.id))
-        stages = source.type_ids.sorted(lambda stage: (stage.sequence, stage.id))
-
-        anchor = source.date_start
-        if not anchor:
-            candidates = [task.webvue_planned_start for task in tasks if task.webvue_planned_start]
-            candidates += [
-                task.date_deadline.date() for task in tasks
-                if task.date_deadline and not task.webvue_planned_start
-            ]
-            candidates += [milestone.deadline for milestone in milestones if milestone.deadline]
-            anchor = min(candidates) if candidates else None
-        delta = start - anchor if anchor else None
-
-        def shifted(value):
-            if not value or delta is None:
-                return False
-            try:
-                return value + delta
-            except OverflowError as error:
-                raise ValidationError(env._("A copied date falls outside the calendar range.")) from error
-
-        end = shifted(source.date)
-        extra = {
-            'date_start': start,
-            'allow_task_dependencies': bool(source.allow_task_dependencies),
-            'webvue_type_id': source.webvue_type_id.id or False,
-            'webvue_owning_unit_id': source.webvue_owning_unit_id.id or False,
-        }
-        if end:
-            extra['date'] = end
-        if stages:
-            extra['type_ids'] = [
-                (0, 0, {'name': stage.name, 'fold': stage.fold, 'sequence': (index + 1) * 10})
-                for index, stage in enumerate(stages)
-            ]
-        with env.cr.savepoint():
-            project = env['project.project']._webvue_create_from_policy(
-                project_name, extra=extra, user_id=env.uid, date_end=end or None,
-            )
-            marker = env.cr.precommit.data
-            previous = marker.get(PROJECT_COPY_MARKER)
-            marker[PROJECT_COPY_MARKER] = (env.uid, env.company.id, project.id)
-            try:
-                new_stages = project.type_ids.sorted(lambda stage: (stage.sequence, stage.id))
-                stage_map = {stage.id: new_stages[index].id for index, stage in enumerate(stages)}
-                milestone_map = {}
-                for milestone in milestones:
-                    milestone_map[milestone.id] = project._webvue_create_milestone(
-                        milestone.name, deadline=shifted(milestone.deadline) or None,
-                    ).id
-                task_map = {}
-                for task in tasks:
-                    values = {
-                        'name': task.name,
-                        'description': task.description,
-                        'project_id': project.id,
-                        'stage_id': stage_map.get(task.stage_id.id, False),
-                        'milestone_id': milestone_map.get(task.milestone_id.id, False),
-                        'tag_ids': [(6, 0, task.tag_ids.ids)],
-                        'state': '01_in_progress',
-                        'user_ids': [(6, 0, [])],
-                        'parent_id': False,
-                    }
-                    if task.date_deadline and not task.webvue_planned_start and delta is not None:
-                        # Deadline-only task: no schedule pair, so the deadline
-                        # is an ordinary whitelisted create field.
-                        values['date_deadline'] = shifted(task.date_deadline)
-                    new_task = env['project.task']._webvue_create_for_copy(project, values)
-                    if task.webvue_planned_start and task.date_deadline and delta is not None:
-                        new_task._webvue_set_schedule(
-                            shifted(task.webvue_planned_start), shifted(task.date_deadline.date()),
-                        )
-                    task_map[task.id] = new_task
-                # Stock keeps links when the toggle is turned off; do not copy them.
-                for task in (tasks if source.allow_task_dependencies else tasks.browse()):
-                    dependencies = [
-                        task_map[dependency.id].id for dependency in task.depend_on_ids
-                        if dependency.id in task_map
-                    ]
-                    if dependencies:
-                        task_map[task.id]._webvue_set_dependencies(dependencies)
-                result = serialize(project) if serialize is not None else project
-                # Settle stored computations while the narrow scope still owns
-                # population, before savepoint release flushes without it.
-                env.flush_all()
-            finally:
-                if previous is None:
-                    marker.pop(PROJECT_COPY_MARKER, None)
-                else:
-                    marker[PROJECT_COPY_MARKER] = previous
-            return result
-
-    def _webvue_check_completion_policy_vals(self, vals):
-        mode = vals.get('webvue_completion_approval')
-        if mode is not None and mode not in COMPLETION_APPROVAL_VALUES:
-            raise UserError(self.env._("Unknown completion approval mode."))
-        for project in self:
-            next_mode = vals.get('webvue_completion_approval', project.webvue_completion_approval)
-            approver_id = vals.get('webvue_completion_approver_id', project.webvue_completion_approver_id.id)
-            if next_mode == 'specific_user':
-                user = self.env['res.users'].browse(approver_id).exists() if approver_id else self.env['res.users']
-                if not user:
-                    raise UserError(self.env._("A specific approver is required."))
-                project._webvue_check_approver_eligible(user)
-            elif vals.get('webvue_completion_approver_id'):
-                raise UserError(self.env._("A specific approver is only valid for specific_user mode."))
-
-    def _webvue_check_approver_eligible(self, user):
-        self.ensure_one()
-        if not user or user.share or not user.active:
-            raise UserError(self.env._("The selected approver must be an active internal user."))
-        if self.env.company not in user.company_ids:
-            raise UserError(self.env._("The selected approver is outside the current company."))
-        if not self.env['webvue.access.service']._webvue_has_capability(
-            user, 'pmo.tasks.approve', record=self,
-        ):
-            raise UserError(self.env._("The selected approver must already have approval capability."))
-        try:
-            self.with_user(user).with_company(self.env.company)._webvue_check_visible_current()
-        except AccessError as error:
-            raise UserError(self.env._("The selected approver cannot see this project.")) from error
-
-    def _webvue_invalidate_completion_requests(self):
-        tasks = self.env['project.task'].sudo().search([
-            ('project_id', 'in', self.ids),
-            ('webvue_completion_pending', '=', True),
-        ])
-        if tasks:
-            tasks._webvue_clear_completion_request(invalidate=True)
-
-    def _webvue_completion_reviewer(self):
-        self.ensure_one()
-        if self.webvue_completion_approval == 'project_manager':
-            return self.user_id
-        if self.webvue_completion_approval == 'specific_user':
-            return self.webvue_completion_approver_id
-        return self.env['res.users']
-
     @api.model
     def _webvue_next_code(self):
         # Fourth documented webvue_pmo elevated case: ir.sequence nextval is
@@ -781,19 +485,6 @@ class ProjectProject(models.Model):
             [tuple(self.ids)],
         )
         self.invalidate_recordset(['webvue_revision'])
-
-    @api.model
-    def _webvue_eligible_user(self, user, current_id=None):
-        if not user:
-            return False
-        if user.share:
-            return False
-        # Validation must reject foreign-company ids generically. Reading the
-        # related companies as the caller can trip res.company record rules and
-        # turn the intended 422 into a 403 that leaks an authorization boundary.
-        if self.env.company.id not in user.sudo().company_ids.ids:
-            return False
-        return user.active or user.id == current_id
 
     def _webvue_prepare_charter_vals(self, vals, records=None):
         self._webvue_prepare_json_vals(vals)
@@ -906,332 +597,3 @@ class ProjectProject(models.Model):
                 raise ValidationError(self.env._("Budget amount must be a finite non-negative number."))
             if project.webvue_budget_state == 'unknown' and amount:
                 raise ValidationError(self.env._("Unknown budget amount must be zero."))
-
-    # --- archive -------------------------------------------------------------
-    def _webvue_archive(self):
-        return self._webvue_write_as_manager({'active': False})
-
-    def _webvue_unarchive(self):
-        return self._webvue_write_as_manager({'active': True})
-
-    # --- status (phase 2) ----------------------------------------------------
-    def _webvue_set_status(self, status):
-        if status not in STATUS_VALUES:
-            raise ValueError(f"unknown project status {status!r}")
-        self._webvue_check_status_allowed(status)
-        self._webvue_do_set_status(status)
-        self._webvue_post_status_hook(status)
-        return self
-
-    def _webvue_check_status_allowed(self, status):
-        if not self._webvue_can_manage():
-            raise AccessError(self.env._("Only a project manager can set the project status."))
-
-    def _webvue_do_set_status(self, status):
-        """The *do* step: no manage-rule check (see _webvue_check_status_allowed)."""
-        self._webvue_write_sudo({'last_update_status': status})
-        if self.webvue_status_auto_done:
-            self.sudo().write({'webvue_status_auto_done': False, 'webvue_status_before_auto_done': False})
-
-    def _webvue_sync_completion_status(self):
-        """Mark a project done once every task is closed, and undo that on reopen.
-
-        Complete means at least one done task and no open one (cancelled tasks
-        do not block). A project with no tasks never completes. Only an
-        automatic completion is reverted; a manager's own 'done' stays.
-
-        sudo(): documented automatic-completion case. It runs after a task
-        mutation the caller was already authorized for, reads integer counts
-        over all of the project's tasks (the caller may not see every task)
-        and writes only the status, its two bookkeeping fields and the status
-        update that records the change.
-        """
-        Task = self.env['project.task'].sudo()
-        for project in self.sudo().filtered(lambda p: p.active):
-            domain = [('project_id', '=', project.id)]
-            open_count = Task.search_count(domain + [('state', 'not in', list(CLOSED_STATES))])
-            done_count = Task.search_count(domain + [('state', '=', '1_done')])
-            complete = not open_count and done_count > 0
-            if complete and project.last_update_status != 'done':
-                previous = project.last_update_status
-                project.write({
-                    'webvue_status_auto_done': True,
-                    'webvue_status_before_auto_done': previous if previous in STATUS_VALUES else False,
-                })
-                project._webvue_record_status('done', self.env._("All tasks are complete"))
-            elif not complete and project.webvue_status_auto_done:
-                restore = project.webvue_status_before_auto_done or 'on_track'
-                project.write({'webvue_status_auto_done': False, 'webvue_status_before_auto_done': False})
-                if project.last_update_status == 'done':
-                    project._webvue_record_status(restore, self.env._("The project has open tasks again"))
-
-    @api.model
-    def _webvue_backfill_completion_status(self):
-        """One-time upgrade step: apply automatic completion to existing projects.
-
-        Runs from trusted module data as the superuser. The marker keeps a
-        later module update from re-completing a project whose manager has
-        since chosen another status by hand. Each project's update title uses
-        its company's language, since there is no acting user.
-        """
-        if not self.env.is_superuser():
-            msg = 'completion status backfill requires superuser'
-            raise AccessError(msg)
-        params = self.env['ir.config_parameter'].sudo()
-        if params.get_param(COMPLETION_BACKFILL_PARAM) == '1':
-            return True
-        for project in self.search([]):
-            lang = project.company_id.partner_id.lang or self.env.lang
-            project.with_context(lang=lang)._webvue_sync_completion_status()
-        params.set_param(COMPLETION_BACKFILL_PARAM, '1')
-        return True
-
-    def _webvue_record_status(self, status, name):
-        # Odoo derives last_update_status from the latest project.update, so a
-        # status change is recorded as one, named for why it happened.
-        self.ensure_one()
-        self.env['project.update'].sudo().create({'project_id': self.id, 'status': status, 'name': name})
-
-    def _webvue_post_status_hook(self, status):
-        """Extension point; nothing in core."""
-
-    # --- updates -------------------------------------------------------------
-    def _webvue_post_update(self, name, description=''):
-        """Create a text project.update that carries the current status unchanged.
-
-        The status is set in project settings (_webvue_set_status) or by
-        _webvue_sync_completion_status, never by posting an update.
-        """
-        self.ensure_one()
-        self._webvue_check_manage()
-        current = self.last_update_status
-        return self.env['project.update'].create({
-            'project_id': self.id,
-            'status': current if current in STATUS_VALUES else 'on_track',
-            'name': name,
-            'description': description or False,
-        })
-
-    # --- charter approval ----------------------------------------------------
-    def _webvue_charter_differs(self, vals, names):
-        self.ensure_one()
-        for name in names:
-            field = self._fields[name]
-            new = field.convert_to_record(field.convert_to_cache(vals[name], self), self)
-            current = self[name]
-            if field.relational:
-                changed = new != current
-            else:
-                # NULL columns read False while forms send '': both are blank.
-                changed = (new or False) != (current or False)
-            if changed:
-                return True
-        return False
-
-    def _webvue_charter_guard(self, vals):
-        """Lock submitted charters; return approved ones a change must reopen."""
-        names = set(vals) & CHARTER_CONTENT_FIELDS
-        if not names:
-            return self.browse()
-        changed = self.filtered(lambda project: project._webvue_charter_differs(vals, names))
-        if any(project.webvue_charter_state == 'submitted' for project in changed):
-            raise WebVueCharterState(self.env._("The charter is waiting for approval; withdraw it to edit."))
-        if not self.env['webvue.pmo.settings'].get()['require_charter_approval']:
-            return self.browse()
-        return changed.filtered(lambda project: project.webvue_charter_state == 'approved')
-
-    def _webvue_charter_approval_required(self):
-        return self.env['webvue.pmo.settings'].get()['require_charter_approval']
-
-    def _webvue_can_review_charter(self):
-        self.ensure_one()
-        return self.webvue_charter_state == 'submitted' and self.webvue_sponsor_id == self.env.user
-
-    def _webvue_check_charter_reviewer(self):
-        self._webvue_check_visible_current()
-        if self.webvue_sponsor_id != self.env.user:
-            raise AccessError(self.env._("Only the project sponsor can review the charter."))
-
-    def _webvue_check_charter_state(self, state):
-        if self.webvue_charter_state != state:
-            raise WebVueCharterState(self.env._("The charter is not in the expected state."))
-
-    def _webvue_charter_submit(self):
-        self.ensure_one()
-        self._webvue_check_manage()
-        self._webvue_check_charter_state('draft')
-        user, now = self.env.user, fields.Datetime.now()
-        vals = {
-            'webvue_charter_submitted_by_id': user.id,
-            'webvue_charter_submitted_at': now,
-            'webvue_charter_return_note': '',
-        }
-        sponsor = self.webvue_sponsor_id
-        if not self._webvue_charter_approval_required() or sponsor == user:
-            vals.update({
-                'webvue_charter_state': 'approved',
-                'webvue_charter_approved_by_id': user.id,
-                'webvue_charter_approved_at': now,
-            })
-        else:
-            service = self.env['webvue.access.service']
-            if not sponsor or not sponsor.active or not service._webvue_has_capability(sponsor, 'pmo.projects.read'):
-                raise ValidationError(self.env._("Choose a sponsor who can open projects before submitting the charter."))
-            if self.privacy_visibility == 'followers' and sponsor not in self._webvue_followers():
-                self._webvue_add_follower(sponsor)
-            try:
-                self.with_user(sponsor).with_company(self.company_id)._webvue_check_visible_current()
-            except AccessError as error:
-                raise ValidationError(self.env._("Choose a sponsor who can open projects before submitting the charter.")) from error
-            vals['webvue_charter_state'] = 'submitted'
-        self._webvue_write_charter_approval(vals)
-        return self
-
-    def _webvue_charter_approve(self):
-        self.ensure_one()
-        self._webvue_check_charter_reviewer()
-        self._webvue_check_charter_state('submitted')
-        self._webvue_write_charter_approval({
-            'webvue_charter_state': 'approved',
-            'webvue_charter_approved_by_id': self.env.uid,
-            'webvue_charter_approved_at': fields.Datetime.now(),
-        })
-        return self
-
-    def _webvue_charter_return(self, note):
-        self.ensure_one()
-        self._webvue_check_charter_reviewer()
-        self._webvue_check_charter_state('submitted')
-        note = (note or '').strip() if isinstance(note, str) else ''
-        if not note or len(note) > CHARTER_RETURN_NOTE_MAX:
-            raise ValidationError(self.env._("A return note of 1 to 2000 characters is required."))
-        self._webvue_write_charter_approval({**CHARTER_RESET_VALS, 'webvue_charter_return_note': note})
-        return self
-
-    def _webvue_charter_withdraw(self):
-        self.ensure_one()
-        self._webvue_check_manage()
-        self._webvue_check_charter_state('submitted')
-        self._webvue_write_charter_approval(dict(CHARTER_RESET_VALS))
-        return self
-
-    # --- stages --------------------------------------------------------------
-    def _webvue_stage_task_count(self, stage):
-        # sudo(): only an integer count is returned (never task records), so this
-        # cannot leak data; without it, ir.rule on a followers-only project would
-        # under-count hidden tasks and let a stage with tasks the caller can't see
-        # be deleted out from under them.
-        return self.env['project.task'].sudo().with_context(active_test=False).search_count(
-            [('project_id', '=', self.id), ('stage_id', '=', stage.id)])
-
-    def _webvue_add_stage(self, name, fold=False):
-        self._webvue_check_manage()
-        last = max(self.type_ids.mapped('sequence'), default=0)
-        return self.env['project.task.type'].create({
-            'name': name, 'fold': fold, 'sequence': last + 10, 'project_ids': [(4, self.id)],
-        })
-
-    def _webvue_update_stage(self, stage, vals):
-        self._webvue_check_manage()
-        if stage not in self.type_ids:
-            msg = "stage does not belong to this project"
-            raise ValueError(msg)
-        stage.write({k: v for k, v in vals.items() if k in ('name', 'fold')})
-        return stage
-
-    def _webvue_reorder_stages(self, ids):
-        self._webvue_check_manage()
-        if sorted(ids) != sorted(self.type_ids.ids):
-            msg = "ids must be a permutation of the project's stage ids"
-            raise ValueError(msg)
-        for i, stage_id in enumerate(ids):
-            self.env['project.task.type'].browse(stage_id).write({'sequence': (i + 1) * 10})
-        return self.type_ids.sorted(lambda s: (s.sequence, s.id))
-
-    def _webvue_delete_stage(self, stage):
-        self._webvue_check_manage()
-        if stage not in self.type_ids:
-            msg = "stage does not belong to this project"
-            raise ValueError(msg)
-        count = self._webvue_stage_task_count(stage)
-        if count:
-            raise _not_empty(self.env._("This stage still holds tasks."), count)
-        if len(stage.project_ids) > 1:
-            # Shared stage: detach from this project only.
-            self._webvue_write_as_manager({'type_ids': [(3, stage.id)]})
-        else:
-            stage.unlink()
-
-    # --- followers -----------------------------------------------------------
-    def _webvue_followers(self):
-        partners = self.message_partner_ids
-        return partners.mapped('user_ids').filtered(lambda u: not u.share and u.active)
-
-    def _webvue_add_follower(self, user):
-        self._webvue_check_manage()
-        # sudo(): mail.thread.message_subscribe checks 'write' on the project
-        # itself, which Odoo's ACL grants only to the project-manager group —
-        # same rationale as _webvue_write_as_manager, for the assigned-user-as-
-        # manager case Odoo's own ACL doesn't know about.
-        self.sudo().message_subscribe(partner_ids=[user.partner_id.id])
-        return self._webvue_followers()
-
-    def _webvue_remove_follower(self, user):
-        self._webvue_check_manage()
-        if (
-            self.webvue_charter_state == 'submitted' and self.privacy_visibility == 'followers'
-            and user == self.webvue_sponsor_id
-        ):
-            raise WebVueCharterState(self.env._("The sponsor is reviewing the charter; withdraw it before removing the sponsor."))
-        # sudo(): same rationale as _webvue_add_follower above.
-        self.sudo().message_unsubscribe(partner_ids=[user.partner_id.id])
-        return self._webvue_followers()
-
-    # --- milestones ----------------------------------------------------------
-    def _webvue_milestone_task_counts(self, milestone):
-        # sudo(): only integer counts are returned (never task records); see
-        # _webvue_stage_task_count for why an unsudo'd count would under-count on
-        # followers-only projects and let a non-empty milestone be deleted.
-        Task = self.env['project.task'].sudo()
-        domain = [('project_id', '=', self.id), ('milestone_id', '=', milestone.id)]
-        return Task.search_count(domain), Task.search_count(domain + [('state', 'in', ('1_done', '1_canceled'))])
-
-    def _webvue_create_milestone(self, name, deadline=None, start_date=None, deliverables=None):
-        self._webvue_check_manage()
-        if not self.allow_milestones:
-            self._webvue_write_as_manager({'allow_milestones': True})
-        return self.env['project.milestone'].create({
-            'project_id': self.id, 'name': name,
-            'deadline': fields.Date.to_date(deadline) if deadline else False,
-            'webvue_start_date': fields.Date.to_date(start_date) if start_date else False,
-            'webvue_deliverables': deliverables or [],
-        })
-
-    def _webvue_update_milestone(self, milestone, vals):
-        self._webvue_check_manage()
-        if milestone.project_id != self:
-            msg = "milestone does not belong to this project"
-            raise ValueError(msg)
-        clean = {}
-        if 'name' in vals:
-            clean['name'] = vals['name']
-        if 'deadline' in vals:
-            clean['deadline'] = fields.Date.to_date(vals['deadline']) if vals['deadline'] else False
-        if 'start_date' in vals:
-            clean['webvue_start_date'] = fields.Date.to_date(vals['start_date']) if vals['start_date'] else False
-        if 'deliverables' in vals:
-            clean['webvue_deliverables'] = vals['deliverables']
-        if 'is_reached' in vals:
-            clean['is_reached'] = bool(vals['is_reached'])
-        milestone.write(clean)
-        return milestone
-
-    def _webvue_delete_milestone(self, milestone):
-        self._webvue_check_manage()
-        if milestone.project_id != self:
-            msg = "milestone does not belong to this project"
-            raise ValueError(msg)
-        total, _done = self._webvue_milestone_task_counts(milestone)
-        if total:
-            raise _not_empty(self.env._("Tasks are still linked to this milestone."), total)
-        milestone.unlink()

@@ -126,6 +126,13 @@ class GovernanceVisibility(models.AbstractModel):
             return forbidden, lambda: AccessError("Governance records require readable active current-company projects and tasks.")
         return None
 
+    def _webvue_check_manage(self):
+        self.check_access('read')
+        self._webvue_check_visible()
+        for record in self:
+            _check_project(record.project_id, manage=True)
+        return self
+
 
 class ProjectStakeholder(models.Model):
     _name = 'webvue.project.stakeholder'
@@ -146,13 +153,6 @@ class ProjectStakeholder(models.Model):
     def _webvue_check_visible(self):
         for record in self:
             _check_project(record.project_id)
-        return self
-
-    def _webvue_check_manage(self):
-        self.check_access('read')
-        self._webvue_check_visible()
-        for record in self:
-            _check_project(record.project_id, manage=True)
         return self
 
     @api.model_create_multi
@@ -245,13 +245,6 @@ class ProjectRaci(models.Model):
                     msg = "The task does not belong to this project."
                     raise AccessError(msg)
                 record.task_id._webvue_check_visible_current()
-        return self
-
-    def _webvue_check_manage(self):
-        self.check_access('read')
-        self._webvue_check_visible()
-        for record in self:
-            _check_project(record.project_id, manage=True)
         return self
 
     def _validate_links(self, vals, current=None):
@@ -348,13 +341,6 @@ class ProjectRegister(models.Model):
     def _webvue_check_visible(self):
         for record in self:
             _check_project(record.project_id)
-        return self
-
-    def _webvue_check_manage(self):
-        self.check_access('read')
-        self._webvue_check_visible()
-        for record in self:
-            _check_project(record.project_id, manage=True)
         return self
 
     def _validate_values(self, vals, current=None):
