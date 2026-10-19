@@ -13906,9 +13906,6 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
-          "notes": {
-            "type": "string"
-          },
           "number_of_days": {
             "exclusiveMinimum": 0,
             "type": "number"
@@ -14381,21 +14378,10 @@
                 "name": {
                   "type": "string"
                 },
-                "request_unit": {
-                  "enum": [
-                    "day",
-                    "half_day",
-                    "hour"
-                  ],
-                  "type": "string"
-                },
                 "requires_allocation": {
                   "type": "boolean"
                 },
                 "support_document": {
-                  "type": "boolean"
-                },
-                "unpaid": {
                   "type": "boolean"
                 }
               },
@@ -14403,8 +14389,6 @@
                 "id",
                 "name",
                 "requires_allocation",
-                "request_unit",
-                "unpaid",
                 "support_document"
               ],
               "type": "object"
@@ -14435,21 +14419,10 @@
           "name": {
             "type": "string"
           },
-          "request_unit": {
-            "enum": [
-              "day",
-              "half_day",
-              "hour"
-            ],
-            "type": "string"
-          },
           "requires_allocation": {
             "type": "boolean"
           },
           "support_document": {
-            "type": "boolean"
-          },
-          "unpaid": {
             "type": "boolean"
           }
         },
@@ -14457,8 +14430,6 @@
           "id",
           "name",
           "requires_allocation",
-          "request_unit",
-          "unpaid",
           "support_document"
         ],
         "type": "object"

@@ -20,6 +20,9 @@ HR_PERMISSION_DEPENDENCIES = {
     'hr.employees.access_status.read': {'hr.employees.read'},
     'hr.departments.manage': {'hr.departments.read'},
     'hr.documents.manage': {'hr.documents.read'},
+    # Every leave route reads hr.employee (the caller's own record, the target of an
+    # allocation, and the name on each request), which the HR employee guard requires.
+    'hr.leave.read': {'hr.employees.read'},
     'hr.leave.request': {'hr.leave.read'},
     'hr.leave.approve': {'hr.leave.read'},
     'hr.leave.manage': {'hr.leave.read'},

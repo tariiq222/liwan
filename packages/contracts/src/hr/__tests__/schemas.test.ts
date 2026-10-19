@@ -336,7 +336,7 @@ describe('leave', () => {
   })
 
   it('accepts leave types and allocations', () => {
-    const type = { id: 2, name: 'Annual leave', requires_allocation: true, request_unit: 'day', unpaid: false, support_document: false }
+    const type = { id: 2, name: 'Annual leave', requires_allocation: true, support_document: false }
     expect(HrLeaveTypeListSchema.parse({ items: [type], total: 1 }).total).toBe(1)
     const allocation = { id: 3, employee: ref, leave_type: ref, number_of_days: 21, date_from: '2026-01-01', date_to: null, state: 'validate' }
     expect(HrLeaveAllocationSchema.parse(allocation).state).toBe('validate')

@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import date, timedelta
 
+from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
 from .common import WebVueHrCase
@@ -10,6 +11,8 @@ LEAVE_KEYS = {
     'state', 'notes', 'can_approve', 'can_refuse', 'can_cancel',
 }
 BALANCE_KEYS = {'leave_type', 'allocated', 'taken', 'pending', 'remaining'}
+TYPE_KEYS = {'id', 'name', 'requires_allocation', 'support_document'}
+ALLOCATION_KEYS = {'id', 'employee', 'leave_type', 'number_of_days', 'date_from', 'date_to', 'state'}
 
 
 def _next_weekday(start, weekday):
@@ -55,6 +58,24 @@ class TestHrLeave(WebVueHrCase):
             'number_of_days': 21,
             'date_from': date.today().replace(month=1, day=1),
         }).action_approve()
+
+    def _user_with_leave_role(self, login, name, capability_keys):
+        """A user whose only HR access is the given leave capabilities."""
+        user = new_test_user(
+            self.env, login=login, password=f'{login}_pass_123', name=name,
+            groups='webvue_core.group_employee',
+        )
+        role = self.env['webvue.access.role'].create({
+            'key': login, 'name_ar': name, 'name_en': login,
+            'type': 'custom', 'assignable': True,
+            'permission_ids': [(6, 0, self.env['webvue.access.permission'].search([
+                ('key', 'in', capability_keys),
+            ]).ids)],
+        })
+        self.env['webvue.access.service']._webvue_replace_assignments(user, [{
+            'role_id': role.id, 'company_id': self.env.company.id,
+        }])
+        return user
 
     def _as_staff(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
@@ -224,20 +245,113 @@ class TestHrLeave(WebVueHrCase):
         res = self.api('GET', f'/api/v1/hr/leave/balances?employee_id={self.other_employee.id}')
         self.assertEqual(res.status_code, 403)
 
-    def test_approver_capability_grants_exactly_the_time_off_officer_group(self):
-        implied = self.env.ref('webvue_hr.group_cap_hr_leave_approve').all_implied_ids
-        self.assertIn(self.env.ref('hr_holidays.group_hr_holidays_user'), implied)
-        self.assertIn(self.env.ref('hr.group_hr_user'), implied)
-        self.assertNotIn(self.env.ref('hr.group_hr_manager'), implied)
-        self.assertNotIn(self.env.ref('hr_holidays.group_hr_holidays_manager'), implied)
-
     def test_unknown_request_is_not_found(self):
         self._as_manager()
         res = self.api('GET', '/api/v1/hr/leave/requests/999999')
         self.assertEqual(res.status_code, 404)
 
-    def test_leave_capabilities_never_grant_payroll_or_time_off_manager(self):
+    def test_approver_gets_the_time_off_officer_rights_without_hr_user(self):
+        """Approving leave must not carry hr.group_hr_user (bank accounts, private fields)."""
         for xmlid in ('webvue_hr.group_cap_hr_leave_approve', 'webvue_hr.group_cap_hr_leave_manage'):
             implied = self.env.ref(xmlid).all_implied_ids
-            self.assertNotIn(self.env.ref('hr_holidays.group_hr_holidays_manager'), implied)
-            self.assertFalse(implied.filtered(lambda g: 'payroll' in (g.get_external_id()[g.id] or '')))
+            self.assertIn(self.env.ref('hr_holidays.group_hr_holidays_user'), implied)
+            self.assertIn(self.env.ref('hr_holidays.group_hr_holidays_responsible'), implied)
+            self.assertNotIn(self.env.ref('hr.group_hr_user'), implied, xmlid)
+            self.assertNotIn(self.env.ref('hr.group_hr_manager'), implied, xmlid)
+            self.assertNotIn(self.env.ref('hr_holidays.group_hr_holidays_manager'), implied, xmlid)
+            self.assertFalse(implied.filtered(lambda group: 'payroll' in (group.get_external_id()[group.id] or '')))
+
+    def test_approver_cannot_read_employee_bank_accounts(self):
+        self.staff.user_id.partner_id.bank_ids = [(0, 0, {'acc_number': 'SA0380000000608010167519'})]
+        approver = self._user_with_leave_role(
+            'leave_approver', 'معتمد إجازات', ['hr.leave.read', 'hr.employees.read', 'hr.leave.approve'],
+        )
+        self.assertFalse(approver.has_group('hr.group_hr_user'))
+        self.assertFalse(approver.has_group('hr.group_hr_manager'))
+        with self.assertRaises(AccessError):
+            self.staff.user_id.partner_id.bank_ids.with_user(approver).read(['acc_number'])
+        # The directory field the leave list needs stays readable through hr.leave.read,
+        # which depends on hr.employees.read.
+        self.assertTrue(self.staff.with_user(approver).read(['name']))
+        self.assertIn('hr.employees.read', self.env['webvue.access.service']._webvue_capability_keys(approver))
+
+    def test_requester_cannot_decide_their_own_request(self):
+        self._as_manager()
+        created = self.api('POST', '/api/v1/hr/leave/requests', json={
+            'leave_type_id': self.sick.id,
+            'date_from': self.monday.isoformat(),
+            'date_to': self.monday.isoformat(),
+        })
+        self.assertEqual(created.status_code, 201, created.text)
+        leave_id = created.json()['id']
+        self.assertFalse(created.json()['can_approve'])
+        self.assertFalse(created.json()['can_refuse'])
+        for decision in ('approve', 'refuse'):
+            res = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/{decision}', json={})
+            self.assertEqual(res.status_code, 403, decision)
+        self.assertEqual(self.env['hr.leave'].browse(leave_id).state, 'confirm')
+
+    def test_requester_withdraws_a_pending_request(self):
+        self._as_staff()
+        leave_id = self._request(days=1).json()['id']
+        res = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/cancel', json={})
+        self.assertEqual(res.status_code, 204, res.text)
+        self.assertFalse(self.env['hr.leave'].browse(leave_id).exists())
+        balances = self.api('GET', '/api/v1/hr/leave/balances').json()['items']
+        annual = next(b for b in balances if b['leave_type']['id'] == self.annual.id)
+        self.assertEqual(annual['pending'], 0)
+
+    def test_another_company_leave_is_not_found(self):
+        other_company = self.env['res.company'].create({
+            'name': 'Other Company', 'country_id': self.env.ref('base.sa').id,
+        })
+        outsider = self.env['hr.employee'].with_company(other_company).create({
+            'name': 'Outsider', 'company_id': other_company.id,
+        })
+        other_leave = self.env['hr.leave'].with_company(other_company).create({
+            'employee_id': outsider.id,
+            'holiday_status_id': self.sick.id,
+            'request_date_from': self.monday,
+            'request_date_to': self.monday,
+        })
+        self._as_manager()
+        self.assertEqual(self.api('GET', f'/api/v1/hr/leave/requests/{other_leave.id}').status_code, 404)
+        self.assertEqual(self.api('POST', f'/api/v1/hr/leave/requests/{other_leave.id}/approve', json={}).status_code, 404)
+
+    def test_a_custom_role_with_only_leave_capabilities_can_request(self):
+        requester = self._user_with_leave_role(
+            'hr_leave_only', 'إجازات فقط', ['hr.leave.read', 'hr.employees.read', 'hr.leave.request'],
+        )
+        self.env['hr.employee'].create({
+            'name': 'Leave Only', 'user_id': requester.id, 'company_id': self.env.company.id,
+        })
+        self.authenticate('hr_leave_only', 'hr_leave_only_pass_123')
+        for path in ('/api/v1/hr/leave/types', '/api/v1/hr/leave/balances', '/api/v1/hr/leave/requests'):
+            res = self.api('GET', path)
+            self.assertEqual(res.status_code, 200, f'{path}: {res.text}')
+
+    def test_types_and_allocation_shapes(self):
+        self._as_staff()
+        types = self.api('GET', '/api/v1/hr/leave/types').json()['items']
+        self.assertTrue(types)
+        for item in types:
+            self.assertEqual(set(item), TYPE_KEYS)
+        self._as_manager()
+        created = self.api('POST', '/api/v1/hr/leave/allocations', json={
+            'employee_id': self.other_employee.id, 'leave_type_id': self.annual.id,
+            'number_of_days': 5, 'date_from': date.today().isoformat(),
+        })
+        self.assertEqual(created.status_code, 201, created.text)
+        self.assertEqual(set(created.json()), ALLOCATION_KEYS)
+        own = self.api('POST', '/api/v1/hr/leave/allocations', json={
+            'employee_id': self.manager_employee.id, 'leave_type_id': self.annual.id,
+            'number_of_days': 5, 'date_from': date.today().isoformat(),
+        })
+        self.assertEqual(own.status_code, 422)
+
+    def test_action_bodies_reject_unknown_fields(self):
+        self._as_staff()
+        leave_id = self._request(days=1).json()['id']
+        res = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/cancel', json={'state': 'validate'})
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()['field'], 'state')

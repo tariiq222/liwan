@@ -9,6 +9,11 @@ const props = defineProps<{ backTo: RouteLocationRaw }>()
 const emit = defineEmits<{ saved: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
+
+function localToday() {
+  const today = new Date()
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+}
 const types = useHrLeaveTypes()
 const employeeSearch = ref('')
 const debouncedSearch = refDebounced(employeeSearch, 250)
@@ -18,7 +23,10 @@ const { mutateAsync: allocate, isPending } = useCreateLeaveAllocation()
 const employeeId = ref<number | null>(null)
 const leaveTypeId = ref<number | null>(null)
 const days = ref<number | null>(null)
-const dateFrom = ref<string | null>(new Date().toISOString().slice(0, 10))
+const dateFrom = ref<string | null>(null)
+// Filled after hydration from the browser's own day: toISOString would give the UTC day,
+// which is the previous date in Riyadh between 00:00 and 03:00.
+onMounted(() => { dateFrom.value ??= localToday() })
 const dateTo = ref<string | null>(null)
 const attempted = ref(false)
 const saved = ref(false)

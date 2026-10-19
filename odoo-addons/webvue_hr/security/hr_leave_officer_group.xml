@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Owner decision 2026-10-19: approving leave must not also open employee bank
+         accounts and private fields.
+
+         Stock hr_holidays checks hr_holidays.group_hr_holidays_user for every leave
+         approval, and that group also implies hr.group_hr_user, which grants read on
+         every employee bank account (hr rule ir_rule_res_partner_bank_employees), the
+         private employee fields, and full CRUD on hr.job, hr.contract.type,
+         resource.calendar and hr.department. WebVue grants leave approval through its
+         own hr.leave.* capability groups, so this rewrite keeps every stock officer
+         check working while dropping the broader implication.
+
+         An approver reads employees through the WebVue hr.employees.read capability,
+         which owns its own ACL on hr.employee and exposes only the directory fields
+         (hr.leave.read depends on it). The time-off manager group keeps its own
+         hr.group_hr_manager, which already implies hr.group_hr_user, so HR managers
+         are unaffected.
+
+         Upgrading an existing database needs migrations/19.0.1.4.0/post-*.py: the stock
+         record is noupdate, so update mode skips this rewrite. -->
+    <data noupdate="1">
+        <record id="hr_holidays.group_hr_holidays_user" model="res.groups" forcecreate="0">
+            <field name="implied_ids" eval="[Command.set([ref('hr_holidays.group_hr_holidays_responsible')])]"/>
+        </record>
+    </data>
+</odoo>

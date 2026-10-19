@@ -43,6 +43,7 @@ DEPENDENCIES = {
     'hr.employees.access_status.read': {'hr.employees.read'},
     'hr.departments.manage': {'hr.departments.read'},
     'hr.documents.manage': {'hr.documents.read'},
+    'hr.leave.read': {'hr.employees.read'},
     'hr.leave.request': {'hr.leave.read'},
     'hr.leave.approve': {'hr.leave.read'},
     'hr.leave.manage': {'hr.leave.read'},

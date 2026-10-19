@@ -14,6 +14,7 @@
     # engine needs.
     'depends': ['webvue_api', 'hr', 'mail', 'hr_holidays', 'hr_work_entry_holidays'],
     'data': [
+        'security/hr_leave_officer_group.xml',
         'security/hr_capability_groups.xml',
         'security/hr_document_rules.xml',
         'security/ir.model.access.csv',

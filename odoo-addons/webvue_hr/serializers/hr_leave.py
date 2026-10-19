@@ -6,7 +6,7 @@ from odoo.addons.webvue_hr.serializers.dates import parse_optional_date
 
 LEAVE_STATES = ('confirm', 'validate1', 'validate', 'refuse', 'cancel')
 REQUEST_FIELDS = {'leave_type_id', 'date_from', 'date_to', 'notes', 'employee_id'}
-ALLOCATION_FIELDS = {'employee_id', 'leave_type_id', 'number_of_days', 'date_from', 'date_to', 'notes'}
+ALLOCATION_FIELDS = {'employee_id', 'leave_type_id', 'number_of_days', 'date_from', 'date_to'}
 
 
 def _ref(record):
@@ -18,13 +18,13 @@ def dump_leave_type(leave_type):
         'id': leave_type.id,
         'name': leave_type.name,
         'requires_allocation': leave_type.requires_allocation,
-        'request_unit': leave_type.request_unit,
-        'unpaid': leave_type.unpaid,
         'support_document': leave_type.support_document,
     }
 
 
 def dump_leave(leave):
+    """One request. The requester never sees their own request as decidable."""
+    own = leave.employee_id in leave.env.user.employee_ids
     return {
         'id': leave.id,
         'employee': _ref(leave.employee_id),
@@ -34,8 +34,8 @@ def dump_leave(leave):
         'number_of_days': leave.number_of_days,
         'state': leave.state,
         'notes': leave.notes or '',
-        'can_approve': bool(leave.can_approve or leave.can_validate),
-        'can_refuse': bool(leave.can_refuse),
+        'can_approve': bool(leave.can_approve or leave.can_validate) and not own,
+        'can_refuse': bool(leave.can_refuse) and not own,
         'can_cancel': bool(leave.can_cancel),
     }
 
@@ -122,6 +122,14 @@ def parse_allocation(payload):
         'date_to': date_to,
         'notes': _notes(payload),
     }
+
+
+def parse_cancel_reason(value):
+    if value is None or value is False:
+        return ''
+    if not isinstance(value, str):
+        raise ApiError(422, 'invalid', 'reason must be a string', field='reason')
+    return value.strip()
 
 
 def parse_state_filter(value):

@@ -22,6 +22,7 @@ from odoo.addons.webvue_hr.serializers.hr_leave import (
     dump_leave,
     dump_leave_type,
     parse_allocation,
+    parse_cancel_reason,
     parse_leave_request,
     parse_state_filter,
 )
@@ -39,7 +40,24 @@ def _require(capability):
 
 
 def _is_staff():
+    """An approver or manager may read and act on other employees' leave."""
     return any(_can(capability) for capability in STAFF_CAPABILITIES)
+
+
+def _is_own(leave):
+    return leave.employee_id in request.env.user.employee_ids
+
+
+def _require_no_fields(payload):
+    if payload:
+        field = sorted(payload)[0]
+        raise ApiError(422, 'invalid', f"field {field!r} is not writable", field=field)
+
+
+def _reject_self_decision(leave):
+    """Segregation of duties: nobody decides their own request."""
+    if _is_own(leave):
+        raise ApiError(403, 'forbidden', 'a request cannot be approved or refused by its own requester')
 
 
 def _own_employee():
@@ -123,12 +141,7 @@ class HrLeaveController(http.Controller):
         _require('hr.leave.read')
         raw = request.httprequest.args.get('employee_id')
         employee_id = parse_positive_int(raw, 'employee_id') if raw not in (None, '') else None
-        if employee_id is None:
-            employee = _own_employee()
-        elif _is_staff():
-            employee = _company_employee(employee_id)
-        else:
-            employee = _target_employee(employee_id)
+        employee = _target_employee(employee_id)
         types = request.env['hr.leave.type'].search(
             [*_leave_types_domain(), ('requires_allocation', '=', True)], order='sequence, id',
         )
@@ -187,33 +200,44 @@ class HrLeaveController(http.Controller):
     @http.route('/api/v1/hr/leave/requests/<int:leave_id>/approve', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('hr.enabled', operation='write')
-    def approve_request(self, leave_id, **_):
+    def approve_request(self, leave_id, **payload):
         _require('hr.leave.approve')
+        _require_no_fields(payload)
         leave = _current_leave(leave_id)
+        _reject_self_decision(leave)
         leave.action_approve()
         return dump_leave(leave)
 
     @http.route('/api/v1/hr/leave/requests/<int:leave_id>/refuse', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('hr.enabled', operation='write')
-    def refuse_request(self, leave_id, **_):
+    def refuse_request(self, leave_id, **payload):
         _require('hr.leave.approve')
+        _require_no_fields(payload)
         leave = _current_leave(leave_id)
+        _reject_self_decision(leave)
         leave.action_refuse()
         return dump_leave(leave)
 
     @http.route('/api/v1/hr/leave/requests/<int:leave_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('hr.enabled', operation='write')
-    def cancel_request(self, leave_id, reason=None, **_):
+    def cancel_request(self, leave_id, reason=None, **payload):
         _require('hr.leave.request')
-        if reason is not None and not isinstance(reason, str):
-            raise ApiError(422, 'invalid', 'reason must be a string', field='reason')
+        _require_no_fields(payload)
+        reason = parse_cancel_reason(reason)
         leave = _current_leave(leave_id)
+        # Stock only offers cancel for a decided or refused request; a request still
+        # waiting for a decision is withdrawn by deleting it, as Odoo's own form does.
+        if leave.state == 'confirm':
+            if not _is_own(leave):
+                raise ApiError(403, 'forbidden', 'only the requester can withdraw a request')
+            leave.unlink()
+            return request.make_json_response(None, status=204)
         if not leave.can_cancel:
             raise ApiError(422, 'invalid', 'this leave cannot be cancelled')
         request.env['hr.holidays.cancel.leave'].create({
-            'leave_id': leave.id, 'reason': (reason or '').strip(),
+            'leave_id': leave.id, 'reason': reason,
         }).action_cancel_leave()
         return dump_leave(leave)
 

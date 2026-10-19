@@ -188,8 +188,6 @@ export const HrLeaveTypeSchema = z.object({
   id: z.number().int().positive(),
   name: z.string(),
   requires_allocation: z.boolean(),
-  request_unit: z.enum(['day', 'half_day', 'hour']),
-  unpaid: z.boolean(),
   support_document: z.boolean(),
 }).strict()
 
@@ -239,7 +237,6 @@ export const HrLeaveAllocationCreateSchema = z.object({
   number_of_days: z.number().positive(),
   date_from: isoDate,
   date_to: isoDate.nullable().optional(),
-  notes: z.string().optional(),
 }).strict()
 
 export const HrLeaveTypeListSchema = z.object({ items: z.array(HrLeaveTypeSchema), total: z.number().int().nonnegative() }).strict()
