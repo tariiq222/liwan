@@ -164,5 +164,10 @@ class MeetingSeriesController(http.Controller):
         series = get_record('webvue.meeting.series', series_id)
         start = _parse_series_datetime(start_datetime, 'start_datetime') if start_datetime is not None else None
         stop = _parse_series_datetime(end_datetime, 'end_datetime') if end_datetime is not None else None
+        if (start is None) != (stop is None):
+            field = 'end_datetime' if stop is None else 'start_datetime'
+            raise ApiError(422, 'invalid', 'start_datetime and end_datetime must be given together', field=field)
+        if start and datetime.strptime(stop, '%Y-%m-%d %H:%M:%S') <= datetime.strptime(start, '%Y-%m-%d %H:%M:%S'):
+            raise ApiError(422, 'invalid', 'end_datetime must be after start_datetime', field='end_datetime')
         meeting = series.action_add_occurrence(start, stop, name.strip() if isinstance(name, str) and name.strip() else None)
         return request.make_json_response(dump_meeting(meeting, detail=True), status=201)
