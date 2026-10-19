@@ -4,7 +4,7 @@ import DepartmentForm from '@/components/hr/DepartmentForm.vue'
 import { useHrDepartment, useHrDepartments } from '@/composables/useHrDepartments'
 import { useHrEmployees } from '@/composables/useHrEmployees'
 const route = useRoute()
-const sourcePaths = useRecordListPaths(['/hr/departments', '/hr/documents']); const { t } = useI18n(); const { can } = useAccess(); const departments = useHrDepartments(); const employees = useHrEmployees({}); const id = computed(() => Number(route.params.departmentId)); const query = useHrDepartment(id); const department = computed(() => query.data.value)
+const sourcePaths = useRecordListPaths(['/hr/departments']); const { t } = useI18n(); const { can } = useAccess(); const departments = useHrDepartments(); const employees = useHrEmployees({}); const id = computed(() => Number(route.params.departmentId)); const query = useHrDepartment(id); const department = computed(() => query.data.value)
 const canManage = computed(() => can('hr.departments.manage'))
 const initialDataReady = computed(() => Boolean(query.data.value && departments.data.value && employees.data.value))
 const dependencyError = computed(() => query.error.value || departments.error.value || employees.error.value)

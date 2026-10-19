@@ -46,6 +46,11 @@ function loadShared(name: string): Component {
     setup(props) {
       return {
         props, hideBack: false, headerDescription: props.description,
+        // The template's script bindings: this harness compiles the template alone, and the
+        // trail is the page's own target, as SharedPageHeader builds it without a published one.
+        trail: props.backTo ? [{ label: props.backLabel ?? 'Back', to: props.backTo }] : [],
+        stickyHead: false,
+        frameOwnsHeading: false,
         // PageContainer derives its band from the prop; the route-shaped flags
         // are presentation hooks, not part of the width vocabulary.
         widthClass: `webvue-page-width-${props.width}`,
@@ -63,13 +68,16 @@ async function renderShared(
 ): Promise<string> {
   if (name === 'FilterBar') return renderFilter(name, props, slots)
   const app = createSSRApp({ render: () => h(loadShared(name), props, slots) })
+  // The templates read `$t` for their own accessible names, as the shell provides it in the app.
+  app.config.globalProperties.$t = (key: string) => key
   app.component('NuxtLink', NuxtLinkStub)
   app.component('UButton', NuxtLinkStub)
+  app.component('UIcon', { render: () => h('span', { 'aria-hidden': 'true' }) })
   return renderToString(app)
 }
 
 describe('shared composition rendered contracts', () => {
-  it('renders PageHeader back link, title, description, and actions in order', async () => {
+  it('renders PageHeader title, trail, description, and actions in order', async () => {
     const html = await renderShared(
       'PageHeader',
       { title: 'Tasks', description: 'Track delivery', backTo: '/tasks', backLabel: 'Back' },
@@ -84,8 +92,9 @@ describe('shared composition rendered contracts', () => {
     expect(html).toContain('Title slot')
     expect(html).toContain('Track delivery')
     expect(html).toContain('Create')
-    expect(html.indexOf('Back')).toBeLessThan(html.indexOf('Title slot'))
-    expect(html.indexOf('Title slot')).toBeLessThan(html.indexOf('Create'))
+    // The trail sits under the title (DESIGN.md §3), so the reading order is title, trail, actions.
+    expect(html.indexOf('Title slot')).toBeLessThan(html.indexOf('Back'))
+    expect(html.indexOf('Back')).toBeLessThan(html.indexOf('Create'))
   })
 
   it('renders view actions above collapsible search and controls, with active filters below', async () => {

@@ -73,6 +73,26 @@ class TestTaskCounts(WebVuePmoCase):
         self.assertEqual(detail['attachment_count'], 2)
         self.assertEqual(self._list_item(self.parent)['attachment_count'], 2)
 
+    def test_attachment_order_is_stable_with_interleaved_uploads(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        # Different id offsets exercise the unordered stock relation, including
+        # pairs separated in its set iteration order by unrelated uploads.
+        for index in range(8):
+            with self.subTest(index=index):
+                task = self.env['project.task'].create({
+                    'name': f'Attachment order {index}', 'project_id': self.project.id,
+                    'user_ids': [(4, self.employee.id)],
+                })
+                self._attach(task, 'first.txt')
+                self._attach(task, 'second.txt')
+                self._attach(self.task_other, 'unrelated.txt')
+                response = self.api('GET', f'/api/v1/tasks/{task.id}')
+                self.assertEqual(response.status_code, 200, response.text)
+                self.assertEqual(
+                    [item['name'] for item in response.json()['attachments']],
+                    ['first.txt', 'second.txt'],
+                )
+
     def test_attachment_count_follows_upload_and_delete(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         upload = self.api('POST', f'/api/v1/tasks/{self.task_overdue.id}/attachments', {

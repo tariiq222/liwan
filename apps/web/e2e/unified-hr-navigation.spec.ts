@@ -28,36 +28,6 @@ test('department hierarchy keeps routed edits, parent exclusions and reload filt
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
-test('documents list creates a document on an internal page and retains filters on return', async ({ page }) => {
-  expect((await page.request.post('/api/auth/login', { data: { login: 'admin', password: 'admin' } })).ok()).toBe(true)
-  const suffix = Date.now()
-  const departmentResponse = await page.request.post('/api/v1/hr/departments', { data: { name: `مستندات ${suffix}` } })
-  expect(departmentResponse.ok()).toBe(true)
-  const department = await departmentResponse.json()
-  const back = `/hr/documents?department_id=${department.id}`
-  await page.goto(back)
-  await page.getByRole('button', { name: 'مستند جديد', exact: true }).click()
-  await expect(page).toHaveURL(/\/hr\/documents\/new\?/)
-  const name = `دليل موحد ${suffix}`
-  await page.getByLabel('عنوان المستند', { exact: true }).fill(name)
-  await page.getByRole('textbox', { name: 'المحتوى', exact: true }).fill('نص محفوظ في صفحة داخلية')
-  await page.getByRole('button', { name: 'إنشاء', exact: true }).click()
-  await expect(page).toHaveURL(new RegExp(`/hr/departments/${department.id}/documents/\\d+\\?`))
-  const documentId = new URL(page.url()).pathname.split('/').at(-1)
-  const response = await page.request.get(`/api/v1/hr/documents/${documentId}`)
-  expect(response.ok()).toBe(true)
-  const saved = await response.json()
-  expect(saved.name).toBe(name)
-  expect(saved.body).toContain('نص محفوظ في صفحة داخلية')
-  expect(saved.department.id).toBe(department.id)
-  await page.reload()
-  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
-  await page.getByRole('link', { name: 'رجوع', exact: true }).click()
-  await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).search).toBe(back)
-  await expect(page.getByText(name, { exact: true })).toBeVisible()
-})
-
 test('direct department employee links preserve scope through reload', async ({ page }) => {
   expect((await page.request.post('/api/auth/login', { data: { login: 'admin', password: 'admin' } })).ok()).toBe(true)
   const suffix = Date.now()

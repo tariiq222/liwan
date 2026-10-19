@@ -3,6 +3,7 @@ from odoo.exceptions import AccessError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 
+# Company/user fixtures require the complete registry when updating an installed release.
 @tagged('post_install', '-at_install', 'webvue', 'webvue_access')
 class TestWebVueMeetingCompanyAccess(TransactionCase):
     @classmethod

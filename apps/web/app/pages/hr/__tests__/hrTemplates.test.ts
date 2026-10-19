@@ -11,27 +11,23 @@ describe('the HR pages stay on their templates', () => {
   it.each([
     ['pages/hr/index.vue', ['<SharedListPage', 'create-test-id="hr-employee-new"']],
     ['pages/hr/departments/index.vue', ['<SharedListPage', 'create-test-id="hr-department-new"', ':views="views"', 'views-in-filters', '<SharedListCard', '<SharedListFooter', 'embedded']],
-    ['pages/hr/documents.vue', ['<SharedListPage', 'create-test-id="hr-document-new"', '<SharedDataTable']],
-    ['pages/hr/departments/[departmentId].vue', ['<SharedRecordPage', '<SharedIdentityCard', '<SharedRecordSection', '<SharedPropertiesPanel', '#aside', ':hide-header="isCreateDocument"']],
+    ['pages/hr/departments/[departmentId].vue', ['<SharedRecordPage', '<SharedIdentityCard', '<SharedRecordSection', '<SharedPropertiesPanel', '#aside']],
     ['pages/hr/employees/[employeeId].vue', ['<SharedRecordPage', '<EmployeeProperties', '#aside', '<SharedRowActions']],
-    ['pages/hr/departments/[departmentId]/documents/[documentId].vue', ['<SharedRecordPage', '<SharedRecordSection']],
     ['components/hr/DirectoryTable.vue', ['<SharedListCard', '<SharedListFooter', '<SharedDataTable', ' bare', '#mobile-row', 'data-testid="hr-employee-name"']],
     ['components/hr/DepartmentTable.vue', ['<SharedDataTable', ' bare', '#mobile-row']],
-    ['components/hr/DocumentList.vue', ['<SharedDataTable', '#mobile-row']],
     ['components/hr/EmployeeCard.vue', ['<SharedIdentityCard', 'variant="tinted"']],
     ['components/hr/EmployeeProperties.vue', ['<SharedPropertiesPanel', '<SharedPropertyRow']],
     ['pages/hr/employees/[employeeId]/edit.vue', ['<EmployeeGeneralForm', ':back-to="backTo"']],
     ['pages/hr/departments/[departmentId]/edit.vue', ['<DepartmentForm', ':back-to="backTo"']],
     ['components/hr/EmployeeGeneralForm.vue', ['<SharedFormSection panel', '<SharedFormActions']],
     ['components/hr/DepartmentForm.vue', ['<SharedFormSection panel', '<SharedFormActions']],
-    ['pages/hr/departments/[departmentId]/documents/[documentId]/edit.vue', ['<SharedFormSection panel']],
   ])('%s uses its template', (file, needles) => {
     const source = read(file)
     for (const needle of needles) expect(source, needle).toContain(needle)
   })
 
   it('draws no hand-made table or skeleton in the migrated HR files', () => {
-    for (const file of ['pages/hr/index.vue', 'pages/hr/documents.vue', 'pages/hr/departments/index.vue', 'components/hr/DirectoryTable.vue', 'components/hr/DepartmentTable.vue', 'components/hr/DocumentList.vue', 'components/hr/EmployeeCard.vue']) {
+    for (const file of ['pages/hr/index.vue', 'pages/hr/departments/index.vue', 'components/hr/DirectoryTable.vue', 'components/hr/DepartmentTable.vue', 'components/hr/EmployeeCard.vue']) {
       const source = read(file)
       expect(source, file).not.toMatch(/<UTable\b/)
       expect(source, file).not.toMatch(/<USkeleton\b/)
@@ -50,12 +46,12 @@ describe('the HR pages stay on their templates', () => {
   })
 
   it('has one DataTable per HR page', () => {
-    const departmentRecord = read('pages/hr/departments/[departmentId].vue') + read('components/hr/DocumentList.vue')
-    expect(departmentRecord.match(/<SharedDataTable\b/g)).toHaveLength(1)
+    const departmentRecord = read('pages/hr/departments/[departmentId].vue')
+    expect(departmentRecord.match(/<SharedDataTable\b/g)).toBeNull()
   })
 
   it('keeps the create panels route-backed', () => {
-    for (const file of ['pages/hr/employees/new.vue', 'pages/hr/departments/new.vue', 'pages/hr/documents/new.vue', 'pages/hr/departments/[departmentId]/documents/new.vue']) {
+    for (const file of ['pages/hr/employees/new.vue', 'pages/hr/departments/new.vue', ]) {
       expect(read(file), file).toContain('<SharedCreatePanel')
     }
   })

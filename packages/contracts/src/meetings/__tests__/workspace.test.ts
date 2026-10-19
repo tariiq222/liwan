@@ -19,8 +19,12 @@ describe('meeting workspace wire compatibility', () => {
   it('keeps legacy and structured finalized versions in the same envelope', () => {
     const version = { id: 1, number: 1, captured_at: snapshot.captured_at, actor: null, snapshot }
     const parsed = MeetingVersionListSchema.parse({ items: [version, { ...version, id: 2, number: 2, snapshot: { ...snapshot, minutes_form: form } }], total: 2 })
-    expect(parsed.items[0]?.snapshot.minutes_form).toBeUndefined()
-    expect(parsed.items[1]?.snapshot.minutes_form?.topics[0]?.resolution_ids).toEqual([17])
+    const legacySnapshot = parsed.items[0]?.snapshot
+    const structuredSnapshot = parsed.items[1]?.snapshot
+    expect(legacySnapshot).toBeTruthy()
+    expect(structuredSnapshot).toBeTruthy()
+    expect(legacySnapshot?.minutes_form).toBeUndefined()
+    expect(structuredSnapshot?.minutes_form?.topics[0]?.resolution_ids).toEqual([17])
     const stripped = MeetingVersionListSchema.parse({ items: [{ ...version, snapshot: { ...snapshot, raw_task_id: 9 } }], total: 1 })
     expect(stripped.items[0]?.snapshot).not.toHaveProperty('raw_task_id')
   })

@@ -15,12 +15,7 @@ describe('createListReturnTo', () => {
     expect(createListReturnTo('new-meeting', '/meetings/series', '/meetings/series', {})).toBe('/meetings/series')
     expect(createListReturnTo('new-employee', '/hr', '/hr?q=b', { q: 'b' })).toBe('/hr?q=b')
     expect(createListReturnTo('new-department', '/hr/departments', '/hr/departments', {})).toBe('/hr/departments')
-    expect(createListReturnTo('new-document', '/hr/documents', '/hr/documents', {})).toBe('/hr/documents')
-  })
-
-  it('treats a department document list as the document list', () => {
-    expect(createListReturnTo('new-document', '/hr/departments/4/documents', '/hr/departments/4/documents?q=c', { q: 'c' }))
-      .toBe('/hr/departments/4/documents?q=c')
+    expect(createListReturnTo('new-document', '/documents', '/documents', {})).toBe('/documents')
   })
 
   it('ignores a trailing slash when matching the list', () => {
@@ -32,7 +27,7 @@ describe('createListReturnTo', () => {
     expect(createListReturnTo('new-meeting', '/projects/7', '/projects/7', {})).toBe('/meetings')
     expect(createListReturnTo('new-employee', '/hr/employees/3', '/hr/employees/3', {})).toBe('/hr')
     expect(createListReturnTo('new-department', '/hr', '/hr', {})).toBe('/hr/departments')
-    expect(createListReturnTo('new-document', '/hr/employees/3', '/hr/employees/3', {})).toBe('/hr/documents')
+    expect(createListReturnTo('new-document', '/hr/employees/3', '/hr/employees/3', {})).toBe('/documents')
   })
 
   it('honours a safe returnTo inside the module and rejects an unsafe one', () => {
@@ -61,27 +56,12 @@ describe('createLinkTo', () => {
     })
   })
 
-  it('carries the department into a new document', () => {
-    const to = createLinkTo(
-      { id: 'new-document', to: '/hr/documents/new' },
-      routeOf('/hr/departments/4/documents', {}, { departmentId: '4' }),
-    )
-    expect(to).toMatchObject({ path: '/hr/documents/new' })
-    expect((to as { query: Record<string, string> }).query.department_id).toBe('4')
-    expect((to as { query: Record<string, string> }).query.returnTo).toBe('/hr/departments/4/documents')
+  it('carries a generic context and the filtered list into document creation', () => {
+    expect(createLinkTo({ id: 'new-document', to: '/documents/new' }, routeOf('/documents', { context_kind: 'hr.department', context_id: '9' }))).toEqual({ path: '/documents/new', query: { context_kind: 'hr.department', context_id: '9', returnTo: '/documents?context_kind=hr.department&context_id=9' } })
   })
-
-  it('prefers an explicit department_id query over the route param', () => {
-    const to = createLinkTo(
-      { id: 'new-document', to: '/hr/documents/new' },
-      routeOf('/hr/departments/4/documents', { department_id: '9' }, { departmentId: '4' }),
-    )
-    expect((to as { query: Record<string, string> }).query.department_id).toBe('9')
-  })
-
-  it('leaves the department out when the route carries none', () => {
-    const to = createLinkTo({ id: 'new-document', to: '/hr/documents/new' }, routeOf('/hr/documents'))
-    expect((to as { query: Record<string, string> }).query.department_id).toBeUndefined()
+  it('does not invent a document context from unrelated route params', () => {
+    const to = createLinkTo({ id: 'new-document', to: '/documents/new' }, routeOf('/hr/departments/4', {}, { departmentId: '4' }))
+    expect(to).toEqual({ path: '/documents/new', query: { returnTo: '/documents' } })
   })
 
   it('takes the HR create target from the link the path chose', () => {

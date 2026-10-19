@@ -80,6 +80,14 @@ LOCALE_ROOTS = ('apps/web/i18n/locales/', 'apps/vendor-admin/i18n/locales/')
 # Reused building blocks that must each have a story (spec §1). Add a path here when a
 # component starts being reused across pages, together with its story.
 STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
+    'documents/DocumentEditor.vue',
+    'documents/DocumentReader.vue',
+    'documents/DocumentList.vue',
+    'documents/DocumentCreateForm.vue',
+    'documents/DocumentFiles.vue',
+    'documents/DocumentAccessForm.vue',
+    'documents/DocumentContextField.vue',
+    'documents/DocumentMetadataFields.vue',
     'operations/RequestList.vue', 'operations/ProcessList.vue', 'operations/RequestForm.vue',
     'operations/ProcessForm.vue',
     'shared/layout/PageHeader.vue', 'shared/feedback/PageState.vue', 'shared/layout/PageContainer.vue', 'shared/form/UnsavedChanges.vue',
@@ -110,7 +118,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'subscription/BranchSummary.vue',
     'shared/data/ChartPanel.vue', 'shared/layout/DashboardPage.vue',
     'shared/layout/TimelineFrame.vue', 'shared/layout/ConversationLayout.vue',
-    'shared/data/InvoiceLines.vue', 'shared/data/PersonAvatar.vue', 'pmo/tasks/TaskKpiStrip.vue',
+    'shared/data/InvoiceLines.vue', 'shared/data/PersonAvatar.vue', 'pmo/tasks/TaskKpiStrip.vue', 'pmo/projects/ProjectKpiStrip.vue',
     'shared/layout/SubCard.vue', 'shared/data/Progress.vue', 'shared/layout/LinkCard.vue', 'shared/layout/IdentityCard.vue',
 ))
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')

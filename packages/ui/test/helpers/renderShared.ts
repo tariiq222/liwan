@@ -21,6 +21,8 @@ export interface SharedRenderOptions {
   hydrated?: boolean
   /** Translations by key; a missing key renders as the key itself. `{name}` params are filled. */
   messages?: Record<string, string>
+  /** The route path the component sees; the trail drops a step that links to it. */
+  routePath?: string
   /** Further Nuxt auto-imports the component calls (useRoute, useRouter, …). */
   globals?: Record<string, unknown>
   /** Modules the component imports, by specifier (for example '../../../utils/errorState'). */
@@ -88,6 +90,9 @@ export function loadShared(name: string, options: SharedRenderOptions = {}): Vue
     toRef: Vue.toRef, provide: Vue.provide, inject: Vue.inject, useId: Vue.useId, useSlots: Vue.useSlots, onMounted: Vue.onMounted, onBeforeUnmount: Vue.onBeforeUnmount,
     useI18n: () => ({ t, locale: Vue.ref('ar'), localeProperties: Vue.ref({ dir: 'rtl' }) }),
     useHydrated: () => Vue.ref(options.hydrated ?? true),
+    useRoute: () => ({ path: options.routePath ?? '/current' }),
+    // Outside a shell there is no published trail; a test that wants one passes it in `globals`.
+    usePageTrail: () => Vue.readonly(Vue.ref([])),
     ...options.globals,
   }
   new Function('require', 'exports', ...Object.keys(autoImports), code)(require, exports, ...Object.values(autoImports))

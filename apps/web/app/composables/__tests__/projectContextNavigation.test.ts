@@ -20,7 +20,7 @@ describe('project list context selection', () => {
     expect(isContextPathActive('/meetings/new', '/meetings')).toBe(false)
     expect(isContextPathActive('/hr/employees/new', '/hr')).toBe(false)
     expect(isContextPathActive('/hr/departments/new', '/hr/departments')).toBe(false)
-    expect(isContextPathActive('/hr/documents/new', '/hr/documents')).toBe(false)
+    expect(isContextPathActive('/documents/new', '/documents')).toBe(false)
     expect(isContextPathActive('/projects/dashboard', '/projects')).toBe(false)
     expect(projectIdFromPath('/projects/dashboard')).toBeNull()
     expect(projectIdFromPath('/projects/new')).toBeNull()

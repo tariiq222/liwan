@@ -6,6 +6,7 @@ from odoo.tests import TransactionCase, new_test_user, tagged
 from odoo.addons.webvue_meetings.serializers.meeting import dump_meeting
 
 
+# Company/user fixtures require the complete registry when updating an installed release.
 @tagged('post_install', '-at_install', 'webvue')
 class TestMeetingLifecycle(TransactionCase):
     """Calendar membership and recommendation actions of a meeting, without projects."""

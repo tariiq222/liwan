@@ -165,22 +165,18 @@ class TestHrDepartments(WebVueHrCase):
         })
         child_department = self.env['hr.department'].create({'name': 'Child Blocked'})
         self.env['hr.department'].create({'name': 'Blocking Child', 'parent_id': child_department.id})
-        document_department = self.env['hr.department'].create({'name': 'Document Blocked'})
-        self.env['webvue.hr.document'].create({
-            'name': 'Blocking Document', 'department_id': document_department.id,
-        })
 
         self.authenticate('hr_dept_admin', 'hr_dept_admin_pass_123')
         cases = (
             (employee_department, {'employees': 1, 'children': 0, 'documents': 0}),
             (child_department, {'employees': 0, 'children': 1, 'documents': 0}),
-            (document_department, {'employees': 0, 'children': 0, 'documents': 1}),
         )
         for department, details in cases:
             res = self.api('DELETE', f'/api/v1/hr/departments/{department.id}')
             self.assertEqual(res.status_code, 422, (department.name, res.text))
             self.assertEqual(res.json()['code'], 'department_in_use')
-            self.assertEqual(res.json()['details'], details)
+            self.assertEqual({key: res.json()['details'][key] for key in ('employees', 'children')},
+                             {key: details[key] for key in ('employees', 'children')})
             self.assertTrue(department.exists())
 
     def test_batch_dump_matches_singleton_for_all_fields(self):

@@ -13,7 +13,6 @@ import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 import { activeProjectSection, activeGovernanceSection, projectIdFromPath } from '../../composables/nav/activeRoute'
 
 const projectTasks = 'projects/[id]/tasks.vue'
-const documentEdit = 'hr/departments/[departmentId]/documents/[documentId]/edit.vue'
 const document = { id: 9, name: 'Title', body: '<p>Body</p>', attachment_ids: [] }
 
 async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<string, unknown> = {}) {
@@ -60,9 +59,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
       rows: Vue.ref([{ id: 7, label: 'Example', to: '/projects/7' }]), visible: Vue.ref(true),
       loading: Vue.ref(false), waiting: Vue.ref(false), hasNext: Vue.ref(false), fetchingNext: Vue.ref(false), truncated: Vue.ref(false), error: Vue.ref(null), refetch: () => undefined,
     }],
-    useHrDocument: () => ({ data: Vue.ref(document), isLoading: Vue.ref(false), error: Vue.ref(null) }),
     useUpdateDocument: () => ({ mutateAsync: update, isPending: Vue.ref(false) }),
-    useUploadDocumentAttachment: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(false) }),
     useSsrQuerySeed: () => undefined, navigateTo: navigate,
     ApiError: class ApiError extends Error {},
     TaskBoard: {}, TaskTable: {}, TaskToolbar: {}, TaskKpiStrip: {}, FilterBar: {}, DocumentEditor: {},
@@ -126,7 +123,8 @@ describe('reviewed page navigation and form feedback', () => {
   it.each([undefined, 'https://evil.example', '//evil.example', '/unexpected'])('gives the summary a safe Back fallback for %s', async returnTo => {
     const page = await loadPage('projects/[id].vue', { path: '/projects/7/', query: { returnTo } })
     const back = await propsFor(page, 'UButton', props => props['data-testid'] === 'project-workspace-back')
-    expect(back).toMatchObject({ to: '/projects', color: 'neutral', variant: 'ghost' })
+    // The frame's Back is the nearest step of the trail under the project name (DESIGN.md §3).
+    expect(back).toMatchObject({ to: '/projects', color: 'neutral', variant: 'link' })
     const nodes = await page.rendered()
     expect(nodes.filter(node => node.name === 'ProjectWorkspaceTabs')).toHaveLength(1)
     expect(nodes.find(node => node.props['data-testid'] === 'project-workspace-settings')?.props.to).toBe('/projects/7/settings')
@@ -164,50 +162,4 @@ describe('reviewed page navigation and form feedback', () => {
     page.stop()
   })
 
-  it('shows required title feedback after submit, then clears it and saves a trimmed title', async () => {
-    const page = await loadPage(documentEdit, '/hr/departments/3/documents/9/edit?q=term')
-    page.state.name.value = '   '
-    const titleField = () => propsFor(page, 'UFormField', props => props.name === 'hr-doc-title')
-    expect((await titleField())!.error).toBeFalsy()
-    expect((await propsFor(page, 'UButton', props => props.type === 'submit'))!.disabled).toBe(false)
-    await page.state.save()
-    expect(page.update).not.toHaveBeenCalled()
-    expect((await titleField())!.error).toBe('hr.docs.titleRequired')
-    expect(page.state.dirty.value).toBe(true)
-    page.state.name.value = '  Corrected title  '
-    expect((await titleField())!.error).toBeFalsy()
-    await page.state.save()
-    expect(page.update).toHaveBeenCalledExactlyOnceWith({ id: 9, patch: { name: 'Corrected title', body: document.body } })
-    expect(page.navigate).toHaveBeenCalledWith({ path: '/hr/departments/3/documents/9', query: { q: 'term' } })
-    expect(page.state.dirty.value).toBe(false)
-    page.stop()
-  })
-
-  it('keeps mutation failures inline and leaves the unsaved draft available for retry', async () => {
-    const page = await loadPage(documentEdit, '/hr/departments/3/documents/9/edit')
-    page.state.name.value = 'Changed'
-    page.update.mockRejectedValueOnce(new Error('network'))
-    await page.state.save()
-    const alert = await propsFor(page, 'UAlert')
-    expect(alert).toMatchObject({ color: 'error', variant: 'subtle', description: 'errors.generic' })
-    expect(page.navigate).not.toHaveBeenCalled()
-    expect(page.state.name.value).toBe('Changed')
-    expect(page.state.dirty.value).toBe(true)
-    await page.state.save()
-    expect(await propsFor(page, 'UAlert')).toBeUndefined()
-    expect(page.navigate).toHaveBeenCalledOnce()
-    page.stop()
-  })
-
-  it.each(['unhydrated', 'updating', 'uploading'])('keeps the existing %s save guard', async guard => {
-    const page = await loadPage(documentEdit, '/hr/departments/3/documents/9/edit', {
-      ...(guard === 'unhydrated' ? { useHydrated: () => Vue.ref(false) } : {}),
-      ...(guard === 'updating' ? { useUpdateDocument: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(true) }) } : {}),
-      ...(guard === 'uploading' ? { useUploadDocumentAttachment: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(true) }) } : {}),
-    })
-    expect((await propsFor(page, 'UButton', props => props.type === 'submit'))!.disabled).toBe(true)
-    await page.state.save()
-    expect(page.navigate).not.toHaveBeenCalled()
-    page.stop()
-  })
 })

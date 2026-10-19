@@ -18,11 +18,6 @@ const departments = [
   { id: 2, name: PEOPLE.name, parent_id: null, manager: KHALID, child_ids: [], employee_count: 2 },
   { id: 3, name: 'العمليات الميدانية', parent_id: 1, manager: null, child_ids: [], employee_count: 0 },
 ]
-const documents = [
-  { id: 1, name: 'دليل إجراءات التشغيل', department: OPS, body: 'يوضح هذا المستند إجراءات التشغيل المعتمدة للفريق.', attachment_ids: [{ id: 1, name: 'دليل التشغيل.pdf', mimetype: 'application/pdf', file_size: 245760, url: '/api/v1/hr/documents/1/attachments/1/download' }], expiry_date: null, write_date: '2026-09-10T08:00:00+03:00' },
-  { id: 2, name: 'سياسة الإجازات', department: PEOPLE, body: 'تنظم هذه السياسة الإجازات السنوية والمرضية.', attachment_ids: [], expiry_date: null, write_date: '2026-09-12T08:00:00+03:00' },
-  { id: 3, name: 'نموذج تقييم الأداء', department: PEOPLE, body: 'نموذج التقييم السنوي لأداء الموظفين.', attachment_ids: [], expiry_date: null, write_date: '2026-09-14T08:00:00+03:00' },
-]
 
 const page = (items, url) => {
   const offset = Math.max(0, Number(url.searchParams.get('offset') ?? 0) || 0)
@@ -46,7 +41,5 @@ export function hrPreviewData(path, url) {
   if (route.startsWith('/api/v1/hr/employees/')) return byId(employees, route, '/api/v1/hr/employees')
   if (route === '/api/v1/hr/departments') return page(departments, url)
   if (route.startsWith('/api/v1/hr/departments/')) return byId(departments, route, '/api/v1/hr/departments')
-  if (route === '/api/v1/hr/documents') return page(documents.filter(row => matches(row.name, q) && (!department || row.department.id === department)), url)
-  if (route.startsWith('/api/v1/hr/documents/')) return byId(documents, route, '/api/v1/hr/documents')
   return undefined
 }

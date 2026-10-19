@@ -69,13 +69,10 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
 <template>
   <div class="flex flex-col gap-(--webvue-gap-card)">
     <!-- Layer 1: a full-bleed white band (project identity, meta line, the phase stepper and the main tabs). -->
-    <div v-if="showFrame" class="webvue-page-band webvue-print-hide border-b border-default bg-default" data-testid="project-workspace-frame">
+    <div v-if="showFrame" class="webvue-page-band webvue-print-hide border-b border-default bg-default" data-sticky="true" data-testid="project-workspace-frame">
       <SharedPageContainer width="list">
         <div class="flex flex-col gap-(--webvue-gap-card)">
           <div class="flex flex-col gap-2" data-testid="project-workspace-identity">
-            <UButton v-if="backTo" :to="backTo" :aria-label="backLabel" color="neutral" variant="ghost" size="sm" class="self-start text-muted focus-visible:ring-2 focus-visible:ring-primary" data-testid="project-workspace-back">
-              <UIcon name="i-lucide-arrow-right" aria-hidden="true" class="size-4 ltr:rotate-180" /><span class="hidden sm:inline">{{ backLabel }}</span>
-            </UButton>
             <template v-if="project">
               <!-- Title row: the name, then the two pills (status, phase), and the settings action at the end. -->
               <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -94,6 +91,11 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
                     :aria-current="isProjectSettings ? 'page' : undefined"
                   />
                 </UTooltip>
+                <nav v-if="backTo" :aria-label="t('nav.breadcrumb')" class="flex w-full flex-wrap items-center gap-1.5 text-xs text-muted">
+                  <UButton :to="backTo" :aria-label="backLabel" color="neutral" variant="link" size="xs" class="p-0 font-medium text-muted hover:text-highlighted focus-visible:ring-2 focus-visible:ring-primary" data-testid="project-workspace-back">
+                    <span>{{ backLabel }}</span>
+                  </UButton>
+                </nav>
               </div>
               <p class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted" data-testid="project-workspace-meta">
                 <span v-if="project.manager" class="inline-flex items-center gap-2">

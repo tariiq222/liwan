@@ -15,6 +15,7 @@ class WebVueMeetingsCase(WebVueApiCase):
                                     name='Mona', groups='webvue_core.group_employee')
 
 
+# Company/user fixtures require the complete registry when updating an installed release.
 @tagged('post_install', '-at_install', 'webvue')
 class WebVueMeetingEngineCase(TransactionCase):
     """Model-level fixture of the meeting engine: capability roles, no HTTP and no projects."""

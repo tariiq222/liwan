@@ -285,6 +285,21 @@ class TestProjectReports(WebVuePmoCase):
         self.assertEqual(self.api('GET', f'{SUMMARY_URL}?offset=1').status_code, 400)
         self.assertEqual(self.api('GET', f'{SUMMARY_URL}?bogus=1').status_code, 400)
         self.assertEqual(self.api('GET', f'{SUMMARY_URL}?status=nope').status_code, 422)
+        self.assertEqual(self.api('GET', f'{SUMMARY_URL}?mine=maybe').status_code, 422)
+
+    def test_dashboard_summary_mine_counts_only_managed_projects(self):
+        Project = self.env['project.project']
+        managed = Project.create({'company_id': self.env.company.id, 'name': 'Managed summary project', 'user_id': self.manager.id})
+        Project.create({'company_id': self.env.company.id, 'name': 'Unmanaged summary project', 'user_id': False})
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        mine = self.api('GET', f'{SUMMARY_URL}?mine=1').json()
+        everything = self.api('GET', SUMMARY_URL).json()
+        expected = Project.with_user(self.manager).search_count([
+            ('company_id', '=', self.env.company.id), ('user_id', '=', self.manager.id),
+        ])
+        self.assertIn(managed.id, Project.search([('user_id', '=', self.manager.id)]).ids)
+        self.assertEqual(mine['project_count'], expected)
+        self.assertLess(mine['project_count'], everything['project_count'])
 
     def test_dashboard_analytics_returns_full_scope_and_tied_latest_five(self):
         Project = self.env['project.project']

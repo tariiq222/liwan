@@ -10,7 +10,8 @@ class ProjectTaskAttachments(models.Model):
 
         Stock ``attachment_ids`` also contains files carried by chatter
         messages and URL attachments. The PMO attachment surface owns only
-        direct binary files, so keep that distinction here for every caller.
+        direct binary files, in creation order, for every caller. Stock computes
+        the relation using a set, so its iteration order is not stable.
         """
         self.ensure_one()
         message_attachment_ids = set(self.message_ids.mapped('attachment_ids').ids)
@@ -22,7 +23,7 @@ class ProjectTaskAttachments(models.Model):
                 and attachment.type == 'binary'
                 and not attachment.url
             ),
-        )
+        ).sorted('id')
 
     def _webvue_task_attachment(self, attachment_id):
         """Find a direct attachment by id without crossing task boundaries."""

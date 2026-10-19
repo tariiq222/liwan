@@ -24,7 +24,7 @@ test('real login form rejects invalid credentials then loads a real capability i
     expect(me.company.id).toBe(fixture.company);
     expect(me.capabilities).toContain('hr.employees.manage');
 });
-for (const path of ['/projects', '/projects/dashboard', '/tasks', '/hr', '/hr/departments', '/hr/documents', '/meetings', '/meetings/series', '/meetings/calendar', '/chat', '/account', '/projects/settings', '/settings/users', '/settings/roles', '/settings/branding', '/operations']) {
+for (const path of ['/projects', '/projects/dashboard', '/tasks', '/hr', '/hr/departments', '/documents', '/meetings', '/meetings/series', '/meetings/calendar', '/chat', '/account', '/projects/settings', '/settings/users', '/settings/roles', '/settings/branding', '/operations']) {
     test(`real backend renders ${path} without server failures`, async ({ page }) => {
         await login(page);
         const failures: string[] = [];
@@ -114,7 +114,7 @@ test('real project task context survives finance roundtrip and refresh', async (
     await page.reload();
     await expect(page.locator('main')).toContainText(title);
 });
-for (const path of ['/projects', '/hr', '/hr/documents', '/meetings', '/meetings/calendar', '/chat']) {
+for (const path of ['/projects', '/hr', '/documents', '/meetings', '/meetings/calendar', '/chat']) {
     test(`real phone UI fits ${path}`, async ({ page }) => { await page.setViewportSize({ width: 390, height: 844 }); await login(page); await open(page, path); await page.waitForLoadState('networkidle'); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1); });
 }
 test('real chat message arrives in another logged-in browser without refresh', async ({ page, browser }) => {

@@ -115,7 +115,7 @@ function loadTree(displayedNodes: DepartmentTreeNode[], options: {
       const nodeActions = (node: DepartmentTreeNode) => [
         ...(canManage ? [{ value: 'edit', label: t('hr.depts.edit') }, { value: 'createChild', label: t('hr.depts.newChild') }] : []),
         ...(canReadEmployees ? [{ value: 'employees', label: t('hr.depts.viewEmployees'), to: `/hr?department_id=${node.department.id}` }] : []),
-        ...(canReadDocuments ? [{ value: 'documents', label: t('hr.depts.viewDocuments'), to: `/hr/documents?department_id=${node.department.id}` }] : []),
+        ...(canReadDocuments ? [{ value: 'documents', label: t('hr.depts.viewDocuments'), to: `/documents?context_kind=hr.department&context_id=${node.department.id}` }] : []),
       ]
       const runAction = () => undefined
       const isExpanded = (node: DepartmentTreeNode) => isSearching || expanded.has(node.department.id)
@@ -182,7 +182,7 @@ describe('department tree layout and routed actions', () => {
     expect(html).toContain('hr.depts.childReason:1')
     expect(html).toContain('نورة')
     expect(html).toContain('href="/hr?department_id=1"')
-    expect(html).toContain('href="/hr/documents?department_id=8"')
+    expect(html).toContain('href="/documents?context_kind=hr.department&amp;context_id=8"')
     expect(html).toContain('aria-label="hr.depts.edit"')
     expect(html).toContain('aria-label="hr.depts.newChild"')
     expect(html).toContain(`aria-label="${longName}"`)
@@ -200,7 +200,7 @@ describe('department tree layout and routed actions', () => {
     expect(searching).toContain('href="/hr?department_id=1"')
     expect(searching).not.toContain('hr.depts.edit')
     expect(searching).not.toContain('hr.depts.newChild')
-    expect(searching).not.toContain('/hr/documents?department_id=')
+    expect(searching).not.toContain('/documents?context_kind=hr.department')
 
     const collapsed = await renderTree([parent], { isSearching: false, expandedIds: [], canManage: true })
     expect(collapsed).toContain('aria-expanded="false"')

@@ -13,7 +13,7 @@ const CAPABILITIES = [
   'access.users.read', 'access.users.grant', 'access.users.assign_roles', 'access.users.disable', 'access.users.reset_password',
   'access.roles.read', 'access.roles.manage', 'access.audit.read',
   'hr.employees.read', 'hr.employees.manage', 'hr.employees.archive', 'hr.employees.access_status.read',
-  'hr.departments.read', 'hr.departments.manage', 'hr.documents.read', 'hr.documents.manage',
+  'hr.departments.read', 'hr.departments.manage', 'documents.items.read', 'documents.items.manage',
   'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage', 'pmo.settings.manage',
   'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write', 'pmo.tasks.approve',
   'settings.branding.manage',

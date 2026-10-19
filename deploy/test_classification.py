@@ -9,7 +9,7 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-import classification
+from deploy import classification
 
 ROOT = Path(__file__).resolve().parents[1]
 

@@ -41,7 +41,9 @@
       "description": "Employee directory and work details.",
       "filteredEmpty": "No employees match these filters",
       "filteredEmptyHint": "Change or clear the filters.",
-      "footer": { "results": "{shown} of 1 result | {shown} of {total} results" },
+      "footer": {
+        "results": "{shown} of 1 result | {shown} of {total} results"
+      },
       "searchValue": "Search: {value}",
       "clear": "Clear filters",
       "status": {
@@ -103,7 +105,9 @@
       "general": "General",
       "assignment": "Organizational assignment",
       "formHint": "Save after reviewing the department information.",
-      "footer": { "results": "{count} department | {count} departments" },
+      "footer": {
+        "results": "{count} department | {count} departments"
+      },
       "children": "Child departments",
       "save": "Save",
       "managerLoadError": "Unable to load employees",
@@ -160,40 +164,6 @@
       "edit": "Edit employee",
       "accessManagedInSettings": "Sign-in access is managed in System administration.",
       "manageAccount": "Manage account"
-    },
-    "docs": {
-      "noDepartments": "Create a department to add documents",
-      "noDepartmentsHint": "Documents belong to departments. Create one first, or ask an administrator to add it.",
-      "title": "Documents",
-      "new": "New document",
-      "empty": "No documents",
-      "search": "Search by title…",
-      "clearSearch": "Clear search",
-      "footer": { "results": "{shown} of 1 result | {shown} of {total} results" },
-      "newTitle": "Document title",
-      "titleRequired": "Document title is required.",
-      "body": "Body",
-      "linkPrompt": "Link URL",
-      "attachments": "Attachments",
-      "upload": "Upload file",
-      "edit": "Edit document",
-      "saved": "Document saved",
-      "download": "Download",
-      "columns": {
-        "name": "Title",
-        "updated": "Last updated",
-        "department": "Department"
-      },
-      "description": "Human resources documents organized by department.",
-      "allDepartments": "All departments",
-      "department": "Department",
-      "chooseDepartment": "Choose a department",
-      "loadError": "Unable to load the document.",
-      "departmentsError": "Unable to load departments.",
-      "retry": "Retry",
-      "previous": "Previous",
-      "next": "Next",
-      "pagination": "Showing {from}–{to} of {total}"
     }
   }
 }

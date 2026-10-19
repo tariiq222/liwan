@@ -28,19 +28,17 @@ class TestDepartmentModel(TransactionCase):
         self.env['hr.employee'].create({'name': 'Active', 'department_id': department.id})
         archived = self.env['hr.employee'].create({'name': 'Archived', 'department_id': department.id})
         archived.write({'active': False})
-        self.env['webvue.hr.document'].create({'name': 'Policy', 'department_id': department.id})
-        self.assertEqual(department._webvue_usage(), {'employees': 2, 'children': 1, 'documents': 1})
-        self.assertEqual(child._webvue_usage(), {'employees': 0, 'children': 0, 'documents': 0})
+        self.assertEqual({key: department._webvue_usage()[key] for key in ('employees', 'children')}, {'employees': 2, 'children': 1})
+        self.assertEqual({key: child._webvue_usage()[key] for key in ('employees', 'children')}, {'employees': 0, 'children': 0})
 
     def test_delete_reports_all_references_and_deletes_when_empty(self):
         department = self.env['hr.department'].create({'name': 'In Use'})
         self.env['hr.department'].create({'name': 'Child', 'parent_id': department.id})
         self.env['hr.employee'].create({'name': 'Worker', 'department_id': department.id})
-        self.env['webvue.hr.document'].create({'name': 'Policy', 'department_id': department.id})
         with self.assertRaises(WebVueHrRule) as error:
             department.with_user(self.admin)._webvue_delete()
         self.assertEqual(error.exception.code, 'department_in_use')
-        self.assertEqual(error.exception.details, {'employees': 1, 'children': 1, 'documents': 1})
+        self.assertEqual({key: error.exception.details[key] for key in ('employees', 'children')}, {'employees': 1, 'children': 1})
 
         empty = self.env['hr.department'].create({'name': 'Empty'})
         empty.with_user(self.admin)._webvue_delete()

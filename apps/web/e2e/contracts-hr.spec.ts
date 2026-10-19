@@ -2,8 +2,6 @@ import { test, expect } from '@playwright/test'
 import {
   HrDepartmentSchema,
   HrDepartmentListSchema,
-  HrDocumentSchema,
-  HrDocumentListSchema,
   HrEmployeeSchema,
   HrEmployeeListSchema,
   PersonRefSchema,
@@ -26,10 +24,6 @@ test('GET /api/v1/hr list endpoints match their schemas; people picker stays Per
   const empsRes = await page.request.get('/api/v1/hr/employees')
   expect(empsRes.status()).toBe(200)
   HrEmployeeListSchema.parse(await empsRes.json())
-
-  const docsRes = await page.request.get('/api/v1/hr/documents')
-  expect(docsRes.status()).toBe(200)
-  HrDocumentListSchema.parse(await docsRes.json())
 
   // Picker ids are res.users ids (PersonRef.id === user_id), not hr.employee ids.
   const peopleRes = await page.request.get('/api/v1/people?q=')
@@ -109,26 +103,6 @@ test('HR mutation responses match schemas and PMO people refs use the linked use
   })
   expect(disableRes.status()).toBe(200)
   expect(AdminUserDetailSchema.parse(await disableRes.json()).active).toBe(false)
-
-  const documentRes = await page.request.post('/api/v1/hr/documents', {
-    data: { name: `E2E contract document ${suffix}`, body: 'contract body', department_id: department.id },
-  })
-  expect(documentRes.status()).toBe(201)
-  const document = HrDocumentSchema.parse(await documentRes.json())
-  const documentPatchRes = await page.request.patch(`/api/v1/hr/documents/${document.id}`, {
-    data: { name: `E2E contract document patched ${suffix}` },
-  })
-  expect(documentPatchRes.status()).toBe(200)
-  HrDocumentSchema.parse(await documentPatchRes.json())
-  const attachmentRes = await page.request.post(`/api/v1/hr/documents/${document.id}/attachments`, {
-    data: {
-      name: `contract-${suffix}.txt`,
-      datas: Buffer.from('contract attachment').toString('base64'),
-      mimetype: 'text/plain',
-    },
-  })
-  expect(attachmentRes.status()).toBe(200)
-  HrDocumentSchema.parse(await attachmentRes.json())
 
   const emptyDepartmentRes = await page.request.post('/api/v1/hr/departments', {
     data: { name: `E2E contract empty HR ${suffix}` },

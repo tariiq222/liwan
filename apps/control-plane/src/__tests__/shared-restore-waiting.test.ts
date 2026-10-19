@@ -67,7 +67,7 @@ describe.skipIf(!url)('shared restore waiting for commercial reconciliation', ()
     const adapter: SharedFencedAdapter = {
       observe: async () => restored ? { state: 'present', verified: true, binding, businessKey: businessKey(job), payloadDigest: payloadDigest(job) } : { state: 'absent' },
       applyFenced: async ({ assertOwned }) => { await assertOwned(); physicalRestores++; restored = true },
-      observeSubscription,
+      observeRestoreSubscription:observeSubscription,
     }
     const state = async () => (await pool.query('SELECT state,journal,receipt,lease_until FROM shared_jobs WHERE id=$1', [id])).rows[0]
     return { id, job, tenant, approval, applied, order, restoredDatabase, adapter, observeSubscription, state,
@@ -96,7 +96,7 @@ describe.skipIf(!url)('shared restore waiting for commercial reconciliation', ()
     const receipt = { schemaVersion: 1, operation: 'restore', binding: f.job.binding, businessKey: businessKey(f.job), payloadDigest: payloadDigest(f.job), attemptId, sequence: 3, status: 'verified' }
     await pool.query("UPDATE shared_jobs SET journal=$2,receipt=$3 WHERE id=$1", [f.id, { schemaVersion: 1, job: f.job, attemptId, sequence: 3, stage: 'waiting_commercial_reconcile' }, receipt])
     await pool.query('UPDATE shared_restore_approvals SET consumed_at=clock_timestamp() WHERE id=$1', [f.approval])
-    expect(await commercialRestoreGate(pool, { tenant_id: f.tenant, restore_id: f.approval, target: { database: f.restoredDatabase, filestore: f.restoredDatabase, host: `${f.job.binding.tenantId}.restore` }, runner: f.adapter.observeSubscription })).toMatchObject({ ready: false })
+    expect(await commercialRestoreGate(pool, { tenant_id: f.tenant, restore_id: f.approval, target: { database: f.restoredDatabase, filestore: f.restoredDatabase, host: `${f.job.binding.tenantId}.restore` }, runner: f.adapter.observeRestoreSubscription })).toMatchObject({ ready: false })
     const repairs = (await pool.query("SELECT id,payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'operation'='reconfigure'", [f.tenant])).rows
     expect(repairs).toHaveLength(1)
     expect(repairs[0].payload).toMatchObject({ restore: true, binding: { database: f.restoredDatabase }, authority: { target_revision_id: f.applied } })
@@ -130,6 +130,15 @@ describe.skipIf(!url)('shared restore waiting for commercial reconciliation', ()
     expect(f.adapter.subscriptionRunner).toHaveBeenCalledTimes(1)
     expect((await pool.query('SELECT consumed_at FROM shared_restore_approvals WHERE id=$1', [f.approval])).rows[0].consumed_at).not.toBeNull()
   }, 60000)
+
+  it('never substitutes a source observer when isolated commercial observation is unavailable', async()=>{
+    const f=await fixture(true)
+    delete f.adapter.observeRestoreSubscription
+    f.adapter.observeSubscription=f.observeSubscription
+    expect(await runSharedJob(pool,f.id,f.adapter)).toMatchObject({state:'waiting_commercial_reconcile'})
+    expect(f.observeSubscription).not.toHaveBeenCalled()
+    expect(await f.state()).toMatchObject({state:'queued',journal:{stage:'waiting_commercial_reconcile'}})
+  })
 
   it('verifies a legacy tenant directly without observing or queueing commercial reconciliation', async () => {
     const f = await fixture(false)
