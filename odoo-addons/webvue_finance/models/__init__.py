@@ -3,6 +3,7 @@ from . import (
     access_service,
     account_move,
     analytic_report,
+    audit_event,
     budget,
     budget_guard,
     closing_service,

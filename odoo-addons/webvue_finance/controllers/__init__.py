@@ -4,6 +4,7 @@ from . import (
     finance_analytic,
     finance_analytic_reports,
     finance_assets,
+    finance_audit,
     finance_bank,
     finance_budgets,
     finance_closing,

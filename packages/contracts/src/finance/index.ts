@@ -116,6 +116,7 @@ export type FinanceJournalList = z.infer<typeof FinanceJournalListSchema>
 
 export * from './analytic'
 export * from './assets'
+export * from './audit'
 export * from './bank'
 export * from './budgets'
 export * from './closing'

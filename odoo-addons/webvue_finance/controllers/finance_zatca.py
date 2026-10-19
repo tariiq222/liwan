@@ -13,6 +13,7 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.webvue_finance.serializers.zatca import (
+    dump_zatca_backlog,
     dump_zatca_journal,
     dump_zatca_readiness,
     dump_zatca_submission,
@@ -56,7 +57,7 @@ class FinanceZatcaController(http.Controller):
     @requires_feature('finance.enabled', operation='read')
     def get_status(self, **_):
         require_capability('finance.zatca.read')
-        return dump_zatca_readiness(request.env.company)
+        return {**dump_zatca_readiness(request.env.company), 'backlog': dump_zatca_backlog(request.env.company)}
 
     @http.route('/api/v1/finance/zatca/journals/<int:journal_id>/onboard', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { FinanceZatcaReadinessSchema } from './setup'
 
 /** A ZATCA validation message: the rule code when ZATCA gave one, and its text. */
 export const FinanceZatcaMessageSchema = z.object({
@@ -26,6 +27,23 @@ export const FinanceZatcaSubmissionSchema = z.object({
   qr_present: z.boolean(),
 }).strict()
 
+/**
+ * The documents of the current company still waiting on ZATCA: `to_send` waits for the stock cron or a
+ * manual submit, `retry` got no verdict (warnings, or ZATCA unreachable) and is retried by the cron, `rejected`
+ * carries ZATCA's validation errors, `blocked` failed locally before any verdict; both need a correction.
+ */
+export const FinanceZatcaBacklogSchema = z.object({
+  to_send: z.number().int().nonnegative(),
+  retry: z.number().int().nonnegative(),
+  rejected: z.number().int().nonnegative(),
+  blocked: z.number().int().nonnegative(),
+}).strict()
+
+/** GET /finance/zatca/status: the onboarding readiness and the submission backlog. */
+export const FinanceZatcaStatusSchema = FinanceZatcaReadinessSchema.extend({
+  backlog: FinanceZatcaBacklogSchema,
+}).strict()
+
 /** POST /finance/zatca/journals/{id}/onboard: the six-digit one-time password of the Fatoora portal. */
 export const FinanceZatcaOnboardInputSchema = z.object({
   otp: z.string().regex(/^\d{6}$/),
@@ -37,5 +55,7 @@ export const FinanceZatcaErrorCodeSchema = z.enum([
 ])
 
 export type FinanceZatcaMessage = z.infer<typeof FinanceZatcaMessageSchema>
+export type FinanceZatcaBacklog = z.infer<typeof FinanceZatcaBacklogSchema>
+export type FinanceZatcaStatus = z.infer<typeof FinanceZatcaStatusSchema>
 export type FinanceZatcaSubmission = z.infer<typeof FinanceZatcaSubmissionSchema>
 export type FinanceZatcaOnboardInput = z.infer<typeof FinanceZatcaOnboardInputSchema>
