@@ -181,8 +181,9 @@ export function parseMarkdown(text: string): MdBlock[] {
     if (fence) {
       flushParagraph()
       flushList()
-      const close = lines.findIndex((candidate, index) => index > n && FENCE_CLOSE.test(candidate))
-      if (close < 0) {
+      let close = n + 1
+      while (close < lines.length && !FENCE_CLOSE.test(lines[close]!)) close++
+      if (close === lines.length) {
         blocks.push({ type: 'raw', text: lines.slice(n).join('\n') })
         break
       }
