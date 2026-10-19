@@ -1,4 +1,4 @@
-import type { NavIcon } from './projectSections'
+import type { AppIcon } from '../types'
 
 export const GOVERNANCE_SECTION_IDS = ['charter', 'stakeholders', 'raci', 'register'] as const
 export type GovernanceSectionId = typeof GOVERNANCE_SECTION_IDS[number]
@@ -6,7 +6,7 @@ export type GovernanceSectionId = typeof GOVERNANCE_SECTION_IDS[number]
 export interface GovernanceSection {
   id: GovernanceSectionId
   labelKey: string
-  icon: NavIcon
+  icon: AppIcon
   to: string
 }
 

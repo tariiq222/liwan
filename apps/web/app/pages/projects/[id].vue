@@ -5,7 +5,7 @@ import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
 import ProjectPhaseStepper from '@/components/pmo/projects/ProjectPhaseStepper.vue'
 import ProjectWorkspaceTabs from '@/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue'
 import { ApiError } from '@/composables/useApi'
-import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '@/composables/nav/activeRoute'
+import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '@/modules/pmo/projectRoutes'
 import { useProject } from '@/composables/useProjects'
 import { projectRecordBack } from '@/utils/projectNavigation'
 import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
@@ -22,6 +22,12 @@ const { data: projectData, isLoading, error } = useProject(projectId)
 // Queries may finish after server rendering but before payload dehydration.
 // Keep the first client tree identical to SSR, then reveal the cached project.
 const project = computed(() => hydrated.value ? projectData.value : undefined)
+// Remember the last readable project section for re-entry.
+const { me } = useMe()
+const { remember } = useProjectWorkspaceMemory()
+watch([() => route.fullPath, project, me, hydrated], () => {
+  if (project.value?.id === projectId.value && !error.value) remember(route.path, route.query)
+}, { immediate: true })
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
 const settingsTo = computed(() => `/projects/${projectId.value}/settings`)
 // Settings is deliberately not one of the project sections (activeProjectSection

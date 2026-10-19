@@ -5,7 +5,7 @@ import ts from 'typescript'
 import * as Vue from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { describe, expect, it } from 'vitest'
-import { projectIdFromPath } from '../../composables/nav/activeRoute'
+import { projectIdFromPath } from '../../modules/pmo/projectRoutes'
 
 // A section page mounts even for an id its route can never resolve: <NuxtPage />
 // is unconditional and useProject is merely disabled, so each page decides for

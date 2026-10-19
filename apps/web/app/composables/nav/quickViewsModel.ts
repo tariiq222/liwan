@@ -1,11 +1,12 @@
 import type { RouteLocationRaw } from 'vue-router'
 // Relative imports: the `@/` alias does not resolve for value imports under a
 // plain `vitest run`, and this module is unit-tested directly.
-import { normalizedPath, projectIdFromPath } from './activeRoute'
-import type { NavIcon } from './projectSections'
+import { routeScopeOf } from '../../modules/surfaces'
+import { normalizedPath } from '../../utils/routePath'
+import type { AppIcon } from '../../modules/types'
 
 /** A preset of the page's list: a link whose query the page already understands. */
-export interface QuickViewLink { id: string; labelKey: string; icon: NavIcon; to: RouteLocationRaw; active: boolean }
+export interface QuickViewLink { id: string; labelKey: string; icon: AppIcon; to: RouteLocationRaw; active: boolean }
 /** An action of the page; the primary one is the create action, rendered with a plus chip. */
 export interface QuickActionLink extends QuickViewLink { primary: boolean }
 export interface QuickViewsModel { views: QuickViewLink[]; actions: QuickActionLink[] }
@@ -19,8 +20,8 @@ export interface QuickViewsInput {
 }
 
 type Preset = Record<string, string>
-interface ViewSpec { id: string; labelKey: string; icon: NavIcon; preset: Preset }
-interface ActionSpec { id: string; labelKey: string; icon: NavIcon; preset: Preset }
+interface ViewSpec { id: string; labelKey: string; icon: AppIcon; preset: Preset }
+interface ActionSpec { id: string; labelKey: string; icon: AppIcon; preset: Preset }
 interface ListSpec {
   path: string
   /** Query keys the presets own: a view is active when every one of them equals the preset's value (or is absent). */
@@ -154,11 +155,11 @@ function taskList(input: QuickViewsInput, path: string, base: string, withArchiv
  */
 export function quickViewsModel(input: QuickViewsInput): QuickViewsModel {
   const path = normalizedPath(input.path)
-  const projectId = projectIdFromPath(path)
+  const scope = routeScopeOf(path)
 
   if (path === '/tasks' || path === '/tasks/new') return taskList(input, path, '/tasks', true)
-  if (projectId !== null && (path === `/projects/${projectId}/tasks` || path === `/projects/${projectId}/tasks/new`)) {
-    return taskList(input, path, `/projects/${projectId}/tasks`, false)
+  if (scope?.kind === 'project' && (path === `/projects/${scope.id}/tasks` || path === `/projects/${scope.id}/tasks/new`)) {
+    return taskList(input, path, `/projects/${scope.id}/tasks`, false)
   }
 
   if (path === '/projects') {
@@ -180,7 +181,7 @@ export function quickViewsModel(input: QuickViewsInput): QuickViewsModel {
   if (path === '/documents') return {
     views: [], actions: [
       ...createAction(input, 'documents.items.manage', 'new-document', 'documents.new', '/documents/new', true),
-      ...(input.can('documents.items.archive') ? [{ id: 'archived-documents', labelKey: 'documents.archived', icon: 'i-lucide-archive' as NavIcon, to: { path: '/documents', query: { archived: '1' } }, active: input.query.archived === '1', primary: false }] : []),
+      ...(input.can('documents.items.archive') ? [{ id: 'archived-documents', labelKey: 'documents.archived', icon: 'i-lucide-archive' as AppIcon, to: { path: '/documents', query: { archived: '1' } }, active: input.query.archived === '1', primary: false }] : []),
     ],
   }
   if (path === '/hr' || path === '/hr/departments') {

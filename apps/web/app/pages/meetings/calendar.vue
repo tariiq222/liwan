@@ -16,6 +16,7 @@ const router = useRouter()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
+const hasProjectFilter = useRecordPickerAvailable('project')
 const MIN_YEAR = 1970
 const MAX_YEAR = 2100
 const CALENDAR_PAGE_LIMIT = 2000
@@ -227,7 +228,7 @@ function goToday() {
           </template>
           <template #default>
             <USelect data-testid="meeting-state" class="w-full md:w-44" icon="i-lucide-activity" :items="stateOptions" :model-value="selectedState || ALL_STATES" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="onStateChange" />
-            <MeetingProjectFilter v-if="can('pmo.projects.read')" id="meeting-project" hide-label class="w-full md:w-44" :model-value="projectId" @update:model-value="patchFilters({ project_id: $event })" @resolved-name="projectName = $event" />
+            <MeetingProjectFilter v-if="hasProjectFilter" id="meeting-project" hide-label class="w-full md:w-44" :model-value="projectId" @update:model-value="patchFilters({ project_id: $event })" @resolved-name="projectName = $event" />
           </template>
           <template #view>
             <SharedSegmentedControl data-testid="meeting-scope" :label="t('meetingsFilters.scope')" :items="scopeItems" :model-value="routeFilters.mine ? 'mine' : 'all'" :disabled="!hydrated" @update:model-value="onScopeChange" />

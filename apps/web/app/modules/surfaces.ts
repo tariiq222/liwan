@@ -1,5 +1,5 @@
 import { activeManifests } from './manifests'
-import type { AppBellKind, AppCommand, AppSearchProvider, AppSidebarPanel } from './types'
+import type { AppBellKind, AppCommand, AppRecordPicker, AppSearchProvider, AppSidebarPanel } from './types'
 
 /** The same application search providers for the dialog and the page, in rail order. */
 export function searchProviders(): AppSearchProvider[] {
@@ -30,4 +30,18 @@ export function sidebarPanelFor(module: string | null): AppSidebarPanel | undefi
 /** Palette commands of every application, in rail order. */
 export function appCommands(): AppCommand[] {
   return activeManifests().flatMap(manifest => manifest.commands ?? [])
+}
+
+/** The record picker an application declares for a record kind, if any. */
+export function recordPickerFor(kind: string): AppRecordPicker | undefined {
+  return activeManifests().flatMap(manifest => manifest.recordPickers ?? []).find(picker => picker.kind === kind)
+}
+
+/** The record a path lives inside, from the first application scope that recognises it. */
+export function routeScopeOf(path: string): { kind: string; id: number } | null {
+  for (const scope of activeManifests().flatMap(manifest => manifest.routeScopes ?? [])) {
+    const id = scope.idFromPath(path)
+    if (id !== null) return { kind: scope.kind, id }
+  }
+  return null
 }

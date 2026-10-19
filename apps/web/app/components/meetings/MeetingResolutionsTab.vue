@@ -5,7 +5,6 @@ import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import { ApiError } from '@/composables/useApi'
 import { useConvertResolution, useResolutionAction } from '@/composables/useMeetings'
-import { useProjects } from '@/composables/useProjects'
 import { formatMeetingDate } from '@/utils/meetingMinutesForm'
 import { resolutionStateBadgeProps } from '@/utils/meetingStatus'
 import { richTextHasContent } from '@/utils/richText'
@@ -22,9 +21,9 @@ const route = useRoute()
 const sourcePaths = useRecordListPaths(MEETING_LIST_PATHS)
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
-const { can } = useAccess()
-const canConvert = computed(() => props.meeting.can_edit && can('pmo.projects.read') && can('pmo.tasks.create'))
-const projectQuery = useProjects(canConvert)
+const projectPicker = useRecordPicker('project', { forTasks: true, enabled: () => props.meeting.can_edit })
+const canConvert = computed(() => props.meeting.can_edit && projectPicker.available.value)
+const projectQuery = projectPicker.query
 const { data: projects } = projectQuery
 const { mutateAsync: convert, isPending: converting } = useConvertResolution()
 const { mutateAsync: runResolution } = useResolutionAction()

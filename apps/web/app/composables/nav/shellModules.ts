@@ -4,11 +4,9 @@ import type { RouteLocationRaw } from 'vue-router'
 import { canReach, type AccessIdentity } from '../../utils/accessPolicy'
 import { hasFeature } from '../../modules/registry'
 import { activeManifests } from '../../modules/manifests'
-import { normalizedPath } from './activeRoute'
+import { normalizedPath } from '../../utils/routePath'
 import { deriveCustomerCapabilities } from '../../utils/customerCapabilities'
-// NavIcon has one owner (nav/projectSections.ts); import for internal use only,
-// never re-export, or the auto-import namespace collision just moves here.
-import type { NavIcon } from './projectSections'
+import type { AppIcon } from '../../modules/types'
 
 // UIcon resolves these names from the local Lucide Iconify collection. Keep
 // the names in this shared model so every shell consumer renders the same icon
@@ -23,7 +21,7 @@ const House = 'i-lucide-house'
 /** Rail module id; applications declare theirs in their manifest, the foundation adds home and settings. */
 export type NavGroup = string
 export type ShellModule = string
-export interface NavItem { to: string; labelKey: string; icon: NavIcon; shortcut: string; goKey?: string; group?: NavGroup; module?: ShellModule; capability: string }
+export interface NavItem { to: string; labelKey: string; icon: AppIcon; shortcut: string; goKey?: string; group?: NavGroup; module?: ShellModule; capability: string }
 
 /** Nav items of the foundation (home, settings, subscription); applications declare theirs in their manifest. */
 const foundationItems: NavItem[] = [
@@ -86,7 +84,7 @@ export function useNav(identity: AccessIdentity): NavItem[] {
 export interface ShellModuleDefinition {
   id: ShellModule
   labelKey: string
-  icon: NavIcon
+  icon: AppIcon
   to: string
 }
 
@@ -115,7 +113,7 @@ export function visibleShellModules(identity: AccessIdentity): ShellModuleDefini
 export interface ShellContextLink {
   id: string
   labelKey: string
-  icon: NavIcon
+  icon: AppIcon
   to: RouteLocationRaw
   capability: string
   active?: boolean

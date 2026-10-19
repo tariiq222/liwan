@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { isContextPathActive } from '../useShellNavigation'
-import { projectIdFromPath } from '../nav/activeRoute'
+import { projectIdFromPath } from '../../modules/pmo/projectRoutes'
 
 describe('project list context selection', () => {
   it('keeps all projects active for the list regardless of the mine toggle, its create form and every record', () => {
