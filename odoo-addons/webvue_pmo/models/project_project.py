@@ -447,10 +447,7 @@ class ProjectProject(models.Model):
 
     @api.model
     def _webvue_next_code(self):
-        # Fourth documented webvue_pmo elevated case: ir.sequence nextval is
-        # provisioning of a new code (with settings, policy create, manager
-        # write). Not a visibility bypass and not a CLAUDE.md change.
-        return self.env['ir.sequence'].sudo().next_by_code('webvue.project.code') or False
+        return self.env['ir.sequence'].next_by_code('webvue.project.code') or False
 
     def _webvue_updated_at(self):
         self.ensure_one()

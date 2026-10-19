@@ -181,6 +181,22 @@ class TestNotifyService(NotifyProbe, TransactionCase):
         with self.assertRaises(MissingError):
             service._webvue_mark_read(dead_row.id)
 
+    def test_marking_read_runs_in_the_callers_own_acl_and_rule(self):
+        mine = self._deliver(self.sources[0], self.reader.partner_id).notification_ids
+        theirs = self._deliver(self.sources[1], self.other.partner_id).notification_ids
+        service = self.service.with_user(self.reader)
+        self.assertEqual(service._webvue_mark_read(mine.id), 1)
+        self.assertTrue(mine.is_read)
+        self.assertTrue(mine.read_date)
+        self.assertEqual(service._webvue_mark_all_read(), 0)
+        # The same ORM rule that lets the recipient write its row refuses everyone else.
+        with self.assertRaises(AccessError):
+            theirs.with_user(self.reader).write({'is_read': True})
+        theirs.invalidate_recordset(['is_read'])
+        self.assertFalse(theirs.is_read)
+        self.assertEqual(self.service.with_user(self.other)._webvue_mark_all_read(), 1)
+        self.assertTrue(theirs.is_read)
+
     def test_marking_read_is_idempotent_scoped_and_needs_the_owner_feature(self):
         row = self._deliver(self.sources[0], self.reader.partner_id).notification_ids
         service = self.service.with_user(self.reader)

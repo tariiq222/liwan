@@ -157,6 +157,14 @@ class TestProjectCopy(WebVuePmoCase):
         self.assertNotEqual(copy.webvue_code, self.source.webvue_code)
         self.assertEqual(service._webvue_count_projects(), before + 1)
 
+    def test_project_code_is_drawn_in_the_callers_own_acl(self):
+        code = self.env['project.project'].with_user(self.copier)._webvue_next_code()
+        self.assertRegex(code, r'^PRJ-\d{6}$')
+        # Drawing the next number needs only read access to the sequence; changing it stays closed.
+        sequence = self.env.ref('webvue_pmo.seq_webvue_project_code')
+        with self.assertRaises(AccessError):
+            sequence.with_user(self.copier).write({'prefix': 'XXX-'})
+
     def test_anchor_falls_back_to_earliest_task_or_milestone(self):
         self.env['webvue.pmo.settings'].set_values({'require_end_date_on_create': False})
         undated = self.env['project.project'].create({
