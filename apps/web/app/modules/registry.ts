@@ -61,6 +61,35 @@ export function featureForPath(path: string): string | null {
   return manifestForPath(path)?.feature ?? null
 }
 
+/**
+ * The `subFeatures` prefixes of the active manifests, merged: a capability prefix such as
+ * `hr.recruitment.` to the area feature key it needs. Applications without areas declare
+ * none, so the map stays empty for them.
+ */
+export function declaredSubFeatures(): Record<string, string> {
+  const declared: Record<string, string> = {}
+  for (const manifest of activeManifests()) {
+    Object.assign(declared, manifest.subFeatures ?? {})
+  }
+  return declared
+}
+
+/**
+ * The sub-feature a capability requires, or null when no declared prefix matches it. The
+ * longest matching prefix wins, so a narrower area beats a broader one.
+ */
+export function subFeatureForCapability(
+  capability: string,
+  subFeatures: Record<string, string> = declaredSubFeatures(),
+): string | null {
+  let matched: string | null = null
+  for (const prefix of Object.keys(subFeatures)) {
+    if (!capability.startsWith(prefix)) continue
+    if (matched === null || prefix.length > matched.length) matched = prefix
+  }
+  return matched === null ? null : subFeatures[matched] ?? null
+}
+
 export function pathIsWrite(path: string): boolean {
   return /\/(new|edit|access)(?:\/|$)/.test(path)
 }
@@ -76,9 +105,24 @@ export function hasFeature(identity: TenantIdentity, key: string | null, write =
   return identity?.entitlements?.[key] === true
 }
 
+/**
+ * The gate of one capability at one level: the application feature, and the matched area
+ * sub-feature when the capability declares one — both at the same read/write level, so a
+ * read-only tenant keeps reads open and closes writes of both keys.
+ */
+export function capabilityAllowed(
+  identity: TenantIdentity,
+  capability: string,
+  write: boolean,
+  subFeatures: Record<string, string> = declaredSubFeatures(),
+): boolean {
+  return hasFeature(identity, featureForCapability(capability), write)
+    && hasFeature(identity, subFeatureForCapability(capability, subFeatures), write)
+}
+
 export function canUse(identity: TenantIdentity, capability: string, write = false): boolean {
   if (capability === NOTIFICATION_ACCESS) {
     return activeManifests().some(manifest => manifest.bell && hasFeature(identity, manifest.feature))
   }
-  return hasFeature(identity, featureForCapability(capability), write || isWriteCapability(capability))
+  return capabilityAllowed(identity, capability, write || isWriteCapability(capability))
 }

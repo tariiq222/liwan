@@ -48,6 +48,16 @@ const CAPABILITIES = [
   'hr.leave.request',
   'hr.leave.approve',
   'hr.leave.manage',
+  'hr.recruitment.read',
+  'hr.recruitment.manage',
+  'hr.shifts.read',
+  'hr.shifts.manage',
+  'hr.onboarding.read',
+  'hr.onboarding.manage',
+  'hr.offboarding.read',
+  'hr.offboarding.manage',
+  'hr.assets.read',
+  'hr.assets.manage',
   'documents.items.read',
   'documents.items.manage',
   'documents.items.archive',
@@ -116,7 +126,7 @@ const AUDIT_SUMMARY = {
 describe('access capability and reference schemas', () => {
   it("lists today's capability catalog and accepts any well-formed key", () => {
     expect(KNOWN_CAPABILITIES).toEqual(CAPABILITIES)
-    expect(KNOWN_CAPABILITIES).toHaveLength(35)
+    expect(KNOWN_CAPABILITIES).toHaveLength(45)
     for (const key of [...CAPABILITIES, 'sales.orders.read', 'sales.orders.write', 'customer_acme.reports.export']) {
       expect(CapabilitySchema.parse(key)).toBe(key)
     }

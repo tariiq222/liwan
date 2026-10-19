@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The two stock employee plans of the hr engine become the onboarding and
+         offboarding plans. They are noupdate records of hr, so a fresh install writes
+         the purpose here and migrations/19.0.1.6.0/post-hr_complete.py repeats it on an
+         upgrade (a database upgraded in place keeps the stock record as it is). -->
+    <data noupdate="1">
+        <record id="hr.onboarding_plan" model="mail.activity.plan">
+            <field name="hr_purpose">onboarding</field>
+        </record>
+        <record id="hr.offboarding_plan" model="mail.activity.plan">
+            <field name="hr_purpose">offboarding</field>
+        </record>
+    </data>
+</odoo>

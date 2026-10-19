@@ -136,6 +136,14 @@ export interface AppManifest {
   recordListSources?: Array<{ pattern: RegExp; capability: string }>
   landing?: AppLandingEntry[]                                     // firstAllowedPath order within the app
   capabilityAliases?: Record<string, string>                      // chat: { 'webvue.internal': 'chat.enabled' }
+  /**
+   * Capability prefix → feature key for an application whose areas are features of their
+   * own, e.g. hr's `{ 'hr.recruitment.': 'hr.recruitment' }`. A capability that matches a
+   * declared prefix needs the application feature and the matched sub-feature, both at
+   * the capability's own read/write level; `capabilityAliases` cannot express that (it
+   * forces read semantics).
+   */
+  subFeatures?: Record<string, string>
   bell?: { capabilities: string[]; kinds?: AppBellKind[] }
   search?: AppSearchProvider[]
   /** Palette actions (Actions group of the command palette). */
