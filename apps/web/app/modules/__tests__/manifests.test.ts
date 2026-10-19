@@ -66,7 +66,7 @@ describe('app manifests', () => {
     ['/hr/employees/new', 'hr.employees.manage'], ['/hr/employees/3/edit', 'hr.employees.manage'],
     ['/hr/departments/new', 'hr.departments.manage'], ['/hr/employees/3/access', 'access.users.grant'],
     ['/hr/departments', 'hr.departments.read'], ['/documents', 'documents.items.read'],
-    ['/hr/leave', 'hr.leave.read'], ['/hr/leave/new', 'hr.leave.request'], ['/hr/leave/allocations/new', 'hr.leave.manage'],
+    ['/hr/leave', 'hr.leave.read'], ['/hr/leave/5', 'hr.leave.read'], ['/hr/reports', 'hr.employees.manage'], ['/hr/leave/new', 'hr.leave.request'], ['/hr/leave/allocations/new', 'hr.leave.manage'],
     ['/notifications', 'webvue.notifications'], ['/settings/users/new', 'access.users.grant'],
     ['/settings/users/3/access', 'access.users.assign_roles'], ['/settings/roles/4/edit', 'access.roles.manage'],
     ['/settings/roles/4', 'access.roles.read'], ['/settings/branding', 'settings.branding.manage'],

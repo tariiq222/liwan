@@ -12,6 +12,8 @@ describe('the HR pages stay on their templates', () => {
     ['pages/hr/index.vue', ['<SharedListPage', 'create-test-id="hr-employee-new"']],
     ['pages/hr/departments/index.vue', ['<SharedListPage', 'create-test-id="hr-department-new"', ':views="views"', 'views-in-filters', '<SharedListCard', '<SharedListFooter', 'embedded']],
     ['pages/hr/leave.vue', ['<SharedListPage', 'create-test-id="hr-leave-new"', '<SharedListCard', '<SharedDataTable', ' bare', '#mobile-row', '<SharedListFooter', '<SharedSegmentedControl', '<SharedInlineConfirm', '<SharedRowActions', '<SharedMetricTile']],
+    ['pages/hr/reports.vue', ['<SharedListPage', '<SharedForbiddenState', '<SharedListCard', '<SharedMetricTile', '<SharedProgress', '<SharedDataTable', ' bare', '#mobile-row', '<SharedSegmentedControl', '<SharedListFooter']],
+    ['pages/hr/leave/[leaveId].vue', ['<SharedRecordPage', '<SharedIdentityCard', '<SharedPropertiesPanel', '<SharedPropertyRow', '#aside']],
     ['components/hr/LeaveRequestForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges', '<SharedDateField']],
     ['components/hr/LeaveAllocationForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges']],
     ['pages/hr/departments/[departmentId].vue', ['<SharedRecordPage', '<SharedIdentityCard', '<SharedRecordSection', '<SharedPropertiesPanel', '#aside']],
@@ -30,7 +32,7 @@ describe('the HR pages stay on their templates', () => {
   })
 
   it('draws no hand-made table or skeleton in the migrated HR files', () => {
-    for (const file of ['pages/hr/index.vue', 'pages/hr/departments/index.vue', 'components/hr/DirectoryTable.vue', 'components/hr/DepartmentTable.vue', 'components/hr/EmployeeCard.vue', 'pages/hr/leave.vue']) {
+    for (const file of ['pages/hr/index.vue', 'pages/hr/departments/index.vue', 'components/hr/DirectoryTable.vue', 'components/hr/DepartmentTable.vue', 'components/hr/EmployeeCard.vue', 'pages/hr/leave.vue', 'pages/hr/reports.vue']) {
       const source = read(file)
       expect(source, file).not.toMatch(/<UTable\b/)
       expect(source, file).not.toMatch(/<USkeleton\b/)

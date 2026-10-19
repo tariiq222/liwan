@@ -12,11 +12,14 @@ import {
   type HrLeaveDecision,
   type HrLeaveScope,
 } from '@/composables/useHrLeave'
+import { useHrLeaveFormat } from '@/composables/useHrLeaveFormat'
 import { hrLeaveBadge } from '@/utils/hrLeaveBadge'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
 const { t, n } = useI18n()
+const { period, days } = useHrLeaveFormat()
 const hydrated = useHydrated()
 const { can } = useAccess()
 
@@ -128,11 +131,8 @@ function rowActions(leave: HrLeave) {
   ]
 }
 
-function period(leave: HrLeave) {
-  return leave.date_from === leave.date_to ? leave.date_from : t('hr.leave.range', { from: leave.date_from, to: leave.date_to })
-}
-function days(value: number) {
-  return t('hr.leave.days', { count: n(value) }, value)
+function leaveTo(leave: HrLeave) {
+  return { path: `/hr/leave/${leave.id}`, query: returnToQuery(route.fullPath) }
 }
 
 const listQuery = computed(() => {
@@ -220,12 +220,13 @@ const allocateTo = computed(() => ({ path: '/hr/leave/allocations/new', query: l
             :rows="items"
             :columns="columns"
             row-key="id"
+            :row-to="leaveTo"
             :loading="requests.isLoading.value"
             :caption="t('hr.leave.requestsTitle')"
           >
             <template #id-cell="{ row }"><RecordNumber :value="row.original.id" :data-testid="`hr-leave-row-${row.original.id}`" /></template>
             <template #employee-cell="{ row }"><span class="font-semibold text-highlighted">{{ row.original.employee.name }}</span></template>
-            <template #leave_type-cell="{ row }">{{ row.original.leave_type.name }}</template>
+            <template #leave_type-cell="{ row }"><NuxtLink :to="leaveTo(row.original)" class="font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click="!hydrated && $event.preventDefault()">{{ row.original.leave_type.name }}</NuxtLink></template>
             <template #date_from-cell="{ row }"><bdi>{{ period(row.original) }}</bdi></template>
             <template #number_of_days-cell="{ row }"><span class="tabular-nums">{{ days(row.original.number_of_days) }}</span></template>
             <template #state-cell="{ row }">
@@ -244,7 +245,7 @@ const allocateTo = computed(() => ({ path: '/hr/leave/allocations/new', query: l
                 <SharedStatusBadge size="sm" :tone="hrLeaveBadge(row.state).tone" :label="t(hrLeaveBadge(row.state).labelKey)" />
               </div>
               <p v-if="scope !== 'mine'" class="mt-1 font-semibold text-highlighted">{{ row.employee.name }}</p>
-              <p class="mt-1 text-sm">{{ row.leave_type.name }} · <span class="tabular-nums">{{ days(row.number_of_days) }}</span></p>
+              <p class="mt-1 text-sm"><NuxtLink :to="leaveTo(row)" class="font-semibold text-highlighted hover:underline" @click="!hydrated && $event.preventDefault()">{{ row.leave_type.name }}</NuxtLink> · <span class="tabular-nums">{{ days(row.number_of_days) }}</span></p>
               <bdi class="block text-xs text-muted">{{ period(row) }}</bdi>
               <div class="mt-2 flex justify-end">
                 <SharedRowActions :actions="rowActions(row)" :label="t('hr.leave.actionsFor', { type: row.leave_type.name })" :disabled="writing" />

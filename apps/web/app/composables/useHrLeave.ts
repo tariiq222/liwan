@@ -30,6 +30,7 @@ export const hrLeaveKeys = {
   types: ['hr', 'leave', 'types'] as const,
   balances: (employeeId: number | null) => ['hr', 'leave', 'balances', employeeId] as const,
   requests: (params: HrLeaveListParams) => ['hr', 'leave', 'requests', params] as const,
+  request: (id: number) => ['hr', 'leave', 'request', id] as const,
 }
 
 const SCOPE_STATE: Record<HrLeaveScope, HrLeaveState | undefined> = { mine: undefined, pending: 'confirm', all: undefined }
@@ -75,6 +76,15 @@ export function useHrLeaveRequests(params: MaybeRefOrGetter<HrLeaveListParams>) 
       query: hrLeaveRequestQuery(toValue(params)),
       schema: HrLeaveListSchema,
     }),
+  })
+}
+
+export function useHrLeaveRequest(id: MaybeRefOrGetter<number | null>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => hrLeaveKeys.request(toValue(id) ?? 0)),
+    enabled: computed(() => !!toValue(id)),
+    queryFn: () => $api(`/api/v1/hr/leave/requests/${toValue(id)}`, { schema: HrLeaveSchema }),
   })
 }
 

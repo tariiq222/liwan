@@ -19,6 +19,7 @@ const manifest: AppManifest = {
     { to: '/hr', labelKey: 'nav.employees', icon: 'i-lucide-users', shortcut: '3', goKey: 'e', capability: 'hr.employees.read' },
     { to: '/hr/departments', labelKey: 'nav.departments', icon: 'i-lucide-network', shortcut: '5', goKey: 'd', capability: 'hr.departments.read' },
     { to: '/hr/leave', labelKey: 'nav.leave', icon: 'i-lucide-calendar-days', shortcut: 's', goKey: 'l', capability: 'hr.leave.read' },
+    { to: '/hr/reports', labelKey: 'hr.reports.title', icon: 'i-lucide-chart-pie', shortcut: 'r', capability: 'hr.employees.manage' },
   ],
   // The pinned create follows departments or the employee directory.
   contextLinks: path => [
@@ -26,6 +27,7 @@ const manifest: AppManifest = {
     { id: 'employees', labelKey: 'nav.employees', icon: 'i-lucide-users', to: '/hr', capability: 'hr.employees.read' },
     { id: 'departments', labelKey: 'nav.departments', icon: 'i-lucide-network', to: '/hr/departments', capability: 'hr.departments.read' },
     { id: 'leave', labelKey: 'nav.leave', icon: 'i-lucide-calendar-days', to: '/hr/leave', capability: 'hr.leave.read' },
+    { id: 'reports', labelKey: 'hr.reports.title', icon: 'i-lucide-chart-pie', to: '/hr/reports', capability: 'hr.employees.manage' },
   ],
   landing: [
     { path: '/hr', capability: 'hr.employees.read' },
@@ -41,6 +43,7 @@ const manifest: AppManifest = {
     { pattern: /^\/hr\/leave\/new$/, capability: 'hr.leave.request' },
     { pattern: /^\/hr\/leave\/allocations\/new$/, capability: 'hr.leave.manage' },
     { pattern: /^\/hr\/leave(?:\/|$)/, capability: 'hr.leave.read' },
+    { pattern: /^\/hr\/reports$/, capability: 'hr.employees.manage' },
     { pattern: /^\/hr\/employees\/(new|[^/]+\/edit)$/, capability: 'hr.employees.manage' },
     { pattern: /^\/hr\/departments\/(new|[^/]+\/edit)$/, capability: 'hr.departments.manage' },
     { pattern: /^\/hr\/employees\/[^/]+\/access$/, capability: 'access.users.grant' },
