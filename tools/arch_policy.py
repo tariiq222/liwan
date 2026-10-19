@@ -13,6 +13,7 @@ import posixpath
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -70,6 +71,8 @@ ACCESS_OVERRIDE = re.compile(r'^\s+def (?:_search|check_access|_check_access)\('
 ENABLED_FEATURE = re.compile(r'''['"]key['"]\s*:\s*['"][a-z_]+\.enabled['"]''')
 
 Violations = dict[str, dict[str, int]]
+# A weakening comparator: the weakenings one file content has that another one, compared with it, does not.
+Weakenings = Callable[..., list[str]]
 
 
 def is_test_path(path: Path) -> bool:
@@ -181,7 +184,6 @@ def _decorator_name(node: ast.expr) -> str:
 def sudo_calls(text: str, superuser_id: bool = True) -> int:
     """R7: .sudo() calls, su=True keywords and used SUPERUSER_ID names; comments and strings are not counted."""
     tree = ast.parse(text)
-    imported = {id(n) for imp in ast.walk(tree) if isinstance(imp, ast.ImportFrom) for n in ast.walk(imp)}
     found = 0
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
@@ -190,7 +192,7 @@ def sudo_calls(text: str, superuser_id: bool = True) -> int:
                 1 for kw in node.keywords
                 if kw.arg == 'su' and isinstance(kw.value, ast.Constant) and kw.value.value is True
             )
-        elif superuser_id and isinstance(node, ast.Name) and node.id == 'SUPERUSER_ID' and id(node) not in imported:
+        elif superuser_id and isinstance(node, ast.Name) and node.id == 'SUPERUSER_ID':
             found += 1
     return found
 
@@ -315,6 +317,60 @@ def strip_comments(text: str) -> str:
     return SOURCE_TOKEN.sub(lambda m: m.group(1) or ' ', text)
 
 
+def mask_strings(text: str) -> str:
+    """The same text with every string body blanked, so parenthesis scanning never sees one inside a string."""
+    return SOURCE_TOKEN.sub(
+        lambda m: m.group(1)[:1] + ' ' * (len(m.group(1)) - 2) + m.group(1)[-1:] if m.group(1) else ' ', text,
+    )
+
+
+DEFINE_PAGE_META = re.compile(r'\bdefinePageMeta\s*\(')
+MIDDLEWARE_PROPERTY = re.compile(r'\bmiddleware\s*:\s*(?:\[([^\[\]]*)\]|([^,}\n]+))')
+STRING_LITERAL = re.compile(r"""'([^'\n]*)'|"([^"\n]*)"|`([^`]*)`""")
+
+
+def define_page_meta_arguments(text: str) -> list[str]:
+    """The argument text of every `definePageMeta(...)` call; comments and strings are not scanned for its parentheses."""
+    code = strip_comments(text)
+    scan = mask_strings(code)
+    arguments = []
+    for match in DEFINE_PAGE_META.finditer(scan):
+        depth = 1
+        for index in range(match.end(), len(scan)):
+            if scan[index] == '(':
+                depth += 1
+            elif scan[index] == ')':
+                depth -= 1
+                if depth == 0:
+                    arguments.append(code[match.end():index])
+                    break
+    return arguments
+
+
+def string_literals(text: str) -> list[str]:
+    """The contents of the quoted string literals in one source fragment."""
+    return [first or second or third for first, second, third in STRING_LITERAL.findall(text)]
+
+
+def declared_middleware(argument: str) -> list[str]:
+    """The names one `definePageMeta(...)` argument list gives to its `middleware` property.
+
+    The property is located on a string-blanked copy so a `middleware:` inside a string value is no
+    declaration, while the names themselves are read from the original text.
+    """
+    scan = mask_strings(argument)
+    names = []
+    for match in MIDDLEWARE_PROPERTY.finditer(scan):
+        group = 1 if match.group(1) is not None else 2
+        names += string_literals(argument[match.start(group):match.end(group)])
+    return names
+
+
+def page_declares_middleware(text: str, middleware: str) -> bool:
+    """R8: the page declares the middleware as the value of a `definePageMeta(...)` middleware property."""
+    return any(middleware in declared_middleware(argument) for argument in define_page_meta_arguments(text))
+
+
 def import_specifiers(text: str, rel: str | None = None) -> list[str]:
     """Module specifiers of static and dynamic imports (comments ignored, `import.meta.glob` excluded).
 
@@ -396,8 +452,13 @@ def _git_show(root: Path, ref: str, rel: str) -> str | None:
     )
     if verify.returncode != 0:
         raise UnknownRef(f"git rev-parse {ref} failed: unknown ref '{ref}'")
+    return file_at(root, ref, rel)
+
+
+def file_at(root: Path, rev: str, rel: str) -> str | None:
+    """File content at REV, or None when REV has no such path (a root commit has no `REV^` either)."""
     done = subprocess.run(
-        ['git', 'show', f'{ref}:{rel}'], cwd=root, capture_output=True, text=True, check=False, shell=False,
+        ['git', 'show', f'{rev}:{rel}'], cwd=root, capture_output=True, text=True, check=False, shell=False,
     )
     return done.stdout if done.returncode == 0 else None
 
@@ -416,20 +477,89 @@ def ratchet_problems(
         problems += totals_growth(totals, rule_totals(json.loads(ref_baseline)), ref)
     if ref_layers is not None:
         layer_problems = layers_weakened(json.loads(ref_layers), json.loads(_read(layers_file)), root)
-        if layer_problems and not change_approved(ref, root, layers_file):
+        if layer_problems and not change_approved(ref, root, layers_file, layer_weakenings):
             problems += layer_problems
     if documented_file is not None:
         problems += documented_growth(ref, root, documented_file)
     return problems
 
 
-def change_approved(ref: str, root: Path, tracked_file: Path) -> bool:
-    """True when a commit in REF..HEAD that changes the file carries the owner approval trailer."""
+def layer_weakenings(root: Path, before: str | None, after: str | None) -> list[str]:
+    """The arch_layers.json weakenings the `after` content has that `before` does not; an absent file is empty."""
+    if after is None:
+        return []
+    return layers_weakened(json.loads(before) if before is not None else {}, json.loads(after), root)
+
+
+def documented_weakenings(_root: Path, before: str | None, after: str | None) -> list[str]:
+    """The documented sudo cases whose count the `after` content raises above `before`; an absent file is empty.
+
+    `_root` only completes the `change_approved` weakening-comparator signature; a documented case count
+    needs no filesystem lookup.
+    """
+    old = documented_counts(json.loads(before)) if before is not None else {}
+    new = documented_counts(json.loads(after)) if after is not None else {}
+    return [rel for rel, count in sorted(new.items()) if count > old.get(rel, 0)]
+
+
+def commits_touching(root: Path, ref: str, rel: str) -> list[tuple[str, str]]:
+    """The (commit id, message body) of every commit in REF..HEAD that changes `rel`, one entry per commit.
+
+    `--full-history` keeps the commits behind a merge: the default path simplification drops the commit
+    that made a change when a later merge also touches the file, which would hide the weakening to attribute.
+    The listing is keyed by commit id, so a commit with an empty message is still one entry.
+    """
     done = subprocess.run(
-        ['git', 'log', '--format=%B', f'{ref}..HEAD', '--', tracked_file.relative_to(root).as_posix()],
+        ['git', 'log', '--full-history', '--format=%H%x1f%B%x00', f'{ref}..HEAD', '--', rel],
         cwd=root, capture_output=True, text=True, check=False, shell=False,
     )
-    return bool(re.search(rf'^{re.escape(APPROVAL_TRAILER)}: .+$', done.stdout, re.MULTILINE))
+    commits = []
+    for record in done.stdout.split('\x00'):
+        if '\x1f' in record:
+            sha, body = record.split('\x1f', 1)
+            commits.append((sha.strip(), body))
+    return commits
+
+
+def commit_approved(body: str) -> bool:
+    """One commit message carries the owner approval trailer."""
+    return bool(re.search(rf'^{re.escape(APPROVAL_TRAILER)}: .+$', body, re.MULTILINE))
+
+
+def commit_parents(root: Path, sha: str) -> list[str]:
+    """The parent commit ids of SHA, in order (nothing for a root commit or an unknown id)."""
+    done = subprocess.run(
+        ['git', 'log', '-1', '--format=%P', sha], cwd=root, capture_output=True, text=True, check=False, shell=False,
+    )
+    return done.stdout.split()
+
+
+def change_approved(
+    ref: str, root: Path, tracked_file: Path, weakenings: Weakenings,
+) -> bool:
+    """True when every commit in REF..HEAD that introduces a weakening carries the owner approval trailer.
+
+    `weakenings(root, before, after)` lists the weakenings the file content at a commit has that another
+    content does not, and it is asked for every parent. A commit introduces a weakening only when no parent
+    already has it, so a merge that merely combines branches whose weakenings their own commits carry needs
+    no trailer of its own, while a weakening no parent has (a conflict resolution) does. A commit with no
+    parent is compared with an empty file, and a range that introduces no weakening at all is not approved,
+    because the weakening then comes from something outside the range (an uncommitted edit).
+    """
+    rel = tracked_file.relative_to(root).as_posix()
+    approved = 0
+    for sha, body in commits_touching(root, ref, rel):
+        after = file_at(root, sha, rel)
+        parents = commit_parents(root, sha) or [f'{sha}^']  # no parent: compared with an empty file
+        introduced = set.intersection(*(
+            set(weakenings(root, file_at(root, parent, rel), after)) for parent in parents
+        ))
+        if not introduced:
+            continue
+        if not commit_approved(body):
+            return False
+        approved += 1
+    return approved > 0
 
 
 def documented_counts(documented: dict) -> dict[str, int]:
@@ -442,7 +572,7 @@ def documented_growth(ref: str, root: Path, documented_file: Path) -> list[str]:
     old = documented_counts(json.loads(ref_text)) if ref_text is not None else {}
     new = documented_counts(json.loads(_read(documented_file))) if documented_file.is_file() else {}
     grown = [rel for rel, have in sorted(new.items()) if have > old.get(rel, 0)]
-    if not grown or change_approved(ref, root, documented_file):
+    if not grown or change_approved(ref, root, documented_file, documented_weakenings):
         return []
     return [
         f'R7: {rel}: documented sudo case added without {APPROVAL_TRAILER}: {new[rel]} documented, {ref} allows {old.get(rel, 0)}'
@@ -486,6 +616,11 @@ def _web_owners(web_apps: dict, kind: str) -> dict[str, str]:
     return {d: app for app, dirs in web_apps.items() for d in dirs.get(kind, [])}
 
 
+def _web_tags(web_apps: dict) -> dict[str, list[str]]:
+    """The effective tag prefixes of every registered web app (its `tags`, else one per components folder)."""
+    return {app: tag_prefixes(dirs) for app, dirs in web_apps.items()}
+
+
 def layers_weakened(old: dict, new: dict, root: Path) -> list[str]:
     """Changes to arch_layers.json that hide violations; strengthening changes are not listed."""
     problems = [f'exempt list grew: {a}' for a in new.get('exempt', []) if a not in set(old.get('exempt', []))]
@@ -511,6 +646,15 @@ def layers_weakened(old: dict, new: dict, root: Path) -> list[str]:
         for directory, app in old_owner.items():
             if new_owner.get(directory) != app and (root / 'apps' / 'web' / 'app' / base / directory).is_dir():
                 problems.append(f'web app folder {directory} moved from {app} to {new_owner.get(directory, "nowhere")}')
+    # A tag prefix is what R3 matches against an app's components, so an app that stops covering one
+    # hides foreign component uses. Only the effective prefixes count: a `tags` entry the components
+    # folders already derive is removable without losing anything.
+    old_prefixes, new_prefixes = _web_tags(old.get('web_apps', {})), _web_tags(new.get('web_apps', {}))
+    problems += [
+        f'web app tag {prefix} removed from {app}'
+        for app, prefixes in old_prefixes.items()
+        for prefix in prefixes if prefix not in new_prefixes.get(app, [])
+    ]
     return problems
 
 
@@ -619,7 +763,7 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
         folder = web / 'app' / 'pages' / directory
         for path in sorted(folder.rglob('*.vue')) if folder.is_dir() else []:
             rel = _rel(path, root)
-            if not is_test_path(Path(rel)) and middleware not in _read(path):
+            if not is_test_path(Path(rel)) and not page_declares_middleware(_read(path), middleware):
                 v['R8'][f'{rel} lacks {middleware} middleware'] = 1
     for app, dirs in web_apps.items():
         folders = [web / 'app' / 'components' / d for d in dirs['components']]
@@ -692,9 +836,10 @@ def main(
         sys.stderr.write(f'{error}\n')
         return 2
     if args.write_baseline:
-        # The first write records today's debt; every later write may only keep or shrink each rule total.
+        # The first write records today's debt; every later write may only keep or shrink each rule total, and a
+        # documented sudo case that no longer matches the code or AGENTS.md blocks the write just like the check path.
         growth = totals_growth(totals, rule_totals(baseline), 'existing baseline') if exists else []
-        problems = hard + growth + ratchet
+        problems = hard + growth + ratchet + documented_problems(documented, found, root)
         if not problems:
             baseline_file.write_text(
                 json.dumps(current, indent=2, sort_keys=True, ensure_ascii=False) + '\n', encoding='utf-8',
