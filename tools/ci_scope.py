@@ -43,6 +43,7 @@ RULES = (
     # CI machinery: the workflow, its composite action, and the repository-wide inputs of every stage.
     ('.github/*', STAGES),
     ('tools/ci_scope.py', STAGES),
+    ('tools/odoo_shards.py', ('odoo',)),     # splits the odoo stage into its matrix shards
     ('tools/catalog_check.py', STAGES),      # odoo, upgrade, restore-drill and image read --release-modules
     ('tools/upgrade_baseline.py', STAGES),   # the upgrade step
     ('tools/upgrade_log_guard.py', STAGES),  # the upgrade step
