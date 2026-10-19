@@ -29,7 +29,7 @@ function loadSetupState(rel: string, router: Router, extraBindings: Record<strin
     onMounted: () => undefined, onBeforeUnmount: () => undefined,
     useRoute: () => router.currentRoute.value, useRouter: () => router,
     useI18n: () => ({ t: (k: string) => k }),
-    useHydrated: () => Vue.ref(true),
+    useHydrated: () => Vue.ref(true), useKpiVisibility: () => ({ shown: Vue.ref(true) }),
     useAccess: () => ({ can: () => true }),
     useTaskFilters: () => Vue.ref({}),
     usePageHeader: () => undefined,

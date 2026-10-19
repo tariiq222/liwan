@@ -14,10 +14,12 @@ const expiring = useHrExpiring(HR_EXPIRY_WINDOWS[0], canManage)
 const expiringCount = computed(() => expiring.data.value?.total ?? 0)
 // The KPI tiles are server totals: the employee list asked for one row (its `total`) and the shared report queries. A tile behind
 // a capability the viewer lacks is left out instead of showing a dash.
+// Hidden tiles ask nothing; the expiring report stays because the alert below reads it too.
+const { shown: kpisShown } = useKpiVisibility()
 const canArchive = computed(() => can('hr.employees.archive'))
-const headcount = useHrEmployees({ limit: 1 })
-const archivedHeadcount = useHrEmployees({ limit: 1, archived: true }, canArchive)
-const saudization = useHrSaudization(canManage)
+const headcount = useHrEmployees({ limit: 1 }, kpisShown)
+const archivedHeadcount = useHrEmployees({ limit: 1, archived: true }, computed(() => kpisShown.value && canArchive.value))
+const saudization = useHrSaudization(computed(() => kpisShown.value && canManage.value))
 const kpiTiles = computed(() => employeeKpiTiles({
   headcount: headcount.data.value?.total ?? null,
   archived: canArchive.value ? archivedHeadcount.data.value?.total ?? null : undefined,

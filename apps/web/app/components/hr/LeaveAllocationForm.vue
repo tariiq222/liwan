@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 import { refDebounced } from '@vueuse/core'
+import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { useHrEmployees } from '@/composables/useHrEmployees'
 import { useCreateLeaveAllocation, useHrLeaveTypes } from '@/composables/useHrLeave'
@@ -10,10 +11,6 @@ const emit = defineEmits<{ saved: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 
-function localToday() {
-  const today = new Date()
-  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-}
 const types = useHrLeaveTypes()
 const employeeSearch = ref('')
 const debouncedSearch = refDebounced(employeeSearch, 250)
@@ -26,7 +23,7 @@ const days = ref<number | null>(null)
 const dateFrom = ref<string | null>(null)
 // Filled after hydration from the browser's own day: toISOString would give the UTC day,
 // which is the previous date in Riyadh between 00:00 and 03:00.
-onMounted(() => { dateFrom.value ??= localToday() })
+onMounted(() => { dateFrom.value ??= localIsoDay() })
 const dateTo = ref<string | null>(null)
 const attempted = ref(false)
 const saved = ref(false)

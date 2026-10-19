@@ -41,7 +41,7 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
     useNuxtApp: () => ({ hook: navigationHooks.hook }),
  ref, computed, watch, useRoute: () => route, useRouter: () => realRouter ?? ({ replace, push: vi.fn() }),
     refDebounced,
-    useI18n: () => ({ t: (key: string) => key, locale: ref('ar') }), useHydrated: () => ref(true),
+    useI18n: () => ({ t: (key: string) => key, locale: ref('ar') }), useHydrated: () => ref(true), useKpiVisibility: () => ({ shown: ref(true) }),
     useAccess: () => ({ can: () => pmo }), useRecordPickerAvailable: () => computed(() => pmo),
     useRecordPicker: picker,
     useMeetings: () => ({ data: ref({ total: 60 }), isFetching: ref(false) }),

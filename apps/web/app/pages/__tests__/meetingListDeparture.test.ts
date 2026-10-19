@@ -36,7 +36,7 @@ async function mountList(file: 'index.vue' | 'series.vue', base: string, auth: (
     ref: Vue.ref, computed: Vue.computed, reactive: Vue.reactive, watch: Vue.watch, onScopeDispose: Vue.onScopeDispose,
     useRoute: deferPageRoute ? () => deferredRoute : useRoute, useRouter, onBeforeRouteLeave, onBeforeRouteUpdate, refDebounced, returnToQuery,
     useMeetingListQuerySync, useNuxtApp: () => ({ hook: hooks.hook.bind(hooks) }),
-    useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('ar') }), useHydrated: () => Vue.ref(true),
+    useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('ar') }), useHydrated: () => Vue.ref(true), useKpiVisibility: () => ({ shown: Vue.ref(true) }),
     useAccess: () => ({ can: () => permission.value }), useRecordPickerAvailable: () => Vue.computed(() => permission.value),
     usePeople: () => ({ data: Vue.ref([]), isLoading: Vue.ref(false), error: Vue.ref(null) }),
     useMeetings: () => ({ data: Vue.ref({ items: [], total: 120 }), isLoading: Vue.ref(false), isFetching: Vue.ref(false), error: Vue.ref(null) }),

@@ -8,12 +8,12 @@ import type { MyTaskListPage } from '@webvue/contracts'
 import { useMyTaskList } from '@/composables/useMyTaskList'
 import { useMyTaskSummary } from '@/composables/useMyTaskSummary'
 import { myTaskKpiTiles } from '@/utils/myTaskKpi'
+import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
 import { errorStateKind } from '@webvue/ui/app/utils/errorState'
 import { currentListView, listViewQuery } from '@webvue/ui/app/utils/listView'
 import { useRowNavigation } from '@webvue/ui/app/composables/useRowNavigation'
 import {
   listPatch,
-  localToday,
   MY_TASK_SCOPES,
   MY_TASK_SORTS,
   MY_TASK_TABS,
@@ -54,7 +54,7 @@ watch([query.data, query.isFetching], ([data, fetching]) => {
 // The local date is unknown on the server and can differ from the browser's: it is read after mount (so
 // hydration matches, with no overdue styling during SSR) and again when the tab becomes visible.
 const today = ref<string | null>(null)
-function refreshToday() { today.value = localToday() }
+function refreshToday() { today.value = localIsoDay() }
 onMounted(() => {
   refreshToday()
   document.addEventListener('visibilitychange', onVisible)
@@ -139,7 +139,8 @@ const rowTo = (task: (typeof items.value)[number]) => ({
   query: { returnTo: liveListPath.value },
 })
 // The KPI strip follows the list's scope and search; its open tile returns to the open tab with those kept.
-const summary = useMyTaskSummary(() => { const { q, scope } = toListParams(state.value); return { q, scope } })
+const { shown: kpisShown } = useKpiVisibility()
+const summary = useMyTaskSummary(() => { const { q, scope } = toListParams(state.value); return { q, scope } }, kpisShown)
 const openTo = computed(() => state.value.tab === 'open' ? undefined : router.resolve({ path: '/my-tasks', query: listPatch(route.query, { tab: 'open' }) }).href)
 const kpiTiles = computed(() => summary.data.value ? myTaskKpiTiles(summary.data.value, t, openTo.value) : [])
 const views = computed(() => [

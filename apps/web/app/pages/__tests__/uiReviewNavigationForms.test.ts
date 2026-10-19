@@ -39,7 +39,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     onMounted: () => undefined, useEventListener: () => undefined,
     useRoute: () => route, useRouter: () => router,
     useI18n: () => ({ t: (key: string) => key }),
-    useAccess: () => ({ can: () => true }), useHydrated: () => Vue.ref(true),
+    useAccess: () => ({ can: () => true }), useHydrated: () => Vue.ref(true), useKpiVisibility: () => ({ shown: Vue.ref(true) }),
     useToast: () => ({ add: vi.fn() }), usePageHeader: () => undefined,
     projectRecordBack, safeReturnTo, projectIdFromPath, activeProjectSection, activeGovernanceSection,
     provideFrameOwnsHeading: () => undefined,

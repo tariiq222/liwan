@@ -37,14 +37,16 @@ const params = computed(() => {
     limit,
   }
 })
+const { shown: kpisShown } = useKpiVisibility()
 const query = useDocuments(params, isListRoute)
-// The KPI tiles are the server totals of the unfiltered lists (one row asked for, its `total`), so the filters and paging below do not move them.
+// The KPI tiles are the server totals of the unfiltered lists (one row asked for, its `total`), so the filters and paging below do not move them. Hidden tiles ask nothing.
+const kpiEnabled = computed(() => isListRoute.value && kpisShown.value)
 const canArchive = computed(() => can('documents.items.archive'))
-const totalQuery = useDocuments({ limit: 1 }, isListRoute)
-const archivedQuery = useDocuments({ limit: 1, archived: true }, computed(() => isListRoute.value && canArchive.value))
-const restrictedQuery = useDocuments({ limit: 1, visibility: 'restricted' }, isListRoute)
-const expiringQuery = useDocuments({ limit: 1, expiring_within: DOCUMENT_EXPIRING_DAYS }, isListRoute)
-const expiredQuery = useDocuments({ limit: 1, expired: true }, isListRoute)
+const totalQuery = useDocuments({ limit: 1 }, kpiEnabled)
+const archivedQuery = useDocuments({ limit: 1, archived: true }, computed(() => kpiEnabled.value && canArchive.value))
+const restrictedQuery = useDocuments({ limit: 1, visibility: 'restricted' }, kpiEnabled)
+const expiringQuery = useDocuments({ limit: 1, expiring_within: DOCUMENT_EXPIRING_DAYS }, kpiEnabled)
+const expiredQuery = useDocuments({ limit: 1, expired: true }, kpiEnabled)
 const kpiTiles = computed(() => documentKpiTiles({
   total: totalQuery.data.value?.total ?? null,
   archived: canArchive.value ? archivedQuery.data.value?.total ?? null : undefined,

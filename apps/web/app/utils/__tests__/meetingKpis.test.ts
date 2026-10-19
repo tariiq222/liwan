@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { followupKpiStates, kpiLink, localIsoDay, meetingFollowupTiles, meetingKpiFilters, meetingListTiles, meetingSeriesTiles, monthDayRange } from '../meetingKpis'
+import { followupKpiStates, kpiLink, meetingFollowupTiles, meetingKpiFilters, meetingListTiles, meetingSeriesTiles, monthDayRange } from '../meetingKpis'
 
 const t = (key: string) => `t:${key}`
 
 describe('meeting KPI filters', () => {
-  it('format local days and the month that holds today', () => {
-    expect(localIsoDay(new Date(2026, 0, 5))).toBe('2026-01-05')
+  it('format the month that holds today', () => {
     expect(monthDayRange(new Date(2026, 1, 14))).toEqual({ from: '2026-02-01', to: '2026-02-28' })
     expect(monthDayRange(new Date(2028, 1, 14))).toEqual({ from: '2028-02-01', to: '2028-02-29' })
   })

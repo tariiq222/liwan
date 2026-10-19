@@ -21,7 +21,7 @@ const location = ref('')
 const meetingUrl = ref('')
 const attendeeIds = ref<number[]>([])
 const secretaryId = ref<number | null>(null)
-const { mutateAsync, isPending, error, reset } = useCreateMeetingSeries()
+const { mutate, isPending, error, reset } = useCreateMeetingSeries()
 const sourcePaths = useRecordListPaths(['/meetings/series'])
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 const projectId = computed(() => {
@@ -85,12 +85,13 @@ const preview = computed(() => buildRecurrencePreview({
 const formElement = ref<HTMLFormElement | null>(null)
 const { attemptedSubmit, visibleErrors, validate } = useMeetingFormFeedback(formErrors, formElement)
 
-async function save() {
+// `mutate`, not `mutateAsync`: a failure renders from the mutation state and must not escape as an unhandled rejection.
+function save() {
   if (!hydrated.value || isPending.value || !validate()) return
   const termination = recurrence.value === 'none'
     ? { until_count: undefined, until_date: undefined }
     : normalizeRecurrenceEnd({ mode: untilMode.value, count: untilCount.value, date: untilDate.value })
-  const series = await mutateAsync({
+  mutate({
     name: name.value.trim(),
     project_id: projectId.value,
     recurrence: recurrence.value,
@@ -101,10 +102,13 @@ async function save() {
     meeting_url: meetingUrl.value || undefined,
     attendee_ids: attendeeIds.value,
     secretary_id: secretaryId.value || undefined,
+  }, {
+    async onSuccess(series) {
+      baseline.value = snapshot()
+      await nextTick()
+      await navigateTo({ path: `/meetings/series/${series.id}`, query: { returnTo: router.resolve(backTo.value).fullPath } }, { replace: true })
+    },
   })
-  baseline.value = snapshot()
-  await nextTick()
-  await navigateTo({ path: `/meetings/series/${series.id}`, query: { returnTo: router.resolve(backTo.value).fullPath } }, { replace: true })
 }
 </script>
 

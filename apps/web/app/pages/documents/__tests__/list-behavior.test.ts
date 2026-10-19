@@ -40,7 +40,7 @@ async function loadPage(allowed = true) {
     if (name === '@/lib/documentKeys') return { hasPendingDocumentSearch, documentCommittedListParams, DOCUMENT_EXPIRING_DAYS }
     throw new Error(`Unexpected import: ${name}`)
   }
-  const bindings = { require, module, exports: module.exports, useRoute: () => route, useRouter: () => router, useNuxtApp: () => ({ hook: hooks.hook }), useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useAccess: () => ({ can: (capability: string) => capability === 'documents.items.manage' ? allowed : true }), ref: Vue.ref, computed: Vue.computed, watch: Vue.watch, onScopeDispose: Vue.onScopeDispose }
+  const bindings = { require, module, exports: module.exports, useRoute: () => route, useRouter: () => router, useNuxtApp: () => ({ hook: hooks.hook }), useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useKpiVisibility: () => ({ shown: Vue.ref(true) }), useAccess: () => ({ can: (capability: string) => capability === 'documents.items.manage' ? allowed : true }), ref: Vue.ref, computed: Vue.computed, watch: Vue.watch, onScopeDispose: Vue.onScopeDispose }
   new Function(...Object.keys(bindings), code)(...Object.values(bindings))
   const scope = Vue.effectScope()
   const page = module.exports.default as { setup: (props: unknown, context: unknown) => Record<string, unknown> }

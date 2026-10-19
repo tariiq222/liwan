@@ -18,6 +18,7 @@ const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
+const { shown: kpisShown } = useKpiVisibility()
 const states = ['all', 'active', 'overdue', 'open', 'in_progress', 'done', 'cancelled'] as const
 const filters = computed(() => ({
   q: firstQuery(route.query.q) ?? '',
@@ -35,7 +36,7 @@ watch(debouncedSearch, value => { if (route.path === '/meetings/follow-up' && va
 const limit = 25
 const query = useMeetingFollowup(computed<MeetingFollowupParams>(() => ({ ...filters.value, state: filters.value.state === 'all' ? undefined : filters.value.state, limit })))
 // The tiles count under the search and "mine" scope; each tile brings its own state.
-const kpis = useMeetingFollowupKpis(() => ({ q: filters.value.q, mine: filters.value.mine }))
+const kpis = useMeetingFollowupKpis(() => ({ q: filters.value.q, mine: filters.value.mine }), kpisShown)
 const rows = computed(() => query.data.value?.items ?? [])
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
 const page = computed(() => Math.floor(filters.value.offset / limit) + 1)

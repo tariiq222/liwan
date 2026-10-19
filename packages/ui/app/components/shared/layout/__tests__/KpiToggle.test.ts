@@ -8,20 +8,21 @@ const options = (shown: boolean): SharedRenderOptions => ({
 })
 
 describe('SharedKpiToggle', () => {
-  it('is a round ghost icon button that offers to hide the figures while they are shown', async () => {
+  it('is a round ghost icon button, pressed while the figures are shown, whose tooltip offers to hide them', async () => {
     const html = await renderShared('KpiToggle', {}, {}, options(true))
     expect(html).toContain('data-testid="kpi-toggle"')
     expect(html).toContain('rounded-full')
-    expect(html).toContain('aria-pressed="false"')
-    expect(html).toContain('aria-label="app.hideKpis"')
+    expect(html).toContain('aria-pressed="true"')
+    expect(html).toContain('aria-label="app.kpis"')
     expect(html).toContain('data-tip="app.hideKpis"')
     expect(html).toContain('i-lucide-eye-off')
   })
 
-  it('offers to show them again while they are hidden', async () => {
+  it('keeps the same name, unpressed, and offers to show them again while they are hidden', async () => {
     const html = await renderShared('KpiToggle', {}, {}, options(false))
-    expect(html).toContain('aria-pressed="true"')
-    expect(html).toContain('aria-label="app.showKpis"')
+    expect(html).toContain('aria-pressed="false"')
+    expect(html).toContain('aria-label="app.kpis"')
+    expect(html).toContain('data-tip="app.showKpis"')
     expect(html).toContain('i-lucide-chart-no-axes-column')
   })
 })

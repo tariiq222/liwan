@@ -345,7 +345,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   }
   /* A docked board card owns the sticky slot under the floating header; the heading scrolls away instead. */
   .webvue-page-stack:has(.webvue-list-card-fill) [data-slot="page-header"][data-sticky="true"] { position: static; }
-  /* The project workspace card (identity, phase stepper, tabs) is that page's sticky heading. */
+  /* The project workspace card (identity and tabs) is that page's sticky heading; the phase stepper is a separate card that scrolls. */
   .webvue-workspace-head[data-sticky="true"] {
     position: sticky;
     inset-block-start: calc(var(--shell-top) - var(--shell-inset) + 8px);

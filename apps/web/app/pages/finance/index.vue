@@ -16,10 +16,12 @@ const canInvoices = computed(() => can('finance.invoices.read'))
 const canStatements = computed(() => can('finance.statements.read'))
 const canPartners = computed(() => can('finance.partners.read'))
 const canSetup = computed(() => can('finance.setup.read'))
+// Hidden tiles ask nothing; the drafts stay because the attention card below lists them.
+const { shown: kpisShown } = useKpiVisibility()
 const drafts = useFinanceDrafts(5, canInvoices)
-const receivable = useFinanceAging('receivable', canStatements)
-const payable = useFinanceAging('payable', canStatements)
-const partners = useFinancePartners({ limit: 1 }, canPartners)
+const receivable = useFinanceAging('receivable', computed(() => kpisShown.value && canStatements.value))
+const payable = useFinanceAging('payable', computed(() => kpisShown.value && canStatements.value))
+const partners = useFinancePartners({ limit: 1 }, computed(() => kpisShown.value && canPartners.value))
 const setup = useFinanceSetup(canSetup)
 
 const tiles = computed(() => financeOverviewTiles({

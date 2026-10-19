@@ -7,7 +7,7 @@ import { operationHandlers } from './fixtures'
 const meta = {
   title: 'Operations/RequestKpiStrip',
   component: RequestKpiStrip,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/operations/index.vue:9', 'بطاقات مدمجة فوق قائمة الطلبات: أعداد من إجمالي الخادم لكل حالة، وكل بطاقة رابط إلى القائمة بنفس الحالة.'), msw: { handlers: { api: operationHandlers } } },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/operations/index.vue:10', 'بطاقات مدمجة فوق قائمة الطلبات: أعداد من إجمالي الخادم لكل حالة، وكل بطاقة رابط إلى القائمة بنفس الحالة.'), msw: { handlers: { api: operationHandlers } } },
   args: { scope: 'mine' },
   render: args => ({ components: { RequestKpiStrip }, setup: () => ({ args }), template: '<div class="max-w-5xl"><RequestKpiStrip v-bind="args" /></div>' }),
 } satisfies Meta<typeof RequestKpiStrip>

@@ -162,23 +162,26 @@ const allocateTo = computed(() => ({ path: '/hr/leave/allocations/new', query: l
     </template>
 
     <div class="webvue-page-stack">
-      <section v-if="kpisShown" :aria-label="t('hr.leave.balancesTitle')" data-testid="hr-leave-balances">
-        <SharedPageState :loading="balances.isLoading.value" :error="balances.error.value" @retry="balances.refetch">
-          <div v-if="balanceItems.length" class="grid gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-3">
-            <SharedMetricTile
-              v-for="balance in balanceItems"
-              :key="balance.leave_type.id"
-              density="compact"
-              icon="i-lucide-calendar-days"
-              :label="balance.leave_type.name"
-              :value="n(balance.remaining)"
-              :unit="t('hr.leave.remainingUnit')"
-              :hint="t('hr.leave.balanceHint', { allocated: n(balance.allocated), taken: n(balance.taken), pending: n(balance.pending) })"
-              :tone="balance.remaining > 0 ? 'neutral' : 'warning'"
-              :progress="balance.allocated > 0 ? Math.round((balance.remaining / balance.allocated) * 100) : undefined"
-            />
-          </div>
-          <SharedEmptyState v-else bordered :title="t('hr.leave.noBalances')" :description="t('hr.leave.noBalancesHint')" />
+      <section :aria-label="t('hr.leave.balancesTitle')" data-testid="hr-leave-balances">
+        <!-- Hiding the figures hides the tiles only: a failed balance load still shows its error and retry. -->
+        <SharedPageState :loading="kpisShown && balances.isLoading.value" :error="balances.error.value" @retry="balances.refetch">
+          <template v-if="kpisShown">
+            <div v-if="balanceItems.length" class="grid gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-3">
+              <SharedMetricTile
+                v-for="balance in balanceItems"
+                :key="balance.leave_type.id"
+                density="compact"
+                icon="i-lucide-calendar-days"
+                :label="balance.leave_type.name"
+                :value="n(balance.remaining)"
+                :unit="t('hr.leave.remainingUnit')"
+                :hint="t('hr.leave.balanceHint', { allocated: n(balance.allocated), taken: n(balance.taken), pending: n(balance.pending) })"
+                :tone="balance.remaining > 0 ? 'neutral' : 'warning'"
+                :progress="balance.allocated > 0 ? Math.round((balance.remaining / balance.allocated) * 100) : undefined"
+              />
+            </div>
+            <SharedEmptyState v-else bordered :title="t('hr.leave.noBalances')" :description="t('hr.leave.noBalancesHint')" />
+          </template>
         </SharedPageState>
       </section>
 

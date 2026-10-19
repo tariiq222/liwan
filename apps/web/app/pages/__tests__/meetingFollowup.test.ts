@@ -10,7 +10,7 @@ function followup(state: string) {
   let request: unknown
   const scope = { computed, ref, watch, firstQuery, parseOffset,
     useRoute: () => ({ query: { state }, path: '/meetings/follow-up' }), useRouter: () => ({ replace: () => {} }),
-    useI18n: () => ({ t: (key: string) => key, locale: ref('ar') }), useHydrated: () => ref(true), refDebounced: (value: unknown) => value,
+    useI18n: () => ({ t: (key: string) => key, locale: ref('ar') }), useHydrated: () => ref(true), useKpiVisibility: () => ({ shown: ref(true) }), refDebounced: (value: unknown) => value,
     useMeetingFollowupKpis: () => ({ tiles: ref([]), loading: ref(false) }),
     useMeetingFollowup: (params: unknown) => { request = params; return { data: ref({ items: [], total: 0 }) } },
   }

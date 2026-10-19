@@ -21,7 +21,8 @@ export function documentCommittedListParams(query: Record<string, unknown>): Pic
     q: typeof query.q === 'string' ? query.q.trim() : '',
     offset: Math.max(0, Number(query.offset ?? 0) || 0),
     visibility: query.visibility === 'company' || query.visibility === 'restricted' ? query.visibility : undefined,
-    expiring_within: Number.isInteger(days) && days >= 1 && days <= 365 ? days : undefined,
+    // The filter offers one window, so any valid window in the URL reads as that window.
+    expiring_within: Number.isInteger(days) && days >= 1 && days <= 365 ? DOCUMENT_EXPIRING_DAYS : undefined,
     expired: query.expired === '1' ? true : undefined,
   }
 }

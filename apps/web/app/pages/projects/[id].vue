@@ -87,7 +87,7 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
 
 <template>
   <div class="webvue-project-workspace flex flex-col gap-(--webvue-gap-card)">
-    <!-- One compact card like SharedPageHeader (DESIGN.md §4): chip, title and tags, actions, the trail, then the phase stepper and the tab strips. -->
+    <!-- One compact card like SharedPageHeader (DESIGN.md §4): chip, title and tags, actions, the trail, then the tab strips. Only this card sticks (identity and tabs); the phase stepper is its own card below and scrolls away. -->
     <SharedPageContainer v-if="showFrame" width="list" class="webvue-workspace-head webvue-print-hide" data-sticky="true" data-testid="project-workspace-frame">
       <header class="flex flex-col gap-3 rounded-card bg-default px-4 py-3 ring ring-default">
         <div class="flex flex-col gap-0.5" data-testid="project-workspace-identity">
@@ -120,7 +120,6 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
           </template>
           <USkeleton v-else-if="isLoading || !hydrated" class="h-10 w-64 max-w-full rounded-full" />
         </div>
-        <ProjectPhaseStepper v-if="project" :current="project.phase_state.current" />
         <!-- Tabs follow the hydrated project like the title row, so a first click is a client-side navigation. -->
         <ProjectWorkspaceTabs v-if="project" :project-id="projectId!" :active="project.active" />
         <USkeleton v-else-if="isLoading || !hydrated" class="h-(--webvue-control-h) w-full max-w-lg rounded-full" />
@@ -128,6 +127,11 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
         <ProjectWorkspaceTabs v-if="showGovernanceTabs" level="governance" :project-id="projectId!" />
         <ProjectWorkspaceTabs v-if="showPlanningTabs && projectId" :project-id="projectId" :active="project?.active" level="planning" />
       </header>
+    </SharedPageContainer>
+    <SharedPageContainer v-if="showFrame && project" width="list" class="webvue-print-hide" data-testid="project-phase-card">
+      <div class="rounded-card bg-default px-4 py-3 ring ring-default">
+        <ProjectPhaseStepper :current="project.phase_state.current" />
+      </div>
     </SharedPageContainer>
     <NuxtPage />
   </div>
