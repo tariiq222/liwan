@@ -19,7 +19,7 @@ export interface FinanceOverviewFigures {
 }
 
 function money(figure: { total: number; currency: string } | null, n: FormatNumber): string | null {
-  return figure ? n(figure.total, { style: 'currency', currency: figure.currency }) : null
+  return figure ? n(figure.total, { style: 'currency', currency: figure.currency, currencyDisplay: 'code' }) : null
 }
 
 /** The tiles above the finance overview. Every figure is a server total or a report total, never a count of a loaded page. */

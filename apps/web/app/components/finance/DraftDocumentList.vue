@@ -19,6 +19,6 @@ const { t, n } = useI18n()
       <span class="block truncate font-medium text-highlighted">{{ row.name ?? t('finance.overview.draftUnnumbered') }}</span>
       <span class="block truncate text-xs text-muted">{{ [t(`finance.overview.moveType.${row.move_type}`), row.partner?.name].filter(Boolean).join(' · ') }}</span>
     </span>
-    <bdi dir="ltr" class="shrink-0 font-medium text-highlighted">{{ n(row.amount_total, { style: 'currency', currency: row.currency }) }}</bdi>
+    <bdi dir="ltr" class="shrink-0 font-medium text-highlighted">{{ n(row.amount_total, { style: 'currency', currency: row.currency, currencyDisplay: 'code' }) }}</bdi>
   </NuxtLink>
 </template>

@@ -31,9 +31,10 @@ export default defineNuxtConfig({
     clientBundle: {
       scan: {
         // Keep Nuxt Icon's default source patterns and include composable
-        // TypeScript where shared dynamic UIcon names are declared (composables
-        // and the application manifests).
-        globInclude: ['**/*.{vue,jsx,tsx,md,mdc,mdx,yml,yaml}', 'app/composables/**/*.ts', 'app/modules/**/*.ts'],
+        // TypeScript where shared dynamic UIcon names are declared (composables,
+        // the application manifests, and the component/util helpers that build
+        // tiles and tags).
+        globInclude: ['**/*.{vue,jsx,tsx,md,mdc,mdx,yml,yaml}', 'app/composables/**/*.ts', 'app/modules/**/*.ts', 'app/components/**/*.ts', 'app/utils/**/*.ts'],
       },
     },
   },

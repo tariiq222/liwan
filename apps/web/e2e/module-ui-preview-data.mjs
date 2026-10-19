@@ -47,6 +47,8 @@ export const moduleUiCapabilities = [
   'pmo.tasks.write',
   'pmo.tasks.approve',
   'settings.branding.manage',
+  'settings.company.read',
+  'settings.company.manage',
   'meetings.read',
   'meetings.create',
   'meetings.manage',
