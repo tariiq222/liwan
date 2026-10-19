@@ -8,6 +8,7 @@ from . import (
     test_finance_analytic_documents,
     test_finance_analytic_orm_access,
     test_finance_assets,
+    test_finance_audit,
     test_finance_bank,
     test_finance_budgets,
     test_finance_capability_isolation,

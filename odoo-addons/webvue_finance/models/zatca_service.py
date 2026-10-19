@@ -8,17 +8,21 @@ invoice inside the current company and refuses any api mode but ``sandbox`` befo
 one stock flow (the OTP wizard, or the EDI processing of that one invoice). No key material, CSR, CSID or
 raw ZATCA response leaves this model.
 """
+import logging
 import re
 
 from odoo import api, models
-from odoo.exceptions import AccessError, MissingError, UserError
+from odoo.exceptions import MissingError, UserError
 
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_finance.serializers.zatca import (
     dump_zatca_readiness,
+    dump_zatca_submission,
     plain_text,
     zatca_document,
 )
+
+_logger = logging.getLogger(__name__)
 
 CONNECTION_KIND = 'zatca'
 CONNECTION_PROVIDER = 'ZATCA'
@@ -40,15 +44,19 @@ class WebVueFinanceZatca(models.AbstractModel):
     _description = 'WebVue finance ZATCA e-invoicing'
 
     @api.model
-    def _webvue_require_capability(self, capability):
-        if not self.env['webvue.access.service']._webvue_has_capability(self.env.user, capability):
-            raise AccessError(self.env._('The %s capability is required.', capability))
-
-    @api.model
     def _webvue_require_sandbox(self):
         """Live ZATCA calls are limited to the sandbox until the preprod and production policy exists."""
         if self.env.company.l10n_sa_api_mode != SANDBOX:
             raise ApiError(422, 'zatca_mode_not_allowed', 'only the ZATCA sandbox api mode is allowed')
+
+    @api.model
+    def _webvue_onboarding_failed(self, journal, status, code, message):
+        """Log the refused onboarding (nothing durable survives the rollback it raises) and refuse."""
+        _logger.warning(
+            'finance.zatca.onboard_failed company=%s journal=%s user=%s code=%s',
+            self.env.company.id, journal.id, self.env.uid, code,
+        )
+        raise ApiError(status, code, message)
 
     @api.model
     def _webvue_find(self, model, record_id, domain):
@@ -67,7 +75,7 @@ class WebVueFinanceZatca(models.AbstractModel):
         failure on the journal instead of raising, so the outcome is read back; a failure raises, which
         rolls the whole request back and keeps a previously working onboarding intact.
         """
-        self._webvue_require_capability('finance.zatca.manage')
+        self.env['webvue.access.service']._webvue_require_capability('finance.zatca.manage')
         journal = self._webvue_find('account.journal', journal_id, [('type', '=', 'sale')])
         self._webvue_require_sandbox()
         elevated = self.sudo().with_context(lang='en_US')
@@ -76,8 +84,8 @@ class WebVueFinanceZatca(models.AbstractModel):
             text = plain_text(elevated.env['account.journal'].browse(journal.id).l10n_sa_csr_errors)
             marker = STATUS_MARKER.search(text)
             if (marker and marker.group(1) != '400') or TRANSPORT_TEXT.search(text):
-                raise ApiError(502, 'zatca_unavailable', ONBOARDING_UNAVAILABLE)
-            raise ApiError(422, 'zatca_rejected', text or ONBOARDING_FAILED)
+                self._webvue_onboarding_failed(journal, 502, 'zatca_unavailable', ONBOARDING_UNAVAILABLE)
+            self._webvue_onboarding_failed(journal, 422, 'zatca_rejected', text or ONBOARDING_FAILED)
         readiness = dump_zatca_readiness(self.env.company)
         done = sum(row['onboarded'] for row in readiness['journals'])
         elevated.env['webvue.integration.connection']._webvue_set_connection_state(
@@ -85,6 +93,8 @@ class WebVueFinanceZatca(models.AbstractModel):
             'connected' if readiness['onboarded'] else 'pending',
             f'ZATCA sandbox: {done} of {len(readiness["journals"])} sales journals onboarded',
         )
+        _logger.info('finance.zatca.onboarded company=%s journal=%s user=%s', self.env.company.id, journal.id, self.env.uid)
+        self.env['webvue.finance.audit.event']._webvue_log('zatca_onboarded', journal)
         return journal
 
     @api.model
@@ -96,7 +106,7 @@ class WebVueFinanceZatca(models.AbstractModel):
         and resets it on a definite answer), so the caller reads the state back and the request must
         commit even when ZATCA said no.
         """
-        self._webvue_require_capability('finance.zatca.submit')
+        self.env['webvue.access.service']._webvue_require_capability('finance.zatca.submit')
         move = self._webvue_find('account.move', move_id, [('move_type', 'in', SALE_MOVE_TYPES)])
         self._webvue_require_sandbox()
         document = zatca_document(move)
@@ -118,4 +128,11 @@ class WebVueFinanceZatca(models.AbstractModel):
             if BUSY_TEXT in str(error):
                 raise ApiError(422, 'invalid_state', 'the document is being sent by another process; try again shortly') from None
             raise
+        state = dump_zatca_submission(move)['state']
+        log = _logger.info if state == 'accepted' else _logger.warning
+        log(
+            'finance.zatca.submitted company=%s move=%s user=%s retry=%s state=%s',
+            self.env.company.id, move.id, self.env.uid, retry, state,
+        )
+        self.env['webvue.finance.audit.event']._webvue_log('zatca_submitted', move, outcome=state)
         return move

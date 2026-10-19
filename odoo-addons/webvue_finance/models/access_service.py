@@ -14,6 +14,7 @@ FINANCE_PERMISSIONS = frozenset({
     'finance.analytic.read', 'finance.analytic.manage',
     'finance.budgets.read', 'finance.budgets.manage',
     'finance.closing.read', 'finance.closing.manage',
+    'finance.audit.read',
 })
 FINANCE_PERMISSION_DEPENDENCIES = {
     'finance.partners.manage': {'finance.partners.read'},

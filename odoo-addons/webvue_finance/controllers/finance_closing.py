@@ -6,7 +6,10 @@ Stock Odoo needs no closing entry for the reports (the balance sheet adds the un
 open and earlier years itself), so this is the accounting act of allocating the result and locking the year.
 Reopening is deliberately not offered: lock dates only move later here (see ``PATCH /setup/fiscal``).
 """
+import logging
 from datetime import date
+
+from psycopg2.errors import UniqueViolation
 
 from odoo import Command, fields, http
 from odoo.http import request
@@ -23,6 +26,8 @@ from odoo.addons.webvue_finance.serializers.closing import (
     dump_closing_preview,
     dump_fiscal_year,
 )
+
+_logger = logging.getLogger(__name__)
 
 PNL_GROUPS = ('income', 'expense')
 MIN_YEAR, MAX_YEAR = 1900, 2999
@@ -160,7 +165,16 @@ def _require_not_closed(plan):
 
 
 def _post_closing_entry(plan):
+    """Create and post the closing entry; flushed here so a concurrent close of the year (the unique index) is a 422."""
     name = request.env._('Year-end closing %(year)s', year=plan['year'])
+    try:
+        with request.env.cr.savepoint():
+            return _create_and_post(plan, name)
+    except UniqueViolation:
+        raise ApiError(422, 'already_closed', f'fiscal year {plan["year"]} is already closed') from None
+
+
+def _create_and_post(plan, name):
     entry = request.env['account.move'].create({
         'move_type': 'entry',
         'journal_id': plan['journal'].id,
@@ -177,6 +191,7 @@ def _post_closing_entry(plan):
         ],
     })
     entry.action_post()
+    entry.flush_recordset()
     return entry
 
 
@@ -225,4 +240,11 @@ class FinanceClosingController(http.Controller):
             lambda: request.env['webvue.finance.setup']._webvue_write_company(company, {'fiscalyear_lock_date': plan['date_to']}),
         )
         plan['state'] = 'closed' if plan['closing_entry'] else 'locked'
+        _logger.info(
+            'finance.fiscal_year.closed company=%s year=%s user=%s entry=%s state=%s',
+            company.id, plan['year'], request.env.uid, plan['closing_entry'].id or None, plan['state'],
+        )
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'fiscal_year_closed', plan['closing_entry'] or company, outcome=f'{plan["year"]}:{plan["state"]}',
+        )
         return dump_fiscal_year(plan)

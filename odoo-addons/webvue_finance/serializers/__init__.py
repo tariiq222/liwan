@@ -3,6 +3,7 @@ from . import (
     account,
     analytic,
     asset,
+    audit,
     bank,
     common,
     debit_note,

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  FinanceZatcaBacklogSchema,
   FinanceZatcaErrorCodeSchema,
   FinanceZatcaOnboardInputSchema,
+  FinanceZatcaStatusSchema,
   FinanceZatcaSubmissionSchema,
 } from '..'
 
@@ -13,7 +15,26 @@ const SUBMISSION = {
   qr_present: false,
 }
 
+const BACKLOG = { to_send: 3, retry: 1, rejected: 2, blocked: 0 }
+const STATUS = {
+  api_mode: 'sandbox',
+  private_key_present: true,
+  journals: [{ journal: { id: 7, name: 'Sales' }, onboarded: true, state: 'onboarded' }],
+  onboarded: true,
+  backlog: BACKLOG,
+}
+
 describe('finance ZATCA contracts', () => {
+  it('accepts the status with its backlog counts and refuses a missing, negative or stray count', () => {
+    expect(FinanceZatcaStatusSchema.parse(STATUS)).toEqual(STATUS)
+    expect(FinanceZatcaBacklogSchema.parse(BACKLOG)).toEqual(BACKLOG)
+    const { backlog: _backlog, ...withoutBacklog } = STATUS
+    expect(() => FinanceZatcaStatusSchema.parse(withoutBacklog)).toThrow()
+    expect(() => FinanceZatcaBacklogSchema.parse({ ...BACKLOG, retry: -1 })).toThrow()
+    expect(() => FinanceZatcaBacklogSchema.parse({ ...BACKLOG, sent: 1 })).toThrow()
+    expect(() => FinanceZatcaBacklogSchema.parse({ to_send: 1, retry: 0, rejected: 0 })).toThrow()
+  })
+
   it('accepts a submission state with ZATCA messages, coded or not', () => {
     expect(FinanceZatcaSubmissionSchema.parse(SUBMISSION)).toEqual(SUBMISSION)
     const retry = { ...SUBMISSION, state: 'retry', errors: [{ code: null, message: 'retry later' }] }

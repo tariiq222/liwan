@@ -301,6 +301,32 @@ class TestFinanceSetup(WebVueFinanceCase):
         self.assertEqual((self.fresh.name, self.company.name, self.company.city), ('Finance Fresh', 'Finance Company A', False))
         self.assertFalse(self.fresh.hard_lock_date)
 
+    def test_the_model_methods_check_the_capability_before_they_elevate(self):
+        reader = self._user('finance_setup_direct_reader', self.fresh, 'webvue_core.group_employee', ['finance.setup.read'])
+        setup = self.env['webvue.finance.setup'].with_user(reader).with_company(self.fresh)
+        with self.assertRaises(AccessError):
+            setup._webvue_load_chart(self.fresh)
+        with self.assertRaises(AccessError):
+            setup._webvue_write_company(self.fresh, {'city': 'Riyadh'})
+        self.assertFalse(self.fresh.chart_template or self.fresh.city)
+
+    def test_the_chart_load_and_the_company_write_leave_a_log_record_and_audit_events(self):
+        setup = self.env['webvue.finance.setup'].with_user(
+            self._user('finance_setup_audited', self.fresh, 'webvue_core.group_employee', ['finance.setup.read', 'finance.setup.manage']),
+        ).with_company(self.fresh)
+        with self.assertLogs('odoo.addons.webvue_finance.models.setup_service', 'INFO') as logs:
+            setup._webvue_load_chart(self.fresh)
+            setup._webvue_write_company(self.fresh, {'city': 'Riyadh', 'vat': VALID_VAT})
+        self.assertEqual(len(logs.records), 2)
+        self.assertIn(f'finance.setup.chart_loaded company={self.fresh.id}', logs.output[0])
+        self.assertIn(f'finance.setup.company_written company={self.fresh.id}', logs.output[1])
+        self.assertIn('fields=city, vat', logs.output[1])
+        self.assertNotIn(VALID_VAT, '\n'.join(logs.output))
+        events = self.env['webvue.finance.audit.event'].search([('company_id', '=', self.fresh.id)], order='id')
+        self.assertEqual(events.mapped('action'), ['chart_loaded', 'company_written'])
+        self.assertEqual((events[1].fields_written, events[1].res_id, events[0].outcome), ('city, vat', self.fresh.id, 'sa'))
+        self.assertNotIn(VALID_VAT, str(events.read()))
+
     def test_each_route_needs_its_own_capability(self):
         routes = (
             ('GET', '/api/v1/finance/setup'),
