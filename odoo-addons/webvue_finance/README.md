@@ -34,6 +34,8 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `GET /zatca/status`, `GET /invoices/<id>/zatca` | `finance.zatca.read` |
 | `POST /zatca/journals/<id>/onboard` (`{otp}`) | `finance.zatca.manage` |
 | `POST /invoices/<id>/zatca/submit`, `POST /invoices/<id>/zatca/retry` | `finance.zatca.submit` |
+| `GET /analytic-plans` (`q`), `GET /analytic-plans/<id>`, `GET /analytic-accounts` (`q`, `plan_id`, `archived=true\|false`), `GET /analytic-accounts/<id>`, `GET /reports/analytic?date_from&date_to&plan_id?`, `GET /reports/analytic/lines?account_id&date_from&date_to` | `finance.analytic.read` |
+| `POST /analytic-plans` (201), `PATCH /analytic-plans/<id>`, `POST /analytic-accounts` (201), `PATCH /analytic-accounts/<id>` (`active` archives) | `finance.analytic.manage` |
 | `GET /partners` (`q`, `kind=customer\|vendor`, `archived=true\|false`), `GET /partners/<id>` | `finance.partners.read` |
 | `POST /partners` (201), `PATCH /partners/<id>`, `POST /partners/<id>/archive`, `/unarchive` | `finance.partners.manage` |
 
@@ -42,8 +44,8 @@ no partner delete: archive instead. Capability dependencies: `partners.manage` n
 `partners.read`; `invoices.manage` needs `invoices.read`; `invoices.post` needs `invoices.manage`;
 `payments.manage` needs `payments.read` and `invoices.read`; `setup.manage` needs `setup.read`; `entries.manage` needs
 `entries.read`; `entries.post` needs `entries.manage`; `assets.manage` needs `assets.read`; `bank.manage` needs
-`bank.read`; `zatca.read` needs `invoices.read`; `zatca.manage` and `zatca.submit` need `zatca.read`. The built-in
-`finance_manager` role (and `webvue_core`'s vendor support role) holds all twenty-four capabilities.
+`bank.read`; `analytic.manage` needs `analytic.read`; `zatca.read` needs `invoices.read`; `zatca.manage` and `zatca.submit` need `zatca.read`. The built-in
+`finance_manager` role (and `webvue_core`'s vendor support role) holds all twenty-six capabilities.
 
 ## Write semantics
 
@@ -129,6 +131,49 @@ on every entries route, reads included. Entries are in the company currency: a r
   `POST /entries/<id>/unreconcile` first (it removes the reconciliation of the entry's reconciled lines through
   `remove_move_reconcile`, 422 `invalid_state` when there is none, lock dates mapped like the reset). An entry date in a closed period is 422 `period_locked` (field `date`) on create, `PATCH`
   and `post`, refused up front because Odoo would silently move the date when posting; a refused reset maps to the same code.
+
+## Cost centers (analytic accounting)
+
+Cost centers are stock `analytic` plans (`account.analytic.plan`) and accounts (`account.analytic.account`);
+nothing is added to the schema. A plan is shared by every company of the database (stock plans have no
+company); an account belongs to the current company. Shared (company-less) and other-company accounts are
+404 on the account routes and 422 in a distribution.
+
+- Plans: `POST {name, parent_id?}`, `PATCH {name}`. The parent is chosen at creation only, because moving a plan
+  makes Odoo rebuild the plan columns of its analytic items. **Schema side effect:** creating or renaming a
+  ROOT plan (no parent) makes Odoo add a column and an index to `account_analytic_line` (and the other analytic
+  tables, `project_project` among them) and reload the registry, so those two calls need `finance.setup.manage`
+  in addition to `finance.analytic.manage`; a sub-plan only adds a grouping field and needs
+  `finance.analytic.manage` alone. Accounts: `POST {name, plan_id, code?, active?}`, `PATCH` any of them;
+  `active: false` archives and `true` unarchives, there is no delete anywhere. An account moves to a plan of
+  another ROOT plan only while no analytic item and no journal item distribution names it (422
+  `analytic_account_in_use`; Odoo's own `RedirectWarning` is answered the same way); a move between sub-plans of
+  the same root is always allowed. Lists are `{items, total}`; accounts list `archived=false` by default.
+- `analytic_distribution` on an invoice line or a manual entry line is a strict object
+  `{"<account id>": percent}`: each percent is above 0 and at most 100 and each account an active account of the
+  current company (422 `invalid` on `lines[i].analytic_distribution`). Odoo's own rule: the percentages of one
+  root plan add up to at most 100 (the rest is unallocated), and a plan its applicability marks mandatory must
+  reach 100 when the document is posted (Odoo's refusal comes back as 422 `invalid`). Keys are canonical account
+  ids (`^[1-9]\d*$`). **An absent key is not the same as `{}`:** a line without `analytic_distribution` is left to
+  Odoo, so its analytic distribution models (partner, product, account prefix) may fill it in; `{}` is an explicit
+  "none" and is stored as such. A `lines` PATCH replaces every line, so a line loses its distribution unless
+  it is sent again (an absent key then means the Odoo default again). Every line in a response carries
+  `analytic_distribution: [{account, percent}]` where `account` is `{id, name, code}`. A stored key naming several
+  accounts at once (`"1,2"`, made by Odoo's own screens and distribution models) is flattened to one entry per
+  account, which keeps each plan's percentage but is **lossy** to send back, so a `lines` PATCH that would rewrite
+  a line holding such a key is refused (422 `invalid` on `lines`). An account the caller cannot read (legacy data
+  of another company) keeps its percentage and shows as `{id, name: '', code: ''}` instead of failing the whole
+  document. A writer needs only the invoice or entry capability for this, not
+  `finance.analytic.read`, and a reader of invoices sees the cost center names of the lines.
+- `GET /reports/analytic` returns income, expense and net per cost center in the company currency, for the
+  posted items of the period, optionally for one plan and its sub-plans (every active account of the company is
+  listed, zeros included, plus any archived account with activity; shared company-less accounts are left out, so
+  every row has a working drill-down). The source is `account.analytic.line`,
+  the items Odoo creates when a distributed journal item is posted and removes when it returns to draft, read with
+  `_read_group` per root plan column; it holds the share of each account with the percentages already applied.
+  Only items on income and expense accounts count (`internal_group`): income is the credit balance, expense the
+  debit balance, net is income less expense. `GET /reports/analytic/lines` lists the items behind one row (newest
+  first, `limit`/`offset`), with the same scope, so its amounts add up to the row.
 
 ## Debit notes
 

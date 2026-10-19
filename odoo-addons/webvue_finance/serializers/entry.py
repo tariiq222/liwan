@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from .analytic import distribution_shares, parse_distribution
 from .common import dump_day, dump_ref
 from .parsing import (
     parse_day,
@@ -10,7 +11,7 @@ from .parsing import (
 )
 from odoo.addons.webvue_api.controllers.common import ApiError
 
-LINE_FIELDS = frozenset({'account_id', 'partner_id', 'name', 'debit', 'credit'})
+LINE_FIELDS = frozenset({'account_id', 'partner_id', 'name', 'debit', 'credit', 'analytic_distribution'})
 EDITABLE_FIELDS = frozenset({'journal_id', 'date', 'ref', 'lines'})
 
 
@@ -27,7 +28,7 @@ def dump_entry(move):
     }
 
 
-def dump_entry_line(line):
+def dump_entry_line(line, shares):
     return {
         'id': line.id,
         'account': dump_ref(line.account_id),
@@ -35,11 +36,13 @@ def dump_entry_line(line):
         'name': line.name or '',
         'debit': line.debit,
         'credit': line.credit,
+        'analytic_distribution': shares[line],
     }
 
 
 def dump_entry_detail(move):
-    return {**dump_entry(move), 'lines': [dump_entry_line(line) for line in move.line_ids]}
+    shares = distribution_shares(move.line_ids)
+    return {**dump_entry(move), 'lines': [dump_entry_line(line, shares) for line in move.line_ids]}
 
 
 def dump_entries(moves):
@@ -62,6 +65,8 @@ def _parse_line(raw, index):
         raise ApiError(422, 'invalid', f'{prefix} needs exactly one of debit or credit above zero', field=prefix)
     if raw.get('partner_id') is not None:
         line['partner_id'] = parse_id(raw['partner_id'], f'{prefix}.partner_id')
+    if 'analytic_distribution' in raw:
+        line['analytic_distribution'] = parse_distribution(raw['analytic_distribution'], f'{prefix}.analytic_distribution')
     return line
 
 

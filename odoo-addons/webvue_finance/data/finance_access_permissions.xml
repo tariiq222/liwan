@@ -192,11 +192,27 @@
         <field name="group_xmlid">webvue_finance.group_cap_finance_zatca_submit</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
     </record>
+    <record id="permission_finance_analytic_read" model="webvue.access.permission">
+        <field name="key">finance.analytic.read</field><field name="domain">finance</field>
+        <field name="resource">analytic</field><field name="action">read</field>
+        <field name="name_ar">قراءة مراكز التكلفة وتقريرها</field><field name="name_en">Read cost centers and their report</field>
+        <field name="description_ar">قراءة مراكز التكلفة وتقريرها</field><field name="description_en">Read cost centers and their report</field>
+        <field name="group_xmlid">webvue_finance.group_cap_finance_analytic_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_finance_analytic_manage" model="webvue.access.permission">
+        <field name="key">finance.analytic.manage</field><field name="domain">finance</field>
+        <field name="resource">analytic</field><field name="action">manage</field>
+        <field name="name_ar">إدارة مراكز التكلفة</field><field name="name_en">Manage cost centers</field>
+        <field name="description_ar">إدارة مراكز التكلفة</field><field name="description_en">Manage cost centers</field>
+        <field name="group_xmlid">webvue_finance.group_cap_finance_analytic_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
     <data noupdate="1">
         <record id="role_finance_manager" model="webvue.access.role">
             <field name="key">finance_manager</field><field name="name_ar">مدير المالية</field><field name="name_en">Finance manager</field>
             <field name="description">Finance manager</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
-            <field name="permission_ids" eval="[Command.set([ref('permission_finance_invoices_read'),ref('permission_finance_payments_read'),ref('permission_finance_accounts_read'),ref('permission_finance_journals_read'),ref('permission_finance_partners_read'),ref('permission_finance_partners_manage'),ref('permission_finance_invoices_manage'),ref('permission_finance_invoices_post'),ref('permission_finance_payments_manage'),ref('permission_finance_setup_read'),ref('permission_finance_setup_manage'),ref('permission_finance_reports_read'),ref('permission_finance_entries_read'),ref('permission_finance_entries_manage'),ref('permission_finance_entries_post'),ref('permission_finance_statements_read'),ref('permission_finance_zakat_read'),ref('permission_finance_bank_read'),ref('permission_finance_bank_manage'),ref('permission_finance_assets_read'),ref('permission_finance_assets_manage'),ref('permission_finance_zatca_read'),ref('permission_finance_zatca_manage'),ref('permission_finance_zatca_submit')])]"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_finance_invoices_read'),ref('permission_finance_payments_read'),ref('permission_finance_accounts_read'),ref('permission_finance_journals_read'),ref('permission_finance_partners_read'),ref('permission_finance_partners_manage'),ref('permission_finance_invoices_manage'),ref('permission_finance_invoices_post'),ref('permission_finance_payments_manage'),ref('permission_finance_setup_read'),ref('permission_finance_setup_manage'),ref('permission_finance_reports_read'),ref('permission_finance_entries_read'),ref('permission_finance_entries_manage'),ref('permission_finance_entries_post'),ref('permission_finance_statements_read'),ref('permission_finance_zakat_read'),ref('permission_finance_bank_read'),ref('permission_finance_bank_manage'),ref('permission_finance_assets_read'),ref('permission_finance_assets_manage'),ref('permission_finance_zatca_read'),ref('permission_finance_zatca_manage'),ref('permission_finance_zatca_submit'),ref('permission_finance_analytic_read'),ref('permission_finance_analytic_manage')])]"/>
         </record>
     </data>
     <!-- Built-in roles are noupdate records: these hooks link this addon's grants and

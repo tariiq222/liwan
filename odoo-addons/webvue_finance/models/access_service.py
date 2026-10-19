@@ -11,6 +11,7 @@ FINANCE_PERMISSIONS = frozenset({
     'finance.statements.read', 'finance.zakat.read', 'finance.bank.read', 'finance.bank.manage',
     'finance.assets.read', 'finance.assets.manage',
     'finance.zatca.read', 'finance.zatca.manage', 'finance.zatca.submit',
+    'finance.analytic.read', 'finance.analytic.manage',
 })
 FINANCE_PERMISSION_DEPENDENCIES = {
     'finance.partners.manage': {'finance.partners.read'},
@@ -25,6 +26,7 @@ FINANCE_PERMISSION_DEPENDENCIES = {
     'finance.zatca.read': {'finance.invoices.read'},
     'finance.zatca.manage': {'finance.zatca.read'},
     'finance.zatca.submit': {'finance.zatca.read'},
+    'finance.analytic.manage': {'finance.analytic.read'},
 }
 
 

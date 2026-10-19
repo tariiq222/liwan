@@ -5575,6 +5575,827 @@
         ],
         "type": "object"
       },
+      "FinanceAnalyticAccountCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "code": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "plan_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "plan_id"
+        ],
+        "type": "object"
+      },
+      "FinanceAnalyticAccountListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "code": {
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "plan": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "code",
+                "plan",
+                "active"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "FinanceAnalyticAccountPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "code": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "plan_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "FinanceAnalyticAccountRefSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "code"
+        ],
+        "type": "object"
+      },
+      "FinanceAnalyticAccountSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "plan": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "code",
+          "plan",
+          "active"
+        ],
+        "type": "object"
+      },
+      "FinanceAnalyticDistributionInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "type": "number"
+        },
+        "propertyNames": {
+          "pattern": "^[1-9]\\d*$",
+          "type": "string"
+        },
+        "type": "object"
+      },
+      "FinanceAnalyticPlanCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "FinanceAnalyticPlanListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "parent": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "parent"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "FinanceAnalyticPlanPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "FinanceAnalyticPlanSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "parent"
+        ],
+        "type": "object"
+      },
+      "FinanceAnalyticReportLineListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "amount": {
+                  "type": "number"
+                },
+                "date": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "general_account": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": [
+                    "income",
+                    "expense"
+                  ],
+                  "type": "string"
+                },
+                "move": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "partner": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "ref": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "date",
+                "name",
+                "ref",
+                "move",
+                "general_account",
+                "partner",
+                "kind",
+                "amount"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "FinanceAnalyticReportLineSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "type": "number"
+          },
+          "date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "general_account": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "income",
+              "expense"
+            ],
+            "type": "string"
+          },
+          "move": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "name",
+          "ref",
+          "move",
+          "general_account",
+          "partner",
+          "kind",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "FinanceAnalyticReportRowSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "code"
+            ],
+            "type": "object"
+          },
+          "expense": {
+            "type": "number"
+          },
+          "income": {
+            "type": "number"
+          },
+          "net": {
+            "type": "number"
+          },
+          "plan": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "account",
+          "plan",
+          "income",
+          "expense",
+          "net"
+        ],
+        "type": "object"
+      },
+      "FinanceAnalyticReportSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "accounts": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "code"
+                  ],
+                  "type": "object"
+                },
+                "expense": {
+                  "type": "number"
+                },
+                "income": {
+                  "type": "number"
+                },
+                "net": {
+                  "type": "number"
+                },
+                "plan": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "account",
+                "plan",
+                "income",
+                "expense",
+                "net"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "totals": {
+            "additionalProperties": false,
+            "properties": {
+              "expense": {
+                "type": "number"
+              },
+              "income": {
+                "type": "number"
+              },
+              "net": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "income",
+              "expense",
+              "net"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "date_from",
+          "date_to",
+          "currency",
+          "plan",
+          "accounts",
+          "totals"
+        ],
+        "type": "object"
+      },
+      "FinanceAnalyticShareSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "code"
+            ],
+            "type": "object"
+          },
+          "percent": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "account",
+          "percent"
+        ],
+        "type": "object"
+      },
       "FinanceAssetComputeInputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -7860,6 +8681,18 @@
                   "maximum": 9007199254740991,
                   "type": "integer"
                 },
+                "analytic_distribution": {
+                  "additionalProperties": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 100,
+                    "type": "number"
+                  },
+                  "propertyNames": {
+                    "pattern": "^[1-9]\\d*$",
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
                 "discount": {
                   "maximum": 100,
                   "minimum": 0,
@@ -8043,6 +8876,44 @@
                     }
                   ]
                 },
+                "analytic_distribution": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "account": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "code"
+                        ],
+                        "type": "object"
+                      },
+                      "percent": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "account",
+                      "percent"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
                 "discount": {
                   "type": "number"
                 },
@@ -8097,7 +8968,8 @@
                 "discount",
                 "taxes",
                 "price_subtotal",
-                "price_total"
+                "price_total",
+                "analytic_distribution"
               ],
               "type": "object"
             },
@@ -8324,6 +9196,18 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
+          "analytic_distribution": {
+            "additionalProperties": {
+              "exclusiveMinimum": 0,
+              "maximum": 100,
+              "type": "number"
+            },
+            "propertyNames": {
+              "pattern": "^[1-9]\\d*$",
+              "type": "string"
+            },
+            "type": "object"
+          },
           "discount": {
             "maximum": 100,
             "minimum": 0,
@@ -8388,6 +9272,44 @@
               }
             ]
           },
+          "analytic_distribution": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "code"
+                  ],
+                  "type": "object"
+                },
+                "percent": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "account",
+                "percent"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "discount": {
             "type": "number"
           },
@@ -8442,7 +9364,8 @@
           "discount",
           "taxes",
           "price_subtotal",
-          "price_total"
+          "price_total",
+          "analytic_distribution"
         ],
         "type": "object"
       },
@@ -8645,6 +9568,18 @@
                   "exclusiveMinimum": 0,
                   "maximum": 9007199254740991,
                   "type": "integer"
+                },
+                "analytic_distribution": {
+                  "additionalProperties": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 100,
+                    "type": "number"
+                  },
+                  "propertyNames": {
+                    "pattern": "^[1-9]\\d*$",
+                    "type": "string"
+                  },
+                  "type": "object"
                 },
                 "discount": {
                   "maximum": 100,
@@ -14268,6 +15203,18 @@
                   "maximum": 9007199254740991,
                   "type": "integer"
                 },
+                "analytic_distribution": {
+                  "additionalProperties": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 100,
+                    "type": "number"
+                  },
+                  "propertyNames": {
+                    "pattern": "^[1-9]\\d*$",
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
                 "credit": {
                   "exclusiveMaximum": 1000000000000,
                   "minimum": 0,
@@ -14377,6 +15324,44 @@
                   ],
                   "type": "object"
                 },
+                "analytic_distribution": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "account": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "code"
+                        ],
+                        "type": "object"
+                      },
+                      "percent": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "account",
+                      "percent"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
                 "credit": {
                   "type": "number"
                 },
@@ -14423,7 +15408,8 @@
                 "partner",
                 "name",
                 "debit",
-                "credit"
+                "credit",
+                "analytic_distribution"
               ],
               "type": "object"
             },
@@ -14465,6 +15451,18 @@
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
             "type": "integer"
+          },
+          "analytic_distribution": {
+            "additionalProperties": {
+              "exclusiveMinimum": 0,
+              "maximum": 100,
+              "type": "number"
+            },
+            "propertyNames": {
+              "pattern": "^[1-9]\\d*$",
+              "type": "string"
+            },
+            "type": "object"
           },
           "credit": {
             "exclusiveMaximum": 1000000000000,
@@ -14522,6 +15520,44 @@
             ],
             "type": "object"
           },
+          "analytic_distribution": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "code"
+                  ],
+                  "type": "object"
+                },
+                "percent": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "account",
+                "percent"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "credit": {
             "type": "number"
           },
@@ -14568,7 +15604,8 @@
           "partner",
           "name",
           "debit",
-          "credit"
+          "credit",
+          "analytic_distribution"
         ],
         "type": "object"
       },
@@ -14676,6 +15713,18 @@
                   "exclusiveMinimum": 0,
                   "maximum": 9007199254740991,
                   "type": "integer"
+                },
+                "analytic_distribution": {
+                  "additionalProperties": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 100,
+                    "type": "number"
+                  },
+                  "propertyNames": {
+                    "pattern": "^[1-9]\\d*$",
+                    "type": "string"
+                  },
+                  "type": "object"
                 },
                 "credit": {
                   "exclusiveMaximum": 1000000000000,
@@ -34263,6 +35312,370 @@
         }
       }
     },
+    "/api/v1/finance/analytic-accounts": {
+      "get": {
+        "operationId": "webvue_finance.FinanceAnalyticController.list_analytic_accounts.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_analytic_accounts",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAnalyticController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_analytic_accounts",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "webvue_finance.FinanceAnalyticController.create_analytic_account.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_analytic_account",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAnalyticController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_analytic_account",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/analytic-accounts/{account_id}": {
+      "get": {
+        "operationId": "webvue_finance.FinanceAnalyticController.get_analytic_account.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_analytic_account",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAnalyticController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_analytic_account",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_finance.FinanceAnalyticController.patch_analytic_account.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Archive or unarchive with ``active``; there is no delete.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAnalyticController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_analytic_account",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/analytic-plans": {
+      "get": {
+        "operationId": "webvue_finance.FinanceAnalyticController.list_analytic_plans.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_analytic_plans",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAnalyticController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_analytic_plans",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "webvue_finance.FinanceAnalyticController.create_analytic_plan.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Plans are shared by every company of the database: stock ``account.analytic.plan`` has no company.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAnalyticController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_analytic_plan",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/analytic-plans/{plan_id}": {
+      "get": {
+        "operationId": "webvue_finance.FinanceAnalyticController.get_analytic_plan.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_analytic_plan",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAnalyticController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_analytic_plan",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_finance.FinanceAnalyticController.patch_analytic_plan.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Only the name changes: moving a plan under another one rebuilds the plan columns of the analytic items.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAnalyticController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_analytic_plan",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/finance/asset-profiles": {
       "get": {
         "operationId": "webvue_finance.FinanceAssetController.list_asset_profiles.get",
@@ -36452,6 +37865,86 @@
           ],
           "feature_operation": "read",
           "handler": "aged_partner_balance",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/reports/analytic": {
+      "get": {
+        "operationId": "webvue_finance.FinanceAnalyticReportController.analytic_report.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Income, expense and net per cost center of the current company; ``plan_id`` limits it to a plan and its sub-plans.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAnalyticReportController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "analytic_report",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/reports/analytic/lines": {
+      "get": {
+        "operationId": "webvue_finance.FinanceAnalyticReportController.analytic_report_lines.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The analytic items behind one row of the report (``account_id`` is required), newest first, paged.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAnalyticReportController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "analytic_report_lines",
           "readonly": true,
           "route_type": "json2"
         }

@@ -3,6 +3,7 @@ from odoo import Command, http
 from odoo.exceptions import MissingError
 from odoo.http import request
 
+from .analytic_support import distribution_values, require_plain_distributions
 from .common import filter_domain, list_page, parse_choice, require_capability
 from .finance_partners import company_partners_domain
 from .write_support import (
@@ -76,6 +77,10 @@ def _line_command(line, index):
         values['partner_id'] = company_records(
             'res.partner', [line['partner_id']], f'lines[{index}].partner_id', company_partners_domain(),
         ).id
+    if 'analytic_distribution' in line:
+        values['analytic_distribution'] = distribution_values(
+            line['analytic_distribution'], f'lines[{index}].analytic_distribution',
+        )
     return Command.create(values)
 
 
@@ -166,7 +171,10 @@ class FinanceEntryController(http.Controller):
         entry = _find_entry(entry_id)
         require_nonempty(payload)
         require_state(entry, 'draft', 'not_draft')
-        values = _entry_values(parse_entry_patch(payload))
+        parsed = parse_entry_patch(payload)
+        if 'lines' in parsed:
+            require_plain_distributions(entry.line_ids)
+        values = _entry_values(parsed)
         day = values.get('date') or entry.date
         journal = request.env['account.journal'].browse(values.get('journal_id') or entry.journal_id.id)
         _require_open_period(day, journal)

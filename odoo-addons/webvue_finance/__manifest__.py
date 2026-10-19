@@ -19,7 +19,7 @@
     # (bank reconciliation, which pulls account_statement_base) and mis_builder (profit and loss,
     # balance sheet, Zakat base).
     'depends': [
-        'webvue_api', 'webvue_integrations_sa', 'account', 'account_debit_note', 'base_vat', 'l10n_sa', 'l10n_sa_edi',
+        'webvue_api', 'webvue_integrations_sa', 'analytic', 'account', 'account_debit_note', 'base_vat', 'l10n_sa', 'l10n_sa_edi',
         'account_financial_report', 'partner_statement', 'account_asset_management',
         'account_reconcile_oca', 'mis_builder',
     ],

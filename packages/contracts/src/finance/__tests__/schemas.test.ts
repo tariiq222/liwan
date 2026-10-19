@@ -36,6 +36,7 @@ const LINE = {
   taxes: [{ id: 2, name: 'VAT 15%' }],
   price_subtotal: 1000,
   price_total: 1150,
+  analytic_distribution: [],
 }
 const PAYMENT = {
   id: 5,
