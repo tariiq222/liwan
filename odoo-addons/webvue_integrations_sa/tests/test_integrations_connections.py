@@ -5,6 +5,9 @@ from odoo.tools import mute_logger
 
 from .common import WebVueIntegrationsCase
 from odoo.addons.webvue_api.tests.common import set_probe_feature
+from odoo.addons.webvue_integrations_sa.controllers.connections import (
+    IntegrationConnectionController,
+)
 
 
 @tagged('post_install', '-at_install', 'webvue')
@@ -46,6 +49,18 @@ class TestIntegrationConnections(WebVueIntegrationsCase):
         self.authenticate('api_emp', 'api_emp_pass_123')
         result = self.api('GET', '/api/v1/integrations/connections')
         self.assertEqual((result.status_code, result.json()['code']), (403, 'forbidden'))
+
+    def test_the_capability_gate_is_declared_and_answers_the_documented_403(self):
+        handler = IntegrationConnectionController.list_connections
+        self.assertEqual(handler._webvue_capability_keys, ('integrations.read',))
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        denied = self.api('GET', '/api/v1/integrations/connections')
+        self.assertEqual(
+            (denied.status_code, denied.json()['code'], denied.json()['message']),
+            (403, 'forbidden', 'integrations.read capability is required'),
+        )
+        self.authenticate('integrations_admin', 'integrations_admin_pass_123')
+        self.assertEqual(self.api('GET', '/api/v1/integrations/connections').status_code, 200)
 
     def test_a_closed_feature_refuses_the_route(self):
         set_probe_feature(self, key='integrations.enabled', enabled=False)

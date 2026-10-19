@@ -112,7 +112,7 @@ Not measured: the agentic e2e runner (needs model credentials) and the Odoo-back
 ## 1. Odoo tests
 
 Extend `WebVueApiCase` (or `WebVuePmoCase`) from `webvue_api/tests/common.py`. Every `test_*.py`
-is imported by its addon `tests/__init__.py`. Never run them against the dev `odoo19` DB.
+is collected by its addon `tests/__init__.py` (`import_all_tests(__name__)` from `webvue_core.testing`). Never run them against the dev `odoo19` DB.
 
 `tools/odoo_test.py` clones a template with every release module installed and runs `-u` of the
 selected addons, so an `at_install` test of a low-rank addon sees a PARTIAL registry (later modules

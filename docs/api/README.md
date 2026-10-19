@@ -4,15 +4,23 @@ This directory is the machine-generated, always-true-to-the-code documentation
 of every `/api/v1` route in the webvue Odoo addons.
 
 - `openapi.json` — OpenAPI 3.1 document. **Generated; never edit by hand.**
+- `route-capabilities.json` — the route to gate matrix: for every operation its feature keys, its
+  capability keys (`requires_capability` or a check the handler makes before returning data) or, for a
+  route intentionally without one, the reason from `tools/route_gate_allowlist.json`. **Generated;
+  never edit by hand.** Paths use the `openapi.json` syntax.
 - `index.html` — Swagger UI viewer for `openapi.json` (loads the UI bundle from
   a CDN, so it needs network the first time).
 
 ## Regenerate
 
 ```sh
-python3 tools/api_surface.py            # regenerate docs/api/openapi.json
-python3 tools/api_surface.py --check    # exit 1 when the committed file is stale
+python3 tools/api_surface.py            # regenerate openapi.json and route-capabilities.json
+python3 tools/api_surface.py --check    # exit 1 when either committed file is stale
 ```
+
+Both files are generated only at integration, on a `codex/tools-integrate-*` branch or `main`. A task
+branch never commits them (`tools/git_policy.py` refuses it); its gate is
+`tools/route_gate_policy.py`, part of `npm test`. See `docs/parallel-work.md`.
 
 No Odoo runtime is involved: routes are extracted statically (AST over
 `odoo-addons/*/controllers/*.py`) and contract schemas are harvested from

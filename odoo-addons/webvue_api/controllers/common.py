@@ -134,6 +134,55 @@ def requires_registered_feature(model, method, *, keys, operation='write', match
     return decorator
 
 
+def _capability_error(keys, match):
+    """The 403 ApiError a capability gate raises for ``keys``, or None when the caller may run the route.
+
+    ``match='all'`` stops at the first missing key, ``match='any'`` at the first held one.
+    """
+    service = request.env['webvue.access.service']
+    user = request.env.user
+    if match == 'any':
+        if any(service._webvue_has_capability(user, key) for key in keys):
+            return None
+        return ApiError(403, 'forbidden', f'one of {", ".join(keys)} capability is required')
+    for key in keys:
+        if not service._webvue_has_capability(user, key):
+            return ApiError(403, 'forbidden', f'{key} capability is required')
+    return None
+
+
+def requires_capability(*keys, match='all'):
+    """Declare the capability key(s) a route needs; 403 ``forbidden`` unless the caller holds them.
+
+    ``match='all'`` (default) requires every key, ``match='any'`` one of them (for lookups several
+    roles may use). Place it last: ``route``, ``api_handler``, ``requires_feature``, then this
+    (tools/route_gate_policy.py enforces the order). The keys are read statically by
+    tools/route_gate_policy.py and tools/api_surface.py.
+
+    It checks capabilities the caller holds in the current company only. It cannot grant a
+    contextual (record) capability such as project ownership, which needs the record: a handler
+    that depends on one checks it itself with ``_webvue_has_capability(user, key, record=...)``.
+    """
+    if not keys or not all(isinstance(key, str) and key for key in keys):
+        msg = 'requires_capability keys are required'
+        raise ValueError(msg)
+    if match not in ('all', 'any'):
+        msg = 'requires_capability match must be all or any'
+        raise ValueError(msg)
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            error = _capability_error(keys, match)
+            if error:
+                raise error
+            return func(*args, **kwargs)
+        wrapper._webvue_capability_keys = keys
+        wrapper._webvue_capability_match = match
+        return wrapper
+    return decorator
+
+
 def api_handler(func):
     """Map exceptions raised by an /api/v1 controller to the contract error shape."""
     @functools.wraps(func)

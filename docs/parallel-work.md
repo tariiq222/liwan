@@ -111,6 +111,16 @@ Use distinct database, Odoo port, Nuxt port, and log paths for concurrent
 worktrees. Temporary integration values are disposable and must not be
 presented as production evidence.
 
+## Generated files and integration branches
+
+The generated API files (openapi.json and route-capabilities.json in docs/api) are produced by
+`python3 tools/api_surface.py`. A task branch (`codex/<area>-<slug>`) never commits either file:
+`tools/git_policy.py` refuses such a commit, because every parallel branch that touched them would
+conflict. The orchestrator regenerates both once, on the integration branch
+`codex/tools-integrate-<slug>` (the only `codex/*` branches allowed to carry them), after merging
+the task branches, and runs `python3 tools/api_surface.py --check` there. The per-branch route gate is
+`tools/route_gate_policy.py`, run inside `npm test`: it needs no generated file.
+
 ## Finishing a task
 
 The task owner reports the files changed and focused verification. The
