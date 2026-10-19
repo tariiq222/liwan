@@ -1,0 +1,122 @@
+{
+  "hrOffboarding": {
+    "runs": {
+      "title": "Clearance runs",
+      "empty": "No clearance runs yet",
+      "new": "Start clearance",
+      "employee": "Employee",
+      "plan": "Plan",
+      "planDate": "Start date",
+      "progress": "Progress",
+      "state": "State",
+      "searchEmployee": "Filter by employee"
+    },
+    "run": {
+      "launchedBy": "Started by",
+      "steps": "Clearance steps",
+      "noSteps": "This plan has no steps",
+      "feedbackPlaceholder": "Completion note (optional)"
+    },
+    "plans": {
+      "title": "Clearance plans",
+      "empty": "No clearance plans yet",
+      "new": "Clearance plan",
+      "steps": "Steps",
+      "deactivate": "Deactivate plan",
+      "activate": "Activate plan",
+      "deactivateTitle": "Deactivate this plan?",
+      "deactivateDescription": "It is no longer offered for new runs; existing runs stay as they are.",
+      "deactivated": "Plan deactivated",
+      "activated": "Plan activated",
+      "noSteps": "No steps yet",
+      "defaultPlan": "Default plan",
+      "everyState": "All"
+    },
+    "departures": {
+      "title": "Departures",
+      "empty": "No departures yet",
+      "new": "Register departure",
+      "employee": "Employee",
+      "date": "Last working day",
+      "reason": "Reason",
+      "description": "Notes",
+      "clearance": "Clearance",
+      "cleared": "Complete",
+      "notCleared": "Incomplete",
+      "active": "Still active",
+      "archived": "Archived",
+      "search": "Search by name…",
+      "clearedFilter": "Clearance",
+      "clearedOnly": "Complete only",
+      "unclearedOnly": "Incomplete only",
+      "allClearance": "All",
+      "assetsLink": "Employee assets",
+      "registered": "Departure registered",
+      "noReason": "No reason recorded"
+    },
+    "form": {
+      "name": "Plan name",
+      "namePlaceholder": "For example: clearance plan",
+      "department": "Department",
+      "anyDepartment": "All departments",
+      "active": "Plan is active",
+      "steps": "Steps",
+      "addStep": "Add step",
+      "removeStep": "Remove step",
+      "stepSummary": "Step summary",
+      "responsibleType": "Responsible",
+      "responsibleOther": "A specific user",
+      "responsibleUser": "User",
+      "delayCount": "Delay",
+      "delayUnit": "Unit",
+      "delayFrom": "Timing",
+      "delayDays": "days",
+      "delayWeeks": "weeks",
+      "delayMonths": "months",
+      "beforePlanDate": "Before the plan date",
+      "afterPlanDate": "After the plan date",
+      "typeManager": "Employee manager",
+      "typeCoach": "Employee coach",
+      "typeEmployee": "Employee",
+      "typeOther": "A specific user",
+      "save": "Save",
+      "saving": "Saving…",
+      "saveError": "The form could not be saved. Check the fields and try again.",
+      "saved": "Saved",
+      "stepsRequired": "Add at least one step",
+      "employee": "Employee",
+      "employeePlaceholder": "Choose the employee",
+      "employeeRequired": "Choose an employee",
+      "departureDate": "Last working day",
+      "departureReason": "Departure reason",
+      "departureReasonRequired": "Choose a reason",
+      "description": "Notes",
+      "setContractEnd": "Set the contract end date",
+      "clearancePlan": "Clearance plan",
+      "noClearancePlan": "No plan"
+    },
+    "actions": {
+      "complete": "Complete",
+      "reopen": "Reopen",
+      "edit": "Edit",
+      "openRun": "Open run",
+      "openPlan": "Open plan",
+      "openDeparture": "Open record",
+      "backToList": "Back to the list"
+    },
+    "states": {
+      "open": "In progress",
+      "done": "Done",
+      "planned": "Planned",
+      "today": "Today",
+      "overdue": "Overdue"
+    },
+    "errors": {
+      "forbidden": "You may not access offboarding.",
+      "notFound": "The record does not exist or you may not read it."
+    },
+    "footer": {
+      "results": "Showing {shown} of {total}"
+    }
+  }
+}

@@ -1,3 +1,2 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-# Owner: the lifecycle lane (codex/hr-lifecycle). It fills this package with the /api/v1/hr/onboarding and /api/v1/hr/offboarding controllers.
-# The foundation lane creates the empty package so no lane edits a shared __init__ file.
+from . import departures, plans, runs
