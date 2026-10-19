@@ -42,9 +42,9 @@ const headerTags = computed<PageHeaderTag[]>(() => {
   const series = query.data.value
   if (!series) return []
   return [
-    { label: t(`meetingsUi.recurrence.${series.recurrence}`), icon: 'i-lucide-repeat' },
-    { label: series.organizer?.name || t('meetingTimeline.noOrganizer'), icon: 'i-lucide-user' },
-    ...(series.project ? [{ label: series.project.name, icon: 'i-lucide-folder-kanban' }] : []),
+    { label: t(`meetingsUi.recurrence.${series.recurrence}`), icon: 'i-lucide-repeat', kind: 'schedule' },
+    { label: series.organizer?.name || t('meetingTimeline.noOrganizer'), icon: 'i-lucide-user', kind: 'person' },
+    ...(series.project ? [{ label: series.project.name, icon: 'i-lucide-folder-kanban', kind: 'project' as const }] : []),
   ]
 })
 

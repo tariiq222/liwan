@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import type { PageHeaderTag } from '../../../utils/pageHeaderTag'
+import type { PageHeaderTag, PageHeaderTagKind } from '../../../utils/pageHeaderTag'
 
 const props = withDefaults(defineProps<{
   title: string
@@ -36,16 +36,25 @@ const chip = computed(() => {
   const icon = props.icon ?? pageAccent.value?.icon
   return icon ? { icon, accent: pageAccent.value?.accent ?? 'slate' } : null
 })
-// The application's hue, set on the card so the chip and the untoned tags share it.
+// The application's hue, set on the card for the chip.
 const chipStyle = computed(() => chip.value
   ? { '--chip-bg': `var(--accent-${chip.value.accent}-bg)`, '--chip-fg': `var(--accent-${chip.value.accent}-fg)` }
   : undefined)
-// A tag with a tone is a state and keeps its status colour; a plain fact (owner, project, count) takes the
-// application's hue, so the heading carries colour without inventing meanings.
+// A state keeps its status colour (`tone`); a plain fact takes the fixed colour of its kind, the same on
+// every page, so a person, a project or a count always reads alike.
+const TAG_KIND_ACCENT: Record<PageHeaderTagKind, string> = {
+  person: 'sky',
+  project: 'blue',
+  schedule: 'violet',
+  count: 'indigo',
+  category: 'amber',
+}
+// Tags are full pills like every chip in the product.
 function tagLook(tag: PageHeaderTag) {
-  if (tag.tone) return { color: tag.tone, variant: 'subtle' as const }
-  if (chip.value) return { color: 'neutral' as const, variant: 'soft' as const, class: 'bg-(--chip-bg) text-(--chip-fg)' }
-  return { color: 'neutral' as const, variant: 'subtle' as const }
+  if (tag.tone) return { color: tag.tone, variant: 'subtle' as const, class: 'rounded-full' }
+  if (!tag.kind) return { color: 'neutral' as const, variant: 'subtle' as const, class: 'rounded-full' }
+  const hue = TAG_KIND_ACCENT[tag.kind]
+  return { color: 'neutral' as const, variant: 'soft' as const, class: 'rounded-full', style: { backgroundColor: `var(--accent-${hue}-bg)`, color: `var(--accent-${hue}-fg)` } }
 }
 // Inside the project workspace the frame is already the page's <h1>.
 const frameOwnsHeading = useFrameOwnsHeading()
@@ -93,7 +102,7 @@ const trail = computed<HeaderTrailStep[]>(() => {
         v-if="chip"
         data-slot="page-header-chip"
         aria-hidden="true"
-        class="grid size-10 shrink-0 place-items-center rounded-control bg-(--chip-bg) text-(--chip-fg)"
+        class="grid size-10 shrink-0 place-items-center rounded-full bg-(--chip-bg) text-(--chip-fg)"
       ><UIcon :name="chip.icon" class="size-5" /></span>
       <div class="min-w-0 flex-1 basis-40">
         <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">

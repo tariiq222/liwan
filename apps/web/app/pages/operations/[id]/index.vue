@@ -29,7 +29,7 @@ const fileField = ref<{ reset: () => void } | null>(null)
 const backTo = computed(() => router.resolve(owningListBack(route.query, sourcePaths.value, route.hash)).fullPath)
 // The request's state and process sit in the heading as tags.
 const headerTags = computed(() => record.value
-  ? [statusTag({ tone: operationsStateTone(record.value.state), label: t(`operations.states.${record.value.state}`) }), { label: record.value.process.name, icon: 'i-lucide-workflow' }]
+  ? [statusTag({ tone: operationsStateTone(record.value.state), label: t(`operations.states.${record.value.state}`) }), { label: record.value.process.name, icon: 'i-lucide-workflow', kind: 'category' as const }]
   : [])
 const actions: OperationAction[] = ['submit', 'approve', 'reject', 'return', 'withdraw']
 const visibleActions = computed(() => actions.filter(action => record.value?.allowed_actions[action]))

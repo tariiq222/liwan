@@ -163,7 +163,7 @@ const views = computed(() => [
 ])
 const total = computed(() => projectList.data.value?.total ?? 0)
 // The list's total as a tag in the heading, once the first page has arrived.
-const countTags = computed(() => projectList.data.value ? [{ label: t('projects.countTag', { count: total.value }, total.value) }] : [])
+const countTags = computed(() => projectList.data.value ? [{ label: t('projects.countTag', { count: total.value }, total.value), kind: 'count' as const }] : [])
 const page = computed(() => Math.floor(listOffset.value / PROJECT_PAGE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PROJECT_PAGE)))
 watch(debouncedSearch, (value) => {

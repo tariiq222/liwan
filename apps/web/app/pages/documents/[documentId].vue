@@ -27,7 +27,7 @@ const backLabel = computed(() => {
   return path?.startsWith('/documents') ? t('documents.backToDocuments') : t('app.back')
 })
 const headerTags = computed(() => document.value
-  ? [{ label: t(`documents.visibilityOptions.${document.value.visibility}`), icon: document.value.visibility === 'restricted' ? 'i-lucide-lock-keyhole' : 'i-lucide-building-2' } satisfies PageHeaderTag]
+  ? [{ label: t(`documents.visibilityOptions.${document.value.visibility}`), icon: document.value.visibility === 'restricted' ? 'i-lucide-lock-keyhole' : 'i-lucide-building-2', kind: 'category' } satisfies PageHeaderTag]
   : [])
 const hasProperties = computed(() => !!(document.value?.expiry_date || document.value?.context || document.value?.tags.length))
 const childTo = (suffix: string) => documentChildTo(`/documents/${documentId.value}/${suffix}`, route.query, route.hash)

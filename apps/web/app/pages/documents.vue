@@ -47,7 +47,7 @@ const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0
 const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
 // The list's total as a tag in the heading, once the first page has arrived.
-const countTags = computed(() => query.data.value ? [{ label: t('documents.countTag', { count: total.value }, total.value) }] : [])
+const countTags = computed(() => query.data.value ? [{ label: t('documents.countTag', { count: total.value }, total.value), kind: 'count' as const }] : [])
 const showEmpty = computed(() => !query.isLoading.value && !query.error.value && items.value.length === 0)
 const activeFilterCount = computed(() => Number(Boolean(search.value.trim())) + Number(Boolean(contextKind.value)) + Number(Boolean(contextId.value)))
 

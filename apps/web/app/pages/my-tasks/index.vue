@@ -40,7 +40,7 @@ const displayed = computed(() => restricted.value ? null : query.data.value ?? (
 const items = computed(() => displayed.value?.items ?? [])
 const total = computed(() => displayed.value?.total ?? 0)
 // The list's total as a tag in the heading, once the first page has arrived.
-const countTags = computed(() => displayed.value ? [{ label: t('myTasks.list.countTag', { count: total.value }, total.value) }] : [])
+const countTags = computed(() => displayed.value ? [{ label: t('myTasks.list.countTag', { count: total.value }, total.value), kind: 'count' as const }] : [])
 const page = computed(() => Math.floor(state.value.offset / MY_TASK_PAGE_SIZE) + 1)
 const pages = computed(() => Math.ceil(total.value / MY_TASK_PAGE_SIZE))
 watch([query.data, query.isFetching], ([data, fetching]) => {

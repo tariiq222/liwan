@@ -102,8 +102,8 @@ const headerTags = computed<PageHeaderTag[]>(() => {
   const current = task.value
   if (!current) return []
   return [
-    ...(current.project ? [{ label: current.project.name, icon: 'i-lucide-folder-kanban', to: `/projects/${current.project.id}`, testId: 'task-detail-context' }] : []),
-    { label: `${t('tasks.detail.workflowStage')}: ${current.stage?.name ?? t('tasks.detail.stageUnset')}`, icon: 'i-lucide-git-commit-horizontal' },
+    ...(current.project ? [{ label: current.project.name, icon: 'i-lucide-folder-kanban', to: `/projects/${current.project.id}`, testId: 'task-detail-context', kind: 'project' as const }] : []),
+    { label: `${t('tasks.detail.workflowStage')}: ${current.stage?.name ?? t('tasks.detail.stageUnset')}`, icon: 'i-lucide-git-commit-horizontal', kind: 'category' },
     statusTag({ tone: deadlineTone(deadlineDays.value, current.is_closed), label: deadlineLabel(deadlineDays.value, t) }, 'deadline-badge'),
   ]
 })

@@ -65,7 +65,7 @@ const userTo = (user: { id: number }) => ({ path: `/settings/users/${user.id}`, 
 const badge = computed(() => accessBadge({ active: role.data.value?.active ?? false, protected: role.data.value?.protected }))
 // The role's status and type sit in the heading as tags.
 const headerTags = computed<PageHeaderTag[]>(() => role.data.value
-  ? [{ ...statusTag({ tone: badge.value.tone, label: t(badge.value.labelKey) }), icon: badge.value.icon }, { label: typeLabel.value }]
+  ? [{ ...statusTag({ tone: badge.value.tone, label: t(badge.value.labelKey) }), icon: badge.value.icon }, { label: typeLabel.value, kind: 'category' }]
   : [])
 // Edit is the one primary action (clone for a role that cannot be edited); the rest sit in one menu with delete last.
 const primaryAction = computed(() => {

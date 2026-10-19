@@ -45,7 +45,7 @@ const withdrawal = useWithdrawLeaveRequest()
 const items = computed(() => requests.data.value?.items ?? [])
 const total = computed(() => requests.data.value?.total ?? 0)
 // The list's total as a tag in the heading, once the first page has arrived.
-const countTags = computed(() => requests.data.value ? [{ label: t('hr.leave.countTag', { count: total.value }, total.value) }] : [])
+const countTags = computed(() => requests.data.value ? [{ label: t('hr.leave.countTag', { count: total.value }, total.value), kind: 'count' as const }] : [])
 const page = computed(() => Math.floor(offset.value / LIMIT) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / LIMIT)))
 const showEmpty = computed(() => !requests.isLoading.value && !requests.error.value && items.value.length === 0)

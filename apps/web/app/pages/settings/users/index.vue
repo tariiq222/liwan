@@ -28,7 +28,7 @@ const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0
 const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
 // The list's total as a tag in the heading, once the first page has arrived.
-const countTags = computed(() => query.data.value ? [{ label: t('access.users.countTag', { count: total.value }, total.value) }] : [])
+const countTags = computed(() => query.data.value ? [{ label: t('access.users.countTag', { count: total.value }, total.value), kind: 'count' as const }] : [])
 const activeFilterCount = computed(() => Number(Boolean(filters.q?.trim())) + Number(Boolean(filters.status)) + Number(Boolean(filters.role_id)) + Number(Boolean(filters.department_id)))
 
 function isUsersList() {
