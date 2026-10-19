@@ -9,6 +9,7 @@ import MeetingResolutionsTab from '@/components/meetings/MeetingResolutionsTab.v
 import MeetingVersionList from '@/components/meetings/MeetingVersionList.vue'
 import { formatMeetingDate, formatMeetingTime, plainTextFromHtml, type MeetingMinutesFormValue, type MeetingMinutesRecommendation } from '@/utils/meetingMinutesForm'
 import { formatDate, formatDateTime } from '@webvue/ui/app/utils/formatDate'
+import type { DropdownMenuItem } from '@nuxt/ui'
 import { ApiError } from '@/composables/useApi'
 import { useMeeting } from '@/composables/useMeetings'
 import { useMeetingEvents, useMeetingVersions } from '@/composables/useMeetingWorkspace'
@@ -81,13 +82,13 @@ const tabLinks = computed(() => meetingTabs.value.map(tab => ({
 // Index of the first log tab (history); the strip draws a divider before it.
 const logTabStart = computed(() => meetingTabs.value.findIndex(tab => tab.value === 'history'))
 
-const moreActions = computed(() => {
+const moreActions = computed<DropdownMenuItem[][]>(() => {
   const m = query.data.value
-  const groups = [[{ label: t('meetingMinutesForm.printPreview'), icon: 'i-lucide-printer', to: childTo(`/meetings/${id.value}/print`) }]]
+  const groups: DropdownMenuItem[][] = [[{ label: t('meetingMinutesForm.printPreview'), icon: 'i-lucide-printer', to: childTo(`/meetings/${id.value}/print`) }]]
   // The PDF is a real attachment download served by Odoo for anyone who can read the meeting.
-  if (id.value !== null) groups[0]!.push({ label: t('meetingMinutesForm.downloadPdf'), icon: 'i-lucide-file-down', to: meetingMinutesPdfPath(id.value), external: true } as never)
+  if (id.value !== null) groups[0]!.push({ label: t('meetingMinutesForm.downloadPdf'), icon: 'i-lucide-file-down', to: meetingMinutesPdfPath(id.value), external: true })
   if (m?.can_manage && m.state !== 'cancelled' && m.state !== 'done') {
-    groups.push([{ label: t('meetingsUx.cancelMeetingAction'), icon: 'i-lucide-ban', color: 'error', disabled: transitioning.value, onSelect: () => requestMeetingAction('cancel') }] as never)
+    groups.push([{ label: t('meetingsUx.cancelMeetingAction'), icon: 'i-lucide-ban', color: 'error', disabled: transitioning.value, onSelect: () => requestMeetingAction('cancel') }])
   }
   return groups
 })

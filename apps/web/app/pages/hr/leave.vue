@@ -37,8 +37,8 @@ const scope = computed(() => scopeFrom(route.query.scope))
 const offset = computed(() => Math.max(0, Number(route.query.offset ?? 0) || 0))
 const params = computed(() => ({ scope: scope.value, limit: LIMIT, offset: offset.value }))
 
-const requests = useHrLeaveRequests(params)
-const balances = useHrLeaveBalances()
+const requests = useHrLeaveRequests(params, isListRoute)
+const balances = useHrLeaveBalances(null, isListRoute)
 const decision = useLeaveDecision()
 const withdrawal = useWithdrawLeaveRequest()
 

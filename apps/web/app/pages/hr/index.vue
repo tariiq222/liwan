@@ -35,7 +35,7 @@ function editEmployee(id: number) { void navigateTo({ path: `/hr/employees/${id}
         color="warning"
         variant="subtle"
         icon="i-lucide-calendar-clock"
-        :title="t('hr.reports.expiring.alert', { count: n(expiringCount) }, expiringCount)"
+        :title="t('hr.reports.expiring.alert', { count: n(expiringCount), days: HR_EXPIRY_WINDOWS[0] }, expiringCount)"
         :actions="[{ label: t('hr.reports.expiring.viewReports'), to: '/hr/reports', color: 'neutral', variant: 'outline' }]"
         data-testid="hr-expiring-alert"
       />

@@ -57,10 +57,11 @@ export function useHrLeaveTypes() {
   })
 }
 
-export function useHrLeaveBalances(employeeId: MaybeRefOrGetter<number | null> = null) {
+export function useHrLeaveBalances(employeeId: MaybeRefOrGetter<number | null> = null, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => hrLeaveKeys.balances(toValue(employeeId))),
+    enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/hr/leave/balances', {
       query: { employee_id: toValue(employeeId) ?? undefined },
       schema: HrLeaveBalanceListSchema,
@@ -68,10 +69,11 @@ export function useHrLeaveBalances(employeeId: MaybeRefOrGetter<number | null> =
   })
 }
 
-export function useHrLeaveRequests(params: MaybeRefOrGetter<HrLeaveListParams>) {
+export function useHrLeaveRequests(params: MaybeRefOrGetter<HrLeaveListParams>, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => hrLeaveKeys.requests(toValue(params))),
+    enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/hr/leave/requests', {
       query: hrLeaveRequestQuery(toValue(params)),
       schema: HrLeaveListSchema,

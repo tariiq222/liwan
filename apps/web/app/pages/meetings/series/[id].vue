@@ -147,6 +147,7 @@ const occurrenceName = ref('')
 const occurrenceDate = ref('')
 const occurrenceStart = ref('')
 const occurrenceEnd = ref('')
+const occurrenceDirty = computed(() => addingOccurrence.value && [occurrenceName.value, occurrenceDate.value, occurrenceStart.value, occurrenceEnd.value].some(Boolean))
 const occurrenceDateField = computed({ get: () => occurrenceDate.value || null, set: value => { occurrenceDate.value = value || '' } })
 const addOccurrence = useAddSeriesOccurrence()
 const occurrenceErrors = computed(() => occurrenceFormErrors({ name: occurrenceName.value, date: occurrenceDate.value, start: occurrenceStart.value, end: occurrenceEnd.value }))
@@ -248,6 +249,7 @@ function setHistoryPage(page: number) {
 
     <div v-if="query.data.value" class="grid min-w-0 gap-(--webvue-gap-card)">
       <form v-if="addingOccurrence && canAddOccurrence" ref="occurrenceForm" novalidate data-testid="meeting-occurrence-form" @submit.prevent="submitOccurrence">
+        <SharedUnsavedChanges :dirty="occurrenceDirty" />
         <SharedFormSection panel :title="t('meetingsUx.occurrence.title')" :description="t('meetingsUx.occurrence.hint')">
           <div class="webvue-form-grid">
             <UFormField class="sm:col-span-2" :label="t('meetingsUx.occurrence.name')" name="name" :error="occurrenceServerErrors.name">
@@ -277,8 +279,8 @@ function setHistoryPage(page: number) {
           <div class="grid w-full min-w-0 gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-4">
             <SharedMetricTile density="compact" icon="i-lucide-list-checks" :label="t('meetingTimeline.openTile')" :value="query.data.value.open_resolution_count" :to="followupLink('active')" />
             <SharedMetricTile density="compact" icon="i-lucide-triangle-alert" :tone="query.data.value.overdue_resolution_count ? 'danger' : 'neutral'" :label="t('meetingTimeline.overdueTile')" :value="query.data.value.overdue_resolution_count" :to="followupLink('overdue')" />
-            <SharedMetricTile density="compact" icon="i-lucide-calendar-clock" :label="t('meetingsUi.nextMeeting')" :value="upcoming ? occurrenceLabel(upcoming) : t('meetingsUx.noNextMeeting')" :hint="upcoming?.name" :to="upcoming ? meetingLink(upcoming) : undefined" />
-            <SharedMetricTile density="compact" icon="i-lucide-calendar-check" :label="t('meetingTimeline.lastCompleted')" :value="previous ? occurrenceLabel(previous) : t('meetingTimeline.noCompletedMeeting')" :hint="previous?.name" :to="previous ? meetingLink(previous) : undefined" />
+            <SharedMetricTile density="compact" icon="i-lucide-calendar-clock" :label="t('meetingsUi.nextMeeting')" :value="upcoming ? occurrenceLabel(upcoming) : '—'" :hint="upcoming ? upcoming.name : t('meetingsUx.noNextMeeting')" :to="upcoming ? meetingLink(upcoming) : undefined" />
+            <SharedMetricTile density="compact" icon="i-lucide-calendar-check" :label="t('meetingTimeline.lastCompleted')" :value="previous ? occurrenceLabel(previous) : '—'" :hint="previous ? previous.name : t('meetingTimeline.noCompletedMeeting')" :to="previous ? meetingLink(previous) : undefined" />
           </div>
         </SharedRecordSection>
         <SharedListCard>

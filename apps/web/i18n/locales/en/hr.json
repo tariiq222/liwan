@@ -200,7 +200,7 @@
         "daysLeft": "{count} day left | {count} days left",
         "overdue": "Overdue by {count} day | Overdue by {count} days",
         "footer": "{count} item | {count} items",
-        "alert": "{count} item expires within 30 days | {count} items expire within 30 days",
+        "alert": "{count} item due or overdue within {days} days | {count} items due or overdue within {days} days",
         "viewReports": "View reports",
         "columns": {
           "employee": "Employee",
