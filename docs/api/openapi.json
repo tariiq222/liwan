@@ -4516,6 +4516,451 @@
         ],
         "type": "object"
       },
+      "CompanyLogoUploadSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "CompanyProfilePatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "city": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "company_registry": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "l10n_sa_edi_additional_identification_number": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "l10n_sa_edi_additional_identification_scheme": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "l10n_sa_edi_building_number": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "l10n_sa_edi_plot_identification": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "report_header": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "street": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "street2": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vat": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "website": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "zip": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "CompanyProfileSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "additionalProperties": false,
+            "properties": {
+              "city": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "country": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "code": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "code"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "l10n_sa_edi_building_number": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "l10n_sa_edi_plot_identification": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "state": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "street": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "street2": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "zip": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "street",
+              "street2",
+              "city",
+              "zip",
+              "state",
+              "country",
+              "l10n_sa_edi_building_number",
+              "l10n_sa_edi_plot_identification"
+            ],
+            "type": "object"
+          },
+          "company_registry": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "completeness": {
+            "additionalProperties": false,
+            "properties": {
+              "done": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "total": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "done",
+              "total"
+            ],
+            "type": "object"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "symbol": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "symbol"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "l10n_sa_edi_additional_identification_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "l10n_sa_edi_additional_identification_scheme": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "report_header": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "saudi_fields": {
+            "type": "boolean"
+          },
+          "vat": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "website": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "logo_url",
+          "report_header",
+          "company_registry",
+          "vat",
+          "saudi_fields",
+          "l10n_sa_edi_additional_identification_scheme",
+          "l10n_sa_edi_additional_identification_number",
+          "address",
+          "email",
+          "phone",
+          "website",
+          "currency",
+          "completeness"
+        ],
+        "type": "object"
+      },
       "ConvertResultSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -10183,134 +10628,6 @@
         ],
         "type": "object"
       },
-      "FinanceCountryListSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "items": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "code": {
-                  "type": "string"
-                },
-                "id": {
-                  "exclusiveMinimum": 0,
-                  "maximum": 9007199254740991,
-                  "type": "integer"
-                },
-                "name": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "id",
-                "name",
-                "code"
-              ],
-              "type": "object"
-            },
-            "type": "array"
-          },
-          "total": {
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "total"
-        ],
-        "type": "object"
-      },
-      "FinanceCountrySchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "id": {
-            "exclusiveMinimum": 0,
-            "maximum": 9007199254740991,
-            "type": "integer"
-          },
-          "name": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "code"
-        ],
-        "type": "object"
-      },
-      "FinanceCountryStateListSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "items": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "code": {
-                  "type": "string"
-                },
-                "id": {
-                  "exclusiveMinimum": 0,
-                  "maximum": 9007199254740991,
-                  "type": "integer"
-                },
-                "name": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "id",
-                "name",
-                "code"
-              ],
-              "type": "object"
-            },
-            "type": "array"
-          },
-          "total": {
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "total"
-        ],
-        "type": "object"
-      },
-      "FinanceCountryStateSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "id": {
-            "exclusiveMinimum": 0,
-            "maximum": 9007199254740991,
-            "type": "integer"
-          },
-          "name": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "code"
-        ],
-        "type": "object"
-      },
       "FinanceDebitNoteCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -13937,61 +14254,6 @@
           "country"
         ],
         "type": "string"
-      },
-      "FinanceSetupCompanyInputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "city": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "company_registry": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "country_id": {
-            "anyOf": [
-              {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "state_id": {
-            "anyOf": [
-              {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "street": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "vat": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "type": "object"
       },
       "FinanceSetupFiscalInputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -18854,6 +19116,47 @@
         ],
         "type": "object"
       },
+      "LookupListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "code"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
       "MaintenanceBookingInputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "anyOf": [
@@ -22120,6 +22423,27 @@
         ],
         "type": "object"
       },
+      "MeetingOccurrenceCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "end_datetime": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "start_datetime": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "MeetingPatchSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -24926,6 +25250,39 @@
         "required": [
           "items",
           "total"
+        ],
+        "type": "object"
+      },
+      "MyTaskSummarySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "done": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "open": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "overdue": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "open",
+          "overdue",
+          "done"
         ],
         "type": "object"
       },
@@ -31686,303 +32043,6 @@
         },
         "type": "object"
       },
-      "ProjectReportListSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "items": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "closed_task_count": {
-                  "anyOf": [
-                    {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                },
-                "finance": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "actual": {
-                      "minimum": 0,
-                      "type": "number"
-                    },
-                    "budget_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "charter_estimate": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "currency": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "decimal_places": {
-                          "maximum": 9007199254740991,
-                          "minimum": -9007199254740991,
-                          "type": "integer"
-                        },
-                        "id": {
-                          "exclusiveMinimum": 0,
-                          "maximum": 9007199254740991,
-                          "type": "integer"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "symbol": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "name",
-                        "symbol",
-                        "decimal_places"
-                      ],
-                      "type": "object"
-                    },
-                    "expense_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "over_budget": {
-                      "type": "boolean"
-                    },
-                    "planned": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "project_id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "remaining": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
-                    },
-                    "utilization_percent": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  },
-                  "required": [
-                    "project_id",
-                    "currency",
-                    "charter_estimate",
-                    "planned",
-                    "actual",
-                    "remaining",
-                    "utilization_percent",
-                    "over_budget",
-                    "budget_count",
-                    "expense_count"
-                  ],
-                  "type": "object"
-                },
-                "overdue_task_count": {
-                  "anyOf": [
-                    {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                },
-                "progress": {
-                  "anyOf": [
-                    {
-                      "maximum": 100,
-                      "minimum": 0,
-                      "type": "number"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                },
-                "project": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "name": {
-                      "type": "string"
-                    },
-                    "status": {
-                      "anyOf": [
-                        {
-                          "enum": [
-                            "on_track",
-                            "at_risk",
-                            "off_track",
-                            "on_hold",
-                            "done"
-                          ],
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "name",
-                    "status"
-                  ],
-                  "type": "object"
-                },
-                "task_count": {
-                  "anyOf": [
-                    {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                }
-              },
-              "required": [
-                "project",
-                "finance",
-                "task_count",
-                "closed_task_count",
-                "overdue_task_count",
-                "progress"
-              ],
-              "type": "object"
-            },
-            "type": "array"
-          },
-          "total": {
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "totals": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "actual": {
-                  "minimum": 0,
-                  "type": "number"
-                },
-                "budgeted_project_count": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
-                },
-                "currency": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "decimal_places": {
-                      "maximum": 9007199254740991,
-                      "minimum": -9007199254740991,
-                      "type": "integer"
-                    },
-                    "id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "name": {
-                      "type": "string"
-                    },
-                    "symbol": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "name",
-                    "symbol",
-                    "decimal_places"
-                  ],
-                  "type": "object"
-                },
-                "over_budget_count": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
-                },
-                "planned": {
-                  "minimum": 0,
-                  "type": "number"
-                },
-                "project_count": {
-                  "maximum": 9007199254740991,
-                  "minimum": 0,
-                  "type": "integer"
-                },
-                "remaining": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "currency",
-                "project_count",
-                "budgeted_project_count",
-                "planned",
-                "actual",
-                "remaining",
-                "over_budget_count"
-              ],
-              "type": "object"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "items",
-          "total",
-          "totals"
-        ],
-        "type": "object"
-      },
       "ProjectReportRowSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -36237,6 +36297,207 @@
           "feature_keys": [],
           "feature_operation": null,
           "handler": "patch_admin_branding",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/company": {
+      "get": {
+        "operationId": "webvue_api.CompanyController.admin_company.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "admin_company",
+        "tags": [
+          "webvue_api"
+        ],
+        "x-webvue": {
+          "addon": "webvue_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "CompanyController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "admin_company",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_api.CompanyController.patch_admin_company.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_admin_company",
+        "tags": [
+          "webvue_api"
+        ],
+        "x-webvue": {
+          "addon": "webvue_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "CompanyController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "patch_admin_company",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/company/countries": {
+      "get": {
+        "operationId": "webvue_api.CompanyController.list_company_countries.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_company_countries",
+        "tags": [
+          "webvue_api"
+        ],
+        "x-webvue": {
+          "addon": "webvue_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "CompanyController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "list_company_countries",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/company/countries/{country_id}/states": {
+      "get": {
+        "operationId": "webvue_api.CompanyController.list_company_states.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "country_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_company_states",
+        "tags": [
+          "webvue_api"
+        ],
+        "x-webvue": {
+          "addon": "webvue_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "CompanyController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "list_company_states",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/company/logo": {
+      "post": {
+        "operationId": "webvue_api.CompanyController.upload_admin_company_logo.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "upload_admin_company_logo",
+        "tags": [
+          "webvue_api"
+        ],
+        "x-webvue": {
+          "addon": "webvue_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "CompanyController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "upload_admin_company_logo",
           "readonly": false,
           "route_type": "json2"
         }
@@ -43178,46 +43439,6 @@
         }
       }
     },
-    "/api/v1/finance/setup/company": {
-      "patch": {
-        "operationId": "webvue_finance.FinanceSetupController.patch_company.patch",
-        "responses": {
-          "200": {
-            "description": "Success (serializer-whitelisted shape)."
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "422": {
-            "$ref": "#/components/responses/Invalid"
-          }
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "summary": "patch_company",
-        "tags": [
-          "webvue_finance"
-        ],
-        "x-webvue": {
-          "addon": "webvue_finance",
-          "api_handler": true,
-          "auth": "user",
-          "body": "application/json (JSON-RPC style params)",
-          "contract_namespace": "finance",
-          "controller": "FinanceSetupController",
-          "feature_keys": [
-            "finance.enabled"
-          ],
-          "feature_operation": "write",
-          "handler": "patch_company",
-          "readonly": false,
-          "route_type": "json2"
-        }
-      }
-    },
     "/api/v1/finance/setup/fiscal": {
       "patch": {
         "operationId": "webvue_finance.FinanceSetupController.patch_fiscal.patch",
@@ -46134,6 +46355,46 @@
           ],
           "feature_operation": "read",
           "handler": "convert_targets",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/my-tasks/summary": {
+      "get": {
+        "operationId": "webvue_tasks.MyTasksController.summarize_my_tasks.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "summarize_my_tasks",
+        "tags": [
+          "webvue_tasks"
+        ],
+        "x-webvue": {
+          "addon": "webvue_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTasksController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "summarize_my_tasks",
           "readonly": true,
           "route_type": "json2"
         }
@@ -50697,46 +50958,6 @@
           "feature_operation": "write",
           "handler": "create_update",
           "readonly": false,
-          "route_type": "json2"
-        }
-      }
-    },
-    "/api/v1/reports/projects": {
-      "get": {
-        "operationId": "webvue_pmo.ProjectReportsController.list_project_reports.get",
-        "responses": {
-          "200": {
-            "description": "Success (serializer-whitelisted shape)."
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "422": {
-            "$ref": "#/components/responses/Invalid"
-          }
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "summary": "list_project_reports",
-        "tags": [
-          "webvue_pmo"
-        ],
-        "x-webvue": {
-          "addon": "webvue_pmo",
-          "api_handler": true,
-          "auth": "user",
-          "body": "application/json (JSON-RPC style params)",
-          "contract_namespace": null,
-          "controller": "ProjectReportsController",
-          "feature_keys": [
-            "pmo.enabled"
-          ],
-          "feature_operation": "read",
-          "handler": "list_project_reports",
-          "readonly": true,
           "route_type": "json2"
         }
       }

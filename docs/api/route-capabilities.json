@@ -264,6 +264,42 @@
       "handler": "admin_branding",
       "no_capability_reason": null
     },
+    "GET /api/v1/admin/company": {
+      "addon": "webvue_api",
+      "auth": "user",
+      "capability_keys": [
+        "settings.company.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "admin_company",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/admin/company/countries": {
+      "addon": "webvue_api",
+      "auth": "user",
+      "capability_keys": [
+        "settings.company.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "list_company_countries",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/admin/company/countries/{country_id}/states": {
+      "addon": "webvue_api",
+      "auth": "user",
+      "capability_keys": [
+        "settings.company.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "list_company_states",
+      "no_capability_reason": null
+    },
     "GET /api/v1/admin/maintenance": {
       "addon": "webvue_api",
       "auth": "user",
@@ -1523,6 +1559,20 @@
       "handler": "convert_targets",
       "no_capability_reason": null
     },
+    "GET /api/v1/my-tasks/summary": {
+      "addon": "webvue_tasks",
+      "auth": "user",
+      "capability_keys": [
+        "tasks.tasks.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "tasks.enabled"
+      ],
+      "handler": "summarize_my_tasks",
+      "no_capability_reason": null
+    },
     "GET /api/v1/my-tasks/{task_id}": {
       "addon": "webvue_tasks",
       "auth": "user",
@@ -1915,20 +1965,6 @@
       "handler": "list_updates",
       "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
     },
-    "GET /api/v1/reports/projects": {
-      "addon": "webvue_pmo",
-      "auth": "user",
-      "capability_keys": [
-        "pmo.projects.read"
-      ],
-      "capability_match": "all",
-      "capability_source": "body",
-      "feature_keys": [
-        "pmo.enabled"
-      ],
-      "handler": "list_project_reports",
-      "no_capability_reason": null
-    },
     "GET /api/v1/reports/projects/analytics": {
       "addon": "webvue_pmo",
       "auth": "user",
@@ -2145,6 +2181,18 @@
       "handler": "patch_admin_branding",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/admin/company": {
+      "addon": "webvue_api",
+      "auth": "user",
+      "capability_keys": [
+        "settings.company.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "patch_admin_company",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/admin/maintenance/bookings/{booking_id}": {
       "addon": "webvue_api",
       "auth": "user",
@@ -2319,20 +2367,6 @@
         "finance.enabled"
       ],
       "handler": "patch_partner",
-      "no_capability_reason": null
-    },
-    "PATCH /api/v1/finance/setup/company": {
-      "addon": "webvue_finance",
-      "auth": "user",
-      "capability_keys": [
-        "finance.setup.manage"
-      ],
-      "capability_match": "all",
-      "capability_source": "body",
-      "feature_keys": [
-        "finance.enabled"
-      ],
-      "handler": "patch_company",
       "no_capability_reason": null
     },
     "PATCH /api/v1/finance/setup/fiscal": {
@@ -2603,6 +2637,18 @@
         "pmo.enabled"
       ],
       "handler": "patch_task",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/admin/company/logo": {
+      "addon": "webvue_api",
+      "auth": "user",
+      "capability_keys": [
+        "settings.company.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "upload_admin_company_logo",
       "no_capability_reason": null
     },
     "POST /api/v1/admin/maintenance/bookings": {
