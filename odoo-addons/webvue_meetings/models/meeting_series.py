@@ -8,7 +8,7 @@ from dateutil.rrule import MONTHLY, WEEKLY, rrule
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
-from .meeting_minute import _CALENDAR_IMPORT, _SERIES_GENERATION
+from .meeting_context import _CALENDAR_IMPORT, _SERIES_GENERATION
 from odoo.addons.calendar.models.calendar_recurrence import weekday_to_field
 
 MAX_OCCURRENCES = 60
