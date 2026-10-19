@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { KNOWN_CAPABILITIES, MeSchema } from '@webvue/contracts'
-import { canUse, featureForCapability, featureForPath, hasFeature, isWriteCapability } from '../registry'
+import { canUse, capabilityAllowed, featureForCapability, featureForPath, hasFeature, isWriteCapability, subFeatureForCapability } from '../registry'
 import { firstAllowedPath, postLoginPath } from '../../utils/accessPolicy'
 import { useNav } from '../../composables/nav/shellModules'
 
@@ -64,6 +64,11 @@ const TODAY: ReadonlyArray<readonly [string, string | null, boolean]> = [
   ['hr.departments.read', 'hr.enabled', false], ['hr.departments.manage', 'hr.enabled', true],
   ['hr.leave.read', 'hr.enabled', false], ['hr.leave.request', 'hr.enabled', true],
   ['hr.leave.approve', 'hr.enabled', true], ['hr.leave.manage', 'hr.enabled', true],
+  ['hr.recruitment.read', 'hr.enabled', false], ['hr.recruitment.manage', 'hr.enabled', true],
+  ['hr.shifts.read', 'hr.enabled', false], ['hr.shifts.manage', 'hr.enabled', true],
+  ['hr.onboarding.read', 'hr.enabled', false], ['hr.onboarding.manage', 'hr.enabled', true],
+  ['hr.offboarding.read', 'hr.enabled', false], ['hr.offboarding.manage', 'hr.enabled', true],
+  ['hr.assets.read', 'hr.enabled', false], ['hr.assets.manage', 'hr.enabled', true],
   ['documents.items.read', 'documents.enabled', false], ['documents.items.manage', 'documents.enabled', true],
   ['documents.items.archive', 'documents.enabled', true], ['documents.access.manage', 'documents.enabled', true], ['documents.library.manage', 'documents.enabled', true],
   ['pmo.projects.read', 'pmo.enabled', false], ['pmo.projects.create', 'pmo.enabled', true],
@@ -91,6 +96,46 @@ describe('capability gate derivation', () => {
       // webvue.notifications is the bell: canUse gates it on pmo/meetings, so it is only checked above.
       if (capability !== 'webvue.notifications') expect(canUse(locked, capability, true), capability).toBe(true)
     }
+  })
+
+  it('gates an area capability by its application feature and its declared sub-feature', () => {
+    // The HR manifest declares these prefixes (integrator-owned); the logic is what is
+    // tested here, so the map is injected instead of depending on that manifest entry.
+    const subFeatures = { 'hr.recruitment.': 'hr.recruitment', 'hr.shifts.': 'hr.shifts' }
+    const tenant = (readable: string[], writable: string[]) => ({
+      capabilities: ['hr.recruitment.read', 'hr.recruitment.manage', 'hr.employees.read'],
+      modules: ['webvue_hr'],
+      entitlements: { 'hr.enabled': readable.includes('hr.enabled') },
+      platform: { readable_features: readable, writable_features: writable },
+    })
+
+    expect(capabilityAllowed(
+      tenant(['hr.enabled', 'hr.recruitment'], ['hr.enabled', 'hr.recruitment']),
+      'hr.recruitment.read', false, subFeatures,
+    )).toBe(true)
+    // The application alone is not enough, and neither is the area alone.
+    expect(capabilityAllowed(tenant(['hr.enabled'], ['hr.enabled']), 'hr.recruitment.read', false, subFeatures)).toBe(false)
+    expect(capabilityAllowed(tenant(['hr.recruitment'], ['hr.recruitment']), 'hr.recruitment.read', false, subFeatures)).toBe(false)
+    // Same read/write semantics: a read-only area keeps reads open and closes writes.
+    expect(capabilityAllowed(
+      tenant(['hr.enabled', 'hr.recruitment'], ['hr.enabled']), 'hr.recruitment.manage', true, subFeatures,
+    )).toBe(false)
+    expect(capabilityAllowed(
+      tenant(['hr.enabled', 'hr.recruitment'], ['hr.enabled', 'hr.recruitment']), 'hr.recruitment.manage', true, subFeatures,
+    )).toBe(true)
+    // A capability outside every declared prefix keeps the application gate only.
+    expect(capabilityAllowed(tenant(['hr.enabled'], ['hr.enabled']), 'hr.employees.read', false, subFeatures)).toBe(true)
+  })
+
+  it('resolves the longest declared sub-feature prefix, and none when nothing matches', () => {
+    const subFeatures = { 'hr.': 'hr.enabled', 'hr.recruitment.': 'hr.recruitment' }
+    expect(subFeatureForCapability('hr.recruitment.read', subFeatures)).toBe('hr.recruitment')
+    expect(subFeatureForCapability('hr.recruitment.manage', subFeatures)).toBe('hr.recruitment')
+    expect(subFeatureForCapability('hr.shifts.read', subFeatures)).toBe('hr.enabled')
+    expect(subFeatureForCapability('pmo.tasks.read', subFeatures)).toBeNull()
+    expect(subFeatureForCapability('hr.recruitment.read', {})).toBeNull()
+    // A prefix that stops mid-segment matches nothing.
+    expect(subFeatureForCapability('hr', { 'hr.': 'hr.enabled' })).toBeNull()
   })
 
   it('turns meetings.manage into a write that only a writable meetings feature opens', () => {

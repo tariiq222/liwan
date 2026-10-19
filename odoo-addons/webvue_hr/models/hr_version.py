@@ -7,6 +7,13 @@ from odoo.tools import SQL
 # Stock gates the contract block behind hr.group_hr_manager, which also bypasses company
 # isolation on hr.version; the manage capability reads and writes it through these groups.
 CONTRACT_GROUPS = 'hr.group_hr_manager,webvue_hr.group_cap_hr_employees_manage'
+# Stock gates the departure block behind hr.group_hr_user. The offboarding read capability
+# joins it, so a departure is readable without the employee management capability;
+# hr.employee takes the groups of these fields through its _inherits link.
+OFFBOARDING_GROUPS = 'hr.group_hr_user,webvue_hr.group_cap_hr_offboarding_read'
+# The pair that opens hr.version for reading only (writing stays behind
+# hr.employees.manage): the offboarding area reads the departure fields of an employee.
+OFFBOARDING_READ_CAPABILITIES = ('hr.employees.read', 'hr.offboarding.read')
 VERSION_SCOPE_ERROR = 'employee version is outside the current company'
 ACCESS_USER_CREATE_MARKER = 'webvue_core.access_user_create_depth'
 ACCESS_USER_WRITE_MARKER = 'webvue_core.access_user_write'
@@ -28,6 +35,10 @@ class WebVueHrVersion(models.Model):
         string='Notice Period (days)',
         help='Days of notice either party must give to end the contract.',
         groups=CONTRACT_GROUPS, tracking=True)
+    # The stock departure block, regrouped for the offboarding capability.
+    departure_reason_id = fields.Many2one(groups=OFFBOARDING_GROUPS)
+    departure_description = fields.Html(groups=OFFBOARDING_GROUPS)
+    departure_date = fields.Date(groups=OFFBOARDING_GROUPS)
 
     _notice_period_days_non_negative = models.Constraint(
         'CHECK (notice_period_days >= 0)',
@@ -40,6 +51,27 @@ class WebVueHrVersion(models.Model):
             data.get(ACCESS_USER_CREATE_MARKER)
             or data.get(ACCESS_USER_WRITE_MARKER),
         )
+
+    def _webvue_version_read_allowed(self):
+        """Whether the caller may read employee versions.
+
+        The employee management capability owns the whole record. The offboarding read
+        pair opens it for reading only, because a departure is the departure fields of an
+        employee the area is allowed to see; every write stays behind hr.employees.manage.
+        """
+        service = self.env['webvue.access.service']
+        if service._webvue_has_capability(self.env.user, 'hr.employees.manage'):
+            return True
+        return all(
+            service._webvue_has_capability(self.env.user, key)
+            for key in OFFBOARDING_READ_CAPABILITIES
+        )
+
+    def _webvue_require_version_read(self):
+        if not self._webvue_version_read_allowed():
+            self.env['webvue.access.service']._webvue_require_capability(
+                'hr.employees.manage',
+            )
 
     def _webvue_validate_scope(self):
         if not self.ids:
@@ -62,9 +94,7 @@ class WebVueHrVersion(models.Model):
             and not self.env.user.has_group('base.group_system')
             and not self._webvue_trusted_internal_user_change()
         ):
-            self.env['webvue.access.service']._webvue_require_capability(
-                'hr.employees.manage',
-            )
+            self._webvue_require_version_read()
             domain = Domain(domain) & Domain('company_id', '=', self.env.company.id)
         return super()._search(
             domain, offset=offset, limit=limit, order=order,
@@ -78,9 +108,12 @@ class WebVueHrVersion(models.Model):
             and not self.env.user.has_group('base.group_system')
             and not self._webvue_trusted_internal_user_change()
         ):
-            self.env['webvue.access.service']._webvue_require_capability(
-                'hr.employees.manage',
-            )
+            if operation == 'read':
+                self._webvue_require_version_read()
+            else:
+                self.env['webvue.access.service']._webvue_require_capability(
+                    'hr.employees.manage',
+                )
             self._webvue_validate_scope()
         return super().check_access(operation)
 

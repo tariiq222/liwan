@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Record rules for the engine models of the five HR areas: the purpose split of
+         the stock employee activity plans (mirroring hr's mail_plan_rule_group_hr_manager),
+         the company and purpose scoping of the WebVue plan run, and the asset read that
+         lets the assets capability see equipment without following it. -->
+    <record id="rule_hr_plan_onboarding_manage" model="ir.rule">
+        <field name="name">webvue onboarding: manage employee onboarding plans</field>
+        <field name="model_id" ref="mail.model_mail_activity_plan"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_onboarding_manage'))]"/>
+        <field name="domain_force">[('res_model', '=', 'hr.employee'), ('hr_purpose', '=', 'onboarding')]</field>
+        <field name="perm_read" eval="False"/>
+    </record>
+    <record id="rule_hr_plan_offboarding_manage" model="ir.rule">
+        <field name="name">webvue offboarding: manage employee offboarding plans</field>
+        <field name="model_id" ref="mail.model_mail_activity_plan"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_offboarding_manage'))]"/>
+        <field name="domain_force">[('res_model', '=', 'hr.employee'), ('hr_purpose', '=', 'offboarding')]</field>
+        <field name="perm_read" eval="False"/>
+    </record>
+    <record id="rule_hr_plan_template_onboarding_manage" model="ir.rule">
+        <field name="name">webvue onboarding: manage onboarding plan steps</field>
+        <field name="model_id" ref="mail.model_mail_activity_plan_template"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_onboarding_manage'))]"/>
+        <field name="domain_force">[('plan_id.res_model', '=', 'hr.employee'), ('plan_id.hr_purpose', '=', 'onboarding')]</field>
+        <field name="perm_read" eval="False"/>
+    </record>
+    <record id="rule_hr_plan_template_offboarding_manage" model="ir.rule">
+        <field name="name">webvue offboarding: manage offboarding plan steps</field>
+        <field name="model_id" ref="mail.model_mail_activity_plan_template"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_offboarding_manage'))]"/>
+        <field name="domain_force">[('plan_id.res_model', '=', 'hr.employee'), ('plan_id.hr_purpose', '=', 'offboarding')]</field>
+        <field name="perm_read" eval="False"/>
+    </record>
+
+    <!-- The plan run is company-scoped for everyone (a rule without groups is global);
+         the area read groups see the runs of their own purpose only (a manager inherits
+         its read group, so managers are covered by the same pair). -->
+    <record id="rule_hr_plan_run_company" model="ir.rule">
+        <field name="name">webvue plan run: multi company</field>
+        <field name="model_id" ref="model_webvue_hr_plan_run"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_hr_plan_run_onboarding" model="ir.rule">
+        <field name="name">webvue plan run: onboarding runs</field>
+        <field name="model_id" ref="model_webvue_hr_plan_run"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_onboarding_read'))]"/>
+        <field name="domain_force">[('plan_id.hr_purpose', '=', 'onboarding')]</field>
+    </record>
+    <record id="rule_hr_plan_run_offboarding" model="ir.rule">
+        <field name="name">webvue plan run: offboarding runs</field>
+        <field name="model_id" ref="model_webvue_hr_plan_run"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_offboarding_read'))]"/>
+        <field name="domain_force">[('plan_id.hr_purpose', '=', 'offboarding')]</field>
+    </record>
+
+    <!-- Stock restricts base.group_user to the equipment they follow; the assets read
+         capability sees every equipment of its companies (the global multi-company rule
+         still applies). -->
+    <record id="rule_hr_equipment_assets_read" model="ir.rule">
+        <field name="name">webvue assets: read the company equipment</field>
+        <field name="model_id" ref="maintenance.model_maintenance_equipment"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_assets_read'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+</odoo>

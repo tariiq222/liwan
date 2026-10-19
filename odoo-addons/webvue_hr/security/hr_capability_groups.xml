@@ -23,10 +23,32 @@
     <record id="group_cap_hr_leave_request" model="res.groups"><field name="name">Capability: request leave</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
     <record id="group_cap_hr_leave_approve" model="res.groups"><field name="name">Capability: approve leave</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/><field name="implied_ids" eval="[Command.link(ref('hr_holidays.group_hr_holidays_user'))]"/></record>
     <record id="group_cap_hr_leave_manage" model="res.groups"><field name="name">Capability: manage leave</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/><field name="implied_ids" eval="[Command.link(ref('hr_holidays.group_hr_holidays_user'))]"/></record>
+    <!-- Recruitment, shifts, onboarding, offboarding and assets run on the stock
+         hr_recruitment, OCA hr_employee_calendar_planning and stock hr_maintenance
+         engines. Only the two manage groups that need the engine's own records link a
+         stock group: hr_recruitment.group_hr_recruitment_user (which implies only
+         interviewer → base.group_user) and maintenance.group_equipment_manager (which
+         implies only base.group_user). No group here implies hr.group_hr_user,
+         hr.group_hr_manager, the time-off officer group or a payroll group. The read
+         groups hold their own read ACLs in ir.model.access.csv. -->
+    <record id="group_cap_hr_recruitment_read" model="res.groups"><field name="name">Capability: read recruitment</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
+    <record id="group_cap_hr_recruitment_manage" model="res.groups"><field name="name">Capability: manage recruitment</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/><field name="implied_ids" eval="[Command.link(ref('hr_recruitment.group_hr_recruitment_user'))]"/></record>
+    <record id="group_cap_hr_shifts_read" model="res.groups"><field name="name">Capability: read shifts</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
+    <!-- Shifts and offboarding writes are employee-record mutations: the capability
+         itself depends on hr.employees.manage (access_service.py), whose group already
+         implies hr.group_hr_user for the engine ACLs, so these two groups imply
+         nothing of their own. -->
+    <record id="group_cap_hr_shifts_manage" model="res.groups"><field name="name">Capability: manage shifts</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
+    <record id="group_cap_hr_onboarding_read" model="res.groups"><field name="name">Capability: read onboarding</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
+    <record id="group_cap_hr_onboarding_manage" model="res.groups"><field name="name">Capability: manage onboarding</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
+    <record id="group_cap_hr_offboarding_read" model="res.groups"><field name="name">Capability: read offboarding</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
+    <record id="group_cap_hr_offboarding_manage" model="res.groups"><field name="name">Capability: manage offboarding</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
+    <record id="group_cap_hr_assets_read" model="res.groups"><field name="name">Capability: read assets</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
+    <record id="group_cap_hr_assets_manage" model="res.groups"><field name="name">Capability: manage assets</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/><field name="implied_ids" eval="[Command.link(ref('maintenance.group_equipment_manager'))]"/></record>
 
     <record id="group_hr_manager" model="res.groups">
         <field name="name">HR Manager</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/>
-        <field name="implied_ids" eval="[Command.set([ref('webvue_core.group_employee'),ref('group_cap_hr_employees_read'),ref('group_cap_hr_employees_manage'),ref('group_cap_hr_employees_archive'),ref('group_cap_hr_employees_access_status_read'),ref('group_cap_hr_departments_read'),ref('group_cap_hr_departments_manage'),ref('group_cap_hr_leave_read'),ref('group_cap_hr_leave_request'),ref('group_cap_hr_leave_approve'),ref('group_cap_hr_leave_manage')])]"/>
+        <field name="implied_ids" eval="[Command.set([ref('webvue_core.group_employee'),ref('group_cap_hr_employees_read'),ref('group_cap_hr_employees_manage'),ref('group_cap_hr_employees_archive'),ref('group_cap_hr_employees_access_status_read'),ref('group_cap_hr_departments_read'),ref('group_cap_hr_departments_manage'),ref('group_cap_hr_leave_read'),ref('group_cap_hr_leave_request'),ref('group_cap_hr_leave_approve'),ref('group_cap_hr_leave_manage'),ref('group_cap_hr_recruitment_read'),ref('group_cap_hr_recruitment_manage'),ref('group_cap_hr_shifts_read'),ref('group_cap_hr_shifts_manage'),ref('group_cap_hr_onboarding_read'),ref('group_cap_hr_onboarding_manage'),ref('group_cap_hr_offboarding_read'),ref('group_cap_hr_offboarding_manage'),ref('group_cap_hr_assets_read'),ref('group_cap_hr_assets_manage')])]"/>
     </record>
 
     <!-- webvue_core's support group and user-directory rule reach HR through these links. -->

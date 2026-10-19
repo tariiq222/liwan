@@ -1,7 +1,16 @@
 import { z } from 'zod'
 import { MIN_PASSWORD_LENGTH } from '../common/password'
+import { HrRefSchema } from './ref'
 
-export const HrRefSchema = z.object({ id: z.number().int().positive(), name: z.string() }).strict()
+// The five HR areas: each area keeps its own schema module (one source of truth per
+// route contract), and this barrel re-exports them beside the directory, leave and
+// report shapes below.
+export * from './assets'
+export * from './offboarding'
+export * from './onboarding'
+export * from './recruitment'
+export * from './ref'
+export * from './shifts'
 
 export const HrAccessRoleSchema = z.enum(['employee', 'admin', 'vendor'])
 export const HrWritableRoleSchema = z.enum(['employee', 'admin'])
@@ -156,7 +165,6 @@ export const HrSaudizationSchema = z.object({
 
 export type HrDepartment = z.infer<typeof HrDepartmentSchema>
 export type HrEmployee = z.infer<typeof HrEmployeeSchema>
-export type HrRef = z.infer<typeof HrRefSchema>
 // Leave runs on stock hr_holidays; these are the /api/v1/hr/leave shapes.
 export const HrLeaveStateSchema = z.enum(['confirm', 'validate1', 'validate', 'refuse', 'cancel'])
 

@@ -4,7 +4,7 @@ from odoo.exceptions import AccessError
 from odoo.fields import Domain
 from odoo.tools import SQL
 
-from odoo.addons.webvue_hr.models.hr_version import CONTRACT_GROUPS
+from odoo.addons.webvue_hr.models.hr_version import CONTRACT_GROUPS, OFFBOARDING_GROUPS
 from odoo.addons.webvue_hr.rules import WebVueHrRule
 
 EMPLOYEE_WRITE_ERROR = 'employee management capability is required'
@@ -36,6 +36,16 @@ class WebVueHrEmployee(models.Model):
     notice_period_days = fields.Integer(
         related='version_id.notice_period_days', readonly=False,
         inherited=True, groups=CONTRACT_GROUPS)
+    # The departure block: readable and writable with the offboarding read capability too.
+    departure_reason_id = fields.Many2one(
+        related='version_id.departure_reason_id', readonly=False,
+        inherited=True, groups=OFFBOARDING_GROUPS)
+    departure_description = fields.Html(
+        related='version_id.departure_description', readonly=False,
+        inherited=True, groups=OFFBOARDING_GROUPS)
+    departure_date = fields.Date(
+        related='version_id.departure_date', readonly=False,
+        inherited=True, groups=OFFBOARDING_GROUPS)
 
     @api.model
     def _search(
