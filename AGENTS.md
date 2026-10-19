@@ -250,7 +250,7 @@ cross-addon links.
   recipient-owned bell candidates;
   `webvue_meetings_pmo` only for the id-only lookup of converted tasks;
   `webvue_finance` only in `models/setup_service.py`, for loading the Saudi chart of accounts and
-  writing the company tax identity and fiscal settings of the current company, after the
+  writing the fiscal settings of the current company, after the
   `finance.setup.manage` check, with a field whitelist, and in `models/zatca_service.py`, for the
   ZATCA onboarding of a sales journal and the submission of one invoice through stock `l10n_sa_edi`,
   after the `finance.zatca.manage` / `finance.zatca.submit` capability and current-company checks,
@@ -303,7 +303,7 @@ files.
 ## Authorization model
 
 
-Authorization uses the capability catalog composed by `webvue.access.service` (the nine
+Authorization uses the capability catalog composed by `webvue.access.service` (the eleven
 `webvue_core` system capabilities plus each application's own), built-in and
 custom roles, and company-scoped assignments. `system_admin` manages access
 and settings without implicitly granting HR/PMO write access. Project ownership

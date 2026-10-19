@@ -54,7 +54,7 @@ const BRANDING = {
 const COMPANY_COUNTRIES = [{ id: 192, name: 'المملكة العربية السعودية', code: 'SA' }, { id: 229, name: 'الإمارات العربية المتحدة', code: 'AE' }]
 const COMPANY_STATES = { 192: [{ id: 1, name: 'الرياض', code: 'RUH' }, { id: 2, name: 'مكة المكرمة', code: 'MAK' }], 229: [{ id: 3, name: 'دبي', code: 'DU' }] }
 const COMPANY = {
-  id: 1, name: 'ويب فيو', logo_url: null, report_header: 'منصة عربية موحّدة لتشغيل الشركات', company_registry: '1010000000', vat: '300000000000003',
+  id: 1, name: 'ويب فيو', logo_url: null, report_header: 'منصة عربية موحّدة لتشغيل الشركات', company_registry: '1010000000', vat: '300000000000003', saudi_fields: true,
   l10n_sa_edi_additional_identification_scheme: 'CRN', l10n_sa_edi_additional_identification_number: '1010000000',
   address: {
     street: 'طريق الملك فهد', street2: 'العليا', city: 'الرياض', zip: '12211', state: { id: 1, name: 'الرياض' },
@@ -74,7 +74,6 @@ function companyProfile() {
 function patchCompany(patch) {
   for (const [key, value] of Object.entries(patch)) {
     if (key === 'state_id') COMPANY.address.state = (COMPANY_STATES[COMPANY.address.country?.id] ?? []).find(state => state.id === value) ?? null
-    else if (key === 'country_id') COMPANY.address.country = COMPANY_COUNTRIES.find(country => country.id === value) ?? null
     else if (COMPANY_ADDRESS_FIELDS.includes(key)) COMPANY.address[key] = value
     else COMPANY[key] = value
   }
@@ -446,6 +445,7 @@ async function handle(req, res) {
     let patch = {}
     try { patch = JSON.parse(await readBody(req) || '{}') } catch { patch = {} }
     if (Object.hasOwn(patch, 'name') && !String(patch.name ?? '').trim()) return json(res, 422, { code: 'invalid', message: 'name must not be empty', field: 'name' })
+    if (Object.hasOwn(patch, 'country_id')) return json(res, 422, { code: 'invalid', message: "field 'country_id' is not writable", field: 'country_id' })
     patchCompany(patch)
     return json(res, 200, companyProfile())
   }

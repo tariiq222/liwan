@@ -10,7 +10,6 @@ from . import (
     entry,
     invoice,
     journal,
-    lookup,
     mis,
     parsing,
     partner,

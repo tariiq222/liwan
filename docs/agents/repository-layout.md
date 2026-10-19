@@ -18,7 +18,7 @@ limits describe implementation stages, not permanent product exclusions.
 
 ## Repository layout
 
-- `odoo-addons/webvue_core` depends on `base` only. It owns the access service, the nine system capabilities, the
+- `odoo-addons/webvue_core` depends on `base` only. It owns the access service, the eleven system capabilities, the
   built-in `employee`, `system_admin` and `vendor_support` roles, assignments, access audit, migration and identity
   protection. Applications add their capabilities to the catalog through `webvue.access.service` hooks.
 - `odoo-addons/webvue_platform` owns the tenant profile singleton and `root_company_id`.

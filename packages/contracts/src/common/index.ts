@@ -1,6 +1,7 @@
 export * from './branding'
 export * from './company'
 export * from './error'
+export * from './lookup'
 export * from './me'
 export * from './password'
 export * from './person'

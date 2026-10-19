@@ -69,6 +69,7 @@
       "scheme": "Additional identifier type",
       "schemeNumber": "Additional identifier number",
       "country": "Country",
+      "countryFixed": "Set when the account was created; it cannot be changed.",
       "state": "Region",
       "city": "City",
       "district": "District",

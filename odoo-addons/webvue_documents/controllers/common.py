@@ -53,7 +53,7 @@ def list_filter_domain(args):
         days = parse_positive_int(args['expiring_within'], 'expiring_within')
         if days > 365:
             raise ApiError(422, 'invalid', 'expiring_within must be 1 to 365 days', field='expiring_within')
-        domain += [('expiry_date', '!=', False), ('expiry_date', '<=', today + timedelta(days=days))]
+        domain += [('expiry_date', '>=', today), ('expiry_date', '<=', today + timedelta(days=days))]
     if bool_arg(args, 'expired'):
         domain += [('expiry_date', '!=', False), ('expiry_date', '<', today)]
     return domain

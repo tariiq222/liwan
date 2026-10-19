@@ -10,6 +10,7 @@ const PROFILE: CompanyProfile = {
   report_header: null,
   company_registry: '1010000000',
   vat: '300000000000003',
+  saudi_fields: true,
   l10n_sa_edi_additional_identification_scheme: 'CRN',
   l10n_sa_edi_additional_identification_number: null,
   address: {
@@ -32,7 +33,7 @@ const PROFILE: CompanyProfile = {
 describe('company profile form', () => {
   it('flattens the profile to the PATCH field names', () => {
     const form = profileToForm(PROFILE)
-    expect(form).toMatchObject({ name: 'ويب فيو', city: 'الرياض', state_id: 3, country_id: 192, l10n_sa_edi_additional_identification_scheme: 'CRN' })
+    expect(form).toMatchObject({ name: 'ويب فيو', city: 'الرياض', state_id: 3, l10n_sa_edi_additional_identification_scheme: 'CRN' })
   })
 
   it('patches only the changed fields of the page, clearing a text with null', () => {

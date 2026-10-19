@@ -1,6 +1,4 @@
 import {
-  FinanceCountryListSchema,
-  FinanceCountryStateListSchema,
   FinanceDebitNoteCreateSchema,
   JournalEntryCreateSchema,
   JournalEntryDetailSchema,
@@ -54,15 +52,7 @@ describe('finance journal entry schemas', () => {
   })
 })
 
-describe('finance lookup and debit note schemas', () => {
-  it('parse country and state lists', () => {
-    const country = { id: 192, name: 'المملكة العربية السعودية', code: 'SA' }
-    const state = { id: 5, name: 'الرياض', code: 'RD' }
-    expect(FinanceCountryListSchema.parse({ items: [country], total: 1 }).items).toEqual([country])
-    expect(FinanceCountryStateListSchema.parse({ items: [state], total: 1 }).items).toEqual([state])
-    expect(() => FinanceCountryListSchema.parse({ items: [{ ...country, flag: 'x' }], total: 1 })).toThrow()
-  })
-
+describe('finance debit note schema', () => {
   it('a debit note body is optional keys only and strict', () => {
     expect(FinanceDebitNoteCreateSchema.parse({})).toEqual({})
     expect(FinanceDebitNoteCreateSchema.parse({ reason: 'Late fee', date: '2026-10-19', copy_lines: true }))
