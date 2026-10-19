@@ -4,6 +4,7 @@ import DepartmentTable from '@/components/hr/DepartmentTable.vue'
 import DepartmentTree from '@/components/hr/DepartmentTree.vue'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import { buildDepartmentTree } from '@/lib/departmentTree'
+import { departmentKpiTiles } from '@/utils/hrKpis'
 import { ApiError } from '@/composables/useApi'
 import { useDeleteHrDepartment, useHrDepartments, type HrDepartment } from '@/composables/useHrDepartments'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
@@ -38,6 +39,8 @@ const createTo = computed(() => {
   return { path: '/hr/departments/new', query: listQuery }
 })
 const departments = computed(() => query.data.value?.items ?? [])
+// The list is fetched page by page until the server total is reached, so the tiles count the complete list.
+const kpiTiles = computed(() => departmentKpiTiles(query.data.value?.items ?? null, t))
 const roots = computed(() => buildDepartmentTree(departments.value))
 const filtered = computed(() => departments.value.filter(d => `${d.name} ${d.manager?.name ?? ''}`.toLocaleLowerCase().includes(search.value.trim().toLocaleLowerCase())))
 const activeFilterCount = computed(() => Number(Boolean(search.value.trim())))
@@ -63,7 +66,9 @@ async function confirmDelete() {
     create-test-id="hr-department-new"
     :views="views"
     views-in-filters
+    kpi-toggle
   >
+    <SharedKpiStrip :tiles="kpiTiles" :loading="query.isLoading.value" :label="t('hr.kpi.departmentsLabel')" data-testid="hr-department-kpi-strip" />
     <!-- The org chart is a screen-sized surface, so its card docks and fills the viewport; the list and tree are ordinary cards. -->
     <SharedListCard :fill="canvasView">
       <template #filters>

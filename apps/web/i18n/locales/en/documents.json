@@ -1,6 +1,11 @@
 {
   "documents": {
     "countTag": "{count} document | {count} documents",
+    "kpi": {
+      "label": "Document figures",
+      "total": "Documents",
+      "archived": "Archived documents"
+    },
     "title": "Documents",
     "new": "New document",
     "edit": "Edit document",

@@ -32,10 +32,11 @@ async function loadPage(allowed = true) {
     if (name === '@vueuse/core') return { refDebounced: (value: Vue.Ref<string>) => value }
     if (name === '@/components/documents/DocumentList.vue') return {}
     if (name === '@/composables/useDocuments') return { useDocumentContexts: () => ({ data: Vue.ref({ items: [{ kind: 'hr.department', label: 'Department' }] }) }), useDocumentContextOptions: () => ({ data: Vue.ref({ items: [] }) }), useDocuments: (params: Vue.ComputedRef<Record<string, unknown>>) => {
-      documentParams = params
+      if ('value' in params) documentParams = params
       return { data: Vue.ref({ items: Array.from({ length: 50 }, (_, index) => ({ id: index + 1 })), total: 50 }), isFetching: Vue.ref(false), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: () => Promise.resolve() }
     } }
     if (name === '@webvue/ui/app/utils/safeReturnTo') return { returnToQuery }
+    if (name === '@/utils/documentKpis') return { documentKpiTiles: () => [] }
     if (name === '@/lib/documentKeys') return { hasPendingDocumentSearch, documentCommittedListParams }
     throw new Error(`Unexpected import: ${name}`)
   }

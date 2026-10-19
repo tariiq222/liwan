@@ -52,7 +52,7 @@ function evaluate(router: Router, options: { can?: (capability: string) => boole
     navigateTo: vi.fn(),
     returnToQuery: (value: string) => ({ returnTo: value }),
     ApiError: TestApiError,
-    buildDepartmentTree,
+    buildDepartmentTree, departmentKpiTiles: () => [],
     useHrDepartments: () => ({
       data: Vue.ref({ items: DEPARTMENTS, total: DEPARTMENTS.length }),
       isLoading: Vue.ref(false), error: Vue.ref(null), refetch: () => undefined,
