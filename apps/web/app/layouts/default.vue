@@ -1,7 +1,21 @@
 <script setup lang="ts">
 import { pageArea } from '@/utils/workspacePresentation'
 import { hasNoContextSidebar } from '@/components/shell/noContextRoutes'
+import { shellBreadcrumb } from '@/composables/nav/breadcrumb'
+import { useShellModel } from '@/composables/useShellModel'
+import { usePageHeaderTitle } from '@webvue/ui/app/composables/usePageHeader'
+import { providePageTrail } from '@webvue/ui/app/composables/usePageTrail'
 const route = useRoute()
+const { t } = useI18n()
+const hydrated = useHydrated()
+const { rail } = useShellModel()
+const pageTitle = usePageHeaderTitle()
+// The trail belongs to the page header now (DESIGN.md §3): the shell publishes the ancestors of the
+// current route and SharedPageHeader draws them under the page title, so the floating header stays
+// quiet and there is still one trail, not two. The page title arrives after hydration (the page
+// registers it) and the shell names the current page only then, so both renders agree.
+const trail = computed(() => shellBreadcrumb({ path: route.path, pageTitle: hydrated.value ? pageTitle.value : null, t, rail: rail.value.all }))
+providePageTrail(trail)
 const workspaceTheme = computed(() => !pageArea(route.path).plain)
 const noSidebar = computed(() => hasNoContextSidebar(route.path))
 // The deleted route sheet restored focus when it closed; an ordinary page has
