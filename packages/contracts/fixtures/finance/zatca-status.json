@@ -1,5 +1,11 @@
 {
   "api_mode": "sandbox",
+  "backlog": {
+    "blocked": 0,
+    "rejected": 0,
+    "retry": 0,
+    "to_send": 0
+  },
   "journals": [
     {
       "journal": {
