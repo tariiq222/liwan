@@ -194,6 +194,80 @@
       "previous": "السابق",
       "next": "التالي",
       "pagination": "عرض {from}–{to} من {total}"
-    }
+    },
+      "leave": {
+        "description": "رصيد الإجازات وطلباتها واعتمادها.",
+        "new": "طلب إجازة",
+        "allocate": "منح رصيد",
+        "balancesTitle": "رصيد الإجازات",
+        "remainingUnit": "يوم متبقٍ",
+        "balanceHint": "الممنوح {allocated} · المأخوذ {taken} · بانتظار الاعتماد {pending}",
+        "noBalances": "لا رصيد إجازات بعد",
+        "noBalancesHint": "يمنح مسؤول الموارد البشرية رصيد الإجازة السنوية لكل موظف.",
+        "requestsTitle": "طلبات الإجازة",
+        "scope": {
+          "label": "نطاق الطلبات",
+          "mine": "طلباتي",
+          "pending": "بانتظار الاعتماد",
+          "all": "كل الطلبات"
+        },
+        "empty": {
+          "mine": "لا طلبات إجازة لك",
+          "pending": "لا طلبات بانتظار الاعتماد",
+          "all": "لا طلبات إجازة"
+        },
+        "columns": {
+          "employee": "الموظف",
+          "type": "النوع",
+          "period": "الفترة",
+          "days": "المدة",
+          "state": "الحالة"
+        },
+        "state": {
+          "confirm": "بانتظار الاعتماد",
+          "validate1": "بانتظار الاعتماد الثاني",
+          "validate": "معتمدة",
+          "refuse": "مرفوضة",
+          "cancel": "ملغاة"
+        },
+        "range": "{from} — {to}",
+        "days": "لا أيام | يوم واحد | يومان | {count} أيام | {count} يومًا | {count} يوم",
+        "approve": "اعتماد",
+        "refuse": "رفض",
+        "cancel": "إلغاء الإجازة",
+        "cancelConfirm": "إلغاء {type}؟ يعود الرصيد إذا كانت الإجازة معتمدة.",
+        "actionsFor": "إجراءات {type}",
+        "footer": "لا طلبات | عرض {shown} من طلب واحد | عرض {shown} من طلبين | عرض {shown} من {total} طلبات | عرض {shown} من {total} طلبًا | عرض {shown} من {total} طلب",
+        "form": {
+          "details": "تفاصيل الطلب",
+          "type": "نوع الإجازة",
+          "chooseType": "اختر نوع الإجازة",
+          "typeRequired": "نوع الإجازة مطلوب.",
+          "from": "من تاريخ",
+          "to": "إلى تاريخ",
+          "dateRequired": "التاريخ مطلوب.",
+          "dateOrder": "تاريخ النهاية قبل تاريخ البداية.",
+          "notes": "ملاحظات",
+          "documentHint": "هذا النوع يحتاج مستندًا داعمًا، مثل تقرير طبي.",
+          "requiredHint": "الحقول المعلّمة مطلوبة.",
+          "submit": "إرسال الطلب",
+          "noTypes": "لا أنواع إجازات متاحة لشركتك"
+        },
+        "allocation": {
+          "details": "تفاصيل الرصيد",
+          "employee": "الموظف",
+          "employeeSearch": "ابحث عن موظف…",
+          "chooseEmployee": "اختر الموظف",
+          "employeeRequired": "الموظف مطلوب.",
+          "employeesError": "تعذر تحميل الموظفين.",
+          "days": "عدد الأيام",
+          "daysRequired": "عدد الأيام يجب أن يكون أكبر من صفر.",
+          "validFrom": "يسري من",
+          "validTo": "ينتهي في",
+          "validToHint": "اتركه فارغًا إذا لم يكن للرصيد تاريخ انتهاء.",
+          "submit": "منح الرصيد",
+          "noTypes": "لا أنواع إجازات تستخدم الرصيد"
+        }
+      }
   }
 }

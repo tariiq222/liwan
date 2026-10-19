@@ -190,6 +190,16 @@ export function quickViewsModel(input: QuickViewsInput): QuickViewsModel {
     }
   }
 
+  if (path === '/hr/leave') {
+    return {
+      views: [],
+      actions: [
+        ...createAction(input, 'hr.leave.request', 'new-leave', 'hr.leave.new', '/hr/leave/new', true),
+        ...createAction(input, 'hr.leave.manage', 'new-leave-allocation', 'hr.leave.allocate', '/hr/leave/allocations/new', false),
+      ],
+    }
+  }
+
   if (OPERATION_PATHS.has(path)) {
     const onProcesses = path === '/operations/processes'
     return {
