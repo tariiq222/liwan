@@ -1,0 +1,17 @@
+{
+  "active": false,
+  "city": "",
+  "company_registry": "",
+  "country": {
+    "id": 2,
+    "name": "Saudi Arabia"
+  },
+  "customer": false,
+  "id": 1,
+  "is_company": false,
+  "name": "Riyadh Builders",
+  "state": null,
+  "street": "",
+  "vat": "",
+  "vendor": false
+}

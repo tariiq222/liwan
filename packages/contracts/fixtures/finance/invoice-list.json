@@ -1,0 +1,49 @@
+{
+  "items": [
+    {
+      "amount_residual": 1150.0,
+      "amount_tax": 150.0,
+      "amount_total": 1150.0,
+      "amount_untaxed": 1000.0,
+      "currency": "SAR",
+      "id": 1,
+      "invoice_date": "2026-10-18",
+      "invoice_date_due": "2026-10-18",
+      "journal": {
+        "id": 3,
+        "name": "Sales"
+      },
+      "move_type": "out_invoice",
+      "name": "INV/2026/00001",
+      "partner": {
+        "id": 2,
+        "name": "Al Noor Trading"
+      },
+      "payment_state": "not_paid",
+      "state": "posted"
+    },
+    {
+      "amount_residual": 100.0,
+      "amount_tax": 0.0,
+      "amount_total": 100.0,
+      "amount_untaxed": 100.0,
+      "currency": "SAR",
+      "id": 4,
+      "invoice_date": "2026-09-01",
+      "invoice_date_due": "2026-10-19",
+      "journal": {
+        "id": 6,
+        "name": "Purchases"
+      },
+      "move_type": "in_invoice",
+      "name": null,
+      "partner": {
+        "id": 5,
+        "name": "Gulf Supplies"
+      },
+      "payment_state": "not_paid",
+      "state": "draft"
+    }
+  ],
+  "total": 2
+}

@@ -1,0 +1,65 @@
+{
+  "budget": {
+    "id": 1,
+    "name": "Budget 2026",
+    "state": "draft"
+  },
+  "currency": "SAR",
+  "date_from": "2026-01-01",
+  "date_to": "2026-12-31",
+  "lines": [
+    {
+      "account": {
+        "id": 3,
+        "name": "500901 Budgeted income"
+      },
+      "actual": 1200.0,
+      "analytic_account": null,
+      "budget": 1000.0,
+      "date_from": "2026-01-01",
+      "date_to": "2026-12-31",
+      "favorable": true,
+      "id": 2,
+      "label": "",
+      "nature": "credit",
+      "variance": -200.0,
+      "variance_percent": -20.0
+    },
+    {
+      "account": {
+        "id": 5,
+        "name": "600901 Budgeted expense"
+      },
+      "actual": 400.0,
+      "analytic_account": null,
+      "budget": 1000.0,
+      "date_from": "2026-01-01",
+      "date_to": "2026-12-31",
+      "favorable": true,
+      "id": 4,
+      "label": "",
+      "nature": "debit",
+      "variance": 600.0,
+      "variance_percent": 60.0
+    }
+  ],
+  "target_move": "posted",
+  "totals": {
+    "credit": {
+      "actual": 1200.0,
+      "budget": 1000.0,
+      "variance": -200.0,
+      "variance_percent": -20.0
+    },
+    "debit": {
+      "actual": 400.0,
+      "budget": 1000.0,
+      "variance": 600.0,
+      "variance_percent": 60.0
+    },
+    "net": {
+      "actual": 800.0,
+      "budget": 0.0
+    }
+  }
+}

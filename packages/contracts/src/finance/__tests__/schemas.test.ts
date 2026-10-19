@@ -56,6 +56,17 @@ const ACCOUNT = {
 }
 const JOURNAL = { id: 1, name: 'Customer Invoices', code: 'INV', type: 'sale', currency: 'SAR' }
 
+describe('draft document numbering', () => {
+  it('accepts a null payment name', () => {
+    expect(FinancePaymentSchema.safeParse({ ...PAYMENT, name: null }).success).toBe(true)
+  })
+
+  it('accepts a null name on a draft invoice and rejects false', () => {
+    expect(FinanceInvoiceSchema.safeParse({ ...INVOICE, state: 'draft', name: null }).success).toBe(true)
+    expect(FinanceInvoiceSchema.safeParse({ ...INVOICE, name: false }).success).toBe(false)
+  })
+})
+
 describe('finance schemas', () => {
   it('parse the exact serializer shapes', () => {
     expect(FinanceInvoiceSchema.parse(INVOICE)).toEqual(INVOICE)

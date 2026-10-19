@@ -4,7 +4,8 @@ import { currency, day, FinanceRefSchema, id, list, money, PATCH_MESSAGE, requir
 
 export const JournalEntrySchema = z.object({
   id,
-  name: z.string(),
+  /** Null until a number is assigned. */
+  name: z.string().nullable(),
   state: z.enum(['draft', 'posted', 'cancel']),
   date: day,
   ref: z.string(),

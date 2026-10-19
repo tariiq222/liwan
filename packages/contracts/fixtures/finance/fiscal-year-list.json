@@ -1,0 +1,32 @@
+{
+  "items": [
+    {
+      "closing_entry": null,
+      "date_from": "2024-01-01",
+      "date_to": "2024-12-31",
+      "result": 300.0,
+      "state": "locked",
+      "year": 2024
+    },
+    {
+      "closing_entry": {
+        "id": 1,
+        "name": "TA/2025/12/0001 (FYC/2025)"
+      },
+      "date_from": "2025-01-01",
+      "date_to": "2025-12-31",
+      "result": 4000.0,
+      "state": "closed",
+      "year": 2025
+    },
+    {
+      "closing_entry": null,
+      "date_from": "2026-01-01",
+      "date_to": "2026-12-31",
+      "result": 1000.0,
+      "state": "open",
+      "year": 2026
+    }
+  ],
+  "total": 3
+}

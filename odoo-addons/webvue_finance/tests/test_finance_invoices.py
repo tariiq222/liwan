@@ -50,6 +50,11 @@ class TestFinanceInvoices(WebVueFinanceCase):
         self.assertEqual((item['state'], item['move_type']), ('posted', 'out_invoice'))
         self.assertEqual(item['partner'], {'id': self.partner.id, 'name': 'Al Noor Trading'})
 
+    def test_a_draft_invoice_has_a_null_name_until_it_is_posted(self):
+        by_id = {row['id']: row for row in self.api('GET', INVOICES).json()['items']}
+        self.assertIsNone(by_id[self.bill.id]['name'])
+        self.assertTrue(by_id[self.invoice.id]['name'])
+
     def test_the_list_is_an_items_total_envelope_of_the_current_company_only(self):
         body = self.api('GET', INVOICES).json()
         self.assertEqual(set(body), {'items', 'total'})

@@ -1,0 +1,74 @@
+{
+  "amount_residual": 1150.0,
+  "amount_tax": 150.0,
+  "amount_total": 1150.0,
+  "amount_untaxed": 1000.0,
+  "currency": "SAR",
+  "debit_origin": null,
+  "id": 1,
+  "invoice_date": "2026-10-18",
+  "invoice_date_due": "2026-10-19",
+  "journal": {
+    "id": 3,
+    "name": "Sales"
+  },
+  "lines": [
+    {
+      "account": {
+        "id": 5,
+        "name": "500001 Sales Account"
+      },
+      "analytic_distribution": [
+        {
+          "account": {
+            "code": "RYD",
+            "id": 7,
+            "name": "Riyadh"
+          },
+          "percent": 60.0
+        },
+        {
+          "account": {
+            "code": "",
+            "id": 8,
+            "name": "Jeddah"
+          },
+          "percent": 40.0
+        }
+      ],
+      "discount": 0.0,
+      "id": 4,
+      "name": "Consulting",
+      "price_subtotal": 1000.0,
+      "price_total": 1150.0,
+      "price_unit": 1000.0,
+      "quantity": 1.0,
+      "taxes": [
+        {
+          "id": 6,
+          "name": "15%"
+        }
+      ]
+    }
+  ],
+  "move_type": "out_invoice",
+  "name": "INV/2026/00002",
+  "partner": {
+    "id": 2,
+    "name": "Al Noor Trading"
+  },
+  "payment_state": "not_paid",
+  "ref": "",
+  "state": "posted",
+  "zatca": {
+    "confirmation_datetime": "2026-01-01T00:00:00Z",
+    "qr_code": null,
+    "submission": {
+      "errors": [],
+      "mode": null,
+      "qr_present": false,
+      "state": "not_applicable",
+      "warnings": []
+    }
+  }
+}

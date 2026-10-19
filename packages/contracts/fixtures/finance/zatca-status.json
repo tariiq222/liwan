@@ -1,0 +1,15 @@
+{
+  "api_mode": "sandbox",
+  "journals": [
+    {
+      "journal": {
+        "id": 1,
+        "name": "Sales"
+      },
+      "onboarded": false,
+      "state": "not_started"
+    }
+  ],
+  "onboarded": false,
+  "private_key_present": false
+}

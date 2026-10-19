@@ -1,0 +1,84 @@
+{
+  "items": [
+    {
+      "active": true,
+      "city": "",
+      "company_registry": "",
+      "country": null,
+      "customer": true,
+      "id": 1,
+      "is_company": false,
+      "name": "Al Noor Trading",
+      "state": null,
+      "street": "",
+      "vat": "",
+      "vendor": false
+    },
+    {
+      "active": true,
+      "city": "",
+      "company_registry": "",
+      "country": {
+        "id": 3,
+        "name": "Saudi Arabia"
+      },
+      "customer": false,
+      "id": 2,
+      "is_company": true,
+      "name": "Finance Company B",
+      "state": null,
+      "street": "",
+      "vat": "",
+      "vendor": false
+    },
+    {
+      "active": true,
+      "city": "",
+      "company_registry": "",
+      "country": null,
+      "customer": false,
+      "id": 4,
+      "is_company": false,
+      "name": "Gulf Supplies",
+      "state": null,
+      "street": "",
+      "vat": "",
+      "vendor": false
+    },
+    {
+      "active": true,
+      "city": "",
+      "company_registry": "",
+      "country": {
+        "id": 6,
+        "name": "United States"
+      },
+      "customer": false,
+      "id": 5,
+      "is_company": true,
+      "name": "My Company",
+      "state": null,
+      "street": "",
+      "vat": "",
+      "vendor": false
+    },
+    {
+      "active": true,
+      "city": "",
+      "company_registry": "",
+      "country": {
+        "id": 3,
+        "name": "Saudi Arabia"
+      },
+      "customer": false,
+      "id": 7,
+      "is_company": false,
+      "name": "Riyadh Builders",
+      "state": null,
+      "street": "",
+      "vat": "",
+      "vendor": false
+    }
+  ],
+  "total": 5
+}
