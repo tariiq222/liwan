@@ -1,7 +1,7 @@
 import type { AppManifest } from '../types'
 const manifest: AppManifest = {
   id: 'operations', feature: 'operations.enabled', routePrefixes: ['/operations'],
-  rail: [{ id: 'operations', labelKey: 'operations.title', icon: 'i-lucide-workflow', to: '/operations', order: 60, accent: 'orange' }],
+  rail: [{ id: 'operations', labelKey: 'operations.title', icon: 'i-lucide-workflow', to: '/operations', order: 60 }],
   nav: [
     { to: '/operations', labelKey: 'operations.nav.mine', icon: 'i-lucide-files', shortcut: 'o', capability: 'operations.requests.read' },
     { to: '/operations/pending', labelKey: 'operations.nav.pending', icon: 'i-lucide-list-checks', shortcut: 'p', capability: 'operations.requests.review' },

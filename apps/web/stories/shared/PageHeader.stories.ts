@@ -9,7 +9,7 @@ import ViewSwitch from '@webvue/ui/app/components/shared/data/ViewSwitch.vue'
 import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
 import PageHeader from '@webvue/ui/app/components/shared/layout/PageHeader.vue'
 import RecordSection from '@webvue/ui/app/components/shared/layout/RecordSection.vue'
-import { providePageAccent } from '@webvue/ui/app/composables/usePageAccent'
+import { providePageApp } from '@webvue/ui/app/composables/usePageApp'
 import { providePageTrail } from '@webvue/ui/app/composables/usePageTrail'
 import { storyContext } from '../support/context'
 
@@ -32,15 +32,15 @@ export const WithActions: Story = {
   }),
 }
 
-// The compact card (DESIGN.md §3): the chip takes the icon and hue of the active application from the shell, so a
+// The compact card (DESIGN.md §3): the chip takes the icon of the active application from the shell, so a
 // page passes nothing; a title alone is the smallest header.
 export const TitleOnly: Story = {
   name: 'عنوان فقط',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:39', 'أصغر ترويسة: بطاقة مدمجة بأيقونة التطبيق ولونه من الغلاف وعنوان واحد، بلا وصف ولا وسوم ولا إجراءات.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:39', 'أصغر ترويسة: بطاقة مدمجة بأيقونة التطبيق من الغلاف وعنوان واحد، بلا وصف ولا وسوم ولا إجراءات.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
-      providePageAccent({ icon: 'i-lucide-folder-kanban', accent: 'blue' })
+      providePageApp({ icon: 'i-lucide-folder-kanban' })
       return { t: useI18n().t }
     },
     template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('projects.title')" /></PageContainer></main>`,
@@ -54,7 +54,7 @@ export const WithTags: Story = {
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
-      providePageAccent({ icon: 'i-lucide-calendar-days', accent: 'violet' })
+      providePageApp({ icon: 'i-lucide-calendar-days' })
       const { t } = useI18n()
       const tags = [
         { label: t('projects.status.at_risk'), tone: 'warning' as const },

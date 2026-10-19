@@ -6,7 +6,7 @@ const manifest: AppManifest = {
   id: 'ai',
   feature: 'ai.enabled',
   routePrefixes: ['/ai'],
-  rail: [{ id: 'ai', labelKey: 'nav.ai', icon: 'i-lucide-sparkles', to: '/ai', order: 60, accent: 'rose' }],
+  rail: [{ id: 'ai', labelKey: 'nav.ai', icon: 'i-lucide-sparkles', to: '/ai', order: 60 }],
   nav: [
     { to: '/ai', labelKey: 'nav.ai', icon: 'i-lucide-sparkles', shortcut: 'q', goKey: 'i', capability: 'ai.use' },
   ],

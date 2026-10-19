@@ -67,7 +67,7 @@ function loadPageHeader() {
     _normalizeClass: normalizeClass,
     _normalizeStyle: normalizeStyle,
   }
-  const names = [...Object.keys(runtimeBindings), 'computed', 'usePageHeader', 'useEscapeBack', 'useFrameOwnsHeading', 'usePageTrail', 'usePageAccent', 'useI18n', 'useRoute']
+  const names = [...Object.keys(runtimeBindings), 'computed', 'usePageHeader', 'useEscapeBack', 'useFrameOwnsHeading', 'usePageTrail', 'usePageApp', 'useI18n', 'useRoute']
   const values = [
     ...Object.values(runtimeBindings), computed,
     () => undefined,

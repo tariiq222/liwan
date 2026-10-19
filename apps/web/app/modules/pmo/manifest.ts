@@ -11,7 +11,7 @@ const manifest: AppManifest = {
   feature: 'pmo.enabled',
   routePrefixes: ['/projects', '/tasks'],
   rail: [
-    { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects', order: 20, accent: 'blue' },
+    { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects', order: 20 },
   ],
   defaultRail: 'projects',
   nav: [

@@ -36,7 +36,7 @@ function loadLayout(route: { path: string }) {
     usePageHeaderTitle: () => Vue.ref(null),
     shellBreadcrumb: () => [],
     providePageTrail: () => undefined,
-    providePageAccent: () => undefined,
+    providePageApp: () => undefined,
     requestAnimationFrame: () => 1, cancelAnimationFrame: () => undefined,
     setTimeout: () => 1, clearTimeout: () => undefined,
   }

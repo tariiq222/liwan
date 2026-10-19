@@ -2724,7 +2724,7 @@
         {
           "id": "Default",
           "name": "الشريط والقائمة السياقية",
-          "context": "apps/web/app/layouts/default.vue:69"
+          "context": "apps/web/app/layouts/default.vue:70"
         }
       ]
     },
@@ -2960,7 +2960,7 @@
         {
           "id": "Default",
           "name": "مهامي",
-          "context": "apps/web/app/layouts/default.vue:68"
+          "context": "apps/web/app/layouts/default.vue:69"
         }
       ]
     },
@@ -5465,7 +5465,7 @@
           "name": "icon",
           "type": "string",
           "required": false,
-          "description": "Replaces the icon the shell publishes for the current application (the chip keeps that application's hue)."
+          "description": "Replaces the icon the shell publishes for the current application (the chip keeps the brand colour)."
         },
         {
           "name": "tags",
@@ -6098,12 +6098,12 @@
         {
           "id": "Default",
           "name": "الإطار الكامل",
-          "context": "apps/web/app/layouts/default.vue:67"
+          "context": "apps/web/app/layouts/default.vue:68"
         },
         {
           "id": "Collapsed",
           "name": "القائمة السياقية مطويّة",
-          "context": "apps/web/app/layouts/default.vue:67"
+          "context": "apps/web/app/layouts/default.vue:68"
         }
       ]
     },

@@ -6,7 +6,7 @@ const manifest: AppManifest = {
   feature: 'meetings.enabled',
   routePrefixes: ['/meetings'],
   recordListSources: [{ pattern: /^\/meetings\/series\/[1-9]\d*$/, capability: 'meetings.read' }],
-  rail: [{ id: 'meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', to: '/meetings', order: 30, accent: 'violet' }],
+  rail: [{ id: 'meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', to: '/meetings', order: 30 }],
   nav: [
     { to: '/meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', shortcut: 'm', goKey: 'm', capability: 'meetings.read' },
     { to: '/meetings/follow-up', labelKey: 'nav.meetingFollowup', icon: 'i-lucide-list-checks', shortcut: 'f', capability: 'meetings.read' },

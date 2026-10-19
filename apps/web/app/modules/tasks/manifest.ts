@@ -5,7 +5,7 @@ const manifest: AppManifest = {
   feature: 'tasks.enabled',
   routePrefixes: ['/my-tasks'],
   // Order 15 puts «مهامي» before the PMO projects entry (20) and after the home entry (10).
-  rail: [{ id: 'tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', to: '/my-tasks', order: 15, accent: 'indigo' }],
+  rail: [{ id: 'tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', to: '/my-tasks', order: 15 }],
   nav: [
     { to: '/my-tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', shortcut: 'a', capability: 'tasks.tasks.read' },
   ],

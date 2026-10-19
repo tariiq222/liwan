@@ -5,7 +5,7 @@ import type { PageHeaderTag, PageHeaderTagKind } from '../../../utils/pageHeader
 const props = withDefaults(defineProps<{
   title: string
   description?: string
-  /** Replaces the icon the shell publishes for the current application (the chip keeps that application's hue). */
+  /** Replaces the icon the shell publishes for the current application (the chip keeps the brand colour). */
   icon?: string
   /** Short facts about the page's subject (state, owner, count), drawn inline after the title; a tag with `to` is a link. */
   tags?: PageHeaderTag[]
@@ -29,17 +29,12 @@ usePageHeader(() => props.title, () => props.description)
 // title shows the same target as its nearest step, so the keyboard route out and
 // the visible one still cannot drift apart.
 useEscapeBack(() => props.backTo)
-// The chip before the title: the icon and hue of the application the shell published, or the `icon` override.
+// The chip before the title: the icon of the application the shell published, or the `icon` override, in the brand colour for every application.
 // Outside a shell (vendor-admin) nothing is published, so a header without an `icon` draws no chip.
-const pageAccent = usePageAccent()
+const pageApp = usePageApp()
 const chip = computed(() => {
-  const icon = props.icon ?? pageAccent.value?.icon
-  return icon ? { icon, accent: pageAccent.value?.accent ?? 'slate' } : null
+  return props.icon ?? pageApp.value?.icon
 })
-// The application's hue, set on the card for the chip.
-const chipStyle = computed(() => chip.value
-  ? { '--chip-bg': `var(--accent-${chip.value.accent}-bg)`, '--chip-fg': `var(--accent-${chip.value.accent}-fg)` }
-  : undefined)
 // A state keeps its status colour (`tone`); a plain fact takes the fixed colour of its kind, the same on
 // every page, so a person, a project or a count always reads alike.
 const TAG_KIND_ACCENT: Record<PageHeaderTagKind, string> = {
@@ -76,7 +71,7 @@ const trail = computed<HeaderTrailStep[]>(() => {
   const published: HeaderTrailStep[] = publishedTrail.value
     .filter(crumb => crumb.label !== props.title)
     .map(crumb => ({ label: crumb.label, to: crumb.to === route.path ? undefined : crumb.to }))
-  const app = pageAccent.value
+  const app = pageApp.value
   const ancestors = published.length || !app?.label || app.label === props.title
     ? published
     : [{ label: app.label, to: app.to === route.path ? undefined : app.to }]
@@ -94,7 +89,6 @@ const trail = computed<HeaderTrailStep[]>(() => {
     data-empty="false"
     :data-sticky="stickyHead ? 'true' : undefined"
     class="flex flex-wrap items-center gap-x-3.5 gap-y-2"
-    :style="chipStyle"
     :class="{ 'rounded-card bg-default px-4 py-3 ring ring-default': !props.hideTitle }"
   >
     <template v-if="!props.hideTitle">
@@ -102,8 +96,8 @@ const trail = computed<HeaderTrailStep[]>(() => {
         v-if="chip"
         data-slot="page-header-chip"
         aria-hidden="true"
-        class="grid size-10 shrink-0 place-items-center rounded-full bg-(--chip-bg) text-(--chip-fg)"
-      ><UIcon :name="chip.icon" class="size-5" /></span>
+        class="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"
+      ><UIcon :name="chip" class="size-5" /></span>
       <div class="min-w-0 flex-1 basis-40">
         <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <h2 v-if="frameOwnsHeading" class="min-w-0 text-lg/7 font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h2>

@@ -246,7 +246,7 @@ describe('SharedPageHeader wires the one Escape implementation', () => {
       useFrameOwnsHeading: () => Vue.ref(false),
       // The trail is a separate concern here; Empty keeps the header's own binding irrelevant.
       usePageTrail: () => Vue.readonly(Vue.ref([])),
-      usePageAccent: () => Vue.readonly(Vue.ref(null)),
+      usePageApp: () => Vue.readonly(Vue.ref(null)),
     }
     const component = new Function(...Object.keys(bindings), js)(...Object.values(bindings))
     component.setup!(props, { expose: () => {}, attrs: {}, slots: {}, emit: () => {} })

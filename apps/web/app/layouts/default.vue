@@ -5,7 +5,7 @@ import { shellBreadcrumb } from '@/composables/nav/breadcrumb'
 import { useShellModel } from '@/composables/useShellModel'
 import { usePageHeaderTitle } from '@webvue/ui/app/composables/usePageHeader'
 import { providePageTrail } from '@webvue/ui/app/composables/usePageTrail'
-import { providePageAccent } from '@webvue/ui/app/composables/usePageAccent'
+import { providePageApp } from '@webvue/ui/app/composables/usePageApp'
 const route = useRoute()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -18,11 +18,11 @@ const pageTitle = usePageHeaderTitle()
 const trail = computed(() => shellBreadcrumb({ path: route.path, pageTitle: hydrated.value ? pageTitle.value : null, t, rail: rail.value.all }))
 providePageTrail(trail)
 // The page header draws the chip before its title from the application that owns the route; a page
-// no application owns (account, search) gets the neutral slate chip with a generic icon.
-providePageAccent(() => {
+// no application owns (account, search) gets the generic icon.
+providePageApp(() => {
   const owner = rail.value.all.find(item => item.id === activeModule.value)
-  if (!owner) return { icon: 'i-lucide-layout-grid', accent: 'slate' }
-  return { icon: owner.icon, accent: owner.accent ?? 'slate', label: t(owner.labelKey), to: owner.to }
+  if (!owner) return { icon: 'i-lucide-layout-grid' }
+  return { icon: owner.icon, label: t(owner.labelKey), to: owner.to }
 })
 const workspaceTheme = computed(() => !pageArea(route.path).plain)
 const noSidebar = computed(() => hasNoContextSidebar(route.path))
