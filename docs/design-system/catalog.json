@@ -1280,6 +1280,36 @@
       ]
     },
     {
+      "name": "ProjectKpiStrip",
+      "file": "apps/web/app/components/pmo/projects/ProjectKpiStrip.vue",
+      "story": "apps/web/stories/project/ProjectKpiStrip.stories.ts",
+      "title": "Project/ProjectKpiStrip",
+      "props": [
+        {
+          "name": "filters",
+          "type": "ProjectSummaryFilters",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "USkeleton"
+      ],
+      "stories": [
+        {
+          "id": "AboveProjectList",
+          "name": "فوق قائمة المشاريع",
+          "context": "apps/web/app/pages/projects/index.vue:273"
+        },
+        {
+          "id": "StatusFilterCountsOnly",
+          "name": "فلتر حالة: أرقام فقط",
+          "context": "apps/web/app/pages/projects/index.vue:273"
+        }
+      ]
+    },
+    {
       "name": "ProjectMenu",
       "file": "apps/web/app/components/pmo/projects/ProjectMenu.vue",
       "story": "apps/web/stories/project/ProjectMenu.stories.ts",
@@ -1325,12 +1355,12 @@
         {
           "id": "OnProjectCard",
           "name": "على بطاقة المشروع",
-          "context": "apps/web/app/components/pmo/projects/ProjectCardBody.vue:42"
+          "context": "apps/web/app/components/pmo/projects/ProjectCardBody.vue:29"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/components/pmo/projects/ProjectCardBody.vue:42"
+          "context": "apps/web/app/components/pmo/projects/ProjectCardBody.vue:29"
         }
       ]
     },
@@ -1364,22 +1394,22 @@
         {
           "id": "Active",
           "name": "مشروع نشط",
-          "context": "apps/web/app/pages/projects/[id].vue:116"
+          "context": "apps/web/app/pages/projects/[id].vue:118"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/pages/projects/[id].vue:116"
+          "context": "apps/web/app/pages/projects/[id].vue:118"
         },
         {
           "id": "Governance",
           "name": "تبويبات الحوكمة الفرعية",
-          "context": "apps/web/app/pages/projects/[id].vue:116"
+          "context": "apps/web/app/pages/projects/[id].vue:118"
         },
         {
           "id": "Planning",
           "name": "التخطيط: الجدول الزمني والمعالم",
-          "context": "apps/web/app/pages/projects/[id].vue:116"
+          "context": "apps/web/app/pages/projects/[id].vue:118"
         }
       ]
     },
@@ -2228,7 +2258,7 @@
         {
           "id": "Default",
           "name": "الحساب",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:94"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:85"
         }
       ]
     },
@@ -2265,7 +2295,7 @@
         {
           "id": "Default",
           "name": "الشريط والقائمة السياقية",
-          "context": "apps/web/app/layouts/default.vue:48"
+          "context": "apps/web/app/layouts/default.vue:62"
         }
       ]
     },
@@ -2390,32 +2420,32 @@
         {
           "id": "Default",
           "name": "زر البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:90"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
         },
         {
           "id": "PaletteMain",
           "name": "لوحة الأوامر",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:90"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
         },
         {
           "id": "PaletteSearch",
           "name": "نتائج البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:90"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
         },
         {
           "id": "PaletteError",
           "name": "تعذّر البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:90"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
         },
         {
           "id": "PaletteShortcuts",
           "name": "اختصارات لوحة المفاتيح",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:90"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
         },
         {
           "id": "PaletteReadOnly",
           "name": "قارئ بلا صلاحية إنشاء",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:90"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
         }
       ]
     },
@@ -2484,7 +2514,7 @@
         {
           "id": "Open",
           "name": "القائمة مفتوحة",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:71"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:64"
         }
       ]
     },
@@ -2501,7 +2531,7 @@
         {
           "id": "Default",
           "name": "مهامي",
-          "context": "apps/web/app/layouts/default.vue:47"
+          "context": "apps/web/app/layouts/default.vue:61"
         }
       ]
     },
@@ -3124,32 +3154,32 @@
         {
           "id": "InPageToolbar",
           "name": "شريط أدوات صفحة",
-          "context": "apps/web/app/pages/projects/index.vue:272"
+          "context": "apps/web/app/pages/projects/index.vue:277"
         },
         {
           "id": "WithActiveFilters",
           "name": "مع فلاتر نشطة",
-          "context": "apps/web/app/pages/projects/index.vue:272"
+          "context": "apps/web/app/pages/projects/index.vue:277"
         },
         {
           "id": "FiltersOpen",
           "name": "نافذة الفلاتر مفتوحة",
-          "context": "apps/web/app/pages/projects/index.vue:272"
+          "context": "apps/web/app/pages/projects/index.vue:277"
         },
         {
           "id": "EmbeddedInCardHeader",
           "name": "مدمج في ترويسة بطاقة (صف واحد)",
-          "context": "apps/web/app/pages/projects/index.vue:272"
+          "context": "apps/web/app/pages/projects/index.vue:277"
         },
         {
           "id": "EmbeddedTaskFilters",
           "name": "مدمج: فلاتر المهام (الأولوية والمسؤول والموعد)",
-          "context": "apps/web/app/pages/projects/index.vue:272"
+          "context": "apps/web/app/pages/projects/index.vue:277"
         },
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/projects/index.vue:272"
+          "context": "apps/web/app/pages/projects/index.vue:277"
         }
       ]
     },
@@ -3337,17 +3367,17 @@
         {
           "id": "WithPager",
           "name": "عدد وترقيم",
-          "context": "apps/web/app/pages/projects/index.vue:334"
+          "context": "apps/web/app/pages/projects/index.vue:339"
         },
         {
           "id": "SinglePage",
           "name": "صفحة واحدة (العدد فقط)",
-          "context": "apps/web/app/pages/projects/index.vue:334"
+          "context": "apps/web/app/pages/projects/index.vue:339"
         },
         {
           "id": "Fetching",
           "name": "أثناء التحميل",
-          "context": "apps/web/app/pages/projects/index.vue:334"
+          "context": "apps/web/app/pages/projects/index.vue:339"
         }
       ]
     },
@@ -4986,12 +5016,19 @@
           "type": "boolean",
           "required": false,
           "description": "A frame around the page already shows the heading (the project workspace's h1): draw the actions only. The title still names the page for the shell and `backTo` still answers Escape."
+        },
+        {
+          "name": "sticky",
+          "type": "boolean",
+          "required": false,
+          "default": "true",
+          "description": "The heading keeps its place under the floating header while the page scrolls under it\n(`.webvue-sticky-head` in shell.css). Off where another sticky thing owns that slot: a page frame\nthat already carries the identity band, or a docked `SharedListCard fill` board."
         }
       ],
       "events": [],
       "slots": [
-        "back",
         "title",
+        "back",
         "actions",
         "default"
       ],
@@ -5007,13 +5044,28 @@
         },
         {
           "id": "WithBack",
-          "name": "مع زر الرجوع",
+          "name": "مسار تحت العنوان",
           "context": "apps/web/app/pages/projects/[id]/finance/[entryId]/edit.vue:67"
+        },
+        {
+          "id": "TrailUnderTitle",
+          "name": "مسار الأسلاف تحت العنوان",
+          "context": "packages/ui/app/components/shared/layout/ListPage.vue:46"
         },
         {
           "id": "TitleAndDescription",
           "name": "عنوان ووصف",
           "context": "apps/web/app/pages/account.vue:10"
+        },
+        {
+          "id": "UnifiedHeaderWithFilters",
+          "name": "الترويسة والفلاتر الموحدة (شامل المكونات)",
+          "context": "packages/ui/app/components/shared/layout/ListPage.vue:46"
+        },
+        {
+          "id": "StickyHeading",
+          "name": "رأس ثابت مع تمرير",
+          "context": "packages/ui/app/components/shared/layout/ListPage.vue:46"
         },
         {
           "id": "HiddenTitle",
@@ -5524,12 +5576,12 @@
         {
           "id": "Trail",
           "name": "ثلاثة مستويات",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:87"
+          "context": "apps/vendor-admin/app/components/AdminHeader.vue:79"
         },
         {
           "id": "Single",
           "name": "مستوى واحد",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:87"
+          "context": "apps/vendor-admin/app/components/AdminHeader.vue:79"
         }
       ]
     },
@@ -5556,12 +5608,12 @@
         {
           "id": "Default",
           "name": "الإطار الكامل",
-          "context": "apps/web/app/layouts/default.vue:46"
+          "context": "apps/web/app/layouts/default.vue:60"
         },
         {
           "id": "Collapsed",
           "name": "القائمة السياقية مطويّة",
-          "context": "apps/web/app/layouts/default.vue:46"
+          "context": "apps/web/app/layouts/default.vue:60"
         }
       ]
     },

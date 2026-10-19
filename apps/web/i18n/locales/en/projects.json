@@ -3,6 +3,15 @@
     "title": "Projects",
     "description": "One workspace for project status, progress, and the next step.",
     "myDescription": "Projects you manage",
+    "kpi": {
+      "label": "Projects summary",
+      "total": "Total projects",
+      "active": "Active projects",
+      "attention": "Need attention",
+      "done": "Completed projects",
+      "percentOfTotal": "{percent}% of total",
+      "percentDone": "{percent}% completed"
+    },
     "empty": "No projects yet",
     "emptyHint": "Create a project to keep its tasks, milestones, and updates together.",
     "filteredEmpty": "No projects match these filters",
@@ -32,6 +41,7 @@
     },
     "setStatus": "Project status",
     "statusUpdated": "Project status updated",
+    "noEndDate": "No end date",
     "progressOf": "{closed} of {total} task | {closed} of {total} tasks",
     "projectId": "Project #{id}",
     "summary": {

@@ -9,6 +9,10 @@ export const apiHandlers = [
   http.get('/api/v1/people', ({ request }) => HttpResponse.json(people.filter(person => contains(person.name, request)))),
   http.get('/api/v1/projects', () => HttpResponse.json(projectRefs)),
   http.get('/api/v1/projects/:id', () => HttpResponse.json(projectDetail)),
+  http.get('/api/v1/reports/projects/summary', () => HttpResponse.json({
+    project_count: 24, attention_project_count: 7, overdue_task_count: 18, totals: [], attention: [],
+    status_counts: [{ status: 'on_track', count: 9 }, { status: 'at_risk', count: 4 }, { status: 'off_track', count: 2 }, { status: 'on_hold', count: 1 }, { status: 'done', count: 6 }, { status: null, count: 2 }],
+  })),
   http.get('/api/v1/tasks/summary', () => HttpResponse.json({ total: 128, open: 82, overdue: 18, done: 28 })),
   http.get('/api/v1/tags', ({ request }) => HttpResponse.json(tags.filter(tag => contains(tag.name, request)))),
   http.post('/api/v1/tags', async ({ request }) => {
