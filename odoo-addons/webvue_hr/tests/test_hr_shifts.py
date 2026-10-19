@@ -68,7 +68,12 @@ class TestHrShifts(WebVueHrCase):
         self.authenticate('hr_shifts_mgr', 'hr_shifts_mgr_pass_123')
 
     def _user_with_shifts(self, login, capability_keys):
-        """A user whose only HR access is the given shifts capabilities."""
+        """A user whose only HR access is the given capability keys through one custom role.
+
+        A role must carry the dependencies its capabilities declare (webvue.access.role
+        _check_definition), so the caller lists them too: hr.shifts.read requires
+        hr.employees.read.
+        """
         user = new_test_user(
             self.env, login=login, password=f'{login}_pass_123', name=login,
             groups='webvue_core.group_employee',
@@ -120,6 +125,7 @@ class TestHrShifts(WebVueHrCase):
         listed = self.api('GET', '/api/v1/hr/shifts/schedules').json()
         self.assertIn(schedule_id, {item['id'] for item in listed['items']})
         self.assertGreaterEqual(listed['total'], len(listed['items']))
+        all_before = self.api('GET', '/api/v1/hr/shifts/schedules?active=all').json()
 
         patched = self.api('PATCH', f'/api/v1/hr/shifts/schedules/{schedule_id}', {
             'name': 'Evening Shift B', 'attendances': [AFTERNOON],
@@ -131,13 +137,14 @@ class TestHrShifts(WebVueHrCase):
         archived = self.api('POST', f'/api/v1/hr/shifts/schedules/{schedule_id}/archive', {})
         self.assertEqual(archived.status_code, 200, archived.text)
         self.assertFalse(archived.json()['active'])
-        self.assertNotIn(schedule_id, {
-            item['id'] for item in self.api('GET', '/api/v1/hr/shifts/schedules').json()['items']
-        })
-        self.assertIn(schedule_id, {
-            item['id']
-            for item in self.api('GET', '/api/v1/hr/shifts/schedules?active=all').json()['items']
-        })
+        after = self.api('GET', '/api/v1/hr/shifts/schedules').json()
+        all_after = self.api('GET', '/api/v1/hr/shifts/schedules?active=all').json()
+        # Archiving moves the schedule out of the default (active-only) list by exactly one row...
+        self.assertEqual(after['total'], listed['total'] - 1)
+        self.assertNotIn(schedule_id, {item['id'] for item in after['items']})
+        # ...and leaves it in the 'all' list, whose total is unchanged.
+        self.assertEqual(all_after['total'], all_before['total'])
+        self.assertIn(schedule_id, {item['id'] for item in all_after['items']})
 
     def test_archive_is_refused_while_an_employee_is_planned(self):
         self._assignment(self.worker)
@@ -204,17 +211,40 @@ class TestHrShifts(WebVueHrCase):
             'GET', f'/api/v1/hr/shifts/assignments?schedule_id={self.schedule.id}',
         ).json()
         self.assertEqual(by_schedule['total'], 2)
-        on_date = self.api('GET', '/api/v1/hr/shifts/assignments?on_date=2026-11-15').json()
-        self.assertEqual(on_date['total'], 2)
+        # The planning engine seeds one row per existing employee (hr_data.xml creates the admin
+        # employee before hr_employee_calendar_planning installs and its post_init_hook plans that
+        # open-ended version), so a company-wide on_date page is never only this test's rows:
+        # every coverage assertion is scoped to the employees this test planned.
+        on_date = self.api(
+            'GET', f'/api/v1/hr/shifts/assignments?employee_id={self.worker.id}&on_date=2026-11-15',
+        ).json()
+        self.assertEqual([item['id'] for item in on_date['items']], [assignment_id])
         # The row without a date_end stays planned after the closed one has ended.
-        open_only = self.api('GET', '/api/v1/hr/shifts/assignments?on_date=2027-01-15').json()
+        open_only = self.api(
+            'GET', f'/api/v1/hr/shifts/assignments?employee_id={self.other_worker.id}&on_date=2027-01-15',
+        ).json()
         self.assertEqual([item['id'] for item in open_only['items']], [open_ended.id])
+        before_start = self.api(
+            'GET', f'/api/v1/hr/shifts/assignments?employee_id={self.other_worker.id}&on_date=2026-10-15',
+        ).json()
+        self.assertEqual(before_start['total'], 0)
+        # The company-wide page holds the engine's rows too, and never another company's row.
+        company_wide = self.api('GET', '/api/v1/hr/shifts/assignments?on_date=2026-11-15').json()
+        self.assertGreaterEqual(company_wide['total'], 2)
+        foreign = self.api(
+            'GET', f'/api/v1/hr/shifts/assignments?employee_id={self.other_employee.id}',
+        ).json()
+        self.assertEqual((foreign['items'], foreign['total']), ([], 0))
 
         patched = self.api('PATCH', f'/api/v1/hr/shifts/assignments/{assignment_id}', {
             'date_end': '2026-11-15',
         })
         self.assertEqual(patched.status_code, 200, patched.text)
         self.assertEqual(patched.json()['date_end'], '2026-11-15')
+        after_end = self.api(
+            'GET', f'/api/v1/hr/shifts/assignments?employee_id={self.worker.id}&on_date=2026-11-16',
+        ).json()
+        self.assertEqual(after_end['total'], 0)
         bad_range = self.api('PATCH', f'/api/v1/hr/shifts/assignments/{assignment_id}', {
             'date_end': '2026-10-01',
         })
@@ -296,14 +326,15 @@ class TestHrShifts(WebVueHrCase):
         })
         self.assertEqual((denied.status_code, denied.json()['code']), (403, 'forbidden'))
 
-        reader = self._user_with_shifts('hr_shifts_reader', ('hr.shifts.read',))
+        # hr.shifts.read declares hr.employees.read (spec 8.2), and a role must carry the
+        # dependency its capability declares, so the fixture grants both.
+        self._user_with_shifts('hr_shifts_reader', ('hr.shifts.read', 'hr.employees.read'))
         self.authenticate('hr_shifts_reader', 'hr_shifts_reader_pass_123')
         self.assertEqual(self.api('GET', '/api/v1/hr/shifts/schedules').status_code, 200)
         refused = self.api('POST', '/api/v1/hr/shifts/assignments', {
             'employee_id': self.worker.id, 'schedule_id': self.schedule.id,
         })
         self.assertEqual((refused.status_code, refused.json()['code']), (403, 'forbidden'))
-        self.assertTrue(reader.exists())
 
     def test_feature_off_closes_every_shifts_route(self):
         self._as_manager()
