@@ -26,7 +26,7 @@ async function submit() {
 </script>
 <template>
   <SharedUnsavedChanges :dirty="dirty || mutation.isPending.value" />
-  <UForm novalidate :state="{ name, body }" class="webvue-form" @submit="submit">
+  <UForm novalidate :loading-auto="false" :state="{ name, body }" class="webvue-form" @submit="submit">
     <UAlert v-if="error" color="error" variant="subtle" :title="error" />
     <UAlert color="info" variant="subtle" :title="t('documents.restrictedDefault')" :description="t('documents.visibilityHelp.restricted')" />
     <SharedFormSection panel :title="t('documents.documentInfo')">

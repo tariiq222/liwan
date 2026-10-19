@@ -60,6 +60,8 @@ it('protects a draft whose only change is its linked record, including clearing 
 })
 it('focuses the required title after an empty create attempt without starting a mutation',async()=>{
   const view=await load('app/components/documents/DocumentCreateForm.vue',{backTo:'/documents'})
+  // The form must leave inputs enabled for validation focus; the mutation owns busy state.
+  expect((await view.rendered()).find(node => node.name === 'UForm')?.props['loading-auto']).toBe(false)
   let focused=false
   if(view.state.nameInput)view.state.nameInput.value={inputRef:{focus:()=>{focused=true}}}
   await view.state.submit()
