@@ -148,6 +148,32 @@ test('an employee requests leave, a manager approves it and the employee cancels
   expect(await annualRemaining(page)).toBe(before)
 })
 
+test('an employee withdraws a request that is still waiting for a decision', async ({ page }) => {
+  await login(page, STAFF)
+  const started = await (await page.request.get('/api/v1/hr/leave/balances')).json() as { items: Array<{ leave_type: { id: number; name: string }; pending: number }> }
+  const annual = started.items[0]!.leave_type
+  const day = await freeWorkingDay(page)
+  const created = await page.request.post('/api/v1/hr/leave/requests', {
+    data: { leave_type_id: annual.id, date_from: iso(day), date_to: iso(day) },
+  })
+  expect(created.status()).toBe(201)
+  const leave = await created.json()
+
+  await page.goto('/hr/leave')
+  const row = leaveRow(page, leave.id)
+  await expect(row.getByTestId('hr-leave-state')).toHaveText('بانتظار الاعتماد')
+  await row.getByTestId('row-actions-menu').click()
+  const withdrawn = page.waitForResponse(response => response.url().endsWith(`/api/v1/hr/leave/requests/${leave.id}/cancel`))
+  await page.getByRole('menuitem', { name: 'إلغاء الإجازة' }).click()
+  expect((await withdrawn).status()).toBe(204)
+  // The request is gone and the day is no longer held against the balance.
+  await expect(page.getByTestId(`hr-leave-row-${leave.id}`)).toHaveCount(0)
+  const after = await (await page.request.get('/api/v1/hr/leave/balances')).json() as { items: Array<{ pending: number }> }
+  expect(after.items[0]!.pending).toBe(0)
+  const gone = await page.request.get(`/api/v1/hr/leave/requests/${leave.id}`)
+  expect(gone.status()).toBe(404)
+})
+
 test('the grant panel is for leave managers only and grants a balance', async ({ page }) => {
   // An employee who opens the grant route directly gets the forbidden page, not the form.
   await login(page, STAFF)
