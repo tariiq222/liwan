@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import MilestoneTable from '@/components/pmo/projects/MilestoneTable.vue'
 import { ApiError } from '@/composables/useApi'
-import { projectIdFromPath } from '@/composables/nav/activeRoute'
+import { projectIdFromPath } from '@/modules/pmo/projectRoutes'
 import { useProject } from '@/composables/useProjects'
 import { returnToQuery, safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 

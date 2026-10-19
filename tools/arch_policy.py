@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import fnmatch
 import json
 import os
 import posixpath
@@ -330,11 +331,40 @@ def import_specifiers(text: str, rel: str | None = None) -> list[str]:
     return found
 
 
+WEB_APP_DIR = 'apps/web/app/'
+# Shell composables outside composables/nav: the navigation, rail, palette and shortcut models every module shares.
+SHELL_COMPOSABLES = ('useShellModel.ts', 'useShellNavigation.ts', 'useShellShortcuts.ts', 'useQuickViews.ts', 'usePalette.ts')
+SOURCE_EXTENSION = re.compile(r'\.(?:ts|vue|js)$')
+
+
+def web_import_target(specifier: str) -> str | None:
+    """The `apps/web/app`-relative path a specifier names, without extension; None for a package or an unresolved relative one."""
+    if specifier.startswith(('@/', '~/')):
+        return SOURCE_EXTENSION.sub('', specifier[2:])
+    if specifier.startswith(WEB_APP_DIR):
+        return SOURCE_EXTENSION.sub('', specifier[len(WEB_APP_DIR):])
+    return None
+
+
+def web_path_owner(app_path: str, web_apps: dict) -> str | None:
+    """The app that declares `app_path` (relative to apps/web/app, no extension) among its `composables` globs."""
+    for app, dirs in web_apps.items():
+        # `*` stays inside one folder level, so `utils/project*` never claims `utils/projects/x`.
+        if any(app_path.count('/') == pattern.count('/') and fnmatch.fnmatchcase(app_path, pattern) for pattern in dirs.get('composables', [])):
+            return app
+    return None
+
+
 def foreign_component_uses(text: str, own_app: str, web_apps: dict, rel: str | None = None) -> int:
-    """R3 (web): tags or imports of another app's components or module manifest folder."""
+    """R3 (web): tags or imports of another app's components, module manifest folder or declared composables."""
     total = 0
     code = strip_comments(text)
     specifiers = import_specifiers(text, rel)
+    for specifier in specifiers:
+        target = web_import_target(specifier)
+        owner = web_path_owner(target, web_apps) if target else None
+        if owner and owner != own_app:
+            total += 1
     for app, dirs in web_apps.items():
         if app == own_app:
             continue
@@ -511,7 +541,23 @@ def layers_weakened(old: dict, new: dict, root: Path) -> list[str]:
         for directory, app in old_owner.items():
             if new_owner.get(directory) != app and (root / 'apps' / 'web' / 'app' / base / directory).is_dir():
                 problems.append(f'web app folder {directory} moved from {app} to {new_owner.get(directory, "nowhere")}')
+    new_web_apps = new.get('web_apps', {})
+    for app, dirs in old.get('web_apps', {}).items():
+        kept = set(new_web_apps.get(app, {}).get('composables', []))
+        problems += [
+            f'web app composables {pattern} removed from {app}' for pattern in dirs.get('composables', [])
+            if pattern not in kept and _declared_files(root, pattern)
+        ]
     return problems
+
+
+def _declared_files(root: Path, pattern: str) -> list[Path]:
+    """Source files under apps/web/app whose extensionless path matches a declared `composables` glob."""
+    base = root / 'apps' / 'web' / 'app'
+    return [
+        path for path in base.rglob('*') if path.is_file() and path.suffix in ('.ts', '.vue')
+        and fnmatch.fnmatchcase(SOURCE_EXTENSION.sub('', path.relative_to(base).as_posix()), pattern)
+    ]
 
 
 def _read(path: Path) -> str:
@@ -632,10 +678,20 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
                 rel = _rel(path, root)
                 if path.is_file() and path.suffix in ('.ts', '.vue') and not is_test_path(Path(rel)):
                     _put(v['R3'], f'web {rel}', foreign_component_uses(_read(path), app, web_apps, rel))
-    # The foundation shell (layout and shell components) names no application (R3).
+    # Composables and utils an app declares among its `composables` globs follow the app's boundary too (R3).
+    for path in sorted((web / 'app').rglob('*')):
+        rel = _rel(path, root)
+        if not path.is_file() or path.suffix not in ('.ts', '.vue') or is_test_path(Path(rel)):
+            continue
+        owner = web_path_owner(SOURCE_EXTENSION.sub('', path.relative_to(web / 'app').as_posix()), web_apps)
+        if owner and f'web {rel}' not in v['R3']:
+            _put(v['R3'], f'web {rel}', foreign_component_uses(_read(path), owner, web_apps, rel))
+    # The foundation shell (layout, shell components and the navigation model) names no application (R3).
     ui = root / 'packages' / 'ui'
-    for folder in (web / 'app' / 'components' / 'shell', web / 'app' / 'layouts', ui / 'app' / 'components' / 'shell'):
-        for path in sorted(folder.rglob('*')) if folder.is_dir() else []:
+    shell_folders = [web / 'app' / 'components' / 'shell', web / 'app' / 'layouts', ui / 'app' / 'components' / 'shell']
+    shell_folders += [web / 'app' / 'composables' / 'nav'] + [web / 'app' / 'composables' / name for name in SHELL_COMPOSABLES]
+    for folder in shell_folders:
+        for path in sorted(folder.rglob('*')) if folder.is_dir() else [folder] if folder.is_file() else []:
             rel = _rel(path, root)
             if path.is_file() and path.suffix in ('.ts', '.vue') and not is_test_path(Path(rel)):
                 _put(v['R3'], f'web {rel}', foreign_component_uses(_read(path), '', web_apps, rel))

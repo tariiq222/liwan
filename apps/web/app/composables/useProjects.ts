@@ -5,11 +5,11 @@ import { PROJECT_STATUSES, ProjectDashboardSummarySchema, ProjectDetailSchema, P
 import { ApiError } from './useApi'
 import { invalidateProjectCaches, projectKeys } from './projectKeys'
 import { parseOffset } from '../utils/routeQuery'
+import { projectPicker } from '../modules/pmo/recordPicker'
 
 export type ProjectRef = z.infer<typeof ProjectRefSchema>
 
 export const PROJECT_PAGE = 50
-export const PROJECT_REF_PAGE = 200
 
 export type ProjectListFilters = {
   q?: string
@@ -101,8 +101,6 @@ export function sameProjectListRoute(
   return left.q === right.q && left.mine === right.mine && left.status === right.status && left.offset === right.offset && left.archived === right.archived && left.sort === right.sort && left.view === right.view
 }
 
-const ProjectRefListSchema = ProjectRefSchema.array()
-
 export function projectListQuery(archived: boolean, filters: ProjectListFilters = {}) {
   const rawLimit = filters.limit ?? 200
   const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 200) : 200
@@ -120,37 +118,14 @@ export function projectListQuery(archived: boolean, filters: ProjectListFilters 
   }
 }
 
-export async function fetchAllProjectRefs(
-  requestPage: (offset: number) => Promise<ProjectRef[]>,
-  pageSize = PROJECT_REF_PAGE,
-  signal?: AbortSignal,
-): Promise<ProjectRef[]> {
-  const items: ProjectRef[] = []
-  let offset = 0
-  while (true) {
-    if (signal?.aborted) {
-      throw signal.reason ?? new DOMException('Aborted', 'AbortError')
-    }
-    const page = await requestPage(offset)
-    items.push(...page)
-    if (page.length < pageSize) break
-    offset += pageSize
-  }
-  return items
-}
-
-// Minimal {id, name} refs for pickers (create-task dialog, مهامي project filter, ⌘K).
-// Walks server pages so callers keep receiving a single array.
+// Minimal {id, name} refs for pickers (create-task dialog, مهامي project filter, ⌘K). The
+// project picker the PMO manifest declares owns the request, so other applications get the same list.
 export function useProjects(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
-    queryKey: projectKeys.minimal,
+    queryKey: projectPicker.queryKey,
     enabled: computed(() => toValue(enabled)),
-    queryFn: ({ signal }) => fetchAllProjectRefs(
-      (offset) => $api('/api/v1/projects', { query: { minimal: 1, limit: PROJECT_REF_PAGE, offset }, schema: ProjectRefListSchema }),
-      PROJECT_REF_PAGE,
-      signal,
-    ),
+    queryFn: ({ signal }) => projectPicker.options($api, signal),
     staleTime: 5 * 60 * 1000,
   })
 }

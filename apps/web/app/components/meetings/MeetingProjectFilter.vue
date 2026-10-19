@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { useProjects } from '@/composables/useProjects'
-
 const props = defineProps<{
   modelValue?: number
   disabled?: boolean
@@ -15,9 +13,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const hydrated = useHydrated()
-const { can } = useAccess()
-const canReadProjects = computed(() => can('pmo.projects.read'))
-const projectQuery = useProjects(canReadProjects)
+const { available: canReadProjects, query: projectQuery } = useRecordPicker('project')
 const projectSearch = ref('')
 
 const selectedProject = computed(() => (projectQuery.data.value ?? []).find(project => project.id === props.modelValue))

@@ -10,7 +10,7 @@ import ts from 'typescript'
 import { createMemoryHistory, createRouter, type RouteLocationRaw } from 'vue-router'
 import { describe, expect, it, vi } from 'vitest'
 import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
-import { activeProjectSection, activeGovernanceSection, projectIdFromPath } from '../../composables/nav/activeRoute'
+import { activeProjectSection, activeGovernanceSection, projectIdFromPath } from '../../modules/pmo/projectRoutes'
 
 const projectTasks = 'projects/[id]/tasks.vue'
 const document = { id: 9, name: 'Title', body: '<p>Body</p>', attachment_ids: [] }
@@ -48,7 +48,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useProject: () => ({ data: Vue.ref({ active: true, name: 'Example project', can_manage: true, status: 'active', phase_state: { current: 'initiating' } }), error: Vue.ref(null) }),
     useArchivedTasks: () => ({ data: Vue.ref({ pages: [] }), isLoading: Vue.ref(false) }),
     useRestoreTask: () => ({ mutate: vi.fn(), isPending: Vue.ref(false) }),
-    useMe: () => ({ me: Vue.ref({}) }), useApi: () => ({ $api: vi.fn() }),
+    useMe: () => ({ me: Vue.ref({}) }), useProjectWorkspaceMemory: () => ({ remember: () => undefined }), useApi: () => ({ $api: vi.fn() }),
     firstAllowedPath: () => '/projects', useNav: () => [],
     useQuery: () => ({ data: Vue.ref([{ id: 7, name: 'Example' }]), isLoading: Vue.ref(false), error: Vue.ref(null) }),
     ProjectRefSchema: { array: () => ({}) }, findSearchShortcut: () => undefined,

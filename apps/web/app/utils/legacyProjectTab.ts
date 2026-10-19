@@ -1,4 +1,4 @@
-import { projectIdFromPath } from '../composables/nav/activeRoute'
+import { projectIdFromPath } from '../modules/pmo/projectRoutes'
 import { recordListOrigin } from './recordListOrigin'
 import { parsePositiveId } from './routeParams'
 import { firstQuery } from './routeQuery'

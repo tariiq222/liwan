@@ -15,18 +15,12 @@ export type TenantIdentity = {
   }
 } | null | undefined
 
-/** Today's application features; a newer application's `<app>.enabled` is any other string. */
-export const KNOWN_FEATURE_KEYS = ['pmo.enabled', 'meetings.enabled', 'hr.enabled', 'chat.enabled'] as const
-export type KnownFeatureKey = typeof KNOWN_FEATURE_KEYS[number]
-export type FeatureKey = KnownFeatureKey | (string & {})
-
 /** Rail module id to its application feature, from the manifests; foundation modules carry no feature. */
-export const MODULE_FEATURES = {
+export const MODULE_FEATURES: Record<string, string | null | undefined> = {
   ...Object.fromEntries(appManifests.flatMap(manifest => manifest.rail.map(entry => [entry.id, manifest.feature]))),
   home: null,
   settings: null,
-} as Record<'home' | 'projects' | 'meetings' | 'chat' | 'hr' | 'settings', FeatureKey | null>
-  & Record<string, FeatureKey | null | undefined>
+}
 
 /**
  * A capability's application feature is `<first segment>.enabled` (pmo, meetings, hr and any
@@ -48,7 +42,7 @@ export function featureGateActive(identity: TenantIdentity): boolean {
   return Boolean(identity && (identity.modules || identity.entitlements || identity.platform))
 }
 
-export function featureForCapability(capability: string): FeatureKey | null {
+export function featureForCapability(capability: string): string | null {
   const explicit = aliasedFeature(capability)
   if (explicit) return explicit
   const dot = capability.indexOf('.')
@@ -63,7 +57,7 @@ export function isWriteCapability(capability: string): boolean {
   return capability.slice(capability.lastIndexOf('.') + 1) !== 'read'
 }
 
-export function featureForPath(path: string): FeatureKey | null {
+export function featureForPath(path: string): string | null {
   return manifestForPath(path)?.feature ?? null
 }
 
@@ -71,7 +65,7 @@ export function pathIsWrite(path: string): boolean {
   return /\/(new|edit|access)(?:\/|$)/.test(path)
 }
 
-export function hasFeature(identity: TenantIdentity, key: FeatureKey | null, write = false): boolean {
+export function hasFeature(identity: TenantIdentity, key: string | null, write = false): boolean {
   if (!key) return true
   if (!featureGateActive(identity)) return true
   const platform = identity?.platform

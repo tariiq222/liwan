@@ -17,6 +17,7 @@ const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
+const hasProjectFilter = useRecordPickerAvailable('project')
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isListRoute = computed(() => {
   const rest = normalizedPath.value.replace(/^\/meetings\/series/, '')
@@ -122,7 +123,7 @@ function setPage(next: number) {
               </template>
             </UInput>
           </template>
-          <template v-if="can('pmo.projects.read')" #default>
+          <template v-if="hasProjectFilter" #default>
             <MeetingProjectFilter id="meeting-series-project" hide-label class="w-full md:w-44" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
           </template>
         </FilterBar>

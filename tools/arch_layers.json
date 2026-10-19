@@ -44,6 +44,27 @@
       "tags": [
         "Project",
         "Task"
+      ],
+      "composables": [
+        "composables/useProject*",
+        "composables/project*",
+        "composables/useTasks",
+        "composables/useTaskAttachments",
+        "composables/useTaskDependencies",
+        "composables/useTaskFilters",
+        "composables/useArchivedTasks",
+        "composables/useMilestones",
+        "composables/useTimeline",
+        "composables/taskFilterParams",
+        "composables/taskSort",
+        "composables/taskState",
+        "composables/boardStages",
+        "composables/stageOrder",
+        "utils/project*",
+        "utils/taskCreatePolicy",
+        "utils/milestonePayload",
+        "utils/charterSteps",
+        "utils/legacyProjectTab"
       ]
     },
     "meetings": {
@@ -60,6 +81,10 @@
       ],
       "pages": [
         "hr"
+      ],
+      "composables": [
+        "composables/useHr*",
+        "utils/hr*"
       ]
     },
     "chat": {
@@ -103,6 +128,9 @@
       ],
       "pages": [
         "documents"
+      ],
+      "composables": [
+        "composables/useDocuments"
       ]
     }
   },

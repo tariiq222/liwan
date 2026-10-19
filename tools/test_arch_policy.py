@@ -237,6 +237,29 @@ class TestPureRules(unittest.TestCase):
         self.assertEqual(foreign_component_uses('<PmoCard /><PersonalTasksList />', 'hr', apps), 0)
         self.assertEqual(foreign_component_uses('<HrCard />', 'pmo', apps), 1)
 
+    def test_declared_composables_are_foreign_to_other_apps(self):
+        apps = {**WEB_APPS, 'pmo': {**WEB_APPS['pmo'], 'composables': ['composables/useProject*', 'utils/project*']}}
+        rel = 'apps/web/app/components/meetings/MeetingFilter.vue'
+        for spec in ("import { useProjects } from '@/composables/useProjects'", "import { a } from '~/utils/projectCharter'",
+                     "import { b } from '../../composables/useProject'", "import('@/composables/useProjectList.ts')"):
+            with self.subTest(spec=spec):
+                self.assertEqual(foreign_component_uses(spec, 'meetings', apps, rel), 1)
+                self.assertEqual(foreign_component_uses(spec, '', apps, rel), 1)
+                self.assertEqual(foreign_component_uses(spec, 'pmo', apps, rel), 0)
+
+    def test_composables_glob_stays_inside_one_folder_level(self):
+        apps = {**WEB_APPS, 'pmo': {**WEB_APPS['pmo'], 'composables': ['utils/project*']}}
+        rel = 'apps/web/app/components/meetings/Filter.vue'
+        self.assertEqual(foreign_component_uses("import a from '@/utils/projects/deep'", 'meetings', apps, rel), 0)
+        self.assertEqual(foreign_component_uses("import a from '@/utils/projectX'", 'meetings', apps, rel), 1)
+
+    def test_undeclared_composables_and_packages_are_not_foreign(self):
+        apps = {**WEB_APPS, 'pmo': {**WEB_APPS['pmo'], 'composables': ['composables/useProject*']}}
+        rel = 'apps/web/app/components/meetings/MeetingFilter.vue'
+        text = ("import { a } from '@/composables/useAccess'\nimport { b } from 'useProjects'\n"
+                "import { c } from '@/composables/useMeetings'\n// import x from '@/composables/useProjects'\n")
+        self.assertEqual(foreign_component_uses(text, 'meetings', apps, rel), 0)
+
     def test_html_and_own_tags_are_not_foreign(self):
         self.assertEqual(foreign_component_uses('<hr /><hr><Hrx />', '', WEB_APPS), 0)
         self.assertEqual(foreign_component_uses('<LazyChatPanel /><chat-panel />', 'chat', WEB_APPS), 0)
@@ -348,6 +371,38 @@ class TestCollect(unittest.TestCase):
         self.write('packages/ui/app/components/shell/ShellHeader.vue', '<template><TaskRow /></template>\n')
         violations, _ = collect(self.root, self.layers)
         self.assertEqual(violations['R3'], {'web packages/ui/app/components/shell/ShellHeader.vue': 1})
+
+    def declare_pmo_composables(self):
+        self.layers['web_apps'] = {**WEB_APPS, 'pmo': {**WEB_APPS['pmo'], 'composables': ['composables/useProject*', 'utils/project*']}}
+
+    def test_app_component_importing_another_apps_composable_is_flagged(self):
+        self.clean_tree()
+        self.declare_pmo_composables()
+        self.write('apps/web/app/components/meetings/Filter.vue', "<script setup>import { useProjects } from '@/composables/useProjects'</script>\n")
+        self.write('apps/web/app/components/project/Table.vue', "<script setup>import { useProjects } from '@/composables/useProjects'</script>\n")
+        violations, _ = collect(self.root, self.layers)
+        self.assertEqual(violations['R3'], {'web apps/web/app/components/meetings/Filter.vue': 1})
+
+    def test_declared_composable_importing_another_apps_composable_is_flagged(self):
+        self.clean_tree()
+        self.declare_pmo_composables()
+        self.layers['web_apps']['hr']['composables'] = ['composables/useHr*']
+        self.write('apps/web/app/composables/useHrEmployees.ts', "import { useProject } from './useProjects'\n")
+        self.write('apps/web/app/composables/useProjects.ts', "import { x } from '../utils/projectCharter'\n")
+        violations, _ = collect(self.root, self.layers)
+        self.assertEqual(violations['R3'], {'web apps/web/app/composables/useHrEmployees.ts': 1})
+
+    def test_navigation_model_names_no_declared_composable(self):
+        self.clean_tree()
+        self.declare_pmo_composables()
+        self.write('apps/web/app/composables/nav/shellModules.ts', "import { projectKeys } from '../projectKeys'\nimport { useProject } from '../useProjects'\n")
+        self.write('apps/web/app/composables/useShellNavigation.ts', "import { useProject } from './useProjects'\n")
+        self.write('apps/web/app/composables/useAccess.ts', "import { useProject } from './useProjects'\n")
+        violations, _ = collect(self.root, self.layers)
+        self.assertEqual(violations['R3'], {
+            'web apps/web/app/composables/nav/shellModules.ts': 1,
+            'web apps/web/app/composables/useShellNavigation.ts': 1,
+        })
 
     def test_ui_layer_importing_an_app_is_a_hard_failure(self):
         self.clean_tree()
@@ -826,7 +881,7 @@ class TestLayersRatchet(BaseRefCase):
         super().setUp()
         self.layers.update({
             'web_apps': {
-                'pmo': {'components': ['project'], 'pages': ['projects']},
+                'pmo': {'components': ['project'], 'pages': ['projects'], 'composables': ['composables/useProject*']},
                 'hr': {'components': ['hr'], 'pages': ['hr']},
             },
             'commercial': {
@@ -837,6 +892,8 @@ class TestLayersRatchet(BaseRefCase):
         self.write_layers()
         for sub in ('components/project', 'components/hr', 'pages/projects', 'pages/hr'):
             (self.root / 'apps/web/app' / sub).mkdir(parents=True)
+        (self.root / 'apps/web/app/composables').mkdir(parents=True)
+        (self.root / 'apps/web/app/composables/useProjects.ts').write_text('export {}\n', encoding='utf-8')
         self.commit_base()
         self.git('checkout', '-q', '-b', 'work')
 
@@ -876,10 +933,14 @@ class TestLayersRatchet(BaseRefCase):
         if name == 'web unlisted':
             layers['web_apps']['pmo']['pages'].remove('projects')
             return 'web app folder projects moved from pmo to nowhere'
+        if name == 'composables unlisted':
+            layers['web_apps']['pmo']['composables'].remove('composables/useProject*')
+            return 'web app composables composables/useProject* removed from pmo'
         raise AssertionError(name)
 
     WEAKENINGS = (
         'rank', 'addon removed', 'exempt', 'allowed', 'page removed', 'middleware', 'web moved', 'web unlisted',
+        'composables unlisted',
     )
 
     def test_each_weakening_is_reported(self):
@@ -909,6 +970,12 @@ class TestLayersRatchet(BaseRefCase):
         del self.layers['ranks']['webvue_b']
         self.write_layers()
         shutil.rmtree(self.root / 'odoo-addons/webvue_b')
+        self.assertEqual(self.problems(), [])
+
+    def test_composables_glob_that_matches_no_file_is_not_reported(self):
+        self.layers['web_apps']['pmo']['composables'].remove('composables/useProject*')
+        self.write_layers()
+        (self.root / 'apps/web/app/composables/useProjects.ts').unlink()
         self.assertEqual(self.problems(), [])
 
     def test_web_folder_that_no_longer_exists_is_not_reported(self):

@@ -27,6 +27,7 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
   }) : legacyRoute
   const replace = realRouter ? vi.spyOn(realRouter, 'replace') : vi.fn(async ({ query }) => { legacyRoute.query = query })
   const projects = vi.fn(() => ({ data: ref([{ id: 3, name: 'Valid project' }]) }))
+  const picker = vi.fn((_kind: string, _options?: { forTasks?: boolean }) => ({ available: computed(() => pmo), query: projects() }))
   const people = vi.fn(() => ({ data: ref([{ id: 3, user_id: 3, name: 'Valid organizer' }]), isLoading: ref(false), error: ref(null), refetch: vi.fn() }))
   const seriesList = vi.fn(() => ({ data: ref({ total: 120, items: [] }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }))
   const mutateAsync = vi.fn(async () => { throw new Error('backend unavailable') })
@@ -41,7 +42,8 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
  ref, computed, watch, useRoute: () => route, useRouter: () => realRouter ?? ({ replace, push: vi.fn() }),
     refDebounced,
     useI18n: () => ({ t: (key: string) => key, locale: ref('ar') }), useHydrated: () => ref(true),
-    useAccess: () => ({ can: () => pmo }), useProjects: projects,
+    useAccess: () => ({ can: () => pmo }), useRecordPickerAvailable: () => computed(() => pmo),
+    useRecordPicker: picker,
     useMeetings: () => ({ data: ref({ total: 60 }), isFetching: ref(false) }),
     useMeetingSeriesList: seriesList, usePeople: people, meetingCreateRoute,
     clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery, parseOffset,
@@ -57,7 +59,7 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
     : file === resolutionsTab
       ? '{ convertResolution, projectByResolution, resolutionCanReopen, requestResolutionAction, confirmResolutionAction, pendingResolutionAction, error: () => conversionError.value }'
       : '{ search, offset, pages, params }'
-  return { ...new Function(...Object.keys(scope), `${js};return ${exposed}`)(...Object.values(scope)), route, meeting: meetingData, projects, seriesList, replace, resolutionMutation }
+  return { ...new Function(...Object.keys(scope), `${js};return ${exposed}`)(...Object.values(scope)), route, meeting: meetingData, picker, projects, seriesList, replace, resolutionMutation }
 }
 
 const listScopes: Array<() => void> = []
@@ -84,7 +86,8 @@ describe('meeting route and conversion behavior', () => {
   })
   it('does not enable project lookup for a meetings-only editor', () => {
     const detail = page(resolutionsTab)
-    expect(detail.projects.mock.calls[0]?.[0]?.value).toBe(false)
+    expect(detail.picker).toHaveBeenCalledWith('project', expect.objectContaining({ forTasks: true }))
+    expect(detail.picker.mock.results[0]?.value.available.value).toBe(false)
   })
   it('shows a localized inline conversion failure', async () => {
     const detail = page(resolutionsTab, true)

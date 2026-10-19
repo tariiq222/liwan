@@ -35,7 +35,7 @@ function calendar(items: CalendarMeeting[], routeQuery: Record<string, string> =
     useRouter: () => ({ replace, resolve: (to: unknown) => to }),
     useI18n: () => ({ t: (key: string) => key, locale: ref(localeCode) }),
     useHydrated: () => ref(true),
-    useAccess: () => ({ can: () => true }),
+    useAccess: () => ({ can: () => true }), useRecordPickerAvailable: () => computed(() => true),
     useMeetings, calendarCoverage, meetingStateBadgeProps, parseMeetingListFilters, patchMeetingListQuery, firstQuery, isCalendarDate,
     formatCalendarDate: (value: string) => value, formatWebVueTime: () => '', formatLocalDateTime: (value: string) => value,
   }

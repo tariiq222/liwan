@@ -914,7 +914,7 @@
         {
           "id": "WithLabel",
           "name": "بعنوان ظاهر في الفلاتر",
-          "context": "apps/web/app/pages/meetings/series.vue:126"
+          "context": "apps/web/app/pages/meetings/series.vue:127"
         }
       ]
     },
@@ -1823,22 +1823,22 @@
         {
           "id": "Active",
           "name": "مشروع نشط",
-          "context": "apps/web/app/pages/projects/[id].vue:118"
+          "context": "apps/web/app/pages/projects/[id].vue:124"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/pages/projects/[id].vue:118"
+          "context": "apps/web/app/pages/projects/[id].vue:124"
         },
         {
           "id": "Governance",
           "name": "تبويبات الحوكمة الفرعية",
-          "context": "apps/web/app/pages/projects/[id].vue:118"
+          "context": "apps/web/app/pages/projects/[id].vue:124"
         },
         {
           "id": "Planning",
           "name": "التخطيط: الجدول الزمني والمعالم",
-          "context": "apps/web/app/pages/projects/[id].vue:118"
+          "context": "apps/web/app/pages/projects/[id].vue:124"
         }
       ]
     },
@@ -2811,22 +2811,22 @@
         {
           "id": "Projects",
           "name": "المشاريع مع عدّاد",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:52"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
         },
         {
           "id": "WithSections",
           "name": "أقسام بعناوين",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:52"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
         },
         {
           "id": "Collapsed",
           "name": "مطوية",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:52"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
         },
         {
           "id": "AutomaticTablet",
           "name": "طي تلقائي على التابلت",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:52"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
         }
       ]
     },
@@ -3643,12 +3643,12 @@
         {
           "id": "ActiveRow",
           "name": "صف الفلاتر النشطة",
-          "context": "apps/web/app/pages/meetings/index.vue:290"
+          "context": "apps/web/app/pages/meetings/index.vue:291"
         },
         {
           "id": "Disabled",
           "name": "معطّلة",
-          "context": "apps/web/app/pages/meetings/index.vue:290"
+          "context": "apps/web/app/pages/meetings/index.vue:291"
         }
       ]
     },
@@ -4684,7 +4684,7 @@
         {
           "id": "InFilterPopover",
           "name": "داخل نافذة الفلاتر",
-          "context": "apps/web/app/pages/meetings/index.vue:281"
+          "context": "apps/web/app/pages/meetings/index.vue:282"
         },
         {
           "id": "WithTime",
@@ -5996,12 +5996,12 @@
         {
           "id": "Default",
           "name": "المشاريع نشطة",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:50"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:42"
         },
         {
           "id": "SettingsActive",
           "name": "الإعدادات نشطة",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:50"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:42"
         }
       ]
     },
@@ -6133,17 +6133,17 @@
         {
           "id": "Default",
           "name": "مهام: عروض وإجراءات",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:67"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:59"
         },
         {
           "id": "ActionsOnly",
           "name": "إجراءات فقط",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:67"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:59"
         },
         {
           "id": "Collapsed",
           "name": "مطوية (أيقونات)",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:67"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:59"
         }
       ]
     }

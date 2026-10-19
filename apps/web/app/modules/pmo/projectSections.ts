@@ -1,7 +1,5 @@
 import { hasCapability, type AccessIdentity } from '../../utils/accessPolicy'
-
-/** Declared here so nav/shellModules.ts can import it without a cycle; this file is its one auto-import owner. */
-export type NavIcon = `i-lucide-${string}`
+import type { AppIcon } from '../types'
 
 export const PROJECT_SECTION_IDS = ['summary', 'tasks', 'planning', 'governance', 'finance', 'meetings', 'updates'] as const
 export type ProjectSectionId = typeof PROJECT_SECTION_IDS[number]
@@ -9,7 +7,7 @@ export type ProjectSectionId = typeof PROJECT_SECTION_IDS[number]
 export interface ProjectSection {
   id: ProjectSectionId
   labelKey: string
-  icon: NavIcon
+  icon: AppIcon
   to: string
   capability: string
 }
@@ -41,7 +39,7 @@ export function projectSections(
 /** Planning keeps its two stable URLs under one primary section. */
 export function planningSections(projectId: number, options: { active: boolean }) {
   return [
-    { id: 'schedule' as const, labelKey: 'projects.planningLinks.schedule', icon: 'i-lucide-calendar-range' as NavIcon, to: `/projects/${projectId}/schedule` },
-    ...(options.active ? [{ id: 'milestones' as const, labelKey: 'projects.tabs.milestones', icon: 'i-lucide-flag' as NavIcon, to: `/projects/${projectId}/milestones` }] : []),
+    { id: 'schedule' as const, labelKey: 'projects.planningLinks.schedule', icon: 'i-lucide-calendar-range' as AppIcon, to: `/projects/${projectId}/schedule` },
+    ...(options.active ? [{ id: 'milestones' as const, labelKey: 'projects.tabs.milestones', icon: 'i-lucide-flag' as AppIcon, to: `/projects/${projectId}/milestones` }] : []),
   ]
 }

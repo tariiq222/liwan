@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { governanceSections } from '@/composables/nav/governanceSections'
-import { planningSections, projectSections } from '@/composables/nav/projectSections'
-import { activeGovernanceSection, activePlanningSection, activeProjectSection } from '@/composables/nav/activeRoute'
+import { governanceSections } from '@/modules/pmo/governanceSections'
+import { planningSections, projectSections } from '@/modules/pmo/projectSections'
+import { activeGovernanceSection, activePlanningSection, activeProjectSection } from '@/modules/pmo/projectRoutes'
 import { useProject } from '@/composables/useProjects'
 import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
 
