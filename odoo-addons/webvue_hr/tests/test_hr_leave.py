@@ -318,8 +318,9 @@ class TestHrLeave(WebVueHrCase):
         self.assertTrue(self.api('GET', f'/api/v1/hr/leave/requests/{own_id}').json()['can_withdraw'])
         self._as_manager()
         self.assertFalse(self.api('GET', f'/api/v1/hr/leave/requests/{other_leave.id}').json()['can_withdraw'])
-        # A decided request is cancelled, never withdrawn.
-        leave_id = self._request(days=1).json()['id']
+        # A decided request is cancelled, never withdrawn. The manager holds no annual
+        # balance, so their own request uses a type that needs none.
+        leave_id = self._request(days=1, leave_type=self.sick).json()['id']
         self.env['hr.leave'].browse(leave_id).action_approve()
         detail = self.api('GET', f'/api/v1/hr/leave/requests/{leave_id}').json()
         self.assertFalse(detail['can_withdraw'])
