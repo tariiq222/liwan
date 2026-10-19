@@ -32,13 +32,13 @@ const ME = {
   company: { id: 1, name: 'WebVue' },
   modules: ['webvue_chat', 'webvue_hr', 'webvue_documents', 'webvue_pmo'],
   entitlements: {
-    'pmo.enabled': true, 'meetings.enabled': true, 'documents.enabled': true, 'hr.enabled': true, 'chat.enabled': true, 'ai.enabled': true,
+    'pmo.enabled': true, 'meetings.enabled': true, 'documents.enabled': true, 'hr.enabled': true, 'finance.enabled': true, 'chat.enabled': true, 'ai.enabled': true,
     'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
-    writable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
+    readable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
+    writable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }

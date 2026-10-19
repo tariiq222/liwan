@@ -1,0 +1,184 @@
+{
+  "finance": {
+    "nav": {
+      "overview": "Overview",
+      "sales": "Sales",
+      "purchases": "Purchases",
+      "payments": "Payments",
+      "partners": "Customers and vendors",
+      "invoices": "Customer invoices",
+      "creditNotes": "Credit notes",
+      "customers": "Customers",
+      "bills": "Vendor bills",
+      "refunds": "Vendor refunds",
+      "vendors": "Vendors",
+      "invoicesAll": "Invoices",
+      "newInvoice": "New sales invoice",
+      "newBill": "New vendor bill",
+      "newPayment": "New payment",
+      "newPartner": "New partner"
+    },
+    "kpi": {
+      "label": "Finance figures",
+      "receivable": "Owed by customers",
+      "receivableHint": "Open balances as of today",
+      "payable": "Owed to vendors",
+      "payableHint": "Open balances as of today",
+      "drafts": "Draft documents",
+      "draftsHint": "Not posted yet",
+      "partners": "Customers and vendors"
+    },
+    "overview": {
+      "title": "Finance overview",
+      "description": "Your open balances, finance setup status and what is waiting to be posted.",
+      "setupTitle": "Finance setup",
+      "setupProgress": "{done} of {total} steps done",
+      "setupReady": "Finance setup is complete. You can issue invoices.",
+      "attentionTitle": "Needs attention",
+      "attentionDescription": "Draft documents that are not posted yet.",
+      "attentionEmpty": "No draft documents",
+      "draftUnnumbered": "Unnumbered draft",
+      "moveType": {
+        "out_invoice": "Sales invoice",
+        "out_refund": "Credit note",
+        "in_invoice": "Vendor bill",
+        "in_refund": "Vendor refund",
+        "out_receipt": "Sales receipt",
+        "in_receipt": "Purchase receipt"
+      }
+    },
+    "partners": {
+      "title": "Customers and vendors",
+      "recordTitle": "Partner",
+      "createTitle": "New partner",
+      "edit": "Edit partner",
+      "search": "Search by name or tax number…",
+      "searchValue": "Search: {value}",
+      "clear": "Clear filters",
+      "count": "{count} partner | {count} partners",
+      "footer": "{shown} of 1 result | {shown} of {total} results",
+      "empty": "No customers or vendors yet",
+      "emptyArchived": "No archived partners",
+      "filteredEmpty": "No partners match these filters",
+      "filteredEmptyHint": "Change or clear the filters.",
+      "rowActions": "Actions for partner {name}",
+      "archive": "Archive partner",
+      "unarchive": "Restore partner",
+      "archiveConfirm": "Archive {name}?",
+      "unarchiveConfirm": "Restore {name}?",
+      "archiveHint": "Past documents stay as they are, and the partner no longer appears in new pickers.",
+      "columns": {
+        "name": "Name",
+        "kind": "Type",
+        "vat": "Tax number",
+        "place": "Location",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "kind": {
+        "all": "All",
+        "customer": "Customer",
+        "vendor": "Vendor",
+        "customers": "Customers",
+        "vendors": "Vendors"
+      },
+      "status": {
+        "active": "Active",
+        "archived": "Archived"
+      },
+      "form": {
+        "saveError": "The partner could not be saved. Review the details and try again.",
+        "general": "General",
+        "generalHint": "The partner's name and type.",
+        "name": "Name",
+        "nameRequired": "The partner name is required.",
+        "kinds": "Type",
+        "isCompany": "Company",
+        "company": "Company",
+        "individual": "Individual",
+        "tax": "Tax details",
+        "taxHint": "The tax number is validated against the partner's country.",
+        "vat": "Tax number",
+        "companyRegistry": "Commercial registration",
+        "address": "Address",
+        "street": "Street",
+        "city": "City",
+        "country": "Country",
+        "countrySearch": "Search for a country…",
+        "countriesError": "Countries could not be loaded.",
+        "state": "Region",
+        "none": "Not set",
+        "retry": "Retry",
+        "hint": "The partner appears on invoices and payments according to its type."
+      }
+    },
+    "setup": {
+      "title": "Finance",
+      "description": "The company's tax identity, fiscal year, e-invoicing readiness and chart of accounts.",
+      "ready": "Ready to invoice",
+      "notReady": "Setup incomplete",
+      "done": "Done",
+      "yes": "Yes",
+      "no": "No",
+      "stepsTitle": "Setup steps",
+      "stepsEmpty": "No steps",
+      "steps": {
+        "chart_not_loaded": "Load the chart of accounts",
+        "vat_15_tax_missing": "15% VAT tax",
+        "company_vat_missing": "Company tax number",
+        "company_registry_missing": "Company commercial registration",
+        "company_address_incomplete": "Company address",
+        "zatca_not_onboarded": "ZATCA onboarding"
+      },
+      "company": {
+        "title": "Company tax identity",
+        "hint": "Read-only here. Company identity will be edited from company settings.",
+        "name": "Company name",
+        "currency": "Company currency"
+      },
+      "fiscal": {
+        "title": "Fiscal year",
+        "yearEnd": "Fiscal year end",
+        "fiscalyear_lock_date": "Fiscal year lock",
+        "tax_lock_date": "Tax lock",
+        "sale_lock_date": "Sales lock",
+        "purchase_lock_date": "Purchases lock",
+        "hard_lock_date": "Hard lock"
+      },
+      "chart": {
+        "title": "Chart of accounts",
+        "hint": "The accounts, taxes and journals created from the Saudi chart of accounts.",
+        "load": "Load the Saudi chart of accounts",
+        "confirmTitle": "Load the Saudi chart of accounts?",
+        "confirmDescription": "This creates the company's accounts, taxes and journals, and cannot be undone from here.",
+        "status": "Status",
+        "loaded": "Loaded",
+        "notLoaded": "Not loaded",
+        "template": "Template",
+        "accounts": "Accounts",
+        "journals": "Journals",
+        "journalsValue": "Sales {sale} · Purchases {purchase} · Bank {bank} · Cash {cash}",
+        "taxes": "Taxes",
+        "taxesValue": "Sales {sale} · Purchases {purchase}",
+        "vat15": "15% sales tax"
+      },
+      "zatca": {
+        "title": "E-invoicing (Fatoora)",
+        "hint": "The onboarding status of the sales journals with ZATCA, with no keys or secrets.",
+        "mode": "Environment",
+        "key": "Private key present",
+        "onboarded": "Onboarded",
+        "modes": {
+          "sandbox": "Sandbox",
+          "preprod": "Pre-production",
+          "prod": "Production"
+        },
+        "states": {
+          "not_started": "Not started",
+          "compliance_checked": "Compliance checked",
+          "onboarded": "Onboarded"
+        }
+      }
+    }
+  }
+}

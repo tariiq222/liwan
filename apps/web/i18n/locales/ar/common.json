@@ -81,7 +81,8 @@
     "goToShowLess": "عرض أقل",
     "notificationsFilters": "تصفية الإشعارات",
     "meetingFollowup": "المتابعة",
-    "meetingSeriesShort": "الدورية"
+    "meetingSeriesShort": "الدورية",
+    "finance": "المالية"
   },
   "auth": {
     "username": "اسم المستخدم",
