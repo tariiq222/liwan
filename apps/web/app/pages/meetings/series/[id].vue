@@ -18,6 +18,7 @@ import { richTextHasContent } from '@/utils/richText'
 import { firstQuery } from '@/utils/routeQuery'
 import { parsePositiveId } from '@/utils/routeParams'
 import { ApiError } from '@/composables/useApi'
+import type { PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
 
 type SeriesTab = 'sessions' | 'followup' | 'history' | 'details'
 const tabs: SeriesTab[] = ['sessions', 'followup', 'history', 'details']
@@ -37,7 +38,15 @@ const query = useMeetingSeries(computed(() => isDetail.value ? id.value : null))
 const pageError = computed(() => query.error.value ?? (id.value !== null ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 const now = ref(new Date())
-const headerDescription = computed(() => query.data.value ? `${query.data.value.organizer?.name || t('meetingTimeline.noOrganizer')} · ${t(`meetingsUi.recurrence.${query.data.value.recurrence}`)}` : undefined)
+const headerTags = computed<PageHeaderTag[]>(() => {
+  const series = query.data.value
+  if (!series) return []
+  return [
+    { label: t(`meetingsUi.recurrence.${series.recurrence}`), icon: 'i-lucide-repeat' },
+    { label: series.organizer?.name || t('meetingTimeline.noOrganizer'), icon: 'i-lucide-user' },
+    ...(series.project ? [{ label: series.project.name, icon: 'i-lucide-folder-kanban' }] : []),
+  ]
+})
 
 function routeValue(key: string) {
   return firstQuery(route.query[key]) ?? ''
@@ -233,7 +242,7 @@ function setHistoryPage(page: number) {
   <SharedRecordPage :keep-content="!!query.data.value"
     v-if="isDetail"
     :title="query.data.value?.name ?? (pageError ? t('nav.meetingSeries') : '')"
-    :description="headerDescription"
+    :tags="headerTags"
     :back-to="backTo"
     :loading="query.isLoading.value"
     :error="pageError"

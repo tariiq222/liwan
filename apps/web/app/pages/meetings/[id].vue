@@ -15,6 +15,7 @@ import { useMeeting } from '@/composables/useMeetings'
 import { useMeetingEvents, useMeetingVersions } from '@/composables/useMeetingWorkspace'
 import { useMeetingTransitions } from '@/composables/useMeetingTransitions'
 import { meetingStateBadgeProps, resolutionStateBadgeProps } from '@/utils/meetingStatus'
+import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import { richTextHasContent } from '@/utils/richText'
 import { meetingMinutesPdfPath } from '@/utils/meetingRoutes'
 import { parsePositiveId } from '@/utils/routeParams'
@@ -96,6 +97,8 @@ const moreActions = computed<DropdownMenuItem[][]>(() => {
 const recordTitle = computed(() => isCreateResolution.value
   ? t('nav.meetings')
   : query.data.value?.name ?? (pageError.value ? t('nav.meetings') : ''))
+// The state sits in the heading as a tag; behind the create-recommendation panel the heading is the application name, so no tag.
+const headerTags = computed(() => query.data.value && !isCreateResolution.value ? [statusTag(meetingStateBadgeProps(query.data.value.state, t), 'meeting-state-badge')] : [])
 const historicalSnapshot = computed(() => query.data.value?.state === 'done' ? query.data.value?.minutes_snapshot ?? null : null)
 const doneWithoutSnapshot = computed(() => query.data.value?.state === 'done' && !historicalSnapshot.value)
 const eventPage = ref(1)
@@ -154,6 +157,7 @@ function displayValue(value: string | null | undefined) {
   <SharedRecordPage :keep-content="!!query.data.value"
     v-if="isDetail"
     :title="recordTitle"
+    :tags="headerTags"
     :back-to="isCreateResolution ? undefined : backTo"
     :loading="query.isLoading.value"
     :error="pageError"
@@ -303,7 +307,6 @@ function displayValue(value: string | null | undefined) {
               <span v-if="query.data.value.start_datetime" dir="ltr" class="whitespace-nowrap tabular-nums">{{ hydrated ? displayValue(formatMeetingTime(query.data.value.start_datetime, locale)) : '—' }}<span v-if="query.data.value.end_datetime"> – {{ hydrated ? displayValue(meetingEndLabel) : '—' }}</span></span>
             </p>
             <div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
-              <SharedStatusBadge v-bind="meetingStateBadgeProps(query.data.value.state, t)" data-testid="meeting-state-badge" />
               <span v-if="query.data.value.organizer" class="inline-flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[query.data.value.organizer]" /><span class="truncate">{{ t('meetingsUi.organizer') }}: {{ query.data.value.organizer.name }}</span></span>
               <span v-if="query.data.value.location" class="inline-flex items-center gap-1.5"><UIcon name="i-lucide-map-pin" class="size-4 shrink-0" aria-hidden="true" />{{ query.data.value.location }}</span>
               <UButton v-if="query.data.value.meeting_url" color="neutral" variant="outline" size="sm" icon="i-lucide-video" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" :label="t('meetingsUi.url')" />

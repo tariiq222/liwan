@@ -14,6 +14,8 @@ import {
   createVNode,
   defineComponent,
   h,
+  normalizeClass,
+  normalizeStyle,
   openBlock,
   ref,
   renderList,
@@ -62,8 +64,10 @@ function loadPageHeader() {
     _createCommentVNode: createCommentVNode,
     _Fragment: Fragment,
     _createElementVNode: createElementVNode,
+    _normalizeClass: normalizeClass,
+    _normalizeStyle: normalizeStyle,
   }
-  const names = [...Object.keys(runtimeBindings), 'computed', 'usePageHeader', 'useEscapeBack', 'useFrameOwnsHeading', 'usePageTrail', 'useI18n', 'useRoute']
+  const names = [...Object.keys(runtimeBindings), 'computed', 'usePageHeader', 'useEscapeBack', 'useFrameOwnsHeading', 'usePageTrail', 'usePageAccent', 'useI18n', 'useRoute']
   const values = [
     ...Object.values(runtimeBindings), computed,
     () => undefined,
@@ -71,6 +75,8 @@ function loadPageHeader() {
     () => ref(frameOwnsHeading),
     // No published trail in this harness: the page's own target is the whole trail here.
     () => ref([]),
+    // No shell publishes an application here, so no chip.
+    () => ref(null),
     () => ({ t: (key: string) => key }),
     () => ({ path: '/current' }),
   ]

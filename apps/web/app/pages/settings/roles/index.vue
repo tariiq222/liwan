@@ -16,6 +16,8 @@ const page = computed(() => Math.floor((filters.offset ?? 0) / (filters.limit ??
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / (filters.limit ?? 25))))
 const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
+// The list's total as a tag in the heading, once the first page has arrived.
+const countTags = computed(() => query.data.value ? [{ label: t('access.roles.countTag', { count: total.value }, total.value) }] : [])
 const activeFilterCount = computed(() => Number(Boolean(filters.q?.trim())) + Number(Boolean(filters.type)) + Number(Boolean(filters.status)))
 function isRolesList() { return (route.path.replace(/\/+$/, '') || '/') === '/settings/roles' }
 function updateFilters() { if (!isRolesList()) return; filters.offset = 0; void router.replace({ query: { ...(filters.q ? { q: filters.q } : {}), ...(filters.type ? { type: filters.type } : {}), ...(filters.status ? { status: filters.status } : {}) } }) }
@@ -35,7 +37,7 @@ function clearSearch() { filters.q = ''; updateFilters() }
 </script>
 
 <template>
-  <SharedListPage data-testid="settings-layout" :title="t('access.roles.title')"
+  <SharedListPage data-testid="settings-layout" :tags="countTags" :title="t('access.roles.title')"
     :create-to="can('access.roles.manage') ? { path: '/settings/roles/new', query: listQuery } : undefined"
     :create-label="t('access.roles.create')" create-test-id="settings-role-new">
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />

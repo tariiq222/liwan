@@ -25,7 +25,7 @@ const meeting: MeetingDetail = {
 const meta = {
   title: 'Meetings/MeetingResolutionsTab',
   component: MeetingResolutionsTab,
-  parameters: { ...storyContext('apps/web/app/pages/meetings/[id].vue:291'), msw: { handlers: { api: shellHandlers } } },
+  parameters: { ...storyContext('apps/web/app/pages/meetings/[id].vue:295'), msw: { handlers: { api: shellHandlers } } },
   args: { meeting, meetingId: 7 },
 } satisfies Meta<typeof MeetingResolutionsTab>
 export default meta

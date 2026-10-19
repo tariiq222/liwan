@@ -3,6 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { currentListView, listViewQuery, LIST_VIEW_KEY, type ListViewOption } from '../../../utils/listView'
 import PageContainer from './PageContainer.vue'
 import PageHeader from './PageHeader.vue'
+import type { PageHeaderTag } from '../../../utils/pageHeaderTag'
 import ViewSwitch from '../data/ViewSwitch.vue'
 
 /*
@@ -16,6 +17,7 @@ import ViewSwitch from '../data/ViewSwitch.vue'
 const props = defineProps<{
   title: string
   description?: string
+  tags?: PageHeaderTag[]
   createTo?: RouteLocationRaw
   createLabel?: string
   /** The create button's data-testid, for pages whose e2e already name it. */
@@ -43,7 +45,7 @@ if (props.viewsInFilters && props.views?.length) provide(LIST_VIEW_KEY, { view, 
 
 <template>
   <PageContainer width="list" data-template="list">
-    <PageHeader :title="props.title" :description="props.description" :back-to="props.backTo" :back-label="props.backLabel" :hide-title="props.hideHeader">
+    <PageHeader :title="props.title" :description="props.description" :tags="props.tags" :back-to="props.backTo" :back-label="props.backLabel" :hide-title="props.hideHeader">
       <template v-if="props.createTo || $slots.actions" #actions>
         <UButton
           v-if="props.createTo"

@@ -7,6 +7,7 @@ import { activeManifests } from '../../modules/manifests'
 import { normalizedPath } from '../../utils/routePath'
 import { deriveCustomerCapabilities } from '../../utils/customerCapabilities'
 import type { AppIcon } from '../../modules/types'
+import type { AccentName } from '@webvue/ui/app/types/shell'
 
 // UIcon resolves these names from the local Lucide Iconify collection. Keep
 // the names in this shared model so every shell consumer renders the same icon
@@ -86,16 +87,17 @@ export interface ShellModuleDefinition {
   labelKey: string
   icon: AppIcon
   to: string
+  accent: AccentName
 }
 
 /** Rail order (user decision 2026-09-11): applications by manifest `order`, then the settings utility slot. */
 export function shellModuleList(): ShellModuleDefinition[] {
   const applications = activeManifests().flatMap(manifest => manifest.rail).sort((a, b) => a.order - b.order)
   return [
-    { id: 'home', labelKey: 'nav.home', icon: House, to: '/' },
-    ...applications.map(({ id, labelKey, icon, to }) => ({ id, labelKey, icon, to })),
+    { id: 'home', labelKey: 'nav.home', icon: House, to: '/', accent: 'slate' },
+    ...applications.map(({ id, labelKey, icon, to, accent }) => ({ id, labelKey, icon, to, accent: accent ?? 'slate' })),
     // Settings is administration only: account and appearance live in the header.
-    { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: '/settings/users' },
+    { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: '/settings/users', accent: 'slate' },
   ]
 }
 /** The rail of the discovered manifests, for consumers that only look up a heading or icon. */

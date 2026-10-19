@@ -78,6 +78,25 @@
   --webvue-subcard-pad: 0.857143rem;
   --webvue-gap-card: 1.142857rem;
   --webvue-gap-section: 2.285714rem;
+  /* Application accents: the tinted chip before a page title (bg + fg per hue, a closed set named by the rail entry). */
+  --accent-blue-bg: #dbeafe;
+  --accent-blue-fg: #1d4ed8;
+  --accent-violet-bg: #ede9fe;
+  --accent-violet-fg: #6d28d9;
+  --accent-teal-bg: #ccfbf1;
+  --accent-teal-fg: #0f766e;
+  --accent-sky-bg: #e0f2fe;
+  --accent-sky-fg: #0369a1;
+  --accent-amber-bg: #fef3c7;
+  --accent-amber-fg: #b45309;
+  --accent-rose-bg: #ffe4e6;
+  --accent-rose-fg: #be123c;
+  --accent-orange-bg: #ffedd5;
+  --accent-orange-fg: #c2410c;
+  --accent-indigo-bg: #e0e7ff;
+  --accent-indigo-fg: #4338ca;
+  --accent-slate-bg: #e2e8f0;
+  --accent-slate-fg: #475569;
   --webvue-progress-sm: 0.428571rem;
   --webvue-progress-md: 0.571429rem;
   /* Shell: a white floating module rail (fixed WebVue blue accents, not tenant-derived) and surfaces. */
@@ -204,6 +223,25 @@
   --chart-status-warning: #fbbf24;
   --chart-status-error: #f87171;
   --chart-status-neutral: #94a3b8;
+  /* Accent chips on dark surfaces: light text on a 16% tint of the same hue. */
+  --accent-blue-bg: color-mix(in srgb, #93c5fd 16%, transparent);
+  --accent-blue-fg: #93c5fd;
+  --accent-violet-bg: color-mix(in srgb, #c4b5fd 16%, transparent);
+  --accent-violet-fg: #c4b5fd;
+  --accent-teal-bg: color-mix(in srgb, #5eead4 16%, transparent);
+  --accent-teal-fg: #5eead4;
+  --accent-sky-bg: color-mix(in srgb, #7dd3fc 16%, transparent);
+  --accent-sky-fg: #7dd3fc;
+  --accent-amber-bg: color-mix(in srgb, #fcd34d 16%, transparent);
+  --accent-amber-fg: #fcd34d;
+  --accent-rose-bg: color-mix(in srgb, #fda4af 16%, transparent);
+  --accent-rose-fg: #fda4af;
+  --accent-orange-bg: color-mix(in srgb, #fdba74 16%, transparent);
+  --accent-orange-fg: #fdba74;
+  --accent-indigo-bg: color-mix(in srgb, #a5b4fc 16%, transparent);
+  --accent-indigo-fg: #a5b4fc;
+  --accent-slate-bg: color-mix(in srgb, #cbd5e1 16%, transparent);
+  --accent-slate-fg: #cbd5e1;
   --unread-count-foreground: var(--ui-bg);
   /* Light status text on the dark soft fills. */
   --status-success-foreground: #86efac;

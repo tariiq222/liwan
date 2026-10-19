@@ -32,10 +32,11 @@ function loadLayout(route: { path: string }) {
     // The shell publishes the page trail from the layout (DESIGN.md §3); focus behaviour does not
     // read it, so the harness stands in with an empty rail and no page title.
     useHydrated: () => Vue.ref(true),
-    useShellModel: () => ({ rail: Vue.ref({ all: [] }) }),
+    useShellModel: () => ({ rail: Vue.ref({ all: [] }), activeModule: Vue.ref(null) }),
     usePageHeaderTitle: () => Vue.ref(null),
     shellBreadcrumb: () => [],
     providePageTrail: () => undefined,
+    providePageAccent: () => undefined,
     requestAnimationFrame: () => 1, cancelAnimationFrame: () => undefined,
     setTimeout: () => 1, clearTimeout: () => undefined,
   }

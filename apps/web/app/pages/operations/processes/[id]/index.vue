@@ -2,6 +2,7 @@
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import OperationStepRow from '@/components/operations/OperationStepRow.vue'
 import { operationsStateTone } from '@/composables/operations/state'
+import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import { useOperationProcess, useOperationProcessMutation } from '@/composables/operations/useOperations'
 import { createOperationSubmitGuard, operationErrorKey, operationId } from '@/composables/operations/forms'
 const route = useRoute()
@@ -16,6 +17,7 @@ const process = query.data
 const mutation = useOperationProcessMutation()
 const gate = createOperationSubmitGuard()
 const pending = gate.pending
+const headerTags = computed(() => process.value ? [statusTag({ tone: operationsStateTone(process.value.state), label: t(`operations.states.${process.value.state}`) })] : [])
 const selected = ref<'publish' | 'archive' | null>(null)
 const selectedRevision = ref(0)
 const error = ref<unknown>(null)
@@ -32,6 +34,7 @@ async function refresh() { if (disabled.value) return; selected.value = null; er
 <template>
   <SharedRecordPage
     :title="process?.name ?? t('operations.process')"
+    :tags="headerTags"
     :back-to="backTo"
     :back-label="t('operations.nav.processes')"
     :loading="id !== null && query.isPending.value"
@@ -53,7 +56,6 @@ async function refresh() { if (disabled.value) return; selected.value = null; er
     </template>
     <template v-if="process" #aside>
       <SharedPropertiesPanel>
-        <SharedPropertyRow :label="t('operations.state')"><SharedStatusBadge :tone="operationsStateTone(process.state)" :label="t(`operations.states.${process.state}`)" /></SharedPropertyRow>
         <SharedPropertyRow :label="t('operations.result')" :value="t(`operations.executionKinds.${process.execution_kind === 'approval' || process.execution_kind === 'pmo_completion' ? process.execution_kind : 'other'}`)" />
         <SharedPropertyRow :label="t('operations.stages')" :value="t('operations.stageCount', { count: process.steps.length }, process.steps.length)" />
       </SharedPropertiesPanel>

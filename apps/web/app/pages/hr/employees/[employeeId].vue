@@ -3,6 +3,7 @@ import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { EMPLOYEE_LIST_PATHS } from '@/modules/hr/navigation'
 import EmployeeCard from '@/components/hr/EmployeeCard.vue'
 import EmployeeProperties from '@/components/hr/EmployeeProperties.vue'
+import type { PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 import { useArchiveHrEmployee, useHrEmployee, useUnarchiveHrEmployee } from '@/composables/useHrEmployees'
 const route = useRoute()
@@ -24,6 +25,9 @@ async function toggleArchive() {
   else await unarchive(query.data.value.id)
   confirmArchive.value = false
 }
+const headerTags = computed(() => query.data.value
+  ? [{ label: t(query.data.value.active ? 'hr.directory.status.active' : 'hr.directory.status.archived'), tone: query.data.value.active ? 'success' : 'neutral' } satisfies PageHeaderTag]
+  : [])
 // Edit is the page's one primary action; the account link and archive sit in the overflow menu, the destructive one last.
 const menuActions = computed<RowAction[]>(() => {
   const employee = query.data.value
@@ -44,6 +48,7 @@ const menuActions = computed<RowAction[]>(() => {
     v-if="isDetail"
     :title="query.data.value?.name || t('hr.employee.title')"
     :description="query.data.value?.job_title"
+    :tags="headerTags"
     :back-to="backTo"
     :loading="query.isLoading.value"
     :error="pageError"

@@ -5,10 +5,11 @@ import { shellBreadcrumb } from '@/composables/nav/breadcrumb'
 import { useShellModel } from '@/composables/useShellModel'
 import { usePageHeaderTitle } from '@webvue/ui/app/composables/usePageHeader'
 import { providePageTrail } from '@webvue/ui/app/composables/usePageTrail'
+import { providePageAccent } from '@webvue/ui/app/composables/usePageAccent'
 const route = useRoute()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const { rail } = useShellModel()
+const { rail, activeModule } = useShellModel()
 const pageTitle = usePageHeaderTitle()
 // The trail belongs to the page header now (DESIGN.md §3): the shell publishes the ancestors of the
 // current route and SharedPageHeader draws them under the page title, so the floating header stays
@@ -16,6 +17,12 @@ const pageTitle = usePageHeaderTitle()
 // registers it) and the shell names the current page only then, so both renders agree.
 const trail = computed(() => shellBreadcrumb({ path: route.path, pageTitle: hydrated.value ? pageTitle.value : null, t, rail: rail.value.all }))
 providePageTrail(trail)
+// The page header draws the chip before its title from the application that owns the route; a page
+// no application owns (account, search) gets the neutral slate chip with a generic icon.
+providePageAccent(() => {
+  const owner = rail.value.all.find(item => item.id === activeModule.value)
+  return { icon: owner?.icon ?? 'i-lucide-layout-grid', accent: owner?.accent ?? 'slate' }
+})
 const workspaceTheme = computed(() => !pageArea(route.path).plain)
 const noSidebar = computed(() => hasNoContextSidebar(route.path))
 // The deleted route sheet restored focus when it closed; an ordinary page has

@@ -100,6 +100,8 @@ const query = useMeetings(computed(() => ({
 })))
 const rows = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
+// The list's total as a tag in the heading, once the first page has arrived.
+const countTags = computed(() => query.data.value ? [{ label: t('meetingsUi.countTag', { count: total.value }, total.value) }] : [])
 const page = computed(() => Math.floor(offset.value / limit) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / limit)))
 const projectId = computed(() => routeFilters.value.projectId)
@@ -243,6 +245,7 @@ function setPage(next: number) {
 <template>
   <SharedListPage
     :title="t('nav.meetings')"
+    :tags="countTags"
     :create-to="can('meetings.create') ? createTo : undefined"
     :create-label="t('nav.newMeeting')"
     create-test-id="meeting-new"

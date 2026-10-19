@@ -4,6 +4,7 @@ import type { OperationAction } from '@webvue/contracts'
 import { formatDateTime } from '@webvue/ui/app/utils/formatDate'
 import OperationStepRow from '@/components/operations/OperationStepRow.vue'
 import { operationsStateTone } from '@/composables/operations/state'
+import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import { useOperationRequest, useOperationRequestMutation } from '@/composables/operations/useOperations'
 import { createOperationSubmitGuard, operationAttachmentBody, operationErrorKey, operationId } from '@/composables/operations/forms'
 const route = useRoute()
@@ -26,6 +27,10 @@ const error = ref<unknown>(null)
 const removal = ref<number | null>(null)
 const fileField = ref<{ reset: () => void } | null>(null)
 const backTo = computed(() => router.resolve(owningListBack(route.query, sourcePaths.value, route.hash)).fullPath)
+// The request's state and process sit in the heading as tags.
+const headerTags = computed(() => record.value
+  ? [statusTag({ tone: operationsStateTone(record.value.state), label: t(`operations.states.${record.value.state}`) }), { label: record.value.process.name, icon: 'i-lucide-workflow' }]
+  : [])
 const actions: OperationAction[] = ['submit', 'approve', 'reject', 'return', 'withdraw']
 const visibleActions = computed(() => actions.filter(action => record.value?.allowed_actions[action]))
 const commentRequired = computed(() => selected.value === 'reject' || selected.value === 'return')
@@ -64,6 +69,7 @@ const eventKinds = ['submitted', 'approved', 'rejected', 'returned', 'withdrawn'
 <template>
   <SharedRecordPage
     :title="record?.name ?? t('operations.request')"
+    :tags="headerTags"
     :back-to="backTo"
     :back-label="t(`operations.nav.${backTo.startsWith('/operations/pending') ? 'pending' : backTo.startsWith('/operations/monitoring') ? 'monitoring' : backTo.startsWith('/operations/processes') ? 'processes' : 'mine'}`)"
     :loading="id !== null && query.isPending.value"
@@ -105,8 +111,6 @@ const eventKinds = ['submitted', 'approved', 'rejected', 'returned', 'withdrawn'
     </template>
     <template v-if="record" #aside>
       <SharedPropertiesPanel>
-        <SharedPropertyRow :label="t('operations.state')"><SharedStatusBadge :tone="operationsStateTone(record.state)" :label="t(`operations.states.${record.state}`)" /></SharedPropertyRow>
-        <SharedPropertyRow :label="t('operations.process')" :value="record.process.name" />
         <SharedPropertyRow :label="t('operations.requester')"><span class="inline-flex items-center gap-2"><SharedPersonAvatar :people="[record.requester]" />{{ record.requester.name }}</span></SharedPropertyRow>
         <SharedPropertyRow :label="t('operations.createdAt')"><time :datetime="record.created_at">{{ date(record.created_at) }}</time></SharedPropertyRow>
       </SharedPropertiesPanel>

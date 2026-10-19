@@ -218,6 +218,7 @@
       }
     },
       "leave": {
+        "countTag": "{count} request | {count} requests",
         "record": "Leave request",
         "description": "Leave balances, requests and approvals.",
         "new": "Request leave",

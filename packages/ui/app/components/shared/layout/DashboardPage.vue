@@ -5,9 +5,12 @@
 // goes two-up when its own width reaches 768px: a container query, so a wide context
 // sidebar narrows it the way a phone does. Loading and errors stay with the page.
 // `hideHeader` is for a page inside a frame that owns the heading.
+import type { PageHeaderTag } from '../../../utils/pageHeaderTag'
+
 const props = defineProps<{
   title: string
   description?: string
+  tags?: PageHeaderTag[]
   hideHeader?: boolean
 }>()
 const { t } = useI18n()
@@ -15,7 +18,7 @@ const { t } = useI18n()
 
 <template>
   <SharedPageContainer width="list" data-template="dashboard-page">
-    <SharedPageHeader :title="props.title" :description="props.description" :hide-title="props.hideHeader">
+    <SharedPageHeader :title="props.title" :description="props.description" :tags="props.tags" :hide-title="props.hideHeader">
       <template v-if="$slots.actions" #actions>
         <slot name="actions" />
       </template>

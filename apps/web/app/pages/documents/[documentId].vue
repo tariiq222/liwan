@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 import type { DocumentFile } from '@webvue/contracts'
+import type { PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import { ApiError } from '@/composables/useApi'
 import { useDocument, useDocumentFiles, useDocumentTransition, useUploadDocumentFile, useDocumentFileAction } from '@/composables/useDocuments'
 import { documentRecordBack, documentChildTo } from '@/lib/documentNavigation'
@@ -25,6 +26,9 @@ const backLabel = computed(() => {
   const path = typeof target === 'string' ? target : 'path' in target ? target.path : ''
   return path?.startsWith('/documents') ? t('documents.backToDocuments') : t('app.back')
 })
+const headerTags = computed(() => document.value
+  ? [{ label: t(`documents.visibilityOptions.${document.value.visibility}`), icon: document.value.visibility === 'restricted' ? 'i-lucide-lock-keyhole' : 'i-lucide-building-2' } satisfies PageHeaderTag]
+  : [])
 const hasProperties = computed(() => !!(document.value?.expiry_date || document.value?.context || document.value?.tags.length))
 const childTo = (suffix: string) => documentChildTo(`/documents/${documentId.value}/${suffix}`, route.query, route.hash)
 const transition = useDocumentTransition(); const uploadMutation = useUploadDocumentFile(); const fileMutation = useDocumentFileAction()
@@ -63,7 +67,7 @@ const secondaryActions = computed<RowAction[]>(() => {
 })
 </script>
 <template>
-  <SharedRecordPage v-if="isRecord" :title="document?.name || t('documents.title')" :back-to="backTo" :back-label="backLabel" :loading="query.isLoading.value" :error="pageError" :keep-content="!!document" @retry="query.refetch">
+  <SharedRecordPage v-if="isRecord" :title="document?.name || t('documents.title')" :tags="headerTags" :back-to="backTo" :back-label="backLabel" :loading="query.isLoading.value" :error="pageError" :keep-content="!!document" @retry="query.refetch">
     <template v-if="document" #actions>
       <UButton v-if="document.allowed_actions.manage_access" :to="childTo('access')" color="neutral" variant="outline" icon="i-lucide-users" :disabled="!hydrated || pending" :label="t('documents.access')" />
       <UButton v-if="document.allowed_actions.update" icon="i-lucide-pencil" :to="childTo('edit')" :disabled="!hydrated || pending" :label="t('documents.edit')" />
@@ -72,8 +76,6 @@ const secondaryActions = computed<RowAction[]>(() => {
     <template v-if="document" #summary>
       <div class="flex flex-wrap items-center gap-2">
         <SharedRecordNumber :value="`#${document.id}`" />
-        <span class="text-xs text-muted">{{ t('documents.visibility') }}</span>
-        <SharedStatusBadge tone="neutral" :icon="document.visibility === 'restricted' ? 'i-lucide-lock-keyhole' : 'i-lucide-building-2'" :label="t(`documents.visibilityOptions.${document.visibility}`)" />
       </div>
     </template>
     <template v-if="document">

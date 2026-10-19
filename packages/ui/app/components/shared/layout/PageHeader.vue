@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
+import type { PageHeaderTag } from '../../../utils/pageHeaderTag'
 
 const props = withDefaults(defineProps<{
   title: string
   description?: string
+  /** Replaces the icon the shell publishes for the current application (the chip keeps that application's hue). */
+  icon?: string
+  /** Short facts about the page's subject (state, owner, count), drawn inline after the title; a tag with `to` is a link. */
+  tags?: PageHeaderTag[]
   backTo?: RouteLocationRaw
   backLabel?: string
   /** A frame around the page already shows the heading (the project workspace's h1): draw the actions only. The title still names the page for the shell and `backTo` still answers Escape. */
@@ -24,6 +29,13 @@ usePageHeader(() => props.title, () => props.description)
 // title shows the same target as its nearest step, so the keyboard route out and
 // the visible one still cannot drift apart.
 useEscapeBack(() => props.backTo)
+// The chip before the title: the icon and hue of the application the shell published, or the `icon` override.
+// Outside a shell (vendor-admin) nothing is published, so a header without an `icon` draws no chip.
+const pageAccent = usePageAccent()
+const chip = computed(() => {
+  const icon = props.icon ?? pageAccent.value?.icon
+  return icon ? { icon, accent: pageAccent.value?.accent ?? 'slate' } : null
+})
 // Inside the project workspace the frame is already the page's <h1>.
 const frameOwnsHeading = useFrameOwnsHeading()
 // The frame's own band is the sticky element there, so this header never claims a second sticky slot.
@@ -56,26 +68,47 @@ const trail = computed<HeaderTrailStep[]>(() => {
     data-slot="page-header"
     data-empty="false"
     :data-sticky="stickyHead ? 'true' : undefined"
-    class="flex flex-wrap items-center justify-between gap-4"
+    class="flex flex-wrap items-center gap-x-3 gap-y-2"
+    :class="{ 'rounded-card bg-default px-(--webvue-subcard-pad) py-2 ring ring-default': !props.hideTitle }"
   >
-    <div class="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-4">
-      <div v-if="!props.hideTitle" class="min-w-0">
-        <h2 v-if="frameOwnsHeading" class="text-xl font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h2>
-        <h1 v-else class="text-xl font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h1>
-        <nav v-if="trail.length || $slots.back" data-testid="page-header-trail" :aria-label="$t('nav.breadcrumb')" class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
-          <slot name="back">
-            <template v-for="(step, index) in trail" :key="step.label">
-              <UIcon v-if="index" name="i-lucide-chevron-left" aria-hidden="true" class="size-3.5 text-dimmed ltr:rotate-180" />
-              <UButton v-if="step.to" :to="step.to" color="neutral" variant="link" size="xs" class="p-0 font-medium text-muted hover:text-highlighted focus-visible:ring-2 focus-visible:ring-primary">{{ step.label }}</UButton>
-              <span v-else class="text-dimmed">{{ step.label }}</span>
+    <template v-if="!props.hideTitle">
+      <span
+        v-if="chip"
+        data-slot="page-header-chip"
+        aria-hidden="true"
+        class="grid size-(--webvue-control-h) shrink-0 place-items-center rounded-control bg-(--chip-bg) text-(--chip-fg)"
+        :style="{ '--chip-bg': `var(--accent-${chip.accent}-bg)`, '--chip-fg': `var(--accent-${chip.accent}-fg)` }"
+      ><UIcon :name="chip.icon" class="size-4.5" /></span>
+      <div class="min-w-0 flex-1 basis-40">
+        <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <h2 v-if="frameOwnsHeading" class="min-w-0 text-lg/6 font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h2>
+          <h1 v-else class="min-w-0 text-lg/6 font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h1>
+          <slot name="tags">
+            <template v-for="tag in props.tags" :key="tag.label">
+              <NuxtLink v-if="tag.to" :to="tag.to" class="rounded-full focus-visible:ring-2 focus-visible:ring-primary">
+                <UBadge :color="tag.tone ?? 'neutral'" variant="subtle" size="sm" :icon="tag.icon" :data-testid="tag.testId">{{ tag.label }}</UBadge>
+              </NuxtLink>
+              <UBadge v-else :color="tag.tone ?? 'neutral'" variant="subtle" size="sm" :icon="tag.icon" :data-testid="tag.testId">{{ tag.label }}</UBadge>
             </template>
           </slot>
-        </nav>
-        <p v-if="props.description" class="mt-1 max-w-3xl text-start text-sm leading-6 text-muted">{{ props.description }}</p>
+        </div>
+        <div v-if="trail.length || $slots.back || props.description" class="flex min-w-0 items-center gap-x-2 text-xs/5 text-muted">
+          <nav v-if="trail.length || $slots.back" data-testid="page-header-trail" :aria-label="$t('nav.breadcrumb')" class="flex shrink-0 items-center gap-1.5">
+            <slot name="back">
+              <template v-for="(step, index) in trail" :key="step.label">
+                <UIcon v-if="index" name="i-lucide-chevron-left" aria-hidden="true" class="size-3.5 text-dimmed ltr:rotate-180" />
+                <UButton v-if="step.to" :to="step.to" color="neutral" variant="link" size="xs" class="p-0 font-medium text-muted hover:text-highlighted focus-visible:ring-2 focus-visible:ring-primary">{{ step.label }}</UButton>
+                <span v-else class="text-dimmed">{{ step.label }}</span>
+              </template>
+            </slot>
+          </nav>
+          <span v-if="(trail.length || $slots.back) && props.description" aria-hidden="true" class="text-dimmed">·</span>
+          <p v-if="props.description" class="min-w-0 truncate text-start" :title="props.description">{{ props.description }}</p>
+        </div>
       </div>
-      <div v-if="$slots.actions || $slots.default" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-3">
-        <slot name="actions"><slot /></slot>
-      </div>
+    </template>
+    <div v-if="$slots.actions || $slots.default" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-3">
+      <slot name="actions"><slot /></slot>
     </div>
   </header>
 </template>

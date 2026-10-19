@@ -4,6 +4,7 @@
     "new": "New personal task",
     "created": "Task created",
     "list": {
+      "countTag": "{count} task | {count} tasks",
       "tabs": {
         "open": "Open",
         "closed": "Closed"

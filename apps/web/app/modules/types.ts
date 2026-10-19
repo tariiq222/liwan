@@ -1,5 +1,6 @@
 import type { Component } from 'vue'
 import type { ZodType } from 'zod'
+import type { AccentName } from '@webvue/ui/app/types/shell'
 
 /**
  * Application manifest: the one place an application declares its web surface.
@@ -35,7 +36,8 @@ export interface AppContextLink {
   /** Locale key of the sidebar section heading; consecutive links with the same key form one section. */
   section?: string
 }
-export interface AppRailEntry { id: string; labelKey: string; icon: AppIcon; to: string; order: number }
+/** `accent` tints the chip before every page title of the application; slate when omitted. */
+export interface AppRailEntry { id: string; labelKey: string; icon: AppIcon; to: string; order: number; accent?: AccentName }
 /** The fetcher a search provider receives: `useApi().$api`, so requests keep its cookies, errors and zod parsing. */
 export type AppSearchApi = <T>(
   url: string,

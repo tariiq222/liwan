@@ -14,7 +14,7 @@ describe('tasks manifest', () => {
 
   it('has one rail entry at order 15 that no other manifest uses', () => {
     expect(manifest.rail).toEqual([
-      { id: 'tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', to: '/my-tasks', order: 15 },
+      { id: 'tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', to: '/my-tasks', order: 15, accent: 'indigo' },
     ])
     const others = [chat, hr, meetings, pmo].flatMap(m => m.rail).map(r => r.order)
     expect(others).not.toContain(15)

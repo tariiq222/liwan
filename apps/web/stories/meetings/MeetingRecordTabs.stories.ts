@@ -9,7 +9,7 @@ const tabs = (active: string) => keys.map((key, index) => ({ key: `meeting-tab-$
 const meta = {
   title: 'Meetings/MeetingRecordTabs',
   component: MeetingRecordTabs,
-  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:174'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:178'),
   args: { tabs: tabs('summary'), logTabStart: 4, label: 'أقسام الاجتماع' },
 } satisfies Meta<typeof MeetingRecordTabs>
 export default meta

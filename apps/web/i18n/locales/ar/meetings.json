@@ -1,5 +1,6 @@
 {
   "meetingsUi": {
+    "countTag": "لا اجتماعات | اجتماع واحد | اجتماعان | {count} اجتماعات | {count} اجتماعًا | {count} اجتماع",
     "attachmentsTitle": "المرفقات",
     "uploadAttachment": "إضافة مرفق",
     "attachmentHelp": "اختر ملفًا لإرفاقه بهذا الاجتماع.",

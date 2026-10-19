@@ -162,6 +162,8 @@ const views = computed(() => [
   { value: 'table', label: t('projects.filters.tableView'), icon: 'i-lucide-list', testId: 'projects-view-table' },
 ])
 const total = computed(() => projectList.data.value?.total ?? 0)
+// The list's total as a tag in the heading, once the first page has arrived.
+const countTags = computed(() => projectList.data.value ? [{ label: t('projects.countTag', { count: total.value }, total.value) }] : [])
 const page = computed(() => Math.floor(listOffset.value / PROJECT_PAGE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PROJECT_PAGE)))
 watch(debouncedSearch, (value) => {
@@ -258,6 +260,7 @@ async function openProject(id: number) {
 <template>
   <SharedListPage
     :title="t(filters.mine ? 'nav.myProjects' : 'nav.allProjects')"
+    :tags="countTags"
     :description="t(filters.mine ? 'projects.myDescription' : 'projects.description')"
     :create-to="createTo"
     :create-label="t('projects.new')"

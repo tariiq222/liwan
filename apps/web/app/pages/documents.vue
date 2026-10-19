@@ -46,6 +46,8 @@ const page = computed(() => Math.floor(committedListParams.value.offset / limit)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
 const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
+// The list's total as a tag in the heading, once the first page has arrived.
+const countTags = computed(() => query.data.value ? [{ label: t('documents.countTag', { count: total.value }, total.value) }] : [])
 const showEmpty = computed(() => !query.isLoading.value && !query.error.value && items.value.length === 0)
 const activeFilterCount = computed(() => Number(Boolean(search.value.trim())) + Number(Boolean(contextKind.value)) + Number(Boolean(contextId.value)))
 
@@ -162,6 +164,7 @@ function openLiveCreate(event: MouseEvent) {
   <SharedListPage
     v-if="isListRoute"
     :title="t('documents.title')"
+    :tags="countTags"
     :create-to="createTo"
     :create-label="t('documents.new')"
     create-test-id="document-new"

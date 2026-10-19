@@ -20,7 +20,7 @@ const meta = {
   title: 'Project/ProjectCards',
   component: ProjectCards,
   args: { items, isLoading: false, toFor },
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/projects/index.vue:336', 'عرض البطاقات داخل بطاقة القائمة. بدن مضغوط: الحالة والمرحلة ورقم السجل، ثم الاسم سطرًا واحدًا، ثم النسبة والبار وعدد المهام، ثم المدير وتاريخ الانتهاء. نبرة البار: خطر للمتأخر، تحذير للمعرض للخطر، نجاح للمكتمل، أساسي لغير ذلك.') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/projects/index.vue:339', 'عرض البطاقات داخل بطاقة القائمة. بدن مضغوط: الحالة والمرحلة ورقم السجل، ثم الاسم سطرًا واحدًا، ثم النسبة والبار وعدد المهام، ثم المدير وتاريخ الانتهاء. نبرة البار: خطر للمتأخر، تحذير للمعرض للخطر، نجاح للمكتمل، أساسي لغير ذلك.') },
   render: args => ({
     components: { ProjectCards, ListCard, ListFooter },
     setup: () => ({ args }),
@@ -35,7 +35,7 @@ export const Loading: Story = { name: 'قيد التحميل', args: { isLoading
 
 export const Table: Story = {
   name: 'عرض الجدول',
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/projects/index.vue:336', 'الجدول بلا بطاقة خاصة داخل بطاقة القائمة، والتذييل فيه العدد والترقيم.') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/projects/index.vue:339', 'الجدول بلا بطاقة خاصة داخل بطاقة القائمة، والتذييل فيه العدد والترقيم.') },
   render: args => ({
     components: { ProjectTable, ListCard, ListFooter },
     setup: () => ({ args }),
