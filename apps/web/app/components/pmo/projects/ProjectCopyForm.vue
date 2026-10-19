@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ProjectCopyInputSchema } from '@webvue/contracts'
+import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { useCopyProject, useProject } from '@/composables/useProjects'
 
@@ -41,18 +42,12 @@ const submitError = computed(() => {
   return t('projects.copy.error')
 })
 
-function todayIso() {
-  const now = new Date()
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-}
-
 // Seed once the source is known and the client has hydrated, so the server-rendered
 // markup never disagrees with the browser-local "today".
 watch([source, hydrated], ([project, ready]) => {
   if (!project || !ready || initialized.value) return
   name.value = t('projects.copy.defaultName', { name: project.name })
-  startDate.value = todayIso()
+  startDate.value = localIsoDay()
   baseline.value = serialized()
   initialized.value = true
 }, { immediate: true })

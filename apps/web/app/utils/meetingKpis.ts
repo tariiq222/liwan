@@ -1,14 +1,8 @@
+import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
 import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
 
 type Scope = Record<string, string | number | boolean | undefined>
 type Translate = (key: string) => string
-
-const pad = (value: number) => String(value).padStart(2, '0')
-
-/** A date as the `YYYY-MM-DD` day the meetings API filters on, in the browser's own time zone. */
-export function localIsoDay(date: Date): string {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
 
 /** The first and last day of the month that holds `today`. */
 export function monthDayRange(today: Date): { from: string; to: string } {

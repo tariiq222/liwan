@@ -25,7 +25,7 @@ function form(file: string, routeQuery: Record<string, string> = {}, seriesIniti
     end_datetime: '2026-09-08T07:00:00.000Z', location: 'Room 1', meeting_url: 'https://meet.example', attendees: [{ id: 9, name: 'Amina' }], secretary: { id: 9, name: 'Amina' } })
   const seriesData = ref(seriesInitiallyLoaded ? series.value : null)
   const seriesLoading = ref(!seriesInitiallyLoaded)
-  const mutateAsync = vi.fn(async () => ({ id: 7 }))
+  const mutateAsync = vi.fn(async (..._args: unknown[]) => ({ id: 7 }))
   const navigateTo = vi.fn(async () => {})
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:pathMatch(.*)*', component: {} }] })
   const scope = { useRouter: () => router, ...recordNavigation, ...meetingEditorContext, useMeetingFormFeedback, firstQuery, isCalendarDate, computed, ref, watch, nextTick, useRoute: () => ({ params: { id: '7' }, query: routeQuery }),
@@ -38,7 +38,8 @@ function form(file: string, routeQuery: Record<string, string> = {}, seriesIniti
     useMeetingSeries: () => ({ data: seriesData, isLoading: seriesLoading, error: ref(null) }),
     usePatchMeeting: () => ({ mutateAsync, isPending: ref(false) }),
     useCreateMeeting: () => ({ mutateAsync, isPending: ref(false) }),
-    useCreateMeetingSeries: () => ({ mutateAsync, isPending: ref(false) }),
+    // The page calls `mutate(body, { onSuccess })`; the harness resolves it through the shared spy.
+    useCreateMeetingSeries: () => ({ mutate: (body: unknown, options?: { onSuccess?: (result: { id: number }) => unknown }) => { void mutateAsync(body).then(options?.onSuccess) }, isPending: ref(false) }),
     useCreateResolution: () => ({ mutateAsync, isPending: ref(false) }),
     buildMeetingSchedulePayload, buildRecurrencePreview, fromUtcDateTimeInput, getMeetingFormErrors,
     localDateFromUtc, localTimeFromUtc, toUtcDateTime, normalizeRecurrenceEnd,
@@ -168,6 +169,7 @@ describe('meeting form unsaved changes', () => {
     expect(body.until_count).toBe(6)
     expect(body.until_date).toBeUndefined()
     expect(body.meeting_url).toBe('https://series.example')
+    await vi.waitFor(() => expect(page.navigateTo).toHaveBeenCalledWith(expect.objectContaining({ path: '/meetings/series/7' }), { replace: true }))
   })
   it('inherits unrelated series defaults when only the start was edited before loading', async () => {
     const page = form('new.vue', { series_id: '12' }, false)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDateTime, formatTime, isolateLtr } from '../formatDate'
+import { formatDate, formatDateTime, formatTime, isolateLtr, localIsoDay } from '../formatDate'
 
 const plain = (s: string) => s.replace(/[\u2066\u2069]/g, '')
 
@@ -38,5 +38,12 @@ describe('formatDate', () => {
 
   it('falls back to UTC for an unsupported time zone', () => {
     expect(plain(formatDateTime('2026-09-15T09:00:00Z', 'Not/AZone'))).toBe('15/09/2026 09:00')
+  })
+})
+
+describe('localIsoDay', () => {
+  it('is the local calendar day, zero padded, even late in the evening', () => {
+    expect(localIsoDay(new Date(2026, 0, 5))).toBe('2026-01-05')
+    expect(localIsoDay(new Date(2026, 9, 5, 23, 59))).toBe('2026-10-05')
   })
 })

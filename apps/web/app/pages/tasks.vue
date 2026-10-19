@@ -19,6 +19,7 @@ const { can } = useAccess()
 
 // The SSR-rendered toolbar is clickable before hydration attaches its listeners (see useHydrated()).
 const hydrated = useHydrated()
+const { shown: kpisShown } = useKpiVisibility()
 
 const isBoard = computed(() => route.query.view === 'board')
 // Archived tasks are a scope of this list (`?scope=archived`), not a page of their own.
@@ -91,7 +92,7 @@ function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
          the dynamic surface (and the toolbar in the card header) only after this page has hydrated so
          no control's first click is lost; the toolbar's selects stay disabled until then. One card and one
          filter row serve both views: switching only swaps what is under the row. -->
-    <TaskKpiStrip v-if="hydrated" :params="params" />
+    <TaskKpiStrip v-if="hydrated && kpisShown" :params="params" />
     <SharedListCard v-if="hydrated" :fill="isBoard">
       <template #filters><TaskToolbar v-model="params" embedded /></template>
       <TaskTable v-if="!isBoard" :params="params" :row-to="task => taskTo(task.id)" @create="openCreate" @update:sort="onSort" />

@@ -1,3 +1,4 @@
+import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse } from '@vue/compiler-sfc'
@@ -34,7 +35,7 @@ function calendar(items: CalendarMeeting[], routeQuery: Record<string, string> =
     useRoute: () => route,
     useRouter: () => ({ replace, resolve: (to: unknown) => to }),
     useI18n: () => ({ t: (key: string) => key, locale: ref(localeCode) }),
-    useHydrated: () => ref(true),
+    useHydrated: () => ref(true), localIsoDay,
     useAccess: () => ({ can: () => true }), useRecordPickerAvailable: () => computed(() => true),
     useMeetings, calendarCoverage, meetingStateBadgeProps, parseMeetingListFilters, patchMeetingListQuery, firstQuery, isCalendarDate,
     formatCalendarDate: (value: string) => value, formatWebVueTime: () => '', formatLocalDateTime: (value: string) => value,

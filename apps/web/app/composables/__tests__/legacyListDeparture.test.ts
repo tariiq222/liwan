@@ -1,3 +1,4 @@
+import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
 import { currentListView, listViewQuery } from '@webvue/ui/app/utils/listView'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -25,7 +26,7 @@ async function mountList(testCase: typeof cases[number], guard: (to: RouteLocati
   const bindings = {
     ...myTaskList, currentListView, listViewQuery, useRowNavigation: () => {}, _defineComponent: Vue.defineComponent, h: Vue.h, ref: Vue.ref, shallowRef: Vue.shallowRef, computed: Vue.computed, reactive: Vue.reactive, watch: Vue.watch,
     onMounted: Vue.onMounted, onBeforeUnmount: Vue.onBeforeUnmount, onScopeDispose: Vue.onScopeDispose, useRoute, useRouter, refDebounced,
-    useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useAccess: () => ({ can: () => true }), useNuxtApp: () => nuxt,
+    useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useKpiVisibility: () => ({ shown: Vue.ref(true) }), localIsoDay, useAccess: () => ({ can: () => true }), useNuxtApp: () => nuxt,
     useMyTaskList: () => ({ data: Vue.ref({ items: [], total: 0 }), isFetching: Vue.ref(false), error: Vue.ref(null) }),
     useMyTaskSummary: () => ({ data: Vue.ref(null), isLoading: Vue.ref(false) }), myTaskKpiTiles: () => [],
     FilterBar: {}, MyTaskRow: {},

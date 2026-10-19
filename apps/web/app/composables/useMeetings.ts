@@ -71,7 +71,7 @@ export function useMeetings(params: MaybeRefOrGetter<{
       })
     },
   })
-  prefetchMeetingQuery(query)
+  prefetchMeetingQuery(query, options.enabled ?? true)
   return query
 }
 
@@ -220,16 +220,17 @@ export function useResolutionAction() {
   })
 }
 
-export function useMeetingSeriesList(params: MaybeRefOrGetter<{ q?: string; project_id?: number; limit?: number; offset?: number }>) {
+export function useMeetingSeriesList(params: MaybeRefOrGetter<{ q?: string; project_id?: number; limit?: number; offset?: number }>, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const query = useQuery({
     queryKey: computed(() => meetingSeriesKeys.list(toValue(params))),
+    enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/meeting-series', {
       query: toValue(params),
       schema: MeetingSeriesListSchema,
     }),
   })
-  prefetchMeetingQuery(query)
+  prefetchMeetingQuery(query, enabled)
   return query
 }
 

@@ -18,6 +18,7 @@ const router = useRouter()
 const { t } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
+const { shown: kpisShown } = useKpiVisibility()
 const projectId = computed(() => projectIdFromPath(route.path))
 const { data: projectData, error, refetch } = useProject(projectId)
 // Same SSR contract as the frame: reveal the cached project only once hydrated.
@@ -125,7 +126,7 @@ function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
         <div class="flex justify-end">
           <NuxtLink :to="{ path: '/tasks', query: { scope: 'archived', project_id: projectId, returnTo: route.fullPath } }" class="text-sm text-muted hover:underline">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
         </div>
-        <TaskKpiStrip :params="params" />
+        <TaskKpiStrip v-if="kpisShown" :params="params" />
         <SharedListCard :fill="isBoard">
           <template #filters><TaskToolbar :model-value="params" embedded hide-project-filter @update:model-value="onParams" @search="liveSearch = $event" /></template>
           <TaskTable v-if="!isBoard" :params="params" variant="project" :row-to="task => taskTo(task.id)" @create="openCreate" @update:sort="sort => onParams({ ...params, sort })" />

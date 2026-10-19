@@ -1,3 +1,4 @@
+import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
 import * as editorContext from '../../utils/meetingEditorContext'
 import { useMeetingFormFeedback } from '../../composables/useMeetingFormFeedback'
 import * as recordNavigation from './helpers/recordNavigation'
@@ -40,7 +41,7 @@ async function load(file: string, url: RouteLocationRaw) {
     onMounted: () => {}, onBeforeUnmount: () => {}, onUnmounted: () => {}, onScopeDispose: Vue.onScopeDispose,
     useNuxtApp: () => ({ hook: hooks.hook }),
     useRoute: () => router.currentRoute.value, useRouter: () => router,
-    useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('ar') }), useHydrated: () => Vue.ref(true),
+    useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('ar') }), useHydrated: () => Vue.ref(true), localIsoDay,
     useAccess: () => ({ can: () => true }), useRecordPickerAvailable: () => Vue.computed(() => true),
     useRecordPicker: () => ({ available: Vue.computed(() => true), query: { data: Vue.ref([]), isLoading: Vue.ref(false), error: Vue.ref(null) } }), useMe: () => ({ me: Vue.ref({}) }), useToast: () => ({ add: vi.fn() }),
     useBranding: () => ({ branding: Vue.ref({}) }), useSsrQuerySeed: () => {}, navigateTo: navigate,

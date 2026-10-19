@@ -173,13 +173,13 @@ function closeOccurrenceForm() {
   occurrenceName.value = occurrenceDate.value = occurrenceStart.value = occurrenceEnd.value = ''
   addOccurrence.reset()
 }
-async function submitOccurrence() {
+// `mutate`, not `mutateAsync`: a failure renders from the mutation state below and must not escape as an unhandled rejection.
+function submitOccurrence() {
   if (!hydrated.value || addOccurrence.isPending.value || id.value === null || !validateOccurrence()) return
-  await addOccurrence.mutateAsync({
+  addOccurrence.mutate({
     seriesId: id.value,
     body: buildOccurrencePayload({ name: occurrenceName.value, date: occurrenceDate.value, start: occurrenceStart.value, end: occurrenceEnd.value }),
-  })
-  closeOccurrenceForm()
+  }, { onSuccess: closeOccurrenceForm })
 }
 const canAddOccurrence = computed(() => {
   const series = query.data.value

@@ -62,12 +62,13 @@ export function useMeetingVersion(id: MaybeRefOrGetter<number | null>, versionId
 }
 
 export type MeetingFollowupParams = { q?: string; mine?: boolean; state?: 'active' | 'overdue' | 'open' | 'in_progress' | 'done' | 'cancelled'; limit?: number; offset?: number }
-export function useMeetingFollowup(params: MaybeRefOrGetter<MeetingFollowupParams> = {}) {
+export function useMeetingFollowup(params: MaybeRefOrGetter<MeetingFollowupParams> = {}, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const query = useQuery({
     queryKey: computed(() => meetingKeys.followup(paramsOf(params))),
+    enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/meetings/resolutions', { query: paramsOf(params), schema: MeetingFollowupListSchema }),
   })
-  prefetch(query, true)
+  prefetch(query, enabled)
   return query
 }

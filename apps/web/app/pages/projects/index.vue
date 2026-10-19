@@ -23,6 +23,7 @@ const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const { shown: kpisShown } = useKpiVisibility()
 // Capability probe: full envelope (not minimal) so can_list_archived is set,
 // but limit=1 avoids a second 200-row fetch beside the table query.
 const activeList = useProjectList(ref(false), { limit: 1 })
@@ -274,7 +275,7 @@ async function openProject(id: number) {
            card (filters inside it) only once this page has hydrated, so server and client never disagree about its tree and no
            control's first click is lost; the toolbar's controls stay disabled until then. One card and one filter row serve both
            views: switching only swaps what is under the row. -->
-      <ProjectKpiStrip v-if="hydrated && !archived" :filters="summaryFilters" />
+      <ProjectKpiStrip v-if="hydrated && kpisShown && !archived" :filters="summaryFilters" />
       <SharedListCard v-if="hydrated">
         <template #filters>
           <div class="w-full min-w-0" data-testid="projects-toolbar">

@@ -5,7 +5,7 @@ import { storyContext } from '../support/context'
 const task = { id: 7, name: 'متابعة طلب الأدوات', state: 'open' as const, priority: 'high' as const, date_deadline: '2026-10-01T00:00:00Z', assignees: [{ id: 2, name: 'أحمد', user_id: 2 }], source: 'personal' as const, project: null, href: '/my-tasks/7' }
 const meta = {
   title: 'MyTasks/MyTaskRow', component: MyTaskRow,
-  parameters: storyContext('apps/web/app/pages/my-tasks/index.vue:220', 'صفوف مهامي، مع المصدر والموعد وحالة التأخر نصًا.'),
+  parameters: storyContext('apps/web/app/pages/my-tasks/index.vue:221', 'صفوف مهامي، مع المصدر والموعد وحالة التأخر نصًا.'),
   args: { task, to: '/my-tasks/7', today: '2026-10-15', part: 'card' },
   render: args => ({ components: { MyTaskRow }, setup: () => ({ args }), template: '<div class="max-w-xl"><MyTaskRow v-bind="args" /></div>' }),
 } satisfies Meta<typeof MyTaskRow>

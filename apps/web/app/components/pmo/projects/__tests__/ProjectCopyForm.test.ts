@@ -1,3 +1,4 @@
+import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { compileScript, parse } from '@vue/compiler-sfc'
@@ -35,7 +36,7 @@ function load({ locale = 'ar', source = { id: 12, name: 'Alpha' } as { id: numbe
   const sourceRef = Vue.ref(source)
   const bindings = {
     _defineComponent: Vue.defineComponent, computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, nextTick: Vue.nextTick,
-    useI18n: () => ({ t: translator(locale) }), useHydrated: () => Vue.ref(hydrated),
+    useI18n: () => ({ t: translator(locale) }), useHydrated: () => Vue.ref(hydrated), localIsoDay,
     useProject: () => ({ data: sourceRef, isLoading: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() }),
     useCopyProject: () => ({ mutateAsync: mutate, isPending: pending, error: mutationError }),
     ProjectCopyInputSchema, ApiError,

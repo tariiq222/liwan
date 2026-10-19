@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { financeOverviewTiles } from '../financeKpis'
 import { financeSetupProgress, financeSetupSteps } from '../financeSetupSteps'
-import { todayIsoDay } from '../useFinanceOverview'
 
 const t = (key: string) => key
 const n = (value: number, options?: Intl.NumberFormatOptions) => `${options?.currency ?? ''}${value}`
@@ -36,9 +35,3 @@ describe('finance setup steps', () => {
   })
 })
 
-describe('todayIsoDay', () => {
-  it('formats the local calendar day the report routes ask for', () => {
-    expect(todayIsoDay(new Date(2026, 9, 5, 23, 59))).toBe('2026-10-05')
-    expect(todayIsoDay(new Date(2026, 0, 31))).toBe('2026-01-31')
-  })
-})

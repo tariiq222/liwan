@@ -11,6 +11,6 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 export const Default: Story = {
-  parameters: storyContext('apps/web/app/pages/documents.vue:239'),
+  parameters: storyContext('apps/web/app/pages/documents.vue:241'),
   render: args => ({ components: { DocumentList, PageContainer }, setup: () => ({ args }), template: '<main class="webvue-shell-main"><PageContainer width="form"><DocumentList v-bind="args" /></PageContainer></main>' }),
 }

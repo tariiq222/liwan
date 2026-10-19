@@ -3,6 +3,7 @@ import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { useMeetings } from '@/composables/useMeetings'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
 import { formatCalendarDate, formatWebVueTime, isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterPatch } from '@/utils/meetingListFilters'
@@ -32,7 +33,7 @@ const cursor = ref(queryRangeValid
 const year = computed(() => cursor.value.getFullYear())
 const month = computed(() => cursor.value.getMonth())
 const monthPrefix = computed(() => `${year.value}-${String(month.value + 1).padStart(2, '0')}`)
-const dateFrom = computed(() => dateKey(new Date(year.value, month.value, 1 - MULTI_DAY_LOOKBACK_DAYS)))
+const dateFrom = computed(() => localIsoDay(new Date(year.value, month.value, 1 - MULTI_DAY_LOOKBACK_DAYS)))
 const dateTo = computed(() => {
   const last = new Date(year.value, month.value + 1, 0).getDate()
   return `${year.value}-${String(month.value + 1).padStart(2, '0')}-${String(last).padStart(2, '0')}`
@@ -87,12 +88,9 @@ const query = useMeetings(computed(() => ({
 const coverage = computed(() => calendarCoverage(query.data.value?.total, CALENDAR_PAGE_LIMIT))
 const weekStart = computed(() => (locale.value === 'ar' ? 0 : 1))
 
-function dateKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
 const rawQueryDay = firstQuery(route.query.day)
 const queryDay = isCalendarDate(rawQueryDay) && rawQueryDay.startsWith(monthPrefix.value) ? rawQueryDay : null
-const selectedDay = ref<string | null>(queryDay ?? (dateKey(new Date()).startsWith(monthPrefix.value) ? dateKey(new Date()) : null))
+const selectedDay = ref<string | null>(queryDay ?? (localIsoDay(new Date()).startsWith(monthPrefix.value) ? localIsoDay(new Date()) : null))
 watch([year, month, selectedDay], ([nextYear, nextMonth, day]) => {
   const monthNumber = nextMonth + 1
   if (Number(route.query.year) === nextYear && Number(route.query.month) === monthNumber && (firstQuery(route.query.day) ?? null) === day) return
@@ -142,7 +140,7 @@ function coveredDays(meeting: { meeting_date: string | null; start_datetime: str
   const first = startDay > monthFirst ? startDay : monthFirst
   const last = endDay < monthLast ? endDay : monthLast
   const days: string[] = []
-  for (let day = first; day <= last; day = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)) days.push(dateKey(day))
+  for (let day = first; day <= last; day = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)) days.push(localIsoDay(day))
   return days.length ? days : fallback
 }
 
@@ -189,7 +187,7 @@ const cells = computed(() => {
   const offset = (first.getDay() - weekStart.value + 7) % 7
   const days = new Date(year.value, month.value + 1, 0).getDate()
   const today = new Date()
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const todayKey = localIsoDay(today)
   const out: { key: string; day: number | null; today: boolean }[] = []
   for (let i = 0; i < offset; i++) out.push({ key: `p${i}`, day: null, today: false })
   for (let day = 1; day <= days; day++) {
@@ -209,7 +207,7 @@ function shift(delta: number) {
 function goToday() {
   const today = new Date()
   cursor.value = new Date(today.getFullYear(), today.getMonth(), 1)
-  selectedDay.value = dateKey(today)
+  selectedDay.value = localIsoDay(today)
 }
 </script>
 

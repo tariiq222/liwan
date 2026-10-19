@@ -399,7 +399,7 @@
         {
           "id": "Default",
           "name": "Default",
-          "context": "apps/web/app/pages/documents.vue:239"
+          "context": "apps/web/app/pages/documents.vue:241"
         }
       ]
     },
@@ -914,7 +914,7 @@
         {
           "id": "WithLabel",
           "name": "بعنوان ظاهر في الفلاتر",
-          "context": "apps/web/app/pages/meetings/series.vue:132"
+          "context": "apps/web/app/pages/meetings/series.vue:133"
         }
       ]
     },
@@ -1370,17 +1370,17 @@
         {
           "id": "Mine",
           "name": "Mine",
-          "context": "apps/web/app/pages/operations/index.vue:10"
+          "context": "apps/web/app/pages/operations/index.vue:11"
         },
         {
           "id": "Pending",
           "name": "Pending",
-          "context": "apps/web/app/pages/operations/index.vue:10"
+          "context": "apps/web/app/pages/operations/index.vue:11"
         },
         {
           "id": "Monitoring",
           "name": "Monitoring",
-          "context": "apps/web/app/pages/operations/index.vue:10"
+          "context": "apps/web/app/pages/operations/index.vue:11"
         }
       ]
     },
@@ -1727,12 +1727,12 @@
         {
           "id": "AboveProjectList",
           "name": "فوق قائمة المشاريع",
-          "context": "apps/web/app/pages/projects/index.vue:277"
+          "context": "apps/web/app/pages/projects/index.vue:278"
         },
         {
           "id": "StatusFilterCountsOnly",
           "name": "فلتر حالة: أرقام فقط",
-          "context": "apps/web/app/pages/projects/index.vue:277"
+          "context": "apps/web/app/pages/projects/index.vue:278"
         }
       ]
     },
@@ -1821,22 +1821,22 @@
         {
           "id": "Active",
           "name": "مشروع نشط",
-          "context": "apps/web/app/pages/projects/[id].vue:125"
+          "context": "apps/web/app/pages/projects/[id].vue:124"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/pages/projects/[id].vue:125"
+          "context": "apps/web/app/pages/projects/[id].vue:124"
         },
         {
           "id": "Governance",
           "name": "تبويبات الحوكمة الفرعية",
-          "context": "apps/web/app/pages/projects/[id].vue:125"
+          "context": "apps/web/app/pages/projects/[id].vue:124"
         },
         {
           "id": "Planning",
           "name": "التخطيط: الجدول الزمني والمعالم",
-          "context": "apps/web/app/pages/projects/[id].vue:125"
+          "context": "apps/web/app/pages/projects/[id].vue:124"
         }
       ]
     },
@@ -2017,12 +2017,12 @@
         {
           "id": "FilteredCountsOnly",
           "name": "فلتر يحدد النسب (متأخرة أو حالة): أرقام فقط",
-          "context": "apps/web/app/pages/tasks.vue:94"
+          "context": "apps/web/app/pages/tasks.vue:95"
         },
         {
           "id": "AboveTaskTable",
           "name": "فوق جدول المهام",
-          "context": "apps/web/app/pages/tasks.vue:94"
+          "context": "apps/web/app/pages/tasks.vue:95"
         }
       ]
     },
@@ -3579,32 +3579,32 @@
         {
           "id": "InPageToolbar",
           "name": "شريط أدوات صفحة",
-          "context": "apps/web/app/pages/projects/index.vue:281"
+          "context": "apps/web/app/pages/projects/index.vue:282"
         },
         {
           "id": "WithActiveFilters",
           "name": "مع فلاتر نشطة",
-          "context": "apps/web/app/pages/projects/index.vue:281"
+          "context": "apps/web/app/pages/projects/index.vue:282"
         },
         {
           "id": "FiltersOpen",
           "name": "نافذة الفلاتر مفتوحة",
-          "context": "apps/web/app/pages/projects/index.vue:281"
+          "context": "apps/web/app/pages/projects/index.vue:282"
         },
         {
           "id": "EmbeddedInCardHeader",
           "name": "مدمج في ترويسة بطاقة (صف واحد)",
-          "context": "apps/web/app/pages/projects/index.vue:281"
+          "context": "apps/web/app/pages/projects/index.vue:282"
         },
         {
           "id": "EmbeddedTaskFilters",
           "name": "مدمج: فلاتر المهام (الأولوية والمسؤول والموعد)",
-          "context": "apps/web/app/pages/projects/index.vue:281"
+          "context": "apps/web/app/pages/projects/index.vue:282"
         },
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/projects/index.vue:281"
+          "context": "apps/web/app/pages/projects/index.vue:282"
         }
       ]
     },
@@ -3639,12 +3639,12 @@
         {
           "id": "ActiveRow",
           "name": "صف الفلاتر النشطة",
-          "context": "apps/web/app/pages/meetings/index.vue:305"
+          "context": "apps/web/app/pages/meetings/index.vue:306"
         },
         {
           "id": "Disabled",
           "name": "معطّلة",
-          "context": "apps/web/app/pages/meetings/index.vue:305"
+          "context": "apps/web/app/pages/meetings/index.vue:306"
         }
       ]
     },
@@ -3792,17 +3792,17 @@
         {
           "id": "WithPager",
           "name": "عدد وترقيم",
-          "context": "apps/web/app/pages/projects/index.vue:343"
+          "context": "apps/web/app/pages/projects/index.vue:344"
         },
         {
           "id": "SinglePage",
           "name": "صفحة واحدة (العدد فقط)",
-          "context": "apps/web/app/pages/projects/index.vue:343"
+          "context": "apps/web/app/pages/projects/index.vue:344"
         },
         {
           "id": "Fetching",
           "name": "أثناء التحميل",
-          "context": "apps/web/app/pages/projects/index.vue:343"
+          "context": "apps/web/app/pages/projects/index.vue:344"
         }
       ]
     },
@@ -4680,7 +4680,7 @@
         {
           "id": "InFilterPopover",
           "name": "داخل نافذة الفلاتر",
-          "context": "apps/web/app/pages/meetings/index.vue:296"
+          "context": "apps/web/app/pages/meetings/index.vue:297"
         },
         {
           "id": "WithTime",
@@ -5373,17 +5373,17 @@
         {
           "id": "Fill",
           "name": "بحجم الشاشة (لوحة أو خط زمني)",
-          "context": "apps/web/app/pages/tasks.vue:95"
+          "context": "apps/web/app/pages/tasks.vue:96"
         },
         {
           "id": "WithFooter",
           "name": "مع تذييل",
-          "context": "apps/web/app/pages/tasks.vue:95"
+          "context": "apps/web/app/pages/tasks.vue:96"
         },
         {
           "id": "WithFilters",
           "name": "مع صف فلاتر",
-          "context": "apps/web/app/pages/tasks.vue:95"
+          "context": "apps/web/app/pages/tasks.vue:96"
         }
       ]
     },

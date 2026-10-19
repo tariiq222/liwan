@@ -89,3 +89,8 @@ export function formatDateTime(value: DateInput, timeZone?: string): string {
   const p = parts(date, timeZone)
   return isolateLtr(`${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`)
 }
+
+/** A date (default now) as the `YYYY-MM-DD` day in the browser's own calendar; `toISOString` would give the UTC day. */
+export function localIsoDay(date: Date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}

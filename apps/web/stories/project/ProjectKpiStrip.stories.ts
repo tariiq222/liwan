@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Project/ProjectKpiStrip',
   component: ProjectKpiStrip,
-  parameters: storyContext('apps/web/app/pages/projects/index.vue:277', 'أربع بطاقات مدمجة فوق قائمة المشاريع بنفس شريط مؤشرات المهام: الإجمالي والجارية وتحتاج متابعة (الرقم والأيقونة بالأحمر فقط) والمنجزة، لفلاتر القائمة نفسها. كل بطاقة بشريط تقدم رفيع بلون نبرتها، وبطاقة الإجمالي تعرض نسبة المنجز. ليست أزرارًا.'),
+  parameters: storyContext('apps/web/app/pages/projects/index.vue:278', 'أربع بطاقات مدمجة فوق قائمة المشاريع بنفس شريط مؤشرات المهام: الإجمالي والجارية وتحتاج متابعة (الرقم والأيقونة بالأحمر فقط) والمنجزة، لفلاتر القائمة نفسها. كل بطاقة بشريط تقدم رفيع بلون نبرتها، وبطاقة الإجمالي تعرض نسبة المنجز. ليست أزرارًا.'),
   args: { filters: {} },
   render: args => ({
     components: { ProjectKpiStrip },

@@ -22,6 +22,7 @@ const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
+const { shown: kpisShown } = useKpiVisibility()
 const { can } = useAccess()
 const hasProjectFilter = useRecordPickerAvailable('project')
 const routeFilters = computed(() => parseMeetingListFilters(route.query))
@@ -106,7 +107,7 @@ const kpis = useMeetingListKpis(() => ({
   project_id: routeFilters.value.projectId,
   organizer_id: routeFilters.value.organizerId,
   series_id: routeFilters.value.seriesId,
-}))
+}), kpisShown)
 const rows = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
 // The list's total as a tag in the heading, once the first page has arrived.

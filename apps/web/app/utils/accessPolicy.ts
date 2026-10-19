@@ -1,5 +1,6 @@
 import { canUse, featureForPath, hasFeature, pathIsWrite } from '../modules/registry'
 import { activeManifests, manifestForPath, settingsEntryForPath } from '../modules/manifests'
+import { settingsSections, type SettingsSectionId } from '../composables/nav/settingsSections'
 import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 
 /** Server capabilities gate navigation; resource authorization remains on the API. */
@@ -28,23 +29,22 @@ export function hasCapability(identity: AccessIdentity, capability: string): boo
 }
 
 type Destination = readonly [path: string, capability: string]
-// Foundation destinations stay here; applications add theirs through `landing`.
-const FOUNDATION_SETTINGS: readonly Destination[] = [
-  ['/settings/team/users', 'access.users.read'], ['/settings/team/roles', 'access.roles.read'], ['/settings/team/access-log', 'access.audit.read'],
-]
-const FOUNDATION_LAST: readonly Destination[] = [['/settings/company/profile', 'settings.company.read'], ['/settings/company/address', 'settings.company.read'], ['/settings/company/contact', 'settings.company.read'], ['/settings/company/branding', 'settings.branding.manage'], ['/settings/system/maintenance', 'settings.maintenance.manage'], ['/settings/system/integrations', 'integrations.read']]
 const FOUNDATION_RETURN_TO = ['/', '/account', '/search', '/notifications']
-/** Application landings in rail order, then settings, then the landings that sort after settings, the applications' settings pages, then branding. */
+/** The settings pages of one section (`settingsSections()` owns them), as destinations. */
+function sectionDestinations(id: SettingsSectionId): Destination[] {
+  return settingsSections().find(section => section.id === id)?.entries.map((entry): Destination => [entry.to, entry.capability]) ?? []
+}
+/** Application landings in rail order, then team settings, then the landings that sort after settings, the applications' settings pages, then company and system settings. */
 function destinations(): readonly Destination[] {
   const landing = activeManifests().flatMap(manifest => manifest.landing ?? [])
   const toDestination = (entry: { path: string; capability: string }): Destination => [entry.path, entry.capability]
-  const registered = activeManifests().flatMap(manifest => manifest.settings ?? []).map((entry): Destination => [entry.to, entry.capability])
   return [
     ...landing.filter(entry => !entry.late).map(toDestination),
-    ...FOUNDATION_SETTINGS,
+    ...sectionDestinations('team'),
     ...landing.filter(entry => entry.late).map(toDestination),
-    ...registered,
-    ...FOUNDATION_LAST,
+    ...sectionDestinations('apps'),
+    ...sectionDestinations('company'),
+    ...sectionDestinations('system'),
   ]
 }
 export function canReach(identity: AccessIdentity, capability: string, path?: string): boolean {
