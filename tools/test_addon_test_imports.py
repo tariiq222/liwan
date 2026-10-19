@@ -11,10 +11,9 @@ from pathlib import Path
 
 ADDONS = Path(__file__).resolve().parent.parent / 'odoo-addons'
 HELPER = 'import_all_tests'
-# Addons whose tests/__init__.py may still import each file by name. The two pending ones are
-# converted to the helper at the next integration and then leave this set; base_tier_validation
-# is vendored OCA code and stays the single documented exception.
-EXPLICIT_IMPORTS_ALLOWED = frozenset({'webvue_finance', 'webvue_hr', 'base_tier_validation'})
+# Addons whose tests/__init__.py may import each file by name: base_tier_validation is vendored
+# OCA code and stays the single documented exception.
+EXPLICIT_IMPORTS_ALLOWED = frozenset({'base_tier_validation'})
 
 
 def collects_everything(init_source: str) -> bool:
