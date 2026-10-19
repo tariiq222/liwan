@@ -15,10 +15,20 @@
     <record id="group_cap_hr_departments_manage" model="res.groups"><field name="name">Capability: manage departments</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
     <record id="group_cap_hr_documents_read" model="res.groups"><field name="name">Capability: read HR documents</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
     <record id="group_cap_hr_documents_manage" model="res.groups"><field name="name">Capability: manage HR documents</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
+    <!-- Leave runs on stock hr_holidays. Reading and requesting stay on the stock
+         employee rules (own records only). Approving and managing need the stock
+         time-off officer group, which hr_holidays checks for every state change. That
+         group implies hr.group_hr_user, the same private-field access the employee
+         management capability already grants; WebVue serializers never return those
+         fields. It never implies the time-off manager group or any payroll group. -->
+    <record id="group_cap_hr_leave_read" model="res.groups"><field name="name">Capability: read leave</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
+    <record id="group_cap_hr_leave_request" model="res.groups"><field name="name">Capability: request leave</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
+    <record id="group_cap_hr_leave_approve" model="res.groups"><field name="name">Capability: approve leave</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/><field name="implied_ids" eval="[Command.link(ref('hr_holidays.group_hr_holidays_user'))]"/></record>
+    <record id="group_cap_hr_leave_manage" model="res.groups"><field name="name">Capability: manage leave</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/><field name="implied_ids" eval="[Command.link(ref('hr_holidays.group_hr_holidays_user'))]"/></record>
 
     <record id="group_hr_manager" model="res.groups">
         <field name="name">HR Manager</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/>
-        <field name="implied_ids" eval="[Command.set([ref('webvue_core.group_employee'),ref('group_cap_hr_employees_read'),ref('group_cap_hr_employees_manage'),ref('group_cap_hr_employees_archive'),ref('group_cap_hr_employees_access_status_read'),ref('group_cap_hr_departments_read'),ref('group_cap_hr_departments_manage'),ref('group_cap_hr_documents_read'),ref('group_cap_hr_documents_manage')])]"/>
+        <field name="implied_ids" eval="[Command.set([ref('webvue_core.group_employee'),ref('group_cap_hr_employees_read'),ref('group_cap_hr_employees_manage'),ref('group_cap_hr_employees_archive'),ref('group_cap_hr_employees_access_status_read'),ref('group_cap_hr_departments_read'),ref('group_cap_hr_departments_manage'),ref('group_cap_hr_documents_read'),ref('group_cap_hr_documents_manage'),ref('group_cap_hr_leave_read'),ref('group_cap_hr_leave_request'),ref('group_cap_hr_leave_approve'),ref('group_cap_hr_leave_manage')])]"/>
     </record>
 
     <!-- webvue_core's support group and user-directory rule reach HR through these links. -->

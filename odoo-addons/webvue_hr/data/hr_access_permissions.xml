@@ -64,11 +64,43 @@
         <field name="group_xmlid">webvue_hr.group_cap_hr_documents_manage</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
     </record>
+    <record id="permission_hr_leave_read" model="webvue.access.permission">
+        <field name="key">hr.leave.read</field><field name="domain">hr</field>
+        <field name="resource">leave</field><field name="action">read</field>
+        <field name="name_ar">قراءة الإجازات</field><field name="name_en">Read leave</field>
+        <field name="description_ar">قراءة الإجازات</field><field name="description_en">Read leave</field>
+        <field name="group_xmlid">webvue_hr.group_cap_hr_leave_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_hr_leave_request" model="webvue.access.permission">
+        <field name="key">hr.leave.request</field><field name="domain">hr</field>
+        <field name="resource">leave</field><field name="action">request</field>
+        <field name="name_ar">طلب إجازة</field><field name="name_en">Request leave</field>
+        <field name="description_ar">طلب إجازة</field><field name="description_en">Request leave</field>
+        <field name="group_xmlid">webvue_hr.group_cap_hr_leave_request</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_hr_leave_approve" model="webvue.access.permission">
+        <field name="key">hr.leave.approve</field><field name="domain">hr</field>
+        <field name="resource">leave</field><field name="action">approve</field>
+        <field name="name_ar">اعتماد الإجازات</field><field name="name_en">Approve leave</field>
+        <field name="description_ar">اعتماد الإجازات</field><field name="description_en">Approve leave</field>
+        <field name="group_xmlid">webvue_hr.group_cap_hr_leave_approve</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_hr_leave_manage" model="webvue.access.permission">
+        <field name="key">hr.leave.manage</field><field name="domain">hr</field>
+        <field name="resource">leave</field><field name="action">manage</field>
+        <field name="name_ar">إدارة أرصدة الإجازات</field><field name="name_en">Manage leave balances</field>
+        <field name="description_ar">إدارة أرصدة الإجازات</field><field name="description_en">Manage leave balances</field>
+        <field name="group_xmlid">webvue_hr.group_cap_hr_leave_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
     <data noupdate="1">
         <record id="role_hr_manager" model="webvue.access.role">
             <field name="key">hr_manager</field><field name="name_ar">مدير الموارد البشرية</field><field name="name_en">HR manager</field>
             <field name="description">HR manager</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
-            <field name="permission_ids" eval="[Command.set([ref('permission_hr_employees_read'),ref('permission_hr_employees_manage'),ref('permission_hr_employees_archive'),ref('permission_hr_employees_access_status_read'),ref('permission_hr_departments_read'),ref('permission_hr_departments_manage'),ref('permission_hr_documents_read'),ref('permission_hr_documents_manage')])]"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_hr_employees_read'),ref('permission_hr_employees_manage'),ref('permission_hr_employees_archive'),ref('permission_hr_employees_access_status_read'),ref('permission_hr_departments_read'),ref('permission_hr_departments_manage'),ref('permission_hr_documents_read'),ref('permission_hr_documents_manage'),ref('permission_hr_leave_read'),ref('permission_hr_leave_request'),ref('permission_hr_leave_approve'),ref('permission_hr_leave_manage')])]"/>
         </record>
     </data>
     <!-- Built-in roles are noupdate records: these hooks link this addon's grants and

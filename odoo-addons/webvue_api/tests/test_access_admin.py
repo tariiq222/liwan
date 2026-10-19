@@ -273,9 +273,9 @@ class TestAccessAdminRoles(WebVueApiCase):
         installed_all = {
             module.name for module in self.env['ir.module.module'].search([('state', '=', 'installed')])
         }
-        # 9 core capabilities, plus 8 for HR, 8 for PMO and 3 for meetings.
+        # 9 core capabilities, plus 12 for HR, 8 for PMO and 3 for meetings.
         total = (
-            9 + 8 * ('webvue_hr' in installed) + 8 * ('webvue_pmo' in installed)
+            9 + 12 * ('webvue_hr' in installed) + 8 * ('webvue_pmo' in installed)
             + 3 * ('webvue_meetings' in installed)
         )
         # An application added later adds capabilities; today's are exact.

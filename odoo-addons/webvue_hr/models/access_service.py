@@ -8,9 +8,11 @@ HR_PERMISSIONS = frozenset({
     'hr.employees.read', 'hr.employees.manage', 'hr.employees.archive',
     'hr.employees.access_status.read', 'hr.departments.read',
     'hr.departments.manage', 'hr.documents.read', 'hr.documents.manage',
+    'hr.leave.read', 'hr.leave.request', 'hr.leave.approve', 'hr.leave.manage',
 })
 EMPLOYEE_HR_PERMISSIONS = frozenset({
     'hr.employees.read', 'hr.departments.read', 'hr.documents.read',
+    'hr.leave.read', 'hr.leave.request',
 })
 HR_PERMISSION_DEPENDENCIES = {
     'hr.employees.manage': {'hr.employees.read'},
@@ -18,6 +20,9 @@ HR_PERMISSION_DEPENDENCIES = {
     'hr.employees.access_status.read': {'hr.employees.read'},
     'hr.departments.manage': {'hr.departments.read'},
     'hr.documents.manage': {'hr.documents.read'},
+    'hr.leave.request': {'hr.leave.read'},
+    'hr.leave.approve': {'hr.leave.read'},
+    'hr.leave.manage': {'hr.leave.read'},
 }
 
 

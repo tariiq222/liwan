@@ -23,12 +23,12 @@ class TestHrAccessComposition(TransactionCase):
     def _keys(self, role_xmlid):
         return set(self.env.ref(role_xmlid).permission_ids.mapped('key'))
 
-    def test_hr_owns_its_eight_capabilities_and_their_groups(self):
+    def test_hr_owns_its_twelve_capabilities_and_their_groups(self):
         catalog = self.service._webvue_capability_map()
-        self.assertEqual(len(HR_PERMISSIONS), 8)
+        self.assertEqual(len(HR_PERMISSIONS), 12)
         self.assertEqual({key for key, item in catalog.items() if item['owner'] == 'webvue_hr'}, set(HR_PERMISSIONS))
         permissions = self.Permission.search([('key', 'in', sorted(HR_PERMISSIONS))])
-        self.assertEqual(len(permissions), 8)
+        self.assertEqual(len(permissions), 12)
         xmlids = permissions.get_external_id()
         for permission in permissions:
             self.assertTrue(xmlids[permission.id].startswith('webvue_hr.permission_hr_'), permission.key)
