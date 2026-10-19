@@ -86,13 +86,14 @@ function setPage(next: number) {
 }
 
 const decisionError = ref('')
-const confirmingCancel = ref<number | null>(null)
+// The pending row to withdraw, or the decided row to cancel; both confirm inline first.
+const confirming = ref<{ id: number; withdraw: boolean } | null>(null)
 async function decide(leave: HrLeave, kind: HrLeaveDecision) {
   if (!hydrated.value || decision.isPending.value) return
   decisionError.value = ''
   try {
     await decision.mutateAsync({ id: leave.id, decision: kind })
-    confirmingCancel.value = null
+    confirming.value = null
   } catch (cause) {
     decisionError.value = cause instanceof ApiError ? cause.message : t('errors.generic')
   }
@@ -101,10 +102,15 @@ function rowActions(leave: HrLeave) {
   return [
     ...(canApprove.value && leave.can_approve ? [{ label: t('hr.leave.approve'), icon: 'i-lucide-check' as const, onSelect: () => decide(leave, 'approve') }] : []),
     ...(canApprove.value && leave.can_refuse ? [{ label: t('hr.leave.refuse'), icon: 'i-lucide-x' as const, onSelect: () => decide(leave, 'refuse') }] : []),
-    ...(leave.can_cancel ? [{ label: t('hr.leave.cancel'), icon: 'i-lucide-ban' as const, destructive: true, onSelect: () => { confirmingCancel.value = leave.id } }] : []),
+    ...(leave.can_withdraw
+      ? [{ label: t('hr.leave.withdraw'), icon: 'i-lucide-undo-2' as const, destructive: true, onSelect: () => { confirming.value = { id: leave.id, withdraw: true } } }]
+      : []),
+    ...(leave.can_cancel
+      ? [{ label: t('hr.leave.cancel'), icon: 'i-lucide-ban' as const, destructive: true, onSelect: () => { confirming.value = { id: leave.id, withdraw: false } } }]
+      : []),
   ]
 }
-const cancelling = computed(() => items.value.find(item => item.id === confirmingCancel.value) ?? null)
+const confirmingLeave = computed(() => items.value.find(item => item.id === confirming.value?.id) ?? null)
 
 function period(leave: HrLeave) {
   return leave.date_from === leave.date_to ? leave.date_from : t('hr.leave.range', { from: leave.date_from, to: leave.date_to })
@@ -158,15 +164,15 @@ const allocateTo = computed(() => ({ path: '/hr/leave/allocations/new', query: l
       <UAlert v-if="decisionError" role="alert" color="error" variant="subtle" :title="decisionError" data-testid="hr-leave-decision-error" />
 
       <SharedInlineConfirm
-        v-if="cancelling"
-        :title="t('hr.leave.cancelConfirm', { type: cancelling.leave_type.name })"
-        :confirm-label="t('hr.leave.cancel')"
+        v-if="confirmingLeave && confirming"
+        :title="t(confirming.withdraw ? 'hr.leave.withdrawConfirm' : 'hr.leave.cancelConfirm', { type: confirmingLeave.leave_type.name })"
+        :confirm-label="t(confirming.withdraw ? 'hr.leave.withdraw' : 'hr.leave.cancel')"
         :cancel-label="t('app.back')"
         :pending="decision.isPending.value"
         :disabled="!hydrated"
         color="error"
-        @confirm="decide(cancelling, 'cancel')"
-        @cancel="confirmingCancel = null"
+        @confirm="decide(confirmingLeave, 'cancel')"
+        @cancel="confirming = null"
       />
 
       <SharedListCard>

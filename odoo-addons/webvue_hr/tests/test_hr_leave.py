@@ -8,7 +8,7 @@ from .common import WebVueHrCase
 
 LEAVE_KEYS = {
     'id', 'employee', 'leave_type', 'date_from', 'date_to', 'number_of_days',
-    'state', 'notes', 'can_approve', 'can_refuse', 'can_cancel',
+    'state', 'notes', 'can_approve', 'can_refuse', 'can_cancel', 'can_withdraw',
 }
 BALANCE_KEYS = {'leave_type', 'allocated', 'taken', 'pending', 'remaining'}
 TYPE_KEYS = {'id', 'name', 'requires_allocation', 'support_document'}
@@ -293,13 +293,36 @@ class TestHrLeave(WebVueHrCase):
 
     def test_requester_withdraws_a_pending_request(self):
         self._as_staff()
-        leave_id = self._request(days=1).json()['id']
+        created = self._request(days=1).json()
+        self.assertTrue(created['can_withdraw'])
+        self.assertFalse(created['can_cancel'])
+        leave_id = created['id']
         res = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/cancel', json={})
         self.assertEqual(res.status_code, 204, res.text)
         self.assertFalse(self.env['hr.leave'].browse(leave_id).exists())
         balances = self.api('GET', '/api/v1/hr/leave/balances').json()['items']
         annual = next(b for b in balances if b['leave_type']['id'] == self.annual.id)
         self.assertEqual(annual['pending'], 0)
+
+    def test_withdraw_is_only_for_the_requester_and_a_pending_request(self):
+        other_leave = self.env['hr.leave'].create({
+            'employee_id': self.other_employee.id,
+            'holiday_status_id': self.sick.id,
+            'request_date_from': self.monday,
+            'request_date_to': self.monday,
+        })
+        # The requester's own pending request is withdrawable; someone else's is not.
+        self._as_staff()
+        own_id = self._request(days=1).json()['id']
+        self.assertTrue(self.api('GET', f'/api/v1/hr/leave/requests/{own_id}').json()['can_withdraw'])
+        self._as_manager()
+        self.assertFalse(self.api('GET', f'/api/v1/hr/leave/requests/{other_leave.id}').json()['can_withdraw'])
+        # A decided request is cancelled, never withdrawn.
+        leave_id = self._request(days=1).json()['id']
+        self.env['hr.leave'].browse(leave_id).action_approve()
+        detail = self.api('GET', f'/api/v1/hr/leave/requests/{leave_id}').json()
+        self.assertFalse(detail['can_withdraw'])
+        self.assertTrue(detail['can_cancel'])
 
     def test_another_company_leave_is_not_found(self):
         other_company = self.env['res.company'].create({

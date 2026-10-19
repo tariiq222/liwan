@@ -236,6 +236,8 @@
         "refuse": "رفض",
         "cancel": "إلغاء الإجازة",
         "cancelConfirm": "إلغاء {type}؟ يعود الرصيد إذا كانت الإجازة معتمدة.",
+        "withdraw": "سحب الطلب",
+        "withdrawConfirm": "سحب {type}؟ يُحذف الطلب ويعود الرصيد المحجوز.",
         "actionsFor": "إجراءات {type}",
         "footer": "لا طلبات | عرض {shown} من طلب واحد | عرض {shown} من طلبين | عرض {shown} من {total} طلبات | عرض {shown} من {total} طلبًا | عرض {shown} من {total} طلب",
         "form": {

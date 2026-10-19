@@ -307,7 +307,7 @@ describe('leave', () => {
   const leave = {
     id: 5, employee: ref, leave_type: { id: 2, name: 'Annual leave' },
     date_from: '2026-11-02', date_to: '2026-11-03', number_of_days: 2, state: 'confirm',
-    notes: '', can_approve: false, can_refuse: false, can_cancel: false,
+    notes: '', can_approve: false, can_refuse: false, can_cancel: false, can_withdraw: true,
   }
 
   it('accepts a leave request list', () => {

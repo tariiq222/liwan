@@ -236,6 +236,8 @@
         "refuse": "Refuse",
         "cancel": "Cancel leave",
         "cancelConfirm": "Cancel {type}? The balance returns if the leave was approved.",
+        "withdraw": "Withdraw request",
+        "withdrawConfirm": "Withdraw {type}? The request is deleted and the held balance returns.",
         "actionsFor": "Actions for {type}",
         "footer": "{shown} of 1 request | {shown} of {total} requests",
         "form": {

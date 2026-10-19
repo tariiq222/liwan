@@ -163,8 +163,10 @@ test('an employee withdraws a request that is still waiting for a decision', asy
   const row = leaveRow(page, leave.id)
   await expect(row.getByTestId('hr-leave-state')).toHaveText('بانتظار الاعتماد')
   await row.getByTestId('row-actions-menu').click()
+  await page.getByRole('menuitem', { name: 'سحب الطلب' }).click()
+  // Withdrawing deletes the request, so it asks first.
   const withdrawn = page.waitForResponse(response => response.url().endsWith(`/api/v1/hr/leave/requests/${leave.id}/cancel`))
-  await page.getByRole('menuitem', { name: 'إلغاء الإجازة' }).click()
+  await page.getByRole('button', { name: 'سحب الطلب' }).last().click()
   expect((await withdrawn).status()).toBe(204)
   // The request is gone and the day is no longer held against the balance.
   await expect(page.getByTestId(`hr-leave-row-${leave.id}`)).toHaveCount(0)

@@ -37,6 +37,9 @@ def dump_leave(leave):
         'can_approve': bool(leave.can_approve or leave.can_validate) and not own,
         'can_refuse': bool(leave.can_refuse) and not own,
         'can_cancel': bool(leave.can_cancel),
+        # A request still waiting for a decision is withdrawn by deleting it; stock only
+        # offers cancel once a decision exists.
+        'can_withdraw': own and leave.state == 'confirm',
     }
 
 

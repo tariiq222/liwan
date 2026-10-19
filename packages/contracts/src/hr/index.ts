@@ -203,6 +203,7 @@ export const HrLeaveSchema = z.object({
   can_approve: z.boolean(),
   can_refuse: z.boolean(),
   can_cancel: z.boolean(),
+  can_withdraw: z.boolean(),
 }).strict()
 
 export const HrLeaveBalanceSchema = z.object({
