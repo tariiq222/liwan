@@ -12,7 +12,7 @@ import { useNav } from '../../composables/nav/shellModules'
 import ar from '../../../i18n/locales/ar/integrations.json'
 import en from '../../../i18n/locales/en/integrations.json'
 
-const page = resolve(import.meta.dirname, '../settings/integrations.vue')
+const page = resolve(import.meta.dirname, '../settings/system/integrations.vue')
 const ZATCA = { id: 1, kind: 'zatca', provider: 'ZATCA', state: 'not_configured', last_checked: null, status_message: '' }
 const BANK = { id: 2, kind: 'bank', provider: 'Al Rajhi', state: 'error', last_checked: '2030-01-15T10:30:00Z', status_message: 'Certificate expired' }
 
@@ -56,7 +56,7 @@ function flatten(tree: Record<string, unknown>, prefix = ''): Record<string, str
   }, {})
 }
 
-describe('/settings/integrations', () => {
+describe('/settings/system/integrations', () => {
   it('lists each connection with kind, provider, state, last check and message', async () => {
     expect(IntegrationConnectionListSchema.safeParse({ items: [ZATCA, BANK], total: 2 }).success).toBe(true)
     const html = await render({ capabilities: ['integrations.read'], items: [ZATCA, BANK] })
@@ -84,10 +84,10 @@ describe('/settings/integrations', () => {
 
 describe('integrations navigation and locales', () => {
   it('gates direct navigation and the settings link on integrations.read', () => {
-    expect(canReachPath({ capabilities: [] }, '/settings/integrations')).toBe(false)
-    expect(canReachPath({ capabilities: ['integrations.read'] }, '/settings/integrations')).toBe(true)
-    expect(useNav({ capabilities: [] }).map(item => item.to)).not.toContain('/settings/integrations')
-    expect(useNav({ capabilities: ['integrations.read'] }).map(item => item.to)).toContain('/settings/integrations')
+    expect(canReachPath({ capabilities: [] }, '/settings/system/integrations')).toBe(false)
+    expect(canReachPath({ capabilities: ['integrations.read'] }, '/settings/system/integrations')).toBe(true)
+    expect(useNav({ capabilities: [] }).map(item => item.to)).not.toContain('/settings/system/integrations')
+    expect(useNav({ capabilities: ['integrations.read'] }).map(item => item.to)).toContain('/settings/system/integrations')
   })
 
   it('ships the same keys in Arabic and English', () => {

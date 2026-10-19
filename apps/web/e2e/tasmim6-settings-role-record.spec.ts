@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { ROLE_DETAIL, USERS, fitsWidth, loginAdmin, mockAdminApi, openClientSide } from './support/tasmim6d'
 
-// Plan 6d: /settings/roles/:id on SharedRecordPage (admin API fulfilled in the browser).
+// Plan 6d: /settings/team/roles/:id on SharedRecordPage (admin API fulfilled in the browser).
 test.describe('Plan 6d: the role record', () => {
   test.beforeEach(async ({ page }) => { await loginAdmin(page); await mockAdminApi(page) })
 
@@ -9,7 +9,7 @@ test.describe('Plan 6d: the role record', () => {
     test.use({ viewport: { width: 1440, height: 900 } })
 
     test('is the record template: one h1, tabs, the permission form, assigned users and the aside', async ({ page }) => {
-      await openClientSide(page, '/settings/roles/3?q=%D9%85&type=custom')
+      await openClientSide(page, '/settings/team/roles/3?q=%D9%85&type=custom')
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('مراجع')
       await expect(page.locator('[data-template="record"]')).toHaveCount(1)
       await expect(page.getByRole('navigation', { name: 'أقسام الدور', exact: true })).toBeVisible()
@@ -25,7 +25,7 @@ test.describe('Plan 6d: the role record', () => {
     })
 
     test('disable asks inline, cancel closes it, and nothing opens a dialog', async ({ page }) => {
-      await openClientSide(page, '/settings/roles/3')
+      await openClientSide(page, '/settings/team/roles/3')
       await page.getByTestId('row-actions-menu').click()
       await page.getByRole('menuitem', { name: 'إيقاف الدور' }).click()
       await expect(page.getByRole('button', { name: 'تأكيد', exact: true })).toBeVisible()
@@ -43,7 +43,7 @@ test.describe('Plan 6d: the role record', () => {
         posts += 1
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(updated) })
       })
-      await openClientSide(page, '/settings/roles/3')
+      await openClientSide(page, '/settings/team/roles/3')
       await page.getByTestId('row-actions-menu').click()
       await page.getByRole('menuitem', { name: 'إيقاف الدور' }).click()
       await page.getByRole('button', { name: 'تأكيد', exact: true }).click()
@@ -58,7 +58,7 @@ test.describe('Plan 6d: the role record', () => {
 
     test('a version conflict keeps its alert and a missing role shows the not-found state', async ({ page }) => {
       await page.route('**/api/v1/admin/roles/3', route => route.fulfill({ status: 409, contentType: 'application/json', body: '{"code":"conflict","message":"stale"}' }))
-      await openClientSide(page, '/settings/roles/3')
+      await openClientSide(page, '/settings/team/roles/3')
       await expect(page.locator('[data-slot="record-main"] [role="alert"]')).toContainText("تغير الدور أثناء التحرير. أعد تحميل النسخة الأحدث.")
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       // The authenticated app is already hydrated; keep these same-page record
@@ -66,7 +66,7 @@ test.describe('Plan 6d: the role record', () => {
       for (const id of ['999', '0', 'abc', '-1', '1.5', '9007199254740992']) {
         await page.evaluate(
           target => (window as unknown as { useNuxtApp: () => { $router: { push: (to: string) => Promise<unknown> } } }).useNuxtApp().$router.push(target),
-          `/settings/roles/${id}`,
+          `/settings/team/roles/${id}`,
         )
         await expect(page.locator('[data-slot="not-found-state"]')).toBeVisible()
         await expect(page.locator('[data-slot="record-aside"]')).toHaveCount(0)
@@ -78,7 +78,7 @@ test.describe('Plan 6d: the role record', () => {
   test.describe('phone', () => {
     test.use({ viewport: { width: 390, height: 844 } })
     test('on a 390px phone the sections stack and the assigned users show as mobile rows', async ({ page }) => {
-      await openClientSide(page, '/settings/roles/3')
+      await openClientSide(page, '/settings/team/roles/3')
       await expect(page.locator('#assigned-users li[data-shortcut-row]')).toHaveCount(USERS.items.length)
       expect(await fitsWidth(page)).toBe(true)
     })

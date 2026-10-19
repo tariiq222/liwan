@@ -144,7 +144,7 @@ test('real settings grant, reset, disable and reactivate use employee scope and 
   expect(role).toBeTruthy()
   const initialPassword = process.env.E2E_GRANT_PASSWORD ?? 'scratch-services-grant-2026'
   const changedPassword = `${initialPassword}-changed`
-  await open(page, `/settings/users/new?employee_id=${fixture.grant_employee}`)
+  await open(page, `/settings/team/users/new?employee_id=${fixture.grant_employee}`)
   const panel = page.getByRole('dialog')
   await panel.getByRole('checkbox', { name: role.name.ar, exact: true }).check()
   await panel.locator('#password').fill(initialPassword)
@@ -155,8 +155,8 @@ test('real settings grant, reset, disable and reactivate use employee scope and 
   expect(user.employee.id).toBe(fixture.grant_employee)
   expect(user.login).toBe(fixture.grant_email)
   expect(user.assignments).toEqual(expect.arrayContaining([expect.objectContaining({ role: expect.objectContaining({ id: role.id }), scope: expect.objectContaining({ id: fixture.company }) })]))
-  await expect.poll(() => new URL(page.url()).pathname).toBe(`/settings/users/${user.id}`)
-  await open(page, `/settings/users/${user.id}/security`)
+  await expect.poll(() => new URL(page.url()).pathname).toBe(`/settings/team/users/${user.id}`)
+  await open(page, `/settings/team/users/${user.id}/security`)
   await page.locator('#admin-password').fill(changedPassword)
   await page.locator('#admin-password-confirmation').fill(changedPassword)
   await page.getByRole('button', { name: 'إعادة تعيين كلمة المرور', exact: true }).click()
@@ -186,7 +186,7 @@ test('real settings grant, reset, disable and reactivate use employee scope and 
     expect(identity.id).toBe(user.id)
     expect(identity.capabilities).not.toContain('access.users.read')
     expect((await peer.request.get(`/api/v1/admin/users/${fixture.admin}`)).status()).toBe(403)
-    await peer.goto(new URL(`/settings/users/${fixture.admin}/security`, page.url()).href)
+    await peer.goto(new URL(`/settings/team/users/${fixture.admin}/security`, page.url()).href)
     await expect(peer.getByRole('heading', { level: 1 })).toHaveText('تعذّر عرض الصفحة')
     await expect(peer.locator('main')).toContainText('403')
     await expect(peer.locator('#admin-password')).toHaveCount(0)

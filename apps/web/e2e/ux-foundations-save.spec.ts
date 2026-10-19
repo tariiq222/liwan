@@ -13,7 +13,7 @@ test('employee creation explains a missing name instead of disabling an unexplai
 })
 
 test('required fields explain a failed attempt and focus the field instead of silently disabling creation', async ({ page }) => {
-  await enterFoundation(page, '/settings/roles/new')
+  await enterFoundation(page, '/settings/team/roles/new')
   const submit = page.getByRole('button', { name: 'إنشاء دور', exact: true })
   await expect(submit).toBeEnabled()
   await submit.click()
@@ -32,7 +32,7 @@ test('a delayed duplicate submit sends once and a field error preserves the draf
     await gate
     await route.fulfill({ status: 422, json: { code: 'invalid', message: 'الاسم مستخدم، اختر اسمًا آخر.', field: 'name.ar' } })
   })
-  await enterFoundation(page, '/settings/roles/new')
+  await enterFoundation(page, '/settings/team/roles/new')
   await page.locator('#name-ar').fill('دور رحلة الحفظ')
   await page.getByRole('button', { name: 'إنشاء دور', exact: true }).dblclick()
   await expect.poll(() => count).toBe(1)
@@ -51,7 +51,7 @@ test('an interrupted save states that the outcome is unknown and never retries a
     count++
     await route.abort('connectionfailed')
   })
-  await enterFoundation(page, '/settings/roles/new')
+  await enterFoundation(page, '/settings/team/roles/new')
   await page.locator('#name-ar').fill('دور اتصال منقطع')
   await page.getByRole('button', { name: 'إنشاء دور', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('لم نتأكد من اكتمال الحفظ')
@@ -60,14 +60,14 @@ test('an interrupted save states that the outcome is unknown and never retries a
 })
 
 test('closing a dirty creation offers staying and keeps the draft', async ({ page }) => {
-  await enterFoundation(page, '/settings/roles/new')
+  await enterFoundation(page, '/settings/team/roles/new')
   await page.locator('#name-ar').fill('مسودة باقية')
   await page.getByRole('dialog').getByRole('button', { name: 'إغلاق', exact: true }).click()
   const guard = page.getByTestId('unsaved-changes-dialog')
   await expect(guard).toBeVisible()
   await guard.getByRole('button', { name: 'البقاء في الصفحة', exact: true }).click()
   await expect(page.locator('#name-ar')).toHaveValue('مسودة باقية')
-  await expect(page).toHaveURL(/\/settings\/roles\/new$/)
+  await expect(page).toHaveURL(/\/settings\/team\/roles\/new$/)
 })
 
 for (const status of [403, 409, 500]) {
@@ -75,7 +75,7 @@ for (const status of [403, 409, 500]) {
     await page.route('**/api/v1/admin/roles', route => route.request().method() === 'POST'
       ? route.fulfill({ status, json: { code: status === 409 ? 'conflict' : status === 403 ? 'forbidden' : 'internal', message: 'تعذر إتمام الطلب' } })
       : route.continue())
-    await enterFoundation(page, '/settings/roles/new')
+    await enterFoundation(page, '/settings/team/roles/new')
     await page.locator('#name-ar').fill('مسودة لم تحفظ')
     await page.locator('#name-ar').press('Enter')
     await expect(page.getByRole('dialog').getByRole('alert')).toBeVisible()
@@ -92,7 +92,7 @@ test('automatic settings save announces pending then confirmed success in place'
     await gate
     await route.continue()
   })
-  await enterFoundation(page, '/projects/settings')
+  await enterFoundation(page, '/settings/apps/projects')
   const control = page.getByRole('switch', { name: 'يشترط مدير المشروع', exact: true })
   await expect(control).toBeEnabled()
   await control.click()
@@ -112,7 +112,7 @@ test('an automatic save failure retains its stage draft and retries only on requ
     if (patches.length === 1) return route.fulfill({ status: 500, json: { code: 'internal', message: 'تعذر حفظ الإعدادات' } })
     await route.continue()
   })
-  await enterFoundation(page, '/projects/settings')
+  await enterFoundation(page, '/settings/apps/projects')
   const name = 'مرحلة محفوظة بعد إعادة المحاولة'
   await page.getByTestId('stage-add-input').fill(name)
   await page.getByTestId('stage-add-input').press('Enter')

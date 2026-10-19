@@ -12,7 +12,7 @@ describe('workspacePresentation', () => {
     for (const path of ['/chat', '/chat/7', '/chat/new', '/login', '/meetings/7/print']) {
       expect(presentation.pageArea(path).plain, path).toBe(true)
     }
-    for (const path of ['/projects', '/projects/7/tasks', '/hr', '/tasks/7', '/settings/users', '/notifications', '/account', '/search', '/reports']) {
+    for (const path of ['/projects', '/projects/7/tasks', '/hr', '/tasks/7', '/settings/team/users', '/notifications', '/account', '/search', '/reports']) {
       expect(presentation.pageArea(path).plain, path).toBe(false)
     }
   })

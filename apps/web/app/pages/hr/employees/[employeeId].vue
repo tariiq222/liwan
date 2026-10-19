@@ -33,7 +33,7 @@ const menuActions = computed<RowAction[]>(() => {
   const employee = query.data.value
   if (!employee) return []
   return [
-    ...(employee.user_id && can('access.users.read') ? [{ label: t('hr.employee.manageAccount'), icon: 'i-lucide-user-cog', to: `/settings/users/${employee.user_id}` } satisfies RowAction] : []),
+    ...(employee.user_id && can('access.users.read') ? [{ label: t('hr.employee.manageAccount'), icon: 'i-lucide-user-cog', to: `/settings/team/users/${employee.user_id}` } satisfies RowAction] : []),
     ...(can('hr.employees.archive') ? [{
       label: employee.active ? t('hr.employee.archive') : t('hr.employee.unarchive'),
       icon: employee.active ? 'i-lucide-archive' : 'i-lucide-archive-restore',

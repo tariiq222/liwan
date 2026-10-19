@@ -173,7 +173,7 @@ describe('meeting and employee owning-list return context', () => {
     edit.stop()
   })
 
-  it.each(['https://evil.test', '//evil.test', '/meetings/88', '/meetings/calendar/nested', '/settings/users'])('rejects non-owning meeting origin %s and preserves direct state', async origin => {
+  it.each(['https://evil.test', '//evil.test', '/meetings/88', '/meetings/calendar/nested', '/settings/team/users'])('rejects non-owning meeting origin %s and preserves direct state', async origin => {
     const page = await load(meeting, { path: '/meetings/7', query: { returnTo: origin, q: 'review' }, hash: '#section' })
     expect(target(page).fullPath).toBe('/meetings?q=review#section')
     page.stop()

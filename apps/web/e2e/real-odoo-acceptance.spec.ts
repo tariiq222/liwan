@@ -24,7 +24,7 @@ test('real login form rejects invalid credentials then loads a real capability i
     expect(me.company.id).toBe(fixture.company);
     expect(me.capabilities).toContain('hr.employees.manage');
 });
-for (const path of ['/projects', '/projects/dashboard', '/tasks', '/hr', '/hr/departments', '/documents', '/meetings', '/meetings/series', '/meetings/calendar', '/chat', '/account', '/projects/settings', '/settings/users', '/settings/roles', '/settings/branding', '/operations']) {
+for (const path of ['/projects', '/projects/dashboard', '/tasks', '/hr', '/hr/departments', '/documents', '/meetings', '/meetings/series', '/meetings/calendar', '/chat', '/account', '/settings/apps/projects', '/settings/team/users', '/settings/team/roles', '/settings/company/branding', '/operations']) {
     test(`real backend renders ${path} without server failures`, async ({ page }) => {
         await login(page);
         const failures: string[] = [];

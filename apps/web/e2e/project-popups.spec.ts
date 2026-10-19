@@ -47,8 +47,8 @@ for (const [path, current] of [
   ['/projects/1/finance/1/edit', 'تعديل'],
   ['/projects/1/settings', 'إعدادات المشروع'],
   ['/projects/1/charter?edit=1', 'تعديل'],
-  ['/projects/settings', 'إعدادات نظام المشاريع'],
-  ['/projects/settings/catalogs/types', 'أنواع المشاريع'],
+  ['/settings/apps/projects', 'إعدادات نظام المشاريع'],
+  ['/settings/apps/projects/catalogs/types', 'أنواع المشاريع'],
 ] as const) {
   test(`project hierarchy breadcrumb on ${path}`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })

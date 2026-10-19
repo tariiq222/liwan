@@ -41,7 +41,7 @@ async function uiPrimary(page: Page) {
 test('document colour draft cancels, resets, and saves explicitly without theming the interface', async ({ page, baseURL }) => {
   const runtimeBaseURL = await loginAsAdmin(page, baseURL)
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await page.goto('/settings/branding')
+  await page.goto('/settings/company/branding')
 
   const colour = page.getByTestId('branding-color')
   const settingsBranding = page.locator('.webvue-settings-branding')
@@ -142,7 +142,7 @@ test('document colour draft cancels, resets, and saves explicitly without themin
 
 test('legacy secondary branding data cannot reach the form or the interface theme', async ({ page, baseURL }) => {
   await loginAsAdmin(page, baseURL)
-  await page.goto('/settings/branding')
+  await page.goto('/settings/company/branding')
   const primary = page.getByTestId('branding-color')
   await expect(primary).toBeVisible()
   await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
@@ -166,7 +166,7 @@ test('legacy secondary branding data cannot reach the form or the interface them
 
 test('branding presets and colour picker expose translated keyboard labels', async ({ page, baseURL }) => {
   await loginAsAdmin(page, baseURL)
-  await page.goto('/settings/branding')
+  await page.goto('/settings/company/branding')
   const preset = page.getByTestId('branding-preset').first()
   await expect(preset).toHaveAttribute('aria-label', /.+/)
   await preset.focus()
@@ -178,7 +178,7 @@ test('branding presets and colour picker expose translated keyboard labels', asy
 
 test('a failed branding save keeps the primary draft visible', async ({ page, baseURL }) => {
   await loginAsAdmin(page, baseURL)
-  await page.goto('/settings/branding')
+  await page.goto('/settings/company/branding')
   await page.route('**/api/v1/admin/branding', async (route) => {
     if (route.request().method() === 'PATCH') {
       await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ code: 'unavailable', message: 'temporarily unavailable' }) })
@@ -210,8 +210,8 @@ test('branding load errors are visible and retry is hydrated', async ({ page, ba
       body: JSON.stringify({ code: 'unavailable', message: 'temporarily unavailable' }),
     })
   })
-  await page.goto('/settings/branding')
-  await expect(page).toHaveURL(/\/settings\/branding$/)
+  await page.goto('/settings/company/branding')
+  await expect(page).toHaveURL(/\/settings\/company\/branding$/)
   await page.waitForFunction(() => (document.getElementById('__nuxt') as { __vue_app__?: unknown } | null)?.__vue_app__)
   await page.evaluate(async () => {
     const app = (document.getElementById('__nuxt') as { __vue_app__?: { _context?: { provides?: Record<PropertyKey, unknown> } } } | null)?.__vue_app__

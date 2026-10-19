@@ -139,7 +139,7 @@ test.beforeAll(async () => {
   const started = Date.now()
   while (Date.now() - started < 20_000) {
     try {
-      const response = await fetch(`${origin}/settings/users`)
+      const response = await fetch(`${origin}/settings/team/users`)
       if (response.status === 200) return
     } catch { /* still booting */ }
     await new Promise((resolveWait) => setTimeout(resolveWait, 200))
@@ -161,26 +161,25 @@ async function openApp(page: Page, path: string) {
   await page.getByTestId('settings-layout').waitFor({ state: 'visible', timeout: 15_000 })
 }
 
-test('settings submenu opens project settings only as a real category page', async ({ page }, testInfo) => {
+test('project settings open as a real page under Settings > Apps', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  // Project settings live at the bottom of the projects sidebar, not under settings.
-  await openApp(page, '/projects/settings')
+  // Project settings are registered by the projects application and listed in the Apps section of the settings sidebar.
+  await openApp(page, '/settings/apps/projects')
   await expect(page.getByTestId('settings-layout')).toBeVisible()
   await expect(page.getByTestId('sidebar-settings')).toHaveCount(0)
-  const projectsNav = page.getByRole('navigation', { name: 'الانتقال إلى' }).getByRole('link', { name: 'المشاريع', exact: true })
-  await expect(projectsNav).toHaveAttribute('href', '/projects')
+  await expect(page.getByTestId('context-link-settings-apps')).toHaveAttribute('aria-current', 'page')
   const settingsProjects = page.getByTestId('settings-projects-tab')
-  await expect(settingsProjects).toHaveAttribute('href', '/projects/settings')
+  await expect(settingsProjects).toHaveAttribute('href', '/settings/apps/projects')
   await expect(settingsProjects).toHaveAttribute('aria-current', 'page')
   await expect(page.locator('#project-creators')).toBeVisible()
   await expect(page.locator('.webvue-settings-content .webvue-panel')).toHaveCount(1)
-  expect(new URL(page.url()).pathname).toBe('/projects/settings')
+  expect(new URL(page.url()).pathname).toBe('/settings/apps/projects')
   await page.screenshot({ path: testInfo.outputPath('submenu-projects-desktop-rtl.png'), fullPage: true })
 })
 
 test('in-page anchors scroll, mark location current, and survive hash refresh', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await openApp(page, '/projects/settings')
+  await openApp(page, '/settings/apps/projects')
   const remindersLink = page.locator('.webvue-settings-nav a[href="#project-reminders"]')
   const catalogsLink = page.locator('.webvue-settings-nav a[href="#catalogs"]')
   await expect(remindersLink).toHaveCSS('font-weight', '600')
@@ -194,14 +193,14 @@ test('in-page anchors scroll, mark location current, and survive hash refresh', 
     const rect = el.getBoundingClientRect()
     return rect.top < innerHeight && rect.bottom > 0
   })).toBe(true)
-  await openApp(page, '/projects/settings#catalogs')
+  await openApp(page, '/settings/apps/projects#catalogs')
   await expect(page.locator('.webvue-settings-nav a[href="#catalogs"]')).toHaveAttribute('aria-current', 'location')
   await page.screenshot({ path: testInfo.outputPath('anchors-desktop-rtl.png'), fullPage: true })
 })
 
 test('users category is one card without nested chrome; mobile toc is static below the header', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await openApp(page, '/settings/users')
+  await openApp(page, '/settings/team/users')
   await expect(page.getByTestId('settings-layout')).toBeVisible()
   const nested = page.locator('.webvue-settings-content .webvue-panel .webvue-panel')
   await expect(nested).toHaveCount(1)
@@ -209,7 +208,7 @@ test('users category is one card without nested chrome; mobile toc is static bel
   await expect(nested).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
 
   await page.setViewportSize({ width: 390, height: 844 })
-  await openApp(page, '/settings/users')
+  await openApp(page, '/settings/team/users')
   const header = page.locator('.webvue-app-header')
   const nav = page.locator('.webvue-settings-nav')
   await expect(nav).toHaveCSS('position', 'static')
@@ -224,7 +223,7 @@ test('users category is one card without nested chrome; mobile toc is static bel
 
 test('users hash navigation keeps list query on click, refresh and back', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await openApp(page, '/settings/users?q=sara&status=active&offset=25')
+  await openApp(page, '/settings/team/users?q=sara&status=active&offset=25')
   const search = page.locator('#filters .webvue-settings-search input')
   await expect(search).toHaveValue('sara')
   await page.locator('.webvue-settings-nav a[href="#results"]').click()
@@ -240,7 +239,7 @@ test('users hash navigation keeps list query on click, refresh and back', async 
   expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
   expect(new URL(page.url()).hash).toBe('#results')
   await expect(page.locator('#filters .webvue-settings-search input')).toHaveValue('sara')
-  await page.goto(`${origin}/settings/branding`, { waitUntil: 'domcontentloaded' })
+  await page.goto(`${origin}/settings/company/branding`, { waitUntil: 'domcontentloaded' })
   await page.goBack()
   await page.getByTestId('settings-layout').waitFor({ state: 'visible', timeout: 15_000 })
   expect(new URL(page.url()).searchParams.get('q')).toBe('sara')
@@ -252,7 +251,7 @@ test('users hash navigation keeps list query on click, refresh and back', async 
 test('section dividers use last-child not last-of-type', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   const width = (selector: string) => page.locator(selector).evaluate((el) => getComputedStyle(el).borderBlockEndWidth)
-  await openApp(page, '/projects/settings')
+  await openApp(page, '/settings/apps/projects')
   await page.locator('#project-reminders').waitFor({ state: 'visible', timeout: 15_000 })
   await expect.poll(() => width('#project-reminders')).toBe('1px')
   await expect.poll(() => width('#catalogs')).toBe('0px')
@@ -260,19 +259,19 @@ test('section dividers use last-child not last-of-type', async ({ page }) => {
 
 test('unsaved branding draft is guarded when leaving to project settings', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await openApp(page, '/settings/branding')
+  await openApp(page, '/settings/company/branding')
   const color = page.getByTestId('branding-color')
   await expect(color).toBeVisible({ timeout: 15_000 })
   await color.fill('#abcdef')
-  await page.getByTestId('settings-projects-tab').click()
+  await page.getByTestId('context-link-settings-apps').click()
   const dialog = page.getByTestId('unsaved-changes-dialog')
   await expect(dialog).toBeVisible()
   await page.getByRole('button', { name: 'البقاء في الصفحة' }).click()
   await expect(dialog).toHaveCount(0)
-  await expect(page).toHaveURL(/\/settings\/branding/)
+  await expect(page).toHaveURL(/\/settings\/company\/branding/)
   await expect(color).toHaveValue('#abcdef')
-  await page.getByTestId('settings-projects-tab').click()
+  await page.getByTestId('context-link-settings-apps').click()
   await page.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()
-  await expect(page).toHaveURL(/\/projects\/settings$/)
+  await expect(page).toHaveURL(/\/settings\/apps\/projects$/)
   await page.screenshot({ path: testInfo.outputPath('unsaved-desktop-rtl.png'), fullPage: true })
 })

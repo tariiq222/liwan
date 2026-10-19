@@ -19,8 +19,8 @@ watch(candidates.data, (data) => {
   const employee = data?.items.find((item) => item.id === employeeId.value)
   if (!employee) return
   const target = employee.user_id
-    ? `/settings/users/${employee.user_id}`
-    : { path: '/settings/users/new', query: { employee_id: String(employee.id) } }
+    ? `/settings/team/users/${employee.user_id}`
+    : { path: '/settings/team/users/new', query: { employee_id: String(employee.id) } }
   void navigateTo(target, { replace: true })
 }, { immediate: true })
 </script>

@@ -54,7 +54,7 @@ function helpLabel(field: string): string {
 }
 
 function catalogSettingsPath(resource: ProjectCharterCatalogResource) {
-  return { path: `/projects/settings/catalogs/${resource}`, query: returnToQuery(route.fullPath) }
+  return { path: `/settings/apps/projects/catalogs/${resource}`, query: returnToQuery(route.fullPath) }
 }
 
 // The charter manager and sponsor are res.users ids from /api/v1/people.

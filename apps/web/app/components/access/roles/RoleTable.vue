@@ -21,7 +21,7 @@ const emit = defineEmits<{ clone: [id: number]; retry: [] }>()
 const { t, te, locale } = useI18n()
 const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
 const roleDescription = (role: RoleSummary) => builtinRoleDescription(role, t, te)
-const roleTo = (role: RoleSummary): RouteLocationRaw => props.toFor?.(role) ?? `/settings/roles/${role.id}`
+const roleTo = (role: RoleSummary): RouteLocationRaw => props.toFor?.(role) ?? `/settings/team/roles/${role.id}`
 const badge = (role: RoleSummary) => accessBadge({ active: role.active, protected: role.protected })
 const typeLabel = (role: RoleSummary) => role.type === 'built_in' ? t('access.roles.builtIn') : t('access.roles.custom')
 

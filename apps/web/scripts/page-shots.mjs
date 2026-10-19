@@ -4,7 +4,7 @@ import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
 const [port = '4097', outDir = 'page-shots', ...only] = process.argv.slice(2)
-const paths = only.length ? only : ['/projects', '/tasks', '/tasks/101', '/projects/1', '/settings/users']
+const paths = only.length ? only : ['/projects', '/tasks', '/tasks/101', '/projects/1', '/settings/team/users']
 const widths = [1440, 390]
 const modes = ['light', 'dark']
 mkdirSync(outDir, { recursive: true })

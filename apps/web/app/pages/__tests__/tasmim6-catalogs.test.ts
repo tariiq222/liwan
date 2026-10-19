@@ -6,17 +6,17 @@ const read = (path: string) => readFileSync(resolve(app, path), 'utf8')
 
 describe('project settings and catalogs', () => {
   it('the catalog list is a data table inside the settings template', () => {
-    const page = read('pages/projects/settings/catalogs/[resource]/index.vue')
+    const page = read('pages/settings/apps/projects/catalogs/[resource]/index.vue')
     for (const needle of ['<SharedSettingsPage', '<SharedDataTable', '#mobile-row', 'data-shortcut-create']) expect(page).toContain(needle)
     for (const gone of ['<ul>', 'border-default/80']) expect(page).not.toContain(gone)
   })
   it('the settings page frames the catalogs as a record section and the form uses the shared skeleton', () => {
-    expect(read('pages/projects/settings.vue')).toContain('<SharedRecordSection id="catalogs"')
+    expect(read('pages/settings/apps/projects.vue')).toContain('<SharedRecordSection id="catalogs"')
     const form = read('components/settings/ProjectSettingsForm.vue')
     expect(form).toContain('<SharedLoadingSkeleton')
     expect(form).not.toContain('<USkeleton')
   })
   it('the edit page has no hand-built card', () => {
-    expect(read('pages/projects/settings/catalogs/[resource]/[referenceId]/edit.vue')).not.toContain('rounded-lg ring ring-default')
+    expect(read('pages/settings/apps/projects/catalogs/[resource]/[referenceId]/edit.vue')).not.toContain('rounded-lg ring ring-default')
   })
 })

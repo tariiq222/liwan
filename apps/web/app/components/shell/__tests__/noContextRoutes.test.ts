@@ -6,7 +6,7 @@ describe('hasNoContextSidebar', () => {
     expect(hasNoContextSidebar(path)).toBe(true)
   })
 
-  it.each(['/projects', '/settings/users', '/accounting', '/notification-digests/4'])('%s keeps the context sidebar', path => {
+  it.each(['/projects', '/settings/team/users', '/accounting', '/notification-digests/4'])('%s keeps the context sidebar', path => {
     expect(hasNoContextSidebar(path)).toBe(false)
   })
 })

@@ -7,7 +7,7 @@ describe('project list origin', () => {
     expect(projectListReturnTo({ projectListReturnTo: '/projects?mine=1', returnTo: '/projects/12' })).toBe('/projects?mine=1')
   })
   it('rejects external, unrelated, and project-detail destinations as list origins', () => {
-    for (const returnTo of ['//evil.test/projects', '/projects/12', '/projects/settings', '/projects-other', '/projects/12?returnTo=https%3A%2F%2Fevil.test']) {
+    for (const returnTo of ['//evil.test/projects', '/projects/12', '/settings/apps/projects', '/projects-other', '/projects/12?returnTo=https%3A%2F%2Fevil.test']) {
       expect(projectListReturnTo({ returnTo })).toBe('/projects')
     }
   })

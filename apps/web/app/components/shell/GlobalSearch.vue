@@ -30,7 +30,7 @@ onMounted(() => { if (!isApplePlatform(navigator)) metaKey.value = 'Ctrl ' })
 watch(() => route.fullPath, () => { if (open.value) close() })
 
 function navLabel(item: NavItem) {
-  return item.to === '/projects/settings' ? t('nav.projectSettings') : t(item.labelKey)
+  return t(item.labelKey)
 }
 const sectionFor = (id: string) => sections.find(section => section.provider.id === id)
 const searching = computed(() => !!trimmed.value && sections.some(section => section.visible.value && section.waiting.value))

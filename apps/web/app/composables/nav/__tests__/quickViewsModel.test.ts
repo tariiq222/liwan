@@ -104,17 +104,17 @@ describe('other modules', () => {
 
   it('offers request and process creation in operations by capability', () => {
     expect(ids(model('/operations').actions)).toEqual(['new-operation', 'new-operation-process'])
-    expect(ids(model('/operations/processes').actions)).toEqual(['new-operation-process', 'new-operation'])
+    expect(ids(model('/settings/apps/operations/processes').actions)).toEqual(['new-operation-process', 'new-operation'])
     expect(ids(model('/operations', {}, capability => capability === 'operations.requests.create').actions)).toEqual(['new-operation'])
   })
 
   it('lists user status presets, then role creation', () => {
-    const users = model('/settings/users', { status: 'stopped' })
+    const users = model('/settings/team/users', { status: 'stopped' })
     expect(ids(users.views)).toEqual(['active', 'stopped'])
     expect(activeIds(users.views)).toEqual(['stopped'])
     expect(ids(users.actions)).toEqual(['new-user'])
-    expect(ids(model('/settings/roles').actions)).toEqual(['new-role'])
-    expect(model('/settings/access-log')).toEqual({ views: [], actions: [] })
+    expect(ids(model('/settings/team/roles').actions)).toEqual(['new-role'])
+    expect(model('/settings/team/access-log')).toEqual({ views: [], actions: [] })
   })
 
   it('has nothing for chat, the assistant, my to-dos or the home page', () => {

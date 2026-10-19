@@ -26,7 +26,7 @@ test('direct sheet loads its real background and restores it after closing', asy
   expect(hydrationErrors).toEqual([])
 })
 
-const roots = ['/tasks', '/tasks?scope=archived', '/meetings', '/meetings/calendar', '/meetings/series', '/hr', '/hr/departments', '/documents', '/settings/users', '/settings/roles', '/settings/access-log', '/settings/branding', '/account', '/notifications', '/search']
+const roots = ['/tasks', '/tasks?scope=archived', '/meetings', '/meetings/calendar', '/meetings/series', '/hr', '/hr/departments', '/documents', '/settings/team/users', '/settings/team/roles', '/settings/team/access-log', '/settings/company/branding', '/account', '/notifications', '/search']
 for (const width of [1440, 1024, 390]) {
   test('section anatomy at ' + width, async ({page}, info) => {
     test.setTimeout(120_000)
@@ -47,7 +47,7 @@ for (const width of [1440, 1024, 390]) {
   })
 }
 
-const workflows = ['/tasks/new', '/tasks/101', '/meetings/new', '/meetings/1', '/meetings/1/edit', '/meetings/1/minutes', '/meetings/1/resolutions/new', '/meetings/1/resolutions/1/edit', '/meetings/series/new', '/meetings/series/1', '/meetings/series/1/edit', '/hr/employees/new', '/hr/employees/1', '/hr/employees/1/edit', '/hr/departments/new', '/hr/departments/1', '/hr/departments/1/edit', '/documents/new', '/documents/new?context_kind=hr.department&context_id=1', '/documents/1', '/documents/1/edit', '/settings/users/new', '/settings/users/1', '/settings/users/1/access', '/settings/users/1/security', '/settings/roles/new', '/settings/roles/1', '/settings/roles/1/edit', '/settings/access-log/1', '/notification-digests/1']
+const workflows = ['/tasks/new', '/tasks/101', '/meetings/new', '/meetings/1', '/meetings/1/edit', '/meetings/1/minutes', '/meetings/1/resolutions/new', '/meetings/1/resolutions/1/edit', '/meetings/series/new', '/meetings/series/1', '/meetings/series/1/edit', '/hr/employees/new', '/hr/employees/1', '/hr/employees/1/edit', '/hr/departments/new', '/hr/departments/1', '/hr/departments/1/edit', '/documents/new', '/documents/new?context_kind=hr.department&context_id=1', '/documents/1', '/documents/1/edit', '/settings/team/users/new', '/settings/team/users/1', '/settings/team/users/1/access', '/settings/team/users/1/security', '/settings/team/roles/new', '/settings/team/roles/1', '/settings/team/roles/1/edit', '/settings/team/access-log/1', '/notification-digests/1']
 for (const width of [1440, 390]) {
   test('all record and form sheets at '+width, async ({page},info)=>{
     test.setTimeout(180_000)
@@ -101,7 +101,7 @@ test('nested edit refresh retains list filters',async({page})=>{
 for(const [mode,fontSize,root] of [['light','small',14],['light','medium',16],['dark','large',18]] as const){
   test('shared appearance '+mode+'/'+fontSize,async({page})=>{
     await page.context().addCookies([{name:'webvue-appearance',value:encodeURIComponent(JSON.stringify({mode,fontSize})),url:page.url()}])
-    for(const path of ['/hr','/meetings','/settings/users','/notifications']){
+    for(const path of ['/hr','/meetings','/settings/team/users','/notifications']){
       await page.goto(path)
       await expect(page.locator('main h1')).toBeVisible()
       expect(await page.locator('main h1').evaluate(e=>parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(root*20/14,1)

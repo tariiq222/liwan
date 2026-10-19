@@ -9,9 +9,9 @@ const read = (path: string) => readFileSync(resolve(app, path), 'utf8')
 
 describe('the Plan 6d pages stay on their templates', () => {
   it.each([
-    ['pages/settings/users/index.vue', ['<SharedListPage', 'data-testid="settings-layout"']],
-    ['pages/settings/roles/index.vue', ['<SharedListPage', 'data-testid="settings-layout"']],
-    ['pages/settings/access-log/index.vue', ['<SharedListPage', 'data-testid="settings-layout"']],
+    ['pages/settings/team/users/index.vue', ['<SharedListPage', 'data-testid="settings-layout"']],
+    ['pages/settings/team/roles/index.vue', ['<SharedListPage', 'data-testid="settings-layout"']],
+    ['pages/settings/team/access-log/index.vue', ['<SharedListPage', 'data-testid="settings-layout"']],
     ['pages/notifications.vue', ['<SharedListPage', 'useRowNavigation']],
   ])('%s is a list page', (file, needles) => {
     const source = read(file)
@@ -20,8 +20,8 @@ describe('the Plan 6d pages stay on their templates', () => {
   })
 
   it.each([
-    'pages/settings/roles/[roleId]/index.vue', 'pages/settings/users/[userId]/index.vue',
-    'pages/settings/access-log/[eventId].vue', 'pages/notification-digests/[id].vue', 'pages/search.vue',
+    'pages/settings/team/roles/[roleId]/index.vue', 'pages/settings/team/users/[userId]/index.vue',
+    'pages/settings/team/access-log/[eventId].vue', 'pages/notification-digests/[id].vue', 'pages/search.vue',
   ])('%s is a record page', (file) => {
     const source = read(file)
     expect(source).toContain('<SharedRecordPage')
@@ -30,8 +30,8 @@ describe('the Plan 6d pages stay on their templates', () => {
   })
 
   it.each([
-    'pages/settings/branding.vue', 'pages/settings/users/[userId]/access.vue',
-    'pages/settings/users/[userId]/security.vue', 'pages/settings/roles/[roleId]/edit.vue', 'pages/account.vue',
+    'pages/settings/company/branding.vue', 'pages/settings/team/users/[userId]/access.vue',
+    'pages/settings/team/users/[userId]/security.vue', 'pages/settings/team/roles/[roleId]/edit.vue', 'pages/account.vue',
   ])('%s stays on the settings template', (file) => {
     const source = read(file)
     expect(source).toContain('<SharedSettingsPage')

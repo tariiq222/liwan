@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { fitsWidth, loginAdmin, mockAdminApi, openClientSide } from './support/tasmim6d'
 
-// Plan 6d: /settings/users on SharedListPage + SharedDataTable (isolated mock stack, admin API fulfilled in the browser).
+// Plan 6d: /settings/team/users on SharedListPage + SharedDataTable (isolated mock stack, admin API fulfilled in the browser).
 const rows = (page: Page) => page.locator('tbody tr[data-shortcut-row]')
 const mobileRows = (page: Page) => page.locator('li[data-shortcut-row]')
 
@@ -12,27 +12,27 @@ test.describe('Plan 6d: the users list', () => {
     test.use({ viewport: { width: 1440, height: 900 } })
 
     test('is the list template with a table, the grant button and one heading', async ({ page }) => {
-      await openClientSide(page, '/settings/users')
+      await openClientSide(page, '/settings/team/users')
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('المستخدمون')
       await expect(page.locator('[data-template="list"]')).toHaveCount(1)
       await expect(page.getByTestId('settings-layout')).toBeVisible()
       await expect(rows(page)).toHaveCount(3)
       const create = page.locator('[data-shortcut-create]')
       await expect(create).toHaveCount(1)
-      await expect(create).toHaveAttribute('href', /\/settings\/users\/new/)
+      await expect(create).toHaveAttribute('href', /\/settings\/team\/users\/new/)
       await expect(page.getByTestId('settings-user-new')).toBeVisible()
-      await expect(rows(page).first().getByRole('link').first()).toHaveAttribute('href', /\/settings\/users\/11/)
+      await expect(rows(page).first().getByRole('link').first()).toHaveAttribute('href', /\/settings\/team\/users\/11/)
       await expect(page.locator('#filters')).toBeVisible()
       await expect(page.locator('#results')).toBeVisible()
     })
 
     test('an opened row keeps the search in its return path and Back restores it', async ({ page }) => {
-      await openClientSide(page, '/settings/users?q=sara')
+      await openClientSide(page, '/settings/team/users?q=sara')
       await expect(rows(page)).toHaveCount(1)
       const link = rows(page).first().getByRole('link').first()
       await expect(link).toHaveAttribute('href', /q=sara/)
       await link.click()
-      await expect(page).toHaveURL(/\/settings\/users\/11\?.*q=sara/)
+      await expect(page).toHaveURL(/\/settings\/team\/users\/11\?.*q=sara/)
       await page.goBack()
       await expect(page).toHaveURL(/q=sara/)
       await expect(page.locator('[data-shortcut-search] input')).toHaveValue('sara')
@@ -40,7 +40,7 @@ test.describe('Plan 6d: the users list', () => {
     })
 
     test('J moves between rows, / focuses the search and C opens the grant panel', async ({ page }) => {
-      await openClientSide(page, '/settings/users')
+      await openClientSide(page, '/settings/team/users')
       await expect(rows(page)).toHaveCount(3)
       await page.keyboard.press('j')
       await expect(rows(page).first()).toBeFocused()
@@ -51,12 +51,12 @@ test.describe('Plan 6d: the users list', () => {
       await page.keyboard.press('Escape')
       await page.getByRole('heading', { level: 1 }).click()
       await page.keyboard.press('c')
-      await expect(page).toHaveURL(/\/settings\/users\/new/)
+      await expect(page).toHaveURL(/\/settings\/team\/users\/new/)
     })
 
     test('a refused list shows the forbidden state, a failing one an error with retry', async ({ page }) => {
       await page.route('**/api/v1/admin/users?*', route => route.fulfill({ status: 403, contentType: 'application/json', body: '{"code":"forbidden","message":"no"}' }))
-      await openClientSide(page, '/settings/users')
+      await openClientSide(page, '/settings/team/users')
       await expect(page.locator('[data-slot="forbidden-state"]')).toBeVisible()
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       await expect(rows(page)).toHaveCount(0)
@@ -65,7 +65,7 @@ test.describe('Plan 6d: the users list', () => {
       await page.route('**/api/v1/admin/users?*', route => failing
         ? route.fulfill({ status: 500, contentType: 'application/json', body: '{"code":"server_error","message":"boom"}' })
         : route.fallback())
-      await openClientSide(page, '/settings/users')
+      await openClientSide(page, '/settings/team/users')
       const error = page.locator('[data-slot="error-state"]')
       await expect(error).toBeVisible()
       await expect(error).toHaveAttribute('role', 'alert')
@@ -79,7 +79,7 @@ test.describe('Plan 6d: the users list', () => {
     test.use({ viewport: { width: 390, height: 844 } })
 
     test('on a 390px phone the mobile rows carry the same information and J skips the hidden table', async ({ page }) => {
-      await openClientSide(page, '/settings/users')
+      await openClientSide(page, '/settings/team/users')
       await expect(mobileRows(page)).toHaveCount(3)
       await expect(rows(page).first()).toBeHidden()
       const first = mobileRows(page).first()
@@ -90,7 +90,7 @@ test.describe('Plan 6d: the users list', () => {
       await expect(action).toBeVisible()
       await expect(action).toHaveRole('link')
       await expect(action).toHaveText('عرض')
-      await expect(action).toHaveAttribute('href', /\/settings\/users\/11/)
+      await expect(action).toHaveAttribute('href', /\/settings\/team\/users\/11/)
       await page.keyboard.press('j')
       await expect(first).toBeFocused()
       expect(await fitsWidth(page)).toBe(true)

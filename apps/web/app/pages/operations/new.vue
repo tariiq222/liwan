@@ -5,7 +5,7 @@ import RequestForm, { type RequestFormPayload } from '@/components/operations/Re
 import { useOperationProcesses, useOperationRequestMutation } from '@/composables/operations/useOperations'
 const route = useRoute()
 const router = useRouter()
-const sourcePaths = useRecordListPaths(['/operations', '/operations/pending', '/operations/monitoring', '/operations/processes'])
+const sourcePaths = useRecordListPaths(['/operations', '/operations/pending', '/operations/monitoring'])
 const { t } = useI18n()
 const { can } = useAccess()
 const backTo = computed(() => router.resolve(owningListBack(route.query, sourcePaths.value, route.hash)).fullPath)

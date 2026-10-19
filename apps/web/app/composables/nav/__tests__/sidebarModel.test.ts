@@ -9,7 +9,7 @@ describe('rail model', () => {
   it('keeps rail order and puts settings in the utility slot', () => {
     const rail = railModel([
       { id: 'home', labelKey: 'nav.home', icon: 'i-lucide-house', to: '/projects/dashboard' },
-      { id: 'settings', labelKey: 'nav.settings', icon: 'i-lucide-settings', to: '/settings/users' },
+      { id: 'settings', labelKey: 'nav.settings', icon: 'i-lucide-settings', to: '/settings/team/users' },
       { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects' },
     ])
     expect(rail.all.map(item => item.id)).toEqual(['home', 'settings', 'projects'])

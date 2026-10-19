@@ -13,6 +13,6 @@ it('returns a legacy department entry to its safe record and keeps the origin th
   }
 })
 it('drops external, duplicate and unrelated return destinations and strips recursive library origins', () => {
-  for (const returnTo of ['https://evil.test', '//evil.test', '/settings/users', ['/documents', '/documents']]) expect(router.resolve(documentRecordBack({ returnTo } as never)).path).toBe('/documents')
+  for (const returnTo of ['https://evil.test', '//evil.test', '/settings/team/users', ['/documents', '/documents']]) expect(router.resolve(documentRecordBack({ returnTo } as never)).path).toBe('/documents')
   expect(router.resolve(documentRecordBack({ returnTo: '/documents?q=policy&returnTo=%2Fsettings#list' })).fullPath).toBe('/documents?q=policy#list')
 })

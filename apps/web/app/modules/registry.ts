@@ -1,4 +1,4 @@
-import { activeManifests, appManifests, manifestForPath } from './manifests'
+import { activeManifests, appManifests, manifestForPath, settingsEntryForPath } from './manifests'
 
 const NOTIFICATION_ACCESS = 'webvue.notifications'
 
@@ -58,7 +58,7 @@ export function isWriteCapability(capability: string): boolean {
 }
 
 export function featureForPath(path: string): string | null {
-  return manifestForPath(path)?.feature ?? null
+  return (manifestForPath(path) ?? settingsEntryForPath(path)?.manifest)?.feature ?? null
 }
 
 export function pathIsWrite(path: string): boolean {

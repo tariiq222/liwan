@@ -595,8 +595,8 @@ PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage',
 # roots. Each entry is a deliberate exception, not a backlog.
 PAGE_SHELL_EXEMPT = frozenset(PAGES + name for name in (
     'index.vue', 'hr/employees/[employeeId]/access.vue', 'meetings.vue',
-    'projects.vue', 'hr.vue', 'hr/departments.vue', 'settings/users.vue',
-    'settings/roles.vue', 'projects/settings/catalogs/[resource].vue',
+    'projects.vue', 'hr.vue', 'hr/departments.vue', 'settings/team/users.vue',
+    'settings/team/roles.vue', 'settings/apps/projects/catalogs/[resource].vue',
 ))
 AD_HOC_WIDTH = re.compile(r'webvue-page-stack[^"\n]*(?:max-w-\[1440px\]|max-w-\[940px\]|max-w-(?:2xl|3xl|4xl|5xl|7xl))'
                           r'|class="[^"]*max-w-(?:3xl|4xl|5xl|7xl)[^"]*"')
@@ -771,7 +771,7 @@ def retired_artifact_errors(current: dict[str, str]) -> list[str]:
 
 
 # HR owns employee records. An account grant, a role assignment, a password
-# reset and a reactivation belong to /settings/users and /api/v1/admin/users,
+# reset and a reactivation belong to /settings/team/users and /api/v1/admin/users,
 # and HR visibility is decided by a capability, never by a role label.
 HR_ROOTS = (COMPONENTS + 'hr/', PAGES + 'hr/')
 HR_ROLE_BRANCH = re.compile(r'\.value\?\.role\b|\brole\s*===')
@@ -796,7 +796,7 @@ def hr_boundary_errors(current: dict[str, str]) -> list[str]:
 # same everywhere. /search is the search surface itself, and the account form
 # searches candidates inside a form rather than filtering a list.
 SEARCH_CONTROL = re.compile(r'i-lucide-search|name="[a-z-]*search"|t\(\'app\.search\'\)')
-TOOLBAR_EXEMPT = frozenset((PAGES + 'search.vue', PAGES + 'settings/users/new.vue'))
+TOOLBAR_EXEMPT = frozenset((PAGES + 'search.vue', PAGES + 'settings/team/users/new.vue'))
 
 
 def toolbar_errors(current: dict[str, str]) -> list[str]:

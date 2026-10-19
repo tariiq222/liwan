@@ -1,4 +1,4 @@
-import type { AppManifest } from './types'
+import type { AppManifest, AppSettingsEntry } from './types'
 
 // Relative imports only: vitest runs these modules directly, without the `@/` alias.
 const discovered = import.meta.glob<{ default: AppManifest }>('./*/manifest.ts', { eager: true })
@@ -45,4 +45,14 @@ function claims(manifest: AppManifest, path: string): boolean {
 export function manifestForPath(path: string): AppManifest | null {
   const pathname = path.split(/[?#]/, 1)[0] ?? path
   return activeManifests().find(manifest => claims(manifest, pathname)) ?? null
+}
+
+/** The application and settings entry whose `to` is `path` or a parent of it, or null (the entry owns its subtree). */
+export function settingsEntryForPath(path: string): { manifest: AppManifest; entry: AppSettingsEntry } | null {
+  const pathname = path.split(/[?#]/, 1)[0] ?? path
+  for (const manifest of activeManifests()) {
+    const entry = manifest.settings?.find(candidate => pathname === candidate.to || pathname.startsWith(`${candidate.to}/`))
+    if (entry) return { manifest, entry }
+  }
+  return null
 }

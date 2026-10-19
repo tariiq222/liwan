@@ -17,7 +17,7 @@ const latest = OperationProcessSchema.parse({ ...original, name: 'Server changed
 function form(conflict = true) {
   const scope = Vue.effectScope()
   const bodies: unknown[] = []
-  const props = Vue.reactive({ process: original, disabled: false, backTo: '/operations/processes', refresh: async () => latest, save: async (body: unknown) => { bodies.push(body); if (conflict) throw { status: 409 }; return { ...original, revision: 5 } } })
+  const props = Vue.reactive({ process: original, disabled: false, backTo: '/settings/apps/operations/processes', refresh: async () => latest, save: async (body: unknown) => { bodies.push(body); if (conflict) throw { status: 409 }; return { ...original, revision: 5 } } })
   const bindings = { _defineComponent: Vue.defineComponent, computed: Vue.computed, ref: Vue.ref, nextTick: Vue.nextTick, ...forms, useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useOperationExecutionKinds: () => ({ data: Vue.ref({ items: ['approval', 'pmo_completion'], total: 2 }), error: Vue.ref(null), isPending: Vue.ref(false) }) }
   const component = new Function(...Object.keys(bindings), js)(...Object.values(bindings))
   const state = scope.run(() => component.setup(props, { expose: () => {}, emit: () => {} }))

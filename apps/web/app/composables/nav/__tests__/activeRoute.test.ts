@@ -13,7 +13,7 @@ describe('shell route classification', () => {
     expect(contextModuleFor('home')).toBeNull()
     expect(contextModuleFor('meetings')).toBe('meetings')
     expect(activeShellModule('/meetings/calendar')).toBe('meetings')
-    expect(activeShellModule('/settings/users/18/access')).toBe('settings')
+    expect(activeShellModule('/settings/team/users/18/access')).toBe('settings')
     expect(activeShellModule('/search')).toBeNull()
     expect(activeShellModule('/notifications')).toBeNull()
     expect(activeShellModule('/notification-digests')).toBeNull()

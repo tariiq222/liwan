@@ -1,5 +1,5 @@
 import { canUse, featureForPath, hasFeature, pathIsWrite } from '../modules/registry'
-import { activeManifests, manifestForPath } from '../modules/manifests'
+import { activeManifests, manifestForPath, settingsEntryForPath } from '../modules/manifests'
 import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 
 /** Server capabilities gate navigation; resource authorization remains on the API. */
@@ -30,18 +30,20 @@ export function hasCapability(identity: AccessIdentity, capability: string): boo
 type Destination = readonly [path: string, capability: string]
 // Foundation destinations stay here; applications add theirs through `landing`.
 const FOUNDATION_SETTINGS: readonly Destination[] = [
-  ['/settings/users', 'access.users.read'], ['/settings/roles', 'access.roles.read'], ['/settings/access-log', 'access.audit.read'],
+  ['/settings/team/users', 'access.users.read'], ['/settings/team/roles', 'access.roles.read'], ['/settings/team/access-log', 'access.audit.read'],
 ]
-const FOUNDATION_LAST: readonly Destination[] = [['/settings/branding', 'settings.branding.manage'], ['/settings/maintenance', 'settings.maintenance.manage'], ['/settings/integrations', 'integrations.read']]
+const FOUNDATION_LAST: readonly Destination[] = [['/settings/company/branding', 'settings.branding.manage'], ['/settings/system/maintenance', 'settings.maintenance.manage'], ['/settings/system/integrations', 'integrations.read']]
 const FOUNDATION_RETURN_TO = ['/', '/account', '/search', '/notifications']
-/** Application landings in rail order, then settings, then the landings that sort after settings, then branding. */
+/** Application landings in rail order, then settings, then the landings that sort after settings, the applications' settings pages, then branding. */
 function destinations(): readonly Destination[] {
   const landing = activeManifests().flatMap(manifest => manifest.landing ?? [])
   const toDestination = (entry: { path: string; capability: string }): Destination => [entry.path, entry.capability]
+  const registered = activeManifests().flatMap(manifest => manifest.settings ?? []).map((entry): Destination => [entry.to, entry.capability])
   return [
     ...landing.filter(entry => !entry.late).map(toDestination),
     ...FOUNDATION_SETTINGS,
     ...landing.filter(entry => entry.late).map(toDestination),
+    ...registered,
     ...FOUNDATION_LAST,
   ]
 }
@@ -66,24 +68,26 @@ export function postLoginPath(identity: AccessIdentity, next: unknown): string {
   const capability = requiredCapabilityForPath(pathname)
   return capability && !canReach(identity, capability, pathname) ? fallback : target
 }
+/** The settings overview page; every other settings page lives beneath it, so it matches only itself. */
+export const SETTINGS_OVERVIEW_PATH = '/settings'
 export function isNavPathActive(path: string, target: string): boolean {
+  if (target === SETTINGS_OVERVIEW_PATH) return path === target
   for (const manifest of activeManifests()) {
     const active = manifest.isNavActive?.(path, target)
     if (active !== undefined) return active
   }
   return path === target || path.startsWith(`${target}/`)
 }
-export function isProjectSettingsPath(path: string): boolean {
-  return path === '/projects/settings' || path.startsWith('/projects/settings/')
-}
 export function requiredCapabilityForPath(path: string): string | null {
   const owned = manifestForPath(path)?.routeCapabilities?.find(rule => rule.pattern.test(path))
   if (owned) return owned.capability
+  const registered = settingsEntryForPath(path)
+  if (registered) return registered.entry.capability
   if (path === '/') return INTERNAL_WEBVUE_ACCESS
   if (path === '/notifications') return NOTIFICATION_ACCESS
-  if (path === '/settings/users/new') return 'access.users.grant'
-  if (/^\/settings\/users\/[^/]+\/access$/.test(path)) return 'access.users.assign_roles'
-  if (/^\/settings\/roles\/(new|[^/]+\/edit)$/.test(path)) return 'access.roles.manage'
+  if (path === '/settings/team/users/new') return 'access.users.grant'
+  if (/^\/settings\/team\/users\/[^/]+\/access$/.test(path)) return 'access.users.assign_roles'
+  if (/^\/settings\/team\/roles\/(new|[^/]+\/edit)$/.test(path)) return 'access.roles.manage'
   return destinations().find(([target]) => isNavPathActive(path, target))?.[1] ?? null
 }
 /**

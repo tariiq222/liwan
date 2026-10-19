@@ -251,7 +251,7 @@ test('creation requirement toggles change create behavior and failed defaults bl
   await login(page)
   const before = await json(page, 'get', '/api/v1/settings/projects')
   try {
-    await page.goto('/projects/settings')
+    await page.goto('/settings/apps/projects')
     const endBox = page.locator('label').filter({ hasText: 'يشترط تاريخ الانتهاء' }).locator('input[type="checkbox"]')
     await expect(endBox).toBeChecked()
     const patched = page.waitForResponse((response) => (
