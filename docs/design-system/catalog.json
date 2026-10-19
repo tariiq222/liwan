@@ -65,7 +65,7 @@
       ]
     },
     {
-      "name": "DocumentAccessForm",
+      "name": "DocumentsDocumentAccessForm",
       "file": "apps/web/app/components/documents/DocumentAccessForm.vue",
       "story": "apps/web/stories/documents/DocumentAccessForm.stories.ts",
       "title": "Documents/DocumentAccessForm",
@@ -138,7 +138,7 @@
       ]
     },
     {
-      "name": "DocumentContextField",
+      "name": "DocumentsDocumentContextField",
       "file": "apps/web/app/components/documents/DocumentContextField.vue",
       "story": "apps/web/stories/documents/DocumentContextField.stories.ts",
       "title": "Documents/DocumentContextField",
@@ -182,7 +182,7 @@
       ]
     },
     {
-      "name": "DocumentCreateForm",
+      "name": "DocumentsDocumentCreateForm",
       "file": "apps/web/app/components/documents/DocumentCreateForm.vue",
       "story": "apps/web/stories/documents/DocumentCreateForm.stories.ts",
       "title": "Documents/DocumentCreateForm",
@@ -221,7 +221,7 @@
       ]
     },
     {
-      "name": "DocumentEditor",
+      "name": "DocumentsDocumentEditor",
       "file": "apps/web/app/components/documents/DocumentEditor.vue",
       "story": "apps/web/stories/documents/DocumentEditor.stories.ts",
       "title": "Documents/DocumentEditor",
@@ -274,7 +274,7 @@
       ]
     },
     {
-      "name": "DocumentFiles",
+      "name": "DocumentsDocumentFiles",
       "file": "apps/web/app/components/documents/DocumentFiles.vue",
       "story": "apps/web/stories/documents/DocumentFiles.stories.ts",
       "title": "Documents/DocumentFiles",
@@ -371,7 +371,7 @@
       ]
     },
     {
-      "name": "DocumentList",
+      "name": "DocumentsDocumentList",
       "file": "apps/web/app/components/documents/DocumentList.vue",
       "story": "apps/web/stories/documents/DocumentList.stories.ts",
       "title": "Documents/DocumentList",
@@ -404,7 +404,7 @@
       ]
     },
     {
-      "name": "DocumentMetadataFields",
+      "name": "DocumentsDocumentMetadataFields",
       "file": "apps/web/app/components/documents/DocumentMetadataFields.vue",
       "story": "apps/web/stories/documents/DocumentMetadataFields.stories.ts",
       "title": "Documents/DocumentMetadataFields",
@@ -471,7 +471,7 @@
       ]
     },
     {
-      "name": "DocumentReader",
+      "name": "DocumentsDocumentReader",
       "file": "apps/web/app/components/documents/DocumentReader.vue",
       "story": "apps/web/stories/documents/DocumentReader.stories.ts",
       "title": "Documents/DocumentReader",
