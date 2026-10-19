@@ -127,6 +127,24 @@
       "results": "لا نتائج | عرض {shown} من نتيجة واحدة | عرض {shown} من نتيجتين | عرض {shown} من {total} نتائج | عرض {shown} من {total} نتيجة | عرض {shown} من {total} نتيجة"
     },
     "decisionNeeded": "قرارك مطلوب على هذا الطلب",
-    "nextStep": "الخطوة التالية"
+    "nextStep": "الخطوة التالية",
+    "kpi": {
+      "label": "ملخص الطلبات",
+      "mine": {
+        "total": "طلباتي",
+        "pending": "بانتظار الاعتماد",
+        "returned": "معادة للتعديل",
+        "done": "مكتملة"
+      },
+      "pending": {
+        "awaiting": "بانتظار مراجعتي"
+      },
+      "monitoring": {
+        "pending": "بانتظار الاعتماد",
+        "returned": "معادة للتعديل",
+        "rejected": "مرفوضة",
+        "done": "مكتملة"
+      }
+    }
   }
 }

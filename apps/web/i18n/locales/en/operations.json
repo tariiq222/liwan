@@ -127,6 +127,24 @@
       "results": "{shown} of 1 result | {shown} of {total} results"
     },
     "decisionNeeded": "Your decision is needed",
-    "nextStep": "Next step"
+    "nextStep": "Next step",
+    "kpi": {
+      "label": "Requests summary",
+      "mine": {
+        "total": "My requests",
+        "pending": "Awaiting approval",
+        "returned": "Returned for changes",
+        "done": "Completed"
+      },
+      "pending": {
+        "awaiting": "Awaiting my review"
+      },
+      "monitoring": {
+        "pending": "Awaiting approval",
+        "returned": "Returned for changes",
+        "rejected": "Rejected",
+        "done": "Completed"
+      }
+    }
   }
 }

@@ -10,7 +10,13 @@ export const request = OperationRequestSchema.parse({ ...summary, description: '
 export const draft = OperationRequestSchema.parse({ ...request, state: 'draft', steps: [], events: [], allowed_actions: { edit: true, submit: true, approve: false, reject: false, return: false, withdraw: false } })
 export const operationHandlers = [
   http.get('/api/v1/me', () => HttpResponse.json({ ...me, capabilities: ['operations.requests.read', 'operations.requests.create', 'operations.requests.review', 'operations.monitoring.read', 'operations.processes.manage'] })),
-  http.get('/api/v1/operations/requests', () => HttpResponse.json({ items: [summary], total: 1 })),
+  // The totals differ by scope and state, as the KPI strip counts them with one-row requests.
+  http.get('/api/v1/operations/requests', ({ request }) => {
+    const url = new URL(request.url)
+    const totals: Record<string, number> = { all: 12, draft: 1, pending: 4, returned: 2, rejected: 1, withdrawn: 0, done: 5 }
+    const total = url.searchParams.get('scope') === 'pending' ? 3 : totals[url.searchParams.get('state') ?? 'all']
+    return HttpResponse.json({ items: [summary], total })
+  }),
   http.get('/api/v1/operations/processes', () => HttpResponse.json({ items: [process], total: 1 })),
   http.get('/api/v1/operations/execution-kinds', () => HttpResponse.json({ items: ['approval', 'pmo_completion'], total: 2 })),
   http.get('/api/v1/operations/processes/:id/targets', () => HttpResponse.json({ items: [{ id: 5, name: 'إعداد خطة المشروع', href: '/projects/1/tasks/5' }], total: 1 })),
