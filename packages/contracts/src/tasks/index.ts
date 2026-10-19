@@ -59,6 +59,14 @@ export const MyTaskListPageSchema = z.object({
   total: z.number().int().nonnegative(),
 }).strict()
 
+// GET /api/v1/my-tasks/summary: counts over the tasks the list's scope and search select.
+export const MyTaskSummarySchema = z.object({
+  total: z.number().int().nonnegative(),
+  open: z.number().int().nonnegative(),
+  overdue: z.number().int().nonnegative(),
+  done: z.number().int().nonnegative(),
+}).strict()
+
 export const PersonalTaskCommentSchema = z.object({
   id: z.number().int().positive(),
   body: z.string(),
@@ -85,6 +93,7 @@ export type PersonalTaskActions = z.infer<typeof PersonalTaskActionsSchema>
 export type PersonalTask = z.infer<typeof PersonalTaskSchema>
 export type MyTaskListItem = z.infer<typeof MyTaskListItemSchema>
 export type MyTaskListPage = z.infer<typeof MyTaskListPageSchema>
+export type MyTaskSummary = z.infer<typeof MyTaskSummarySchema>
 export type PersonalTaskComment = z.infer<typeof PersonalTaskCommentSchema>
 export type PersonalTaskAttachment = z.infer<typeof PersonalTaskAttachmentSchema>
 export type ConvertTarget = z.infer<typeof ConvertTargetSchema>

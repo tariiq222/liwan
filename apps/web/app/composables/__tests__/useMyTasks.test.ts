@@ -30,6 +30,7 @@ describe('myTaskKeys', () => {
   it('builds stable key shapes under one root', () => {
     expect(myTaskKeys.all).toEqual(['my-tasks'])
     expect(myTaskKeys.list({ q: 'a' })).toEqual(['my-tasks', 'list', { q: 'a' }])
+    expect(myTaskKeys.summary({ q: 'a' })).toEqual(['my-tasks', 'summary', { q: 'a' }])
     expect(myTaskKeys.detail(7)).toEqual(['my-tasks', 'detail', 7])
     expect(myTaskKeys.comments(7)).toEqual(['my-tasks', 'comments', 7])
     expect(myTaskKeys.attachments(7)).toEqual(['my-tasks', 'attachments', 7])
@@ -50,7 +51,7 @@ describe('myTaskListQuery', () => {
 })
 
 describe('personal task writes', () => {
-  it('replaces the detail cache with the server shape and invalidates only list keys on PATCH', async () => {
+  it('replaces the detail cache with the server shape and invalidates only list and summary keys on PATCH', async () => {
     const qc = new QueryClient()
     qc.setQueryData(myTaskKeys.detail(7), task())
     qc.setQueryData(myTaskKeys.comments(7), [])
@@ -60,8 +61,10 @@ describe('personal task writes', () => {
     await updateMyTask(api, qc, { id: 7, body: { name: 'Renamed' } })
     expect(api).toHaveBeenCalledWith('/api/v1/my-tasks/7', expect.objectContaining({ method: 'PATCH', body: { name: 'Renamed' } }))
     expect(qc.getQueryData(myTaskKeys.detail(7))).toEqual(server)
-    expect(spy).toHaveBeenCalledTimes(1)
+    // the list keys and the KPI summary, nothing else
+    expect(spy).toHaveBeenCalledTimes(2)
     expect(spy).toHaveBeenCalledWith({ queryKey: ['my-tasks', 'list'] })
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['my-tasks', 'summary'] })
   })
 
   it('also invalidates the parent detail when the written task is a sub-task', async () => {
@@ -83,7 +86,7 @@ describe('personal task writes', () => {
     const qc = new QueryClient()
     const spy = vi.spyOn(qc, 'invalidateQueries')
     await updateMyTask(vi.fn().mockResolvedValue(task()) as never, qc, { id: 7, body: {} })
-    expect(spy).toHaveBeenCalledTimes(1)
+    expect(spy).toHaveBeenCalledTimes(2)
   })
 
   it('seeds the detail cache on create', async () => {
@@ -159,7 +162,7 @@ describe('personal task writes', () => {
     qc.setQueryData(myTaskKeys.detail(7), task())
     const spy = vi.spyOn(qc, 'invalidateQueries')
     await convertMyTask(vi.fn().mockResolvedValue({ href: '/x' }) as never, qc, { id: 7, projectId: 3 })
-    expect(spy).toHaveBeenCalledTimes(1)
+    expect(spy).toHaveBeenCalledTimes(2)
   })
 })
 

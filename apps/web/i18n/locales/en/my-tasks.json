@@ -38,6 +38,15 @@
       "tableView": "Table view",
       "cardView": "Card view"
     },
+    "kpi": {
+      "label": "My tasks summary",
+      "total": "Total tasks",
+      "open": "Open tasks",
+      "overdue": "Overdue tasks",
+      "done": "Done tasks",
+      "percentOfTotal": "{percent}% of total",
+      "percentDone": "{percent}% done"
+    },
     "form": {
       "createTitle": "New personal task",
       "name": "Task title",

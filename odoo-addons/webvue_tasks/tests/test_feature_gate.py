@@ -21,6 +21,7 @@ class TestMyTasksFeatureGate(TasksRoutesCase):
         self.close_feature()
         for method, target, body in (
             ('GET', BASE, None),
+            ('GET', f'{BASE}/summary', None),
             ('POST', BASE, {'name': 'After'}),
             ('GET', path, None),
             ('PATCH', path, {'name': 'x'}),

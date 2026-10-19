@@ -38,6 +38,15 @@
       "tableView": "عرض الجدول",
       "cardView": "عرض الكروت"
     },
+    "kpi": {
+      "label": "ملخص مهامي",
+      "total": "إجمالي المهام",
+      "open": "المهام المفتوحة",
+      "overdue": "المهام المتأخرة",
+      "done": "المهام المنجزة",
+      "percentOfTotal": "{percent}% من الإجمالي",
+      "percentDone": "{percent}% منجزة"
+    },
     "form": {
       "createTitle": "مهمة شخصية جديدة",
       "name": "عنوان المهمة",

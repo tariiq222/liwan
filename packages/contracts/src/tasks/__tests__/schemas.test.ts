@@ -5,6 +5,7 @@ import {
   MyTaskCollectionSchema,
   MyTaskListItemSchema,
   MyTaskListPageSchema,
+  MyTaskSummarySchema,
   PersonalTaskAttachmentSchema,
   PersonalTaskCommentSchema,
   PersonalTaskSchema,
@@ -81,6 +82,13 @@ describe('the other tasks shapes', () => {
     expect(MyTaskListPageSchema.parse({ items: [ROW], total: 1 }).total).toBe(1)
     expect(() => MyTaskListPageSchema.parse({ items: [ROW], total: -1 })).toThrow()
     expect(() => MyTaskListPageSchema.parse({ items: [ROW], total: 1, next: 2 })).toThrow()
+  })
+
+  it('parses the summary counts and rejects extras or negatives', () => {
+    const counts = { total: 5, open: 3, overdue: 1, done: 1 }
+    expect(MyTaskSummarySchema.parse(counts)).toEqual(counts)
+    expect(() => MyTaskSummarySchema.parse({ ...counts, open: -1 })).toThrow()
+    expect(() => MyTaskSummarySchema.parse({ ...counts, cancelled: 1 })).toThrow()
   })
 
   it('parses comments, attachments and conversion shapes', () => {

@@ -6,6 +6,8 @@ import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import MyTaskRow from '@/components/personal-tasks/MyTaskRow.vue'
 import type { MyTaskListPage } from '@webvue/contracts'
 import { useMyTaskList } from '@/composables/useMyTaskList'
+import { useMyTaskSummary } from '@/composables/useMyTaskSummary'
+import { myTaskKpiTiles } from '@/utils/myTaskKpi'
 import { errorStateKind } from '@webvue/ui/app/utils/errorState'
 import { currentListView, listViewQuery } from '@webvue/ui/app/utils/listView'
 import { useRowNavigation } from '@webvue/ui/app/composables/useRowNavigation'
@@ -136,6 +138,10 @@ const rowTo = (task: (typeof items.value)[number]) => ({
   path: task.source === 'project' ? task.href : `/my-tasks/${task.id}`,
   query: { returnTo: liveListPath.value },
 })
+// The KPI strip follows the list's scope and search; its open tile returns to the open tab with those kept.
+const summary = useMyTaskSummary(() => { const { q, scope } = toListParams(state.value); return { q, scope } })
+const openTo = computed(() => state.value.tab === 'open' ? undefined : router.resolve({ path: '/my-tasks', query: listPatch(route.query, { tab: 'open' }) }).href)
+const kpiTiles = computed(() => summary.data.value ? myTaskKpiTiles(summary.data.value, t, openTo.value) : [])
 const views = computed(() => [
   { value: 'table', label: t('myTasks.list.tableView'), icon: 'i-lucide-list', testId: 'my-tasks-view-table' },
   { value: 'cards', label: t('myTasks.list.cardView'), icon: 'i-lucide-layout-grid', testId: 'my-tasks-view-cards' },
@@ -166,12 +172,14 @@ function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { 
     :create-to="createTo"
     :create-label="t('myTasks.new')"
     create-test-id="my-tasks-new"
+    kpi-toggle
   >
     <UAlert v-if="inlineError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('myTasks.list.loadError')">
       <template #actions>
         <UButton color="neutral" variant="outline" type="button" :disabled="!hydrated" @click="retryInline">{{ t('app.retry') }}</UButton>
       </template>
     </UAlert>
+    <SharedKpiStrip v-if="hydrated" :tiles="kpiTiles" :loading="summary.isLoading.value" :label="t('myTasks.kpi.label')" data-testid="my-task-kpi-strip" />
     <SharedListCard>
       <template #filters>
         <div class="space-y-3">

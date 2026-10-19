@@ -6,6 +6,7 @@ not enforce the ``tasks.tasks.*`` capabilities: each method checks its own capab
 Nothing here uses ``sudo()``; every call runs with the caller's ACLs and record rules.
 """
 import re
+from datetime import datetime, time
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
@@ -124,11 +125,8 @@ class WebVueMyTaskService(models.AbstractModel):
     # list
 
     @api.model
-    def _search_list(self, *, closed, q, assigned, created, sort, limit, offset):
-        """The unified list: ``(tasks, total)`` of personal tasks plus the bridge's project tasks."""
-        self._require('tasks.tasks.read')
-        if sort not in SORTS:
-            _reject(f'sort must be one of {sorted(SORTS)}', 'sort')
+    def _list_domain(self, *, q, assigned, created, closed=None):
+        """The domain of the unified list; ``closed`` None leaves the open/closed split to the caller."""
         uid = self.env.uid
         links = self.env['webvue.task.links']
         personal = Domain([
@@ -143,21 +141,52 @@ class WebVueMyTaskService(models.AbstractModel):
         if created:
             scopes.append(Domain('create_uid', '=', uid))
         domain &= Domain.OR(scopes)
-        state_domain = Domain('state', 'in', CLOSED_STATES)
-        domain &= ~state_domain if not closed else state_domain
+        if closed is not None:
+            state_domain = Domain('state', 'in', CLOSED_STATES)
+            domain &= state_domain if closed else ~state_domain
         if _bad_text(q):
             _reject('q must not contain NUL or unpaired surrogates', 'q')
         if q:
             # Odoo's ilike keeps % and _ as wildcards; search the text literally.
             literal = q.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
             domain &= Domain('name', '=ilike', f'%{literal}%')
+        return domain
+
+    @api.model
+    def _search_list(self, *, closed, q, assigned, created, sort, limit, offset):
+        """The unified list: ``(tasks, total)`` of personal tasks plus the bridge's project tasks."""
+        self._require('tasks.tasks.read')
+        if sort not in SORTS:
+            _reject(f'sort must be one of {sorted(SORTS)}', 'sort')
+        domain = self._list_domain(q=q, assigned=assigned, created=created, closed=closed)
         Task = self.env['project.task']
         limit = max(1, min(limit, MAX_LIMIT))
         tasks = Task.search(domain, order=SORTS[sort], limit=limit, offset=max(0, offset))
         # A row of another application without a project ref has no valid wire shape: drop it.
         # The page may then hold fewer than ``limit`` rows; ``total`` stays the domain count.
+        links = self.env['webvue.task.links']
         tasks = tasks.filtered(lambda task: task.webvue_personal or links._webvue_project_ref(task))
         return tasks, Task.search_count(domain)
+
+    @api.model
+    def _summary(self, *, q, assigned, created):
+        """Counts over the tasks the list filters select (the open/closed split is the summary's own output).
+
+        ``open`` is every non-closed task, ``overdue`` the open ones whose deadline day (UTC date part, as
+        the list shows it) is before the caller's local day, ``done`` completed tasks only (a cancelled
+        task counts in ``total`` alone).
+        """
+        self._require('tasks.tasks.read')
+        domain = self._list_domain(q=q, assigned=assigned, created=created)
+        Task = self.env['project.task']
+        open_domain = domain & ~Domain('state', 'in', CLOSED_STATES)
+        today_start = datetime.combine(fields.Date.context_today(self), time.min)
+        return {
+            'total': Task.search_count(domain),
+            'open': Task.search_count(open_domain),
+            'overdue': Task.search_count(open_domain & Domain('date_deadline', '<', today_start)),
+            'done': Task.search_count(domain & Domain('state', '=', '1_done')),
+        }
 
     # create and update
 
