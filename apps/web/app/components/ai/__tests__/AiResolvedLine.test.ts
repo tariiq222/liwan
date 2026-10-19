@@ -4,6 +4,7 @@ import { compileScript, compileTemplate, parse } from '@vue/compiler-sfc'
 import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
+import { vueBindings } from '../../../../tests/vueBindings'
 import { describe, expect, it } from 'vitest'
 
 const filename = resolve(import.meta.dirname, '../AiResolvedLine.vue')
@@ -15,7 +16,7 @@ const render = new Function('Vue', js(template.code))(Vue)
 const messages: Record<string, string> = { 'ai.confirm.approved': 'تم بعد تأكيدك', 'ai.confirm.rejected': 'أُلغي' }
 
 async function renderLine(state: 'approved' | 'rejected', attrs: Record<string, string> = {}) {
-  const bindings = { ...Vue, exports: {}, _defineComponent: Vue.defineComponent, useI18n: () => ({ t: (key: string) => messages[key] ?? key }) }
+  const bindings = { ...vueBindings, exports: {}, _defineComponent: Vue.defineComponent, useI18n: () => ({ t: (key: string) => messages[key] ?? key }) }
   const component = new Function(...Object.keys(bindings), js(script))(...Object.values(bindings))
   const app = Vue.createSSRApp({ render: () => Vue.h(Vue.defineComponent({ props: ['summary', 'state'], setup: (props: Record<string, unknown>) => ({ ...component.setup(props, { expose: () => {}, emit: () => {} }), props }), render }), { summary: 'سأنجز المهمة', state, ...attrs }) })
   app.component('UIcon', Vue.defineComponent({ props: ['name'], setup: props => () => Vue.h('i', { 'data-icon': props.name }) }))

@@ -9,7 +9,8 @@ import ts from 'typescript'
 const transpile = (source: string) => ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
 export const stripImports = (source: string) => source.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
 const appRoot = resolve(import.meta.dirname, '../..')
-const vueApi = Object.fromEntries(Object.entries(Vue).filter(([key]) => /^[a-z]\w*$/.test(key)))
+// Identifier keys only: some Node/Vitest pairs add `module.exports` to the namespace, which `new Function` rejects.
+export const vueApi = Object.fromEntries(Object.entries(Vue).filter(([key]) => /^[a-z]\w*$/.test(key)))
 
 export function loadSfc(path: string, bindings: Record<string, unknown>) {
   const filename = resolve(appRoot, path)

@@ -4,6 +4,7 @@ import { compileScript, compileTemplate, parse } from '@vue/compiler-sfc'
 import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
+import { vueBindings } from '../../../../tests/vueBindings'
 import { AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema } from '@webvue/contracts'
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../../composables/useApi'
@@ -32,7 +33,7 @@ const runs = [
 
 async function renderList(options: { runs?: typeof runs; run?: string; loading?: boolean; error?: unknown; hydrated?: boolean } = {}) {
   const bindings = {
-    ...Vue, exports: {}, _defineComponent: Vue.defineComponent, ApiError, AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema,
+    ...vueBindings, exports: {}, _defineComponent: Vue.defineComponent, ApiError, AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema,
     useToast: () => ({ add: () => {} }), useAiRunActions: () => ({ rename: async () => {}, setArchived: async () => {} }),
     formatDate: (value: string) => `D:${value.slice(0, 10)}`, formatTime: (value: string) => `T:${new Date(value).getHours()}`,
     useAiRuns: () => ({ data: Vue.ref(options.error || options.loading ? undefined : { items: options.runs ?? runs, total: (options.runs ?? runs).length }), isLoading: Vue.ref(options.loading ?? false), isError: Vue.ref(Boolean(options.error)), error: Vue.ref(options.error), refetch: () => {} }),

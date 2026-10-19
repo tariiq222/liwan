@@ -66,6 +66,7 @@ describe('app manifests', () => {
     ['/hr/employees/new', 'hr.employees.manage'], ['/hr/employees/3/edit', 'hr.employees.manage'],
     ['/hr/departments/new', 'hr.departments.manage'], ['/hr/employees/3/access', 'access.users.grant'],
     ['/hr/departments', 'hr.departments.read'], ['/hr/documents', 'hr.documents.read'],
+    ['/hr/leave', 'hr.leave.read'], ['/hr/leave/new', 'hr.leave.request'], ['/hr/leave/allocations/new', 'hr.leave.manage'],
     ['/notifications', 'webvue.notifications'], ['/settings/users/new', 'access.users.grant'],
     ['/settings/users/3/access', 'access.users.assign_roles'], ['/settings/roles/4/edit', 'access.roles.manage'],
     ['/settings/roles/4', 'access.roles.read'], ['/settings/branding', 'settings.branding.manage'],
@@ -160,7 +161,7 @@ describe('app manifests', () => {
 describe('palette declarations', () => {
   it('go keys are single letters, never g, and unique across applications and the foundation', () => {
     expect(goKeyProblems(allNavItems())).toEqual([])
-    expect(allNavItems().flatMap(item => item.goKey ?? []).sort()).toEqual(['c', 'd', 'e', 'h', 'i', 'm', 'p', 'r', 't', 'u'])
+    expect(allNavItems().flatMap(item => item.goKey ?? []).sort()).toEqual(['c', 'd', 'e', 'h', 'i', 'l', 'm', 'p', 'r', 't', 'u'])
   })
 
   it('commands have unique ids under their manifest, open a path it owns and need that route\'s capability', () => {

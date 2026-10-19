@@ -12,6 +12,9 @@ describe('the HR pages stay on their templates', () => {
     ['pages/hr/index.vue', ['<SharedListPage', 'create-test-id="hr-employee-new"']],
     ['pages/hr/departments/index.vue', ['<SharedListPage', 'create-test-id="hr-department-new"', ':views="views"', 'views-in-filters', '<SharedListCard', '<SharedListFooter', 'embedded']],
     ['pages/hr/documents.vue', ['<SharedListPage', 'create-test-id="hr-document-new"', '<SharedDataTable']],
+    ['pages/hr/leave.vue', ['<SharedListPage', 'create-test-id="hr-leave-new"', '<SharedListCard', '<SharedDataTable', ' bare', '#mobile-row', '<SharedListFooter', '<SharedSegmentedControl', '<SharedInlineConfirm', '<SharedRowActions', '<SharedMetricTile']],
+    ['components/hr/LeaveRequestForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges', '<SharedDateField']],
+    ['components/hr/LeaveAllocationForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges']],
     ['pages/hr/departments/[departmentId].vue', ['<SharedRecordPage', '<SharedIdentityCard', '<SharedRecordSection', '<SharedPropertiesPanel', '#aside', ':hide-header="isCreateDocument"']],
     ['pages/hr/employees/[employeeId].vue', ['<SharedRecordPage', '<EmployeeProperties', '#aside', '<SharedRowActions']],
     ['pages/hr/departments/[departmentId]/documents/[documentId].vue', ['<SharedRecordPage', '<SharedRecordSection']],
@@ -31,7 +34,7 @@ describe('the HR pages stay on their templates', () => {
   })
 
   it('draws no hand-made table or skeleton in the migrated HR files', () => {
-    for (const file of ['pages/hr/index.vue', 'pages/hr/documents.vue', 'pages/hr/departments/index.vue', 'components/hr/DirectoryTable.vue', 'components/hr/DepartmentTable.vue', 'components/hr/DocumentList.vue', 'components/hr/EmployeeCard.vue']) {
+    for (const file of ['pages/hr/index.vue', 'pages/hr/documents.vue', 'pages/hr/departments/index.vue', 'components/hr/DirectoryTable.vue', 'components/hr/DepartmentTable.vue', 'components/hr/DocumentList.vue', 'components/hr/EmployeeCard.vue', 'pages/hr/leave.vue']) {
       const source = read(file)
       expect(source, file).not.toMatch(/<UTable\b/)
       expect(source, file).not.toMatch(/<USkeleton\b/)
@@ -55,7 +58,7 @@ describe('the HR pages stay on their templates', () => {
   })
 
   it('keeps the create panels route-backed', () => {
-    for (const file of ['pages/hr/employees/new.vue', 'pages/hr/departments/new.vue', 'pages/hr/documents/new.vue', 'pages/hr/departments/[departmentId]/documents/new.vue']) {
+    for (const file of ['pages/hr/employees/new.vue', 'pages/hr/departments/new.vue', 'pages/hr/documents/new.vue', 'pages/hr/departments/[departmentId]/documents/new.vue', 'pages/hr/leave/new.vue', 'pages/hr/leave/allocations/new.vue']) {
       expect(read(file), file).toContain('<SharedCreatePanel')
     }
   })

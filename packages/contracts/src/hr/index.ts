@@ -181,6 +181,74 @@ export const HrSaudizationSchema = z.object({
 export type HrDepartment = z.infer<typeof HrDepartmentSchema>
 export type HrEmployee = z.infer<typeof HrEmployeeSchema>
 export type HrRef = z.infer<typeof HrRefSchema>
+// Leave runs on stock hr_holidays; these are the /api/v1/hr/leave shapes.
+export const HrLeaveStateSchema = z.enum(['confirm', 'validate1', 'validate', 'refuse', 'cancel'])
+
+export const HrLeaveTypeSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  requires_allocation: z.boolean(),
+  support_document: z.boolean(),
+}).strict()
+
+export const HrLeaveSchema = z.object({
+  id: z.number().int().positive(),
+  employee: HrRefSchema,
+  leave_type: HrRefSchema,
+  date_from: isoDate,
+  date_to: isoDate,
+  number_of_days: z.number().nonnegative(),
+  state: HrLeaveStateSchema,
+  notes: z.string(),
+  can_approve: z.boolean(),
+  can_refuse: z.boolean(),
+  can_cancel: z.boolean(),
+  can_withdraw: z.boolean(),
+}).strict()
+
+export const HrLeaveBalanceSchema = z.object({
+  leave_type: HrRefSchema,
+  allocated: z.number(),
+  taken: z.number(),
+  pending: z.number(),
+  remaining: z.number(),
+}).strict()
+
+export const HrLeaveAllocationSchema = z.object({
+  id: z.number().int().positive(),
+  employee: HrRefSchema,
+  leave_type: HrRefSchema,
+  number_of_days: z.number().positive(),
+  date_from: isoDate,
+  date_to: isoDate.nullable(),
+  state: z.enum(['confirm', 'validate1', 'validate', 'refuse']),
+}).strict()
+
+export const HrLeaveRequestCreateSchema = z.object({
+  leave_type_id: z.number().int().positive(),
+  date_from: isoDate,
+  date_to: isoDate,
+  notes: z.string().optional(),
+  employee_id: z.number().int().positive().optional(),
+}).strict().refine(value => value.date_to >= value.date_from, { message: 'date_to is before date_from', path: ['date_to'] })
+
+export const HrLeaveAllocationCreateSchema = z.object({
+  employee_id: z.number().int().positive(),
+  leave_type_id: z.number().int().positive(),
+  number_of_days: z.number().positive(),
+  date_from: isoDate,
+  date_to: isoDate.nullable().optional(),
+}).strict()
+
+export const HrLeaveWithdrawalSchema = z.object({
+  id: z.number().int().positive(),
+  withdrawn: z.literal(true),
+}).strict()
+
+export const HrLeaveTypeListSchema = z.object({ items: z.array(HrLeaveTypeSchema), total: z.number().int().nonnegative() }).strict()
+export const HrLeaveListSchema = z.object({ items: z.array(HrLeaveSchema), total: z.number().int().nonnegative() }).strict()
+export const HrLeaveBalanceListSchema = z.object({ items: z.array(HrLeaveBalanceSchema), total: z.number().int().nonnegative() }).strict()
+
 export type HrEmployeeAccess = z.infer<typeof HrEmployeeAccessSchema>
 export type HrEmployeeCreate = z.infer<typeof HrEmployeeCreateSchema>
 export type HrEmployeePatch = z.infer<typeof HrEmployeePatchSchema>
@@ -201,3 +269,15 @@ export type HrExpiringItem = z.infer<typeof HrExpiringItemSchema>
 export type HrExpiringList = z.infer<typeof HrExpiringListSchema>
 export type HrSaudizationRow = z.infer<typeof HrSaudizationRowSchema>
 export type HrSaudization = z.infer<typeof HrSaudizationSchema>
+
+export type HrLeaveState = z.infer<typeof HrLeaveStateSchema>
+export type HrLeaveType = z.infer<typeof HrLeaveTypeSchema>
+export type HrLeave = z.infer<typeof HrLeaveSchema>
+export type HrLeaveBalance = z.infer<typeof HrLeaveBalanceSchema>
+export type HrLeaveAllocation = z.infer<typeof HrLeaveAllocationSchema>
+export type HrLeaveRequestCreate = z.infer<typeof HrLeaveRequestCreateSchema>
+export type HrLeaveAllocationCreate = z.infer<typeof HrLeaveAllocationCreateSchema>
+export type HrLeaveWithdrawal = z.infer<typeof HrLeaveWithdrawalSchema>
+export type HrLeaveTypeList = z.infer<typeof HrLeaveTypeListSchema>
+export type HrLeaveList = z.infer<typeof HrLeaveListSchema>
+export type HrLeaveBalanceList = z.infer<typeof HrLeaveBalanceListSchema>

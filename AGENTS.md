@@ -265,9 +265,12 @@ cross-addon links.
   or timesheet fields/endpoints to the customer UI; adding them requires a separately scoped
   implementation request. Payroll is approved (owner decision 2026-10-19) as the Saudi payroll
   phase of the HR and finance plan:
-  salary structures, GOSI, WPS, end of service, employee bank accounts and compensation data live
-  only in the payroll addon, behind dedicated payroll capabilities, never in general employee,
-  directory or people views. The company's own bank statements and reconciliation in
+  payroll is a section of the HR application `webvue_hr` (owner decision 2026-10-19: one addon per
+  application, not one addon per domain; ready-made modules such as OCA `payroll` are internal
+  engines under it). Salary structures, GOSI, WPS, end of service, employee bank accounts and
+  compensation data sit behind dedicated `hr.payroll.*` capabilities that no other HR capability
+  implies, and behind the `hr.payroll` sub-feature; they never appear in general employee,
+  directory or people views or serializers. The company's own bank statements and reconciliation in
   `webvue_finance` are accounting data and are allowed.
 - Task detail routes are `/tasks/{id}` and `/projects/{id}/tasks/{taskId}`.
   Presentation follows DESIGN.md. Preserve URL query filters when returning;

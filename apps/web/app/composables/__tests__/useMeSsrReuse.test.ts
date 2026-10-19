@@ -6,6 +6,7 @@ import { createHooks } from 'hookable'
 import { MeSchema } from '@webvue/contracts'
 import ts from 'typescript'
 import * as Vue from 'vue'
+import { vueBindings } from '../../../tests/vueBindings'
 import { describe, expect, it } from 'vitest'
 
 const nuxtRoot = dirname(createRequire(import.meta.url).resolve('nuxt/package.json'))
@@ -40,7 +41,7 @@ function runtime(server: boolean, transport: (url: string, options: any) => unkn
   const debounceTick = installed('dist/app/utils/debounce-tick.js', { queuePostFlushCb: Vue.queuePostFlushCb }, server, 'debounceTick')
   const error = installed('dist/app/error.js', { createError$1: createError }, server, 'createError')
   const bindings = {
-    ...Vue, useNuxtApp: () => app, createError: error, debounceTick,
+    ...vueBindings, useNuxtApp: () => app, createError: error, debounceTick,
     defineKeyedFunctionFactory: (descriptor: { factory: unknown }) => descriptor.factory,
     asyncDataDefaults: { deep: false }, granularCachedData: true, pendingWhenIdle: false, purgeCachedData: true,
     stripNeverHydratedData: false, tracingChannelNuxt: false, vapor: false,

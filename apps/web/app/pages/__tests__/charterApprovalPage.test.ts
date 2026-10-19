@@ -4,6 +4,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
+import { vueBindings } from '../../../tests/vueBindings'
 import { describe, expect, it } from 'vitest'
 import type { ProjectDetail } from '@webvue/contracts'
 import * as projectCharter from '../../utils/projectCharter'
@@ -59,7 +60,7 @@ function loadSfc(path: string, modules: Record<string, unknown>, globals: Record
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
   }).outputText
   const stubbedVue = {
-    ...Vue,
+    ...vueBindings,
     resolveComponent: (name: string) => (name === 'UAlert' ? UAlert : Stub(name)),
   }
   const require = (specifier: string): unknown => {

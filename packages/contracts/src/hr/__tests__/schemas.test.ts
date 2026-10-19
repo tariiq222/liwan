@@ -1,4 +1,11 @@
 import {
+  HrLeaveAllocationCreateSchema,
+  HrLeaveAllocationSchema,
+  HrLeaveBalanceListSchema,
+  HrLeaveListSchema,
+  HrLeaveRequestCreateSchema,
+  HrLeaveSchema,
+  HrLeaveTypeListSchema,
   HrAccessGrantSchema,
   HrAccessPatchSchema,
   HrAccessRoleSchema,
@@ -292,5 +299,46 @@ describe('HrDocumentDetailSchema', () => {
 
   it('rejects tags', () => {
     expect(() => HrDocumentDetailSchema.parse({ ...DOCUMENT, tags: ['policy'] })).toThrow()
+  })
+})
+
+describe('leave', () => {
+  const ref = { id: 1, name: 'Sara' }
+  const leave = {
+    id: 5, employee: ref, leave_type: { id: 2, name: 'Annual leave' },
+    date_from: '2026-11-02', date_to: '2026-11-03', number_of_days: 2, state: 'confirm',
+    notes: '', can_approve: false, can_refuse: false, can_cancel: false, can_withdraw: true,
+  }
+
+  it('accepts a leave request list', () => {
+    expect(HrLeaveListSchema.parse({ items: [leave], total: 1 }).items[0].state).toBe('confirm')
+  })
+
+  it('rejects unknown leave fields and states', () => {
+    expect(() => HrLeaveSchema.parse({ ...leave, salary: 1 })).toThrow()
+    expect(() => HrLeaveSchema.parse({ ...leave, state: 'draft' })).toThrow()
+  })
+
+  it('accepts a balance', () => {
+    const balance = { leave_type: ref, allocated: 21, taken: 0, pending: 2, remaining: 19 }
+    expect(HrLeaveBalanceListSchema.parse({ items: [balance], total: 1 }).items[0].remaining).toBe(19)
+  })
+
+  it('validates a new request', () => {
+    expect(HrLeaveRequestCreateSchema.parse({ leave_type_id: 2, date_from: '2026-11-02', date_to: '2026-11-03' }).leave_type_id).toBe(2)
+    expect(() => HrLeaveRequestCreateSchema.parse({ leave_type_id: 2, date_from: '2026-11-03', date_to: '2026-11-02' })).toThrow()
+    expect(() => HrLeaveRequestCreateSchema.parse({ leave_type_id: 2, date_from: '2026-11-02', date_to: '2026-11-02', state: 'validate' })).toThrow()
+  })
+
+  it('validates a new allocation', () => {
+    expect(HrLeaveAllocationCreateSchema.parse({ employee_id: 1, leave_type_id: 2, number_of_days: 21, date_from: '2026-01-01' }).number_of_days).toBe(21)
+    expect(() => HrLeaveAllocationCreateSchema.parse({ employee_id: 1, leave_type_id: 2, number_of_days: 0, date_from: '2026-01-01' })).toThrow()
+  })
+
+  it('accepts leave types and allocations', () => {
+    const type = { id: 2, name: 'Annual leave', requires_allocation: true, support_document: false }
+    expect(HrLeaveTypeListSchema.parse({ items: [type], total: 1 }).total).toBe(1)
+    const allocation = { id: 3, employee: ref, leave_type: ref, number_of_days: 21, date_from: '2026-01-01', date_to: null, state: 'validate' }
+    expect(HrLeaveAllocationSchema.parse(allocation).state).toBe('validate')
   })
 })

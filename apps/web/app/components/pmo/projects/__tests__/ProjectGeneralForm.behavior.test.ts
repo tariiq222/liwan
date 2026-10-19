@@ -5,6 +5,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import type { ProjectDetail, ProjectPatch } from '@webvue/contracts'
 import ts from 'typescript'
 import * as Vue from 'vue'
+import { vueBindings } from '../../../../../tests/vueBindings'
 import * as VueRouter from 'vue-router'
 import { afterEach, describe, expect, it } from 'vitest'
 import { sharedFile } from '@webvue/ui/test/helpers/renderShared'
@@ -55,8 +56,8 @@ function loadComponent(path: string, bindings: Record<string, unknown>): Vue.Com
     .replace('export default', 'return')
   const code = ts.transpileModule(compiled, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
   const globals = {
-    ...Vue,
-    ...Object.fromEntries(Object.entries(Vue).map(([key, value]) => [`_${key}`, value])),
+    ...vueBindings,
+    ...Object.fromEntries(Object.entries(vueBindings).map(([key, value]) => [`_${key}`, value])),
     ...bindings,
   }
   return new Function(...Object.keys(globals), code)(...Object.values(globals)) as Vue.Component

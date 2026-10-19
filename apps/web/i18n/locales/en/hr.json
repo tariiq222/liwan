@@ -194,6 +194,82 @@
       "previous": "Previous",
       "next": "Next",
       "pagination": "Showing {from}–{to} of {total}"
-    }
+    },
+      "leave": {
+        "description": "Leave balances, requests and approvals.",
+        "new": "Request leave",
+        "allocate": "Grant balance",
+        "balancesTitle": "Leave balances",
+        "remainingUnit": "days left",
+        "balanceHint": "Granted {allocated} · taken {taken} · awaiting approval {pending}",
+        "noBalances": "No leave balance yet",
+        "noBalancesHint": "An HR officer grants each employee their annual leave balance.",
+        "requestsTitle": "Leave requests",
+        "scope": {
+          "label": "Request scope",
+          "mine": "My requests",
+          "pending": "Awaiting approval",
+          "all": "All requests"
+        },
+        "empty": {
+          "mine": "You have no leave requests",
+          "pending": "No requests awaiting approval",
+          "all": "No leave requests"
+        },
+        "columns": {
+          "employee": "Employee",
+          "type": "Type",
+          "period": "Period",
+          "days": "Duration",
+          "state": "Status"
+        },
+        "state": {
+          "confirm": "Awaiting approval",
+          "validate1": "Awaiting second approval",
+          "validate": "Approved",
+          "refuse": "Refused",
+          "cancel": "Cancelled"
+        },
+        "range": "{from} — {to}",
+        "days": "{count} day | {count} days",
+        "approve": "Approve",
+        "refuse": "Refuse",
+        "cancel": "Cancel leave",
+        "cancelConfirm": "Cancel {type}? The balance returns if the leave was approved.",
+        "withdraw": "Withdraw request",
+        "withdrawConfirm": "Withdraw {type}? The request is deleted and the held balance returns.",
+        "actionsFor": "Actions for {type}",
+        "footer": "{shown} of 1 request | {shown} of {total} requests",
+        "form": {
+          "details": "Request details",
+          "type": "Leave type",
+          "chooseType": "Choose a leave type",
+          "typeRequired": "Leave type is required.",
+          "from": "From",
+          "to": "To",
+          "dateRequired": "The date is required.",
+          "dateOrder": "The end date is before the start date.",
+          "notes": "Notes",
+          "documentHint": "This type needs a supporting document, such as a medical report.",
+          "requiredHint": "Marked fields are required.",
+          "submit": "Send request",
+          "noTypes": "No leave types are available for your company"
+        },
+        "allocation": {
+          "details": "Balance details",
+          "employee": "Employee",
+          "employeeSearch": "Search for an employee…",
+          "chooseEmployee": "Choose the employee",
+          "employeeRequired": "The employee is required.",
+          "employeesError": "Could not load employees.",
+          "days": "Number of days",
+          "daysRequired": "The number of days must be more than zero.",
+          "validFrom": "Valid from",
+          "validTo": "Expires on",
+          "validToHint": "Leave empty when the balance does not expire.",
+          "submit": "Grant balance",
+          "noTypes": "No leave types use a balance"
+        }
+      }
   }
 }

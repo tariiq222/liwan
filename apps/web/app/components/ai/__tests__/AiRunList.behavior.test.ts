@@ -4,6 +4,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import { AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema, type AiRunSummary } from '@webvue/contracts'
 import ts from 'typescript'
 import * as Vue from 'vue'
+import { vueBindings } from '../../../../tests/vueBindings'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../../composables/useApi'
 
@@ -37,7 +38,7 @@ function loadComponent(bindings: Record<string, unknown>): Vue.Component {
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
     .replace('export default', 'return')
   const code = ts.transpileModule(compiled, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
-  const globals = { ...Vue, ...Object.fromEntries(Object.entries(Vue).map(([key, value]) => [`_${key}`, value])), ...bindings }
+  const globals = { ...vueBindings, ...Object.fromEntries(Object.entries(vueBindings).map(([key, value]) => [`_${key}`, value])), ...bindings }
   return new Function(...Object.keys(globals), code)(...Object.values(globals)) as Vue.Component
 }
 

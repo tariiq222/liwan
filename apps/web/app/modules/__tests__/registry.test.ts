@@ -63,6 +63,8 @@ const TODAY: ReadonlyArray<readonly [string, string | null, boolean]> = [
   ['hr.employees.archive', 'hr.enabled', true], ['hr.employees.access_status.read', 'hr.enabled', false],
   ['hr.departments.read', 'hr.enabled', false], ['hr.departments.manage', 'hr.enabled', true],
   ['hr.documents.read', 'hr.enabled', false], ['hr.documents.manage', 'hr.enabled', true],
+  ['hr.leave.read', 'hr.enabled', false], ['hr.leave.request', 'hr.enabled', true],
+  ['hr.leave.approve', 'hr.enabled', true], ['hr.leave.manage', 'hr.enabled', true],
   ['pmo.projects.read', 'pmo.enabled', false], ['pmo.projects.create', 'pmo.enabled', true],
   ['pmo.projects.manage', 'pmo.enabled', true], ['pmo.settings.manage', 'pmo.enabled', true],
   ['pmo.tasks.read', 'pmo.enabled', false], ['pmo.tasks.create', 'pmo.enabled', true],
