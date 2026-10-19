@@ -70,7 +70,7 @@
       "method": "GET",
       "route": "/api/v1/finance/zatca/status",
       "status": 200,
-      "schema": "FinanceZatcaReadinessSchema"
+      "schema": "FinanceZatcaStatusSchema"
     },
     {
       "name": "finance/report-vat",
