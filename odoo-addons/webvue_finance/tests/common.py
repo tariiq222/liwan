@@ -55,6 +55,9 @@ class WebVueFinanceCase(WebVueApiCase):
         super().setUpClass()
         cls.company = cls._saudi_company('Finance Company A')
         cls.other_company = cls._saudi_company('Finance Company B')
+        # The two charts exist only inside this transaction, so no statistics describe them yet. Without them the
+        # planner nested-loops the stock account search behind a mis_builder report: seconds per balance sheet.
+        cls.env.cr.execute('ANALYZE account_account, account_account_res_company_rel, res_company')
         cls.partner = cls.env['res.partner'].create({'name': 'Al Noor Trading'})
         cls.manager = new_test_user(
             cls.env, login=MANAGER_LOGIN, password=MANAGER_PASSWORD, name='Finance Manager',
