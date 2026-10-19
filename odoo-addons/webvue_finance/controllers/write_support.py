@@ -27,16 +27,15 @@ def require_state(record, state, code):
 
 
 def _zatca_blocks_posting(move):
-    """True when l10n_sa_edi is installed and the sales journal of a Saudi sale document is not ZATCA-onboarded.
+    """True when the sales journal of a Saudi sale document is not ZATCA-onboarded.
 
     Odoo lists every configuration problem in one refusal, so other errors may sit next to the
     onboarding one; the caller keeps the whole text in ``details.detail``.
-
-    The check only exists with l10n_sa_edi (the journal then carries the readiness helper),
-    so it is looked up by name: Finance does not depend on that optional module.
     """
-    ready = getattr(move.journal_id, '_l10n_sa_ready_to_submit_einvoices', None)
-    return bool(ready) and move.is_sale_document() and move.country_code == 'SA' and not ready()
+    return (
+        move.is_sale_document() and move.country_code == 'SA'
+        and not move.journal_id._l10n_sa_ready_to_submit_einvoices()
+    )
 
 
 def is_period_locked(day, journal=None, has_tax=False):

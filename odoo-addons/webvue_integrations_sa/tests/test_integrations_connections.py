@@ -62,6 +62,26 @@ class TestIntegrationConnections(WebVueIntegrationsCase):
         with self.assertRaises(AccessError):
             Connection.with_user(self.employee).create({'kind': 'bank', 'provider': 'Nobody'})
 
+    def test_set_connection_state_updates_the_row_and_creates_a_missing_one(self):
+        Connection = self.env['webvue.integration.connection'].with_user(self.admin)
+        row = Connection._webvue_set_connection_state(self.env.company, 'zatca', 'ZATCA', 'connected', 'Sandbox ready')
+        self.assertEqual(row, self.connection)
+        self.assertEqual((row.state, row.status_message), ('connected', 'Sandbox ready'))
+        self.assertTrue(row.last_checked)
+        other = self.env['res.company'].create({'name': 'Integrations company C'})
+        self.admin.company_ids = [(4, other.id)]
+        created = Connection.with_context(allowed_company_ids=[other.id])._webvue_set_connection_state(
+            other, 'zatca', 'ZATCA', 'pending', '1 of 2 journals',
+        )
+        self.assertEqual((created.company_id, created.state, created.status_message), (other, 'pending', '1 of 2 journals'))
+
+    def test_set_connection_state_adds_no_elevation(self):
+        with self.assertRaises(AccessError):
+            self.env['webvue.integration.connection'].with_user(self.employee)._webvue_set_connection_state(
+                self.env.company, 'zatca', 'ZATCA', 'connected', 'x',
+            )
+        self.assertEqual(self.connection.state, 'not_configured')
+
     def test_a_connection_is_unique_per_company_kind_and_provider(self):
         Connection = self.env['webvue.integration.connection']
         with mute_logger('odoo.sql_db'), self.assertRaises(Exception), self.env.cr.savepoint():  # noqa: B017

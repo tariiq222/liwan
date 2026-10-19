@@ -15,4 +15,5 @@ from . import (
     finance_reports,
     finance_setup,
     finance_statements,
+    finance_zatca,
 )

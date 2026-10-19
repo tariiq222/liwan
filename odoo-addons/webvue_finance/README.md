@@ -31,6 +31,9 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `POST /assets` (201, a draft), `POST /assets/<id>/validate`, `POST /assets/compute-depreciation` | `finance.assets.manage` |
 | `GET /bank-statements`, `GET /bank-statements/<id>`, `GET /bank-statement-lines/<id>/reconcile-proposals` | `finance.bank.read` |
 | `POST /bank-statements` (201), `POST /bank-statement-lines/<id>/reconcile` | `finance.bank.manage` |
+| `GET /zatca/status`, `GET /invoices/<id>/zatca` | `finance.zatca.read` |
+| `POST /zatca/journals/<id>/onboard` (`{otp}`) | `finance.zatca.manage` |
+| `POST /invoices/<id>/zatca/submit`, `POST /invoices/<id>/zatca/retry` | `finance.zatca.submit` |
 | `GET /partners` (`q`, `kind=customer\|vendor`, `archived=true\|false`), `GET /partners/<id>` | `finance.partners.read` |
 | `POST /partners` (201), `PATCH /partners/<id>`, `POST /partners/<id>/archive`, `/unarchive` | `finance.partners.manage` |
 
@@ -39,8 +42,8 @@ no partner delete: archive instead. Capability dependencies: `partners.manage` n
 `partners.read`; `invoices.manage` needs `invoices.read`; `invoices.post` needs `invoices.manage`;
 `payments.manage` needs `payments.read` and `invoices.read`; `setup.manage` needs `setup.read`; `entries.manage` needs
 `entries.read`; `entries.post` needs `entries.manage`; `assets.manage` needs `assets.read`; `bank.manage` needs
-`bank.read`. The built-in `finance_manager` role (and `webvue_core`'s vendor support role) holds all twenty-one
-capabilities.
+`bank.read`; `zatca.read` needs `invoices.read`; `zatca.manage` and `zatca.submit` need `zatca.read`. The built-in
+`finance_manager` role (and `webvue_core`'s vendor support role) holds all twenty-four capabilities.
 
 ## Write semantics
 
@@ -76,15 +79,14 @@ capabilities.
   to the company country so the check always has a country), `period_locked` (a lock date covers
   the date; the original text is in `details.detail`; a payment date in a closed period is
   refused up front because Odoo would silently move it) and `zatca_not_onboarded` (posting a
-  Saudi sale document is refused while `l10n_sa_edi` is installed and its sales journal is not
+  Saudi sale document is refused while its sales journal, which carries the ZATCA e-invoicing format, is not
   ZATCA-onboarded; Odoo lists every configuration error in one refusal, so other errors may be
-  named next to the onboarding one in `details.detail`). No ZATCA onboarding or network call is
-  made by this addon.
+  named next to the onboarding one in `details.detail`). Posting makes no network call; onboarding and
+  submission are the explicit ZATCA routes below.
 
 ## Deliberate ORM grant
 
-The routes read and write in the caller's own environment (the only `sudo()` is the setup
-elevation below), so each capability
+The routes read and write in the caller's own environment (the only `sudo()` places are the setup elevation below and the ZATCA service), so each capability
 group implies the least stock group that lets the ORM do the operation (documented per group in
 `security/finance_capability_groups.xml`):
 
@@ -184,13 +186,69 @@ caller's environment. A caller without `finance.setup.manage` gets 403 and nothi
 taxes, cash-basis taxes count at the invoice date, and only the current company is read (not branches). Withholding taxes (the taxes of the stock Saudi 'Withholding Return', see
 'Withholding summary source') are not VAT and are left out of both sections, so they never change `net_payable`.
 
-## ZATCA readiness is read-only
+## ZATCA e-invoicing (Fatoora phase 2)
 
-`serializers/zatca.py` reports, from stock `l10n_sa_edi` data when that module is installed
-(`{installed: false}` otherwise): the API mode, whether a private key exists, and per sale journal
-`onboarded` and `state` (`not_started`, `compliance_checked`, `onboarded`). Key material, CSR, CSIDs
-and tokens are never read into the shape (`tests/test_finance_zatca.py` scans every output for
-secret-like keys and values). No onboarding action and no network call exist here.
+`l10n_sa_edi` (stock, LGPL, Community) is a hard dependency; the routes drive its public flow and never copy or
+override its access methods. The Saudi company needs a complete identity first (`GET /setup`): VAT, address,
+registry; the seller's commercial-registration identification and building number are what ZATCA warns about
+otherwise.
+
+**Sandbox only; a release blocker.** Onboarding is sandbox-only in this phase, so **production invoicing for real
+tenants is a release blocker until the simulation/production policy is approved.** The company api mode itself is
+confined: a `res.company` constraint (`models/res_company.py`) refuses any `l10n_sa_api_mode` but `sandbox`, because
+the stock EDI cron sends every pending document in the company's own mode (the shared cron is left active). Onboarding,
+submit and retry also refuse a non-sandbox mode with 422 `zatca_mode_not_allowed` before anything is elevated or sent.
+There is no route that changes the mode.
+
+- `GET /zatca/status`: `{api_mode, private_key_present, journals: [{journal, onboarded, state}], onboarded}`.
+  `state` is `not_started`, `compliance_checked` or `onboarded`.
+- `POST /zatca/journals/<id>/onboard {otp}`: `otp` is the six-digit one-time password of the Fatoora portal (the
+  sandbox accepts `123345`). It runs the stock `l10n_sa_edi.otp.wizard` (key and CSR when missing, compliance CSID,
+  the six compliance checks, production CSID) for one sales journal of the current company, then updates the
+  integrations connection (`connected` when every sales journal is onboarded, else `pending`). Onboarding again is the
+  re-onboarding; there is no reset route. Answer: the journal row. A failure is 502 `zatca_unavailable` (ZATCA could not
+  be reached: connection errors, timeouts, or any HTTP status stock did not interpret other than 400, including 401;
+  the generic message never carries the raw answer) or 422 `zatca_rejected` (ZATCA's 400 answer, or stock's own short
+  message; that text is echoed, length-capped). The stock wizard runs in English whatever the caller's language. A failure rolls the whole request back, so a previously working onboarding survives a wrong OTP.
+  Stock folds every failure into one text, so the 502/422 split reads that text (a `[NNN]` status marker other than
+  400, or connection-error words); a transport failure during the compliance checks is indistinguishable from a rejection and answers 422.
+- `GET /invoices/<id>/zatca` and the `submission` block of the invoice detail `zatca`:
+  `{state, mode, errors, warnings, qr_present}`. `state`: `not_applicable` (draft, or no ZATCA document), `pending`
+  (posted, waiting; the stock cron also sends it), `accepted` (`warnings` hold ZATCA's warnings), `rejected` (ZATCA's
+  validation errors in `errors: [{code, message}]`), `retry` (no verdict yet: ZATCA unreachable, a 5xx, or warnings
+  only; ZATCA's codes are shown when it gave any, else a generic message; stock keeps the chain index only when ZATCA
+  may have received the document and resets it on a definite answer), `blocked` (a local failure before any verdict:
+  signing, certificate, chain-head block, unexpected answer; a short stock message, never a dumped response) and
+  `unauthorized` (ZATCA refused the journal certificate: onboard the journal again).
+  `mode` is `clearance` for a standard (B2B) invoice and `reporting` for a simplified (B2C) one. Warnings are kept
+  by stock only in the chatter, so they are read from the newest alert box of the invoice (best effort).
+- `POST /invoices/<id>/zatca/submit` and `/retry`: send that one posted invoice now (no waiting for the cron).
+  `submit` refuses a rejected document (`invalid_state`: correct it and retry); `retry` clears the stock error first.
+  An accepted document, or one being sent by another process, is 422 `invalid_state`; a draft or non-ZATCA document 422 `zatca_not_applicable`; a journal
+  that lost its onboarding 422 `zatca_not_onboarded`. Answer: the submission block. Otherwise the answer is an error
+  carrying `details.submission`, committed (stock keeps the rejected XML and the chain index of a document ZATCA may
+  have received): 422 `zatca_rejected`, 502 `zatca_unavailable` (state `retry`), 422 `zatca_local_error` (`blocked`),
+  422 `zatca_unauthorized` (`unauthorized`).
+
+Error codes: `zatca_unavailable` 502, `zatca_rejected` 422, `zatca_local_error` 422, `zatca_unauthorized` 422,
+`zatca_mode_not_allowed` 422, `zatca_not_onboarded` 422,
+`zatca_not_applicable` 422, `invalid_state` 422, plus the usual 403 `forbidden`, 404 `not_found` and 422 `invalid`
+(`otp`: exactly six digits, no other key).
+
+**Elevation.** Stock needs `res.company`, `account.journal` and `ir.sequence` writes and system-only fields, which no
+finance group has, so `models/zatca_service.py` (`webvue.finance.zatca`) is the one documented `sudo()` place
+(two calls, one per public entry, R7 owner approval 2026-10-19). Each entry checks the capability, finds the journal or
+invoice in the current company, and refuses a non-sandbox mode before it elevates. No key, CSR, CSID, token or raw
+ZATCA response leaves it (`tests/test_finance_zatca_flow.py` scans every response).
+
+Tests mock the gateway at `requests.request`, where stock calls it (`tests/zatca_common.py`; the fake issues real
+certificates for the CSR it receives and fails on any URL outside the sandbox developer portal). One live smoke
+test is skipped unless asked for:
+
+    WEBVUE_ZATCA_SANDBOX=1 python3 -B tools/odoo_test.py --addons webvue_finance --no-dependents
+
+It needs outbound HTTPS to the sandbox, onboards a fictitious company and clears one standard and reports one
+simplified invoice.
 
 ## VAT summary source
 
@@ -207,7 +265,7 @@ zero.
 (Arabic is kept, RFC 5987 `filename*`; quotes, slashes and control characters are replaced). The report lists the
 invoice's payments, so it is `account.account_invoices` only for a caller who also holds `finance.payments.read`;
 anyone else gets `account.account_invoices_without_payment`. For a Saudi company Odoo prints the `l10n_sa` tax
-invoice, with the ZATCA QR code once the company has a VAT number. The language is Odoo's own: the partner's
+invoice (its file name is the ZATCA one, `<seller VAT>_<issue time>_<number>`), with the ZATCA QR code once the company has a VAT number. The language is Odoo's own: the partner's
 language, or both languages when the company has `l10n_gcc_dual_language_invoice` on. A draft or cancelled invoice
 is 422 `not_posted`, an invoice of another company 404, a missing `finance.invoices.read` 403, a missing or
 failing `wkhtmltopdf` 503 `pdf_unavailable` (any other render error stays 422 `invalid`).
@@ -223,7 +281,7 @@ failing `wkhtmltopdf` 503 `pdf_unavailable` (any other render error stays 422 `i
   renderer for the PDF headers and render the real stock template separately.
 
 The invoice detail carries `zatca`: `null` unless the document is a Saudi sale document, else `{qr_code,
-confirmation_datetime}`. `qr_code` is the base64 TLV payload `l10n_sa` prints (seller, VAT number, issue time, total,
+confirmation_datetime, submission}`. `qr_code` is the base64 TLV payload `l10n_sa` prints (seller, VAT number, issue time, total,
 VAT; `null` until the document is posted and the company has a VAT number) and `confirmation_datetime` the
 ISO-8601 UTC time `l10n_sa` stamps when it is posted.
 

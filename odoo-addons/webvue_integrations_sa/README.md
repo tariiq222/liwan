@@ -19,3 +19,10 @@ empty state.
 The record rule is `company_id in company_ids`; the controller additionally filters by the
 current company. `integrations.manage` depends on `integrations.read`, so a role cannot hold
 manage without read.
+
+## Writing a connection state
+
+`webvue.integration.connection._webvue_set_connection_state(company, kind, provider, state, message)` updates
+the link of a company (creating it when missing) and stamps `last_checked`. It adds no `sudo()`: the caller's
+environment must be allowed to write the model. `webvue_finance` calls it after a ZATCA onboarding, from its own
+elevated service; the message is a short status text, never a credential or a raw provider response.

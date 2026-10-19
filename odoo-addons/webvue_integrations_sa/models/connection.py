@@ -47,3 +47,18 @@ class WebVueIntegrationConnection(models.Model):
             for company_id in self.env['res.company'].search([]).ids
             for kind, provider in DEFAULT_CONNECTIONS if (company_id, kind, provider) not in existing
         ])
+
+    @api.model
+    def _webvue_set_connection_state(self, company, kind, provider, state, message):
+        """Record the state of one live link of ``company``; the link is created when it is missing.
+
+        Applications call this when their own flow changes a link (finance after a ZATCA onboarding).
+        It adds no elevation of its own: the caller's environment must be allowed to write the model,
+        and the message is a short status text, never a credential or a raw provider response.
+        """
+        vals = {'state': state, 'status_message': message, 'last_checked': fields.Datetime.now()}
+        connection = self.search([('company_id', '=', company.id), ('kind', '=', kind), ('provider', '=', provider)], limit=1)
+        if connection:
+            connection.write(vals)
+            return connection
+        return self.create({'company_id': company.id, 'kind': kind, 'provider': provider, **vals})

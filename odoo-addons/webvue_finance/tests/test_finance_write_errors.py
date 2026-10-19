@@ -9,11 +9,9 @@ from .write_common import INVOICES, WebVueFinanceWriteCase
 
 @tagged('post_install', '-at_install', 'webvue')
 class TestFinanceZatcaMapping(WebVueFinanceWriteCase):
-    """l10n_sa_edi is not installed in the test database, so its refusal is simulated.
-
-    The post refusal and the journal readiness helper l10n_sa_edi adds are patched in; the
-    mapping under test (``write_support.refusal``) is the real one. The real module needs a
-    live ZATCA onboarding, which this task must not attempt.
+    """The post refusal and the journal readiness helper are patched in; the mapping under
+    test (``write_support.refusal``) is the real one. The real refusal is covered by
+    ``TestFinanceZatcaRealModule``.
     """
 
     REFUSAL = 'Invalid invoice configuration:\n\n- The Journal (Customer Invoices) is not onboarded yet.'
@@ -27,7 +25,7 @@ class TestFinanceZatcaMapping(WebVueFinanceWriteCase):
             raise UserError(self.REFUSAL)
 
         with (
-            patch.object(journal, '_l10n_sa_ready_to_submit_einvoices', lambda records: ready, create=True),
+            patch.object(journal, '_l10n_sa_ready_to_submit_einvoices', lambda records: ready),
             patch.object(move, 'action_post', refuse),
         ):
             return draft, self.api('POST', f'{INVOICES}/{draft["id"]}/post', json={})
@@ -43,15 +41,3 @@ class TestFinanceZatcaMapping(WebVueFinanceWriteCase):
         _draft, result = self._post(ready=True)
         self.assertRefused(result, 422, 'invalid')
         self.assertEqual(result.json()['message'], self.REFUSAL)
-
-    def test_without_l10n_sa_edi_a_refusal_is_a_plain_invalid(self):
-        draft = self.create_invoice()
-
-        def refuse(moves, *args, **kwargs):
-            message = 'nope'
-            raise UserError(message)
-
-        with patch.object(type(self.env['account.move']), 'action_post', refuse):
-            result = self.api('POST', f'{INVOICES}/{draft["id"]}/post', json={})
-        self.assertRefused(result, 422, 'invalid')
-        self.assertNotIn('details', result.json())

@@ -8,7 +8,6 @@ import {
 } from '..'
 
 const ZATCA = {
-  installed: true,
   api_mode: 'sandbox',
   private_key_present: true,
   journals: [{ journal: { id: 7, name: 'Sales' }, onboarded: false, state: 'compliance_checked' }],
@@ -54,17 +53,15 @@ const SUMMARY = {
 }
 
 describe('finance setup contracts', () => {
-  it('accepts the setup status, with and without ZATCA', () => {
+  it('accepts the setup status', () => {
     expect(FinanceSetupSchema.parse(SETUP)).toEqual(SETUP)
-    const plain = { ...SETUP, zatca: { installed: false } }
-    expect(FinanceSetupSchema.parse(plain)).toEqual(plain)
   })
 
   it('refuses an unknown blocker, a stray key and a secret smuggled into ZATCA', () => {
     expect(() => FinanceSetupSchema.parse({ ...SETUP, blockers: ['made_up'] })).toThrow()
     expect(() => FinanceSetupSchema.parse({ ...SETUP, extra: 1 })).toThrow()
     expect(() => FinanceZatcaReadinessSchema.parse({ ...ZATCA, private_key: 'x' })).toThrow()
-    expect(() => FinanceZatcaReadinessSchema.parse({ installed: false, api_mode: 'prod' })).toThrow()
+    expect(() => FinanceZatcaReadinessSchema.parse({ ...ZATCA, installed: true })).toThrow()
   })
 
   it('validates the two PATCH bodies', () => {

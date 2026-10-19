@@ -4,9 +4,9 @@ from odoo.tests import TransactionCase, new_test_user, tagged
 from odoo.addons.webvue_integrations_sa.models.access_service import PERMISSIONS
 
 
-@tagged('webvue', 'webvue_access')
+@tagged('post_install', '-at_install', 'webvue', 'webvue_access')
 class TestIntegrationsAccessComposition(TransactionCase):
-    """webvue_integrations_sa owns its capabilities and groups (spec R2) and runs at install."""
+    """webvue_integrations_sa owns its capabilities and groups (spec R2) and is checked once every module is loaded."""
 
     @classmethod
     def setUpClass(cls):

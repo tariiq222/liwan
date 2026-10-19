@@ -251,7 +251,11 @@ cross-addon links.
   `webvue_meetings_pmo` only for the id-only lookup of converted tasks;
   `webvue_finance` only in `models/setup_service.py`, for loading the Saudi chart of accounts and
   writing the company tax identity and fiscal settings of the current company, after the
-  `finance.setup.manage` check, with a field whitelist. Do not add
+  `finance.setup.manage` check, with a field whitelist, and in `models/zatca_service.py`, for the
+  ZATCA onboarding of a sales journal and the submission of one invoice through stock `l10n_sa_edi`,
+  after the `finance.zatca.manage` / `finance.zatca.submit` capability and current-company checks,
+  in the sandbox api mode only (ZATCA onboarding is sandbox-only in this phase, so production invoicing for real
+  tenants is a release blocker until the preprod/prod policy is approved). Do not add
   another case without documenting it and fixing ACLs/rules where possible.
   Documented cases are listed per file in `tools/arch_documented_sudo.json`, outside the
   shrink-only baseline. Adding one or raising its count needs the owner's

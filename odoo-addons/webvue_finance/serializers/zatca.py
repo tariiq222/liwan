@@ -1,13 +1,42 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Read-only ZATCA e-invoicing readiness, derived from stock ``l10n_sa_edi`` data.
+"""Read-only ZATCA e-invoicing readiness and submission state, derived from stock ``l10n_sa_edi`` data.
 
-Booleans and states only: the private key, the CSR, the CSIDs and their secrets are
-never read into this shape.
+States, booleans and short ZATCA validation messages only: the private key, the CSR, the CSIDs and
+their secrets, and raw ZATCA responses, are never read into these shapes.
 """
+import html
+import re
+
+MAX_ITEMS = 20
+MAX_TEXT = 500
+# What the client sees instead of raw stock or ZATCA text for the failures that carry no ZATCA rule code.
+UNAVAILABLE_MESSAGE = 'ZATCA could not be reached or answered unexpectedly; retry later'
+UNAUTHORIZED_MESSAGE = 'ZATCA refused the journal certificate (expired or revoked); onboard the journal again'
+BLOCKED_MESSAGE = 'The invoice could not be processed here; check the journal onboarding and the invoice data'
+UNAUTHORIZED_STATUSES = frozenset({'401', '403'})
+MAX_LOCAL_TEXT = 200
+STATUS_MARKER = re.compile(r'\[(\d{3})\]')
+ZATCA_FORMAT_CODE = 'sa_zatca'
+# Stock logs one alert box per submission in the chatter; its warning lines read "<b>CODE</b> : message".
+ALERT = re.compile(r"class=[\"']alert alert-(\w+)")
+CODED_LINE = re.compile(r'^(?:\[\d+\]\s*)?([A-Z][A-Za-z0-9-]*-[A-Za-z0-9-]+)\s*:\s*(.+)$')
+WARNING_LINE = re.compile(r'<b>([^<]+)</b>\s*:\s*([^<]+)')
 
 
-def zatca_installed(env):
-    return 'l10n_sa_private_key_id' in env['res.company']._fields
+def plain_text(value):
+    """Visible text of a stock HTML message, truncated; tags are dropped and entities decoded."""
+    text = html.unescape(re.sub(r'<[^>]+>', '', value or '')).strip()
+    return text[:MAX_TEXT]
+
+
+def _html_lines(value):
+    pieces = re.split(r'<br\s*/?>|</p>|</li>|\n', value or '')
+    return [line for line in (plain_text(piece) for piece in pieces) if line]
+
+
+def _coded_message(line):
+    match = CODED_LINE.match(line)
+    return {'code': match.group(1), 'message': match.group(2)[:MAX_TEXT]} if match else {'code': None, 'message': line}
 
 
 def _journal_state(journal):
@@ -27,16 +56,88 @@ def dump_zatca_journal(journal):
 
 
 def dump_zatca_readiness(company):
-    env = company.env
-    if not zatca_installed(env):
-        return {'installed': False}
-    journals = env['account.journal'].search([('company_id', '=', company.id), ('type', '=', 'sale')])
+    journals = company.env['account.journal'].search([('company_id', '=', company.id), ('type', '=', 'sale')])
     rows = [dump_zatca_journal(journal) for journal in journals]
     private_key_present = bool(company.l10n_sa_private_key_id)
     return {
-        'installed': True,
         'api_mode': company.l10n_sa_api_mode,
         'private_key_present': private_key_present,
         'journals': rows,
         'onboarded': private_key_present and bool(rows) and all(row['onboarded'] for row in rows),
+    }
+
+
+def zatca_document(move):
+    return move.edi_document_ids.filtered(lambda document: document.edi_format_id.code == ZATCA_FORMAT_CODE)[:1]
+
+
+def _local_message(lines):
+    """Stock's own short text of a local failure; anything that looks like a dumped response is replaced."""
+    text = ' '.join(lines)[:MAX_LOCAL_TEXT]
+    return text if text and '{' not in text and '}' not in text else BLOCKED_MESSAGE
+
+
+def _classify(document):
+    """``(state, errors)`` of a ZATCA EDI document, from what stock stored on it.
+
+    Stock stores, with ``blocking_level`` ``error``: a ZATCA rejection (coded validation lines) or a failure
+    that never reached a verdict (signing, certificate, chain-head block, undecodable answer) and with
+    ``warning``: ZATCA answering with warnings only, a non-400 HTTP status (``[401]``...) or no answer at all.
+    """
+    if document.state == 'sent':
+        return 'accepted', []
+    if document.state != 'to_send':
+        return 'not_applicable', []
+    level = document.blocking_level
+    if not level:
+        return 'pending', []
+    lines = _html_lines(document.error)
+    marker = STATUS_MARKER.search(plain_text(document.error))
+    status = marker.group(1) if marker else None
+    verdict = status is None or status == '400' or status.startswith('2')  # other statuses carry a raw body
+    coded = [m for m in map(_coded_message, lines) if m['code']][:MAX_ITEMS] if verdict else []
+    if level == 'error':
+        return ('rejected', coded) if coded else ('blocked', [{'code': None, 'message': _local_message(lines)}])
+    if coded:
+        return 'retry', coded
+    if status in UNAUTHORIZED_STATUSES:
+        return 'unauthorized', [{'code': None, 'message': UNAUTHORIZED_MESSAGE}]
+    return 'retry', [{'code': None, 'message': UNAVAILABLE_MESSAGE}]
+
+
+def _chatter_warnings(move):
+    """The warning lines ZATCA attached to the acceptance, from the newest alert box in the chatter.
+
+    Stock keeps them nowhere else. The alert class (not its translated title) identifies the box; the sanitizer drops its ``role``.
+    """
+    for message in move.message_ids:
+        body = message.body or ''
+        alert = ALERT.search(body)
+        if alert:
+            if alert.group(1) != 'warning':
+                return []
+            return [
+                {'code': html.unescape(code).strip(), 'message': html.unescape(text).strip()[:MAX_TEXT]}
+                for code, text in WARNING_LINE.findall(body)
+            ][:MAX_ITEMS]
+    return []
+
+
+def dump_zatca_submission(move):
+    """Where a document stands with ZATCA.
+
+    ``not_applicable``, ``pending``, ``accepted`` (with ``warnings``), ``rejected`` (ZATCA's validation
+    errors), ``retry`` (no verdict yet: ZATCA unreachable, 5xx, or warnings only; a retry is safe, and stock
+    keeps the chain index only when ZATCA may have received the document), ``blocked`` (a local failure
+    before any verdict) and ``unauthorized`` (ZATCA refused the journal certificate: onboard again).
+    ``mode`` is ``clearance`` for a standard (B2B) invoice and ``reporting`` for a simplified (B2C) one.
+    """
+    document = zatca_document(move)
+    state, errors = _classify(document) if document else ('not_applicable', [])
+    return {
+        'state': state,
+        'mode': ('reporting' if move._l10n_sa_is_simplified() else 'clearance') if state != 'not_applicable' else None,
+        'errors': errors,
+        'warnings': _chatter_warnings(move) if state == 'accepted' else [],
+        'qr_present': bool(move.l10n_sa_qr_code_str),
     }

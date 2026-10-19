@@ -82,7 +82,7 @@ def setup_blockers(setup):
     if missing & set(ADDRESS_FIELDS):
         blockers.append('company_address_incomplete')
     zatca = setup['zatca']
-    if zatca['installed'] and not zatca['onboarded']:
+    if not zatca['onboarded']:
         blockers.append('zatca_not_onboarded')
     return blockers
 

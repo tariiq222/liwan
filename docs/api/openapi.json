@@ -8192,11 +8192,98 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "submission": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "errors": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "message": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "mode": {
+                        "anyOf": [
+                          {
+                            "enum": [
+                              "clearance",
+                              "reporting"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "qr_present": {
+                        "type": "boolean"
+                      },
+                      "state": {
+                        "enum": [
+                          "not_applicable",
+                          "pending",
+                          "retry",
+                          "rejected",
+                          "blocked",
+                          "unauthorized",
+                          "accepted"
+                        ],
+                        "type": "string"
+                      },
+                      "warnings": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "message": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "message"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "state",
+                      "mode",
+                      "errors",
+                      "warnings",
+                      "qr_present"
+                    ],
+                    "type": "object"
                   }
                 },
                 "required": [
                   "qr_code",
-                  "confirmation_datetime"
+                  "confirmation_datetime",
+                  "submission"
                 ],
                 "type": "object"
               },
@@ -8778,11 +8865,98 @@
                 "type": "null"
               }
             ]
+          },
+          "submission": {
+            "additionalProperties": false,
+            "properties": {
+              "errors": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "mode": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "clearance",
+                      "reporting"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "qr_present": {
+                "type": "boolean"
+              },
+              "state": {
+                "enum": [
+                  "not_applicable",
+                  "pending",
+                  "retry",
+                  "rejected",
+                  "blocked",
+                  "unauthorized",
+                  "accepted"
+                ],
+                "type": "string"
+              },
+              "warnings": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "state",
+              "mode",
+              "errors",
+              "warnings",
+              "qr_present"
+            ],
+            "type": "object"
           }
         },
         "required": [
           "qr_code",
-          "confirmation_datetime"
+          "confirmation_datetime",
+          "submission"
         ],
         "type": "object"
       },
@@ -10650,95 +10824,73 @@
             "type": "object"
           },
           "zatca": {
-            "oneOf": [
-              {
-                "additionalProperties": false,
-                "properties": {
-                  "installed": {
-                    "const": false,
-                    "type": "boolean"
-                  }
-                },
-                "required": [
-                  "installed"
+            "additionalProperties": false,
+            "properties": {
+              "api_mode": {
+                "enum": [
+                  "sandbox",
+                  "preprod",
+                  "prod"
                 ],
-                "type": "object"
+                "type": "string"
               },
-              {
-                "additionalProperties": false,
-                "properties": {
-                  "api_mode": {
-                    "enum": [
-                      "sandbox",
-                      "preprod",
-                      "prod"
-                    ],
-                    "type": "string"
-                  },
-                  "installed": {
-                    "const": true,
-                    "type": "boolean"
-                  },
-                  "journals": {
-                    "items": {
+              "journals": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "journal": {
                       "additionalProperties": false,
                       "properties": {
-                        "journal": {
-                          "additionalProperties": false,
-                          "properties": {
-                            "id": {
-                              "exclusiveMinimum": 0,
-                              "maximum": 9007199254740991,
-                              "type": "integer"
-                            },
-                            "name": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "name"
-                          ],
-                          "type": "object"
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
                         },
-                        "onboarded": {
-                          "type": "boolean"
-                        },
-                        "state": {
-                          "enum": [
-                            "not_started",
-                            "compliance_checked",
-                            "onboarded"
-                          ],
+                        "name": {
                           "type": "string"
                         }
                       },
                       "required": [
-                        "journal",
-                        "onboarded",
-                        "state"
+                        "id",
+                        "name"
                       ],
                       "type": "object"
                     },
-                    "type": "array"
+                    "onboarded": {
+                      "type": "boolean"
+                    },
+                    "state": {
+                      "enum": [
+                        "not_started",
+                        "compliance_checked",
+                        "onboarded"
+                      ],
+                      "type": "string"
+                    }
                   },
-                  "onboarded": {
-                    "type": "boolean"
-                  },
-                  "private_key_present": {
-                    "type": "boolean"
-                  }
+                  "required": [
+                    "journal",
+                    "onboarded",
+                    "state"
+                  ],
+                  "type": "object"
                 },
-                "required": [
-                  "installed",
-                  "api_mode",
-                  "private_key_present",
-                  "journals",
-                  "onboarded"
-                ],
-                "type": "object"
+                "type": "array"
+              },
+              "onboarded": {
+                "type": "boolean"
+              },
+              "private_key_present": {
+                "type": "boolean"
               }
-            ]
+            },
+            "required": [
+              "api_mode",
+              "private_key_present",
+              "journals",
+              "onboarded"
+            ],
+            "type": "object"
           }
         },
         "required": [
@@ -11691,6 +11843,19 @@
         ],
         "type": "object"
       },
+      "FinanceZatcaErrorCodeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "zatca_unavailable",
+          "zatca_rejected",
+          "zatca_local_error",
+          "zatca_unauthorized",
+          "zatca_mode_not_allowed",
+          "zatca_not_onboarded",
+          "zatca_not_applicable"
+        ],
+        "type": "string"
+      },
       "FinanceZatcaJournalSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -11741,97 +11906,209 @@
         ],
         "type": "string"
       },
+      "FinanceZatcaMessageSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "FinanceZatcaOnboardInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "otp": {
+            "pattern": "^\\d{6}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "otp"
+        ],
+        "type": "object"
+      },
       "FinanceZatcaReadinessSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "oneOf": [
-          {
-            "additionalProperties": false,
-            "properties": {
-              "installed": {
-                "const": false,
-                "type": "boolean"
-              }
-            },
-            "required": [
-              "installed"
+        "additionalProperties": false,
+        "properties": {
+          "api_mode": {
+            "enum": [
+              "sandbox",
+              "preprod",
+              "prod"
             ],
-            "type": "object"
+            "type": "string"
           },
-          {
-            "additionalProperties": false,
-            "properties": {
-              "api_mode": {
-                "enum": [
-                  "sandbox",
-                  "preprod",
-                  "prod"
-                ],
-                "type": "string"
-              },
-              "installed": {
-                "const": true,
-                "type": "boolean"
-              },
-              "journals": {
-                "items": {
+          "journals": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "journal": {
                   "additionalProperties": false,
                   "properties": {
-                    "journal": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "id": {
-                          "exclusiveMinimum": 0,
-                          "maximum": 9007199254740991,
-                          "type": "integer"
-                        },
-                        "name": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "name"
-                      ],
-                      "type": "object"
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
                     },
-                    "onboarded": {
-                      "type": "boolean"
-                    },
-                    "state": {
-                      "enum": [
-                        "not_started",
-                        "compliance_checked",
-                        "onboarded"
-                      ],
+                    "name": {
                       "type": "string"
                     }
                   },
                   "required": [
-                    "journal",
-                    "onboarded",
-                    "state"
+                    "id",
+                    "name"
                   ],
                   "type": "object"
                 },
-                "type": "array"
+                "onboarded": {
+                  "type": "boolean"
+                },
+                "state": {
+                  "enum": [
+                    "not_started",
+                    "compliance_checked",
+                    "onboarded"
+                  ],
+                  "type": "string"
+                }
               },
-              "onboarded": {
-                "type": "boolean"
-              },
-              "private_key_present": {
-                "type": "boolean"
-              }
+              "required": [
+                "journal",
+                "onboarded",
+                "state"
+              ],
+              "type": "object"
             },
-            "required": [
-              "installed",
-              "api_mode",
-              "private_key_present",
-              "journals",
-              "onboarded"
-            ],
-            "type": "object"
+            "type": "array"
+          },
+          "onboarded": {
+            "type": "boolean"
+          },
+          "private_key_present": {
+            "type": "boolean"
           }
-        ]
+        },
+        "required": [
+          "api_mode",
+          "private_key_present",
+          "journals",
+          "onboarded"
+        ],
+        "type": "object"
+      },
+      "FinanceZatcaSubmissionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "errors": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "message"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "clearance",
+                  "reporting"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "qr_present": {
+            "type": "boolean"
+          },
+          "state": {
+            "enum": [
+              "not_applicable",
+              "pending",
+              "retry",
+              "rejected",
+              "blocked",
+              "unauthorized",
+              "accepted"
+            ],
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "message"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "state",
+          "mode",
+          "errors",
+          "warnings",
+          "qr_present"
+        ],
+        "type": "object"
+      },
+      "FinanceZatcaSubmissionStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "not_applicable",
+          "pending",
+          "retry",
+          "rejected",
+          "blocked",
+          "unauthorized",
+          "accepted"
+        ],
+        "type": "string"
       },
       "FontSizeSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -35469,6 +35746,165 @@
         }
       }
     },
+    "/api/v1/finance/invoices/{invoice_id}/zatca": {
+      "get": {
+        "operationId": "webvue_finance.FinanceZatcaController.get_submission.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_submission",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceZatcaController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_submission",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/invoices/{invoice_id}/zatca/retry": {
+      "post": {
+        "operationId": "webvue_finance.FinanceZatcaController.retry_invoice.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "retry_invoice",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceZatcaController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "retry_invoice",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/invoices/{invoice_id}/zatca/submit": {
+      "post": {
+        "operationId": "webvue_finance.FinanceZatcaController.submit_invoice.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "submit_invoice",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceZatcaController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "submit_invoice",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/finance/journals": {
       "get": {
         "operationId": "webvue_finance.FinanceJournalController.list_journals.get",
@@ -36497,6 +36933,99 @@
           "feature_operation": "write",
           "handler": "patch_fiscal",
           "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/zatca/journals/{journal_id}/onboard": {
+      "post": {
+        "operationId": "webvue_finance.FinanceZatcaController.onboard_journal.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "journal_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "onboard_journal",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceZatcaController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "onboard_journal",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/zatca/status": {
+      "get": {
+        "operationId": "webvue_finance.FinanceZatcaController.get_status.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_status",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceZatcaController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_status",
+          "readonly": true,
           "route_type": "json2"
         }
       }
