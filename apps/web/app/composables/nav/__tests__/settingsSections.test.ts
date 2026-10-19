@@ -10,7 +10,7 @@ describe('settings sections', () => {
   })
   it('hold the moved pages under their section prefixes', () => {
     const byId = Object.fromEntries(settingsSections().map(section => [section.id, section.entries.map(entry => entry.to)]))
-    expect(byId.company).toEqual(['/settings/company/branding'])
+    expect(byId.company).toEqual(['/settings/company/profile', '/settings/company/address', '/settings/company/contact', '/settings/company/branding'])
     expect(byId.team).toEqual(['/settings/team/users', '/settings/team/roles', '/settings/team/access-log'])
     expect(byId.system).toEqual(['/settings/system/integrations', '/settings/system/maintenance'])
     expect(byId.billing).toEqual(['/subscription', '/subscription/change', '/subscription/status', '/subscription/branches', '/subscription/invoices'])

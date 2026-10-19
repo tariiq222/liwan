@@ -2,12 +2,22 @@
 from odoo import models
 from odoo.exceptions import AccessError
 
+from .protected_write import is_marked_write
+
 PARTNER_GRANT_MARKER = 'webvue_core.access_grant_partner_ids'
 PARTNER_GRANT_FIELDS = {
     'active', 'company_id', 'email', 'image_1920', 'name', 'properties',
 }
 PARTNER_BRANDING_MARKER = 'webvue_core.branding_partner_ids'
 PARTNER_BRANDING_FIELDS = {'image_1920', 'name'}
+PARTNER_COMPANY_MARKER = 'webvue_core.company_profile_partner_ids'
+# The partner side of the company profile: identity, address, contact and the Saudi (l10n_sa_edi) fields.
+PARTNER_COMPANY_FIELDS = {
+    'image_1920', 'name', 'company_registry', 'vat', 'email', 'phone', 'website',
+    'street', 'street2', 'city', 'zip', 'state_id', 'country_id',
+    'l10n_sa_edi_building_number', 'l10n_sa_edi_plot_identification',
+    'l10n_sa_edi_additional_identification_scheme', 'l10n_sa_edi_additional_identification_number',
+}
 
 
 class WebVueResPartner(models.Model):
@@ -16,15 +26,19 @@ class WebVueResPartner(models.Model):
     def write(self, vals):
         if self.env.is_superuser() or self.env.user.has_group('base.group_system'):
             return super().write(vals)
+        company_profile_allowed = is_marked_write(self, PARTNER_COMPANY_MARKER, PARTNER_COMPANY_FIELDS, vals)
         identity_fields = {'name', 'image_1920', 'image_1024', 'image_512', 'image_256', 'image_128'}
-        if identity_fields.intersection(vals) and self.env['res.company']._webvue_has_company_partner(self.ids):
+        if (
+            not company_profile_allowed
+            and identity_fields.intersection(vals)
+            and self.env['res.company']._webvue_has_company_partner(self.ids)
+        ):
             raise AccessError(self.env._('Only Odoo system administrators can change institution name and logo.'))
         service = self.env['webvue.access.service']
         protected_actor = (
             self.env.user._webvue_is_customer_actor()
-            or service._webvue_has_capability(
-                self.env.user, 'settings.branding.manage',
-            )
+            or service._webvue_has_capability(self.env.user, 'settings.branding.manage')
+            or service._webvue_has_capability(self.env.user, 'settings.company.manage')
         )
         if protected_actor:
             marker = self.env.cr.precommit.data
@@ -33,12 +47,8 @@ class WebVueResPartner(models.Model):
                 and set(self.ids) <= marker.get(PARTNER_GRANT_MARKER, set())
                 and set(vals) <= PARTNER_GRANT_FIELDS
             )
-            branding_allowed = (
-                bool(self.ids)
-                and set(self.ids) <= marker.get(PARTNER_BRANDING_MARKER, set())
-                and set(vals) <= PARTNER_BRANDING_FIELDS
-            )
-            if not grant_allowed and not branding_allowed:
+            branding_allowed = is_marked_write(self, PARTNER_BRANDING_MARKER, PARTNER_BRANDING_FIELDS, vals)
+            if not (grant_allowed or branding_allowed or company_profile_allowed):
                 fields = ','.join(sorted(vals))
                 msg = f'use_protected_webvue_access_operation:res_partner_write:{fields}'
                 raise AccessError(msg)

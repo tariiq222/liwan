@@ -2,10 +2,18 @@
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
 
-from .res_partner import PARTNER_BRANDING_MARKER
+from .protected_write import is_marked_write, marked
+from .res_partner import (
+    PARTNER_BRANDING_MARKER,
+    PARTNER_COMPANY_FIELDS,
+    PARTNER_COMPANY_MARKER,
+)
 
 BRANDING_COMPANY_MARKER = 'webvue_core.branding_company_ids'
 BRANDING_COMPANY_FIELDS = {'primary_color', 'secondary_color'}
+COMPANY_PROFILE_MARKER = 'webvue_core.company_profile_company_ids'
+# Company-side names of the partner fields above: the logo is the partner image, the tagline is the company's.
+COMPANY_PROFILE_FIELDS = (PARTNER_COMPANY_FIELDS - {'image_1920'}) | {'logo', 'report_header'}
 
 
 class ResCompany(models.Model):
@@ -28,24 +36,24 @@ class ResCompany(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
-        if {'name', 'logo', 'logo_web', 'partner_id'}.intersection(vals) and not self.env.is_system():
+        profile_allowed = is_marked_write(self, COMPANY_PROFILE_MARKER, COMPANY_PROFILE_FIELDS, vals)
+        if (
+            not profile_allowed
+            and {'name', 'logo', 'logo_web', 'partner_id'}.intersection(vals)
+            and not self.env.is_system()
+        ):
             raise AccessError(self.env._('Only Odoo system administrators can change institution name and logo.'))
         service = self.env['webvue.access.service']
         if (
             not self.env.is_superuser()
             and not self.env.user.has_group('base.group_system')
-            and service._webvue_has_capability(
-                self.env.user, 'settings.branding.manage',
+            and (
+                service._webvue_has_capability(self.env.user, 'settings.branding.manage')
+                or service._webvue_has_capability(self.env.user, 'settings.company.manage')
             )
         ):
-            allowed_ids = self.env.cr.precommit.data.get(
-                BRANDING_COMPANY_MARKER, set(),
-            )
-            if (
-                not self.ids
-                or not set(self.ids) <= allowed_ids
-                or not set(vals) <= BRANDING_COMPANY_FIELDS
-            ):
+            branding_allowed = is_marked_write(self, BRANDING_COMPANY_MARKER, BRANDING_COMPANY_FIELDS, vals)
+            if not (branding_allowed or profile_allowed):
                 msg = 'use_protected_webvue_access_operation'
                 raise AccessError(msg)
         return super().write(vals)
@@ -60,22 +68,28 @@ class ResCompany(models.Model):
         if not vals or set(vals) - BRANDING_COMPANY_FIELDS:
             msg = 'invalid_branding_fields'
             raise AccessError(msg)
-        marker = self.env.cr.precommit.data
-        previous_companies = marker.get(BRANDING_COMPANY_MARKER)
-        previous_partners = marker.get(PARTNER_BRANDING_MARKER)
-        marker[BRANDING_COMPANY_MARKER] = {self.id}
-        marker[PARTNER_BRANDING_MARKER] = {self.partner_id.id}
-        try:
+        with marked(self.env, {BRANDING_COMPANY_MARKER: {self.id}, PARTNER_BRANDING_MARKER: {self.partner_id.id}}):
             return super().write(vals)
-        finally:
-            if previous_companies is None:
-                marker.pop(BRANDING_COMPANY_MARKER, None)
-            else:
-                marker[BRANDING_COMPANY_MARKER] = previous_companies
-            if previous_partners is None:
-                marker.pop(PARTNER_BRANDING_MARKER, None)
-            else:
-                marker[PARTNER_BRANDING_MARKER] = previous_partners
+
+    def _webvue_write_company_profile(self, vals):
+        """Write whitelisted identity, address and contact fields of the current company.
+
+        Not elevated: the caller's own ACL and record rule (``settings.company.manage`` group, current
+        company) decide, and the markers only let this field set through the res.company / res.partner guards.
+        Saudi (l10n_sa_edi) fields exist only when that module is installed.
+        """
+        self.ensure_one()
+        self.env['webvue.access.service']._webvue_require_capability('settings.company.manage')
+        if self != self.env.company:
+            msg = 'forbidden'
+            raise AccessError(msg)
+        allowed = {field for field in COMPANY_PROFILE_FIELDS if field in self._fields}
+        if not vals or set(vals) - allowed:
+            msg = 'invalid_company_profile_fields'
+            raise AccessError(msg)
+        partners = self.partner_id | self.partner_id.with_context(active_test=False).child_ids
+        with marked(self.env, {COMPANY_PROFILE_MARKER: {self.id}, PARTNER_COMPANY_MARKER: set(partners.ids)}):
+            return super().write(vals)
 
     @api.model
     def _webvue_has_company_partner(self, partner_ids):

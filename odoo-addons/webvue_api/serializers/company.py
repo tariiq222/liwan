@@ -10,11 +10,8 @@ DEFAULT_PRIMARY_COLOR = '#0066cc'
 def parse_branding_vals(payload):
     if not isinstance(payload, dict) or not payload:
         raise ApiError(422, 'invalid', 'branding patch must include a color')
-    # Reject the entire request, including a mixed colour/identity patch.
-    # Institution identity is managed through the Odoo console.
-    for key in ('name', 'logo'):
-        if key in payload:
-            raise ApiError(403, 'forbidden', 'institution identity is managed in Odoo', field=key)
+    # Reject the entire request, including a patch that mixes a colour with another field:
+    # name and logo belong to the company profile (/admin/company).
     for key in payload:
         if key not in {'primary_color', 'secondary_color'}:
             raise ApiError(422, 'invalid', f"field {key!r} is not writable", field=key)
@@ -35,16 +32,19 @@ def _logo_version(company):
     return f'{timestamp}-{digest}'
 
 
+def dump_logo_url(company):
+    """Versioned URL of the company logo, or None while the company has only Odoo's stock logo."""
+    # Odoo serves (and stores) its own stock logo when the company has none; never expose that URL.
+    if company.logo and not company.uses_default_logo:
+        return f'/web/binary/company_logo?company={company.id}&v={_logo_version(company)}'
+    return None
+
+
 def dump_branding(company):
     """Public branding of ``company`` for the login page and app chrome."""
-    # Odoo serves (and stores) its own stock logo when the company has none; never expose that URL.
-    logo_url = (
-        f'/web/binary/company_logo?company={company.id}&v={_logo_version(company)}'
-        if company.logo and not company.uses_default_logo else None
-    )
     payload = {
         'name': company.name,
-        'logo_url': logo_url,
+        'logo_url': dump_logo_url(company),
         'primary_color': company.primary_color or DEFAULT_PRIMARY_COLOR,
         'font': company.font,
     }

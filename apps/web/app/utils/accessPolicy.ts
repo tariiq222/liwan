@@ -32,7 +32,7 @@ type Destination = readonly [path: string, capability: string]
 const FOUNDATION_SETTINGS: readonly Destination[] = [
   ['/settings/team/users', 'access.users.read'], ['/settings/team/roles', 'access.roles.read'], ['/settings/team/access-log', 'access.audit.read'],
 ]
-const FOUNDATION_LAST: readonly Destination[] = [['/settings/company/branding', 'settings.branding.manage'], ['/settings/system/maintenance', 'settings.maintenance.manage'], ['/settings/system/integrations', 'integrations.read']]
+const FOUNDATION_LAST: readonly Destination[] = [['/settings/company/profile', 'settings.company.read'], ['/settings/company/address', 'settings.company.read'], ['/settings/company/contact', 'settings.company.read'], ['/settings/company/branding', 'settings.branding.manage'], ['/settings/system/maintenance', 'settings.maintenance.manage'], ['/settings/system/integrations', 'integrations.read']]
 const FOUNDATION_RETURN_TO = ['/', '/account', '/search', '/notifications']
 /** Application landings in rail order, then settings, then the landings that sort after settings, the applications' settings pages, then branding. */
 function destinations(): readonly Destination[] {

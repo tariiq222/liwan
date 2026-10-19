@@ -62,18 +62,6 @@ export const FinanceSetupSchema = z.object({
   blockers: z.array(FinanceSetupBlockerSchema),
 }).strict()
 
-const text = z.string().nullable()
-
-/** PATCH /finance/setup/company: relations are ids, null or an empty string clears a field. */
-export const FinanceSetupCompanyInputSchema = z.object({
-  vat: text,
-  company_registry: text,
-  street: text,
-  city: text,
-  state_id: id.nullable(),
-  country_id: id.nullable(),
-}).partial().strict()
-
 /** PATCH /finance/setup/fiscal: the hard lock date is irreversible and never written here. */
 export const FinanceSetupFiscalInputSchema = z.object({
   fiscalyear_last_day: z.number().int().min(1).max(31),
@@ -88,5 +76,4 @@ export type FinanceSetupBlocker = z.infer<typeof FinanceSetupBlockerSchema>
 export type FinanceZatcaJournal = z.infer<typeof FinanceZatcaJournalSchema>
 export type FinanceZatcaReadiness = z.infer<typeof FinanceZatcaReadinessSchema>
 export type FinanceSetup = z.infer<typeof FinanceSetupSchema>
-export type FinanceSetupCompanyInput = z.infer<typeof FinanceSetupCompanyInputSchema>
 export type FinanceSetupFiscalInput = z.infer<typeof FinanceSetupFiscalInputSchema>

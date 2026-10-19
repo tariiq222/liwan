@@ -1,5 +1,4 @@
 import {
-  FinanceSetupCompanyInputSchema,
   FinanceSetupFiscalInputSchema,
   FinanceSetupSchema,
   FinanceVatSummarySchema,
@@ -64,9 +63,7 @@ describe('finance setup contracts', () => {
     expect(() => FinanceZatcaReadinessSchema.parse({ ...ZATCA, installed: true })).toThrow()
   })
 
-  it('validates the two PATCH bodies', () => {
-    expect(FinanceSetupCompanyInputSchema.parse({ vat: '300000000000003', state_id: null })).toBeTruthy()
-    expect(() => FinanceSetupCompanyInputSchema.parse({ currency: 'USD' })).toThrow()
+  it('validates the PATCH body', () => {
     expect(FinanceSetupFiscalInputSchema.parse({ fiscalyear_last_month: 6, tax_lock_date: null })).toBeTruthy()
     expect(() => FinanceSetupFiscalInputSchema.parse({ fiscalyear_last_month: 13 })).toThrow()
     expect(() => FinanceSetupFiscalInputSchema.parse({ hard_lock_date: '2026-01-01' })).toThrow()

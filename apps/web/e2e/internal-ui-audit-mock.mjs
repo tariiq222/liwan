@@ -21,7 +21,7 @@ const CAPABILITIES = [
   'hr.departments.read', 'hr.departments.manage', 'documents.items.read', 'documents.items.manage',
   'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage', 'pmo.settings.manage',
   'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write', 'pmo.tasks.approve',
-  'settings.branding.manage', 'ai.use',
+  'settings.branding.manage', 'settings.company.read', 'settings.company.manage', 'ai.use',
 ]
 
 const ME = {
@@ -48,6 +48,36 @@ const BRANDING = {
   logo_url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="6" fill="#13234a"/></svg>'),
   primary_color: process.env.PREVIEW_PRIMARY_COLOR || '#13234a',
   font: 'IBM Plex Sans Arabic',
+}
+
+// The company profile (/api/v1/admin/company): PATCH merges the sent fields, so the pages can be exercised end to end.
+const COMPANY_COUNTRIES = [{ id: 192, name: 'المملكة العربية السعودية', code: 'SA' }, { id: 229, name: 'الإمارات العربية المتحدة', code: 'AE' }]
+const COMPANY_STATES = { 192: [{ id: 1, name: 'الرياض', code: 'RUH' }, { id: 2, name: 'مكة المكرمة', code: 'MAK' }], 229: [{ id: 3, name: 'دبي', code: 'DU' }] }
+const COMPANY = {
+  id: 1, name: 'ويب فيو', logo_url: null, report_header: 'منصة عربية موحّدة لتشغيل الشركات', company_registry: '1010000000', vat: '300000000000003',
+  l10n_sa_edi_additional_identification_scheme: 'CRN', l10n_sa_edi_additional_identification_number: '1010000000',
+  address: {
+    street: 'طريق الملك فهد', street2: 'العليا', city: 'الرياض', zip: '12211', state: { id: 1, name: 'الرياض' },
+    country: COMPANY_COUNTRIES[0], l10n_sa_edi_building_number: '1234', l10n_sa_edi_plot_identification: '5678',
+  },
+  email: 'info@webvue.example', phone: '+966110000000', website: null,
+  currency: { id: 5, name: 'SAR', symbol: 'ر.س' },
+}
+const COMPANY_ADDRESS_FIELDS = ['street', 'street2', 'city', 'zip', 'l10n_sa_edi_building_number', 'l10n_sa_edi_plot_identification']
+const COMPANY_COMPLETENESS = [company => company.name, company => company.logo_url, company => company.address.country, ...['company_registry', 'vat', 'email', 'phone'].map(key => company => company[key]), ...['street', 'city', 'zip'].map(key => company => company.address[key])]
+
+function companyProfile() {
+  const done = COMPANY_COMPLETENESS.filter(filled => filled(COMPANY)).length
+  return { ...COMPANY, completeness: { done, total: COMPANY_COMPLETENESS.length } }
+}
+
+function patchCompany(patch) {
+  for (const [key, value] of Object.entries(patch)) {
+    if (key === 'state_id') COMPANY.address.state = (COMPANY_STATES[COMPANY.address.country?.id] ?? []).find(state => state.id === value) ?? null
+    else if (key === 'country_id') COMPANY.address.country = COMPANY_COUNTRIES.find(country => country.id === value) ?? null
+    else if (COMPANY_ADDRESS_FIELDS.includes(key)) COMPANY.address[key] = value
+    else COMPANY[key] = value
+  }
 }
 
 const CHARTER = {
@@ -411,6 +441,21 @@ async function handle(req, res) {
     return json(res, 200, { ...ME, appearance })
   }
   if (method === 'GET' && path === '/api/v1/admin/branding') return json(res, 200, BRANDING)
+  if (method === 'GET' && path === '/api/v1/admin/company') return json(res, 200, companyProfile())
+  if (method === 'PATCH' && path === '/api/v1/admin/company') {
+    let patch = {}
+    try { patch = JSON.parse(await readBody(req) || '{}') } catch { patch = {} }
+    if (Object.hasOwn(patch, 'name') && !String(patch.name ?? '').trim()) return json(res, 422, { code: 'invalid', message: 'name must not be empty', field: 'name' })
+    patchCompany(patch)
+    return json(res, 200, companyProfile())
+  }
+  if (method === 'POST' && path === '/api/v1/admin/company/logo') {
+    COMPANY.logo_url = BRANDING.logo_url
+    return json(res, 200, companyProfile())
+  }
+  if (method === 'GET' && path === '/api/v1/admin/company/countries') return json(res, 200, { items: COMPANY_COUNTRIES, total: COMPANY_COUNTRIES.length })
+  const states = match(path, '/api/v1/admin/company/countries/:id/states')
+  if (method === 'GET' && states) return json(res, 200, { items: COMPANY_STATES[states.id] ?? [], total: (COMPANY_STATES[states.id] ?? []).length })
   if (method === 'GET' && path === '/api/v1/notifications') return json(res, 200, NOTIFICATIONS)
   if (method === 'POST' && match(path, '/api/v1/notifications/:id/read')) return json(res, 200, { updated: 1 })
   if (method === 'POST' && path === '/api/v1/notifications/read-all') return json(res, 200, { updated: 2 })

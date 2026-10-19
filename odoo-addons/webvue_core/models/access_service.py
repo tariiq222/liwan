@@ -9,6 +9,7 @@ SYSTEM_PERMISSIONS = {
     'access.users.read', 'access.users.grant', 'access.users.assign_roles',
     'access.users.disable', 'access.users.reset_password', 'access.roles.read',
     'access.roles.manage', 'access.audit.read', 'settings.branding.manage',
+    'settings.company.read', 'settings.company.manage',
 }
 # The keys webvue_core owns. Each application adds its own through
 # _webvue_capability_definitions(); the composed map is the catalog.
@@ -20,6 +21,7 @@ PERMISSION_DEPENDENCIES = {
     'access.users.disable': {'access.users.read'},
     'access.users.reset_password': {'access.users.read'},
     'access.roles.manage': {'access.roles.read'},
+    'settings.company.manage': {'settings.company.read'},
 }
 
 
