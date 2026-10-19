@@ -27,6 +27,7 @@ class StagesForTest(unittest.TestCase):
                      'odoo-addons/webvue_pmo/README.md', 'packages/contracts/src/task.ts', 'package.json',
                      'package-lock.json', '.npmrc', '.nvmrc', '.dockerignore'):
             self.assert_stages(path, ALL)
+        self.assert_stages('tools/odoo_shards.py', ('static', 'odoo'))
         for path in ('README.md', 'apps/web/PRODUCT.md', 'docs/testing.md', 'docs/reports/x.png',
                      'e2e/tests/smoke.e2e.ts', 'e2e.config.ts'):
             self.assert_stages(path, ('static',))
