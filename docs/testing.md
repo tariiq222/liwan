@@ -136,6 +136,19 @@ creates users or tasks, or touches rules or fields owned by later modules, must 
 `npm test` runs the policy checks, the contracts tests and the web unit tests. Keep pure
 logic in composables so it can be tested here without a browser.
 
+### Contract fixtures (serializer to zod parity)
+
+`packages/contracts/fixtures/manifest.json` lists routes (name, addon, route, status, zod schema
+export). `WebVueApiCase.api()` records the real JSON response of each listed route while the Odoo
+tests run, only when `WEBVUE_CONTRACT_FIXTURES=<dir>` is set (the richest response wins, ids are
+renumbered, timestamps pinned). The committed files in `packages/contracts/fixtures/<app>/` are
+parsed with their strict schema by `src/fixtures.test.ts`, which runs in `npm test`.
+
+- Add a route: add one manifest entry, then refresh.
+- Refresh: `python3 -B tools/contract_fixtures.py` (runs the Odoo tests of the manifest addons on a
+  scratch database, slow). Drift check: `python3 -B tools/contract_fixtures.py --check`. Neither is part
+  of `npm test`.
+
 ## 3. Playwright mock specs
 
 Specs live in `apps/web/e2e` and talk to `internal-ui-audit-mock.mjs`. They are

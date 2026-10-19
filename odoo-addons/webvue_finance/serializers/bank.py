@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from .common import dump_day, dump_ref
+from .common import dump_day, dump_number, dump_ref
 from .parsing import (
     parse_day,
     parse_id,
@@ -60,7 +60,7 @@ def dump_reconcile_proposal(move_line, statement_line):
     return {
         'id': move_line.id,
         'date': dump_day(move_line.date),
-        'entry': move_line.move_id.name or '',
+        'entry': dump_number(move_line.move_id.name),
         'label': move_line.name or '',
         'partner': dump_ref(move_line.partner_id),
         'account': dump_ref(move_line.account_id),

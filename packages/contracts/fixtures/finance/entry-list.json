@@ -1,0 +1,57 @@
+{
+  "items": [
+    {
+      "amount_total": 500.0,
+      "currency": "SAR",
+      "date": "2026-10-19",
+      "id": 1,
+      "journal": {
+        "id": 2,
+        "name": "Tax Adjustments"
+      },
+      "name": null,
+      "ref": "",
+      "state": "draft"
+    },
+    {
+      "amount_total": 500.0,
+      "currency": "SAR",
+      "date": "2026-10-18",
+      "id": 3,
+      "journal": {
+        "id": 2,
+        "name": "Tax Adjustments"
+      },
+      "name": null,
+      "ref": "ADJ-1",
+      "state": "draft"
+    },
+    {
+      "amount_total": 100.0,
+      "currency": "SAR",
+      "date": "2026-10-18",
+      "id": 4,
+      "journal": {
+        "id": 2,
+        "name": "Tax Adjustments"
+      },
+      "name": "TA/2026/10/0002",
+      "ref": "ADJ-1",
+      "state": "posted"
+    },
+    {
+      "amount_total": 100.0,
+      "currency": "SAR",
+      "date": "2026-10-18",
+      "id": 5,
+      "journal": {
+        "id": 2,
+        "name": "Tax Adjustments"
+      },
+      "name": "TA/2026/10/0001",
+      "ref": "ADJ-1",
+      "state": "posted"
+    }
+  ],
+  "total": 4
+}

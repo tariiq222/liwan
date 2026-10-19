@@ -15,7 +15,8 @@ export const FinancePaymentStateSchema = z.enum([
 
 export const FinanceInvoiceSchema = z.object({
   id,
-  name: z.string(),
+  /** Null until a number is assigned. */
+  name: z.string().nullable(),
   move_type: FinanceMoveTypeSchema,
   state: FinanceMoveStateSchema,
   payment_state: FinancePaymentStateSchema,
@@ -60,7 +61,8 @@ export const FinanceInvoiceDetailSchema = FinanceInvoiceSchema.extend({
 
 export const FinancePaymentSchema = z.object({
   id,
-  name: z.string(),
+  /** Null until a number is assigned. */
+  name: z.string().nullable(),
   payment_type: z.enum(['inbound', 'outbound']),
   partner_type: z.enum(['customer', 'supplier']),
   state: z.enum(['draft', 'in_process', 'paid', 'canceled', 'rejected']),

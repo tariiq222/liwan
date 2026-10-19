@@ -1,0 +1,15 @@
+{
+  "items": [
+    {
+      "currency": "SAR",
+      "date_from": "2026-01-01",
+      "date_to": "2026-12-31",
+      "description": "Annual plan",
+      "id": 1,
+      "line_count": 1,
+      "name": "Budget 2026",
+      "state": "draft"
+    }
+  ],
+  "total": 1
+}

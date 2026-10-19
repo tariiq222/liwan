@@ -1,0 +1,132 @@
+{
+  "fixtures": [
+    {
+      "name": "finance/invoice-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/invoices",
+      "status": 200,
+      "schema": "FinanceInvoiceListSchema"
+    },
+    {
+      "name": "finance/invoice-detail",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/invoices/{id}",
+      "status": 200,
+      "schema": "FinanceInvoiceDetailSchema"
+    },
+    {
+      "name": "finance/partner-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/partners",
+      "status": 200,
+      "schema": "FinancePartnerListSchema"
+    },
+    {
+      "name": "finance/partner-detail",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/partners/{id}",
+      "status": 200,
+      "schema": "FinancePartnerSchema"
+    },
+    {
+      "name": "finance/payment-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/payments",
+      "status": 200,
+      "schema": "FinancePaymentListSchema"
+    },
+    {
+      "name": "finance/entry-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/entries",
+      "status": 200,
+      "schema": "JournalEntryListSchema"
+    },
+    {
+      "name": "finance/entry-detail",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/entries/{id}",
+      "status": 200,
+      "schema": "JournalEntryDetailSchema"
+    },
+    {
+      "name": "finance/setup",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/setup",
+      "status": 200,
+      "schema": "FinanceSetupSchema"
+    },
+    {
+      "name": "finance/zatca-status",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/zatca/status",
+      "status": 200,
+      "schema": "FinanceZatcaReadinessSchema"
+    },
+    {
+      "name": "finance/report-vat",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/reports/vat",
+      "status": 200,
+      "schema": "FinanceVatSummarySchema"
+    },
+    {
+      "name": "finance/budget-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/budgets",
+      "status": 200,
+      "schema": "FinanceBudgetListSchema"
+    },
+    {
+      "name": "finance/budget-detail",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/budgets/{id}",
+      "status": 200,
+      "schema": "FinanceBudgetDetailSchema"
+    },
+    {
+      "name": "finance/budget-vs-actual",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/reports/budget-vs-actual",
+      "status": 200,
+      "schema": "FinanceBudgetVsActualSchema"
+    },
+    {
+      "name": "finance/fiscal-year-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/fiscal-years",
+      "status": 200,
+      "schema": "FinanceFiscalYearListSchema"
+    },
+    {
+      "name": "hr/employee-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/employees",
+      "status": 200,
+      "schema": "HrEmployeeListSchema"
+    },
+    {
+      "name": "hr/employee-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/employees/{id}",
+      "status": 200,
+      "schema": "HrEmployeeSchema"
+    }
+  ]
+}
