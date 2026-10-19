@@ -2,7 +2,7 @@
 
 التاريخ: **2026-10-01**. النتيجة: **نجحت رحلة النسخ والاستعادة والعزل المحددة أدناه على Docker وOdoo الحقيقي محليًا**. جاهزية الإطلاق ما زالت غير مكتملة.
 
-استكمال [قبول العميل الأول](shared-first-tenant-acceptance.md) وفق [التصميم](../superpowers/specs/2026-10-01-shared-saas-real-lifecycle-design.md) و[خطة التنفيذ](../superpowers/plans/2026-10-01-shared-saas-restore.md). سجل القبول السابق `shared-live-acceptance.md` لم يُعد اختباره أو استبداله بهذه النتائج.
+استكمال [قبول العميل الأول](shared-first-tenant-acceptance.md) وفق [التصميم](../superpowers/specs/2026-10-01-shared-saas-real-lifecycle-design.md) وخطة التنفيذ. سجل القبول السابق `shared-live-acceptance.md` لم يُعد اختباره أو استبداله بهذه النتائج.
 
 ## المصدر والبيئة
 

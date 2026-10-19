@@ -6,7 +6,7 @@
 **النوع:** وثيقة عقود وقرارات معمارية، وليست تنفيذًا أو إذن تشغيل أو ترحيل عميل.
 **خط الأساس:** `main` عند `d194f93f65c377a4f2e23e3ca067514bb692805b`؛ تحقق حي من نظافة canonical عند البدء.
 **فرع الوثيقة:** `codex/cp0-commercial-contracts` في worktree محدود مستقل؛ الخطة الأصلية باقية دون تعديل في `codex/saas-control-plan`.
-**الخطة الأم:** `docs/superpowers/plans/webvue-commercial-control-plane-plan.md`، موجودة حاليًا في `.worktrees/saas-control-plan/` ولم تُدمج.
+**الخطة الأم:** مسودة تخطيط تاريخية (ثمانية مراحل CP) حُذفت من `docs/`؛ بقيت في تاريخ Git فقط.
 **المخرجات هنا:** ADR-01 إلى ADR-04، قاموس بيانات، عقود API/CLI، مصفوفة تفويض وشاشات، ترحيل، وقائمة عمل CP1/CP2.
 
 ## 1. شروط القراءة والاعتماد
@@ -34,7 +34,6 @@
 | `deploy/Caddyfile` | `/api/v1/*` إلى Odoo والباقي إلى Nuxt؛ `/api/commercial/v1/*` يصل إلى Nuxt حاليًا إن أضيف handler لاحقًا |
 | الخطة الأم | ثمانية مراحل CP و22 معيار قبول؛ التفصيل هنا يخصص قرارات التأسيس دون توسيع النطاق |
 
-<!-- source: .worktrees/saas-control-plan/docs/superpowers/plans/webvue-commercial-control-plane-plan.md -->
 <!-- source: AGENTS.md -->
 <!-- source: CLAUDE.md -->
 <!-- source: DESIGN.md -->
