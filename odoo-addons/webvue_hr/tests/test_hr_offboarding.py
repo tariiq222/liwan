@@ -31,15 +31,20 @@ class TestHrOffboarding(WebVueHrCase):
         cls.reader = cls._make_user('hr_offboarding_reader', 'Offboarding Reader', READER_KEYS)
         cls.reason = cls.env.ref('hr.departure_resigned')
         cls.plan = cls.env.ref('hr.offboarding_plan')
+        cls.lead = cls.env['hr.employee'].create({
+            'name': 'Offboarding Lead', 'company_id': cls.company.id, 'user_id': cls.manager.id,
+        })
         cls.employee_record = cls.env['hr.employee'].create({
             'name': 'Leaving Employee',
             'company_id': cls.company.id,
+            'parent_id': cls.lead.id,
             'contract_date_start': '2020-01-01',
         })
         cls.own_employee = cls.env['hr.employee'].create({
             'name': 'Offboarding Manager Employee',
             'company_id': cls.company.id,
             'user_id': cls.manager.id,
+            'parent_id': cls.lead.id,
             'contract_date_start': '2020-01-01',
         })
 
@@ -199,7 +204,8 @@ class TestHrOffboarding(WebVueHrCase):
             'employee_id': self.own_employee.id, 'plan_id': own_plan.id, 'plan_date': '2026-11-02',
         })
         activity = self.env['mail.activity'].create({
-            'res_model': 'hr.employee', 'res_id': self.own_employee.id,
+            'res_model_id': self.env['ir.model']._get_id('hr.employee'),
+            'res_id': self.own_employee.id,
             'activity_type_id': self.env.ref(TODO).id, 'summary': 'Hand over the badge',
             'user_id': self.manager.id, 'date_deadline': '2026-11-02',
         })

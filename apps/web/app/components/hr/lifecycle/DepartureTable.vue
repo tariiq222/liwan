@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
+import type { RouteLocationRaw } from 'vue-router'
 import type { HrDeparture } from '@webvue/contracts'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 
@@ -8,7 +9,7 @@ import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions
 const props = defineProps<{
   departures: HrDeparture[]
   namespace: string
-  toFor: (departure: HrDeparture) => { path: string; query?: Record<string, unknown> }
+  toFor: (row: HrDeparture) => RouteLocationRaw
 }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -34,14 +35,14 @@ const columns = computed<TableColumn<HrDeparture>[]>(() => [
   column('active', t(`${props.namespace}.departures.active`), WIDTH.active),
   column('actions', t(`${props.namespace}.actions.edit`), WIDTH.actions),
 ])
-function departureTo(departure: HrDeparture) {
-  return { path: props.toFor(departure).path, query: props.toFor(departure).query ?? {} }
+function departureKey(departure: HrDeparture) {
+  return departure.employee.id
 }
 function cleared(departure: HrDeparture) {
   return departure.clearance.total > 0 && departure.clearance.done === departure.clearance.total
 }
 function actionsFor(departure: HrDeparture): RowAction[] {
-  return [{ label: t(`${props.namespace}.actions.edit`), icon: 'i-lucide-pencil', to: departureTo(departure) }]
+  return [{ label: t(`${props.namespace}.actions.edit`), icon: 'i-lucide-pencil', to: toFor(departure) }]
 }
 </script>
 
@@ -52,13 +53,13 @@ function actionsFor(departure: HrDeparture): RowAction[] {
       data-testid="hr-departure-table"
       :rows="departures"
       :columns="columns"
-      row-key="employee.id"
+      :row-key="departureKey"
       :row-to="departureTo"
       :empty-text="t(`${namespace}.departures.empty`)"
       :caption="t(`${namespace}.departures.title`)"
     >
       <template #employee-cell="{ row }">
-        <NuxtLink :to="departureTo(row.original)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.original.employee.name }}</NuxtLink>
+        <NuxtLink :to="toFor(row.original)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.original.employee.name }}</NuxtLink>
       </template>
       <template #date-cell="{ row }"><span class="tabular-nums text-muted">{{ row.original.departure_date }}</span></template>
       <template #reason-cell="{ row }"><span class="truncate text-muted">{{ row.original.reason?.name || t(`${namespace}.departures.noReason`) }}</span></template>
@@ -78,7 +79,7 @@ function actionsFor(departure: HrDeparture): RowAction[] {
       <template #mobile-row="{ row }">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
-            <NuxtLink :to="departureTo(row)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.employee.name }}</NuxtLink>
+            <NuxtLink :to="toFor(row)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.employee.name }}</NuxtLink>
             <p class="mt-1 truncate text-xs text-muted">{{ row.departure_date }} · {{ row.reason?.name || t(`${namespace}.form.noClearancePlan`) }}</p>
           </div>
           <SharedStatusBadge size="sm" :tone="cleared(row) ? 'success' : 'warning'" :label="cleared(row) ? t(`${namespace}.departures.cleared`) : t(`${namespace}.departures.notCleared`)" />

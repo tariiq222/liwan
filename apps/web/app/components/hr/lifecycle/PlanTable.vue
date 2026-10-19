@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
+import type { RouteLocationRaw } from 'vue-router'
 import type { HrActivityPlan } from '@webvue/contracts'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 
@@ -8,7 +9,7 @@ import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions
 const props = withDefaults(defineProps<{
   plans: HrActivityPlan[]
   namespace: string
-  toFor: (plan: HrActivityPlan) => { path: string; query?: Record<string, unknown> }
+  toFor: (row: HrActivityPlan) => RouteLocationRaw
   canManage?: boolean
 }>(), { canManage: false })
 const emit = defineEmits<{ toggle: [plan: HrActivityPlan] }>()
@@ -34,12 +35,9 @@ const columns = computed<TableColumn<HrActivityPlan>[]>(() => [
   column('active', t(`${props.namespace}.form.active`), WIDTH.active),
   ...(props.canManage ? [column('actions', t(`${props.namespace}.actions.edit`), WIDTH.actions)] : []),
 ])
-function planTo(plan: HrActivityPlan) {
-  return { path: props.toFor(plan).path, query: props.toFor(plan).query ?? {} }
-}
 function actionsFor(plan: HrActivityPlan): RowAction[] {
   return [
-    { label: t(`${props.namespace}.actions.edit`), icon: 'i-lucide-pencil', to: planTo(plan) },
+    { label: t(`${props.namespace}.actions.edit`), icon: 'i-lucide-pencil', to: toFor(plan) },
     {
       label: plan.active ? t(`${props.namespace}.plans.deactivate`) : t(`${props.namespace}.plans.activate`),
       icon: plan.active ? 'i-lucide-circle-slash' : 'i-lucide-circle-check',
@@ -63,7 +61,7 @@ function actionsFor(plan: HrActivityPlan): RowAction[] {
       :caption="t(`${namespace}.plans.title`)"
     >
       <template #name-cell="{ row }">
-        <NuxtLink :to="planTo(row.original)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.original.name }}</NuxtLink>
+        <NuxtLink :to="toFor(row.original)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.original.name }}</NuxtLink>
       </template>
       <template #department-cell="{ row }">
         <span class="truncate text-muted">{{ row.original.department?.name || t(`${namespace}.form.anyDepartment`) }}</span>
@@ -78,7 +76,7 @@ function actionsFor(plan: HrActivityPlan): RowAction[] {
       <template #mobile-row="{ row }">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
-            <NuxtLink :to="planTo(row)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.name }}</NuxtLink>
+            <NuxtLink :to="toFor(row)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.name }}</NuxtLink>
             <p class="mt-1 truncate text-xs text-muted">{{ row.department?.name || t(`${namespace}.form.anyDepartment`) }} · {{ row.steps.length }}</p>
           </div>
           <SharedRowActions v-if="canManage" :actions="actionsFor(row)" :label="t(`${namespace}.actions.edit`)" />

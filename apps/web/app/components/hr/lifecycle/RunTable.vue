@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
+import type { RouteLocationRaw } from 'vue-router'
 import type { HrPlanRun } from '@webvue/contracts'
 
 // The runs list of one lifecycle area: the employee, its plan, when it started and how
@@ -7,7 +8,7 @@ import type { HrPlanRun } from '@webvue/contracts'
 const props = defineProps<{
   runs: HrPlanRun[]
   namespace: string
-  toFor: (run: HrPlanRun) => { path: string; query?: Record<string, unknown> }
+  toFor: (row: HrPlanRun) => RouteLocationRaw
 }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -31,9 +32,6 @@ const columns = computed<TableColumn<HrPlanRun>[]>(() => [
   column('progress', t(`${props.namespace}.runs.progress`), WIDTH.progress),
   column('state', t(`${props.namespace}.runs.state`), WIDTH.state),
 ])
-function runTo(run: HrPlanRun) {
-  return { path: props.toFor(run).path, query: props.toFor(run).query ?? {} }
-}
 function stateTone(run: HrPlanRun) {
   return run.state === 'done' ? 'success' : 'info'
 }
@@ -52,7 +50,7 @@ function stateTone(run: HrPlanRun) {
       :caption="t(`${namespace}.runs.title`)"
     >
       <template #employee-cell="{ row }">
-        <NuxtLink :to="runTo(row.original)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.original.employee.name }}</NuxtLink>
+        <NuxtLink :to="toFor(row.original)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.original.employee.name }}</NuxtLink>
       </template>
       <template #plan-cell="{ row }"><span class="truncate text-muted">{{ row.original.plan.name }}</span></template>
       <template #date-cell="{ row }"><span class="tabular-nums text-muted">{{ row.original.plan_date }}</span></template>
@@ -64,7 +62,7 @@ function stateTone(run: HrPlanRun) {
       </template>
       <template #mobile-row="{ row }">
         <div class="min-w-0">
-          <NuxtLink :to="runTo(row)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.employee.name }}</NuxtLink>
+          <NuxtLink :to="toFor(row)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.employee.name }}</NuxtLink>
           <p class="mt-1 truncate text-xs text-muted">{{ row.plan.name }} · {{ row.done }} / {{ row.total }}</p>
         </div>
       </template>

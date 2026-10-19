@@ -7,7 +7,12 @@ PLAN_KEYS = {'id', 'name', 'department', 'active', 'steps'}
 STEP_KEYS = {'id', 'summary', 'responsible_type', 'responsible', 'delay_count', 'delay_unit', 'delay_from'}
 RUN_KEYS = {'id', 'employee', 'plan', 'plan_date', 'launched_by', 'done', 'total', 'state'}
 RUN_STEP_KEYS = {'id', 'summary', 'assignee', 'date_deadline', 'state', 'date_done', 'can_complete'}
-MANAGER_KEYS = ('hr.employees.read', 'hr.onboarding.read', 'hr.onboarding.manage')
+# Launching a plan posts a message on the employee, so the launcher also needs
+# the employee management capability the engine's follower write requires.
+MANAGER_KEYS = (
+    'hr.employees.read', 'hr.employees.manage',
+    'hr.onboarding.read', 'hr.onboarding.manage',
+)
 READER_KEYS = ('hr.employees.read', 'hr.onboarding.read')
 TODO = 'mail.mail_activity_data_todo'
 
@@ -29,8 +34,12 @@ class TestHrOnboarding(WebVueHrCase):
         cls.company = cls.env.company
         cls.manager = cls._make_user('hr_onboarding_mgr', 'Onboarding Manager', MANAGER_KEYS)
         cls.reader = cls._make_user('hr_onboarding_reader', 'Onboarding Reader', READER_KEYS)
+        cls.lead = cls.env['hr.employee'].create({
+            'name': 'Onboarding Lead', 'company_id': cls.company.id, 'user_id': cls.manager.id,
+        })
         cls.employee_record = cls.env['hr.employee'].create({
             'name': 'Onboarding Employee', 'company_id': cls.company.id,
+            'parent_id': cls.lead.id,
         })
         cls.plan = cls.env['mail.activity.plan'].create({
             'name': 'Onboarding plan',
