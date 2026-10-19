@@ -1,0 +1,184 @@
+{
+  "finance": {
+    "nav": {
+      "overview": "نظرة عامة",
+      "sales": "المبيعات",
+      "purchases": "المشتريات",
+      "payments": "المدفوعات",
+      "partners": "العملاء والموردون",
+      "invoices": "فواتير العملاء",
+      "creditNotes": "الإشعارات الدائنة",
+      "customers": "العملاء",
+      "bills": "فواتير الموردين",
+      "refunds": "مرتجعات الموردين",
+      "vendors": "الموردون",
+      "invoicesAll": "الفواتير",
+      "newInvoice": "فاتورة مبيعات جديدة",
+      "newBill": "فاتورة مورد جديدة",
+      "newPayment": "دفعة جديدة",
+      "newPartner": "طرف جديد"
+    },
+    "kpi": {
+      "label": "مؤشرات المالية",
+      "receivable": "مستحق من العملاء",
+      "receivableHint": "أرصدة مفتوحة حتى اليوم",
+      "payable": "مستحق للموردين",
+      "payableHint": "أرصدة مفتوحة حتى اليوم",
+      "drafts": "مستندات بمسودة",
+      "draftsHint": "لم تُرحَّل بعد",
+      "partners": "العملاء والموردون"
+    },
+    "overview": {
+      "title": "نظرة عامة على المالية",
+      "description": "أرصدتك المفتوحة وحالة إعداد المالية وما ينتظر الترحيل.",
+      "setupTitle": "إعداد المالية",
+      "setupProgress": "اكتملت {done} من {total} خطوات",
+      "setupReady": "إعداد المالية مكتمل، ويمكنك إصدار الفواتير.",
+      "attentionTitle": "يحتاج إلى انتباه",
+      "attentionDescription": "مستندات بمسودة لم تُرحَّل بعد.",
+      "attentionEmpty": "لا مستندات بمسودة",
+      "draftUnnumbered": "مسودة بلا رقم",
+      "moveType": {
+        "out_invoice": "فاتورة مبيعات",
+        "out_refund": "إشعار دائن",
+        "in_invoice": "فاتورة مورد",
+        "in_refund": "مرتجع مورد",
+        "out_receipt": "إيصال مبيعات",
+        "in_receipt": "إيصال مشتريات"
+      }
+    },
+    "partners": {
+      "title": "العملاء والموردون",
+      "recordTitle": "الطرف",
+      "createTitle": "طرف جديد",
+      "edit": "تعديل الطرف",
+      "search": "بحث بالاسم أو الرقم الضريبي…",
+      "searchValue": "بحث: {value}",
+      "clear": "مسح الفلاتر",
+      "count": "لا أطراف | طرف واحد | طرفان | {count} أطراف | {count} طرفًا | {count} طرف",
+      "footer": "لا نتائج | عرض {shown} من نتيجة واحدة | عرض {shown} من نتيجتين | عرض {shown} من {total} نتائج | عرض {shown} من {total} نتيجة | عرض {shown} من {total} نتيجة",
+      "empty": "لا عملاء أو موردين بعد",
+      "emptyArchived": "لا أطراف مؤرشفة",
+      "filteredEmpty": "لا أطراف تطابق الفلاتر",
+      "filteredEmptyHint": "غيّر الفلاتر أو امسحها.",
+      "rowActions": "إجراءات الطرف {name}",
+      "archive": "أرشفة الطرف",
+      "unarchive": "استعادة الطرف",
+      "archiveConfirm": "هل تريد أرشفة {name}؟",
+      "unarchiveConfirm": "هل تريد استعادة {name}؟",
+      "archiveHint": "المستندات السابقة تبقى كما هي، ولا يظهر الطرف في الاختيارات الجديدة.",
+      "columns": {
+        "name": "الاسم",
+        "kind": "النوع",
+        "vat": "الرقم الضريبي",
+        "place": "الموقع",
+        "status": "الحالة",
+        "actions": "الإجراءات"
+      },
+      "kind": {
+        "all": "الكل",
+        "customer": "عميل",
+        "vendor": "مورد",
+        "customers": "العملاء",
+        "vendors": "الموردون"
+      },
+      "status": {
+        "active": "نشط",
+        "archived": "مؤرشف"
+      },
+      "form": {
+        "saveError": "تعذر حفظ الطرف. راجع التفاصيل ثم حاول مرة أخرى.",
+        "general": "البيانات العامة",
+        "generalHint": "اسم الطرف ونوعه.",
+        "name": "الاسم",
+        "nameRequired": "اسم الطرف مطلوب.",
+        "kinds": "النوع",
+        "isCompany": "شركة",
+        "company": "شركة",
+        "individual": "فرد",
+        "tax": "البيانات الضريبية",
+        "taxHint": "الرقم الضريبي يُتحقق منه حسب دولة الطرف.",
+        "vat": "الرقم الضريبي",
+        "companyRegistry": "السجل التجاري",
+        "address": "العنوان",
+        "street": "الشارع",
+        "city": "المدينة",
+        "country": "الدولة",
+        "countrySearch": "ابحث عن دولة…",
+        "countriesError": "تعذر تحميل الدول.",
+        "state": "المنطقة",
+        "none": "غير محدد",
+        "retry": "إعادة المحاولة",
+        "hint": "الطرف يظهر في الفواتير والمدفوعات بحسب نوعه."
+      }
+    },
+    "setup": {
+      "title": "المالية",
+      "description": "هوية الشركة الضريبية والسنة المالية وجاهزية الفوترة الإلكترونية ودليل الحسابات.",
+      "ready": "جاهزة للفوترة",
+      "notReady": "الإعداد غير مكتمل",
+      "done": "مكتملة",
+      "yes": "نعم",
+      "no": "لا",
+      "stepsTitle": "خطوات الإعداد",
+      "stepsEmpty": "لا خطوات",
+      "steps": {
+        "chart_not_loaded": "تحميل دليل الحسابات",
+        "vat_15_tax_missing": "ضريبة القيمة المضافة 15%",
+        "company_vat_missing": "الرقم الضريبي للشركة",
+        "company_registry_missing": "السجل التجاري للشركة",
+        "company_address_incomplete": "عنوان الشركة",
+        "zatca_not_onboarded": "ربط هيئة الزكاة والضريبة والجمارك"
+      },
+      "company": {
+        "title": "هوية الشركة الضريبية",
+        "hint": "للعرض فقط هنا. ستُعدَّل هوية الشركة من إعدادات الشركة.",
+        "name": "اسم الشركة",
+        "currency": "عملة الشركة"
+      },
+      "fiscal": {
+        "title": "السنة المالية",
+        "yearEnd": "نهاية السنة المالية",
+        "fiscalyear_lock_date": "إقفال السنة المالية",
+        "tax_lock_date": "إقفال الضريبة",
+        "sale_lock_date": "إقفال المبيعات",
+        "purchase_lock_date": "إقفال المشتريات",
+        "hard_lock_date": "الإقفال النهائي"
+      },
+      "chart": {
+        "title": "دليل الحسابات",
+        "hint": "الحسابات والضرائب ودفاتر اليومية التي تُنشأ من دليل الحسابات السعودي.",
+        "load": "تحميل دليل الحسابات السعودي",
+        "confirmTitle": "تحميل دليل الحسابات السعودي؟",
+        "confirmDescription": "تُنشأ حسابات الشركة وضرائبها ودفاتر يوميتها، ولا يمكن التراجع عن ذلك من هنا.",
+        "status": "الحالة",
+        "loaded": "محمّل",
+        "notLoaded": "غير محمّل",
+        "template": "القالب",
+        "accounts": "عدد الحسابات",
+        "journals": "دفاتر اليومية",
+        "journalsValue": "مبيعات {sale} · مشتريات {purchase} · بنوك {bank} · نقد {cash}",
+        "taxes": "الضرائب",
+        "taxesValue": "مبيعات {sale} · مشتريات {purchase}",
+        "vat15": "ضريبة 15% للمبيعات"
+      },
+      "zatca": {
+        "title": "الفوترة الإلكترونية (فاتورة)",
+        "hint": "حالة ربط دفاتر المبيعات بهيئة الزكاة والضريبة والجمارك، دون أي مفاتيح أو أسرار.",
+        "mode": "البيئة",
+        "key": "المفتاح الخاص موجود",
+        "onboarded": "الربط مكتمل",
+        "modes": {
+          "sandbox": "تجريبية",
+          "preprod": "ما قبل الإنتاج",
+          "prod": "الإنتاج"
+        },
+        "states": {
+          "not_started": "لم يبدأ",
+          "compliance_checked": "فُحص الامتثال",
+          "onboarded": "مرتبط"
+        }
+      }
+    }
+  }
+}

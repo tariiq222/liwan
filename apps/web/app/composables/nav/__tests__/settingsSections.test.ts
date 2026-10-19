@@ -17,7 +17,7 @@ describe('settings sections', () => {
   })
   it('build Apps from the registered manifests', () => {
     const apps = () => settingsSections().find(section => section.id === 'apps')!.entries.map(entry => entry.to)
-    expect(apps()).toEqual(['/settings/apps/projects', '/settings/apps/operations/processes'])
+    expect(apps()).toEqual(['/settings/apps/projects', '/settings/apps/finance', '/settings/apps/operations/processes'])
     const crm: AppManifest = { id: 'crm', feature: 'crm.enabled', routePrefixes: ['/crm'], rail: [{ id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/crm', order: 90 }], nav: [], settings: [{ id: 'crm', labelKey: 'crm.settings', icon: 'i-lucide-handshake', to: '/settings/apps/crm', capability: 'crm.settings.manage' }] }
     withManifests([...appManifests, crm], () => expect(apps()).toContain('/settings/apps/crm'))
   })

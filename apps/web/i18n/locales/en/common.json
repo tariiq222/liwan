@@ -81,7 +81,8 @@
     "goToShowLess": "Show fewer",
     "notificationsFilters": "Filter notifications",
     "meetingFollowup": "Follow-up",
-    "meetingSeriesShort": "Recurring"
+    "meetingSeriesShort": "Recurring",
+    "finance": "Finance"
   },
   "auth": {
     "username": "Username",

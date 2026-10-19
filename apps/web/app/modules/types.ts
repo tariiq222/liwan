@@ -34,6 +34,10 @@ export interface AppContextLink {
   id: string; labelKey: string; icon: AppIcon; to: string; capability: string; pinned?: boolean
   /** Locale key of the sidebar section heading; consecutive links with the same key form one section. */
   section?: string
+  /** Active only on exactly this path (a section's overview page). */
+  exact?: boolean
+  /** Path prefix that marks the link active, when it is not the link's own target (a top link that stays lit across its section's sub-list). */
+  within?: string
 }
 /**
  * A configuration page an application registers under Settings > Apps (`/settings/apps/<app>/...`). The settings
