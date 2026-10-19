@@ -1,68 +1,9 @@
 # أرشيف واجهة نسق
 
-هذه ملفات التصميم والتنفيذ السابقة. نُقلت هنا للحفاظ على الأدلة وإبعاد التعليمات المتقاعدة عن مداخل العمل.
+لم يبقَ في هذا المجلد أي سجل. حُذفت خطط الواجهة ومواصفاتها وتقارير تحققها السابقة لأن ويب فيو لم يُطلق بعد
+ولا يوجد ما يلزم الحفاظ على توافقه معه؛ تاريخها محفوظ في Git فقط (`git log -- docs/archive/ui`).
+
 **سياسة التصميم الحالية: [DESIGN.md](../../../DESIGN.md).**
 
 - [المكونات الحالية](../../design-system/components.md) و[المرجع التقني](../../design-system/nuxt-ui-reference.md) يصفان التنفيذ المعتمد.
-- نتائج الفحوص والمنافذ والفروع أدناه تخص وقت تسجيلها؛ لا تثبت الحالة الحالية أو النشر.
-- قد تتضمن السجلات مسارات لملفات أو نسخ عمل حُذفت سابقًا؛ وجودها هنا لا يعيد اعتمادها.
-- وثائق المنتج والأمن المختلطة بقيت في مواقعها. أي وصف بصري تاريخي فيها يتبع الدستور الحالي.
-
-## السجلات
-
-- [all-pages-design-2026-09-09.md](all-pages-design-2026-09-09.md)
-- [approved-ui-migration-2026-09-07.md](approved-ui-migration-2026-09-07.md)
-- [archive/ui-history/README.md](previous-archive-notice.md)
-- [design-system-review.md](design-system-review.md)
-- [design-system-system-report.md](design-system-system-report.md)
-- [design-system/2026-09-06-fidelity-correction.md](design-system/2026-09-06-fidelity-correction.md)
-- [design-system/2026-09-06-rollout-validation.md](design-system/2026-09-06-rollout-validation.md)
-- [design-system/documentation-inventory.md](design-system/documentation-inventory.md)
-- [design-system/migration.md](design-system/migration.md)
-- [design-system/nuxt-ui-dependency-review.md](design-system/nuxt-ui-dependency-review.md)
-- [design-system/nuxt-ui-lock-result.md](design-system/nuxt-ui-lock-result.md)
-- [design-system/settings.md](design-system/settings.md)
-- [header-context-followup-2026-09-08.md](header-context-followup-2026-09-08.md)
-- [internal-ui-audit-2026-09-07.md](internal-ui-audit-2026-09-07.md)
-- [internal-ui-integration-2026-09-07.md](internal-ui-integration-2026-09-07.md)
-- [layout-breadcrumb-removal-2026-09-08.md](layout-breadcrumb-removal-2026-09-08.md)
-- [meeting-tabs-filters-integration-2026-09-09.md](meeting-tabs-filters-integration-2026-09-09.md)
-- [module-ui-integration-2026-09-10.md](module-ui-integration-2026-09-10.md)
-- [module-ui-rollout-2026-09-10.md](module-ui-rollout-2026-09-10.md)
-- [navigation-motion-verification-2026-09-08.md](navigation-motion-verification-2026-09-08.md)
-- [plans/2026-09-07-project-workspace-tabs.md](plans/2026-09-07-project-workspace-tabs.md)
-- [project-clarity-review-2026-09-09.md](project-clarity-review-2026-09-09.md)
-- [project-header-cleanup-2026-09-08.md](project-header-cleanup-2026-09-08.md)
-- [project-layout-unified-2026-09-09.md](project-layout-unified-2026-09-09.md)
-- [project-sheets-integration-2026-09-09.md](project-sheets-integration-2026-09-09.md)
-- [project-tabs-popups-verification-2026-09-09.md](project-tabs-popups-verification-2026-09-09.md)
-- [project-theme-2026-09-09.md](project-theme-2026-09-09.md)
-- [project-workspace-continuity-2026-09-09.md](project-workspace-continuity-2026-09-09.md)
-- [projects-ui-implementation-2026-09-08.md](projects-ui-implementation-2026-09-08.md)
-- [sidebar-create-verification-2026-09-08.md](sidebar-create-verification-2026-09-08.md)
-- [superpowers/plans/2026-09-05-design-system.md](superpowers/plans/2026-09-05-design-system.md)
-- [superpowers/plans/2026-09-05-nasq-internal-pages.md](superpowers/plans/2026-09-05-webvue-internal-pages.md)
-- [superpowers/plans/2026-09-06-approved-design-rollout.md](superpowers/plans/2026-09-06-approved-design-rollout.md)
-- [superpowers/plans/2026-09-07-approved-layout-projects.md](superpowers/plans/2026-09-07-approved-layout-projects.md)
-- [superpowers/plans/2026-09-07-impeccable-repairs.md](superpowers/plans/2026-09-07-impeccable-repairs.md)
-- [superpowers/plans/2026-09-08-projects-ui.md](superpowers/plans/2026-09-08-projects-ui.md)
-- [superpowers/plans/2026-09-09-project-layout-unified.md](superpowers/plans/2026-09-09-project-layout-unified.md)
-- [superpowers/plans/2026-09-09-project-tabs-popups-progress.md](superpowers/plans/2026-09-09-project-tabs-popups-progress.md)
-- [superpowers/plans/2026-09-09-project-tabs-popups.md](superpowers/plans/2026-09-09-project-tabs-popups.md)
-- [superpowers/plans/2026-09-10-all-ui-unification.md](superpowers/plans/2026-09-10-all-ui-unification.md)
-- [superpowers/plans/2026-09-10-module-ui-rollout.md](superpowers/plans/2026-09-10-module-ui-rollout.md)
-- [superpowers/plans/2026-09-10-nuxt-runtime-migration.md](superpowers/plans/2026-09-10-nuxt-runtime-migration.md)
-- [superpowers/specs/2026-09-05-design-system.md](superpowers/specs/2026-09-05-design-system.md)
-- [superpowers/specs/2026-09-05-nasq-internal-pages.md](superpowers/specs/2026-09-05-webvue-internal-pages.md)
-- [superpowers/specs/2026-09-06-approved-design-rollout-design.md](superpowers/specs/2026-09-06-approved-design-rollout-design.md)
-- [superpowers/specs/2026-09-08-projects-ui.md](superpowers/specs/2026-09-08-projects-ui.md)
-- [superpowers/specs/2026-09-09-project-tabs-popups-design.md](superpowers/specs/2026-09-09-project-tabs-popups-design.md)
-- [superpowers/specs/2026-09-10-nuxt-runtime-migration-design.md](superpowers/specs/2026-09-10-nuxt-runtime-migration-design.md)
-- [superpowers/specs/2026-09-11-page-sidebar-ordering-design.md](superpowers/specs/2026-09-11-page-sidebar-ordering-design.md)
-- [system-header-cleanup-2026-09-08.md](system-header-cleanup-2026-09-08.md)
-- [unified-filter-card-2026-09-09.md](unified-filter-card-2026-09-09.md)
-- [unified-table-numbers-2026-09-09.md](unified-table-numbers-2026-09-09.md)
-- [verification/2026-09-10-all-ui-unification.md](verification/2026-09-10-all-ui-unification.md)
-- [verification/2026-09-10-nuxt-runtime-migration.md](verification/2026-09-10-nuxt-runtime-migration.md)
-- [خريطة مساحة العمل السابقة كاملة](workspace-before-2026-09-12.md)
-- [سجل تركيب بوابة التحديث الملغاة](update-gate-installation-2026-09-09.md)
+- لا تُضف هنا ملفات جديدة؛ المجلد للوثائق فقط (لا كود)، وأي وثيقة منتهية تُحذف ويبقى أثرها في تاريخ Git.

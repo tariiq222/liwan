@@ -1,6 +1,6 @@
 # تحديث ويب فيو والإضافات مع استمرار خدمة العملاء
 
-**WebVue preparation, 2026-10-17:** candidate `codex/deploy-webvue-updates` starts at main8125ab8c. The 16 October acceptance remains historical; see [current preparation results](../../verification/2026-10-17-webvue-updates-preparation.md). No merge or deployment.
+**WebVue preparation, 2026-10-17:** candidate `codex/deploy-webvue-updates` starts at main8125ab8c. The 16 October acceptance remains historical; see current preparation results. No merge or deployment.
 
 **الحالة:** اعتمد المالك التنفيذ المحلي في 2026-10-16. نُفّذ واختُبر في فرع معزول؛ نتائج القبول في [التقرير](../../verification/2026-10-16-continuous-updates.html). النشر والدمج ينتظران مراجعة المالك؛ لا اعتماد إنتاج أو وعد توافر.
 **طلب المالك:** مراجعة الموجود ووضع خطة تحديث تحدد متى تستمر الخدمة ومتى تتوقف.
@@ -190,7 +190,7 @@ adapter المخصص يقرأ binding واحدًا من إعداد operator ال
 
 القرار المطلوب قبل البناء يميز ثلاثة استثناءات: صيانة عميل واحد عند ترقية Odoo/المخطط؛ وصيانة ميزة AI لكل مستخدمي قاعدة حالتها المشتركة عند ترحيل غير متوافق؛ وصيانة bootstrap أولية محتملة تشمل مستخدمي المورد الوحيد الحالي. لكل منها قبول صريح أو حجب/تأجيل ذلك المسار حتى إثبات بديل بلا توقف. كذلك يعتمد موقع الاستضافة والتخزين وحمل السعة وRPO/RTO قبل تنفيذ المرحلة التشغيلية. يجوز بناء واختبار الآليات محليًا لاحقًا بتفويض مستقل؛ لا ينفذ هذا المستند شيئًا.
 
-خطة المهام: [خطة التنفيذ](../plans/2026-10-16-webvue-continuous-updates.md). لا commit أو push أو merge أو deployment ضمن هذه المراجعة.
+خطة المهام: خطة التنفيذ. لا commit أو push أو merge أو deployment ضمن هذه المراجعة.
 
 ## 9. مراجع تقنية أولية
 

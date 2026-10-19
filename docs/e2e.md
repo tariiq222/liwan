@@ -10,7 +10,7 @@ Setup of the open-source [e2e](https://e2e.tester.army/docs) framework in this r
 - `npm run e2e:smoke` — run only `e2e/tests/smoke.e2e.ts`.
 - Pick an agent with `--agent <name>`: `E2E_TELEMETRY_DISABLED=1 e2e run --agent fast`.
 - The config starts `npm run dev` (Nuxt on `http://localhost:3000`) when no server is running and reuses one that is already up; override with `E2E_BASE_URL`.
-- Inspect collected tests: `npx e2e list`. Skill for coding agents: `.agents/skills/e2e/` (`.claude/skills/e2e` symlinks to it). MCP server `e2e` is registered in `.mcp.json` (`npx e2e mcp`).
+- Inspect collected tests: `npx e2e list`. Skill for coding agents: `.agents/skills/e2e/`. MCP server: `npx e2e mcp` (register it in the agent's own MCP config; the repository ships no `.mcp.json`).
 
 **العربية**
 
