@@ -399,7 +399,7 @@
         {
           "id": "Default",
           "name": "Default",
-          "context": "apps/web/app/pages/documents.vue:219"
+          "context": "apps/web/app/pages/documents.vue:239"
         }
       ]
     },
@@ -5174,7 +5174,7 @@
       ]
     },
     {
-      "name": "HeaderTags",
+      "name": "SharedHeaderTags",
       "file": "packages/ui/app/components/shared/layout/HeaderTags.vue",
       "story": "apps/web/stories/shared/HeaderTags.stories.ts",
       "title": "Shared/HeaderTags",
