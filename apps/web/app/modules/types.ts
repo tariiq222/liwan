@@ -10,7 +10,7 @@ import type { ZodType } from 'zod'
 export type AppIcon = `i-lucide-${string}`
 export interface AppNavItem {
   to: string; labelKey: string; icon: AppIcon; capability: string
-  /** One-key jump on the /search page only, not a global shortcut; tools/new_app.py picks a free one. */
+  /** One-key jump on the /search page only, not a global shortcut; tools/new_app.py picks a free one. An application takes one key (its landing item); its other items pass '' so the single-key space lasts as applications grow. */
   shortcut: string
   /** Letter of the global `G` then letter shortcut: a–z, never g, unique across apps and the foundation (manifests.test.ts). */
   goKey?: string

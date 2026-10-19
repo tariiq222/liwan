@@ -39,10 +39,10 @@ const manifest: AppManifest = {
   rail: [{ id: 'finance', labelKey: 'nav.finance', icon: 'i-lucide-landmark', to: '/finance', order: 55 }],
   nav: [
     { to: '/finance', labelKey: 'finance.nav.overview', icon: 'i-lucide-layout-dashboard', shortcut: 'e', capability: 'finance.invoices.read' },
-    { to: '/finance/sales/invoices', labelKey: 'finance.nav.sales', icon: 'i-lucide-trending-up', shortcut: 'd', capability: 'finance.invoices.read' },
-    { to: '/finance/purchases/bills', labelKey: 'finance.nav.purchases', icon: 'i-lucide-shopping-cart', shortcut: 't', capability: 'finance.invoices.read' },
-    { to: '/finance/payments', labelKey: 'finance.nav.payments', icon: 'i-lucide-wallet', shortcut: 'x', capability: 'finance.payments.read' },
-    { to: '/finance/partners', labelKey: 'finance.nav.partners', icon: 'i-lucide-contact', shortcut: '4', capability: 'finance.partners.read' },
+    { to: '/finance/sales/invoices', labelKey: 'finance.nav.sales', icon: 'i-lucide-trending-up', shortcut: '', capability: 'finance.invoices.read' },
+    { to: '/finance/purchases/bills', labelKey: 'finance.nav.purchases', icon: 'i-lucide-shopping-cart', shortcut: '', capability: 'finance.invoices.read' },
+    { to: '/finance/payments', labelKey: 'finance.nav.payments', icon: 'i-lucide-wallet', shortcut: '', capability: 'finance.payments.read' },
+    { to: '/finance/partners', labelKey: 'finance.nav.partners', icon: 'i-lucide-contact', shortcut: '', capability: 'finance.partners.read' },
   ],
   settings: [
     { id: 'finance-setup', labelKey: 'finance.setup.title', icon: 'i-lucide-landmark', to: '/settings/apps/finance', capability: 'finance.setup.read' },
