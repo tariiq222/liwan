@@ -2,7 +2,13 @@
 from odoo import http
 from odoo.http import request
 
-from .common import archived_arg, current_document, page_args, require
+from .common import (
+    archived_arg,
+    current_document,
+    list_filter_domain,
+    page_args,
+    require,
+)
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -33,6 +39,7 @@ class Documents(http.Controller):
         domain = [('active', '=', not archived)]
         if args.get('q'):
             domain.append(('name', 'ilike', args['q']))
+        domain += list_filter_domain(args)
         kind, context_id = args.get('context_kind'), args.get('context_id')
         if kind or context_id:
             if not kind or not context_id:

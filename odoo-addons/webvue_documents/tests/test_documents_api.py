@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import base64
+from datetime import timedelta
 
+from odoo import fields
 from odoo.tests import tagged
 
 from .common import DocumentHttpCase
@@ -56,6 +58,50 @@ class TestDocumentsApi(DocumentHttpCase):
         self.assertEqual(
             self.api('GET', '/api/v1/documents?offset=-1').status_code, 422,
         )
+
+    def test_list_filters_by_visibility_and_expiry(self):
+        today = fields.Date.context_today(self.manager)
+        dated = {
+            'Soon': today + timedelta(days=10),
+            'Later': today + timedelta(days=100),
+            'Past': today - timedelta(days=1),
+        }
+        ids = {}
+        for name, expiry in dated.items():
+            ids[name] = self.model().create({'name': name, 'expiry_date': expiry}).id
+        archived = self.model().create(
+            {'name': 'Gone', 'expiry_date': today - timedelta(days=5)},
+        )
+        archived._webvue_set_active(False, 1)
+        self.authenticate('docs_manager', 'docs_manager')
+
+        def listed(query):
+            response = self.api('GET', f'/api/v1/documents?{query}')
+            self.assertEqual(response.status_code, 200, response.text)
+            data = response.json()
+            self.assertEqual(data['total'], len(data['items']))
+            return {item['id'] for item in data['items']}
+
+        self.assertEqual(listed('visibility=company'), {self.visible.id})
+        self.assertEqual(
+            listed('visibility=restricted'), {self.secret.id, *ids.values()},
+        )
+        self.assertEqual(listed('expiring_within=30'), {ids['Soon'], ids['Past']})
+        self.assertEqual(
+            listed('expiring_within=365'), {ids['Soon'], ids['Later'], ids['Past']},
+        )
+        self.assertEqual(listed('expired=1'), {ids['Past']})
+        self.assertEqual(listed('expired=0&expiring_within=30'), {ids['Soon'], ids['Past']})
+        for query in (
+            'visibility=public',
+            'expiring_within=0',
+            'expiring_within=366',
+            'expiring_within=abc',
+            'expired=maybe',
+        ):
+            response = self.api('GET', f'/api/v1/documents?{query}')
+            self.assertEqual(response.status_code, 422, query)
+            self.assertEqual(response.json()['code'], 'invalid')
 
     def test_create_patch_and_conflict_return_full_current_detail(self):
         self.authenticate('docs_manager', 'docs_manager')

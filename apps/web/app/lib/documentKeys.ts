@@ -1,4 +1,4 @@
-export type DocumentListQueryParams = { q?: string; context_kind?: string; context_id?: number; archived?: boolean; limit?: number; offset?: number }
+export type DocumentListQueryParams = { q?: string; context_kind?: string; context_id?: number; visibility?: 'company' | 'restricted'; expiring_within?: number; expired?: boolean; archived?: boolean; limit?: number; offset?: number }
 export type DocumentLookupParams = { q?: string; limit?: number; offset?: number; id?: number }
 export const documentKeys = {
   lists: (companyId: number) => ['documents', companyId, 'list'] as const,
@@ -13,7 +13,16 @@ export const documentKeys = {
   tags: (companyId: number) => ['documents', companyId, 'tags'] as const,
 }
 
-export function documentCommittedListParams(query: Record<string, unknown>) {
-  return { q: typeof query.q === 'string' ? query.q.trim() : '', offset: Math.max(0, Number(query.offset ?? 0) || 0) }
+export const DOCUMENT_EXPIRING_DAYS = 30
+
+export function documentCommittedListParams(query: Record<string, unknown>): Pick<DocumentListQueryParams, 'q' | 'offset' | 'visibility' | 'expiring_within' | 'expired'> & { q: string; offset: number } {
+  const days = Number(query.expiring_within)
+  return {
+    q: typeof query.q === 'string' ? query.q.trim() : '',
+    offset: Math.max(0, Number(query.offset ?? 0) || 0),
+    visibility: query.visibility === 'company' || query.visibility === 'restricted' ? query.visibility : undefined,
+    expiring_within: Number.isInteger(days) && days >= 1 && days <= 365 ? days : undefined,
+    expired: query.expired === '1' ? true : undefined,
+  }
 }
 export function hasPendingDocumentSearch(search: string, committed: unknown) { return search.trim() !== (typeof committed === 'string' ? committed.trim() : '') }

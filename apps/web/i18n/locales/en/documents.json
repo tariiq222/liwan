@@ -4,7 +4,14 @@
     "kpi": {
       "label": "Document figures",
       "total": "Documents",
-      "archived": "Archived documents"
+      "archived": "Archived documents",
+      "restricted": "Restricted",
+      "expiring": "Expiring within {days} days",
+      "expired": "Expired"
+    },
+    "filter": {
+      "anyVisibility": "Any visibility",
+      "anyExpiry": "Any expiry"
     },
     "title": "Documents",
     "new": "New document",

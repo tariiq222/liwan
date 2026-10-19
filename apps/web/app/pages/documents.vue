@@ -6,7 +6,7 @@ import DocumentList from '@/components/documents/DocumentList.vue'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import { refDebounced } from '@vueuse/core'
 import { documentKpiTiles } from '@/utils/documentKpis'
-import { documentCommittedListParams, hasPendingDocumentSearch } from '@/lib/documentKeys'
+import { DOCUMENT_EXPIRING_DAYS, documentCommittedListParams, hasPendingDocumentSearch } from '@/lib/documentKeys'
 
 const route = useRoute()
 const router = useRouter()
@@ -42,9 +42,15 @@ const query = useDocuments(params, isListRoute)
 const canArchive = computed(() => can('documents.items.archive'))
 const totalQuery = useDocuments({ limit: 1 }, isListRoute)
 const archivedQuery = useDocuments({ limit: 1, archived: true }, computed(() => isListRoute.value && canArchive.value))
+const restrictedQuery = useDocuments({ limit: 1, visibility: 'restricted' }, isListRoute)
+const expiringQuery = useDocuments({ limit: 1, expiring_within: DOCUMENT_EXPIRING_DAYS }, isListRoute)
+const expiredQuery = useDocuments({ limit: 1, expired: true }, isListRoute)
 const kpiTiles = computed(() => documentKpiTiles({
   total: totalQuery.data.value?.total ?? null,
   archived: canArchive.value ? archivedQuery.data.value?.total ?? null : undefined,
+  restricted: restrictedQuery.data.value?.total ?? null,
+  expiring: expiringQuery.data.value?.total ?? null,
+  expired: expiredQuery.data.value?.total ?? null,
 }, t))
 const contexts = useDocumentContexts(isListRoute)
 const contextKind = ref(typeof route.query.context_kind === 'string' ? route.query.context_kind : '')
@@ -58,7 +64,12 @@ const total = computed(() => query.data.value?.total ?? 0)
 // The list's total as a tag in the heading, once the first page has arrived.
 const countTags = computed(() => query.data.value ? [{ label: t('documents.countTag', { count: total.value }, total.value), kind: 'count' as const }] : [])
 const showEmpty = computed(() => !query.isLoading.value && !query.error.value && items.value.length === 0)
-const activeFilterCount = computed(() => Number(Boolean(search.value.trim())) + Number(Boolean(contextKind.value)) + Number(Boolean(contextId.value)))
+// Visibility and expiry filters live in the URL only (the KPI tiles link to them); the selects below read and write it.
+const visibility = computed(() => committedListParams.value.visibility ?? 'all')
+const expiryScope = computed(() => committedListParams.value.expired ? 'expired' : committedListParams.value.expiring_within ? 'expiring' : 'all')
+const visibilityItems = computed(() => [{ value: 'all', label: t('documents.filter.anyVisibility') }, { value: 'company', label: t('documents.visibilityOptions.company') }, { value: 'restricted', label: t('documents.visibilityOptions.restricted') }])
+const expiryItems = computed(() => [{ value: 'all', label: t('documents.filter.anyExpiry') }, { value: 'expiring', label: t('documents.kpi.expiring', { days: DOCUMENT_EXPIRING_DAYS }) }, { value: 'expired', label: t('documents.kpi.expired') }])
+const activeFilterCount = computed(() => Number(visibility.value !== 'all') + Number(expiryScope.value !== 'all') + Number(Boolean(search.value.trim())) + Number(Boolean(contextKind.value)) + Number(Boolean(contextId.value)))
 
 let pendingSearch: string | null = null
 let pendingNavigation: RouteLocationNormalized | null = null
@@ -90,9 +101,9 @@ function writeListQuery(query: LocationQueryRaw) {
     .catch(() => { if (write === lastWrite) lastPushed = null })
     .finally(() => { writesInFlight--; flushSearch() })
 }
-function writeFilters(q: string) {
+function writeFilters(q: string, overrides: LocationQueryRaw = {}) {
   offset.value = 0
-  writeListQuery({ ...route.query, q: q || undefined, context_id: contextId.value ?? undefined, context_kind: contextKind.value || undefined, offset: undefined })
+  writeListQuery({ ...route.query, q: q || undefined, context_id: contextId.value ?? undefined, context_kind: contextKind.value || undefined, offset: undefined, ...overrides })
 }
 function flushSearch() {
   if (disposed || pendingNavigation || writesInFlight || !isCurrentList() || pendingSearch === null) return
@@ -135,11 +146,18 @@ function clearSearch() {
   search.value = ''
   updateFilters()
 }
+function onVisibilityChange(value: unknown) {
+  writeListQuery({ ...route.query, visibility: value === 'all' ? undefined : String(value), offset: undefined })
+}
+function onExpiryChange(value: unknown) {
+  writeListQuery({ ...route.query, expiring_within: value === 'expiring' ? String(DOCUMENT_EXPIRING_DAYS) : undefined, expired: value === 'expired' ? '1' : undefined, offset: undefined })
+}
 function clearFilters() {
   search.value = ''
   contextId.value = undefined
   contextKind.value = ''
-  updateFilters()
+  if (!isCurrentList() || disposed) return
+  writeFilters('', { visibility: undefined, expiring_within: undefined, expired: undefined })
 }
 function setPage(next: number) {
   if (!hydrated.value || query.isFetching.value || hasPendingSearch.value || next < 1 || next > pages.value) return
@@ -194,6 +212,8 @@ function openLiveCreate(event: MouseEvent) {
             </template>
             <template #default>
               <USelect v-if="can('documents.items.manage') && contexts.data.value?.items.length" :model-value="contextKind || 'all'" :items="[{ value: 'all', label: t('documents.allContexts') }, ...contexts.data.value.items.map(item => ({ value: item.kind, label: item.label }))]" :aria-label="t('documents.context')" :disabled="!hydrated" @update:model-value="onKindChange" />
+              <USelect :model-value="visibility" :items="visibilityItems" :aria-label="t('documents.visibility')" :disabled="!hydrated" data-testid="documents-visibility-filter" @update:model-value="onVisibilityChange" />
+              <USelect :model-value="expiryScope" :items="expiryItems" :aria-label="t('documents.expiry')" :disabled="!hydrated" data-testid="documents-expiry-filter" @update:model-value="onExpiryChange" />
               <USelect
                 v-if="provider" id="documents-context"
                 class="w-full md:w-48"
