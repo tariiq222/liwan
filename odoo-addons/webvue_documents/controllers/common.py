@@ -1,4 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import timedelta
+
+from odoo import fields
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
@@ -33,7 +36,31 @@ def page_args(args):
 
 
 def archived_arg(args):
-    value = str(args.get('archived', 'false')).lower()
+    return bool_arg(args, 'archived')
+
+
+def list_filter_domain(args):
+    """Domain terms for the list filters `visibility`, `expiring_within` and `expired`."""
+    domain = []
+    visibility = args.get('visibility')
+    if visibility:
+        values = [key for key, _label in request.env['webvue.document']._fields['visibility'].selection]
+        if visibility not in values:
+            raise ApiError(422, 'invalid', 'visibility is not supported', field='visibility')
+        domain.append(('visibility', '=', visibility))
+    today = fields.Date.context_today(request.env['webvue.document'])
+    if args.get('expiring_within'):
+        days = parse_positive_int(args['expiring_within'], 'expiring_within')
+        if days > 365:
+            raise ApiError(422, 'invalid', 'expiring_within must be 1 to 365 days', field='expiring_within')
+        domain += [('expiry_date', '!=', False), ('expiry_date', '<=', today + timedelta(days=days))]
+    if bool_arg(args, 'expired'):
+        domain += [('expiry_date', '!=', False), ('expiry_date', '<', today)]
+    return domain
+
+
+def bool_arg(args, name, default='false'):
+    value = str(args.get(name, default)).lower()
     if value not in ('true', 'false', '1', '0'):
-        raise ApiError(422, 'invalid', 'archived must be boolean', field='archived')
+        raise ApiError(422, 'invalid', f'{name} must be boolean', field=name)
     return value in ('true', '1')

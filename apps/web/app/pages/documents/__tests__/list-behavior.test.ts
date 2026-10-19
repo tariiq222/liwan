@@ -6,7 +6,7 @@ import * as Vue from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { createHooks } from 'hookable'
 import ts from 'typescript'
-import { hasPendingDocumentSearch, documentCommittedListParams } from '../../../lib/documentKeys'
+import { hasPendingDocumentSearch, documentCommittedListParams, DOCUMENT_EXPIRING_DAYS } from '../../../lib/documentKeys'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const cleanups: Array<() => void> = []
@@ -37,7 +37,7 @@ async function loadPage(allowed = true) {
     } }
     if (name === '@webvue/ui/app/utils/safeReturnTo') return { returnToQuery }
     if (name === '@/utils/documentKpis') return { documentKpiTiles: () => [] }
-    if (name === '@/lib/documentKeys') return { hasPendingDocumentSearch, documentCommittedListParams }
+    if (name === '@/lib/documentKeys') return { hasPendingDocumentSearch, documentCommittedListParams, DOCUMENT_EXPIRING_DAYS }
     throw new Error(`Unexpected import: ${name}`)
   }
   const bindings = { require, module, exports: module.exports, useRoute: () => route, useRouter: () => router, useNuxtApp: () => ({ hook: hooks.hook }), useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useAccess: () => ({ can: (capability: string) => capability === 'documents.items.manage' ? allowed : true }), ref: Vue.ref, computed: Vue.computed, watch: Vue.watch, onScopeDispose: Vue.onScopeDispose }
@@ -91,4 +91,17 @@ it('makes a selected context kind clearable even before a record is chosen',asyn
  ;(loaded.state.clearFilters as ()=>void)()
  await expect.poll(()=>loaded.route.query.context_kind).toBeUndefined()
  expect((loaded.state.activeFilterCount as Vue.ComputedRef<number>).value).toBe(0)
+})
+
+it('keeps the visibility and expiry filters from the URL in the document request and clears them with the other filters', async () => {
+  const loaded = await loadPage()
+  await loaded.router.replace({ query: { visibility: 'restricted', expiring_within: '30', bogus: 'x' } })
+  expect(loaded.documentParams?.value).toMatchObject({ visibility: 'restricted', expiring_within: 30, expired: undefined })
+  ;(loaded.state.onExpiryChange as (value: string) => void)('expired')
+  await expect.poll(() => loaded.route.query.expired).toBe('1')
+  expect(loaded.route.query.expiring_within).toBeUndefined()
+  ;(loaded.state.onVisibilityChange as (value: string) => void)('all')
+  await expect.poll(() => loaded.route.query.visibility).toBeUndefined()
+  ;(loaded.state.clearFilters as () => void)()
+  await expect.poll(() => loaded.route.query.expired).toBeUndefined()
 })

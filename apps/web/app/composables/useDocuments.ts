@@ -23,7 +23,7 @@ export function useDocuments(params: MaybeRefOrGetter<DocumentListQueryParams>, 
     queryFn: ({ queryKey, signal }) => {
       assertDocumentCompany(companyId.value, queryKey[1])
       const filters = queryKey[3]
-      return $api('/api/v1/documents', { query: { ...filters, archived: filters.archived ? '1' : undefined }, signal, schema: DocumentListSchema })
+      return $api('/api/v1/documents', { query: { ...filters, archived: filters.archived ? '1' : undefined, expired: filters.expired ? '1' : undefined }, signal, schema: DocumentListSchema })
     },
   })
 }
