@@ -234,6 +234,36 @@ class TestMyTasksRoutes(TasksRoutesCase):
         self.assertEqual([i['name'] for i in found], ['Cherry 100%'])
         self.assertEqual(self.ok('tasks_alice', 'GET', f'{BASE}?q=%25')['items'][0]['name'], 'Cherry 100%')
 
+    def test_summary_counts_follow_the_list_filters(self):
+        past = '2020-01-01T00:00:00Z'
+        future = '2999-01-01T00:00:00Z'
+        self.create_as('tasks_bob', name='Late apple', date_deadline=past)
+        self.create_as('tasks_bob', name='Later apple', date_deadline=future)
+        self.create_as('tasks_bob', name='Undated')
+        done = self.create_as('tasks_bob', name='Done apple', date_deadline=past)
+        cancelled = self.create_as('tasks_bob', name='Cancelled')
+        self.ok('tasks_bob', 'POST', self.task_path(done['id'], '/done'))
+        self.ok('tasks_bob', 'POST', self.task_path(cancelled['id'], '/cancel'))
+        self.create_as('tasks_alice', name='Alices own', assignees=[], date_deadline=past)
+
+        summary = self.ok('tasks_bob', 'GET', f'{BASE}/summary')
+        self.assertEqual(summary, {'total': 5, 'open': 3, 'overdue': 1, 'done': 1})
+        # the list's closed flag, sort and paging do not narrow the counts
+        self.assertEqual(self.ok('tasks_bob', 'GET', f'{BASE}/summary?closed=1&sort=name&limit=1&offset=3'), summary)
+        # the search and the scope narrow them like the list
+        self.assertEqual(
+            self.ok('tasks_bob', 'GET', f'{BASE}/summary?q=apple'),
+            {'total': 3, 'open': 2, 'overdue': 1, 'done': 1})
+        self.assertEqual(
+            self.ok('tasks_alice', 'GET', f'{BASE}/summary?created=me'),
+            {'total': 1, 'open': 1, 'overdue': 1, 'done': 0})
+        self.assertEqual(self.ok('tasks_alice', 'GET', f'{BASE}/summary?assigned=me&q=nothing-matches')['total'], 0)
+        self.assertError(self.call('tasks_bob', 'GET', f'{BASE}/summary?assigned=you'), 422, 'invalid', 'assigned')
+
+    def test_summary_needs_the_read_capability(self):
+        self.managed_user('tasks_nocap_summary', [])
+        self.assertError(self.call('tasks_nocap_summary', 'GET', f'{BASE}/summary'), 403, 'forbidden')
+
     def test_huge_numbers_in_the_query_are_422_or_clamped(self):
         self.create_as('tasks_alice')
         for field in ('offset', 'limit'):

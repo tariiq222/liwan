@@ -39,6 +39,7 @@ export async function fakeApi(page: Page, options: { convertHref?: string; write
     // A slow server keeps the first write in flight while a second one is attempted.
     if (method !== 'GET' && options.writeDelayMs) await new Promise(resolve => setTimeout(resolve, options.writeDelayMs))
 
+    if (path === '/summary' && method === 'GET') return reply(route, 200, { total: 0, open: 0, overdue: 0, done: 0 })
     if (path === '/' && method === 'GET') return reply(route, 200, ENVELOPE([]))
     if (path === '/' && method === 'POST') {
       const parent = tasks.get(body.parent_id)

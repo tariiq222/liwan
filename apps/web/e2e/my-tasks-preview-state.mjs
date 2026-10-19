@@ -57,6 +57,15 @@ export function createMyTasksPreview() {
     }
     if (!path.startsWith('/api/v1/my-tasks')) return undefined
     if (path === '/api/v1/my-tasks/convert-targets') return reply(envelope(PREVIEW_TARGETS.filter(item => item.name.includes(url.searchParams.get('q') ?? ''))))
+    if (path === '/api/v1/my-tasks/summary' && method === 'GET') {
+      const projectRows = SSR_LIST.filter(item => item.source === 'project')
+      let items = [...tasks.values()].filter(task => !task.is_subtask).map(listItem).concat(projectRows, [...converted.values()].filter(task => !task.is_subtask).map(listItem))
+      const term = (url.searchParams.get('q') ?? '').toLocaleLowerCase()
+      if (term) items = items.filter(task => task.name.toLocaleLowerCase().includes(term))
+      if (url.searchParams.get('assigned') === 'me') items = items.filter(task => task.assignees.some(value => value.id === ADMIN.id))
+      const open = items.filter(task => task.state === 'open'), today = new Date().toISOString().slice(0, 10)
+      return reply({ total: items.length, open: open.length, overdue: open.filter(task => task.date_deadline && task.date_deadline.slice(0, 10) < today).length, done: items.filter(task => task.state === 'done').length })
+    }
     if (path === '/api/v1/my-tasks' && method === 'GET') {
       const projectRows = SSR_LIST.filter(item => item.source === 'project')
       let items = [...tasks.values()].filter(task => !task.is_subtask).map(listItem).concat(projectRows, [...converted.values()].filter(task => !task.is_subtask).map(listItem))

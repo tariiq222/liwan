@@ -4,6 +4,8 @@ export const myTaskKeys = {
   all: ['my-tasks'] as const,
   lists: ['my-tasks', 'list'] as const,
   list: (params: Record<string, unknown>) => ['my-tasks', 'list', params] as const,
+  summary: (params: Record<string, unknown>) => ['my-tasks', 'summary', params] as const,
+  summaries: ['my-tasks', 'summary'] as const,
   detail: (id: number | null) => ['my-tasks', 'detail', id] as const,
   comments: (id: number | null) => ['my-tasks', 'comments', id] as const,
   attachments: (id: number | null) => ['my-tasks', 'attachments', id] as const,

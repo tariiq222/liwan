@@ -27,6 +27,7 @@ async function mountList(testCase: typeof cases[number], guard: (to: RouteLocati
     onMounted: Vue.onMounted, onBeforeUnmount: Vue.onBeforeUnmount, onScopeDispose: Vue.onScopeDispose, useRoute, useRouter, refDebounced,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useAccess: () => ({ can: () => true }), useNuxtApp: () => nuxt,
     useMyTaskList: () => ({ data: Vue.ref({ items: [], total: 0 }), isFetching: Vue.ref(false), error: Vue.ref(null) }),
+    useMyTaskSummary: () => ({ data: Vue.ref(null), isLoading: Vue.ref(false) }), myTaskKpiTiles: () => [],
     FilterBar: {}, MyTaskRow: {},
   }
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText

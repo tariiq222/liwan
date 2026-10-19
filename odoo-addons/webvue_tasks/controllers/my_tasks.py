@@ -70,6 +70,12 @@ def _list_params(args):
     }
 
 
+def _summary_params(args):
+    """The list's scope and search filters; the open/closed split, sort and paging do not apply."""
+    params = _list_params(args)
+    return {key: params[key] for key in ('q', 'assigned', 'created')}
+
+
 def _require(key):
     """The capability check runs first, so a caller without it never learns what is valid."""
     request.env['webvue.my.task.service']._require(key)
@@ -90,6 +96,13 @@ class MyTasksController(http.Controller):
         params = _list_params(request.httprequest.args)
         tasks, total = request.env['webvue.my.task.service']._search_list(**params)
         return {'items': [dump_list_item(task) for task in tasks], 'total': total}
+
+    @http.route('/api/v1/my-tasks/summary', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('tasks.enabled', operation='read')
+    def summarize_my_tasks(self, **_):
+        _require('tasks.tasks.read')
+        return request.env['webvue.my.task.service']._summary(**_summary_params(request.httprequest.args))
 
     @http.route('/api/v1/my-tasks', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
