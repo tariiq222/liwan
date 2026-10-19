@@ -43,7 +43,7 @@ test.describe('Plan 6b: the employee record', () => {
     test('the actions are edit, manage account and archive, and archive confirms inline', async ({ page }) => {
       await open(page, '/hr/employees/1')
       await expect(page.getByRole('link', { name: 'تعديل', exact: true })).toHaveAttribute('href', /\/hr\/employees\/1\/edit/)
-      await expect(page.getByRole('link', { name: 'إدارة الحساب' })).toHaveAttribute('href', /\/settings\/users\/1/)
+      await expect(page.getByRole('link', { name: 'إدارة الحساب' })).toHaveAttribute('href', /\/settings\/team\/users\/1/)
       await page.getByRole('button', { name: 'أرشفة الموظف' }).click()
       await expect(page.getByText('هل تريد تغيير حالة نشاط هذا الموظف؟')).toBeVisible()
       await expect(page.getByRole('dialog')).toHaveCount(0)

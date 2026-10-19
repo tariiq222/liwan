@@ -22,13 +22,13 @@ const { t, locale } = useI18n()
 const ROLE_PILLS = 2
 const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
 const rolesOf = (user: AdminUserSummary) => user.assignments.map(assignment => roleLabel(assignment.role)).join('، ') || t('access.users.noRoles')
-const userTo = (user: AdminUserSummary): RouteLocationRaw => props.toFor?.(user) ?? `/settings/users/${user.id}`
+const userTo = (user: AdminUserSummary): RouteLocationRaw => props.toFor?.(user) ?? `/settings/team/users/${user.id}`
 const { can } = useAccess()
 const badge = (user: AdminUserSummary) => accessBadge({ active: user.active, protected: user.protected })
 const actionsFor = (user: AdminUserSummary): RowAction[] => [
   { label: t('access.view'), icon: 'i-lucide-eye', to: userTo(user) },
-  ...(can('access.users.assign_roles') ? [{ label: t('access.users.editAccess'), icon: 'i-lucide-user-cog', to: `/settings/users/${user.id}/access` } satisfies RowAction] : []),
-  ...(can('access.users.read') ? [{ label: t('access.users.security'), icon: 'i-lucide-shield', to: `/settings/users/${user.id}/security` } satisfies RowAction] : []),
+  ...(can('access.users.assign_roles') ? [{ label: t('access.users.editAccess'), icon: 'i-lucide-user-cog', to: `/settings/team/users/${user.id}/access` } satisfies RowAction] : []),
+  ...(can('access.users.read') ? [{ label: t('access.users.security'), icon: 'i-lucide-shield', to: `/settings/team/users/${user.id}/security` } satisfies RowAction] : []),
 ]
 
 const columns = computed<TableColumn<AdminUserSummary>[]>(() => [

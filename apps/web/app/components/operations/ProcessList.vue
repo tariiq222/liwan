@@ -10,7 +10,7 @@ import { useRouteListFilters } from '@/composables/useRouteListFilters'
 // The process setup list, on the same list template as the request lists. `background` is the list behind the create panel.
 const props = defineProps<{ background?: boolean }>()
 const PAGE_SIZE = 20
-const LIST_PATH = '/operations/processes'
+const LIST_PATH = '/settings/apps/operations/processes'
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
@@ -22,7 +22,7 @@ const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 const backTo = computed(() => operationListLocation(LIST_PATH, route.query, route.hash))
-const processTo = (item: OperationProcess) => ({ path: `/operations/processes/${item.id}`, query: { returnTo: backTo.value } })
+const processTo = (item: OperationProcess) => ({ path: `/settings/apps/operations/processes/${item.id}`, query: { returnTo: backTo.value } })
 function clearFilters() {
   search.value = ''
   void update({ q: undefined, page: undefined })

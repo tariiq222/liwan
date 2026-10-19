@@ -105,7 +105,7 @@ guidance; dated delivery/recovery reports are historical snapshots and do not
 override the capability policy below.
 
 HR manages employee records and archival. Account grants, role assignments,
-password resets and reactivation belong to `/settings/users` and the
+password resets and reactivation belong to `/settings/team/users` and the
 `/api/v1/admin/users` API. Archiving an employee disables linked access;
 unarchiving does not reactivate the login. `/account` changes one's own password.
 WebVue branding settings edit only `primary_color`. Institution name and logo

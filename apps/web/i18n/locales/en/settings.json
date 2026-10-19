@@ -200,6 +200,34 @@
         "5": "Saturday",
         "6": "Sunday"
       }
+    },
+    "sections": {
+      "overview": "Overview",
+      "company": {
+        "title": "Company",
+        "branding": "Identity and documents"
+      },
+      "team": {
+        "title": "Team and permissions"
+      },
+      "apps": {
+        "title": "Apps"
+      },
+      "system": {
+        "title": "System and security"
+      },
+      "billing": {
+        "title": "Subscription and billing",
+        "package": "Plan",
+        "change": "Change plan",
+        "status": "Usage and status",
+        "branches": "Branches",
+        "invoices": "Invoices"
+      }
+    },
+    "overview": {
+      "description": "Set up the company, its team, its apps and the system from one place.",
+      "separator": ", "
     }
   }
 }

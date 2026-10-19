@@ -10,11 +10,11 @@ describe('shell breadcrumb', () => {
     ['/tasks', null, [{ label: 'nav.projects', to: '/projects' }]],
     ['/projects', null, [{ label: 'nav.projects' }]],
     ['/projects/5', 'الملخص', [{ label: 'nav.projects', to: '/projects' }, { label: 'الملخص' }]],
-    ['/settings/roles', null, [{ label: 'nav.settings', to: '/settings/users' }]],
+    ['/settings/team/roles', null, [{ label: 'nav.settings', to: '/settings' }]],
     ['/meetings/calendar', null, [{ label: 'nav.meetings' }]],
     ['/notifications', 'الإشعارات', []],
     ['/tasks', 'nav.tasks', [{ label: 'nav.projects', to: '/projects' }]],
-    ['/projects/settings', 'settings.projects.title', [{ label: 'nav.projects', to: '/projects' }]],
+    ['/settings/apps/projects', 'settings.projects.title', [{ label: 'nav.settings', to: '/settings' }]],
     ['/projects', 'nav.projects', []],
     ['/notifications', null, []],
   ] as const)('%s (page title %s)', (path, pageTitle, expected) => {
@@ -32,8 +32,8 @@ describe('shell breadcrumb', () => {
   })
 
   it('links a module to the visible rail target, not the static module target', () => {
-    const rail = fullRail.map(item => item.id === 'settings' ? { ...item, to: '/settings/branding' } : item)
-    expect(shellBreadcrumb({ path: '/settings/roles', pageTitle: 'دور', t, rail })).toEqual([{ label: 'nav.settings', to: '/settings/branding' }, { label: 'nav.roles', to: '/settings/roles' }, { label: 'دور' }])
+    const rail = fullRail.map(item => item.id === 'settings' ? { ...item, to: '/settings/company/branding' } : item)
+    expect(shellBreadcrumb({ path: '/settings/team/roles', pageTitle: 'دور', t, rail })).toEqual([{ label: 'nav.settings', to: '/settings/company/branding' }, { label: 'nav.roles', to: '/settings/team/roles' }, { label: 'دور' }])
   })
 
   it('shows no trail on the account page, which is reached from the header menu', () => {
@@ -42,7 +42,7 @@ describe('shell breadcrumb', () => {
 
   it('keeps the module label without a link when the rail hides the module', () => {
     const rail = fullRail.filter(item => item.id !== 'settings')
-    expect(shellBreadcrumb({ path: '/settings/branding', pageTitle: 'هوية', t, rail })).toEqual([{ label: 'nav.settings' }, { label: 'settings.branding.title', to: '/settings/branding' }, { label: 'هوية' }])
-    expect(shellBreadcrumb({ path: '/settings/branding', pageTitle: null, t, rail })).toEqual([{ label: 'nav.settings' }])
+    expect(shellBreadcrumb({ path: '/settings/company/branding', pageTitle: 'هوية', t, rail })).toEqual([{ label: 'nav.settings' }, { label: 'settings.sections.company.branding', to: '/settings/company/branding' }, { label: 'هوية' }])
+    expect(shellBreadcrumb({ path: '/settings/company/branding', pageTitle: null, t, rail })).toEqual([{ label: 'nav.settings' }])
   })
 })

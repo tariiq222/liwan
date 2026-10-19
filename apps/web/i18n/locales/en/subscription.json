@@ -1,6 +1,5 @@
 {
   "subscription": {
-    "nav": "Subscription",
     "title": "Our subscription",
     "description": "Active services, usage limits and invoices in one place.",
     "forbidden": "You do not have permission to view the subscription.",

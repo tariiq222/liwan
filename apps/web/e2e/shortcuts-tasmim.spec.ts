@@ -135,7 +135,7 @@ test.describe('Tasmim palette and shortcuts', () => {
   })
   test('a palette navigation the draft guard blocks returns focus to the palette trigger', async ({ page }) => {
     // The branding form is a full page with the draft guard; a create panel would itself block Cmd+K.
-    await hydrated(page, '/settings/branding')
+    await hydrated(page, '/settings/company/branding')
     const color = page.getByTestId('branding-color')
     const saved = await color.inputValue()
     const draft = saved === '#abcdef' ? '#123456' : '#abcdef'
@@ -149,7 +149,7 @@ test.describe('Tasmim palette and shortcuts', () => {
     await expect(dialog(page)).toBeHidden()
     await guard.getByRole('button', { name: 'البقاء في الصفحة', exact: true }).click()
     await expect(guard).toBeHidden()
-    await expect(page).toHaveURL(/\/settings\/branding$/)
+    await expect(page).toHaveURL(/\/settings\/company\/branding$/)
     await expect(page.getByTestId('global-search-trigger')).toBeFocused()
     await expect(color).toHaveValue(draft)
   })

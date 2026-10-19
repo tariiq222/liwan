@@ -140,7 +140,7 @@ test.describe('every page has exactly one h1', () => {
     ['my tasks', '/tasks'],
     ['meetings', '/meetings'],
     ['hr', '/hr'],
-    ['users settings', '/settings/users'],
+    ['users settings', '/settings/team/users'],
   ] as const
 
   for (const [name, path] of pages) {

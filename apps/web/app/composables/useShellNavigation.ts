@@ -35,10 +35,17 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
       .map(link => route.path === '/projects' && link.id === 'projects'
         ? { ...link, to: { path: '/projects', query: { ...route.query, mine: undefined, offset: undefined } } }
         : link)
-      .map(link => ({ ...link, active: isContextPathActive(route.path, link.to) }))
+      .map(link => ({ ...link, active: isContextLinkActive(route.path, link) }))
   })
   const module = computed(() => visibleShellModules(identityValue.value).find(item => item.id === activeModule.value) ?? null)
   return { activeModule, module, contextLinks }
+}
+
+/** A link is active on its `within` prefix, only on its own path when `exact`, else by `isContextPathActive`. */
+export function isContextLinkActive(path: string, link: Pick<ShellContextLink, 'to' | 'exact' | 'within'>): boolean {
+  if (link.within) return isNavPathActive(path, link.within)
+  const target = typeof link.to === 'string' ? link.to : link.to.path ?? ''
+  return link.exact ? (path.replace(/\/+$/, '') || '/') === target : isContextPathActive(path, link.to)
 }
 
 /** Active test for a context link: the owning application's `isNavActive`, else same path or sub-path. */

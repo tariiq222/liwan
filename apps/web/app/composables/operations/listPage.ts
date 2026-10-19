@@ -17,6 +17,6 @@ export function useProcessListPage() {
   const route = useRoute()
   const { t } = useI18n()
   const { can } = useAccess()
-  const createTo = computed(() => can('operations.processes.manage') ? { path: '/operations/processes/new', query: { returnTo: operationListLocation('/operations/processes', route.query, route.hash) } } : undefined)
+  const createTo = computed(() => can('operations.processes.manage') ? { path: '/settings/apps/operations/processes/new', query: { returnTo: operationListLocation('/settings/apps/operations/processes', route.query, route.hash) } } : undefined)
   return reactive({ title: t('operations.nav.processes'), createTo, createLabel: t('operations.newProcess') })
 }

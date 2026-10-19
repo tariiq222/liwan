@@ -49,14 +49,14 @@ describe('app manifests', () => {
   it.each([
     ['/projects', 'pmo.enabled'], ['/projects/5/tasks/new', 'pmo.enabled'], ['/tasks/4', 'pmo.enabled'],
     ['/meetings/series', 'meetings.enabled'], ['/hr/employees/3', 'hr.enabled'], ['/chat/3', 'chat.enabled'],
-    ['/settings/users', null], ['/notifications', null], ['/account', null], ['/chatx', null], ['/zzz', null],
+    ['/settings/team/users', null], ['/notifications', null], ['/account', null], ['/chatx', null], ['/zzz', null],
   ])('maps %s to its feature', (path, feature) => {
     expect(featureForPath(path)).toBe(feature)
   })
 
   it.each([
     ['/chat', 'webvue.internal'], ['/chat/new', 'webvue.internal'],
-    ['/projects/settings', 'pmo.settings.manage'], ['/projects/settings/x', 'pmo.settings.manage'],
+    ['/settings/apps/projects', 'pmo.settings.manage'], ['/settings/apps/projects/x', 'pmo.settings.manage'],
     ['/tasks/new', 'pmo.tasks.create'], ['/projects/5/tasks/new', 'pmo.tasks.create'], ['/projects/new', 'pmo.projects.create'],
     ['/projects/dashboard', 'pmo.projects.read'], ['/tasks/4', 'pmo.tasks.read'],
     ['/meetings/new', 'meetings.create'], ['/meetings/series/new', 'meetings.create'],
@@ -67,16 +67,16 @@ describe('app manifests', () => {
     ['/hr/departments/new', 'hr.departments.manage'], ['/hr/employees/3/access', 'access.users.grant'],
     ['/hr/departments', 'hr.departments.read'], ['/documents', 'documents.items.read'],
     ['/hr/leave', 'hr.leave.read'], ['/hr/leave/5', 'hr.leave.read'], ['/hr/reports', 'hr.employees.manage'], ['/hr/leave/new', 'hr.leave.request'], ['/hr/leave/allocations/new', 'hr.leave.manage'],
-    ['/notifications', 'webvue.notifications'], ['/settings/users/new', 'access.users.grant'],
-    ['/settings/users/3/access', 'access.users.assign_roles'], ['/settings/roles/4/edit', 'access.roles.manage'],
-    ['/settings/roles/4', 'access.roles.read'], ['/settings/branding', 'settings.branding.manage'],
+    ['/notifications', 'webvue.notifications'], ['/settings/team/users/new', 'access.users.grant'],
+    ['/settings/team/users/3/access', 'access.users.assign_roles'], ['/settings/team/roles/4/edit', 'access.roles.manage'],
+    ['/settings/team/roles/4', 'access.roles.read'], ['/settings/company/branding', 'settings.branding.manage'],
     ['/account', null], ['/zzz', null],
   ])('requires %s -> %s', (path, capability) => {
     expect(requiredCapabilityForPath(path)).toBe(capability)
   })
 
   it.each([
-    ['/projects/dashboard', '/projects', false], ['/projects/settings/x', '/projects', false], ['/projects/5', '/projects', true],
+    ['/projects/dashboard', '/projects', false], ['/settings/apps/projects/x', '/projects', false], ['/projects/5', '/projects', true],
     ['/meetings/calendar', '/meetings', true], ['/meetings/calendar', '/meetings/calendar', true],
     ['/meetings/series/3', '/meetings/series', true], ['/hr/employees/7/edit', '/hr', true], ['/hr/documents', '/hr', false],
     ['/documents/2', '/documents', true],
@@ -88,8 +88,8 @@ describe('app manifests', () => {
     const all = ['pmo.projects.read', 'pmo.tasks.read', 'meetings.read', 'hr.employees.read', 'access.users.read', 'pmo.settings.manage', 'settings.branding.manage']
     expect(firstAllowedPath({ capabilities: all })).toBe('/projects/dashboard')
     expect(firstAllowedPath({ capabilities: ['hr.employees.read', 'access.users.read'] })).toBe('/hr')
-    expect(firstAllowedPath({ capabilities: ['access.users.read', 'pmo.settings.manage'] })).toBe('/settings/users')
-    expect(firstAllowedPath({ capabilities: ['pmo.settings.manage', 'settings.branding.manage'] })).toBe('/projects/settings')
+    expect(firstAllowedPath({ capabilities: ['access.users.read', 'pmo.settings.manage'] })).toBe('/settings/team/users')
+    expect(firstAllowedPath({ capabilities: ['pmo.settings.manage', 'settings.branding.manage'] })).toBe('/settings/apps/projects')
     expect(postLoginPath({ capabilities: ['pmo.tasks.read'] }, '/tasks?scope=archived')).toBe('/tasks?scope=archived')
     expect(postLoginPath({ role: 'admin' }, '/chat')).toBe('/account')
   })
@@ -141,6 +141,22 @@ describe('app manifests', () => {
         expect(canReachPath(closed, '/erp-extra/x')).toBe(false)
         expect(canReachPath(open, '/erp-extra/x')).toBe(true)
         expect(canReachPath(closed, '/account')).toBe(true)
+      })
+    })
+    it('registers its settings pages: the entry owns its subtree for capability, feature and landing', () => {
+      const withSettings: AppManifest = { ...crm, settings: [{ id: 'crm-pipeline', labelKey: 'crm.settings', icon: 'i-lucide-handshake', to: '/settings/apps/crm', capability: 'crm.settings.manage' }] }
+      const admin = { capabilities: ['crm.settings.manage'], platform: { readable_features: ['crm.enabled'], writable_features: ['crm.enabled'] } }
+      const off = { ...admin, platform: { readable_features: ['hr.enabled'], writable_features: [] } }
+      expect(requiredCapabilityForPath('/settings/apps/crm')).toBeNull()
+      withManifests([...appManifests, withSettings], () => {
+        expect(requiredCapabilityForPath('/settings/apps/crm/stages/3')).toBe('crm.settings.manage')
+        expect(featureForPath('/settings/apps/crm')).toBe('crm.enabled')
+        expect(requiredCapabilityForPath('/settings/apps/crm-other')).toBeNull()
+        expect(canReachPath(admin, '/settings/apps/crm/stages')).toBe(true)
+        expect(canReachPath(off, '/settings/apps/crm')).toBe(false)
+        expect(canReachPath({ capabilities: [] }, '/settings/apps/crm')).toBe(false)
+        expect(firstAllowedPath(admin)).toBe('/settings/apps/crm')
+        expect(allNavItems().find(item => item.to === '/settings/apps/crm')).toMatchObject({ module: 'settings', group: 'settings', shortcut: '' })
       })
     })
     it('refuses a nested withManifests', () => {

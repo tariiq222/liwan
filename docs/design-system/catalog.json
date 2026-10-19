@@ -1213,17 +1213,17 @@
         {
           "id": "Create",
           "name": "Create",
-          "context": "apps/web/app/pages/operations/processes/new.vue:19"
+          "context": "apps/web/app/pages/settings/apps/operations/processes/new.vue:19"
         },
         {
           "id": "PublishedRevision",
           "name": "PublishedRevision",
-          "context": "apps/web/app/pages/operations/processes/new.vue:19"
+          "context": "apps/web/app/pages/settings/apps/operations/processes/new.vue:19"
         },
         {
           "id": "Disabled",
           "name": "Disabled",
-          "context": "apps/web/app/pages/operations/processes/new.vue:19"
+          "context": "apps/web/app/pages/settings/apps/operations/processes/new.vue:19"
         }
       ]
     },
@@ -1248,7 +1248,7 @@
         {
           "id": "Published",
           "name": "Published",
-          "context": "apps/web/app/pages/operations/processes/index.vue:6"
+          "context": "apps/web/app/pages/settings/apps/operations/processes/index.vue:6"
         }
       ]
     },
@@ -3743,7 +3743,7 @@
         {
           "id": "InFilterPanel",
           "name": "داخل نافذة الفلاتر",
-          "context": "apps/web/app/pages/settings/access-log/index.vue:57"
+          "context": "apps/web/app/pages/settings/team/access-log/index.vue:57"
         }
       ]
     },
@@ -4556,42 +4556,42 @@
         {
           "id": "Loading",
           "name": "تحميل",
-          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:30"
+          "context": "apps/web/app/pages/settings/team/users/[userId]/security.vue:30"
         },
         {
           "id": "ErrorState",
           "name": "خطأ عام",
-          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:30"
+          "context": "apps/web/app/pages/settings/team/users/[userId]/security.vue:30"
         },
         {
           "id": "Forbidden",
           "name": "غير مصرح",
-          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:30"
+          "context": "apps/web/app/pages/settings/team/users/[userId]/security.vue:30"
         },
         {
           "id": "NotFound",
           "name": "غير موجود",
-          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:30"
+          "context": "apps/web/app/pages/settings/team/users/[userId]/security.vue:30"
         },
         {
           "id": "Empty",
           "name": "فارغ",
-          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:30"
+          "context": "apps/web/app/pages/settings/team/users/[userId]/security.vue:30"
         },
         {
           "id": "Content",
           "name": "المحتوى",
-          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:30"
+          "context": "apps/web/app/pages/settings/team/users/[userId]/security.vue:30"
         },
         {
           "id": "RefreshFailed",
           "name": "تعذر تحديث بيانات ظاهرة",
-          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:30"
+          "context": "apps/web/app/pages/settings/team/users/[userId]/security.vue:30"
         },
         {
           "id": "FirstUse",
           "name": "فراغ مع الخطوة التالية",
-          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:30"
+          "context": "apps/web/app/pages/settings/team/users/[userId]/security.vue:30"
         }
       ]
     },
@@ -4933,12 +4933,12 @@
         {
           "id": "GuardsLeavingDirtyForm",
           "name": "داخل نموذج عند مغادرة الصفحة",
-          "context": "apps/web/app/pages/settings/users/new.vue:106"
+          "context": "apps/web/app/pages/settings/team/users/new.vue:106"
         },
         {
           "id": "CleanForm",
           "name": "نموذج بلا تعديلات",
-          "context": "apps/web/app/pages/settings/users/new.vue:106"
+          "context": "apps/web/app/pages/settings/team/users/new.vue:106"
         }
       ]
     },
@@ -5074,7 +5074,7 @@
         {
           "id": "FormTemplate",
           "name": "قالب النموذج",
-          "context": "apps/web/app/pages/settings/users/new.vue:103"
+          "context": "apps/web/app/pages/settings/team/users/new.vue:103"
         }
       ]
     },
@@ -5164,7 +5164,7 @@
         {
           "id": "InForm",
           "name": "قسم داخل نموذج",
-          "context": "apps/web/app/pages/settings/users/new.vue:107"
+          "context": "apps/web/app/pages/settings/team/users/new.vue:107"
         },
         {
           "id": "Panel",
@@ -5897,7 +5897,7 @@
         {
           "id": "FormPage",
           "name": "صفحة إعداد بنموذج",
-          "context": "apps/web/app/pages/projects/settings.vue:18"
+          "context": "apps/web/app/pages/settings/apps/projects.vue:18"
         },
         {
           "id": "ListPage",

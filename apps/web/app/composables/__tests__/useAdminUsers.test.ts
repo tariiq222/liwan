@@ -17,7 +17,7 @@ import {
 
 const source = readFileSync(join(import.meta.dirname, '../useAdminUsers.ts'), 'utf8')
 const formSource = readFileSync(join(import.meta.dirname, '../../components/access/users/UserSecurityForm.vue'), 'utf8')
-const pageSource = readFileSync(join(import.meta.dirname, '../../pages/settings/users/[userId]/security.vue'), 'utf8')
+const pageSource = readFileSync(join(import.meta.dirname, '../../pages/settings/team/users/[userId]/security.vue'), 'utf8')
 
 function fakeUser(id = 7): AdminUserDetail {
   return { id } as AdminUserDetail

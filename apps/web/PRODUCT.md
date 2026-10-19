@@ -67,7 +67,7 @@ company; it does not permit sharing data between customer companies.
   [hosting contract](../../docs/superpowers/specs/webvue-shared-saas-and-sovereign-deployment.md)
   and [delivery evidence](../../docs/WORKSPACE.md); local integration is not
   production or release approval.
-- HR records live at `/hr`. Account grants live at `/settings/users`. `/api/v1/people` remains the PMO user-id picker; employee ids and user ids stay distinct.
+- HR records live at `/hr`. Account grants live at `/settings/team/users`. `/api/v1/people` remains the PMO user-id picker; employee ids and user ids stay distinct.
 - Customer-specific behavior belongs in a `customer_<name>_*` overlay, never in core pillars.
 
 ## Current Capabilities and Delivery Constraints

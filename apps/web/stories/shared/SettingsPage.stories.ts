@@ -19,6 +19,6 @@ const layout = (width: 'list' | 'detail' | 'form', title: string): Story['render
   template: `<main class="webvue-shell-main"><SettingsPage :width="width"><PageHeader :title="t(title)" /><PageState :empty="true" /></SettingsPage></main>`,
 })
 
-export const FormPage: Story = { name: 'صفحة إعداد بنموذج', parameters: storyContext('apps/web/app/pages/projects/settings.vue:18'), render: layout('form', 'settings.projects.title') }
+export const FormPage: Story = { name: 'صفحة إعداد بنموذج', parameters: storyContext('apps/web/app/pages/settings/apps/projects.vue:18'), render: layout('form', 'settings.projects.title') }
 export const ListPage: Story = { name: 'صفحة إعداد بقائمة', parameters: storyContext('apps/web/app/pages/subscription/branches.vue:9'), render: layout('list', 'access.audit.title') }
 export const DetailPage: Story = { name: 'صفحة إعداد بتفاصيل', parameters: storyContext('apps/web/app/pages/subscription/index.vue:32'), render: layout('detail', 'access.audit.detailTitle') }

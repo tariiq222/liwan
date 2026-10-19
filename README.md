@@ -41,7 +41,7 @@ This unified checkout contains the PMO, HR and access administration surfaces:
   hierarchy, employee archive controls, and department documents.
   HR routes live under `/api/v1/hr/*` and use employee ids. The PMO assignee
   picker at `/api/v1/people` remains a user-id resource.
-- Access administration at `/settings/users`, roles and audit with capability
+- Access administration at `/settings/team/users`, roles and audit with capability
   checks. Branding settings edit the primary colour; Odoo system administrators
   manage institution name/logo. `/account` handles self password changes.
 - PMO adds task attachments, recipient notifications, dependencies and a routed

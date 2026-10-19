@@ -5,7 +5,7 @@ import { useOperationRequest, useOperationRequestMutation } from '@/composables/
 import { operationId } from '@/composables/operations/forms'
 const route = useRoute()
 const router = useRouter()
-const sourcePaths = useRecordListPaths(['/operations', '/operations/pending', '/operations/monitoring', '/operations/processes'])
+const sourcePaths = useRecordListPaths(['/operations', '/operations/pending', '/operations/monitoring'])
 const { t } = useI18n()
 const hydrated = useHydrated()
 const id = computed(() => operationId(route.params.id))

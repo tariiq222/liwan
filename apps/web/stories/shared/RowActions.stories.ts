@@ -25,4 +25,4 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Menu: Story = { name: 'قائمة إجراءات' }
-export const SingleAction: Story = { name: 'إجراء واحد', args: { label: 'إجراءات دور مدير النظام', actions: [{ label: 'عرض', to: '/settings/roles/1' }] } }
+export const SingleAction: Story = { name: 'إجراء واحد', args: { label: 'إجراءات دور مدير النظام', actions: [{ label: 'عرض', to: '/settings/team/roles/1' }] } }

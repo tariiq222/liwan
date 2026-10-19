@@ -26,7 +26,7 @@ describe('admin settings pagination and return paths', () => {
   })
 
   it('builds an internal path with encoded return filters', () => {
-    expect(adminPathWithQuery('/settings/users/12', { q: 'Sara A', offset: '25' }))
-      .toBe('/settings/users/12?q=Sara+A&offset=25')
+    expect(adminPathWithQuery('/settings/team/users/12', { q: 'Sara A', offset: '25' }))
+      .toBe('/settings/team/users/12?q=Sara+A&offset=25')
   })
 })

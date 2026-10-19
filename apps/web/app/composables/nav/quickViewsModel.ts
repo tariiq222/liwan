@@ -121,7 +121,7 @@ const MEETING_LIST: ListSpec = {
 }
 
 const USER_LIST: ListSpec = {
-  path: '/settings/users',
+  path: '/settings/team/users',
   presetKeys: ['status'],
   views: [
     { id: 'active', labelKey: 'access.active', icon: 'i-lucide-user-check', preset: { status: 'active' } },
@@ -130,7 +130,7 @@ const USER_LIST: ListSpec = {
 }
 
 const MEETING_PATHS: ReadonlySet<string> = new Set(['/meetings', '/meetings/calendar', '/meetings/series', '/meetings/follow-up'])
-const OPERATION_PATHS: ReadonlySet<string> = new Set(['/operations', '/operations/pending', '/operations/monitoring', '/operations/processes'])
+const OPERATION_PATHS: ReadonlySet<string> = new Set(['/operations', '/operations/pending', '/operations/monitoring', '/settings/apps/operations/processes'])
 
 function taskList(input: QuickViewsInput, path: string, base: string, withArchived: boolean): QuickViewsModel {
   const spec: ListSpec = { path: base, presetKeys: TASK_PRESET_KEYS, keepKeys: ['view'], views: TASK_VIEWS }
@@ -203,21 +203,21 @@ export function quickViewsModel(input: QuickViewsInput): QuickViewsModel {
   }
 
   if (OPERATION_PATHS.has(path)) {
-    const onProcesses = path === '/operations/processes'
+    const onProcesses = path === '/settings/apps/operations/processes'
     return {
       views: [],
       actions: [
         ...createAction(input, 'operations.requests.create', 'new-operation', 'operations.newRequest', '/operations/new', !onProcesses),
-        ...createAction(input, 'operations.processes.manage', 'new-operation-process', 'operations.newProcess', '/operations/processes/new', onProcesses),
+        ...createAction(input, 'operations.processes.manage', 'new-operation-process', 'operations.newProcess', '/settings/apps/operations/processes/new', onProcesses),
       ].sort((a, b) => Number(b.primary) - Number(a.primary)),
     }
   }
 
-  if (path === '/settings/users') {
-    return { views: listModel(USER_LIST, input).views, actions: createAction(input, 'access.users.grant', 'new-user', 'access.users.grantAccount', '/settings/users/new', true) }
+  if (path === '/settings/team/users') {
+    return { views: listModel(USER_LIST, input).views, actions: createAction(input, 'access.users.grant', 'new-user', 'access.users.grantAccount', '/settings/team/users/new', true) }
   }
-  if (path === '/settings/roles') {
-    return { views: [], actions: createAction(input, 'access.roles.manage', 'new-role', 'access.roles.create', '/settings/roles/new', true) }
+  if (path === '/settings/team/roles') {
+    return { views: [], actions: createAction(input, 'access.roles.manage', 'new-role', 'access.roles.create', '/settings/team/roles/new', true) }
   }
   return EMPTY
 }

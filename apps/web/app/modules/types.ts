@@ -35,6 +35,19 @@ export interface AppContextLink {
   /** Locale key of the sidebar section heading; consecutive links with the same key form one section. */
   section?: string
 }
+/**
+ * A configuration page an application registers under Settings > Apps (`/settings/apps/<app>/...`). The settings
+ * shell lists every active manifest's entries the identity may reach, gated by the application feature and the
+ * entry's capability like nav items; the entry's `to` owns its whole subtree for route access.
+ */
+export interface AppSettingsEntry {
+  id: string; labelKey: string; icon: AppIcon
+  /** `/settings/apps/<app>` or a path beneath it. */
+  to: string
+  capability: string
+  /** Locale key of a sub-heading for future grouping when many applications register entries. */
+  group?: string
+}
 export interface AppRailEntry { id: string; labelKey: string; icon: AppIcon; to: string; order: number }
 /** The fetcher a search provider receives: `useApi().$api`, so requests keep its cookies, errors and zod parsing. */
 export type AppSearchApi = <T>(
@@ -126,6 +139,8 @@ export interface AppManifest {
    * every nav item. Defaults to the manifest id. PMO sets 'projects'.
    */
   defaultRail?: string
+  /** Configuration pages this application adds to Settings > Apps. */
+  settings?: AppSettingsEntry[]
   contextLinks?: (path: string | undefined) => AppContextLink[]  // keyed by rail id via link module in nav
   routeCapabilities?: Array<{ pattern: RegExp; capability: string }>
   /**

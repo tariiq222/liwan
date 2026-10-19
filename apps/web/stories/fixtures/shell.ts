@@ -35,7 +35,7 @@ const projectLinks: ShellContextLink[] = contextLinksForModule('projects', shell
 export const projectsSidebar = sidebarModel({ links: projectLinks, moduleLabelKey: 'nav.projects', path: '/tasks', panel: null, surface: 'desktop' })
 
 // Story-only grouping to show section headings; no module ships sections yet (DESIGN.md §3).
-const settingsLinks: ShellContextLink[] = contextLinksForModule('settings', shellMe, '/settings/users')
+const settingsLinks: ShellContextLink[] = contextLinksForModule('settings', shellMe, '/settings/team/users')
   .map(link => ({ ...link, active: link.id === 'users', section: link.id === 'branding' ? 'settings.branding.title' : 'nav.systemAdministration' }))
 export const sectionedSidebar = { createLinks: [] as ShellContextLink[], sections: groupSections(settingsLinks), showNav: true }
 

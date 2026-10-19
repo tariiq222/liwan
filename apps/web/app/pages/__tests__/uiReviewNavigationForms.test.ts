@@ -32,7 +32,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
   const escapeTargets: unknown[] = []
   const bindings: Record<string, unknown> = {
     ...hrNavigation, ...recordNavigation,
-    useRecordListPaths: () => Vue.ref(['/projects', '/projects/dashboard', '/tasks', '/hr', '/settings/users', '/account', '/search', '/notifications']),
+    useRecordListPaths: () => Vue.ref(['/projects', '/projects/dashboard', '/tasks', '/hr', '/settings/team/users', '/account', '/search', '/notifications']),
     refDebounced: (value: unknown) => value, searchProviders: () => [], visibleCommands: () => [],
     _defineComponent: Vue.defineComponent, defineComponent: Vue.defineComponent,
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch,
@@ -101,7 +101,7 @@ describe('reviewed page navigation and form feedback', () => {
     list.stop(); archive.stop()
   })
 
-  it.each([undefined, 'https://evil.example', '//evil.example', '/settings/users'])('uses the project task fallback for an absent or unsafe archive return target %s', async returnTo => {
+  it.each([undefined, 'https://evil.example', '//evil.example', '/settings/team/users'])('uses the project task fallback for an absent or unsafe archive return target %s', async returnTo => {
     const page = await loadPage('../components/pmo/tasks/TaskArchivedList.vue', { path: '/tasks', query: { scope: 'archived', project_id: '7', returnTo } })
     expect((await propsFor(page, 'SharedListPage'))!['back-to']).toBe('/projects/7/tasks')
     page.stop()
@@ -135,7 +135,7 @@ describe('reviewed page navigation and form feedback', () => {
 
   it.each([
     ['/projects?q=active', 'nav.projects'], ['/tasks?view=board', 'nav.tasks'],
-    ['/hr?q=name', 'nav.hr'], ['/settings/users', 'nav.settings'],
+    ['/hr?q=name', 'nav.hr'], ['/settings/team/users', 'nav.settings'],
     ['/account', 'nav.account'], ['/search?q=Example#results', 'app.search'],
     ['/notifications', 'notifications.title'],
   ])('names the summary Back destination for %s', async (returnTo, label) => {

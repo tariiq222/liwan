@@ -15,27 +15,27 @@ async function login(page: Page) {
 
 test('project settings links to both catalogs without a shared nav item', async ({ page }) => {
   await login(page)
-  await page.goto('/projects/settings')
+  await page.goto('/settings/apps/projects')
   await expect(page.getByRole('heading', { name: 'المشاريع', exact: true })).toBeVisible()
   await expect(page.getByTestId('catalog-types-link')).toBeVisible()
   await expect(page.getByTestId('catalog-units-link')).toBeVisible()
   await page.getByTestId('catalog-types-link').click()
-  await expect(page).toHaveURL(/\/projects\/settings\/catalogs\/types/)
+  await expect(page).toHaveURL(/\/settings\/apps\/projects\/catalogs\/types/)
   await expect(page.getByRole('heading', { name: 'أنواع المشاريع' })).toBeVisible()
   await expect(page.getByText('تقني')).toBeVisible()
   await expect(page.getByText('تشغيلي')).toBeVisible()
   await expect(page.getByText('إنشائي')).toBeVisible()
   await expect(page.getByText('تطويري')).toBeVisible()
   await page.getByRole('link', { name: 'العودة إلى إعدادات المشاريع' }).click()
-  await expect(page).toHaveURL(/\/projects\/settings/)
+  await expect(page).toHaveURL(/\/settings\/apps\/projects/)
 })
 
 test('owning units can be created, renamed, ordered, and deleted when unused', async ({ page }) => {
   await login(page)
   const name = `E2E unit ${Date.now()}`
-  await page.goto('/projects/settings/catalogs/owning-units')
+  await page.goto('/settings/apps/projects/catalogs/owning-units')
   await page.getByRole('button', { name: 'إضافة' }).click()
-  await expect(page).toHaveURL(/\/projects\/settings\/catalogs\/owning-units\/new/)
+  await expect(page).toHaveURL(/\/settings\/apps\/projects\/catalogs\/owning-units\/new/)
   await page.getByLabel('الاسم').fill(name)
   await page.getByLabel('الترتيب').fill('30')
   await page.getByRole('button', { name: 'إنشاء' }).click()
@@ -60,7 +60,7 @@ test('catalog edit departure is guarded while preserving the draft', async ({ pa
   const item = (await response.json()).items[0]
   expect(item).toBeTruthy()
 
-  await page.goto(`/projects/settings/catalogs/types/${item.id}/edit?returnTo=${encodeURIComponent('/projects/settings/catalogs/types')}`)
+  await page.goto(`/settings/apps/projects/catalogs/types/${item.id}/edit?returnTo=${encodeURIComponent('/settings/apps/projects/catalogs/types')}`)
   const name = page.getByLabel('الاسم')
   await expect(name).toBeVisible()
   const draft = `${item.name} مسودة`
@@ -74,5 +74,5 @@ test('catalog edit departure is guarded while preserving the draft', async ({ pa
   await expect(name).toHaveValue(draft)
   await page.getByRole('link', { name: 'العودة إلى إعدادات المشاريع' }).click()
   await dialog.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()
-  await expect(page).toHaveURL(/\/projects\/settings\/catalogs\/types$/)
+  await expect(page).toHaveURL(/\/settings\/apps\/projects\/catalogs\/types$/)
 })

@@ -4,8 +4,6 @@ import { projectIdFromPath } from './projectRoutes'
 import { projectPicker } from './recordPicker'
 import { projectsSearch, tasksSearch } from './search'
 
-const isProjectSettings = (path: string) => path === '/projects/settings' || path.startsWith('/projects/settings/')
-
 const manifest: AppManifest = {
   id: 'pmo',
   feature: 'pmo.enabled',
@@ -18,28 +16,26 @@ const manifest: AppManifest = {
     { to: '/projects/dashboard', labelKey: 'nav.projectDashboard', icon: 'i-lucide-chart-no-axes-combined', shortcut: 'z', capability: 'pmo.projects.read', module: 'projects' },
     { to: '/projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', shortcut: '2', goKey: 'p', capability: 'pmo.projects.read', module: 'projects' },
     { to: '/tasks', labelKey: 'nav.tasks', icon: 'i-lucide-check-square', shortcut: '1', goKey: 't', capability: 'pmo.tasks.read', module: 'projects' },
-    { to: '/projects/settings', labelKey: 'settings.projects.title', icon: 'i-lucide-settings', shortcut: '4', capability: 'pmo.settings.manage', module: 'projects' },
   ],
-  // Shown for `home` and `projects`, including inside a project (2026-09-11). Project settings close
-  // the sidebar (user decision 2026-09-16); they are not a settings-module page.
+  // Shown for `home` and `projects`, including inside a project (2026-09-11). Project configuration lives under Settings > Apps.
   contextLinks: () => [
     { id: 'new-project', labelKey: 'nav.newProject', icon: 'i-lucide-plus', to: '/projects/new', capability: 'pmo.projects.create', pinned: true },
     { id: 'project-dashboard', labelKey: 'projects.dashboard.title', icon: 'i-lucide-chart-no-axes-combined', to: '/projects/dashboard', capability: 'pmo.projects.read' },
     { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects', capability: 'pmo.projects.read' },
     { id: 'tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', to: '/tasks', capability: 'pmo.tasks.read' },
-    { id: 'project-settings', labelKey: 'nav.settings', icon: 'i-lucide-settings', to: '/projects/settings', capability: 'pmo.settings.manage' },
   ],
   landing: [
     { path: '/projects/dashboard', capability: 'pmo.projects.read' },
     { path: '/tasks', capability: 'pmo.tasks.read' },
     { path: '/projects', capability: 'pmo.projects.read' },
-    { path: '/projects/settings', capability: 'pmo.settings.manage', late: true },
+  ],
+  settings: [
+    { id: 'project-settings', labelKey: 'settings.projects.title', icon: 'i-lucide-folder-kanban', to: '/settings/apps/projects', capability: 'pmo.settings.manage' },
   ],
   recordListSources: [
     { pattern: /^\/projects\/[1-9]\d*\/meetings$/, capability: 'meetings.read' },
   ],
   routeCapabilities: [
-    { pattern: /^\/projects\/settings(?:\/|$)/, capability: 'pmo.settings.manage' },
     { pattern: /^\/tasks\/new$/, capability: 'pmo.tasks.create' },
     { pattern: /^\/projects\/[^/]+\/tasks\/new$/, capability: 'pmo.tasks.create' },
     { pattern: /^\/projects\/new$/, capability: 'pmo.projects.create' },
@@ -66,7 +62,6 @@ const manifest: AppManifest = {
   isNavActive(path, target) {
     if (target !== '/projects') return undefined
     if (path === '/projects/dashboard' || path.startsWith('/projects/dashboard/')) return false
-    if (isProjectSettings(path)) return false
     return undefined
   },
 }

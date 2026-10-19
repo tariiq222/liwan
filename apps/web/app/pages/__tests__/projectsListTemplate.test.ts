@@ -37,7 +37,7 @@ describe('the projects list is one list card with an embedded filter row', () =>
 
 describe('the settings pages use the shared cards and states', () => {
   it('the catalog list is a list card with an embedded filter row and a row-actions menu', () => {
-    const page = read('pages/projects/settings/catalogs/[resource]/index.vue')
+    const page = read('pages/settings/apps/projects/catalogs/[resource]/index.vue')
     for (const needle of ['<SharedListCard v-if="hydrated"', '<FilterBar embedded', '<SharedDataTable\n          bare', '<SharedRowActions']) expect(page, needle).toContain(needle)
     expect(page).not.toContain('<UTabs')
   })
@@ -46,7 +46,7 @@ describe('the settings pages use the shared cards and states', () => {
     const form = read('components/settings/ProjectSettingsForm.vue')
     expect(form.match(/<SharedFormSection id="project-[a-z]+" panel/g)).toHaveLength(3)
     expect(form).not.toMatch(/SharedFormSection[^>]*space-y-/)
-    expect(read('pages/projects/settings.vue')).not.toContain('space-y-')
+    expect(read('pages/settings/apps/projects.vue')).not.toContain('space-y-')
   })
 
   it('the forms end in one footer: the secondary action, then the primary, at the end', () => {

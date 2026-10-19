@@ -7,7 +7,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/FilterField',
   component: FilterField,
-  parameters: storyContext('apps/web/app/pages/settings/access-log/index.vue:57', 'تسمية حقل داخل نافذة الفلاتر. مع `for` تسمّي عنصرًا واحدًا، وبدونه تصبح مجموعة.'),
+  parameters: storyContext('apps/web/app/pages/settings/team/access-log/index.vue:57', 'تسمية حقل داخل نافذة الفلاتر. مع `for` تسمّي عنصرًا واحدًا، وبدونه تصبح مجموعة.'),
   args: { label: 'المنظّم', for: 'story-organizer' },
   render: args => ({
     components: { DateField, FilterField },

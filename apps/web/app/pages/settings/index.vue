@@ -1,13 +1,25 @@
 <script setup lang="ts">
-import { visibleShellModules } from '@/composables/nav/shellModules'
-import { firstAllowedPath } from '@/utils/accessPolicy'
+import { visibleSettingsSections } from '@/composables/nav/shellModules'
 
-// `/settings` has no page of its own: it opens the first settings page this user may use (the
-// same target as the rail's Settings entry), or their first allowed page when they have none.
+// The settings overview: one card per section the user can reach, listing the pages inside it.
+const { t } = useI18n()
 const { me, ready } = useMe()
 await ready
-const target = visibleShellModules(me.value).find(module => module.id === 'settings')?.to ?? firstAllowedPath(me.value)
-await navigateTo(target, { replace: true })
+const cards = computed(() => visibleSettingsSections(me.value).map(({ section, entries }) => ({
+  id: section.id,
+  to: entries[0]!.to,
+  icon: section.icon,
+  title: t(section.labelKey),
+  description: entries.map(entry => t(entry.labelKey)).join(t('settings.overview.separator')),
+})))
 </script>
 
-<template><SharedPageContainer><span class="sr-only" /></SharedPageContainer></template>
+<template>
+  <SharedSettingsPage data-testid="settings-overview">
+    <SharedPageHeader :title="t('settings.title')" :description="t('settings.overview.description')" />
+    <section v-if="cards.length" :aria-label="t('settings.title')" class="grid gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-3">
+      <SharedLinkCard v-for="card in cards" :key="card.id" :to="card.to" :icon="card.icon" :title="card.title" :description="card.description" :data-testid="`settings-section-${card.id}`" />
+    </section>
+    <SharedEmptyState v-else bordered :title="t('settings.forbidden')" />
+  </SharedSettingsPage>
+</template>
