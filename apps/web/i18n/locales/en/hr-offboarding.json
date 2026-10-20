@@ -8,8 +8,7 @@
       "plan": "Plan",
       "planDate": "Start date",
       "progress": "Progress",
-      "state": "State",
-      "searchEmployee": "Filter by employee"
+      "state": "State"
     },
     "run": {
       "launchedBy": "Started by",
@@ -26,10 +25,8 @@
       "activate": "Activate plan",
       "deactivateTitle": "Deactivate this plan?",
       "deactivateDescription": "It is no longer offered for new runs; existing runs stay as they are.",
-      "deactivated": "Plan deactivated",
       "activated": "Plan activated",
       "noSteps": "No steps yet",
-      "defaultPlan": "Default plan",
       "everyState": "All"
     },
     "departures": {
@@ -99,10 +96,7 @@
       "complete": "Complete",
       "reopen": "Reopen",
       "edit": "Edit",
-      "openRun": "Open run",
-      "openPlan": "Open plan",
-      "openDeparture": "Open record",
-      "backToList": "Back to the list"
+      "openDeparture": "Open record"
     },
     "states": {
       "open": "In progress",

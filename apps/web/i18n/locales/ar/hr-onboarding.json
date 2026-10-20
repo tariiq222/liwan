@@ -10,7 +10,6 @@
       "planDate": "تاريخ البدء",
       "progress": "التقدم",
       "state": "الحالة",
-      "searchEmployee": "تصفية بالموظف",
       "allStates": "كل الحالات",
       "planRequired": "اختر خطة"
     },
@@ -29,10 +28,8 @@
       "activate": "تفعيل الخطة",
       "deactivateTitle": "تعطيل الخطة؟",
       "deactivateDescription": "لن تُقترح لعمليات تهيئة جديدة، وتبقى العمليات الحالية كما هي.",
-      "deactivated": "تم تعطيل الخطة",
       "activated": "تم تفعيل الخطة",
       "noSteps": "لا خطوات بعد",
-      "defaultPlan": "الخطة الافتراضية",
       "everyState": "الكل"
     },
     "form": {
@@ -69,10 +66,7 @@
     "actions": {
       "complete": "إنجاز",
       "reopen": "إعادة فتح",
-      "edit": "تعديل",
-      "openRun": "فتح العملية",
-      "openPlan": "فتح الخطة",
-      "backToList": "رجوع إلى القائمة"
+      "edit": "تعديل"
     },
     "states": {
       "open": "قيد التنفيذ",

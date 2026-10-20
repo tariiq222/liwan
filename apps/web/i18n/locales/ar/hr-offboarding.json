@@ -8,8 +8,7 @@
       "plan": "الخطة",
       "planDate": "تاريخ البدء",
       "progress": "التقدم",
-      "state": "الحالة",
-      "searchEmployee": "تصفية بالموظف"
+      "state": "الحالة"
     },
     "run": {
       "launchedBy": "أطلقها",
@@ -26,10 +25,8 @@
       "activate": "تفعيل الخطة",
       "deactivateTitle": "تعطيل الخطة؟",
       "deactivateDescription": "لن تُقترح لعمليات إخلاء جديدة، وتبقى العمليات الحالية كما هي.",
-      "deactivated": "تم تعطيل الخطة",
       "activated": "تم تفعيل الخطة",
       "noSteps": "لا خطوات بعد",
-      "defaultPlan": "الخطة الافتراضية",
       "everyState": "الكل"
     },
     "departures": {
@@ -99,10 +96,7 @@
       "complete": "إنجاز",
       "reopen": "إعادة فتح",
       "edit": "تعديل",
-      "openRun": "فتح العملية",
-      "openPlan": "فتح الخطة",
-      "openDeparture": "فتح السجل",
-      "backToList": "رجوع إلى القائمة"
+      "openDeparture": "فتح السجل"
     },
     "states": {
       "open": "قيد التنفيذ",

@@ -10,7 +10,6 @@
       "planDate": "Start date",
       "progress": "Progress",
       "state": "State",
-      "searchEmployee": "Filter by employee",
       "allStates": "All states",
       "planRequired": "Choose a plan"
     },
@@ -29,10 +28,8 @@
       "activate": "Activate plan",
       "deactivateTitle": "Deactivate this plan?",
       "deactivateDescription": "It is no longer offered for new runs; existing runs stay as they are.",
-      "deactivated": "Plan deactivated",
       "activated": "Plan activated",
       "noSteps": "No steps yet",
-      "defaultPlan": "Default plan",
       "everyState": "All"
     },
     "form": {
@@ -69,10 +66,7 @@
     "actions": {
       "complete": "Complete",
       "reopen": "Reopen",
-      "edit": "Edit",
-      "openRun": "Open run",
-      "openPlan": "Open plan",
-      "backToList": "Back to the list"
+      "edit": "Edit"
     },
     "states": {
       "open": "In progress",
