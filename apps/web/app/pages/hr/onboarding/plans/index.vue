@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import PlanTable from '@/components/hr/lifecycle/PlanTable.vue'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
-import { useHrOnboardingPlans, type HrPlanListParams } from '@/composables/useHrOnboarding'
+import type { HrPlanListParams } from '@/composables/useHrOnboarding'
+import { useHrOnboardingPlans } from '@/composables/useHrOnboarding'
 
 const NAMESPACE = 'hrOnboarding'
 const PAGE_SIZE = 25

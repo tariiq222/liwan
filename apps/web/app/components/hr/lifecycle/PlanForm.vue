@@ -93,6 +93,9 @@ function fieldError(field: string) {
   if (field === 'steps' && stepsError.value) return stepsError.value
   return formError.value instanceof ApiError && formError.value.field === field ? formError.value.message : undefined
 }
+function setStepUser(step: HrPlanStepInput, value: unknown) {
+  step.responsible_user_id = typeof value === 'number' && value > 0 ? value : null
+}
 function addStep() { steps.value = [...steps.value, emptyStep()] }
 function removeStep(index: number) { steps.value = steps.value.filter((_, position) => position !== index) }
 
@@ -172,7 +175,12 @@ async function submit() {
               />
             </UFormField>
             <UFormField v-if="step.responsible_type === 'other'" :label="t(`${namespace}.form.responsibleUser`)" :name="`step-${index}-user`" required>
-              <PersonPicker v-model="step.responsible_user_id" value-key="id" :placeholder="t(`${namespace}.form.responsibleUser`)" />
+              <PersonPicker
+                :model-value="step.responsible_user_id ?? null"
+                value-key="id"
+                :placeholder="t(`${namespace}.form.responsibleUser`)"
+                @update:model-value="setStepUser(step, $event)"
+              />
             </UFormField>
             <UFormField :label="t(`${namespace}.form.delayCount`)" :name="`step-${index}-delay`">
               <UInput v-model.number="step.delay_count" type="number" min="0" class="w-full" :disabled="!canManage || !hydrated || pending" />

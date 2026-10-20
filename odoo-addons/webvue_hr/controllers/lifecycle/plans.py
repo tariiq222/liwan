@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """/api/v1/hr/{onboarding,offboarding}/plans: the employee activity plans of each area."""
 from odoo import Command, http
+from odoo.exceptions import AccessError
 from odoo.http import request
 
 from .common import EMPLOYEE_MODEL, OFFBOARDING, ONBOARDING, _purpose_plan, _require
@@ -60,25 +61,34 @@ def _patch_plan(area, plan_id, payload):
     return dump_plan(plan)
 
 
+def _visible(model, domain):
+    """The first matching record, or an empty recordset the caller may not read.
+
+    A payload relation the caller cannot see is an invalid value for that field, so the
+    route answers 422 with the field instead of leaking an access error.
+    """
+    try:
+        return request.env[model].search(domain, limit=1)
+    except AccessError:
+        return request.env[model]
+
+
 def _validate_plan_relations(vals, steps):
     department_id = vals.get('department_id')
-    if department_id:
-        department = request.env['hr.department'].search([
-            ('id', '=', department_id),
-            ('company_id', 'in', [request.env.company.id, False]),
-        ], limit=1)
-        if not department:
-            raise ApiError(422, 'invalid', 'department_id is not available', field='department_id')
+    if department_id and not _visible('hr.department', [
+        ('id', '=', department_id),
+        ('company_id', 'in', [request.env.company.id, False]),
+    ]):
+        raise ApiError(422, 'invalid', 'department_id is not available', field='department_id')
     for step in steps:
         user_id = step.get('responsible_id')
         if not user_id:
             continue
-        user = request.env['res.users'].search([
+        if not _visible('res.users', [
             ('id', '=', user_id),
             ('active', '=', True),
             ('company_ids', 'in', [request.env.company.id]),
-        ], limit=1)
-        if not user:
+        ]):
             raise ApiError(422, 'invalid', 'responsible_user_id is not available', field='responsible_user_id')
 
 
