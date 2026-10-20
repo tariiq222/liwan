@@ -72,6 +72,10 @@ export const FinancePaymentSchema = z.object({
   memo: z.string(),
   currency,
   amount: z.number(),
+  /** What a posted payment still holds open on the partner's account (an advance, an overpayment); zero otherwise. */
+  unallocated: z.number(),
+  /** The invoices it is set against now. */
+  invoices: z.array(FinanceRefSchema),
 }).strict()
 
 export const FinanceAccountTypeSchema = z.enum([

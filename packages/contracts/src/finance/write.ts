@@ -42,7 +42,33 @@ export const FinancePaymentRegisterSchema = z.object({
   memo: text.optional(),
 }).strict()
 
+/** A receipt (`inbound`) or payment (`outbound`) that names no invoice: an advance, or money to allocate later. */
+export const FinancePaymentStandaloneSchema = z.object({
+  payment_type: z.enum(['inbound', 'outbound']),
+  /** Defaults to the customer for a receipt and the vendor for a payment; a refund of a customer advance is an outbound payment to a customer. */
+  partner_type: z.enum(['customer', 'supplier']).optional(),
+  partner_id: id,
+  amount: money.positive(),
+  payment_date: day,
+  journal_id: id,
+  payment_method_line_id: id.optional(),
+  memo: text.optional(),
+}).strict()
+
+/** Only a draft payment is edited (for example after a reset to draft). */
+export const FinancePaymentPatchSchema = FinancePaymentStandaloneSchema.omit({ payment_type: true, partner_type: true, partner_id: true }).partial().strict()
+  .refine(requirePatchField, PATCH_MESSAGE)
+
+/** Exactly one non-empty list: the invoices, or the payments (a refund), the payment is set against. */
+export const FinancePaymentAllocateSchema = z.object({
+  invoice_ids: z.array(id).min(1).optional(),
+  payment_ids: z.array(id).min(1).optional(),
+}).strict().refine(body => Number(!!body.invoice_ids) + Number(!!body.payment_ids) === 1, 'give either invoice_ids or payment_ids')
+
 export type FinanceInvoiceLineInput = z.infer<typeof FinanceInvoiceLineInputSchema>
 export type FinanceInvoiceCreate = z.infer<typeof FinanceInvoiceCreateSchema>
 export type FinanceInvoicePatch = z.infer<typeof FinanceInvoicePatchSchema>
 export type FinancePaymentRegister = z.infer<typeof FinancePaymentRegisterSchema>
+export type FinancePaymentStandalone = z.infer<typeof FinancePaymentStandaloneSchema>
+export type FinancePaymentPatch = z.infer<typeof FinancePaymentPatchSchema>
+export type FinancePaymentAllocate = z.infer<typeof FinancePaymentAllocateSchema>

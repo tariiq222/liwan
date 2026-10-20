@@ -1,23 +1,25 @@
 {
   "items": [
     {
-      "amount": 1150.0,
+      "amount": 1000.0,
       "currency": "SAR",
       "date": "2026-10-19",
       "id": 1,
+      "invoices": [],
       "journal": {
         "id": 3,
         "name": "Bank"
       },
-      "memo": "Settlement",
-      "name": "PBNK1/2026/00001",
+      "memo": "Refund of advance",
+      "name": "PBNK1/2026/00002",
       "partner": {
         "id": 2,
         "name": "Al Noor Trading"
       },
       "partner_type": "customer",
-      "payment_type": "inbound",
-      "state": "paid"
+      "payment_type": "outbound",
+      "state": "in_process",
+      "unallocated": 0.0
     }
   ],
   "total": 1

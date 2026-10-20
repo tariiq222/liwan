@@ -14,7 +14,7 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `POST /invoices` (201, a draft), `PATCH /invoices/<id>`, `DELETE /invoices/<id>` (204) | `finance.invoices.manage` |
 | `POST /invoices/<id>/post`, `/cancel`, `/reset-to-draft` | `finance.invoices.post` |
 | `GET /payments` | `finance.payments.read` |
-| `POST /payments` (201), `POST /payments/<id>/cancel`, `/reset-to-draft` | `finance.payments.manage` |
+| `POST /payments` (201), `POST /payments/standalone` (201), `PATCH /payments/<id>`, `POST /payments/<id>/cancel`, `/reset-to-draft`, `/post`, `/allocate`, `/unallocate` | `finance.payments.manage` |
 | `GET /accounts` (`archived=true\|false`, `account_type`, `q`), `GET /accounts/<id>` | `finance.accounts.read` |
 | `POST /accounts` (201), `PATCH /accounts/<id>`, `POST /accounts/<id>/archive`, `/unarchive` | `finance.accounts.manage` |
 | `GET /taxes` (`type_tax_use`, `archived`, `q`), `GET /taxes/<id>` | `finance.taxes.read` |
@@ -167,6 +167,28 @@ archived. A payment term is `{name, note?, lines: [{value: percent|fixed, value_
 percent lines must add up to 100 and a `PATCH` with `lines` replaces them. Terms without a company come with the chart
 and are shared: listed and readable, but 422 `shared_record` on every write. Both resources are archived, never deleted,
 and each write leaves an audit event with field names only.
+
+## Receipts, advances and allocation
+
+`POST /payments` still pays posted invoices and refuses an amount above their open balance. Money that names no invoice
+goes through `POST /payments/standalone` `{payment_type, partner_id, amount, payment_date, journal_id, partner_type?,
+payment_method_line_id?, memo?}`: `inbound` is a receipt from a customer, `outbound` a payment to a vendor (`partner_type`
+overrides that, so a refund of a customer advance is an outbound payment to a customer). It is created and posted in one
+step and leaves its whole amount `unallocated`. Every payment carries `unallocated` (what it still holds open on the
+partner's receivable or payable account, zero until posted) and `invoices` (the invoices it is set against now, read from
+its reconciliations).
+
+- `POST /payments/<id>/allocate` takes exactly one of `invoice_ids` or `payment_ids` and reconciles the payment's open
+  balance with the open items of those posted documents (same partner, currency and account); a partial result is allowed.
+  A refund of an advance is an outbound payment allocated against it (`payment_ids`). Nothing to allocate is 422
+  `nothing_to_allocate`; a document that is not of the payment's partner, currency or side is 422 `invalid`.
+- `POST /payments/<id>/unallocate` removes those reconciliations (a locked period refuses it, 422 `period_locked`).
+- A cancelled payment reset to draft can be edited (`PATCH`, drafts only, else 422 `not_draft`) and posted again
+  (`POST /payments/<id>/post`). Odoo forgets the invoice of a payment reset to draft, so posting it again leaves its amount
+  unallocated; allocate it to the invoice again.
+- Odoo 19 Community has no internal-transfer payment: a transfer between bank and cash accounts is not covered yet (see
+  `docs/finance/finance-completion-gaps.md`).
+- Every create, edit, post, allocation and unallocation leaves an audit event.
 
 ## Journal entries
 

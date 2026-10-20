@@ -2,7 +2,7 @@
 {
     'name': 'webvue Finance',
     'summary': 'webvue platform: the Finance application — /api/v1/finance over account and l10n_sa',
-    'version': '19.0.1.2.4',
+    'version': '19.0.1.2.5',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

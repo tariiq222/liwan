@@ -6,6 +6,9 @@ import {
   FinanceInvoiceSchema,
   FinanceJournalListSchema,
   FinanceJournalSchema,
+  FinancePaymentAllocateSchema,
+  FinancePaymentPatchSchema,
+  FinancePaymentStandaloneSchema,
   FinancePaymentListSchema,
   FinancePaymentSchema,
 } from '..'
@@ -50,6 +53,8 @@ const PAYMENT = {
   memo: '',
   currency: 'SAR',
   amount: 1150,
+  unallocated: 0,
+  invoices: [],
 }
 const ACCOUNT = {
   id: 40, code: '400000', name: 'Product Sales', account_type: 'income', reconcile: false, currency: null, active: true,
@@ -134,5 +139,24 @@ describe('finance list envelopes', () => {
       expect(() => schema.parse({ items: [row], total: 1, next: 2 })).toThrow()
       expect(() => schema.parse({ items: [row], total: -1 })).toThrow()
     }
+  })
+})
+
+describe('standalone payment bodies', () => {
+  const receipt = { payment_type: 'inbound', partner_id: 7, amount: 500, payment_date: '2026-10-19', journal_id: 6 }
+
+  it('accepts a receipt, a draft edit and an allocation', () => {
+    expect(FinancePaymentStandaloneSchema.parse(receipt)).toEqual(receipt)
+    expect(FinancePaymentPatchSchema.parse({ amount: 450 })).toEqual({ amount: 450 })
+    expect(FinancePaymentAllocateSchema.parse({ invoice_ids: [3] })).toEqual({ invoice_ids: [3] })
+    expect(FinancePaymentAllocateSchema.parse({ payment_ids: [9] })).toEqual({ payment_ids: [9] })
+  })
+
+  it('refuses unknown keys, an empty edit and an ambiguous allocation', () => {
+    expect(() => FinancePaymentStandaloneSchema.parse({ ...receipt, invoice_ids: [1] })).toThrow()
+    expect(() => FinancePaymentPatchSchema.parse({})).toThrow()
+    expect(() => FinancePaymentPatchSchema.parse({ partner_id: 1 })).toThrow()
+    expect(() => FinancePaymentAllocateSchema.parse({})).toThrow()
+    expect(() => FinancePaymentAllocateSchema.parse({ invoice_ids: [1], payment_ids: [2] })).toThrow()
   })
 })
