@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { owningListBack } from '@/utils/recordListOrigin'
+import { sortShiftLines } from '@/utils/hrShiftWeek'
 import { ApiError } from '@/composables/useApi'
 import { useArchiveHrShiftSchedule, useHrShiftSchedule } from '@/composables/useHrShifts'
 import ShiftScheduleForm from '@/components/hr/shifts/ShiftScheduleForm.vue'
@@ -123,7 +124,7 @@ async function onSaved() {
       <SharedRecordSection variant="list" :title="t('hrShifts.form.attendances')" :description="t('hrShifts.form.attendancesHint')">
         <ul class="divide-y divide-default">
           <li
-            v-for="(line, index) in schedule.attendances"
+            v-for="(line, index) in sortShiftLines(schedule.attendances)"
             :key="index"
             class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-(--webvue-card-pad) py-3 text-sm"
             data-testid="hr-shift-schedule-line"

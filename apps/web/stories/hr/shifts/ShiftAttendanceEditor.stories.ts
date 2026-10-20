@@ -7,11 +7,11 @@ import { storyContext } from '../../support/context'
 const meta = {
   title: 'HR/ShiftAttendanceEditor',
   component: ShiftAttendanceEditor,
-  parameters: storyContext('apps/web/app/components/hr/shifts/ShiftScheduleForm.vue:99', 'داخل قسم «بنود الدوام» في نموذج جدول العمل.'),
+  parameters: storyContext('apps/web/app/components/hr/shifts/ShiftScheduleForm.vue:100', 'داخل قسم «بنود الدوام» في نموذج جدول العمل.'),
   args: {
     modelValue: [
-      { dayofweek: '0', day_period: 'morning', hour_from: 8, hour_to: 12, week_type: null },
-      { dayofweek: '0', day_period: 'afternoon', hour_from: 13, hour_to: 17, week_type: null },
+      { dayofweek: '6', day_period: 'morning', hour_from: 8, hour_to: 12, week_type: null },
+      { dayofweek: '6', day_period: 'afternoon', hour_from: 13, hour_to: 17, week_type: null },
     ],
     disabled: false,
   },

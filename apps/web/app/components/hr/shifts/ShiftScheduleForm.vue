@@ -2,6 +2,7 @@
 import type { RouteLocationRaw } from 'vue-router'
 import type { HrShiftAttendance, HrShiftSchedule } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
+import { SHIFT_WEEK_START } from '@/utils/hrShiftWeek'
 import { useCreateHrShiftSchedule, useUpdateHrShiftSchedule } from '@/composables/useHrShifts'
 import ShiftAttendanceEditor from '@/components/hr/shifts/ShiftAttendanceEditor.vue'
 
@@ -16,7 +17,7 @@ const create = useCreateHrShiftSchedule()
 const update = useUpdateHrShiftSchedule()
 const isPending = computed(() => create.isPending.value || update.isPending.value)
 
-const DEFAULT_LINE: HrShiftAttendance = { dayofweek: '0', day_period: 'morning', hour_from: 8, hour_to: 12, week_type: null }
+const DEFAULT_LINE: HrShiftAttendance = { dayofweek: SHIFT_WEEK_START, day_period: 'morning', hour_from: 8, hour_to: 12, week_type: null }
 const initialName = props.schedule?.name ?? ''
 const initialTz = props.schedule?.tz ?? me.value?.tz ?? 'UTC'
 const initialAttendances = JSON.stringify(props.schedule?.attendances ?? [DEFAULT_LINE])
