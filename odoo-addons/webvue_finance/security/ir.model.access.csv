@@ -17,6 +17,10 @@ access_finance_audit_payments_manage_event,finance audit payments manage: webvue
 access_finance_audit_bank_manage_event,finance audit bank manage: webvue.finance.audit.event,model_webvue_finance_audit_event,group_cap_finance_bank_manage,0,0,1,0
 access_finance_assets_manage_asset_remove,finance assets manage: account.asset.remove,account_asset_management.model_account_asset_remove,group_cap_finance_assets_manage,1,1,1,1
 access_finance_audit_assets_manage_event,finance audit assets manage: webvue.finance.audit.event,model_webvue_finance_audit_event,group_cap_finance_assets_manage,0,0,1,0
+access_finance_idempotency_invoices,finance idempotency invoices: webvue.finance.idempotency,model_webvue_finance_idempotency,group_cap_finance_invoices_manage,1,1,1,1
+access_finance_idempotency_payments,finance idempotency payments: webvue.finance.idempotency,model_webvue_finance_idempotency,group_cap_finance_payments_manage,1,1,1,1
+access_finance_idempotency_entries,finance idempotency entries: webvue.finance.idempotency,model_webvue_finance_idempotency,group_cap_finance_entries_manage,1,1,1,1
+access_finance_idempotency_bank,finance idempotency bank: webvue.finance.idempotency,model_webvue_finance_idempotency,group_cap_finance_bank_manage,1,1,1,1
 access_finance_analytic_read_plan,finance analytic read: account.analytic.plan,analytic.model_account_analytic_plan,group_cap_finance_analytic_read,1,0,0,0
 access_finance_analytic_manage_plan,finance analytic manage: account.analytic.plan,analytic.model_account_analytic_plan,group_cap_finance_analytic_manage,1,1,1,0
 access_finance_analytic_manage_account,finance analytic manage: account.analytic.account,analytic.model_account_analytic_account,group_cap_finance_analytic_manage,1,1,1,0

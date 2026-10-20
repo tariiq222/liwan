@@ -67,6 +67,17 @@ Two more built-in roles (sets defined once in `models/access_service.py`):
   and cannot manage budgets, assets or cost centers, or read the audit trail or zakat.
 - `finance_auditor` (مدقق): the nineteen `.read` capabilities, listed literally and nothing that changes data.
 
+## Repeated requests (`Idempotency-Key`)
+
+The routes that create a document or a payment (`POST /invoices`, `/payments`, `/payments/standalone`, `/entries`,
+`/bank-statements` and `/bank-statements/import`) accept an optional `Idempotency-Key` header (8 to 128 of letters, digits
+and `_ . : -`). A client that lost the answer sends the request again with the same key and gets the first answer back; nothing
+is created twice. The key is claimed in the route's own transaction, so a refused request leaves no key and can be sent again
+corrected. The same key with another route, user or body is 422 `idempotency_key_reused`; the loser of two requests with one key
+racing each other is 409 `duplicate_request`. Keys are per company, kept two days (`webvue.finance.idempotency`, the caller's own
+rows only) and need no cron: the next request purges the old ones. Without the header nothing changes. The race path rests on
+the unique `(company, key)` constraint and is not covered by a test (the test cases run in one transaction).
+
 ## Write semantics
 
 - Request bodies are strict: an unknown key is a 422 `invalid` naming it. Money is a plain JSON

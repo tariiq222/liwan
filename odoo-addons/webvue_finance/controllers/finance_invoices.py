@@ -6,6 +6,7 @@ from odoo.http import request
 from .analytic_support import distribution_values, require_plain_distributions
 from .common import filter_domain, list_page, parse_choice, require_capability
 from .finance_partners import company_partners_domain
+from .idempotency import idempotent
 from .write_support import attempt, company_records, require_state
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
@@ -163,6 +164,7 @@ class FinanceInvoiceController(http.Controller):
     @http.route('/api/v1/finance/invoices', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
+    @idempotent
     def create_invoice(self, **payload):
         require_capability('finance.invoices.manage')
         parsed = parse_invoice_create(payload)

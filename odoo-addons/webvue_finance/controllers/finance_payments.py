@@ -6,6 +6,7 @@ from odoo.http import request
 from .common import filter_domain, list_page, parse_choice, require_capability
 from .finance_invoices import company_invoices_domain
 from .finance_partners import company_partners_domain
+from .idempotency import idempotent
 from .write_support import attempt, company_records, is_period_locked, period_locked
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
@@ -165,6 +166,7 @@ class FinancePaymentController(http.Controller):
     @http.route('/api/v1/finance/payments', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
+    @idempotent
     def register_payment(self, **payload):
         require_capability('finance.payments.manage')
         parsed = parse_payment_register(payload)
@@ -207,6 +209,7 @@ class FinancePaymentController(http.Controller):
     @http.route('/api/v1/finance/payments/standalone', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
+    @idempotent
     def create_standalone_payment(self, **payload):
         """A receipt or payment voucher that names no invoice: an advance, or money kept to be allocated later."""
         require_capability('finance.payments.manage')

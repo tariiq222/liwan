@@ -5,4 +5,9 @@
         <field name="model_id" ref="model_webvue_finance_audit_event"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_finance_idempotency_company_user" model="ir.rule">
+        <field name="name">Finance idempotency keys of the caller in the allowed companies</field>
+        <field name="model_id" ref="model_webvue_finance_idempotency"/>
+        <field name="domain_force">[('company_id', 'in', company_ids), ('user_id', '=', user.id)]</field>
+    </record>
 </odoo>

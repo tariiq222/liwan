@@ -5,6 +5,7 @@ from odoo.http import request
 
 from .common import filter_domain, list_page, require_capability
 from .finance_partners import company_partners_domain
+from .idempotency import idempotent
 from .write_support import attempt, company_records
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
@@ -155,6 +156,7 @@ class FinanceBankController(http.Controller):
     @http.route('/api/v1/finance/bank-statements', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
+    @idempotent
     def create_bank_statement(self, **payload):
         """A bank statement with its lines, on a bank journal of the current company."""
         require_capability('finance.bank.manage')

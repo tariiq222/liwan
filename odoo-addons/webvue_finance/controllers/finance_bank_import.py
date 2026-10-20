@@ -7,6 +7,7 @@ from odoo.http import request
 
 from .common import require_capability
 from .finance_bank import STATEMENT_JOURNAL_TYPES, _statement_values
+from .idempotency import idempotent
 from .write_support import attempt, company_records
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
@@ -128,6 +129,7 @@ class FinanceBankImportController(http.Controller):
     @http.route('/api/v1/finance/bank-statements/import', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
+    @idempotent
     def import_bank_statement(self, **payload):
         """Create one statement from a CSV file, whole or not at all.
 
