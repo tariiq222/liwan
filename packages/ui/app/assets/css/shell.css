@@ -218,7 +218,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 }
 .webvue-context-column::-webkit-scrollbar { display: none; }
 .webvue-context-column > :is(.webvue-context-sidebar:not([data-panel="true"]), .webvue-quick-views) { flex: none; }
-/* Context sidebar: a white floating card beside the rail. */
+/* Context sidebar: a white floating card beside the rail. The column's cards carry no shadow: the column scrolls, so it
+   would clip a shadow into a grey band behind the cards. The border alone outlines each card. */
 .webvue-context-sidebar {
   display: flex;
   width: 100%;
@@ -229,7 +230,6 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   background: var(--context-surface);
   border: 1px solid var(--ui-border);
   border-radius: var(--radius-card);
-  box-shadow: var(--webvue-shell-shadow);
   color: var(--ui-text);
 }
 .webvue-context-enter-active, .webvue-context-leave-active { transition: opacity 120ms ease; }
@@ -290,7 +290,6 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   background: var(--context-surface);
   border: 1px solid var(--ui-border);
   border-radius: var(--radius-card);
-  box-shadow: var(--webvue-shell-shadow);
   color: var(--ui-text);
 }
 .webvue-quick-group { display: grid; gap: 2px; }
@@ -301,7 +300,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .webvue-quick-action[data-primary="true"] { color: var(--brand-link); font-weight: 600; }
 .webvue-quick-action[data-primary="true"] .webvue-quick-chip { background: var(--brand-soft); color: var(--brand-link); }
 /* In the mobile drawer the section is flat: no card, no fixed height. */
-.webvue-quick-views[data-surface="drawer"] { overflow: visible; padding: 0; background: none; border: 0; border-radius: 0; box-shadow: none; }
+.webvue-quick-views[data-surface="drawer"] { overflow: visible; padding: 0; background: none; border: 0; border-radius: 0; }
 /* Collapsed: a 64px icon-only bar. Labels, counts, headings and create actions drop out; the toggle stays. */
 @media (min-width: 768px) {
   .webvue-context-sidebar[data-expanded="false"] :is(.webvue-context-heading h2, .webvue-context-create-actions, .webvue-context-section-title, .webvue-context-count) { display: none; }
