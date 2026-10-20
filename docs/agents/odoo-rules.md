@@ -159,8 +159,8 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   (`tools/hooks.py`). Do not introduce another convention.
 - Authorized module tests: use the **Check commands** block below
   and `deploy/ci/odoo.sh` (the **odoo** stage, including its classification fixture; the
-  **odoo-tasks-standalone** and **odoo-tasks-bridge** stages run the same shape for
-  `webvue_tasks` alone and with the PMO bridge),
+  **odoo-app-standalone** and **odoo-bridge** matrix stages run the same shape for every
+  application alone and every bridge with its two sides, see `docs/testing.md`),
   with the selected checkout's explicit addons path, `-i` modules,
   `--test-tags /<addon>` and `--stop-after-init`. Require a nonzero test count;
   preserve isolation/cleanup. These are documented commands, not run by setup.

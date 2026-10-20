@@ -26,8 +26,7 @@ env:
   PGUSER: odoo
   PGPASSWORD: odoo
   ODOO_PORT: '8169'
-  TASKS_PORT: '8170'
-  BRIDGE_PORT: '8171'
+  ISOLATION_PORT: '8170'
   MOCK_PORT: '8172'
   AI_MOCK_PORT: '8173'
   WEB_PORT: '3101'
@@ -40,6 +39,8 @@ jobs:
       stages: ${{ steps.select.outputs.stages }}
       base: ${{ steps.select.outputs.base }}
       odoo-shards: ${{ steps.select.outputs.odoo-shards }}
+      apps: ${{ steps.select.outputs.apps }}
+      bridges: ${{ steps.select.outputs.bridges }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -64,6 +65,8 @@ jobs:
           echo "base=$base" >> "$GITHUB_OUTPUT"
           echo "stages=$stages" >> "$GITHUB_OUTPUT"
           echo "odoo-shards=$(python3 -B tools/odoo_shards.py matrix)" >> "$GITHUB_OUTPUT"
+          echo "apps=$(python3 -B tools/app_isolation.py matrix apps)" >> "$GITHUB_OUTPUT"
+          echo "bridges=$(python3 -B tools/app_isolation.py matrix bridges)" >> "$GITHUB_OUTPUT"
           echo "Base $base, stages $stages"
 
   static:
@@ -181,11 +184,19 @@ jobs:
           odoo: 'true'
       - run: deploy/ci/odoo.sh --shard ${{ matrix.shard }}/${{ strategy.job-total }}
 
-  odoo-tasks-standalone:
+  # One job per rank-4 application and one per rank-5 bridge of tools/arch_layers.json (tools/app_isolation.py):
+  # each installs only its part of the product on its own Postgres service. fail-fast is off so a red run
+  # reports every application or bridge that does not stand on its own.
+  odoo-app-standalone:
+    name: odoo-app-standalone (${{ matrix.app }})
     needs: scope
-    if: contains(fromJSON(needs.scope.outputs.stages), 'odoo-tasks-standalone')
+    if: contains(fromJSON(needs.scope.outputs.stages), 'odoo-app-standalone')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.scope.outputs.apps) }}
     services:
       postgres:
         image: postgres:16
@@ -205,13 +216,18 @@ jobs:
         with:
           node: 'false'
           odoo: 'true'
-      - run: deploy/ci/odoo-tasks-standalone.sh
+      - run: deploy/ci/odoo-app-standalone.sh ${{ matrix.app }}
 
-  odoo-tasks-bridge:
+  odoo-bridge:
+    name: odoo-bridge (${{ matrix.bridge }})
     needs: scope
-    if: contains(fromJSON(needs.scope.outputs.stages), 'odoo-tasks-bridge')
+    if: contains(fromJSON(needs.scope.outputs.stages), 'odoo-bridge')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        bridge: ${{ fromJSON(needs.scope.outputs.bridges) }}
     services:
       postgres:
         image: postgres:16
@@ -231,7 +247,7 @@ jobs:
         with:
           node: 'false'
           odoo: 'true'
-      - run: deploy/ci/odoo-tasks-bridge.sh
+      - run: deploy/ci/odoo-bridge.sh ${{ matrix.bridge }}
 
   upgrade:
     needs: scope
@@ -337,7 +353,7 @@ jobs:
 
   ci-result:
     if: always()
-    needs: [scope, static, ai-service, control-plane, vendor-admin, odoo, odoo-tasks-standalone, odoo-tasks-bridge, upgrade, restore-drill, image, e2e-mock, rtl-stories]
+    needs: [scope, static, ai-service, control-plane, vendor-admin, odoo, odoo-app-standalone, odoo-bridge, upgrade, restore-drill, image, e2e-mock, rtl-stories]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

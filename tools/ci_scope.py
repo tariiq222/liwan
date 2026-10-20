@@ -18,14 +18,14 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 
 STAGES = ('static', 'ai-service', 'control-plane', 'vendor-admin', 'odoo',
-          'odoo-tasks-standalone', 'odoo-tasks-bridge', 'upgrade',
+          'odoo-app-standalone', 'odoo-bridge', 'upgrade',
           'restore-drill', 'image', 'e2e-mock', 'rtl-stories')
 # Tools no non-static step runs and no application code executes (checked with rg across
 # `.github/`, deploy/, apps/, packages/ and odoo-addons/). Everything else under tools/,
 # including tools/webvue_cli/ and tools/shared_saas_lifecycle/ (run by the control-plane tests),
 # is unmapped on purpose, so a new tool runs all twelve stages until it is listed here.
 STATIC_ONLY_TOOLS = (
-    'tools/test_*', 'tools/api_surface.py', 'tools/arch_baseline.json', 'tools/arch_documented_sudo.json', 'tools/arch_layers.json',
+    'tools/test_*', 'tools/api_surface.py', 'tools/arch_baseline.json', 'tools/arch_documented_sudo.json',
     'tools/arch_policy.py', 'tools/check_fast.py', 'tools/contracts_jsonschema.mjs',
     'tools/docs_policy.py', 'tools/e2e_isolated.mjs', 'tools/git_policy.py', 'tools/hooks.py',
     'tools/jev_review.mjs', 'tools/migration_guard.py', 'tools/new_app.py',
@@ -34,6 +34,7 @@ STATIC_ONLY_TOOLS = (
     'tools/ui_catalog.mjs', 'tools/ui_inventory.py', 'tools/ui_layer_baseline.mjs',
     'tools/ui_policy.py', 'tools/ui_templates.mjs', 'tools/wt.py',
 )
+ISOLATION_STAGES = ('odoo-app-standalone', 'odoo-bridge')
 SHARED_PACKAGE_STAGES = ('control-plane', 'vendor-admin', 'e2e-mock', 'rtl-stories')
 UNMAPPED = '(no rule: all stages)'
 
@@ -44,6 +45,8 @@ RULES = (
     ('.github/*', STAGES),
     ('tools/ci_scope.py', STAGES),
     ('tools/odoo_shards.py', ('odoo',)),     # splits the odoo stage into its matrix shards
+    ('tools/app_isolation.py', ISOLATION_STAGES),  # their matrices and isolation check
+    ('tools/arch_layers.json', ISOLATION_STAGES),  # its ranks name the applications and bridges of those matrices
     ('tools/catalog_check.py', STAGES),      # odoo, upgrade, restore-drill and image read --release-modules
     ('tools/upgrade_baseline.py', STAGES),   # the upgrade step
     ('tools/upgrade_log_guard.py', STAGES),  # the upgrade step

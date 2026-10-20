@@ -54,7 +54,7 @@ plan). The owner will replace this before deployment. The preservation steps in
 [`agents/integration-rules.md`](agents/integration-rules.md) apply before every integration.
 
 The twelve stages are `static`, `ai-service`, `control-plane`, `vendor-admin`, `odoo`,
-`odoo-tasks-standalone`, `odoo-tasks-bridge`, `upgrade`, `restore-drill`, `image`, `e2e-mock` and
+`odoo-app-standalone`, `odoo-bridge`, `upgrade`, `restore-drill`, `image`, `e2e-mock` and
 `rtl-stories`.
 
 ### Change-scoped stages
@@ -89,8 +89,36 @@ with `deploy/ci/odoo.sh --shard k/N`, all shards in parallel locally with `pytho
 unsharded full run with plain `deploy/ci/odoo.sh`. A template database does not help the shards: Odoo
 runs the module tests during `-i`, so each shard has to install anyway (the install is about 17 s). The
 shard count is `SHARD_COUNT` in `tools/odoo_shards.py`; a changed count changes the matrix and the
-`--shard k/N` argument together. The standalone tasks and tasks/PMO bridge stages cover
-independent installations, each on a disposable PostgreSQL database rather than `odoo19`. The
+`--shard k/N` argument together.
+
+`odoo-app-standalone` and `odoo-bridge` prove that each application works alone and each bridge works with
+its two sides (owner decision 2026-10-20: a customer subscribing to one application is not affected by
+another). Both are matrices built by `tools/app_isolation.py` from the ranks in `tools/arch_layers.json`:
+one job for the foundation, one per rank-4 application and one per rank-5 bridge, so a newly registered
+application or bridge joins them without a workflow edit. Each job installs only its part on a disposable
+PostgreSQL database:
+
+- `deploy/ci/odoo-app-standalone.sh webvue_api` installs the foundation alone (ranks 0-2, no shared service,
+  application or bridge), runs the tests of every foundation module, and with the route probe also creates,
+  disables and reactivates an account through `/api/v1/admin/users` with no HR employee in the payload (the
+  account contract approved on 2026-10-20; it fails until the foundation stops requiring `employee_id`).
+- `deploy/ci/odoo-app-standalone.sh <app>` installs the application alone (Odoo brings its declared
+  foundation, shared-service and engine dependencies), runs its own tests, fails when another application
+  or any bridge was installed (`tools/app_isolation.py check`), then runs the route probe with the
+  application's features on.
+- `deploy/ci/odoo-bridge.sh <bridge>` installs the bridge's two sides, requires the bridge to auto-install
+  and its tests to pass, checks nothing else came along, runs the route probe with every feature on, and
+  then once per side with the other side's features switched off (no retained read).
+
+The route probe (`deploy/ci/odoo_route_probe.py`, run inside `odoo-bin shell`) calls every parameterless
+`GET /api/v1` route of the probed modules through the real HTTP dispatch as a user holding every
+assignable role. An answering module's routes must return 2xx (400 or 422 when a route needs a query input
+the probe does not invent) and it must serve at least one such route; the routes of a switched-off side must
+refuse with 403 `feature_not_included`, and a module asked to answer needs at least one 2xx; a bridge's routes with one side off, and a shared service's routes
+(gated by the keys applications register, so closed with the application side) may refuse but never fail
+with a 5xx. It checks the route surface, not bridge-specific fields inside a side's responses: those stay with
+the bridge's own tests. Run one locally with the environment of `odoo.sh` plus `ISOLATION_PORT`, for example
+`deploy/ci/odoo-app-standalone.sh webvue_hr` or `deploy/ci/odoo-bridge.sh webvue_tasks_pmo`. The
 control-plane PostgreSQL suites run serially because they share their isolated scratch databases.
 `vendor-admin` has its own prepare, types, tests and build checks. The `image` stage builds and checks
 the deployment image; mock browser tests and RTL stories cover their listed flows, not every possible
