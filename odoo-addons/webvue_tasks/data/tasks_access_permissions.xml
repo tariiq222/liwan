@@ -6,7 +6,7 @@
         <field name="name_ar">قراءة المهام الشخصية</field><field name="name_en">Read personal tasks</field>
         <field name="description_ar">قراءة المهام الشخصية التي أنشأها المستخدم أو أُسندت إليه</field><field name="description_en">Read the personal tasks the user created or is assigned to</field>
         <field name="group_xmlid">webvue_tasks.group_cap_tasks_tasks_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_tasks_tasks_create" model="webvue.access.permission">
         <field name="key">tasks.tasks.create</field><field name="domain">tasks</field>
@@ -14,7 +14,7 @@
         <field name="name_ar">إنشاء المهام الشخصية</field><field name="name_en">Create personal tasks</field>
         <field name="description_ar">إنشاء مهام شخصية جديدة وإسنادها ضمن الشركة الحالية</field><field name="description_en">Create new personal tasks and assign them in the current company</field>
         <field name="group_xmlid">webvue_tasks.group_cap_tasks_tasks_create</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_tasks_tasks_write" model="webvue.access.permission">
         <field name="key">tasks.tasks.write</field><field name="domain">tasks</field>
@@ -22,7 +22,7 @@
         <field name="name_ar">تعديل المهام الشخصية</field><field name="name_en">Edit personal tasks</field>
         <field name="description_ar">تعديل المهام الشخصية المتاحة وإنجازها وإلغاؤها والتعليق عليها</field><field name="description_en">Edit, complete, cancel and comment on the personal tasks the user can see</field>
         <field name="group_xmlid">webvue_tasks.group_cap_tasks_tasks_write</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
          dependencies on install and on every upgrade. -->

@@ -160,7 +160,7 @@ def requires_capability(*keys, match='all'):
     tools/route_gate_policy.py and tools/api_surface.py.
 
     It checks capabilities the caller holds in the current company only. It cannot grant a
-    contextual (record) capability such as project ownership, which needs the record: a handler
+    contextual (record) capability of a registered scope kind, which needs the record: a handler
     that depends on one checks it itself with ``_webvue_has_capability(user, key, record=...)``.
     """
     if not keys or not all(isinstance(key, str) and key for key in keys):

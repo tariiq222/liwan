@@ -6,7 +6,7 @@
         <field name="name_ar">قراءة سجلات {{name_ar}}</field><field name="name_en">Read {{name_en}} records</field>
         <field name="description_ar">قراءة سجلات {{name_ar}}</field><field name="description_en">Read {{name_en}} records</field>
         <field name="group_xmlid">webvue_{{app}}.group_cap_{{app}}_records_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_{{app}}_records_manage" model="webvue.access.permission">
         <field name="key">{{app}}.records.manage</field><field name="domain">{{app}}</field>
@@ -14,7 +14,7 @@
         <field name="name_ar">إدارة سجلات {{name_ar}}</field><field name="name_en">Manage {{name_en}} records</field>
         <field name="description_ar">إدارة سجلات {{name_ar}}</field><field name="description_en">Manage {{name_en}} records</field>
         <field name="group_xmlid">webvue_{{app}}.group_cap_{{app}}_records_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <data noupdate="1">
         <record id="role_{{app}}_manager" model="webvue.access.role">

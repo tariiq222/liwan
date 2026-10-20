@@ -2,7 +2,7 @@
 {
     'name': 'webvue Core',
     'summary': 'webvue platform: roles and branding defaults',
-    'version': '19.0.1.7.0',
+    'version': '19.0.1.8.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

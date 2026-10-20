@@ -6,7 +6,7 @@
         <field name="name_ar">قراءة المستخدمين</field><field name="name_en">Read users</field>
         <field name="description_ar">قراءة المستخدمين</field><field name="description_en">Read users</field>
         <field name="group_xmlid">webvue_core.group_cap_access_users_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_access_users_grant" model="webvue.access.permission">
         <field name="key">access.users.grant</field><field name="domain">access</field>
@@ -14,7 +14,7 @@
         <field name="name_ar">منح حساب</field><field name="name_en">Grant account</field>
         <field name="description_ar">منح حساب</field><field name="description_en">Grant account</field>
         <field name="group_xmlid">webvue_core.group_cap_access_users_grant</field>
-        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_access_users_assign_roles" model="webvue.access.permission">
         <field name="key">access.users.assign_roles</field><field name="domain">access</field>
@@ -22,7 +22,7 @@
         <field name="name_ar">إسناد الأدوار</field><field name="name_en">Assign roles</field>
         <field name="description_ar">إسناد الأدوار</field><field name="description_en">Assign roles</field>
         <field name="group_xmlid">webvue_core.group_cap_access_users_assign_roles</field>
-        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_access_users_disable" model="webvue.access.permission">
         <field name="key">access.users.disable</field><field name="domain">access</field>
@@ -30,7 +30,7 @@
         <field name="name_ar">تعطيل المستخدمين</field><field name="name_en">Disable users</field>
         <field name="description_ar">تعطيل المستخدمين</field><field name="description_en">Disable users</field>
         <field name="group_xmlid">webvue_core.group_cap_access_users_disable</field>
-        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_access_users_reset_password" model="webvue.access.permission">
         <field name="key">access.users.reset_password</field><field name="domain">access</field>
@@ -38,7 +38,7 @@
         <field name="name_ar">إعادة كلمة المرور</field><field name="name_en">Reset passwords</field>
         <field name="description_ar">إعادة كلمة المرور</field><field name="description_en">Reset passwords</field>
         <field name="group_xmlid">webvue_core.group_cap_access_users_reset_password</field>
-        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_access_roles_read" model="webvue.access.permission">
         <field name="key">access.roles.read</field><field name="domain">access</field>
@@ -46,7 +46,7 @@
         <field name="name_ar">قراءة الأدوار</field><field name="name_en">Read roles</field>
         <field name="description_ar">قراءة الأدوار</field><field name="description_en">Read roles</field>
         <field name="group_xmlid">webvue_core.group_cap_access_roles_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_access_roles_manage" model="webvue.access.permission">
         <field name="key">access.roles.manage</field><field name="domain">access</field>
@@ -54,7 +54,7 @@
         <field name="name_ar">إدارة الأدوار</field><field name="name_en">Manage roles</field>
         <field name="description_ar">إدارة الأدوار</field><field name="description_en">Manage roles</field>
         <field name="group_xmlid">webvue_core.group_cap_access_roles_manage</field>
-        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_access_audit_read" model="webvue.access.permission">
         <field name="key">access.audit.read</field><field name="domain">access</field>
@@ -62,7 +62,7 @@
         <field name="name_ar">قراءة سجل الصلاحيات</field><field name="name_en">Read access audit</field>
         <field name="description_ar">قراءة سجل الصلاحيات</field><field name="description_en">Read access audit</field>
         <field name="group_xmlid">webvue_core.group_cap_access_audit_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_settings_branding_manage" model="webvue.access.permission">
         <field name="key">settings.branding.manage</field><field name="domain">settings</field>
@@ -70,7 +70,7 @@
         <field name="name_ar">إدارة الهوية</field><field name="name_en">Manage branding</field>
         <field name="description_ar">إدارة الهوية</field><field name="description_en">Manage branding</field>
         <field name="group_xmlid">webvue_core.group_cap_settings_branding_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_settings_company_read" model="webvue.access.permission">
         <field name="key">settings.company.read</field><field name="domain">settings</field>
@@ -78,7 +78,7 @@
         <field name="name_ar">قراءة بيانات الشركة</field><field name="name_en">Read company profile</field>
         <field name="description_ar">قراءة الملف التعريفي والعنوان وبيانات التواصل للشركة</field><field name="description_en">Read the company profile, address and contact details</field>
         <field name="group_xmlid">webvue_core.group_cap_settings_company_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_settings_company_manage" model="webvue.access.permission">
         <field name="key">settings.company.manage</field><field name="domain">settings</field>
@@ -86,6 +86,6 @@
         <field name="name_ar">إدارة بيانات الشركة</field><field name="name_en">Manage company profile</field>
         <field name="description_ar">تعديل الملف التعريفي والعنوان وبيانات التواصل للشركة</field><field name="description_en">Edit the company profile, address and contact details</field>
         <field name="group_xmlid">webvue_core.group_cap_settings_company_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
 </odoo>

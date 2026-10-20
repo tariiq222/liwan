@@ -34,7 +34,6 @@ class WebVueAccessPermission(models.Model):
     group_xmlid = fields.Char(required=True)
     custom_role_allowed = fields.Boolean(default=True, required=True)
     sensitive = fields.Boolean(default=False, required=True)
-    project_contextual = fields.Boolean(default=False, required=True)
 
     _key_unique = models.Constraint('UNIQUE(key)', 'permission key must be unique')
 

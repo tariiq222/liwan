@@ -491,10 +491,7 @@
                       "type": "integer"
                     },
                     "kind": {
-                      "enum": [
-                        "company",
-                        "project"
-                      ],
+                      "pattern": "^[a-z][a-z0-9_]*$",
                       "type": "string"
                     },
                     "name": {
@@ -610,10 +607,7 @@
                             "type": "integer"
                           },
                           "kind": {
-                            "enum": [
-                              "company",
-                              "project"
-                            ],
+                            "pattern": "^[a-z][a-z0-9_]*$",
                             "type": "string"
                           },
                           "name": {
@@ -630,8 +624,7 @@
                       "source": {
                         "enum": [
                           "assignment",
-                          "project_owner",
-                          "policy"
+                          "contextual"
                         ],
                         "type": "string"
                       }
@@ -826,10 +819,7 @@
                             "type": "integer"
                           },
                           "kind": {
-                            "enum": [
-                              "company",
-                              "project"
-                            ],
+                            "pattern": "^[a-z][a-z0-9_]*$",
                             "type": "string"
                           },
                           "name": {
@@ -1032,10 +1022,7 @@
                       "type": "integer"
                     },
                     "kind": {
-                      "enum": [
-                        "company",
-                        "project"
-                      ],
+                      "pattern": "^[a-z][a-z0-9_]*$",
                       "type": "string"
                     },
                     "name": {
@@ -3231,10 +3218,7 @@
                 "type": "integer"
               },
               "kind": {
-                "enum": [
-                  "company",
-                  "project"
-                ],
+                "pattern": "^[a-z][a-z0-9_]*$",
                 "type": "string"
               },
               "name": {
@@ -3251,8 +3235,7 @@
           "source": {
             "enum": [
               "assignment",
-              "project_owner",
-              "policy"
+              "contextual"
             ],
             "type": "string"
           }
@@ -6483,10 +6466,7 @@
                       "type": "integer"
                     },
                     "kind": {
-                      "enum": [
-                        "company",
-                        "project"
-                      ],
+                      "pattern": "^[a-z][a-z0-9_]*$",
                       "type": "string"
                     },
                     "name": {
@@ -6503,8 +6483,7 @@
                 "source": {
                   "enum": [
                     "assignment",
-                    "project_owner",
-                    "policy"
+                    "contextual"
                   ],
                   "type": "string"
                 }
@@ -23840,8 +23819,7 @@
           "source": {
             "enum": [
               "assignment",
-              "project_owner",
-              "policy"
+              "contextual"
             ],
             "type": "string"
           },
@@ -24110,8 +24088,7 @@
                 "source": {
                   "enum": [
                     "assignment",
-                    "project_owner",
-                    "policy"
+                    "contextual"
                   ],
                   "type": "string"
                 },
@@ -31274,10 +31251,7 @@
                         "type": "boolean"
                       },
                       "kind": {
-                        "enum": [
-                          "company",
-                          "project"
-                        ],
+                        "pattern": "^[a-z][a-z0-9_]*$",
                         "type": "string"
                       }
                     },
@@ -31401,10 +31375,7 @@
                   "type": "boolean"
                 },
                 "kind": {
-                  "enum": [
-                    "company",
-                    "project"
-                  ],
+                  "pattern": "^[a-z][a-z0-9_]*$",
                   "type": "string"
                 }
               },
@@ -37220,10 +37191,7 @@
                 "type": "integer"
               },
               "kind": {
-                "enum": [
-                  "company",
-                  "project"
-                ],
+                "pattern": "^[a-z][a-z0-9_]*$",
                 "type": "string"
               },
               "name": {
@@ -37636,6 +37604,14 @@
         ],
         "type": "string"
       },
+      "RoleSourceSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "assignment",
+          "contextual"
+        ],
+        "type": "string"
+      },
       "RoleStateInputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -37893,10 +37869,7 @@
       },
       "ScopeKindSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "enum": [
-          "company",
-          "project"
-        ],
+        "pattern": "^[a-z][a-z0-9_]*$",
         "type": "string"
       },
       "ScopeRefSchema": {
@@ -37909,10 +37882,7 @@
             "type": "integer"
           },
           "kind": {
-            "enum": [
-              "company",
-              "project"
-            ],
+            "pattern": "^[a-z][a-z0-9_]*$",
             "type": "string"
           },
           "name": {

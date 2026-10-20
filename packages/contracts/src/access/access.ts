@@ -72,7 +72,11 @@ export type KnownPermissionDomain = typeof KNOWN_PERMISSION_DOMAINS[number]
 export type PermissionDomain = KnownPermissionDomain | (string & {})
 export const PermissionDomainSchema = z.string().regex(IDENTIFIER_PATTERN)
 
-export const ScopeKindSchema = z.enum(['company', 'project'])
+/**
+ * `company`, or a context kind an installed application registers on the server
+ * (webvue_core `_webvue_scope_kinds`). A context kind is a read-only source: assignments stay company-scoped.
+ */
+export const ScopeKindSchema = z.string().regex(IDENTIFIER_PATTERN)
 export const ScopeRefSchema = z.object({
   kind: ScopeKindSchema,
   id: z.number().int().positive(),
@@ -94,10 +98,8 @@ export const RoleRefSchema = z.object({
   type: z.enum(['built_in', 'custom', 'contextual']),
   protected: z.boolean(),
 }).strict().superRefine((role, ctx) => {
-  const isContextualNullRole = role.type === 'contextual' && (role.key === 'project_owner' || role.key === 'project_creation_policy')
-  if (isContextualNullRole && role.id !== null) ctx.addIssue({ code: 'custom', message: 'contextual source must not have an id', path: ['id'] })
-  if (!isContextualNullRole && role.id === null) ctx.addIssue({ code: 'custom', message: 'only contextual sources may omit an id', path: ['id'] })
-  if (role.type === 'contextual' && !isContextualNullRole) ctx.addIssue({ code: 'custom', message: 'unknown contextual role', path: ['key'] })
+  if (role.type === 'contextual' && role.id !== null) ctx.addIssue({ code: 'custom', message: 'contextual source must not have an id', path: ['id'] })
+  if (role.type !== 'contextual' && role.id === null) ctx.addIssue({ code: 'custom', message: 'only contextual sources may omit an id', path: ['id'] })
 })
 export type RoleRef = z.infer<typeof RoleRefSchema>
 
@@ -143,6 +145,17 @@ const ACCESS_CHANGING: readonly KnownCapability[] = [
   'access.roles.manage',
 ]
 const ACCESS_CHANGING_CAPABILITIES = new Set<Capability>(ACCESS_CHANGING)
+// The foundation's own keys (webvue_core SYSTEM_PERMISSIONS): never granted through a context kind.
+const SYSTEM: readonly KnownCapability[] = [
+  ...ACCESS_CHANGING,
+  'access.users.read',
+  'access.roles.read',
+  'access.audit.read',
+  'settings.branding.manage',
+  'settings.company.read',
+  'settings.company.manage',
+]
+const SYSTEM_CAPABILITIES = new Set<Capability>(SYSTEM)
 const RoleNameSchema = z.object({ ar: z.string().trim().min(1), en: z.string().trim().min(1).nullable() }).strict()
 const CustomRolePermissionsSchema = z.array(CapabilitySchema).refine(
   (permissions) => permissions.every((permission) => !ACCESS_CHANGING_CAPABILITIES.has(permission)),
@@ -183,11 +196,14 @@ export const PermissionDefinitionSchema = z.object({
   if (!definition.scopes.some((scope) => scope.kind === 'company' && scope.assignable)) {
     ctx.addIssue({ code: 'custom', message: 'every permission must support an assignable company scope', path: ['scopes'] })
   }
-  if (definition.key !== 'pmo.projects.manage' && definition.key !== 'pmo.tasks.write' && definition.key !== 'pmo.tasks.approve' && definition.scopes.some((scope) => scope.kind === 'project')) {
-    ctx.addIssue({ code: 'custom', message: 'project scope is contextual and limited to PMO permissions', path: ['scopes'] })
+  if (new Set(definition.scopes.map((scope) => scope.kind)).size !== definition.scopes.length) {
+    ctx.addIssue({ code: 'custom', message: 'scope kinds must be unique', path: ['scopes'] })
   }
-  if (definition.scopes.some((scope) => scope.kind === 'project' && scope.assignable)) {
-    ctx.addIssue({ code: 'custom', message: 'project scopes are read-only contextual sources', path: ['scopes'] })
+  if (definition.scopes.some((scope) => scope.kind !== 'company' && scope.assignable)) {
+    ctx.addIssue({ code: 'custom', message: 'context scopes are read-only contextual sources', path: ['scopes'] })
+  }
+  if (SYSTEM_CAPABILITIES.has(definition.key) && definition.scopes.some((scope) => scope.kind !== 'company')) {
+    ctx.addIssue({ code: 'custom', message: 'a foundation permission cannot be contextual', path: ['scopes'] })
   }
 })
 export type PermissionDefinition = z.infer<typeof PermissionDefinitionSchema>
@@ -198,7 +214,9 @@ export const PermissionCatalogSchema = z.object({
 }).strict()
 export type PermissionCatalog = z.infer<typeof PermissionCatalogSchema>
 
-export const MeRoleSchema = RoleRefSchema.extend({ source: z.enum(['assignment', 'project_owner', 'policy']) }).strict()
+/** Where a role or capability comes from: a company assignment, or a context kind's contextual role. */
+export const RoleSourceSchema = z.enum(['assignment', 'contextual'])
+export const MeRoleSchema = RoleRefSchema.extend({ source: RoleSourceSchema }).strict()
 export type MeRole = z.infer<typeof MeRoleSchema>
 
 export const EmployeeRefSchema = z.object({
@@ -212,7 +230,7 @@ export const CapabilitySourceSchema = z.object({
   role_assignment_id: z.number().int().positive().nullable(),
   role: RoleRefSchema,
   scope: ScopeRefSchema,
-  source: z.enum(['assignment', 'project_owner', 'policy']),
+  source: RoleSourceSchema,
 }).strict()
 export type CapabilitySource = z.infer<typeof CapabilitySourceSchema>
 export const EffectiveCapabilitySchema = z.object({ key: CapabilitySchema, sources: z.array(CapabilitySourceSchema) }).strict()
