@@ -101,10 +101,40 @@ export const FinanceJournalSchema = z.object({
   active: z.boolean(),
 }).strict()
 
+export const FinanceTaxSchema = z.object({
+  id,
+  name: z.string(),
+  type_tax_use: z.enum(['sale', 'purchase']),
+  amount_type: z.enum(['percent', 'fixed']),
+  amount: z.number(),
+  price_include: z.boolean(),
+  active: z.boolean(),
+  /** True once journal items use it: its rate, kind and price-include setting are then fixed. */
+  used: z.boolean(),
+}).strict()
+
+export const FinancePaymentTermLineSchema = z.object({
+  value: z.enum(['percent', 'fixed']),
+  value_amount: z.number(),
+  nb_days: z.number().int(),
+  delay_type: z.enum(['days_after', 'days_after_end_of_month', 'days_after_end_of_next_month', 'days_end_of_month_on_the']),
+}).strict()
+
+export const FinancePaymentTermSchema = z.object({
+  id,
+  name: z.string(),
+  /** True for a term shared by every company (it comes with the chart): it is read-only here. */
+  shared: z.boolean(),
+  active: z.boolean(),
+  lines: z.array(FinancePaymentTermLineSchema),
+}).strict()
+
 export const FinanceInvoiceListSchema = list(FinanceInvoiceSchema)
 export const FinancePaymentListSchema = list(FinancePaymentSchema)
 export const FinanceAccountListSchema = list(FinanceAccountSchema)
 export const FinanceJournalListSchema = list(FinanceJournalSchema)
+export const FinanceTaxListSchema = list(FinanceTaxSchema)
+export const FinancePaymentTermListSchema = list(FinancePaymentTermSchema)
 
 export type FinanceRef = z.infer<typeof FinanceRefSchema>
 export type FinanceInvoice = z.infer<typeof FinanceInvoiceSchema>
@@ -114,10 +144,15 @@ export type FinanceInvoiceDetail = z.infer<typeof FinanceInvoiceDetailSchema>
 export type FinancePayment = z.infer<typeof FinancePaymentSchema>
 export type FinanceAccount = z.infer<typeof FinanceAccountSchema>
 export type FinanceJournal = z.infer<typeof FinanceJournalSchema>
+export type FinanceTax = z.infer<typeof FinanceTaxSchema>
+export type FinancePaymentTerm = z.infer<typeof FinancePaymentTermSchema>
+export type FinancePaymentTermLine = z.infer<typeof FinancePaymentTermLineSchema>
 export type FinanceInvoiceList = z.infer<typeof FinanceInvoiceListSchema>
 export type FinancePaymentList = z.infer<typeof FinancePaymentListSchema>
 export type FinanceAccountList = z.infer<typeof FinanceAccountListSchema>
 export type FinanceJournalList = z.infer<typeof FinanceJournalListSchema>
+export type FinanceTaxList = z.infer<typeof FinanceTaxListSchema>
+export type FinancePaymentTermList = z.infer<typeof FinancePaymentTermListSchema>
 
 export * from './analytic'
 export * from './assets'

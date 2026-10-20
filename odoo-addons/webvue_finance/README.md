@@ -17,6 +17,10 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `POST /payments` (201), `POST /payments/<id>/cancel`, `/reset-to-draft` | `finance.payments.manage` |
 | `GET /accounts` (`archived=true\|false`, `account_type`, `q`), `GET /accounts/<id>` | `finance.accounts.read` |
 | `POST /accounts` (201), `PATCH /accounts/<id>`, `POST /accounts/<id>/archive`, `/unarchive` | `finance.accounts.manage` |
+| `GET /taxes` (`type_tax_use`, `archived`, `q`), `GET /taxes/<id>` | `finance.taxes.read` |
+| `POST /taxes` (201), `PATCH /taxes/<id>`, `POST /taxes/<id>/archive`, `/unarchive` | `finance.taxes.manage` |
+| `GET /payment-terms` (`archived`, `q`), `GET /payment-terms/<id>` | `finance.payment_terms.read` |
+| `POST /payment-terms` (201), `PATCH /payment-terms/<id>`, `POST /payment-terms/<id>/archive`, `/unarchive` | `finance.payment_terms.manage` |
 | `GET /journals` (`type`, `archived=true\|false`), `GET /journals/<id>` | `finance.journals.read` |
 | `POST /journals` (201), `PATCH /journals/<id>`, `POST /journals/<id>/archive`, `/unarchive` | `finance.journals.manage` |
 | `GET /setup` | `finance.setup.read` |
@@ -52,7 +56,7 @@ no partner delete: archive instead. Capability dependencies: `partners.manage` n
 `payments.manage` needs `payments.read` and `invoices.read`; `setup.manage` needs `setup.read`; `entries.manage` needs
 `entries.read`; `entries.post` needs `entries.manage`; `assets.manage` needs `assets.read`; `bank.manage` needs
 `bank.read`; `analytic.manage` needs `analytic.read`; `budgets.manage` needs `budgets.read`; `zatca.read` needs `invoices.read`; `zatca.manage` and `zatca.submit` need `zatca.read`; `closing.manage` needs `closing.read` and `setup.manage`. The built-in
-`finance_manager` role (and `webvue_core`'s vendor support role) holds all thirty-one capabilities.
+`finance_manager` role (and `webvue_core`'s vendor support role) holds all thirty-seven capabilities.
 
 Two more built-in roles (sets defined once in `models/access_service.py`):
 
@@ -61,7 +65,7 @@ Two more built-in roles (sets defined once in `models/access_service.py`):
   payment move), cancels payments, enters bank statements and reconciles them (including write-offs to accounts other than
   receivable, payable and liquidity). It does not post invoices or journal entries, close years, change setup or onboard ZATCA,
   and cannot manage budgets, assets or cost centers, or read the audit trail or zakat.
-- `finance_auditor` (مدقق): the seventeen `.read` capabilities, listed literally and nothing that changes data.
+- `finance_auditor` (مدقق): the nineteen `.read` capabilities, listed literally and nothing that changes data.
 
 ## Write semantics
 
@@ -149,6 +153,17 @@ create/write ACL rows on `account.journal` and no `sudo()`. `POST {name, code, t
 a `bank` or `cash` journal must name its `default_account_id` (an account of the company, made through the accounts
 routes), so the journals route never creates an account. The type is chosen at creation and `PATCH` refuses it. The
 code is unique per company (422 `invalid` on `code`). Odoo refuses to archive a journal that holds draft entries.
+
+## Taxes and payment terms
+
+`finance.taxes.manage` and `finance.payment_terms.manage` (each needs its `.read`) work through ACL rows, no `sudo()`.
+A tax is a single `sale` or `purchase` tax, `percent` or `fixed`, with the default repartition (100% base, 100% tax,
+no account or tag); group taxes, cash-basis settings and tax accounts or tags are not edited here. Once journal items use
+a tax (`used`), its kind, rate and price-include setting are fixed (422 `tax_in_use`); it can still be renamed or
+archived. A payment term is `{name, note?, lines: [{value: percent|fixed, value_amount, nb_days, delay_type?}]}`; the
+percent lines must add up to 100 and a `PATCH` with `lines` replaces them. Terms without a company come with the chart
+and are shared: listed and readable, but 422 `shared_record` on every write. Both resources are archived, never deleted,
+and each write leaves an audit event with field names only.
 
 ## Journal entries
 

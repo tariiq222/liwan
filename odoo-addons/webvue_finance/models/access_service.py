@@ -15,9 +15,13 @@ FINANCE_PERMISSIONS = frozenset({
     'finance.budgets.read', 'finance.budgets.manage',
     'finance.closing.read', 'finance.closing.manage',
     'finance.audit.read',
+    'finance.taxes.read', 'finance.taxes.manage',
+    'finance.payment_terms.read', 'finance.payment_terms.manage',
 })
 FINANCE_PERMISSION_DEPENDENCIES = {
     'finance.accounts.manage': {'finance.accounts.read'},
+    'finance.payment_terms.manage': {'finance.payment_terms.read'},
+    'finance.taxes.manage': {'finance.taxes.read'},
     'finance.journals.manage': {'finance.journals.read'},
     'finance.partners.manage': {'finance.partners.read'},
     'finance.invoices.manage': {'finance.invoices.read'},
@@ -48,7 +52,7 @@ FINANCE_ACCOUNTANT_PERMISSIONS = frozenset({
     'finance.accounts.read', 'finance.journals.read',
     'finance.reports.read', 'finance.statements.read',
     'finance.zatca.read', 'finance.zatca.submit',
-    'finance.budgets.read', 'finance.assets.read', 'finance.analytic.read',
+    'finance.budgets.read', 'finance.assets.read', 'finance.analytic.read', 'finance.taxes.read', 'finance.payment_terms.read',
 })
 # Read-only by construction: a new read capability is added here by an explicit decision.
 FINANCE_AUDITOR_PERMISSIONS = frozenset({
@@ -57,7 +61,7 @@ FINANCE_AUDITOR_PERMISSIONS = frozenset({
     'finance.bank.read', 'finance.statements.read', 'finance.zakat.read',
     'finance.reports.read', 'finance.audit.read', 'finance.budgets.read',
     'finance.assets.read', 'finance.analytic.read', 'finance.closing.read',
-    'finance.setup.read', 'finance.zatca.read',
+    'finance.setup.read', 'finance.zatca.read', 'finance.taxes.read', 'finance.payment_terms.read',
 })
 
 

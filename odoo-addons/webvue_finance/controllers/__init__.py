@@ -16,9 +16,11 @@ from . import (
     finance_lookups,
     finance_mis_reports,
     finance_partners,
+    finance_payment_terms,
     finance_payments,
     finance_reports,
     finance_setup,
     finance_statements,
+    finance_taxes,
     finance_zatca,
 )
