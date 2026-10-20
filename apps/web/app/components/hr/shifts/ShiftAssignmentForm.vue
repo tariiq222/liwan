@@ -39,6 +39,10 @@ function fieldError(field: string) {
   return serverField.value === field ? error.value : undefined
 }
 
+function apiMessage(cause: ApiError) {
+  return cause.code === 'assignment_overlap' ? t('hrShifts.form.overlap') : cause.message
+}
+
 function pickEmployee(value: unknown) {
   employeeId.value = value ? Number(value) : null
 }
@@ -65,7 +69,7 @@ async function submit() {
     await nextTick()
     emit('saved')
   } catch (cause) {
-    error.value = cause instanceof ApiError ? cause.message : t('errors.generic')
+    error.value = cause instanceof ApiError ? apiMessage(cause) : t('errors.generic')
     serverField.value = cause instanceof ApiError ? cause.field ?? '' : ''
   }
 }
@@ -102,7 +106,7 @@ async function submit() {
           />
         </UFormField>
         <div class="grid gap-4 sm:grid-cols-2">
-          <UFormField :label="t('hrShifts.form.dateStart')" name="hr-shift-assignment-start" :help="t('hrShifts.form.openHint')">
+          <UFormField :label="t('hrShifts.form.dateStart')" name="hr-shift-assignment-start" :error="fieldError('date_start')" :help="t('hrShifts.form.openHint')">
             <SharedDateField
               id="hr-shift-assignment-start"
               :model-value="dateStart"

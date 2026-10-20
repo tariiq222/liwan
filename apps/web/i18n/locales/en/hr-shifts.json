@@ -95,6 +95,7 @@
       "dateStart": "From date",
       "dateEnd": "To date",
       "openHint": "Leave empty for an open end.",
+      "overlap": "The employee already has a work schedule in this period. Pick a period that does not overlap it.",
       "employeeRequired": "An employee is required.",
       "scheduleRequired": "A work schedule is required.",
       "rangeOrder": "The end date is before the start date."
