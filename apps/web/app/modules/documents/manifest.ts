@@ -14,6 +14,7 @@ const manifest: AppManifest = {
     { pattern: /^\/documents\/[^/]+\/access$/, capability: 'documents.access.manage' },
     { pattern: /^\/documents(?:\/|$)/, capability: 'documents.items.read' },
   ],
+  recordLinks: [{ kind: 'document', capability: 'documents.items.read', to: id => `/documents/${id}` }],
   recordListSources: [{ pattern: /^\/documents$/, capability: 'documents.items.read' }],
   commands: [{ id: 'documents.new-document', labelKey: 'documents.new', icon: 'i-lucide-files', to: '/documents/new', capability: 'documents.items.manage' }],
   isNavActive: (path, target) => target === '/documents' ? path === target || (path.startsWith(`${target}/`) && path !== '/documents/new') : undefined,

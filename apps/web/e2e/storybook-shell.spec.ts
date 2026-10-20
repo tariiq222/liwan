@@ -85,9 +85,11 @@ test.describe('Tasmim shell (desktop)', () => {
     await expect(page.locator('.webvue-context-section-title')).toHaveCount(0)
   })
 
-  test('section headings render when links declare them', async ({ page }) => {
+  test('titled sections render in their own card, not in the context sidebar', async ({ page }) => {
     await open(page, 'shell-contextsidebar--with-sections', 'locale:ar;appearance:light')
-    await expect(page.locator('.webvue-context-section-title')).toHaveText(['إدارة النظام', 'هوية الجهة'])
+    await expect(page.locator('.webvue-context-section-title')).toHaveCount(0)
+    await open(page, 'shell-shellcontextsublist--default', 'locale:ar;appearance:light')
+    await expect(page.getByTestId('context-sub-list').locator('.webvue-sub-list-title')).toHaveText(['إدارة النظام', 'هوية الجهة'])
   })
 
   test('[ toggles the sidebar by physical key, also on an Arabic layout, but not while typing or with a modifier', async ({ page }) => {

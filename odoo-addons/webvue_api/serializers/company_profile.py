@@ -17,20 +17,10 @@ MAX_LOGO_BYTES = 2 * 1024 * 1024
 MAX_LOGO_ENCODED_CHARS = 4 * ((MAX_LOGO_BYTES + 2) // 3)
 LOGO_MIMETYPES = frozenset({'image/png', 'image/jpeg'})
 EMAIL_PATTERN = re.compile(r'[^@\s]+@[^@\s]+\.[^@\s]+')
-# Saudi (l10n_sa_edi) fields: present only while that module is installed.
-SAUDI_SCHEME_FIELD = 'l10n_sa_edi_additional_identification_scheme'
-SAUDI_IDENTITY_FIELDS = (
-    'l10n_sa_edi_additional_identification_scheme', 'l10n_sa_edi_additional_identification_number',
-)
-SAUDI_ADDRESS_FIELDS = ('l10n_sa_edi_building_number', 'l10n_sa_edi_plot_identification')
-TEXT_FIELDS = (
-    'company_registry', 'vat', 'street', 'street2', 'city', 'zip', 'email', 'phone', 'website',
-    *SAUDI_ADDRESS_FIELDS, 'l10n_sa_edi_additional_identification_number',
-)
+TEXT_FIELDS = ('company_registry', 'vat', 'street', 'street2', 'city', 'zip', 'email', 'phone', 'website')
 # The country is set at provisioning and read-only here; the state is validated against it.
-EDITABLE_FIELDS = (
-    'name', 'report_header', *TEXT_FIELDS, 'state_id', 'l10n_sa_edi_additional_identification_scheme',
-)
+# Fields added by installed applications come from ``res.company._webvue_company_profile_extensions``.
+EDITABLE_FIELDS = ('name', 'report_header', *TEXT_FIELDS, 'state_id')
 # What a finished profile holds; ``completeness`` counts the filled ones.
 COMPLETENESS_FIELDS = ('company_registry', 'vat', 'street', 'city', 'zip', 'email', 'phone')
 
@@ -39,8 +29,26 @@ def _ref(record, *extra):
     return {'id': record.id, 'name': record.name, **{key: record[key] for key in extra}} if record else None
 
 
-def _text(company, field):
-    return (company[field] if field in company._fields else None) or None
+def _extension_specs(company):
+    return {spec['name']: spec for spec in company._webvue_company_profile_extension_specs()}
+
+
+def _dump_extension(company, spec):
+    field = company._fields[spec['name']]
+    dumped = {
+        'name': spec['name'],
+        'section': spec['section'],
+        'kind': spec['kind'],
+        'label': spec.get('label') or field._description_string(company.env),
+        'value': company[spec['name']] or None,
+    }
+    if spec.get('inputmode'):
+        dumped['inputmode'] = spec['inputmode']
+    if spec['kind'] == 'selection':
+        dumped['options'] = [
+            {'value': key, 'label': label} for key, label in field._description_selection(company.env)
+        ]
+    return dumped
 
 
 def _tagline(company):
@@ -62,8 +70,6 @@ def dump_company_profile(company):
         'report_header': _tagline(company),
         'company_registry': company.company_registry or None,
         'vat': company.vat or None,
-        'saudi_fields': SAUDI_SCHEME_FIELD in company._fields,
-        **{field: _text(company, field) for field in SAUDI_IDENTITY_FIELDS},
         'address': {
             'street': company.street or None,
             'street2': company.street2 or None,
@@ -71,12 +77,12 @@ def dump_company_profile(company):
             'zip': company.zip or None,
             'state': _ref(company.state_id),
             'country': _ref(company.country_id, 'code'),
-            **{field: _text(company, field) for field in SAUDI_ADDRESS_FIELDS},
         },
         'email': company.email or None,
         'phone': company.phone or None,
         'website': company.website or None,
         'currency': _ref(company.currency_id, 'symbol'),
+        'extensions': [_dump_extension(company, spec) for spec in company._webvue_company_profile_extension_specs()],
         'completeness': _completeness(company, logo_url),
     }
 
@@ -102,15 +108,16 @@ def _parse_state(env, value):
     return value
 
 
-def _parse_scheme(company, value):
-    allowed = {key for key, _label in company._fields['l10n_sa_edi_additional_identification_scheme']._description_selection(company.env)}
-    if value is not None and value not in allowed:
-        raise ApiError(422, 'invalid', 'scheme is not one of the allowed identification schemes',
-                       field='l10n_sa_edi_additional_identification_scheme')
+def _parse_option(company, field, value):
+    if value is not None and not isinstance(value, str):
+        raise ApiError(422, 'invalid', f'{field} must be a string or null', field=field)
+    allowed = {key for key, _label in company._fields[field]._description_selection(company.env)}
+    if value and value not in allowed:
+        raise ApiError(422, 'invalid', f'{field} is not one of the allowed options', field=field)
     return value or False
 
 
-def _parse_field(company, field, value):
+def _parse_field(company, field, value, extensions):
     if field == 'name':
         name = _parse_text(value, field)
         if not name:
@@ -121,8 +128,8 @@ def _parse_field(company, field, value):
         return plaintext2html(text) if text else False
     if field == 'state_id':
         return _parse_state(company.env, value)
-    if field == 'l10n_sa_edi_additional_identification_scheme':
-        return _parse_scheme(company, value)
+    if field in extensions and extensions[field]['kind'] == 'selection':
+        return _parse_option(company, field, value)
     return _parse_text(value, field)
 
 
@@ -130,10 +137,11 @@ def parse_company_profile_vals(payload, company):
     """Validated ORM values of a PATCH body; any unknown field rejects the whole request."""
     if not isinstance(payload, dict) or not payload:
         raise ApiError(422, 'invalid', 'no fields to update')
+    extensions = _extension_specs(company)
     for field in payload:
-        if field not in EDITABLE_FIELDS or field not in company._fields:
+        if field not in EDITABLE_FIELDS and field not in extensions:
             raise ApiError(422, 'invalid', f'field {field!r} is not writable', field=field)
-    vals = {field: _parse_field(company, field, value) for field, value in payload.items()}
+    vals = {field: _parse_field(company, field, value, extensions) for field, value in payload.items()}
     state = company.env['res.country.state'].browse(vals.get('state_id') or [])
     if state and state.country_id != company.country_id:
         raise ApiError(422, 'invalid', 'state_id does not belong to the company country', field='state_id')

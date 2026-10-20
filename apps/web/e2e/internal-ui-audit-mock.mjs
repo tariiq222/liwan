@@ -51,19 +51,23 @@ const BRANDING = {
 }
 
 // The company profile (/api/v1/admin/company): PATCH merges the sent fields, so the pages can be exercised end to end.
-const COMPANY_COUNTRIES = [{ id: 192, name: 'المملكة العربية السعودية', code: 'SA' }, { id: 229, name: 'الإمارات العربية المتحدة', code: 'AE' }]
+const COMPANY_COUNTRY = { id: 192, name: 'المملكة العربية السعودية', code: 'SA' }
 const COMPANY_STATES = { 192: [{ id: 1, name: 'الرياض', code: 'RUH' }, { id: 2, name: 'مكة المكرمة', code: 'MAK' }], 229: [{ id: 3, name: 'دبي', code: 'DU' }] }
 const COMPANY = {
-  id: 1, name: 'ويب فيو', logo_url: null, report_header: 'منصة عربية موحّدة لتشغيل الشركات', company_registry: '1010000000', vat: '300000000000003', saudi_fields: true,
-  l10n_sa_edi_additional_identification_scheme: 'CRN', l10n_sa_edi_additional_identification_number: '1010000000',
+  id: 1, name: 'ويب فيو', logo_url: null, report_header: 'منصة عربية موحّدة لتشغيل الشركات', company_registry: '1010000000', vat: '300000000000003',
   address: {
     street: 'طريق الملك فهد', street2: 'العليا', city: 'الرياض', zip: '12211', state: { id: 1, name: 'الرياض' },
-    country: COMPANY_COUNTRIES[0], l10n_sa_edi_building_number: '1234', l10n_sa_edi_plot_identification: '5678',
+    country: COMPANY_COUNTRY,
   },
   email: 'info@webvue.example', phone: '+966110000000', website: null,
   currency: { id: 5, name: 'SAR', symbol: 'ر.س' },
+  // What an installed application adds to the profile (here: a text field and a select), flat by name on PATCH.
+  extensions: [
+    { name: 'building_code', section: 'address', kind: 'text', label: 'رقم المبنى', value: '1234' },
+    { name: 'id_scheme', section: 'identity', kind: 'selection', label: 'نوع المعرّف الإضافي', value: 'CRN', options: [{ value: 'CRN', label: 'السجل التجاري' }, { value: 'MOM', label: 'رخصة البلدية' }] },
+  ],
 }
-const COMPANY_ADDRESS_FIELDS = ['street', 'street2', 'city', 'zip', 'l10n_sa_edi_building_number', 'l10n_sa_edi_plot_identification']
+const COMPANY_ADDRESS_FIELDS = ['street', 'street2', 'city', 'zip']
 const COMPANY_COMPLETENESS = [company => company.name, company => company.logo_url, company => company.address.country, ...['company_registry', 'vat', 'email', 'phone'].map(key => company => company[key]), ...['street', 'city', 'zip'].map(key => company => company.address[key])]
 
 function companyProfile() {
@@ -75,6 +79,7 @@ function patchCompany(patch) {
   for (const [key, value] of Object.entries(patch)) {
     if (key === 'state_id') COMPANY.address.state = (COMPANY_STATES[COMPANY.address.country?.id] ?? []).find(state => state.id === value) ?? null
     else if (COMPANY_ADDRESS_FIELDS.includes(key)) COMPANY.address[key] = value
+    else if (COMPANY.extensions.some(extension => extension.name === key)) COMPANY.extensions.find(extension => extension.name === key).value = value
     else COMPANY[key] = value
   }
 }
@@ -453,7 +458,6 @@ async function handle(req, res) {
     COMPANY.logo_url = BRANDING.logo_url
     return json(res, 200, companyProfile())
   }
-  if (method === 'GET' && path === '/api/v1/admin/company/countries') return json(res, 200, { items: COMPANY_COUNTRIES, total: COMPANY_COUNTRIES.length })
   const states = match(path, '/api/v1/admin/company/countries/:id/states')
   if (method === 'GET' && states) return json(res, 200, { items: COMPANY_STATES[states.id] ?? [], total: (COMPANY_STATES[states.id] ?? []).length })
   if (method === 'GET' && path === '/api/v1/notifications') return json(res, 200, NOTIFICATIONS)

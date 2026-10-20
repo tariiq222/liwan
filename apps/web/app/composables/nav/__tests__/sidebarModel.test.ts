@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ShellContextLink } from '../shellModules'
-import { contextLinkTestId, groupSections, railModel, sidebarModel } from '../sidebarModel'
+import { contextLinkTestId, groupSections, railModel, sidebarModel, subListSections } from '../sidebarModel'
 
 const link = (id: string, extra: Partial<ShellContextLink> = {}): ShellContextLink =>
   ({ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, capability: 'x.y.read', ...extra })
@@ -31,7 +31,7 @@ describe('sidebar model', () => {
 
   it('gives an expanded desktop panel the whole sidebar', () => {
     const model = sidebarModel({ links: chat, moduleLabelKey: 'nav.chat', path: '/chat', panel: { expanded: true }, surface: 'desktop' })
-    expect(model).toEqual({ createLinks: [], sections: [], showNav: false })
+    expect(model).toEqual({ createLinks: [], sections: [], subSections: [], showNav: false })
   })
 
   it('shows the links but no create action beside a collapsed panel', () => {
@@ -55,6 +55,28 @@ describe('sidebar model', () => {
     const sections = groupSections([link('a'), link('b', { section: 'nav.s1' }), link('c', { section: 'nav.s1' }), link('d')])
     expect(sections.map(section => [section.titleKey, section.links.map(item => item.id)])).toEqual([[null, ['a']], ['nav.s1', ['b', 'c']], [null, ['d']]])
     expect(new Set(sections.map(section => section.id)).size).toBe(3)
+  })
+
+  it('keeps untitled links in the first card and moves titled sections to the sub-list', () => {
+    const links = [link('users'), link('apps', { section: 'nav.apps' }), link('billing', { section: 'nav.apps' })]
+    for (const surface of ['desktop', 'mobile'] as const) {
+      const model = sidebarModel({ links, moduleLabelKey: 'nav.settings', path: '/settings', panel: null, surface })
+      expect(model.sections.map(section => section.links.map(item => item.id))).toEqual([['users']])
+      expect(model.subSections.map(section => [section.titleKey, section.links.map(item => item.id)])).toEqual([['nav.apps', ['apps', 'billing']]])
+      expect(model.showNav).toBe(true)
+    }
+  })
+
+  it('lists no first-card navigation when every link sits under a heading', () => {
+    const model = sidebarModel({ links: [link('a', { section: 'nav.s' })], moduleLabelKey: 'nav.other', path: '/a', panel: null, surface: 'desktop' })
+    expect(model.sections).toEqual([])
+    expect(model.showNav).toBe(false)
+    expect(model.subSections).toHaveLength(1)
+  })
+
+  it('builds the sub-list rows with translated labels and test ids', () => {
+    const [section] = subListSections(groupSections([link('apps', { section: 'nav.s1', active: true })]), key => `t:${key}`, id => `hook-${id}`)
+    expect(section).toMatchObject({ title: 't:nav.s1', items: [{ id: 'apps', label: 't:nav.apps', to: '/apps', active: true, testId: 'hook-apps' }] })
   })
 
   it('keeps the three legacy Playwright ids', () => {

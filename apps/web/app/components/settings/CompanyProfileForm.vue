@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CompanyProfilePatch } from '@webvue/contracts'
+import CompanyExtensionField from '@/components/settings/CompanyExtensionField.vue'
 import CompanyHeaderCard from '@/components/settings/CompanyHeaderCard.vue'
 import { ApiError } from '@/composables/useApi'
 import {
@@ -8,7 +9,7 @@ import {
   useUpdateCompany,
   useUploadCompanyLogo,
 } from '@/composables/useCompanyProfile'
-import { companyPatch, IDENTIFICATION_SCHEMES, profileToForm, type CompanyForm, type CompanySection } from '@/utils/companyProfile'
+import { companyPatch, profileToForm, sectionExtensions, type CompanyForm, type CompanySection } from '@/utils/companyProfile'
 import { saveErrorMessage } from '@/utils/formFeedback'
 
 // One page of the company profile (the national address, the contact details or the profile itself): the company
@@ -38,7 +39,9 @@ function load(next: CompanyForm) {
   saved.value = next
   Object.assign(draft, next)
 }
-const patch = computed<CompanyProfilePatch>(() => (saved.value ? companyPatch(props.section, saved.value, draft) : {}))
+// The fields installed applications add to this page, in the server's order.
+const extensions = computed(() => (profile.value ? sectionExtensions(profile.value, props.section) : []))
+const patch = computed<CompanyProfilePatch>(() => (saved.value ? companyPatch(props.section, extensions.value, saved.value, draft) : {}))
 const dirty = computed(() => Object.keys(patch.value).length > 0)
 watch(profile, (value) => {
   if (value && !dirty.value) load(profileToForm(value))
@@ -51,10 +54,8 @@ const countryId = computed(() => country.value?.id ?? null)
 const { data: states } = useCompanyStates(countryId)
 
 const stateItems = computed(() => (states.value?.items ?? []).map(state => ({ value: state.id, label: state.name })))
-const schemeItems: { value: string; label: string }[] = IDENTIFICATION_SCHEMES.map(code => ({ value: code, label: t(`settings.company.schemes.${code}`) }))
-const hasSaudiFields = computed(() => profile.value?.saudi_fields === true)
 
-function text(field: keyof CompanyForm) {
+function text(field: string) {
   return computed({
     get: () => (draft[field] as string | null) ?? '',
     set: (value: string) => { draft[field] = value },
@@ -62,12 +63,11 @@ function text(field: keyof CompanyForm) {
 }
 const fields = {
   name: text('name'), report_header: text('report_header'), company_registry: text('company_registry'), vat: text('vat'),
-  scheme_number: text('l10n_sa_edi_additional_identification_number'), city: text('city'), street: text('street'),
-  street2: text('street2'), zip: text('zip'), building: text('l10n_sa_edi_building_number'), plot: text('l10n_sa_edi_plot_identification'),
+  city: text('city'), street: text('street'), street2: text('street2'), zip: text('zip'),
   email: text('email'), phone: text('phone'), website: text('website'),
 }
 
-function setField(field: keyof CompanyForm, value: string | number | null | undefined) {
+function setField(field: string, value: string | number | null | undefined) {
   draft[field] = value ?? null
 }
 
@@ -158,14 +158,7 @@ async function onLogo(event: Event) {
             <UFormField name="vat" :label="t('settings.company.vat')" :help="t('settings.company.vatHint')" :error="fieldErrors.vat">
               <UInput id="company-vat" v-model="fields.vat.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-vat" :disabled="!editable || busy" />
             </UFormField>
-            <template v-if="hasSaudiFields">
-              <UFormField name="l10n_sa_edi_additional_identification_scheme" :label="t('settings.company.scheme')" :error="fieldErrors.l10n_sa_edi_additional_identification_scheme">
-                <USelect id="company-scheme" :model-value="(draft.l10n_sa_edi_additional_identification_scheme as string | null) ?? undefined" class="w-full" :items="schemeItems" data-testid="company-scheme" :disabled="!editable || busy" @update:model-value="setField('l10n_sa_edi_additional_identification_scheme', $event as string)" />
-              </UFormField>
-              <UFormField name="l10n_sa_edi_additional_identification_number" :label="t('settings.company.schemeNumber')" :error="fieldErrors.l10n_sa_edi_additional_identification_number">
-                <UInput id="company-scheme-number" v-model="fields.scheme_number.value" class="w-full" dir="ltr" data-testid="company-scheme-number" :disabled="!editable || busy" />
-              </UFormField>
-            </template>
+            <CompanyExtensionField v-for="extension in extensions" :key="extension.name" :extension="extension" :model-value="draft[extension.name] ?? null" :error="fieldErrors[extension.name]" :disabled="!editable || busy" @update:model-value="setField(extension.name, $event)" />
           </div>
         </SharedFormSection>
       </template>
@@ -190,14 +183,7 @@ async function onLogo(event: Event) {
           <UFormField name="zip" :label="t('settings.company.zip')" :error="fieldErrors.zip">
             <UInput id="company-zip" v-model="fields.zip.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-zip" :disabled="!editable || busy" />
           </UFormField>
-          <template v-if="hasSaudiFields">
-            <UFormField name="l10n_sa_edi_building_number" :label="t('settings.company.building')" :error="fieldErrors.l10n_sa_edi_building_number">
-              <UInput id="company-building" v-model="fields.building.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-building" :disabled="!editable || busy" />
-            </UFormField>
-            <UFormField name="l10n_sa_edi_plot_identification" :label="t('settings.company.plot')" :error="fieldErrors.l10n_sa_edi_plot_identification">
-              <UInput id="company-plot" v-model="fields.plot.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-plot" :disabled="!editable || busy" />
-            </UFormField>
-          </template>
+          <CompanyExtensionField v-for="extension in extensions" :key="extension.name" :extension="extension" :model-value="draft[extension.name] ?? null" :error="fieldErrors[extension.name]" :disabled="!editable || busy" @update:model-value="setField(extension.name, $event)" />
         </div>
       </SharedFormSection>
 

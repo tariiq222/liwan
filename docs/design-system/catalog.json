@@ -2683,7 +2683,7 @@
         {
           "id": "Default",
           "name": "الحساب",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:85"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:86"
         }
       ]
     },
@@ -2807,22 +2807,22 @@
         {
           "id": "Projects",
           "name": "المشاريع مع عدّاد",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:46"
         },
         {
           "id": "WithSections",
           "name": "أقسام بعناوين",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:46"
         },
         {
           "id": "Collapsed",
           "name": "مطوية",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:46"
         },
         {
           "id": "AutomaticTablet",
           "name": "طي تلقائي على التابلت",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:46"
         }
       ]
     },
@@ -2845,32 +2845,32 @@
         {
           "id": "Default",
           "name": "زر البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:82"
         },
         {
           "id": "PaletteMain",
           "name": "لوحة الأوامر",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:82"
         },
         {
           "id": "PaletteSearch",
           "name": "نتائج البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:82"
         },
         {
           "id": "PaletteError",
           "name": "تعذّر البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:82"
         },
         {
           "id": "PaletteShortcuts",
           "name": "اختصارات لوحة المفاتيح",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:82"
         },
         {
           "id": "PaletteReadOnly",
           "name": "قارئ بلا صلاحية إنشاء",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:82"
         }
       ]
     },
@@ -2902,6 +2902,11 @@
         },
         {
           "name": "sections",
+          "type": "ShellContextSection[]",
+          "required": true
+        },
+        {
+          "name": "subSections",
           "type": "ShellContextSection[]",
           "required": true
         },
@@ -6132,12 +6137,12 @@
         {
           "id": "Default",
           "name": "المشاريع نشطة",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:42"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
         },
         {
           "id": "SettingsActive",
           "name": "الإعدادات نشطة",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:42"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
         }
       ]
     },
@@ -6168,6 +6173,60 @@
           "id": "Single",
           "name": "مستوى واحد",
           "context": "apps/vendor-admin/app/components/AdminHeader.vue:79"
+        }
+      ]
+    },
+    {
+      "name": "ShellContextSubList",
+      "file": "packages/ui/app/components/shell/ShellContextSubList.vue",
+      "story": "apps/web/stories/shell/ShellContextSubList.stories.ts",
+      "title": "Shell/ShellContextSubList",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "sections",
+          "type": "ShellSubListSection[]",
+          "required": true
+        },
+        {
+          "name": "collapsed",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "surface",
+          "type": "\"card\" | \"drawer\"",
+          "required": false,
+          "description": "`card` floats under the context sidebar; `drawer` is the flat block of the mobile drawer."
+        },
+        {
+          "name": "testIdPrefix",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "navigate",
+          "payload": "[item: ShellQuickItem]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "أقسام القائمة الفرعية",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:61"
+        },
+        {
+          "id": "Collapsed",
+          "name": "مطوية (أيقونات)",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:61"
         }
       ]
     },
@@ -6260,26 +6319,22 @@
         }
       ],
       "slots": [],
-      "nuxtUi": [
-        "UButton",
-        "UIcon",
-        "UTooltip"
-      ],
+      "nuxtUi": [],
       "stories": [
         {
           "id": "Default",
           "name": "مهام: عروض وإجراءات",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:59"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:62"
         },
         {
           "id": "ActionsOnly",
           "name": "إجراءات فقط",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:59"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:62"
         },
         {
           "id": "Collapsed",
           "name": "مطوية (أيقونات)",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:59"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:62"
         }
       ]
     }
