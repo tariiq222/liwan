@@ -276,18 +276,6 @@
       "handler": "admin_company",
       "no_capability_reason": null
     },
-    "GET /api/v1/admin/company/countries": {
-      "addon": "webvue_api",
-      "auth": "user",
-      "capability_keys": [
-        "settings.company.read"
-      ],
-      "capability_match": "all",
-      "capability_source": "decorator",
-      "feature_keys": [],
-      "handler": "list_company_countries",
-      "no_capability_reason": null
-    },
     "GET /api/v1/admin/company/countries/{country_id}/states": {
       "addon": "webvue_api",
       "auth": "user",

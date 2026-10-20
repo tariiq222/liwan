@@ -36376,44 +36376,6 @@
         }
       }
     },
-    "/api/v1/admin/company/countries": {
-      "get": {
-        "operationId": "webvue_api.CompanyController.list_company_countries.get",
-        "responses": {
-          "200": {
-            "description": "Success (serializer-whitelisted shape)."
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "422": {
-            "$ref": "#/components/responses/Invalid"
-          }
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "summary": "list_company_countries",
-        "tags": [
-          "webvue_api"
-        ],
-        "x-webvue": {
-          "addon": "webvue_api",
-          "api_handler": true,
-          "auth": "user",
-          "body": "application/json (JSON-RPC style params)",
-          "contract_namespace": "access",
-          "controller": "CompanyController",
-          "feature_keys": [],
-          "feature_operation": null,
-          "handler": "list_company_countries",
-          "readonly": true,
-          "route_type": "json2"
-        }
-      }
-    },
     "/api/v1/admin/company/countries/{country_id}/states": {
       "get": {
         "operationId": "webvue_api.CompanyController.list_company_states.get",
