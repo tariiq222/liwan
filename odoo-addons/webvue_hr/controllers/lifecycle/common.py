@@ -4,7 +4,7 @@
 Both areas run the same engine (stock employee activity plans and the stock departure
 wizard); only the purpose, the capability keys and the URL prefix differ.
 """
-from odoo import Command
+from odoo import Command, fields
 from odoo.exceptions import MissingError
 from odoo.http import request
 
@@ -99,7 +99,11 @@ def _require_step_decision(area, run, activity):
 
 
 def _launch_run(area, employee, plan, plan_date=None):
-    """Launch a stock employee plan and record the run with the activities it added."""
+    """Launch a stock employee plan and record the run with the activities it added.
+
+    A run without a date starts today: the stock wizard would anchor it 30 days after today.
+    """
+    plan_date = plan_date or fields.Date.context_today(employee)
     Activity = request.env['mail.activity'].with_context(active_test=False)
     domain = [('res_model', '=', EMPLOYEE_MODEL), ('res_id', '=', employee.id)]
     before = set(Activity.search(domain).ids)
@@ -111,14 +115,14 @@ def _launch_run(area, employee, plan, plan_date=None):
         # The wizard stores its documents as a serialized id list.
         'res_ids': f'[{employee.id}]',
         'plan_id': plan.id,
-        **({'plan_date': plan_date} if plan_date else {}),
+        'plan_date': plan_date,
     })
     schedule.action_schedule_plan()
     created = Activity.search(domain).filtered(lambda activity: activity.id not in before)
     return request.env['webvue.hr.plan.run'].create({
         'employee_id': employee.id,
         'plan_id': plan.id,
-        'plan_date': plan_date or schedule.plan_date,
+        'plan_date': plan_date,
         'launched_by_id': request.env.user.id,
         'activity_ids': [Command.set(created.ids)],
     })

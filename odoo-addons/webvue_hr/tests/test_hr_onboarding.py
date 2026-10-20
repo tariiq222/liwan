@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import fields
 from odoo.tests import new_test_user, tagged
 
 from .common import WebVueHrCase, set_hr_feature
@@ -89,6 +90,14 @@ class TestHrOnboarding(WebVueHrCase):
         })
         self.assertEqual(response.status_code, 201, response.text)
         return response.json()
+
+    def test_launch_without_a_date_starts_today(self):
+        self._as_manager()
+        response = self.api('POST', '/api/v1/hr/onboarding/runs', json={
+            'employee_id': self.employee_record.id, 'plan_id': self.plan.id,
+        })
+        self.assertEqual(response.status_code, 201, response.text)
+        self.assertEqual(response.json()['plan_date'], fields.Date.to_string(fields.Date.context_today(self.manager)))
 
     def test_plan_create_list_get_patch(self):
         self._as_manager()
