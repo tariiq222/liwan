@@ -16,8 +16,8 @@ EQUIPMENT_PATCH_FIELDS = EQUIPMENT_CREATE_FIELDS
 
 
 def dump_equipment(equipment):
-    """One asset. ``assign_date`` is the stock assignment date: the assign route writes it on
-    every assignment, so it survives a return as the last custody date."""
+    """One asset. ``assign_date`` is the stock custody date, which the stock engine also stamps
+    on creation and keeps after a return; it is exposed only while the asset is assigned."""
     return {
         'id': equipment.id,
         'name': equipment.name,
@@ -25,7 +25,7 @@ def dump_equipment(equipment):
         'serial_no': equipment.serial_no or '',
         'model': equipment.model or '',
         'employee': ref(equipment.employee_id),
-        'assign_date': fields.Date.to_string(equipment.assign_date) or None,
+        'assign_date': (fields.Date.to_string(equipment.assign_date) or None) if equipment.employee_id else None,
         'warranty_date': fields.Date.to_string(equipment.warranty_date) or None,
         'scrap_date': fields.Date.to_string(equipment.scrap_date) or None,
         'active': bool(equipment.active),

@@ -96,8 +96,8 @@ class TestHrAssets(WebVueHrCase):
         self.assertIsNone(item['warranty_date'])
         self.assertIsNone(item['scrap_date'])
         self.assertTrue(item['active'])
-        # The stock assignment compute stamps the custody date when equipment is created.
-        self.assertEqual(item['assign_date'], self.equipment.assign_date.isoformat())
+        # The stock engine stamps a custody date on creation; an unassigned asset hides it.
+        self.assertIsNone(item['assign_date'])
         detail = self.api('GET', f'/api/v1/hr/assets/equipment/{self.equipment.id}')
         self.assertEqual((detail.status_code, set(detail.json())), (200, EQUIPMENT_KEYS))
 
@@ -243,8 +243,8 @@ class TestHrAssets(WebVueHrCase):
         returned = self.api('POST', f'/api/v1/hr/assets/equipment/{self.equipment.id}/return', json={})
         self.assertEqual(returned.status_code, 200, returned.text)
         self.assertIsNone(returned.json()['employee'])
-        # The stock engine keeps the last custody date after the return.
-        self.assertEqual(returned.json()['assign_date'], '2026-05-01')
+        # The stock engine keeps the last custody date; the serializer hides it once unassigned.
+        self.assertIsNone(returned.json()['assign_date'])
         self.equipment.invalidate_recordset(['employee_id', 'assign_date'])
         self.assertFalse(self.equipment.employee_id)
 
