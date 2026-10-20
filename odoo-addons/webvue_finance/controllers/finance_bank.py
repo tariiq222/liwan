@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import Command, http
-from odoo.exceptions import MissingError
+from odoo.exceptions import MissingError, UserError, ValidationError
 from odoo.http import request
 
 from .common import filter_domain, list_page, require_capability
@@ -20,7 +20,9 @@ from odoo.addons.webvue_finance.serializers.bank import (
     dump_reconcile_proposal,
     parse_reconcile,
     parse_statement_create,
+    parse_statement_patch,
 )
+from odoo.addons.webvue_finance.serializers.parsing import reject_unknown
 
 # The leftover of a reconciliation is never booked on a receivable or payable account (it would be an unmatched
 # item without a document) or on a liquidity account (it would move cash without a statement line).
@@ -89,6 +91,37 @@ def _suspense_to_account(line, account, label):
             })
     line.reconcile_data_info = line._recompute_suspense_line(
         data['data'], data['reconcile_auxiliary_id'], line.manual_reference,
+    )
+
+
+def _reconcile_line(line, items, account=None, label=None):
+    """Matches ``line`` with ``items``; what they leave over is booked on ``account``. 422 ``not_balanced`` when it does not clear."""
+    line.reconcile_data_info = line._default_reconcile_data()
+    for item in items:
+        line._add_account_move_line(item)
+    if account:
+        _suspense_to_account(line, account, label)
+    if not line.reconcile_data_info.get('can_reconcile'):
+        raise ApiError(422, 'not_balanced', 'the selected items do not clear the statement line', field='move_line_ids')
+    line.reconcile_bank_line()
+
+
+def _certain_matches(line):
+    """The open items that settle ``line`` to the cent and are tied to it by the partner or by the entry number in the reference.
+
+    Matching is only certain when exactly one such item exists; the caller leaves every other line to a person.
+    """
+    domain = _open_items_domain(line)
+    candidates = request.env['account.move.line'].search(domain, limit=MAX_PROPOSAL_CANDIDATES)
+    currency = line.company_id.currency_id
+    reference = (line.payment_ref or '').lower()
+    partners = (line.partner_id | line.partner_id.commercial_partner_id) if line.partner_id else request.env['res.partner']
+    exact = candidates.filtered(
+        lambda item: line.currency_id == currency and currency.is_zero(abs(item.amount_residual) - abs(line.amount)),
+    )
+    return exact.filtered(
+        lambda item: (item.partner_id and item.partner_id in partners)
+        or (item.move_id.name and item.move_id.name != '/' and item.move_id.name.lower() in reference),
     )
 
 
@@ -174,15 +207,85 @@ class FinanceBankController(http.Controller):
                 [('company_ids', 'in', [line.company_id.id]), ('account_type', 'not in', LEFTOVER_EXCLUDED_TYPES)],
             )
 
-        def reconcile():
-            line.reconcile_data_info = line._default_reconcile_data()
-            for item in items:
-                line._add_account_move_line(item)
-            if account:
-                _suspense_to_account(line, account, parsed.get('label'))
-            if not line.reconcile_data_info.get('can_reconcile'):
-                raise ApiError(422, 'not_balanced', 'the selected items do not clear the statement line', field='move_line_ids')
-            line.reconcile_bank_line()
-
-        attempt(reconcile, day=line.date)
+        attempt(lambda: _reconcile_line(line, items, account, parsed.get('label')), day=line.date)
         return dump_bank_line(line)
+
+    @http.route('/api/v1/finance/bank-statements/<int:statement_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    @requires_feature('finance.enabled', operation='write')
+    def patch_bank_statement(self, statement_id, **payload):
+        """Corrects the name and the opening and closing balances of a statement."""
+        require_capability('finance.bank.manage')
+        statement = _find_statement(statement_id)
+        values = parse_statement_patch(payload)
+        attempt(lambda: statement.write(values), day=statement.date, journal=statement.journal_id)
+        request.env['webvue.finance.audit.event']._webvue_log('bank_statement_changed', statement, fields_written=values)
+        return dump_bank_statement_detail(statement)
+
+    @http.route('/api/v1/finance/bank-statements/<int:statement_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
+    @api_handler
+    @requires_feature('finance.enabled', operation='write')
+    def delete_bank_statement(self, statement_id, **_):
+        """Removes a statement none of whose lines is reconciled: undo the reconciliations first (422 ``has_reconciliations``)."""
+        require_capability('finance.bank.manage')
+        statement = _find_statement(statement_id)
+        reconciled = statement.line_ids.filtered('is_reconciled')
+        if reconciled:
+            raise ApiError(422, 'has_reconciliations', 'undo the reconciliation of its lines first', details={'line_ids': reconciled.ids})
+        journal, day = statement.journal_id, statement.date
+        attempt(statement.unlink, day=day, journal=journal)
+        # The statement is gone, so the event names its journal.
+        request.env['webvue.finance.audit.event']._webvue_log('bank_statement_deleted', journal, outcome=f'statement {statement_id}')
+        return request.make_json_response('', status=204)
+
+    @http.route(
+        '/api/v1/finance/bank-statement-lines/<int:line_id>/unreconcile',
+        type='json2', auth='user', methods=['POST'], readonly=False,
+    )
+    @api_handler
+    @requires_feature('finance.enabled', operation='write')
+    def unreconcile(self, line_id, **_):
+        """Undoes a reconciliation. The journal's reconcile mode decides how: ``edit`` removes the matching and the
+        entries made for it, ``keep`` leaves them and reverses the matched entries."""
+        require_capability('finance.bank.manage')
+        line = _find_statement_line(line_id)
+        if not line.is_reconciled:
+            raise ApiError(422, 'invalid_state', 'the statement line is not reconciled')
+        attempt(line.unreconcile_bank_line, day=line.date, journal=line.journal_id)
+        request.env['webvue.finance.audit.event']._webvue_log('bank_line_unreconciled', line)
+        return dump_bank_line(line)
+
+    @http.route('/api/v1/finance/bank-statements/<int:statement_id>/auto-reconcile', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('finance.enabled', operation='write')
+    def auto_reconcile(self, statement_id, **payload):
+        """Matches the statement's open lines that have exactly one certain item; everything else is left for review.
+
+        A line is certain when one open item clears it to the cent and is tied to it by the same partner or by its entry
+        number in the line reference. Without ``apply: true`` nothing is written and the answer is what would happen.
+        A line that is ambiguous (several candidates), unmatched (none) or refused by Odoo (``failed``) is listed in
+        ``review`` with its reason, never guessed.
+        """
+        require_capability('finance.bank.manage')
+        reject_unknown(payload, {'apply'})
+        apply = payload.get('apply', False)
+        if not isinstance(apply, bool):
+            raise ApiError(422, 'invalid', 'apply must be a boolean', field='apply')
+        statement = _find_statement(statement_id)
+        matched, review = [], []
+        for line in statement.line_ids.filtered(lambda item: not item.is_reconciled):
+            candidates = _certain_matches(line)
+            if len(candidates) != 1:
+                review.append({'line_id': line.id, 'reason': 'ambiguous' if candidates else 'no_match', 'candidates': candidates.ids})
+                continue
+            if apply:
+                try:
+                    with request.env.cr.savepoint():
+                        _reconcile_line(line, candidates)
+                except (ApiError, UserError, ValidationError) as error:
+                    review.append({'line_id': line.id, 'reason': 'failed', 'candidates': candidates.ids, 'message': str(error)})
+                    continue
+            matched.append({'line_id': line.id, 'move_line_id': candidates.id, 'entry': candidates.move_id.name})
+        if apply and matched:
+            request.env['webvue.finance.audit.event']._webvue_log('bank_statement_auto_reconciled', statement, outcome=f'{len(matched)} lines')
+        return {'applied': apply, 'matched': matched, 'review': review}

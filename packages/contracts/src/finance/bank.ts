@@ -130,6 +130,28 @@ export const FinanceBankImportPreviewSchema = z.object({
   }).strict(),
 }).strict()
 
+/** PATCH /bank-statements/{id}: correct the name and the balances. */
+export const FinanceBankStatementPatchSchema = z.object({
+  name: text.min(1).optional(),
+  balance_start: money.optional(),
+  balance_end_real: money.optional(),
+}).strict().refine(body => Object.keys(body).length > 0, 'no fields to update')
+
+/** POST /bank-statements/{id}/auto-reconcile: without `apply` it only reports what it would do. */
+export const FinanceBankAutoReconcileInputSchema = z.object({ apply: z.boolean().optional() }).strict()
+
+export const FinanceBankAutoReconcileSchema = z.object({
+  applied: z.boolean(),
+  matched: z.array(z.object({ line_id: id, move_line_id: id, entry: z.string() }).strict()),
+  /** Lines left to a person: several candidates, none, or refused by Odoo (`failed`, with `message`). */
+  review: z.array(z.object({
+    line_id: id,
+    reason: z.enum(['ambiguous', 'no_match', 'failed']),
+    candidates: z.array(id),
+    message: z.string().optional(),
+  }).strict()),
+}).strict()
+
 export type FinanceBankLine = z.infer<typeof FinanceBankLineSchema>
 export type FinanceBankStatement = z.infer<typeof FinanceBankStatementSchema>
 export type FinanceBankStatementDetail = z.infer<typeof FinanceBankStatementDetailSchema>
@@ -139,3 +161,4 @@ export type FinanceBankReconcile = z.infer<typeof FinanceBankReconcileSchema>
 export type FinanceBankImport = z.infer<typeof FinanceBankImportSchema>
 export type FinanceBankImportPreview = z.infer<typeof FinanceBankImportPreviewSchema>
 export type FinanceBankImportColumns = z.infer<typeof FinanceBankImportColumnsSchema>
+export type FinanceBankAutoReconcile = z.infer<typeof FinanceBankAutoReconcileSchema>

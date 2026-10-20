@@ -36,7 +36,7 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `GET /asset-profiles`, `GET /assets`, `GET /assets/<id>` | `finance.assets.read` |
 | `POST /assets` (201, a draft), `POST /assets/<id>/validate`, `POST /assets/<id>/dispose`, `POST /assets/compute-depreciation` | `finance.assets.manage` |
 | `GET /bank-statements`, `GET /bank-statements/<id>`, `GET /bank-statement-lines/<id>/reconcile-proposals` | `finance.bank.read` |
-| `POST /bank-statements` (201), `POST /bank-statements/import/preview`, `POST /bank-statements/import` (201), `POST /bank-statement-lines/<id>/reconcile` | `finance.bank.manage` |
+| `POST /bank-statements` (201), `POST /bank-statements/import/preview`, `POST /bank-statements/import` (201), `PATCH` and `DELETE` (204) `/bank-statements/<id>`, `POST /bank-statements/<id>/auto-reconcile`, `POST /bank-statement-lines/<id>/reconcile`, `/unreconcile` | `finance.bank.manage` |
 | `GET /budgets` (`state`, `q`), `GET /budgets/<id>`, `GET /reports/budget-vs-actual?budget_id[&date_to]` | `finance.budgets.read` |
 | `POST /budgets` (201), `PATCH /budgets/<id>`, `POST /budgets/<id>/confirm`, `/cancel`, `/reset-to-draft`, `POST /budgets/<id>/lines` (201), `PATCH` and `DELETE` (204) `/budgets/<id>/lines/<line_id>` | `finance.budgets.manage` |
 | `GET /zatca/status`, `GET /invoices/<id>/zatca` | `finance.zatca.read` |
@@ -222,6 +222,20 @@ and its accumulated depreciation, and books the gain on `plus_account_id` or the
 defaults; a missing one the result needs is 422 `invalid`). The removal entry is posted, the asset becomes `removed` and
 carries `date_remove`. A date in a locked period is 422 `period_locked`; a date before the last posted depreciation is
 refused by the wizard (422 `invalid`); a draft or already removed asset is 422 `invalid_state`.
+
+## Undoing, correcting and matching automatically
+
+- `POST /bank-statement-lines/<id>/unreconcile` undoes a reconciliation through OCA's `unreconcile_bank_line`: the journal's
+  reconcile mode decides whether the matching and the entries made for it are removed (`edit`) or the matched entries are
+  reversed (`keep`). A line that is not reconciled is 422 `invalid_state`.
+- `PATCH /bank-statements/<id>` corrects the name and the opening and closing balances; `DELETE` removes a statement none
+  of whose lines is reconciled (422 `has_reconciliations`, `details.line_ids`: undo them first). Both are audited.
+- `POST /bank-statements/<id>/auto-reconcile` `{apply?}` matches only the lines that have exactly one certain item: one open
+  item that clears the line to the cent and is tied to it by the same partner or by its entry number in the line reference.
+  Without `apply: true` nothing is written. Every other line is listed in `review` as `ambiguous`, `no_match` or `failed`;
+  nothing is guessed, and each line is matched in its own savepoint so one refusal does not stop the rest.
+- Not done: foreign-currency exchange differences in a reconciliation, partial matches proposed automatically, and OCA
+  reconcile models and rules (the route above is the only automatic rule).
 
 ## Journal entries
 

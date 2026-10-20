@@ -3,6 +3,7 @@ from odoo import Command
 from odoo.tests import tagged
 
 from .oca_common import BANK, BANK_LINES, WebVueFinanceOcaCase
+from .write_common import PASSWORD
 
 
 @tagged('post_install', '-at_install', 'webvue')
@@ -232,3 +233,95 @@ class TestFinanceBank(WebVueFinanceOcaCase):
         _body, lines = self.statement()
         payable = self.bill.line_ids.filtered(lambda item: item.account_id.account_type == 'liability_payable')
         self.assertRefused(self.reconcile(lines['INV/2026/00001'], move_line_ids=[payable.id]), 422, 'invalid', 'move_line_ids')
+
+    # --- undoing, correcting and removing ----------------------------------------------------------------
+
+    def test_a_reconciliation_is_undone_and_the_invoice_is_open_again(self):
+        _body, lines = self.statement()
+        line_id = lines['INV/2026/00001']
+        self.reconcile(line_id, move_line_ids=[self.receivable(self.invoice).id])
+        undone = self.api('POST', f'{BANK_LINES}/{line_id}/unreconcile')
+        self.assertEqual(undone.status_code, 200, undone.text)
+        self.assertEqual((undone.json()['is_reconciled'], abs(undone.json()['amount_residual'])), (False, 750))
+        self.invoice.invalidate_recordset()
+        self.assertEqual((self.invoice.amount_residual, self.invoice.payment_state), (750, 'partial'))
+        self.assertEqual(self.reconcile(line_id, move_line_ids=[self.receivable(self.invoice).id]).status_code, 200)
+
+    def test_unreconcile_refusals(self):
+        _body, lines = self.statement()
+        line_id = lines['INV/2026/00001']
+        self.assertRefused(self.api('POST', f'{BANK_LINES}/{line_id}/unreconcile'), 422, 'invalid_state')
+        foreign = self.other_statement.line_ids
+        self.assertRefused(self.api('POST', f'{BANK_LINES}/{foreign.id}/unreconcile'), 404, 'not_found')
+
+    def test_a_statement_header_is_corrected(self):
+        body, _lines = self.statement()
+        changed = self.api('PATCH', f'{BANK}/{body["id"]}', json={'name': 'October (corrected)', 'balance_end_real': 545})
+        self.assertEqual(changed.status_code, 200, changed.text)
+        self.assertEqual((changed.json()['name'], changed.json()['balance_end_real']), ('October (corrected)', 545))
+        for bad, field in (({}, None), ({'balance_start': 'x'}, 'balance_start'), ({'lines': []}, 'lines')):
+            with self.subTest(bad=bad):
+                self.assertRefused(self.api('PATCH', f'{BANK}/{body["id"]}', json=bad), 422, 'invalid', field)
+        self.assertRefused(self.api('PATCH', f'{BANK}/{self.other_statement.id}', json={'name': 'x'}), 404, 'not_found')
+
+    def test_a_statement_is_deleted_only_when_nothing_is_reconciled(self):
+        body, lines = self.statement()
+        self.reconcile(lines['INV/2026/00001'], move_line_ids=[self.receivable(self.invoice).id])
+        refused = self.api('DELETE', f'{BANK}/{body["id"]}')
+        self.assertRefused(refused, 422, 'has_reconciliations')
+        self.assertEqual(refused.json()['details']['line_ids'], [lines['INV/2026/00001']])
+        undone = self.api('POST', f'{BANK_LINES}/{lines["INV/2026/00001"]}/unreconcile')
+        self.assertEqual(undone.status_code, 200, undone.text)
+        self.assertTrue(self.env['account.bank.statement'].browse(body['id']).exists(), 'statement kept by the undo')
+        self.assertEqual(self.api('DELETE', f'{BANK}/{body["id"]}').status_code, 204)
+        self.assertRefused(self.api('GET', f'{BANK}/{body["id"]}'), 404, 'not_found')
+        self.assertRefused(self.api('DELETE', f'{BANK}/{self.other_statement.id}'), 404, 'not_found')
+
+    # --- automatic matching ------------------------------------------------------------------------------
+
+    def auto(self, statement_id, **body):
+        result = self.api('POST', f'{BANK}/{statement_id}/auto-reconcile', json=body)
+        self.assertEqual(result.status_code, 200, result.text)
+        return result.json()
+
+    def test_a_dry_run_lists_the_certain_matches_and_writes_nothing(self):
+        body, lines = self.statement()
+        plan = self.auto(body['id'])
+        self.assertEqual(plan['applied'], False)
+        self.assertEqual(sorted(item['line_id'] for item in plan['matched']), sorted([lines['INV/2026/00001'], lines['Gulf Supplies bill']]))
+        self.assertEqual({item['line_id']: item['reason'] for item in plan['review']}, {lines['Bank interest']: 'no_match', lines['Unknown deposit']: 'no_match'})
+        self.assertEqual(self.api('GET', f'{BANK}/{body["id"]}').json()['lines'][0]['is_reconciled'], False)
+
+    def test_applying_reconciles_only_the_certain_lines(self):
+        body, _lines = self.statement()
+        result = self.auto(body['id'], apply=True)
+        self.assertEqual((result['applied'], len(result['matched']), len(result['review'])), (True, 2, 2))
+        state = {line['payment_ref']: line['is_reconciled'] for line in self.api('GET', f'{BANK}/{body["id"]}').json()['lines']}
+        self.assertEqual(state, {'INV/2026/00001': True, 'Gulf Supplies bill': True, 'Bank interest': False, 'Unknown deposit': False})
+        self.invoice.invalidate_recordset()
+        self.assertEqual(self.invoice.payment_state, 'paid')
+        self.assertEqual(self.auto(body['id'], apply=True)['matched'], [])
+        events = self.env['webvue.finance.audit.event'].search([('action', '=', 'bank_statement_auto_reconciled'), ('res_id', '=', body['id'])])
+        self.assertEqual(len(events), 1)
+
+    def test_two_candidates_are_ambiguous_and_left_for_review(self):
+        for _ in range(2):
+            self.sale(self.partner, 100, '2026-11-30')
+        body, lines = self.statement(lines=[{'date': '2026-10-28', 'payment_ref': 'Receipt', 'partner_id': self.partner.id, 'amount': 115}], balance_end_real=115)
+        plan = self.auto(body['id'], apply=True)
+        self.assertEqual(plan['matched'], [])
+        self.assertEqual([(item['line_id'], item['reason'], len(item['candidates'])) for item in plan['review']], [(lines['Receipt'], 'ambiguous', 2)])
+
+    def test_the_entry_number_in_the_reference_matches_without_a_partner(self):
+        body, lines = self.statement(lines=[{'date': '2026-10-28', 'payment_ref': f'Payment for {self.invoice.name}', 'amount': 750}], balance_end_real=750)
+        plan = self.auto(body['id'])
+        self.assertEqual([item['line_id'] for item in plan['matched']], [next(iter(lines.values()))])
+
+    def test_auto_reconcile_refusals(self):
+        body, _lines = self.statement()
+        self.assertRefused(self.api('POST', f'{BANK}/{body["id"]}/auto-reconcile', json={'apply': 'yes'}), 422, 'invalid', 'apply')
+        self.assertRefused(self.api('POST', f'{BANK}/{body["id"]}/auto-reconcile', json={'colour': 1}), 422, 'invalid', 'colour')
+        self.assertRefused(self.api('POST', f'{BANK}/{self.other_statement.id}/auto-reconcile', json={}), 404, 'not_found')
+        self.user_with('bank_reader', ['finance.bank.read'])
+        self.authenticate('bank_reader', PASSWORD)
+        self.assertRefused(self.api('POST', f'{BANK}/{body["id"]}/auto-reconcile', json={}), 403, 'forbidden')
