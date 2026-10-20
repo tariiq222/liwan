@@ -32,15 +32,24 @@ class TestPipelineExecution(unittest.TestCase):
         (self.root / 'deploy/ci').mkdir(parents=True)
         for script in (ROOT / 'deploy/ci').glob('*.sh'):
             shutil.copy(script, self.root / 'deploy/ci' / script.name)
+        shutil.copytree(ROOT / 'deploy/ci/lib', self.root / 'deploy/ci/lib')
+        shutil.copy(ROOT / 'deploy/ci/odoo_route_probe.py', self.root / 'deploy/ci/odoo_route_probe.py')
         (self.root / 'deploy/odoo').mkdir()
         (self.root / 'deploy/odoo/ODOO_COMMIT').write_text('a' * 40)
         self.fake('odoo-python', '''
 log = next((a.split('=',1)[1] for a in args if a.startswith('--logfile=')), None)
 if log: Path(log).write_text('odoo.tests.result: 0 failed, 0 error(s) of 12 tests when loading database\\n')
+if 'shell' in args: print('ROUTE_PROBE_OK')
 ''')
         self.fake('python3', '''
 if args[0] == '-': os.execv(sys.executable, [sys.executable, *args])
 if 'tools/catalog_check.py' in args: print('webvue_tasks')
+if 'tools/oca_addons.py' in args: print('/oca/repo')
+if 'tools/app_isolation.py' in args and 'install' in args:
+ print({'webvue_tasks_pmo': 'webvue_pmo,webvue_tasks'}.get(args[-1], args[-1]))
+if 'tools/app_isolation.py' in args and 'tags' in args: print('/' + args[-1])
+if 'tools/app_isolation.py' in args and 'foundation' in args: print('webvue_api')
+if 'tools/app_isolation.py' in args and 'rank' in args: print(4)
 if 'deploy/classification.py' in args:
  output=Path(args[args.index('--output')+1]); output.parent.mkdir(parents=True, exist_ok=True); output.write_text('{}')
 ''')
@@ -54,7 +63,7 @@ elif "SELECT state" in ' '.join(args): print('installed')
         config = {'PGHOST': '127.0.0.1', 'PGPORT': '55432', 'PGUSER': 'odoo', 'PGPASSWORD': 'scratch',
                   'ODOO_ROOT': str(self.odoo), 'ODOO_PYTHON': str(self.bin / 'odoo-python'),
                   'GITHUB_RUN_ID': '123', 'GITHUB_SHA': 'b' * 40,
-                  'ODOO_PORT': '52101', 'TASKS_PORT': '52102', 'BRIDGE_PORT': '52103',
+                  'ODOO_PORT': '52101', 'ISOLATION_PORT': '52102',
                   'DOCKER_CONFIG': str(self.root / 'docker')}
         self.environment = {**os.environ, **config, 'PATH': str(self.bin) + os.pathsep + os.environ['PATH']}
 
@@ -65,20 +74,20 @@ elif "SELECT state" in ' '.join(args): print('installed')
                         f'out.write(json.dumps([{name!r}, *args])+"\\n")\n' + body)
         file.chmod(0o755)
 
-    def execute(self, stage):
-        return subprocess.run(['bash', str(self.root / 'deploy/ci' / (stage + '.sh'))], cwd=self.root,
+    def execute(self, stage, *args):
+        return subprocess.run(['bash', str(self.root / 'deploy/ci' / (stage + '.sh')), *args], cwd=self.root,
                               env=self.environment, capture_output=True, text=True, check=False)
 
     def test_odoo_steps_execute_against_the_isolated_connection_and_pinned_source(self):
-        for name, wanted_modules, wanted_port in (('odoo', 'webvue_tasks', '52101'),
-                                                  ('odoo-tasks-standalone', 'webvue_tasks', '52102'),
-                                                  ('odoo-tasks-bridge', 'webvue_tasks,webvue_pmo,webvue_tasks_pmo', '52103')):
+        for name, args, wanted_modules, wanted_port in (('odoo', (), 'webvue_tasks', '52101'),
+                                                        ('odoo-app-standalone', ('webvue_tasks',), 'webvue_tasks', '52102'),
+                                                        ('odoo-bridge', ('webvue_tasks_pmo',), 'webvue_pmo,webvue_tasks', '52102')):
             with self.subTest(stage=name):
                 self.calls.write_text('')
-                process = self.execute(name)
+                process = self.execute(name, *args)
                 self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
                 calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
-                odoo = next(x for x in calls if x[0] == 'odoo-python')
+                odoo = next(x for x in calls if x[0] == 'odoo-python' and 'shell' not in x)
                 self.assertIn('--db_port=55432', odoo)
                 self.assertIn('--db_host=127.0.0.1', odoo)
                 self.assertIn('--http-port=' + wanted_port, odoo)
@@ -86,6 +95,8 @@ elif "SELECT state" in ' '.join(args): print('installed')
                 # Committed Odoo concurrency fixtures require this safe prefix.
                 self.assertTrue(odoo[odoo.index('-d') + 1].startswith('webvue_scratch_'))
                 self.assertEqual(odoo[1], str(self.odoo / 'odoo-bin'))
+                probes = [x for x in calls if x[0] == 'odoo-python' and 'shell' in x]
+                self.assertEqual(len(probes), {'odoo': 0, 'odoo-app-standalone': 1, 'odoo-bridge': 3}[name])
                 for drop in (x for x in calls if x[0] == 'dropdb'):
                     self.assertEqual(drop[drop.index('-p') + 1], '55432')
 

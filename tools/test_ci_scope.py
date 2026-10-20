@@ -28,6 +28,8 @@ class StagesForTest(unittest.TestCase):
                      'package-lock.json', '.npmrc', '.nvmrc', '.dockerignore'):
             self.assert_stages(path, ALL)
         self.assert_stages('tools/odoo_shards.py', ('static', 'odoo'))
+        for path in ('tools/app_isolation.py', 'tools/arch_layers.json'):
+            self.assert_stages(path, ('static', 'odoo-app-standalone', 'odoo-bridge'))
         for path in ('README.md', 'apps/web/PRODUCT.md', 'docs/testing.md', 'docs/reports/x.png',
                      'e2e/tests/smoke.e2e.ts', 'e2e.config.ts'):
             self.assert_stages(path, ('static',))
