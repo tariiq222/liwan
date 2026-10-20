@@ -169,7 +169,7 @@ test.describe('recruitment', () => {
 
 test.describe('onboarding', () => {
   test('the runs list shows the mock rows and filters by state from the URL', async ({ page }) => {
-    await open(page, '/hr/onboarding', 'عمليات التهيئة')
+    await open(page, '/hr/onboarding', 'استقبال الموظفين')
     await expect(row(page, /منى القحطاني.*تهيئة الموظفين الجدد.*1 \/ 3.*قيد التنفيذ/)).toBeVisible()
     await expect(row(page, /خالد الشمري.*تهيئة فريق التقنية.*1 \/ 1.*منجزة/)).toBeVisible()
     await expect(page.getByText('عرض 2 من 2')).toBeVisible()
@@ -179,24 +179,24 @@ test.describe('onboarding', () => {
   })
 
   test('a row opens the run record with its checklist, which also opens by direct link', async ({ page }) => {
-    await open(page, '/hr/onboarding', 'عمليات التهيئة')
+    await open(page, '/hr/onboarding', 'استقبال الموظفين')
     await row(page, /منى القحطاني/).getByRole('link', { name: 'منى القحطاني' }).click()
     await expect(page).toHaveURL(/\/hr\/onboarding\/1/)
-    await expect(heading(page, 'عمليات التهيئة')).toBeVisible()
+    await expect(heading(page, 'استقبال الموظفين')).toBeVisible()
     await expect(page.getByText('جولة تعريفية بالفريق')).toBeVisible()
     await expect(page.getByText('متأخرة', { exact: true })).toBeVisible()
-    await open(page, '/hr/onboarding/2', 'عمليات التهيئة')
+    await open(page, '/hr/onboarding/2', 'استقبال الموظفين')
     await expect(page.getByText('منح صلاحيات المستودع')).toBeVisible()
   })
 
   test('the create panel opens over the list and closing it returns with the filters', async ({ page }) => {
-    await createPanelKeepsFilters(page, { list: '/hr/onboarding?state=open', create: '/hr/onboarding/new?state=open', createTestId: 'hr-onboarding-new', panelTitle: 'تهيئة موظف', listTitle: 'عمليات التهيئة' })
+    await createPanelKeepsFilters(page, { list: '/hr/onboarding?state=open', create: '/hr/onboarding/new?state=open', createTestId: 'hr-onboarding-new', panelTitle: 'استقبال موظف', listTitle: 'استقبال الموظفين' })
     await expect(row(page, /منى القحطاني/)).toBeVisible()
     await expect(row(page, /خالد الشمري/)).toHaveCount(0)
   })
 
   test('the plans list shows the mock plans and opens one by direct link', async ({ page }) => {
-    await open(page, '/hr/onboarding/plans', 'خطط التهيئة')
+    await open(page, '/hr/onboarding/plans', 'خطط الاستقبال')
     await expect(row(page, /تهيئة الموظفين الجدد.*إدارة العمليات/)).toBeVisible()
     await expect(row(page, /تهيئة فريق التقنية.*كل الأقسام/)).toBeVisible()
     await open(page, '/hr/onboarding/plans/1', 'تهيئة الموظفين الجدد')

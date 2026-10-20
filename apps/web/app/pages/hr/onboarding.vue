@@ -64,6 +64,10 @@ function setPage(next: number) {
     :create-label="t(`${NAMESPACE}.runs.new`)"
     create-test-id="hr-onboarding-new"
   >
+    <template v-if="!forbidden" #actions>
+      <UButton color="neutral" variant="outline" icon="i-lucide-list-checks" to="/hr/onboarding/plans" :disabled="!hydrated" :label="t(`${NAMESPACE}.plans.title`)" data-testid="hr-onboarding-plans" />
+    </template>
+
     <SharedForbiddenState v-if="forbidden" :description="t(`${NAMESPACE}.errors.forbidden`)" />
     <SharedListCard v-else>
       <template #filters>

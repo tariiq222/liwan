@@ -2,9 +2,9 @@
   "hrOnboarding": {
     "title": "Onboarding",
     "runs": {
-      "title": "Onboarding runs",
+      "title": "Onboarding",
       "empty": "No onboarding runs yet",
-      "new": "Start onboarding",
+      "new": "Onboard an employee",
       "employee": "Employee",
       "plan": "Plan",
       "planDate": "Start date",

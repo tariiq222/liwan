@@ -135,6 +135,11 @@
       "employees": "الموظفون",
       "departments": "الأقسام"
     },
+    "nav": {
+      "lifecycle": "دورة الموظف",
+      "daily": "العمل اليومي",
+      "mine": "خدماتي"
+    },
     "employee": {
       "emailInvalid": "أدخل بريدًا إلكترونيًا صحيحًا.",
       "nameRequired": "أدخل اسم الموظف.",

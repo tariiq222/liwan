@@ -1,13 +1,20 @@
 import type { AppContextLink, AppManifest } from '../types'
 
+const plus = 'i-lucide-plus'
+// Each area pins its own create action; the employee directory is the fallback.
+const AREA_CREATE: Array<[prefix: string, link: AppContextLink]> = [
+  ['/hr/leave', { id: 'new-leave', labelKey: 'hr.leave.new', icon: plus, to: '/hr/leave/new', capability: 'hr.leave.request', pinned: true }],
+  ['/hr/departments', { id: 'new-department', labelKey: 'hr.depts.new', icon: plus, to: '/hr/departments/new', capability: 'hr.departments.manage', pinned: true }],
+  ['/hr/recruitment', { id: 'new-applicant', labelKey: 'hrRecruitment.newApplicant', icon: plus, to: '/hr/recruitment/new', capability: 'hr.recruitment.manage', pinned: true }],
+  ['/hr/shifts', { id: 'new-shift', labelKey: 'hrShifts.new', icon: plus, to: '/hr/shifts/new', capability: 'hr.shifts.manage', pinned: true }],
+  ['/hr/onboarding', { id: 'new-onboarding', labelKey: 'hrOnboarding.runs.new', icon: plus, to: '/hr/onboarding/new', capability: 'hr.onboarding.manage', pinned: true }],
+  ['/hr/offboarding', { id: 'new-departure', labelKey: 'hrOffboarding.departures.new', icon: plus, to: '/hr/offboarding/new', capability: 'hr.offboarding.manage', pinned: true }],
+  ['/hr/assets', { id: 'new-asset', labelKey: 'hrAssets.new', icon: plus, to: '/hr/assets/new', capability: 'hr.assets.manage', pinned: true }],
+]
+const NEW_EMPLOYEE: AppContextLink = { id: 'new-employee', labelKey: 'hr.directory.newEmployee', icon: plus, to: '/hr/employees/new', capability: 'hr.employees.manage', pinned: true }
+
 function createLink(path?: string): AppContextLink {
-  if (path?.startsWith('/hr/leave')) {
-    return { id: 'new-leave', labelKey: 'hr.leave.new', icon: 'i-lucide-plus', to: '/hr/leave/new', capability: 'hr.leave.request', pinned: true }
-  }
-  if (path?.startsWith('/hr/departments')) {
-    return { id: 'new-department', labelKey: 'hr.depts.new', icon: 'i-lucide-plus', to: '/hr/departments/new', capability: 'hr.departments.manage', pinned: true }
-  }
-  return { id: 'new-employee', labelKey: 'hr.directory.newEmployee', icon: 'i-lucide-plus', to: '/hr/employees/new', capability: 'hr.employees.manage', pinned: true }
+  return AREA_CREATE.find(([prefix]) => path?.startsWith(prefix))?.[1] ?? NEW_EMPLOYEE
 }
 
 const areaTargets = ['/hr/recruitment', '/hr/shifts', '/hr/onboarding', '/hr/offboarding', '/hr/assets']
@@ -20,27 +27,28 @@ const manifest: AppManifest = {
   nav: [
     { to: '/hr', labelKey: 'nav.employees', icon: 'i-lucide-users', shortcut: '3', goKey: 'e', capability: 'hr.employees.read' },
     { to: '/hr/departments', labelKey: 'nav.departments', icon: 'i-lucide-network', shortcut: '5', goKey: 'd', capability: 'hr.departments.read' },
-    { to: '/hr/leave', labelKey: 'nav.leave', icon: 'i-lucide-calendar-days', shortcut: 's', goKey: 'l', capability: 'hr.leave.read' },
-    { to: '/hr/reports', labelKey: 'hr.reports.title', icon: 'i-lucide-chart-pie', shortcut: 'r', capability: 'hr.employees.manage' },
     { to: '/hr/recruitment', labelKey: 'nav.recruitment', icon: 'i-lucide-user-search', shortcut: '', capability: 'hr.recruitment.read' },
-    { to: '/hr/shifts', labelKey: 'nav.shifts', icon: 'i-lucide-calendar-clock', shortcut: '', capability: 'hr.shifts.read' },
     { to: '/hr/onboarding', labelKey: 'nav.onboarding', icon: 'i-lucide-user-plus', shortcut: '', capability: 'hr.onboarding.read' },
     { to: '/hr/offboarding', labelKey: 'nav.offboarding', icon: 'i-lucide-user-minus', shortcut: '', capability: 'hr.offboarding.read' },
+    { to: '/hr/leave', labelKey: 'nav.leave', icon: 'i-lucide-calendar-days', shortcut: 's', goKey: 'l', capability: 'hr.leave.read' },
+    { to: '/hr/shifts', labelKey: 'nav.shifts', icon: 'i-lucide-calendar-clock', shortcut: '', capability: 'hr.shifts.read' },
     { to: '/hr/assets', labelKey: 'nav.assets', icon: 'i-lucide-laptop', shortcut: '', capability: 'hr.assets.read' },
+    { to: '/hr/reports', labelKey: 'hr.reports.title', icon: 'i-lucide-chart-pie', shortcut: 'r', capability: 'hr.employees.manage' },
   ],
-  // The pinned create follows departments or the employee directory.
+  // The pinned create follows the open area. The first card holds the directory and structure; the other
+  // links form titled sub-lists in the order of the employee's journey, with the reports last.
   contextLinks: path => [
     createLink(path),
     { id: 'employees', labelKey: 'nav.employees', icon: 'i-lucide-users', to: '/hr', capability: 'hr.employees.read' },
     { id: 'departments', labelKey: 'nav.departments', icon: 'i-lucide-network', to: '/hr/departments', capability: 'hr.departments.read' },
-    { id: 'leave', labelKey: 'nav.leave', icon: 'i-lucide-calendar-days', to: '/hr/leave', capability: 'hr.leave.read' },
+    { id: 'recruitment', labelKey: 'nav.recruitment', icon: 'i-lucide-user-search', to: '/hr/recruitment', capability: 'hr.recruitment.read', section: 'hr.nav.lifecycle' },
+    { id: 'onboarding', labelKey: 'nav.onboarding', icon: 'i-lucide-user-plus', to: '/hr/onboarding', capability: 'hr.onboarding.read', section: 'hr.nav.lifecycle' },
+    { id: 'offboarding', labelKey: 'nav.offboarding', icon: 'i-lucide-user-minus', to: '/hr/offboarding', capability: 'hr.offboarding.read', section: 'hr.nav.lifecycle' },
+    { id: 'leave', labelKey: 'nav.leave', icon: 'i-lucide-calendar-days', to: '/hr/leave', capability: 'hr.leave.read', section: 'hr.nav.daily' },
+    { id: 'shifts', labelKey: 'nav.shifts', icon: 'i-lucide-calendar-clock', to: '/hr/shifts', capability: 'hr.shifts.read', section: 'hr.nav.daily' },
+    { id: 'assets', labelKey: 'nav.assets', icon: 'i-lucide-laptop', to: '/hr/assets', capability: 'hr.assets.read', section: 'hr.nav.daily' },
+    { id: 'my-assets', labelKey: 'nav.myAssets', icon: 'i-lucide-package-check', to: '/hr/assets/mine', capability: 'hr.employees.read', feature: 'hr.assets', section: 'hr.nav.mine' },
     { id: 'reports', labelKey: 'hr.reports.title', icon: 'i-lucide-chart-pie', to: '/hr/reports', capability: 'hr.employees.manage' },
-    { id: 'recruitment', labelKey: 'nav.recruitment', icon: 'i-lucide-user-search', to: '/hr/recruitment', capability: 'hr.recruitment.read' },
-    { id: 'shifts', labelKey: 'nav.shifts', icon: 'i-lucide-calendar-clock', to: '/hr/shifts', capability: 'hr.shifts.read' },
-    { id: 'onboarding', labelKey: 'nav.onboarding', icon: 'i-lucide-user-plus', to: '/hr/onboarding', capability: 'hr.onboarding.read' },
-    { id: 'offboarding', labelKey: 'nav.offboarding', icon: 'i-lucide-user-minus', to: '/hr/offboarding', capability: 'hr.offboarding.read' },
-    { id: 'assets', labelKey: 'nav.assets', icon: 'i-lucide-laptop', to: '/hr/assets', capability: 'hr.assets.read' },
-    { id: 'my-assets', labelKey: 'nav.myAssets', icon: 'i-lucide-package-check', to: '/hr/assets/mine', capability: 'hr.employees.read', feature: 'hr.assets' },
   ],
   landing: [
     { path: '/hr', capability: 'hr.employees.read' },
