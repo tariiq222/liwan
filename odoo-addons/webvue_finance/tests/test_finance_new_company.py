@@ -1,6 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import Command
-from odoo.tests import new_test_user, tagged
+from odoo.tests import tagged
 
 from .common import WebVueFinanceCase
 
@@ -16,17 +15,7 @@ class TestFinanceNewCompany(WebVueFinanceCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        saudi_arabia = cls.env.ref('base.sa')
-        cls.fresh = cls.env['res.company'].create({
-            'name': 'Finance New Company', 'country_id': saudi_arabia.id, 'currency_id': cls.env.ref('base.SAR').id,
-        })
-        user = new_test_user(
-            cls.env, login=LOGIN, password=PASSWORD, name=LOGIN, groups='webvue_core.group_employee',
-            company_id=cls.fresh.id, company_ids=[Command.set(cls.fresh.ids)],
-        )
-        cls.env['webvue.access.service']._webvue_replace_assignments(user, [{
-            'role_id': cls.env.ref('webvue_finance.role_finance_manager').id, 'company_id': cls.fresh.id,
-        }])
+        cls.fresh = cls._fresh_company_manager('Finance New Company', LOGIN, PASSWORD)
 
     def call(self, method, path, json=None, status=200):
         result = self.api(method, f'{API}{path}', json=json)

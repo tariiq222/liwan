@@ -81,3 +81,15 @@ Status: `open` / `blocked` / `in progress` / `done`. Priority follows the brief'
 - F2 (fixed by design): a tax created without a tax account books its amount on the expense or income account of the line (seen in a run: 1150 booked on the expense account for a 1000 + 15% bill). `tax_account_id` is therefore required.
 - F3 (open): posting a Saudi sales invoice needs a ZATCA-onboarded journal, so a new company cannot invoice customers until sandbox onboarding succeeds (G12).
 - F4 (fixed): a payment reset to draft and posted again is no longer linked to its invoice in Odoo (its invoice stays unpaid). The new `post` and `allocate` routes let the user finish it; `invoices` is read from reconciliations because Odoo's stored `reconciled_invoice_ids` still names the old invoice.
+
+## Month cycle (2026-10-20)
+
+`odoo-addons/webvue_finance/tests/test_finance_month_cycle.py` runs a fresh company through the routes only: chart, an
+account for capital, partners, opening balances as one posted entry, a sale, a credit note, a bill, a customer advance
+allocated to the sale, a partial bill payment, a CSV bank statement with a fee reconciled to an expense account, then the
+profit and loss (revenue 9000, net profit 4975), the VAT return (box 1: 9000 / 1350, box 7: 4000 / 600, net VAT 750), the cash
+flow (opening 50000, closing check 0), the trial balance, the balance sheet difference (0) and the aged receivable (27350).
+The expected figures are worked out in the test's docstring for an accountant to check. Shortcuts that are not product
+behavior: the ZATCA e-invoicing format is taken off the fresh company's journals (F3), and the month holds no fixed asset
+depreciation (asset profiles cannot yet be made through the routes) and no foreign currency.
+Not yet in the cycle: depreciation, returns of a purchase, a second company, the year-end close, a period lock.
