@@ -50,9 +50,13 @@ export function manifestForPath(path: string): AppManifest | null {
 /** The application and settings entry whose `to` is `path` or a parent of it, or null (the entry owns its subtree). */
 export function settingsEntryForPath(path: string): { manifest: AppManifest; entry: AppSettingsEntry } | null {
   const pathname = path.split(/[?#]/, 1)[0] ?? path
+  // The most specific entry owns a path: an application's sub-page entry wins over its base settings page.
+  let match: { manifest: AppManifest; entry: AppSettingsEntry } | null = null
   for (const manifest of activeManifests()) {
-    const entry = manifest.settings?.find(candidate => pathname === candidate.to || pathname.startsWith(`${candidate.to}/`))
-    if (entry) return { manifest, entry }
+    for (const entry of manifest.settings ?? []) {
+      const owns = pathname === entry.to || pathname.startsWith(`${entry.to}/`)
+      if (owns && entry.to.length > (match?.entry.to.length ?? -1)) match = { manifest, entry }
+    }
   }
-  return null
+  return match
 }

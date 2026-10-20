@@ -15,6 +15,10 @@ export interface ReportFilters {
   type: (typeof STATEMENT_TYPES)[number]
   partnerId: number | null
   accountId: number | null
+  planId: number | null
+  budgetId: number | null
+  /** Whether the URL named `date_to`; a budget report without one runs to the end of the budget. */
+  dateToSet: boolean
   page: number
 }
 
@@ -37,6 +41,9 @@ export function reportFiltersFromQuery(query: Query, today: string): ReportFilte
     type: STATEMENT_TYPES.find(value => value === type) ?? 'activity',
     partnerId: queryPositiveInt(query.partner_id),
     accountId: queryPositiveInt(query.account_id),
+    planId: queryPositiveInt(query.plan_id),
+    budgetId: queryPositiveInt(query.budget_id),
+    dateToSet: queryDay(query.date_to) !== null,
     page: queryPositiveInt(query.page) ?? 1,
   }
 }
@@ -52,18 +59,21 @@ export function reportParams(slug: ReportSlug, filters: ReportFilters): ReportPa
   const set = REPORTS[slug].filters
   return {
     ...(reportEndsOnly(slug, filters) ? {} : { date_from: filters.dateFrom }),
-    date_to: filters.dateTo,
+    ...(set.budget && !filters.dateToSet ? {} : { date_to: filters.dateTo }),
+    ...(set.budget && filters.budgetId ? { budget_id: filters.budgetId } : {}),
     ...(set.targetMove ? { target_move: filters.targetMove } : {}),
     ...(set.kind ? { kind: filters.kind } : {}),
     ...(set.type ? { type: filters.type } : {}),
     ...(set.partner && filters.partnerId ? { partner_id: filters.partnerId } : {}),
+    ...(set.plan && filters.planId ? { plan_id: filters.planId } : {}),
     ...(set.account && filters.accountId ? { account_id: filters.accountId, limit: LEDGER_PAGE_SIZE, offset: (filters.page - 1) * LEDGER_PAGE_SIZE } : {}),
   }
 }
 
-/** A partner statement cannot be asked for before a partner is chosen. */
+/** A partner statement cannot be asked for before a partner is chosen, nor a budget comparison before a budget. */
 export function reportReady(slug: ReportSlug, filters: ReportFilters): boolean {
-  return !REPORTS[slug].filters.partner || filters.partnerId !== null
+  const set = REPORTS[slug].filters
+  return (!set.partner || filters.partnerId !== null) && (!set.budget || filters.budgetId !== null)
 }
 
 /** The filters the user changed from their defaults, among those the report takes. */
@@ -77,6 +87,8 @@ export function reportActiveFilterCount(slug: ReportSlug, filters: ReportFilters
     set.kind && filters.kind !== base.kind,
     set.type && filters.type !== base.type,
     set.partner && filters.partnerId !== null,
+    set.plan && filters.planId !== null,
+    set.budget && filters.budgetId !== null,
   ]
   return changed.filter(Boolean).length
 }

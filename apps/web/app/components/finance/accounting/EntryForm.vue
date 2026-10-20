@@ -4,7 +4,8 @@ import { useCreateJournalEntry, useFinanceGeneralJournals } from '@/composables/
 import Money from '../invoices/Money.vue'
 import PartnerPicker from '../invoices/PartnerPicker.vue'
 import AccountPicker from '../AccountPicker.vue'
-import { entryErrorMessage } from './entryErrors'
+import { financeErrorMessage } from '../financeErrors'
+import { entryErrorKey } from './entryErrors'
 import {
   buildEntryCreate,
   emptyEntryDraft,
@@ -54,7 +55,7 @@ async function submit() {
     await nextTick()
     emit('saved', record.id)
   } catch (cause) {
-    error.value = entryErrorMessage(cause, t)
+    error.value = financeErrorMessage(cause, entryErrorKey, t)
   }
 }
 </script>

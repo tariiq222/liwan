@@ -16,14 +16,14 @@ describe('the finance pages stay on their templates', () => {
     ['components/finance/PartnerProperties.vue', ['<SharedPropertiesPanel', '<SharedPropertyRow']],
     ['components/finance/PartnerForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges']],
     ['components/finance/SetupChecklist.vue', ['<SharedChecklist']],
-    ['pages/settings/apps/finance.vue', ['<SharedSettingsPage', '<SharedPageHeader', '<SharedRecordSection', '<SharedPropertiesPanel', '<SharedInlineConfirm', '<SetupChecklist']],
+    ['pages/settings/apps/finance/index.vue', ['<SharedSettingsPage', '<SharedPageHeader', '<SharedRecordSection', '<SharedPropertiesPanel', '<SharedInlineConfirm', '<SetupChecklist']],
   ])('%s uses its template', (file, needles) => {
     const source = read(file)
     for (const needle of needles) expect(source, needle).toContain(needle)
   })
 
   it('draws no hand-made table or skeleton and no physical-direction class in the finance files', () => {
-    for (const file of ['pages/finance/index.vue', 'pages/finance/partners/index.vue', 'components/finance/PartnerTable.vue', 'components/finance/PartnerForm.vue', 'components/finance/DraftDocumentList.vue', 'pages/settings/apps/finance.vue']) {
+    for (const file of ['pages/finance/index.vue', 'pages/finance/partners/index.vue', 'components/finance/PartnerTable.vue', 'components/finance/PartnerForm.vue', 'components/finance/DraftDocumentList.vue', 'pages/settings/apps/finance/index.vue']) {
       const source = read(file)
       expect(source, file).not.toMatch(/<UTable\b/)
       expect(source, file).not.toMatch(/<USkeleton\b/)
@@ -44,6 +44,6 @@ describe('the finance pages stay on their templates', () => {
     expect(read('pages/finance/partners/index.vue')).toContain("can('finance.partners.manage')")
     expect(read('pages/finance/partners/[partnerId].vue')).toContain("can('finance.partners.manage')")
     expect(read('pages/finance/partners/new.vue')).toContain("can('finance.partners.manage')")
-    expect(read('pages/settings/apps/finance.vue')).toContain("can('finance.setup.manage')")
+    expect(read('pages/settings/apps/finance/index.vue')).toContain("can('finance.setup.manage')")
   })
 })

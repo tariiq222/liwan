@@ -268,3 +268,46 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/finance/reports/WithholdingTable.vue` | ضريبة الاستقطاع لكل ضريبة ومجاميعها | — | `SharedDataTable` |
 | `apps/web/app/components/finance/reports/ReportTotals.vue` | تذييل مجاميع التقرير | — | — |
 | `apps/web/app/components/finance/reports/ReportMobileRow.vue` | صف التقرير في الجوال | — | — |
+
+
+## مكونات المالية — الميزانيات والأصول ومراكز التكلفة والحوكمة
+
+الميزانيات والأصول الثابتة صفحات قائمة وسجل وإنشاء في تطبيق المالية؛ والخطط ومراكز التكلفة وإقفال السنة والفوترة الإلكترونية وسجل التدقيق صفحات إعدادات تحت «الإعدادات › التطبيقات › المالية» (`/settings/apps/finance/{analytic,closing,zatca,audit}`)، وكل صفحة إعدادات تملك مسارها. المؤشرات من إجماليات الخادم فقط، والسجلات والإعدادات بلا شريط مؤشرات.
+
+| المكوّن | الوظيفة | القصة | مكونات الأساس |
+| --- | --- | --- | --- |
+| `apps/web/app/components/finance/budgets/BudgetList.vue` | بطاقة قائمة الميزانيات: بحث وتصفية بالحالة وجدول وتذييل | — | `SharedForbiddenState`, `SharedListCard`, `SharedFilterBar`, `UInput`, `SharedFilterField`, `USelect`, `SharedPageState`, `SharedEmptyState`, `SharedDataTable`, `SharedRecordNumber`, `SharedStatusBadge`, `SharedListFooter` |
+| `apps/web/app/components/finance/budgets/BudgetKpiStrip.vue` | أعداد الميزانيات حسب الحالة من إجماليات الخادم | — | `SharedKpiStrip` |
+| `apps/web/app/components/finance/budgets/BudgetForm.vue` | إنشاء ميزانية: الاسم والوصف والفترة | — | `SharedUnsavedChanges`, `UForm`, `UAlert`, `SharedFormSection`, `UFormField`, `UInput`, `UTextarea`, `SharedDateField`, `SharedFormActions`, `UButton` |
+| `apps/web/app/components/finance/budgets/BudgetRecordActions.vue` | إجراءات رأس الميزانية: الاعتماد وقائمة الإعادة والإلغاء | — | `UButton`, `SharedRowActions` |
+| `apps/web/app/components/finance/budgets/BudgetRecordBody.vue` | عمود سجل الميزانية: الرسائل والتأكيد المضمّن ثم البنود والمقارنة | — | `UAlert`, `SharedInlineConfirm` |
+| `apps/web/app/components/finance/budgets/BudgetRecordAside.vue` | خصائص الميزانية | — | `SharedPropertiesPanel`, `SharedPropertyRow` |
+| `apps/web/app/components/finance/budgets/BudgetLinesPanel.vue` | بنود الميزانية: الحساب والطبيعة والفترة والمبلغ | — | `SharedRecordSection`, `SharedDataTable`, `SharedStatusBadge` |
+| `apps/web/app/components/finance/budgets/BudgetLineForm.vue` | إضافة بند داخل القسم لميزانية مسودة | — | `UForm`, `UAlert`, `UFormField`, `UInput`, `SharedDateField`, `UButton` |
+| `apps/web/app/components/finance/budgets/BudgetVsActualPanel.vue` | الميزانية مقابل الفعلي: البنود والانحراف ومجاميع المدين والدائن والصافي | — | `SharedRecordSection`, `SharedPageState`, `SharedDataTable`, `SharedStatusBadge`, `SharedMetricTile` |
+| `apps/web/app/components/finance/assets/AssetList.vue` | بطاقة قائمة الأصول: بحث وحالة وفئة في الرابط، وقسم احتساب الإهلاك | — | `SharedForbiddenState`, `SharedListCard`, `SharedFilterBar`, `UInput`, `SharedFilterField`, `USelect`, `SharedPageState`, `SharedEmptyState`, `SharedDataTable`, `SharedRecordNumber`, `SharedStatusBadge`, `SharedListFooter` |
+| `apps/web/app/components/finance/assets/AssetKpiStrip.vue` | أعداد الأصول حسب الحالة من إجماليات الخادم | — | `SharedKpiStrip` |
+| `apps/web/app/components/finance/assets/AssetComputeButton.vue` | زر «احتساب الإهلاك» في رأس القائمة | — | `UButton` |
+| `apps/web/app/components/finance/assets/AssetComputeSection.vue` | احتساب الإهلاك حتى تاريخ بتأكيد مضمّن، ثم القيود المرحّلة | — | `SharedInlineConfirm`, `UFormField`, `SharedDateField`, `UAlert` |
+| `apps/web/app/components/finance/assets/AssetForm.vue` | إنشاء أصل: الفئة والاسم والرمز والتاريخ والمورّد والقيم والملاحظة | — | `SharedUnsavedChanges`, `UForm`, `UAlert`, `SharedFormSection`, `UFormField`, `USelect`, `UInput`, `SharedDateField`, `UTextarea`, `SharedFormActions`, `UButton` |
+| `apps/web/app/components/finance/assets/AssetRecordActions.vue` | إجراء «تشغيل الأصل» في رأس السجل | — | `UButton` |
+| `apps/web/app/components/finance/assets/AssetRecordBody.vue` | عمود سجل الأصل: الرسائل وتأكيد التشغيل والملاحظة وجدول الإهلاك | — | `UAlert`, `SharedInlineConfirm`, `SharedRecordSection` |
+| `apps/web/app/components/finance/assets/AssetRecordAside.vue` | خصائص الأصل وطريقة الإهلاك والقيم | — | `SharedPropertiesPanel`, `SharedPropertyRow` |
+| `apps/web/app/components/finance/assets/AssetBoardPanel.vue` | جدول الإهلاك: التاريخ والنوع والمبلغ والمتبقي والترحيل ورابط القيد | — | `SharedRecordSection`, `SharedDataTable`, `SharedStatusBadge` |
+| `apps/web/app/components/finance/analytic/AnalyticPlansSection.vue` | قسم الخطط التحليلية: القائمة والإنشاء وتغيير الاسم داخل القسم | — | `SharedRecordSection`, `UButton`, `SharedPageState`, `SharedEmptyState`, `SharedRowActions` |
+| `apps/web/app/components/finance/analytic/AnalyticPlanEditor.vue` | نموذج مضمّن لإنشاء خطة أو تغيير اسمها | — | `UForm`, `UAlert`, `UFormField`, `UInput`, `USelect`, `UButton` |
+| `apps/web/app/components/finance/analytic/AnalyticAccountsSection.vue` | قسم مراكز التكلفة: بحث وفلاتر في الرابط وجدول وترقيم وتحرير وأرشفة | — | `SharedRecordSection`, `UButton`, `SharedFilterBar`, `UInput`, `SharedFilterField`, `USelect`, `SharedPageState`, `SharedEmptyState`, `SharedDataTable`, `SharedStatusBadge`, `SharedRowActions`, `SharedListFooter` |
+| `apps/web/app/components/finance/analytic/AnalyticAccountEditor.vue` | نموذج مضمّن لإنشاء مركز تكلفة أو تعديل اسمه ورمزه | — | `UForm`, `UAlert`, `UFormField`, `UInput`, `USelect`, `UButton` |
+| `apps/web/app/components/finance/analytic/AnalyticArchiveConfirm.vue` | تأكيد مضمّن لأرشفة مركز تكلفة أو إعادته | — | `SharedInlineConfirm` |
+| `apps/web/app/components/finance/reports/AnalyticTable.vue` | تقرير مراكز التكلفة (إيراد ومصروف وصافي) وبنود المركز المفتوح | — | `UAlert`, `SharedDataTable`, `UIcon` |
+| `apps/web/app/components/finance/reports/MisLinesTable.vue` | قائمة مالية من بنود (رمز وبيان ومبلغ) بتمييز المجاميع الفرعية: قائمة الدخل والميزانية العمومية ووعاء الزكاة | — | `SharedDataTable` |
+| `apps/web/app/components/finance/reports/ZakatBaseTable.vue` | وعاء الزكاة: تنبيه المراجعة المهنية ظاهر دائمًا ثم البنود والوعاء والزكاة المستحقة | — | `UAlert` |
+| `apps/web/app/components/finance/budgets/BudgetVarianceTable.vue` | جدول الميزانية مقابل الفعلي، مشترك بين سجل الميزانية والتقرير | — | `SharedDataTable`, `SharedStatusBadge` |
+| `apps/web/app/components/finance/governance/ClosingView.vue` | جسم صفحة إقفال السنة: السنوات ومعاينة السنة المختارة | — | `SharedPageState` |
+| `apps/web/app/components/finance/governance/ClosingYears.vue` | جدول السنوات المالية بحالتها ونتيجتها وقيد الإقفال | — | `SharedRecordSection`, `SharedDataTable`, `SharedStatusBadge`, `UButton` |
+| `apps/web/app/components/finance/governance/ClosingPreview.vue` | معاينة قيد الإقفال والموانع وإجراء الإقفال بتأكيد مضمّن | — | `SharedPageState`, `SharedRecordSection`, `SharedPropertiesPanel`, `SharedPropertyRow`, `UAlert`, `SharedEmptyState`, `SharedDataTable`, `UButton`, `SharedInlineConfirm` |
+| `apps/web/app/components/finance/governance/ZatcaView.vue` | جسم صفحة الفوترة الإلكترونية: المنتظر ثم اليوميات | — | `SharedPageState` |
+| `apps/web/app/components/finance/governance/ZatcaBacklog.vue` | أعداد الفواتير المنتظرة لدى زاتكا من الخادم | — | `SharedRecordSection`, `SharedMetricTile` |
+| `apps/web/app/components/finance/governance/ZatcaJournals.vue` | يوميات المبيعات وحالة ربطها بزاتكا وبدء الربط | — | `SharedRecordSection`, `SharedEmptyState`, `SharedStatusBadge`, `UButton` |
+| `apps/web/app/components/finance/governance/ZatcaOnboardForm.vue` | رمز التحقق لربط يومية بزاتكا بتأكيد مضمّن | — | `UFormField`, `UInput`, `UAlert`, `SharedInlineConfirm`, `UButton` |
+| `apps/web/app/components/finance/governance/AuditList.vue` | قائمة سجل تدقيق المالية بالفلاتر في الرابط والترقيم | — | `SharedForbiddenState`, `SharedListCard`, `SharedFilterBar`, `SharedFilterField`, `USelect`, `SharedDateField`, `SharedPageState`, `SharedEmptyState`, `SharedDataTable`, `SharedStatusBadge`, `SharedListFooter` |

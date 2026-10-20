@@ -10,10 +10,12 @@ const CREATE: Partial<Record<FinanceSection, AppContextLink>> = {
   payments: { id: 'new-payment', labelKey: 'finance.nav.newPayment', icon: 'i-lucide-plus', to: '/finance/payments/new', capability: 'finance.payments.manage', pinned: true },
   partners: { id: 'new-partner', labelKey: 'finance.nav.newPartner', icon: 'i-lucide-plus', to: '/finance/partners/new', capability: 'finance.partners.manage', pinned: true },
   accounting: { id: 'new-entry', labelKey: 'finance.nav.newEntry', icon: 'i-lucide-plus', to: '/finance/accounting/entries/new', capability: 'finance.entries.manage', pinned: true },
+  budgets: { id: 'new-budget', labelKey: 'finance.nav.newBudget', icon: 'i-lucide-plus', to: '/finance/budgets/new', capability: 'finance.budgets.manage', pinned: true },
+  assets: { id: 'new-asset', labelKey: 'finance.nav.newAsset', icon: 'i-lucide-plus', to: '/finance/assets/new', capability: 'finance.assets.manage', pinned: true },
   bank: { id: 'new-statement', labelKey: 'finance.nav.newStatement', icon: 'i-lucide-plus', to: '/finance/bank/statements/new', capability: 'finance.bank.manage', pinned: true },
 }
 
-// The eight top links stay on screen in every section; inside sales or purchases the pages of that section follow under their own heading.
+// The ten top links stay on screen in every section; inside sales or purchases the pages of that section follow under their own heading.
 const TOP: AppContextLink[] = [
   { id: 'finance-overview', labelKey: 'finance.nav.overview', icon: 'i-lucide-layout-dashboard', to: '/finance', capability: 'finance.invoices.read', exact: true },
   { id: 'finance-sales', labelKey: 'finance.nav.sales', icon: 'i-lucide-trending-up', to: '/finance/sales/invoices', capability: 'finance.invoices.read', within: '/finance/sales' },
@@ -22,6 +24,8 @@ const TOP: AppContextLink[] = [
   { id: 'finance-partners', labelKey: 'finance.nav.partners', icon: 'i-lucide-contact', to: '/finance/partners', capability: 'finance.partners.read', within: '/finance/partners' },
   { id: 'finance-accounting', labelKey: 'finance.nav.accounting', icon: 'i-lucide-book-open', to: '/finance/accounting/entries', capability: 'finance.entries.read', within: '/finance/accounting' },
   { id: 'finance-bank', labelKey: 'finance.nav.bank', icon: 'i-lucide-building-2', to: '/finance/bank/statements', capability: 'finance.bank.read', within: '/finance/bank' },
+  { id: 'finance-budgets', labelKey: 'finance.nav.budgets', icon: 'i-lucide-target', to: '/finance/budgets', capability: 'finance.budgets.read', within: '/finance/budgets' },
+  { id: 'finance-assets', labelKey: 'finance.nav.assets', icon: 'i-lucide-package', to: '/finance/assets', capability: 'finance.assets.read', within: '/finance/assets' },
   { id: 'finance-reports', labelKey: 'finance.nav.reports', icon: 'i-lucide-file-chart-column', to: '/finance/reports/trial-balance', capability: 'finance.statements.read', within: '/finance/reports' },
 ]
 
@@ -44,12 +48,17 @@ const SUB_LISTS: Partial<Record<FinanceSection, AppContextLink[]>> = {
     { id: 'accounting-accounts', labelKey: 'finance.nav.accounts', icon: 'i-lucide-list-tree', to: '/finance/accounting/accounts', capability: 'finance.accounts.read', section: 'finance.nav.accounting' },
   ],
   reports: [
+    report('profit-loss', 'profit-loss', 'finance.nav.profitLoss', 'i-lucide-trending-up-down', 'finance.statements.read'),
+    report('balance-sheet', 'balance-sheet', 'finance.nav.balanceSheet', 'i-lucide-columns-2', 'finance.statements.read'),
     report('trial-balance', 'trial-balance', 'finance.nav.trialBalance', 'i-lucide-scale', 'finance.statements.read'),
     report('general-ledger', 'general-ledger', 'finance.nav.generalLedger', 'i-lucide-book-text', 'finance.statements.read'),
     report('aged', 'aged-partner-balance', 'finance.nav.agedPartnerBalance', 'i-lucide-hourglass', 'finance.statements.read'),
     report('partner-statement', 'partner-statement', 'finance.nav.partnerStatement', 'i-lucide-file-user', 'finance.statements.read'),
     report('vat', 'vat', 'finance.nav.vat', 'i-lucide-percent', 'finance.reports.read'),
     report('withholding', 'withholding', 'finance.nav.withholding', 'i-lucide-hand-coins', 'finance.reports.read'),
+    report('analytic', 'analytic', 'finance.nav.analytic', 'i-lucide-chart-pie', 'finance.analytic.read'),
+    report('budget-vs-actual', 'budget-vs-actual', 'finance.nav.budgetVsActual', 'i-lucide-target', 'finance.budgets.read'),
+    report('zakat-base', 'zakat-base', 'finance.nav.zakatBase', 'i-lucide-hand-heart', 'finance.zakat.read'),
   ],
 }
 
@@ -66,10 +75,16 @@ const manifest: AppManifest = {
     { to: '/finance/partners', labelKey: 'finance.nav.partners', icon: 'i-lucide-contact', shortcut: '', capability: 'finance.partners.read' },
     { to: '/finance/accounting/entries', labelKey: 'finance.nav.accounting', icon: 'i-lucide-book-open', shortcut: '', capability: 'finance.entries.read' },
     { to: '/finance/bank/statements', labelKey: 'finance.nav.bank', icon: 'i-lucide-building-2', shortcut: '', capability: 'finance.bank.read' },
+    { to: '/finance/budgets', labelKey: 'finance.nav.budgets', icon: 'i-lucide-target', shortcut: '', capability: 'finance.budgets.read' },
+    { to: '/finance/assets', labelKey: 'finance.nav.assets', icon: 'i-lucide-package', shortcut: '', capability: 'finance.assets.read' },
     { to: '/finance/reports/trial-balance', labelKey: 'finance.nav.reports', icon: 'i-lucide-file-chart-column', shortcut: '', capability: 'finance.statements.read' },
   ],
   settings: [
     { id: 'finance-setup', labelKey: 'finance.setup.title', icon: 'i-lucide-landmark', to: '/settings/apps/finance', capability: 'finance.setup.read' },
+    { id: 'finance-analytic', labelKey: 'finance.nav.analyticSettings', icon: 'i-lucide-chart-pie', to: '/settings/apps/finance/analytic', capability: 'finance.analytic.read' },
+    { id: 'finance-closing', labelKey: 'finance.nav.closing', icon: 'i-lucide-calendar-check', to: '/settings/apps/finance/closing', capability: 'finance.closing.read' },
+    { id: 'finance-zatca', labelKey: 'finance.nav.zatca', icon: 'i-lucide-qr-code', to: '/settings/apps/finance/zatca', capability: 'finance.zatca.read' },
+    { id: 'finance-audit', labelKey: 'finance.nav.audit', icon: 'i-lucide-history', to: '/settings/apps/finance/audit', capability: 'finance.audit.read' },
   ],
   contextLinks: (path) => {
     const section = financeSectionOf(path)
@@ -82,6 +97,8 @@ const manifest: AppManifest = {
     { path: '/finance/partners', capability: 'finance.partners.read' },
     { path: '/finance/accounting/entries', capability: 'finance.entries.read' },
     { path: '/finance/bank/statements', capability: 'finance.bank.read' },
+    { path: '/finance/budgets', capability: 'finance.budgets.read' },
+    { path: '/finance/assets', capability: 'finance.assets.read' },
     { path: '/finance/reports/trial-balance', capability: 'finance.statements.read' },
   ],
   routeCapabilities: [
@@ -98,8 +115,15 @@ const manifest: AppManifest = {
     { pattern: /^\/finance\/bank\/statements\/new$/, capability: 'finance.bank.manage' },
     { pattern: /^\/finance\/bank\/statements\/[^/]+\/lines\/[^/]+$/, capability: 'finance.bank.manage' },
     { pattern: /^\/finance\/bank\/statements(?:\/|$)/, capability: 'finance.bank.read' },
+    { pattern: /^\/finance\/budgets\/new$/, capability: 'finance.budgets.manage' },
+    { pattern: /^\/finance\/budgets(?:\/|$)/, capability: 'finance.budgets.read' },
+    { pattern: /^\/finance\/assets\/new$/, capability: 'finance.assets.manage' },
+    { pattern: /^\/finance\/assets(?:\/|$)/, capability: 'finance.assets.read' },
+    { pattern: /^\/finance\/reports\/analytic$/, capability: 'finance.analytic.read' },
+    { pattern: /^\/finance\/reports\/budget-vs-actual$/, capability: 'finance.budgets.read' },
+    { pattern: /^\/finance\/reports\/zakat-base$/, capability: 'finance.zakat.read' },
     { pattern: /^\/finance\/reports\/(vat|withholding)$/, capability: 'finance.reports.read' },
-    { pattern: /^\/finance\/reports\/(trial-balance|general-ledger|aged-partner-balance|partner-statement)$/, capability: 'finance.statements.read' },
+    { pattern: /^\/finance\/reports\/(profit-loss|balance-sheet|trial-balance|general-ledger|aged-partner-balance|partner-statement)$/, capability: 'finance.statements.read' },
     { pattern: /^\/finance$/, capability: 'finance.invoices.read' },
   ],
   search: [partnersSearch, invoicesSearch],
@@ -108,6 +132,8 @@ const manifest: AppManifest = {
     { id: 'finance.new-bill', labelKey: 'finance.nav.newBill', icon: 'i-lucide-shopping-cart', to: '/finance/purchases/bills/new', capability: 'finance.invoices.manage' },
     { id: 'finance.new-partner', labelKey: 'finance.nav.newPartner', icon: 'i-lucide-contact', to: '/finance/partners/new', capability: 'finance.partners.manage' },
     { id: 'finance.new-entry', labelKey: 'finance.nav.newEntry', icon: 'i-lucide-notebook-pen', to: '/finance/accounting/entries/new', capability: 'finance.entries.manage' },
+    { id: 'finance.new-budget', labelKey: 'finance.nav.newBudget', icon: 'i-lucide-target', to: '/finance/budgets/new', capability: 'finance.budgets.manage' },
+    { id: 'finance.new-asset', labelKey: 'finance.nav.newAsset', icon: 'i-lucide-package', to: '/finance/assets/new', capability: 'finance.assets.manage' },
     { id: 'finance.new-statement', labelKey: 'finance.nav.newStatement', icon: 'i-lucide-building-2', to: '/finance/bank/statements/new', capability: 'finance.bank.manage' },
   ],
   isNavActive: financeNavActive,

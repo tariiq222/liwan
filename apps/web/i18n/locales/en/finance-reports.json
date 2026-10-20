@@ -24,6 +24,26 @@
       "withholding": {
         "title": "Withholding tax",
         "description": "Tax withheld from vendor payments in the period."
+      },
+      "analytic": {
+        "title": "Cost center report",
+        "description": "Each cost center's income and expense in the period; open one to see its items."
+      },
+      "profitLoss": {
+        "title": "Profit and loss",
+        "description": "Revenue, costs, expenses and net profit for the period."
+      },
+      "balanceSheet": {
+        "title": "Balance sheet",
+        "description": "Assets, liabilities and equity as of a day."
+      },
+      "zakatBase": {
+        "title": "Zakat base",
+        "description": "The simplified Zakat base and the Zakat due as of a day."
+      },
+      "budgetVsActual": {
+        "title": "Budget vs actual",
+        "description": "A budget's lines against the posted entries up to a day."
       }
     },
     "kpi": {
@@ -40,7 +60,23 @@
       "purchaseTax": "Purchase tax",
       "netPayable": "Net payable",
       "withholdingBase": "Base",
-      "withheld": "Withheld"
+      "withheld": "Withheld",
+      "income": "Income",
+      "expense": "Expense",
+      "net": "Net",
+      "revenue": "Revenue",
+      "grossProfit": "Gross profit",
+      "netProfit": "Net profit",
+      "totalAssets": "Total assets",
+      "totalLiabilities": "Total liabilities",
+      "equity": "Equity",
+      "zakatBase": "Zakat base",
+      "zakatRate": "Zakat rate",
+      "zakatDue": "Zakat due",
+      "budgetDebit": "Debit side",
+      "budgetCredit": "Credit side",
+      "budgetNet": "Net",
+      "budgetOf": "Budget: {amount}"
     },
     "filters": {
       "partner": "Partner",
@@ -62,7 +98,11 @@
       "type": {
         "activity": "Activity",
         "outstanding": "Outstanding"
-      }
+      },
+      "plan": "Plan",
+      "allPlans": "All plans",
+      "budget": "Budget",
+      "budgetPlaceholder": "Pick a budget"
     },
     "columns": {
       "code": "Code",
@@ -88,7 +128,14 @@
       "rate": "Rate",
       "base": "Base",
       "taxAmount": "Tax amount",
-      "withheld": "Withheld"
+      "withheld": "Withheld",
+      "costCenterOrDate": "Cost center / date",
+      "planOrAccount": "Plan / account",
+      "income": "Income",
+      "expense": "Expense",
+      "net": "Net",
+      "item": "Item",
+      "amount": "Amount"
     },
     "buckets": {
       "current": "Current",
@@ -120,6 +167,63 @@
     "balanceForward": "Balance forward",
     "empty": "No data in this period.",
     "forbidden": "You do not have permission to view this report.",
-    "linesFooter": "Showing {shown} of {total} line | Showing {shown} of {total} lines"
+    "linesFooter": "Showing {shown} of {total} line | Showing {shown} of {total} lines",
+    "linesFailed": "The items of the cost center could not be loaded.",
+    "pickBudget": {
+      "title": "Pick a budget",
+      "description": "The comparison appears once a budget is chosen."
+    },
+    "zakat": {
+      "disclaimerLead": "This calculation is simplified; have a Saudi CPA review it before relying on it.",
+      "base": "Zakat base",
+      "due": "Zakat due",
+      "rate": "Rate"
+    },
+    "mis": {
+      "profitLoss": {
+        "revenue": "Revenue",
+        "cost_of_revenue": "Cost of revenue",
+        "gross_profit": "Gross profit",
+        "operating_expenses": "Operating expenses",
+        "depreciation": "Depreciation",
+        "operating_profit": "Operating profit",
+        "other_income": "Other income",
+        "other_expenses": "Other expenses",
+        "net_profit": "Net profit"
+      },
+      "balanceSheet": {
+        "cash": "Bank and cash",
+        "receivables": "Receivables",
+        "current_assets": "Current assets",
+        "prepayments": "Prepayments",
+        "fixed_assets": "Fixed assets, net of depreciation",
+        "non_current_assets": "Non-current assets",
+        "total_assets": "Total assets",
+        "payables": "Payables",
+        "credit_cards": "Credit cards",
+        "current_liabilities": "Current liabilities",
+        "non_current_liabilities": "Non-current liabilities",
+        "total_liabilities": "Total liabilities",
+        "equity": "Equity",
+        "retained_earnings": "Retained earnings of previous years",
+        "current_year_earnings": "Current year earnings",
+        "total_equity": "Total equity",
+        "total_liabilities_and_equity": "Total liabilities and equity",
+        "difference": "Difference (assets less liabilities and equity)"
+      },
+      "zakatBase": {
+        "equity": "Equity (capital, reserves and other equity accounts)",
+        "retained_earnings": "Retained earnings of previous years",
+        "long_term_liabilities": "Long-term liabilities",
+        "provisions": "Provisions",
+        "net_profit": "Net profit of the fiscal year to date",
+        "profit_addbacks": "Zakat and income tax expense added back",
+        "adjusted_net_profit": "Adjusted net profit",
+        "net_fixed_assets": "Net fixed assets",
+        "long_term_investments": "Long-term investments and non-current assets",
+        "total_additions": "Total additions",
+        "total_deductions": "Total deductions"
+      }
+    }
   }
 }

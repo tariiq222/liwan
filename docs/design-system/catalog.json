@@ -4037,12 +4037,12 @@
         {
           "id": "Default",
           "name": "افتراضي",
-          "context": "packages/ui/app/components/shared/data/MetricTile.vue:68"
+          "context": "packages/ui/app/components/shared/data/MetricTile.vue:72"
         },
         {
           "id": "Tones",
           "name": "النبرات والحجمان",
-          "context": "packages/ui/app/components/shared/data/MetricTile.vue:68"
+          "context": "packages/ui/app/components/shared/data/MetricTile.vue:72"
         }
       ]
     },

@@ -24,12 +24,19 @@ describe('SharedMetricTile', () => {
     expect(html).not.toContain('order-last')
   })
 
-  it('compact puts a round 40px chip at the end and tightens the padding', async () => {
+  it('compact puts a round chip at the end from sm, tightens the padding and shrinks the figure on a phone', async () => {
     const html = await render({ density: 'compact', tone: 'success' })
     expect(html).toContain('data-density="compact"')
-    expect(html).toContain('order-last size-11.5 rounded-full')
+    expect(html).toContain('order-last hidden size-11.5 rounded-full sm:flex')
+    expect(html).toContain('text-xl/7 sm:text-2xl/8.5')
     expect(html).toContain('bg-status-success-soft text-status-success-foreground')
     expect(html).toContain('py-3.5')
+  })
+
+  it('lets a currency code wrap under its amount', async () => {
+    const html = await render({ density: 'compact', value: '1,604,300.00\u00A0SAR' })
+    expect(html).toContain('1,604,300.00 SAR')
+    expect(html).not.toContain('\u00A0SAR')
   })
 
   it('draws a clamped progress bar in the tone colour, and none when undefined', async () => {

@@ -4,6 +4,7 @@ import type { FinanceGeneralLedger } from '@webvue/contracts'
 import Money from '../invoices/Money.vue'
 import { amountColumn } from './reportColumns'
 import { ledgerRows, type LedgerRow } from './reportRows'
+import { accountToggleTo } from './reportLinks'
 import ReportMobileRow from './ReportMobileRow.vue'
 
 // The account totals; the selected account (`account_id` in the URL) opens its page of lines right under it.
@@ -25,10 +26,7 @@ const columns = computed<TableColumn<LedgerRow>[]>(() => [
   amountColumn('balance', t('financeReports.columns.runningBalance')),
 ])
 
-function accountTo(id: number) {
-  const { account_id: _open, page: _page, ...rest } = route.query
-  return { path: route.path, query: id === props.selectedId ? rest : { ...rest, account_id: String(id) } }
-}
+const accountTo = (id: number) => accountToggleTo(route, id, props.selectedId)
 const accountFigures = (row: Extract<LedgerRow, { kind: 'account' }>) => [
   { label: t('financeReports.columns.initialBalance'), amount: row.account.initial_balance },
   { label: t('financeReports.columns.debit'), amount: row.account.debit },

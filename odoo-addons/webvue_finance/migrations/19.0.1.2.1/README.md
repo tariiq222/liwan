@@ -1,0 +1,1 @@
+No data migration: the two new noupdate built-in role records (finance_accountant, finance_auditor) are created on upgrade, and their grants are set by _webvue_repair_builtin_role_grants from the same Python constants.

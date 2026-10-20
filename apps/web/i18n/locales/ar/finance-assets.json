@@ -1,0 +1,132 @@
+{
+  "financeAssets": {
+    "forbidden": "ليست لديك صلاحية عرض هذه الصفحة.",
+    "states": {
+      "draft": "مسودة",
+      "open": "قيد التشغيل",
+      "close": "مغلق",
+      "removed": "مستبعد"
+    },
+    "kpi": {
+      "label": "أعداد الأصول",
+      "total": "الإجمالي",
+      "draft": "مسودات",
+      "open": "قيد التشغيل",
+      "close": "مغلقة"
+    },
+    "assets": {
+      "title": "الأصول الثابتة",
+      "description": "أصول الشركة وجداول إهلاكها.",
+      "new": "أصل جديد",
+      "record": "أصل ثابت",
+      "empty": "لا توجد أصول ثابتة بعد.",
+      "countTag": "لا أصول | أصل واحد | أصلان | {count} أصول | {count} أصلًا | {count} أصل",
+      "footer": "لا أصول | عرض {shown} من أصل واحد | عرض {shown} من أصلين | عرض {shown} من {total} أصول | عرض {shown} من {total} أصلًا | عرض {shown} من {total} أصل"
+    },
+    "filters": {
+      "search": "بحث بالرمز أو الاسم",
+      "state": "الحالة",
+      "allStates": "كل الحالات",
+      "profile": "فئة الأصل",
+      "allProfiles": "كل الفئات"
+    },
+    "columns": {
+      "code": "الرمز",
+      "name": "الأصل",
+      "profile": "الفئة",
+      "dateStart": "تاريخ البدء",
+      "purchaseValue": "قيمة الشراء",
+      "valueResidual": "القيمة المتبقية",
+      "state": "الحالة"
+    },
+    "methods": {
+      "linear": "قسط ثابت",
+      "linear-limit": "قسط ثابت حتى حد معين",
+      "degressive": "قسط متناقص",
+      "degr-linear": "متناقص ثم ثابت",
+      "degr-limit": "متناقص حتى حد معين"
+    },
+    "periods": {
+      "month": "شهريًا",
+      "quarter": "كل ربع سنة",
+      "year": "سنويًا"
+    },
+    "duration": {
+      "year": "لا سنوات | سنة واحدة | سنتان | {count} سنوات | {count} سنة | {count} سنة",
+      "number": "لا إهلاكات | إهلاك واحد | إهلاكان | {count} إهلاكات | {count} إهلاكًا | {count} إهلاك"
+    },
+    "compute": {
+      "action": "احتساب الإهلاك",
+      "title": "احتساب الإهلاك المستحق؟",
+      "hint": "تُرحَّل قيود الإهلاك المستحقة لكل الأصول قيد التشغيل حتى التاريخ المختار. إن تعذّر ترحيل أي سطر لا يُرحَّل شيء.",
+      "confirm": "احتساب وترحيل",
+      "date": "حتى تاريخ",
+      "dateRequired": "اختر التاريخ",
+      "done": "لا قيود | تم ترحيل قيد واحد حتى {date} | تم ترحيل قيدين حتى {date} | تم ترحيل {count} قيود حتى {date} | تم ترحيل {count} قيدًا حتى {date} | تم ترحيل {count} قيد حتى {date}",
+      "nothingDue": "لا توجد قيود مستحقة حتى هذا التاريخ."
+    },
+    "form": {
+      "details": "بيانات الأصل",
+      "profile": "فئة الأصل",
+      "profilePlaceholder": "اختر الفئة",
+      "profileRequired": "اختر فئة الأصل",
+      "name": "اسم الأصل",
+      "nameRequired": "أدخل اسم الأصل",
+      "code": "الرمز",
+      "codeTooLong": "الرمز أطول من 32 حرفًا",
+      "dateStart": "تاريخ البدء",
+      "dateRequired": "اختر التاريخ",
+      "partner": "المورّد",
+      "partnerPlaceholder": "بدون مورّد",
+      "note": "ملاحظة",
+      "values": "القيم",
+      "purchaseValue": "قيمة الشراء",
+      "purchaseInvalid": "أدخل قيمة شراء أكبر من صفر",
+      "salvageValue": "القيمة التخريدية",
+      "salvageInvalid": "أدخل قيمة صفرًا أو أكثر",
+      "requiredHint": "الحقول المعلّمة مطلوبة.",
+      "create": "إنشاء الأصل"
+    },
+    "record": {
+      "note": "ملاحظة",
+      "partner": "المورّد",
+      "method": "طريقة الإهلاك",
+      "duration": "مدة الإهلاك",
+      "period": "دورة الإهلاك",
+      "prorata": "احتساب نسبي لأول فترة",
+      "prorataYes": "نعم",
+      "prorataNo": "لا",
+      "currency": "العملة",
+      "salvageValue": "القيمة التخريدية",
+      "depreciationBase": "أساس الإهلاك",
+      "valueDepreciated": "المهلك حتى الآن"
+    },
+    "board": {
+      "title": "جدول الإهلاك",
+      "date": "التاريخ",
+      "type": "النوع",
+      "amount": "المبلغ",
+      "remaining": "المتبقي",
+      "accumulated": "المتراكم",
+      "posted": "الترحيل",
+      "postedYes": "مرحَّل",
+      "postedNo": "غير مرحَّل",
+      "types": {
+        "create": "اقتناء",
+        "depreciate": "إهلاك",
+        "remove": "استبعاد"
+      }
+    },
+    "actions": {
+      "validate": "تشغيل الأصل"
+    },
+    "confirm": {
+      "validate": "تشغيل «{name}»؟",
+      "validateHint": "يصبح الأصل قيد التشغيل ويُحتسب جدول إهلاكه، ولا يمكن العودة إلى المسودة."
+    },
+    "errors": {
+      "notDraft": "يمكن تشغيل الأصل وهو مسودة فقط.",
+      "periodLocked": "الفترة المحاسبية مقفلة لهذا التاريخ."
+    }
+  }
+}

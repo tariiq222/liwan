@@ -31,11 +31,15 @@ const props = withDefaults(defineProps<{
   to?: string
 }>(), { density: 'default', tone: 'neutral' })
 const { t } = useI18n()
-const display = computed(() => props.value === null || props.value === undefined || props.value === '' ? t('app.notAvailable') : props.value)
+// A currency figure from Intl joins the amount and its code with a no-break space; in a tile the code may wrap under the amount.
+const display = computed(() => props.value === null || props.value === undefined || props.value === ''
+  ? t('app.notAvailable')
+  : typeof props.value === 'string' ? props.value.replace(/\u00A0/g, ' ') : props.value)
 const known = computed(() => display.value !== t('app.notAvailable'))
 const compact = computed(() => props.density === 'compact')
 const chip = computed(() => props.emphasis && props.tone === 'neutral' ? 'bg-primary/10 text-primary' : TONE_CHIP[props.tone])
-const figureSize = computed(() => props.emphasis ? 'text-3xl/10' : compact.value ? 'text-2xl/8.5' : 'text-2xl')
+// On a phone two compact tiles share a row: the figure drops a step and the icon circle steps aside, so a long amount stays whole inside its tile.
+const figureSize = computed(() => props.emphasis ? 'text-3xl/10' : compact.value ? 'text-xl/7 sm:text-2xl/8.5' : 'text-2xl')
 </script>
 
 <template>
@@ -50,7 +54,7 @@ const figureSize = computed(() => props.emphasis ? 'text-3xl/10' : compact.value
     <span
       v-if="props.icon"
       class="flex shrink-0 items-center justify-center"
-      :class="[chip, compact ? 'order-last size-11.5 rounded-full' : 'size-10 rounded-md']"
+      :class="[chip, compact ? 'order-last hidden size-11.5 rounded-full sm:flex' : 'size-10 rounded-full']"
       aria-hidden="true"
     >
       <UIcon :name="props.icon" class="size-5" />

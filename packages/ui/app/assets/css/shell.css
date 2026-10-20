@@ -212,8 +212,14 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   max-height: calc(100svh - var(--shell-top) - var(--shell-inset));
   flex-direction: column;
   gap: var(--shell-inset);
+  /* Each card keeps its content height (owner rule: no scrolling inside a card); only a screen shorter than all the
+     cards scrolls the column, with no visible bar. A sidebar panel (chat) still fills the height. */
+  overflow-y: auto;
+  scrollbar-width: none;
   transition: width var(--shell-duration) var(--shell-ease);
 }
+.webvue-context-column::-webkit-scrollbar { display: none; }
+.webvue-context-column > :is(.webvue-context-sidebar:not([data-panel="true"]), .webvue-quick-views) { flex: none; }
 /* Context sidebar: a white floating card beside the rail. */
 .webvue-context-sidebar {
   display: flex;

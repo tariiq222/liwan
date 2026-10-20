@@ -117,12 +117,114 @@ function withholding(url) {
   return { ...periodOf(url), currency: CURRENCY, taxes, base: sum(taxes, 'base'), withheld: sum(taxes, 'withheld') }
 }
 
+// The MIS reports: every figure is a {code, label, value} line (`label` is the server's English description). Subtotals are
+// computed from their parts so the sums always agree.
+const line = (code, label, value) => ({ code, label, value })
+const targetMoveOf = url => url.searchParams.get('target_move') ?? 'posted'
+const dateToOf = url => url.searchParams.get('date_to') ?? DEFAULT_DAY
+
+function profitLoss(url) {
+  const [revenue, costOfRevenue, operatingExpenses, depreciation, otherIncome, otherExpenses] = [480000, 210000, 120000, 15000, 8000, 3000]
+  const grossProfit = revenue - costOfRevenue
+  const operatingProfit = grossProfit - operatingExpenses - depreciation
+  return {
+    ...periodOf(url),
+    target_move: targetMoveOf(url),
+    currency: CURRENCY,
+    lines: [
+      line('revenue', 'Revenue', revenue),
+      line('cost_of_revenue', 'Cost of revenue', costOfRevenue),
+      line('gross_profit', 'Gross profit', grossProfit),
+      line('operating_expenses', 'Operating expenses', operatingExpenses),
+      line('depreciation', 'Depreciation', depreciation),
+      line('operating_profit', 'Operating profit', operatingProfit),
+      line('other_income', 'Other income', otherIncome),
+      line('other_expenses', 'Other expenses', otherExpenses),
+      line('net_profit', 'Net profit', operatingProfit + otherIncome - otherExpenses),
+    ],
+  }
+}
+
+function balanceSheet(url) {
+  const [cash, receivables, prepayments, fixedAssets, payables, creditCards, nonCurrentLiabilities, equity, retained, currentYear] = [185000, 96000, 24000, 150000, 70000, 12000, 60000, 200000, 80000, 33000]
+  const currentAssets = cash + receivables + prepayments
+  const totalAssets = currentAssets + fixedAssets
+  const currentLiabilities = payables + creditCards
+  const totalLiabilities = currentLiabilities + nonCurrentLiabilities
+  const totalEquity = equity + retained + currentYear
+  return {
+    date_to: dateToOf(url),
+    target_move: targetMoveOf(url),
+    currency: CURRENCY,
+    lines: [
+      line('cash', 'Bank and cash', cash),
+      line('receivables', 'Receivables', receivables),
+      line('current_assets', 'Current assets', currentAssets),
+      line('prepayments', 'Prepayments', prepayments),
+      line('fixed_assets', 'Fixed assets, net of depreciation', fixedAssets),
+      line('non_current_assets', 'Non-current assets', fixedAssets),
+      line('total_assets', 'Total assets', totalAssets),
+      line('payables', 'Payables', payables),
+      line('credit_cards', 'Credit cards', creditCards),
+      line('current_liabilities', 'Current liabilities', currentLiabilities),
+      line('non_current_liabilities', 'Non-current liabilities', nonCurrentLiabilities),
+      line('total_liabilities', 'Total liabilities', totalLiabilities),
+      line('equity', 'Equity', equity),
+      line('retained_earnings', 'Retained earnings of previous years', retained),
+      line('current_year_earnings', 'Current year earnings', currentYear),
+      line('total_equity', 'Total equity', totalEquity),
+      line('total_liabilities_and_equity', 'Total liabilities and equity', totalLiabilities + totalEquity),
+      line('difference', 'Assets less liabilities and equity (zero when balanced)', totalAssets - totalLiabilities - totalEquity),
+    ],
+  }
+}
+
+const ZAKAT_RATE = 0.0257768
+const ZAKAT_DISCLAIMER = 'وعاء الزكاة المعروض مبسّط ويعتمد على أرصدة الدفاتر، ولا يغني عن الإقرار الزكوي؛ يجب أن يراجعه محاسب قانوني سعودي قبل الاعتماد عليه.'
+
+function zakatBase(url) {
+  const [equity, retained, longTermLiabilities, provisions, netProfit, addbacks, netFixedAssets, investments] = [200000, 80000, 60000, 12000, 140000, 5000, 150000, 20000]
+  const adjustedProfit = netProfit + addbacks
+  const additions = equity + retained + longTermLiabilities + provisions + adjustedProfit
+  const deductions = netFixedAssets + investments
+  const base = additions - deductions
+  const due = Math.round(base * ZAKAT_RATE * 100) / 100
+  return {
+    date_to: dateToOf(url),
+    target_move: targetMoveOf(url),
+    currency: CURRENCY,
+    lines: [
+      line('equity', 'Equity (capital, reserves and other equity accounts)', equity),
+      line('retained_earnings', 'Retained earnings of previous years', retained),
+      line('long_term_liabilities', 'Long-term liabilities', longTermLiabilities),
+      line('provisions', 'Provisions (leave days and leave tickets)', provisions),
+      line('net_profit', 'Net profit of the fiscal year to date', netProfit),
+      line('profit_addbacks', 'Zakat and income tax expense added back', addbacks),
+      line('adjusted_net_profit', 'Adjusted net profit', adjustedProfit),
+      line('net_fixed_assets', 'Net fixed assets', netFixedAssets),
+      line('long_term_investments', 'Long-term investments and non-current assets', investments),
+      line('total_additions', 'Total additions', additions),
+      line('total_deductions', 'Total deductions', deductions),
+      line('zakat_base', 'Zakat base', base),
+      line('zakat_rate', 'Zakat rate: 2.5% of the lunar year scaled to the Gregorian year (x 365/354)', ZAKAT_RATE),
+      line('zakat_due', 'Zakat due on the positive base', due),
+    ],
+    base,
+    rate: ZAKAT_RATE,
+    zakat_due: due,
+    disclaimer: ZAKAT_DISCLAIMER,
+  }
+}
+
 const reports = {
   'trial-balance': trialBalance,
   'general-ledger': generalLedger,
   'partner-statement': partnerStatement,
   vat,
   withholding,
+  'profit-loss': profitLoss,
+  'balance-sheet': balanceSheet,
+  'zakat-base': zakatBase,
 }
 
 export function financeReportsPreviewData(path, url) {

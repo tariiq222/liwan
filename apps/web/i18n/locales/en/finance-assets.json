@@ -1,0 +1,132 @@
+{
+  "financeAssets": {
+    "forbidden": "You do not have permission to view this page.",
+    "states": {
+      "draft": "Draft",
+      "open": "Running",
+      "close": "Closed",
+      "removed": "Removed"
+    },
+    "kpi": {
+      "label": "Asset counts",
+      "total": "Total",
+      "draft": "Drafts",
+      "open": "Running",
+      "close": "Closed"
+    },
+    "assets": {
+      "title": "Fixed assets",
+      "description": "The company's assets and their depreciation boards.",
+      "new": "New asset",
+      "record": "Fixed asset",
+      "empty": "No fixed assets yet.",
+      "countTag": "{count} asset | {count} assets",
+      "footer": "Showing {shown} of {total} asset | Showing {shown} of {total} assets"
+    },
+    "filters": {
+      "search": "Search by code or name",
+      "state": "Status",
+      "allStates": "All statuses",
+      "profile": "Asset profile",
+      "allProfiles": "All profiles"
+    },
+    "columns": {
+      "code": "Code",
+      "name": "Asset",
+      "profile": "Profile",
+      "dateStart": "Start date",
+      "purchaseValue": "Purchase value",
+      "valueResidual": "Residual value",
+      "state": "Status"
+    },
+    "methods": {
+      "linear": "Straight line",
+      "linear-limit": "Straight line to a limit",
+      "degressive": "Declining",
+      "degr-linear": "Declining then straight line",
+      "degr-limit": "Declining to a limit"
+    },
+    "periods": {
+      "month": "Monthly",
+      "quarter": "Quarterly",
+      "year": "Yearly"
+    },
+    "duration": {
+      "year": "{count} year | {count} years",
+      "number": "{count} depreciation | {count} depreciations"
+    },
+    "compute": {
+      "action": "Compute depreciation",
+      "title": "Compute the due depreciation?",
+      "hint": "The due depreciation entries of every running asset are posted up to the chosen date. If any line cannot be posted, nothing is posted.",
+      "confirm": "Compute and post",
+      "date": "Up to date",
+      "dateRequired": "Choose the date",
+      "done": "Posted {count} entry up to {date} | Posted {count} entries up to {date}",
+      "nothingDue": "No entries are due up to this date."
+    },
+    "form": {
+      "details": "Asset details",
+      "profile": "Asset profile",
+      "profilePlaceholder": "Choose the profile",
+      "profileRequired": "Choose the asset profile",
+      "name": "Asset name",
+      "nameRequired": "Enter the asset name",
+      "code": "Code",
+      "codeTooLong": "The code is longer than 32 characters",
+      "dateStart": "Start date",
+      "dateRequired": "Choose the date",
+      "partner": "Vendor",
+      "partnerPlaceholder": "No vendor",
+      "note": "Note",
+      "values": "Values",
+      "purchaseValue": "Purchase value",
+      "purchaseInvalid": "Enter a purchase value above zero",
+      "salvageValue": "Salvage value",
+      "salvageInvalid": "Enter zero or more",
+      "requiredHint": "Marked fields are required.",
+      "create": "Create asset"
+    },
+    "record": {
+      "note": "Note",
+      "partner": "Vendor",
+      "method": "Depreciation method",
+      "duration": "Depreciation duration",
+      "period": "Depreciation period",
+      "prorata": "Prorata for the first period",
+      "prorataYes": "Yes",
+      "prorataNo": "No",
+      "currency": "Currency",
+      "salvageValue": "Salvage value",
+      "depreciationBase": "Depreciation base",
+      "valueDepreciated": "Depreciated so far"
+    },
+    "board": {
+      "title": "Depreciation board",
+      "date": "Date",
+      "type": "Type",
+      "amount": "Amount",
+      "remaining": "Remaining",
+      "accumulated": "Accumulated",
+      "posted": "Posting",
+      "postedYes": "Posted",
+      "postedNo": "Not posted",
+      "types": {
+        "create": "Acquisition",
+        "depreciate": "Depreciation",
+        "remove": "Disposal"
+      }
+    },
+    "actions": {
+      "validate": "Run asset"
+    },
+    "confirm": {
+      "validate": "Run “{name}”?",
+      "validateHint": "The asset starts running and its depreciation board is computed. It cannot go back to draft."
+    },
+    "errors": {
+      "notDraft": "Only a draft asset can be run.",
+      "periodLocked": "The accounting period is locked for this date."
+    }
+  }
+}
