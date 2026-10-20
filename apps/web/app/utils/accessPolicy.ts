@@ -47,7 +47,8 @@ function destinations(): readonly Destination[] {
     ...sectionDestinations('system'),
   ]
 }
-export function canReach(identity: AccessIdentity, capability: string, path?: string): boolean {
+/** `feature` is an entry's explicit sub-feature (manifest `feature`), required on top of the capability's own gates. */
+export function canReach(identity: AccessIdentity, capability: string, path?: string, feature?: string): boolean {
   if (capability === INTERNAL_WEBVUE_ACCESS && path === '/') return hasCapability(identity, capability)
   if (capability === NOTIFICATION_ACCESS) {
     return hasCapability(identity, capability) && canUse(identity, capability)
@@ -55,8 +56,7 @@ export function canReach(identity: AccessIdentity, capability: string, path?: st
   if (!hasCapability(identity, capability)) return false
   const write = path ? pathIsWrite(path) : false
   if (!canUse(identity, capability, write)) return false
-  const feature = path ? featureForPath(path) : null
-  return hasFeature(identity, feature, write)
+  return hasFeature(identity, path ? featureForPath(path) : null, write) && hasFeature(identity, feature ?? null, write)
 }
 export function firstAllowedPath(identity: AccessIdentity): string {
   return destinations().find(([path, capability]) => canReach(identity, capability, path))?.[0] ?? '/account'
@@ -66,7 +66,7 @@ export function postLoginPath(identity: AccessIdentity, next: unknown): string {
   const target = safeReturnTo(next, fallback, [...destinations().map(([path]) => path), ...FOUNDATION_RETURN_TO, ...activeManifests().flatMap(manifest => manifest.returnToPaths ?? [])])
   const pathname = new URL(target, 'http://webvue.local').pathname
   const capability = requiredCapabilityForPath(pathname)
-  return capability && !canReach(identity, capability, pathname) ? fallback : target
+  return capability && !canReach(identity, capability, pathname, requiredFeatureForPath(pathname)) ? fallback : target
 }
 /** The settings overview page; every other settings page lives beneath it, so it matches only itself. */
 export const SETTINGS_OVERVIEW_PATH = '/settings'
@@ -78,8 +78,15 @@ export function isNavPathActive(path: string, target: string): boolean {
   }
   return path === target || path.startsWith(`${target}/`)
 }
+function ownedRouteRule(path: string) {
+  return manifestForPath(path)?.routeCapabilities?.find(rule => rule.pattern.test(path))
+}
+/** The explicit sub-feature of the manifest rule that owns `path`, if it declares one. */
+export function requiredFeatureForPath(path: string): string | undefined {
+  return ownedRouteRule(path)?.feature
+}
 export function requiredCapabilityForPath(path: string): string | null {
-  const owned = manifestForPath(path)?.routeCapabilities?.find(rule => rule.pattern.test(path))
+  const owned = ownedRouteRule(path)
   if (owned) return owned.capability
   const registered = settingsEntryForPath(path)
   if (registered) return registered.entry.capability
@@ -96,7 +103,7 @@ export function requiredCapabilityForPath(path: string): string | null {
  */
 export function canReachPath(identity: AccessIdentity, path: string): boolean {
   const capability = requiredCapabilityForPath(path)
-  if (capability) return canReach(identity, capability, path)
+  if (capability) return canReach(identity, capability, path, requiredFeatureForPath(path))
   const manifest = manifestForPath(path)
   return !manifest || hasFeature(identity, manifest.feature, pathIsWrite(path))
 }

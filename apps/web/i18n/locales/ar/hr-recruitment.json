@@ -1,0 +1,122 @@
+{
+  "hrRecruitment": {
+    "title": "التوظيف",
+    "description": "الوظائف والمتقدمون ومراحل التوظيف.",
+    "searchApplicants": "بحث باسم المتقدم…",
+    "searchValue": "بحث: {value}",
+    "newApplicant": "متقدم جديد",
+    "anyJob": "كل الوظائف",
+    "anyStage": "كل المراحل",
+    "noJob": "بلا وظيفة",
+    "noStage": "بلا مرحلة",
+    "noDepartment": "بلا قسم",
+    "emptyTitle": "لا متقدمون بعد",
+    "emptyHint": "أضف متقدمًا ليظهر هنا في مراحل التوظيف.",
+    "footer": "لا متقدمين | عرض {shown} من متقدم واحد | عرض {shown} من متقدمين | عرض {shown} من {total} متقدمين | عرض {shown} من {total} متقدمًا | عرض {shown} من {total} متقدم",
+    "columns": {
+      "applicant": "المتقدم",
+      "job": "الوظيفة",
+      "stage": "المرحلة",
+      "status": "الحالة",
+      "priority": "التقييم"
+    },
+    "status": {
+      "ongoing": "قيد التوظيف",
+      "hired": "تم التعيين",
+      "refused": "مرفوض",
+      "archived": "مؤرشف"
+    },
+    "statusFilter": {
+      "all": "الكل",
+      "ongoing": "قيد التوظيف",
+      "hired": "تم التعيين",
+      "refused": "مرفوض",
+      "archived": "مؤرشف"
+    },
+    "priority": {
+      "0": "بلا تقييم",
+      "1": "منخفض",
+      "2": "متوسط",
+      "3": "مرتفع"
+    },
+    "form": {
+      "details": "بيانات المتقدم",
+      "name": "اسم المتقدم",
+      "namePlaceholder": "الاسم الكامل",
+      "nameRequired": "اسم المتقدم مطلوب.",
+      "job": "الوظيفة",
+      "chooseJob": "اختر وظيفة",
+      "jobRequired": "الوظيفة مطلوبة.",
+      "email": "البريد الإلكتروني",
+      "phone": "رقم الهاتف",
+      "availability": "تاريخ الجاهزية",
+      "availabilityHint": "التاريخ الذي يستطيع فيه المتقدم بدء العمل.",
+      "requiredHint": "الحقول المعلّمة بـ * مطلوبة.",
+      "submit": "إضافة المتقدم",
+      "noJobs": "لا وظائف نشطة. أنشئ وظيفة أولًا."
+    },
+    "detail": {
+      "pipeline": "مرحلة التوظيف",
+      "contact": "بيانات التواصل",
+      "appliedOn": "تاريخ التقديم",
+      "empty": "غير محدد",
+      "department": "القسم",
+      "employee": "الموظف",
+      "noEmployee": "لم يُعيَّن بعد",
+      "refuseReason": "سبب الرفض",
+      "noRefuseReason": "لا سبب رفض"
+    },
+    "refuse": {
+      "action": "رفض المتقدم",
+      "confirmTitle": "رفض هذا المتقدم؟",
+      "reason": "سبب الرفض",
+      "chooseReason": "اختر سبب الرفض"
+    },
+    "reset": {
+      "action": "إعادة إلى المرحلة الأولى",
+      "confirmTitle": "إعادة المتقدم إلى المرحلة الأولى؟",
+      "confirmHint": "يعود المتقدم إلى أول مرحلة في مسار الوظيفة."
+    },
+    "hire": {
+      "action": "تعيين",
+      "confirmTitle": "تعيين {name}؟",
+      "confirmHint": "يُنشأ سجل موظف من بيانات المتقدم."
+    },
+    "jobs": {
+      "title": "الوظائف",
+      "description": "الوظائف المفتوحة وعدد المتقدمين لكل وظيفة.",
+      "new": "وظيفة جديدة",
+      "search": "بحث باسم الوظيفة…",
+      "emptyTitle": "لا وظائف",
+      "emptyHint": "أنشئ وظيفة ليبدأ التوظيف عليها.",
+      "footer": "لا وظائف | وظيفة واحدة | وظيفتان | {shown} من {total} وظائف | {shown} من {total} وظيفة | {shown} من {total} وظيفة",
+      "viewApplicants": "متقدمو الوظيفة",
+      "columns": {
+        "name": "الوظيفة",
+        "department": "القسم",
+        "target": "العدد المطلوب",
+        "applications": "المتقدمون",
+        "state": "الحالة"
+      },
+      "state": {
+        "active": "نشطة",
+        "archived": "مؤرشفة"
+      },
+      "filter": {
+        "true": "النشطة",
+        "false": "المؤرشفة",
+        "all": "الكل"
+      },
+      "form": {
+        "details": "بيانات الوظيفة",
+        "namePlaceholder": "مسمى الوظيفة",
+        "nameRequired": "اسم الوظيفة مطلوب.",
+        "chooseDepartment": "اختر قسمًا",
+        "targetHint": "عدد التعيينات المستهدفة.",
+        "description": "الوصف",
+        "active": "وظيفة نشطة",
+        "requiredHint": "الحقول المعلّمة بـ * مطلوبة."
+      }
+    }
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "hrOnboarding": {
+    "title": "التهيئة",
+    "runs": {
+      "title": "عمليات التهيئة",
+      "empty": "لا عمليات تهيئة بعد",
+      "new": "تهيئة موظف",
+      "employee": "الموظف",
+      "plan": "الخطة",
+      "planDate": "تاريخ البدء",
+      "progress": "التقدم",
+      "state": "الحالة",
+      "allStates": "كل الحالات",
+      "planRequired": "اختر خطة"
+    },
+    "run": {
+      "launchedBy": "أطلقها",
+      "steps": "خطوات التهيئة",
+      "noSteps": "لا خطوات في هذه الخطة",
+      "feedbackPlaceholder": "ملاحظة الإنجاز (اختياري)"
+    },
+    "plans": {
+      "title": "خطط التهيئة",
+      "empty": "لا خطط تهيئة بعد",
+      "new": "خطة تهيئة",
+      "steps": "الخطوات",
+      "deactivate": "تعطيل الخطة",
+      "activate": "تفعيل الخطة",
+      "deactivateTitle": "تعطيل الخطة؟",
+      "deactivateDescription": "لن تُقترح لعمليات تهيئة جديدة، وتبقى العمليات الحالية كما هي.",
+      "activated": "تم تفعيل الخطة",
+      "noSteps": "لا خطوات بعد",
+      "everyState": "الكل"
+    },
+    "form": {
+      "name": "اسم الخطة",
+      "namePlaceholder": "مثال: تهيئة الموظفين الجدد",
+      "department": "القسم",
+      "anyDepartment": "كل الأقسام",
+      "active": "الخطة مفعّلة",
+      "steps": "الخطوات",
+      "addStep": "إضافة خطوة",
+      "removeStep": "حذف الخطوة",
+      "stepSummary": "وصف الخطوة",
+      "responsibleType": "المسؤول",
+      "responsibleOther": "مستخدم محدد",
+      "responsibleUser": "المستخدم",
+      "delayCount": "المهلة",
+      "delayUnit": "الوحدة",
+      "delayFrom": "التوقيت",
+      "delayDays": "أيام",
+      "delayWeeks": "أسابيع",
+      "delayMonths": "أشهر",
+      "beforePlanDate": "قبل تاريخ البدء",
+      "afterPlanDate": "بعد تاريخ البدء",
+      "typeManager": "مدير الموظف",
+      "typeCoach": "مدرب الموظف",
+      "typeEmployee": "الموظف",
+      "typeOther": "مستخدم محدد",
+      "save": "حفظ",
+      "saving": "جار الحفظ…",
+      "saveError": "تعذر حفظ الخطة. راجع الحقول ثم حاول مرة أخرى.",
+      "saved": "تم حفظ الخطة",
+      "stepsRequired": "أضف خطوة واحدة على الأقل",
+      "employee": "الموظف",
+      "employeePlaceholder": "اختر الموظف",
+      "employeeRequired": "اختر موظفًا"
+    },
+    "actions": {
+      "complete": "إنجاز",
+      "reopen": "إعادة فتح",
+      "edit": "تعديل"
+    },
+    "states": {
+      "open": "قيد التنفيذ",
+      "done": "منجزة",
+      "planned": "مخطط لها",
+      "today": "اليوم",
+      "overdue": "متأخرة"
+    },
+    "errors": {
+      "forbidden": "لا تملك صلاحية الوصول إلى التهيئة.",
+      "notFound": "العملية غير موجودة أو لا تملك صلاحية عرضها."
+    },
+    "footer": {
+      "results": "عرض {shown} من {total}"
+    }
+  }
+}

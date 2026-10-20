@@ -67,6 +67,11 @@ describe('app manifests', () => {
     ['/hr/departments/new', 'hr.departments.manage'], ['/hr/employees/3/access', 'access.users.grant'],
     ['/hr/departments', 'hr.departments.read'], ['/documents', 'documents.items.read'],
     ['/hr/leave', 'hr.leave.read'], ['/hr/leave/5', 'hr.leave.read'], ['/hr/reports', 'hr.employees.manage'], ['/hr/leave/new', 'hr.leave.request'], ['/hr/leave/allocations/new', 'hr.leave.manage'],
+    ['/hr/recruitment', 'hr.recruitment.read'], ['/hr/recruitment/new', 'hr.recruitment.manage'], ['/hr/recruitment/jobs/new', 'hr.recruitment.manage'],
+    ['/hr/shifts', 'hr.shifts.read'], ['/hr/shifts/schedules/new', 'hr.shifts.manage'],
+    ['/hr/onboarding/9', 'hr.onboarding.read'], ['/hr/onboarding/plans/new', 'hr.onboarding.manage'],
+    ['/hr/offboarding', 'hr.offboarding.read'], ['/hr/offboarding/new', 'hr.offboarding.manage'],
+    ['/hr/assets/4', 'hr.assets.read'], ['/hr/assets/mine', 'hr.employees.read'], ['/hr/assets/categories/new', 'hr.assets.manage'],
     ['/notifications', 'webvue.notifications'], ['/settings/team/users/new', 'access.users.grant'],
     ['/settings/team/users/3/access', 'access.users.assign_roles'], ['/settings/team/roles/4/edit', 'access.roles.manage'],
     ['/settings/team/roles/4', 'access.roles.read'], ['/settings/company/branding', 'settings.branding.manage'],
@@ -80,6 +85,7 @@ describe('app manifests', () => {
     ['/meetings/calendar', '/meetings', true], ['/meetings/calendar', '/meetings/calendar', true],
     ['/meetings/series/3', '/meetings/series', true], ['/hr/employees/7/edit', '/hr', true], ['/hr/documents', '/hr', false],
     ['/documents/2', '/documents', true],
+    ['/hr/assets/mine', '/hr/assets/mine', true], ['/hr/assets/mine', '/hr/assets', false], ['/hr/assets/4', '/hr/assets', true],
   ])('nav active %s vs %s -> %s', (path, target, active) => {
     expect(isNavPathActive(path, target)).toBe(active)
   })

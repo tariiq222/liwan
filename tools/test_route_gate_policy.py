@@ -1,14 +1,19 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Tests for tools/route_gate_policy.py."""
 import ast
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import route_gate_policy as policy
 
 FAKE = policy.ADDONS / 'webvue_hr' / 'controllers' / 'sample.py'  # rank 4 application addon
 MODEL = policy.ADDONS / 'webvue_hr' / 'models' / 'sample_model.py'
 FOUNDATION = policy.ADDONS / 'webvue_api' / 'controllers' / 'sample.py'  # rank 2 foundation
+# The nested area packages of spec §8.7: one package per capability under controllers/.
+NESTED = policy.ADDONS / 'webvue_hr' / 'controllers' / 'shifts' / 'sample.py'
+NESTED_MODEL = policy.ADDONS / 'webvue_hr' / 'models' / 'planning' / 'sample_model.py'
 
 
 def routes_of(source: str, path: Path = FAKE, models: str = '') -> list[policy.Route]:
@@ -278,6 +283,64 @@ class DynamicModelTests(unittest.TestCase):
             "def caller(payload):\n    return helper(payload['model'])\n"
         )
         self.assertEqual(len(policy.dynamic_models({FAKE: ast.parse(source)})), 1)
+
+
+class NestedPackageTests(unittest.TestCase):
+    """A route in a nested area package is gated exactly like a flat one."""
+
+    BARE = "class C:\n    @http.route('/api/v1/x', type='json2', auth='user')\n    def f(self): pass\n"
+
+    def test_a_gated_nested_route_passes_with_a_stable_key(self):
+        route = only(HEAD + "    @requires_capability('hr.shifts.read')\n    def f(self): pass\n", path=NESTED)
+        self.assertEqual((route.addon, route.rank), ('webvue_hr', 4))
+        self.assertEqual(route.key, 'webvue_hr/controllers/shifts/sample.py:f')
+        self.assertEqual(policy.route_problems([route], NO_ALLOW), [])
+
+    def test_an_ungated_nested_route_is_reported(self):
+        route = only(self.BARE, path=NESTED)
+        problems = policy.route_problems([route], NO_ALLOW)
+        self.assertEqual(len(problems), 3)
+        self.assertTrue(
+            all(problem.startswith('odoo-addons/webvue_hr/controllers/shifts/sample.py:f') for problem in problems),
+            problems,
+        )
+        self.assertIn('has no feature gate', ' '.join(problems))
+        self.assertIn('has no capability gate', ' '.join(problems))
+
+    def test_a_nested_model_module_supplies_the_capability_gate(self):
+        models = {NESTED_MODEL: ast.parse(
+            "class Run:\n    _name = 'webvue.hr.plan.run'\n"
+            "    def _webvue_guard(self):\n        require_capability('hr.shifts.read')\n",
+        )}
+        routes = policy.extract_routes(
+            {NESTED: ast.parse(HEAD + "    def f(self):\n        request.env['webvue.hr.plan.run']._webvue_guard()\n")},
+            models,
+        )
+        self.assertEqual(len(routes), 1)
+        # The gate is the model method's own top-level require_capability call, so the route is
+        # gated through a helper: capability_source is 'body' and the literal keys stay empty.
+        self.assertEqual((routes[0].has_capability, routes[0].capability_source), (True, 'body'))
+        self.assertEqual(routes[0].capability_keys, [])
+        self.assertEqual(policy.route_problems(routes, NO_ALLOW), [])
+
+    def test_service_trees_scan_nested_controller_and_model_modules(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / 'odoo-addons'
+            (root / 'webvue_hr' / 'controllers' / 'shifts').mkdir(parents=True)
+            (root / 'webvue_hr' / 'controllers' / 'flat.py').write_text('x = 1\n')
+            (root / 'webvue_hr' / 'controllers' / '__init__.py').write_text('from . import flat\n')
+            (root / 'webvue_hr' / 'controllers' / 'shifts' / 'deep.py').write_text('x = 1\n')
+            (root / 'webvue_hr' / 'controllers' / 'shifts' / '__init__.py').write_text('from . import deep\n')
+            (root / 'webvue_hr' / 'models' / 'planning').mkdir(parents=True)
+            (root / 'webvue_hr' / 'models' / 'planning' / 'model.py').write_text('x = 1\n')
+            (root / 'webvue_hr' / 'models' / 'planning' / '__init__.py').write_text('from . import model\n')
+            with mock.patch.object(policy, 'ADDONS', root):
+                keys = [str(path.relative_to(root)) for path in policy._service_trees()]
+        self.assertEqual(keys, [
+            'webvue_hr/controllers/flat.py',
+            'webvue_hr/controllers/shifts/deep.py',
+            'webvue_hr/models/planning/model.py',
+        ])
 
 
 class TreeTests(unittest.TestCase):

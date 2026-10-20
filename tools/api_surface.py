@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Generate docs/api/openapi.json from the Odoo controller routes and the Zod contracts.
 
-The route half is extracted statically with the ast module from
-``odoo-addons/*/controllers/*.py`` — no Odoo runtime, always true to the code.
+The route half is extracted statically with the ast module from every controller module
+under an addon's ``controllers`` package — ``odoo-addons/*/controllers/**/*.py``, so a
+nested area package such as ``controllers/shifts/hr_shifts.py`` counts exactly like a flat
+module — no Odoo runtime, always true to the code.
 The schema half is harvested from ``packages/contracts`` by
 ``tools/contracts_jsonschema.mjs`` (Zod v4 native JSON Schema, via Node).
 
@@ -109,13 +111,21 @@ def api_version() -> str:
     return str(manifest.get("version", "0.0.0"))
 
 
+def addon_name(path: Path) -> str:
+    """The addon owning a module: the first path segment under ``odoo-addons``.
+
+    A controller module lives at any depth below its addon (a nested area package such as
+    ``controllers/shifts/``), so the addon is read from the path root, never from the
+    module's own parent directories.
+    """
+    return path.relative_to(ADDONS).parts[0]
+
+
 def parse_controllers() -> dict[Path, ast.Module]:
-    """The parsed ``odoo-addons/*/controllers/*.py`` modules, in a stable order."""
-    return {
-        py: ast.parse(py.read_text())
-        for py in sorted(ADDONS.glob("*/controllers/*.py"))
-        if py.name != "__init__.py"
-    }
+    """The parsed controller modules of ``odoo-addons/*/controllers`` at any depth, in a
+    stable path order. ``__init__.py`` only imports its package's modules and is skipped."""
+    paths = sorted({py for py in ADDONS.glob("*/controllers/**/*.py") if py.name != "__init__.py"})
+    return {py: ast.parse(py.read_text()) for py in paths}
 
 
 def extract_routes(trees: dict[Path, ast.Module] | None = None) -> list[dict]:
@@ -123,7 +133,7 @@ def extract_routes(trees: dict[Path, ast.Module] | None = None) -> list[dict]:
     ``class_node`` serve tools/route_gate_policy.py, which reads the same extraction."""
     routes = []
     for py, tree in (trees if trees is not None else parse_controllers()).items():
-        addon = py.parent.parent.name
+        addon = addon_name(py)
         for cls in (n for n in tree.body if isinstance(n, ast.ClassDef)):
             for fn in (n for n in cls.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))):
                 names = [decorator_name(d) for d in fn.decorator_list]

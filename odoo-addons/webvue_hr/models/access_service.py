@@ -13,6 +13,16 @@ HR_PERMISSIONS = frozenset(
         'hr.leave.request',
         'hr.leave.approve',
         'hr.leave.manage',
+        'hr.recruitment.read',
+        'hr.recruitment.manage',
+        'hr.shifts.read',
+        'hr.shifts.manage',
+        'hr.onboarding.read',
+        'hr.onboarding.manage',
+        'hr.offboarding.read',
+        'hr.offboarding.manage',
+        'hr.assets.read',
+        'hr.assets.manage',
     },
 )
 EMPLOYEE_HR_PERMISSIONS = frozenset(
@@ -34,6 +44,24 @@ HR_PERMISSION_DEPENDENCIES = {
     'hr.leave.request': {'hr.leave.read'},
     'hr.leave.approve': {'hr.leave.read'},
     'hr.leave.manage': {'hr.leave.read'},
+    # Recruitment, shifts, onboarding, offboarding and assets. Every area route
+    # names employees, which the HR employee guard requires; recruitment is the
+    # exception, it works on applicants and job positions. Shifts, onboarding and
+    # offboarding also need hr.employees.manage: the OCA planning engine writes
+    # hr.version.resource_calendar_id, launching a stock activity plan posts a
+    # message (a follower write) on hr.employee, and the stock departure wizard
+    # writes the departure fields and contract_date_end (its ACL is
+    # hr.group_hr_user, which hr.employees.manage already grants).
+    'hr.recruitment.read': set(),
+    'hr.recruitment.manage': {'hr.recruitment.read'},
+    'hr.shifts.read': {'hr.employees.read'},
+    'hr.shifts.manage': {'hr.shifts.read', 'hr.employees.manage'},
+    'hr.onboarding.read': {'hr.employees.read'},
+    'hr.onboarding.manage': {'hr.onboarding.read', 'hr.employees.manage'},
+    'hr.offboarding.read': {'hr.employees.read'},
+    'hr.offboarding.manage': {'hr.offboarding.read', 'hr.employees.manage'},
+    'hr.assets.read': {'hr.employees.read'},
+    'hr.assets.manage': {'hr.assets.read'},
 }
 
 
@@ -50,6 +78,12 @@ class WebVueHrAccessService(models.AbstractModel):
     def _webvue_permission_dependencies(self):
         dependencies = super()._webvue_permission_dependencies()
         for key, required in HR_PERMISSION_DEPENDENCIES.items():
+            # An HR capability without a dependency (hr.recruitment.read) is listed in the
+            # constant for completeness, but the composed map only names keys that require
+            # something: the stored permissions filter on dependency_ids, so a key with an
+            # empty set would make the composed and stored maps disagree.
+            if not required:
+                continue
             dependencies[key] = dependencies.get(key, set()) | required
         return dependencies
 

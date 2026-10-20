@@ -18,7 +18,7 @@ const House = 'i-lucide-house'
 /** Rail module id; applications declare theirs in their manifest, the foundation adds home and settings. */
 export type NavGroup = string
 export type ShellModule = string
-export interface NavItem { to: string; labelKey: string; icon: AppIcon; shortcut: string; goKey?: string; group?: NavGroup; module?: ShellModule; capability: string }
+export interface NavItem { to: string; labelKey: string; icon: AppIcon; shortcut: string; goKey?: string; group?: NavGroup; module?: ShellModule; capability: string; feature?: string }
 
 /** Search-page and go-key shortcuts of the foundation settings pages, by path (unique with the applications' nav shortcuts). */
 const SETTINGS_KEYS: Readonly<Record<string, { shortcut: string; goKey?: string }>> = {
@@ -74,10 +74,10 @@ function customerCommercialOn(): boolean {
 const COMMERCIAL_CAPABILITIES: readonly string[] = CUSTOMER_COMMERCIAL_CAPABILITIES
 
 /** Whether the identity may see a nav or context target: the customer commercial capabilities are derived and flag-gated. */
-function navAllowed(identity: AccessIdentity, capability: string, to?: string): boolean {
+function navAllowed(identity: AccessIdentity, capability: string, to?: string, feature?: string): boolean {
   return COMMERCIAL_CAPABILITIES.includes(capability)
     ? customerCommercialOn() && (deriveCustomerCapabilities(identity?.capabilities) as string[]).includes(capability)
-    : canReach(identity, capability, to)
+    : canReach(identity, capability, to, feature)
 }
 export function useNav(identity: AccessIdentity): NavItem[] {
   // Shared-inbox access has no capability key: an authenticated identity may use the application when its feature is open.
@@ -86,7 +86,7 @@ export function useNav(identity: AccessIdentity): NavItem[] {
     const feature = featureForRailModule(item.module)
     return Array.isArray(identity?.capabilities) && feature !== undefined && hasFeature(identity, feature)
   }
-  return allNavItems().filter(item => (item.capability === 'webvue.internal' ? internalAccess(item) : navAllowed(identity, item.capability, item.to)))
+  return allNavItems().filter(item => (item.capability === 'webvue.internal' ? internalAccess(item) : navAllowed(identity, item.capability, item.to, item.feature)))
 }
 
 export interface ShellModuleDefinition {
@@ -125,6 +125,7 @@ export interface ShellContextLink {
   icon: AppIcon
   to: RouteLocationRaw
   capability: string
+  feature?: string
   active?: boolean
   pinned?: boolean
   section?: string
@@ -180,5 +181,5 @@ export function moduleContextLinks(module: ShellModule, path?: string): ShellCon
 }
 
 export function contextLinksForModule(module: ShellModule, identity: AccessIdentity, path?: string): ShellContextLink[] {
-  return resolveContextLinks(module, path, identity).filter(link => navAllowed(identity, link.capability, typeof link.to === 'string' ? link.to : undefined))
+  return resolveContextLinks(module, path, identity).filter(link => navAllowed(identity, link.capability, typeof link.to === 'string' ? link.to : undefined, link.feature))
 }

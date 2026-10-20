@@ -2,6 +2,7 @@
 import contextlib
 import difflib
 import io
+import itertools
 import json
 import re
 import shutil
@@ -41,6 +42,9 @@ EXPECTED = (
     'apps/web/i18n/locales/en/zzprobe.json',
 )
 ARGS = ['zzprobe', '--name-ar', 'المسبار', '--name-en', 'Probe']
+# The allocator's key space and the nav shortcut it reads, as tools/new_app.py reads it.
+ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'
+SHORTCUT = re.compile(r"""\bshortcut\s*:\s*(['"`])([^'"`]*)\1""")
 
 
 def seed(root):
@@ -176,6 +180,7 @@ class TestNewApp(unittest.TestCase):
         self.assertIn('webvue_zzprobe', (self.root / 'deploy/provision.sh').read_text(encoding='utf-8'))
 
     def test_rail_order_and_shortcut_are_computed_from_existing_manifests(self):
+        self.collapse_shortcut_reservations()
         run(self.root, *ARGS)
         text = (self.root / 'apps/web/app/modules/zzprobe/manifest.ts').read_text(encoding='utf-8')
         others = ''.join(
@@ -185,12 +190,108 @@ class TestNewApp(unittest.TestCase):
         highest = max(int(n) for n in re.findall(r'\border:\s*(\d+)', others))
         self.assertIn(f'order: {highest + 10} ', text)
         shortcut = re.search(r"shortcut: '([a-z0-9])'", text).group(1)
+        self.assertEqual(shortcut, 'd')
         self.assertNotIn(f"shortcut: '{shortcut}'", others)
-        code, _, _ = run(self.root, 'zzprobe_two', '--name-ar', 'ع', '--name-en', 'Probe Two')
-        self.assertEqual(code, 0)
+        code, _, err = run(self.root, 'zzprobe_two', '--name-ar', 'ع', '--name-en', 'Probe Two')
+        self.assertEqual(code, 0, err)
         second = (self.root / 'apps/web/app/modules/zzprobe_two/manifest.ts').read_text(encoding='utf-8')
         self.assertIn(f'order: {highest + 20} ', second)
-        self.assertNotIn(f"shortcut: '{shortcut}'", second)
+        second_shortcut = re.search(r"shortcut: '([a-z0-9])'", second).group(1)
+        self.assertEqual(second_shortcut, 'e')
+        self.assertNotEqual(second_shortcut, shortcut)
+        self.assertNotIn(f"shortcut: '{second_shortcut}'", others)
+
+    def test_the_last_free_shortcut_is_used_once_and_the_next_run_is_refused(self):
+        # The seeded manifests, the shell keymap and the hard-wired keys pin the capacity here to
+        # one key, so the first generation takes the last one and the second must be refused as
+        # exhausted: the refusal happens before any write, so nothing is created or registered.
+        free = self.free_shortcuts()
+        self.assertTrue(free, 'the seeded fixture must leave at least one free shortcut to take')
+        last = free[0]
+        self.pin_free_shortcuts(last)
+        self.assertEqual(new_app.web_slots(self.root)[1], last)
+        code, _, err = run(self.root, *ARGS)
+        self.assertEqual(code, 0, err)
+        generated = (self.root / 'apps/web/app/modules/zzprobe/manifest.ts').read_text(encoding='utf-8')
+        self.assertIn(f"shortcut: '{last}'", generated)
+        others = ''.join(
+            path.read_text(encoding='utf-8')
+            for path in (self.root / 'apps/web/app/modules').glob('*/manifest.ts') if path.parent.name != 'zzprobe'
+        )
+        highest = max(int(n) for n in re.findall(r'\border:\s*(\d+)', others))
+        self.assertIn(f'order: {highest + 10} ', generated)
+        before = self._snapshot()
+        code, _, err = run(self.root, 'zzprobe_two', '--name-ar', 'ع', '--name-en', 'Probe Two')
+        self.assertEqual(code, 1)
+        self.assertIn('NEW_APP_REFUSED', err)
+        self.assertIn('no free single-character nav shortcut is left', err)
+        self.assertFalse((self.root / 'odoo-addons/webvue_zzprobe_two').exists())
+        self.assertFalse((self.root / 'apps/web/app/modules/zzprobe_two').exists())
+        self.assertEqual(before, self._snapshot())
+
+    def free_shortcuts(self):
+        """The single-character keys the fixture leaves free, read the way the allocator reads them."""
+        modules = sorted((self.root / 'apps/web/app/modules').glob('*/manifest.ts'))
+        shell = self.root / 'apps/web/app/composables/nav/shellModules.ts'
+        scanned = '\n'.join(path.read_text(encoding='utf-8') for path in modules)
+        scanned += '\n' + (shell.read_text(encoding='utf-8') if shell.is_file() else '')
+        used = {value for _, value in SHORTCUT.findall(scanned)} | new_app.HARD_WIRED_SHORTCUTS
+        return [char for char in ALPHABET if char not in used]
+
+    def collapse_shortcut_reservations(self):
+        """Reserve only 'a' and 'b' in the seeded fixture, so two generations have room.
+
+        The real manifests reserve nearly every single-character key (the shell keymap and the
+        hard-wired keys reserve more), which cannot carry the two applications this test scaffolds.
+        Their rail orders stay untouched, so the generated placement still follows the repository's
+        real navigation.
+        """
+        modules = self.root / 'apps/web/app/modules'
+        # One fixture manifest carries every quote style the allocator reads, so the rewrite below
+        # is exercised on single, double and backtick delimiters (the seeded files use single).
+        (modules / 'zzquotes').mkdir(parents=True, exist_ok=True)
+        (modules / 'zzquotes' / 'manifest.ts').write_text(
+            "export default { nav: [{ shortcut: 'q' }, { shortcut: \"w\" }, { shortcut: `r` }] }\n",
+            encoding='utf-8',
+        )
+        paths = [*sorted(modules.glob('*/manifest.ts')), self.root / 'apps/web/app/composables/nav/shellModules.ts']
+        files = [path for path in paths if path.is_file()]
+        before = sum(len(SHORTCUT.findall(path.read_text(encoding='utf-8'))) for path in files)
+        cycle = itertools.cycle('ab')
+        for path in files:
+            text = path.read_text(encoding='utf-8')
+            path.write_text(
+                SHORTCUT.sub(lambda match: f'shortcut: {match.group(1)}{next(cycle)}{match.group(1)}', text),
+                encoding='utf-8',
+            )
+        # Regression: the rewrite keeps the literal `shortcut:` property, the original delimiter
+        # quote and a replacement key as the value, so the allocator still reads every one of them.
+        values = [value for path in files for _, value in SHORTCUT.findall(path.read_text(encoding='utf-8'))]
+        self.assertEqual(len(values), before, 'the rewrite must keep every shortcut property and its quotes')
+        self.assertEqual(set(values), {'a', 'b'}, 'every rewritten shortcut must hold the replacement key')
+        quotes = [quote for quote, _ in SHORTCUT.findall((modules / 'zzquotes' / 'manifest.ts').read_text(encoding='utf-8'))]
+        self.assertEqual(quotes, ["'", '"', '`'], 'the rewrite must keep each original quote delimiter')
+        self.assertEqual(self.free_shortcuts()[:2], ['d', 'e'], 'the collapsed fixture must free d and e')
+
+    def pin_free_shortcuts(self, *keep):
+        """Leave exactly the ``keep`` keys free in the seeded fixture.
+
+        The original nav shortcuts are kept and the missing reservations are appended to one
+        seeded manifest, so a repository whose navigation changes still yields the capacity this
+        test declares instead of silently widening it.
+        """
+        reserved = [char for char in self.free_shortcuts() if char not in keep]
+        if reserved:
+            manifests = sorted((self.root / 'apps/web/app/modules').glob('*/manifest.ts'))
+            anchor = manifests[0] if manifests else self.root / 'apps/web/app/composables/nav/shellModules.ts'
+            anchor.write_text(
+                anchor.read_text(encoding='utf-8')
+                + '// Test fixture: reserve the remaining single-character nav shortcuts.\n'
+                + 'export const reservedShortcuts = ['
+                + ', '.join(f"{{ shortcut: '{char}' }}" for char in reserved) + ']\n',
+                encoding='utf-8',
+            )
+        self.assertEqual(self.free_shortcuts(), sorted(keep), 'the fixture must leave exactly these keys free')
 
     def test_locale_files_define_every_key_the_web_files_use(self):
         run(self.root, *ARGS)

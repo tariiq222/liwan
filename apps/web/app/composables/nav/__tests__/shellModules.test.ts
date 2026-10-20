@@ -196,7 +196,7 @@ describe('projects dashboard navigation', () => {
   })
   it('orders meetings as list, calendar, recurring series after the pinned create action', () => {
     expect(contextLinksForModule('meetings', full).map(link => link.id)).toEqual(['new-meeting', 'meetings', 'meeting-followup', 'meeting-series'])
-    expect(contextLinksForModule('hr', full, '/hr').map(link => link.labelKey)).toEqual(['nav.employees', 'nav.departments'])
+    expect(contextLinksForModule('hr', full, '/hr').map(link => link.labelKey)).toEqual(['nav.employees', 'nav.departments', 'nav.myAssets'])
   })
 })
 
@@ -263,6 +263,24 @@ describe('navigation built from app manifests', () => {
     withManifests([...appManifests, ghost], () => {
       expect(featureForRailModule('ghost')).toBeUndefined()
       expect(useNav(crmIdentity).map(item => item.to)).not.toContain('/crm/ghost')
+    })
+  })
+
+  describe('context link with an explicit feature', () => {
+    const hrTenant = (features: string[]) => ({
+      capabilities: ['hr.employees.read', 'hr.departments.read'],
+      platform: { readable_features: features, writable_features: features },
+    })
+    const ids = (identity: ReturnType<typeof hrTenant>) => contextLinksForModule('hr', identity, '/hr').map(link => link.id)
+    it('hides my-assets when hr.assets is off but keeps the other employee links', () => {
+      expect(ids(hrTenant(['hr.enabled']))).toEqual(expect.arrayContaining(['employees', 'departments']))
+      expect(ids(hrTenant(['hr.enabled']))).not.toContain('my-assets')
+    })
+    it('shows my-assets when hr.assets is on', () => {
+      expect(ids(hrTenant(['hr.enabled', 'hr.assets']))).toContain('my-assets')
+    })
+    it('shows links without a feature as before when the tenant policy is absent', () => {
+      expect(ids({ capabilities: ['hr.employees.read'] } as ReturnType<typeof hrTenant>)).toContain('my-assets')
     })
   })
 })

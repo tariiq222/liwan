@@ -64,6 +64,11 @@ subject to the attachment, migration and access acceptance gates; the pin alone 
 replace HR documents. Provenance and license headers are recorded in
 [the DMS provenance record](verification/oca-dms/PROVENANCE.md).
 
+`hr_employee_calendar_planning` (OCA/hr) is the shifts engine of `webvue_hr`: date-ranged
+`resource.calendar` rows per employee (`hr.employee.calendar`) over the stock working
+schedules. It is an internal engine (AGPL-3, owner-accepted, like the finance modules); it
+is the only module of OCA/hr that is installed.
+
 ## Bump a pin
 
 1. `git ls-remote https://github.com/OCA/<repo>.git refs/heads/19.0`, take the sha.

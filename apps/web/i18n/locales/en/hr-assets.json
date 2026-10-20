@@ -1,0 +1,96 @@
+{
+  "hrAssets": {
+    "title": "Assets and custody",
+    "description": "Employee devices, their custody and warranty dates.",
+    "new": "New asset",
+    "search": "Search by name or serial number…",
+    "searchValue": "Search: {value}",
+    "anyCategory": "All categories",
+    "anyEmployee": "All employees",
+    "unassigned": "Not assigned",
+    "noCategory": "No category",
+    "noSerial": "No serial number",
+    "emptyTitle": "No assets yet",
+    "emptyHint": "Add an asset to see it here and assign it to an employee.",
+    "mine": {
+      "description": "The assets currently assigned to you.",
+      "emptyTitle": "You hold no assets",
+      "emptyHint": "Assets handed to you appear here."
+    },
+    "footer": "{shown} of 1 asset | {shown} of {total} assets",
+    "filter": {
+      "active": "Asset state",
+      "custody": "Custody"
+    },
+    "assignedFilter": {
+      "all": "All",
+      "true": "Assigned",
+      "false": "Not assigned"
+    },
+    "activeFilter": {
+      "true": "Active",
+      "false": "Archived",
+      "all": "All"
+    },
+    "columns": {
+      "name": "Asset",
+      "category": "Category",
+      "employee": "Employee",
+      "assignDate": "Assigned on",
+      "state": "Status"
+    },
+    "state": {
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "form": {
+      "details": "Asset details",
+      "namePlaceholder": "Device or asset name",
+      "nameRequired": "The asset name is required.",
+      "chooseCategory": "Choose a category",
+      "serialNo": "Serial number",
+      "model": "Model",
+      "warrantyDate": "Warranty expiry",
+      "warrantyHint": "The date the asset warranty ends.",
+      "requiredHint": "Fields marked with * are required.",
+      "submit": "Add asset"
+    },
+    "custody": {
+      "title": "Custody",
+      "employee": "Assigned to",
+      "since": "Assigned since",
+      "never": "Not assigned yet",
+      "date": "Assignment date",
+      "assign": "Assign custody",
+      "assignedHint": "The asset is assigned; return it first to hand it to another employee.",
+      "chooseEmployee": "Choose an employee",
+      "return": "Return custody",
+      "returnConfirm": "Return this asset?",
+      "returnHint": "The current holder is cleared and the last custody date stays on the record."
+    },
+    "archive": {
+      "action": "Archive asset",
+      "confirmTitle": "Archive this asset?",
+      "scrapDate": "Retirement date"
+    },
+    "detail": {
+      "empty": "Not set"
+    },
+    "categories": {
+      "title": "Asset categories",
+      "description": "The categories available to assets.",
+      "new": "New category",
+      "emptyTitle": "No categories",
+      "emptyHint": "Create a category to organise the assets.",
+      "footer": "{shown} of 1 category | {shown} of {total} categories",
+      "columns": {
+        "name": "Category"
+      },
+      "form": {
+        "details": "Category details",
+        "namePlaceholder": "Category name",
+        "nameRequired": "The category name is required."
+      }
+    }
+  }
+}

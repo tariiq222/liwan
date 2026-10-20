@@ -5,6 +5,8 @@ from . import (
     feature_registry,
     hr_department,
     hr_employee,
+    hr_plan_run,
     hr_report,
     hr_version,
+    mail_activity_plan,
 )

@@ -8,8 +8,14 @@ import type { ZodType } from 'zod'
  */
 /** Iconify name from the local Lucide collection. */
 export type AppIcon = `i-lucide-${string}`
+/**
+ * `feature` on a nav item, context link or route rule: an extra sub-feature key (e.g. 'hr.assets') the
+ * entry needs on top of its capability and the feature derived from it, at the same read/write level.
+ * For an entry whose capability belongs to another area (own custody is an employee read).
+ */
 export interface AppNavItem {
   to: string; labelKey: string; icon: AppIcon; capability: string
+  feature?: string
   /** One-key jump on the /search page only, not a global shortcut; tools/new_app.py picks a free one. An application takes one key (its landing item); its other items pass '' so the single-key space lasts as applications grow. */
   shortcut: string
   /** Letter of the global `G` then letter shortcut: a–z, never g, unique across apps and the foundation (manifests.test.ts). */
@@ -31,7 +37,7 @@ export interface AppCommand {
   shortcut?: string
 }
 export interface AppContextLink {
-  id: string; labelKey: string; icon: AppIcon; to: string; capability: string; pinned?: boolean
+  id: string; labelKey: string; icon: AppIcon; to: string; capability: string; feature?: string; pinned?: boolean
   /** Locale key of the sidebar section heading; consecutive links with the same key form one section. */
   section?: string
   /** Active only on exactly this path (a section's overview page). */
@@ -157,7 +163,7 @@ export interface AppManifest {
   /** Configuration pages this application adds to Settings > Apps. */
   settings?: AppSettingsEntry[]
   contextLinks?: (path: string | undefined) => AppContextLink[]  // keyed by rail id via link module in nav
-  routeCapabilities?: Array<{ pattern: RegExp; capability: string }>
+  routeCapabilities?: Array<{ pattern: RegExp; capability: string; feature?: string }>
   /**
    * Dynamic list sources this application owns. A recognized pathname may return a record
    * to that list, after both its normal route access and this additional capability pass.
@@ -166,6 +172,14 @@ export interface AppManifest {
   recordListSources?: Array<{ pattern: RegExp; capability: string }>
   landing?: AppLandingEntry[]                                     // firstAllowedPath order within the app
   capabilityAliases?: Record<string, string>                      // chat: { 'webvue.internal': 'chat.enabled' }
+  /**
+   * Capability prefix → feature key for an application whose areas are features of their
+   * own, e.g. hr's `{ 'hr.recruitment.': 'hr.recruitment' }`. A capability that matches a
+   * declared prefix needs the application feature and the matched sub-feature, both at
+   * the capability's own read/write level; `capabilityAliases` cannot express that (it
+   * forces read semantics).
+   */
+  subFeatures?: Record<string, string>
   bell?: { capabilities: string[]; kinds?: AppBellKind[] }
   search?: AppSearchProvider[]
   /** Palette actions (Actions group of the command palette). */

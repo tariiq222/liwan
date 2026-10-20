@@ -5042,8 +5042,8 @@
     {
       "name": "SharedCreatePanel",
       "file": "packages/ui/app/components/shared/layout/CreatePanel.vue",
-      "story": "apps/web/stories/shared/CreatePanel.stories.ts",
-      "title": "Shared/CreatePanel",
+      "story": "apps/web/stories/hr/recruitment/ApplicantCreatePanel.stories.ts",
+      "title": "HR/Recruitment/ApplicantCreatePanel",
       "props": [
         {
           "name": "title",
@@ -5395,8 +5395,8 @@
     {
       "name": "SharedListPage",
       "file": "packages/ui/app/components/shared/layout/ListPage.vue",
-      "story": "apps/web/stories/shared/ListPage.stories.ts",
-      "title": "Shared/ListPage",
+      "story": "apps/web/stories/hr/recruitment/ApplicantList.stories.ts",
+      "title": "HR/Recruitment/ApplicantList",
       "props": [
         {
           "name": "title",
@@ -5475,23 +5475,8 @@
       "stories": [
         {
           "id": "Default",
-          "name": "قائمة بجدول",
-          "context": "unused"
-        },
-        {
-          "id": "Board",
-          "name": "رابط ?view=board",
-          "context": "unused"
-        },
-        {
-          "id": "InShell",
-          "name": "داخل الإطار (C و /)",
-          "context": "unused"
-        },
-        {
-          "id": "WithBack",
-          "name": "مع رابط الرجوع",
-          "context": "unused"
+          "name": "قائمة المتقدمين",
+          "context": "apps/web/app/pages/hr/recruitment.vue:123"
         }
       ]
     },
@@ -5722,8 +5707,8 @@
     {
       "name": "SharedRecordPage",
       "file": "packages/ui/app/components/shared/layout/RecordPage.vue",
-      "story": "apps/web/stories/my-tasks/MyTaskRecord.stories.ts",
-      "title": "MyTasks/MyTaskRecord",
+      "story": "apps/web/stories/hr/recruitment/ApplicantRecord.stories.ts",
+      "title": "HR/Recruitment/ApplicantRecord",
       "props": [
         {
           "name": "title",
@@ -5799,14 +5784,9 @@
       ],
       "stories": [
         {
-          "id": "Open",
-          "name": "سجل مهمة",
-          "context": "apps/web/app/pages/my-tasks/[id]/index.vue:148"
-        },
-        {
-          "id": "Pending",
-          "name": "أثناء التحميل",
-          "context": "apps/web/app/pages/my-tasks/[id]/index.vue:148"
+          "id": "Ongoing",
+          "name": "متقدم قيد التوظيف",
+          "context": "apps/web/app/pages/hr/recruitment/[applicantId].vue:93"
         }
       ]
     },

@@ -14,6 +14,11 @@ HR = frozenset({
     'hr.employees.access_status.read', 'hr.departments.read',
     'hr.departments.manage',
     'hr.leave.read', 'hr.leave.request', 'hr.leave.approve', 'hr.leave.manage',
+    'hr.recruitment.read', 'hr.recruitment.manage',
+    'hr.shifts.read', 'hr.shifts.manage',
+    'hr.onboarding.read', 'hr.onboarding.manage',
+    'hr.offboarding.read', 'hr.offboarding.manage',
+    'hr.assets.read', 'hr.assets.manage',
 })
 PMO = frozenset({
     'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage',
@@ -48,6 +53,15 @@ DEPENDENCIES = {
     'hr.leave.request': {'hr.leave.read'},
     'hr.leave.approve': {'hr.leave.read'},
     'hr.leave.manage': {'hr.leave.read'},
+    'hr.recruitment.manage': {'hr.recruitment.read'},
+    'hr.shifts.read': {'hr.employees.read'},
+    'hr.shifts.manage': {'hr.shifts.read', 'hr.employees.manage'},
+    'hr.onboarding.read': {'hr.employees.read'},
+    'hr.onboarding.manage': {'hr.onboarding.read', 'hr.employees.manage'},
+    'hr.offboarding.read': {'hr.employees.read'},
+    'hr.offboarding.manage': {'hr.offboarding.read', 'hr.employees.manage'},
+    'hr.assets.read': {'hr.employees.read'},
+    'hr.assets.manage': {'hr.assets.read'},
     'pmo.projects.create': {'pmo.projects.read'},
     'pmo.projects.manage': {'pmo.projects.read'},
     'pmo.settings.manage': {'pmo.projects.read'},
@@ -90,10 +104,10 @@ class TestAccessComposition(TransactionCase):
     def _group(self, key):
         return self.env.ref(self.Permission.search([('key', '=', key)]).group_xmlid)
 
-    def test_catalog_is_the_same_32_keys_each_owned_by_one_addon(self):
+    def test_catalog_is_the_same_42_keys_each_owned_by_one_addon(self):
         catalog = self.service._webvue_capability_map()
         self.assertEqual(self._release(catalog), CATALOG)
-        self.assertEqual(len(self._release(catalog)), 32)
+        self.assertEqual(len(self._release(catalog)), 42)
         permissions = self.Permission.search([])
         self.assertEqual(sorted(permissions.mapped('key')), sorted(catalog))
         installed = set(self.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))
