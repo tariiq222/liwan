@@ -248,6 +248,11 @@ class TestHrAssets(WebVueHrCase):
         self.equipment.invalidate_recordset(['employee_id', 'assign_date'])
         self.assertFalse(self.equipment.employee_id)
 
+    def test_returning_an_unassigned_asset_is_refused(self):
+        self._as_manager()
+        res = self.api('POST', f'/api/v1/hr/assets/equipment/{self.equipment.id}/return', json={})
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'invalid'), res.text)
+
     def test_reassigning_after_a_return_stamps_today(self):
         self._as_manager()
         self.assertEqual(self._assign(self.equipment, self.colleague, assign_date='2026-05-01').status_code, 200)

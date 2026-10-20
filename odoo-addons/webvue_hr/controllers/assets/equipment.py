@@ -139,6 +139,8 @@ class HrAssetsEquipmentController(http.Controller):
         payload.pop('equipment_id', None)
         reject_unknown(payload, ())
         reject_own_custody(equipment.employee_id)
+        if not equipment.employee_id:
+            raise ApiError(422, 'invalid', 'this asset is not assigned; there is nothing to return')
         equipment.check_access('write')
         # The chatter tracking keeps the custody history; only the holder is cleared.
         equipment.write({'employee_id': False})
