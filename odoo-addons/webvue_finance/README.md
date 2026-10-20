@@ -52,6 +52,15 @@ no partner delete: archive instead. Capability dependencies: `partners.manage` n
 `bank.read`; `analytic.manage` needs `analytic.read`; `budgets.manage` needs `budgets.read`; `zatca.read` needs `invoices.read`; `zatca.manage` and `zatca.submit` need `zatca.read`; `closing.manage` needs `closing.read` and `setup.manage`. The built-in
 `finance_manager` role (and `webvue_core`'s vendor support role) holds all thirty-one capabilities.
 
+Two more built-in roles (sets defined once in `models/access_service.py`):
+
+- `finance_accountant` (محاسب): invoices, payments, partners, entries, bank each `read` + `manage`; `zatca.read` + `zatca.submit`;
+  `accounts`, `journals`, `reports`, `statements`, `budgets`, `assets`, `analytic` `read`. It registers payments (Odoo posts the
+  payment move), cancels payments, enters bank statements and reconciles them (including write-offs to accounts other than
+  receivable, payable and liquidity). It does not post invoices or journal entries, close years, change setup or onboard ZATCA,
+  and cannot manage budgets, assets or cost centers, or read the audit trail or zakat.
+- `finance_auditor` (مدقق): the seventeen `.read` capabilities, listed literally and nothing that changes data.
+
 ## Write semantics
 
 - Request bodies are strict: an unknown key is a 422 `invalid` naming it. Money is a plain JSON

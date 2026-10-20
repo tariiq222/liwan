@@ -34,6 +34,30 @@ FINANCE_PERMISSION_DEPENDENCIES = {
     'finance.closing.manage': {'finance.closing.read', 'finance.setup.manage'},
 }
 
+# The accountant registers and cancels payments (Odoo posts the payment move), enters bank statements and
+# reconciles them (including write-offs); it never posts invoices or journal entries, closes years, changes
+# setup or onboards ZATCA.
+FINANCE_ACCOUNTANT_PERMISSIONS = frozenset({
+    'finance.invoices.read', 'finance.invoices.manage',
+    'finance.payments.read', 'finance.payments.manage',
+    'finance.partners.read', 'finance.partners.manage',
+    'finance.entries.read', 'finance.entries.manage',
+    'finance.bank.read', 'finance.bank.manage',
+    'finance.accounts.read', 'finance.journals.read',
+    'finance.reports.read', 'finance.statements.read',
+    'finance.zatca.read', 'finance.zatca.submit',
+    'finance.budgets.read', 'finance.assets.read', 'finance.analytic.read',
+})
+# Read-only by construction: a new read capability is added here by an explicit decision.
+FINANCE_AUDITOR_PERMISSIONS = frozenset({
+    'finance.invoices.read', 'finance.payments.read', 'finance.partners.read',
+    'finance.accounts.read', 'finance.journals.read', 'finance.entries.read',
+    'finance.bank.read', 'finance.statements.read', 'finance.zakat.read',
+    'finance.reports.read', 'finance.audit.read', 'finance.budgets.read',
+    'finance.assets.read', 'finance.analytic.read', 'finance.closing.read',
+    'finance.setup.read', 'finance.zatca.read',
+})
+
 
 class WebVueFinanceAccessService(models.AbstractModel):
     _inherit = 'webvue.access.service'
@@ -59,6 +83,11 @@ class WebVueFinanceAccessService(models.AbstractModel):
             'webvue_core.role_vendor_support',
         ):
             grants[role_xmlid] = grants.get(role_xmlid, set()) | FINANCE_PERMISSIONS
+        for role_xmlid, keys in (
+            ('webvue_finance.role_finance_accountant', FINANCE_ACCOUNTANT_PERMISSIONS),
+            ('webvue_finance.role_finance_auditor', FINANCE_AUDITOR_PERMISSIONS),
+        ):
+            grants[role_xmlid] = grants.get(role_xmlid, set()) | keys
         return grants
 
     @api.model
