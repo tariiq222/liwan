@@ -314,6 +314,50 @@ class TestHrShifts(WebVueHrCase):
         self.assertEqual(created.json()['date_start'], today.isoformat())
         self.assertEqual(default.date_end, today - timedelta(days=1))
 
+    def _default_row(self, name):
+        employee = self.env['hr.employee'].create({'name': name, 'company_id': self.company.id})
+        default = self.env['hr.employee.calendar'].create({
+            'employee_id': employee.id, 'calendar_id': self.company.resource_calendar_id.id,
+        })
+        return employee, default
+
+    def test_past_end_without_start_is_refused_and_changes_nothing(self):
+        employee, default = self._default_row('Shift Past End')
+        self._as_manager()
+        refused = self.api('POST', '/api/v1/hr/shifts/assignments', {
+            'employee_id': employee.id, 'schedule_id': self.schedule.id, 'date_end': '2020-01-31',
+        })
+        self.assertEqual((refused.status_code, refused.json()['code'], refused.json()['field']), (422, 'invalid', 'date_end'))
+        self.assertFalse(default.date_end)
+        self.assertEqual(self.env['hr.employee.calendar'].search_count([('employee_id', '=', employee.id)]), 1)
+
+    def test_refused_period_leaves_the_default_row_open(self):
+        employee, default = self._default_row('Shift Refused Period')
+        # The engine refuses a dated row next to an open one, so reopen the default after planning.
+        default.date_end = date(2027, 2, 28)
+        self._assignment(employee, date_start=date(2027, 3, 1), date_end=date(2027, 3, 31))
+        default._write({'date_end': None})
+        self._as_manager()
+        refused = self.api('POST', '/api/v1/hr/shifts/assignments', {
+            'employee_id': employee.id, 'schedule_id': self.schedule.id,
+            'date_start': '2027-03-15', 'date_end': '2027-04-15',
+        })
+        self.assertEqual(refused.status_code, 422, refused.text)
+        default.invalidate_recordset()
+        self.assertFalse(default.date_end)
+
+    def test_assignment_leaves_another_employees_default_row_untouched(self):
+        employee, _default = self._default_row('Shift Employee A')
+        bystander, bystander_default = self._default_row('Shift Employee B')
+        self._as_manager()
+        created = self.api('POST', '/api/v1/hr/shifts/assignments', {
+            'employee_id': employee.id, 'schedule_id': self.schedule.id,
+            'date_start': '2026-11-01', 'date_end': '2026-11-30',
+        })
+        self.assertEqual(created.status_code, 200, created.text)
+        self.assertFalse(bystander_default.date_end)
+        self.assertEqual(self.env['hr.employee.calendar'].search_count([('employee_id', '=', bystander.id)]), 1)
+
     def test_assignment_payload_is_validated(self):
         self._as_manager()
         unknown = self.api('POST', '/api/v1/hr/shifts/assignments', {
