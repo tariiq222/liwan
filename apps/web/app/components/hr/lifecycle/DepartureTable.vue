@@ -18,7 +18,7 @@ const WIDTH = {
   date: 'w-[128px] min-w-[128px]',
   reason: 'min-w-[160px]',
   clearance: 'w-[128px] min-w-[128px]',
-  active: 'w-[112px] min-w-[112px]',
+  active: 'w-[148px] min-w-[148px]',
   actions: 'w-[56px] min-w-[56px]',
 }
 const NAME_LINK = 'block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
