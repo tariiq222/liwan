@@ -61,6 +61,7 @@ export const mobileDrawer = {
   activeId: 'projects',
   createLinks: projectsSidebar.createLinks,
   sections: projectsSidebar.sections,
+  subSections: projectsSidebar.subSections,
   quickViews: quickViewItems,
   quickActions: quickActionItems,
 }
