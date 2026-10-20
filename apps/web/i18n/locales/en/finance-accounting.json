@@ -1,0 +1,139 @@
+{
+  "financeAccounting": {
+    "forbidden": "You do not have permission to view this page.",
+    "draftNumber": "Draft",
+    "states": {
+      "draft": "Draft",
+      "posted": "Posted",
+      "cancel": "Cancelled"
+    },
+    "kpi": {
+      "label": "Entry counts",
+      "total": "Total",
+      "draft": "Drafts",
+      "posted": "Posted",
+      "cancel": "Cancelled"
+    },
+    "entries": {
+      "title": "Journal entries",
+      "description": "Manual entries from draft to posting.",
+      "new": "New entry",
+      "record": "Journal entry",
+      "empty": "No journal entries yet.",
+      "countTag": "{count} entry | {count} entries",
+      "footer": "Showing {shown} of {total} entry | Showing {shown} of {total} entries"
+    },
+    "accounts": {
+      "title": "Chart of accounts",
+      "description": "The company's accounts and their types.",
+      "empty": "No accounts yet.",
+      "reconcileYes": "Yes",
+      "reconcileNo": "No",
+      "countTag": "{count} account | {count} accounts",
+      "footer": "Showing {shown} of {total} account | Showing {shown} of {total} accounts"
+    },
+    "filters": {
+      "search": "Search by number or reference",
+      "state": "Status",
+      "allStates": "All statuses",
+      "journal": "Journal",
+      "allJournals": "All journals",
+      "dateFrom": "From date",
+      "dateTo": "To date",
+      "searchAccounts": "Search by code or name",
+      "accountType": "Account type",
+      "allTypes": "All types"
+    },
+    "columns": {
+      "number": "Number",
+      "date": "Date",
+      "journal": "Journal",
+      "ref": "Reference",
+      "total": "Total",
+      "state": "Status",
+      "code": "Code",
+      "accountName": "Account name",
+      "type": "Type",
+      "reconcile": "Reconcilable",
+      "currency": "Currency"
+    },
+    "accountTypes": {
+      "asset_receivable": "Receivable",
+      "asset_cash": "Bank and cash",
+      "asset_current": "Current assets",
+      "asset_non_current": "Non-current assets",
+      "asset_prepayments": "Prepayments",
+      "asset_fixed": "Fixed assets",
+      "liability_payable": "Payable",
+      "liability_credit_card": "Credit card",
+      "liability_current": "Current liabilities",
+      "liability_non_current": "Non-current liabilities",
+      "equity": "Equity",
+      "equity_unaffected": "Current year earnings",
+      "income": "Income",
+      "income_other": "Other income",
+      "expense": "Expenses",
+      "expense_other": "Other expenses",
+      "expense_depreciation": "Depreciation",
+      "expense_direct_cost": "Cost of revenue",
+      "off_balance": "Off-balance sheet"
+    },
+    "form": {
+      "details": "Details",
+      "journal": "Journal",
+      "journalRequired": "Choose a journal",
+      "journalPlaceholder": "Choose a journal",
+      "date": "Date",
+      "dateRequired": "Choose a date",
+      "ref": "Reference",
+      "lines": "Lines",
+      "linesHint": "Each line has either a debit or a credit, never both. Total debit must equal total credit.",
+      "account": "Account",
+      "accountPlaceholder": "Choose an account",
+      "accountRequired": "Choose an account",
+      "partner": "Partner",
+      "partnerPlaceholder": "No partner",
+      "lineName": "Label",
+      "lineNameRequired": "Enter a label for the line",
+      "debit": "Debit",
+      "credit": "Credit",
+      "amountInvalid": "Enter an amount in debit or credit, not both",
+      "lineAria": "Line {number}: {field}",
+      "removeLine": "Remove line {number}",
+      "addLine": "Add line",
+      "totalDebit": "Total debit",
+      "totalCredit": "Total credit",
+      "difference": "Difference",
+      "unbalanced": "The entry is unbalanced: debit and credit must be equal and above zero.",
+      "tooFewLines": "Add at least two lines.",
+      "requiredHint": "Fields marked with a star are required.",
+      "createDraft": "Create draft"
+    },
+    "record": {
+      "currency": "Currency"
+    },
+    "actions": {
+      "post": "Post",
+      "resetToDraft": "Reset to draft",
+      "unreconcile": "Unreconcile",
+      "delete": "Delete draft",
+      "menuFor": "Actions for {name}"
+    },
+    "confirm": {
+      "post": "Post \"{name}\"?",
+      "postHint": "Once posted, the lines can only be changed by resetting the entry to draft.",
+      "reset": "Reset \"{name}\" to draft?",
+      "resetHint": "Posting is lifted and the lines become editable again.",
+      "unreconcile": "Unreconcile \"{name}\"?",
+      "unreconcileHint": "The entry's lines are detached from the items they were reconciled with.",
+      "delete": "Delete the draft \"{name}\"?",
+      "deleteHint": "The draft is deleted permanently and cannot be recovered."
+    },
+    "errors": {
+      "unbalanced": "The entry is unbalanced: debit and credit must be equal.",
+      "hasReconciliations": "The entry's lines are reconciled: unreconcile it first.",
+      "invalidState": "This action is not available in the current state.",
+      "periodLocked": "The accounting period is locked for this date."
+    }
+  }
+}

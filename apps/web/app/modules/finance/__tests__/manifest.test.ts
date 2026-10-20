@@ -13,6 +13,8 @@ import type { AppSearchApi } from '../../types'
 const ALL = [
   'finance.invoices.read', 'finance.invoices.manage', 'finance.payments.read', 'finance.payments.manage',
   'finance.partners.read', 'finance.partners.manage', 'finance.setup.read', 'finance.setup.manage', 'finance.statements.read',
+  'finance.entries.read', 'finance.entries.manage', 'finance.entries.post', 'finance.accounts.read', 'finance.bank.read', 'finance.bank.manage',
+  'finance.reports.read',
 ]
 const features = { readable_features: ['finance.enabled'], writable_features: ['finance.enabled'] }
 const admin = { role: 'admin', capabilities: ALL, platform: features }
@@ -43,6 +45,20 @@ describe('finance manifest', () => {
     ['/finance/partners/3', 'finance.partners.read'],
     ['/finance/partners/new', 'finance.partners.manage'],
     ['/finance/partners/3/edit', 'finance.partners.manage'],
+    ['/finance/accounting/entries', 'finance.entries.read'],
+    ['/finance/accounting/entries/12', 'finance.entries.read'],
+    ['/finance/accounting/entries/new', 'finance.entries.manage'],
+    ['/finance/accounting/accounts', 'finance.accounts.read'],
+    ['/finance/bank/statements', 'finance.bank.read'],
+    ['/finance/bank/statements/3', 'finance.bank.read'],
+    ['/finance/bank/statements/new', 'finance.bank.manage'],
+    ['/finance/bank/statements/3/lines/8', 'finance.bank.manage'],
+    ['/finance/reports/trial-balance', 'finance.statements.read'],
+    ['/finance/reports/general-ledger', 'finance.statements.read'],
+    ['/finance/reports/aged-partner-balance', 'finance.statements.read'],
+    ['/finance/reports/partner-statement', 'finance.statements.read'],
+    ['/finance/reports/vat', 'finance.reports.read'],
+    ['/finance/reports/withholding', 'finance.reports.read'],
     ['/settings/apps/finance', 'finance.setup.read'],
   ])('requires %s -> %s', (path, capability) => {
     expect(requiredCapabilityForPath(path)).toBe(capability)
@@ -76,16 +92,16 @@ describe('finance manifest', () => {
 
   it('registers its commands with the capability of the route they open', () => {
     const commands = appCommands().filter(command => command.id.startsWith('finance.'))
-    expect(commands.map(command => command.to)).toEqual(['/finance/sales/invoices/new', '/finance/purchases/bills/new', '/finance/partners/new'])
+    expect(commands.map(command => command.to)).toEqual(['/finance/sales/invoices/new', '/finance/purchases/bills/new', '/finance/partners/new', '/finance/accounting/entries/new', '/finance/bank/statements/new'])
     for (const command of commands) expect(requiredCapabilityForPath(command.to), command.id).toBe(command.capability)
   })
 })
 
 describe('finance context sidebar', () => {
-  const top = ['finance-overview', 'finance-sales', 'finance-purchases', 'finance-payments', 'finance-partners']
+  const top = ['finance-overview', 'finance-sales', 'finance-purchases', 'finance-payments', 'finance-partners', 'finance-accounting', 'finance-bank', 'finance-reports']
 
-  it('keeps the five top links in every section, after one pinned create', () => {
-    for (const path of ['/finance', '/finance/sales/invoices', '/finance/purchases/bills', '/finance/payments', '/finance/partners']) {
+  it('keeps the eight top links in every section', () => {
+    for (const path of ['/finance', '/finance/sales/invoices', '/finance/purchases/bills', '/finance/payments', '/finance/partners', '/finance/accounting/entries', '/finance/bank/statements/2', '/finance/reports/vat']) {
       expect(ids(path).filter(id => top.includes(id)), path).toEqual(top)
     }
   })
@@ -96,6 +112,8 @@ describe('finance context sidebar', () => {
     ['/finance/purchases/refunds', 'new-bill', '/finance/purchases/bills/new', 'finance.invoices.manage'],
     ['/finance/payments/3', 'new-payment', '/finance/payments/new', 'finance.payments.manage'],
     ['/finance/partners', 'new-partner', '/finance/partners/new', 'finance.partners.manage'],
+    ['/finance/accounting/accounts', 'new-entry', '/finance/accounting/entries/new', 'finance.entries.manage'],
+    ['/finance/bank/statements', 'new-statement', '/finance/bank/statements/new', 'finance.bank.manage'],
   ])('pins the create link of %s', (path, id, to, capability) => {
     const links = contextLinksForModule('finance', admin, path)
     expect(links[0]).toMatchObject({ id, to, capability, pinned: true })
@@ -111,6 +129,17 @@ describe('finance context sidebar', () => {
     expect(sales.filter(link => link.section).map(link => link.to)).toEqual(['/finance/sales/invoices', '/finance/sales/credit-notes', '/finance/partners?kind=customer'])
     const sections = groupSections(sales.filter(link => !link.pinned))
     expect(sections.map(section => section.titleKey)).toEqual([null, 'finance.nav.sales'])
+  })
+
+  it('opens the reports without a create link and lists every report', () => {
+    const links = contextLinksForModule('finance', admin, '/finance/reports/vat')
+    expect(links.filter(link => link.pinned)).toHaveLength(0)
+    expect(links.filter(link => link.section === 'finance.nav.reports').map(link => link.to)).toEqual([
+      '/finance/reports/trial-balance', '/finance/reports/general-ledger', '/finance/reports/aged-partner-balance',
+      '/finance/reports/partner-statement', '/finance/reports/vat', '/finance/reports/withholding',
+    ])
+    for (const link of links.filter(item => item.section === 'finance.nav.reports')) expect(requiredCapabilityForPath(String(link.to))).toBe(link.capability)
+    expect(ids('/finance/accounting/entries')).toEqual(expect.arrayContaining(['accounting-entries', 'accounting-accounts']))
   })
 
   it('hides a link whose capability the identity lacks', () => {

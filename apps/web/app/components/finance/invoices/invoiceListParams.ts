@@ -1,12 +1,11 @@
 import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
 import type { FinanceInvoice } from '@webvue/contracts'
 import type { FinanceMoveType } from './invoiceKinds'
+import { queryText, queryDay } from '../../../utils/routeQuery'
 
 export const INVOICE_PAGE_SIZE = 25
 export const INVOICE_STATES = ['draft', 'posted', 'cancel'] as const satisfies readonly FinanceInvoice['state'][]
 export type InvoiceStateFilter = (typeof INVOICE_STATES)[number]
-
-const DAY = /^\d{4}-\d{2}-\d{2}$/
 
 /** What the filter bar can say: only the filters `GET /finance/invoices` supports. */
 export interface InvoiceListFilters {
@@ -31,26 +30,16 @@ export interface InvoiceListParams {
 
 type Query = Record<string, unknown>
 
-function text(value: unknown): string | null {
-  const first = Array.isArray(value) ? value[0] : value
-  return typeof first === 'string' && first.trim() ? first.trim() : null
-}
-
-function day(value: unknown): string | null {
-  const parsed = text(value)
-  return parsed && DAY.test(parsed) ? parsed : null
-}
-
 /** The list filters out of a route query; anything the API would refuse is dropped. */
 export function invoiceFiltersFromQuery(query: Query): InvoiceListFilters {
-  const state = text(query.state)
-  const partner = Number(text(query.partner_id))
-  const page = Number(text(query.page))
-  const dateFrom = day(query.date_from)
-  const dateTo = day(query.date_to)
+  const state = queryText(query.state)
+  const partner = Number(queryText(query.partner_id))
+  const page = Number(queryText(query.page))
+  const dateFrom = queryDay(query.date_from)
+  const dateTo = queryDay(query.date_to)
   const ordered = !dateFrom || !dateTo || dateFrom <= dateTo
   return {
-    q: text(query.q) ?? '',
+    q: queryText(query.q) ?? '',
     state: INVOICE_STATES.find(value => value === state) ?? null,
     partnerId: Number.isSafeInteger(partner) && partner > 0 ? partner : null,
     dateFrom,

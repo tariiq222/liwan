@@ -16,7 +16,21 @@
       "newInvoice": "New sales invoice",
       "newBill": "New vendor bill",
       "newPayment": "New payment",
-      "newPartner": "New partner"
+      "newPartner": "New partner",
+      "accounting": "Accounting",
+      "entries": "Journal entries",
+      "accounts": "Chart of accounts",
+      "newEntry": "New journal entry",
+      "bank": "Bank",
+      "statements": "Bank statements",
+      "newStatement": "New bank statement",
+      "reports": "Reports",
+      "trialBalance": "Trial balance",
+      "generalLedger": "General ledger",
+      "agedPartnerBalance": "Aged partner balance",
+      "partnerStatement": "Partner statement",
+      "vat": "VAT",
+      "withholding": "Withholding tax"
     },
     "kpi": {
       "label": "Finance figures",

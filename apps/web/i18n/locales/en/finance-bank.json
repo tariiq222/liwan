@@ -1,0 +1,123 @@
+{
+  "financeBank": {
+    "title": "Bank statements",
+    "description": "Bank statements and their lines, each reconciled with open entries.",
+    "new": "New statement",
+    "recordKind": "Bank statement",
+    "empty": "No bank statements yet.",
+    "forbidden": "You do not have permission to view this page.",
+    "countTag": "{count} statement | {count} statements",
+    "footer": "Showing {shown} of {total} statement | Showing {shown} of {total} statements",
+    "linesCount": "{count} line | {count} lines",
+    "differencePill": "Balance difference",
+    "linesTitle": "Statement lines",
+    "noLines": "This statement has no lines.",
+    "kpi": {
+      "label": "Statement figures",
+      "all": "All statements",
+      "filtered": "Statements matching the filters"
+    },
+    "filters": {
+      "journal": "Journal",
+      "allJournals": "All journals",
+      "dateFrom": "From date",
+      "dateTo": "To date"
+    },
+    "columns": {
+      "name": "Statement",
+      "date": "Date",
+      "journal": "Journal",
+      "balanceStart": "Opening balance",
+      "balanceEnd": "Closing balance",
+      "linesCount": "Lines",
+      "difference": "Difference",
+      "label": "Label",
+      "partner": "Partner",
+      "amount": "Amount",
+      "residual": "Remaining",
+      "state": "Status"
+    },
+    "statementStates": {
+      "reconciled": "Fully reconciled",
+      "open": "Needs reconciling"
+    },
+    "lineStates": {
+      "reconciled": "Reconciled",
+      "open": "To reconcile"
+    },
+    "summary": {
+      "reconciled": "Reconciled lines",
+      "open": "Lines to reconcile"
+    },
+    "record": {
+      "computedEnd": "Computed closing balance",
+      "currency": "Currency"
+    },
+    "form": {
+      "title": "New bank statement",
+      "details": "Statement details",
+      "journal": "Bank journal",
+      "journalRequired": "Choose the bank journal",
+      "noJournals": "There are no bank journals.",
+      "date": "Statement date",
+      "dateRequired": "Choose the date",
+      "name": "Statement name",
+      "nameHint": "Leave empty to name it automatically",
+      "nameInvalid": "The name is not valid",
+      "balanceStart": "Opening balance",
+      "balanceEndReal": "Closing balance on the bank statement",
+      "numberInvalid": "Enter a valid number",
+      "lines": "Statement lines",
+      "linesHint": "A positive amount is money in, a negative one is money out.",
+      "linesInvalid": "Add at least one line (up to 500 lines).",
+      "lineDate": "Date",
+      "lineLabel": "Label",
+      "lineLabelRequired": "Write the line label",
+      "lineAmount": "Amount",
+      "lineAmountInvalid": "Enter a non-zero amount",
+      "linePartner": "Partner (optional)",
+      "partnerPlaceholder": "Choose the partner",
+      "lineAria": "Line {number}: {field}",
+      "removeLine": "Remove line {number}",
+      "addLine": "Add line",
+      "linesTotal": "Lines total",
+      "balances": "Balances",
+      "computedEnd": "Computed closing balance",
+      "differenceWarning": "The computed balance differs from the bank's by {amount}.",
+      "requiredHint": "Fields marked with a star are required.",
+      "submit": "Create statement"
+    },
+    "reconcile": {
+      "title": "Reconcile a line",
+      "action": "Reconcile",
+      "actionFor": "Reconcile line: {label}",
+      "review": "Review and reconcile",
+      "backToStatement": "Back to the statement",
+      "lineTitle": "The line to reconcile",
+      "lineHint": "Choose the open entries this amount covers.",
+      "proposals": "Suggested entries",
+      "proposalsHint": "Open entries on the side of the amount's direction, exact matches first.",
+      "noProposals": "There are no open entries to suggest for this line.",
+      "entry": "Entry",
+      "account": "Account",
+      "exact": "Exact match",
+      "summary": "Reconciliation summary",
+      "selected": "{count} entry selected | {count} entries selected",
+      "difference": "Remaining difference",
+      "writeOffHint": "A difference remains after the selected entries. Choose an account to take it and complete the reconciliation.",
+      "writeOffAccount": "Difference account",
+      "accountPlaceholder": "Search for an account",
+      "writeOffLabel": "Difference entry label (optional)",
+      "confirm": "Reconcile this line?",
+      "confirmHint": "The reconciliation is created as soon as you confirm and cannot be undone from here.",
+      "doneTitle": "This line is reconciled",
+      "doneHint": "No action is needed on this line.",
+      "selectProposal": "Select entry {entry}"
+    },
+    "errors": {
+      "notBalanced": "The selected entries do not cover the line's amount. Choose an account for the difference or change the selection.",
+      "invalidState": "This line is already reconciled or cannot be reconciled.",
+      "periodLocked": "The accounting period is locked for this date."
+    }
+  }
+}

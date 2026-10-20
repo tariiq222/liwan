@@ -58,7 +58,7 @@ const figureSize = computed(() => props.emphasis ? 'text-3xl/10' : compact.value
     <div class="grid min-w-0 flex-1" :class="compact ? 'gap-0' : 'gap-1'">
       <p :class="compact ? 'text-xs/4 font-semibold text-toned' : 'text-sm text-muted'">{{ props.label }}</p>
       <p
-        class="wrap-anywhere font-semibold tracking-tight tabular-nums"
+        class="wrap-break-word font-semibold tracking-tight tabular-nums"
         :class="[figureSize, props.tone === 'danger' ? 'text-status-danger-foreground' : 'text-highlighted']"
         :dir="props.valueDir"
       >

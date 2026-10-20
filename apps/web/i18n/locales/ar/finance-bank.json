@@ -1,0 +1,123 @@
+{
+  "financeBank": {
+    "title": "كشوف الحساب البنكي",
+    "description": "كشوف البنك وبنودها، وتسوية كل بند مع القيود المفتوحة.",
+    "new": "كشف جديد",
+    "recordKind": "كشف حساب بنكي",
+    "empty": "لا توجد كشوف حساب بعد.",
+    "forbidden": "لا تملك صلاحية عرض هذه الصفحة.",
+    "countTag": "لا كشوف | كشف واحد | كشفان | {count} كشوف | {count} كشفًا | {count} كشف",
+    "footer": "لا كشوف | عرض {shown} من كشف واحد | عرض {shown} من كشفين | عرض {shown} من {total} كشوف | عرض {shown} من {total} كشفًا | عرض {shown} من {total} كشف",
+    "linesCount": "لا بنود | بند واحد | بندان | {count} بنود | {count} بندًا | {count} بند",
+    "differencePill": "فرق في الرصيد",
+    "linesTitle": "بنود الكشف",
+    "noLines": "لا توجد بنود في هذا الكشف.",
+    "kpi": {
+      "label": "أرقام الكشوف",
+      "all": "كل الكشوف",
+      "filtered": "الكشوف المطابقة للتصفية"
+    },
+    "filters": {
+      "journal": "اليومية",
+      "allJournals": "كل اليوميات",
+      "dateFrom": "من تاريخ",
+      "dateTo": "إلى تاريخ"
+    },
+    "columns": {
+      "name": "الكشف",
+      "date": "التاريخ",
+      "journal": "اليومية",
+      "balanceStart": "الرصيد الافتتاحي",
+      "balanceEnd": "الرصيد الختامي",
+      "linesCount": "البنود",
+      "difference": "الفرق",
+      "label": "البيان",
+      "partner": "الطرف",
+      "amount": "المبلغ",
+      "residual": "المتبقي",
+      "state": "الحالة"
+    },
+    "statementStates": {
+      "reconciled": "مسوّى بالكامل",
+      "open": "بحاجة إلى تسوية"
+    },
+    "lineStates": {
+      "reconciled": "مسوّى",
+      "open": "بحاجة إلى تسوية"
+    },
+    "summary": {
+      "reconciled": "بنود مسوّاة",
+      "open": "بنود بحاجة إلى تسوية"
+    },
+    "record": {
+      "computedEnd": "الرصيد الختامي المحسوب",
+      "currency": "العملة"
+    },
+    "form": {
+      "title": "كشف حساب جديد",
+      "details": "بيانات الكشف",
+      "journal": "يومية البنك",
+      "journalRequired": "اختر يومية البنك",
+      "noJournals": "لا توجد يوميات بنك.",
+      "date": "تاريخ الكشف",
+      "dateRequired": "اختر التاريخ",
+      "name": "اسم الكشف",
+      "nameHint": "اتركه فارغًا ليُسمّى تلقائيًا",
+      "nameInvalid": "الاسم غير صالح",
+      "balanceStart": "الرصيد الافتتاحي",
+      "balanceEndReal": "الرصيد الختامي في كشف البنك",
+      "numberInvalid": "أدخل رقمًا صحيحًا",
+      "lines": "بنود الكشف",
+      "linesHint": "المبلغ الموجب مبلغ داخل إلى الحساب، والسالب مبلغ خارج منه.",
+      "linesInvalid": "أضف بندًا واحدًا على الأقل (حتى 500 بند).",
+      "lineDate": "التاريخ",
+      "lineLabel": "البيان",
+      "lineLabelRequired": "اكتب بيان البند",
+      "lineAmount": "المبلغ",
+      "lineAmountInvalid": "أدخل مبلغًا غير صفري",
+      "linePartner": "الطرف (اختياري)",
+      "partnerPlaceholder": "اختر الطرف",
+      "lineAria": "البند {number}: {field}",
+      "removeLine": "حذف البند {number}",
+      "addLine": "إضافة بند",
+      "linesTotal": "مجموع البنود",
+      "balances": "الأرصدة",
+      "computedEnd": "الرصيد الختامي المحسوب",
+      "differenceWarning": "الرصيد المحسوب يختلف عن رصيد البنك بمقدار {amount}.",
+      "requiredHint": "الحقول التي عليها نجمة مطلوبة.",
+      "submit": "إنشاء الكشف"
+    },
+    "reconcile": {
+      "title": "تسوية بند",
+      "action": "تسوية",
+      "actionFor": "تسوية البند: {label}",
+      "review": "مراجعة وتسوية",
+      "backToStatement": "العودة إلى الكشف",
+      "lineTitle": "البند المراد تسويته",
+      "lineHint": "اختر القيود المفتوحة التي يغطيها هذا المبلغ.",
+      "proposals": "القيود المقترحة",
+      "proposalsHint": "القيود المفتوحة المطابقة لاتجاه المبلغ، والمطابقة تمامًا أولًا.",
+      "noProposals": "لا توجد قيود مفتوحة مقترحة لهذا البند.",
+      "entry": "القيد",
+      "account": "الحساب",
+      "exact": "مطابق تمامًا",
+      "summary": "ملخص التسوية",
+      "selected": "لا قيود محددة | قيد واحد محدد | قيدان محددان | {count} قيود محددة | {count} قيدًا محددًا | {count} قيد محدد",
+      "difference": "الفرق المتبقي",
+      "writeOffHint": "بقي فرق بعد القيود المحددة. اختر حسابًا يستوعبه لإتمام التسوية.",
+      "writeOffAccount": "حساب الفرق",
+      "accountPlaceholder": "ابحث عن حساب",
+      "writeOffLabel": "بيان قيد الفرق (اختياري)",
+      "confirm": "تسوية هذا البند؟",
+      "confirmHint": "تُنشأ التسوية فور التأكيد ولا يمكن التراجع عنها من هنا.",
+      "doneTitle": "هذا البند مسوّى",
+      "doneHint": "لا إجراء مطلوب على هذا البند.",
+      "selectProposal": "تحديد القيد {entry}"
+    },
+    "errors": {
+      "notBalanced": "القيود المحددة لا تغطي مبلغ البند. اختر حسابًا للفرق أو عدّل الاختيار.",
+      "invalidState": "هذا البند مسوّى بالفعل أو لا يقبل التسوية.",
+      "periodLocked": "الفترة المحاسبية مقفلة لهذا التاريخ."
+    }
+  }
+}
