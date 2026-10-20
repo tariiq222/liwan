@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { FinanceZatcaReadinessSchema } from './setup'
+import { day, FinanceRefSchema, list } from './shared'
 
 /** A ZATCA validation message: the rule code when ZATCA gave one, and its text. */
 export const FinanceZatcaMessageSchema = z.object({
@@ -49,6 +50,20 @@ export const FinanceZatcaOnboardInputSchema = z.object({
   otp: z.string().regex(/^\d{6}$/),
 }).strict()
 
+/**
+ * GET /finance/zatca/documents[?state=]: the work list of e-invoices ZATCA has not accepted, oldest first. `state` filters on
+ * pending, retry, rejected, blocked or unauthorized (the states of a submission that are not final).
+ */
+export const FinanceZatcaWaitingDocumentSchema = z.object({
+  invoice: FinanceRefSchema,
+  partner: FinanceRefSchema.nullable(),
+  date: day.nullable(),
+  amount_total: z.number(),
+  move_type: z.string(),
+  submission: FinanceZatcaSubmissionSchema,
+}).strict()
+export const FinanceZatcaWaitingDocumentListSchema = list(FinanceZatcaWaitingDocumentSchema)
+
 export const FinanceZatcaErrorCodeSchema = z.enum([
   'zatca_unavailable', 'zatca_rejected', 'zatca_local_error', 'zatca_unauthorized', 'zatca_mode_not_allowed',
   'zatca_not_onboarded', 'zatca_not_applicable',
@@ -57,5 +72,6 @@ export const FinanceZatcaErrorCodeSchema = z.enum([
 export type FinanceZatcaMessage = z.infer<typeof FinanceZatcaMessageSchema>
 export type FinanceZatcaBacklog = z.infer<typeof FinanceZatcaBacklogSchema>
 export type FinanceZatcaStatus = z.infer<typeof FinanceZatcaStatusSchema>
+export type FinanceZatcaWaitingDocument = z.infer<typeof FinanceZatcaWaitingDocumentSchema>
 export type FinanceZatcaSubmission = z.infer<typeof FinanceZatcaSubmissionSchema>
 export type FinanceZatcaOnboardInput = z.infer<typeof FinanceZatcaOnboardInputSchema>

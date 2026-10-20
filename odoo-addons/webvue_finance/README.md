@@ -41,7 +41,7 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `POST /bank-statements` (201), `POST /bank-statements/import/preview`, `POST /bank-statements/import` (201), `PATCH` and `DELETE` (204) `/bank-statements/<id>`, `POST /bank-statements/<id>/auto-reconcile`, `POST /bank-statement-lines/<id>/reconcile`, `/unreconcile` | `finance.bank.manage` |
 | `GET /budgets` (`state`, `q`), `GET /budgets/<id>`, `GET /reports/budget-vs-actual?budget_id[&date_to]` | `finance.budgets.read` |
 | `POST /budgets` (201), `PATCH /budgets/<id>`, `POST /budgets/<id>/lines/distribute` (201), `POST /budgets/<id>/confirm`, `/cancel`, `/reset-to-draft`, `POST /budgets/<id>/lines` (201), `PATCH` and `DELETE` (204) `/budgets/<id>/lines/<line_id>` | `finance.budgets.manage` |
-| `GET /zatca/status`, `GET /invoices/<id>/zatca` | `finance.zatca.read` |
+| `GET /zatca/status`, `GET /zatca/documents` (`state`), `GET /invoices/<id>/zatca` | `finance.zatca.read` |
 | `POST /zatca/journals/<id>/onboard` (`{otp}`) | `finance.zatca.manage` |
 | `POST /invoices/<id>/zatca/submit`, `POST /invoices/<id>/zatca/retry` | `finance.zatca.submit` |
 | `GET /analytic-plans` (`q`), `GET /analytic-plans/<id>`, `GET /analytic-accounts` (`q`, `plan_id`, `archived=true\|false`), `GET /analytic-accounts/<id>`, `GET /reports/analytic?date_from&date_to&plan_id?`, `GET /reports/analytic/lines?account_id&date_from&date_to` | `finance.analytic.read` |
