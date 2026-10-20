@@ -1,5 +1,5 @@
 import { activeManifests } from './manifests'
-import type { AppBellKind, AppCommand, AppRecordPicker, AppSearchProvider, AppSidebarPanel } from './types'
+import type { AppBellKind, AppCommand, AppRecordLink, AppRecordPicker, AppSearchProvider, AppSidebarPanel } from './types'
 
 /** The same application search providers for the dialog and the page, in rail order. */
 export function searchProviders(): AppSearchProvider[] {
@@ -35,6 +35,11 @@ export function appCommands(): AppCommand[] {
 /** The record picker an application declares for a record kind, if any. */
 export function recordPickerFor(kind: string): AppRecordPicker | undefined {
   return activeManifests().flatMap(manifest => manifest.recordPickers ?? []).find(picker => picker.kind === kind)
+}
+
+/** The record link an application declares for a record kind, if any. */
+export function recordLinkFor(kind: string): AppRecordLink | undefined {
+  return activeManifests().flatMap(manifest => manifest.recordLinks ?? []).find(link => link.kind === kind)
 }
 
 /** The record a path lives inside, from the first application scope that recognises it. */
