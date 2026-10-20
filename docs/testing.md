@@ -163,7 +163,8 @@ creates users or tasks, or touches rules or fields owned by later modules, must 
 
 ## 2. Unit tests
 
-`npm test` runs the policy checks, the contracts tests and the web unit tests. Keep pure
+`npm test` runs the policy checks, the contracts tests (including the database-free
+`packages/commercial-contracts` tests, which compile the real `deploy/catalog` solution) and the web unit tests. Keep pure
 logic in composables so it can be tested here without a browser.
 
 ### Contract fixtures (serializer to zod parity)

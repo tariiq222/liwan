@@ -64,7 +64,7 @@ def plan(changed, base):
     if touched('deploy/'):
         steps.append(('catalog_check', [PY, '-B', 'tools/catalog_check.py']))
         steps.append(('deploy_unittest', [PY, '-B', '-m', 'unittest', 'discover', '-s', 'deploy', '-t', '.', '-p', 'test_*.py']))
-    if touched('packages/commercial-contracts/'):
+    if touched('packages/commercial-contracts/', 'deploy/catalog/'):
         steps.append(('commercial_contracts_test', ['npm', '-w', 'packages/commercial-contracts', 'run', 'test']))
     if any(path in FULL_TEST_FILES for path in changed):
         steps.append(('npm_test_full', ['npm', 'test']))

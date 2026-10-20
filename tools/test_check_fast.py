@@ -82,6 +82,14 @@ class TestCheckFast(unittest.TestCase):
     def test_commercial_contracts_change_runs_its_tests(self):
         self.assertEqual(extra(['packages/commercial-contracts/src/a.ts']), {'commercial_contracts_test'} | VENDOR_EXTRA)
 
+    def test_catalog_change_runs_the_commercial_contracts_tests(self):
+        # The entitlement compiler tests read deploy/catalog/solutions/platform.json.
+        self.assertEqual(
+            extra(['deploy/catalog/solutions/platform.json']),
+            {'catalog_check', 'deploy_unittest', 'commercial_contracts_test'},
+        )
+        self.assertNotIn('commercial_contracts_test', extra(['deploy/backup.py']))
+
     def test_root_manifests_and_ci_run_the_full_test(self):
         for path in ('package.json', 'package-lock.json', '.github/workflows/ci.yml'):
             self.assertEqual(extra([path]), {'npm_test_full'})
