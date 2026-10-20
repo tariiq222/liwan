@@ -131,7 +131,9 @@ class HrShiftController(http.Controller):
         args = request.httprequest.args
         active = _parse_active(args.get('active'))
         limit, offset = parse_page(args)
-        schedules = request.env['resource.calendar'].with_context(active_test=active is not False)
+        # active_test stays off: the domain below carries the active filter whenever one is wanted,
+        # and 'all' (active None) must not be narrowed back to the active schedules by the ORM.
+        schedules = request.env['resource.calendar'].with_context(active_test=False)
         domain = [('company_id', '=', request.env.company.id), ('auto_generate', '=', False)]
         if active is not None:
             domain.append(('active', '=', active))
