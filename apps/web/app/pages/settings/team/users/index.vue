@@ -4,6 +4,7 @@ import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import { useAdminUsers, type AdminUserListParams } from '@/composables/useAdminUsers'
 import { useAdminRoles } from '@/composables/useAdminRoles'
 import { useHrDepartments } from '@/composables/useHrDepartments'
+import { useEmployeeAccountBridge } from '@/composables/useEmployeeAccounts'
 import { ADMIN_PAGE_SIZE, adminListQuery, adminQueryWithOffset, parseAdminOffset } from '@/composables/adminSettingsPaths'
 
 const route = useRoute()
@@ -20,7 +21,9 @@ const filters = reactive<AdminUserListParams>({
   limit: ADMIN_PAGE_SIZE,
   offset: parseAdminOffset(route.query.offset),
 })
-const query = useAdminUsers(filters, computed(() => !forbidden.value))
+// The department filter and the employee column exist only with the employee-account bridge; core rejects `department_id`.
+const { departmentFilter } = useEmployeeAccountBridge()
+const query = useAdminUsers(() => ({ ...filters, department_id: departmentFilter.value ? filters.department_id : undefined }), computed(() => !forbidden.value))
 const roles = useAdminRoles({}, computed(() => !forbidden.value && can('access.roles.read')))
 const departments = useHrDepartments()
 const page = computed(() => Math.floor((filters.offset ?? 0) / (filters.limit ?? 25)) + 1)
@@ -29,7 +32,7 @@ const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
 // The list's total as a tag in the heading, once the first page has arrived.
 const countTags = computed(() => query.data.value ? [{ label: t('access.users.countTag', { count: total.value }, total.value), kind: 'count' as const }] : [])
-const activeFilterCount = computed(() => Number(Boolean(filters.q?.trim())) + Number(Boolean(filters.status)) + Number(Boolean(filters.role_id)) + Number(Boolean(filters.department_id)))
+const activeFilterCount = computed(() => Number(Boolean(filters.q?.trim())) + Number(Boolean(filters.status)) + Number(Boolean(filters.role_id)) + Number(departmentFilter.value && Boolean(filters.department_id)))
 
 function isUsersList() {
   return (route.path.replace(/\/+$/, '') || '/') === '/settings/team/users'
@@ -96,7 +99,7 @@ function clearSearch() { filters.q = ''; updateFilters() }
             <template #default>
               <USelect class="w-full md:w-40" :items="statusOptions" :model-value="filters.status ?? allValue" :aria-label="t('access.users.columns.status')" :disabled="!hydrated" @update:model-value="onStatusChange" />
               <USelect class="w-full md:w-48" :items="roleOptions" :model-value="filters.role_id ? String(filters.role_id) : allValue" :aria-label="t('access.users.role')" :disabled="!hydrated" @update:model-value="onRoleChange" />
-              <USelect class="w-full md:w-48" :items="departmentOptions" :model-value="filters.department_id ? String(filters.department_id) : allValue" :aria-label="t('nav.departments')" :disabled="!hydrated || !can('hr.departments.read')" @update:model-value="onDepartmentChange" />
+              <USelect v-if="departmentFilter" class="w-full md:w-48" :items="departmentOptions" :model-value="filters.department_id ? String(filters.department_id) : allValue" :aria-label="t('nav.departments')" :disabled="!hydrated" @update:model-value="onDepartmentChange" />
             </template>
           </FilterBar>
         </div>

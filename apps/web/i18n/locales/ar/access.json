@@ -21,8 +21,15 @@
       "countTag": "لا مستخدمين | مستخدم واحد | مستخدمان | {count} مستخدمين | {count} مستخدمًا | {count} مستخدم",
       "title": "المستخدمون",
       "description": "إدارة حسابات الدخول والأدوار المسندة إليها.",
-      "grantAccount": "منح حساب لموظف",
-      "grantTitle": "منح حساب دخول",
+      "grantAccount": "إنشاء حساب",
+      "grantTitle": "إنشاء حساب دخول",
+      "mode": "طريقة إنشاء الحساب",
+      "modeAccount": "حساب جديد",
+      "modeEmployee": "من موظف",
+      "accountDetails": "بيانات الحساب",
+      "name": "الاسم",
+      "loginEmail": "البريد الإلكتروني لتسجيل الدخول",
+      "loginInvalid": "اكتب بريدًا إلكترونيًا صحيحًا.",
       "editAccess": "تعديل الوصول",
       "security": "أمان الحساب",
       "securityTitle": "أمان الحساب",
@@ -37,10 +44,6 @@
       "chooseEmployee": "اختر موظفًا نشطًا",
       "chooseRole": "اختر دورًا",
       "role": "الدور",
-      "candidatePage": "صفحة الموظفين {page} من {pages}",
-      "previousCandidates": "الموظفون السابقون",
-      "nextCandidates": "الموظفون التاليون",
-      "candidateEmail": "البريد الوظيفي: {email}",
       "loadingCandidates": "جارٍ تحميل الموظفين…",
       "loadingRoles": "جارٍ تحميل الأدوار…",
       "loadingCapabilities": "جارٍ احتساب الصلاحيات الناتجة…",
@@ -142,6 +145,7 @@
       "filters": { "from": "من", "to": "إلى", "allTargets": "كل الأنواع", "chooseTarget": "اختر السجل المتأثر", "allActors": "كل المنفذين", "allActions": "كل العمليات", "action": "نوع العملية" }
       ,"actions": {
         "userGranted": "منح حساب",
+        "userEmployeeLinked": "ربط حساب بموظف",
         "userRolesChanged": "تغيير الأدوار",
         "userDisabled": "إيقاف الوصول",
         "userReactivated": "إعادة تفعيل الوصول",
@@ -155,6 +159,6 @@
         "legacyAdminPreserved": "الإبقاء على مسؤول قديم"
       }
     },
-    "errors": { "weakPassword": "كلمة المرور قصيرة جدًا.", "conflict": "تغيرت البيانات. أعد تحميل النسخة الأحدث ثم حاول مرة أخرى.", "custom_role_permission_forbidden": "لا يمكن للدور المخصص منح صلاحية إدارة الوصول.", "forbidden": "لا تملك صلاحية تنفيذ هذا الإجراء.", "protected_user": "حساب الدعم محمي.", "protected_role": "الدور الجاهز محمي.", "last_access_admin": "لا يمكن إزالة آخر مسؤول وصول.", "employee_archived": "لا يمكن منح الدخول لموظف مؤرشف.", "email_required": "يحتاج الموظف إلى بريد وظيفي صحيح.", "login_taken": "اسم الدخول مستخدم مسبقًا.", "unsupported_scope": "النطاق المحدد غير مدعوم.", "missing_dependency": "أضف الصلاحيات التابعة أولًا.", "role_in_use": "لا يمكن حذف دور مسند إلى مستخدمين." }
+    "errors": { "weakPassword": "كلمة المرور قصيرة جدًا.", "conflict": "تغيرت البيانات. أعد تحميل النسخة الأحدث ثم حاول مرة أخرى.", "custom_role_permission_forbidden": "لا يمكن للدور المخصص منح صلاحية إدارة الوصول.", "forbidden": "لا تملك صلاحية تنفيذ هذا الإجراء.", "protected_user": "حساب الدعم محمي.", "protected_role": "الدور الجاهز محمي.", "last_access_admin": "لا يمكن إزالة آخر مسؤول وصول.", "employee_archived": "لا يمكن منح الدخول لموظف مؤرشف.", "account_exists": "يوجد حساب بهذا البريد مسبقًا.", "work_email_required": "يحتاج الموظف إلى بريد وظيفي صحيح.", "employee_contact_required": "لا توجد جهة اتصال للموظف. أضف بياناته أولًا.", "unsupported_scope": "النطاق المحدد غير مدعوم.", "missing_dependency": "أضف الصلاحيات التابعة أولًا.", "role_in_use": "لا يمكن حذف دور مسند إلى مستخدمين." }
   }
 }

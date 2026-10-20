@@ -8,6 +8,9 @@ PARTNER_GRANT_MARKER = 'webvue_core.access_grant_partner_ids'
 PARTNER_GRANT_FIELDS = {
     'active', 'company_id', 'email', 'image_1920', 'name', 'properties',
 }
+# webvue.access.service._webvue_create_account marks the caller's uid for the one contact it creates; the
+# access-grant capability holds no general res.partner create right.
+PARTNER_CREATE_MARKER = 'webvue_core.access_grant_partner_create'
 PARTNER_BRANDING_MARKER = 'webvue_core.branding_partner_ids'
 PARTNER_BRANDING_FIELDS = {'image_1920', 'name'}
 PARTNER_COMPANY_MARKER = 'webvue_core.company_profile_partner_ids'
@@ -21,6 +24,11 @@ PARTNER_COMPANY_FIELDS = {
 
 class WebVueResPartner(models.Model):
     _inherit = 'res.partner'
+
+    def check_access(self, operation):
+        if operation == 'create' and self.env.uid in self.env.cr.precommit.data.get(PARTNER_CREATE_MARKER, set()):
+            return None
+        return super().check_access(operation)
 
     def write(self, vals):
         if self.env.is_superuser() or self.env.user.has_group('base.group_system'):

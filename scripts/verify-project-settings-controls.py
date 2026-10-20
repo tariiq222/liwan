@@ -617,11 +617,11 @@ def _e2e_fixtures(ctx: dict, database: str, port: int, run_dir: Path) -> int:
     if mgr_emp[0] >= 400 or emp_emp[0] >= 400:
         return _fail(f'employee create failed {mgr_emp} {emp_emp}')
     company_id = me['company']['id']
-    mgr_user = api.call('POST', '/api/v1/admin/users', {
+    mgr_user = api.call('POST', '/api/v1/admin/employee-accounts', {
         'employee_id': mgr_emp[1]['id'], 'password': password,
         'assignments': [{'role_id': role['id'], 'scope': {'kind': 'company', 'id': company_id}}],
     })
-    emp_user = api.call('POST', '/api/v1/admin/users', {
+    emp_user = api.call('POST', '/api/v1/admin/employee-accounts', {
         'employee_id': emp_emp[1]['id'], 'password': password,
         'assignments': [{'role_id': emp_role['id'], 'scope': {'kind': 'company', 'id': company_id}}],
     })

@@ -31,11 +31,13 @@ const actionsFor = (user: AdminUserSummary): RowAction[] => [
   ...(can('access.users.read') ? [{ label: t('access.users.security'), icon: 'i-lucide-shield', to: `/settings/team/users/${user.id}/security` } satisfies RowAction] : []),
 ]
 
+// The payload carries `employee` only with the employee-account bridge; without it there is no column.
+const showEmployee = computed(() => props.users.some(user => user.employee !== undefined))
 const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
   { accessorKey: 'name', header: t('access.users.columns.name') },
   { accessorKey: 'login', header: t('access.users.columns.loginName') },
-  { accessorKey: 'employee', header: t('access.users.columns.employee') },
+  ...(showEmployee.value ? [{ accessorKey: 'employee', header: t('access.users.columns.employee') }] : []),
   { accessorKey: 'roles', header: t('access.users.columns.roles') },
   { accessorKey: 'active', header: t('access.users.columns.status') },
   { accessorKey: 'actions', header: t('access.users.columns.actions') },
@@ -83,7 +85,7 @@ const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
       </div>
       <dl class="mt-3 grid grid-cols-1 gap-2 text-xs text-muted">
         <div><dt>{{ t('access.users.columns.loginName') }}</dt><dd dir="ltr">{{ row.login }}</dd></div>
-        <div><dt>{{ t('access.users.columns.employee') }}</dt><dd>{{ row.employee?.name ?? t('access.users.noEmployee') }}</dd></div>
+        <div v-if="showEmployee"><dt>{{ t('access.users.columns.employee') }}</dt><dd>{{ row.employee?.name ?? t('access.users.noEmployee') }}</dd></div>
         <div><dt>{{ t('access.users.columns.roles') }}</dt><dd>{{ rolesOf(row) }}</dd></div>
       </dl>
       <div class="mt-3 flex justify-end"><SharedRowActions :actions="actionsFor(row)" :label="t('access.users.rowActions', { name: row.name })" /></div>

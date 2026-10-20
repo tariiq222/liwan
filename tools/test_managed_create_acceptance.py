@@ -53,7 +53,7 @@ class ManagedCreatePolicyCase(ManagedRuntimeCase):
             'commercial_mode': 'saas', 'entitlement_source': 'control_plane',
             'status': 'active', 'valid_until': None,
             'features': self.policy_value['features'], 'policy_revision': 1,
-            'modules': ['base', 'project', 'hr'] + self.policy_value['modules'],
+            'modules': ['base', 'project', 'hr', 'webvue_access_hr'] + self.policy_value['modules'],
         }) + '\n'
 
     def credential_snapshot(self, changed):

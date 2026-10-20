@@ -2,7 +2,8 @@ import {
   AccessAuditDetailSchema,
   AccessAuditListSchema,
   AccessAuditSummarySchema,
-  AdminUserCandidateListSchema,
+  EmployeeAccountCandidateListSchema,
+  EmployeeAccountInputSchema,
   AdminUserDetailSchema,
   AdminUserListSchema,
   AdminUserSummarySchema,
@@ -151,8 +152,11 @@ describe('access capability and reference schemas', () => {
 
 describe('admin user schemas', () => {
   it('accepts summary/detail shapes and preserves the res.users id', () => {
-    expect(AdminUserCandidateListSchema.parse({ items: [{ id: 31, name: 'سارة محمد', department: EMPLOYEE.department, work_email: 'sara@example.com', active: true, user_id: null, access_active: null }], total: 1 }).items[0]?.id).toBe(31)
+    expect(EmployeeAccountCandidateListSchema.parse({ items: [{ id: 31, name: 'سارة محمد', department: EMPLOYEE.department, work_email: 'sara@example.com', active: true, user_id: null, access_active: null }], total: 1 }).items[0]?.id).toBe(31)
     expect(AdminUserSummarySchema.parse(USER_SUMMARY).id).toBe(18)
+    const { employee: _employee, ...withoutEmployee } = USER_SUMMARY
+    expect(AdminUserSummarySchema.parse(withoutEmployee).employee).toBeUndefined()
+    expect(AdminUserSummarySchema.parse({ ...USER_SUMMARY, employee: null }).employee).toBeNull()
     expect(AdminUserDetailSchema.parse(USER_DETAIL).capabilities[0]?.key).toBe('hr.employees.archive')
     expect(AdminUserListSchema.parse({ items: [USER_SUMMARY], total: 1 })).toMatchObject({ total: 1 })
   })
@@ -269,31 +273,41 @@ describe('role and permission schemas', () => {
 })
 
 describe('admin input schemas and fail-closed security fields', () => {
-  it('trims grant/reset passwords and requires expected versions where specified', () => {
+  it('keeps the exact grant/reset passwords and requires expected versions where specified', () => {
     expect(GrantAccountInputSchema.parse({
+      name: ' سارة محمد ',
+      login: 'sara@example.com',
+      password: '  12345678  ',
+      assignments: [{ role_id: 1, scope: { kind: 'company', id: 1 } }],
+    })).toMatchObject({ name: 'سارة محمد', password: '  12345678  ' })
+    expect(EmployeeAccountInputSchema.parse({
       employee_id: 31,
       password: '  12345678  ',
       assignments: [{ role_id: 1, scope: { kind: 'company', id: 1 } }],
-    }).password).toBe('12345678')
+    }).password).toBe('  12345678  ')
     expect(UpdateUserAccessInputSchema.parse({
       assignments: [{ role_id: 4, scope: { kind: 'company', id: 1 } }],
       expected_version: 'u18-a3-v7',
     }).expected_version).toBe('u18-a3-v7')
-    expect(ResetPasswordInputSchema.parse({ password: '  12345678 ', expected_version: 'u18-a3-v7' }).password).toBe('12345678')
-    expect(() => GrantAccountInputSchema.parse({ employee_id: 31, password: 'short', assignments: [] })).toThrow()
+    expect(ResetPasswordInputSchema.parse({ password: '  12345678 ', expected_version: 'u18-a3-v7' }).password).toBe('  12345678 ')
+    expect(() => GrantAccountInputSchema.parse({ name: 'سارة', login: 'sara@example.com', password: 'short', assignments: [] })).toThrow()
+    expect(() => GrantAccountInputSchema.parse({ name: 'سارة', login: 'not-an-email', password: '12345678', assignments: [{ role_id: 1, scope: { kind: 'company', id: 1 } }] })).toThrow()
+    expect(() => GrantAccountInputSchema.parse({ employee_id: 31, password: '12345678', assignments: [{ role_id: 1, scope: { kind: 'company', id: 1 } }] })).toThrow()
+    expect(() => EmployeeAccountInputSchema.parse({ employee_id: 31, password: 'short', assignments: [] })).toThrow()
     expect(() => UpdateUserAccessInputSchema.parse({ assignments: [], expected_version: 'v1' })).toThrow()
     expect(() => ResetPasswordInputSchema.parse({ password: '12345678' })).toThrow()
   })
 
-  it('accepts an optional trimmed password for reactivation and validates state bodies strictly', () => {
+  it('accepts an optional exact password for reactivation and validates state bodies strictly', () => {
     expect(ChangeUserStateInputSchema.parse({ expected_version: 'u18-a3-v7' })).toEqual({ expected_version: 'u18-a3-v7' })
-    expect(ChangeUserStateInputSchema.parse({ expected_version: 'u18-a3-v7', password: '  secret-password  ' }).password).toBe('secret-password')
+    expect(ChangeUserStateInputSchema.parse({ expected_version: 'u18-a3-v7', password: '  secret-password  ' }).password).toBe('  secret-password  ')
     expect(() => ChangeUserStateInputSchema.parse({ expected_version: 'u18-a3-v7', session_id: 'session' })).toThrow()
   })
 
   it('rejects sensitive keys in audit values and never accepts password output fields', () => {
     expect(AuditActionSchema.options).toEqual([
       'user.granted',
+      'user.employee_linked',
       'user.roles_changed',
       'user.disabled',
       'user.reactivated',

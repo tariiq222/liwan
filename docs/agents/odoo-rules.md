@@ -204,6 +204,17 @@ TAGS="/${MODULES//,/,/}"
 ```
 
 
+## Account contact create (R9 exception)
+
+The access-grant capability (`group_cap_access_users_grant`) holds no `res.partner` create ACL.
+`webvue.access.service._webvue_create_account` creates the one contact of a new account inside
+`protected_write.marked` with `PARTNER_CREATE_MARKER` set to the caller's uid, after its own
+`access.users.grant` check, and the `odoo-addons/webvue_core/models/res_partner.py` override of the public
+`check_access` passes only the `create` operation while that marker holds the current uid; every other
+operation and every other caller keeps Odoo's ACLs and record rules. No Odoo method body is copied.
+Regression evidence: `test_grant_capability_creates_a_contact_only_inside_the_account_create` in
+`odoo-addons/webvue_api/tests/test_access_admin.py`. Do not widen the marker to other fields or callers.
+
 ## Managed document engine boundaries
 
 `webvue_documents` uses pinned, unmodified OCA DMS in attachment mode. Its business

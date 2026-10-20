@@ -31,7 +31,7 @@ async function createPasswordFixture(page) {
   })
   expect(employeeRes.status()).toBe(201)
   const employee = await employeeRes.json()
-  const userRes = await page.request.post('/api/v1/admin/users', {
+  const userRes = await page.request.post('/api/v1/admin/employee-accounts', {
     data: {
       employee_id: employee.id,
       password: FIXTURE_PASSWORD,

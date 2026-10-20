@@ -69,7 +69,7 @@ async function ensureEmployeeUser(page): Promise<number> {
       })
       expect(restored.status()).toBe(200)
     } else {
-      const grantRes = await page.request.post('/api/v1/admin/users', {
+      const grantRes = await page.request.post('/api/v1/admin/employee-accounts', {
         data: { employee_id: employee.id, password: EMPLOYEE_PASSWORD, assignments: [{ role_id: role.id, scope: { kind: 'company', id: me.company.id } }] },
       })
       expect(grantRes.status()).toBe(201)

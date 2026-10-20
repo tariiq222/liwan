@@ -2,9 +2,6 @@
 from odoo.exceptions import AccessError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
-from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
-from odoo.addons.webvue_hr.rules import WebVueHrRule
-
 
 @tagged('webvue', '-at_install', 'post_install')
 class TestEmployeeModel(TransactionCase):
@@ -28,7 +25,6 @@ class TestEmployeeModel(TransactionCase):
             'role_id': cls.env.ref('webvue_hr.role_hr_manager').id,
             'company_id': cls.company.id,
         }])
-        cls.hook_service = cls.env['webvue.access.service'].with_user(cls.access_admin)
         cls.employee_user = new_test_user(
             cls.env, login='model_hr_employee', password='model_hr_employee_pass',
             groups='webvue_core.group_employee', company_id=cls.company.id,
@@ -49,76 +45,6 @@ class TestEmployeeModel(TransactionCase):
         with self.assertRaises(AccessError):
             employee.with_user(self.employee_user)._webvue_write({'name': 'Nope'})
         self.assertEqual(employee.name, 'Model Employee')
-
-    def test_account_hooks_are_narrow_and_company_scoped(self):
-        employee = self._employee(email='  Person@Example.COM ')
-        prepared = self.hook_service._webvue_hr_prepare_account(employee.id, 'grant')
-        self.assertEqual(set(prepared), {
-            'employee_id', 'company_id', 'name', 'login', 'partner_id',
-            'existing_user_id', 'employee_active',
-        })
-        self.assertEqual(prepared['login'], 'person@example.com')
-        self.assertFalse(prepared['existing_user_id'])
-
-        candidate = self.hook_service._webvue_hr_account_candidates(
-            {'q': 'Person'}, limit=10, offset=0,
-        )
-        self.assertEqual(candidate['total'], 1)
-        self.assertEqual(set(candidate['items'][0]), {
-            'id', 'name', 'department', 'work_email', 'active', 'user_id',
-            'access_active',
-        })
-        self.assertEqual(candidate['items'][0]['id'], employee.id)
-
-        other_company = self.env['res.company'].create({'name': 'Other HR Company'})
-        foreign = self.env['hr.employee'].create({
-            'name': 'Person Foreign', 'company_id': other_company.id,
-            'work_email': 'foreign.person@example.com',
-        })
-        self.assertEqual(
-            self.hook_service._webvue_hr_account_candidates(
-                {'q': 'Person'}, limit=10, offset=0,
-            )['total'],
-            1,
-        )
-        with self.assertRaises(WebVueAccessRule) as error:
-            self.hook_service._webvue_hr_prepare_account(foreign.id, 'grant')
-        self.assertEqual(error.exception.code, 'not_found')
-        self.assertEqual(error.exception.status, 404)
-
-    def test_link_hook_links_same_company_employee(self):
-        employee = self._employee()
-        user = new_test_user(
-            self.env, login='linked_model_employee', password='linked_model_pass',
-            groups='webvue_core.group_employee', company_id=self.company.id,
-            company_ids=[self.company.id],
-        )
-        self.hook_service._webvue_hr_link_account(employee.id, user.id)
-        employee.invalidate_recordset(['user_id'])
-        self.assertEqual(employee.user_id, user)
-        self.assertEqual(
-            self.hook_service._webvue_hr_employee_refs([user.id])[user.id]['id'],
-            employee.id,
-        )
-
-    def test_archive_disables_linked_user_and_restore_keeps_login_stopped(self):
-        employee = self._employee()
-        user = new_test_user(
-            self.env, login='archive_model_employee', password='archive_model_pass',
-            groups='webvue_core.group_employee', company_id=self.company.id,
-            company_ids=[self.company.id],
-        )
-        employee.write({'user_id': user.id})
-        employee.with_user(self.hr_manager)._webvue_archive()
-        employee.invalidate_recordset(['active'])
-        user.invalidate_recordset(['active'])
-        self.assertFalse(employee.active)
-        self.assertFalse(user.active)
-        employee.with_user(self.hr_manager)._webvue_unarchive()
-        employee.invalidate_recordset(['active'])
-        user.invalidate_recordset(['active'])
-        self.assertTrue(employee.active)
-        self.assertFalse(user.active)
 
     def test_legacy_account_writers_are_not_model_api(self):
         employee = self._employee()
@@ -174,16 +100,3 @@ class TestEmployeeModel(TransactionCase):
             env_b['hr.version'].search([])
         with self.assertRaises(AccessError):
             self.env['hr.version'].with_user(self.employee_user).search([])
-
-    def test_hr_manager_cannot_link_account_through_generic_orm(self):
-        with self.assertRaises(WebVueHrRule):
-            self.env['hr.employee'].with_user(self.hr_manager).create({
-                'name': 'Generic Linked Employee', 'user_id': self.employee_user.id,
-            })
-        employee = self._employee()
-        with self.assertRaises(WebVueHrRule):
-            employee.with_user(self.hr_manager).write({'user_id': self.employee_user.id})
-        with self.assertRaises(AccessError):
-            employee.resource_id.with_user(self.hr_manager).write({'user_id': self.employee_user.id})
-        with self.assertRaises(AccessError):
-            employee.resource_id.with_user(self.hr_manager).write({'active': False})

@@ -96,7 +96,7 @@ test('the saved appearance belongs to the signed-in user, not the browser', asyn
   })
   expect(employeeResponse.status()).toBe(201)
   const employee = await employeeResponse.json()
-  const created = await page.request.post('/api/v1/admin/users', {
+  const created = await page.request.post('/api/v1/admin/employee-accounts', {
     data: { employee_id: employee.id, password: 'Appearance-Initial-123!', assignments: [{ role_id: role!.id, scope: { kind: 'company', id: me.company.id } }] },
   })
   expect(created.status(), 'Requires a backend with account creation and separate user sessions').toBe(201)

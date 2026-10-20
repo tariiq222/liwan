@@ -26,7 +26,7 @@ async function provisionPeer(page: Page) {
   const employee = await (await page.request.post('/api/v1/hr/employees', {
     data: { name: `Chat peer ${suffix}`, work_email: login },
   })).json()
-  const user = await (await page.request.post('/api/v1/admin/users', {
+  const user = await (await page.request.post('/api/v1/admin/employee-accounts', {
     data: {
       employee_id: employee.id,
       password: FIXTURE_PASSWORD,

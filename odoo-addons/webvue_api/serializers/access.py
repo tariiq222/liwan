@@ -109,7 +109,7 @@ def _capability_sources(user, assignments):
     return [{'key': key, 'sources': values} for key, values in sorted(sources.items())]
 
 
-def dump_admin_user(user, employee_ref=None, detail=False, actor=None):
+def dump_admin_user(user, extra=None, detail=False, actor=None):
     service = user.env['webvue.access.service']
     assignments = user.env['webvue.access.assignment'].search([
         ('user_id', '=', user.id), ('company_id', '=', user.company_id.id),
@@ -119,11 +119,11 @@ def dump_admin_user(user, employee_ref=None, detail=False, actor=None):
         'id': user.id,
         'name': user.name,
         'login': user.login,
-        'employee': employee_ref,
         'active': bool(user.active),
         'protected': protected,
         'assignments': [assignment_ref(item) for item in assignments],
         'version': service._webvue_user_version(user),
+        **(extra or {}),
     }
     if detail:
         actor = actor or user.env.user

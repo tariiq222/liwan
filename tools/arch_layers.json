@@ -21,7 +21,8 @@
     "webvue_operations_pmo": 5,
     "webvue_registry_probe": 3,
     "webvue_integrations_sa": 3,
-    "webvue_documents_hr": 5
+    "webvue_documents_hr": 5,
+    "webvue_access_hr": 5
   },
   "exempt": [],
   "web_apps": {

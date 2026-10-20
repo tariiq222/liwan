@@ -46,7 +46,7 @@ export const Deadline: Story = {
 }
 export const AccessState: Story = {
   name: 'حالة الوصول',
-  parameters: storyContext('apps/web/app/components/access/users/UserTable.vue:64'),
+  parameters: storyContext('apps/web/app/components/access/users/UserTable.vue:71'),
   render: row('<StatusBadge v-for="(r, i) in rows" :key="i" :tone="accessStateBadge(r).tone" :label="t(accessStateBadge(r).labelKey)" />', () => ({ rows: [{ active: true }, { active: false }, { active: true, protected: true }, { active: true, readOnly: true }], accessStateBadge })),
 }
 export const HrAccess: Story = {

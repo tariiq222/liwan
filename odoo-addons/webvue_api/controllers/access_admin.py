@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
 from odoo.http import request
+from odoo.tools import email_normalize
 
 from odoo.addons.webvue_api.controllers.common import (
     MIN_PASSWORD_LENGTH,
@@ -23,7 +24,7 @@ from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 MAX_PAGE = 200
 
 
-def _query(allowed):
+def parse_query(allowed):
     args = request.httprequest.args.to_dict()
     unknown = set(args) - set(allowed)
     if unknown:
@@ -33,7 +34,7 @@ def _query(allowed):
     return args, limit, offset
 
 
-def _exact(payload, allowed, required=()):
+def require_exact(payload, allowed, required=()):
     extra = set(payload) - set(allowed)
     if extra:
         field = sorted(extra)[0]
@@ -44,13 +45,13 @@ def _exact(payload, allowed, required=()):
         raise ApiError(422, 'invalid', 'field is required', field=field)
 
 
-def _password(value, field='password'):
+def parse_password(value, field='password'):
     if not isinstance(value, str) or len(value.strip()) < MIN_PASSWORD_LENGTH:
         raise ApiError(422, 'weak_password', 'password must be at least 8 characters', field=field)
     return value
 
 
-def _assignments(value):
+def parse_assignments(value):
     if not isinstance(value, list) or not value:
         raise ApiError(422, 'invalid', 'assignments must not be empty', field='assignments')
     normalized = []
@@ -80,8 +81,25 @@ def _target_user(user_id):
     return user
 
 
-def _employee_refs(users):
-    return request.env['webvue.access.service']._webvue_hr_employee_refs(users.ids)
+def _extra(users):
+    return request.env['webvue.access.service']._webvue_account_extra_fields(users.ids)
+
+
+def _dump(user, extra, detail=True):
+    return dump_admin_user(user, extra.get(user.id), detail=detail)
+
+
+def _name(value):
+    if not isinstance(value, str) or not value.strip():
+        raise ApiError(422, 'invalid', 'name is required', field='name')
+    return value.strip()
+
+
+def _login(value):
+    login = email_normalize(value.strip()) if isinstance(value, str) else False
+    if not login:
+        raise ApiError(422, 'invalid', 'login must be an email address', field='login')
+    return login
 
 
 class AccessAdminUsersController(http.Controller):
@@ -91,7 +109,9 @@ class AccessAdminUsersController(http.Controller):
     def users(self):
         service = request.env['webvue.access.service']
         service._webvue_require_capability('access.users.read')
-        filters, limit, offset = _query({'q', 'role_id', 'status', 'department_id', 'limit', 'offset'})
+        filters, limit, offset = parse_query(
+            {'q', 'role_id', 'status', 'limit', 'offset'} | service._webvue_account_filter_keys(),
+        )
         domain = [('company_id', '=', request.env.company.id), ('share', '=', False)]
         if filters.get('q'):
             domain += ['|', ('name', 'ilike', filters['q']), ('login', 'ilike', filters['q'])]
@@ -103,123 +123,77 @@ class AccessAdminUsersController(http.Controller):
         if filters.get('role_id'):
             role_id = parse_positive_int(filters['role_id'], 'role_id')
             domain.append(('webvue_access_assignment_ids.role_id', '=', role_id))
-        if filters.get('department_id'):
-            filters['department_id'] = parse_positive_int(filters['department_id'], 'department_id')
-            domain += list(service._webvue_hr_user_domain(filters))
+        domain += list(service._webvue_account_user_domain(filters))
         users = request.env['res.users'].with_context(active_test=False).search(
             domain, order='name, id', limit=limit, offset=offset,
         )
-        refs = _employee_refs(users)
-        return {'items': [dump_admin_user(user, refs.get(user.id)) for user in users],
+        extra = _extra(users)
+        return {'items': [_dump(user, extra, detail=False) for user in users],
                 'total': request.env['res.users'].with_context(active_test=False).search_count(domain)}
-
-    @http.route('/api/v1/admin/users/candidates', type='json2', auth='user', methods=['GET'], readonly=True)
-    @api_handler
-    def candidates(self):
-        service = request.env['webvue.access.service']
-        service._webvue_require_capability('access.users.grant')
-        filters, limit, offset = _query({'q', 'employee_id', 'limit', 'offset'})
-        if filters.get('employee_id'):
-            filters['employee_id'] = parse_positive_int(filters['employee_id'], 'employee_id')
-        return service._webvue_hr_account_candidates(filters, limit, offset)
 
     @http.route('/api/v1/admin/users/<int:user_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     def user(self, user_id):
-        service = request.env['webvue.access.service']
-        service._webvue_require_capability('access.users.read')
+        request.env['webvue.access.service']._webvue_require_capability('access.users.read')
         target = _target_user(user_id)
-        return dump_admin_user(target, _employee_refs(target).get(target.id), detail=True)
+        return _dump(target, _extra(target))
 
     @http.route('/api/v1/admin/users', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    def grant(self, **payload):
-        _exact(payload, {'employee_id', 'password', 'assignments'}, {'employee_id', 'password', 'assignments'})
+    def create(self, **payload):
+        require_exact(payload, {'name', 'login', 'password', 'assignments'}, {'name', 'login', 'password', 'assignments'})
         service = request.env['webvue.access.service']
         service._webvue_require_capability('access.users.grant')
-        employee_id = parse_positive_int(payload['employee_id'], 'employee_id')
-        prepared = service._webvue_hr_prepare_account(employee_id, 'grant')
-        if not prepared['employee_active']:
-            msg = 'employee_archived'
-            raise WebVueAccessRule(msg, field='employee_id')
-        if prepared['existing_user_id']:
-            msg = 'account_exists'
-            raise WebVueAccessRule(msg, field='employee_id', status=409)
-        if not prepared['login']:
-            msg = 'work_email_required'
-            raise WebVueAccessRule(msg, field='employee_id')
-        if not prepared['partner_id']:
-            msg = 'employee_contact_required'
-            raise WebVueAccessRule(msg, field='employee_id')
-        assignments = _assignments(payload['assignments'])
-        user = request.env['res.users'].with_context(
-            no_reset_password=True,
-        )._webvue_access_create({
-            'name': prepared['name'], 'login': prepared['login'],
-            'email': prepared['login'], 'password': _password(payload['password']),
-            'partner_id': prepared['partner_id'], 'company_id': prepared['company_id'],
-            'company_ids': [(6, 0, [prepared['company_id']])],
-            'group_ids': [(6, 0, [request.env.ref('base.group_user').id])],
-        })
-        service._webvue_hr_link_account(employee_id, user.id)
-        service._webvue_replace_assignments(user, assignments)
-        service._webvue_bump_policy(user.company_id)
-        request.env['webvue.access.audit']._webvue_log(
-            'user.granted', user, before=None,
-            after={'employee_id': employee_id, 'active': True},
+        user = service._webvue_create_account(
+            _name(payload['name']), _login(payload['login']),
+            parse_password(payload['password']), parse_assignments(payload['assignments']),
         )
         clear_security_caches_after_commit(request.env)
-        return request.make_json_response(
-            dump_admin_user(user, _employee_refs(user).get(user.id), detail=True), status=201,
-        )
+        return request.make_json_response(_dump(user, _extra(user)), status=201)
 
     @http.route('/api/v1/admin/users/<int:user_id>/access', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
     def access(self, user_id, **payload):
-        _exact(payload, {'assignments', 'expected_version'}, {'assignments', 'expected_version'})
+        require_exact(payload, {'assignments', 'expected_version'}, {'assignments', 'expected_version'})
         service = request.env['webvue.access.service']
         target = _target_user(user_id)
         service._webvue_replace_assignments(
-            target, _assignments(payload['assignments']), payload['expected_version'],
+            target, parse_assignments(payload['assignments']), payload['expected_version'],
         )
         clear_security_caches_after_commit(request.env)
-        return dump_admin_user(target, _employee_refs(target).get(target.id), detail=True)
+        return _dump(target, _extra(target))
 
     @http.route('/api/v1/admin/users/<int:user_id>/password', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     def reset_password(self, user_id, **payload):
-        _exact(payload, {'password', 'expected_version'}, {'password', 'expected_version'})
+        require_exact(payload, {'password', 'expected_version'}, {'password', 'expected_version'})
         service = request.env['webvue.access.service']
         service._webvue_require_capability('access.users.reset_password')
         target = _target_user(user_id)
         service._webvue_reset_password(
-            target, _password(payload['password']), payload['expected_version'],
+            target, parse_password(payload['password']), payload['expected_version'],
         )
-        return dump_admin_user(target, _employee_refs(target).get(target.id), detail=True)
+        return _dump(target, _extra(target))
 
     @http.route('/api/v1/admin/users/<int:user_id>/disable', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     def disable(self, user_id, **payload):
-        _exact(payload, {'expected_version'}, {'expected_version'})
+        require_exact(payload, {'expected_version'}, {'expected_version'})
         target = _target_user(user_id)
         request.env['webvue.access.service']._webvue_disable_user(target, payload['expected_version'])
-        return dump_admin_user(target, _employee_refs(target).get(target.id), detail=True)
+        return _dump(target, _extra(target))
 
     @http.route('/api/v1/admin/users/<int:user_id>/reactivate', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     def reactivate(self, user_id, **payload):
-        _exact(payload, {'expected_version', 'password'}, {'expected_version', 'password'})
+        require_exact(payload, {'expected_version', 'password'}, {'expected_version', 'password'})
         service = request.env['webvue.access.service']
         service._webvue_require_capability('access.users.disable')
         target = _target_user(user_id)
-        employee_ref = service._webvue_hr_employee_refs([target.id]).get(target.id)
-        if not employee_ref:
-            msg = 'not_found'
-            raise WebVueAccessRule(msg, status=404)
         service._webvue_reactivate_user(
-            target, _password(payload['password']), payload['expected_version'], employee_ref['id'],
+            target, parse_password(payload['password']), payload['expected_version'],
         )
-        return dump_admin_user(target, _employee_refs(target).get(target.id), detail=True)
+        return _dump(target, _extra(target))
 
 
 class AccessAdminRolesController(http.Controller):
@@ -235,7 +209,7 @@ class AccessAdminRolesController(http.Controller):
     @api_handler
     def roles(self):
         request.env['webvue.access.service']._webvue_require_capability('access.roles.read')
-        filters, limit, offset = _query({'q', 'type', 'status', 'limit', 'offset'})
+        filters, limit, offset = parse_query({'q', 'type', 'status', 'limit', 'offset'})
         domain = [
             '|', ('company_id', '=', False),
             ('company_id', '=', request.env.company.id),
@@ -267,7 +241,7 @@ class AccessAdminRolesController(http.Controller):
     @http.route('/api/v1/admin/roles', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     def create_role(self, **payload):
-        _exact(payload, {'name', 'description', 'permissions'}, {'name', 'description', 'permissions'})
+        require_exact(payload, {'name', 'description', 'permissions'}, {'name', 'description', 'permissions'})
         self._require_manage()
         role = request.env['webvue.access.role']._webvue_access_create(self._role_vals(payload))
         request.env['webvue.access.audit']._webvue_log('role.created', role, after={'permissions': sorted(role.permission_ids.mapped('key'))})
@@ -276,7 +250,7 @@ class AccessAdminRolesController(http.Controller):
     @http.route('/api/v1/admin/roles/<int:role_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
     def patch_role(self, role_id, **payload):
-        _exact(payload, {'name', 'description', 'permissions', 'expected_version'}, {'expected_version'})
+        require_exact(payload, {'name', 'description', 'permissions', 'expected_version'}, {'expected_version'})
         self._require_manage()
         role = self._role(role_id)
         self._mutable(role)
@@ -293,7 +267,7 @@ class AccessAdminRolesController(http.Controller):
     @http.route('/api/v1/admin/roles/<int:role_id>/clone', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     def clone_role(self, role_id, **payload):
-        _exact(payload, {'name'}, {'name'})
+        require_exact(payload, {'name'}, {'name'})
         self._require_manage()
         source = self._role(role_id)
         role = request.env['webvue.access.role']._webvue_access_create({
@@ -306,7 +280,7 @@ class AccessAdminRolesController(http.Controller):
     @http.route(['/api/v1/admin/roles/<int:role_id>/disable', '/api/v1/admin/roles/<int:role_id>/enable'], type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     def role_state(self, role_id, **payload):
-        _exact(payload, {'expected_version'}, {'expected_version'})
+        require_exact(payload, {'expected_version'}, {'expected_version'})
         self._require_manage()
         role = self._role(role_id)
         self._mutable(role)
@@ -321,7 +295,7 @@ class AccessAdminRolesController(http.Controller):
     @api_handler
     def delete_role(self, role_id):
         self._require_manage()
-        args, _limit, _offset = _query({'expected_version'})
+        args, _limit, _offset = parse_query({'expected_version'})
         if not args.get('expected_version'):
             raise ApiError(422, 'invalid', 'expected_version is required', field='expected_version')
         role = self._role(role_id)
@@ -407,7 +381,7 @@ class AccessAdminAuditController(http.Controller):
     @api_handler
     def audit(self):
         request.env['webvue.access.service']._webvue_require_capability('access.audit.read')
-        filters, limit, offset = _query({'from', 'to', 'actor_id', 'target_type', 'target_id', 'action', 'limit', 'offset'})
+        filters, limit, offset = parse_query({'from', 'to', 'actor_id', 'target_type', 'target_id', 'action', 'limit', 'offset'})
         domain = [('company_id', '=', request.env.company.id)]
         mappings = {'from': ('create_date', '>='), 'to': ('create_date', '<='), 'action': ('action', '=')}
         for key, (field, operator) in mappings.items():

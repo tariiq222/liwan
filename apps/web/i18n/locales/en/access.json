@@ -21,8 +21,15 @@
       "countTag": "{count} user | {count} users",
       "title": "Users",
       "description": "Manage login accounts and their assigned roles.",
-      "grantAccount": "Grant account to employee",
-      "grantTitle": "Grant login account",
+      "grantAccount": "Create account",
+      "grantTitle": "Create login account",
+      "mode": "How to create the account",
+      "modeAccount": "New account",
+      "modeEmployee": "From employee",
+      "accountDetails": "Account details",
+      "name": "Name",
+      "loginEmail": "Login email",
+      "loginInvalid": "Enter a valid email address.",
       "editAccess": "Edit access",
       "security": "Account security",
       "securityTitle": "Account security",
@@ -37,10 +44,6 @@
       "chooseEmployee": "Choose an active employee",
       "chooseRole": "Choose a role",
       "role": "Role",
-      "candidatePage": "Candidate page {page} of {pages}",
-      "previousCandidates": "Previous candidates",
-      "nextCandidates": "Next candidates",
-      "candidateEmail": "Work email: {email}",
       "loadingCandidates": "Loading candidates…",
       "loadingRoles": "Loading roles…",
       "loadingCapabilities": "Calculating resulting capabilities…",
@@ -142,6 +145,7 @@
       "filters": { "from": "From", "to": "To", "allTargets": "All targets", "chooseTarget": "Choose affected record", "allActors": "All actors", "allActions": "All action types", "action": "Action type" }
       ,"actions": {
         "userGranted": "Account granted",
+        "userEmployeeLinked": "Account linked to employee",
         "userRolesChanged": "Roles changed",
         "userDisabled": "Access disabled",
         "userReactivated": "Access reactivated",
@@ -155,6 +159,6 @@
         "legacyAdminPreserved": "Legacy administrator preserved"
       }
     },
-    "errors": { "weakPassword": "The password is too short.", "conflict": "The data changed. Reload the latest version and try again.", "custom_role_permission_forbidden": "Custom roles cannot grant access administration permissions.", "forbidden": "You do not have permission to perform this action.", "protected_user": "The support account is protected.", "protected_role": "Built-in roles are protected.", "last_access_admin": "The last access administrator cannot be removed.", "employee_archived": "Access cannot be granted to an archived employee.", "email_required": "The employee needs a valid work email.", "login_taken": "That login is already in use.", "unsupported_scope": "The selected scope is not supported.", "missing_dependency": "Add the required dependent permissions first.", "role_in_use": "A role assigned to users cannot be deleted." }
+    "errors": { "weakPassword": "The password is too short.", "conflict": "The data changed. Reload the latest version and try again.", "custom_role_permission_forbidden": "Custom roles cannot grant access administration permissions.", "forbidden": "You do not have permission to perform this action.", "protected_user": "The support account is protected.", "protected_role": "Built-in roles are protected.", "last_access_admin": "The last access administrator cannot be removed.", "employee_archived": "Access cannot be granted to an archived employee.", "account_exists": "An account with this email already exists.", "work_email_required": "The employee needs a valid work email.", "employee_contact_required": "The employee has no contact record. Add their details first.", "unsupported_scope": "The selected scope is not supported.", "missing_dependency": "Add the required dependent permissions first.", "role_in_use": "A role assigned to users cannot be deleted." }
   }
 }
