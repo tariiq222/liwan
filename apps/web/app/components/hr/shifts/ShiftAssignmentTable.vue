@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
+import { h } from 'vue'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 import type { HrShiftAssignment } from '@/composables/useHrShifts'
 
@@ -19,7 +20,7 @@ const columns = computed<TableColumn<HrShiftAssignment>[]>(() => [
   { accessorKey: 'employee', header: t('hrShifts.columns.employee'), meta: { class: { td: 'font-semibold text-highlighted' } } },
   { accessorKey: 'schedule', header: t('hrShifts.columns.schedule') },
   { accessorKey: 'date_start', header: t('hrShifts.columns.period') },
-  { id: 'actions', header: '', meta: { class: { th: 'w-12', td: 'w-12 text-end' } } },
+  { id: 'actions', header: () => h('span', { class: 'sr-only' }, t('app.actions')), meta: { class: { th: 'w-12', td: 'w-12 text-end' } } },
 ])
 
 function period(assignment: HrShiftAssignment) {

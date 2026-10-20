@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
+import { h } from 'vue'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 import type { HrShiftSchedule } from '@/composables/useHrShifts'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
@@ -24,7 +25,7 @@ const columns = computed<TableColumn<HrShiftSchedule>[]>(() => [
   { accessorKey: 'hours_per_week', header: t('hrShifts.columns.hoursPerWeek') },
   { accessorKey: 'attendances', header: t('hrShifts.columns.attendances') },
   { accessorKey: 'active', header: t('hrShifts.columns.state') },
-  { id: 'actions', header: '', meta: { class: { th: 'w-12', td: 'w-12 text-end' } } },
+  { id: 'actions', header: () => h('span', { class: 'sr-only' }, t('app.actions')), meta: { class: { th: 'w-12', td: 'w-12 text-end' } } },
 ])
 
 function scheduleTo(schedule: HrShiftSchedule) {
