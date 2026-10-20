@@ -246,15 +246,31 @@ class TestNewApp(unittest.TestCase):
         Their rail orders stay untouched, so the generated placement still follows the repository's
         real navigation.
         """
+        modules = self.root / 'apps/web/app/modules'
+        # One fixture manifest carries every quote style the allocator reads, so the rewrite below
+        # is exercised on single, double and backtick delimiters (the seeded files use single).
+        (modules / 'zzquotes').mkdir(parents=True, exist_ok=True)
+        (modules / 'zzquotes' / 'manifest.ts').write_text(
+            "export default { nav: [{ shortcut: 'q' }, { shortcut: \"w\" }, { shortcut: `r` }] }\n",
+            encoding='utf-8',
+        )
+        paths = [*sorted(modules.glob('*/manifest.ts')), self.root / 'apps/web/app/composables/nav/shellModules.ts']
+        files = [path for path in paths if path.is_file()]
+        before = sum(len(SHORTCUT.findall(path.read_text(encoding='utf-8'))) for path in files)
         cycle = itertools.cycle('ab')
-        for path in (*sorted((self.root / 'apps/web/app/modules').glob('*/manifest.ts')),
-                     self.root / 'apps/web/app/composables/nav/shellModules.ts'):
-            if path.is_file():
-                text = path.read_text(encoding='utf-8')
-                path.write_text(
-                    SHORTCUT.sub(lambda match: f'{match.group(1)}{match.group(2)}{next(cycle)}{match.group(2)}', text),
-                    encoding='utf-8',
-                )
+        for path in files:
+            text = path.read_text(encoding='utf-8')
+            path.write_text(
+                SHORTCUT.sub(lambda match: f'shortcut: {match.group(1)}{next(cycle)}{match.group(1)}', text),
+                encoding='utf-8',
+            )
+        # Regression: the rewrite keeps the literal `shortcut:` property, the original delimiter
+        # quote and a replacement key as the value, so the allocator still reads every one of them.
+        values = [value for path in files for _, value in SHORTCUT.findall(path.read_text(encoding='utf-8'))]
+        self.assertEqual(len(values), before, 'the rewrite must keep every shortcut property and its quotes')
+        self.assertEqual(set(values), {'a', 'b'}, 'every rewritten shortcut must hold the replacement key')
+        quotes = [quote for quote, _ in SHORTCUT.findall((modules / 'zzquotes' / 'manifest.ts').read_text(encoding='utf-8'))]
+        self.assertEqual(quotes, ["'", '"', '`'], 'the rewrite must keep each original quote delimiter')
         self.assertEqual(self.free_shortcuts()[:2], ['d', 'e'], 'the collapsed fixture must free d and e')
 
     def pin_free_shortcuts(self, *keep):
