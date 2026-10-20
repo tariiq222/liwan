@@ -1,7 +1,10 @@
 // Opt-in synthetic responses for internal module UI review. Never reads or writes Odoo data.
 import { documentsPreviewData } from './documents-ui-preview-data.mjs'
 import { financePreviewData } from './finance-ui-preview-data.mjs'
+import { financeAccountingPreviewData } from './finance-accounting-ui-preview-data.mjs'
+import { financeBankPreviewData } from './finance-bank-ui-preview-data.mjs'
 import { financeDocumentsPreviewData } from './finance-documents-ui-preview-data.mjs'
+import { financeReportsPreviewData } from './finance-reports-ui-preview-data.mjs'
 import { hrPreviewData } from './hr-ui-preview-data.mjs'
 
 export const moduleUiCapabilities = [
@@ -32,6 +35,13 @@ export const moduleUiCapabilities = [
   'finance.payments.manage',
   'finance.journals.read',
   'finance.statements.read',
+  'finance.reports.read',
+  'finance.entries.read',
+  'finance.entries.manage',
+  'finance.entries.post',
+  'finance.accounts.read',
+  'finance.bank.read',
+  'finance.bank.manage',
   'finance.setup.read',
   'finance.setup.manage',
   'finance.zatca.read',
@@ -408,6 +418,9 @@ export function moduleUiPreviewData(path, url) {
   if (normalizedPath.startsWith('/api/v1/documents')) return documentsPreviewData(normalizedPath, parsedUrl)
   if (normalizedPath.startsWith('/api/v1/hr/')) return hrPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/(invoices|payments|journals)(\/|$)/.test(normalizedPath)) return financeDocumentsPreviewData(normalizedPath, parsedUrl)
+  if (/^\/api\/v1\/finance\/(entries|accounts)(\/|$)/.test(normalizedPath)) return financeAccountingPreviewData(normalizedPath, parsedUrl)
+  if (/^\/api\/v1\/finance\/bank-statement(s|-lines)(\/|$)/.test(normalizedPath)) return financeBankPreviewData(normalizedPath, parsedUrl)
+  if (/^\/api\/v1\/finance\/reports\/(trial-balance|general-ledger|partner-statement|vat|withholding)$/.test(normalizedPath)) return financeReportsPreviewData(normalizedPath, parsedUrl)
   if (normalizedPath.startsWith('/api/v1/finance/')) return financePreviewData(normalizedPath, parsedUrl)
 
   if (normalizedPath === '/api/v1/admin/users') return page([adminUser], parsedUrl)

@@ -16,7 +16,21 @@
       "newInvoice": "فاتورة مبيعات جديدة",
       "newBill": "فاتورة مورد جديدة",
       "newPayment": "دفعة جديدة",
-      "newPartner": "طرف جديد"
+      "newPartner": "طرف جديد",
+      "accounting": "المحاسبة",
+      "entries": "القيود اليومية",
+      "accounts": "دليل الحسابات",
+      "newEntry": "قيد يومية جديد",
+      "bank": "البنك",
+      "statements": "كشوف البنك",
+      "newStatement": "كشف بنك جديد",
+      "reports": "التقارير",
+      "trialBalance": "ميزان المراجعة",
+      "generalLedger": "دفتر الأستاذ العام",
+      "agedPartnerBalance": "أعمار الذمم",
+      "partnerStatement": "كشف حساب طرف",
+      "vat": "ضريبة القيمة المضافة",
+      "withholding": "ضريبة الاستقطاع"
     },
     "kpi": {
       "label": "مؤشرات المالية",

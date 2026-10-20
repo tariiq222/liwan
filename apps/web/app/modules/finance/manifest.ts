@@ -2,22 +2,31 @@ import type { AppContextLink, AppManifest } from '../types'
 import { financeNavActive, financeSectionOf, type FinanceSection } from './routes'
 import { invoicesSearch, partnersSearch } from './search'
 
-const CREATE: Record<FinanceSection, AppContextLink> = {
+// The reports have nothing to create, so their section opens without a create link.
+const CREATE: Partial<Record<FinanceSection, AppContextLink>> = {
   overview: { id: 'new-sales-invoice', labelKey: 'finance.nav.newInvoice', icon: 'i-lucide-plus', to: '/finance/sales/invoices/new', capability: 'finance.invoices.manage', pinned: true },
   sales: { id: 'new-sales-invoice', labelKey: 'finance.nav.newInvoice', icon: 'i-lucide-plus', to: '/finance/sales/invoices/new', capability: 'finance.invoices.manage', pinned: true },
   purchases: { id: 'new-bill', labelKey: 'finance.nav.newBill', icon: 'i-lucide-plus', to: '/finance/purchases/bills/new', capability: 'finance.invoices.manage', pinned: true },
   payments: { id: 'new-payment', labelKey: 'finance.nav.newPayment', icon: 'i-lucide-plus', to: '/finance/payments/new', capability: 'finance.payments.manage', pinned: true },
   partners: { id: 'new-partner', labelKey: 'finance.nav.newPartner', icon: 'i-lucide-plus', to: '/finance/partners/new', capability: 'finance.partners.manage', pinned: true },
+  accounting: { id: 'new-entry', labelKey: 'finance.nav.newEntry', icon: 'i-lucide-plus', to: '/finance/accounting/entries/new', capability: 'finance.entries.manage', pinned: true },
+  bank: { id: 'new-statement', labelKey: 'finance.nav.newStatement', icon: 'i-lucide-plus', to: '/finance/bank/statements/new', capability: 'finance.bank.manage', pinned: true },
 }
 
-// The five top links stay on screen in every section; inside sales or purchases the pages of that section follow under their own heading.
+// The eight top links stay on screen in every section; inside sales or purchases the pages of that section follow under their own heading.
 const TOP: AppContextLink[] = [
   { id: 'finance-overview', labelKey: 'finance.nav.overview', icon: 'i-lucide-layout-dashboard', to: '/finance', capability: 'finance.invoices.read', exact: true },
   { id: 'finance-sales', labelKey: 'finance.nav.sales', icon: 'i-lucide-trending-up', to: '/finance/sales/invoices', capability: 'finance.invoices.read', within: '/finance/sales' },
   { id: 'finance-purchases', labelKey: 'finance.nav.purchases', icon: 'i-lucide-shopping-cart', to: '/finance/purchases/bills', capability: 'finance.invoices.read', within: '/finance/purchases' },
   { id: 'finance-payments', labelKey: 'finance.nav.payments', icon: 'i-lucide-wallet', to: '/finance/payments', capability: 'finance.payments.read', within: '/finance/payments' },
   { id: 'finance-partners', labelKey: 'finance.nav.partners', icon: 'i-lucide-contact', to: '/finance/partners', capability: 'finance.partners.read', within: '/finance/partners' },
+  { id: 'finance-accounting', labelKey: 'finance.nav.accounting', icon: 'i-lucide-book-open', to: '/finance/accounting/entries', capability: 'finance.entries.read', within: '/finance/accounting' },
+  { id: 'finance-bank', labelKey: 'finance.nav.bank', icon: 'i-lucide-building-2', to: '/finance/bank/statements', capability: 'finance.bank.read', within: '/finance/bank' },
+  { id: 'finance-reports', labelKey: 'finance.nav.reports', icon: 'i-lucide-file-chart-column', to: '/finance/reports/trial-balance', capability: 'finance.statements.read', within: '/finance/reports' },
 ]
+
+const report = (id: string, slug: string, labelKey: string, icon: string, capability: string): AppContextLink =>
+  ({ id: `report-${id}`, labelKey, icon, to: `/finance/reports/${slug}`, capability, section: 'finance.nav.reports' })
 
 const SUB_LISTS: Partial<Record<FinanceSection, AppContextLink[]>> = {
   sales: [
@@ -29,6 +38,18 @@ const SUB_LISTS: Partial<Record<FinanceSection, AppContextLink[]>> = {
     { id: 'purchases-bills', labelKey: 'finance.nav.bills', icon: 'i-lucide-receipt-text', to: '/finance/purchases/bills', capability: 'finance.invoices.read', section: 'finance.nav.purchases' },
     { id: 'purchases-refunds', labelKey: 'finance.nav.refunds', icon: 'i-lucide-file-minus', to: '/finance/purchases/refunds', capability: 'finance.invoices.read', section: 'finance.nav.purchases' },
     { id: 'purchases-vendors', labelKey: 'finance.nav.vendors', icon: 'i-lucide-store', to: '/finance/partners?kind=vendor', capability: 'finance.partners.read', section: 'finance.nav.purchases' },
+  ],
+  accounting: [
+    { id: 'accounting-entries', labelKey: 'finance.nav.entries', icon: 'i-lucide-notebook-pen', to: '/finance/accounting/entries', capability: 'finance.entries.read', section: 'finance.nav.accounting' },
+    { id: 'accounting-accounts', labelKey: 'finance.nav.accounts', icon: 'i-lucide-list-tree', to: '/finance/accounting/accounts', capability: 'finance.accounts.read', section: 'finance.nav.accounting' },
+  ],
+  reports: [
+    report('trial-balance', 'trial-balance', 'finance.nav.trialBalance', 'i-lucide-scale', 'finance.statements.read'),
+    report('general-ledger', 'general-ledger', 'finance.nav.generalLedger', 'i-lucide-book-text', 'finance.statements.read'),
+    report('aged', 'aged-partner-balance', 'finance.nav.agedPartnerBalance', 'i-lucide-hourglass', 'finance.statements.read'),
+    report('partner-statement', 'partner-statement', 'finance.nav.partnerStatement', 'i-lucide-file-user', 'finance.statements.read'),
+    report('vat', 'vat', 'finance.nav.vat', 'i-lucide-percent', 'finance.reports.read'),
+    report('withholding', 'withholding', 'finance.nav.withholding', 'i-lucide-hand-coins', 'finance.reports.read'),
   ],
 }
 
@@ -43,18 +64,25 @@ const manifest: AppManifest = {
     { to: '/finance/purchases/bills', labelKey: 'finance.nav.purchases', icon: 'i-lucide-shopping-cart', shortcut: '', capability: 'finance.invoices.read' },
     { to: '/finance/payments', labelKey: 'finance.nav.payments', icon: 'i-lucide-wallet', shortcut: '', capability: 'finance.payments.read' },
     { to: '/finance/partners', labelKey: 'finance.nav.partners', icon: 'i-lucide-contact', shortcut: '', capability: 'finance.partners.read' },
+    { to: '/finance/accounting/entries', labelKey: 'finance.nav.accounting', icon: 'i-lucide-book-open', shortcut: '', capability: 'finance.entries.read' },
+    { to: '/finance/bank/statements', labelKey: 'finance.nav.bank', icon: 'i-lucide-building-2', shortcut: '', capability: 'finance.bank.read' },
+    { to: '/finance/reports/trial-balance', labelKey: 'finance.nav.reports', icon: 'i-lucide-file-chart-column', shortcut: '', capability: 'finance.statements.read' },
   ],
   settings: [
     { id: 'finance-setup', labelKey: 'finance.setup.title', icon: 'i-lucide-landmark', to: '/settings/apps/finance', capability: 'finance.setup.read' },
   ],
   contextLinks: (path) => {
     const section = financeSectionOf(path)
-    return [CREATE[section], ...TOP, ...(SUB_LISTS[section] ?? [])]
+    const create = CREATE[section]
+    return [...(create ? [create] : []), ...TOP, ...(SUB_LISTS[section] ?? [])]
   },
   landing: [
     { path: '/finance', capability: 'finance.invoices.read' },
     { path: '/finance/payments', capability: 'finance.payments.read' },
     { path: '/finance/partners', capability: 'finance.partners.read' },
+    { path: '/finance/accounting/entries', capability: 'finance.entries.read' },
+    { path: '/finance/bank/statements', capability: 'finance.bank.read' },
+    { path: '/finance/reports/trial-balance', capability: 'finance.statements.read' },
   ],
   routeCapabilities: [
     { pattern: /^\/finance\/partners\/(new|[^/]+\/edit)$/, capability: 'finance.partners.manage' },
@@ -64,6 +92,14 @@ const manifest: AppManifest = {
     { pattern: /^\/finance\/(sales|purchases)(?:\/|$)/, capability: 'finance.invoices.read' },
     { pattern: /^\/finance\/payments\/(new|[^/]+\/edit)$/, capability: 'finance.payments.manage' },
     { pattern: /^\/finance\/payments(?:\/|$)/, capability: 'finance.payments.read' },
+    { pattern: /^\/finance\/accounting\/entries\/new$/, capability: 'finance.entries.manage' },
+    { pattern: /^\/finance\/accounting\/entries(?:\/|$)/, capability: 'finance.entries.read' },
+    { pattern: /^\/finance\/accounting\/accounts$/, capability: 'finance.accounts.read' },
+    { pattern: /^\/finance\/bank\/statements\/new$/, capability: 'finance.bank.manage' },
+    { pattern: /^\/finance\/bank\/statements\/[^/]+\/lines\/[^/]+$/, capability: 'finance.bank.manage' },
+    { pattern: /^\/finance\/bank\/statements(?:\/|$)/, capability: 'finance.bank.read' },
+    { pattern: /^\/finance\/reports\/(vat|withholding)$/, capability: 'finance.reports.read' },
+    { pattern: /^\/finance\/reports\/(trial-balance|general-ledger|aged-partner-balance|partner-statement)$/, capability: 'finance.statements.read' },
     { pattern: /^\/finance$/, capability: 'finance.invoices.read' },
   ],
   search: [partnersSearch, invoicesSearch],
@@ -71,6 +107,8 @@ const manifest: AppManifest = {
     { id: 'finance.new-invoice', labelKey: 'finance.nav.newInvoice', icon: 'i-lucide-trending-up', to: '/finance/sales/invoices/new', capability: 'finance.invoices.manage' },
     { id: 'finance.new-bill', labelKey: 'finance.nav.newBill', icon: 'i-lucide-shopping-cart', to: '/finance/purchases/bills/new', capability: 'finance.invoices.manage' },
     { id: 'finance.new-partner', labelKey: 'finance.nav.newPartner', icon: 'i-lucide-contact', to: '/finance/partners/new', capability: 'finance.partners.manage' },
+    { id: 'finance.new-entry', labelKey: 'finance.nav.newEntry', icon: 'i-lucide-notebook-pen', to: '/finance/accounting/entries/new', capability: 'finance.entries.manage' },
+    { id: 'finance.new-statement', labelKey: 'finance.nav.newStatement', icon: 'i-lucide-building-2', to: '/finance/bank/statements/new', capability: 'finance.bank.manage' },
   ],
   isNavActive: financeNavActive,
 }

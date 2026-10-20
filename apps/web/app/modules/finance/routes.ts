@@ -17,11 +17,11 @@ export function invoiceRecordPath(moveType: FinanceInvoice['move_type'], id: num
 const under = (path: string, base: string) => path === base || path.startsWith(`${base}/`)
 
 /** The part of the finance sidebar a path opens: a section with a sub-list, or a plain page. */
-export type FinanceSection = 'overview' | 'sales' | 'purchases' | 'payments' | 'partners'
+export type FinanceSection = 'overview' | 'sales' | 'purchases' | 'payments' | 'partners' | 'accounting' | 'bank' | 'reports'
 
 export function financeSectionOf(path: string | undefined): FinanceSection {
   const pathname = path?.split(/[?#]/, 1)[0] ?? ''
-  for (const section of ['sales', 'purchases', 'payments', 'partners'] as const) {
+  for (const section of ['sales', 'purchases', 'payments', 'partners', 'accounting', 'bank', 'reports'] as const) {
     if (under(pathname, `/finance/${section}`)) return section
   }
   return 'overview'
@@ -32,8 +32,8 @@ export function financeNavActive(path: string, target: string): boolean | undefi
   // A link that carries a filter query only jumps to another section; it never claims the current page.
   if (target.includes('?')) return false
   if (target === '/finance') return path === '/finance'
-  if (['/finance/sales', '/finance/purchases', '/finance/payments', '/finance/partners'].includes(target)) return under(path, target)
-  if (['/finance/sales/invoices', '/finance/sales/credit-notes', '/finance/purchases/bills', '/finance/purchases/refunds'].includes(target)) {
+  if (['/finance/sales', '/finance/purchases', '/finance/payments', '/finance/partners', '/finance/accounting', '/finance/bank', '/finance/reports'].includes(target)) return under(path, target)
+  if (['/finance/sales/invoices', '/finance/sales/credit-notes', '/finance/purchases/bills', '/finance/purchases/refunds', '/finance/accounting/entries', '/finance/bank/statements'].includes(target)) {
     return under(path, target) && path !== `${target}/new`
   }
   return undefined
