@@ -125,6 +125,17 @@ export interface AppRecordPicker {
   /** Every option, walking server pages itself; runs through useApi(). */
   options: (api: AppSearchApi, signal?: AbortSignal) => Promise<AppRecordOption[]>
 }
+/**
+ * Where a record of one application opens, declared by the application that owns the route so another
+ * application links to it by kind without naming its path or capability.
+ */
+export interface AppRecordLink {
+  /** Record kind, unique across manifests. */
+  kind: string
+  /** Capability that reads the record; without it (or its feature) there is no link. */
+  capability: string
+  to: (id: number) => string
+}
 /** The record a route lives inside, such as the project at `/projects/7/tasks`. */
 export interface AppRouteScope {
   /** Record kind; the same names the record pickers use. */
@@ -162,6 +173,8 @@ export interface AppManifest {
   sidebarPanel?: AppSidebarPanel
   /** Record kinds other applications may pick or filter by. */
   recordPickers?: AppRecordPicker[]
+  /** Record kinds other applications may link to. */
+  recordLinks?: AppRecordLink[]
   /** Records whose routes this application owns, so the shell can tell which record a path lives inside. */
   routeScopes?: AppRouteScope[]
   /** Extra paths a post-login `next` may return to, beyond the landing paths. */

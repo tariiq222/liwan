@@ -13,7 +13,7 @@ const hydrated = useHydrated()
 const { shown: kpisShown } = useKpiVisibility()
 
 const forbidden = computed(() => !can('hr.employees.manage'))
-const canOpenDocuments = computed(() => can('documents.items.read'))
+const recordLink = useRecordLink()
 const withinDays = computed(() => hrExpiryWindowFrom(route.query.within))
 const saudization = useHrSaudization(computed(() => !forbidden.value))
 const expiring = useHrExpiring(withinDays, computed(() => !forbidden.value))
@@ -35,7 +35,7 @@ const saudizationColumns = computed<TableColumn<HrSaudizationRow>[]>(() => [
 ])
 
 // Expiring items: the employee name opens the employee (back to this report), the document name opens the
-// document for a reader of documents. A negative `days_left` is overdue.
+// linked document for a reader of it. A negative `days_left` is overdue.
 const items = computed(() => expiring.data.value?.items ?? [])
 const showEmpty = computed(() => !expiring.isLoading.value && !expiring.error.value && items.value.length === 0)
 const LINK = 'font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
@@ -162,7 +162,7 @@ function setWindow(value: string) {
               <template #kind-cell="{ row }">{{ t(`hr.reports.expiring.kind.${row.original.kind}`) }}</template>
               <template #document-cell="{ row }">
                 <template v-if="row.original.document">
-                  <NuxtLink v-if="canOpenDocuments" :to="`/documents/${row.original.document.id}`" :class="LINK" @click="!hydrated && $event.preventDefault()">{{ row.original.document.name }}</NuxtLink>
+                  <NuxtLink v-if="recordLink('document', row.original.document.id)" :to="recordLink('document', row.original.document.id)!" :class="LINK" @click="!hydrated && $event.preventDefault()">{{ row.original.document.name }}</NuxtLink>
                   <span v-else>{{ row.original.document.name }}</span>
                 </template>
                 <span v-else class="text-muted">{{ t('app.notAvailable') }}</span>

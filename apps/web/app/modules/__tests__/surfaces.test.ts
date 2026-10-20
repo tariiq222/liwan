@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { activeManifests, withManifests } from '../manifests'
-import { bellKindFor, manifestRoutePrefixes, recordPickerFor, routeScopeOf, searchProviders, sidebarPanelFor } from '../surfaces'
+import { bellKindFor, manifestRoutePrefixes, recordLinkFor, recordPickerFor, routeScopeOf, searchProviders, sidebarPanelFor } from '../surfaces'
 import { projectsSearch, tasksSearch } from '../pmo/search'
 import type { AppManifest, AppSearchApi } from '../types'
 
@@ -104,6 +104,22 @@ describe('manifest record pickers', () => {
       expect(recordPickerFor('order')).toBe(picker)
     })
     expect(recordPickerFor('order')).toBeUndefined()
+  })
+})
+
+describe('manifest record links', () => {
+  it('gives the documents application the document link and no other kind', () => {
+    const link = recordLinkFor('document')
+    expect(link?.capability).toBe('documents.items.read')
+    expect(link?.to(7)).toBe('/documents/7')
+    expect(recordLinkFor('order')).toBeUndefined()
+  })
+  it('finds a link a newer application declares', () => {
+    const link = { kind: 'order', capability: 'sales.orders.read', to: (id: number) => `/sales/${id}` }
+    withManifests([...activeManifests(), { ...sales, recordLinks: [link] }], () => {
+      expect(recordLinkFor('order')).toBe(link)
+    })
+    expect(recordLinkFor('order')).toBeUndefined()
   })
 })
 

@@ -10,6 +10,9 @@ from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
 from .common import WebVueApiCase
+from odoo.addons.webvue_api.serializers.company_profile import (
+    parse_company_profile_vals,
+)
 
 PASSWORD = 'company_profile_pass_123'
 ADMIN = 'company_profile_admin'
@@ -18,14 +21,12 @@ EMPLOYEE = 'company_profile_employee'
 ROUTE = '/api/v1/admin/company'
 VALID_VAT = '300000000000003'
 PROFILE_KEYS = {
-    'id', 'name', 'logo_url', 'report_header', 'company_registry', 'vat', 'saudi_fields',
-    'l10n_sa_edi_additional_identification_scheme', 'l10n_sa_edi_additional_identification_number',
-    'address', 'email', 'phone', 'website', 'currency', 'completeness',
+    'id', 'name', 'logo_url', 'report_header', 'company_registry', 'vat',
+    'address', 'email', 'phone', 'website', 'currency', 'completeness', 'extensions',
 }
-ADDRESS_KEYS = {
-    'street', 'street2', 'city', 'zip', 'state', 'country',
-    'l10n_sa_edi_building_number', 'l10n_sa_edi_plot_identification',
-}
+ADDRESS_KEYS = {'street', 'street2', 'city', 'zip', 'state', 'country'}
+# A selection field of res.company stands in for what an application adds through the extension point.
+EXTENSION_SPEC = {'name': 'font', 'section': 'identity', 'kind': 'selection'}
 
 
 def image_base64(image_format='PNG', size=(1, 1)):
@@ -41,8 +42,8 @@ class TestCompanyProfile(WebVueApiCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.company = cls.env.company
-        cls.saudi = cls.env.ref('base.sa')
-        cls.state = cls.env['res.country.state'].search([('country_id', '=', cls.saudi.id)], limit=1)
+        cls.country = cls.env.ref('base.sa')
+        cls.state = cls.env['res.country.state'].search([('country_id', '=', cls.country.id)], limit=1)
         new_test_user(cls.env, login=ADMIN, password=PASSWORD, groups='webvue_core.group_customer_admin')
         new_test_user(cls.env, login=EMPLOYEE, password=PASSWORD, groups='webvue_core.group_employee')
         reader = new_test_user(cls.env, login=READER, password=PASSWORD, groups='webvue_core.group_employee')
@@ -71,41 +72,63 @@ class TestCompanyProfile(WebVueApiCase):
                         self.assertEqual(status, 403)
 
     def test_get_returns_the_whitelisted_profile(self):
-        self.company.write({'name': 'Erada', 'vat': VALID_VAT, 'country_id': self.saudi.id, 'street': 'King Fahd Road'})
+        self.company.write({'name': 'Erada', 'vat': VALID_VAT, 'country_id': self.country.id, 'street': 'King Fahd Road'})
         self.authenticate(ADMIN, PASSWORD)
         body = self.api('GET', ROUTE).json()
         self.assertEqual(set(body), PROFILE_KEYS)
         self.assertEqual(set(body['address']), ADDRESS_KEYS)
         self.assertEqual((body['id'], body['name'], body['vat']), (self.company.id, 'Erada', VALID_VAT))
-        self.assertEqual(body['address']['country'], {'id': self.saudi.id, 'name': self.saudi.name, 'code': 'SA'})
+        self.assertEqual(body['address']['country'], {'id': self.country.id, 'name': self.country.name, 'code': 'SA'})
         self.assertEqual(set(body['currency']), {'id', 'name', 'symbol'})
         self.assertEqual(body['currency']['id'], self.company.currency_id.id)
-        self.assertEqual(body['saudi_fields'], 'l10n_sa_edi_building_number' in self.company._fields)
+        self.assertEqual([item['name'] for item in body['extensions']], [
+            spec['name'] for spec in self.company._webvue_company_profile_extensions()
+        ])
         self.assertIsNone(body['logo_url'])
         self.assertIsNone(body['phone'])
 
     def test_patch_writes_every_editable_field_and_returns_the_profile(self):
-        self.company.country_id = self.saudi
+        self.company.country_id = self.country
         self.authenticate(ADMIN, PASSWORD)
         payload = {
             'name': 'Erada Co', 'report_header': 'Built to last', 'company_registry': '1010000000', 'vat': VALID_VAT,
             'street': 'King Fahd Road', 'street2': 'Al Olaya', 'city': 'Riyadh', 'zip': '12211',
             'state_id': self.state.id,
             'email': 'info@erada.example', 'phone': '+966110000000', 'website': 'https://erada.example',
-            'l10n_sa_edi_building_number': '1234', 'l10n_sa_edi_plot_identification': '5678',
-            'l10n_sa_edi_additional_identification_scheme': 'CRN', 'l10n_sa_edi_additional_identification_number': '1010000000',
         }
         response = self._patch(payload)
         self.assertEqual(response.status_code, 200, response.text)
         body = response.json()
         self.assertEqual((body['name'], body['report_header'], body['vat']), ('Erada Co', 'Built to last', VALID_VAT))
         self.assertEqual(body['address']['state'], {'id': self.state.id, 'name': self.state.name})
-        self.assertEqual((body['address']['street2'], body['address']['l10n_sa_edi_building_number']), ('Al Olaya', '1234'))
-        self.assertEqual((body['l10n_sa_edi_additional_identification_scheme'], body['email']), ('CRN', 'info@erada.example'))
+        self.assertEqual((body['address']['street2'], body['email']), ('Al Olaya', 'info@erada.example'))
         self.assertEqual(self.api('GET', ROUTE).json(), body)
         self.env.invalidate_all()
         self.assertEqual((self.company.name, self.company.partner_id.name, self.company.vat), ('Erada Co', 'Erada Co', VALID_VAT))
-        self.assertEqual(self.company.l10n_sa_edi_plot_identification, '5678')
+
+    def test_a_declared_extension_is_returned_and_written_generically(self):
+        self.authenticate(ADMIN, PASSWORD)
+        options = [key for key, _label in self.company._fields['font']._description_selection(self.env)]
+        other = next(key for key in options if key != self.company.font)
+        with patch.object(
+            type(self.env['res.company']), '_webvue_company_profile_extensions', return_value=[EXTENSION_SPEC],
+        ):
+            extension = self.api('GET', ROUTE).json()['extensions'][0]
+            self.assertEqual({key: extension[key] for key in ('name', 'section', 'kind')}, EXTENSION_SPEC)
+            self.assertEqual([option['value'] for option in extension['options']], options)
+            self.assertTrue(extension['label'])
+            self.assertEqual(self._patch({'font': other}).json()['extensions'][0]['value'], other)
+            for bad in ('not-a-font', ['x'], {'a': 1}, 3):
+                response = self._patch({'font': bad})
+                self.assertEqual((response.status_code, response.json()['field']), (422, 'font'), bad)
+        self.env.invalidate_all()
+        self.assertEqual(self.company.font, other)
+        # An empty string clears like null.
+        with patch.object(
+            type(self.env['res.company']), '_webvue_company_profile_extensions', return_value=[EXTENSION_SPEC],
+        ):
+            self.assertEqual(parse_company_profile_vals({'font': ''}, self.company), {'font': False})
+            self.assertEqual(parse_company_profile_vals({'font': None}, self.company), {'font': False})
 
     def test_null_and_blank_clear_an_optional_field_but_not_the_name(self):
         self.company.write({'phone': '123', 'website': 'https://x.example'})
@@ -116,25 +139,26 @@ class TestCompanyProfile(WebVueApiCase):
         self.assertEqual((response.status_code, response.json()['field']), (422, 'name'))
 
     def test_invalid_bodies_are_422_and_change_nothing(self):
-        other_state = self.env['res.country.state'].search([('country_id', '!=', self.saudi.id)], limit=1)
-        self.company.write({'country_id': self.saudi.id, 'city': 'Before'})
+        other_state = self.env['res.country.state'].search([('country_id', '!=', self.country.id)], limit=1)
+        self.company.write({'country_id': self.country.id, 'city': 'Before'})
         self.authenticate(ADMIN, PASSWORD)
         before = self.api('GET', ROUTE).json()
+        # The number check is base_vat's: a tenant without it accepts any text, so that case needs it installed.
+        vat_checked = hasattr(self.env['res.partner'], '_run_vat_checks')
         for body, code, field in (
             ({}, 'invalid', None),
             ({'currency': 'USD'}, 'invalid', 'currency'),
             ({'logo': image_base64()}, 'invalid', 'logo'),
             ({'completeness': 1}, 'invalid', 'completeness'),
-            ({'city': 'After', 'vat': 'not-a-vat'}, 'invalid_vat', 'vat'),
+            *((({'city': 'After', 'vat': 'not-a-vat'}, 'invalid_vat', 'vat'),) if vat_checked else ()),
             ({'city': 'After', 'vat': 12}, 'invalid', 'vat'),
             ({'city': 'After', 'email': 'nope'}, 'invalid', 'email'),
             ({'city': 'After', 'phone': 'x' * 300}, 'invalid', 'phone'),
-            ({'city': 'After', 'country_id': self.saudi.id}, 'invalid', 'country_id'),
+            ({'city': 'After', 'country_id': self.country.id}, 'invalid', 'country_id'),
             ({'country_id': None}, 'invalid', 'country_id'),
             ({'city': 'After', 'state_id': 999999999}, 'invalid', 'state_id'),
             ({'city': 'After', 'state_id': other_state.id}, 'invalid', 'state_id'),
-            ({'city': 'After', 'l10n_sa_edi_additional_identification_scheme': 'XXX'}, 'invalid',
-             'l10n_sa_edi_additional_identification_scheme'),
+            ({'city': 'After', 'undeclared_extension': 'x'}, 'invalid', 'undeclared_extension'),
         ):
             with self.subTest(body=body):
                 response = self._patch(body)
@@ -144,14 +168,14 @@ class TestCompanyProfile(WebVueApiCase):
         self.assertEqual(self.api('GET', ROUTE).json(), before)
 
     def test_the_country_is_read_only_and_the_state_must_belong_to_it(self):
-        self.company.write({'country_id': self.saudi.id, 'state_id': False})
+        self.company.write({'country_id': self.country.id, 'state_id': False})
         self.authenticate(ADMIN, PASSWORD)
-        other_country = self.env['res.country.state'].search([('country_id', '!=', self.saudi.id)], limit=1).country_id
+        other_country = self.env['res.country.state'].search([('country_id', '!=', self.country.id)], limit=1).country_id
         response = self._patch({'country_id': other_country.id})
         self.assertEqual((response.status_code, response.json()['field']), (422, 'country_id'))
         self.assertEqual(self._patch({'state_id': self.state.id}).status_code, 200)
         self.env.invalidate_all()
-        self.assertEqual(self.company.country_id, self.saudi)
+        self.assertEqual(self.company.country_id, self.country)
 
     def test_the_logo_upload_sets_the_logo_and_counts_toward_completeness(self):
         self.authenticate(ADMIN, PASSWORD)
@@ -179,7 +203,7 @@ class TestCompanyProfile(WebVueApiCase):
     def test_the_completeness_counts_the_filled_profile_fields(self):
         self.company.write({
             'company_registry': False, 'vat': False, 'street': False, 'city': False, 'zip': False,
-            'email': False, 'phone': False, 'country_id': self.saudi.id,
+            'email': False, 'phone': False, 'country_id': self.country.id,
         })
         self.authenticate(ADMIN, PASSWORD)
         empty = self.api('GET', ROUTE).json()['completeness']
@@ -191,7 +215,7 @@ class TestCompanyProfile(WebVueApiCase):
         self.assertEqual((full['done'], full['total']), (empty['total'] - 1, empty['total']))
 
     def test_a_contact_under_the_company_partner_does_not_block_a_vat_change(self):
-        self.company.country_id = self.saudi
+        self.company.country_id = self.country
         self.env['res.partner'].create({'name': 'Accountant', 'parent_id': self.company.partner_id.id})
         self.authenticate(ADMIN, PASSWORD)
         response = self._patch({'company_registry': '1010000001', 'vat': VALID_VAT})
@@ -213,12 +237,12 @@ class TestCompanyProfile(WebVueApiCase):
 
     def test_the_address_lookup_lists_the_states_of_a_country(self):
         self.authenticate(READER, PASSWORD)
-        states = self.api('GET', f'{ROUTE}/countries/{self.saudi.id}/states').json()
+        states = self.api('GET', f'{ROUTE}/countries/{self.country.id}/states').json()
         self.assertIn(self.state.id, [state['id'] for state in states['items']])
         self.assertEqual(set(states['items'][0]), {'id', 'name', 'code'})
         self.assertEqual(self.api('GET', f'{ROUTE}/countries/999999999/states').status_code, 404)
         self.authenticate(EMPLOYEE, PASSWORD)
-        self.assertEqual(self.api('GET', f'{ROUTE}/countries/{self.saudi.id}/states').status_code, 403)
+        self.assertEqual(self.api('GET', f'{ROUTE}/countries/{self.country.id}/states').status_code, 403)
         self.authenticate(READER, PASSWORD)
         # The company country is fixed at provisioning, so there is no country list for the profile.
         self.assertEqual(self.api('GET', f'{ROUTE}/countries').status_code, 404)

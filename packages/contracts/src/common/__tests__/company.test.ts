@@ -8,9 +8,6 @@ const PROFILE = {
   report_header: null,
   company_registry: '1010000000',
   vat: '300000000000003',
-  saudi_fields: true,
-  l10n_sa_edi_additional_identification_scheme: null,
-  l10n_sa_edi_additional_identification_number: null,
   address: {
     street: 'King Fahd Road',
     street2: null,
@@ -18,14 +15,19 @@ const PROFILE = {
     zip: '12345',
     state: { id: 3, name: 'Riyadh' },
     country: { id: 192, name: 'Saudi Arabia', code: 'SA' },
-    l10n_sa_edi_building_number: '1234',
-    l10n_sa_edi_plot_identification: null,
   },
   email: null,
   phone: null,
   website: null,
   currency: { id: 5, name: 'SAR', symbol: 'SAR' },
   completeness: { done: 6, total: 10 },
+  extensions: [
+    { name: 'building_code', section: 'address', kind: 'text', label: 'Building code', value: '1234', inputmode: 'numeric' },
+    {
+      name: 'id_scheme', section: 'identity', kind: 'selection', label: 'Identifier type', value: null,
+      options: [{ value: 'A', label: 'Type A' }],
+    },
+  ],
 }
 
 describe('CompanyProfileSchema', () => {
@@ -33,6 +35,13 @@ describe('CompanyProfileSchema', () => {
     expect(CompanyProfileSchema.parse(PROFILE)).toEqual(PROFILE)
     expect(CompanyProfileSchema.safeParse({ ...PROFILE, extra: 1 }).success).toBe(false)
     expect(CompanyProfileSchema.safeParse({ ...PROFILE, address: { ...PROFILE.address, extra: 1 } }).success).toBe(false)
+  })
+
+  it('refuses an extension outside the two sections or without a label', () => {
+    const [text, selection] = PROFILE.extensions
+    for (const extension of [{ ...text, section: 'contact' }, { ...text, kind: 'number' }, { ...text, label: '' }, { ...text, options: [] }, { ...selection, options: undefined }, { ...text, inputmode: 'loud' }]) {
+      expect(CompanyProfileSchema.safeParse({ ...PROFILE, extensions: [extension] }).success).toBe(false)
+    }
   })
 
   it('accepts an address without a state or country', () => {

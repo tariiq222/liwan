@@ -1,0 +1,40 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* webvue_finance
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-08 00:00+0000\n"
+"PO-Revision-Date: 2026-09-08 00:00+0000\n"
+"Last-Translator: WebVue\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+#. module: webvue_finance
+#. odoo-python
+#: code:addons/webvue_finance/models/res_company.py:0
+msgid "Building number"
+msgstr "رقم المبنى"
+
+#. module: webvue_finance
+#. odoo-python
+#: code:addons/webvue_finance/models/res_company.py:0
+msgid "Additional number"
+msgstr "الرقم الإضافي"
+
+#. module: webvue_finance
+#. odoo-python
+#: code:addons/webvue_finance/models/res_company.py:0
+msgid "Additional identifier type"
+msgstr "نوع المعرّف الإضافي"
+
+#. module: webvue_finance
+#. odoo-python
+#: code:addons/webvue_finance/models/res_company.py:0
+msgid "Additional identifier number"
+msgstr "رقم المعرّف الإضافي"

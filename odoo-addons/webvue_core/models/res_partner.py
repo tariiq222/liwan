@@ -11,12 +11,11 @@ PARTNER_GRANT_FIELDS = {
 PARTNER_BRANDING_MARKER = 'webvue_core.branding_partner_ids'
 PARTNER_BRANDING_FIELDS = {'image_1920', 'name'}
 PARTNER_COMPANY_MARKER = 'webvue_core.company_profile_partner_ids'
-# The partner side of the company profile: identity, address, contact and the Saudi (l10n_sa_edi) fields.
+# The partner side of the generic company profile: identity, address and contact. Applications add their own
+# fields through ``res.company._webvue_company_profile_extensions``.
 PARTNER_COMPANY_FIELDS = {
     'image_1920', 'name', 'company_registry', 'vat', 'email', 'phone', 'website',
     'street', 'street2', 'city', 'zip', 'state_id',
-    'l10n_sa_edi_building_number', 'l10n_sa_edi_plot_identification',
-    'l10n_sa_edi_additional_identification_scheme', 'l10n_sa_edi_additional_identification_number',
 }
 
 
@@ -26,12 +25,16 @@ class WebVueResPartner(models.Model):
     def write(self, vals):
         if self.env.is_superuser() or self.env.user.has_group('base.group_system'):
             return super().write(vals)
-        company_profile_allowed = is_marked_write(self, PARTNER_COMPANY_MARKER, PARTNER_COMPANY_FIELDS, vals)
+        company = self.env['res.company']
+        company_profile_allowed = is_marked_write(
+            self, PARTNER_COMPANY_MARKER,
+            PARTNER_COMPANY_FIELDS | company._webvue_company_profile_extension_fields(), vals,
+        )
         identity_fields = {'name', 'image_1920', 'image_1024', 'image_512', 'image_256', 'image_128'}
         if (
             not company_profile_allowed
             and identity_fields.intersection(vals)
-            and self.env['res.company']._webvue_has_company_partner(self.ids)
+            and company._webvue_has_company_partner(self.ids)
         ):
             raise AccessError(self.env._('Only Odoo system administrators can change institution name and logo.'))
         service = self.env['webvue.access.service']
