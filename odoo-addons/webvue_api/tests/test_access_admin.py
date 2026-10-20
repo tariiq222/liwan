@@ -1,9 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-import unittest
-
 from odoo.http import root
 from odoo.tests import new_test_user, tagged
 from odoo.tests.common import HOST, Opener
+from odoo.tools import mute_logger
 
 from .common import WebVueApiCase
 from odoo.addons.webvue_api.controllers.common import ApiError, parse_positive_int
@@ -29,21 +28,28 @@ class TestAccessAdminUsers(WebVueApiCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        if 'hr.department' not in cls.env:
-            reason = 'needs webvue_hr installed'
-            raise unittest.SkipTest(reason)
         cls.admin = new_test_user(
             cls.env, login='access_api_admin', password='access_api_admin_pass_123',
             groups='webvue_core.group_access_admin',
         )
-        cls.department = cls.env['hr.department'].create({'name': 'Access API'})
-        cls.target_employee = cls.env['hr.employee'].create({
-            'name': 'Access Target', 'work_email': 'access.target@example.com',
-            'department_id': cls.department.id, 'company_id': cls.env.company.id,
-        })
+        cls.role = cls.env.ref('webvue_core.role_employee')
 
     def _admin(self):
         self.authenticate('access_api_admin', 'access_api_admin_pass_123')
+
+    def _assignments(self):
+        return [{'role_id': self.role.id, 'scope': {
+            'kind': 'company', 'id': self.env.company.id,
+        }}]
+
+    def _create(self, **overrides):
+        return self.api('POST', '/api/v1/admin/users', {
+            'name': 'Access Target',
+            'login': 'access.target@example.com',
+            'password': 'target_password_123',
+            'assignments': self._assignments(),
+            **overrides,
+        })
 
     def _assert_stored_password(self, login, original):
         """HttpCase.authenticate patches _check_credentials and cannot prove the hash."""
@@ -61,32 +67,26 @@ class TestAccessAdminUsers(WebVueApiCase):
         response = self.api('GET', '/api/v1/admin/users')
         self.assertEqual((response.status_code, response.json()['code']), (403, 'forbidden'))
         self._admin()
-        response = self.api('GET', f'/api/v1/admin/users?department_id={self.department.id}&limit=20&offset=0')
+        response = self.api('GET', '/api/v1/admin/users?limit=20&offset=0')
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(set(response.json()), {'items', 'total'})
+        filtered = self.api('GET', '/api/v1/admin/users?color=red')
+        self.assertEqual((filtered.status_code, filtered.json()['code']), (400, 'unsupported_filter'))
+        self.assertEqual(filtered.json()['field'], 'color')
 
-        candidates = self.api('GET', '/api/v1/admin/users/candidates?q=Access%20Target&limit=20&offset=0')
-        self.assertEqual(candidates.status_code, 200, candidates.text)
-        self.assertEqual(candidates.json()['total'], 1)
-        self.assertEqual(candidates.json()['items'][0]['id'], self.target_employee.id)
-        self.assertEqual(set(candidates.json()['items'][0]), {
-            'id', 'name', 'department', 'work_email', 'active', 'user_id', 'access_active',
-        })
-
-    def test_grant_reset_disable_reactivate_and_old_session(self):
+    def test_create_reset_disable_reactivate_and_old_session(self):
         self._admin()
-        role = self.env.ref('webvue_core.role_employee')
-        response = self.api('POST', '/api/v1/admin/users', {
-            'employee_id': self.target_employee.id,
-            'password': 'target_password_123',
-            'assignments': [{'role_id': role.id, 'scope': {
-                'kind': 'company', 'id': self.env.company.id,
-            }}],
-        })
+        response = self._create(login='  Access.Target@Example.com ')
         self.assertEqual(response.status_code, 201, response.text)
         created = response.json()
-        self.assertEqual(created['employee']['id'], self.target_employee.id)
+        self.assertEqual(created['login'], 'access.target@example.com')
+        self.assertEqual(created['name'], 'Access Target')
+        self.assertEqual([item['role']['id'] for item in created['assignments']], [self.role.id])
         assert_secret_absent(self, created, 'target_password_123')
+        grants = self.env['webvue.access.audit'].search([
+            ('action', '=', 'user.granted'), ('target_id', '=', created['id']),
+        ])
+        self.assertEqual(len(grants), 1)
 
         old_session = self.authenticate('access.target@example.com', 'target_password_123')
         root.session_store.save(old_session)
@@ -123,36 +123,69 @@ class TestAccessAdminUsers(WebVueApiCase):
         self.assertTrue(reactivated.json()['active'])
         self.assertEqual(reactivated.json()['id'], created['id'])
 
-    def test_failed_grant_rolls_back_user_employee_link_and_audit(self):
+        listed = self.api('GET', '/api/v1/admin/users?q=access.target')
+        self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertEqual([item['id'] for item in listed.json()['items']], [created['id']])
+        self.assertEqual(listed.json()['total'], 1)
+
+    def test_duplicate_login_is_a_conflict_in_any_state_or_company(self):
+        self._admin()
+        first = self._create()
+        self.assertEqual(first.status_code, 201, first.text)
+        again = self._create(login='ACCESS.target@example.com')
+        self.assertEqual((again.status_code, again.json()['code']), (409, 'account_exists'))
+        self.assertEqual(again.json()['field'], 'login')
+
+        stopped = self.api('POST', f"/api/v1/admin/users/{first.json()['id']}/disable", {
+            'expected_version': first.json()['version'],
+        })
+        self.assertEqual(stopped.status_code, 200, stopped.text)
+        again = self._create()
+        self.assertEqual((again.status_code, again.json()['code']), (409, 'account_exists'))
+
+        other_company = self.env['res.company'].create({'name': 'Other Access Company'})
+        new_test_user(
+            self.env, login='elsewhere@example.com', company_id=other_company.id,
+            company_ids=[other_company.id],
+        )
+        with mute_logger('odoo.sql_db'):
+            elsewhere = self._create(login='elsewhere@example.com')
+        self.assertEqual((elsewhere.status_code, elsewhere.json()['code']), (409, 'account_exists'))
+        self.assertEqual(elsewhere.json()['field'], 'login')
+
+    def test_create_rejects_invalid_bodies_without_writing(self):
         self._admin()
         audit_count = self.env['webvue.access.audit'].search_count([])
-        response = self.api('POST', '/api/v1/admin/users', {
-            'employee_id': self.target_employee.id,
+        cases = (
+            ({'login': 'not-an-email'}, 'login'),
+            ({'login': ''}, 'login'),
+            ({'login': 7}, 'login'),
+            ({'login': None}, 'login'),
+            ({'name': '   '}, 'name'),
+            ({'name': 7}, 'name'),
+            ({'unknown': 1}, 'unknown'),
+        )
+        for overrides, field in cases:
+            response = self._create(**overrides)
+            self.assertEqual(response.status_code, 422, response.text)
+            self.assertEqual(response.json()['code'], 'invalid')
+            self.assertEqual(response.json()['field'], field)
+        missing = self.api('POST', '/api/v1/admin/users', {
+            'name': 'Access Target', 'login': 'access.target@example.com',
             'password': 'target_password_123',
-            'assignments': [{'role_id': 2147483647, 'scope': {
-                'kind': 'company', 'id': self.env.company.id,
-            }}],
         })
-        self.assertEqual((response.status_code, response.json()['code']), (422, 'invalid'))
-        self.target_employee.invalidate_recordset(['user_id'])
-        self.assertFalse(self.target_employee.user_id)
+        self.assertEqual((missing.status_code, missing.json()['field']), (422, 'assignments'))
+        failed = self._create(assignments=[{'role_id': 2147483647, 'scope': {
+            'kind': 'company', 'id': self.env.company.id,
+        }}])
+        self.assertEqual((failed.status_code, failed.json()['code']), (422, 'invalid'))
         self.assertFalse(self.env['res.users'].with_context(active_test=False).search([
-            ('login', '=', self.target_employee.work_email),
+            ('login', '=', 'access.target@example.com'),
         ]))
         self.assertEqual(self.env['webvue.access.audit'].search_count([]), audit_count)
 
-    def test_archived_employee_and_vendor_mutation_are_rejected(self):
-        self.target_employee.write({'active': False})
+    def test_vendor_mutation_is_rejected(self):
         self._admin()
-        role = self.env.ref('webvue_core.role_employee')
-        response = self.api('POST', '/api/v1/admin/users', {
-            'employee_id': self.target_employee.id,
-            'password': 'target_password_123',
-            'assignments': [{'role_id': role.id, 'scope': {
-                'kind': 'company', 'id': self.env.company.id,
-            }}],
-        })
-        self.assertEqual((response.status_code, response.json()['code']), (422, 'employee_archived'))
         vendor = new_test_user(self.env, login='access_api_vendor', groups='webvue_core.group_vendor_support')
         detail = self.api('GET', f'/api/v1/admin/users/{vendor.id}')
         self.assertEqual(detail.status_code, 200)
@@ -165,76 +198,27 @@ class TestAccessAdminUsers(WebVueApiCase):
             '1.5', '1e2', ' 1', '1 ', '+1', '0x10', '0', '-3', '', '١٢٣',
         ):
             with self.assertRaises(ApiError) as ctx:
-                parse_positive_int(value, 'employee_id')
+                parse_positive_int(value, 'role_id')
             self.assertEqual(ctx.exception.status, 422)
             self.assertEqual(ctx.exception.code, 'invalid')
-            self.assertEqual(ctx.exception.field, 'employee_id')
-        self.assertEqual(parse_positive_int(3, 'employee_id'), 3)
-        self.assertEqual(parse_positive_int('42', 'employee_id'), 42)
+            self.assertEqual(ctx.exception.field, 'role_id')
+        self.assertEqual(parse_positive_int(3, 'role_id'), 3)
+        self.assertEqual(parse_positive_int('42', 'role_id'), 42)
         self.assertEqual(parse_positive_int('007', 'role_id'), 7)
-
-    def test_invalid_integer_shapes_do_not_write(self):
-        self._admin()
-        login = self.target_employee.work_email
-        role = self.env.ref('webvue_core.role_employee')
-        assignment = {'role_id': role.id, 'scope': {'kind': 'company', 'id': self.env.company.id}}
-        for employee_id in (True, False, 1.5, 0, -1, '1.5', 'abc', [], {}, None, '0', ' 1'):
-            response = self.api('POST', '/api/v1/admin/users', {
-                'employee_id': employee_id,
-                'password': 'target_password_123',
-                'assignments': [assignment],
-            })
-            self.assertEqual(response.status_code, 422, response.text)
-            self.assertEqual(response.json()['code'], 'invalid')
-            self.assertEqual(response.json()['field'], 'employee_id')
-        self.target_employee.invalidate_recordset(['user_id'])
-        self.assertFalse(self.target_employee.user_id)
-        self.assertFalse(self.env['res.users'].with_context(active_test=False).search([
-            ('login', '=', login),
-        ]))
 
     def test_admin_password_preserves_original_whitespace_on_dedicated_accounts(self):
         self._admin()
-        role = self.env.ref('webvue_core.role_employee')
-        grant_employee = self.env['hr.employee'].create({
-            'name': 'Padded Grant',
-            'work_email': 'padded.grant@example.com',
-            'company_id': self.env.company.id,
-        })
         grant_password = '  padded_grant_pass_123  '
-        weak = self.api('POST', '/api/v1/admin/users', {
-            'employee_id': grant_employee.id,
-            'password': '  1234567  ',
-            'assignments': [{'role_id': role.id, 'scope': {
-                'kind': 'company', 'id': self.env.company.id,
-            }}],
-        })
+        weak = self._create(login='padded.grant@example.com', password='  1234567  ')
         self.assertEqual((weak.status_code, weak.json()['code']), (422, 'weak_password'))
-        granted = self.api('POST', '/api/v1/admin/users', {
-            'employee_id': grant_employee.id,
-            'password': grant_password,
-            'assignments': [{'role_id': role.id, 'scope': {
-                'kind': 'company', 'id': self.env.company.id,
-            }}],
-        })
+        granted = self._create(login='padded.grant@example.com', password=grant_password)
         self.assertEqual(granted.status_code, 201, granted.text)
         self._assert_stored_password('padded.grant@example.com', grant_password)
         self.authenticate('padded.grant@example.com', grant_password)
         self.assertEqual(self.api('GET', '/api/v1/me').status_code, 200)
 
-        reset_employee = self.env['hr.employee'].create({
-            'name': 'Padded Reset',
-            'work_email': 'padded.reset@example.com',
-            'company_id': self.env.company.id,
-        })
         self._admin()
-        created = self.api('POST', '/api/v1/admin/users', {
-            'employee_id': reset_employee.id,
-            'password': 'reset_initial_pass_123',
-            'assignments': [{'role_id': role.id, 'scope': {
-                'kind': 'company', 'id': self.env.company.id,
-            }}],
-        })
+        created = self._create(login='padded.reset@example.com', password='reset_initial_pass_123')
         self.assertEqual(created.status_code, 201, created.text)
         reset_password = '  padded_reset_pass_456  '
         reset = self.api('POST', f"/api/v1/admin/users/{created.json()['id']}/password", {

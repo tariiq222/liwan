@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import json
 
+from psycopg2 import IntegrityError, errorcodes
+
 from odoo import api, models
 from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Command
@@ -447,7 +449,71 @@ class WebVueAccessService(models.AbstractModel):
         return user
 
     @api.model
-    def _webvue_reactivate_user(self, user, password, expected_version, employee_id):
+    def _webvue_create_account(self, name, login, password, assignments, partner_id=False):
+        """Create an internal user in the current company; PARTNER_ID reuses an existing contact."""
+        self._webvue_require_capability('access.users.grant')
+        if self.env['res.users'].with_context(active_test=False).search_count(
+            [('login', '=', login)], limit=1,
+        ):
+            msg = 'account_exists'
+            raise WebVueAccessRule(msg, field='login', status=409)
+        company = self.env.company
+        vals = {
+            'name': name, 'login': login, 'email': login, 'password': password,
+            'company_id': company.id,
+            'company_ids': [Command.set([company.id])],
+            'group_ids': [Command.set([self.env.ref('base.group_user').id])],
+        }
+        try:
+            with self.env.cr.savepoint():
+                # The partner is created first so the protected create below may adopt it.
+                vals['partner_id'] = partner_id or self.env['res.partner'].create(
+                    {'name': name, 'email': login},
+                ).id
+                # The view_group_hierarchy default is a web-client form helper whose
+                # cold-cache build reads ir.module.category, which an access admin
+                # may not read; it is never stored, so it is skipped.
+                user = self.env['res.users'].with_context(
+                    no_reset_password=True, default_view_group_hierarchy=False,
+                )._webvue_access_create(vals)
+        except IntegrityError as exc:
+            # The login is unique across companies, and record rules hide other
+            # companies' users from the search above. Any other violation is a bug.
+            if (
+                exc.pgcode != errorcodes.UNIQUE_VIOLATION
+                or exc.diag.constraint_name != 'res_users_login_key'
+            ):
+                raise
+            msg = 'account_exists'
+            raise WebVueAccessRule(msg, field='login', status=409) from None
+        self._webvue_replace_assignments(user, assignments)
+        self._webvue_bump_policy(user.company_id)
+        self.env['webvue.access.audit']._webvue_log(
+            'user.granted', user, before=None, after={'active': True},
+        )
+        return user
+
+    @api.model
+    def _webvue_account_filter_keys(self):
+        """Extra query keys of the user list. Bridges extend this through super()."""
+        return frozenset()
+
+    @api.model
+    def _webvue_account_user_domain(self, filters):
+        """Extra domain for the user list from the parsed FILTERS. Bridges extend this through super()."""
+        return []
+
+    @api.model
+    def _webvue_account_extra_fields(self, user_ids):
+        """User id -> extra payload fields merged into the admin user shape. Bridges extend this through super()."""
+        return {user_id: {} for user_id in user_ids}
+
+    @api.model
+    def _webvue_assert_account_reactivation(self, user):
+        """Raise to refuse reactivating USER. Bridges extend this through super()."""
+
+    @api.model
+    def _webvue_reactivate_user(self, user, password, expected_version):
         self._webvue_require_capability('access.users.disable')
         self._webvue_assert_user_scope(user)
         if user == self.env.user:
@@ -459,13 +525,7 @@ class WebVueAccessService(models.AbstractModel):
         self._webvue_check_user_version(user, expected_version)
         self._webvue_require_capability('access.users.disable')
         self._webvue_assert_user_scope(user)
-        prepared = self._webvue_hr_prepare_account(employee_id, 'reactivate')
-        if prepared.get('existing_user_id') != user.id:
-            msg = 'not_found'
-            raise WebVueAccessRule(msg, status=404)
-        if not prepared['employee_active']:
-            msg = 'employee_archived'
-            raise WebVueAccessRule(msg, status=409)
+        self._webvue_assert_account_reactivation(user)
         user._webvue_access_write(
             {'active': True, 'password': password}, 'access.users.disable',
         )
@@ -600,27 +660,3 @@ class WebVueAccessService(models.AbstractModel):
                     after={'roles': role_keys},
                     actor=False,
                 )
-
-    # Pillar hooks. webvue_hr overrides these methods.
-    @api.model
-    def _webvue_hr_prepare_account(self, employee_id, operation):
-        msg = 'hr_integration_unavailable'
-        raise WebVueAccessRule(msg)
-
-    @api.model
-    def _webvue_hr_link_account(self, employee_id, user_id):
-        msg = 'hr_integration_unavailable'
-        raise WebVueAccessRule(msg)
-
-    @api.model
-    def _webvue_hr_user_domain(self, filters):
-        return []
-
-    @api.model
-    def _webvue_hr_employee_refs(self, user_ids):
-        return {user_id: None for user_id in user_ids}
-
-    @api.model
-    def _webvue_hr_account_candidates(self, filters, limit, offset):
-        msg = 'hr_integration_unavailable'
-        raise WebVueAccessRule(msg)

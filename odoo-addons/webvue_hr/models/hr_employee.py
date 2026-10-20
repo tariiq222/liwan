@@ -163,22 +163,18 @@ class WebVueHrEmployee(models.Model):
         with self.env.cr.savepoint():
             return super().write(vals)
 
+    def _webvue_before_archive(self):
+        """Extension point run inside the archive savepoint, before the rows are deactivated."""
+
     def _webvue_archive(self):
         self._webvue_require_capability('hr.employees.archive')
         self._webvue_validate_scope()
-        service = self.env['webvue.access.service'].with_user(self.env.user)
         with self.env.cr.savepoint():
-            for employee in self:
-                if employee.user_id:
-                    service._webvue_disable_linked_user_from_hr(
-                        employee.id,
-                        employee.user_id.id,
-                        service._webvue_user_version(employee.user_id),
-                    )
+            self._webvue_before_archive()
             # The resource model is deliberately protected against generic
             # active writes. Update the two stored columns here as the
-            # capability-scoped archive operation after the core hook has
-            # completed its guarded account transition.
+            # capability-scoped archive operation after the before-archive
+            # extension point has run.
             resource_ids = self.mapped('resource_id').ids
             self.env.cr.execute(
                 'UPDATE resource_resource SET active = FALSE WHERE id = ANY(%s)',

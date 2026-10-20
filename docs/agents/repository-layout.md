@@ -65,6 +65,11 @@ limits describe implementation stages, not permanent product exclusions.
   columns of meetings, series and recommendations, the task origin columns and
   their unique index, recommendation-to-task conversion and its route, and the
   project/task implementation of `webvue.meeting.links`.
+- `odoo-addons/webvue_access_hr` (bridge, rank 5, `auto_install`) is installed whenever `webvue_api`
+  and `webvue_hr` both are. It owns the user-to-employee link: granting an account from an employee
+  (`/api/v1/admin/employee-accounts`, `.../candidates`), the `department_id` user filter, the `employee`
+  field of the admin user shape, the archived-employee reactivation refusal and disabling the linked
+  account when an employee is archived. The foundation account routes (`/api/v1/admin/users`) know no HR.
 - `odoo-addons/webvue_tasks` (application, rank 4) owns personal tasks (a `project.task` without a
   project, with `webvue_parent_id` for sub-tasks), `/api/v1/my-tasks` (the unified list, CRUD,
   transitions, comments, attachments), `tasks.enabled`, the three `tasks.*` capabilities, their
