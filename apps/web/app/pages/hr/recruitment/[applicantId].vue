@@ -38,7 +38,15 @@ const resetting = ref(false)
 const hiring = ref(false)
 const refuseReasonId = ref<number | null>(null)
 
-const stageOptions = computed(() => (stages.data.value?.items ?? []).map(stage => ({ value: String(stage.id), label: stage.name })))
+// The stages come from a query that depends on the applicant's job, so it may not be in the first client render; the
+// applicant's own stage is always an option, which keeps the select's label the same on the server and the client.
+const stageOptions = computed(() => {
+  const options = (stages.data.value?.items ?? []).map(stage => ({ value: String(stage.id), label: stage.name }))
+  const current = applicant.value?.stage
+  return current && !options.some(option => option.value === String(current.id))
+    ? [{ value: String(current.id), label: current.name }, ...options]
+    : options
+})
 const reasonOptions = computed(() => (refuseReasons.data.value?.items ?? []).map(reason => ({ value: String(reason.id), label: reason.name })))
 const priorityOptions = computed(() => HR_APPLICANT_PRIORITIES.map(priority => ({
   value: priority,
