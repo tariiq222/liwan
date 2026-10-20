@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import date
+from datetime import date, timedelta
 
+from odoo import fields
 from odoo.tests import new_test_user, tagged
 
 from .common import WebVueHrCase, set_hr_feature
@@ -298,6 +299,20 @@ class TestHrShifts(WebVueHrCase):
         })
         self.assertEqual(open_ended.status_code, 200, open_ended.text)
         self.assertEqual(tail.date_end, date(2026, 12, 31))
+
+    def test_assignment_without_dates_starts_today(self):
+        employee = self.env['hr.employee'].create({'name': 'Shift No Dates', 'company_id': self.company.id})
+        default = self.env['hr.employee.calendar'].create({
+            'employee_id': employee.id, 'calendar_id': self.company.resource_calendar_id.id,
+        })
+        self._as_manager()
+        today = fields.Date.context_today(employee)
+        created = self.api('POST', '/api/v1/hr/shifts/assignments', {
+            'employee_id': employee.id, 'schedule_id': self.schedule.id,
+        })
+        self.assertEqual(created.status_code, 200, created.text)
+        self.assertEqual(created.json()['date_start'], today.isoformat())
+        self.assertEqual(default.date_end, today - timedelta(days=1))
 
     def test_assignment_payload_is_validated(self):
         self._as_manager()

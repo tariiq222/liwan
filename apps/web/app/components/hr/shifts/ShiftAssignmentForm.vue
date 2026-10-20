@@ -4,8 +4,8 @@ import { ApiError } from '@/composables/useApi'
 import { useCreateHrShiftAssignment } from '@/composables/useHrShifts'
 
 // One employee's date-ranged work schedule. This panel only creates (`/hr/shifts/new`);
-// the list row lets a manager end an existing assignment, and an empty date is an open
-// end of the range.
+// the list row lets a manager end an existing assignment, an empty start is today
+// (the server default) and an empty end is an open end of the range.
 const props = defineProps<{
   backTo: RouteLocationRaw
   employees: { value: string; label: string }[]
@@ -106,7 +106,7 @@ async function submit() {
           />
         </UFormField>
         <div class="grid gap-4 sm:grid-cols-2">
-          <UFormField :label="t('hrShifts.form.dateStart')" name="hr-shift-assignment-start" :error="fieldError('date_start')" :help="t('hrShifts.form.openHint')">
+          <UFormField :label="t('hrShifts.form.dateStart')" name="hr-shift-assignment-start" :error="fieldError('date_start')" :help="t('hrShifts.form.startHint')">
             <SharedDateField
               id="hr-shift-assignment-start"
               :model-value="dateStart"

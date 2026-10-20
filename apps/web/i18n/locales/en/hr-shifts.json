@@ -94,6 +94,7 @@
       "chooseSchedule": "Choose a work schedule",
       "dateStart": "From date",
       "dateEnd": "To date",
+      "startHint": "Leave empty to start today.",
       "openHint": "Leave empty for an open end.",
       "overlap": "The employee already has a work schedule in this period. Pick a period that does not overlap it.",
       "employeeRequired": "An employee is required.",

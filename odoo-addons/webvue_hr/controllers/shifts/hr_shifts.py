@@ -12,7 +12,7 @@ engine ACLs.
 """
 from datetime import timedelta
 
-from odoo import http
+from odoo import fields, http
 from odoo.exceptions import MissingError
 from odoo.http import request
 
@@ -158,8 +158,6 @@ def _make_room_for(employee, date_start, date_end):
     a row of the same calendar. A row with an end date is a planned period and is never cut:
     ``_reject_overlap`` refuses a period that meets it.
     """
-    if not date_start:
-        return
     Planning = request.env['hr.employee.calendar']
     open_ended = Planning.search([
         ('employee_id', '=', employee.id),
@@ -287,14 +285,16 @@ class HrShiftController(http.Controller):
         employee = _current_employee(vals['employee_id'])
         schedule = _assignable_schedule(vals['schedule_id'])
         _reject_self_assignment(employee)
+        # An assignment without a start date starts today, like a launched onboarding run.
+        date_start = vals['date_start'] or fields.Date.context_today(employee)
         # A refused period leaves the cut rows as they were.
         with request.env.cr.savepoint():
-            _make_room_for(employee, vals['date_start'], vals['date_end'])
-            _reject_overlap(employee, vals['date_start'], vals['date_end'])
+            _make_room_for(employee, date_start, vals['date_end'])
+            _reject_overlap(employee, date_start, vals['date_end'])
             row = request.env['hr.employee.calendar'].create({
                 'employee_id': employee.id,
                 'calendar_id': schedule.id,
-                'date_start': vals['date_start'] or False,
+                'date_start': date_start,
                 'date_end': vals['date_end'] or False,
             })
         return dump_assignment(row)
