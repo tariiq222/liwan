@@ -16,8 +16,8 @@ EQUIPMENT_PATCH_FIELDS = EQUIPMENT_CREATE_FIELDS
 
 
 def dump_equipment(equipment):
-    """One asset. ``assign_date`` is the stock assignment date: the engine stamps it whenever
-    the assignment changes, so it survives a return as the last custody date."""
+    """One asset. ``assign_date`` is the stock assignment date: the assign route writes it on
+    every assignment, so it survives a return as the last custody date."""
     return {
         'id': equipment.id,
         'name': equipment.name,

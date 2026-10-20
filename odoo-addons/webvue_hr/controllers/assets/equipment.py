@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 from .common import (
@@ -119,9 +119,15 @@ class HrAssetsEquipmentController(http.Controller):
         if equipment.employee_id:
             raise ApiError(422, 'invalid', 'this asset is already assigned; return it first', field='employee_id')
         equipment.check_access('write')
-        # The stock assignment: the engine clears the department, re-stamps the date and
-        # subscribes the assignee (hr_maintenance), which is what /me reads through.
-        equipment.write({'equipment_assign_to': 'employee', 'employee_id': employee.id, **vals})
+        # The stock assignment: the engine clears the department and subscribes the assignee
+        # (hr_maintenance), which is what /me reads through. It stamps the date only when
+        # ``equipment_assign_to`` changes, which a re-assignment after a return does not, so the
+        # date is written here.
+        equipment.write({
+            'equipment_assign_to': 'employee',
+            'employee_id': employee.id,
+            'assign_date': vals.get('assign_date') or fields.Date.context_today(equipment),
+        })
         return dump_equipment(equipment)
 
     @http.route('/api/v1/hr/assets/equipment/<int:equipment_id>/return', type='json2', auth='user', methods=['POST'], readonly=False)

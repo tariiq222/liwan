@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import fields
 from odoo.tests import new_test_user, tagged
 
 from .common import WebVueHrCase, set_hr_feature
@@ -246,6 +247,15 @@ class TestHrAssets(WebVueHrCase):
         self.assertEqual(returned.json()['assign_date'], '2026-05-01')
         self.equipment.invalidate_recordset(['employee_id', 'assign_date'])
         self.assertFalse(self.equipment.employee_id)
+
+    def test_reassigning_after_a_return_stamps_today(self):
+        self._as_manager()
+        self.assertEqual(self._assign(self.equipment, self.colleague, assign_date='2026-05-01').status_code, 200)
+        returned = self.api('POST', f'/api/v1/hr/assets/equipment/{self.equipment.id}/return', json={})
+        self.assertEqual(returned.status_code, 200, returned.text)
+        again = self._assign(self.equipment, self.staff)
+        self.assertEqual(again.status_code, 200, again.text)
+        self.assertEqual(again.json()['assign_date'], fields.Date.to_string(fields.Date.context_today(self.manager)))
 
     def test_assign_requires_an_active_company_employee(self):
         archived = self.env['hr.employee'].create({
