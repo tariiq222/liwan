@@ -545,3 +545,81 @@ class TestFinanceBudgets(WebVueFinanceOcaCase):
         manager_budget.check_access('write')
         manager_item.check_access('write')
         manager_item.check_access('unlink')
+
+    # --- cost center split (OCA's overlap switch, guarded so an account is never counted twice) ----------
+
+    def distribute(self, budget, **overrides):
+        body = {
+            'account_id': self.expense.id, 'amount': 10000,
+            'shares': [{'analytic_account_id': self.analytic.id, 'percent': 60}, {'analytic_account_id': self.analytic_b.id, 'percent': 40}],
+            **overrides,
+        }
+        return self.api('POST', f'{BUDGETS}/{budget["id"]}/lines/distribute', json=body)
+
+    def test_the_budget_of_an_account_is_split_between_two_cost_centers(self):
+        budget = self.create_budget()
+        result = self.distribute(budget)
+        self.assertEqual(result.status_code, 201, result.text)
+        body = result.json()
+        self.assertEqual(body['total'], 2)
+        self.assertEqual(
+            sorted((line['analytic_account']['id'], line['amount']) for line in body['items']),
+            sorted([(self.analytic.id, 6000), (self.analytic_b.id, 4000)]),
+        )
+        self.assertTrue(self.api('GET', f'{BUDGETS}/{budget["id"]}').json()['cost_center_split'])
+        self.post_expense('2026-03-01', 1500, analytic=self.analytic)
+        self.post_expense('2026-03-02', 500, analytic=self.analytic_b)
+        report = self.report(budget)
+        figures = {line['analytic_account']['id']: (line['budget'], line['actual']) for line in report['lines']}
+        self.assertEqual(figures, {self.analytic.id: (6000, 1500), self.analytic_b.id: (4000, 500)})
+        self.assertEqual(report['totals']['debit']['budget'], 10000)
+
+    def test_the_rounding_difference_goes_to_the_largest_share_so_the_lines_add_up(self):
+        budget = self.create_budget()
+        shares = [{'analytic_account_id': self.analytic.id, 'percent': 33.33}, {'analytic_account_id': self.analytic_b.id, 'percent': 66.67}]
+        amounts = sorted(line['amount'] for line in self.distribute(budget, amount=100.01, shares=shares).json()['items'])
+        self.assertEqual(round(sum(amounts), 2), 100.01)
+
+    def test_two_lines_of_one_account_and_cost_center_still_cannot_share_a_period(self):
+        budget = self.create_budget(cost_center_split=True)
+        self.add_line(budget, self.expense, 100, analytic_account_id=self.analytic.id)
+        for extra in ({'analytic_account_id': self.analytic.id}, {}):
+            result = self.api('POST', f'{BUDGETS}/{budget["id"]}/lines', json={'account_id': self.expense.id, 'amount': 5, **extra})
+            self.assertRefused(result, 422, 'cost_center_overlap', 'analytic_account_id')
+        self.add_line(budget, self.expense, 50, analytic_account_id=self.analytic_b.id)
+        other_period = self.api('POST', f'{BUDGETS}/{budget["id"]}/lines', json={
+            'account_id': self.expense.id, 'amount': 5, 'date_from': '2026-01-01', 'date_to': '2026-01-31', 'analytic_account_id': self.analytic.id,
+        })
+        self.assertRefused(other_period, 422, 'cost_center_overlap')
+
+    def test_without_the_split_the_overlap_rule_of_the_engine_stays(self):
+        budget = self.create_budget()
+        self.add_line(budget, self.expense, 100, analytic_account_id=self.analytic.id)
+        result = self.api('POST', f'{BUDGETS}/{budget["id"]}/lines', json={'account_id': self.expense.id, 'amount': 5, 'analytic_account_id': self.analytic_b.id})
+        self.assertEqual(result.status_code, 422, result.text)
+        self.assertFalse(self.api('GET', f'{BUDGETS}/{budget["id"]}').json()['cost_center_split'])
+        patched = self.api('PATCH', f'{BUDGETS}/{budget["id"]}', json={'cost_center_split': True})
+        self.assertTrue(patched.json()['cost_center_split'])
+
+    def test_distribution_refusals(self):
+        budget = self.create_budget()
+        good = [{'analytic_account_id': self.analytic.id, 'percent': 50}, {'analytic_account_id': self.analytic_b.id, 'percent': 50}]
+        for change, field in (
+            ({'shares': good[:1]}, 'shares'),
+            ({'shares': [good[0], {**good[1], 'percent': 40}]}, 'shares'),
+            ({'shares': [good[0], {**good[0]}]}, 'shares'),
+            ({'shares': [good[0], {'analytic_account_id': self.other_analytic.id, 'percent': 50}]}, 'analytic_account_id'),
+            ({'shares': [good[0], {**good[1], 'percent': 0}]}, 'shares[1].percent'),
+            ({'shares': 'x'}, 'shares'),
+            ({'amount': -1}, 'amount'),
+            ({'account_id': self.other_expense.id}, 'account_id'),
+            ({'colour': 1}, 'colour'),
+        ):
+            with self.subTest(change=change):
+                self.assertRefused(self.distribute(budget, **{'shares': good, **change}), 422, 'invalid', field)
+        self.assertEqual(self.api('GET', f'{BUDGETS}/{budget["id"]}').json()['line_count'], 0)
+
+    def test_a_confirmed_budget_cannot_be_distributed(self):
+        budget = self.create_budget()
+        self.api('POST', f'{BUDGETS}/{budget["id"]}/confirm')
+        self.assertRefused(self.distribute(budget), 422, 'not_draft')

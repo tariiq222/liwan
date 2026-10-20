@@ -14,6 +14,8 @@ export const FinanceBudgetSchema = z.object({
   date_to: day,
   currency,
   line_count: z.number().int().nonnegative(),
+  /** True when several lines of one account may cover the same period, each for a different cost center. */
+  cost_center_split: z.boolean(),
 }).strict()
 
 export const FinanceBudgetLineSchema = z.object({
@@ -75,6 +77,7 @@ export const FinanceBudgetCreateSchema = z.object({
   description: text.optional(),
   date_from: day,
   date_to: day,
+  cost_center_split: z.boolean().optional(),
 }).strict()
 
 /** PATCH /budgets/<id>: a draft only. */
@@ -90,6 +93,23 @@ export const FinanceBudgetLineCreateSchema = z.object({
   analytic_account_id: id.nullable().optional(),
 }).strict()
 
+/**
+ * POST /budgets/<id>/lines/distribute: one account's budget for a period split between cost centers, as one line per cost
+ * center (the percents add up to 100, each cost center once). The budget's cost center split is switched on.
+ */
+export const FinanceBudgetDistributeSchema = z.object({
+  account_id: id,
+  amount: money.min(0),
+  date_from: day.optional(),
+  date_to: day.optional(),
+  label: text.optional(),
+  shares: z.array(z.object({ analytic_account_id: id, percent: z.number().gt(0).max(100) }).strict()).min(2).max(50),
+}).strict().refine(
+  body => Math.abs(body.shares.reduce((sum, share) => sum + share.percent, 0) - 100) < 1e-6
+    && new Set(body.shares.map(share => share.analytic_account_id)).size === body.shares.length,
+  'the shares must add up to 100 and name each cost center once',
+)
+
 /** PATCH /budgets/<id>/lines/<line_id>: a line of a draft budget. */
 export const FinanceBudgetLinePatchSchema = FinanceBudgetLineCreateSchema.partial().strict()
 
@@ -97,6 +117,7 @@ export type FinanceBudget = z.infer<typeof FinanceBudgetSchema>
 export type FinanceBudgetLine = z.infer<typeof FinanceBudgetLineSchema>
 export type FinanceBudgetDetail = z.infer<typeof FinanceBudgetDetailSchema>
 export type FinanceBudgetVsActual = z.infer<typeof FinanceBudgetVsActualSchema>
+export type FinanceBudgetDistribute = z.infer<typeof FinanceBudgetDistributeSchema>
 export type FinanceBudgetCreate = z.infer<typeof FinanceBudgetCreateSchema>
 export type FinanceBudgetPatch = z.infer<typeof FinanceBudgetPatchSchema>
 export type FinanceBudgetLineCreate = z.infer<typeof FinanceBudgetLineCreateSchema>

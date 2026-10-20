@@ -5,6 +5,7 @@ Amounts are in the company currency, in the natural direction of the account (se
 """
 from .common import dump_day, dump_ref
 from .parsing import (
+    parse_bool,
     parse_day,
     parse_id,
     parse_number,
@@ -14,7 +15,9 @@ from .parsing import (
 )
 from odoo.addons.webvue_api.controllers.common import ApiError
 
-BUDGET_FIELDS = frozenset({'name', 'description', 'date_from', 'date_to'})
+BUDGET_FIELDS = frozenset({'name', 'description', 'date_from', 'date_to', 'cost_center_split'})
+DISTRIBUTE_FIELDS = frozenset({'account_id', 'amount', 'date_from', 'date_to', 'label', 'shares'})
+MAX_SHARES = 50
 LINE_FIELDS = frozenset({'account_id', 'amount', 'date_from', 'date_to', 'label', 'analytic_account_id'})
 PERCENT_DIGITS = 2
 
@@ -43,6 +46,7 @@ def dump_budget(budget):
         'date_to': dump_day(budget.date_to),
         'currency': budget.company_id.currency_id.name,
         'line_count': len(budget.item_ids),
+        'cost_center_split': budget.allow_items_overlap,
     }
 
 
@@ -129,6 +133,9 @@ def _parse_budget_fields(payload):
     for field in ('date_from', 'date_to'):
         if field in payload:
             parsed[field] = parse_day(payload[field], field)
+    if 'cost_center_split' in payload:
+        # OCA's own switch: several lines of one account may cover the same period.
+        parsed['allow_items_overlap'] = parse_bool(payload['cost_center_split'], 'cost_center_split')
     return parsed
 
 
@@ -171,3 +178,30 @@ def parse_line_create(payload):
 def parse_line_patch(payload):
     reject_unknown(payload, LINE_FIELDS)
     return _parse_line_fields(payload)
+
+
+def parse_distribution(payload):
+    """A budget of one account for a period split between cost centers: ``shares`` are ``{analytic_account_id, percent}``."""
+    reject_unknown(payload, DISTRIBUTE_FIELDS)
+    require_keys(payload, ('account_id', 'amount', 'shares'))
+    parsed = _parse_line_fields({key: value for key, value in payload.items() if key != 'shares'})
+    shares = payload['shares']
+    if not isinstance(shares, list) or not 2 <= len(shares) <= MAX_SHARES:
+        raise ApiError(422, 'invalid', f'shares must list 2 to {MAX_SHARES} cost centers', field='shares')
+    parsed['shares'] = []
+    for index, share in enumerate(shares):
+        prefix = f'shares[{index}]'
+        if not isinstance(share, dict):
+            raise ApiError(422, 'invalid', f'{prefix} must be an object', field=prefix)
+        reject_unknown(share, {'analytic_account_id', 'percent'}, prefix=f'{prefix}.')
+        require_keys(share, ('analytic_account_id', 'percent'), prefix=f'{prefix}.')
+        parsed['shares'].append({
+            'analytic_account_id': parse_id(share['analytic_account_id'], f'{prefix}.analytic_account_id'),
+            'percent': parse_number(share['percent'], f'{prefix}.percent', minimum=0, maximum=100, exclusive_minimum=True),
+        })
+    ids = [share['analytic_account_id'] for share in parsed['shares']]
+    if len(set(ids)) != len(ids):
+        raise ApiError(422, 'invalid', 'a cost center can appear once', field='shares')
+    if round(sum(share['percent'] for share in parsed['shares']), 6) != 100:
+        raise ApiError(422, 'invalid', 'the shares must add up to 100', field='shares')
+    return parsed

@@ -38,7 +38,7 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `GET /bank-statements`, `GET /bank-statements/<id>`, `GET /bank-statement-lines/<id>/reconcile-proposals` | `finance.bank.read` |
 | `POST /bank-statements` (201), `POST /bank-statements/import/preview`, `POST /bank-statements/import` (201), `PATCH` and `DELETE` (204) `/bank-statements/<id>`, `POST /bank-statements/<id>/auto-reconcile`, `POST /bank-statement-lines/<id>/reconcile`, `/unreconcile` | `finance.bank.manage` |
 | `GET /budgets` (`state`, `q`), `GET /budgets/<id>`, `GET /reports/budget-vs-actual?budget_id[&date_to]` | `finance.budgets.read` |
-| `POST /budgets` (201), `PATCH /budgets/<id>`, `POST /budgets/<id>/confirm`, `/cancel`, `/reset-to-draft`, `POST /budgets/<id>/lines` (201), `PATCH` and `DELETE` (204) `/budgets/<id>/lines/<line_id>` | `finance.budgets.manage` |
+| `POST /budgets` (201), `PATCH /budgets/<id>`, `POST /budgets/<id>/lines/distribute` (201), `POST /budgets/<id>/confirm`, `/cancel`, `/reset-to-draft`, `POST /budgets/<id>/lines` (201), `PATCH` and `DELETE` (204) `/budgets/<id>/lines/<line_id>` | `finance.budgets.manage` |
 | `GET /zatca/status`, `GET /invoices/<id>/zatca` | `finance.zatca.read` |
 | `POST /zatca/journals/<id>/onboard` (`{otp}`) | `finance.zatca.manage` |
 | `POST /invoices/<id>/zatca/submit`, `POST /invoices/<id>/zatca/retry` | `finance.zatca.submit` |
@@ -710,7 +710,14 @@ analytic distribution) is used; the by-KPI budget needs a hand-made MIS template
 - The rules live in the ORM too, for any caller: `mis.budget.by.account.item` create, write and unlink are refused unless the
   budget is a draft; `action_confirm`, `action_cancel` and `action_draft` check the same source states as the routes; a copy
   of a budget is a draft. A request body that repeats a path key (`budget_id`, `line_id`) is 422 `invalid`.
-- OCA's overlap rule is kept: lines of one account cannot overlap in time, so **one account cannot be budgeted for two
-  analytic accounts in the same period** (use one line for the account, or distinct periods).
+- OCA's overlap rule is kept by default: lines of one account cannot overlap in time. A budget with `cost_center_split: true`
+  (OCA's own `allow_items_overlap` switch) lets one account be budgeted for several cost centers in the same period, one
+  line per cost center. WebVue keeps an account from being counted twice: on such a budget, lines of one account that overlap
+  in time must each name a different cost center (422 `cost_center_overlap`, so neither a repeated cost center nor a line
+  without one beside a line with one).
+- `POST /budgets/<id>/lines/distribute` `{account_id, amount, shares: [{analytic_account_id, percent}], date_from?, date_to?,
+  label?}` splits one account's budget between cost centers: one line per cost center for `amount` times its percent (the
+  percents add up to 100, each cost center once; the rounding difference goes to the largest share). It switches the split on.
+  The report then compares each cost center's budget with the analytic lines of that cost center, so no data is stored twice.
 - Not covered: budget by KPI, account-group lines, copying a budget, commitments (purchase orders), budget control on
   postings, and several analytic accounts or shares on one line.

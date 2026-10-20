@@ -89,7 +89,7 @@ const sources = [
 const lineOf = ({ actual: _actual, ...rest }) => rest
 const detail = source => ({ ...summary(source), lines: source.lines.map(lineOf) })
 function summary({ lines, ...rest }) {
-  return { ...rest, line_count: lines.length }
+  return { ...rest, line_count: lines.length, cost_center_split: false }
 }
 
 const round = value => Math.round(value * 100) / 100
