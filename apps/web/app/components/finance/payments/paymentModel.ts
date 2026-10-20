@@ -1,6 +1,7 @@
 import type { FinanceInvoiceDetail, FinancePayment, FinancePaymentRegister } from '@webvue/contracts'
 import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
 import { invoiceKindOf } from '../invoices/invoiceKinds'
+import { queryText, queryDay } from '../../../utils/routeQuery'
 
 export const PAYMENTS_PATH = '/finance/payments'
 export const PAYMENT_PAGE_SIZE = 25
@@ -17,7 +18,6 @@ export const PAYMENT_STATE_TONE: Record<FinancePayment['state'], StatusTone> = {
   rejected: 'destructive',
 }
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/
 type Query = Record<string, unknown>
 
 export interface PaymentListFilters {
@@ -30,25 +30,15 @@ export interface PaymentListFilters {
   page: number
 }
 
-function text(value: unknown): string | null {
-  const first = Array.isArray(value) ? value[0] : value
-  return typeof first === 'string' && first.trim() ? first.trim() : null
-}
-
-function day(value: unknown): string | null {
-  const parsed = text(value)
-  return parsed && DAY.test(parsed) ? parsed : null
-}
-
 export function paymentFiltersFromQuery(query: Query): PaymentListFilters {
-  const type = text(query.payment_type)
-  const state = text(query.state)
-  const partner = Number(text(query.partner_id))
-  const page = Number(text(query.page))
-  const dateFrom = day(query.date_from)
-  const dateTo = day(query.date_to)
+  const type = queryText(query.payment_type)
+  const state = queryText(query.state)
+  const partner = Number(queryText(query.partner_id))
+  const page = Number(queryText(query.page))
+  const dateFrom = queryDay(query.date_from)
+  const dateTo = queryDay(query.date_to)
   return {
-    q: text(query.q) ?? '',
+    q: queryText(query.q) ?? '',
     paymentType: PAYMENT_TYPES.find(value => value === type) ?? null,
     state: PAYMENT_STATES.find(value => value === state) ?? null,
     partnerId: Number.isSafeInteger(partner) && partner > 0 ? partner : null,
@@ -77,7 +67,7 @@ export function paymentListParams(filters: PaymentListFilters) {
 
 /** `?invoice_ids=3,5` of the register-payment link: positive ids, each once, in order. */
 export function prefilledInvoiceIds(value: unknown): number[] {
-  const raw = text(value)
+  const raw = queryText(value)
   if (!raw) return []
   const ids = raw.split(',').map(part => Number(part.trim())).filter(id => Number.isSafeInteger(id) && id > 0)
   return [...new Set(ids)].slice(0, MAX_PREFILLED_INVOICES)

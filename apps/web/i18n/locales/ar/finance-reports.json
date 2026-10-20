@@ -1,0 +1,125 @@
+{
+  "financeReports": {
+    "reports": {
+      "trialBalance": {
+        "title": "ميزان المراجعة",
+        "description": "أرصدة الحسابات ومجاميع المدين والدائن في الفترة."
+      },
+      "generalLedger": {
+        "title": "دفتر الأستاذ العام",
+        "description": "حركة كل حساب في الفترة؛ افتح حسابًا لترى أسطره."
+      },
+      "agedPartnerBalance": {
+        "title": "أعمار الذمم",
+        "description": "الأرصدة المفتوحة حتى يوم محدد، موزعة حسب عمر الاستحقاق."
+      },
+      "partnerStatement": {
+        "title": "كشف حساب طرف",
+        "description": "حركة عميل أو مورد، أو ما بقي مستحقًا عليه."
+      },
+      "vat": {
+        "title": "ضريبة القيمة المضافة",
+        "description": "ضريبة المبيعات وضريبة المشتريات وصافي المستحق في الفترة."
+      },
+      "withholding": {
+        "title": "ضريبة الاستقطاع",
+        "description": "الضريبة المستقطعة من مدفوعات الموردين في الفترة."
+      }
+    },
+    "kpi": {
+      "label": "ملخص التقرير",
+      "debit": "إجمالي المدين",
+      "credit": "إجمالي الدائن",
+      "difference": "الفرق",
+      "agedTotal": "إجمالي المفتوح",
+      "agedCurrent": "غير مستحق بعد",
+      "agedOver90": "متأخر أكثر من 90 يومًا",
+      "amountDue": "المبلغ المستحق",
+      "endingBalance": "الرصيد الختامي",
+      "salesTax": "ضريبة المبيعات",
+      "purchaseTax": "ضريبة المشتريات",
+      "netPayable": "صافي المستحق",
+      "withholdingBase": "الوعاء",
+      "withheld": "المستقطع"
+    },
+    "filters": {
+      "partner": "الطرف",
+      "partnerPlaceholder": "اختر العميل أو المورد",
+      "dateFrom": "من تاريخ",
+      "dateTo": "إلى تاريخ",
+      "asOf": "حتى تاريخ",
+      "targetMoveLabel": "القيود",
+      "targetMove": {
+        "posted": "المرحّلة",
+        "all": "الكل"
+      },
+      "kindLabel": "النوع",
+      "kind": {
+        "receivable": "مدينون",
+        "payable": "دائنون"
+      },
+      "typeLabel": "نوع الكشف",
+      "type": {
+        "activity": "حركة",
+        "outstanding": "مستحق"
+      }
+    },
+    "columns": {
+      "code": "الرمز",
+      "account": "الحساب",
+      "initialBalance": "الرصيد الافتتاحي",
+      "debit": "مدين",
+      "credit": "دائن",
+      "balance": "الرصيد",
+      "endingBalance": "الرصيد الختامي",
+      "accountOrDate": "الحساب / التاريخ",
+      "entry": "القيد",
+      "partner": "الطرف",
+      "label": "البيان",
+      "runningBalance": "الرصيد الجاري",
+      "partnerOrAccount": "الحساب / الطرف",
+      "date": "التاريخ",
+      "dueDate": "الاستحقاق",
+      "reference": "المرجع",
+      "openAmount": "المتبقي",
+      "amountDue": "المبلغ المستحق",
+      "section": "القسم",
+      "tax": "الضريبة",
+      "rate": "النسبة",
+      "base": "الوعاء",
+      "taxAmount": "مبلغ الضريبة",
+      "withheld": "المستقطع"
+    },
+    "buckets": {
+      "current": "غير مستحق",
+      "days_1_30": "1–30 يومًا",
+      "days_31_60": "31–60 يومًا",
+      "days_61_90": "61–90 يومًا",
+      "days_91_120": "91–120 يومًا",
+      "days_over_120": "أكثر من 120",
+      "total": "الإجمالي"
+    },
+    "vat": {
+      "sales": "المبيعات",
+      "purchases": "المشتريات",
+      "salesTotal": "إجمالي المبيعات",
+      "purchasesTotal": "إجمالي المشتريات",
+      "netPayable": "صافي المستحق",
+      "payable": "مستحق السداد",
+      "refund": "استرداد"
+    },
+    "tags": {
+      "period": "من {from} إلى {to}",
+      "asOf": "حتى {date}"
+    },
+    "pickPartner": {
+      "title": "اختر العميل أو المورد",
+      "description": "يُعرض الكشف بعد اختيار الطرف."
+    },
+    "noPartner": "بلا طرف",
+    "balanceForward": "رصيد منقول",
+    "empty": "لا توجد بيانات في هذه الفترة.",
+    "forbidden": "لا تملك صلاحية عرض هذا التقرير.",
+    "linesFooter": "لا أسطر | عرض {shown} من سطر واحد | عرض {shown} من سطرين | عرض {shown} من {total} أسطر | عرض {shown} من {total} سطرًا | عرض {shown} من {total} سطر"
+  }
+}

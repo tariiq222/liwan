@@ -236,3 +236,35 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/finance/invoices/Money.vue` | مبلغ بأرقام لاتينية وتباعد ثابت والعملة بعده | — | — |
 | `apps/web/app/components/finance/payments/PaymentList.vue` | بطاقة قائمة الدفعات بفلاتر الرابط وإلغاء الدفعة أو إعادتها إلى مسودة بتأكيد مضمّن | — | `SharedListCard`, `SharedFilterBar`, `SharedFilterField`, `SharedDateField`, `SharedDataTable`, `SharedListFooter`, `SharedRowActions`, `SharedInlineConfirm`, `SharedStatusBadge`, `SharedRecordNumber`, `SharedForbiddenState` |
 | `apps/web/app/components/finance/payments/PaymentForm.vue` | تسجيل دفعة على مستند أو أكثر لطرف وعملة ونوع واحد: المبلغ والتاريخ واليومية والبيان | — | `SharedFormSection`, `SharedFormActions`, `SharedUnsavedChanges`, `SharedDateField`, `SharedPageState`, `UForm`, `UFormField`, `UInput`, `USelect`, `USelectMenu` |
+
+## مكونات المالية — المحاسبة والبنك والتقارير
+
+القيود اليومية ودليل الحسابات وكشوف البنك وتسويتها وتقارير المالية؛ محلية لتطبيق المالية وتعيد استخدام لبنات Storybook المشتركة. الصفحات تملك قوالبها وترويساتها من composables بجوار المكونات (`useEntryListPage` و`useEntryCreatePage` و`useEntryRecord` و`useAccountListPage` و`useBankListPage` و`useBankCreatePage` و`useBankStatementRecord` و`useBankReconcilePage`)، والتقارير الستة صفحة واحدة `/finance/reports/[report]` يحكمها جدول إعداد واحد (`reportConfig.ts`). المؤشرات من إجماليات الخادم أو مجاميع التقرير نفسه فقط.
+
+| المكوّن | الوظيفة | القصة | مكونات الأساس |
+| --- | --- | --- | --- |
+| `apps/web/app/components/finance/AccountPicker.vue` | اختيار حساب من دليل الحسابات بالرمز أو الاسم، مع `allow` لاستبعاد ما يرفضه الخادم | — | `USelectMenu` |
+| `apps/web/app/components/finance/accounting/EntryList.vue` | بطاقة قائمة القيود: بحث وحالة ويومية وفترة في الرابط، جدول وعدّاد وترقيم ومؤشرات الأعداد فوقها | — | `SharedListCard`, `SharedFilterBar`, `SharedFilterField`, `SharedDateField`, `SharedPageState`, `SharedEmptyState`, `SharedDataTable`, `SharedRecordNumber`, `SharedStatusBadge`, `SharedListFooter`, `SharedForbiddenState`, `UInput`, `USelect` |
+| `apps/web/app/components/finance/accounting/EntryKpiStrip.vue` | أعداد القيود الكلية والمسودة والمرحّلة والملغاة من إجمالي الخادم بفلاتر القائمة | — | `SharedKpiStrip` |
+| `apps/web/app/components/finance/accounting/EntryForm.vue` | إنشاء قيد: اليومية والتاريخ والمرجع وبنود مدين/دائن متوازنة بمجاميع حيّة | — | `SharedFormSection`, `SharedFormActions`, `SharedUnsavedChanges`, `SharedDateField`, `UForm`, `UFormField`, `UInput`, `USelect`, `UAlert`, `UButton` |
+| `apps/web/app/components/finance/accounting/EntryLinesPanel.vue` | بنود القيد للقراءة ومجاميعها | — | `SharedRecordSection`, `SharedDataTable` |
+| `apps/web/app/components/finance/accounting/EntryRecordActions.vue` | إجراءات ترويسة القيد: الترحيل وقائمة إعادة المسودة وفك المطابقة والحذف | — | `SharedRowActions`, `UButton` |
+| `apps/web/app/components/finance/accounting/EntryRecordBody.vue` | رسائل إجراءات القيد وتأكيدها المضمّن والبنود | — | `SharedInlineConfirm`, `UAlert` |
+| `apps/web/app/components/finance/accounting/EntryRecordAside.vue` | خصائص القيد | — | `SharedPropertiesPanel`, `SharedPropertyRow` |
+| `apps/web/app/components/finance/accounting/AccountList.vue` | دليل الحسابات للقراءة: بحث ونوع في الرابط، جدول وعدّاد وترقيم | — | `SharedListCard`, `SharedFilterBar`, `SharedFilterField`, `SharedPageState`, `SharedEmptyState`, `SharedDataTable`, `SharedStatusBadge`, `SharedListFooter`, `SharedForbiddenState`, `UInput`, `USelect` |
+| `apps/web/app/components/finance/bank/BankStatementList.vue` | بطاقة قائمة كشوف البنك: يومية وفترة في الرابط، جدول بالأرصدة وحبّة الفرق، وعدّاد وترقيم | — | `SharedListCard`, `SharedFilterBar`, `SharedFilterField`, `SharedDateField`, `SharedPageState`, `SharedEmptyState`, `SharedDataTable`, `SharedRecordNumber`, `SharedStatusBadge`, `SharedListFooter`, `SharedForbiddenState`, `USelect` |
+| `apps/web/app/components/finance/bank/BankKpiStrip.vue` | عدد الكشوف من إجمالي الخادم بفلاتر القائمة | — | `SharedKpiStrip` |
+| `apps/web/app/components/finance/bank/BankStatementForm.vue` | إنشاء كشف: اليومية والتاريخ والأرصدة وسطور المبالغ مع الرصيد الختامي المحسوب | — | `SharedFormSection`, `SharedFormActions`, `SharedUnsavedChanges`, `SharedDateField`, `SharedPageState`, `UForm`, `UFormField`, `UInput`, `USelect`, `UAlert`, `UButton` |
+| `apps/web/app/components/finance/bank/BankStatementBody.vue` | سطور الكشف وحالة تسويتها ورابط التسوية، ومؤشرات الكشف من سجله الكامل | — | `SharedKpiStrip`, `SharedRecordSection`, `SharedEmptyState`, `SharedDataTable`, `SharedStatusBadge`, `UButton` |
+| `apps/web/app/components/finance/bank/BankStatementAside.vue` | خصائص الكشف وأرصدته | — | `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge` |
+| `apps/web/app/components/finance/bank/ReconcileBody.vue` | تسوية سطر كشف: المقترحات بالتحديد المتعدد والفرق الحيّ وحساب الفرق وتأكيد مضمّن | — | `SharedRecordSection`, `SharedPageState`, `SharedDataTable`, `SharedStatusBadge`, `SharedInlineConfirm`, `UFormField`, `UInput`, `UAlert`, `UButton` |
+| `apps/web/app/components/finance/reports/ReportView.vue` | جسم صفحة التقرير: الترويسة والمؤشرات من مجاميع التقرير وبطاقة الفلاتر والجدول | — | `SharedListPage`, `SharedKpiStrip`, `SharedListCard`, `SharedPageState`, `SharedEmptyState`, `SharedForbiddenState`, `SharedListFooter` |
+| `apps/web/app/components/finance/reports/ReportFilters.vue` | فلاتر التقرير في الرابط: الفترة والترحيل والنوع والطرف ونوع الكشف | — | `SharedFilterBar`, `SharedFilterField`, `SharedDateField`, `SharedSegmentedControl` |
+| `apps/web/app/components/finance/reports/TrialBalanceTable.vue` | ميزان المراجعة بصف المجاميع | — | `SharedDataTable` |
+| `apps/web/app/components/finance/reports/GeneralLedgerTable.vue` | دفتر الأستاذ: مجاميع الحسابات وسطور الحساب المفتوح | — | `SharedDataTable`, `UIcon` |
+| `apps/web/app/components/finance/reports/AgedBalanceTable.vue` | أعمار الذمم لكل حساب وطرف وفئات الأيام | — | `SharedDataTable` |
+| `apps/web/app/components/finance/reports/PartnerStatementTable.vue` | كشف حساب طرف لكل عملة: الرصيد المرحّل والسطور والمستحق | — | `SharedDataTable` |
+| `apps/web/app/components/finance/reports/VatTable.vue` | ضريبة القيمة المضافة للمبيعات والمشتريات والصافي ووسم الاسترداد | — | `SharedDataTable`, `SharedStatusBadge` |
+| `apps/web/app/components/finance/reports/WithholdingTable.vue` | ضريبة الاستقطاع لكل ضريبة ومجاميعها | — | `SharedDataTable` |
+| `apps/web/app/components/finance/reports/ReportTotals.vue` | تذييل مجاميع التقرير | — | — |
+| `apps/web/app/components/finance/reports/ReportMobileRow.vue` | صف التقرير في الجوال | — | — |

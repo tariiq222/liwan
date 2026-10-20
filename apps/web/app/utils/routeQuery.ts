@@ -20,3 +20,23 @@ export function parseOffset(value: unknown): number {
   if (!Number.isInteger(n) || n < 0) return 0
   return n
 }
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/
+
+/** The first non-empty string of a route query value, trimmed; null otherwise. */
+export function queryText(value: unknown): string | null {
+  const first = firstQuery(value)?.trim()
+  return first || null
+}
+
+/** A `YYYY-MM-DD` day of a route query value, or null for anything else. */
+export function queryDay(value: unknown): string | null {
+  const parsed = queryText(value)
+  return parsed && DAY.test(parsed) ? parsed : null
+}
+
+/** A positive integer of a route query value, or null for anything else. */
+export function queryPositiveInt(value: unknown): number | null {
+  const parsed = Number(queryText(value))
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null
+}

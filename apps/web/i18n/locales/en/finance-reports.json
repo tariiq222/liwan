@@ -1,0 +1,125 @@
+{
+  "financeReports": {
+    "reports": {
+      "trialBalance": {
+        "title": "Trial balance",
+        "description": "Account balances and debit and credit totals for the period."
+      },
+      "generalLedger": {
+        "title": "General ledger",
+        "description": "Every account's activity in the period; open an account to see its lines."
+      },
+      "agedPartnerBalance": {
+        "title": "Aged partner balance",
+        "description": "Open balances up to a day, grouped by how long they are overdue."
+      },
+      "partnerStatement": {
+        "title": "Partner statement",
+        "description": "A customer's or vendor's activity, or what is still outstanding."
+      },
+      "vat": {
+        "title": "VAT",
+        "description": "Sales tax, purchase tax and the net payable for the period."
+      },
+      "withholding": {
+        "title": "Withholding tax",
+        "description": "Tax withheld from vendor payments in the period."
+      }
+    },
+    "kpi": {
+      "label": "Report summary",
+      "debit": "Total debit",
+      "credit": "Total credit",
+      "difference": "Difference",
+      "agedTotal": "Total open",
+      "agedCurrent": "Not yet due",
+      "agedOver90": "Over 90 days overdue",
+      "amountDue": "Amount due",
+      "endingBalance": "Ending balance",
+      "salesTax": "Sales tax",
+      "purchaseTax": "Purchase tax",
+      "netPayable": "Net payable",
+      "withholdingBase": "Base",
+      "withheld": "Withheld"
+    },
+    "filters": {
+      "partner": "Partner",
+      "partnerPlaceholder": "Pick a customer or vendor",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "asOf": "As of",
+      "targetMoveLabel": "Entries",
+      "targetMove": {
+        "posted": "Posted",
+        "all": "All"
+      },
+      "kindLabel": "Side",
+      "kind": {
+        "receivable": "Receivable",
+        "payable": "Payable"
+      },
+      "typeLabel": "Statement",
+      "type": {
+        "activity": "Activity",
+        "outstanding": "Outstanding"
+      }
+    },
+    "columns": {
+      "code": "Code",
+      "account": "Account",
+      "initialBalance": "Opening balance",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance",
+      "endingBalance": "Ending balance",
+      "accountOrDate": "Account / date",
+      "entry": "Entry",
+      "partner": "Partner",
+      "label": "Label",
+      "runningBalance": "Running balance",
+      "partnerOrAccount": "Account / partner",
+      "date": "Date",
+      "dueDate": "Due",
+      "reference": "Reference",
+      "openAmount": "Open",
+      "amountDue": "Amount due",
+      "section": "Section",
+      "tax": "Tax",
+      "rate": "Rate",
+      "base": "Base",
+      "taxAmount": "Tax amount",
+      "withheld": "Withheld"
+    },
+    "buckets": {
+      "current": "Current",
+      "days_1_30": "1–30 days",
+      "days_31_60": "31–60 days",
+      "days_61_90": "61–90 days",
+      "days_91_120": "91–120 days",
+      "days_over_120": "Over 120",
+      "total": "Total"
+    },
+    "vat": {
+      "sales": "Sales",
+      "purchases": "Purchases",
+      "salesTotal": "Sales total",
+      "purchasesTotal": "Purchases total",
+      "netPayable": "Net payable",
+      "payable": "Payable",
+      "refund": "Refund"
+    },
+    "tags": {
+      "period": "{from} to {to}",
+      "asOf": "As of {date}"
+    },
+    "pickPartner": {
+      "title": "Pick a customer or vendor",
+      "description": "The statement appears once a partner is chosen."
+    },
+    "noPartner": "No partner",
+    "balanceForward": "Balance forward",
+    "empty": "No data in this period.",
+    "forbidden": "You do not have permission to view this report.",
+    "linesFooter": "Showing {shown} of {total} line | Showing {shown} of {total} lines"
+  }
+}

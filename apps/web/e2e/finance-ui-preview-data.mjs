@@ -43,10 +43,28 @@ const setup = {
   blockers: ['company_registry_missing', 'zatca_not_onboarded'],
 }
 
-const aged = (kind, total) => ({
-  date_to: new Date().toISOString().slice(0, 10), kind, target_move: 'posted', currency: 'SAR',
-  accounts: [], totals: { current: total, days_1_30: 0, days_31_60: 0, days_61_90: 0, days_91_120: 0, days_over_120: 0, total },
-})
+// One account with two partners; the buckets add up to `total` (the figure the overview reads), receivables aged and payables current.
+const agedBuckets = (total, kind) => {
+  const aging = kind === 'payable' ? [1, 0, 0] : [0.4, 0.35, 0.25]
+  const [current, days1To30, days31To60] = aging.map(share => total * share)
+  return { current, days_1_30: days1To30, days_31_60: days31To60, days_61_90: 0, days_91_120: 0, days_over_120: 0, total }
+}
+const scaleBuckets = (buckets, share) => Object.fromEntries(Object.entries(buckets).map(([bucket, value]) => [bucket, value * share]))
+const aged = (kind, total, url) => {
+  const buckets = agedBuckets(total, kind)
+  return {
+    date_to: url.searchParams.get('date_to') ?? new Date().toISOString().slice(0, 10), kind, target_move: url.searchParams.get('target_move') ?? 'posted', currency: 'SAR',
+    accounts: [{
+      account: kind === 'payable' ? { id: 301, code: '210101', name: 'الموردون' } : { id: 201, code: '120101', name: 'العملاء' },
+      ...buckets,
+      partners: [
+        { partner: { id: 1, name: 'شركة الأفق للتجارة' }, ...scaleBuckets(buckets, 0.6) },
+        { partner: null, ...scaleBuckets(buckets, 0.4) },
+      ],
+    }],
+    totals: buckets,
+  }
+}
 
 const page = (items, url) => {
   const offset = Math.max(0, Number(url.searchParams.get('offset') ?? 0) || 0)
@@ -77,6 +95,6 @@ export function financePreviewData(path, url) {
     const state = url.searchParams.get('state')
     return page(invoices.filter(row => (!state || row.state === state) && matches(`${row.name ?? ''} ${row.partner?.name ?? ''}`, q)), url)
   }
-  if (route === '/api/v1/finance/reports/aged-partner-balance') return aged(url.searchParams.get('kind') ?? 'receivable', url.searchParams.get('kind') === 'payable' ? 3450 : 14000)
+  if (route === '/api/v1/finance/reports/aged-partner-balance') return aged(url.searchParams.get('kind') ?? 'receivable', url.searchParams.get('kind') === 'payable' ? 3450 : 14000, url)
   return undefined
 }

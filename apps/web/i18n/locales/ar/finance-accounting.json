@@ -1,0 +1,139 @@
+{
+  "financeAccounting": {
+    "forbidden": "لا تملك صلاحية عرض هذه الصفحة.",
+    "draftNumber": "مسودة",
+    "states": {
+      "draft": "مسودة",
+      "posted": "مرحّل",
+      "cancel": "ملغى"
+    },
+    "kpi": {
+      "label": "أرقام القيود",
+      "total": "الإجمالي",
+      "draft": "مسودات",
+      "posted": "مرحّلة",
+      "cancel": "ملغاة"
+    },
+    "entries": {
+      "title": "قيود اليومية",
+      "description": "القيود اليدوية من المسودة حتى الترحيل.",
+      "new": "قيد جديد",
+      "record": "قيد يومية",
+      "empty": "لا توجد قيود يومية بعد.",
+      "countTag": "لا قيود | قيد واحد | قيدان | {count} قيود | {count} قيدًا | {count} قيد",
+      "footer": "لا قيود | عرض {shown} من قيد واحد | عرض {shown} من قيدين | عرض {shown} من {total} قيود | عرض {shown} من {total} قيدًا | عرض {shown} من {total} قيد"
+    },
+    "accounts": {
+      "title": "دليل الحسابات",
+      "description": "حسابات الشركة وأنواعها.",
+      "empty": "لا توجد حسابات بعد.",
+      "reconcileYes": "نعم",
+      "reconcileNo": "لا",
+      "countTag": "لا حسابات | حساب واحد | حسابان | {count} حسابات | {count} حسابًا | {count} حساب",
+      "footer": "لا حسابات | عرض {shown} من حساب واحد | عرض {shown} من حسابين | عرض {shown} من {total} حسابات | عرض {shown} من {total} حسابًا | عرض {shown} من {total} حساب"
+    },
+    "filters": {
+      "search": "ابحث بالرقم أو المرجع",
+      "state": "الحالة",
+      "allStates": "كل الحالات",
+      "journal": "اليومية",
+      "allJournals": "كل اليوميات",
+      "dateFrom": "من تاريخ",
+      "dateTo": "إلى تاريخ",
+      "searchAccounts": "ابحث بالرمز أو الاسم",
+      "accountType": "نوع الحساب",
+      "allTypes": "كل الأنواع"
+    },
+    "columns": {
+      "number": "الرقم",
+      "date": "التاريخ",
+      "journal": "اليومية",
+      "ref": "المرجع",
+      "total": "الإجمالي",
+      "state": "الحالة",
+      "code": "الرمز",
+      "accountName": "اسم الحساب",
+      "type": "النوع",
+      "reconcile": "قابل للتسوية",
+      "currency": "العملة"
+    },
+    "accountTypes": {
+      "asset_receivable": "ذمم مدينة",
+      "asset_cash": "نقد وبنوك",
+      "asset_current": "أصول متداولة",
+      "asset_non_current": "أصول غير متداولة",
+      "asset_prepayments": "مدفوعات مقدمة",
+      "asset_fixed": "أصول ثابتة",
+      "liability_payable": "ذمم دائنة",
+      "liability_credit_card": "بطاقة ائتمان",
+      "liability_current": "خصوم متداولة",
+      "liability_non_current": "خصوم غير متداولة",
+      "equity": "حقوق الملكية",
+      "equity_unaffected": "أرباح غير موزعة",
+      "income": "إيرادات",
+      "income_other": "إيرادات أخرى",
+      "expense": "مصروفات",
+      "expense_other": "مصروفات أخرى",
+      "expense_depreciation": "إهلاك",
+      "expense_direct_cost": "تكلفة مباشرة",
+      "off_balance": "خارج الميزانية"
+    },
+    "form": {
+      "details": "البيانات الأساسية",
+      "journal": "اليومية",
+      "journalRequired": "اختر اليومية",
+      "journalPlaceholder": "اختر اليومية",
+      "date": "التاريخ",
+      "dateRequired": "اختر التاريخ",
+      "ref": "المرجع",
+      "lines": "البنود",
+      "linesHint": "لكل بند طرف واحد فقط: مدين أو دائن. يجب أن يتساوى مجموع المدين والدائن.",
+      "account": "الحساب",
+      "accountPlaceholder": "اختر الحساب",
+      "accountRequired": "اختر الحساب",
+      "partner": "الطرف",
+      "partnerPlaceholder": "بدون طرف",
+      "lineName": "البيان",
+      "lineNameRequired": "اكتب بيان البند",
+      "debit": "مدين",
+      "credit": "دائن",
+      "amountInvalid": "أدخل مبلغًا في المدين أو الدائن، وليس في الاثنين",
+      "lineAria": "البند {number}: {field}",
+      "removeLine": "حذف البند {number}",
+      "addLine": "إضافة بند",
+      "totalDebit": "مجموع المدين",
+      "totalCredit": "مجموع الدائن",
+      "difference": "الفرق",
+      "unbalanced": "القيد غير متوازن: يجب أن يتساوى المدين والدائن وأن يزيدا على صفر.",
+      "tooFewLines": "أضف بندين على الأقل.",
+      "requiredHint": "الحقول التي عليها نجمة مطلوبة.",
+      "createDraft": "إنشاء مسودة"
+    },
+    "record": {
+      "currency": "العملة"
+    },
+    "actions": {
+      "post": "ترحيل",
+      "resetToDraft": "إعادة إلى مسودة",
+      "unreconcile": "إلغاء التسوية",
+      "delete": "حذف المسودة",
+      "menuFor": "إجراءات {name}"
+    },
+    "confirm": {
+      "post": "ترحيل «{name}»؟",
+      "postHint": "بعد الترحيل لا يمكن تعديل البنود إلا بإعادة القيد إلى مسودة.",
+      "reset": "إعادة «{name}» إلى مسودة؟",
+      "resetHint": "يُرفع الترحيل وتصبح البنود قابلة للتعديل من جديد.",
+      "unreconcile": "إلغاء تسوية «{name}»؟",
+      "unreconcileHint": "تُفصل بنود القيد عن الحركات التي سُوّيت معها.",
+      "delete": "حذف المسودة «{name}»؟",
+      "deleteHint": "تُحذف المسودة نهائيًا ولا يمكن استرجاعها."
+    },
+    "errors": {
+      "unbalanced": "القيد غير متوازن: يجب أن يتساوى المدين والدائن.",
+      "hasReconciliations": "بنود القيد مسوّاة: ألغِ التسوية أولًا.",
+      "invalidState": "هذا الإجراء غير متاح في الحالة الحالية.",
+      "periodLocked": "الفترة المحاسبية مقفلة لهذا التاريخ."
+    }
+  }
+}

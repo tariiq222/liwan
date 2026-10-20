@@ -1,4 +1,4 @@
-import type { AppContextLink, AppManifest } from '../types'
+import type { AppContextLink, AppIcon, AppManifest } from '../types'
 import { financeNavActive, financeSectionOf, type FinanceSection } from './routes'
 import { invoicesSearch, partnersSearch } from './search'
 
@@ -25,7 +25,7 @@ const TOP: AppContextLink[] = [
   { id: 'finance-reports', labelKey: 'finance.nav.reports', icon: 'i-lucide-file-chart-column', to: '/finance/reports/trial-balance', capability: 'finance.statements.read', within: '/finance/reports' },
 ]
 
-const report = (id: string, slug: string, labelKey: string, icon: string, capability: string): AppContextLink =>
+const report = (id: string, slug: string, labelKey: string, icon: AppIcon, capability: string): AppContextLink =>
   ({ id: `report-${id}`, labelKey, icon, to: `/finance/reports/${slug}`, capability, section: 'finance.nav.reports' })
 
 const SUB_LISTS: Partial<Record<FinanceSection, AppContextLink[]>> = {

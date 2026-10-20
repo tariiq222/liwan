@@ -138,7 +138,7 @@ describe('finance context sidebar', () => {
       '/finance/reports/trial-balance', '/finance/reports/general-ledger', '/finance/reports/aged-partner-balance',
       '/finance/reports/partner-statement', '/finance/reports/vat', '/finance/reports/withholding',
     ])
-    for (const link of links.filter(item => item.section === 'finance.nav.reports')) expect(requiredCapabilityForPath(link.to)).toBe(link.capability)
+    for (const link of links.filter(item => item.section === 'finance.nav.reports')) expect(requiredCapabilityForPath(String(link.to))).toBe(link.capability)
     expect(ids('/finance/accounting/entries')).toEqual(expect.arrayContaining(['accounting-entries', 'accounting-accounts']))
   })
 
