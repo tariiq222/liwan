@@ -94,9 +94,12 @@ def unexpected(module: str, installed: set[str], layers: Path = LAYERS, addons: 
     """Applications and bridges installed beyond what the run of ``module`` asked for."""
     asked = set(install_list(module, layers, addons))
     allowed = asked | {module}
-    # A bridge whose sides are all part of the run auto-installs legitimately.
+    # A bridge whose sides are all part of the run auto-installs legitimately. The foundation is part of
+    # every run, so a bridge between the foundation and the application under test (webvue_access_hr for
+    # webvue_hr) belongs to that application's standalone install.
+    present = asked | set(foundation(layers))
     for bridge in modules_of_rank(BRIDGE_RANK, layers):
-        if set(sides(bridge, layers, addons)) <= asked:
+        if set(sides(bridge, layers, addons)) <= present:
             allowed.add(bridge)
     watched = set(modules_of_rank(APP_RANK, layers)) | set(modules_of_rank(BRIDGE_RANK, layers))
     if module == foundation(layers)[-1]:

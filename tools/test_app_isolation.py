@@ -9,9 +9,9 @@ from pathlib import Path
 import app_isolation
 
 RANKS = {'webvue_core': 0, 'webvue_platform': 1, 'webvue_api': 2, 'webvue_directory': 3, 'webvue_ai': 3,
-         'app_a': 4, 'app_b': 4, 'app_c': 4, 'a_b': 5, 'b_ai': 5}
+         'app_a': 4, 'app_b': 4, 'app_c': 4, 'a_b': 5, 'b_ai': 5, 'api_c': 5}
 DEPENDS = {'webvue_api': ['webvue_platform'], 'app_a': ['webvue_api', 'project'], 'app_b': ['webvue_api', 'webvue_directory'], 'app_c': ['webvue_api'],
-           'a_b': ['app_a', 'app_b'], 'b_ai': ['app_b', 'webvue_ai', 'mail']}
+           'a_b': ['app_a', 'app_b'], 'b_ai': ['app_b', 'webvue_ai', 'mail'], 'api_c': ['webvue_api', 'app_c']}
 
 
 class Fixture(unittest.TestCase):
@@ -73,6 +73,14 @@ class CheckTest(Fixture):
         for extra in ('app_c', 'a_b'):
             with self.subTest(extra=extra), self.assertRaisesRegex(app_isolation.IsolationError, extra):
                 self.check('app_a', ['webvue_core', 'app_a', extra])
+
+    def test_a_bridge_between_the_foundation_and_the_application_belongs_to_its_run(self):
+        # The foundation is in every run, so its bridge with app_c comes with app_c alone and nowhere else.
+        self.check('app_c', ['webvue_core', 'webvue_api', 'app_c', 'api_c'])
+        for module, installed in (('app_a', ['webvue_core', 'webvue_api', 'app_a', 'api_c']),
+                                  ('webvue_api', ['webvue_core', 'webvue_platform', 'webvue_api', 'api_c'])):
+            with self.subTest(module=module), self.assertRaisesRegex(app_isolation.IsolationError, 'api_c'):
+                self.check(module, installed)
 
     def test_the_target_must_be_installed(self):
         with self.assertRaisesRegex(app_isolation.IsolationError, 'did not install app_a'):
