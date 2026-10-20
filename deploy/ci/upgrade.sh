@@ -28,13 +28,16 @@ if [ "$BASE_ODOO_COMMIT" != "$(cat deploy/odoo/ODOO_COMMIT)" ]; then
   git -C "$ODOO_ROOT" archive "$BASE_ODOO_COMMIT" | tar -x -C "$SCRATCH_ROOT/old-odoo"
   BASE_ODOO_ROOT="$SCRATCH_ROOT/old-odoo"
 fi
-# Install the previous release
+# Install the previous release. Releases from 19.0.1.0.1 depend on the pinned OCA addons (dms, ...) and
+# refuse to install without a commercial classification, so the baseline gets the same OCA path as the
+# upgrade and its own explicit fixture; it never inherits one from the environment.
 if [ -n "${WEBVUE_COMMERCIAL_CONFIG:-}" ]; then
   echo "previous release must not inherit a commercial classification" >&2
   exit 1
 fi
-"$ODOO_PYTHON" "$BASE_ODOO_ROOT/odoo-bin" "${ODOO_DB_ARGS[@]}" \
-  --addons-path="$BASE_ODOO_ROOT/odoo/addons,$BASE_ODOO_ROOT/addons,$SCRATCH_ROOT/baseline/odoo-addons" \
+python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$SCRATCH_ROOT/baseline-classification.json"
+WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/baseline-classification.json" "$ODOO_PYTHON" "$BASE_ODOO_ROOT/odoo-bin" "${ODOO_DB_ARGS[@]}" \
+  --addons-path="$BASE_ODOO_ROOT/odoo/addons,$BASE_ODOO_ROOT/addons,$SCRATCH_ROOT/baseline/odoo-addons,$OCA_PATH" \
   --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
   -d "$SCRATCH_DB" -i "$MODULES" --without-demo=all --http-port="$ODOO_PORT" --workers=0 --max-cron-threads=0 --stop-after-init
 # Upgrade to this commit. -i installs the addons the previous release did
