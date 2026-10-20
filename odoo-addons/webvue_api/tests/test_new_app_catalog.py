@@ -37,7 +37,7 @@ class TestNewApplicationCatalog(WebVueApiCase):
         })
         values = {
             'domain': 'sales', 'resource': 'orders', 'group_xmlid': GROUP_XMLID,
-            'custom_role_allowed': True, 'sensitive': False, 'project_contextual': False,
+            'custom_role_allowed': True, 'sensitive': False,
         }
         Permission = self.env['webvue.access.permission']
         read = Permission.create({
@@ -70,6 +70,24 @@ class TestNewApplicationCatalog(WebVueApiCase):
             'custom_role_allowed': True, 'sensitive': False,
         })
         self.assertEqual(items['sales.orders.read']['domain'], 'sales')
+
+    def test_a_registered_context_kind_is_a_read_only_scope(self):
+        self.patch(type(self.env['webvue.access.service']), '_webvue_scope_kinds', lambda model: {
+            'region': {'owner': 'webvue_sales', 'permissions': frozenset({'sales.orders.write'}), 'roles': {}},
+        })
+        self.authenticate('new_app_admin', 'new_app_admin_pass_123')
+        response = self.api('GET', '/api/v1/admin/permissions')
+        self.assertEqual(response.status_code, 200, response.text)
+        items = {item['key']: item for item in response.json()['items']}
+        self.assertEqual(items['sales.orders.write']['scopes'], [
+            {'kind': 'company', 'assignable': True}, {'kind': 'region', 'assignable': False},
+        ])
+        self.assertEqual(items['sales.orders.read']['scopes'], [{'kind': 'company', 'assignable': True}])
+        assigned = self.api('PATCH', f'/api/v1/admin/users/{self.employee.id}/access', {
+            'assignments': [{'role_id': self.env.ref('webvue_core.role_employee').id, 'scope': {'kind': 'region', 'id': 1}}],
+            'expected_version': self.env['webvue.access.service']._webvue_user_version(self.employee),
+        })
+        self.assertEqual((assigned.status_code, assigned.json()['code']), (422, 'unsupported_scope'), assigned.text)
 
     def test_a_custom_role_carries_the_new_capabilities_to_me(self):
         self.authenticate('new_app_admin', 'new_app_admin_pass_123')

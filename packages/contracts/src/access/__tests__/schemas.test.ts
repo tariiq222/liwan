@@ -131,7 +131,7 @@ describe('access capability and reference schemas', () => {
     expect(KNOWN_CAPABILITIES).not.toContain(typo)
   })
 
-  it('accepts company scopes and rejects contextual project scopes for writes', () => {
+  it('accepts company scopes and rejects context scopes for writes', () => {
     expect(ScopeRefSchema.parse(COMPANY)).toEqual(COMPANY)
     expect(RoleAssignmentInputSchema.parse({ role_id: 4, scope: { kind: 'company', id: 1 } })).toEqual({
       role_id: 4,
@@ -144,7 +144,9 @@ describe('access capability and reference schemas', () => {
     expect(RoleRefSchema.parse(ROLE)).toEqual(ROLE)
     expect(RoleAssignmentSchema.parse(ASSIGNMENT)).toEqual(ASSIGNMENT)
     expect(MeRoleSchema.parse({ ...ROLE, source: 'assignment' })).toMatchObject({ key: 'hr_manager', source: 'assignment' })
-    expect(MeRoleSchema.parse({ id: null, key: 'project_creation_policy', name: { ar: 'سياسة إنشاء المشاريع', en: 'Project creation policy' }, type: 'contextual', protected: false, source: 'policy' })).toMatchObject({ id: null, source: 'policy' })
+    expect(MeRoleSchema.parse({ id: null, key: 'project_creation_policy', name: { ar: 'سياسة إنشاء المشاريع', en: 'Project creation policy' }, type: 'contextual', protected: true, source: 'contextual' })).toMatchObject({ id: null, source: 'contextual' })
+    expect(() => MeRoleSchema.parse({ ...ROLE, source: 'project_owner' })).toThrow()
+    expect(() => RoleRefSchema.parse({ ...ROLE, id: null })).toThrow()
     expect(() => RoleRefSchema.parse({ ...ROLE, id: 4, extra: true })).toThrow()
     expect(() => RoleRefSchema.parse({ ...ROLE, type: 'contextual', id: 4 })).toThrow()
   })
@@ -245,7 +247,11 @@ describe('role and permission schemas', () => {
     for (const domain of ['Sales', 'sales-orders', 'sales.orders', '9sales', '']) {
       expect(() => PermissionDefinitionSchema.parse({ ...sales, domain })).toThrow()
     }
-    expect(() => PermissionDefinitionSchema.parse({ ...sales, scopes: [...sales.scopes, { kind: 'project', assignable: false }] })).toThrow()
+    // Context kinds come from the server registry: any well-formed kind is read-only, never assignable or free text.
+    expect(PermissionDefinitionSchema.parse({ ...sales, scopes: [...sales.scopes, { kind: 'region', assignable: false }] }).scopes).toHaveLength(2)
+    for (const scope of [{ kind: 'region', assignable: true }, { kind: 'Region', assignable: false }, { kind: 'sales region', assignable: false }, { kind: 'company', assignable: true }]) {
+      expect(() => PermissionDefinitionSchema.parse({ ...sales, scopes: [...sales.scopes, scope] })).toThrow()
+    }
     expect(RoleDetailSchema.parse({ ...roleSummary, permissions: ['sales.orders.read', 'sales.orders.write'], allowed_actions: ['read'] }).permissions)
       .toEqual(['sales.orders.read', 'sales.orders.write'])
     expect(RoleCreateInputSchema.parse({ name: { ar: 'مبيعات', en: null }, description: '', permissions: ['sales.orders.read'] }).permissions)
@@ -269,6 +275,14 @@ describe('role and permission schemas', () => {
         sensitive: true,
       })).toThrow()
     }
+    const roleRead = {
+      key: 'access.roles.manage', domain: 'access', resource: 'roles', action: 'manage',
+      label: { ar: 'صلاحية', en: 'Permission' }, description: { ar: 'وصف', en: 'Description' },
+      dependencies: [], scopes: [{ kind: 'company', assignable: true }], custom_role_allowed: false, sensitive: true,
+    }
+    expect(PermissionDefinitionSchema.parse(roleRead).key).toBe('access.roles.manage')
+    expect(() => PermissionDefinitionSchema.parse({ ...roleRead, scopes: [...roleRead.scopes, { kind: 'region', assignable: false }] })).toThrow()
+    expect(() => PermissionDefinitionSchema.parse({ ...roleRead, key: 'settings.company.manage', domain: 'settings', scopes: [...roleRead.scopes, { kind: 'region', assignable: false }] })).toThrow()
   })
 })
 

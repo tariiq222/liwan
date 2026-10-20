@@ -7,6 +7,7 @@ from odoo import api, models
 from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Command
 
+from .access_permission import IDENTIFIER
 from .protected_write import marked
 from .res_partner import PARTNER_CREATE_MARKER
 
@@ -28,6 +29,11 @@ PERMISSION_DEPENDENCIES = {
     'access.roles.manage': {'access.roles.read'},
     'settings.company.manage': {'settings.company.read'},
 }
+
+
+def _grantable(keys, known):
+    """A contextual grant names registered keys and never an access-changing system key."""
+    return bool(keys) and set(keys) <= known and not set(keys) & SYSTEM_PERMISSIONS
 
 
 class WebVueAccessRule(AccessError, ValidationError):
@@ -88,14 +94,81 @@ class WebVueAccessService(models.AbstractModel):
         raise ValidationError(msg)
 
     @api.model
+    def _webvue_scope_kinds(self):
+        """Context kinds, beyond the company, that applications scope permissions to.
+
+        The application owning a kind adds it through super()::
+
+            {kind: {'owner': addon,
+                    'permissions': {key, ...},
+                    'roles': {role_key: {'name': {'ar': ..., 'en': ...}, 'grants': {key, ...}}}}}
+
+        ``permissions`` are granted on a record of the kind by _webvue_contextual_capability();
+        a role is held when _webvue_contextual_role_held() says so and adds its ``grants`` to
+        the identity. A context kind is never assignable: role assignments stay company-scoped.
+        """
+        return {}
+
+    @api.model
+    def _webvue_scope_kind_map(self):
+        """The registered scope kinds, validated; a malformed registration raises."""
+        known = set(self._webvue_capability_map())
+        kinds = self._webvue_scope_kinds()
+        role_keys = set()
+        for kind, spec in kinds.items():
+            if (
+                not IDENTIFIER.fullmatch(kind) or kind == 'company'
+                or set(spec) != {'owner', 'permissions', 'roles'} or not spec['owner']
+                or not _grantable(spec['permissions'], known)
+            ):
+                msg = 'scope_kind_invalid'
+                raise ValidationError(msg)
+            for role_key, role in spec['roles'].items():
+                if (
+                    not IDENTIFIER.fullmatch(role_key) or role_key in role_keys
+                    or set(role) != {'name', 'grants'} or not role['name'].get('ar')
+                    or not _grantable(role['grants'], known)
+                ):
+                    msg = 'scope_role_invalid'
+                    raise ValidationError(msg)
+                role_keys.add(role_key)
+        return kinds
+
+    @api.model
+    def _webvue_contextual_keys(self):
+        """Permission keys that some scope kind grants on its records."""
+        return set().union(*(spec['permissions'] for spec in self._webvue_scope_kind_map().values()))
+
+    @api.model
     def _webvue_contextual_capability(self, user, key, record):
-        """Grant KEY on RECORD beyond assigned roles. Applications extend this through super()."""
+        """Grant KEY on RECORD through the scope kind of RECORD. The owning application extends this.
+
+        _webvue_has_capability() calls it only for the keys of a registered scope kind.
+        """
         return False
 
     @api.model
-    def _webvue_identity_extra(self, user, capabilities):
-        """Contextual roles for /me and the keys they add, as (roles, keys). Applications extend this."""
-        return [], set()
+    def _webvue_contextual_role_held(self, kind, role_key, user, capabilities):
+        """Whether USER holds ROLE_KEY of KIND, given the CAPABILITIES its assignments give.
+
+        The application that registers KIND extends this through super().
+        """
+        return False
+
+    @api.model
+    def _webvue_contextual_roles(self, user, capabilities):
+        """The contextual roles USER holds and the keys they add, as (roles, keys)."""
+        roles, keys = [], set()
+        for kind, spec in self._webvue_scope_kind_map().items():
+            for role_key, role in spec['roles'].items():
+                if self._webvue_contextual_role_held(kind, role_key, user, capabilities):
+                    roles.append({
+                        'id': None, 'key': role_key,
+                        'name': {'ar': role['name']['ar'], 'en': role['name'].get('en') or None},
+                        'type': 'contextual', 'protected': True, 'source': 'contextual',
+                    })
+                    keys |= role['grants']
+        return roles, keys
 
     @api.model
     def _webvue_customer_actor_keys(self):
@@ -169,7 +242,7 @@ class WebVueAccessService(models.AbstractModel):
                 return False
         if key in self._webvue_capability_keys(user, company=company):
             return True
-        if not record:
+        if not record or key not in self._webvue_contextual_keys():
             return False
         return bool(self._webvue_contextual_capability(user, key, record))
 
@@ -231,7 +304,7 @@ class WebVueAccessService(models.AbstractModel):
             'type': row[4], 'protected': row[5], 'source': 'assignment',
         } for row in self.env.cr.fetchall()]
         base_capabilities = self._webvue_capability_keys(user, company=company)
-        extra_roles, extra_capabilities = self._webvue_identity_extra(user, base_capabilities)
+        extra_roles, extra_capabilities = self._webvue_contextual_roles(user, base_capabilities)
         roles.extend(extra_roles)
         capabilities = base_capabilities | extra_capabilities
         return {

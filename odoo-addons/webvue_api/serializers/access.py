@@ -71,10 +71,12 @@ def dump_role(role, detail=False, actor=None, user_count=None):
     return result
 
 
-def dump_permission(permission):
-    scopes = [{'kind': 'company', 'assignable': True}]
-    if permission.project_contextual:
-        scopes.append({'kind': 'project', 'assignable': False})
+def dump_permission(permission, scope_kinds):
+    """SCOPE_KINDS is webvue.access.service._webvue_scope_kind_map(); context kinds are read-only."""
+    scopes = [{'kind': 'company', 'assignable': True}, *(
+        {'kind': kind, 'assignable': False}
+        for kind, spec in sorted(scope_kinds.items()) if permission.key in spec['permissions']
+    )]
     return {
         'key': permission.key,
         'domain': permission.domain,

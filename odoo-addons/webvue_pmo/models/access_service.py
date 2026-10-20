@@ -9,6 +9,7 @@ PMO_PERMISSIONS = frozenset({
 EMPLOYEE_PMO_PERMISSIONS = frozenset({
     'pmo.projects.read', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write',
 })
+PROJECT_SCOPE = 'project'
 PROJECT_CONTEXTUAL_PERMISSIONS = frozenset({
     'pmo.projects.manage', 'pmo.tasks.write', 'pmo.tasks.approve',
 })
@@ -81,29 +82,36 @@ class WebVuePmoAccessService(models.AbstractModel):
         return super()._webvue_contextual_capability(user, key, record)
 
     @api.model
-    def _webvue_identity_extra(self, user, capabilities):
-        roles, extra = super()._webvue_identity_extra(user, capabilities)
+    def _webvue_scope_kinds(self):
+        return {**super()._webvue_scope_kinds(), PROJECT_SCOPE: {
+            'owner': 'webvue_pmo',
+            'permissions': PROJECT_CONTEXTUAL_PERMISSIONS,
+            'roles': {
+                'project_owner': {
+                    'name': {'ar': 'مسؤول مشروع', 'en': 'Project owner'},
+                    'grants': PROJECT_CONTEXTUAL_PERMISSIONS,
+                },
+                'project_creation_policy': {
+                    'name': {'ar': 'سياسة إنشاء المشاريع', 'en': 'Project creation policy'},
+                    'grants': frozenset({'pmo.projects.create'}),
+                },
+            },
+        }}
+
+    @api.model
+    def _webvue_contextual_role_held(self, kind, role_key, user, capabilities):
+        if kind != PROJECT_SCOPE:
+            return super()._webvue_contextual_role_held(kind, role_key, user, capabilities)
         company = self.env.company
-        if (
-            'pmo.projects.read' in capabilities
-            and self.env['project.project'].with_user(user).search_count([
-                ('user_id', '=', user.id), ('company_id', '=', company.id),
-            ])
-        ):
-            roles.append({
-                'id': None, 'key': 'project_owner',
-                'name': {'ar': 'مسؤول مشروع', 'en': 'Project owner'},
-                'type': 'contextual', 'protected': True, 'source': 'project_owner',
-            })
-            extra |= PROJECT_CONTEXTUAL_PERMISSIONS
-        if (
-            self._webvue_is_employee_principal(user, company=company)
-            and self.env['webvue.pmo.settings'].with_user(user).get()['project_creators'] == 'employees'
-        ):
-            roles.append({
-                'id': None, 'key': 'project_creation_policy',
-                'name': {'ar': 'سياسة إنشاء المشاريع', 'en': 'Project creation policy'},
-                'type': 'contextual', 'protected': True, 'source': 'policy',
-            })
-            extra.add('pmo.projects.create')
-        return roles, extra
+        if role_key == 'project_owner':
+            return 'pmo.projects.read' in capabilities and bool(
+                self.env['project.project'].with_user(user).search_count([
+                    ('user_id', '=', user.id), ('company_id', '=', company.id),
+                ]),
+            )
+        if role_key == 'project_creation_policy':
+            return (
+                self._webvue_is_employee_principal(user, company=company)
+                and self.env['webvue.pmo.settings'].with_user(user).get()['project_creators'] == 'employees'
+            )
+        return super()._webvue_contextual_role_held(kind, role_key, user, capabilities)

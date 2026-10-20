@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-<record id="permission_ai_use" model="webvue.access.permission"><field name="key">ai.use</field><field name="domain">ai</field><field name="resource">assistant</field><field name="action">use</field><field name="name_ar">استخدام مساعد ويب فيو</field><field name="name_en">Use the WebVue AI assistant</field><field name="description_ar">استخدام مساعد ويب فيو الذكي</field><field name="description_en">Use the WebVue AI assistant</field><field name="group_xmlid">webvue_ai.group_cap_ai_use</field><field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/></record>
+<record id="permission_ai_use" model="webvue.access.permission"><field name="key">ai.use</field><field name="domain">ai</field><field name="resource">assistant</field><field name="action">use</field><field name="name_ar">استخدام مساعد ويب فيو</field><field name="name_en">Use the WebVue AI assistant</field><field name="description_ar">استخدام مساعد ويب فيو الذكي</field><field name="description_en">Use the WebVue AI assistant</field><field name="group_xmlid">webvue_ai.group_cap_ai_use</field><field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/></record>
 <function model="webvue.access.service" name="_webvue_configure_permission_dependencies"/>
 <function model="webvue.access.service" name="_webvue_repair_builtin_role_grants"/>
 </odoo>

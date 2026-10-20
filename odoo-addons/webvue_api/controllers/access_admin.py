@@ -201,9 +201,11 @@ class AccessAdminRolesController(http.Controller):
     @http.route('/api/v1/admin/permissions', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     def permissions(self):
-        request.env['webvue.access.service']._webvue_require_capability('access.roles.read')
+        service = request.env['webvue.access.service']
+        service._webvue_require_capability('access.roles.read')
         records = request.env['webvue.access.permission'].search([], order='key')
-        return {'items': [dump_permission(item) for item in records], 'total': len(records), 'version': 'access-catalog-v1'}
+        scope_kinds = service._webvue_scope_kind_map()
+        return {'items': [dump_permission(item, scope_kinds) for item in records], 'total': len(records), 'version': 'access-catalog-v1'}
 
     @http.route('/api/v1/admin/roles', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
