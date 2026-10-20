@@ -3,7 +3,7 @@ from odoo import api, models
 
 FINANCE_PERMISSIONS = frozenset({
     'finance.invoices.read', 'finance.payments.read',
-    'finance.accounts.read', 'finance.accounts.manage', 'finance.journals.read',
+    'finance.accounts.read', 'finance.accounts.manage', 'finance.journals.read', 'finance.journals.manage',
     'finance.partners.read', 'finance.partners.manage',
     'finance.invoices.manage', 'finance.invoices.post', 'finance.payments.manage',
     'finance.setup.read', 'finance.setup.manage', 'finance.reports.read',
@@ -18,6 +18,7 @@ FINANCE_PERMISSIONS = frozenset({
 })
 FINANCE_PERMISSION_DEPENDENCIES = {
     'finance.accounts.manage': {'finance.accounts.read'},
+    'finance.journals.manage': {'finance.journals.read'},
     'finance.partners.manage': {'finance.partners.read'},
     'finance.invoices.manage': {'finance.invoices.read'},
     'finance.invoices.post': {'finance.invoices.manage'},

@@ -97,6 +97,8 @@ export const FinanceJournalSchema = z.object({
   code: z.string(),
   type: z.enum(['sale', 'purchase', 'cash', 'bank', 'credit', 'general']),
   currency,
+  default_account: FinanceRefSchema.nullable(),
+  active: z.boolean(),
 }).strict()
 
 export const FinanceInvoiceListSchema = list(FinanceInvoiceSchema)

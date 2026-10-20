@@ -8,7 +8,7 @@ PAYMENT_KEYS = {
     'currency', 'amount',
 }
 ACCOUNT_KEYS = {'id', 'code', 'name', 'account_type', 'reconcile', 'currency', 'active'}
-JOURNAL_KEYS = {'id', 'name', 'code', 'type', 'currency'}
+JOURNAL_KEYS = {'id', 'name', 'code', 'type', 'currency', 'default_account', 'active'}
 
 
 @tagged('post_install', '-at_install', 'webvue')

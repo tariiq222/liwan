@@ -15,11 +15,11 @@ const CASH = { id: 4, name: 'الصندوق' }
 const MISC = { id: 5, name: 'العمليات المتنوعة' }
 
 const journals = [
-  { ...SALES, code: 'INV', type: 'sale', currency: CURRENCY },
-  { ...PURCHASES, code: 'BILL', type: 'purchase', currency: CURRENCY },
-  { ...BANK, code: 'BNK1', type: 'bank', currency: CURRENCY },
-  { ...CASH, code: 'CSH1', type: 'cash', currency: CURRENCY },
-  { ...MISC, code: 'MISC', type: 'general', currency: CURRENCY },
+  { ...SALES, code: 'INV', type: 'sale', currency: CURRENCY, default_account: null, active: true },
+  { ...PURCHASES, code: 'BILL', type: 'purchase', currency: CURRENCY, default_account: null, active: true },
+  { ...BANK, code: 'BNK1', type: 'bank', currency: CURRENCY, default_account: null, active: true },
+  { ...CASH, code: 'CSH1', type: 'cash', currency: CURRENCY, default_account: null, active: true },
+  { ...MISC, code: 'MISC', type: 'general', currency: CURRENCY, default_account: null, active: true },
 ]
 
 const line = (id, name, quantity, price, discount = 0, taxed = true) => {

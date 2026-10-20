@@ -3,6 +3,7 @@ import { id, list } from './shared'
 
 export const FinanceAuditActionSchema = z.enum([
   'chart_loaded', 'account_created', 'account_changed', 'account_archived', 'account_unarchived',
+  'journal_created', 'journal_changed', 'journal_archived', 'journal_unarchived',
   'company_written', 'fiscal_year_closed', 'zatca_onboarded', 'zatca_submitted',
 ])
 

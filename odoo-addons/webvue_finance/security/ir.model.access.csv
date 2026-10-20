@@ -5,6 +5,8 @@ access_finance_assets_read_asset_profile,finance assets read: account.asset.prof
 access_finance_assets_read_asset_group,finance assets read: account.asset.group,account_asset_management.model_account_asset_group,group_cap_finance_assets_read,1,0,0,0
 access_finance_accounts_manage_account,finance accounts manage: account.account,account.model_account_account,group_cap_finance_accounts_manage,1,1,1,0
 access_finance_audit_accounts_manage_event,finance audit accounts manage: webvue.finance.audit.event,model_webvue_finance_audit_event,group_cap_finance_accounts_manage,0,0,1,0
+access_finance_journals_manage_journal,finance journals manage: account.journal,account.model_account_journal,group_cap_finance_journals_manage,1,1,1,0
+access_finance_audit_journals_manage_event,finance audit journals manage: webvue.finance.audit.event,model_webvue_finance_audit_event,group_cap_finance_journals_manage,0,0,1,0
 access_finance_analytic_read_plan,finance analytic read: account.analytic.plan,analytic.model_account_analytic_plan,group_cap_finance_analytic_read,1,0,0,0
 access_finance_analytic_manage_plan,finance analytic manage: account.analytic.plan,analytic.model_account_analytic_plan,group_cap_finance_analytic_manage,1,1,1,0
 access_finance_analytic_manage_account,finance analytic manage: account.analytic.account,analytic.model_account_analytic_account,group_cap_finance_analytic_manage,1,1,1,0

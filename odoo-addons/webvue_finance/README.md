@@ -17,7 +17,8 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `POST /payments` (201), `POST /payments/<id>/cancel`, `/reset-to-draft` | `finance.payments.manage` |
 | `GET /accounts` (`archived=true\|false`, `account_type`, `q`), `GET /accounts/<id>` | `finance.accounts.read` |
 | `POST /accounts` (201), `PATCH /accounts/<id>`, `POST /accounts/<id>/archive`, `/unarchive` | `finance.accounts.manage` |
-| `GET /journals` | `finance.journals.read` |
+| `GET /journals` (`type`, `archived=true\|false`), `GET /journals/<id>` | `finance.journals.read` |
+| `POST /journals` (201), `PATCH /journals/<id>`, `POST /journals/<id>/archive`, `/unarchive` | `finance.journals.manage` |
 | `GET /setup` | `finance.setup.read` |
 | `POST /setup/chart`, `PATCH /setup/fiscal` | `finance.setup.manage` |
 | `GET /reports/vat?date_from&date_to`, `GET /reports/withholding?date_from&date_to` | `finance.reports.read` |
@@ -140,6 +141,14 @@ accounts). On top of them: an account that has journal items keeps its type (422
 be archived while it has a posted balance, is the default account of a journal or sits on a tax (422 `account_in_use`).
 Each write leaves an audit event (`account_created`, `account_changed`, `account_archived`, `account_unarchived`) with
 field names only. The list hides archived accounts unless `archived=true`.
+
+## Journals
+
+`finance.journals.manage` (needs `journals.read`) creates, edits and archives the journals of the current company, with
+create/write ACL rows on `account.journal` and no `sudo()`. `POST {name, code, type, currency?, default_account_id?}`:
+a `bank` or `cash` journal must name its `default_account_id` (an account of the company, made through the accounts
+routes), so the journals route never creates an account. The type is chosen at creation and `PATCH` refuses it. The
+code is unique per company (422 `invalid` on `code`). Odoo refuses to archive a journal that holds draft entries.
 
 ## Journal entries
 

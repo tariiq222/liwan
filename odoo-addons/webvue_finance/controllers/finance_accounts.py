@@ -4,7 +4,7 @@ from odoo.exceptions import MissingError
 from odoo.http import request
 
 from .common import list_page, parse_choice, require_capability
-from .write_support import attempt
+from .write_support import attempt, currency_id_of
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -35,20 +35,10 @@ def _find_account(account_id):
     return account
 
 
-def _currency_id(code):
-    """The active currency of ``code`` (``False`` for ``None``, which clears the account currency)."""
-    if code is None:
-        return False
-    currency = request.env['res.currency'].search([('name', '=', code)], limit=1)
-    if not currency:
-        raise ApiError(422, 'invalid', 'currency does not reference an available currency', field='currency')
-    return currency.id
-
-
 def _values(parsed):
     values = {key: parsed[key] for key in ('code', 'name', 'account_type', 'reconcile') if key in parsed}
     if 'currency' in parsed:
-        values['currency_id'] = _currency_id(parsed['currency'])
+        values['currency_id'] = currency_id_of(parsed['currency'])
     return values
 
 

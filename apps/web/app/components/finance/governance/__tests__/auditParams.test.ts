@@ -14,7 +14,7 @@ describe('audit list filters', () => {
   })
 
   it('offers every action of the contract', () => {
-    expect(AUDIT_ACTIONS).toEqual(['chart_loaded', 'account_created', 'account_changed', 'account_archived', 'account_unarchived', 'company_written', 'fiscal_year_closed', 'zatca_onboarded', 'zatca_submitted'])
+    expect(AUDIT_ACTIONS).toEqual(['chart_loaded', 'account_created', 'account_changed', 'account_archived', 'account_unarchived', 'journal_created', 'journal_changed', 'journal_archived', 'journal_unarchived', 'company_written', 'fiscal_year_closed', 'zatca_onboarded', 'zatca_submitted'])
   })
 
   it('counts the applied filters', () => {
