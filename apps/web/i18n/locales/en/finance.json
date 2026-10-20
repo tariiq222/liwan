@@ -30,7 +30,16 @@
       "agedPartnerBalance": "Aged partner balance",
       "partnerStatement": "Partner statement",
       "vat": "VAT",
-      "withholding": "Withholding tax"
+      "withholding": "Withholding tax",
+      "budgets": "Budgets",
+      "newBudget": "New budget",
+      "assets": "Fixed assets",
+      "newAsset": "New asset",
+      "analytic": "Cost centers",
+      "analyticSettings": "Plans and cost centers",
+      "closing": "Fiscal year closing",
+      "zatca": "E-invoicing (ZATCA)",
+      "audit": "Finance audit log"
     },
     "kpi": {
       "label": "Finance figures",

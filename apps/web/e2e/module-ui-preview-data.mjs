@@ -2,8 +2,12 @@
 import { documentsPreviewData } from './documents-ui-preview-data.mjs'
 import { financePreviewData } from './finance-ui-preview-data.mjs'
 import { financeAccountingPreviewData } from './finance-accounting-ui-preview-data.mjs'
+import { financeAnalyticPreviewData } from './finance-analytic-ui-preview-data.mjs'
+import { financeAssetsPreviewData } from './finance-assets-ui-preview-data.mjs'
 import { financeBankPreviewData } from './finance-bank-ui-preview-data.mjs'
+import { financeBudgetsPreviewData } from './finance-budgets-ui-preview-data.mjs'
 import { financeDocumentsPreviewData } from './finance-documents-ui-preview-data.mjs'
+import { financeGovernancePreviewData } from './finance-governance-ui-preview-data.mjs'
 import { financeReportsPreviewData } from './finance-reports-ui-preview-data.mjs'
 import { hrPreviewData } from './hr-ui-preview-data.mjs'
 
@@ -42,6 +46,16 @@ export const moduleUiCapabilities = [
   'finance.accounts.read',
   'finance.bank.read',
   'finance.bank.manage',
+  'finance.budgets.read',
+  'finance.budgets.manage',
+  'finance.assets.read',
+  'finance.assets.manage',
+  'finance.analytic.read',
+  'finance.analytic.manage',
+  'finance.closing.read',
+  'finance.closing.manage',
+  'finance.audit.read',
+  'finance.zatca.manage',
   'finance.setup.read',
   'finance.setup.manage',
   'finance.zatca.read',
@@ -421,6 +435,10 @@ export function moduleUiPreviewData(path, url) {
   if (/^\/api\/v1\/finance\/(entries|accounts)(\/|$)/.test(normalizedPath)) return financeAccountingPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/bank-statement(s|-lines)(\/|$)/.test(normalizedPath)) return financeBankPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/reports\/(trial-balance|general-ledger|partner-statement|vat|withholding)$/.test(normalizedPath)) return financeReportsPreviewData(normalizedPath, parsedUrl)
+  if (/^\/api\/v1\/finance\/(budgets(\/|$)|reports\/budget-vs-actual$)/.test(normalizedPath)) return financeBudgetsPreviewData(normalizedPath, parsedUrl)
+  if (/^\/api\/v1\/finance\/(assets|asset-profiles)(\/|$)/.test(normalizedPath)) return financeAssetsPreviewData(normalizedPath, parsedUrl)
+  if (/^\/api\/v1\/finance\/(analytic-plans|analytic-accounts|reports\/analytic)(\/|$)/.test(normalizedPath)) return financeAnalyticPreviewData(normalizedPath, parsedUrl)
+  if (/^\/api\/v1\/finance\/(fiscal-years|zatca\/status|audit-events)(\/|$)/.test(normalizedPath)) return financeGovernancePreviewData(normalizedPath, parsedUrl)
   if (normalizedPath.startsWith('/api/v1/finance/')) return financePreviewData(normalizedPath, parsedUrl)
 
   if (normalizedPath === '/api/v1/admin/users') return page([adminUser], parsedUrl)
