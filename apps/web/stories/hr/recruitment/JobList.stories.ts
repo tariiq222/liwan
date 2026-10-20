@@ -7,7 +7,7 @@ import ListCard from '@webvue/ui/app/components/shared/layout/ListCard.vue'
 import DataTable from '@webvue/ui/app/components/shared/data/DataTable.vue'
 import SegmentedControl from '@webvue/ui/app/components/shared/data/SegmentedControl.vue'
 import StatusBadge from '@webvue/ui/app/components/shared/data/StatusBadge.vue'
-import { storyContext } from '../support/context'
+import { storyContext } from '../../support/context'
 
 // The job-position list of /hr/recruitment/jobs: the active/archived scope, the search and
 // the table with WebVue's own ongoing-applicant count. Static fixtures, no requests.

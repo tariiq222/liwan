@@ -4,7 +4,7 @@ import CreatePanel from '@webvue/ui/app/components/shared/layout/CreatePanel.vue
 import FormSection from '@webvue/ui/app/components/shared/layout/FormSection.vue'
 import FormActions from '@webvue/ui/app/components/shared/form/FormActions.vue'
 import DateField from '@webvue/ui/app/components/shared/form/DateField.vue'
-import { storyContext } from '../support/context'
+import { storyContext } from '../../support/context'
 
 // The applicant create panel of /hr/recruitment/new: the route-backed SharedCreatePanel
 // with the applicant fields. Static values, no requests.

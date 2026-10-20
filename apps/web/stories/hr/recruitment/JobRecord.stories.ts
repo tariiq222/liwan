@@ -8,7 +8,7 @@ import PropertiesPanel from '@webvue/ui/app/components/shared/layout/PropertiesP
 import PropertyRow from '@webvue/ui/app/components/shared/layout/PropertyRow.vue'
 import FormActions from '@webvue/ui/app/components/shared/form/FormActions.vue'
 import StatusBadge from '@webvue/ui/app/components/shared/data/StatusBadge.vue'
-import { storyContext } from '../support/context'
+import { storyContext } from '../../support/context'
 
 // The job-position record of /hr/recruitment/jobs/<id>: the position fields as one routed
 // page form, and the counts in the aside. Static fixtures, no requests.

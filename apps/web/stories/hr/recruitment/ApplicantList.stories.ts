@@ -7,7 +7,7 @@ import ListCard from '@webvue/ui/app/components/shared/layout/ListCard.vue'
 import DataTable from '@webvue/ui/app/components/shared/data/DataTable.vue'
 import SegmentedControl from '@webvue/ui/app/components/shared/data/SegmentedControl.vue'
 import StatusBadge from '@webvue/ui/app/components/shared/data/StatusBadge.vue'
-import { storyContext } from '../support/context'
+import { storyContext } from '../../support/context'
 
 // The applicant list of /hr/recruitment: the shared list page with its status scope,
 // the job/stage filters and the table. Static fixtures, no requests.

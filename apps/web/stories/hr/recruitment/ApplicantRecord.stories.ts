@@ -8,7 +8,7 @@ import PropertiesPanel from '@webvue/ui/app/components/shared/layout/PropertiesP
 import PropertyRow from '@webvue/ui/app/components/shared/layout/PropertyRow.vue'
 import InlineConfirm from '@webvue/ui/app/components/shared/form/InlineConfirm.vue'
 import StatusBadge from '@webvue/ui/app/components/shared/data/StatusBadge.vue'
-import { storyContext } from '../support/context'
+import { storyContext } from '../../support/context'
 
 // The applicant record of /hr/recruitment/<id>: stage and priority controls, the inline
 // confirmations of refuse/reset/hire and the aside facts. Static fixtures, no requests.
