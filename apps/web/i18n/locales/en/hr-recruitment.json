@@ -78,9 +78,11 @@
       "confirmHint": "The applicant returns to the first stage of the job position."
     },
     "hire": {
-      "action": "Hire",
+      "action": "Hire as employee",
       "confirmTitle": "Hire {name}?",
-      "confirmHint": "An employee record is created from the applicant."
+      "confirmHint": "An employee record is created from the applicant.",
+      "done": "{name} was hired as an employee.",
+      "startOnboarding": "Start onboarding"
     },
     "jobs": {
       "title": "Job positions",

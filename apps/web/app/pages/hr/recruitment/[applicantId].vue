@@ -37,6 +37,9 @@ const refusing = ref(false)
 const resetting = ref(false)
 const hiring = ref(false)
 const refuseReasonId = ref<number | null>(null)
+// Set once this page hired the applicant: the success notice and the next step stay until the page is left.
+const hiredEmployee = ref<{ id: number; name: string } | null>(null)
+const canStartOnboarding = computed(() => can('hr.onboarding.manage'))
 
 // The stages come from a query that depends on the applicant's job, so it may not be in the first client render; the
 // applicant's own stage is always an option, which keeps the select's label the same on the server and the client.
@@ -91,7 +94,8 @@ async function confirmReset() {
 }
 async function confirmHire() {
   await run(async () => {
-    await hire.mutateAsync(id.value)
+    const result = await hire.mutateAsync(id.value)
+    hiredEmployee.value = result.employee
     hiring.value = false
   })
 }
@@ -137,6 +141,27 @@ async function confirmHire() {
     </template>
 
     <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="actionError" data-testid="hr-recruitment-action-error" />
+
+    <UAlert
+      v-if="hiredEmployee"
+      role="status"
+      color="success"
+      variant="subtle"
+      icon="i-lucide-circle-check"
+      data-testid="hr-recruitment-hired"
+      :title="t('hrRecruitment.hire.done', { name: hiredEmployee.name })"
+    >
+      <template #actions>
+        <UButton color="neutral" variant="outline" :to="`/hr/employees/${hiredEmployee.id}`" :label="hiredEmployee.name" data-testid="hr-recruitment-hired-employee" />
+        <UButton
+          v-if="canStartOnboarding"
+          color="primary"
+          :to="{ path: '/hr/onboarding/new', query: { employee_id: String(hiredEmployee.id) } }"
+          :label="t('hrRecruitment.hire.startOnboarding')"
+          data-testid="hr-recruitment-start-onboarding"
+        />
+      </template>
+    </UAlert>
 
     <SharedInlineConfirm
       v-if="refusing"
@@ -237,7 +262,10 @@ async function confirmHire() {
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('hrRecruitment.columns.job')" :value="applicant.job?.name || t('hrRecruitment.noJob')" />
         <SharedPropertyRow :label="t('hrRecruitment.detail.department')" :value="applicant.department?.name || t('hrRecruitment.noDepartment')" />
-        <SharedPropertyRow :label="t('hrRecruitment.detail.employee')" :value="applicant.employee?.name || t('hrRecruitment.detail.noEmployee')" />
+        <SharedPropertyRow :label="t('hrRecruitment.detail.employee')">
+          <NuxtLink v-if="applicant.employee" :to="`/hr/employees/${applicant.employee.id}`" class="text-primary hover:underline" data-testid="hr-recruitment-employee-link">{{ applicant.employee.name }}</NuxtLink>
+          <template v-else>{{ t('hrRecruitment.detail.noEmployee') }}</template>
+        </SharedPropertyRow>
         <SharedPropertyRow :label="t('hrRecruitment.detail.refuseReason')" :value="applicant.refuse_reason?.name || t('hrRecruitment.detail.noRefuseReason')" />
       </SharedPropertiesPanel>
     </template>

@@ -25,6 +25,10 @@
       "activate": "تفعيل الخطة",
       "deactivateTitle": "تعطيل الخطة؟",
       "deactivateDescription": "لن تُقترح لعمليات إخلاء جديدة، وتبقى العمليات الحالية كما هي.",
+      "activateTitle": "تفعيل الخطة؟",
+      "activateDescription": "ستُقترح لعمليات إخلاء جديدة.",
+      "statusActive": "مفعّلة",
+      "statusInactive": "معطّلة",
       "activated": "تم تفعيل الخطة",
       "noSteps": "لا خطوات بعد",
       "everyState": "الكل"
@@ -48,6 +52,7 @@
       "unclearedOnly": "غير المكتمل فقط",
       "allClearance": "الكل",
       "assetsLink": "عهد الموظف",
+      "heldAssets": "لا عهد | بحوزة الموظف عهدة واحدة لم تُسلَّم | بحوزة الموظف عهدتان لم تُسلَّما | بحوزة الموظف {count} عهد لم تُسلَّم | بحوزة الموظف {count} عهدة لم تُسلَّم | بحوزة الموظف {count} عهدة لم تُسلَّم",
       "registered": "تم تسجيل إنهاء الخدمة",
       "noReason": "بلا سبب مسجل"
     },
