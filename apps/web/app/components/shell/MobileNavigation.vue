@@ -2,11 +2,12 @@
 import type { SlideoverProps } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
 import type { RouteLocationRaw } from 'vue-router'
+import ShellContextSubList from '@webvue/ui/app/components/shell/ShellContextSubList.vue'
 import ShellQuickViews from '@webvue/ui/app/components/shell/ShellQuickViews.vue'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import type { ShellContextLink } from '@/composables/nav/shellModules'
 import type { ShellQuickItem, ShellRailItem } from '@webvue/ui/app/types/shell'
-import type { ShellContextSection } from '@/composables/nav/sidebarModel'
+import { subListSections, type ShellContextSection } from '@/composables/nav/sidebarModel'
 
 // The one mobile drawer (< 768px): modules, then the current module's create
 // actions and sections. Props only; ShellHeader derives them from useShellModel().
@@ -16,6 +17,7 @@ const props = defineProps<{
   title: string
   createLinks: ShellContextLink[]
   sections: ShellContextSection[]
+  subSections: ShellContextSection[]
   quickViews: ShellQuickItem[]
   quickActions: ShellQuickItem[]
 }>()
@@ -25,6 +27,7 @@ const route = useRoute()
 const router = useRouter()
 const hydrated = useHydrated()
 const desktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
+const subLists = computed(() => subListSections(props.subSections, t, id => `mobile-context-link-${id}`))
 const menuTitle = computed(() => te('nav.navigation') ? t('nav.navigation') : t('nav.modules'))
 const openMenuLabel = computed(() => te('nav.openMenu') ? t('nav.openMenu') : t('nav.toggleSidebar'))
 const dialogContent = computed<NonNullable<SlideoverProps['content']> & { id: string }>(() => ({ id: 'mobile-navigation' }))
@@ -107,7 +110,6 @@ function onModuleActivate(item: ShellRailItem) {
       </div>
       <nav data-fresh-navigation v-if="props.sections.length" :aria-label="props.title" class="webvue-mobile-section">
         <template v-for="section in props.sections" :key="section.id">
-          <h3 v-if="section.titleKey" class="webvue-context-section-title">{{ t(section.titleKey) }}</h3>
           <UButton
             v-for="link in section.links"
             :key="link.id"
@@ -129,6 +131,10 @@ function onModuleActivate(item: ShellRailItem) {
           </UButton>
         </template>
       </nav>
+      <template v-if="subLists.length">
+        <USeparator class="my-4" />
+        <ShellContextSubList surface="drawer" test-id-prefix="mobile-" :label="props.title" :sections="subLists" :collapsed="false" @navigate="onQuickActivate" />
+      </template>
       <template v-if="props.quickViews.length || props.quickActions.length">
         <USeparator class="my-4" />
         <h2 class="webvue-mobile-title">{{ t('nav.quickViews') }}</h2>

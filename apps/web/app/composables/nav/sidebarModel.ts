@@ -1,10 +1,14 @@
 // Relative imports: this module is unit-tested directly under plain vitest.
-import type { ShellRailItem } from '@webvue/ui/app/types/shell'
+import type { ShellRailItem, ShellSubListSection } from '@webvue/ui/app/types/shell'
 import { hidePinnedNewProject, type ShellContextLink, type ShellModuleDefinition } from './shellModules'
 
 /** A run of context links under one optional section heading (a locale key). */
 export interface ShellContextSection { id: string; titleKey: string | null; links: ShellContextLink[] }
-export interface ShellSidebarModel { createLinks: ShellContextLink[]; sections: ShellContextSection[]; showNav: boolean }
+/**
+ * `sections` are the untitled runs (the fixed links of the first card); `subSections` are the titled runs, the open
+ * section's sub-list, which the shell renders in its own card below the first one.
+ */
+export interface ShellSidebarModel { createLinks: ShellContextLink[]; sections: ShellContextSection[]; subSections: ShellContextSection[]; showNav: boolean }
 
 const UTILITY_MODULES: ReadonlySet<string> = new Set(['settings'])
 
@@ -47,8 +51,18 @@ export function sidebarModel(input: {
     : visible.filter(link => link.pinned && !(link.id === 'new-project' && hidePinnedNewProject(input.path)))
   const navigation = visible.filter(link => !link.pinned)
   const onlyRepeatsHeading = createLinks.length === 0 && navigation.length === 1 && navigation[0]!.labelKey === input.moduleLabelKey
-  const showNav = navigation.length > 0 && (input.surface === 'mobile' || !onlyRepeatsHeading)
-  return { createLinks, sections: groupSections(navigation), showNav }
+  const listed = navigation.length > 0 && (input.surface === 'mobile' || !onlyRepeatsHeading) ? groupSections(navigation) : []
+  const sections = listed.filter(section => section.titleKey === null)
+  return { createLinks, sections, subSections: listed.filter(section => section.titleKey !== null), showNav: sections.length > 0 }
+}
+
+/** The sub-list card's input: each titled section with translated labels and the test id of every row. */
+export function subListSections(sections: readonly ShellContextSection[], translate: (key: string) => string, testIdOf: (id: string) => string): ShellSubListSection[] {
+  return sections.map(section => ({
+    id: section.id,
+    title: translate(section.titleKey!),
+    items: section.links.map(link => ({ id: link.id, label: translate(link.labelKey), icon: link.icon, to: link.to, active: link.active, testId: testIdOf(link.id) })),
+  }))
 }
 
 const LEGACY_TEST_IDS: Readonly<Record<string, string>> = {

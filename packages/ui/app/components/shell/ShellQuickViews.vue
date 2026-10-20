@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ShellQuickItem } from '../../types/shell'
+import ShellQuickRow from './ShellQuickRow.vue'
 
 // The quick views card under the context sidebar: presets of the current list (views), a hairline, then the page's
 // actions (the create action first, with a plus chip). Props only; the app derives the rows from quickViewsModel().
@@ -18,59 +19,16 @@ const props = defineProps<{
   actionsLabel?: string
 }>()
 const emit = defineEmits<{ navigate: [item: ShellQuickItem] }>()
-const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
 </script>
 
 <template>
   <aside v-if="props.views.length || props.actions.length" :data-testid="`${props.testIdPrefix ?? ''}quick-views`" class="webvue-quick-views" :data-expanded="!props.collapsed" :data-surface="props.surface ?? 'card'" :aria-label="props.label">
     <nav v-if="props.views.length" class="webvue-quick-group" data-fresh-navigation :aria-label="props.viewsLabel ?? props.label" :data-testid="`${props.testIdPrefix ?? ''}quick-views-list`">
-      <div v-for="item in props.views" :key="item.id" class="webvue-quick-row">
-        <UTooltip :text="item.label" :disabled="!props.collapsed">
-          <UButton
-            :to="item.to"
-            color="neutral"
-            variant="ghost"
-            class="webvue-quick-link"
-            :data-active="item.active"
-            :active="!!item.active"
-            :aria-current="item.active ? 'true' : undefined"
-            :aria-label="item.label"
-            :data-testid="`${props.testIdPrefix ?? ''}quick-view-${item.id}`"
-            @click="emit('navigate', item)"
-          >
-            <template #leading>
-              <span class="webvue-quick-chip" aria-hidden="true"><UIcon :name="item.icon" class="webvue-shell-icon size-4 shrink-0" /></span>
-            </template>
-            <span data-slot="label">{{ item.label }}</span>
-          </UButton>
-        </UTooltip>
-        <span v-if="item.count !== undefined" class="webvue-quick-count">{{ countLabel(item.count) }}</span>
-      </div>
+      <ShellQuickRow v-for="item in props.views" :key="item.id" :item="item" :test-id="`${props.testIdPrefix ?? ''}quick-view-${item.id}`" :collapsed="props.collapsed" @navigate="emit('navigate', $event)" />
     </nav>
     <hr v-if="props.views.length && props.actions.length" class="webvue-quick-divider" :data-testid="`${props.testIdPrefix ?? ''}quick-views-divider`">
     <nav v-if="props.actions.length" class="webvue-quick-group" data-fresh-navigation :aria-label="props.actionsLabel ?? props.label" :data-testid="`${props.testIdPrefix ?? ''}quick-actions-list`">
-      <div v-for="item in props.actions" :key="item.id" class="webvue-quick-row">
-        <UTooltip :text="item.label" :disabled="!props.collapsed">
-          <UButton
-            :to="item.to"
-            color="neutral"
-            variant="ghost"
-            class="webvue-quick-link webvue-quick-action"
-            :data-primary="item.primary ? 'true' : undefined"
-            :data-active="item.active"
-            :active="!!item.active"
-            :aria-current="item.active ? 'true' : undefined"
-            :aria-label="item.label"
-            :data-testid="`${props.testIdPrefix ?? ''}quick-action-${item.id}`"
-            @click="emit('navigate', item)"
-          >
-            <template #leading>
-              <span class="webvue-quick-chip" aria-hidden="true"><UIcon :name="item.icon" class="webvue-shell-icon size-4 shrink-0" /></span>
-            </template>
-            <span data-slot="label">{{ item.label }}</span>
-          </UButton>
-        </UTooltip>
-      </div>
+      <ShellQuickRow v-for="item in props.actions" :key="item.id" :item="item" :test-id="`${props.testIdPrefix ?? ''}quick-action-${item.id}`" :collapsed="props.collapsed" action @navigate="emit('navigate', $event)" />
     </nav>
   </aside>
 </template>
