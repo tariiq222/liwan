@@ -33,6 +33,9 @@ from odoo.addons.webvue_hr.serializers.shifts.hr_shift import (
 )
 
 ACTIVE_VALUES = {'1': True, 'true': True, '0': False, 'false': False, 'all': None}
+# The work-time line fields the contract publishes. The engine's work_entry_type_id is
+# readable by hr.group_hr_user only, so it is never part of the read.
+ATTENDANCE_SOURCE_FIELDS = ('dayofweek', 'day_period', 'hour_from', 'hour_to', 'week_type')
 
 
 def _parse_active(value):
@@ -48,6 +51,29 @@ def _timezones():
     """Every timezone the engine's Selection field accepts."""
     calendar = request.env['resource.calendar']
     return dict(calendar._fields['tz']._description_selection(calendar.env))
+
+
+def _attendance_lines(calendars):
+    """The work-time lines of these schedules, keyed by schedule id, in the engine's own order.
+
+    The lines are read explicitly with the contract's fields: hr_work_entry guards
+    ``resource.calendar.attendance.work_entry_type_id`` with hr.group_hr_user and reads it inside
+    the engine's work-time helpers, so a shifts read must not widen the read beyond these fields.
+    ``display_type`` (a plain technical field) keeps a two-week calendar's section lines out.
+    """
+    rows = request.env['resource.calendar.attendance'].search_read(
+        [('calendar_id', 'in', calendars.ids), ('display_type', '=', False)],
+        ['calendar_id', *ATTENDANCE_SOURCE_FIELDS],
+    )
+    lines = {}
+    for row in rows:
+        lines.setdefault(row['calendar_id'][0], []).append(row)
+    return lines
+
+
+def _schedule_body(schedule):
+    """One schedule and the work-time lines the contract publishes for it."""
+    return dump_schedule(schedule, _attendance_lines(schedule).get(schedule.id, ()))
 
 
 def _missing(model, record_id):
@@ -139,7 +165,11 @@ class HrShiftController(http.Controller):
             domain.append(('active', '=', active))
         total = schedules.search_count(domain)
         records = schedules.search(domain, limit=limit, offset=offset, order='name, id')
-        return {'items': [dump_schedule(record) for record in records], 'total': total}
+        lines = _attendance_lines(records)
+        return {
+            'items': [dump_schedule(record, lines.get(record.id, ())) for record in records],
+            'total': total,
+        }
 
     @http.route('/api/v1/hr/shifts/schedules', type='json2', auth='user', methods=['POST'])
     @api_handler
@@ -147,14 +177,14 @@ class HrShiftController(http.Controller):
     @requires_capability('hr.shifts.manage')
     def create_schedule(self, **payload):
         vals = parse_schedule_create(payload, _timezones(), request.env.company.id)
-        return dump_schedule(request.env['resource.calendar'].create(vals))
+        return _schedule_body(request.env['resource.calendar'].create(vals))
 
     @http.route('/api/v1/hr/shifts/schedules/<int:schedule_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('hr.enabled', 'hr.shifts', operation='read')
     @requires_capability('hr.shifts.read')
     def get_schedule(self, schedule_id, **_):
-        return dump_schedule(_current_schedule(schedule_id))
+        return _schedule_body(_current_schedule(schedule_id))
 
     @http.route('/api/v1/hr/shifts/schedules/<int:schedule_id>', type='json2', auth='user', methods=['PATCH'])
     @api_handler
@@ -163,7 +193,7 @@ class HrShiftController(http.Controller):
     def update_schedule(self, schedule_id, **payload):
         schedule = _current_schedule(schedule_id)
         schedule.write(parse_schedule_patch(payload, _timezones()))
-        return dump_schedule(schedule)
+        return _schedule_body(schedule)
 
     @http.route('/api/v1/hr/shifts/schedules/<int:schedule_id>/archive', type='json2', auth='user', methods=['POST'])
     @api_handler
@@ -176,7 +206,7 @@ class HrShiftController(http.Controller):
             raise ApiError(422, 'invalid', f"field {field!r} is not writable", field=field)
         # The engine refuses a schedule that is still planned for a current employee (422).
         schedule.write({'active': False})
-        return dump_schedule(schedule)
+        return _schedule_body(schedule)
 
     @http.route('/api/v1/hr/shifts/assignments', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

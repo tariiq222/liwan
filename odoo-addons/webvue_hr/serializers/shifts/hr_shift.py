@@ -43,29 +43,39 @@ def _number(value, field, maximum):
 
 
 def dump_attendance(line):
-    """One work-time line. Section lines of a two-week calendar are never dumped."""
+    """One work-time line, built from the whitelisted values the controller read.
+
+    ``line`` is the mapping the controller's ``resource.calendar.attendance`` read returned for
+    the contract's own fields; the engine's ``work_entry_type_id`` (readable by hr.group_hr_user
+    only) is never among them, and a section line of a two-week calendar is excluded by that read.
+    """
     return {
-        'dayofweek': line.dayofweek,
-        'day_period': line.day_period,
-        'hour_from': line.hour_from,
-        'hour_to': line.hour_to,
-        'week_type': line.week_type or None,
+        'dayofweek': line['dayofweek'],
+        'day_period': line['day_period'],
+        'hour_from': line['hour_from'],
+        'hour_to': line['hour_to'],
+        'week_type': line['week_type'] or None,
     }
 
 
-def dump_schedule(calendar):
+def dump_schedule(calendar, attendances):
+    """One work schedule with its work-time lines.
+
+    ``hours_per_week`` comes from the engine's persisted mirror (``stored_hours_per_week``),
+    never from the derived ``hours_per_week``: the derived field is not stored, so every read
+    recomputes it, and that recompute walks ``_get_global_attendances()`` — which hr_work_entry
+    narrows with ``attendance.work_entry_type_id``, a field only hr.group_hr_user may read and
+    which a shifts reader does not hold. For a non-auto-generated calendar the engine computes
+    the derived field from this same mirror, so the published value is unchanged.
+    """
     return {
         'id': calendar.id,
         'name': calendar.name,
         'tz': calendar.tz,
         'two_weeks': calendar.two_weeks_calendar,
-        'hours_per_week': calendar.hours_per_week or 0.0,
+        'hours_per_week': calendar.stored_hours_per_week or 0.0,
         'active': calendar.active,
-        'attendances': [
-            dump_attendance(line)
-            for line in calendar.attendance_ids
-            if not line.display_type
-        ],
+        'attendances': [dump_attendance(line) for line in attendances],
     }
 
 

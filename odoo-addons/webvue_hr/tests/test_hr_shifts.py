@@ -328,23 +328,24 @@ class TestHrShifts(WebVueHrCase):
 
         # hr.shifts.read declares hr.employees.read (spec 8.2), and a role must carry the
         # dependency its capability declares, so the fixture grants both.
-        reader = self._user_with_shifts('hr_shifts_reader', ('hr.shifts.read', 'hr.employees.read'))
+        self._user_with_shifts('hr_shifts_reader', ('hr.shifts.read', 'hr.employees.read'))
         self.authenticate('hr_shifts_reader', 'hr_shifts_reader_pass_123')
         listed = self.api('GET', '/api/v1/hr/shifts/schedules')
-        # Static diagnosis of the reader's 403 could not separate the two possible refusals, so
-        # one message carries both discriminators: the capability keys the service resolves for the
-        # reader in this company (a missing hr.shifts.read means the capability gate before the
-        # handler), and the response body (its text names the model or field when the handler's
-        # own ORM read refused). The 200 expectation itself is unchanged.
-        self.assertEqual(
-            listed.status_code, 200,
-            'resolved capabilities=%s body=%s' % (
-                sorted(self.env['webvue.access.service']._webvue_capability_keys(
-                    reader, company=self.company,
-                )),
-                listed.text,
-            ),
-        )
+        self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertTrue(listed.json()['items'])
+        for item in listed.json()['items']:
+            self.assertEqual(set(item), SCHEDULE_KEYS)
+        # The reader also reads one schedule's own work lines. hr_work_entry guards
+        # resource.calendar.attendance.work_entry_type_id with hr.group_hr_user and reads it
+        # inside the engine's work-time helpers, so neither the attendance read nor the work
+        # hours of a schedule may reach that field (regression: the t38 reader 403).
+        detail = self.api('GET', f'/api/v1/hr/shifts/schedules/{self.schedule.id}')
+        self.assertEqual(detail.status_code, 200, detail.text)
+        self.assertEqual(set(detail.json()), SCHEDULE_KEYS)
+        self.assertEqual(detail.json()['hours_per_week'], 4.0)
+        self.assertEqual(set(detail.json()['attendances'][0]), ATTENDANCE_KEYS)
+        assignments = self.api('GET', '/api/v1/hr/shifts/assignments')
+        self.assertEqual(assignments.status_code, 200, assignments.text)
         refused = self.api('POST', '/api/v1/hr/shifts/assignments', {
             'employee_id': self.worker.id, 'schedule_id': self.schedule.id,
         })
