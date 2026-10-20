@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
 import { owningListBack } from '@/utils/recordListOrigin'
+import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
+import type { HrRecruitmentJob } from '@webvue/contracts'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -30,14 +32,18 @@ const attempted = ref(false)
 const error = ref('')
 const serverField = ref('')
 
-watch(job, (value) => {
+// The form is filled from the record by `fillForm`: an immediate watch runs it on the client and `useSsrQuerySeed` on the
+// server (a watcher cannot rerun there once the query settles); the watch also re-syncs the form after every write.
+function fillForm(value: HrRecruitmentJob | undefined) {
   if (!value) return
   form.name = value.name
   form.departmentId = value.department?.id ?? null
   form.noOfRecruitment = value.no_of_recruitment
   form.description = value.description
   form.active = value.active
-}, { immediate: true })
+}
+watch(job, fillForm, { immediate: true })
+useSsrQuerySeed(query, fillForm)
 
 const departmentOptions = computed(() => (departments.data.value?.items ?? []).map(department => ({
   value: String(department.id),
@@ -59,13 +65,7 @@ function fieldError(field: string) {
 const nameError = computed(() => attempted.value && !form.name.trim() ? t('hrRecruitment.jobs.form.nameRequired') : fieldError('name'))
 
 function resetForm() {
-  const current = job.value
-  if (!current) return
-  form.name = current.name
-  form.departmentId = current.department?.id ?? null
-  form.noOfRecruitment = current.no_of_recruitment
-  form.description = current.description
-  form.active = current.active
+  fillForm(job.value)
   attempted.value = false
   error.value = ''
   serverField.value = ''
@@ -78,7 +78,7 @@ async function submit() {
   serverField.value = ''
   if (!form.name.trim()) return
   try {
-    // The answer replaces the detail cache, and the watch below re-syncs the form from it.
+    // The answer replaces the detail cache, and the watch on the job re-syncs the form from it.
     await updateJob({
       id: id.value,
       body: {

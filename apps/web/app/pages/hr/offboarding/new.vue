@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import DepartureForm from '@/components/hr/lifecycle/DepartureForm.vue'
+import { owningListBack } from '@/utils/recordListOrigin'
 
 const NAMESPACE = 'hrOffboarding'
+const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
-const backTo = '/hr/offboarding'
+const sourcePaths = useRecordListPaths(['/hr/offboarding'])
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 function saved() {
-  void navigateTo({ path: '/hr/offboarding', query: {} }, { replace: true })
+  void navigateTo(backTo.value, { replace: true })
 }
 </script>
 

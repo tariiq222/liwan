@@ -2,6 +2,8 @@
 // preview always served; rows 2+ exist so lists, filters, J/K, an archived scope and a record with
 // missing data can be tested. Reads only: the mock has no HR write routes. The report and leave rows below
 // feed /hr/reports and /hr/leave/:id; dates are relative to today so the overdue and due-soon tones always show.
+import { hrAreasPreviewData } from './hr-areas-ui-preview-data.mjs'
+
 const OPS = { id: 1, name: 'إدارة العمليات' }
 const PEOPLE = { id: 2, name: 'الموارد البشرية' }
 const SARA = { id: 1, name: 'سارة محمد' }
@@ -82,5 +84,5 @@ export function hrPreviewData(path, url) {
   if (route.startsWith('/api/v1/hr/leave/requests/')) return byId(leaves, route, '/api/v1/hr/leave/requests')
   if (route === '/api/v1/hr/departments') return page(departments, url)
   if (route.startsWith('/api/v1/hr/departments/')) return byId(departments, route, '/api/v1/hr/departments')
-  return undefined
+  return hrAreasPreviewData(route, url)
 }

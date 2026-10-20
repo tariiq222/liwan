@@ -24,6 +24,9 @@ const CAPABILITIES = [
   'settings.branding.manage', 'settings.company.read', 'settings.company.manage', 'ai.use',
 ]
 
+// The HR area sub-features (`hr.<area>`) gate the recruitment, shifts, onboarding, offboarding and assets pages on top of their capabilities.
+const HR_AREA_FEATURES = ['hr.assets', 'hr.offboarding', 'hr.onboarding', 'hr.recruitment', 'hr.shifts']
+
 const ME = {
   id: 2, name: 'Admin', login: 'admin', email: 'admin@example.com', lang: 'ar_001', tz: 'Asia/Riyadh',
   role: 'admin',
@@ -33,12 +36,13 @@ const ME = {
   modules: ['webvue_chat', 'webvue_hr', 'webvue_documents', 'webvue_pmo'],
   entitlements: {
     'pmo.enabled': true, 'meetings.enabled': true, 'documents.enabled': true, 'hr.enabled': true, 'finance.enabled': true, 'chat.enabled': true, 'ai.enabled': true,
+    ...Object.fromEntries(HR_AREA_FEATURES.map(feature => [feature, true])),
     'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
-    writable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
+    readable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, 'meetings.enabled', 'pmo.enabled'],
+    writable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, 'meetings.enabled', 'pmo.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }
