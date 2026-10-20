@@ -39,6 +39,11 @@
       "repo": "OCA/hr",
       "branch": "19.0",
       "commit": "23e948031779315958c3897652d04da813a058fb"
+    },
+    {
+      "repo": "OCA/payroll",
+      "branch": "19.0",
+      "commit": "58f8a39799383ef98d50097f81f4abcc6dd03782"
     }
   ],
   "python_requirements": [

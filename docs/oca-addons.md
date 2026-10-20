@@ -69,6 +69,10 @@ replace HR documents. Provenance and license headers are recorded in
 schedules. It is an internal engine (AGPL-3, owner-accepted, like the finance modules); it
 is the only module of OCA/hr that is installed.
 
+| OCA module (repository) | Used for |
+|---|---|
+| `payroll` (payroll) | payslip engine behind the payroll section of `webvue_hr`; its groups, menus and views are never used |
+
 ## Bump a pin
 
 1. `git ls-remote https://github.com/OCA/<repo>.git refs/heads/19.0`, take the sha.
