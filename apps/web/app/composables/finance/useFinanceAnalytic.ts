@@ -19,6 +19,7 @@ const PLAN_LIMIT = 100
 export const financeAnalyticKeys = {
   all: ['finance', 'analytic'] as const,
   plans: ['finance', 'analytic', 'plans'] as const,
+  costCenterOptions: ['finance', 'analytic', 'cost-center-options'] as const,
   accounts: (params: AnalyticAccountParams) => ['finance', 'analytic', 'accounts', params] as const,
   lines: (params: AnalyticLineParams) => ['finance', 'reports', 'analytic', 'lines', params] as const,
 }

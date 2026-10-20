@@ -5,6 +5,7 @@ import { useProjectFinanceList } from '@/composables/useProjectFinance'
 import FinanceEntryForm from '@/components/pmo/projects/finance/FinanceEntryForm.vue'
 import {
   financeWriteAllowed,
+  isExternalActual,
   parseFinanceKind,
   shouldKeepFinanceFormMounted,
 } from '@/utils/projectFinance'
@@ -37,9 +38,10 @@ const pageError = computed(() => keepForm.value ? null : (notFound.value ? null 
 const refreshError = computed(() => keepForm.value ? access.error.value : null)
 const sourcePaths = useProjectRecordListPaths(projectId, () => [projectId.value ? `/projects/${projectId.value}/finance` : '/projects'])
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
+const externalActual = computed(() => access.data.value ? isExternalActual(access.data.value.summary) : false)
 const defaultKind = computed(() => {
   const kind = parseFinanceKind(route.query.kind)
-  return kind === 'all' ? 'budget' : kind
+  return kind === 'all' || externalActual.value ? 'budget' : kind
 })
 
 function saved(entry: { id: number }) {
@@ -72,6 +74,7 @@ function saved(entry: { id: number }) {
           :project-id="projectId"
           :currency="currency!"
           :default-kind="defaultKind"
+          :external-actual="externalActual"
           :write-allowed="writeAllowed"
           @saved="saved"
           @cancel="router.push(backTo)"

@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_webvue_pmo_finance_analytic_line_read,webvue pmo finance project readers: account.analytic.line,analytic.model_account_analytic_line,webvue_pmo.group_cap_pmo_projects_read,1,0,0,0

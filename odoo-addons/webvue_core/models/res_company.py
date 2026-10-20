@@ -109,25 +109,38 @@ class ResCompany(models.Model):
         return []
 
     @api.model
-    def _webvue_company_profile_extension_specs(self):
-        """The declared extensions, each checked: a bad declaration is a programming error and raises."""
-        specs = self._webvue_company_profile_extensions()
+    def _webvue_check_company_field_extensions(self, purpose, specs, reserved_fields, kinds, sections=None):
+        """Check extension ``specs`` that name ``res.company`` fields; a bad declaration is a programming error.
+
+        The one validator behind every extension point of this shape. ``purpose`` names the extension point in
+        error messages, ``reserved_fields`` are the fields its owner already handles, ``kinds`` maps a field
+        type to the spec ``kind`` it allows and ``sections`` (when given) are the allowed ``section`` values.
+        Fields in ``EXTENSION_BLOCKED_FIELDS`` are refused for every extension point.
+        """
         for spec in specs:
             name = spec.get('name')
             field = self._fields.get(name)
             if field is None:
-                msg = f'company profile extension {name!r} is not a res.company field'
+                msg = f'{purpose} extension {name!r} is not a res.company field'
                 raise ValueError(msg)
-            if name in COMPANY_PROFILE_FIELDS or name in EXTENSION_BLOCKED_FIELDS:
-                msg = f'company profile extension {name!r} is a generic or protected field'
+            if name in reserved_fields or name in EXTENSION_BLOCKED_FIELDS:
+                msg = f'{purpose} extension {name!r} is a generic or protected field'
                 raise ValueError(msg)
-            if spec.get('section') not in EXTENSION_SECTIONS:
-                msg = f'company profile extension {name!r} has an unknown section {spec.get("section")!r}'
+            if sections is not None and spec.get('section') not in sections:
+                msg = f'{purpose} extension {name!r} has an unknown section {spec.get("section")!r}'
                 raise ValueError(msg)
-            if EXTENSION_KINDS.get(field.type) != spec.get('kind'):
-                msg = f'company profile extension {name!r}: kind {spec.get("kind")!r} does not fit a {field.type} field'
+            if kinds.get(field.type) != spec.get('kind'):
+                msg = f'{purpose} extension {name!r}: kind {spec.get("kind")!r} does not fit a {field.type} field'
                 raise ValueError(msg)
         return specs
+
+    @api.model
+    def _webvue_company_profile_extension_specs(self):
+        """The declared extensions, each checked: a bad declaration is a programming error and raises."""
+        return self._webvue_check_company_field_extensions(
+            'company profile', self._webvue_company_profile_extensions(),
+            COMPANY_PROFILE_FIELDS, EXTENSION_KINDS, EXTENSION_SECTIONS,
+        )
 
     @api.model
     def _webvue_company_profile_extension_fields(self):

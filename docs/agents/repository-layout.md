@@ -88,6 +88,13 @@ limits describe implementation stages, not permanent product exclusions.
 - `odoo-addons/webvue_operations_pmo` (bridge, rank 5, `auto_install`) is installed whenever
   `webvue_operations` and `webvue_pmo` both are. It executes task completion through the original
   designated-reviewer policy.
+- `odoo-addons/webvue_pmo_finance` (bridge, rank 5, `auto_install`) is installed whenever `webvue_pmo`
+  and `webvue_finance` both are. While `finance.enabled` is on, a project's actual cost is the posted
+  expense of its cost center (an analytic account linked by `webvue_project_id`) instead of manual
+  PMO expense entries, and PMO keeps the planned budget. It implements the neutral
+  `webvue.project.actual.source` hooks and the PMO settings extension (cost-center mode `auto` or
+  `manual`), and reads analytic lines in the caller's own environment through its own ACLs and
+  record rules, with no `sudo()`.
 - `packages/contracts/src/common`, `src/access`, `src/pmo`, `src/hr`, `src/meetings`, `src/chat`,
   `src/tasks` and `src/operations` hold the Zod wire
   contracts; each namespace has a barrel re-exported from `src/index.ts`.

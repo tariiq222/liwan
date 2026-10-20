@@ -30,6 +30,7 @@ describe('project settings controls contracts', () => {
       deadline_reminders_days_before: 3,
       overdue_digest_enabled: false,
       require_charter_approval: false,
+      extensions: [],
     })
     expect(parsed.require_end_date_on_create).toBe(true)
     expect(parsed.deadline_reminders_days_before).toBe(3)
@@ -51,10 +52,25 @@ describe('project settings controls contracts', () => {
       deadline_reminders_days_before: 1,
       overdue_digest_enabled: true,
       require_charter_approval: false,
+      extensions: [],
     }
     expect(ProjectSettingsSchema.safeParse(full).success).toBe(true)
     const { require_charter_approval: _omitted, ...rest } = full
     expect(ProjectSettingsSchema.safeParse(rest).success).toBe(false)
+  })
+
+  it('reads the settings other applications add, selection with options and boolean', () => {
+    const base = {
+      project_creators: 'managers', default_stages: [{ name: 'A', fold: false }], require_manager_on_create: true,
+      require_end_date_on_create: true, default_completion_approval: 'none', deadline_reminders_enabled: true,
+      deadline_reminders_days_before: 1, overdue_digest_enabled: true, require_charter_approval: false,
+    }
+    const selection = { name: 'mode', kind: 'selection', label: 'Mode', help: null, value: 'auto', options: [{ value: 'auto', label: 'Auto' }] }
+    const flag = { name: 'flag', kind: 'boolean', label: 'Flag', help: 'Hint', value: true }
+    expect(ProjectSettingsSchema.parse({ ...base, extensions: [selection, flag] }).extensions).toHaveLength(2)
+    expect(ProjectSettingsSchema.safeParse({ ...base, extensions: [{ ...flag, value: 'yes' }] }).success).toBe(false)
+    expect(ProjectSettingsSchema.safeParse({ ...base, extensions: [{ ...selection, options: undefined }] }).success).toBe(false)
+    expect(ProjectSettingsSchema.safeParse(base).success).toBe(false)
   })
 
   it('keeps create defaults creator-gated and create payload strict', () => {

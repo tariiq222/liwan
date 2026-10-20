@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- A project reader totals the expense items of the cost centers of projects, in their own environment, and
+         nothing else of the analytic items (no income, no other cost center). Group rules of one model are ORed, so every stock group that has an
+         ACL on account.analytic.line and no group rule of its own gets an allow-all rule here: without it, a user
+         of that group who is also a project reader would lose the items of every other cost center the moment
+         this rule exists. account.group_account_invoice and account.group_account_readonly (so also the
+         accountant and manager groups that imply them) already carry an allow-all rule in stock account. -->
+    <record id="rule_analytic_line_project_cost_centers" model="ir.rule">
+        <field name="name">WebVue project readers: items of project cost centers</field>
+        <field name="model_id" ref="analytic.model_account_analytic_line"/>
+        <field name="domain_force">['&amp;', ('auto_account_id.webvue_project_id', '!=', False), ('general_account_id.internal_group', '=', 'expense')]</field>
+        <field name="groups" eval="[Command.link(ref('webvue_pmo.group_cap_pmo_projects_read'))]"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_analytic_line_analytic_accounting_all" model="ir.rule">
+        <field name="name">WebVue: analytic accountants keep every analytic item</field>
+        <field name="model_id" ref="analytic.model_account_analytic_line"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[Command.link(ref('analytic.group_analytic_accounting'))]"/>
+    </record>
+    <record id="rule_analytic_line_project_manager_all" model="ir.rule">
+        <field name="name">WebVue: project managers keep every analytic item</field>
+        <field name="model_id" ref="analytic.model_account_analytic_line"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[Command.link(ref('project.group_project_manager'))]"/>
+    </record>
+</odoo>

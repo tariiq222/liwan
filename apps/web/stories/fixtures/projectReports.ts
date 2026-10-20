@@ -21,6 +21,7 @@ function row(id: number, name: string, status: Status, tasks: number, closed: nu
       utilization_percent: planned ? Math.round((actual / planned) * 100) : null,
       over_budget: planned !== null && actual > planned,
       budget_count: planned === null ? 0 : 1, expense_count: actual ? 3 : 0,
+      actual_source: 'manual', actual_account: null, can_read_actual_lines: false, can_choose_actual_account: false,
     },
     task_count: tasks, closed_task_count: closed, overdue_task_count: overdue, progress,
   }

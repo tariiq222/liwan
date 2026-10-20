@@ -10,7 +10,7 @@ export const ProjectReportRowSchema = z.object({
 }).strict()
 export const ProjectReportTotalsSchema = z.object({
   currency: CurrencyRefSchema, project_count: count, budgeted_project_count: count,
-  planned: z.number().finite().nonnegative(), actual: z.number().finite().nonnegative(), remaining: z.number().finite(), over_budget_count: count,
+  planned: z.number().finite().nonnegative(), actual: z.number().finite(), remaining: z.number().finite(), over_budget_count: count,
 }).strict()
 export const ProjectDashboardStatusCountSchema = z.object({ status: ProjectStatusSchema.nullable(), count }).strict()
 export const ProjectDashboardSummarySchema = z.object({

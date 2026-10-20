@@ -2213,6 +2213,18 @@
       "handler": "list_finance_entries",
       "no_capability_reason": null
     },
+    "GET /api/v1/projects/{project_id}/finance/actual-lines": {
+      "addon": "webvue_pmo",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "pmo.enabled"
+      ],
+      "handler": "list_actual_lines",
+      "no_capability_reason": null
+    },
     "GET /api/v1/projects/{project_id}/finance/summary": {
       "addon": "webvue_pmo",
       "auth": "user",
@@ -3029,6 +3041,18 @@
         "pmo.enabled"
       ],
       "handler": "patch_project",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/projects/{project_id}/finance/actual-account": {
+      "addon": "webvue_pmo",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "pmo.enabled"
+      ],
+      "handler": "patch_actual_account",
       "no_capability_reason": null
     },
     "PATCH /api/v1/projects/{project_id}/finance/{entry_id}": {

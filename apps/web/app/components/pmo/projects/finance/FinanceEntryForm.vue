@@ -28,6 +28,8 @@ const props = defineProps<{
   defaultKind?: FinanceKind
   selectedBudgetTitle?: string | null
   writeAllowed?: boolean
+  /** The project's actual comes from linked accounts, so only budget rows are entered here. */
+  externalActual?: boolean
 }>()
 const emit = defineEmits<{ saved: [entry: FinanceEntry]; cancel: [] }>()
 const { t } = useI18n()
@@ -55,7 +57,7 @@ const entryQuery = useProjectFinanceEntry(
 )
 const kindItems = computed(() => [
   { value: 'budget', label: t('projects.finance.kind.budget') },
-  { value: 'expense', label: t('projects.finance.kind.expense') },
+  ...(props.externalActual ? [] : [{ value: 'expense', label: t('projects.finance.kind.expense') }]),
 ])
 const currencyHelp = computed(() => t('projects.finance.currencyReadOnly', {
   name: props.currency.name,

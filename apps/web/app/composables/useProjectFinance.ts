@@ -1,9 +1,12 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
+  ActualLineListSchema,
   FinanceDeletedSchema,
   FinanceEntryListSchema,
   FinanceEntrySchema,
+  FinanceSummarySchema,
+  type ActualAccountPatch,
   type FinanceEntry,
   type FinanceEntryCreate,
   type FinanceEntryList,
@@ -11,7 +14,7 @@ import {
   type FinanceKind,
   type FinanceSummary,
 } from '@webvue/contracts'
-import { financeListQuery, type FinanceKindFilter } from '@/utils/projectFinance'
+import { actualLinesQuery, financeListQuery, type FinanceKindFilter } from '@/utils/projectFinance'
 import { parsePositiveId } from '@/utils/routeParams'
 
 export type { FinanceEntry, FinanceEntryList, FinanceSummary }
@@ -28,6 +31,8 @@ export const financeKeys = {
   list: (projectId: number, query: ReturnType<typeof financeListQuery>) =>
     ['project-finance', 'list', projectId, query] as const,
   summary: (projectId: number) => ['project-finance', 'summary', projectId] as const,
+  actualLines: (projectId: number, query: ReturnType<typeof actualLinesQuery>) =>
+    ['project-finance', 'actual-lines', projectId, query] as const,
   detail: (projectId: number, entryId: number) => ['project-finance', 'detail', projectId, entryId] as const,
 }
 
@@ -35,6 +40,7 @@ function invalidateFinanceAndReports(qc: ReturnType<typeof useQueryClient>, proj
   void qc.invalidateQueries({ queryKey: ['project-finance', 'list', projectId] })
   void qc.invalidateQueries({ queryKey: financeKeys.summary(projectId) })
   void qc.invalidateQueries({ queryKey: ['project-finance', 'detail', projectId] })
+  void qc.invalidateQueries({ queryKey: ['project-finance', 'actual-lines', projectId] })
   void qc.invalidateQueries({ queryKey: ['project-reports'] })
 }
 
@@ -53,6 +59,24 @@ export function useProjectFinanceList(
         query: financeListQuery(toValue(filters)),
         schema: FinanceEntryListSchema,
       })
+    },
+  })
+}
+
+/** The posted lines behind an external actual, one page at a time; a caller mounts it only when the summary says the user may read them. */
+export function useProjectActualLines(
+  projectId: MaybeRefOrGetter<number | null>,
+  filters: MaybeRefOrGetter<{ limit?: number; offset?: number }>,
+) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => financeKeys.actualLines(toValue(projectId) ?? 0, actualLinesQuery(toValue(filters)))),
+    enabled: computed(() => parsePositiveId(toValue(projectId)) != null),
+    placeholderData: keepPreviousData,
+    queryFn: () => {
+      const id = toValue(projectId)
+      if (id == null) throw new Error('invalid_id')
+      return $api(`/api/v1/projects/${id}/finance/actual-lines`, { query: actualLinesQuery(toValue(filters)), schema: ActualLineListSchema })
     },
   })
 }
@@ -114,5 +138,20 @@ export function useDeleteFinanceEntry() {
       qc.removeQueries({ queryKey: financeKeys.detail(projectId, entryId) })
       invalidateFinanceAndReports(qc, projectId)
     },
+  })
+}
+
+/** Links the project to the cost center its actual comes from, or clears the link with `accountId: null`. */
+export function useSetActualAccount() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ projectId, accountId }: { projectId: number; accountId: number | null }) =>
+      $api(`/api/v1/projects/${projectId}/finance/actual-account`, {
+        method: 'PATCH',
+        body: { account_id: accountId } satisfies ActualAccountPatch,
+        schema: FinanceSummarySchema,
+      }),
+    onSuccess: (_summary, { projectId }) => invalidateFinanceAndReports(qc, projectId),
   })
 }

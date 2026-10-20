@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../composables/useApi'
 import {
   FINANCE_PAGE,
+  actualAccountErrorKey,
+  actualAccountLabel,
+  actualLinesQuery,
+  financeKindFilters,
+  isExternalActual,
   MAX_FINANCE_AMOUNT,
   budgetStatus,
   canonicalFromMinor,
@@ -225,6 +230,36 @@ describe('financeSummaryMode', () => {
     expect(financeSummaryMode({ planned: null, budget_count: 0, expense_count: 0 })).toBe('empty')
     expect(financeSummaryMode({ planned: null, budget_count: 0, expense_count: 2 })).toBe('need-budget')
     expect(financeSummaryMode({ planned: 100, budget_count: 1, expense_count: 0 })).toBe('dashboard')
+  })
+  it('keeps the source tile for an external actual before any budget row or posted line', () => {
+    expect(financeSummaryMode({ planned: null, budget_count: 0, expense_count: 0, actual_source: 'external' })).toBe('need-budget')
+    expect(financeSummaryMode({ planned: 100, budget_count: 1, expense_count: 0, actual_source: 'external' })).toBe('dashboard')
+    expect(financeSummaryMode({ planned: null, budget_count: 0, expense_count: 0, actual_source: 'manual' })).toBe('empty')
+  })
+})
+
+describe('external actual helpers', () => {
+  it('offers the expense filter only for a manual actual', () => {
+    expect(financeKindFilters(undefined)).toEqual(['all', 'budget', 'expense'])
+    expect(financeKindFilters({ actual_source: 'manual' })).toEqual(['all', 'budget', 'expense'])
+    expect(financeKindFilters({ actual_source: 'external' })).toEqual(['all', 'budget'])
+    expect(isExternalActual({ actual_source: 'external' })).toBe(true)
+    expect(isExternalActual({ actual_source: 'manual' })).toBe(false)
+  })
+  it('clamps the actual lines page like the ledger', () => {
+    expect(actualLinesQuery({})).toEqual({ limit: FINANCE_PAGE, offset: 0 })
+    expect(actualLinesQuery({ limit: 999, offset: -5 })).toEqual({ limit: 200, offset: 0 })
+    expect(actualLinesQuery({ limit: 20, offset: 40 })).toEqual({ limit: 20, offset: 40 })
+  })
+  it('labels a cost center by its code when it has one', () => {
+    expect(actualAccountLabel({ name: 'Tower', code: 'CC-1' })).toBe('CC-1 · Tower')
+    expect(actualAccountLabel({ name: 'Tower', code: null })).toBe('Tower')
+  })
+  it('explains a taken or unknown cost center and falls back to the generic error', () => {
+    expect(actualAccountErrorKey(new ApiError(409, 'account_linked', 'x', 'account_id'))).toBe('projects.finance.actualAccount.linked')
+    expect(actualAccountErrorKey(new ApiError(422, 'invalid', 'x', 'account_id'))).toBe('projects.finance.actualAccount.invalid')
+    expect(actualAccountErrorKey(new ApiError(422, 'invalid', 'x', 'other'))).toBe('errors.generic')
+    expect(actualAccountErrorKey(new Error('boom'))).toBe('errors.generic')
   })
 })
 

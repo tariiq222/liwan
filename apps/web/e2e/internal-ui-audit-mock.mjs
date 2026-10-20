@@ -266,6 +266,10 @@ function reportRow(p) {
       over_budget: false,
       budget_count: 1,
       expense_count: 1,
+      actual_source: 'manual',
+      actual_account: null,
+      can_read_actual_lines: false,
+      can_choose_actual_account: false,
     },
     task_count: p.task_count,
     closed_task_count: p.closed_task_count,
@@ -284,6 +288,7 @@ const SETTINGS = {
   deadline_reminders_days_before: 3,
   overdue_digest_enabled: false,
   require_charter_approval: false,
+  extensions: [],
 }
 
 function json(res, status, body, extra = {}) {

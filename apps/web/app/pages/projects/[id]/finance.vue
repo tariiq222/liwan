@@ -4,11 +4,14 @@ import { refDebounced } from '@vueuse/core'
 import { ApiError } from '@/composables/useApi'
 import { useProjectFinanceList } from '@/composables/useProjectFinance'
 import { useProject } from '@/composables/useProjects'
+import FinanceActualLines from '@/components/pmo/projects/finance/FinanceActualLines.vue'
 import FinanceEntryTable from '@/components/pmo/projects/finance/FinanceEntryTable.vue'
 import FinanceSummaryCards from '@/components/pmo/projects/finance/FinanceSummaryCards.vue'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import {
   FINANCE_PAGE,
+  financeKindFilters,
+  isExternalActual,
   parseFinanceKind,
   parseFinanceListRoute,
   patchFinanceListRoute,
@@ -184,11 +187,12 @@ function setPage(next: number) {
   applyPatch({ offset: (next - 1) * FINANCE_PAGE })
 }
 
-const kindItems = computed(() => [
-  { value: 'all', label: t('projects.finance.kind.all') },
-  { value: 'budget', label: t('projects.finance.kind.budget') },
-  { value: 'expense', label: t('projects.finance.kind.expense') },
-])
+const external = computed(() => summary.value ? isExternalActual(summary.value) : false)
+const kindItems = computed(() => financeKindFilters(summary.value).map(value => ({ value, label: t(`projects.finance.kind.${value}`) })))
+// An external actual has no manual expenses: a link that still asks for them shows every entry instead.
+watch([external, () => filters.kind], ([isExternal, kind]) => {
+  if (isExternal && kind === 'expense') applyPatch({ kind: 'all' })
+}, { immediate: true })
 function financeChildKey(target: { path: string; params: Record<string, string | string[]> }) {
   const project = Array.isArray(target.params.id) ? target.params.id[0] : target.params.id
   const entry = Array.isArray(target.params.entryId) ? target.params.entryId[0] : target.params.entryId
@@ -225,7 +229,7 @@ const bareEmpty = computed(() => Boolean(summary.value) && showEmpty.value && !f
       :create-to="canManage ? newTo('budget') : undefined"
       :create-label="t('projects.finance.newBudget')"
     >
-      <template v-if="canManage" #actions>
+      <template v-if="canManage && !external" #actions>
         <UButton color="neutral" variant="outline" icon="i-lucide-plus" :disabled="!hydrated" :to="newTo('expense')">{{ t('projects.finance.newExpense') }}</UButton>
       </template>
       <p v-if="notFound && !list.isLoading.value" class="text-muted">{{ t('projects.notFound') }}</p>
@@ -257,6 +261,7 @@ const bareEmpty = computed(() => Boolean(summary.value) && showEmpty.value && !f
             <SharedListFooter :count-label="t('projects.footer.results', { shown: items.length, total }, total)" count-test-id="finance-result-count" :page="page" :pages="pages" :disabled="list.isFetching.value" @update:page="setPage" />
           </template>
         </SharedListCard>
+        <FinanceActualLines v-if="summary?.can_read_actual_lines && projectId" :project-id="projectId" :summary="summary" />
       </template>
     </SharedListPage>
   </template>

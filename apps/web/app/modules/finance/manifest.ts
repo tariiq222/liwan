@@ -1,5 +1,6 @@
 import type { AppContextLink, AppIcon, AppManifest } from '../types'
-import { financeNavActive, financeSectionOf, type FinanceSection } from './routes'
+import { financeNavActive, financeSectionOf, invoiceRecordPath, type FinanceSection } from './routes'
+import { costCenterPicker } from './recordPicker'
 import { invoicesSearch, partnersSearch } from './search'
 
 // The reports have nothing to create, so their section opens without a create link.
@@ -127,6 +128,15 @@ const manifest: AppManifest = {
     { pattern: /^\/finance$/, capability: 'finance.invoices.read' },
   ],
   search: [partnersSearch, invoicesSearch],
+  recordPickers: [costCenterPicker],
+  // The kinds the actual lines of a project cost center point to, so the project page links to them by kind.
+  recordLinks: [
+    { kind: 'finance-invoice', capability: 'finance.invoices.read', to: id => invoiceRecordPath('out_invoice', id) },
+    { kind: 'finance-credit-note', capability: 'finance.invoices.read', to: id => invoiceRecordPath('out_refund', id) },
+    { kind: 'finance-bill', capability: 'finance.invoices.read', to: id => invoiceRecordPath('in_invoice', id) },
+    { kind: 'finance-refund', capability: 'finance.invoices.read', to: id => invoiceRecordPath('in_refund', id) },
+    { kind: 'finance-entry', capability: 'finance.entries.read', to: id => `/finance/accounting/entries/${id}` },
+  ],
   commands: [
     { id: 'finance.new-invoice', labelKey: 'finance.nav.newInvoice', icon: 'i-lucide-trending-up', to: '/finance/sales/invoices/new', capability: 'finance.invoices.manage' },
     { id: 'finance.new-bill', labelKey: 'finance.nav.newBill', icon: 'i-lucide-shopping-cart', to: '/finance/purchases/bills/new', capability: 'finance.invoices.manage' },
