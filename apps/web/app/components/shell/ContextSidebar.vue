@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
 import type { ShellContextLink } from '@/composables/nav/shellModules'
-import type { ShellContextSection } from '@/composables/nav/sidebarModel'
-import ContextNavSections from './ContextNavSections.vue'
+import { contextLinkTestId, type ShellContextSection } from '@/composables/nav/sidebarModel'
 
 // The floating context sidebar; its round toggle lives in the heading. Props only: AppSidebar derives what it
-// shows from useShellModel(); an application's panel arrives as `panel`. The fixed links stay in this card; the pages of
-// the open section (sections with a heading) follow in their own card under it.
+// shows from useShellModel(); an application's panel arrives as `panel`.
 const props = defineProps<{
   title: string
   createLinks: ShellContextLink[]
@@ -24,8 +22,8 @@ const props = defineProps<{
 const emit = defineEmits<{ toggle: [] }>()
 const { t } = useI18n()
 const navigationId = `context-navigation-${useId()}`
-const fixedSections = computed(() => props.sections.filter(section => !section.titleKey))
-const sectionPages = computed(() => props.sections.filter(section => section.titleKey))
+const countId = (id: string) => `${navigationId}-count-${id}`
+const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
 </script>
 
 <template>
@@ -83,8 +81,32 @@ const sectionPages = computed(() => props.sections.filter(section => section.tit
           </UTooltip>
         </div>
 
-        <nav v-if="props.showNav && fixedSections.length" class="webvue-context-nav" data-fresh-navigation :aria-label="props.title">
-          <ContextNavSections :sections="fixedSections" :counts="props.counts" :expanded="props.expanded" :count-prefix="navigationId" />
+        <nav v-if="props.showNav" class="webvue-context-nav" data-fresh-navigation :aria-label="props.title">
+          <div v-for="section in props.sections" :key="section.id" class="webvue-context-section">
+            <h3 v-if="section.titleKey" class="webvue-context-section-title">{{ t(section.titleKey) }}</h3>
+            <div v-for="link in section.links" :key="link.id" class="webvue-context-row">
+              <UTooltip :text="t(link.labelKey)" :disabled="props.expanded">
+                <UButton
+                  :to="link.to"
+                  color="neutral"
+                  variant="ghost"
+                  class="webvue-context-link"
+                  :data-active="link.active"
+                  :active="!!link.active"
+                  :aria-current="link.active ? 'page' : undefined"
+                  :aria-label="t(link.labelKey)"
+                  :aria-describedby="props.counts[link.id] !== undefined ? countId(link.id) : undefined"
+                  :data-testid="contextLinkTestId(link.id)"
+                >
+                  <template #leading>
+                    <span class="webvue-context-chip" aria-hidden="true"><UIcon :name="link.icon" class="webvue-shell-icon size-4 shrink-0" /></span>
+                  </template>
+                  <span data-slot="label">{{ t(link.labelKey) }}</span>
+                </UButton>
+              </UTooltip>
+              <span v-if="props.counts[link.id] !== undefined" :id="countId(link.id)" class="webvue-context-count">{{ countLabel(props.counts[link.id]!) }}</span>
+            </div>
+          </div>
         </nav>
 
         <div v-if="props.panel && props.renderPanel" v-show="props.expanded" class="webvue-context-panel">
@@ -94,15 +116,4 @@ const sectionPages = computed(() => props.sections.filter(section => section.tit
       </div>
     </Transition>
   </aside>
-  <nav
-    v-if="props.showNav && sectionPages.length"
-    data-testid="context-section-pages"
-    class="webvue-context-sidebar webvue-context-nav webvue-context-section-pages"
-    :data-expanded="props.expanded"
-    :data-preference="props.preference"
-    data-fresh-navigation
-    :aria-label="t(sectionPages[0]!.titleKey!)"
-  >
-    <ContextNavSections :sections="sectionPages" :counts="props.counts" :expanded="props.expanded" :count-prefix="navigationId" />
-  </nav>
 </template>

@@ -212,15 +212,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   max-height: calc(100svh - var(--shell-top) - var(--shell-inset));
   flex-direction: column;
   gap: var(--shell-inset);
-  /* The cards keep their content height; only a screen shorter than all of them scrolls the column, without a bar. */
-  overflow-y: auto;
-  scrollbar-width: none;
   transition: width var(--shell-duration) var(--shell-ease);
 }
-.webvue-context-column::-webkit-scrollbar { display: none; }
-.webvue-context-column > .webvue-context-sidebar:not([data-panel="true"]) { flex: none; }
-.webvue-context-column > .webvue-context-sidebar:not([data-panel="true"]) .webvue-context-nav,
-.webvue-context-column > .webvue-context-section-pages { overflow: visible; }
 /* Context sidebar: a white floating card beside the rail. */
 .webvue-context-sidebar {
   display: flex;
@@ -250,8 +243,6 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .webvue-context-toggle:hover { background: var(--webvue-nav-active); color: var(--webvue-rail-active-ink); }
 .webvue-context-nav { display: flex; min-height: 0; flex: 0 1 auto; flex-direction: column; gap: 12px; overflow-y: auto; padding: 0 8px 8px; }
 .webvue-context-section { display: grid; gap: 2px; }
-/* The pages of the open section: their own card under the fixed links, with the same card recipe. */
-.webvue-context-section-pages { padding-block-start: 8px; }
 .webvue-context-section-title { margin: 0; padding: 4px 12px; color: var(--ui-text-muted); font-size: .75rem; font-weight: 500; }
 .webvue-context-row, .webvue-quick-row { position: relative; display: flex; align-items: center; }
 :is(.webvue-context-link, .webvue-quick-link) {
