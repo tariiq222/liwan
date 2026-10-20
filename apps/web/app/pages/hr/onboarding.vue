@@ -12,7 +12,12 @@ const { can } = useAccess()
 const hydrated = useHydrated()
 const forbidden = computed(() => !can('hr.onboarding.read'))
 const canManage = computed(() => can('hr.onboarding.manage'))
-const isList = computed(() => (route.path.replace(/\/+$/, '') || '/') === '/hr/onboarding')
+// The list is this page's own screen and stays behind its create panel; the plan pages and the record
+// are full pages of their own, so the list is not drawn under them.
+const isListRoute = computed(() => {
+  const path = route.path.replace(/\/+$/, '') || '/'
+  return path === '/hr/onboarding' || path === '/hr/onboarding/new'
+})
 const state = computed<'open' | 'done' | undefined>(() => route.query.state === 'open' || route.query.state === 'done' ? route.query.state : undefined)
 const offset = computed(() => {
   const value = Number(route.query.offset)
@@ -36,7 +41,7 @@ const listQuery = computed(() => {
 const createTo = computed(() => canManage.value ? { path: '/hr/onboarding/new', query: listQuery.value } : undefined)
 const runTo = (run: { id: number }) => ({ path: `/hr/onboarding/${run.id}`, query: listQuery.value })
 function syncQuery(next: { state?: string, offset?: number }) {
-  if (!isList.value) return
+  if (!isListRoute.value) return
   void router.replace({ query: {
     ...(next.state && next.state !== 'all' ? { state: next.state } : {}),
     ...(next.offset ? { offset: String(next.offset) } : {}),
@@ -52,6 +57,7 @@ function setPage(next: number) {
 
 <template>
   <SharedListPage
+    v-if="isListRoute"
     data-testid="hr-onboarding-runs"
     :title="t(`${NAMESPACE}.runs.title`)"
     :create-to="createTo"

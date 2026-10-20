@@ -29,6 +29,12 @@ describe('the HR pages stay on their templates', () => {
     for (const needle of needles) expect(source, needle).toContain(needle)
   })
 
+  it.each(['onboarding', 'offboarding', 'recruitment', 'shifts', 'assets'])('pages/hr/%s.vue draws its list only on the list route and keeps the child routes', (area) => {
+    const source = read(`pages/hr/${area}.vue`)
+    expect(source).toContain('v-if="isListRoute"')
+    expect(source).toContain('<NuxtPage')
+  })
+
   it('draws no hand-made table or skeleton in the migrated HR files', () => {
     for (const file of ['pages/hr/index.vue', 'pages/hr/departments/index.vue', 'components/hr/DirectoryTable.vue', 'components/hr/DepartmentTable.vue', 'components/hr/EmployeeCard.vue', 'pages/hr/leave.vue']) {
       const source = read(file)
