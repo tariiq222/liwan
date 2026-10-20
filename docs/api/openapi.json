@@ -40,6 +40,7 @@
           "action": {
             "enum": [
               "user.granted",
+              "user.employee_linked",
               "user.roles_changed",
               "user.disabled",
               "user.reactivated",
@@ -182,6 +183,7 @@
                 "action": {
                   "enum": [
                     "user.granted",
+                    "user.employee_linked",
                     "user.roles_changed",
                     "user.disabled",
                     "user.reactivated",
@@ -297,6 +299,7 @@
           "action": {
             "enum": [
               "user.granted",
+              "user.employee_linked",
               "user.roles_changed",
               "user.disabled",
               "user.reactivated",
@@ -388,188 +391,6 @@
           "action",
           "target",
           "result"
-        ],
-        "type": "object"
-      },
-      "AdminUserCandidateListSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "items": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "access_active": {
-                  "type": [
-                    "boolean",
-                    "null"
-                  ]
-                },
-                "active": {
-                  "type": "boolean"
-                },
-                "department": {
-                  "anyOf": [
-                    {
-                      "additionalProperties": false,
-                      "properties": {
-                        "id": {
-                          "exclusiveMinimum": 0,
-                          "maximum": 9007199254740991,
-                          "type": "integer"
-                        },
-                        "name": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "name"
-                      ],
-                      "type": "object"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                },
-                "id": {
-                  "exclusiveMinimum": 0,
-                  "maximum": 9007199254740991,
-                  "type": "integer"
-                },
-                "name": {
-                  "type": "string"
-                },
-                "user_id": {
-                  "anyOf": [
-                    {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                },
-                "work_email": {
-                  "anyOf": [
-                    {
-                      "format": "email",
-                      "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
-                      "type": "string"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                }
-              },
-              "required": [
-                "id",
-                "name",
-                "department",
-                "work_email",
-                "active",
-                "user_id",
-                "access_active"
-              ],
-              "type": "object"
-            },
-            "type": "array"
-          },
-          "total": {
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "items",
-          "total"
-        ],
-        "type": "object"
-      },
-      "AdminUserCandidateSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "access_active": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "active": {
-            "type": "boolean"
-          },
-          "department": {
-            "anyOf": [
-              {
-                "additionalProperties": false,
-                "properties": {
-                  "id": {
-                    "exclusiveMinimum": 0,
-                    "maximum": 9007199254740991,
-                    "type": "integer"
-                  },
-                  "name": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "id",
-                  "name"
-                ],
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "id": {
-            "exclusiveMinimum": 0,
-            "maximum": 9007199254740991,
-            "type": "integer"
-          },
-          "name": {
-            "type": "string"
-          },
-          "user_id": {
-            "anyOf": [
-              {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "work_email": {
-            "anyOf": [
-              {
-                "format": "email",
-                "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "department",
-          "work_email",
-          "active",
-          "user_id",
-          "access_active"
         ],
         "type": "object"
       },
@@ -908,7 +729,6 @@
           "id",
           "name",
           "login",
-          "employee",
           "active",
           "protected",
           "assignments",
@@ -1107,7 +927,6 @@
                 "id",
                 "name",
                 "login",
-                "employee",
                 "active",
                 "protected",
                 "assignments",
@@ -1314,7 +1133,6 @@
           "id",
           "name",
           "login",
-          "employee",
           "active",
           "protected",
           "assignments",
@@ -2728,6 +2546,45 @@
         ],
         "type": "string"
       },
+      "AssignmentListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "role_id": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "scope": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "kind": {
+                  "const": "company",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "id"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "role_id",
+            "scope"
+          ],
+          "type": "object"
+        },
+        "minItems": 1,
+        "type": "array"
+      },
       "AssignmentNotificationSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -2774,6 +2631,7 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
           "user.granted",
+          "user.employee_linked",
           "user.roles_changed",
           "user.disabled",
           "user.reactivated",
@@ -3435,7 +3293,6 @@
             "type": "string"
           },
           "password": {
-            "minLength": 8,
             "type": "string"
           }
         },
@@ -6666,6 +6523,246 @@
         "required": [
           "key",
           "sources"
+        ],
+        "type": "object"
+      },
+      "EmployeeAccountCandidateListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "access_active": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "active": {
+                  "type": "boolean"
+                },
+                "department": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "user_id": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "work_email": {
+                  "anyOf": [
+                    {
+                      "format": "email",
+                      "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "department",
+                "work_email",
+                "active",
+                "user_id",
+                "access_active"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "EmployeeAccountCandidateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "access_active": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "department": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "work_email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "department",
+          "work_email",
+          "active",
+          "user_id",
+          "access_active"
+        ],
+        "type": "object"
+      },
+      "EmployeeAccountInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "assignments": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "role_id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "scope": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "kind": {
+                      "const": "company",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "role_id",
+                "scope"
+              ],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "employee_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "employee_id",
+          "password",
+          "assignments"
         ],
         "type": "object"
       },
@@ -16298,18 +16395,22 @@
             "minItems": 1,
             "type": "array"
           },
-          "employee_id": {
-            "exclusiveMinimum": 0,
-            "maximum": 9007199254740991,
-            "type": "integer"
+          "login": {
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
           },
           "password": {
-            "minLength": 8,
             "type": "string"
           }
         },
         "required": [
-          "employee_id",
+          "name",
+          "login",
           "password",
           "assignments"
         ],
@@ -27380,6 +27481,10 @@
         ],
         "type": "object"
       },
+      "PasswordInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "string"
+      },
       "PermissionCatalogSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -33283,7 +33388,6 @@
             "type": "string"
           },
           "password": {
-            "minLength": 8,
             "type": "string"
           }
         },
@@ -36634,6 +36738,86 @@
         }
       }
     },
+    "/api/v1/admin/employee-accounts": {
+      "post": {
+        "operationId": "webvue_access_hr.EmployeeAccountsController.grant.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "grant",
+        "tags": [
+          "webvue_access_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_access_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "EmployeeAccountsController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "grant",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/employee-accounts/candidates": {
+      "get": {
+        "operationId": "webvue_access_hr.EmployeeAccountsController.candidates.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "candidates",
+        "tags": [
+          "webvue_access_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_access_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "EmployeeAccountsController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "candidates",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/admin/maintenance": {
       "get": {
         "operationId": "webvue_api.MaintenanceController.maintenance.get",
@@ -37251,7 +37435,7 @@
         }
       },
       "post": {
-        "operationId": "webvue_api.AccessAdminUsersController.grant.post",
+        "operationId": "webvue_api.AccessAdminUsersController.create.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -37268,7 +37452,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "grant",
+        "summary": "create",
         "tags": [
           "webvue_api"
         ],
@@ -37281,46 +37465,8 @@
           "controller": "AccessAdminUsersController",
           "feature_keys": [],
           "feature_operation": null,
-          "handler": "grant",
+          "handler": "create",
           "readonly": false,
-          "route_type": "json2"
-        }
-      }
-    },
-    "/api/v1/admin/users/candidates": {
-      "get": {
-        "operationId": "webvue_api.AccessAdminUsersController.candidates.get",
-        "responses": {
-          "200": {
-            "description": "Success (serializer-whitelisted shape)."
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "422": {
-            "$ref": "#/components/responses/Invalid"
-          }
-        },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
-        "summary": "candidates",
-        "tags": [
-          "webvue_api"
-        ],
-        "x-webvue": {
-          "addon": "webvue_api",
-          "api_handler": true,
-          "auth": "user",
-          "body": "application/json (JSON-RPC style params)",
-          "contract_namespace": "access",
-          "controller": "AccessAdminUsersController",
-          "feature_keys": [],
-          "feature_operation": null,
-          "handler": "candidates",
-          "readonly": true,
           "route_type": "json2"
         }
       }
@@ -52551,6 +52697,7 @@
     }
   ],
   "tags": [
+    "webvue_access_hr",
     "webvue_ai",
     "webvue_api",
     "webvue_chat",

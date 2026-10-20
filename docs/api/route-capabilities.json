@@ -288,6 +288,20 @@
       "handler": "list_company_states",
       "no_capability_reason": null
     },
+    "GET /api/v1/admin/employee-accounts/candidates": {
+      "addon": "webvue_access_hr",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.grant"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "candidates",
+      "no_capability_reason": null
+    },
     "GET /api/v1/admin/maintenance": {
       "addon": "webvue_api",
       "auth": "user",
@@ -344,18 +358,6 @@
       "capability_source": "body",
       "feature_keys": [],
       "handler": "users",
-      "no_capability_reason": null
-    },
-    "GET /api/v1/admin/users/candidates": {
-      "addon": "webvue_api",
-      "auth": "user",
-      "capability_keys": [
-        "access.users.grant"
-      ],
-      "capability_match": "all",
-      "capability_source": "body",
-      "feature_keys": [],
-      "handler": "candidates",
       "no_capability_reason": null
     },
     "GET /api/v1/admin/users/{user_id}": {
@@ -2639,6 +2641,20 @@
       "handler": "upload_admin_company_logo",
       "no_capability_reason": null
     },
+    "POST /api/v1/admin/employee-accounts": {
+      "addon": "webvue_access_hr",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.grant"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "grant",
+      "no_capability_reason": null
+    },
     "POST /api/v1/admin/maintenance/bookings": {
       "addon": "webvue_api",
       "auth": "user",
@@ -2698,7 +2714,7 @@
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [],
-      "handler": "grant",
+      "handler": "create",
       "no_capability_reason": null
     },
     "POST /api/v1/admin/users/{user_id}/disable": {
