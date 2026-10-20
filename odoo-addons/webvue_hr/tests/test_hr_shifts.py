@@ -328,9 +328,23 @@ class TestHrShifts(WebVueHrCase):
 
         # hr.shifts.read declares hr.employees.read (spec 8.2), and a role must carry the
         # dependency its capability declares, so the fixture grants both.
-        self._user_with_shifts('hr_shifts_reader', ('hr.shifts.read', 'hr.employees.read'))
+        reader = self._user_with_shifts('hr_shifts_reader', ('hr.shifts.read', 'hr.employees.read'))
         self.authenticate('hr_shifts_reader', 'hr_shifts_reader_pass_123')
-        self.assertEqual(self.api('GET', '/api/v1/hr/shifts/schedules').status_code, 200)
+        listed = self.api('GET', '/api/v1/hr/shifts/schedules')
+        # Static diagnosis of the reader's 403 could not separate the two possible refusals, so
+        # one message carries both discriminators: the capability keys the service resolves for the
+        # reader in this company (a missing hr.shifts.read means the capability gate before the
+        # handler), and the response body (its text names the model or field when the handler's
+        # own ORM read refused). The 200 expectation itself is unchanged.
+        self.assertEqual(
+            listed.status_code, 200,
+            'resolved capabilities=%s body=%s' % (
+                sorted(self.env['webvue.access.service']._webvue_capability_keys(
+                    reader, company=self.company,
+                )),
+                listed.text,
+            ),
+        )
         refused = self.api('POST', '/api/v1/hr/shifts/assignments', {
             'employee_id': self.worker.id, 'schedule_id': self.schedule.id,
         })
