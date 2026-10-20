@@ -8,6 +8,7 @@ from . import (
     finance_bank,
     finance_bank_import,
     finance_budgets,
+    finance_cash_flow,
     finance_closing,
     finance_debit_notes,
     finance_documents,

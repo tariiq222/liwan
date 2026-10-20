@@ -163,3 +163,40 @@ export type FinanceReportLine = z.infer<typeof FinanceReportLineSchema>
 export type FinanceProfitLoss = z.infer<typeof FinanceProfitLossSchema>
 export type FinanceBalanceSheet = z.infer<typeof FinanceBalanceSheetSchema>
 export type FinanceZakatBase = z.infer<typeof FinanceZakatBaseSchema>
+
+const CashFlowItemSchema = z.object({ account: LedgerAccountSchema, amount }).strict()
+
+/**
+ * GET /finance/reports/cash-flow?date_from&date_to: the statement of cash flows by the indirect method, from the posted
+ * journal items (year-end closing entries left out). An amount is positive when cash comes in. `difference` is the check
+ * against the change of the cash accounts and is zero when the statement closes. `statutory` is always false: it is an
+ * accounting statement built from the books, not a filed one.
+ */
+export const FinanceCashFlowSchema = z.object({
+  date_from: day,
+  date_to: day,
+  currency,
+  basis: z.literal('indirect'),
+  statutory: z.literal(false),
+  opening_cash: amount,
+  closing_cash: amount,
+  net_change: amount,
+  operating: z.object({
+    net_income: amount,
+    adjustments: z.array(z.object({ key: z.literal('depreciation'), amount }).strict()),
+    /** Changes of receivables, payables and other current accounts. */
+    items: z.array(CashFlowItemSchema),
+    total: amount,
+  }).strict(),
+  investing: z.object({
+    items: z.array(CashFlowItemSchema),
+    /** Depreciation taken out of the fixed asset accounts' change, so only purchases and sales remain. */
+    depreciation_reclass: amount,
+    total: amount,
+  }).strict(),
+  financing: z.object({ items: z.array(CashFlowItemSchema), total: amount }).strict(),
+  total_change: amount,
+  difference: amount,
+}).strict()
+
+export type FinanceCashFlow = z.infer<typeof FinanceCashFlowSchema>

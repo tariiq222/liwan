@@ -6,6 +6,7 @@ from . import (
     audit_event,
     budget,
     budget_guard,
+    cash_flow_report,
     closing_service,
     feature_registry,
     mis_report,

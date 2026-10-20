@@ -7,6 +7,7 @@ import {
   FinanceJournalListSchema,
   FinanceBankImportPreviewRequestSchema,
   FinanceBankImportSchema,
+  FinanceCashFlowSchema,
   FinanceJournalSchema,
   FinancePaymentAllocateSchema,
   FinancePaymentPatchSchema,
@@ -178,5 +179,22 @@ describe('bank statement import bodies', () => {
     expect(() => FinanceBankImportSchema.parse({ ...file, mapping })).toThrow()
     expect(() => FinanceBankImportSchema.parse({ ...file, balance_start: 0, balance_end_real: 0 })).toThrow()
     expect(() => FinanceBankImportSchema.parse({ ...file, mapping, balance_start: 0, balance_end_real: 0, colour: 1 })).toThrow()
+  })
+})
+
+describe('cash flow statement', () => {
+  const statement = {
+    date_from: '2026-01-01', date_to: '2026-12-31', currency: 'SAR', basis: 'indirect', statutory: false,
+    opening_cash: 5000, closing_cash: 103000, net_change: 98000,
+    operating: { net_income: 0, adjustments: [], items: [], total: 0 },
+    investing: { items: [{ account: { id: 1, code: '106002', name: 'Furniture' }, amount: -12000 }], depreciation_reclass: 0, total: -12000 },
+    financing: { items: [], total: 110000 },
+    total_change: 98000, difference: 0,
+  }
+
+  it('accepts a closed statement and refuses a statutory claim or an unknown key', () => {
+    expect(FinanceCashFlowSchema.parse(statement)).toEqual(statement)
+    expect(() => FinanceCashFlowSchema.parse({ ...statement, statutory: true })).toThrow()
+    expect(() => FinanceCashFlowSchema.parse({ ...statement, extra: 1 })).toThrow()
   })
 })

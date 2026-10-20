@@ -31,7 +31,7 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `POST /entries/<id>/post`, `/reset-to-draft`, `/unreconcile` | `finance.entries.post` |
 | `POST /invoices/<id>/debit-note` (201, a draft) | `finance.invoices.manage` |
 | `GET /countries` (`q`), `GET /countries/<id>/states` (`q`) | `finance.partners.read` or `finance.setup.read` |
-| `GET /reports/trial-balance`, `/reports/general-ledger`, `/reports/aged-partner-balance`, `/reports/partner-statement`, `/reports/profit-loss`, `/reports/balance-sheet` | `finance.statements.read` |
+| `GET /reports/trial-balance`, `/reports/general-ledger`, `/reports/cash-flow`, `/reports/aged-partner-balance`, `/reports/partner-statement`, `/reports/profit-loss`, `/reports/balance-sheet` | `finance.statements.read` |
 | `GET /reports/zakat-base` | `finance.zakat.read` |
 | `GET /asset-profiles`, `GET /assets`, `GET /assets/<id>` | `finance.assets.read` |
 | `POST /assets` (201, a draft), `POST /assets/<id>/validate`, `POST /assets/<id>/dispose`, `POST /assets/compute-depreciation` | `finance.assets.manage` |
@@ -236,6 +236,20 @@ refused by the wizard (422 `invalid`); a draft or already removed asset is 422 `
   nothing is guessed, and each line is matched in its own savepoint so one refusal does not stop the rest.
 - Not done: foreign-currency exchange differences in a reconciliation, partial matches proposed automatically, and OCA
   reconcile models and rules (the route above is the only automatic rule).
+
+## Cash flow statement
+
+`GET /reports/cash-flow?date_from&date_to` (`finance.statements.read`) is the statement of cash flows by the indirect method,
+built from the posted journal items of the current company with the year-end closing entries left out. Cash is the
+accounts of type `asset_cash`. Operating is net income, the depreciation added back, and the change of receivables, prepayments,
+other current assets, payables, credit cards and other current liabilities; investing is the change of the fixed and
+non-current asset accounts less the depreciation (so only purchases and sales remain); financing is the change of equity and
+non-current liabilities. Each line is an account with its cash effect (positive when cash comes in), so it can be opened
+down to the entries. `difference` is the check against the change of the cash accounts: it is zero when every account kind
+is classified, and a kind outside the three sections would show there, not be hidden. `basis` is `indirect` and `statutory`
+is always `false`: this is an accounting statement from the books, not a filed one; a Saudi accountant must review its
+classification before it is relied on. The direct method is not offered (it needs the payment-to-document chain that Odoo
+Community's reports do not keep).
 
 ## Journal entries
 
