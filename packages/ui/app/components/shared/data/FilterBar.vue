@@ -48,6 +48,7 @@
 </template>
 
 <script setup lang="ts">
+import { FILTER_ROW_KEY } from '../../../utils/filterBar'
 import { LIST_VIEW_KEY } from '../../../utils/listView'
 import ViewSwitch from './ViewSwitch.vue'
 // The one list toolbar (DESIGN.md §6): a visible search, then a trigger that shows the
@@ -71,6 +72,7 @@ const props = withDefaults(defineProps<{
 })
 defineEmits<{ clear: [] }>()
 const listView = inject(LIST_VIEW_KEY, null)
+provide(FILTER_ROW_KEY, computed(() => props.inline || props.embedded))
 const { t } = useI18n()
 const hydrated = useHydrated()
 const expanded = ref(props.defaultOpen)

@@ -4,6 +4,7 @@ import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
 
+import * as filterBar from '../../app/utils/filterBar'
 import * as listView from '../../app/utils/listView'
 import { sharedFile } from './renderShared'
 
@@ -15,11 +16,12 @@ export function loadFilterComponent(name: string, hydrated = true): Vue.Componen
   const exports: { default?: Vue.Component } = {}
   const require = (path: string) => {
     if (path === 'vue') return Vue
+    if (path === '../../../utils/filterBar') return filterBar
     if (path === '../../../utils/listView') return listView
     if (path === './ViewSwitch.vue') return { __esModule: true, default: Vue.defineComponent({ setup: () => () => Vue.h('div', { 'data-slot': 'view-switch' }) }) }
     throw new Error(`Unhandled component dependency ${path}`)
   }
-  new Function('require', 'exports', 'ref', 'computed', 'useId', 'useI18n', 'useHydrated', 'inject', code)(require, exports, Vue.ref, Vue.computed, Vue.useId, () => ({ t: (key: string) => ({ 'filterCard.title': 'Search and filters', 'filterCard.clear': 'Clear filters' }[key] ?? key) }), () => Vue.ref(hydrated), Vue.inject)
+  new Function('require', 'exports', 'ref', 'computed', 'useId', 'useI18n', 'useHydrated', 'inject', 'provide', code)(require, exports, Vue.ref, Vue.computed, Vue.useId, () => ({ t: (key: string) => ({ 'filterCard.title': 'Search and filters', 'filterCard.clear': 'Clear filters' }[key] ?? key) }), () => Vue.ref(hydrated), Vue.inject, Vue.provide)
   return exports.default!
 }
 export async function renderFilter(name: string, props: Record<string, unknown> = {}, slots: Record<string, () => Vue.VNode | Vue.VNode[]> = {}, hydrated = true, listViewContext?: unknown) {

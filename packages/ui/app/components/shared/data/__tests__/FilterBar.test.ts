@@ -3,7 +3,7 @@ import * as Vue from 'vue'
 import { h } from 'vue'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { renderFilter } from '../../../../../test/helpers/filterComponents'
+import { loadFilterComponent, renderFilter } from '../../../../../test/helpers/filterComponents'
 
 const field = () => h('input', { value: 'Project A' })
 
@@ -90,6 +90,11 @@ describe('FilterBar', () => {
       const html = await renderFilter('FilterBar', { inline }, { search: () => h('input'), default: () => h('select') })
       expect(html.match(/data-shortcut-search/g), `inline=${inline}`).toHaveLength(1)
     }
+  })
+  it('sets each field label beside its control only when the fields share the toolbar row', async () => {
+    const field = () => h(loadFilterComponent('FilterField'), { label: 'State', for: 'state' }, () => h('select', { id: 'state' }))
+    for (const props of [{ inline: true }, { embedded: true }]) expect(await renderFilter('FilterBar', props, { default: field }), JSON.stringify(props)).toContain('md:flex')
+    expect(await renderFilter('FilterBar', {}, { default: field })).not.toContain('md:flex')
   })
   it('Esc in the panel closes it and returns focus to the trigger', () => {
     const source = readFileSync(resolve(import.meta.dirname, '../FilterBar.vue'), 'utf8')
