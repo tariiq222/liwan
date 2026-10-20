@@ -58,6 +58,7 @@
     "apps/web/app/pages/invite/accept.vue lacks customer-commercial middleware": 1
   },
   "R9": {
+    "override odoo-addons/webvue_core/models/res_partner.py": 1,
     "override odoo-addons/webvue_hr/models/hr_department.py": 2,
     "override odoo-addons/webvue_hr/models/hr_employee.py": 4,
     "override odoo-addons/webvue_hr/models/hr_version.py": 2,

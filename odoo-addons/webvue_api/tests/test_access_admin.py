@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.exceptions import AccessError
 from odoo.http import root
 from odoo.tests import new_test_user, tagged
 from odoo.tests.common import HOST, Opener
@@ -183,6 +184,23 @@ class TestAccessAdminUsers(WebVueApiCase):
             ('login', '=', 'access.target@example.com'),
         ]))
         self.assertEqual(self.env['webvue.access.audit'].search_count([]), audit_count)
+
+    def test_grant_capability_creates_a_contact_only_inside_the_account_create(self):
+        Partner = self.env['res.partner'].with_user(self.admin)
+        with self.assertRaises(AccessError):
+            Partner.create({'name': 'Loose Contact', 'email': 'loose.contact@example.com'})
+        self._admin()
+        role = self.env.ref('webvue_core.role_employee')
+        response = self.api('POST', '/api/v1/admin/users', {
+            'name': 'Marked Contact', 'login': 'marked.contact@example.com',
+            'password': 'marked_contact_pass_123',
+            'assignments': [{'role_id': role.id, 'scope': {'kind': 'company', 'id': self.env.company.id}}],
+        })
+        self.assertEqual(response.status_code, 201, response.text)
+        user = self.env['res.users'].browse(response.json()['id'])
+        self.assertEqual(user.partner_id.email, 'marked.contact@example.com')
+        with self.assertRaises(AccessError):
+            Partner.create({'name': 'Loose Contact', 'email': 'loose.contact@example.com'})
 
     def test_vendor_mutation_is_rejected(self):
         self._admin()

@@ -7,6 +7,9 @@ from odoo import api, models
 from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Command
 
+from .protected_write import marked
+from .res_partner import PARTNER_CREATE_MARKER
+
 SYSTEM_PERMISSIONS = {
     'access.users.read', 'access.users.grant', 'access.users.assign_roles',
     'access.users.disable', 'access.users.reset_password', 'access.roles.read',
@@ -467,9 +470,10 @@ class WebVueAccessService(models.AbstractModel):
         try:
             with self.env.cr.savepoint():
                 # The partner is created first so the protected create below may adopt it.
-                vals['partner_id'] = partner_id or self.env['res.partner'].create(
-                    {'name': name, 'email': login},
-                ).id
+                if not partner_id:
+                    with marked(self.env, {PARTNER_CREATE_MARKER: [self.env.uid]}):
+                        partner_id = self.env['res.partner'].create({'name': name, 'email': login}).id
+                vals['partner_id'] = partner_id
                 # The view_group_hierarchy default is a web-client form helper whose
                 # cold-cache build reads ir.module.category, which an access admin
                 # may not read; it is never stored, so it is skipped.

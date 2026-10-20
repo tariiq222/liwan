@@ -16,7 +16,7 @@ access_audit_password_writer,access.audit password writer,model_webvue_access_au
 access_audit_roles_writer,access.audit roles writer,model_webvue_access_audit,webvue_core.group_cap_access_roles_manage,1,0,1,0
 access_users_access_reader,users access reader,base.model_res_users,webvue_core.group_cap_access_users_read,1,0,0,0
 access_users_access_grant,users access grant,base.model_res_users,webvue_core.group_cap_access_users_grant,1,0,1,0
-access_partner_access_grant,partner account grant,base.model_res_partner,webvue_core.group_cap_access_users_grant,1,1,1,0
+access_partner_access_grant,partner account grant,base.model_res_partner,webvue_core.group_cap_access_users_grant,1,1,0,0
 access_company_branding_manager,company branding manager,base.model_res_company,webvue_core.group_cap_settings_branding_manage,1,1,0,0
 access_partner_branding_manager,company partner branding manager,base.model_res_partner,webvue_core.group_cap_settings_branding_manage,1,1,0,0
 access_company_company_manager,company profile manager,base.model_res_company,webvue_core.group_cap_settings_company_manage,1,1,0,0
