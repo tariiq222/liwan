@@ -23,18 +23,6 @@ def today_utc():
     return now.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def _task_counts(project, today):
-    Task = project.env['project.task']
-    base_domain = [('project_id', '=', project.id)]
-    task_count = Task.search_count(base_domain)
-    closed_task_count = Task.search_count([*base_domain, ('state', 'in', _CLOSED_STATES)])
-    overdue_task_count = Task.search_count([
-        *base_domain, ('state', 'not in', _CLOSED_STATES),
-        ('date_deadline', '!=', False), ('date_deadline', '<', today),
-    ])
-    return task_count, closed_task_count, overdue_task_count
-
-
 def task_counts_by_project(projects, today):
     """Aggregate readable task counts with the caller's task ACLs and rules."""
     if not projects:
@@ -67,12 +55,9 @@ def task_counts_by_project(projects, today):
     }
 
 
-def dump_report_row(project, today, can_read_tasks, task_values=None, finance_summary=None):
+def dump_report_row(project, can_read_tasks, task_values, finance_summary):
     if can_read_tasks:
-        if task_values is None:
-            task_count, closed_task_count, overdue_task_count = _task_counts(project, today)
-        else:
-            task_count, closed_task_count, overdue_task_count = task_values
+        task_count, closed_task_count, overdue_task_count = task_values
         progress = round((closed_task_count / task_count) * 100) if task_count else 0
     else:
         task_count = closed_task_count = overdue_task_count = None
@@ -82,7 +67,7 @@ def dump_report_row(project, today, can_read_tasks, task_values=None, finance_su
             'id': project.id, 'name': project.name,
             'status': STATUS_TO_API.get(project.last_update_status),
         },
-        'finance': finance_summary if finance_summary is not None else build_finance_summary(project),
+        'finance': finance_summary,
         'task_count': task_count,
         'closed_task_count': closed_task_count,
         'overdue_task_count': overdue_task_count,
@@ -129,7 +114,7 @@ def build_dashboard_summary(projects, today, can_read_tasks, task_counts=None, f
     attention_rows = []
     for _, _, _, project, task_values in attention[:10]:
         attention_rows.append(dump_report_row(
-            project, today, can_read_tasks, task_values,
+            project, can_read_tasks, task_values,
             finance_summaries[project.id],
         ))
     return {
@@ -156,7 +141,7 @@ def build_project_dashboard_analytics(projects, today, can_read_tasks):
     finance_summaries = finance_summaries_by_project(projects)
     rows = [
         dump_report_row(
-            project, today, can_read_tasks,
+            project, can_read_tasks,
             task_counts.get(project.id, (0, 0, 0)) if can_read_tasks else None,
             finance_summaries[project.id],
         )
@@ -174,7 +159,7 @@ def build_project_dashboard_analytics(projects, today, can_read_tasks):
     recent_rows = [
         {
             **dump_report_row(
-                project, today, can_read_tasks,
+                project, can_read_tasks,
                 task_counts.get(project.id, (0, 0, 0)) if can_read_tasks else None,
                 finance_summaries[project.id],
             ),
@@ -188,7 +173,7 @@ def build_project_dashboard_analytics(projects, today, can_read_tasks):
     return {**summary, 'projects': rows, 'recent_projects': recent_rows}
 
 
-def build_report_totals(projects, finance_summaries=None):
+def build_report_totals(projects, finance_summaries):
     """Per-currency totals across every filtered, visible project.
 
     Accumulated as exact `Decimal`, not float, and only rounded to the
@@ -210,10 +195,7 @@ def build_report_totals(projects, finance_summaries=None):
             }
             order.append(key)
         bucket = buckets[key]
-        summary = (
-            finance_summaries[project.id]
-            if finance_summaries is not None else build_finance_summary(project)
-        )
+        summary = finance_summaries[project.id]
         bucket['project_count'] += 1
         bucket['actual'] += to_decimal(summary['actual'])
         if summary['planned'] is not None:
