@@ -13,6 +13,7 @@ class WebVueHrPlanRun(models.Model):
 
     _name = 'webvue.hr.plan.run'
     _description = 'WebVue HR plan run'
+    _webvue_scope = 'company'
 
     employee_id = fields.Many2one(
         'hr.employee', required=True, ondelete='cascade', index=True,
