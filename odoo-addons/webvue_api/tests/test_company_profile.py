@@ -211,20 +211,17 @@ class TestCompanyProfile(WebVueApiCase):
             self.assertEqual(self._patch({'city': 'Riyadh'}).status_code, 200)
         self.assertEqual(written, [{'city'}])
 
-    def test_the_address_lookups_list_countries_and_the_states_of_one(self):
+    def test_the_address_lookup_lists_the_states_of_a_country(self):
         self.authenticate(READER, PASSWORD)
-        countries = self.api('GET', f'{ROUTE}/countries').json()
-        self.assertEqual(set(countries), {'items', 'total'})
-        self.assertGreater(countries['total'], len(countries['items']))
-        countries = self.api('GET', f'{ROUTE}/countries?q=saudi').json()
-        self.assertIn({'id': self.saudi.id, 'name': self.saudi.name, 'code': 'SA'}, countries['items'])
         states = self.api('GET', f'{ROUTE}/countries/{self.saudi.id}/states').json()
         self.assertIn(self.state.id, [state['id'] for state in states['items']])
         self.assertEqual(set(states['items'][0]), {'id', 'name', 'code'})
         self.assertEqual(self.api('GET', f'{ROUTE}/countries/999999999/states').status_code, 404)
         self.authenticate(EMPLOYEE, PASSWORD)
-        self.assertEqual(self.api('GET', f'{ROUTE}/countries').status_code, 403)
         self.assertEqual(self.api('GET', f'{ROUTE}/countries/{self.saudi.id}/states').status_code, 403)
+        self.authenticate(READER, PASSWORD)
+        # The company country is fixed at provisioning, so there is no country list for the profile.
+        self.assertEqual(self.api('GET', f'{ROUTE}/countries').status_code, 404)
 
     def test_the_orm_still_refuses_profile_writes_outside_the_protected_helper(self):
         admin = self.env['res.users'].search([('login', '=', ADMIN)])

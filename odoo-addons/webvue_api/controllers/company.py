@@ -3,7 +3,7 @@ from odoo import http
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import api_handler, requires_capability
-from odoo.addons.webvue_api.controllers.lookups import list_countries, list_states
+from odoo.addons.webvue_api.controllers.lookups import list_states
 from odoo.addons.webvue_api.serializers.company_profile import (
     dump_company_profile,
     parse_company_profile_vals,
@@ -34,12 +34,6 @@ class CompanyController(http.Controller):
         company = request.env.company
         company._webvue_write_company_profile({'logo': parse_logo_upload(payload)})
         return dump_company_profile(company)
-
-    @http.route('/api/v1/admin/company/countries', type='json2', auth='user', methods=['GET'], readonly=True)
-    @api_handler
-    @requires_capability('settings.company.read')
-    def list_company_countries(self, **_):
-        return list_countries()
 
     @http.route('/api/v1/admin/company/countries/<int:country_id>/states', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
