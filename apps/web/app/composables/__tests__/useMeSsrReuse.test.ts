@@ -61,6 +61,7 @@ function subject(server: boolean) {
     computed: Vue.computed, MeSchema,
     useRequestHeaders: () => server ? { cookie: active.cookie } : {},
     useNuxtData: (key: string) => active.useNuxtData(key),
+    useNuxtApp: () => active.app,
     useFetch: (...args: any[]) => active.useFetch(...args),
   }, server, '({useMe,isSchemaError,isLoggedOutError})')
   const useAccess = evaluate(readFileSync(resolve(import.meta.dirname, '../useAccess.ts'), 'utf8'), {
