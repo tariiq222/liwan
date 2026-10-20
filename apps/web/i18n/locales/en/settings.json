@@ -8,7 +8,6 @@
       "list": "Results"
     },
     "branding": {
-      "title": "Company identity",
       "name": "Company name",
       "color": "Document and report color",
       "logo": "Logo",
@@ -90,7 +89,6 @@
       }
     },
     "projects": {
-      "title": "Project settings",
       "creators": {
         "label": "Who can create projects",
         "managers": "Project managers and administrators",
@@ -103,7 +101,6 @@
       },
       "saved": "Settings saved",
       "createRequirements": {
-        "label": "Required on create",
         "hint": "These rules apply only when creating a project. Existing projects stay editable even if they are incomplete.",
         "manager": "Require a project manager",
         "endDate": "Require an end date"
@@ -182,7 +179,7 @@
         "hint": "Controls who can start a project and what must be entered at creation. These rules do not update existing projects."
       },
       "defaults": {
-        "title": "Defaults for new projects",
+        "title": "Project defaults",
         "hint": "Stages and task completion approval are copied into a project when it is created. Changing them does not update existing projects."
       }
     },
@@ -282,6 +279,13 @@
     },
     "overview": {
       "separator": ", "
+    },
+    "preview": {
+      "latest": "Latest records",
+      "allUsers": "All users",
+      "allRoles": "All roles",
+      "allAccessLog": "Full log",
+      "allAudit": "Full audit log"
     }
   }
 }

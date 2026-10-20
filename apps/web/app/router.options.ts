@@ -1,9 +1,14 @@
 import type { RouterConfig } from '@nuxt/schema'
+import { hashScrollPosition, isSpyHash, whenElement } from './composables/nav/settingsScroll'
 import { scrollTargetFor, whenScrollTopReachable } from './utils/scrollMemory'
 
-function hashElement(hash: string): unknown {
+function hashElement(hash: string): Element | null {
   // A hash is user-controlled and need not be a valid selector.
   try { return document.querySelector(hash) } catch { return null }
+}
+
+function hashPosition(el: Element, behavior: 'smooth' | 'instant') {
+  return hashScrollPosition(el, Number.parseFloat(getComputedStyle(el).scrollMarginTop) || 0, behavior, window.matchMedia('(prefers-reduced-motion: reduce)').matches)
 }
 
 function viewport() {
@@ -20,6 +25,14 @@ function nextFrame() {
 // records where each URL was left and this puts them back on it.
 export default <RouterConfig>{
   async scrollBehavior(to, from, savedPosition) {
+    // A new hash on the page already open (a settings card from the palette): scroll to it in place, smoothly.
+    // A query change that keeps the hash (a filter) leaves the page where it is.
+    if (to.hash && to.hash !== from.hash && !savedPosition && to.path === from.path) {
+      // The spy wrote this hash itself: the page already shows that card.
+      if (isSpyHash(to.hash)) return false
+      const el = await whenElement(() => hashElement(to.hash), nextFrame)
+      return el ? hashPosition(el, 'smooth') : false
+    }
     const target = scrollTargetFor(to, from, savedPosition)
     // false keeps the current offset rather than moving the page at all.
     if (!target) return false
@@ -31,7 +44,8 @@ export default <RouterConfig>{
     // scroll never happened at all. Wait on the document instead: it is what
     // the restore actually depends on, and it can only be measured.
     await nextFrame()
-    if (to.hash && hashElement(to.hash)) return { el: to.hash, behavior: 'instant' }
+    const card = to.hash ? await whenElement(() => hashElement(to.hash), nextFrame) : null
+    if (card) return hashPosition(card, 'instant')
     const restingAt = window.scrollY
     await whenScrollTopReachable(target.top, viewport, nextFrame)
     // That wait spans a cold list's request. Someone who scrolled while it ran

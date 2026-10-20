@@ -2,14 +2,14 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { FinanceFiscalYear } from '@webvue/contracts'
 import Money from '../invoices/Money.vue'
-import { CLOSING_PATH, FISCAL_YEAR_STATE_TONE } from './closingPresentation'
+import { CLOSING_HASH, CLOSING_PATH, FISCAL_YEAR_STATE_TONE } from './closingPresentation'
 
 // The fiscal years of the company: state, result and the closing entry. An open year opens its preview via ?year=.
 defineProps<{ years: FinanceFiscalYear[]; currency?: string; selected: number | null }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 
-const previewTo = (year: number) => ({ path: CLOSING_PATH, query: { year: String(year) } })
+const previewTo = (year: number) => ({ path: CLOSING_PATH, query: { year: String(year) }, hash: CLOSING_HASH })
 const resultClass = (value: number) => value < 0 ? 'text-error' : value > 0 ? 'text-success' : 'text-muted'
 const entryTo = (id: number) => `/finance/accounting/entries/${id}`
 const numeric = { class: { th: 'text-end', td: 'text-end' } }

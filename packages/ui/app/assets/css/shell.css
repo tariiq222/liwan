@@ -17,6 +17,12 @@
 .webvue-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--webvue-gap-card); }
 
 .webvue-form-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block-start: 20px; border-block-start: 1px solid var(--border); }
+/* A settings panel as a list of rows: name and hint at the start, the control at the end, a rule between rows. */
+.webvue-setting-rows { display: grid; }
+.webvue-setting-rows > * { padding-block: 16px; border-block-start: 1px solid var(--border); }
+.webvue-setting-rows > :first-child { padding-block-start: 0; border-block-start: 0; }
+.webvue-setting-rows > :last-child { padding-block-end: 0; }
+.webvue-setting-rows > [data-orientation="horizontal"] { align-items: center; gap: 24px; }
 .schedule-gantt { overflow-x: auto; }
 /* max-content: the grid must span every track, or its sticky name column stops at the scroller's width. */
 .schedule-gantt-grid { display: grid; width: max-content; min-width: max(720px, 100%); }
@@ -56,6 +62,7 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
 
 @media (max-width: 600px) {
   .webvue-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .webvue-setting-rows > [data-orientation="horizontal"] { flex-direction: column; align-items: stretch; gap: 10px; }
 }
 
 /* Floating shell (owner-approved 2026-10-17): the header, the 64px module rail and the

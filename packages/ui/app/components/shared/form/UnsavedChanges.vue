@@ -1,3 +1,9 @@
+<script lang="ts">
+// A page can mount several guarded forms (the cards of a settings page). Confirming a departure lets every one of
+// them through, so leaving asks once and not once per form.
+const departure = { confirmed: false }
+</script>
+
 <script setup lang="ts">
 import type { ModalProps } from '@nuxt/ui'
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
@@ -26,7 +32,7 @@ onMounted(() => window.addEventListener('beforeunload', guardBrowserUnload))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', guardBrowserUnload))
 
 function guard(to: { fullPath: string }) {
-  if (!props.dirty || leaving.value) return true
+  if (!props.dirty || leaving.value || departure.confirmed) return true
   // An overlay that started this navigation and is closing (the palette) hands over where focus belongs.
   if (import.meta.client) returnFocus = takeNavigationFocus() ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
   pendingPath.value = to.fullPath
@@ -34,18 +40,24 @@ function guard(to: { fullPath: string }) {
 }
 
 onBeforeRouteLeave(guard)
-function onlyIgnoredQueryChanged(to: { path: string; query: Record<string, unknown> }, from: { path: string; query: Record<string, unknown> }): boolean {
-  if (to.path !== from.path || !props.ignoreQueryKeys.length) return false
+type Place = { path: string; query: Record<string, unknown> }
+// Same path, and every query key outside `ignored` has the same value.
+function sameExcept(to: Place, from: Place, ignored: readonly string[]): boolean {
+  if (to.path !== from.path) return false
   const keys = new Set([...Object.keys(to.query), ...Object.keys(from.query)])
   for (const key of keys) {
-    if (String(to.query[key] ?? '') !== String(from.query[key] ?? '') && !props.ignoreQueryKeys.includes(key)) return false
+    if (String(to.query[key] ?? '') !== String(from.query[key] ?? '') && !ignored.includes(key)) return false
   }
   return true
 }
 
 // A same-path query change (a filter, a tab) is not a departure, so only a
 // form that says its own query carries draft state asks to guard those too.
-onBeforeRouteUpdate((to, from) => (props.guardRouteUpdates && !onlyIgnoredQueryChanged(to, from) ? guard(to) : true))
+// A hash-only change (scrolling to another card of the page) never is.
+onBeforeRouteUpdate((to, from) => {
+  if (!props.guardRouteUpdates || sameExcept(to, from, []) || (props.ignoreQueryKeys.length > 0 && sameExcept(to, from, props.ignoreQueryKeys))) return true
+  return guard(to)
+})
 
 watch(() => props.dirty, dirty => {
   if (!dirty) pendingPath.value = null
@@ -59,10 +71,12 @@ async function discard() {
   const destination = pendingPath.value
   if (!destination || leaving.value) return
   leaving.value = true
+  departure.confirmed = true
   try {
     await navigateTo(destination)
   } finally {
     leaving.value = false
+    departure.confirmed = false
   }
 }
 

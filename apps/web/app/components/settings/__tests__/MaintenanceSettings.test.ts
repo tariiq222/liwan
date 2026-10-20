@@ -40,9 +40,9 @@ function update(h: ReturnType<typeof harness>, id: string, value: unknown) {
 
 describe('maintenance settings', () => {
   it('gates both direct navigation and settings links on the maintenance capability', () => {
-    expect(canReachPath({ capabilities: [] }, '/settings/system/maintenance')).toBe(false)
-    expect(canReachPath({ capabilities: ['settings.maintenance.manage'] }, '/settings/system/maintenance')).toBe(true)
-    expect(useNav({ capabilities: ['settings.maintenance.manage'] }).map(item => item.to)).toContain('/settings/system/maintenance')
+    expect(canReachPath({ capabilities: [] }, '/settings/system')).toBe(false)
+    expect(canReachPath({ capabilities: ['settings.maintenance.manage'] }, '/settings/system')).toBe(true)
+    expect(useNav({ capabilities: ['settings.maintenance.manage'] }).map(item => item.to)).toContain('/settings/system#maintenance')
   })
 
   it('submits the selected release and local time, preserving a failed booking draft', async () => {

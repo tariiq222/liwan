@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { FinanceAnalyticAccountListSchema, FinanceAnalyticPlanListSchema, FinanceAnalyticReportLineListSchema, FinanceAnalyticReportSchema } from '@webvue/contracts'
 import { financeAnalyticPreviewData } from '../../../../e2e/finance-analytic-ui-preview-data.mjs'
 
-// The analytic settings page and the cost center report stay on their templates. This is a source guard, not a behaviour test.
+// The analytic cards of the finance settings page and the cost center report stay on their templates. This is a source guard, not a behaviour test.
 const app = resolve(import.meta.dirname, '../../..')
 const locales = resolve(app, '../i18n/locales')
 const read = (path: string) => readFileSync(resolve(app, path), 'utf8')
@@ -18,7 +18,6 @@ function sources(dir: string): string[] {
 }
 
 const FILES = [
-  'pages/settings/apps/finance/analytic.vue',
   ...sources('components/finance/analytic'),
   'components/finance/reports/AnalyticTable.vue',
   'composables/finance/useFinanceAnalytic.ts',
@@ -32,7 +31,7 @@ const locale = (code: string) => JSON.parse(readFileSync(resolve(locales, `${cod
 
 describe('the finance analytic pages stay on their templates', () => {
   it.each([
-    ['pages/settings/apps/finance/analytic.vue', ['<SharedSettingsPage', '<SharedPageHeader', "kind: 'count'", '<SharedForbiddenState', "can('finance.analytic.read')"]],
+    ['pages/settings/apps/finance/index.vue', ['<SharedSettingsPage', '<AnalyticPlansSection', '<AnalyticAccountsSection', 'id="analytic"', "shows('analytic')"]],
     ['components/finance/analytic/AnalyticPlansSection.vue', ['<SharedRecordSection variant="list"', '<SharedRowActions', '<SharedPageState', '<SharedEmptyState', 'canWritePlan(can', 'mustChooseParent(can)']],
     ['components/finance/analytic/AnalyticPlanEditor.vue', ['color="error" variant="subtle"', 'saveErrorMessage', ':disabled="!hydrated']],
     ['components/finance/analytic/AnalyticAccountsSection.vue', ['<SharedRecordSection variant="panel"', 'useRouteListFilters', '<SharedFilterBar', '<SharedDataTable', ' bare', '#mobile-row', '<SharedRowActions', '<SharedStatusBadge', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState', "can('finance.analytic.manage')"]],
@@ -61,7 +60,7 @@ describe('the finance analytic pages stay on their templates', () => {
   })
 
   it('has no KPI strip on the settings page', () => {
-    for (const file of ['pages/settings/apps/finance/analytic.vue', ...sources('components/finance/analytic')]) expect(read(file), file).not.toContain('SharedKpiStrip')
+    for (const file of ['pages/settings/apps/finance/index.vue', ...sources('components/finance/analytic')]) expect(read(file), file).not.toContain('SharedKpiStrip')
   })
 })
 

@@ -139,7 +139,7 @@
       }
     },
     "setup": {
-      "title": "Finance",
+      "title": "Setup",
       "ready": "Ready to invoice",
       "notReady": "Setup incomplete",
       "done": "Done",

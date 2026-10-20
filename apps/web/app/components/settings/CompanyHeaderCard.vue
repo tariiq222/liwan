@@ -2,7 +2,7 @@
 import type { CompanyProfile } from '@webvue/contracts'
 import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
 
-// The company at the top of every company page: logo, name, the registration facts and how much of the profile is filled in.
+// The company at the top of the company page: logo, name, the registration facts and how much of the profile is filled in.
 const props = defineProps<{ profile: CompanyProfile }>()
 const { t } = useI18n()
 const facts = computed(() => [props.profile.company_registry, props.profile.vat].filter(Boolean).join(' · '))

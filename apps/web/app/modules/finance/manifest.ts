@@ -80,13 +80,17 @@ const manifest: AppManifest = {
     { to: '/finance/assets', labelKey: 'finance.nav.assets', icon: 'i-lucide-package', shortcut: '', capability: 'finance.assets.read' },
     { to: '/finance/reports/trial-balance', labelKey: 'finance.nav.reports', icon: 'i-lucide-file-chart-column', shortcut: '', capability: 'finance.statements.read' },
   ],
-  settings: [
-    { id: 'finance-setup', labelKey: 'finance.setup.title', icon: 'i-lucide-landmark', to: '/settings/apps/finance', capability: 'finance.setup.read' },
-    { id: 'finance-analytic', labelKey: 'finance.nav.analyticSettings', icon: 'i-lucide-chart-pie', to: '/settings/apps/finance/analytic', capability: 'finance.analytic.read' },
-    { id: 'finance-closing', labelKey: 'finance.nav.closing', icon: 'i-lucide-calendar-check', to: '/settings/apps/finance/closing', capability: 'finance.closing.read' },
-    { id: 'finance-zatca', labelKey: 'finance.nav.zatca', icon: 'i-lucide-qr-code', to: '/settings/apps/finance/zatca', capability: 'finance.zatca.read' },
-    { id: 'finance-audit', labelKey: 'finance.nav.audit', icon: 'i-lucide-history', to: '/settings/apps/finance/audit', capability: 'finance.audit.read' },
-  ],
+  // One page of cards; the audit card previews the log and its full list is a page of its own.
+  settings: {
+    id: 'finance', labelKey: 'nav.finance', icon: 'i-lucide-landmark', to: '/settings/apps/finance',
+    parts: [
+      { id: 'setup', labelKey: 'finance.setup.title', icon: 'i-lucide-landmark', capability: 'finance.setup.read' },
+      { id: 'analytic', labelKey: 'finance.nav.analyticSettings', icon: 'i-lucide-chart-pie', capability: 'finance.analytic.read' },
+      { id: 'closing', labelKey: 'finance.nav.closing', icon: 'i-lucide-calendar-check', capability: 'finance.closing.read' },
+      { id: 'zatca', labelKey: 'finance.nav.zatca', icon: 'i-lucide-qr-code', capability: 'finance.zatca.read' },
+      { id: 'audit', labelKey: 'finance.nav.audit', icon: 'i-lucide-history', capability: 'finance.audit.read', within: '/settings/apps/finance/audit' },
+    ],
+  },
   contextLinks: (path) => {
     const section = financeSectionOf(path)
     const create = CREATE[section]

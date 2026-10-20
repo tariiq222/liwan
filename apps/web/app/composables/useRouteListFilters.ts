@@ -1,5 +1,7 @@
 import { refDebounced } from '@vueuse/core'
 
+import { liveHash } from './nav/settingsScroll'
+
 const SEARCH_DEBOUNCE_MS = 300
 
 type Query = Record<string, unknown>
@@ -34,7 +36,8 @@ export function useRouteListFilters(options: { background?: () => boolean | unde
   watch(committedSearch, value => { search.value = value })
   async function update(values: Record<string, string | undefined>) {
     if (!hydrated.value) return
-    await router.replace({ path: route.path, query: { ...route.query, ...values }, hash: route.hash })
+    // The hash of the address bar: a settings page's scroll-spy rewrites it without telling the router.
+    await router.replace({ path: route.path, query: { ...route.query, ...values }, hash: liveHash(route.hash, import.meta.client ? location.hash : undefined) })
   }
   const debounced = refDebounced(search, SEARCH_DEBOUNCE_MS)
   watch(debounced, value => { if (value.trim() !== committedSearch.value.trim()) void update({ q: value.trim() || undefined, page: undefined }) })

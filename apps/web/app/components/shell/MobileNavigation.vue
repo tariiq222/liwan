@@ -2,6 +2,7 @@
 import type { SlideoverProps } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
 import type { RouteLocationRaw } from 'vue-router'
+import { isSamePageAnchor } from '@/composables/nav/settingsScroll'
 import ShellContextSubList from '@webvue/ui/app/components/shell/ShellContextSubList.vue'
 import ShellQuickViews from '@webvue/ui/app/components/shell/ShellQuickViews.vue'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
@@ -40,7 +41,9 @@ function closeIfCurrent(to: RouteLocationRaw) {
 }
 
 function onQuickActivate(item: ShellQuickItem) {
-  closeIfCurrent(item.to)
+  // A settings card of the open page scrolls in place and never changes the route, so the route watcher would not close the drawer.
+  if (isSamePageAnchor(item, route.path)) open.value = false
+  else closeIfCurrent(item.to)
 }
 
 function onModuleActivate(item: ShellRailItem) {

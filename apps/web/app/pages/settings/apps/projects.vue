@@ -6,6 +6,7 @@ const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
 const forbidden = computed(() => !can('pmo.settings.manage'))
+useSettingsPage('projects')
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isBaseRoute = computed(() => normalizedPath.value === '/settings/apps/projects')
 const catalogs = computed(() => [
@@ -16,7 +17,7 @@ const catalogs = computed(() => [
 
 <template>
   <SharedSettingsPage v-if="isBaseRoute" width="form">
-    <SharedPageHeader :title="t('settings.projects.title')" />
+    <SharedPageHeader :title="t('nav.projects')" />
     <p v-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
     <div v-else class="webvue-settings-projects grid gap-(--webvue-gap-card)">
       <ProjectSettingsForm />

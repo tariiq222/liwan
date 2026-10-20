@@ -74,7 +74,7 @@ describe('app manifests', () => {
     ['/hr/assets/4', 'hr.assets.read'], ['/hr/assets/mine', 'hr.employees.read'], ['/hr/assets/categories/new', 'hr.assets.manage'],
     ['/notifications', 'webvue.notifications'], ['/settings/team/users/new', 'access.users.grant'],
     ['/settings/team/users/3/access', 'access.users.assign_roles'], ['/settings/team/roles/4/edit', 'access.roles.manage'],
-    ['/settings/team/roles/4', 'access.roles.read'], ['/settings/company/branding', 'settings.branding.manage'],
+    ['/settings/team/roles/4', 'access.roles.read'], ['/settings/company', 'settings.company.read'],
     ['/account', null], ['/zzz', null],
   ])('requires %s -> %s', (path, capability) => {
     expect(requiredCapabilityForPath(path)).toBe(capability)
@@ -149,8 +149,8 @@ describe('app manifests', () => {
         expect(canReachPath(closed, '/account')).toBe(true)
       })
     })
-    it('registers its settings pages: the entry owns its subtree for capability, feature and landing', () => {
-      const withSettings: AppManifest = { ...crm, settings: [{ id: 'crm-pipeline', labelKey: 'crm.settings', icon: 'i-lucide-handshake', to: '/settings/apps/crm', capability: 'crm.settings.manage' }] }
+    it('registers its settings page: the page owns its subtree for capability, feature and landing', () => {
+      const withSettings: AppManifest = { ...crm, settings: { id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/settings/apps/crm', parts: [{ id: 'pipeline', labelKey: 'crm.settings', icon: 'i-lucide-handshake', capability: 'crm.settings.manage' }] } }
       const admin = { capabilities: ['crm.settings.manage'], platform: { readable_features: ['crm.enabled'], writable_features: ['crm.enabled'] } }
       const off = { ...admin, platform: { readable_features: ['hr.enabled'], writable_features: [] } }
       expect(requiredCapabilityForPath('/settings/apps/crm')).toBeNull()
@@ -162,7 +162,7 @@ describe('app manifests', () => {
         expect(canReachPath(off, '/settings/apps/crm')).toBe(false)
         expect(canReachPath({ capabilities: [] }, '/settings/apps/crm')).toBe(false)
         expect(firstAllowedPath(admin)).toBe('/settings/apps/crm')
-        expect(allNavItems().find(item => item.to === '/settings/apps/crm')).toMatchObject({ module: 'settings', group: 'settings', shortcut: '' })
+        expect(allNavItems().find(item => item.to === '/settings/apps/crm#pipeline')).toMatchObject({ module: 'settings', group: 'settings', shortcut: '' })
       })
     })
     it('refuses a nested withManifests', () => {

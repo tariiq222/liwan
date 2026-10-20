@@ -8,7 +8,7 @@ test.beforeEach(async ({ page, baseURL }) => {
 })
 
 test('branding saves the primary color and retains the draft when navigation is cancelled', async ({ page }) => {
-  await page.goto('/settings/company/branding')
+  await page.goto('/settings/company#branding')
   const primary = page.getByTestId('branding-color')
   await expect(primary).toBeEnabled()
   await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
@@ -61,7 +61,7 @@ test('project route opens a full-width mobile sheet and keeps query context on r
 })
 
 test('dirty branding prompts before browser reload and cancel retains the draft', async ({ page }) => {
-  await page.goto('/settings/company/branding')
+  await page.goto('/settings/company#branding')
   const primary = page.getByTestId('branding-color')
   await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
   const initialResponse = await page.request.get('/api/v1/admin/branding')

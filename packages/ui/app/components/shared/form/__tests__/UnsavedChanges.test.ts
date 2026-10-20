@@ -193,6 +193,51 @@ describe('SharedUnsavedChanges route update guard', () => {
     expect(findNode(host, node => node.props['data-testid'] === 'unsaved-changes-dialog')).toBeTruthy()
   })
 
+  it('does not ask when only the hash changes, even on a form that guards its route updates', async () => {
+    const UnsavedChanges = loadUnsavedChanges()
+    const SettingsRoute = defineComponent({
+      setup: () => () => h('div', [h(UnsavedChanges, { dirty: true, guardRouteUpdates: true })]),
+    })
+    router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/settings/company', component: SettingsRoute }] })
+    await router.push({ path: '/settings/company', query: { tab: 'a' }, hash: '#profile' })
+    await router.isReady()
+    const host = mountGuarded(router)
+
+    await router.push({ path: '/settings/company', query: { tab: 'a' }, hash: '#contact' })
+    expect(router.currentRoute.value.hash).toBe('#contact')
+    expect(findNode(host, node => node.props['data-testid'] === 'unsaved-changes-dialog')).toBeFalsy()
+
+    // A changed query on the same path is still a departure for a form that guards its route updates.
+    await router.push({ path: '/settings/company', query: { tab: 'b' }, hash: '#contact' })
+    expect(router.currentRoute.value.query.tab).toBe('a')
+    expect(findNode(host, node => node.props['data-testid'] === 'unsaved-changes-dialog')).toBeTruthy()
+  })
+
+  it('asks once when several dirty forms are mounted and leaves after one confirmation', async () => {
+    const UnsavedChanges = loadUnsavedChanges()
+    const CardsRoute = defineComponent({
+      setup: () => () => h('div', [h(UnsavedChanges, { dirty: true }), h(UnsavedChanges, { dirty: true }), h(UnsavedChanges, { dirty: true })]),
+    })
+    const OtherRoute = defineComponent({ setup: () => () => h('span', { 'data-testid': 'screen' }, 'other') })
+    router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/settings/company', component: CardsRoute }, { path: '/settings/team', component: OtherRoute }],
+    })
+    await router.push('/settings/company')
+    await router.isReady()
+    const host = mountGuarded(router)
+
+    await router.push('/settings/team')
+    expect(router.currentRoute.value.path).toBe('/settings/company')
+    expect(findNodes(host, node => node.props['data-testid'] === 'unsaved-changes-dialog')).toHaveLength(1)
+
+    const discard = findNodes(host, node => node.type === 'button').at(-1)?.props.onClick as (() => Promise<void>) | undefined
+    await discard?.()
+    expect(router.currentRoute.value.path).toBe('/settings/team')
+    expect(findNode(host, node => node.props['data-testid'] === 'screen')?.text).toBe('other')
+    expect(findNode(host, node => node.props['data-testid'] === 'unsaved-changes-dialog')).toBeFalsy()
+  })
+
   it('protects a dirty project task page when its back link leaves for the task list', async () => {
     // The sheet's presentation toggle is gone: a project task is a page, so the
     // draft is defended on the ordinary departure its back link performs.
@@ -249,6 +294,21 @@ describe('SharedUnsavedChanges route update guard', () => {
     expect(findNode(host, node => node.props['data-testid'] === 'screen')?.text).toBe('list')
   })
 })
+
+function mountGuarded(guardedRouter: ReturnType<typeof createRouter>): HostNode {
+  const app = renderer.createApp(defineComponent({ render: () => h(RouterView) }))
+  app.component('UButton', button)
+  app.component('UModal', defineComponent({
+    props: { open: Boolean, content: Object },
+    setup(props, { slots }) { return () => props.open ? h('div', props.content, slots.footer?.()) : null },
+  }))
+  app.config.globalProperties.$t = (key: string) => key
+  app.use(guardedRouter)
+  const host = createHostNode()
+  app.mount(host)
+  mountedApps.push(app)
+  return host
+}
 
 function findNode(node: HostNode, predicate: (candidate: HostNode) => boolean): HostNode | undefined {
   if (predicate(node)) return node

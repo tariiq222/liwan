@@ -11,6 +11,8 @@ const toast = useToast()
 const { data: settings, isLoading, error, refetch } = useProjectSettings()
 const { mutate: updateSettings, isPending } = useUpdateProjectSettings()
 const saveState = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
+// Controls stay disabled until hydration, while a save is in flight, and while a failed save waits for retry.
+const locked = computed(() => !hydrated.value || isPending.value || saveState.value === 'error')
 const saveError = ref('')
 const pendingPatch = shallowRef<ProjectSettingsPatch | null>(null)
 function save(patch: ProjectSettingsPatch) {
@@ -131,97 +133,102 @@ function onDeleteStage(id: number | string) {
 
     <template v-else-if="settings">
       <SharedFormSection id="project-creation" panel :title="t('settings.projects.creation.title')" :description="t('settings.projects.creation.hint')" class="webvue-settings-anchor">
-        <div class="grid gap-(--webvue-gap-card)">
-          <UFormField id="project-creators" :label="t('settings.projects.creators.label')" :description="t('settings.projects.creators.hint')">
+        <div class="webvue-setting-rows">
+          <UFormField id="project-creators" orientation="horizontal" :label="t('settings.projects.creators.label')" :description="t('settings.projects.creators.hint')">
             <URadioGroup
               :model-value="settings.project_creators"
               :items="CREATOR_OPTIONS.map(option => ({ value: option.value, label: t(option.labelKey) }))"
-              :disabled="!hydrated || isPending || saveState === 'error'"
+              :disabled="locked"
               @update:model-value="onCreatorsChange"
             />
           </UFormField>
-          <UFormField id="project-requirements" :label="t('settings.projects.createRequirements.label')" :description="t('settings.projects.createRequirements.hint')">
-            <div class="grid gap-(--webvue-gap-card)">
-              <USwitch id="settings-require-manager" :model-value="settings.require_manager_on_create" :label="t('settings.projects.createRequirements.manager')" :disabled="!hydrated || isPending || saveState === 'error'" @update:model-value="v => onBool('require_manager_on_create', v)" />
-              <USwitch id="settings-require-end-date" :model-value="settings.require_end_date_on_create" :label="t('settings.projects.createRequirements.endDate')" :disabled="!hydrated || isPending || saveState === 'error'" @update:model-value="v => onBool('require_end_date_on_create', v)" />
-            </div>
+          <UFormField orientation="horizontal" :label="t('settings.projects.createRequirements.manager')" :description="t('settings.projects.createRequirements.hint')">
+            <USwitch id="settings-require-manager" :model-value="settings.require_manager_on_create" :aria-label="t('settings.projects.createRequirements.manager')" :disabled="locked" @update:model-value="v => onBool('require_manager_on_create', v)" />
+          </UFormField>
+          <UFormField orientation="horizontal" :label="t('settings.projects.createRequirements.endDate')">
+            <USwitch id="settings-require-end-date" :model-value="settings.require_end_date_on_create" :aria-label="t('settings.projects.createRequirements.endDate')" :disabled="locked" @update:model-value="v => onBool('require_end_date_on_create', v)" />
           </UFormField>
         </div>
       </SharedFormSection>
 
       <SharedFormSection id="project-defaults" panel :title="t('settings.projects.defaults.title')" :description="t('settings.projects.defaults.hint')" class="webvue-settings-anchor">
-        <div class="grid gap-(--webvue-gap-card)">
+        <div class="webvue-setting-rows">
           <UFormField id="project-stages" :label="t('settings.projects.defaultStages.label')" :description="t('settings.projects.defaultStages.hint')">
             <StageListEditor :stages="rows" :busy="isPending" @add="onAddStage" @rename="onRenameStage" @fold="onFoldStage" @reorder="onReorderStages" @delete="onDeleteStage" />
           </UFormField>
-          <UFormField id="project-approval" :label="t('settings.projects.approval.label')" :description="t('settings.projects.approval.hint')">
+          <UFormField id="project-approval" orientation="horizontal" :label="t('settings.projects.approval.label')" :description="t('settings.projects.approval.hint')">
             <URadioGroup
               :model-value="settings.default_completion_approval"
               :items="[{ value: 'none', label: t('settings.projects.approval.none') }, { value: 'project_manager', label: t('settings.projects.approval.projectManager') }]"
-              :disabled="!hydrated || isPending || saveState === 'error'"
+              :disabled="locked"
               @update:model-value="onApprovalDefault"
             />
           </UFormField>
-          <USwitch
-            id="settings-require-charter-approval" data-testid="settings-require-charter-approval"
-            :model-value="settings.require_charter_approval"
-            :label="t('settings.projects.charterApproval.label')"
-            :description="t('settings.projects.charterApproval.hint')"
-            :disabled="!hydrated || isPending || saveState === 'error'"
-            @update:model-value="v => onBool('require_charter_approval', v)"
-          />
+          <UFormField orientation="horizontal" :label="t('settings.projects.charterApproval.label')" :description="t('settings.projects.charterApproval.hint')">
+            <USwitch
+              id="settings-require-charter-approval" data-testid="settings-require-charter-approval"
+              :model-value="settings.require_charter_approval"
+              :aria-label="t('settings.projects.charterApproval.label')"
+              :disabled="locked"
+              @update:model-value="v => onBool('require_charter_approval', v)"
+            />
+          </UFormField>
         </div>
       </SharedFormSection>
 
       <SharedFormSection id="project-reminders" panel :title="t('settings.projects.reminders.label')" :description="t('settings.projects.reminders.hint')" class="webvue-settings-anchor">
-        <div class="grid gap-(--webvue-gap-card)">
-          <USwitch
-            id="settings-deadline-reminders" :model-value="settings.deadline_reminders_enabled"
-            :label="t('settings.projects.reminders.enabled')"
-            :disabled="!hydrated || isPending || saveState === 'error'"
-            @update:model-value="v => onBool('deadline_reminders_enabled', v)"
-          />
-          <UFormField :label="t('settings.projects.reminders.daysBefore')">
+        <div class="webvue-setting-rows">
+          <UFormField orientation="horizontal" :label="t('settings.projects.reminders.enabled')">
+            <USwitch
+              id="settings-deadline-reminders" :model-value="settings.deadline_reminders_enabled"
+              :aria-label="t('settings.projects.reminders.enabled')"
+              :disabled="locked"
+              @update:model-value="v => onBool('deadline_reminders_enabled', v)"
+            />
+          </UFormField>
+          <UFormField orientation="horizontal" :label="t('settings.projects.reminders.daysBefore')">
             <UInputNumber
               id="reminder-days"
               :min="0"
               :max="30"
               :model-value="settings.deadline_reminders_days_before"
-              :disabled="!hydrated || isPending || saveState === 'error'"
-              class="w-full"
+              :disabled="locked"
+              class="w-32"
               @update:model-value="onDaysBefore"
             />
           </UFormField>
-          <USwitch
-            id="settings-overdue-digest" :model-value="settings.overdue_digest_enabled"
-            :label="t('settings.projects.reminders.digest')"
-            :disabled="!hydrated || isPending || saveState === 'error'"
-            @update:model-value="v => onBool('overdue_digest_enabled', v)"
-          />
+          <UFormField orientation="horizontal" :label="t('settings.projects.reminders.digest')">
+            <USwitch
+              id="settings-overdue-digest" :model-value="settings.overdue_digest_enabled"
+              :aria-label="t('settings.projects.reminders.digest')"
+              :disabled="locked"
+              @update:model-value="v => onBool('overdue_digest_enabled', v)"
+            />
+          </UFormField>
         </div>
       </SharedFormSection>
 
       <SharedFormSection v-if="settings.extensions.length" id="project-extensions" panel :title="t('settings.projects.extensions.title')" :description="t('settings.projects.extensions.hint')" class="webvue-settings-anchor">
-        <div class="grid gap-(--webvue-gap-card)">
+        <div class="webvue-setting-rows">
           <template v-for="extension in settings.extensions" :key="extension.name">
-            <UFormField v-if="extension.kind === 'selection'" :id="`project-extension-${extension.name}`" :label="extension.label" :description="extension.help ?? undefined">
+            <UFormField v-if="extension.kind === 'selection'" :id="`project-extension-${extension.name}`" orientation="horizontal" :label="extension.label" :description="extension.help ?? undefined">
               <URadioGroup
                 :model-value="extension.value ?? undefined"
                 :items="extension.options"
                 :data-testid="`settings-extension-${extension.name}`"
-                :disabled="!hydrated || isPending || saveState === 'error'"
+                :disabled="locked"
                 @update:model-value="v => onExtension(extension, v)"
               />
             </UFormField>
-            <USwitch
-              v-else
-              :id="`project-extension-${extension.name}`" :data-testid="`settings-extension-${extension.name}`"
-              :model-value="extension.value"
-              :label="extension.label"
-              :description="extension.help ?? undefined"
-              :disabled="!hydrated || isPending || saveState === 'error'"
-              @update:model-value="v => onExtension(extension, v)"
-            />
+            <UFormField v-else orientation="horizontal" :label="extension.label" :description="extension.help ?? undefined">
+              <USwitch
+                :id="`project-extension-${extension.name}`" :data-testid="`settings-extension-${extension.name}`"
+                :model-value="extension.value"
+                :aria-label="extension.label"
+                :disabled="locked"
+                @update:model-value="v => onExtension(extension, v)"
+              />
+            </UFormField>
           </template>
         </div>
       </SharedFormSection>
