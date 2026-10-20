@@ -56,6 +56,7 @@ export const moduleUiCapabilities = [
   'finance.closing.manage',
   'finance.audit.read',
   'finance.zatca.manage',
+  'finance.zakat.read',
   'finance.setup.read',
   'finance.setup.manage',
   'finance.zatca.read',
@@ -434,7 +435,7 @@ export function moduleUiPreviewData(path, url) {
   if (/^\/api\/v1\/finance\/(invoices|payments|journals)(\/|$)/.test(normalizedPath)) return financeDocumentsPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/(entries|accounts)(\/|$)/.test(normalizedPath)) return financeAccountingPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/bank-statement(s|-lines)(\/|$)/.test(normalizedPath)) return financeBankPreviewData(normalizedPath, parsedUrl)
-  if (/^\/api\/v1\/finance\/reports\/(trial-balance|general-ledger|partner-statement|vat|withholding)$/.test(normalizedPath)) return financeReportsPreviewData(normalizedPath, parsedUrl)
+  if (/^\/api\/v1\/finance\/reports\/(trial-balance|general-ledger|partner-statement|vat|withholding|profit-loss|balance-sheet|zakat-base)$/.test(normalizedPath)) return financeReportsPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/(budgets(\/|$)|reports\/budget-vs-actual$)/.test(normalizedPath)) return financeBudgetsPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/(assets|asset-profiles)(\/|$)/.test(normalizedPath)) return financeAssetsPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/(analytic-plans|analytic-accounts|reports\/analytic)(\/|$)/.test(normalizedPath)) return financeAnalyticPreviewData(normalizedPath, parsedUrl)

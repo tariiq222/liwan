@@ -48,6 +48,8 @@ const SUB_LISTS: Partial<Record<FinanceSection, AppContextLink[]>> = {
     { id: 'accounting-accounts', labelKey: 'finance.nav.accounts', icon: 'i-lucide-list-tree', to: '/finance/accounting/accounts', capability: 'finance.accounts.read', section: 'finance.nav.accounting' },
   ],
   reports: [
+    report('profit-loss', 'profit-loss', 'finance.nav.profitLoss', 'i-lucide-trending-up-down', 'finance.statements.read'),
+    report('balance-sheet', 'balance-sheet', 'finance.nav.balanceSheet', 'i-lucide-columns-2', 'finance.statements.read'),
     report('trial-balance', 'trial-balance', 'finance.nav.trialBalance', 'i-lucide-scale', 'finance.statements.read'),
     report('general-ledger', 'general-ledger', 'finance.nav.generalLedger', 'i-lucide-book-text', 'finance.statements.read'),
     report('aged', 'aged-partner-balance', 'finance.nav.agedPartnerBalance', 'i-lucide-hourglass', 'finance.statements.read'),
@@ -55,6 +57,8 @@ const SUB_LISTS: Partial<Record<FinanceSection, AppContextLink[]>> = {
     report('vat', 'vat', 'finance.nav.vat', 'i-lucide-percent', 'finance.reports.read'),
     report('withholding', 'withholding', 'finance.nav.withholding', 'i-lucide-hand-coins', 'finance.reports.read'),
     report('analytic', 'analytic', 'finance.nav.analytic', 'i-lucide-chart-pie', 'finance.analytic.read'),
+    report('budget-vs-actual', 'budget-vs-actual', 'finance.nav.budgetVsActual', 'i-lucide-target', 'finance.budgets.read'),
+    report('zakat-base', 'zakat-base', 'finance.nav.zakatBase', 'i-lucide-hand-heart', 'finance.zakat.read'),
   ],
 }
 
@@ -116,8 +120,10 @@ const manifest: AppManifest = {
     { pattern: /^\/finance\/assets\/new$/, capability: 'finance.assets.manage' },
     { pattern: /^\/finance\/assets(?:\/|$)/, capability: 'finance.assets.read' },
     { pattern: /^\/finance\/reports\/analytic$/, capability: 'finance.analytic.read' },
+    { pattern: /^\/finance\/reports\/budget-vs-actual$/, capability: 'finance.budgets.read' },
+    { pattern: /^\/finance\/reports\/zakat-base$/, capability: 'finance.zakat.read' },
     { pattern: /^\/finance\/reports\/(vat|withholding)$/, capability: 'finance.reports.read' },
-    { pattern: /^\/finance\/reports\/(trial-balance|general-ledger|aged-partner-balance|partner-statement)$/, capability: 'finance.statements.read' },
+    { pattern: /^\/finance\/reports\/(profit-loss|balance-sheet|trial-balance|general-ledger|aged-partner-balance|partner-statement)$/, capability: 'finance.statements.read' },
     { pattern: /^\/finance$/, capability: 'finance.invoices.read' },
   ],
   search: [partnersSearch, invoicesSearch],

@@ -15,7 +15,7 @@ const ALL = [
   'finance.partners.read', 'finance.partners.manage', 'finance.setup.read', 'finance.setup.manage', 'finance.statements.read',
   'finance.entries.read', 'finance.entries.manage', 'finance.entries.post', 'finance.accounts.read', 'finance.bank.read', 'finance.bank.manage',
   'finance.reports.read', 'finance.budgets.read', 'finance.budgets.manage', 'finance.assets.read', 'finance.assets.manage',
-  'finance.analytic.read', 'finance.closing.read', 'finance.zatca.read', 'finance.audit.read',
+  'finance.analytic.read', 'finance.closing.read', 'finance.zatca.read', 'finance.audit.read', 'finance.zakat.read',
 ]
 const features = { readable_features: ['finance.enabled'], writable_features: ['finance.enabled'] }
 const admin = { role: 'admin', capabilities: ALL, platform: features }
@@ -67,6 +67,10 @@ describe('finance manifest', () => {
     ['/finance/assets/2', 'finance.assets.read'],
     ['/finance/assets/new', 'finance.assets.manage'],
     ['/finance/reports/analytic', 'finance.analytic.read'],
+    ['/finance/reports/profit-loss', 'finance.statements.read'],
+    ['/finance/reports/balance-sheet', 'finance.statements.read'],
+    ['/finance/reports/zakat-base', 'finance.zakat.read'],
+    ['/finance/reports/budget-vs-actual', 'finance.budgets.read'],
     ['/settings/apps/finance', 'finance.setup.read'],
     ['/settings/apps/finance/analytic', 'finance.analytic.read'],
     ['/settings/apps/finance/closing', 'finance.closing.read'],
@@ -155,8 +159,9 @@ describe('finance context sidebar', () => {
     const links = contextLinksForModule('finance', admin, '/finance/reports/vat')
     expect(links.filter(link => link.pinned)).toHaveLength(0)
     expect(links.filter(link => link.section === 'finance.nav.reports').map(link => link.to)).toEqual([
-      '/finance/reports/trial-balance', '/finance/reports/general-ledger', '/finance/reports/aged-partner-balance',
+      '/finance/reports/profit-loss', '/finance/reports/balance-sheet', '/finance/reports/trial-balance', '/finance/reports/general-ledger', '/finance/reports/aged-partner-balance',
       '/finance/reports/partner-statement', '/finance/reports/vat', '/finance/reports/withholding', '/finance/reports/analytic',
+      '/finance/reports/budget-vs-actual', '/finance/reports/zakat-base',
     ])
     for (const link of links.filter(item => item.section === 'finance.nav.reports')) expect(requiredCapabilityForPath(String(link.to))).toBe(link.capability)
     expect(ids('/finance/accounting/entries')).toEqual(expect.arrayContaining(['accounting-entries', 'accounting-accounts']))
