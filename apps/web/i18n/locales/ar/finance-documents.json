@@ -236,6 +236,30 @@
         "noJournals": "لا توجد يوميات بنك أو صندوق.",
         "memo": "البيان",
         "submit": "تسجيل الدفعة"
+      },
+      "post": "ترحيل الدفعة",
+      "standalone": {
+        "link": "سند قبض أو سلفة",
+        "title": "سند قبض أو سلفة",
+        "party": "الطرف",
+        "partnerType": "نوع الطرف",
+        "partnerRequired": "اختر الطرف",
+        "submit": "تسجيل"
+      },
+      "allocate": {
+        "action": "تخصيص على مستندات",
+        "title": "تخصيص {amount} {currency} من {name}",
+        "pick": "اختر مستندات مفتوحة",
+        "submit": "تخصيص"
+      },
+      "unallocate": {
+        "action": "إلغاء التخصيص",
+        "confirm": "إلغاء تخصيص «{name}»؟",
+        "hint": "تعود المستندات التي سددتها مفتوحة ويرجع المبلغ إلى حساب الطرف."
+      },
+      "partnerTypes": {
+        "customer": "عميل",
+        "supplier": "مورد"
       }
     }
   }

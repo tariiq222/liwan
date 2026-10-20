@@ -5,7 +5,9 @@ import {
   FinanceJournalListSchema,
   FinancePaymentListSchema,
   FinancePaymentSchema,
+  type FinancePaymentAllocate,
   type FinancePaymentRegister,
+  type FinancePaymentStandalone,
 } from '@webvue/contracts'
 import { financeInvoiceKeys } from './useFinanceInvoices'
 
@@ -61,4 +63,28 @@ export function useFinancePaymentTransition() {
   const { $api } = useApi()
   return usePaymentWrite(({ id, action }: { id: number; action: 'cancel' | 'reset-to-draft' }) =>
     $api(`/api/v1/finance/payments/${id}/${action}`, { method: 'POST', body: {}, schema: FinancePaymentSchema }))
+}
+
+/** The key stays with the form instance, so a retry after a lost answer replays the first request instead of booking a second payment. */
+export function useCreateStandalonePayment() {
+  const { $api } = useApi()
+  const key = crypto.randomUUID()
+  return usePaymentWrite((body: FinancePaymentStandalone) =>
+    $api('/api/v1/finance/payments/standalone', { method: 'POST', body, headers: { 'Idempotency-Key': key }, schema: FinancePaymentSchema }))
+}
+
+export function useFinancePaymentPost() {
+  const { $api } = useApi()
+  return usePaymentWrite((id: number) => $api(`/api/v1/finance/payments/${id}/post`, { method: 'POST', body: {}, schema: FinancePaymentSchema }))
+}
+
+export function useFinancePaymentAllocate() {
+  const { $api } = useApi()
+  return usePaymentWrite(({ id, body }: { id: number; body: FinancePaymentAllocate }) =>
+    $api(`/api/v1/finance/payments/${id}/allocate`, { method: 'POST', body, schema: FinancePaymentSchema }))
+}
+
+export function useFinancePaymentUnallocate() {
+  const { $api } = useApi()
+  return usePaymentWrite((id: number) => $api(`/api/v1/finance/payments/${id}/unallocate`, { method: 'POST', body: {}, schema: FinancePaymentSchema }))
 }

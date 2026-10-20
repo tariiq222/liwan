@@ -236,6 +236,30 @@
         "noJournals": "There are no bank or cash journals.",
         "memo": "Memo",
         "submit": "Register payment"
+      },
+      "post": "Post payment",
+      "standalone": {
+        "link": "Receipt or advance",
+        "title": "Receipt or advance",
+        "party": "Party",
+        "partnerType": "Party type",
+        "partnerRequired": "Choose the party",
+        "submit": "Register"
+      },
+      "allocate": {
+        "action": "Allocate to documents",
+        "title": "Allocate {amount} {currency} of {name}",
+        "pick": "Choose open documents",
+        "submit": "Allocate"
+      },
+      "unallocate": {
+        "action": "Remove allocation",
+        "confirm": "Remove the allocation of \"{name}\"?",
+        "hint": "The documents it settled become open again and the amount returns to the party's account."
+      },
+      "partnerTypes": {
+        "customer": "Customer",
+        "supplier": "Vendor"
       }
     }
   }

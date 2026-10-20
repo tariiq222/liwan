@@ -1,4 +1,4 @@
-import type { FinanceInvoiceDetail, FinancePayment, FinancePaymentRegister } from '@webvue/contracts'
+import type { FinanceInvoiceDetail, FinancePayment, FinancePaymentRegister, FinancePaymentStandalone } from '@webvue/contracts'
 import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
 import { invoiceKindOf } from '../invoices/invoiceKinds'
 import { queryText, queryDay } from '../../../utils/routeQuery'
@@ -131,8 +131,49 @@ export function buildPaymentRegister(invoiceIds: readonly number[], draft: Payme
 type Can = (capability: string) => boolean
 
 /** Cancelled and rejected payments are final but can be reset; the others can only be cancelled. */
-export function paymentActions(payment: Pick<FinancePayment, 'state'>, can: Can) {
+export function paymentActions(payment: Pick<FinancePayment, 'state' | 'unallocated' | 'invoices'>, can: Can) {
   const manage = can('finance.payments.manage')
   const revivable = payment.state === 'canceled' || payment.state === 'rejected'
-  return { cancel: manage && !revivable, resetToDraft: manage && revivable }
+  const posted = payment.state === 'in_process' || payment.state === 'paid'
+  return {
+    cancel: manage && !revivable,
+    resetToDraft: manage && revivable,
+    post: manage && payment.state === 'draft',
+    allocate: manage && posted && payment.unallocated > 0,
+    unallocate: manage && posted && payment.invoices.length > 0,
+  }
+}
+
+export interface StandalonePaymentDraft extends PaymentDraft {
+  paymentType: FinancePayment['payment_type']
+  partnerType: FinancePayment['partner_type']
+  partnerId: number | null
+}
+
+/** A receipt is from a customer and a payment to a vendor; the refund of an advance flips the party, not the direction. */
+export function defaultPartnerType(paymentType: FinancePayment['payment_type']): FinancePayment['partner_type'] {
+  return paymentType === 'inbound' ? 'customer' : 'supplier'
+}
+
+export function validateStandaloneDraft(draft: StandalonePaymentDraft): PaymentErrors & { partnerId?: 'required' } {
+  return {
+    ...validatePaymentDraft(draft, Number.POSITIVE_INFINITY),
+    ...(draft.partnerId ? {} : { partnerId: 'required' as const }),
+  }
+}
+
+export function buildStandalonePayment(draft: StandalonePaymentDraft): FinancePaymentStandalone {
+  return {
+    payment_type: draft.paymentType,
+    ...(draft.partnerType !== defaultPartnerType(draft.paymentType) ? { partner_type: draft.partnerType } : {}),
+    partner_id: draft.partnerId!,
+    amount: Number(draft.amount),
+    payment_date: draft.paymentDate!,
+    journal_id: draft.journalId!,
+    ...(draft.memo.trim() ? { memo: draft.memo.trim() } : {}),
+  }
+}
+
+export function standalonePaymentLink(returnTo?: string) {
+  return { path: `${PAYMENTS_PATH}/new`, query: { kind: 'standalone', ...(returnTo ? { returnTo } : {}) } }
 }

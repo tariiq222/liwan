@@ -3,13 +3,14 @@ import type { TableColumn } from '@nuxt/ui'
 import type { FinancePayment } from '@webvue/contracts'
 import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import { useFinancePartner } from '@/composables/finance/useFinancePartners'
-import { useFinancePaymentTransition, useFinancePayments } from '@/composables/finance/useFinancePayments'
+import { useFinancePaymentPost, useFinancePaymentTransition, useFinancePaymentUnallocate, useFinancePayments } from '@/composables/finance/useFinancePayments'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
 import { financeErrorMessage } from '../financeErrors'
 import { financeErrorKey } from '../invoices/invoiceErrors'
 import { listReturnTo } from '../invoices/listLocation'
 import Money from '../invoices/Money.vue'
 import PartnerPicker from '../invoices/PartnerPicker.vue'
+import PaymentAllocate from './PaymentAllocate.vue'
 import {
   PAYMENT_PAGE_SIZE,
   PAYMENTS_PATH,
@@ -20,6 +21,7 @@ import {
   paymentActiveFilterCount,
   paymentFiltersFromQuery,
   paymentListParams,
+  standalonePaymentLink,
 } from './paymentModel'
 
 // The card of the payments list. A payment is created from the documents it pays (the create panel), and a live one
@@ -28,6 +30,7 @@ import {
 // filters from the panel's returnTo.
 const props = defineProps<{ background?: boolean }>()
 const { t } = useI18n()
+const route = useRoute()
 const { can } = useAccess()
 const allowed = computed(() => can('finance.payments.read'))
 const { hydrated, filterQuery, search, update } = useRouteListFilters({
@@ -53,23 +56,46 @@ function clearFilters() {
 }
 
 const transition = useFinancePaymentTransition()
-const confirming = ref<{ payment: FinancePayment; action: 'cancel' | 'reset-to-draft' } | null>(null)
+const unallocate = useFinancePaymentUnallocate()
+const post = useFinancePaymentPost()
+const busy = computed(() => transition.isPending.value || unallocate.isPending.value || post.isPending.value)
+const confirming = ref<{ payment: FinancePayment; action: 'cancel' | 'reset-to-draft' | 'unallocate' } | null>(null)
+const allocating = ref<FinancePayment | null>(null)
 const actionError = ref('')
 async function confirmTransition() {
   const pending = confirming.value
-  if (!pending || !hydrated.value || transition.isPending.value) return
+  if (!pending || !hydrated.value || busy.value) return
+  await run(async () => {
+    if (pending.action === 'unallocate') await unallocate.mutateAsync(pending.payment.id)
+    else await transition.mutateAsync({ id: pending.payment.id, action: pending.action })
+    confirming.value = null
+  })
+}
+async function postPayment(payment: FinancePayment) {
+  if (!hydrated.value || busy.value) return
+  await run(async () => { await post.mutateAsync(payment.id) })
+}
+async function run(work: () => Promise<void>) {
   actionError.value = ''
   try {
-    await transition.mutateAsync({ id: pending.payment.id, action: pending.action })
-    confirming.value = null
+    await work()
   } catch (cause) {
     actionError.value = financeErrorMessage(cause, financeErrorKey, t)
   }
 }
+const CONFIRM_KEYS = {
+  cancel: { title: 'financeDocuments.payments.cancelConfirm', hint: 'financeDocuments.payments.cancelHint', label: 'financeDocuments.payments.cancel' },
+  'reset-to-draft': { title: 'financeDocuments.payments.resetConfirm', hint: 'financeDocuments.payments.resetHint', label: 'financeDocuments.payments.resetToDraft' },
+  unallocate: { title: 'financeDocuments.payments.unallocate.confirm', hint: 'financeDocuments.payments.unallocate.hint', label: 'financeDocuments.payments.unallocate.action' },
+} as const
+const standaloneTo = computed(() => can('finance.payments.manage') && !props.background ? standalonePaymentLink(route.fullPath) : undefined)
 const label = (payment: FinancePayment) => payment.name || `${t('financeDocuments.payments.draftNumber')} #${payment.id}`
 function rowActions(payment: FinancePayment) {
   const set = paymentActions(payment, can)
   return [
+    ...(set.post ? [{ label: t('financeDocuments.payments.post'), icon: 'i-lucide-check' as const, onSelect: () => { void postPayment(payment) } }] : []),
+    ...(set.allocate ? [{ label: t('financeDocuments.payments.allocate.action'), icon: 'i-lucide-link' as const, onSelect: () => { allocating.value = payment } }] : []),
+    ...(set.unallocate ? [{ label: t('financeDocuments.payments.unallocate.action'), icon: 'i-lucide-unlink' as const, onSelect: () => { confirming.value = { payment, action: 'unallocate' } } }] : []),
     ...(set.resetToDraft ? [{ label: t('financeDocuments.payments.resetToDraft'), icon: 'i-lucide-undo-2' as const, onSelect: () => { confirming.value = { payment, action: 'reset-to-draft' } } }] : []),
     ...(set.cancel ? [{ label: t('financeDocuments.payments.cancel'), icon: 'i-lucide-ban' as const, destructive: true, onSelect: () => { confirming.value = { payment, action: 'cancel' } } }] : []),
   ]
@@ -95,15 +121,19 @@ const dash = computed(() => t('app.notAvailable'))
     <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="actionError" data-testid="finance-payment-action-error" />
     <SharedInlineConfirm
       v-if="confirming"
-      :title="t(confirming.action === 'cancel' ? 'financeDocuments.payments.cancelConfirm' : 'financeDocuments.payments.resetConfirm', { name: label(confirming.payment) })"
-      :description="t(confirming.action === 'cancel' ? 'financeDocuments.payments.cancelHint' : 'financeDocuments.payments.resetHint')"
-      :confirm-label="t(confirming.action === 'cancel' ? 'financeDocuments.payments.cancel' : 'financeDocuments.payments.resetToDraft')"
+      :title="t(CONFIRM_KEYS[confirming.action].title, { name: label(confirming.payment) })"
+      :description="t(CONFIRM_KEYS[confirming.action].hint)"
+      :confirm-label="t(CONFIRM_KEYS[confirming.action].label)"
       :color="confirming.action === 'cancel' ? 'error' : 'warning'"
-      :pending="transition.isPending.value"
+      :pending="busy"
       :disabled="!hydrated"
       @confirm="confirmTransition"
       @cancel="confirming = null"
     />
+    <PaymentAllocate v-if="allocating" :payment="allocating" @done="allocating = null" @cancel="allocating = null" />
+    <div v-if="standaloneTo" class="flex justify-end">
+      <UButton color="neutral" variant="outline" icon="i-lucide-banknote" :to="standaloneTo" :label="t('financeDocuments.payments.standalone.link')" data-testid="finance-payment-standalone-new" />
+    </div>
     <SharedListCard>
       <template #filters>
         <SharedFilterBar embedded class="w-full" :active-count="activeCount" :default-open="!!filters.paymentType || !!filters.state || !!filters.partnerId || !!filters.dateFrom || !!filters.dateTo" :disabled="!hydrated" @clear="clearFilters">
@@ -141,7 +171,7 @@ const dash = computed(() => t('app.notAvailable'))
             <template #date-cell="{ row }"><bdi class="tabular-nums">{{ row.original.date }}</bdi></template>
             <template #amount-cell="{ row }"><Money :amount="row.original.amount" :currency="row.original.currency" /></template>
             <template #state-cell="{ row }"><SharedStatusBadge size="sm" :tone="PAYMENT_STATE_TONE[row.original.state]" :label="t(`financeDocuments.payments.states.${row.original.state}`)" /></template>
-            <template #actions-cell="{ row }"><SharedRowActions :actions="rowActions(row.original)" :label="t('financeDocuments.payments.actionsFor', { name: label(row.original) })" :disabled="transition.isPending.value" /></template>
+            <template #actions-cell="{ row }"><SharedRowActions :actions="rowActions(row.original)" :label="t('financeDocuments.payments.actionsFor', { name: label(row.original) })" :disabled="busy" /></template>
             <template #mobile-row="{ row }">
               <div class="flex min-w-0 flex-col gap-2">
                 <span class="flex items-center justify-between gap-2">
@@ -151,7 +181,7 @@ const dash = computed(() => t('app.notAvailable'))
                 <span class="truncate text-sm text-muted">{{ row.partner?.name ?? dash }} · {{ t(`financeDocuments.payments.types.${row.payment_type}`) }}</span>
                 <span class="flex items-center justify-between gap-2 text-sm">
                   <Money :amount="row.amount" :currency="row.currency" />
-                  <SharedRowActions :actions="rowActions(row)" :label="t('financeDocuments.payments.actionsFor', { name: label(row) })" :disabled="transition.isPending.value" />
+                  <SharedRowActions :actions="rowActions(row)" :label="t('financeDocuments.payments.actionsFor', { name: label(row) })" :disabled="busy" />
                 </span>
               </div>
             </template>

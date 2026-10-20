@@ -239,6 +239,8 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/finance/invoices/Money.vue` | مبلغ بأرقام لاتينية وتباعد ثابت والعملة بعده | — | — |
 | `apps/web/app/components/finance/payments/PaymentList.vue` | بطاقة قائمة الدفعات بفلاتر الرابط وإلغاء الدفعة أو إعادتها إلى مسودة بتأكيد مضمّن | — | `SharedListCard`, `SharedFilterBar`, `SharedFilterField`, `SharedDateField`, `SharedDataTable`, `SharedListFooter`, `SharedRowActions`, `SharedInlineConfirm`, `SharedStatusBadge`, `SharedRecordNumber`, `SharedForbiddenState` |
 | `apps/web/app/components/finance/payments/PaymentForm.vue` | تسجيل دفعة على مستند أو أكثر لطرف وعملة ونوع واحد: المبلغ والتاريخ واليومية والبيان | — | `SharedFormSection`, `SharedFormActions`, `SharedUnsavedChanges`, `SharedDateField`, `SharedPageState`, `UForm`, `UFormField`, `UInput`, `USelect`, `USelectMenu` |
+| `apps/web/app/components/finance/payments/StandalonePaymentForm.vue` | سند قبض أو دفعة بلا مستند (سلفة): النوع والطرف والمبلغ والتاريخ واليومية، بمفتاح تكرار يحمي من تسجيل مزدوج | — | `SharedFormSection`, `SharedFormActions`, `SharedUnsavedChanges`, `SharedDateField`, `SharedPageState`, `UForm`, `UFormField`, `UInput`, `USelect` |
+| `apps/web/app/components/finance/payments/PaymentAllocate.vue` | تخصيص الجزء غير المخصص من دفعة مرحّلة على مستندات مفتوحة لنفس الطرف والعملة، داخل الصفحة | — | `UCard`, `UAlert`, `USelectMenu`, `UButton` |
 
 ## مكونات المالية — المحاسبة والبنك والتقارير
 
