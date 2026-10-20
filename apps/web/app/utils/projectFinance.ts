@@ -1,4 +1,4 @@
-import { PROJECT_STATUSES, type FinanceEntry, type FinanceEntryCreate, type FinanceEntryPatch, type FinanceKind, type ProjectStatus } from '@webvue/contracts'
+import { PROJECT_STATUSES, type ActualAccount, type ActualSource, type FinanceEntry, type FinanceEntryCreate, type FinanceEntryPatch, type FinanceKind, type ProjectStatus } from '@webvue/contracts'
 import { ApiError } from '../composables/useApi'
 import { parseOffset } from './routeQuery'
 
@@ -398,10 +398,37 @@ export function budgetStatus(summary: { planned: number | null; actual: number; 
 
 type FinanceSummaryMode = 'empty' | 'need-budget' | 'dashboard'
 
-export function financeSummaryMode(summary: { planned: number | null; budget_count: number; expense_count: number }): FinanceSummaryMode {
-  if (summary.budget_count === 0 && summary.expense_count === 0) return 'empty'
+// An external actual always shows its source tile, even before the first budget row or posted line.
+export function financeSummaryMode(summary: { planned: number | null; budget_count: number; expense_count: number; actual_source?: ActualSource }): FinanceSummaryMode {
+  if (summary.actual_source !== 'external' && summary.budget_count === 0 && summary.expense_count === 0) return 'empty'
   if (summary.planned == null) return 'need-budget'
   return 'dashboard'
+}
+
+export function isExternalActual(summary: { actual_source: ActualSource }): boolean {
+  return summary.actual_source === 'external'
+}
+
+/** The kinds the ledger filter offers: an external actual has no manual expenses, only budget rows. */
+export function financeKindFilters(summary: { actual_source: ActualSource } | undefined): FinanceKindFilter[] {
+  return summary && isExternalActual(summary) ? ['all', 'budget'] : ['all', 'budget', 'expense']
+}
+
+export function actualLinesQuery(filters: { limit?: number; offset?: number }) {
+  const { limit, offset } = financeListQuery(filters)
+  return { limit, offset }
+}
+
+/** A cost center as the pickers list it: its code first, when it has one. */
+export function actualAccountLabel(account: Pick<ActualAccount, 'name' | 'code'>): string {
+  return account.code ? `${account.code} · ${account.name}` : account.name
+}
+
+/** The message key of a refused cost center choice: a taken cost center or an unknown one, else the generic error. */
+export function actualAccountErrorKey(error: unknown): string {
+  if (error instanceof ApiError && error.status === 409 && error.code === 'account_linked') return 'projects.finance.actualAccount.linked'
+  if (error instanceof ApiError && error.status === 422 && error.field === 'account_id') return 'projects.finance.actualAccount.invalid'
+  return 'errors.generic'
 }
 
 export function clampListOffset(offset: number, total: number, pageSize: number): number {

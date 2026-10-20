@@ -3892,12 +3892,12 @@
         {
           "id": "Row",
           "name": "صف مؤشرات",
-          "context": "apps/web/app/components/pmo/projects/finance/FinanceSummaryCards.vue:40"
+          "context": "apps/web/app/components/pmo/projects/finance/FinanceSummaryCards.vue:47"
         },
         {
           "id": "CompactStrip",
           "name": "شريط مدمج بنبرات (مؤشرات قائمة المهام)",
-          "context": "apps/web/app/components/pmo/projects/finance/FinanceSummaryCards.vue:40"
+          "context": "apps/web/app/components/pmo/projects/finance/FinanceSummaryCards.vue:47"
         },
         {
           "id": "Emphasis",

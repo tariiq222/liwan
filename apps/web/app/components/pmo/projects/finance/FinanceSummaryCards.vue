@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { FinanceSummary } from '@webvue/contracts'
-import { budgetStatus, financeSummaryMode, formatNullableAmount, formatUtilization } from '@/utils/projectFinance'
+import FinanceActualAccountPicker from '@/components/pmo/projects/finance/FinanceActualAccountPicker.vue'
+import FinanceActualSource from '@/components/pmo/projects/finance/FinanceActualSource.vue'
+import { budgetStatus, financeSummaryMode, formatNullableAmount, formatUtilization, isExternalActual } from '@/utils/projectFinance'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const props = defineProps<{ projectId: number; summary: FinanceSummary; canManage?: boolean }>()
@@ -10,6 +12,10 @@ const hydrated = useHydrated()
 const unknown = computed(() => t('projects.finance.unknown'))
 const currency = computed(() => props.summary.currency)
 const mode = computed(() => financeSummaryMode(props.summary))
+const external = computed(() => isExternalActual(props.summary))
+const actualCount = computed(() => external.value
+  ? t('projects.finance.actualLineCount', { count: props.summary.expense_count }, props.summary.expense_count)
+  : t('projects.finance.expenseCount', { count: props.summary.expense_count }, props.summary.expense_count))
 const plannedStatus = computed(() => budgetStatus(props.summary))
 // The remaining budget is the variance: below zero is a loss (danger), above it room left (success).
 const remainingTone = computed<'neutral' | 'danger' | 'success'>(() => {
@@ -32,7 +38,8 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
       </template>
       <div class="space-y-1">
         <p class="text-2xl font-semibold tracking-tight text-highlighted tabular-nums"><bdi dir="ltr">{{ formatNullableAmount(summary.actual, currency, unknown) }}</bdi></p>
-        <p class="text-xs text-muted">{{ t('projects.finance.budgetUnknown') }} · {{ t('projects.finance.expenseCount', { count: summary.expense_count }, summary.expense_count) }}</p>
+        <p class="text-xs text-muted">{{ t('projects.finance.budgetUnknown') }} · {{ actualCount }}</p>
+        <FinanceActualSource v-if="external" :summary="summary" />
       </div>
     </SharedRecordSection>
 
@@ -51,8 +58,9 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
         :label="t('projects.finance.actual')"
         :value="formatNullableAmount(summary.actual, currency, unknown)"
         value-dir="ltr"
-        :hint="t('projects.finance.expenseCount', { count: summary.expense_count }, summary.expense_count)"
+        :hint="actualCount"
       >
+        <FinanceActualSource v-if="external" :summary="summary" />
         <template v-if="summary.utilization_percent != null">
           <p class="mt-1 text-xs text-muted">
             {{ t('projects.finance.utilization') }}:
@@ -71,6 +79,8 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
         value-dir="ltr"
       />
     </section>
+
+    <FinanceActualAccountPicker v-if="external && summary.can_choose_actual_account" :project-id="projectId" :summary="summary" />
 
     <SharedRecordSection v-if="showCharter" variant="tinted" data-testid="project-finance-charter" :title="t('projects.finance.charterEstimate')">
       <template #actions>

@@ -25,7 +25,7 @@ const labels = {
 function row(id: number, overrides: Partial<ProjectReportRow> = {}): ProjectReportRow {
   return {
     project: { id, name: `Project ${id}`, status: 'on_track' },
-    finance: { project_id: id, currency: SAR, charter_estimate: null, planned: 100, actual: 20, remaining: 80, utilization_percent: 20, over_budget: false, budget_count: 1, expense_count: 1 },
+    finance: { project_id: id, currency: SAR, charter_estimate: null, planned: 100, actual: 20, remaining: 80, utilization_percent: 20, over_budget: false, budget_count: 1, expense_count: 1, actual_source: 'manual', actual_account: null, can_read_actual_lines: false, can_choose_actual_account: false },
     task_count: 4,
     closed_task_count: 2,
     overdue_task_count: 1,

@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/vue-query'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { ProjectCreateDefaultsSchema, ProjectSettingsSchema, type ProjectSettings } from '@webvue/contracts'
+import { ProjectCreateDefaultsSchema, ProjectSettingsSchema, type ProjectSettings, type ProjectSettingsPatch } from '@webvue/contracts'
 
 export const projectSettingsKeys = {
   all: ['project-settings'] as const,
@@ -35,7 +35,7 @@ export function useUpdateProjectSettings() {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({
-    mutationFn: (patch: Partial<ProjectSettings>) => $api('/api/v1/settings/projects', { method: 'PATCH', body: patch, schema: ProjectSettingsSchema }),
+    mutationFn: (patch: ProjectSettingsPatch) => $api('/api/v1/settings/projects', { method: 'PATCH', body: patch, schema: ProjectSettingsSchema }),
     onSuccess: settings => invalidateProjectSettingsCaches(qc, settings),
   })
 }

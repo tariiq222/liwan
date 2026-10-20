@@ -656,6 +656,28 @@
       "budgetPickerError": "Could not load budget rows",
       "currencyReadOnly": "Enter the amount in {name} ({symbol}), using up to {places} decimal places.",
       "budgetUnknown": "No budget set",
+      "actualLineCount": "{count} line | {count} lines",
+      "actualSource": {
+        "fromAccounts": "The actual is counted from the accounts linked to this project.",
+        "noCostCenter": "No cost center linked yet"
+      },
+      "actualAccount": {
+        "title": "Cost center",
+        "hint": "The project's actual cost is counted from the entries of this cost center.",
+        "label": "Project cost center",
+        "none": "No cost center",
+        "search": "Search by name or code…",
+        "loadError": "Could not load the cost centers",
+        "linked": "This cost center is linked to another project. Choose one that is not in use.",
+        "invalid": "This cost center is not available for your company."
+      },
+      "actualLines": {
+        "title": "Actual cost entries",
+        "description": "Entries posted to the project's cost center, newest first.",
+        "label": "Description",
+        "partner": "Partner",
+        "empty": "Nothing posted to the cost center yet"
+      },
       "staleLatest": "Latest saved values: {title}, {amount}, revision {revision}.",
       "staleFetchFailed": "Could not load the latest entry. Reload is unavailable until that succeeds. Your draft is unchanged.",
       "refreshError": "Could not refresh this page. Your entered values are still here.",

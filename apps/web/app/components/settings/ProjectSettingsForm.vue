@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectSettings } from '@webvue/contracts'
+import type { ProjectSettings, ProjectSettingsExtension, ProjectSettingsPatch } from '@webvue/contracts'
 import StageListEditor from '@/components/pmo/projects/StageListEditor.vue'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { useProjectSettings, useUpdateProjectSettings } from '@/composables/useProjectSettings'
@@ -12,8 +12,8 @@ const { data: settings, isLoading, error, refetch } = useProjectSettings()
 const { mutate: updateSettings, isPending } = useUpdateProjectSettings()
 const saveState = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
 const saveError = ref('')
-const pendingPatch = shallowRef<Partial<ProjectSettings> | null>(null)
-function save(patch: Partial<ProjectSettings>) {
+const pendingPatch = shallowRef<ProjectSettingsPatch | null>(null)
+function save(patch: ProjectSettingsPatch) {
   if (!hydrated.value || saveState.value === 'saving') return
   pendingPatch.value = patch
   saveError.value = ''
@@ -61,6 +61,13 @@ function onApprovalDefault(v: unknown) {
 function onDaysBefore(days: number) {
   if (!Number.isInteger(days) || days === settings.value?.deadline_reminders_days_before) return
   save({ deadline_reminders_days_before: days })
+}
+
+// --- settings other applications add -------------------------------------------
+// The server labels each extension and names the company field it writes; a selection or a switch saves under that name.
+function onExtension(extension: ProjectSettingsExtension, value: unknown) {
+  if (value === undefined || value === extension.value) return
+  save({ [extension.name]: value })
 }
 
 // --- default stages ------------------------------------------------------------
@@ -191,6 +198,31 @@ function onDeleteStage(id: number | string) {
             :disabled="!hydrated || isPending || saveState === 'error'"
             @update:model-value="v => onBool('overdue_digest_enabled', v)"
           />
+        </div>
+      </SharedFormSection>
+
+      <SharedFormSection v-if="settings.extensions.length" id="project-extensions" panel :title="t('settings.projects.extensions.title')" :description="t('settings.projects.extensions.hint')" class="webvue-settings-anchor">
+        <div class="grid gap-(--webvue-gap-card)">
+          <template v-for="extension in settings.extensions" :key="extension.name">
+            <UFormField v-if="extension.kind === 'selection'" :id="`project-extension-${extension.name}`" :label="extension.label" :description="extension.help ?? undefined">
+              <URadioGroup
+                :model-value="extension.value ?? undefined"
+                :items="extension.options"
+                :data-testid="`settings-extension-${extension.name}`"
+                :disabled="!hydrated || isPending || saveState === 'error'"
+                @update:model-value="v => onExtension(extension, v)"
+              />
+            </UFormField>
+            <USwitch
+              v-else
+              :id="`project-extension-${extension.name}`" :data-testid="`settings-extension-${extension.name}`"
+              :model-value="extension.value"
+              :label="extension.label"
+              :description="extension.help ?? undefined"
+              :disabled="!hydrated || isPending || saveState === 'error'"
+              @update:model-value="v => onExtension(extension, v)"
+            />
+          </template>
         </div>
       </SharedFormSection>
     </template>

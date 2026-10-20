@@ -1,13 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import manifest from '../manifest'
 import { invoicesSearch, partnersSearch } from '../search'
 import { financeSectionOf, invoiceRecordPath } from '../routes'
 import { appManifests, manifestForPath, settingsEntryForPath } from '../../manifests'
-import { appCommands, searchProviders } from '../../surfaces'
+import { appCommands, recordLinkFor, recordPickerFor, searchProviders } from '../../surfaces'
 import { canReach, canReachPath, firstAllowedPath, requiredCapabilityForPath } from '../../../utils/accessPolicy'
 import { contextLinksForModule, visibleShellModules } from '../../../composables/nav/shellModules'
 import { groupSections } from '../../../composables/nav/sidebarModel'
 import { isContextLinkActive } from '../../../composables/useShellNavigation'
+import { COST_CENTER_PAGE } from '../recordPicker'
 import type { AppSearchApi } from '../../types'
 
 const ALL = [
@@ -227,5 +228,33 @@ describe('finance search providers', () => {
     const page = await invoicesSearch.search(api, '5', 0)
     expect(calls.at(-1)).toEqual(['/api/v1/finance/invoices', { q: '5', limit: 20, offset: 0 }])
     expect(page.rows).toEqual([{ id: 5, label: 'الأفق', to: '/finance/purchases/refunds/5', caption: undefined }])
+  })
+})
+
+describe('finance record surfaces for other applications', () => {
+  it.each([
+    ['finance-invoice', 7, '/finance/sales/invoices/7', 'finance.invoices.read'],
+    ['finance-credit-note', 7, '/finance/sales/credit-notes/7', 'finance.invoices.read'],
+    ['finance-bill', 7, '/finance/purchases/bills/7', 'finance.invoices.read'],
+    ['finance-refund', 7, '/finance/purchases/refunds/7', 'finance.invoices.read'],
+    ['finance-entry', 7, '/finance/accounting/entries/7', 'finance.entries.read'],
+  ])('links %s to its record page behind its capability', (kind, id, to, capability) => {
+    expect(recordLinkFor(kind)?.to(id)).toBe(to)
+    expect(recordLinkFor(kind)?.capability).toBe(capability)
+  })
+
+  it('declares the cost center picker behind the analytic read capability and walks every page', async () => {
+    const picker = recordPickerFor('cost-center')
+    expect(picker).toMatchObject({ kind: 'cost-center', capability: 'finance.analytic.read' })
+    const account = (id: number, code: string) => ({ id, name: `CC${id}`, code, plan: { id: 1, name: 'P' }, active: true })
+    const api = vi.fn(async (_url: string, options: { query?: { offset?: number } }) => options.query?.offset === 0
+      ? { items: Array.from({ length: COST_CENTER_PAGE }, (_, i) => account(i + 1, i === 0 ? 'A1' : '')), total: COST_CENTER_PAGE + 1 }
+      : { items: [account(COST_CENTER_PAGE + 1, '')], total: COST_CENTER_PAGE + 1 }) as unknown as AppSearchApi
+    const options = await picker!.options(api)
+    expect(api).toHaveBeenCalledTimes(2)
+    expect(api).toHaveBeenNthCalledWith(1, '/api/v1/finance/analytic-accounts', expect.objectContaining({ query: { limit: COST_CENTER_PAGE, offset: 0 } }))
+    expect(options).toHaveLength(COST_CENTER_PAGE + 1)
+    expect(options[0]).toEqual({ id: 1, name: 'A1 · CC1' })
+    expect(options[1]).toEqual({ id: 2, name: 'CC2' })
   })
 })

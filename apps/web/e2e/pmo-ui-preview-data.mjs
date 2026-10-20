@@ -71,7 +71,7 @@ export function pmoPreviewData(path, url, { TASKS, CURRENCY }) {
     const list = entries(projectId).filter(item => !kind || kind === 'all' || item.kind === kind)
     return slice(search(list, url, 'title'), url, {
       can_manage: canManage,
-      summary: { project_id: projectId, currency: CURRENCY, charter_estimate: null, planned: 2500, actual: 700, remaining: 1800, utilization_percent: 28, over_budget: false, budget_count: 2, expense_count: 2 },
+      summary: { project_id: projectId, currency: CURRENCY, charter_estimate: null, planned: 2500, actual: 700, remaining: 1800, utilization_percent: 28, over_budget: false, budget_count: 2, expense_count: 2, actual_source: 'manual', actual_account: null, can_read_actual_lines: false, can_choose_actual_account: false },
     })
   }
   if (/^finance\/\d+$/.test(rest)) return entries(projectId).find(item => item.id === Number(rest.split('/')[1]))
