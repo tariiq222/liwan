@@ -37,7 +37,7 @@ const columns = computed<TableColumn<HrActivityPlan>[]>(() => [
 ])
 function actionsFor(plan: HrActivityPlan): RowAction[] {
   return [
-    { label: t(`${props.namespace}.actions.edit`), icon: 'i-lucide-pencil', to: toFor(plan) },
+    { label: t(`${props.namespace}.actions.edit`), icon: 'i-lucide-pencil', to: props.toFor(plan) },
     {
       label: plan.active ? t(`${props.namespace}.plans.deactivate`) : t(`${props.namespace}.plans.activate`),
       icon: plan.active ? 'i-lucide-circle-slash' : 'i-lucide-circle-check',
@@ -56,7 +56,7 @@ function actionsFor(plan: HrActivityPlan): RowAction[] {
       :rows="plans"
       :columns="columns"
       row-key="id"
-      :row-to="planTo"
+      :row-to="toFor"
       :empty-text="t(`${namespace}.plans.empty`)"
       :caption="t(`${namespace}.plans.title`)"
     >

@@ -42,7 +42,7 @@ function cleared(departure: HrDeparture) {
   return departure.clearance.total > 0 && departure.clearance.done === departure.clearance.total
 }
 function actionsFor(departure: HrDeparture): RowAction[] {
-  return [{ label: t(`${props.namespace}.actions.edit`), icon: 'i-lucide-pencil', to: toFor(departure) }]
+  return [{ label: t(`${props.namespace}.actions.edit`), icon: 'i-lucide-pencil', to: props.toFor(departure) }]
 }
 </script>
 
@@ -54,7 +54,7 @@ function actionsFor(departure: HrDeparture): RowAction[] {
       :rows="departures"
       :columns="columns"
       :row-key="departureKey"
-      :row-to="departureTo"
+      :row-to="toFor"
       :empty-text="t(`${namespace}.departures.empty`)"
       :caption="t(`${namespace}.departures.title`)"
     >

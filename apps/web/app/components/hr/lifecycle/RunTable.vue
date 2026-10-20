@@ -45,7 +45,7 @@ function stateTone(run: HrPlanRun) {
       :rows="runs"
       :columns="columns"
       row-key="id"
-      :row-to="runTo"
+      :row-to="toFor"
       :empty-text="t(`${namespace}.runs.empty`)"
       :caption="t(`${namespace}.runs.title`)"
     >
