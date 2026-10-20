@@ -88,6 +88,7 @@ export const FinanceAccountSchema = z.object({
   account_type: FinanceAccountTypeSchema,
   reconcile: z.boolean(),
   currency: currency.nullable(),
+  active: z.boolean(),
 }).strict()
 
 export const FinanceJournalSchema = z.object({

@@ -15,7 +15,8 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `POST /invoices/<id>/post`, `/cancel`, `/reset-to-draft` | `finance.invoices.post` |
 | `GET /payments` | `finance.payments.read` |
 | `POST /payments` (201), `POST /payments/<id>/cancel`, `/reset-to-draft` | `finance.payments.manage` |
-| `GET /accounts` | `finance.accounts.read` |
+| `GET /accounts` (`archived=true\|false`, `account_type`, `q`), `GET /accounts/<id>` | `finance.accounts.read` |
+| `POST /accounts` (201), `PATCH /accounts/<id>`, `POST /accounts/<id>/archive`, `/unarchive` | `finance.accounts.manage` |
 | `GET /journals` | `finance.journals.read` |
 | `GET /setup` | `finance.setup.read` |
 | `POST /setup/chart`, `PATCH /setup/fiscal` | `finance.setup.manage` |
@@ -127,6 +128,18 @@ the route gates per capability (`tests/test_finance_capability_isolation.py`,
 
 The capability split is route-level and relies on the pending closing of Odoo's generic ORM
 endpoints, which would otherwise let the broader stock groups act directly.
+
+## Accounts
+
+`finance.accounts.manage` (needs `accounts.read`) creates, edits and archives the accounts of the current company; there
+is no delete. No `sudo()`: `security/ir.model.access.csv` gives the capability group create and write (not unlink) on
+`account.account`, as for cost centers and budgets, and every audit write is in the caller's environment. A body is
+`{code, name, account_type, reconcile?, currency?}` (`currency` is a code or `null`); `PATCH` takes any of them. Odoo's own
+constraints stay in force (unique code, receivable/payable must reconcile, currency and reconcile switches on used
+accounts). On top of them: an account that has journal items keeps its type (422 `account_in_use`), and an account cannot
+be archived while it has a posted balance, is the default account of a journal or sits on a tax (422 `account_in_use`).
+Each write leaves an audit event (`account_created`, `account_changed`, `account_archived`, `account_unarchived`) with
+field names only. The list hides archived accounts unless `archived=true`.
 
 ## Journal entries
 

@@ -19,6 +19,10 @@ class WebVueFinanceAuditEvent(models.Model):
     company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade')
     action = fields.Selection([
         ('chart_loaded', 'Chart of accounts loaded'),
+        ('account_created', 'Account created'),
+        ('account_changed', 'Account changed'),
+        ('account_archived', 'Account archived'),
+        ('account_unarchived', 'Account unarchived'),
         ('company_written', 'Company setup changed'),
         ('fiscal_year_closed', 'Fiscal year closed'),
         ('zatca_onboarded', 'ZATCA journal onboarded'),

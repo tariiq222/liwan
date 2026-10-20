@@ -52,7 +52,7 @@ const PAYMENT = {
   amount: 1150,
 }
 const ACCOUNT = {
-  id: 40, code: '400000', name: 'Product Sales', account_type: 'income', reconcile: false, currency: null,
+  id: 40, code: '400000', name: 'Product Sales', account_type: 'income', reconcile: false, currency: null, active: true,
 }
 const JOURNAL = { id: 1, name: 'Customer Invoices', code: 'INV', type: 'sale', currency: 'SAR' }
 

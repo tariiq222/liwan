@@ -129,6 +129,10 @@
       },
       "actions": {
         "chart_loaded": "تحميل شجرة الحسابات",
+        "account_created": "إنشاء حساب",
+        "account_changed": "تعديل حساب",
+        "account_archived": "أرشفة حساب",
+        "account_unarchived": "إلغاء أرشفة حساب",
         "company_written": "تعديل إعدادات الشركة",
         "fiscal_year_closed": "إقفال سنة مالية",
         "zatca_onboarded": "ربط يومية بزاتكا",

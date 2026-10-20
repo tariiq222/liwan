@@ -37,7 +37,7 @@ export const financeAccounts = [
   [26, '530101', 'مصروف الإهلاك', 'expense_depreciation', false],
   [27, '540101', 'مصروفات أخرى', 'expense_other', false],
   [28, '990101', 'حساب نظامي', 'off_balance', false],
-].map(([id, code, name, account_type, reconcile]) => ({ id, code, name, account_type, reconcile, currency: id === 2 ? CURRENCY : null }))
+].map(([id, code, name, account_type, reconcile]) => ({ id, code, name, account_type, reconcile, currency: id === 2 ? CURRENCY : null, active: true }))
 
 const accountRef = id => {
   const { name } = financeAccounts.find(item => item.id === id)

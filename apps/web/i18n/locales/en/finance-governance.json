@@ -129,6 +129,10 @@
       },
       "actions": {
         "chart_loaded": "Chart of accounts loaded",
+        "account_created": "Account created",
+        "account_changed": "Account changed",
+        "account_archived": "Account archived",
+        "account_unarchived": "Account unarchived",
         "company_written": "Company settings changed",
         "fiscal_year_closed": "Fiscal year closed",
         "zatca_onboarded": "Journal connected to ZATCA",

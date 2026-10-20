@@ -7,7 +7,7 @@ PAYMENT_KEYS = {
     'id', 'name', 'payment_type', 'partner_type', 'state', 'partner', 'journal', 'date', 'memo',
     'currency', 'amount',
 }
-ACCOUNT_KEYS = {'id', 'code', 'name', 'account_type', 'reconcile', 'currency'}
+ACCOUNT_KEYS = {'id', 'code', 'name', 'account_type', 'reconcile', 'currency', 'active'}
 JOURNAL_KEYS = {'id', 'name', 'code', 'type', 'currency'}
 
 

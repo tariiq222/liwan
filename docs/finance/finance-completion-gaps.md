@@ -44,9 +44,9 @@ Status: `open` / `blocked` / `in progress` / `done`. Priority follows the brief'
 
 | ID | Area | Gap | Files expected to change | Acceptance criteria | Status |
 |---|---|---|---|---|---|
-| G1 | Setup | Account create/update/archive with lock-date and used-account guards | `controllers/finance_accounts.py`, `serializers/account.py`, `models/setup_service.py` or a new service, contracts, web | Create/PATCH/archive through `/api/v1/finance/accounts`; type change refused when the account has posted items; archive refused with a non-zero balance or open items; audit event per write; tests for 403, other company, locked period | **blocked** (B1) |
-| G2 | Setup | Journals, taxes, payment terms, payment methods, bank accounts (`res.partner.bank` + journal link), asset profiles: manage routes | per resource controller + serializer + capability | A new company can be configured end to end from WebVue | blocked (B1) |
-| G3 | Setup | New-company end-to-end configuration test from WebVue only | `tests/` | Scratch-database test: empty company to first posted invoice with no Odoo UI step | blocked (B2) |
+| G1 | Setup | Account create/update/archive with used-account guards (API done; web screens not yet) | `controllers/finance_accounts.py`, `serializers/account.py`, `models/setup_service.py` or a new service, contracts, web | Create/PATCH/archive through `/api/v1/finance/accounts`; type change refused when the account has posted items; archive refused with a non-zero balance or open items; audit event per write; tests for 403, other company, locked period | **in progress**: routes, capability, ACL, audit, contracts and 11 tests done; web UI open |
+| G2 | Setup | Journals, taxes, payment terms, payment methods, bank accounts (`res.partner.bank` + journal link), asset profiles: manage routes | per resource controller + serializer + capability | A new company can be configured end to end from WebVue | open |
+| G3 | Setup | New-company end-to-end configuration test from WebVue only | `tests/` | Scratch-database test: empty company to first posted invoice with no Odoo UI step | open |
 | G4 | Payments | Standalone receipt/payment, customer/vendor advances, allocation to invoices later | `finance_payments.py`, `serializers/payment.py` | `account.payment` without invoices; allocate/unallocate through reconciliation; overpayment becomes unallocated balance | open |
 | G5 | Payments | Internal transfers (bank/cash/bank), refund of unallocated balance, reverse/correct | `finance_payments.py` | transfer posts balanced pair; period-locked and permission denials tested | open |
 | G6 | Bank | CSV statement import with preview, column mapping, balance check, duplicate prevention; assess OFX/CAMT addons in the pinned OCA set (`deploy/oca-addons.json`) | `finance_bank.py` or new `finance_bank_import.py`, serializers | duplicate file/line rejected; ending balance verified; nothing written before confirm | open |
@@ -61,16 +61,15 @@ Status: `open` / `blocked` / `in progress` / `done`. Priority follows the brief'
 
 ## Blockers needing the owner
 
-- **B1: `sudo()` for account/journal/tax writes.** Stock grants these writes to `account.group_account_manager`
-  only, which WebVue never implies (`README.md` "Deliberate ORM grant"). The routes therefore need new documented
-  `sudo()` cases in `webvue_finance` (R7), recorded in `tools/arch_documented_sudo.json`. AGENTS.md says that needs
-  the owner's `Architecture-approved-by:` trailer; agents never add it. Decision needed: approve a new
-  `models/setup_service.py` elevation (capability-checked, field-whitelisted, current company only) for accounts,
-  journals, taxes, payment terms and bank accounts, or grant a narrower stock group instead.
-- **B2: no runtime in this session.** Odoo 19 core, the pinned OCA checkouts and a running PostgreSQL are absent.
-  Without them no Odoo test can run (and `odoo19` must never be used). Code written here would be unverified; I did not
-  write payment, bank or asset code on that basis. Provide a session with the environment of `docs/testing.md`
-  (`npm run test:odoo` against a scratch database), then the stages proceed with tests.
+- **B1 (resolved for accounts, 2026-10-20): no `sudo()`.** Stock grants account writes to `account.group_account_manager`,
+  which WebVue never implies. The accounts route follows the cost-center and budget precedent instead: a dedicated
+  capability group (`finance.accounts.manage`) with create/write ACL rows on `account.account` in
+  `security/ir.model.access.csv`, so no new R7 case and no `Architecture-approved-by:` trailer. Journals, taxes,
+  payment terms and bank accounts are to follow the same pattern; if one needs real elevation (for example a journal's
+  sequences), that single case still needs the owner's trailer.
+- **B2 (resolved 2026-10-20): runtime.** Odoo 19 at `deploy/odoo/ODOO_COMMIT`, the pinned OCA repos and PostgreSQL 16 were
+  provisioned in the session (outside the repository) and tests run on `webvue_scratch_*` databases only. Baseline of
+  `webvue_finance` at `main`: 417 tests, 0 failed.
 - **B3: ZATCA production.** The production policy is a draft and the owner deferred D2-D6 until before the first
   production deployment. The sandbox confinement stays; only preparation work is allowed until then.
 - **B4: a qualified Saudi accountant** must review the VAT-return mapping, the Zakat inputs and the expected figures of
