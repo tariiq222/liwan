@@ -7,7 +7,7 @@
         <field name="description_ar">اختيار نافذة صيانة العميل وحجزها وإلغاؤها قبل البدء</field>
         <field name="description_en">Choose tenant maintenance windows and manage bookings before execution</field>
         <field name="group_xmlid">webvue_platform.group_maintenance_manager</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <function model="webvue.access.service" name="_webvue_configure_permission_dependencies"/>
     <function model="webvue.access.service" name="_webvue_repair_builtin_role_grants"/>

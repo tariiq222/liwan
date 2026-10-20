@@ -6,7 +6,7 @@
         <field name="name_ar">قراءة المشاريع</field><field name="name_en">Read projects</field>
         <field name="description_ar">قراءة المشاريع</field><field name="description_en">Read projects</field>
         <field name="group_xmlid">webvue_pmo.group_cap_pmo_projects_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_pmo_projects_create" model="webvue.access.permission">
         <field name="key">pmo.projects.create</field><field name="domain">pmo</field>
@@ -14,7 +14,7 @@
         <field name="name_ar">إنشاء المشاريع</field><field name="name_en">Create projects</field>
         <field name="description_ar">إنشاء المشاريع</field><field name="description_en">Create projects</field>
         <field name="group_xmlid">webvue_pmo.group_cap_pmo_projects_create</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_pmo_projects_manage" model="webvue.access.permission">
         <field name="key">pmo.projects.manage</field><field name="domain">pmo</field>
@@ -22,7 +22,7 @@
         <field name="name_ar">إدارة المشاريع</field><field name="name_en">Manage projects</field>
         <field name="description_ar">إدارة المشاريع</field><field name="description_en">Manage projects</field>
         <field name="group_xmlid">webvue_pmo.group_cap_pmo_projects_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="True"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_pmo_settings_manage" model="webvue.access.permission">
         <field name="key">pmo.settings.manage</field><field name="domain">pmo</field>
@@ -30,7 +30,7 @@
         <field name="name_ar">إدارة إعدادات المشاريع</field><field name="name_en">Manage PMO settings</field>
         <field name="description_ar">إدارة إعدادات المشاريع</field><field name="description_en">Manage PMO settings</field>
         <field name="group_xmlid">webvue_pmo.group_cap_pmo_settings_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_pmo_tasks_read" model="webvue.access.permission">
         <field name="key">pmo.tasks.read</field><field name="domain">pmo</field>
@@ -38,7 +38,7 @@
         <field name="name_ar">قراءة المهام</field><field name="name_en">Read tasks</field>
         <field name="description_ar">قراءة المهام</field><field name="description_en">Read tasks</field>
         <field name="group_xmlid">webvue_pmo.group_cap_pmo_tasks_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_pmo_tasks_create" model="webvue.access.permission">
         <field name="key">pmo.tasks.create</field><field name="domain">pmo</field>
@@ -46,7 +46,7 @@
         <field name="name_ar">إنشاء المهام</field><field name="name_en">Create tasks</field>
         <field name="description_ar">إنشاء المهام</field><field name="description_en">Create tasks</field>
         <field name="group_xmlid">webvue_pmo.group_cap_pmo_tasks_create</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_pmo_tasks_write" model="webvue.access.permission">
         <field name="key">pmo.tasks.write</field><field name="domain">pmo</field>
@@ -54,7 +54,7 @@
         <field name="name_ar">تعديل المهام</field><field name="name_en">Write tasks</field>
         <field name="description_ar">تعديل المهام</field><field name="description_en">Write tasks</field>
         <field name="group_xmlid">webvue_pmo.group_cap_pmo_tasks_write</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="True"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_pmo_tasks_approve" model="webvue.access.permission">
         <field name="key">pmo.tasks.approve</field><field name="domain">pmo</field>
@@ -62,7 +62,7 @@
         <field name="name_ar">اعتماد المهام</field><field name="name_en">Approve tasks</field>
         <field name="description_ar">اعتماد المهام</field><field name="description_en">Approve tasks</field>
         <field name="group_xmlid">webvue_pmo.group_cap_pmo_tasks_approve</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="True"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <data noupdate="1">
         <record id="role_pmo_manager" model="webvue.access.role">

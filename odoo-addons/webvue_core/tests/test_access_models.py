@@ -130,7 +130,7 @@ class TestWebVueAccessModels(TransactionCase):
             self.service._webvue_replace_assignments(
                 self.employee,
                 [{'role_id': branding_role.id, 'company_id': self.company.id,
-                  'scope_kind': 'project', 'scope_id': 1}],
+                  'scope_kind': 'record', 'scope_id': 1}],
             )
 
     def test_generic_sensitive_user_write_is_rejected(self):

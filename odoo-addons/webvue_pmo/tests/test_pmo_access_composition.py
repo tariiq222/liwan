@@ -1,9 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.exceptions import ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
+from odoo.addons.webvue_api.serializers.access import dump_permission
 from odoo.addons.webvue_pmo.models.access_service import (
     EMPLOYEE_PMO_PERMISSIONS,
     PMO_PERMISSIONS,
+    PROJECT_CONTEXTUAL_PERMISSIONS,
 )
 
 
@@ -75,6 +78,30 @@ class TestPmoAccessComposition(TransactionCase):
         identity = self.service._webvue_identity(self.owner)
         self.assertIn('project_owner', {role['key'] for role in identity['roles']})
         self.assertTrue({'pmo.projects.manage', 'pmo.tasks.write', 'pmo.tasks.approve'} <= set(identity['capabilities']))
+
+    def test_pmo_registers_the_project_scope_kind(self):
+        kinds = self.service._webvue_scope_kind_map()
+        self.assertEqual(kinds['project']['owner'], 'webvue_pmo')
+        self.assertEqual(set(kinds['project']['permissions']), {'pmo.projects.manage', 'pmo.tasks.write', 'pmo.tasks.approve'})
+        self.assertEqual(set(kinds['project']['roles']), {'project_owner', 'project_creation_policy'})
+        self.assertEqual(set(kinds['project']['roles']['project_owner']['grants']), set(PROJECT_CONTEXTUAL_PERMISSIONS))
+        self.assertEqual(set(kinds['project']['roles']['project_creation_policy']['grants']), {'pmo.projects.create'})
+        for permission in self.Permission.search([('key', 'in', sorted(PMO_PERMISSIONS))]):
+            expected = [{'kind': 'company', 'assignable': True}]
+            if permission.key in PROJECT_CONTEXTUAL_PERMISSIONS:
+                expected.append({'kind': 'project', 'assignable': False})
+            self.assertEqual(dump_permission(permission, kinds)['scopes'], expected, permission.key)
+        owner_role = next(role for role in self.service._webvue_identity(self.owner)['roles'] if role['key'] == 'project_owner')
+        self.assertEqual(owner_role, {
+            'id': None, 'key': 'project_owner', 'name': {'ar': 'مسؤول مشروع', 'en': 'Project owner'},
+            'type': 'contextual', 'protected': True, 'source': 'contextual',
+        })
+
+    def test_project_scope_is_never_assignable(self):
+        with self.assertRaisesRegex(ValidationError, 'unsupported_scope'):
+            self.service._webvue_replace_assignments(self.owner, [
+                {'role_id': self.env.ref('webvue_core.role_employee').id, 'scope': {'kind': 'project', 'id': self.owner.company_id.id}},
+            ])
 
     def test_record_without_company_uses_its_project_company(self):
         company_b = self.env['res.company'].create({'name': 'Composition company B'})

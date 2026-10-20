@@ -6,7 +6,7 @@
         <field name="name_ar">قراءة الموظفين</field><field name="name_en">Read employees</field>
         <field name="description_ar">قراءة الموظفين</field><field name="description_en">Read employees</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_employees_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_hr_employees_manage" model="webvue.access.permission">
         <field name="key">hr.employees.manage</field><field name="domain">hr</field>
@@ -14,7 +14,7 @@
         <field name="name_ar">إدارة الموظفين</field><field name="name_en">Manage employees</field>
         <field name="description_ar">إدارة الموظفين</field><field name="description_en">Manage employees</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_employees_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_hr_employees_archive" model="webvue.access.permission">
         <field name="key">hr.employees.archive</field><field name="domain">hr</field>
@@ -22,7 +22,7 @@
         <field name="name_ar">أرشفة الموظفين</field><field name="name_en">Archive employees</field>
         <field name="description_ar">أرشفة الموظفين</field><field name="description_en">Archive employees</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_employees_archive</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_hr_employees_access_status_read" model="webvue.access.permission">
         <field name="key">hr.employees.access_status.read</field><field name="domain">hr</field>
@@ -30,7 +30,7 @@
         <field name="name_ar">قراءة حالة الوصول</field><field name="name_en">Read access status</field>
         <field name="description_ar">قراءة حالة الوصول</field><field name="description_en">Read access status</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_employees_access_status_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_hr_departments_read" model="webvue.access.permission">
         <field name="key">hr.departments.read</field><field name="domain">hr</field>
@@ -38,7 +38,7 @@
         <field name="name_ar">قراءة الأقسام</field><field name="name_en">Read departments</field>
         <field name="description_ar">قراءة الأقسام</field><field name="description_en">Read departments</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_departments_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_hr_departments_manage" model="webvue.access.permission">
         <field name="key">hr.departments.manage</field><field name="domain">hr</field>
@@ -46,7 +46,7 @@
         <field name="name_ar">إدارة الأقسام</field><field name="name_en">Manage departments</field>
         <field name="description_ar">إدارة الأقسام</field><field name="description_en">Manage departments</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_departments_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_hr_leave_read" model="webvue.access.permission">
         <field name="key">hr.leave.read</field><field name="domain">hr</field>
@@ -54,7 +54,7 @@
         <field name="name_ar">قراءة الإجازات</field><field name="name_en">Read leave</field>
         <field name="description_ar">قراءة الإجازات</field><field name="description_en">Read leave</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_leave_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_hr_leave_request" model="webvue.access.permission">
         <field name="key">hr.leave.request</field><field name="domain">hr</field>
@@ -62,7 +62,7 @@
         <field name="name_ar">طلب إجازة</field><field name="name_en">Request leave</field>
         <field name="description_ar">طلب إجازة</field><field name="description_en">Request leave</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_leave_request</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_hr_leave_approve" model="webvue.access.permission">
         <field name="key">hr.leave.approve</field><field name="domain">hr</field>
@@ -70,7 +70,7 @@
         <field name="name_ar">اعتماد الإجازات</field><field name="name_en">Approve leave</field>
         <field name="description_ar">اعتماد الإجازات</field><field name="description_en">Approve leave</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_leave_approve</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_hr_leave_manage" model="webvue.access.permission">
         <field name="key">hr.leave.manage</field><field name="domain">hr</field>
@@ -78,7 +78,7 @@
         <field name="name_ar">إدارة أرصدة الإجازات</field><field name="name_en">Manage leave balances</field>
         <field name="description_ar">إدارة أرصدة الإجازات</field><field name="description_en">Manage leave balances</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_leave_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <data noupdate="1">
         <record id="role_hr_manager" model="webvue.access.role">

@@ -21,8 +21,11 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   through `super()`: `_webvue_capability_definitions` (with `owner` set to the
   addon), `_webvue_permission_dependencies`, `_webvue_builtin_role_grants`, and when
   needed `_webvue_legacy_capability_keys`, `_webvue_record_company`,
-  `_webvue_contextual_capability`, `_webvue_identity_extra`,
-  `_webvue_customer_actor_keys` and `_webvue_legacy_admin_roles`. Its data declares
+  `_webvue_customer_actor_keys` and `_webvue_legacy_admin_roles`. An application that
+  scopes permissions to its own records (PMO: `project`) registers that context kind in
+  `_webvue_scope_kinds` (its contextual permissions and contextual roles) and decides them in
+  `_webvue_contextual_capability` and `_webvue_contextual_role_held`; the foundation knows no
+  kind by name, and a context kind is never assignable. Its data declares
   its groups, permission records and role, then calls
   `_webvue_configure_permission_dependencies` and `_webvue_repair_builtin_role_grants`.
   Moving an xml id between addons needs a `pre-` migration that renames the
