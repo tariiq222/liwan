@@ -56,8 +56,7 @@ class FinanceMisReportController(http.Controller):
         date_to = parse_required_day('date_to')
         only_posted = parse_only_posted()
         company = request.env.company
-        template, amounts = request.env['webvue.finance.mis.report']._webvue_evaluate(
-            'webvue_finance.mis_report_zakat_base', company, _fiscal_year_start(company, date_to), date_to, only_posted,
-            exclude_closing=True,
-        )
-        return dump_zakat_base(company, date_to, only_posted, template, amounts)
+        zakat = request.env['webvue.finance.zakat']
+        template, amounts, figures = zakat._webvue_template_figures(company, date_to, only_posted)
+        workpaper = zakat._webvue_workpaper(company, date_to, figures)
+        return dump_zakat_base(company, date_to, only_posted, template, amounts, workpaper)

@@ -209,9 +209,15 @@ function zakatBase(url) {
       line('zakat_rate', 'Zakat rate: 2.5% of the lunar year scaled to the Gregorian year (x 365/354)', ZAKAT_RATE),
       line('zakat_due', 'Zakat due on the positive base', due),
     ],
+    template_base: base,
+    adjustments: [],
+    adjustments_total: 0,
     base,
     rate: ZAKAT_RATE,
     zakat_due: due,
+    status: 'management_information',
+    filed: false,
+    review: null,
     disclaimer: ZAKAT_DISCLAIMER,
   }
 }

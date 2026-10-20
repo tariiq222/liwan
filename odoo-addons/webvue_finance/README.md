@@ -32,7 +32,9 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `POST /invoices/<id>/debit-note` (201, a draft) | `finance.invoices.manage` |
 | `GET /countries` (`q`), `GET /countries/<id>/states` (`q`) | `finance.partners.read` or `finance.setup.read` |
 | `GET /reports/trial-balance`, `/reports/general-ledger`, `/reports/cash-flow`, `/reports/aged-partner-balance`, `/reports/partner-statement`, `/reports/profit-loss`, `/reports/balance-sheet` | `finance.statements.read` |
-| `GET /reports/zakat-base` | `finance.zakat.read` |
+| `GET /reports/zakat-base`, `GET /zakat/adjustments?date_to`, `GET /zakat/reviews?date_to` | `finance.zakat.read` |
+| `POST /zakat/adjustments` (201), `DELETE /zakat/adjustments/<id>` (204) | `finance.zakat.manage` |
+| `POST /zakat/reviews` (201) | `finance.zakat.review` |
 | `GET /asset-profiles`, `GET /assets`, `GET /assets/<id>` | `finance.assets.read` |
 | `POST /assets` (201, a draft), `POST /assets/<id>/validate`, `POST /assets/<id>/dispose`, `POST /assets/compute-depreciation` | `finance.assets.manage` |
 | `GET /bank-statements`, `GET /bank-statements/<id>`, `GET /bank-statement-lines/<id>/reconcile-proposals` | `finance.bank.read` |
@@ -56,7 +58,7 @@ no partner delete: archive instead. Capability dependencies: `partners.manage` n
 `payments.manage` needs `payments.read` and `invoices.read`; `setup.manage` needs `setup.read`; `entries.manage` needs
 `entries.read`; `entries.post` needs `entries.manage`; `assets.manage` needs `assets.read`; `bank.manage` needs
 `bank.read`; `analytic.manage` needs `analytic.read`; `budgets.manage` needs `budgets.read`; `zatca.read` needs `invoices.read`; `zatca.manage` and `zatca.submit` need `zatca.read`; `closing.manage` needs `closing.read` and `setup.manage`. The built-in
-`finance_manager` role (and `webvue_core`'s vendor support role) holds all thirty-seven capabilities.
+`finance_manager` role (and `webvue_core`'s vendor support role) holds all thirty-nine capabilities.
 
 Two more built-in roles (sets defined once in `models/access_service.py`):
 
@@ -275,6 +277,19 @@ lists the journal items behind one column of one box (entry, type, account, part
 figure opens down to the documents. The answer is `status: draft_for_review` and `filed: false`: WebVue prepares the figures,
 the taxpayer reviews them and files on the ZATCA portal. Opening a custom tax's tags, the correction boxes 14 and 15 (which
 come from tagged manual entries) and the review by a Saudi accountant are not automated.
+
+## Zakat workpaper
+
+The Zakat base is the books' figure (the MIS template, simplified, for management information) plus what only the company
+knows. `finance.zakat.manage` records **adjustments** for a fiscal year end: `{date_to, kind: add|deduct, label, amount, note?}`;
+`GET /reports/zakat-base` then answers `template_base`, the `adjustments`, `adjustments_total`, and `base` and `zakat_due`
+after them (a negative base owes nothing). `finance.zakat.review` records a **review**: the reviewer states a `credential`
+(for example a SOCPA licence number; WebVue does not verify it) and the row keeps the base and Zakat due as reviewed, the
+reviewer, the time and a fingerprint of the books' figures and the adjustments. `status` is `management_information` until a
+review exists, `reviewed` while the latest review still matches, `review_stale` after any later posting or adjustment; reviews are
+never edited or removed. Preparing the adjustments and reviewing them are separate capabilities, so one person need not do both.
+`filed` is always `false`: this is a workpaper; filing the Zakat return is the taxpayer's, and the formula's compliance with
+ZATCA's rules is for a qualified Saudi accountant to confirm (see the template's `disclaimer`).
 
 ## Journal entries
 

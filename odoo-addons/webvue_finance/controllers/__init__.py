@@ -24,5 +24,6 @@ from . import (
     finance_setup,
     finance_statements,
     finance_taxes,
+    finance_zakat,
     finance_zatca,
 )

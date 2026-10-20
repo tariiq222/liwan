@@ -104,7 +104,7 @@ class TestFinanceBuiltinRoles(TransactionCase):
         for key in (
             'finance.invoices.post', 'finance.entries.post', 'finance.closing.manage', 'finance.closing.read',
             'finance.setup.manage', 'finance.zatca.manage', 'finance.budgets.manage', 'finance.assets.manage',
-            'finance.analytic.manage', 'finance.accounts.manage', 'finance.payment_terms.manage', 'finance.taxes.manage', 'finance.journals.manage', 'finance.audit.read', 'finance.zakat.read',
+            'finance.analytic.manage', 'finance.accounts.manage', 'finance.zakat.review', 'finance.zakat.manage', 'finance.payment_terms.manage', 'finance.taxes.manage', 'finance.journals.manage', 'finance.audit.read', 'finance.zakat.read',
         ):
             self.assertNotIn(key, FINANCE_ACCOUNTANT_PERMISSIONS)
 

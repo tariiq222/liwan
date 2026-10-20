@@ -144,15 +144,67 @@ export const FinanceBalanceSheetSchema = z.object({
   lines: z.array(FinanceReportLineSchema),
 }).strict()
 
-/** A simplified Zakat base: the formula must be reviewed by a Saudi CPA (`disclaimer`) before it is relied on. */
+export const FinanceZakatAdjustmentSchema = z.object({
+  id,
+  date_to: day,
+  kind: z.enum(['add', 'deduct']),
+  label: z.string(),
+  amount: z.number().positive(),
+  note: z.string(),
+}).strict()
+
+/** An accountant's review of the computation as it stood; `current` is false once the books or the adjustments changed. */
+export const FinanceZakatReviewSchema = z.object({
+  id,
+  date_to: day,
+  reviewer: z.object({ id, name: z.string() }).strict(),
+  /** The credential the reviewer states (for example a SOCPA licence); WebVue does not verify it. */
+  credential: z.string().min(1),
+  note: z.string(),
+  reviewed_at: z.string().datetime(),
+  base: amount,
+  zakat_due: amount,
+  current: z.boolean(),
+}).strict()
+
+/**
+ * A simplified Zakat base. `template_base` is the books' figure; `base` and `zakat_due` include the company's adjustments.
+ * `status` is `management_information` until a review exists, `reviewed` while the latest review matches, `review_stale`
+ * after a change. `filed` is always false: WebVue never files, and even a reviewed computation is the taxpayer's to file.
+ */
 export const FinanceZakatBaseSchema = z.object({
   date_to: day,
   ...header,
   lines: z.array(FinanceReportLineSchema),
+  template_base: amount,
+  adjustments: z.array(FinanceZakatAdjustmentSchema),
+  adjustments_total: amount,
   base: amount,
   rate: z.number(),
   zakat_due: amount,
+  status: z.enum(['management_information', 'reviewed', 'review_stale']),
+  filed: z.literal(false),
+  review: FinanceZakatReviewSchema.nullable(),
   disclaimer: z.string().min(1),
+}).strict()
+
+export const FinanceZakatAdjustmentListSchema = list(FinanceZakatAdjustmentSchema)
+export const FinanceZakatReviewListSchema = list(FinanceZakatReviewSchema)
+
+/** POST /finance/zakat/adjustments (`finance.zakat.manage`). */
+export const FinanceZakatAdjustmentInputSchema = z.object({
+  date_to: day,
+  kind: z.enum(['add', 'deduct']),
+  label: z.string().min(1).max(255),
+  amount: z.number().positive(),
+  note: z.string().max(255).optional(),
+}).strict()
+
+/** POST /finance/zakat/reviews (`finance.zakat.review`): the reviewer states their credential. */
+export const FinanceZakatReviewInputSchema = z.object({
+  date_to: day,
+  credential: z.string().min(1).max(255),
+  note: z.string().max(255).optional(),
 }).strict()
 
 export type FinanceTrialBalance = z.infer<typeof FinanceTrialBalanceSchema>
@@ -163,6 +215,8 @@ export type FinanceReportLine = z.infer<typeof FinanceReportLineSchema>
 export type FinanceProfitLoss = z.infer<typeof FinanceProfitLossSchema>
 export type FinanceBalanceSheet = z.infer<typeof FinanceBalanceSheetSchema>
 export type FinanceZakatBase = z.infer<typeof FinanceZakatBaseSchema>
+export type FinanceZakatAdjustment = z.infer<typeof FinanceZakatAdjustmentSchema>
+export type FinanceZakatReview = z.infer<typeof FinanceZakatReviewSchema>
 
 const CashFlowItemSchema = z.object({ account: LedgerAccountSchema, amount }).strict()
 

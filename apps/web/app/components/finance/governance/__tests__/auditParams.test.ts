@@ -14,7 +14,7 @@ describe('audit list filters', () => {
   })
 
   it('offers every action of the contract', () => {
-    expect(AUDIT_ACTIONS).toEqual(['chart_loaded', 'account_created', 'account_changed', 'account_archived', 'account_unarchived', 'asset_disposed', 'bank_statement_imported', 'bank_statement_changed', 'bank_statement_deleted', 'bank_line_unreconciled', 'bank_statement_auto_reconciled', 'payment_created', 'payment_changed', 'payment_posted', 'payment_allocated', 'payment_unallocated', 'journal_created', 'journal_changed', 'journal_archived', 'journal_unarchived', 'tax_created', 'tax_changed', 'tax_archived', 'tax_unarchived', 'payment_term_created', 'payment_term_changed', 'payment_term_archived', 'payment_term_unarchived', 'company_written', 'fiscal_year_closed', 'zatca_onboarded', 'zatca_submitted'])
+    expect(AUDIT_ACTIONS).toEqual(['chart_loaded', 'account_created', 'account_changed', 'account_archived', 'account_unarchived', 'zakat_adjustment_added', 'zakat_adjustment_removed', 'zakat_reviewed', 'asset_disposed', 'bank_statement_imported', 'bank_statement_changed', 'bank_statement_deleted', 'bank_line_unreconciled', 'bank_statement_auto_reconciled', 'payment_created', 'payment_changed', 'payment_posted', 'payment_allocated', 'payment_unallocated', 'journal_created', 'journal_changed', 'journal_archived', 'journal_unarchived', 'tax_created', 'tax_changed', 'tax_archived', 'tax_unarchived', 'payment_term_created', 'payment_term_changed', 'payment_term_archived', 'payment_term_unarchived', 'company_written', 'fiscal_year_closed', 'zatca_onboarded', 'zatca_submitted'])
   })
 
   it('counts the applied filters', () => {

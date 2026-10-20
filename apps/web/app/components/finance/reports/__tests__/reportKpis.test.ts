@@ -68,7 +68,7 @@ describe('report KPI tiles', () => {
   })
 
   it('shows the Zakat base, rate and due, the due in the warning tone when positive', () => {
-    const report = (due: number): LoadedReport => ({ slug: 'zakat-base', data: { date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', lines: [], base: 1000, rate: 0.025, zakat_due: due, disclaimer: 'x' } })
+    const report = (due: number): LoadedReport => ({ slug: 'zakat-base', data: { date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', lines: [], template_base: 1000, adjustments: [], adjustments_total: 0, base: 1000, rate: 0.025, zakat_due: due, status: 'management_information', filed: false, review: null, disclaimer: 'x' } })
     expect(values(report(25))).toEqual({ zakatBase: '1000', zakatRate: '0.025', zakatDue: '25' })
     expect(reportKpiTiles(report(25), t, n).find(tile => tile.id === 'zakatDue')?.tone).toBe('warning')
     expect(reportKpiTiles(report(0), t, n).find(tile => tile.id === 'zakatDue')?.tone).toBe('neutral')

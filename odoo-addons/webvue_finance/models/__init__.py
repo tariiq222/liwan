@@ -17,5 +17,6 @@ from . import (
     vat_report,
     vat_return,
     withholding_report,
+    zakat,
     zatca_service,
 )

@@ -10,4 +10,14 @@
         <field name="model_id" ref="model_webvue_finance_idempotency"/>
         <field name="domain_force">[('company_id', 'in', company_ids), ('user_id', '=', user.id)]</field>
     </record>
+    <record id="rule_finance_zakat_adjustment_company" model="ir.rule">
+        <field name="name">Finance Zakat adjustments in the allowed companies</field>
+        <field name="model_id" ref="model_webvue_finance_zakat_adjustment"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_finance_zakat_review_company" model="ir.rule">
+        <field name="name">Finance Zakat reviews in the allowed companies</field>
+        <field name="model_id" ref="model_webvue_finance_zakat_review"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

@@ -15,10 +15,14 @@ FINANCE_PERMISSIONS = frozenset({
     'finance.budgets.read', 'finance.budgets.manage',
     'finance.closing.read', 'finance.closing.manage',
     'finance.audit.read',
+    'finance.zakat.review',
+    'finance.zakat.manage',
     'finance.taxes.read', 'finance.taxes.manage',
     'finance.payment_terms.read', 'finance.payment_terms.manage',
 })
 FINANCE_PERMISSION_DEPENDENCIES = {
+    'finance.zakat.review': {'finance.zakat.read'},
+    'finance.zakat.manage': {'finance.zakat.read'},
     'finance.accounts.manage': {'finance.accounts.read'},
     'finance.payment_terms.manage': {'finance.payment_terms.read'},
     'finance.taxes.manage': {'finance.taxes.read'},

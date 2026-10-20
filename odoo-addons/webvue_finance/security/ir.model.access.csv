@@ -21,6 +21,12 @@ access_finance_idempotency_invoices,finance idempotency invoices: webvue.finance
 access_finance_idempotency_payments,finance idempotency payments: webvue.finance.idempotency,model_webvue_finance_idempotency,group_cap_finance_payments_manage,1,1,1,1
 access_finance_idempotency_entries,finance idempotency entries: webvue.finance.idempotency,model_webvue_finance_idempotency,group_cap_finance_entries_manage,1,1,1,1
 access_finance_idempotency_bank,finance idempotency bank: webvue.finance.idempotency,model_webvue_finance_idempotency,group_cap_finance_bank_manage,1,1,1,1
+access_finance_zakat_manage_finance_zakat_adjustment,finance zakat manage: webvue.finance.zakat.adjustment,model_webvue_finance_zakat_adjustment,group_cap_finance_zakat_manage,1,1,1,1
+access_finance_audit_zakat_manage_event,finance audit zakat manage: webvue.finance.audit.event,model_webvue_finance_audit_event,group_cap_finance_zakat_manage,0,0,1,0
+access_finance_zakat_review_finance_zakat_review,finance zakat review: webvue.finance.zakat.review,model_webvue_finance_zakat_review,group_cap_finance_zakat_review,1,0,1,0
+access_finance_audit_zakat_review_event,finance audit zakat review: webvue.finance.audit.event,model_webvue_finance_audit_event,group_cap_finance_zakat_review,0,0,1,0
+access_finance_zakat_read_adjustment,finance zakat read: webvue.finance.zakat.adjustment,model_webvue_finance_zakat_adjustment,group_cap_finance_zakat_read,1,0,0,0
+access_finance_zakat_read_review,finance zakat read: webvue.finance.zakat.review,model_webvue_finance_zakat_review,group_cap_finance_zakat_read,1,0,0,0
 access_finance_analytic_read_plan,finance analytic read: account.analytic.plan,analytic.model_account_analytic_plan,group_cap_finance_analytic_read,1,0,0,0
 access_finance_analytic_manage_plan,finance analytic manage: account.analytic.plan,analytic.model_account_analytic_plan,group_cap_finance_analytic_manage,1,1,1,0
 access_finance_analytic_manage_account,finance analytic manage: account.analytic.account,analytic.model_account_analytic_account,group_cap_finance_analytic_manage,1,1,1,0
