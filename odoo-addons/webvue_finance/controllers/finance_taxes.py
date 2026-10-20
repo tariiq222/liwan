@@ -4,7 +4,7 @@ from odoo.exceptions import MissingError
 from odoo.http import request
 
 from .common import list_page, parse_choice, require_capability
-from .write_support import attempt
+from .write_support import attempt, company_records
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -17,6 +17,7 @@ from odoo.addons.webvue_finance.serializers.tax import (
     dump_taxes,
     parse_tax_create,
     parse_tax_patch,
+    tax_account_of,
 )
 
 
@@ -31,6 +32,16 @@ def _find_tax(tax_id):
     return tax
 
 
+def _tax_account(account_id):
+    return company_records('account.account', [account_id], 'tax_account_id', [('company_ids', 'in', [request.env.company.id])])
+
+
+def _set_tax_account(tax, account):
+    """Put the tax amount of both the invoice and the credit note distribution on ``account``."""
+    tax.invoice_repartition_line_ids.filtered(lambda line: line.repartition_type == 'tax').account_id = account
+    tax.refund_repartition_line_ids.filtered(lambda line: line.repartition_type == 'tax').account_id = account
+
+
 def _values(parsed):
     values = {key: parsed[key] for key in ('name', 'type_tax_use', 'amount_type', 'amount') if key in parsed}
     if 'price_include' in parsed:
@@ -40,7 +51,8 @@ def _values(parsed):
 
 def _require_unused_for(tax, parsed):
     """A tax used by journal items keeps what it computes: a changed rate would disagree with the posted history."""
-    changed = [field for field in TAX_LOCKED_WHEN_USED if field in parsed and parsed[field] != dump_tax(tax)[field]]
+    current = {**dump_tax(tax), 'tax_account_id': tax_account_of(tax).id}
+    changed = [field for field in TAX_LOCKED_WHEN_USED if field in parsed and parsed[field] != current[field]]
     if changed and tax.is_used:
         raise ApiError(422, 'tax_in_use', 'the tax is used by journal items: it can only be renamed or archived', field=changed[0])
 
@@ -75,9 +87,18 @@ class FinanceTaxController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def create_tax(self, **payload):
         require_capability('finance.taxes.manage')
-        values = _values(parse_tax_create(payload))
+        parsed = parse_tax_create(payload)
+        values = _values(parsed)
         values.setdefault('amount_type', 'percent')
-        tax = attempt(lambda: request.env['account.tax'].create({**values, 'company_id': request.env.company.id}))
+        account = _tax_account(parsed['tax_account_id'])
+
+        def create():
+            tax = request.env['account.tax'].create({**values, 'company_id': request.env.company.id})
+            _set_tax_account(tax, account)
+            return tax
+
+        tax = attempt(create)
+        values['tax_account_id'] = account.id
         request.env['webvue.finance.audit.event']._webvue_log('tax_created', tax, fields_written=values)
         return request.make_json_response(dump_tax(tax), status=201)
 
@@ -90,7 +111,15 @@ class FinanceTaxController(http.Controller):
         parsed = parse_tax_patch(payload)
         _require_unused_for(tax, parsed)
         values = _values(parsed)
-        attempt(lambda: tax.write(values))
+
+        def write():
+            tax.write(values)
+            if 'tax_account_id' in parsed:
+                _set_tax_account(tax, _tax_account(parsed['tax_account_id']))
+
+        attempt(write)
+        if 'tax_account_id' in parsed:
+            values['tax_account_id'] = parsed['tax_account_id']
         request.env['webvue.finance.audit.event']._webvue_log('tax_changed', tax, fields_written=values)
         return dump_tax(tax)
 

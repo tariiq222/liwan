@@ -73,7 +73,8 @@ Two more built-in roles (sets defined once in `models/access_service.py`):
   number, never a string. Records named by id (partner, tax, account, journal, invoices) must be
   visible in the current company, else 422 `invalid` on that field. A path record outside the
   company is a 404.
-- Invoices (`out_invoice | in_invoice | out_refund | in_refund`) are created as drafts with at
+- Invoices (`out_invoice | in_invoice | out_refund | in_refund`) are created as drafts, in the optional `journal_id` (a
+  journal of the document's kind in the company, chosen at creation only) or else the first journal of that kind, with at
   least one line `{name, price_unit, quantity=1, discount=0, tax_ids?, account_id?}`. Omitted
   `tax_ids` means the account's default taxes, `[]` means no tax. `currency` is a code and
   defaults to the company currency; `ref` is the customer/bill reference.
@@ -157,9 +158,11 @@ code is unique per company (422 `invalid` on `code`). Odoo refuses to archive a 
 ## Taxes and payment terms
 
 `finance.taxes.manage` and `finance.payment_terms.manage` (each needs its `.read`) work through ACL rows, no `sudo()`.
-A tax is a single `sale` or `purchase` tax, `percent` or `fixed`, with the default repartition (100% base, 100% tax,
-no account or tag); group taxes, cash-basis settings and tax accounts or tags are not edited here. Once journal items use
-a tax (`used`), its kind, rate and price-include setting are fixed (422 `tax_in_use`); it can still be renamed or
+A tax is a single `sale` or `purchase` tax, `percent` or `fixed`, with the default repartition (100% base, 100% tax).
+`tax_account_id` is required on creation and is where the tax amount is booked, on both the invoice and the credit-note
+distribution (a tax without one would book its amount on the line's expense or income account, and a receivable or payable
+account is refused by Odoo); group taxes, cash-basis settings and tax tags are not edited here. Once journal items use
+a tax (`used`), its kind, rate, price-include setting and tax account are fixed (422 `tax_in_use`); it can still be renamed or
 archived. A payment term is `{name, note?, lines: [{value: percent|fixed, value_amount, nb_days, delay_type?}]}`; the
 percent lines must add up to 100 and a `PATCH` with `lines` replaces them. Terms without a company come with the chart
 and are shared: listed and readable, but 422 `shared_record` on every write. Both resources are archived, never deleted,

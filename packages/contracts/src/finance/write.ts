@@ -21,6 +21,8 @@ const lines = z.array(FinanceInvoiceLineInputSchema).min(1)
 export const FinanceInvoiceCreateSchema = z.object({
   move_type: FinanceWritableMoveTypeSchema,
   partner_id: id,
+  /** Chosen at creation only; it defaults to the company's first journal of the document's kind. */
+  journal_id: id.optional(),
   lines,
   invoice_date: day.nullable().optional(),
   invoice_date_due: day.nullable().optional(),
@@ -28,7 +30,7 @@ export const FinanceInvoiceCreateSchema = z.object({
   ref: text.optional(),
 }).strict()
 
-export const FinanceInvoicePatchSchema = FinanceInvoiceCreateSchema.omit({ move_type: true }).partial().strict()
+export const FinanceInvoicePatchSchema = FinanceInvoiceCreateSchema.omit({ move_type: true, journal_id: true }).partial().strict()
   .refine(requirePatchField, PATCH_MESSAGE)
 
 export const FinancePaymentRegisterSchema = z.object({

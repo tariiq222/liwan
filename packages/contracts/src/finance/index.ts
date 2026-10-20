@@ -108,6 +108,8 @@ export const FinanceTaxSchema = z.object({
   amount_type: z.enum(['percent', 'fixed']),
   amount: z.number(),
   price_include: z.boolean(),
+  /** Where the tax amount is booked; `null` when it follows the base line's account. */
+  tax_account: FinanceRefSchema.nullable(),
   active: z.boolean(),
   /** True once journal items use it: its rate, kind and price-include setting are then fixed. */
   used: z.boolean(),
