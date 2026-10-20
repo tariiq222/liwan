@@ -25,7 +25,7 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `POST /journals` (201), `PATCH /journals/<id>`, `POST /journals/<id>/archive`, `/unarchive` | `finance.journals.manage` |
 | `GET /setup` | `finance.setup.read` |
 | `POST /setup/chart`, `PATCH /setup/fiscal` | `finance.setup.manage` |
-| `GET /reports/vat?date_from&date_to`, `GET /reports/withholding?date_from&date_to` | `finance.reports.read` |
+| `GET /reports/vat?date_from&date_to`, `GET /reports/vat-return?date_from&date_to`, `GET /reports/vat-return/items?code&column&date_from&date_to`, `GET /reports/withholding?date_from&date_to` | `finance.reports.read` |
 | `GET /entries` (`state`, `journal_id`, `date_from`, `date_to`, `q`), `GET /entries/<id>` | `finance.entries.read` |
 | `POST /entries` (201, a draft), `PATCH /entries/<id>`, `DELETE /entries/<id>` (204) | `finance.entries.manage` |
 | `POST /entries/<id>/post`, `/reset-to-draft`, `/unreconcile` | `finance.entries.post` |
@@ -250,6 +250,20 @@ is classified, and a kind outside the three sections would show there, not be hi
 is always `false`: this is an accounting statement from the books, not a filed one; a Saudi accountant must review its
 classification before it is relied on. The direct method is not offered (it needs the payment-to-document chain that Odoo
 Community's reports do not keep).
+
+## VAT return boxes
+
+`GET /reports/vat-return?date_from&date_to` gives the sixteen boxes of the Saudi VAT return (standard rated sales, private
+healthcare and education, zero rated, exports, exempt, total sales; standard rated, customs, reverse charge, zero rated and
+exempt purchases, total purchases; the VAT due, corrections, carried-forward credit and the net VAT) with a `base` and/or
+a `tax` column. WebVue reads the definition `l10n_sa.tax_report_vat_filing` that the Saudi localisation ships as data (the
+engine that evaluates it is Enterprise) and applies its rule: a tag box is the balance of the posted items that carry the
+tag, negated when the formula starts with a minus; a total box adds and subtracts boxes by code. A tax therefore lands in
+the box its tax tags name, which a company must check for any custom tax it adds. `GET /reports/vat-return/items?code&column`
+lists the journal items behind one column of one box (entry, type, account, partner, balance and contribution), so every
+figure opens down to the documents. The answer is `status: draft_for_review` and `filed: false`: WebVue prepares the figures,
+the taxpayer reviews them and files on the ZATCA portal. Opening a custom tax's tags, the correction boxes 14 and 15 (which
+come from tagged manual entries) and the review by a Saudi accountant are not automated.
 
 ## Journal entries
 

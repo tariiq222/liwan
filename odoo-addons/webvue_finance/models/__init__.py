@@ -14,6 +14,7 @@ from . import (
     setup_service,
     statement_report,
     vat_report,
+    vat_return,
     withholding_report,
     zatca_service,
 )

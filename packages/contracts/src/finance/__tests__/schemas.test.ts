@@ -9,6 +9,7 @@ import {
   FinanceBankImportSchema,
   FinanceCashFlowSchema,
   FinanceJournalSchema,
+  FinanceVatReturnSchema,
   FinancePaymentAllocateSchema,
   FinancePaymentPatchSchema,
   FinancePaymentStandaloneSchema,
@@ -196,5 +197,17 @@ describe('cash flow statement', () => {
     expect(FinanceCashFlowSchema.parse(statement)).toEqual(statement)
     expect(() => FinanceCashFlowSchema.parse({ ...statement, statutory: true })).toThrow()
     expect(() => FinanceCashFlowSchema.parse({ ...statement, extra: 1 })).toThrow()
+  })
+})
+
+describe('VAT return', () => {
+  const box = (number: number, base: number | null, tax: number | null) => ({ code: `sa_${number}`, number, name: `${number}. Box`, base, tax })
+
+  it('accepts the boxes of a draft and refuses a filed or unknown shape', () => {
+    const report = { date_from: '2026-10-01', date_to: '2026-10-31', currency: 'SAR', status: 'draft_for_review', filed: false, boxes: [box(1, 1000, 150), box(13, null, 150)] }
+    expect(FinanceVatReturnSchema.parse(report)).toEqual(report)
+    expect(() => FinanceVatReturnSchema.parse({ ...report, filed: true })).toThrow()
+    expect(() => FinanceVatReturnSchema.parse({ ...report, boxes: [box(17, 1, 1)] })).toThrow()
+    expect(() => FinanceVatReturnSchema.parse({ ...report, extra: 1 })).toThrow()
   })
 })
