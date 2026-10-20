@@ -10,7 +10,7 @@ const accounts = [
   { id: 4, code: '410101', name: 'إيرادات المبيعات' },
   { id: 5, code: '510101', name: 'تكلفة المبيعات' },
 ]
-const partners = [{ id: 1, name: 'شركة الأفق للتجارة' }, { id: 2, name: 'مؤسسة النخبة' }]
+const partners = [{ id: 1, name: 'شركة النخبة للتجارة' }, { id: 2, name: 'مؤسسة الأفق للتوريدات' }]
 
 const trialRows = [
   { account: accounts[0], initial_balance: 50000, debit: 40000, credit: 25000, balance: 15000, ending_balance: 65000 },

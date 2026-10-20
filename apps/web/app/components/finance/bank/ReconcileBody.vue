@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { FinanceReconcileProposal } from '@webvue/contracts'
 import Money from '../invoices/Money.vue'
 import AccountPicker from '../AccountPicker.vue'
-import { canWriteOffTo } from './reconcileModel'
+import { canWriteOffTo, toggleSelected } from './reconcileModel'
 import type { BankReconcileState } from './useBankReconcilePage'
 
 // The main column of a line's reconciliation page: the line, the open items to tick (the exact-amount ones are
@@ -57,13 +57,23 @@ const columns = computed<TableColumn<FinanceReconcileProposal>[]>(() => [
               <template #account-cell="{ row }">{{ row.original.account.name }}</template>
               <template #amount_residual-cell="{ row }"><Money :amount="row.original.amount_residual" :currency="page.statement.currency" /></template>
               <template #mobile-row="{ row }">
-                <div class="flex min-w-0 flex-col gap-1">
+                <div class="flex min-w-0 items-start gap-3">
+                <UCheckbox
+                  class="pt-0.5"
+                  :model-value="page.selected.includes(row.id)"
+                  :aria-label="t('financeBank.reconcile.selectProposal', { entry: row.entry ?? row.label })"
+                  :disabled="!page.hydrated || page.pending"
+                  :data-testid="`finance-bank-proposal-select-${row.id}`"
+                  @update:model-value="(value: boolean | 'indeterminate') => page.selected = toggleSelected(page.selected, row.id, value === true)"
+                />
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
                   <span class="flex items-center justify-between gap-2">
                     <span class="min-w-0 truncate font-semibold text-highlighted"><bdi>{{ row.entry ?? row.label }}</bdi></span>
                     <SharedStatusBadge v-if="row.exact" size="sm" tone="success" :label="t('financeBank.reconcile.exact')" />
                   </span>
                   <span class="truncate text-sm text-muted">{{ row.partner?.name ?? dash }} · {{ row.account.name }}</span>
                   <Money :amount="row.amount_residual" :currency="page.statement.currency" />
+                </div>
                 </div>
               </template>
             </SharedDataTable>

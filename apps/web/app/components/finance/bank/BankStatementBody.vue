@@ -19,9 +19,7 @@ const end = { class: { th: 'text-end', td: 'text-end' } }
 const columns = computed<TableColumn<FinanceBankLine>[]>(() => [
   { id: 'date', header: t('financeBank.columns.date') },
   { id: 'payment_ref', header: t('financeBank.columns.label') },
-  { id: 'partner', header: t('financeBank.columns.partner') },
   { id: 'amount', header: t('financeBank.columns.amount'), meta: end },
-  { id: 'amount_residual', header: t('financeBank.columns.residual'), meta: end },
   { id: 'state', header: t('financeBank.columns.state') },
 ])
 const reconcileTo = (line: FinanceBankLine) => ({ path: reconcilePath(props.record.id, line.id), query: { returnTo: props.record.backTo } })
@@ -32,13 +30,16 @@ const showReconcile = (line: FinanceBankLine) => canReconcile.value && !line.is_
   <template v-if="statement">
     <SharedRecordSection variant="list" :title="t('financeBank.linesTitle')" data-testid="finance-bank-lines-panel">
       <SharedEmptyState v-if="!statement.lines.length" class="m-(--webvue-card-pad-dense)" :title="t('financeBank.noLines')" />
-      <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,680px)]">
+      <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,560px)]">
         <SharedDataTable bare :rows="statement.lines" :columns="columns" row-key="id" :caption="t('financeBank.linesTitle')">
           <template #date-cell="{ row }"><bdi class="tabular-nums">{{ row.original.date }}</bdi></template>
-          <template #payment_ref-cell="{ row }"><span class="font-medium text-highlighted" :data-testid="`finance-bank-line-${row.original.id}`">{{ row.original.payment_ref }}</span></template>
-          <template #partner-cell="{ row }">{{ row.original.partner?.name ?? dash }}</template>
+          <template #payment_ref-cell="{ row }">
+            <span class="flex min-w-0 flex-col">
+              <span class="truncate font-medium text-highlighted" :data-testid="`finance-bank-line-${row.original.id}`">{{ row.original.payment_ref }}</span>
+              <span class="truncate text-xs text-muted">{{ row.original.partner?.name ?? dash }}</span>
+            </span>
+          </template>
           <template #amount-cell="{ row }"><Money :amount="row.original.amount" :currency="statement.currency" /></template>
-          <template #amount_residual-cell="{ row }"><Money :amount="row.original.amount_residual" :currency="statement.currency" /></template>
           <template #state-cell="{ row }">
             <span class="flex items-center gap-2">
               <SharedStatusBadge size="sm" :tone="BANK_LINE_TONE[lineState(row.original)]" :label="t(`financeBank.lineStates.${lineState(row.original)}`)" />

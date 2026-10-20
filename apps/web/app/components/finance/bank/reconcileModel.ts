@@ -6,6 +6,12 @@ const NON_WRITE_OFF_TYPES: readonly FinanceAccount['account_type'][] = ['asset_r
 
 export const canWriteOffTo = (account: Pick<FinanceAccount, 'account_type'>) => !NON_WRITE_OFF_TYPES.includes(account.account_type)
 
+/** The ticked ids after one item is ticked (`on`) or cleared, in the order they were ticked. */
+export function toggleSelected(selected: readonly number[], id: number, on: boolean): number[] {
+  const rest = selected.filter(value => value !== id)
+  return on ? [...rest, id] : rest
+}
+
 /** What the ticked open items clear of the line. */
 export function selectedTotal(proposals: readonly Pick<FinanceReconcileProposal, 'id' | 'amount_residual'>[], selected: readonly number[]): number {
   return roundMoney(proposals.filter(proposal => selected.includes(proposal.id)).reduce((sum, proposal) => sum + proposal.amount_residual, 0))

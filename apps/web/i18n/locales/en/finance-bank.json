@@ -111,7 +111,8 @@
       "confirm": "Reconcile this line?",
       "confirmHint": "The reconciliation is created as soon as you confirm and cannot be undone from here.",
       "doneTitle": "This line is reconciled",
-      "doneHint": "No action is needed on this line."
+      "doneHint": "No action is needed on this line.",
+      "selectProposal": "Select entry {entry}"
     },
     "errors": {
       "notBalanced": "The selected entries do not cover the line's amount. Choose an account for the difference or change the selection.",

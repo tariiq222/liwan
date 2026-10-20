@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { buildReconcileBody, canWriteOffTo, remainingDifference, selectedTotal } from '../reconcileModel'
+import { buildReconcileBody, canWriteOffTo, remainingDifference, selectedTotal, toggleSelected } from '../reconcileModel'
 
 const proposals = [{ id: 1, amount_residual: 100.1 }, { id: 2, amount_residual: 50.2 }, { id: 3, amount_residual: 10 }]
 
 describe('the selection of open items', () => {
+  it('ticks and clears one item without duplicates', () => {
+    expect(toggleSelected([3], 5, true)).toEqual([3, 5])
+    expect(toggleSelected([3, 5], 5, true)).toEqual([3, 5])
+    expect(toggleSelected([3, 5], 3, false)).toEqual([5])
+  })
+
   it('totals the ticked items to the cent', () => {
     expect(selectedTotal(proposals, [])).toBe(0)
     expect(selectedTotal(proposals, [1, 2])).toBe(150.3)
