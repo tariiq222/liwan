@@ -55,7 +55,7 @@ DEPENDENCIES = {
     'hr.shifts.read': {'hr.employees.read'},
     'hr.shifts.manage': {'hr.shifts.read', 'hr.employees.manage'},
     'hr.onboarding.read': {'hr.employees.read'},
-    'hr.onboarding.manage': {'hr.onboarding.read'},
+    'hr.onboarding.manage': {'hr.onboarding.read', 'hr.employees.manage'},
     'hr.offboarding.read': {'hr.employees.read'},
     'hr.offboarding.manage': {'hr.offboarding.read', 'hr.employees.manage'},
     'hr.assets.read': {'hr.employees.read'},

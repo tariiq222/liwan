@@ -75,7 +75,7 @@ plus an own-record filter (§6.2, §6.5).
 | `hr.shifts.read` | `hr.employees.read` | `group_cap_hr_shifts_read` | none | no | hr_manager, vendor_support |
 | `hr.shifts.manage` | `hr.shifts.read`, `hr.employees.manage` | `group_cap_hr_shifts_manage` | none | yes | hr_manager, vendor_support |
 | `hr.onboarding.read` | `hr.employees.read` | `group_cap_hr_onboarding_read` | none (own read ACL on the run model) | no | hr_manager, vendor_support |
-| `hr.onboarding.manage` | `hr.onboarding.read` | `group_cap_hr_onboarding_manage` | none (own plan ACLs + rules) | yes | hr_manager, vendor_support |
+| `hr.onboarding.manage` | `hr.onboarding.read`, `hr.employees.manage` (launching a stock activity plan posts a message — a follower write — on `hr.employee`) | `group_cap_hr_onboarding_manage` | none (own plan ACLs + rules) | yes | hr_manager, vendor_support |
 | `hr.offboarding.read` | `hr.employees.read` | `group_cap_hr_offboarding_read` | none (own ACLs + departure field groups) | yes | hr_manager, vendor_support |
 | `hr.offboarding.manage` | `hr.offboarding.read`, `hr.employees.manage` | `group_cap_hr_offboarding_manage` | none | yes | hr_manager, vendor_support |
 | `hr.assets.read` | `hr.employees.read` | `group_cap_hr_assets_read` | none (own read rule) | no | hr_manager, vendor_support |

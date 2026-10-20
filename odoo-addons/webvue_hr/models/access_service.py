@@ -49,17 +49,18 @@ HR_PERMISSION_DEPENDENCIES = {
     'hr.leave.manage': {'hr.leave.read'},
     # Recruitment, shifts, onboarding, offboarding and assets. Every area route
     # names employees, which the HR employee guard requires; recruitment is the
-    # exception, it works on applicants and job positions. Shifts and offboarding
-    # also need hr.employees.manage: the OCA planning engine writes
-    # hr.version.resource_calendar_id and the stock departure wizard writes the
-    # departure fields and contract_date_end (its ACL is hr.group_hr_user, which
-    # hr.employees.manage already grants).
+    # exception, it works on applicants and job positions. Shifts, onboarding and
+    # offboarding also need hr.employees.manage: the OCA planning engine writes
+    # hr.version.resource_calendar_id, launching a stock activity plan posts a
+    # message (a follower write) on hr.employee, and the stock departure wizard
+    # writes the departure fields and contract_date_end (its ACL is
+    # hr.group_hr_user, which hr.employees.manage already grants).
     'hr.recruitment.read': set(),
     'hr.recruitment.manage': {'hr.recruitment.read'},
     'hr.shifts.read': {'hr.employees.read'},
     'hr.shifts.manage': {'hr.shifts.read', 'hr.employees.manage'},
     'hr.onboarding.read': {'hr.employees.read'},
-    'hr.onboarding.manage': {'hr.onboarding.read'},
+    'hr.onboarding.manage': {'hr.onboarding.read', 'hr.employees.manage'},
     'hr.offboarding.read': {'hr.employees.read'},
     'hr.offboarding.manage': {'hr.offboarding.read', 'hr.employees.manage'},
     'hr.assets.read': {'hr.employees.read'},
