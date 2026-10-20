@@ -36,7 +36,9 @@ class TestEntitlements(TransactionCase):
     APP_BOOLEANS = {
         'webvue_pmo': {'pmo.enabled'},
         'webvue_meetings': {'meetings.enabled'},
-        'webvue_hr': {'hr.enabled'},
+        'webvue_hr': {
+            'hr.enabled', 'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets',
+        },
         'webvue_chat': {'chat.enabled'},
     }
 
@@ -88,9 +90,7 @@ class TestEntitlements(TransactionCase):
         self.assertEqual(retained & self._release_boolean_keys(), flags)
         self.assertTrue(all(key.endswith('.enabled') for key in retained - flags))
         if self._installed_apps() == set(self.APP_BOOLEANS):
-            self.assertEqual(retained & self._release_boolean_keys(), {
-                'pmo.enabled', 'meetings.enabled', 'hr.enabled', 'chat.enabled',
-            })
+            self.assertEqual(retained & self._release_boolean_keys(), self._release_boolean_keys())
         first_revision = self.record.policy_revision
         self.record._webvue_initialize_legacy_policy(('webvue_pmo',))
         self.assertEqual(self.record.policy_revision, first_revision)
@@ -198,7 +198,7 @@ class TestEntitlements(TransactionCase):
         self.assertLessEqual(module_map, installed_modules | release)
         booleans = set(self.features._webvue_boolean_keys())
         self.assertEqual(booleans & self._release_boolean_keys(), self._installed_boolean_keys())
-        self.assertTrue(all(key.endswith('.enabled') for key in booleans))
+        self.assertTrue(all(key.endswith('.enabled') for key in booleans - self._release_boolean_keys()))
         limits = {'users.limit', 'storage.limit_mb', 'branches.extra_limit'}
         if 'webvue_pmo' in apps:
             limits.add('projects.max_projects')
@@ -220,12 +220,12 @@ class TestEntitlements(TransactionCase):
             if key not in release_map:
                 self.assertIn(value['owner'], installed_owners, key)
         self.assertEqual(capability_map['settings.maintenance.manage']['owner'], 'webvue_platform')
-        # 11 core capabilities, plus 10 for HR, 8 for PMO and 3 for meetings (32).
+        # 11 core capabilities, plus 20 for HR, 8 for PMO and 3 for meetings (42).
         # Document permissions now belong to the independent documents application.
-        expected = 11 + 10 * ('webvue_hr' in apps) + 8 * ('webvue_pmo' in apps) + 3 * ('webvue_meetings' in apps)
+        expected = 11 + 20 * ('webvue_hr' in apps) + 8 * ('webvue_pmo' in apps) + 3 * ('webvue_meetings' in apps)
         self.assertEqual(len(release_map), expected)
         if apps == set(self.APP_BOOLEANS):
-            self.assertEqual(len(release_map), 32)
+            self.assertEqual(len(release_map), 42)
         self.assertNotIn('probe.inspect', capability_map)
         self.assertNotIn('probe.enabled', self.features._webvue_feature_map())
 
