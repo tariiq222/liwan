@@ -14,6 +14,10 @@ BRANDING_COMPANY_FIELDS = {'primary_color', 'secondary_color'}
 COMPANY_PROFILE_MARKER = 'webvue_core.company_profile_company_ids'
 # Company-side names of the partner fields above: the logo is the partner image, the tagline is the company's.
 COMPANY_PROFILE_FIELDS = (PARTNER_COMPANY_FIELDS - {'image_1920'}) | {'logo', 'report_header'}
+# An extension never reaches these: the country is set at provisioning, the others are structural.
+EXTENSION_BLOCKED_FIELDS = frozenset({'country_id', 'partner_id', 'currency_id'})
+EXTENSION_SECTIONS = frozenset({'identity', 'address'})
+EXTENSION_KINDS = {'char': 'text', 'selection': 'selection'}
 
 
 class ResCompany(models.Model):
@@ -36,7 +40,9 @@ class ResCompany(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
-        profile_allowed = is_marked_write(self, COMPANY_PROFILE_MARKER, COMPANY_PROFILE_FIELDS, vals)
+        profile_allowed = is_marked_write(
+            self, COMPANY_PROFILE_MARKER, COMPANY_PROFILE_FIELDS | self._webvue_company_profile_extension_fields(), vals,
+        )
         if (
             not profile_allowed
             and {'name', 'logo', 'logo_web', 'partner_id'}.intersection(vals)
@@ -76,19 +82,56 @@ class ResCompany(models.Model):
 
         Not elevated: the caller's own ACL and record rule (``settings.company.manage`` group, current
         company) decide, and the markers only let this field set through the res.company / res.partner guards.
-        Saudi (l10n_sa_edi) fields exist only when that module is installed.
+        Fields declared by ``_webvue_company_profile_extensions`` are accepted as well.
         """
         self.ensure_one()
         self.env['webvue.access.service']._webvue_require_capability('settings.company.manage')
         if self != self.env.company:
             msg = 'forbidden'
             raise AccessError(msg)
-        allowed = {field for field in COMPANY_PROFILE_FIELDS if field in self._fields}
+        allowed = COMPANY_PROFILE_FIELDS | self._webvue_company_profile_extension_fields()
         if not vals or set(vals) - allowed:
             msg = 'invalid_company_profile_fields'
             raise AccessError(msg)
         with marked(self.env, {COMPANY_PROFILE_MARKER: {self.id}, PARTNER_COMPANY_MARKER: {self.partner_id.id}}):
             return self.write(vals)
+
+    @api.model
+    def _webvue_company_profile_extensions(self):
+        """Profile fields an installed application adds to the generic company profile.
+
+        Extension point: override with ``super()`` and append specs ``{'name': <res.company field>,
+        'section': 'identity' | 'address', 'kind': 'text' | 'selection'}``, optionally with ``label``
+        (translated; defaults to the field description) and ``inputmode`` (a UI hint for text). The field must
+        exist on ``res.company`` and ``res.partner``, with a matching type. The profile API returns and accepts
+        these fields generically. Read the specs through ``_webvue_company_profile_extension_specs``.
+        """
+        return []
+
+    @api.model
+    def _webvue_company_profile_extension_specs(self):
+        """The declared extensions, each checked: a bad declaration is a programming error and raises."""
+        specs = self._webvue_company_profile_extensions()
+        for spec in specs:
+            name = spec.get('name')
+            field = self._fields.get(name)
+            if field is None:
+                msg = f'company profile extension {name!r} is not a res.company field'
+                raise ValueError(msg)
+            if name in COMPANY_PROFILE_FIELDS or name in EXTENSION_BLOCKED_FIELDS:
+                msg = f'company profile extension {name!r} is a generic or protected field'
+                raise ValueError(msg)
+            if spec.get('section') not in EXTENSION_SECTIONS:
+                msg = f'company profile extension {name!r} has an unknown section {spec.get("section")!r}'
+                raise ValueError(msg)
+            if EXTENSION_KINDS.get(field.type) != spec.get('kind'):
+                msg = f'company profile extension {name!r}: kind {spec.get("kind")!r} does not fit a {field.type} field'
+                raise ValueError(msg)
+        return specs
+
+    @api.model
+    def _webvue_company_profile_extension_fields(self):
+        return {spec['name'] for spec in self._webvue_company_profile_extension_specs()}
 
     @api.model
     def _webvue_has_company_partner(self, partner_ids):

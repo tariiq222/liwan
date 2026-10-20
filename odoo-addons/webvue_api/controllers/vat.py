@@ -6,7 +6,7 @@ from odoo.addons.webvue_api.controllers.common import ApiError
 
 
 def check_vat(country, vat, name):
-    """Odoo's own VAT check for ``country`` (base_vat; Saudi: 15 digits starting and ending with 3).
+    """Odoo's own VAT check for ``country`` (base_vat; each country's own number format).
 
     The check exists only while base_vat is installed, which every release tenant has.
     """
