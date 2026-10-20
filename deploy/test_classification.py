@@ -174,12 +174,14 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertIn('fixture --database "$SCRATCH_DB" --mode saas', pipeline)
         self.assertIn('fixture --database "$SCRATCH_DB" --mode non_saas', pipeline)
         self.assertIn('fixture --database "$SRC_DB" --mode non_saas', pipeline)
-        # The previous-release install must run without any commercial
-        # classification, and only the upgrade step may point at the fixture.
+        # The previous-release install never inherits a classification from the
+        # environment: it gets its own explicit fixture, and only the upgrade step
+        # points at the upgrade fixture.
         previous = pipeline.split('# Install the previous release', 1)[1].split('# Upgrade to this commit', 1)[0]
         upgrade = pipeline.split('# Upgrade to this commit', 1)[1].split('# Post-upgrade smoke', 1)[0]
         self.assertIn('previous release must not inherit a commercial classification', previous)
-        self.assertNotIn('WEBVUE_COMMERCIAL_CONFIG=', previous)
+        self.assertIn('WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/baseline-classification.json"', previous)
+        self.assertNotIn('upgrade-classification.json', previous)
         self.assertIn('WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/upgrade-classification.json"', upgrade)
         self.assertIn('-e WEBVUE_COMMERCIAL_CONFIG=/run/webvue/classification.json', pipeline)
         self.assertIn('classification.json:/run/webvue/classification.json:ro', pipeline)
