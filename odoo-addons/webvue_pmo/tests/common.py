@@ -2,14 +2,41 @@
 from datetime import timedelta
 
 from odoo import fields
+from odoo.exceptions import MissingError
 from odoo.tests import new_test_user
 
 from odoo.addons.webvue_api.tests.common import WebVueApiCase
 
 
+def _no_actual_source(model, *_args, **_kwargs):
+    raise MissingError(model.env._("This project has no external actual cost."))
+
+
+# What the hooks of webvue.project.actual.source answer when no bridge fills them.
+MANUAL_ACTUAL_SOURCE = {
+    '_webvue_is_external': False,
+    '_webvue_actual_totals': {},
+    '_webvue_actual_account': None,
+    '_webvue_can_read_actual_lines': False,
+    '_webvue_can_choose_actual_account': False,
+}
+
+
 class WebVuePmoCase(WebVueApiCase):
     """The shared webvue_api fixture plus the project/task records the PMO
-    endpoints are exercised against."""
+    endpoints are exercised against.
+
+    The tests exercise plain PMO, so the hooks of a bridge that may be installed (the actual cost source and
+    the project settings extensions) answer as if none were; tests of those extension points patch them again."""
+
+    def setUp(self):
+        super().setUp()
+        source = type(self.env['webvue.project.actual.source'])
+        for name, answer in MANUAL_ACTUAL_SOURCE.items():
+            self.patch(source, name, lambda _model, *_args, _answer=answer, **_kwargs: _answer)
+        self.patch(source, '_webvue_actual_lines', _no_actual_source)
+        self.patch(source, '_webvue_set_actual_account', _no_actual_source)
+        self.patch(type(self.env['webvue.pmo.settings']), '_webvue_settings_extensions', lambda _model: [])
 
     @classmethod
     def setUpClass(cls):

@@ -59,8 +59,12 @@ def dump_finance_entry(entry):
     }
 
 
-def build_finance_summary(project, entries=None):
+def build_finance_summary(project, entries=None, externals=None):
     """Lifetime finance summary for one project.
+
+    ``externals`` is ``webvue.project.actual.source._webvue_actual_totals`` of a batch of projects
+    (looked up for this project when omitted). A project in it takes its actual cost and expense
+    count from that source and ignores manual expense entries.
 
     Amounts are summed as exact `Decimal` (via each amount's shortest
     round-trip string, see `to_decimal`) and only converted back to float at
@@ -72,6 +76,10 @@ def build_finance_summary(project, entries=None):
     """
     if entries is None:
         entries = project.env['webvue.project.finance.entry'].search([('project_id', '=', project.id)])
+    source = project.env['webvue.project.actual.source']
+    if externals is None:
+        externals = source._webvue_actual_totals(project)
+    external = externals.get(project.id)
     currency = project.currency_id
     quantum = currency_quantum(currency)
     budgets = entries.filtered(lambda e: e.kind == 'budget')
@@ -81,9 +89,13 @@ def build_finance_summary(project, entries=None):
         planned_dec = sum((to_decimal(a) for a in budgets.mapped('amount')), Decimal('0')).quantize(
             quantum, rounding=ROUND_HALF_UP,
         )
-    actual_dec = sum((to_decimal(a) for a in expenses.mapped('amount')), Decimal('0')).quantize(
-        quantum, rounding=ROUND_HALF_UP,
-    )
+    if external is None:
+        actual_dec = sum((to_decimal(a) for a in expenses.mapped('amount')), Decimal('0')).quantize(
+            quantum, rounding=ROUND_HALF_UP,
+        )
+        expense_count = len(expenses)
+    else:
+        actual_dec, expense_count = external[0].quantize(quantum, rounding=ROUND_HALF_UP), external[1]
     remaining_dec = None if planned_dec is None else (planned_dec - actual_dec).quantize(quantum, rounding=ROUND_HALF_UP)
     over_budget = planned_dec is not None and actual_dec > planned_dec
     utilization_percent = None
@@ -100,7 +112,13 @@ def build_finance_summary(project, entries=None):
         'utilization_percent': utilization_percent,
         'over_budget': over_budget,
         'budget_count': len(budgets),
-        'expense_count': len(expenses),
+        'expense_count': expense_count,
+        'actual_source': 'manual' if external is None else 'external',
+        'actual_account': source._webvue_actual_account(project),
+        'can_read_actual_lines': source._webvue_can_read_actual_lines(project),
+        'can_choose_actual_account': (
+            source._webvue_can_choose_actual_account(project) and project._webvue_can_manage()
+        ),
     }
 
 

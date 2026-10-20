@@ -23,6 +23,8 @@ class TestProjectAdminModel(TransactionCase):
 
     def setUp(self):
         super().setUp()
+        # Plain PMO settings: the extensions of an installed bridge are left out, as in WebVuePmoCase.
+        self.patch(type(self.Settings), '_webvue_settings_extensions', lambda _model: [])
         params = self.env['ir.config_parameter'].sudo()
         params.set_param('webvue_pmo.project_creators', 'managers')
         params.set_param('webvue_pmo.default_stages', False)
@@ -95,6 +97,7 @@ class TestProjectAdminModel(TransactionCase):
                 'deadline_reminders_days_before': 1,
                 'overdue_digest_enabled': True,
                 'require_charter_approval': False,
+                'extensions': [],
             },
         )
         self.assertEqual(

@@ -97,8 +97,9 @@ def finance_summaries_by_project(projects):
     if projects:
         for entry in Finance.search([('project_id', 'in', projects.ids)]):
             entry_ids_by_project[entry.project_id.id].append(entry.id)
+    externals = projects.env['webvue.project.actual.source']._webvue_actual_totals(projects)
     return {
-        project.id: build_finance_summary(project, Finance.browse(entry_ids_by_project[project.id]))
+        project.id: build_finance_summary(project, Finance.browse(entry_ids_by_project[project.id]), externals)
         for project in projects
     }
 

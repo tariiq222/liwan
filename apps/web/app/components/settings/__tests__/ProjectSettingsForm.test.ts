@@ -87,6 +87,7 @@ describe('ProjectSettingsForm production template', () => {
         deadline_reminders_days_before: 1,
         overdue_digest_enabled: true,
         require_charter_approval: false,
+        extensions: [],
       },
       rows: [{ id: 's-0', name: 'A', fold: false }],
       CREATOR_OPTIONS: [
@@ -106,6 +107,29 @@ describe('ProjectSettingsForm production template', () => {
     expect(html).toContain('settings.projects.createRequirements.manager')
     expect(html).toContain('settings.projects.approval.hint')
     expect(html).toContain('settings.projects.reminders.digest')
+  })
+
+  it('renders the settings other applications add, each with the server label and help', async () => {
+    const base = {
+      project_creators: 'managers', default_stages: [{ name: 'A', fold: false }], require_manager_on_create: true,
+      require_end_date_on_create: true, default_completion_approval: 'none', deadline_reminders_enabled: true,
+      deadline_reminders_days_before: 1, overdue_digest_enabled: true, require_charter_approval: false,
+    }
+    const state = (extensions: unknown[]) => () => ({
+      t: (key: string) => key, isLoading: false, error: undefined, hydrated: true, isPending: false,
+      settings: { ...base, extensions }, rows: [], CREATOR_OPTIONS: [], onExtension: () => {},
+    })
+    const html = await renderForm(state([
+      { name: 'mode', kind: 'selection', label: 'Cost center mode', help: 'Auto creates one per project', value: 'auto', options: [{ value: 'auto', label: 'Automatic' }] },
+      { name: 'flag', kind: 'boolean', label: 'A switch', help: null, value: true },
+    ]))
+    expect(html).toContain('settings.projects.extensions.title')
+    expect(html).toContain('Cost center mode')
+    expect(html).toContain('Auto creates one per project')
+    expect(html).toContain('settings-extension-mode')
+    expect(html).toContain('A switch')
+    expect(html).toContain('settings-extension-flag')
+    expect(await renderForm(state([]))).not.toContain('settings.projects.extensions.title')
   })
 
   it('renders an actionable error state when the initial settings query fails', async () => {

@@ -16,6 +16,10 @@ const finance = {
   over_budget: true,
   budget_count: 1,
   expense_count: 2,
+  actual_source: 'manual',
+  actual_account: null,
+  can_read_actual_lines: false,
+  can_choose_actual_account: false,
 }
 
 const row = {

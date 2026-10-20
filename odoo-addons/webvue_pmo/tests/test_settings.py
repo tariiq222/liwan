@@ -126,6 +126,7 @@ class TestSettings(WebVuePmoCase):
                 'deadline_reminders_days_before': 1,
                 'overdue_digest_enabled': True,
                 'require_charter_approval': False,
+                'extensions': [],
             },
         )
         self.assertEqual(self._legacy_raw(), legacy_before)

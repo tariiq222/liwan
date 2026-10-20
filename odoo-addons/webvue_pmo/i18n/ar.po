@@ -116,3 +116,21 @@ msgstr "اكتملت جميع المهام"
 #: code:addons/webvue_pmo/models/project_project.py:0
 msgid "The project has open tasks again"
 msgstr "عادت للمشروع مهام مفتوحة"
+
+#. module: webvue_pmo
+#. odoo-python
+#: code:addons/webvue_pmo/models/project_finance.py:0
+msgid "Expenses are recorded in the project's cost center, not here."
+msgstr "تُسجَّل المصروفات في مركز تكلفة المشروع وليس هنا."
+
+#. module: webvue_pmo
+#. odoo-python
+#: code:addons/webvue_pmo/models/project_actual_source.py:0
+msgid "This project has no external actual cost."
+msgstr "ليس لهذا المشروع تكلفة فعلية من مصدر خارجي."
+
+#. module: webvue_pmo
+#. odoo-python
+#: code:addons/webvue_pmo/controllers/project_finance.py:0
+msgid "You are not allowed to read the lines of the actual cost."
+msgstr "غير مسموح لك بقراءة بنود التكلفة الفعلية."

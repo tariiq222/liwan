@@ -202,7 +202,7 @@ class ProjectProject(models.Model):
             if 'default_webvue_completion_approval' in ctx:
                 merged['webvue_completion_approval'] = ctx['default_webvue_completion_approval']
             else:
-                merged['webvue_completion_approval'] = self.env['webvue.pmo.settings'].get()[
+                merged['webvue_completion_approval'] = self.env['webvue.pmo.settings']._core_values()[
                     'default_completion_approval'
                 ]
         if 'webvue_completion_approver_id' not in merged and 'default_webvue_completion_approver_id' in ctx:
@@ -214,7 +214,7 @@ class ProjectProject(models.Model):
         return merged
 
     def _webvue_check_create_requirements(self, vals):
-        settings = self.env['webvue.pmo.settings'].get()
+        settings = self.env['webvue.pmo.settings']._core_values()
         manager_id = vals.get('user_id')
         if settings['require_manager_on_create'] and not manager_id:
             raise UserError(self.env._("A project manager is required to create a project."))
@@ -398,7 +398,7 @@ class ProjectProject(models.Model):
             )
             or (
                 service._webvue_is_employee_principal(self.env.user)
-                and self.env['webvue.pmo.settings'].get()['project_creators'] == 'employees'
+                and self.env['webvue.pmo.settings']._core_values()['project_creators'] == 'employees'
             )
         )
 

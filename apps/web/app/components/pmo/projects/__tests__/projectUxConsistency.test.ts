@@ -6,7 +6,7 @@ import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import { budgetStatus, financeSummaryMode, formatNullableAmount, formatUtilization } from '../../../../utils/projectFinance'
+import { budgetStatus, financeSummaryMode, formatNullableAmount, formatUtilization, isExternalActual } from '../../../../utils/projectFinance'
 import { projectSectionLocation } from '../../../../utils/projectWorkspaceMemory'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import { isDirtySnapshot } from '../../../../lib/formDirty'
@@ -29,8 +29,8 @@ function load(path: string, extra: Record<string, unknown> = {}) {
   const dependencies = {
     _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed,
     useI18n: () => ({ t: (key: string) => key }), useRoute: () => route, useRouter: () => ({}), useHydrated: () => Vue.ref(true),
-    budgetStatus, financeSummaryMode, formatNullableAmount, formatUtilization, projectSectionLocation, returnToQuery, isDirtySnapshot, ApiError,
-    DescriptionEditor: passthrough, FilterBar: passthrough, RaciMatrix: passthrough, SharedSegmentedControl: passthrough, RACI_ROLE_TONE: {},
+    budgetStatus, financeSummaryMode, formatNullableAmount, formatUtilization, isExternalActual, projectSectionLocation, returnToQuery, isDirtySnapshot, ApiError,
+    DescriptionEditor: passthrough, FinanceActualSource: passthrough, FinanceActualAccountPicker: passthrough, FilterBar: passthrough, RaciMatrix: passthrough, SharedSegmentedControl: passthrough, RACI_ROLE_TONE: {},
     ...extra,
   }
   const component = new Function(...Object.keys(dependencies), transpile(script))(...Object.values(dependencies))
@@ -51,7 +51,7 @@ async function renderView(view: ReturnType<typeof load>, props: Record<string, u
   return renderToString(app)
 }
 const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:pathMatch(.*)*', component: passthrough }] })
-const summary = { currency: { id: 1, name: 'SAR', symbol: 'SAR', decimal_places: 2 }, planned: 100, actual: 20, remaining: 80, utilization_percent: 20, over_budget: false, budget_count: 1, expense_count: 1, charter_estimate: null }
+const summary = { currency: { id: 1, name: 'SAR', symbol: 'SAR', decimal_places: 2 }, planned: 100, actual: 20, remaining: 80, utilization_percent: 20, over_budget: false, budget_count: 1, expense_count: 1, charter_estimate: null, actual_source: 'manual', actual_account: null, can_read_actual_lines: false, can_choose_actual_account: false }
 const finance = () => load('../finance/FinanceSummaryCards.vue')
 
 describe('project finance estimate reference', () => {
@@ -90,6 +90,32 @@ describe('project finance estimate reference', () => {
     expect(html).toContain('20.00 SAR')
     expect(html).not.toContain('projects.finance.planned')
     expect(html).not.toContain('project-finance-charter')
+  })
+})
+
+describe('project finance with an external actual', () => {
+  const external = { ...summary, actual_source: 'external', actual_account: { id: 3, name: 'Tower', code: null }, can_read_actual_lines: true, can_choose_actual_account: false }
+  // The harness registers neither child component, so each renders as its own tag name.
+  const view = () => load('../finance/FinanceSummaryCards.vue')
+  it('shows where the actual comes from on the tile and the cost center chooser only to who may choose', async () => {
+    const html = await renderView(view(), { projectId: 12, summary: external })
+    expect(html).toContain('<FinanceActualSource')
+    expect(html).toContain('projects.finance.actualLineCount')
+    expect(html).not.toContain('projects.finance.expenseCount')
+    expect(html).not.toContain('<FinanceActualAccountPicker')
+    expect(await renderView(view(), { projectId: 12, summary: { ...external, can_choose_actual_account: true } })).toContain('<FinanceActualAccountPicker')
+  })
+  it('shows the source even when no budget and no line exist yet', async () => {
+    const html = await renderView(view(), { projectId: 12, summary: { ...external, planned: null, actual: 0, budget_count: 0, expense_count: 0, can_choose_actual_account: true } })
+    expect(html).toContain('project-finance-summary')
+    expect(html).toContain('<FinanceActualSource')
+    expect(html).toContain('<FinanceActualAccountPicker')
+  })
+  it('leaves a manual actual exactly as before', async () => {
+    const html = await renderView(view(), { projectId: 12, summary: { ...summary, can_choose_actual_account: true } })
+    expect(html).not.toContain('<FinanceActualSource')
+    expect(html).not.toContain('<FinanceActualAccountPicker')
+    expect(html).toContain('projects.finance.expenseCount')
   })
 })
 

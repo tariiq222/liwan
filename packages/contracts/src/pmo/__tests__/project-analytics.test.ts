@@ -14,6 +14,10 @@ const row = {
     over_budget: true,
     budget_count: 1,
     expense_count: 2,
+    actual_source: 'manual',
+    actual_account: null,
+    can_read_actual_lines: false,
+    can_choose_actual_account: false,
   },
   task_count: 0,
   closed_task_count: 0,
@@ -50,6 +54,11 @@ describe('project dashboard analytics contract', () => {
       ...payload,
       recent_projects: [{ ...row, updated_at: null }],
     }).recent_projects[0]?.updated_at).toBeNull()
+  })
+
+  it('accepts a negative actual total from a net refund', () => {
+    const refunded = { ...summary.totals[0]!, actual: -200, remaining: 300 }
+    expect(ProjectDashboardAnalyticsSchema.parse({ ...summary, totals: [refunded], projects: [row], recent_projects: [] }).totals[0]?.actual).toBe(-200)
   })
 
   it('rejects more than five recent projects, invalid dates and unknown fields', () => {

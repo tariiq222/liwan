@@ -112,6 +112,6 @@ class WebVuePmoAccessService(models.AbstractModel):
         if role_key == 'project_creation_policy':
             return (
                 self._webvue_is_employee_principal(user, company=company)
-                and self.env['webvue.pmo.settings'].with_user(user).get()['project_creators'] == 'employees'
+                and self.env['webvue.pmo.settings'].with_user(user)._core_values()['project_creators'] == 'employees'
             )
         return super()._webvue_contextual_role_held(kind, role_key, user, capabilities)

@@ -306,6 +306,11 @@ class WebVueProjectFinanceEntry(models.Model):
                 entry.kind, entry.expense_date, entry.budget_entry_id.id, entry.amount, entry.project_id,
             )
 
+    def _webvue_check_manual_actual(self, project):
+        """Expenses are manual entries only while the project's actual cost is not external."""
+        if self.env['webvue.project.actual.source']._webvue_is_external(project):
+            raise ValidationError(self.env._("Expenses are recorded in the project's cost center, not here."))
+
     # --- create / write / unlink ------------------------------------------
     @staticmethod
     def _webvue_check_id_field(value, field, env):
@@ -325,6 +330,8 @@ class WebVueProjectFinanceEntry(models.Model):
             project_id = self._webvue_check_id_field(vals.get('project_id'), 'project_id', self.env)
             project = self.env['project.project'].browse(project_id).exists()
             project = self._webvue_check_project_for_finance(project, manage=True)
+            if vals.get('kind') == 'expense':
+                self._webvue_check_manual_actual(project)
             if 'title' in vals:
                 vals['title'] = _validate_title(vals['title'], self.env)
             if 'reference' in vals:
@@ -360,6 +367,8 @@ class WebVueProjectFinanceEntry(models.Model):
             self._webvue_check_id_field(vals['budget_entry_id'], 'budget_entry_id', self.env)
         for entry in self:
             project = self._webvue_check_project_for_finance(entry.project_id, manage=True)
+            if entry.kind == 'expense':
+                self._webvue_check_manual_actual(project)
             amount = vals.get('amount', entry.amount)
             if 'amount' in vals:
                 _validate_amount(amount, entry.currency_id, self.env)
