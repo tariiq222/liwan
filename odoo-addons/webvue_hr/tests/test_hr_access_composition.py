@@ -32,16 +32,17 @@ HR_AREA_DEPENDENCIES = {
     'hr.shifts.read': frozenset({'hr.employees.read'}),
     'hr.shifts.manage': frozenset({'hr.shifts.read', 'hr.employees.manage'}),
     'hr.onboarding.read': frozenset({'hr.employees.read'}),
-    'hr.onboarding.manage': frozenset({'hr.onboarding.read'}),
+    'hr.onboarding.manage': frozenset({'hr.onboarding.read', 'hr.employees.manage'}),
     'hr.offboarding.read': frozenset({'hr.employees.read'}),
     'hr.offboarding.manage': frozenset({'hr.offboarding.read', 'hr.employees.manage'}),
     'hr.assets.read': frozenset({'hr.employees.read'}),
     'hr.assets.manage': frozenset({'hr.assets.read'}),
 }
-# The two area capabilities whose engine writes hr.version (a shift assignment and the
-# departure wizard). They require hr.employees.manage, whose group already implies
-# hr.group_hr_user, so their own groups must imply nothing at all.
-EMPLOYEES_MANAGE_AREAS = frozenset({'hr.shifts.manage', 'hr.offboarding.manage'})
+# The three area capabilities whose engine writes hr.version or the employee record (a shift
+# assignment, the plan launch follower write, the departure wizard). They require
+# hr.employees.manage, whose group already implies hr.group_hr_user, so their own groups
+# must imply nothing at all.
+EMPLOYEES_MANAGE_AREAS = frozenset({'hr.shifts.manage', 'hr.onboarding.manage', 'hr.offboarding.manage'})
 HR_AREA_FEATURES = (
     'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets',
 )
