@@ -1,0 +1,1 @@
+No data migration: the new finance.accounts.manage permission and group are created on upgrade, the audit-event selection only gains values, and the finance_manager grants are set by _webvue_repair_builtin_role_grants from the same Python constants.
