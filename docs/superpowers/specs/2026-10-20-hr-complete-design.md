@@ -85,7 +85,7 @@ Extra route-level requirements: hiring (`POST …/applicants/<id>/hire`) needs `
 `hr.employees.manage` (it creates an `hr.employee` through the WebVue-guarded model).
 
 Permission records (`data/hr_access_permissions.xml`, `domain=hr`, `custom_role_allowed=True`,
-`project_contextual=False`, `sensitive` as above). `resource`/`action`/names:
+`sensitive` as above). `resource`/`action`/names:
 
 | Key | resource | action | name_ar | name_en |
 |---|---|---|---|---|

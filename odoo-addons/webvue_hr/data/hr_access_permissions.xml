@@ -86,7 +86,7 @@
         <field name="name_ar">قراءة التوظيف</field><field name="name_en">Read recruitment</field>
         <field name="description_ar">قراءة التوظيف</field><field name="description_en">Read recruitment</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_recruitment_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_hr_recruitment_manage" model="webvue.access.permission">
         <field name="key">hr.recruitment.manage</field><field name="domain">hr</field>
@@ -94,7 +94,7 @@
         <field name="name_ar">إدارة التوظيف</field><field name="name_en">Manage recruitment</field>
         <field name="description_ar">إدارة التوظيف</field><field name="description_en">Manage recruitment</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_recruitment_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_hr_shifts_read" model="webvue.access.permission">
         <field name="key">hr.shifts.read</field><field name="domain">hr</field>
@@ -102,7 +102,7 @@
         <field name="name_ar">قراءة الورديات</field><field name="name_en">Read shifts</field>
         <field name="description_ar">قراءة الورديات</field><field name="description_en">Read shifts</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_shifts_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_hr_shifts_manage" model="webvue.access.permission">
         <field name="key">hr.shifts.manage</field><field name="domain">hr</field>
@@ -110,7 +110,7 @@
         <field name="name_ar">إدارة الورديات</field><field name="name_en">Manage shifts</field>
         <field name="description_ar">إدارة الورديات</field><field name="description_en">Manage shifts</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_shifts_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_hr_onboarding_read" model="webvue.access.permission">
         <field name="key">hr.onboarding.read</field><field name="domain">hr</field>
@@ -118,7 +118,7 @@
         <field name="name_ar">قراءة خطط التهيئة</field><field name="name_en">Read onboarding</field>
         <field name="description_ar">قراءة خطط التهيئة</field><field name="description_en">Read onboarding</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_onboarding_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_hr_onboarding_manage" model="webvue.access.permission">
         <field name="key">hr.onboarding.manage</field><field name="domain">hr</field>
@@ -126,7 +126,7 @@
         <field name="name_ar">إدارة خطط التهيئة</field><field name="name_en">Manage onboarding</field>
         <field name="description_ar">إدارة خطط التهيئة</field><field name="description_en">Manage onboarding</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_onboarding_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_hr_offboarding_read" model="webvue.access.permission">
         <field name="key">hr.offboarding.read</field><field name="domain">hr</field>
@@ -134,7 +134,7 @@
         <field name="name_ar">قراءة إنهاء الخدمة</field><field name="name_en">Read offboarding</field>
         <field name="description_ar">قراءة إنهاء الخدمة</field><field name="description_en">Read offboarding</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_offboarding_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_hr_offboarding_manage" model="webvue.access.permission">
         <field name="key">hr.offboarding.manage</field><field name="domain">hr</field>
@@ -142,7 +142,7 @@
         <field name="name_ar">إدارة إنهاء الخدمة والإخلاء</field><field name="name_en">Manage offboarding and clearance</field>
         <field name="description_ar">إدارة إنهاء الخدمة والإخلاء</field><field name="description_en">Manage offboarding and clearance</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_offboarding_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <record id="permission_hr_assets_read" model="webvue.access.permission">
         <field name="key">hr.assets.read</field><field name="domain">hr</field>
@@ -150,7 +150,7 @@
         <field name="name_ar">قراءة العهد</field><field name="name_en">Read assets</field>
         <field name="description_ar">قراءة العهد</field><field name="description_en">Read assets</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_assets_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/>
     </record>
     <record id="permission_hr_assets_manage" model="webvue.access.permission">
         <field name="key">hr.assets.manage</field><field name="domain">hr</field>
@@ -158,7 +158,7 @@
         <field name="name_ar">إدارة العهد</field><field name="name_en">Manage assets</field>
         <field name="description_ar">إدارة العهد</field><field name="description_en">Manage assets</field>
         <field name="group_xmlid">webvue_hr.group_cap_hr_assets_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
     <data noupdate="1">
         <record id="role_hr_manager" model="webvue.access.role">
