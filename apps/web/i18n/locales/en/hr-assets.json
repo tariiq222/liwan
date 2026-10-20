@@ -12,6 +12,11 @@
     "noSerial": "No serial number",
     "emptyTitle": "No assets yet",
     "emptyHint": "Add an asset to see it here and assign it to an employee.",
+    "mine": {
+      "description": "The assets currently assigned to you.",
+      "emptyTitle": "You hold no assets",
+      "emptyHint": "Assets handed to you appear here."
+    },
     "footer": "{shown} of 1 asset | {shown} of {total} assets",
     "filter": {
       "active": "Asset state",

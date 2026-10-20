@@ -38,6 +38,7 @@ const manifest: AppManifest = {
     { id: 'onboarding', labelKey: 'nav.onboarding', icon: 'i-lucide-user-plus', to: '/hr/onboarding', capability: 'hr.onboarding.read' },
     { id: 'offboarding', labelKey: 'nav.offboarding', icon: 'i-lucide-user-minus', to: '/hr/offboarding', capability: 'hr.offboarding.read' },
     { id: 'assets', labelKey: 'nav.assets', icon: 'i-lucide-laptop', to: '/hr/assets', capability: 'hr.assets.read' },
+    { id: 'my-assets', labelKey: 'nav.myAssets', icon: 'i-lucide-package-check', to: '/hr/assets/mine', capability: 'hr.employees.read' },
   ],
   landing: [
     { path: '/hr', capability: 'hr.employees.read' },
@@ -76,6 +77,8 @@ const manifest: AppManifest = {
     { pattern: /^\/hr\/offboarding\/(?:.+\/)?new$/, capability: 'hr.offboarding.manage' },
     { pattern: /^\/hr\/offboarding(?:\/|$)/, capability: 'hr.offboarding.read' },
     { pattern: /^\/hr\/assets\/(?:.+\/)?new$/, capability: 'hr.assets.manage' },
+    // The caller's own custody is an employee read, not an assets-area read.
+    { pattern: /^\/hr\/assets\/mine$/, capability: 'hr.employees.read' },
     { pattern: /^\/hr\/assets(?:\/|$)/, capability: 'hr.assets.read' },
     { pattern: /^\/hr\/leave\/new$/, capability: 'hr.leave.request' },
     { pattern: /^\/hr\/leave\/allocations\/new$/, capability: 'hr.leave.manage' },
@@ -87,6 +90,9 @@ const manifest: AppManifest = {
   isNavActive(path, target) {
     // Create forms (`.../new`) belong to the pinned create link, not to a list entry.
     if (target === '/hr') return path === '/hr' || (path.startsWith('/hr/employees/') && path !== '/hr/employees/new')
+    // The own-custody page is its own entry: the assets area does not claim it.
+    if (target === '/hr/assets/mine') return path === target
+    if (target === '/hr/assets' && path === '/hr/assets/mine') return false
     if (areaTargets.includes(target)) return path === target || path.startsWith(`${target}/`)
     if (target === '/hr/leave') return path === target || path === '/hr/leave/allocations/new'
     if (target === '/hr/departments') return path === target || (path.startsWith(`${target}/`) && path !== '/hr/departments/new')
