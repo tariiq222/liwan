@@ -33,7 +33,9 @@ export const hrLeaveKeys = {
   request: (id: number) => ['hr', 'leave', 'request', id] as const,
 }
 
-const SCOPE_STATE: Record<HrLeaveScope, HrLeaveState | undefined> = { mine: undefined, pending: 'confirm', all: undefined }
+// The pending queue is every request still waiting for a decision: first and second approval.
+const PENDING_STATES: readonly HrLeaveState[] = ['confirm', 'validate1']
+const SCOPE_STATE: Record<HrLeaveScope, string | undefined> = { mine: undefined, pending: PENDING_STATES.join(','), all: undefined }
 
 /** The query string of one scope: the caller's own list, the queue waiting for a decision, or every request. */
 export function hrLeaveRequestQuery(params: HrLeaveListParams) {
@@ -119,8 +121,8 @@ export function useLeaveDecision() {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({
-    mutationFn: ({ id, decision }: { id: number; decision: HrLeaveDecision }) =>
-      $api(`/api/v1/hr/leave/requests/${id}/${decision}`, { method: 'POST', body: {}, schema: HrLeaveSchema }),
+    mutationFn: ({ id, decision, reason }: { id: number; decision: HrLeaveDecision; reason?: string }) =>
+      $api(`/api/v1/hr/leave/requests/${id}/${decision}`, { method: 'POST', body: reason ? { reason } : {}, schema: HrLeaveSchema }),
     onSuccess: () => refreshLeave(qc),
   })
 }

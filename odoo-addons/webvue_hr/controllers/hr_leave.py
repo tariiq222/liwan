@@ -161,9 +161,9 @@ class HrLeaveController(http.Controller):
         args = request.httprequest.args
         limit, offset = parse_page(args)
         domain = [('company_id', '=', request.env.company.id)]
-        state = parse_state_filter(args.get('state'))
-        if state:
-            domain.append(('state', '=', state))
+        states = parse_state_filter(args.get('state'))
+        if states:
+            domain.append(('state', 'in', states))
         raw_employee = args.get('employee_id')
         if raw_employee not in (None, ''):
             domain.append(('employee_id', '=', parse_positive_int(raw_employee, 'employee_id')))
@@ -211,12 +211,15 @@ class HrLeaveController(http.Controller):
     @http.route('/api/v1/hr/leave/requests/<int:leave_id>/refuse', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('hr.enabled', operation='write')
-    def refuse_request(self, leave_id, **payload):
+    def refuse_request(self, leave_id, reason=None, **payload):
         _require('hr.leave.approve')
         _require_no_fields(payload)
+        reason = parse_cancel_reason(reason)
         leave = _current_leave(leave_id)
         _reject_self_decision(leave)
         leave.action_refuse()
+        if reason:
+            leave.message_post(body=reason)
         return dump_leave(leave)
 
     @http.route('/api/v1/hr/leave/requests/<int:leave_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)

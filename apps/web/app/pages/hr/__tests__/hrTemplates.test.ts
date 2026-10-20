@@ -11,9 +11,10 @@ describe('the HR pages stay on their templates', () => {
   it.each([
     ['pages/hr/index.vue', ['<SharedListPage', 'create-test-id="hr-employee-new"']],
     ['pages/hr/departments/index.vue', ['<SharedListPage', 'create-test-id="hr-department-new"', ':views="views"', 'views-in-filters', '<SharedListCard', '<SharedListFooter', 'embedded']],
-    ['pages/hr/leave.vue', ['<SharedListPage', 'create-test-id="hr-leave-new"', '<SharedListCard', '<SharedDataTable', ' bare', '#mobile-row', '<SharedListFooter', '<SharedSegmentedControl', '<SharedInlineConfirm', '<SharedRowActions', '<SharedMetricTile']],
+    ['pages/hr/leave.vue', ['<SharedListPage', 'create-test-id="hr-leave-new"', '<SharedListCard', '<SharedDataTable', ' bare', '#mobile-row', '<SharedListFooter', '<SharedSegmentedControl', '<HrLeaveDecisionConfirm', '<SharedRowActions', '<SharedMetricTile']],
     ['pages/hr/reports.vue', ['<SharedListPage', '<SharedForbiddenState', '<SharedListCard', '<SharedMetricTile', '<SharedProgress', '<SharedDataTable', ' bare', '#mobile-row', '<SharedSegmentedControl', '<SharedListFooter']],
-    ['pages/hr/leave/[leaveId].vue', ['<SharedRecordPage', '<SharedIdentityCard', '<SharedPropertiesPanel', '<SharedPropertyRow', '#aside']],
+    ['pages/hr/leave/[leaveId].vue', ['<SharedRecordPage', '<SharedIdentityCard', '<SharedPropertiesPanel', '<SharedPropertyRow', '#aside', '<HrLeaveDecisionConfirm']],
+    ['components/hr/LeaveDecisionConfirm.vue', ['<SharedInlineConfirm', '<UTextarea']],
     ['components/hr/LeaveRequestForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges', '<SharedDateField']],
     ['components/hr/LeaveAllocationForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges']],
     ['pages/hr/departments/[departmentId].vue', ['<SharedRecordPage', '<SharedIdentityCard', '<SharedRecordSection', '<SharedPropertiesPanel', '#aside']],

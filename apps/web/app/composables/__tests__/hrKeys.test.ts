@@ -42,7 +42,7 @@ describe('hr query keys', () => {
 
   it('maps each leave scope to its request query', () => {
     expect(hrLeaveRequestQuery({ scope: 'mine', limit: 25, offset: 0 })).toEqual({ mine: '1', state: undefined, limit: 25, offset: 0 })
-    expect(hrLeaveRequestQuery({ scope: 'pending', limit: 25, offset: 25 })).toEqual({ mine: undefined, state: 'confirm', limit: 25, offset: 25 })
+    expect(hrLeaveRequestQuery({ scope: 'pending', limit: 25, offset: 25 })).toEqual({ mine: undefined, state: 'confirm,validate1', limit: 25, offset: 25 })
     expect(hrLeaveRequestQuery({ scope: 'all', limit: 25, offset: 0 })).toEqual({ mine: undefined, state: undefined, limit: 25, offset: 0 })
   })
 })

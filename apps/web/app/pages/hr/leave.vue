@@ -98,14 +98,16 @@ const decisionError = ref('')
 // A pending row is withdrawn, a decided one is cancelled; each asks inline before acting.
 const withdrawing = ref<HrLeave | null>(null)
 const cancelling = ref<HrLeave | null>(null)
+const refusing = ref<HrLeave | null>(null)
 const writing = computed(() => decision.isPending.value || withdrawal.isPending.value)
 
-async function decide(leave: HrLeave, kind: HrLeaveDecision) {
+async function decide(leave: HrLeave, kind: HrLeaveDecision, reason?: string) {
   if (!hydrated.value || writing.value) return
   decisionError.value = ''
   try {
-    await decision.mutateAsync({ id: leave.id, decision: kind })
+    await decision.mutateAsync({ id: leave.id, decision: kind, reason })
     cancelling.value = null
+    refusing.value = null
   } catch (cause) {
     decisionError.value = cause instanceof ApiError ? cause.message : t('errors.generic')
   }
@@ -125,7 +127,7 @@ async function withdraw(leave: HrLeave) {
 function rowActions(leave: HrLeave) {
   return [
     ...(canApprove.value && leave.can_approve ? [{ label: t('hr.leave.approve'), icon: 'i-lucide-check' as const, onSelect: () => decide(leave, 'approve') }] : []),
-    ...(canApprove.value && leave.can_refuse ? [{ label: t('hr.leave.refuse'), icon: 'i-lucide-x' as const, onSelect: () => decide(leave, 'refuse') }] : []),
+    ...(canApprove.value && leave.can_refuse ? [{ label: t('hr.leave.refuse'), icon: 'i-lucide-x' as const, onSelect: () => { refusing.value = leave } }] : []),
     ...(leave.can_withdraw
       ? [{ label: t('hr.leave.withdraw'), icon: 'i-lucide-undo-2' as const, destructive: true, onSelect: () => { withdrawing.value = leave } }]
       : []),
@@ -188,28 +190,9 @@ const allocateTo = computed(() => ({ path: '/hr/leave/allocations/new', query: l
 
       <UAlert v-if="decisionError" role="alert" color="error" variant="subtle" :title="decisionError" data-testid="hr-leave-decision-error" />
 
-      <SharedInlineConfirm
-        v-if="withdrawing"
-        :title="t('hr.leave.withdrawConfirm', { type: withdrawing.leave_type.name })"
-        :confirm-label="t('hr.leave.withdraw')"
-        :cancel-label="t('app.back')"
-        :pending="writing"
-        :disabled="!hydrated"
-        color="error"
-        @confirm="withdraw(withdrawing)"
-        @cancel="withdrawing = null"
-      />
-      <SharedInlineConfirm
-        v-if="cancelling"
-        :title="t('hr.leave.cancelConfirm', { type: cancelling.leave_type.name })"
-        :confirm-label="t('hr.leave.cancel')"
-        :cancel-label="t('app.back')"
-        :pending="writing"
-        :disabled="!hydrated"
-        color="error"
-        @confirm="decide(cancelling, 'cancel')"
-        @cancel="cancelling = null"
-      />
+      <HrLeaveDecisionConfirm v-if="refusing" kind="refuse" :leave="refusing" :pending="writing" @confirm="decide(refusing, 'refuse', $event)" @cancel="refusing = null" />
+      <HrLeaveDecisionConfirm v-if="withdrawing" kind="withdraw" :leave="withdrawing" :pending="writing" @confirm="withdraw(withdrawing)" @cancel="withdrawing = null" />
+      <HrLeaveDecisionConfirm v-if="cancelling" kind="cancel" :leave="cancelling" :pending="writing" @confirm="decide(cancelling, 'cancel', $event)" @cancel="cancelling = null" />
 
       <SharedListCard>
         <template v-if="scopeItems.length > 1" #filters>

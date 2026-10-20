@@ -61,8 +61,7 @@ const menuActions = computed<RowAction[]>(() => {
     <SharedInlineConfirm
       v-if="query.data.value && confirmArchive"
       :color="query.data.value.active ? 'error' : 'primary'"
-      :description="query.data.value.name"
-      :title="t('hr.employee.archiveConfirm')"
+      :title="t(query.data.value.active ? 'hr.employee.archiveConfirm' : 'hr.employee.unarchiveConfirm', { name: query.data.value.name })"
       :confirm-label="query.data.value.active ? t('hr.employee.archive') : t('hr.employee.unarchive')"
       :pending="archivePending"
       @confirm="toggleArchive"
