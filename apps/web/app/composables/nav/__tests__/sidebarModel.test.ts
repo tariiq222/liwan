@@ -67,6 +67,13 @@ describe('sidebar model', () => {
     }
   })
 
+  it('heads a run of first-card links with their group', () => {
+    const links = [link('overview'), link('company'), link('finance', { group: 'nav.apps' }), link('projects', { group: 'nav.apps' }), link('system'), link('card', { section: 'nav.finance' })]
+    const model = sidebarModel({ links, moduleLabelKey: 'nav.settings', path: '/settings/apps/finance', panel: null, surface: 'desktop' })
+    expect(model.sections.map(section => [section.titleKey, section.links.map(item => item.id)])).toEqual([[null, ['overview', 'company']], ['nav.apps', ['finance', 'projects']], [null, ['system']]])
+    expect(model.subSections.map(section => [section.titleKey, section.links.map(item => item.id)])).toEqual([['nav.finance', ['card']]])
+  })
+
   it('lists no first-card navigation when every link sits under a heading', () => {
     const model = sidebarModel({ links: [link('a', { section: 'nav.s' })], moduleLabelKey: 'nav.other', path: '/a', panel: null, surface: 'desktop' })
     expect(model.sections).toEqual([])
@@ -81,7 +88,7 @@ describe('sidebar model', () => {
 
   it('keeps the three legacy Playwright ids', () => {
     expect(contextLinkTestId('users')).toBe('sidebar-settings')
-    expect(contextLinkTestId('project-settings')).toBe('settings-projects-tab')
+    expect(contextLinkTestId('settings-projects')).toBe('settings-projects-tab')
     expect(contextLinkTestId('branding')).toBe('settings-branding-tab')
     expect(contextLinkTestId('tasks')).toBe('context-link-tasks')
   })

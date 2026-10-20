@@ -2,8 +2,6 @@
   "financeGovernance": {
     "forbidden": "You do not have permission to view this page.",
     "closing": {
-      "title": "Fiscal year closing",
-      "countTag": "{count} year | {count} years",
       "empty": "There are no fiscal years yet. Years appear once the first entry is posted.",
       "yearsTitle": "Fiscal years",
       "yearsHint": "Choose an open year to preview its closing entry before closing it.",
@@ -58,14 +56,6 @@
       }
     },
     "zatca": {
-      "title": "E-invoicing (ZATCA)",
-      "modes": {
-        "sandbox": "Sandbox",
-        "preprod": "Pre-production",
-        "prod": "Production"
-      },
-      "onboarded": "Connected to ZATCA",
-      "notOnboarded": "Not connected yet",
       "backlog": {
         "title": "Waiting invoices",
         "hint": "Invoices ZATCA has not accepted yet. Rejected and blocked ones need a manual correction.",

@@ -81,7 +81,8 @@ describe('StageListEditor SSR', () => {
   it('offers a plain delete for an empty stage', async () => {
     const html = await renderStages([{ id: 1, name: 'Empty', fold: false, task_count: 0 }])
     expect(html).toContain('data-testid="stage-delete"')
-    expect(html).not.toContain('data-tooltip-text')
+    // The rename pencil carries the only tooltip; the delete of an empty stage has none (no reason to explain).
+    expect([...html.matchAll(/data-tooltip-text="([^"]*)"/g)].map(match => match[1])).toEqual(['projects.stages.rename'])
   })
 
   it('replaces the delete of an occupied stage with a tooltip naming the count', async () => {

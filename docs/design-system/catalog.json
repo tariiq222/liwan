@@ -494,6 +494,28 @@
       ]
     },
     {
+      "name": "FinanceGovernanceAuditPreview",
+      "file": "apps/web/app/components/finance/governance/AuditPreview.vue",
+      "story": "apps/web/stories/finance/AuditPreview.stories.ts",
+      "title": "Finance/AuditPreview",
+      "props": [],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "Latest",
+          "name": "آخر الأحداث",
+          "context": "apps/web/app/pages/settings/apps/finance/index.vue:139"
+        },
+        {
+          "id": "Empty",
+          "name": "فارغة",
+          "context": "apps/web/app/pages/settings/apps/finance/index.vue:139"
+        }
+      ]
+    },
+    {
       "name": "MeetingsMeetingAttachmentsTab",
       "file": "apps/web/app/components/meetings/MeetingAttachmentsTab.vue",
       "story": "apps/web/stories/meetings/MeetingAttachmentsTab.stories.ts",
@@ -1248,7 +1270,7 @@
         {
           "id": "Published",
           "name": "Published",
-          "context": "apps/web/app/pages/settings/apps/operations/processes/index.vue:6"
+          "context": "apps/web/app/pages/settings/apps/operations/processes/index.vue:7"
         }
       ]
     },
@@ -2023,6 +2045,178 @@
           "id": "AboveTaskTable",
           "name": "فوق جدول المهام",
           "context": "apps/web/app/pages/tasks.vue:95"
+        }
+      ]
+    },
+    {
+      "name": "SettingsIntegrationConnections",
+      "file": "apps/web/app/components/settings/IntegrationConnections.vue",
+      "story": "apps/web/stories/settings/IntegrationConnections.stories.ts",
+      "title": "Settings/IntegrationConnections",
+      "props": [],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "Connections",
+          "name": "اتصالات",
+          "context": "apps/web/app/pages/settings/system/index.vue:18"
+        },
+        {
+          "id": "Empty",
+          "name": "فارغة",
+          "context": "apps/web/app/pages/settings/system/index.vue:18"
+        },
+        {
+          "id": "Failed",
+          "name": "تعذر التحميل",
+          "context": "apps/web/app/pages/settings/system/index.vue:18"
+        }
+      ]
+    },
+    {
+      "name": "SettingsPreviewCard",
+      "file": "apps/web/app/components/settings/SettingsPreviewCard.vue",
+      "story": "apps/web/stories/settings/SettingsPreviewCard.stories.ts",
+      "title": "Settings/SettingsPreviewCard",
+      "props": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "allLabel",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "allTo",
+          "type": "string | it | et",
+          "required": true
+        },
+        {
+          "name": "testId",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [
+        "default"
+      ],
+      "nuxtUi": [
+        "UIcon"
+      ],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "معاينة",
+          "context": "apps/web/app/pages/settings/team/index.vue:29"
+        },
+        {
+          "id": "Empty",
+          "name": "فارغة",
+          "context": "apps/web/app/pages/settings/team/index.vue:29"
+        }
+      ]
+    },
+    {
+      "name": "SettingsPreviewList",
+      "file": "apps/web/app/components/settings/SettingsPreviewList.vue",
+      "story": "apps/web/stories/settings/SettingsPreviewList.stories.ts",
+      "title": "Settings/SettingsPreviewList",
+      "props": [
+        {
+          "name": "items",
+          "type": "SettingsPreviewItem[]",
+          "required": true
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "unknown",
+          "required": false
+        },
+        {
+          "name": "emptyText",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "events": [
+        {
+          "name": "retry",
+          "payload": "[]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "Rows",
+          "name": "أسطر",
+          "context": "apps/web/app/pages/settings/team/index.vue:30"
+        },
+        {
+          "id": "Loading",
+          "name": "تحميل",
+          "context": "apps/web/app/pages/settings/team/index.vue:30"
+        },
+        {
+          "id": "Empty",
+          "name": "فارغة",
+          "context": "apps/web/app/pages/settings/team/index.vue:30"
+        },
+        {
+          "id": "Failed",
+          "name": "تعذر التحميل",
+          "context": "apps/web/app/pages/settings/team/index.vue:30"
+        }
+      ]
+    },
+    {
+      "name": "SettingsPreviewRow",
+      "file": "apps/web/app/components/settings/SettingsPreviewRow.vue",
+      "story": "apps/web/stories/settings/SettingsPreviewRow.stories.ts",
+      "title": "Settings/SettingsPreviewRow",
+      "props": [
+        {
+          "name": "item",
+          "type": "SettingsPreviewItem",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UIcon"
+      ],
+      "stories": [
+        {
+          "id": "Person",
+          "name": "شخص",
+          "context": "apps/web/app/components/settings/SettingsPreviewList.vue:13"
+        },
+        {
+          "id": "Icon",
+          "name": "أيقونة",
+          "context": "apps/web/app/components/settings/SettingsPreviewList.vue:13"
+        },
+        {
+          "id": "WithoutBadge",
+          "name": "بلا حبّة",
+          "context": "apps/web/app/components/settings/SettingsPreviewList.vue:13"
+        },
+        {
+          "id": "LongText",
+          "name": "نص طويل يُقتطع",
+          "context": "apps/web/app/components/settings/SettingsPreviewList.vue:13"
         }
       ]
     },
@@ -5881,7 +6075,7 @@
         {
           "id": "FormPage",
           "name": "صفحة إعداد بنموذج",
-          "context": "apps/web/app/pages/settings/apps/projects.vue:18"
+          "context": "apps/web/app/pages/settings/apps/projects.vue:19"
         },
         {
           "id": "ListPage",

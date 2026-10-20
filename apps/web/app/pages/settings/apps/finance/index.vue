@@ -1,5 +1,11 @@
 <script setup lang="ts">
+import SettingsPreviewCard from '@/components/settings/SettingsPreviewCard.vue'
 import SetupChecklist from '@/components/finance/SetupChecklist.vue'
+import AnalyticAccountsSection from '@/components/finance/analytic/AnalyticAccountsSection.vue'
+import AnalyticPlansSection from '@/components/finance/analytic/AnalyticPlansSection.vue'
+import AuditPreview from '@/components/finance/governance/AuditPreview.vue'
+import ClosingView from '@/components/finance/governance/ClosingView.vue'
+import ZatcaView from '@/components/finance/governance/ZatcaView.vue'
 import { financeSetupProgress } from '@/composables/finance/financeSetupSteps'
 import { useFinanceSetup, useLoadFinanceChart } from '@/composables/finance/useFinanceSetup'
 import { saveErrorMessage } from '@/utils/formFeedback'
@@ -7,11 +13,14 @@ import type { PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
 
 const { t, locale } = useI18n()
 const { can } = useAccess()
+const { parts, shows } = useSettingsPage('finance')
 const hydrated = useHydrated()
 const canManage = computed(() => can('finance.setup.manage'))
 const setup = useFinanceSetup(computed(() => can('finance.setup.read')))
 const data = computed(() => setup.data.value)
 
+// The finance settings: one page of cards. Setup is the first; analytic accounting, fiscal closing and e-invoicing follow;
+// the audit log is a preview with a link to its full page.
 const headerTags = computed<PageHeaderTag[]>(() => data.value
   ? [{ label: t(data.value.ready ? 'finance.setup.ready' : 'finance.setup.notReady'), tone: data.value.ready ? 'success' : 'warning', testId: 'finance-setup-state' }]
   : [])
@@ -37,9 +46,11 @@ const ZATCA_TONE = { not_started: 'neutral', compliance_checked: 'info', onboard
 
 <template>
   <SharedSettingsPage width="detail">
-    <SharedPageHeader :title="t('finance.setup.title')" :tags="headerTags" />
-    <SharedPageState v-if="!can('finance.setup.read')" :empty="true" :empty-text="t('errors.forbidden')" />
-    <SharedPageState v-else :loading="setup.isLoading.value" :error="setup.error.value" :empty="!data" @retry="setup.refetch">
+    <SharedPageHeader :title="t('nav.finance')" :tags="headerTags" />
+    <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
+    <template v-else>
+    <section v-if="shows('setup')" id="setup" class="webvue-settings-anchor">
+    <SharedPageState :loading="setup.isLoading.value" :error="setup.error.value" :empty="!data" @retry="setup.refetch">
       <div v-if="data" class="grid gap-(--webvue-gap-card)">
         <SharedRecordSection variant="panel" :title="t('finance.setup.stepsTitle')" :description="progress ? t('finance.overview.setupProgress', { done: progress.done, total: progress.total }) : undefined" data-testid="finance-setup-steps">
           <SetupChecklist :setup="data" />
@@ -115,5 +126,19 @@ const ZATCA_TONE = { not_started: 'neutral', compliance_checked: 'info', onboard
         </SharedRecordSection>
       </div>
     </SharedPageState>
+    </section>
+
+    <section v-if="shows('analytic')" id="analytic" class="webvue-settings-anchor grid gap-(--webvue-gap-card)">
+      <AnalyticPlansSection />
+      <AnalyticAccountsSection />
+    </section>
+    <section v-if="shows('closing')" id="closing" class="webvue-settings-anchor"><ClosingView /></section>
+    <section v-if="shows('zatca')" id="zatca" class="webvue-settings-anchor"><ZatcaView /></section>
+    <section v-if="shows('audit')" id="audit" class="webvue-settings-anchor">
+      <SettingsPreviewCard :title="t('financeGovernance.audit.title')" :all-label="t('settings.preview.allAudit')" all-to="/settings/apps/finance/audit" test-id="finance-audit-card">
+        <AuditPreview />
+      </SettingsPreviewCard>
+    </section>
+    </template>
   </SharedSettingsPage>
 </template>

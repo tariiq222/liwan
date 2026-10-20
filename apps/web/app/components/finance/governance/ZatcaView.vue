@@ -16,7 +16,7 @@ const status = useFinanceZatcaStatus(() => can('finance.zatca.read'))
       <ZatcaJournals :journals="status.data.value.journals" />
       <p class="text-sm text-muted">
         {{ t('financeGovernance.zatca.setupHint') }}
-        <NuxtLink to="/settings/apps/finance" class="text-primary hover:underline">{{ t('financeGovernance.zatca.setupLink') }}</NuxtLink>
+        <NuxtLink to="/settings/apps/finance#setup" class="text-primary hover:underline">{{ t('financeGovernance.zatca.setupLink') }}</NuxtLink>
       </p>
     </div>
   </SharedPageState>

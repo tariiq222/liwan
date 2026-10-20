@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CompanyProfile } from '@webvue/contracts'
 import { companyPatch, profileToForm, sectionExtensions } from '../companyProfile'
-import { requiredCapabilityForPath } from '../accessPolicy'
+import { canReachPath, requiredCapabilityForPath } from '../accessPolicy'
 
 const PROFILE: CompanyProfile = {
   id: 1,
@@ -57,10 +57,10 @@ describe('company profile form', () => {
     expect(companyPatch('contact', profileExtensions('contact'), saved, { ...saved, name: 'x', email: 'a@b.co' })).toEqual({ email: 'a@b.co' })
   })
 
-  it('gates the three company pages on the read capability', () => {
-    for (const page of ['profile', 'address', 'contact']) {
-      expect(requiredCapabilityForPath(`/settings/company/${page}`)).toBe('settings.company.read')
-    }
-    expect(requiredCapabilityForPath('/settings/company/branding')).toBe('settings.branding.manage')
+  it('gates the company page on the read capability and opens it to a branding-only administrator', () => {
+    expect(requiredCapabilityForPath('/settings/company')).toBe('settings.company.read')
+    expect(canReachPath({ capabilities: ['settings.company.read'] }, '/settings/company')).toBe(true)
+    expect(canReachPath({ capabilities: ['settings.branding.manage'] }, '/settings/company')).toBe(true)
+    expect(canReachPath({ capabilities: ['access.users.read'] }, '/settings/company')).toBe(false)
   })
 })

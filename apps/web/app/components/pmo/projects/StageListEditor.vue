@@ -172,16 +172,18 @@ function confirmDelete(stageId: StageRow['id']) {
         </label>
         <span v-else class="min-w-0 flex-1 truncate px-1 text-start text-sm">{{ stage.name }}</span>
 
-        <UButton
-          v-if="editingId !== stage.id"
-          type="button"
-          color="neutral"
-          size="sm"
-          :disabled="disabled"
-          :aria-label="t('projects.stages.rename')"
-          :label="t('projects.stages.rename')"
-          @click="startRename(stage)"
-        variant="outline" />
+        <UTooltip v-if="editingId !== stage.id" :text="t('projects.stages.rename')">
+          <UButton
+            type="button"
+            color="neutral"
+            variant="ghost"
+            square
+            icon="i-lucide-pencil"
+            :disabled="disabled"
+            :aria-label="t('projects.stages.rename')"
+            @click="startRename(stage)"
+          />
+        </UTooltip>
 
         <div class="flex items-center gap-2 text-sm">
           <span class="text-muted">{{ t('projects.stages.fold') }}</span>

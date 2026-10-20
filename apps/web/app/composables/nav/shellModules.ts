@@ -5,7 +5,8 @@ import { canReach, SETTINGS_OVERVIEW_PATH, type AccessIdentity } from '../../uti
 import { hasFeature } from '../../modules/registry'
 import { activeManifests } from '../../modules/manifests'
 import { normalizedPath } from '../../utils/routePath'
-import { settingsSections, settingsSectionIdForPath, entryIsExact, type SettingsEntry, type SettingsSection } from './settingsSections'
+import { partIsExact, settingsPageForPath, settingsPartPath, settingsPartTarget, settingsPages, type SettingsPage } from './settingsSections'
+import type { AppSettingsPart } from '../../modules/types'
 import { CUSTOMER_COMMERCIAL_CAPABILITIES, deriveCustomerCapabilities } from '../../utils/customerCapabilities'
 import type { AppIcon } from '../../modules/types'
 
@@ -22,9 +23,9 @@ export interface NavItem { to: string; labelKey: string; icon: AppIcon; shortcut
 
 /** Search-page and go-key shortcuts of the foundation settings pages, by path (unique with the applications' nav shortcuts). */
 const SETTINGS_KEYS: Readonly<Record<string, { shortcut: string; goKey?: string }>> = {
-  '/settings/company/branding': { shortcut: 'i' },
-  '/settings/system/maintenance': { shortcut: 'u' },
-  '/settings/system/integrations': { shortcut: 'w' },
+  '/settings/company#branding': { shortcut: 'i' },
+  '/settings/system#maintenance': { shortcut: 'u' },
+  '/settings/system#integrations': { shortcut: 'w' },
   '/settings/team/users': { shortcut: '7', goKey: 'u' },
   '/settings/team/roles': { shortcut: '8', goKey: 'r' },
   '/settings/team/access-log': { shortcut: '9' },
@@ -33,15 +34,16 @@ const SETTINGS_KEYS: Readonly<Record<string, { shortcut: string; goKey?: string 
 
 const homeItem: NavItem = { to: '/', labelKey: 'nav.home', icon: House, shortcut: 'h', goKey: 'h', module: 'home', capability: 'webvue.internal' }
 
-/** The settings pages of every section as nav items (palette, search and rail visibility); registered pages carry no shortcut. */
+/** The parts of every settings page as nav items (palette, search and rail visibility); registered parts carry no shortcut. */
 function settingsNavItems(): NavItem[] {
-  return settingsSections().flatMap(section => section.entries).map((entry): NavItem => {
-    const keys = SETTINGS_KEYS[entry.to]
+  return settingsPages().flatMap(page => page.parts.map((part): NavItem => {
+    const to = settingsPartPath(page, part)
+    const keys = SETTINGS_KEYS[to]
     return {
-      to: entry.to, labelKey: entry.labelKey, icon: entry.icon, capability: entry.capability,
+      to, labelKey: part.labelKey, icon: part.icon, capability: part.capability,
       shortcut: keys?.shortcut ?? '', ...(keys?.goKey ? { goKey: keys.goKey } : {}), group: 'settings', module: 'settings',
     }
-  })
+  }))
 }
 const FOUNDATION_MODULES: ReadonlySet<string> = new Set(['home', 'settings'])
 
@@ -130,9 +132,11 @@ export interface ShellContextLink {
   active?: boolean
   pinned?: boolean
   section?: string
+  /** Locale key of a heading inside the first card over this link and the consecutive ones with the same key. */
+  group?: string
   /** Active only on exactly this path (the settings overview, a page with sibling pages beneath it). */
   exact?: boolean
-  /** Path prefix that marks the link active, when it is not the link's own target (a settings section opens its first page). */
+  /** Path prefix that marks the link active, when it is not the link's own target (a settings page opens its first card). */
   within?: string
 }
 
@@ -142,32 +146,35 @@ export function hidePinnedNewProject(path: string): boolean {
   return target === '/projects' || target === '/projects/new' || /^\/projects\/[1-9]\d*(?:\/|$)/.test(target)
 }
 
-/** The sections that have at least one page this identity may open (all of them without an identity: the breadcrumb). */
-export function visibleSettingsSections(identity?: AccessIdentity): { section: SettingsSection; entries: SettingsEntry[] }[] {
-  return settingsSections()
-    .map(section => ({ section, entries: section.entries.filter(entry => identity === undefined || navAllowed(identity, entry.capability, entry.to)) }))
-    .filter(({ entries }) => entries.length > 0)
+/** The settings pages with at least one part this identity may open (all of them without an identity: the breadcrumb). */
+export function visibleSettingsPages(identity?: AccessIdentity): { page: SettingsPage; parts: AppSettingsPart[] }[] {
+  return settingsPages()
+    .map(page => ({ page, parts: page.parts.filter(part => identity === undefined || navAllowed(identity, part.capability, settingsPartPath(page, part))) }))
+    .filter(({ parts }) => parts.length > 0)
 }
 
 /**
- * The settings sidebar: the overview and one link per section on top, always; below them the pages of the open
- * section under its heading. Each section link opens the first page the identity may use.
+ * The settings sidebar: the overview and one link per page on top, always (the applications' pages under their own
+ * heading); below them the parts of the open page under its heading. A card scrolls to itself on its page, a part with
+ * its own page opens it. Each page link opens the first part the identity may use.
  */
 function settingsContextLinks(path: string | undefined, identity?: AccessIdentity): ShellContextLink[] {
-  const visible = visibleSettingsSections(identity)
+  const visible = visibleSettingsPages(identity)
   if (!visible.length) return []
   const top: ShellContextLink[] = [
-    { id: 'settings-overview', labelKey: 'settings.sections.overview', icon: 'i-lucide-layout-dashboard', to: SETTINGS_OVERVIEW_PATH, capability: visible[0]!.entries[0]!.capability, exact: true },
-    ...visible.map(({ section, entries }): ShellContextLink => ({
-      id: `settings-${section.id}`, labelKey: section.labelKey, icon: section.icon, to: entries[0]!.to, capability: entries[0]!.capability, within: section.within,
+    { id: 'settings-overview', labelKey: 'settings.sections.overview', icon: 'i-lucide-layout-dashboard', to: SETTINGS_OVERVIEW_PATH, capability: visible[0]!.parts[0]!.capability, exact: true },
+    ...visible.map(({ page, parts }): ShellContextLink => ({
+      id: `settings-${page.id}`, labelKey: page.labelKey, icon: page.icon, to: parts[0]!.to ?? page.to, capability: parts[0]!.capability,
+      within: page.within, ...(page.group ? { group: page.group } : {}),
     })),
   ]
-  const open = path ? visible.find(({ section }) => section.id === settingsSectionIdForPath(path)) : undefined
-  const pages = open?.entries.map((entry): ShellContextLink => ({
-    id: entry.id, labelKey: entry.labelKey, icon: entry.icon, to: entry.to, capability: entry.capability,
-    section: entry.group ?? open.section.labelKey, ...(entryIsExact(entry, open.entries) ? { exact: true } : {}),
+  const open = path ? visible.find(({ page }) => page.id === settingsPageForPath(path)?.id) : undefined
+  const parts = open?.parts.map((part): ShellContextLink => ({
+    id: part.id, labelKey: part.labelKey, icon: part.icon, to: settingsPartTarget(open.page, part), capability: part.capability,
+    section: open.page.labelKey,
+    ...(part.within ? { within: part.within } : {}), ...(partIsExact(part, open.parts) ? { exact: true } : {}),
   })) ?? []
-  return [...top, ...pages]
+  return [...top, ...parts]
 }
 
 function resolveContextLinks(module: ShellModule, path: string | undefined, identity?: AccessIdentity): ShellContextLink[] {
@@ -182,5 +189,5 @@ export function moduleContextLinks(module: ShellModule, path?: string): ShellCon
 }
 
 export function contextLinksForModule(module: ShellModule, identity: AccessIdentity, path?: string): ShellContextLink[] {
-  return resolveContextLinks(module, path, identity).filter(link => navAllowed(identity, link.capability, typeof link.to === 'string' ? link.to : undefined, link.feature))
+  return resolveContextLinks(module, path, identity).filter(link => navAllowed(identity, link.capability, typeof link.to === 'string' ? link.to : link.to.path, link.feature))
 }

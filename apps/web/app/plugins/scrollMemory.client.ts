@@ -12,7 +12,8 @@ export default defineNuxtPlugin(() => {
   useEventListener(document, 'click', (event: MouseEvent) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     const anchor = (event.target as Element | null)?.closest<HTMLAnchorElement>('[data-fresh-navigation] a[href]')
-    if (!anchor || anchor.target === '_blank' || anchor.origin !== location.origin) return
+    // A link to a card (a hash) scrolls to it; a visit to the top would undo that.
+    if (!anchor || anchor.hash || anchor.target === '_blank' || anchor.origin !== location.origin) return
     freshDestination = router.resolve(anchor.pathname + anchor.search + anchor.hash).fullPath
   }, { capture: true })
   router.afterEach((to, from, failure) => {

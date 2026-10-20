@@ -2,7 +2,6 @@ import { FinanceZatcaErrorCodeSchema, FinanceZatcaOnboardInputSchema, type Finan
 import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
 import { financeErrorMessage } from '../financeErrors'
 
-export const ZATCA_PATH = '/settings/apps/finance/zatca'
 export const OTP_LENGTH = 6
 
 export const ZATCA_JOURNAL_TONE: Record<FinanceZatcaStatus['journals'][number]['state'], StatusTone> = {

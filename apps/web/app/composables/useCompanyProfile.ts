@@ -15,10 +15,11 @@ const companyKeys = {
   states: (countryId: number) => ['company-profile', 'states', countryId] as const,
 }
 
-export function useCompanyProfile() {
+export function useCompanyProfile(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: companyKeys.all,
+    enabled: computed(() => toValue(enabled)),
     queryFn: () => $api(ROUTE, { schema: CompanyProfileSchema }),
     retry: false,
   })

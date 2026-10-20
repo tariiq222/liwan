@@ -1,7 +1,5 @@
 {
   "financeAnalytic": {
-    "title": "Plans and cost centers",
-    "forbidden": "You do not have permission to view plans and cost centers.",
     "saveError": "Could not save",
     "states": {
       "active": "Active",
@@ -10,7 +8,6 @@
     "plans": {
       "title": "Plans",
       "description": "A plan is shared by every company of the database; a sub-plan groups cost centers under another plan.",
-      "countTag": "{count} plan | {count} plans",
       "new": "New plan",
       "empty": "No plans yet.",
       "root": "Root plan",

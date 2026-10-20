@@ -1,4 +1,4 @@
-import type { AppManifest, AppSettingsEntry } from './types'
+import type { AppManifest, AppSettingsPage, AppSettingsPart } from './types'
 
 // Relative imports only: vitest runs these modules directly, without the `@/` alias.
 const discovered = import.meta.glob<{ default: AppManifest }>('./*/manifest.ts', { eager: true })
@@ -47,15 +47,32 @@ export function manifestForPath(path: string): AppManifest | null {
   return activeManifests().find(manifest => claims(manifest, pathname)) ?? null
 }
 
-/** The application and settings entry whose `to` is `path` or a parent of it, or null (the entry owns its subtree). */
-export function settingsEntryForPath(path: string): { manifest: AppManifest; entry: AppSettingsEntry } | null {
+const owns = (scope: string, pathname: string) => pathname === scope || pathname.startsWith(`${scope}/`)
+
+/** The path prefix a part owns when it is not an anchor on its page's own path. */
+export function settingsPartScope(part: AppSettingsPart): string | undefined {
+  return part.within ?? part.to
+}
+
+/**
+ * The application, settings page and part that own `path`, or null. A part owns the paths under its own scope
+ * (`within`, else `to`); every other path under the page's `to` belongs to the page's first part. The most specific
+ * scope wins, so a part's full page beats the base page.
+ */
+export function settingsPartForPath(path: string): { manifest: AppManifest; page: AppSettingsPage; part: AppSettingsPart } | null {
   const pathname = path.split(/[?#]/, 1)[0] ?? path
-  // The most specific entry owns a path: an application's sub-page entry wins over its base settings page.
-  let match: { manifest: AppManifest; entry: AppSettingsEntry } | null = null
+  let match: { manifest: AppManifest; page: AppSettingsPage; part: AppSettingsPart } | null = null
+  let specificity = -1
+  const consider = (manifest: AppManifest, page: AppSettingsPage, part: AppSettingsPart, scope: string) => {
+    if (owns(scope, pathname) && scope.length > specificity) { match = { manifest, page, part }; specificity = scope.length }
+  }
   for (const manifest of activeManifests()) {
-    for (const entry of manifest.settings ?? []) {
-      const owns = pathname === entry.to || pathname.startsWith(`${entry.to}/`)
-      if (owns && entry.to.length > (match?.entry.to.length ?? -1)) match = { manifest, entry }
+    const page = manifest.settings
+    if (!page) continue
+    consider(manifest, page, page.parts[0]!, page.to)
+    for (const part of page.parts) {
+      const scope = settingsPartScope(part)
+      if (scope) consider(manifest, page, part, scope)
     }
   }
   return match

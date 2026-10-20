@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { FinanceClosingLine } from '@webvue/contracts'
 import { useCloseFiscalYear, useFinanceClosingPreview } from '@/composables/finance/useFinanceClosing'
 import Money from '../invoices/Money.vue'
-import { blockerText, CLOSING_PATH, closingErrorMessage } from './closingPresentation'
+import { blockerText, CLOSING_HASH, CLOSING_PATH, closingErrorMessage } from './closingPresentation'
 
 // The year-end entry a close would post, why it cannot be posted yet, and the irreversible close itself.
 const props = defineProps<{ year: number; currency?: string }>()
@@ -27,7 +27,7 @@ async function confirmClose() {
   if (!hydrated.value || closing.value || !canClose.value) return
   try {
     await closeYear(props.year)
-    await router.replace({ path: CLOSING_PATH })
+    await router.replace({ path: CLOSING_PATH, hash: CLOSING_HASH })
   } catch (cause) { failure.value = cause }
 }
 
