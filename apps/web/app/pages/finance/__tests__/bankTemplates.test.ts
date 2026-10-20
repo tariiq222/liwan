@@ -30,7 +30,7 @@ describe('the bank pages stay on their templates', () => {
     ['components/finance/bank/BankKpiStrip.vue', ['<SharedKpiStrip']],
     ['components/finance/bank/BankStatementForm.vue', ['<SharedUnsavedChanges', '<SharedFormSection panel', '<SharedFormActions', 'color="error" variant="subtle"', '<PartnerPicker', '<UFormField']],
     ['components/finance/bank/useBankStatementRecord.ts', ["kind: 'category'", "kind: 'count'", 'statusTag(']],
-    ['components/finance/bank/BankStatementBody.vue', ['<SharedKpiStrip', '<SharedDataTable', "can('finance.bank.manage')", '#mobile-row']],
+    ['components/finance/bank/BankStatementBody.vue', ['<SharedDataTable', "can('finance.bank.manage')", '#mobile-row']],
     ['components/finance/bank/BankStatementAside.vue', ['<SharedPropertiesPanel', '<SharedPropertyRow']],
     ['components/finance/bank/ReconcileBody.vue', ['<SharedRecordSection variant="action"', '<SharedRecordSection v-if="!page.open" variant="tinted"', '<SharedDataTable', 'selectable', '<SharedInlineConfirm', '<SharedStatusBadge', '<AccountPicker']],
   ])('%s uses its template', (file, needles) => {

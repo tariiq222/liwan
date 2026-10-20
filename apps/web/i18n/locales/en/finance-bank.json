@@ -46,7 +46,6 @@
       "open": "To reconcile"
     },
     "summary": {
-      "label": "Statement summary",
       "reconciled": "Reconciled lines",
       "open": "Lines to reconcile"
     },

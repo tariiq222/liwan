@@ -17,5 +17,7 @@ const { t } = useI18n()
     <SharedPropertyRow :label="t('financeBank.columns.balanceEnd')"><Money :amount="record.statement.balance_end_real" :currency="record.statement.currency" /></SharedPropertyRow>
     <SharedPropertyRow v-if="hasEndDifference(record.statement)" :label="t('financeBank.columns.difference')"><SharedStatusBadge size="sm" tone="warning" :label="t('financeBank.differencePill')" /></SharedPropertyRow>
     <SharedPropertyRow :label="t('financeBank.record.currency')" :value="record.statement.currency" />
+    <SharedPropertyRow v-if="record.summary" :label="t('financeBank.summary.reconciled')"><span class="tabular-nums">{{ record.summary.reconciledCount }}</span> · <Money :amount="record.summary.reconciledAmount" :currency="record.statement.currency" /></SharedPropertyRow>
+    <SharedPropertyRow v-if="record.summary" :label="t('financeBank.summary.open')"><span class="tabular-nums">{{ record.summary.openCount }}</span> · <Money :amount="record.summary.openAmount" :currency="record.statement.currency" /></SharedPropertyRow>
   </SharedPropertiesPanel>
 </template>
