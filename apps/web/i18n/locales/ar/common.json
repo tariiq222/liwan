@@ -67,6 +67,7 @@
     "myTasks": "مهامي",
     "meetings": "الاجتماعات",
     "ai": "WebVue AI",
+    "rail": { "hr": "الموظفين", "ai": "المساعد" },
     "meetingCalendar": "التقويم",
     "meetingSeries": "الاجتماعات الدورية",
     "projectDashboard": "نظرة عامة على المشاريع",

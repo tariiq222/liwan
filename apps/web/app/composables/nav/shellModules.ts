@@ -92,6 +92,7 @@ export function useNav(identity: AccessIdentity): NavItem[] {
 export interface ShellModuleDefinition {
   id: ShellModule
   labelKey: string
+  shortLabelKey?: string
   icon: AppIcon
   to: string
 }
@@ -101,7 +102,7 @@ export function shellModuleList(): ShellModuleDefinition[] {
   const applications = activeManifests().flatMap(manifest => manifest.rail).sort((a, b) => a.order - b.order)
   return [
     { id: 'home', labelKey: 'nav.home', icon: House, to: '/' },
-    ...applications.map(({ id, labelKey, icon, to }) => ({ id, labelKey, icon, to })),
+    ...applications.map(({ id, labelKey, shortLabelKey, icon, to }) => ({ id, labelKey, shortLabelKey, icon, to })),
     // Settings is administration only: account and appearance live in the header.
     { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: SETTINGS_OVERVIEW_PATH },
   ]

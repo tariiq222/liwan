@@ -33,8 +33,8 @@ const groups = computed(() => [
         <span data-slot="icon" class="webvue-module-rail-icon" aria-hidden="true">
           <UIcon :name="item.icon" class="webvue-shell-icon" />
         </span>
-        <!-- Up to two lines instead of an ellipsis: «My to-dos» must stay readable at 64px. -->
-        <span data-slot="label" class="line-clamp-2 whitespace-normal! text-balance break-words">{{ t(item.labelKey) }}</span>
+        <!-- One line under the icon: an entry whose full name is long carries a short one; the full name stays the tooltip. -->
+        <span data-slot="label">{{ t(item.shortLabelKey ?? item.labelKey) }}</span>
       </NuxtLink>
     </nav>
     <NuxtLink :to="props.homeTo" class="webvue-module-rail-brand" :aria-label="`${t('brand.name')} — ${t('nav.home')}`">

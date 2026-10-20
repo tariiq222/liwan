@@ -67,6 +67,7 @@
     "myTasks": "My tasks",
     "meetings": "Meetings",
     "ai": "WebVue AI",
+    "rail": { "hr": "People", "ai": "Assistant" },
     "meetingCalendar": "Calendar",
     "meetingSeries": "Recurring meetings",
     "projectDashboard": "Project overview",

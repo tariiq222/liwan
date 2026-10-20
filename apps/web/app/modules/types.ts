@@ -58,7 +58,8 @@ export interface AppSettingsEntry {
   /** Locale key of a sub-heading for future grouping when many applications register entries. */
   group?: string
 }
-export interface AppRailEntry { id: string; labelKey: string; icon: AppIcon; to: string; order: number }
+/** `shortLabelKey` names the entry under its rail icon when the full label (still the tooltip) needs two lines. */
+export interface AppRailEntry { id: string; labelKey: string; shortLabelKey?: string; icon: AppIcon; to: string; order: number }
 /** The fetcher a search provider receives: `useApi().$api`, so requests keep its cookies, errors and zod parsing. */
 export type AppSearchApi = <T>(
   url: string,

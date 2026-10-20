@@ -16,7 +16,7 @@ const manifest: AppManifest = {
   id: 'hr',
   feature: 'hr.enabled',
   routePrefixes: ['/hr'],
-  rail: [{ id: 'hr', labelKey: 'nav.hr', icon: 'i-lucide-users', to: '/hr', order: 50 }],
+  rail: [{ id: 'hr', labelKey: 'nav.hr', shortLabelKey: 'nav.rail.hr', icon: 'i-lucide-users', to: '/hr', order: 50 }],
   nav: [
     { to: '/hr', labelKey: 'nav.employees', icon: 'i-lucide-users', shortcut: '3', goKey: 'e', capability: 'hr.employees.read' },
     { to: '/hr/departments', labelKey: 'nav.departments', icon: 'i-lucide-network', shortcut: '5', goKey: 'd', capability: 'hr.departments.read' },
