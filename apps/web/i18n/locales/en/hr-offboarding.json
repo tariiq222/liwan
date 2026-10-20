@@ -25,6 +25,10 @@
       "activate": "Activate plan",
       "deactivateTitle": "Deactivate this plan?",
       "deactivateDescription": "It is no longer offered for new runs; existing runs stay as they are.",
+      "activateTitle": "Activate the plan?",
+      "activateDescription": "It will be offered for new offboarding runs.",
+      "statusActive": "Active",
+      "statusInactive": "Inactive",
       "activated": "Plan activated",
       "noSteps": "No steps yet",
       "everyState": "All"
@@ -48,6 +52,7 @@
       "unclearedOnly": "Incomplete only",
       "allClearance": "All",
       "assetsLink": "Employee assets",
+      "heldAssets": "The employee still holds {count} unreturned asset | The employee still holds {count} unreturned assets",
       "registered": "Departure registered",
       "noReason": "No reason recorded"
     },

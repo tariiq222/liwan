@@ -20,6 +20,9 @@ const cleared = computed(() => {
   const value = departure.value?.clearance
   return !!value && value.total > 0 && value.done === value.total
 })
+// Open custody: equipment still assigned to the employee who is leaving.
+const custody = useHrEquipmentList(computed(() => ({ employeeId: validId.value ? employeeId.value : null, limit: 1 })), validId)
+const heldAssets = computed(() => custody.data.value?.total ?? 0)
 const stepError = ref<unknown>(null)
 const { mutateAsync: completeStep, isPending } = useCompleteHrOffboardingStep()
 async function complete(stepId: number, feedback?: string) {
@@ -51,6 +54,19 @@ async function complete(stepId: number, feedback?: string) {
         :label="t(`${NAMESPACE}.departures.assetsLink`)"
       />
     </template>
+    <UAlert
+      v-if="departure && can('hr.assets.read') && heldAssets > 0"
+      role="status"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-package"
+      :title="t(`${NAMESPACE}.departures.heldAssets`, { count: heldAssets }, heldAssets)"
+      data-testid="hr-offboarding-held-assets"
+    >
+      <template #actions>
+        <UButton color="neutral" variant="outline" :to="{ path: '/hr/assets', query: { employee_id: String(departure.employee.id) } }" :label="t(`${NAMESPACE}.departures.assetsLink`)" />
+      </template>
+    </UAlert>
     <SharedIdentityCard v-if="departure" :id="departure.employee.id" :name="departure.employee.name" :subtitle="departure.reason?.name || t(`${NAMESPACE}.departures.noReason`)">
       <template #badge>
         <SharedStatusBadge size="sm" :tone="cleared ? 'success' : 'warning'" :label="cleared ? t(`${NAMESPACE}.departures.cleared`) : t(`${NAMESPACE}.departures.notCleared`)" />

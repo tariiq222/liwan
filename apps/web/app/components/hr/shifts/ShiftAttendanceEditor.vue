@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { HrShiftAttendance } from '@webvue/contracts'
+import { SHIFT_WEEK_ORDER, SHIFT_WEEK_START } from '@/utils/hrShiftWeek'
 
 // The work-time lines of a schedule form: one row per period. A line is
 // {dayofweek, day_period, hour_from, hour_to, week_type}; this release never
@@ -8,11 +9,10 @@ const props = defineProps<{ modelValue: HrShiftAttendance[]; disabled?: boolean 
 const emit = defineEmits<{ 'update:modelValue': [value: HrShiftAttendance[]] }>()
 const { t } = useI18n()
 
-const DAYS: readonly HrShiftAttendance['dayofweek'][] = ['0', '1', '2', '3', '4', '5', '6']
 const PERIODS: readonly HrShiftAttendance['day_period'][] = ['morning', 'lunch', 'afternoon', 'full_day']
-const NEW_LINE: HrShiftAttendance = { dayofweek: '0', day_period: 'morning', hour_from: 8, hour_to: 12, week_type: null }
+const NEW_LINE: HrShiftAttendance = { dayofweek: SHIFT_WEEK_START, day_period: 'morning', hour_from: 8, hour_to: 12, week_type: null }
 
-const dayItems = computed(() => DAYS.map(day => ({ value: day, label: t(`hrShifts.days.${day}`) })))
+const dayItems = computed(() => SHIFT_WEEK_ORDER.map(day => ({ value: day, label: t(`hrShifts.days.${day}`) })))
 const periodItems = computed(() => PERIODS.map(period => ({ value: period, label: t(`hrShifts.periods.${period}`) })))
 const rows = computed(() => props.modelValue)
 

@@ -5761,7 +5761,7 @@
         {
           "id": "Ongoing",
           "name": "متقدم قيد التوظيف",
-          "context": "apps/web/app/pages/hr/recruitment/[applicantId].vue:93"
+          "context": "apps/web/app/pages/hr/recruitment/[applicantId].vue:105"
         }
       ]
     },

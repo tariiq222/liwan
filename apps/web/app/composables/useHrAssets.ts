@@ -139,12 +139,12 @@ export function useHrAssetCategories() {
   })
 }
 
-export function useHrEquipmentList(input: MaybeRefOrGetter<HrEquipmentInput>) {
+export function useHrEquipmentList(input: MaybeRefOrGetter<HrEquipmentInput>, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrAssetKeys.equipmentList(hrEquipmentQuery(toValue(input)))),
-    enabled: computed(() => can('hr.assets.read')),
+    enabled: computed(() => can('hr.assets.read') && toValue(enabled)),
     queryFn: () => $api('/api/v1/hr/assets/equipment', {
       query: { ...hrEquipmentQuery(toValue(input)) },
       schema: HrEquipmentListSchema,
