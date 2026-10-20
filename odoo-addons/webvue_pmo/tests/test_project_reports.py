@@ -1,8 +1,15 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from unittest.mock import patch
+
 from odoo import fields
 from odoo.tests import new_test_user, tagged
 
 from .common import WebVuePmoCase
+from odoo.addons.webvue_pmo.serializers.project_reports import (
+    build_dashboard_summary,
+    build_project_dashboard_analytics,
+    today_utc,
+)
 
 ROW_KEYS = {'project', 'finance', 'task_count', 'closed_task_count', 'overdue_task_count', 'progress'}
 PROJECT_REF_KEYS = {'id', 'name', 'status'}
@@ -25,6 +32,42 @@ class TestProjectReports(WebVuePmoCase):
 
     def _entry(self, project, **fields):
         return self.env['webvue.project.finance.entry'].create({'project_id': project.id, **fields})
+
+    def test_summary_finance_search_is_batched_and_matches_analytics(self):
+        projects = self.env['project.project'].create([
+            {'company_id': self.env.company.id, 'name': f'Batch finance {index:02d}'}
+            for index in range(12)
+        ])
+        for project in projects:
+            self._entry(project, kind='budget', title='Budget', amount=0.1)
+            self._entry(project, kind='expense', title='Expense', amount=0.2, expense_date='2030-01-01')
+        projects = projects.with_user(self.manager)
+        today = today_utc()
+        expected = build_project_dashboard_analytics(projects, today, True)
+        expected = {key: value for key, value in expected.items() if key not in ('projects', 'recent_projects')}
+        Finance = type(self.env['webvue.project.finance.entry'])
+        original_search = Finance.search
+        domains = []
+
+        def counted_search(records, domain, *args, **kwargs):
+            domains.append(domain)
+            return original_search(records, domain, *args, **kwargs)
+
+        for selected in (projects[:1], projects):
+            domains.clear()
+            with patch.object(Finance, 'search', counted_search):
+                result = build_dashboard_summary(selected, today, True)
+            self.assertEqual(len(domains), 1, 'finance reads must not grow per project or attention row')
+            self.assertEqual(domains[0], [('project_id', 'in', selected.ids)])
+            if selected == projects:
+                self.assertEqual(result, expected)
+        self.assertEqual(result['attention_project_count'], 12)
+        self.assertEqual(len(result['attention']), 10)
+        with patch.object(Finance, 'search', counted_search):
+            domains.clear()
+            empty = build_dashboard_summary(projects[:0], today, False)
+        self.assertEqual(domains, [])
+        self.assertEqual(empty['project_count'], 0)
 
     def test_shape_row_and_task_counts(self):
         self._entry(self.project, kind='budget', title='Budget', amount=1000)
