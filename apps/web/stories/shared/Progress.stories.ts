@@ -5,7 +5,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/Progress',
   component: Progress,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('packages/ui/app/components/shared/data/MetricTile.vue:68', 'شريط التقدم الوحيد (غلاف `UProgress`): `size` sm=6px وmd=8px، `tone` primary/success/warning/danger/neutral، و`label` لاسم مسموع. الحركة 300ms وتتوقف مع تقليل الحركة.') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('packages/ui/app/components/shared/data/MetricTile.vue:72', 'شريط التقدم الوحيد (غلاف `UProgress`): `size` sm=6px وmd=8px، `tone` primary/success/warning/danger/neutral، و`label` لاسم مسموع. الحركة 300ms وتتوقف مع تقليل الحركة.') },
   args: { value: 64, size: 'sm', tone: 'primary', label: 'نسبة الإنجاز' },
   render: args => ({ components: { Progress }, setup: () => ({ args }), template: '<div class="max-w-xs"><Progress v-bind="args" /></div>' }),
 } satisfies Meta<typeof Progress>
