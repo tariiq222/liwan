@@ -61,7 +61,10 @@
       "saving": "Saving…",
       "saveError": "The plan could not be saved. Check the fields and try again.",
       "saved": "Plan saved",
-      "stepsRequired": "Add at least one step"
+      "stepsRequired": "Add at least one step",
+      "employee": "Employee",
+      "employeePlaceholder": "Choose the employee",
+      "employeeRequired": "Choose an employee"
     },
     "actions": {
       "complete": "Complete",

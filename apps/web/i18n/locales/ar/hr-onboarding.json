@@ -61,7 +61,10 @@
       "saving": "جار الحفظ…",
       "saveError": "تعذر حفظ الخطة. راجع الحقول ثم حاول مرة أخرى.",
       "saved": "تم حفظ الخطة",
-      "stepsRequired": "أضف خطوة واحدة على الأقل"
+      "stepsRequired": "أضف خطوة واحدة على الأقل",
+      "employee": "الموظف",
+      "employeePlaceholder": "اختر الموظف",
+      "employeeRequired": "اختر موظفًا"
     },
     "actions": {
       "complete": "إنجاز",
