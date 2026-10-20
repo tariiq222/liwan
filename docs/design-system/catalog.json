@@ -5072,14 +5072,9 @@
       ],
       "stories": [
         {
-          "id": "Form",
-          "name": "نموذج إنشاء",
-          "context": "apps/web/app/pages/tasks/new.vue:23"
-        },
-        {
-          "id": "FormTemplate",
-          "name": "قالب النموذج",
-          "context": "apps/web/app/pages/settings/team/users/new.vue:106"
+          "id": "Default",
+          "name": "لوحة إنشاء متقدم",
+          "context": "apps/web/app/pages/hr/recruitment/new.vue:62"
         }
       ]
     },

@@ -79,6 +79,21 @@
       "handler": "delete_department",
       "no_capability_reason": null
     },
+    "DELETE /api/v1/hr/shifts/assignments/{assignment_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.shifts.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "delete_assignment",
+      "no_capability_reason": null
+    },
     "DELETE /api/v1/meetings/{meeting_id}/attachments/{attachment_id}": {
       "addon": "webvue_meetings",
       "auth": "user",
@@ -1174,6 +1189,66 @@
       "handler": "get_status",
       "no_capability_reason": null
     },
+    "GET /api/v1/hr/assets/categories": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.assets.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.assets"
+      ],
+      "handler": "list_categories",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/assets/equipment": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.assets.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.assets"
+      ],
+      "handler": "list_equipment",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/assets/equipment/{equipment_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.assets.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.assets"
+      ],
+      "handler": "get_equipment",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/assets/me": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.assets"
+      ],
+      "handler": "list_my_equipment",
+      "no_capability_reason": null
+    },
     "GET /api/v1/hr/departments": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -1300,6 +1375,261 @@
       "handler": "list_leave_types",
       "no_capability_reason": null
     },
+    "GET /api/v1/hr/offboarding/departures": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.offboarding.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.offboarding"
+      ],
+      "handler": "list_departures",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/offboarding/departures/{employee_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.offboarding.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.offboarding"
+      ],
+      "handler": "get_departure",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/offboarding/plans": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.offboarding.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.offboarding"
+      ],
+      "handler": "list_offboarding_plans",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/offboarding/plans/{plan_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.offboarding.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.offboarding"
+      ],
+      "handler": "get_offboarding_plan",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/offboarding/reasons": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.offboarding.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.offboarding"
+      ],
+      "handler": "list_departure_reasons",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/offboarding/runs": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.offboarding.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.offboarding"
+      ],
+      "handler": "list_offboarding_runs",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/offboarding/runs/{run_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.offboarding.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.offboarding"
+      ],
+      "handler": "get_offboarding_run",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/onboarding/plans": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.onboarding.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.onboarding"
+      ],
+      "handler": "list_onboarding_plans",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/onboarding/plans/{plan_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.onboarding.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.onboarding"
+      ],
+      "handler": "get_onboarding_plan",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/onboarding/runs": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.onboarding.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.onboarding"
+      ],
+      "handler": "list_onboarding_runs",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/onboarding/runs/{run_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.onboarding.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.onboarding"
+      ],
+      "handler": "get_onboarding_run",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/recruitment/applicants": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.recruitment.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.recruitment"
+      ],
+      "handler": "list_applicants",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/recruitment/applicants/{applicant_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.recruitment.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.recruitment"
+      ],
+      "handler": "get_applicant",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/recruitment/jobs": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.recruitment.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.recruitment"
+      ],
+      "handler": "list_jobs",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/recruitment/jobs/{job_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.recruitment.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.recruitment"
+      ],
+      "handler": "get_job",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/recruitment/refuse-reasons": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.recruitment.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.recruitment"
+      ],
+      "handler": "list_refuse_reasons",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/recruitment/stages": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.recruitment.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.recruitment"
+      ],
+      "handler": "list_stages",
+      "no_capability_reason": null
+    },
     "GET /api/v1/hr/saudization": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -1312,6 +1642,66 @@
         "hr.enabled"
       ],
       "handler": "get_saudization",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/shifts/assignments": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.shifts.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "list_assignments",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/shifts/me": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "my_assignments",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/shifts/schedules": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.shifts.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "list_schedules",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/shifts/schedules/{schedule_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.shifts.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "get_schedule",
       "no_capability_reason": null
     },
     "GET /api/v1/integrations/connections": {
@@ -2373,6 +2763,21 @@
       "handler": "patch_fiscal",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/hr/assets/equipment/{equipment_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.assets.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.assets"
+      ],
+      "handler": "patch_equipment",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/hr/departments/{department_id}": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -2399,6 +2804,111 @@
         "hr.enabled"
       ],
       "handler": "patch_employee",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/offboarding/departures/{employee_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.offboarding.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.offboarding"
+      ],
+      "handler": "patch_departure",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/offboarding/plans/{plan_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.offboarding.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.offboarding"
+      ],
+      "handler": "patch_offboarding_plan",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/onboarding/plans/{plan_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.onboarding.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.onboarding"
+      ],
+      "handler": "patch_onboarding_plan",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/recruitment/applicants/{applicant_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.recruitment.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.recruitment"
+      ],
+      "handler": "patch_applicant",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/recruitment/jobs/{job_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.recruitment.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.recruitment"
+      ],
+      "handler": "patch_job",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/shifts/assignments/{assignment_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.shifts.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "update_assignment",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/shifts/schedules/{schedule_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.shifts.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "update_schedule",
       "no_capability_reason": null
     },
     "PATCH /api/v1/me/appearance": {
@@ -3455,6 +3965,81 @@
       "handler": "onboard_journal",
       "no_capability_reason": null
     },
+    "POST /api/v1/hr/assets/categories": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.assets.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.assets"
+      ],
+      "handler": "create_category",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/assets/equipment": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.assets.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.assets"
+      ],
+      "handler": "create_equipment",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/assets/equipment/{equipment_id}/archive": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.assets.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.assets"
+      ],
+      "handler": "archive_equipment",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/assets/equipment/{equipment_id}/assign": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.assets.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.assets"
+      ],
+      "handler": "assign_equipment",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/assets/equipment/{equipment_id}/return": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.assets.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.assets"
+      ],
+      "handler": "return_equipment",
+      "no_capability_reason": null
+    },
     "POST /api/v1/hr/departments": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -3579,6 +4164,232 @@
         "hr.enabled"
       ],
       "handler": "refuse_request",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/offboarding/departures": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.offboarding.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.offboarding"
+      ],
+      "handler": "register_departure",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/offboarding/plans": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.offboarding.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.offboarding"
+      ],
+      "handler": "create_offboarding_plan",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/offboarding/runs": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.offboarding.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.offboarding"
+      ],
+      "handler": "create_offboarding_run",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/offboarding/runs/{run_id}/steps/{activity_id}/done": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.offboarding.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.offboarding"
+      ],
+      "handler": "complete_offboarding_step",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/onboarding/plans": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.onboarding.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.onboarding"
+      ],
+      "handler": "create_onboarding_plan",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/onboarding/runs": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.onboarding.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.onboarding"
+      ],
+      "handler": "create_onboarding_run",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/onboarding/runs/{run_id}/steps/{activity_id}/done": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.onboarding.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.onboarding"
+      ],
+      "handler": "complete_onboarding_step",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/recruitment/applicants": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.recruitment.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.recruitment"
+      ],
+      "handler": "create_applicant",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/recruitment/applicants/{applicant_id}/hire": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.recruitment.manage",
+        "hr.employees.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.recruitment"
+      ],
+      "handler": "hire_applicant",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/recruitment/applicants/{applicant_id}/refuse": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.recruitment.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.recruitment"
+      ],
+      "handler": "refuse_applicant",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/recruitment/applicants/{applicant_id}/reset": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.recruitment.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.recruitment"
+      ],
+      "handler": "reset_applicant",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/recruitment/jobs": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.recruitment.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.recruitment"
+      ],
+      "handler": "create_job",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/shifts/assignments": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.shifts.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "create_assignment",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/shifts/schedules": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.shifts.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "create_schedule",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/shifts/schedules/{schedule_id}/archive": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.shifts.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "archive_schedule",
       "no_capability_reason": null
     },
     "POST /api/v1/me/password": {
