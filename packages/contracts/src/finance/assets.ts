@@ -18,6 +18,9 @@ export const FinanceAssetProfileSchema = z.object({
   depreciation_account: FinanceRefSchema,
   expense_account: FinanceRefSchema,
   journal: FinanceRefSchema,
+  plus_value_account: FinanceRefSchema.nullable(),
+  min_value_account: FinanceRefSchema.nullable(),
+  active: z.boolean(),
 }).strict()
 
 export const FinanceAssetSchema = z.object({
@@ -64,6 +67,27 @@ export const FinanceAssetDetailSchema = FinanceAssetSchema.extend({
 export const FinanceAssetListSchema = list(FinanceAssetSchema)
 export const FinanceAssetProfileListSchema = list(FinanceAssetProfileSchema)
 
+/**
+ * POST /asset-profiles. Once an asset uses the profile, its accounts, journal and method cannot be changed (422 `profile_in_use`).
+ * The gain and loss accounts (`null` clears them) are where a disposal books its result.
+ */
+export const FinanceAssetProfileCreateSchema = z.object({
+  name: text.min(1),
+  asset_account_id: id,
+  depreciation_account_id: id,
+  expense_account_id: id,
+  journal_id: id,
+  method: z.enum(['linear', 'degressive']).optional(),
+  method_time: MethodTimeSchema.optional(),
+  method_number: z.number().int().min(1).max(1200).optional(),
+  method_period: MethodPeriodSchema.optional(),
+  prorata: z.boolean().optional(),
+  plus_value_account_id: id.nullable().optional(),
+  min_value_account_id: id.nullable().optional(),
+}).strict()
+export const FinanceAssetProfilePatchSchema = FinanceAssetProfileCreateSchema.partial().strict()
+  .refine(body => Object.keys(body).length > 0, 'no fields to update')
+
 /** POST /assets: a draft on a profile, whose method it takes. */
 export const FinanceAssetCreateSchema = z.object({
   profile_id: id,
@@ -100,5 +124,6 @@ export type FinanceAssetProfile = z.infer<typeof FinanceAssetProfileSchema>
 export type FinanceAsset = z.infer<typeof FinanceAssetSchema>
 export type FinanceAssetDetail = z.infer<typeof FinanceAssetDetailSchema>
 export type FinanceAssetDispose = z.infer<typeof FinanceAssetDisposeSchema>
+export type FinanceAssetProfileCreate = z.infer<typeof FinanceAssetProfileCreateSchema>
 export type FinanceAssetCreate = z.infer<typeof FinanceAssetCreateSchema>
 export type FinanceAssetComputeResult = z.infer<typeof FinanceAssetComputeResultSchema>

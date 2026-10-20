@@ -30,6 +30,7 @@ const LINE = {
 const PROFILE = {
   id: 4, name: 'Furniture 5 years', method: 'linear', method_time: 'year', method_number: 5, method_period: 'year',
   prorata: false, asset_account: REF, depreciation_account: REF, expense_account: REF, journal: REF,
+  plus_value_account: null, min_value_account: null, active: true,
 }
 
 describe('finance asset schemas', () => {

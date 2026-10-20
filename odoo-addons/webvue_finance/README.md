@@ -35,7 +35,8 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `GET /reports/zakat-base`, `GET /zakat/adjustments?date_to`, `GET /zakat/reviews?date_to` | `finance.zakat.read` |
 | `POST /zakat/adjustments` (201), `DELETE /zakat/adjustments/<id>` (204) | `finance.zakat.manage` |
 | `POST /zakat/reviews` (201) | `finance.zakat.review` |
-| `GET /asset-profiles`, `GET /assets`, `GET /assets/<id>` | `finance.assets.read` |
+| `GET /asset-profiles` (`archived`), `GET /asset-profiles/<id>`, `GET /assets`, `GET /assets/<id>` | `finance.assets.read` |
+| `POST /asset-profiles` (201), `PATCH /asset-profiles/<id>`, `POST /asset-profiles/<id>/archive`, `/unarchive` | `finance.assets.manage` |
 | `POST /assets` (201, a draft), `POST /assets/<id>/validate`, `POST /assets/<id>/dispose`, `POST /assets/compute-depreciation` | `finance.assets.manage` |
 | `GET /bank-statements`, `GET /bank-statements/<id>`, `GET /bank-statement-lines/<id>/reconcile-proposals` | `finance.bank.read` |
 | `POST /bank-statements` (201), `POST /bank-statements/import/preview`, `POST /bank-statements/import` (201), `PATCH` and `DELETE` (204) `/bank-statements/<id>`, `POST /bank-statements/<id>/auto-reconcile`, `POST /bank-statement-lines/<id>/reconcile`, `/unreconcile` | `finance.bank.manage` |
@@ -224,6 +225,16 @@ journal already holds at least as many lines with the same day, amount and refer
 identical coffees in one file are both kept. Statements and imports work on bank and cash journals. OFX and CAMT files are
 not read: the pinned OCA set (`deploy/oca-addons.json`) has no statement-import repository, and adding
 `OCA/bank-statement-import` needs the owner's decision.
+
+## Asset profiles
+
+`POST /asset-profiles` `{name, asset_account_id, depreciation_account_id, expense_account_id, journal_id, method?, method_time?,
+method_number?, method_period?, prorata?, plus_value_account_id?, min_value_account_id?}` makes a depreciation profile for the
+current company: the asset and accumulated depreciation accounts must be fixed or non-current asset accounts, the expense an
+expense account, the journal a general journal. `method` is `linear` or `degressive` here. A profile is archived, never deleted,
+and an archived one cannot be chosen for a new asset. Once an asset uses the profile its accounts, journal and method are
+fixed (422 `profile_in_use`), so the depreciation of a running asset is never re-based silently; the name and the gain and
+loss accounts stay editable. Changing a profile never touches the entries already posted.
 
 ## Asset disposal
 

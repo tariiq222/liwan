@@ -25,6 +25,9 @@ const profile = (id, name, method_number, method_period) => ({
   depreciation_account: depreciationAccount,
   expense_account: expenseAccount,
   journal,
+  plus_value_account: null,
+  min_value_account: null,
+  active: true,
 })
 
 export const financeAssetProfiles = [

@@ -29,6 +29,9 @@ def dump_asset_profile(profile):
         'depreciation_account': dump_ref(profile.account_depreciation_id),
         'expense_account': dump_ref(profile.account_expense_depreciation_id),
         'journal': dump_ref(profile.journal_id),
+        'plus_value_account': dump_ref(profile.account_plus_value_id),
+        'min_value_account': dump_ref(profile.account_min_value_id),
+        'active': profile.active,
     }
 
 
@@ -132,3 +135,61 @@ def parse_asset_dispose(payload):
     if 'note' in payload:
         parsed['note'] = parse_text(payload['note'], 'note')
     return parsed
+
+
+PROFILE_FIELDS = frozenset({
+    'name', 'asset_account_id', 'depreciation_account_id', 'expense_account_id', 'journal_id', 'method', 'method_time',
+    'method_number', 'method_period', 'prorata', 'plus_value_account_id', 'min_value_account_id',
+})
+PROFILE_ACCOUNT_FIELDS = {
+    'asset_account_id': 'account_asset_id', 'depreciation_account_id': 'account_depreciation_id',
+    'expense_account_id': 'account_expense_depreciation_id', 'plus_value_account_id': 'account_plus_value_id',
+    'min_value_account_id': 'account_min_value_id',
+}
+# What the depreciation of a running asset is computed and booked with: fixed once an asset uses the profile.
+PROFILE_LOCKED_WHEN_USED = (
+    'asset_account_id', 'depreciation_account_id', 'expense_account_id', 'journal_id', 'method', 'method_time',
+    'method_number', 'method_period', 'prorata',
+)
+PROFILE_CHOICES = {
+    'method': ('linear', 'degressive'),
+    'method_time': ('year', 'number'),
+    'method_period': ('month', 'quarter', 'year'),
+}
+
+
+def _parse_profile_fields(payload):
+    parsed = {}
+    for field, value in payload.items():
+        if field == 'name':
+            parsed[field] = parse_text(value, field, required=True)
+        elif field in PROFILE_CHOICES:
+            if value not in PROFILE_CHOICES[field]:
+                raise ApiError(422, 'invalid', f'{field} must be one of {", ".join(PROFILE_CHOICES[field])}', field=field)
+            parsed[field] = value
+        elif field == 'method_number':
+            parsed[field] = int(parse_number(value, field, minimum=1, maximum=1200))
+            if parsed[field] != value:
+                raise ApiError(422, 'invalid', f'{field} must be a whole number', field=field)
+        elif field == 'prorata':
+            if not isinstance(value, bool):
+                raise ApiError(422, 'invalid', f'{field} must be a boolean', field=field)
+            parsed[field] = value
+        elif value is None and field in ('plus_value_account_id', 'min_value_account_id'):
+            parsed[field] = None
+        else:
+            parsed[field] = parse_id(value, field)
+    return parsed
+
+
+def parse_profile_create(payload):
+    reject_unknown(payload, PROFILE_FIELDS)
+    require_keys(payload, ('name', 'asset_account_id', 'depreciation_account_id', 'expense_account_id', 'journal_id'))
+    return _parse_profile_fields(payload)
+
+
+def parse_profile_patch(payload):
+    reject_unknown(payload, PROFILE_FIELDS)
+    if not payload:
+        raise ApiError(422, 'invalid', 'no fields to update')
+    return _parse_profile_fields(payload)

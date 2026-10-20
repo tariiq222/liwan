@@ -14,7 +14,6 @@ from odoo.addons.webvue_api.controllers.common import (
 )
 from odoo.addons.webvue_finance.serializers.asset import (
     dump_asset_detail,
-    dump_asset_profiles,
     dump_assets,
     parse_asset_create,
     parse_asset_dispose,
@@ -44,14 +43,6 @@ def _asset_values(parsed):
 
 class FinanceAssetController(http.Controller):
     """Fixed assets over OCA account_asset_management: the asset, its profile and the depreciation board."""
-
-    @http.route('/api/v1/finance/asset-profiles', type='json2', auth='user', methods=['GET'], readonly=True)
-    @api_handler
-    @requires_feature('finance.enabled', operation='read')
-    def list_asset_profiles(self, **_):
-        """The asset profiles of the current company: accounts, journal and depreciation method."""
-        require_capability('finance.assets.read')
-        return list_page('account.asset.profile', [('company_id', '=', request.env.company.id)], dump_asset_profiles)
 
     @http.route('/api/v1/finance/assets', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

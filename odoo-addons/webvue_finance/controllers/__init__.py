@@ -3,6 +3,7 @@ from . import (
     finance_accounts,
     finance_analytic,
     finance_analytic_reports,
+    finance_asset_profiles,
     finance_assets,
     finance_audit,
     finance_bank,
