@@ -24,6 +24,10 @@
       "withholding": {
         "title": "ضريبة الاستقطاع",
         "description": "الضريبة المستقطعة من مدفوعات الموردين في الفترة."
+      },
+      "analytic": {
+        "title": "تقرير مراكز التكلفة",
+        "description": "إيراد ومصروف كل مركز تكلفة في الفترة؛ افتح مركزًا لترى بنوده."
       }
     },
     "kpi": {
@@ -40,7 +44,10 @@
       "purchaseTax": "ضريبة المشتريات",
       "netPayable": "صافي المستحق",
       "withholdingBase": "الوعاء",
-      "withheld": "المستقطع"
+      "withheld": "المستقطع",
+      "income": "الإيرادات",
+      "expense": "المصروفات",
+      "net": "الصافي"
     },
     "filters": {
       "partner": "الطرف",
@@ -62,7 +69,9 @@
       "type": {
         "activity": "حركة",
         "outstanding": "مستحق"
-      }
+      },
+      "plan": "الخطة",
+      "allPlans": "كل الخطط"
     },
     "columns": {
       "code": "الرمز",
@@ -88,7 +97,12 @@
       "rate": "النسبة",
       "base": "الوعاء",
       "taxAmount": "مبلغ الضريبة",
-      "withheld": "المستقطع"
+      "withheld": "المستقطع",
+      "costCenterOrDate": "مركز التكلفة / التاريخ",
+      "planOrAccount": "الخطة / الحساب",
+      "income": "إيراد",
+      "expense": "مصروف",
+      "net": "الصافي"
     },
     "buckets": {
       "current": "غير مستحق",
@@ -120,6 +134,7 @@
     "balanceForward": "رصيد منقول",
     "empty": "لا توجد بيانات في هذه الفترة.",
     "forbidden": "لا تملك صلاحية عرض هذا التقرير.",
-    "linesFooter": "لا أسطر | عرض {shown} من سطر واحد | عرض {shown} من سطرين | عرض {shown} من {total} أسطر | عرض {shown} من {total} سطرًا | عرض {shown} من {total} سطر"
+    "linesFooter": "لا أسطر | عرض {shown} من سطر واحد | عرض {shown} من سطرين | عرض {shown} من {total} أسطر | عرض {shown} من {total} سطرًا | عرض {shown} من {total} سطر",
+    "linesFailed": "تعذّر تحميل بنود مركز التكلفة."
   }
 }

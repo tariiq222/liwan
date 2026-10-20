@@ -1,0 +1,101 @@
+{
+  "financeBudgets": {
+    "forbidden": "You do not have permission to view this page.",
+    "states": {
+      "draft": "Draft",
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled"
+    },
+    "kpi": {
+      "label": "Budget figures",
+      "total": "Total",
+      "draft": "Drafts",
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled"
+    },
+    "budgets": {
+      "title": "Budgets",
+      "description": "Account budgets per period, compared with the actuals.",
+      "new": "New budget",
+      "record": "Budget",
+      "empty": "No budgets yet.",
+      "countTag": "{count} budget | {count} budgets",
+      "footer": "Showing {shown} of {total} budget | Showing {shown} of {total} budgets"
+    },
+    "filters": {
+      "search": "Search by name",
+      "state": "Status",
+      "allStates": "All statuses"
+    },
+    "columns": {
+      "name": "Name",
+      "period": "Period",
+      "lineCount": "Lines",
+      "state": "Status"
+    },
+    "record": {
+      "currency": "Currency"
+    },
+    "nature": {
+      "debit": "Debit",
+      "credit": "Credit"
+    },
+    "lines": {
+      "title": "Budget lines",
+      "empty": "No lines yet.",
+      "count": "{count} line | {count} lines",
+      "account": "Account",
+      "nature": "Nature",
+      "amount": "Amount",
+      "label": "Label",
+      "add": "Add a line",
+      "addSubmit": "Add line",
+      "accountRequired": "Choose the account",
+      "amountInvalid": "Enter an amount of zero or more"
+    },
+    "actual": {
+      "title": "Budget vs actual",
+      "description": "Compared with the posted entries up to the end of the budget period.",
+      "budget": "Budget",
+      "actual": "Actual",
+      "variance": "Variance",
+      "result": "Result",
+      "favorable": "Favorable",
+      "unfavorable": "Unfavorable",
+      "debitSide": "Debit side",
+      "creditSide": "Credit side",
+      "net": "Net",
+      "budgetOf": "Budget: {amount}"
+    },
+    "form": {
+      "details": "Budget details",
+      "name": "Name",
+      "nameRequired": "Enter the budget name",
+      "description": "Description",
+      "dateFrom": "From date",
+      "dateTo": "To date",
+      "dateRequired": "Choose the date",
+      "periodOrder": "The end date cannot be before the start date",
+      "requiredHint": "Fields marked with an asterisk are required.",
+      "createDraft": "Create draft"
+    },
+    "actions": {
+      "confirm": "Confirm",
+      "reset": "Reset to draft",
+      "cancel": "Cancel budget",
+      "menuFor": "Actions for {name}"
+    },
+    "confirm": {
+      "confirm": "Confirm {name}?",
+      "confirmHint": "The budget and its lines are frozen once confirmed.",
+      "reset": "Reset {name} to draft?",
+      "resetHint": "The budget becomes editable again.",
+      "cancel": "Cancel {name}?",
+      "cancelHint": "The budget is closed and can be reset to draft later."
+    },
+    "errors": {
+      "notDraft": "Only a draft budget can be changed.",
+      "invalidState": "This action is not available in the current status."
+    }
+  }
+}

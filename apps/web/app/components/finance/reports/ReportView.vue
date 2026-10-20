@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
+import { analyticLineParams, ANALYTIC_LINE_PAGE_SIZE } from '../analytic/analyticParams'
+import { useFinanceAnalyticLines } from '@/composables/finance/useFinanceAnalytic'
 import { useFinanceReport } from '@/composables/finance/useFinanceReports'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
 import AgedBalanceTable from './AgedBalanceTable.vue'
+import AnalyticTable from './AnalyticTable.vue'
 import GeneralLedgerTable from './GeneralLedgerTable.vue'
 import PartnerStatementTable from './PartnerStatementTable.vue'
 import ReportFilters from './ReportFilters.vue'
@@ -38,10 +41,21 @@ const tiles = computed(() => loaded.value ? reportKpiTiles(loaded.value, t, n) :
 const tags = computed(() => reportHeaderTags(props.slug, filters.value, loaded.value, t))
 
 const ledgerLines = computed(() => loaded.value?.slug === 'general-ledger' ? selectedLedgerLines(loaded.value.data, filters.value.accountId) : null)
-const ledgerPages = computed(() => Math.max(1, Math.ceil((ledgerLines.value?.total ?? 0) / LEDGER_PAGE_SIZE)))
+// The cost center report names its items in a second request; the selected cost center and its page come from the URL.
+const analyticLines = useFinanceAnalyticLines(
+  () => analyticLineParams(filters.value.accountId ?? 0, filters.value, filters.value.page),
+  computed(() => allowed.value && props.slug === 'analytic' && filters.value.accountId !== null),
+)
+const analyticItems = computed(() => analyticLines.data.value?.items ?? [])
+// The open account's lines, whichever report they come from: shown count, total and the page size that pages them.
+const lineFooter = computed(() => {
+  if (ledgerLines.value) return { shown: ledgerLines.value.items.length, total: ledgerLines.value.total, size: LEDGER_PAGE_SIZE, fetching: query.isFetching.value }
+  const lines = analyticLines.data.value
+  return props.slug === 'analytic' && filters.value.accountId !== null && lines ? { shown: lines.items.length, total: lines.total, size: ANALYTIC_LINE_PAGE_SIZE, fetching: query.isFetching.value || analyticLines.isFetching.value } : null
+})
 
 function clearFilters() {
-  void update({ date_from: undefined, date_to: undefined, target_move: undefined, kind: undefined, type: undefined, partner_id: undefined, account_id: undefined, page: undefined })
+  void update({ date_from: undefined, date_to: undefined, target_move: undefined, kind: undefined, type: undefined, partner_id: undefined, account_id: undefined, plan_id: undefined, page: undefined })
 }
 </script>
 
@@ -62,11 +76,12 @@ function clearFilters() {
             <AgedBalanceTable v-else-if="loaded.slug === 'aged-partner-balance'" :report="loaded.data" />
             <PartnerStatementTable v-else-if="loaded.slug === 'partner-statement'" :report="loaded.data" />
             <VatTable v-else-if="loaded.slug === 'vat'" :report="loaded.data" />
+            <AnalyticTable v-else-if="loaded.slug === 'analytic'" :report="loaded.data" :selected-id="filters.accountId" :lines="analyticItems" :lines-failed="!!analyticLines.error.value" />
             <WithholdingTable v-else :report="loaded.data" />
           </template>
         </SharedPageState>
-        <template v-if="ledgerLines?.total" #footer>
-          <SharedListFooter :count-label="t('financeReports.linesFooter', { shown: ledgerLines.items.length, total: ledgerLines.total }, ledgerLines.total)" :page="filters.page" :pages="ledgerPages" :disabled="!hydrated || query.isFetching.value" count-test-id="finance-ledger-line-count" @update:page="value => update({ page: value > 1 ? String(value) : undefined })" />
+        <template v-if="lineFooter?.total" #footer>
+          <SharedListFooter :count-label="t('financeReports.linesFooter', { shown: lineFooter.shown, total: lineFooter.total }, lineFooter.total)" :page="filters.page" :pages="Math.max(1, Math.ceil(lineFooter.total / lineFooter.size))" :disabled="!hydrated || lineFooter.fetching" count-test-id="finance-ledger-line-count" @update:page="value => update({ page: value > 1 ? String(value) : undefined })" />
         </template>
       </SharedListCard>
     </div>

@@ -24,6 +24,10 @@
       "withholding": {
         "title": "Withholding tax",
         "description": "Tax withheld from vendor payments in the period."
+      },
+      "analytic": {
+        "title": "Cost center report",
+        "description": "Each cost center's income and expense in the period; open one to see its items."
       }
     },
     "kpi": {
@@ -40,7 +44,10 @@
       "purchaseTax": "Purchase tax",
       "netPayable": "Net payable",
       "withholdingBase": "Base",
-      "withheld": "Withheld"
+      "withheld": "Withheld",
+      "income": "Income",
+      "expense": "Expense",
+      "net": "Net"
     },
     "filters": {
       "partner": "Partner",
@@ -62,7 +69,9 @@
       "type": {
         "activity": "Activity",
         "outstanding": "Outstanding"
-      }
+      },
+      "plan": "Plan",
+      "allPlans": "All plans"
     },
     "columns": {
       "code": "Code",
@@ -88,7 +97,12 @@
       "rate": "Rate",
       "base": "Base",
       "taxAmount": "Tax amount",
-      "withheld": "Withheld"
+      "withheld": "Withheld",
+      "costCenterOrDate": "Cost center / date",
+      "planOrAccount": "Plan / account",
+      "income": "Income",
+      "expense": "Expense",
+      "net": "Net"
     },
     "buckets": {
       "current": "Current",
@@ -120,6 +134,7 @@
     "balanceForward": "Balance forward",
     "empty": "No data in this period.",
     "forbidden": "You do not have permission to view this report.",
-    "linesFooter": "Showing {shown} of {total} line | Showing {shown} of {total} lines"
+    "linesFooter": "Showing {shown} of {total} line | Showing {shown} of {total} lines",
+    "linesFailed": "The items of the cost center could not be loaded."
   }
 }

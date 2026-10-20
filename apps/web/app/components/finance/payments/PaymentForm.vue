@@ -2,9 +2,9 @@
 import type { RouteLocationRaw } from 'vue-router'
 import type { FinanceInvoice } from '@webvue/contracts'
 import { refDebounced } from '@vueuse/core'
-import { ApiError } from '@/composables/useApi'
 import { useFinanceInvoicesByIds, useFinanceOpenInvoices } from '@/composables/finance/useFinanceInvoices'
 import { useFinancePaymentJournals, useRegisterFinancePayment } from '@/composables/finance/useFinancePayments'
+import { financeErrorMessage } from '../financeErrors'
 import { financeErrorKey } from '../invoices/invoiceErrors'
 import { invoiceTitle } from '../invoices/invoiceKinds'
 import { formatAmount } from '../invoices/formatAmount'
@@ -74,8 +74,7 @@ async function submit() {
     await nextTick()
     emit('saved')
   } catch (cause) {
-    const key = cause instanceof ApiError ? financeErrorKey(cause.code) : null
-    error.value = key ? t(key) : cause instanceof ApiError ? cause.message : t('errors.generic')
+    error.value = financeErrorMessage(cause, financeErrorKey, t)
   }
 }
 </script>

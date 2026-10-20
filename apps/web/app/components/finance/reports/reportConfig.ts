@@ -1,12 +1,14 @@
 import type { ZodType } from 'zod'
 import {
   FinanceAgedPartnerBalanceSchema,
+  FinanceAnalyticReportSchema,
   FinanceGeneralLedgerSchema,
   FinancePartnerStatementSchema,
   FinanceTrialBalanceSchema,
   FinanceVatSummarySchema,
   FinanceWithholdingSummarySchema,
   type FinanceAgedPartnerBalance,
+  type FinanceAnalyticReport,
   type FinanceGeneralLedger,
   type FinancePartnerStatement,
   type FinanceTrialBalance,
@@ -14,7 +16,7 @@ import {
   type FinanceWithholdingSummary,
 } from '@webvue/contracts'
 
-export const REPORT_SLUGS = ['trial-balance', 'general-ledger', 'aged-partner-balance', 'partner-statement', 'vat', 'withholding'] as const
+export const REPORT_SLUGS = ['trial-balance', 'general-ledger', 'aged-partner-balance', 'partner-statement', 'vat', 'withholding', 'analytic'] as const
 export type ReportSlug = (typeof REPORT_SLUGS)[number]
 
 /** A report as the server sent it, tagged with its slug so the page narrows `data` by `slug` alone. */
@@ -25,6 +27,7 @@ export type LoadedReport =
   | { slug: 'partner-statement'; data: FinancePartnerStatement }
   | { slug: 'vat'; data: FinanceVatSummary }
   | { slug: 'withholding'; data: FinanceWithholdingSummary }
+  | { slug: 'analytic'; data: FinanceAnalyticReport }
 
 /**
  * The filters a report takes. `period`: `range` sends `date_from` and `date_to`, `end` only `date_to` (balances as of a day).
@@ -37,17 +40,18 @@ export interface ReportFilterSet {
   partner: boolean
   type: boolean
   account: boolean
+  plan: boolean
 }
 
 export interface ReportConfig {
   /** The key under `financeReports.reports` for the title and description. */
   key: string
-  capability: 'finance.statements.read' | 'finance.reports.read'
+  capability: 'finance.statements.read' | 'finance.reports.read' | 'finance.analytic.read'
   schema: ZodType<LoadedReport>
   filters: ReportFilterSet
 }
 
-const NONE: ReportFilterSet = { period: 'range', targetMove: false, kind: false, partner: false, type: false, account: false }
+const NONE: ReportFilterSet = { period: 'range', targetMove: false, kind: false, partner: false, type: false, account: false, plan: false }
 
 export const REPORTS: Record<ReportSlug, ReportConfig> = {
   'trial-balance': {
@@ -85,6 +89,12 @@ export const REPORTS: Record<ReportSlug, ReportConfig> = {
     capability: 'finance.reports.read',
     schema: FinanceWithholdingSummarySchema.transform(data => ({ slug: 'withholding' as const, data })),
     filters: NONE,
+  },
+  analytic: {
+    key: 'analytic',
+    capability: 'finance.analytic.read',
+    schema: FinanceAnalyticReportSchema.transform(data => ({ slug: 'analytic' as const, data })),
+    filters: { ...NONE, plan: true },
   },
 }
 

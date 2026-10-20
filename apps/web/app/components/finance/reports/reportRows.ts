@@ -1,5 +1,7 @@
 import type {
   FinanceAgedPartnerBalance,
+  FinanceAnalyticReport,
+  FinanceAnalyticReportLine,
   FinanceGeneralLedger,
   FinancePartnerStatement,
   FinanceVatSummary,
@@ -93,5 +95,17 @@ export function vatRows(report: FinanceVatSummary): VatTableRow[] {
   return (['sales', 'purchases'] as const).flatMap<VatTableRow>(section => [
     ...report[section].taxes.map<VatTableRow>(row => ({ key: `${section}${row.tax.id}`, section, tax: row.tax, rate: row.rate, base: row.base, taxAmount: row.tax_amount })),
     { key: `${section}-total`, section, tax: null, rate: null, base: report[section].base, taxAmount: report[section].tax_amount },
+  ])
+}
+
+/** The cost center report as one table: each cost center, and under the selected one the page of its analytic items. */
+export type AnalyticRow =
+  | { kind: 'account'; key: string; row: FinanceAnalyticReport['accounts'][number] }
+  | { kind: 'line'; key: string; line: FinanceAnalyticReportLine }
+
+export function analyticRows(report: FinanceAnalyticReport, selectedId: number | null, lines: readonly FinanceAnalyticReportLine[]): AnalyticRow[] {
+  return report.accounts.flatMap<AnalyticRow>(row => [
+    { kind: 'account', key: `a${row.account.id}`, row },
+    ...(row.account.id === selectedId ? lines.map<AnalyticRow>(line => ({ kind: 'line', key: `l${line.id}`, line })) : []),
   ])
 }

@@ -15,6 +15,7 @@ export interface ReportFilters {
   type: (typeof STATEMENT_TYPES)[number]
   partnerId: number | null
   accountId: number | null
+  planId: number | null
   page: number
 }
 
@@ -37,6 +38,7 @@ export function reportFiltersFromQuery(query: Query, today: string): ReportFilte
     type: STATEMENT_TYPES.find(value => value === type) ?? 'activity',
     partnerId: queryPositiveInt(query.partner_id),
     accountId: queryPositiveInt(query.account_id),
+    planId: queryPositiveInt(query.plan_id),
     page: queryPositiveInt(query.page) ?? 1,
   }
 }
@@ -57,6 +59,7 @@ export function reportParams(slug: ReportSlug, filters: ReportFilters): ReportPa
     ...(set.kind ? { kind: filters.kind } : {}),
     ...(set.type ? { type: filters.type } : {}),
     ...(set.partner && filters.partnerId ? { partner_id: filters.partnerId } : {}),
+    ...(set.plan && filters.planId ? { plan_id: filters.planId } : {}),
     ...(set.account && filters.accountId ? { account_id: filters.accountId, limit: LEDGER_PAGE_SIZE, offset: (filters.page - 1) * LEDGER_PAGE_SIZE } : {}),
   }
 }
@@ -77,6 +80,7 @@ export function reportActiveFilterCount(slug: ReportSlug, filters: ReportFilters
     set.kind && filters.kind !== base.kind,
     set.type && filters.type !== base.type,
     set.partner && filters.partnerId !== null,
+    set.plan && filters.planId !== null,
   ]
   return changed.filter(Boolean).length
 }

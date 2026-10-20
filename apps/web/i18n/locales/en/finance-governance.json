@@ -1,0 +1,142 @@
+{
+  "financeGovernance": {
+    "forbidden": "You do not have permission to view this page.",
+    "closing": {
+      "title": "Fiscal year closing",
+      "description": "Move income and expense balances to retained earnings, then lock the year. A close cannot be undone.",
+      "countTag": "{count} year | {count} years",
+      "empty": "There are no fiscal years yet. Years appear once the first entry is posted.",
+      "yearsTitle": "Fiscal years",
+      "yearsHint": "Choose an open year to preview its closing entry before closing it.",
+      "columns": {
+        "year": "Year",
+        "period": "Period",
+        "state": "State",
+        "result": "Result",
+        "entry": "Closing entry",
+        "preview": "Preview"
+      },
+      "states": {
+        "open": "Open",
+        "locked": "Locked by date",
+        "closed": "Closed"
+      },
+      "preview": {
+        "open": "Preview closing",
+        "title": "Closing preview for {year}",
+        "hint": "This is what a close posts: every income and expense balance is reversed and the net goes to retained earnings.",
+        "journal": "Journal",
+        "retainedEarnings": "Retained earnings account",
+        "profit": "Net profit",
+        "loss": "Net loss",
+        "linesTitle": "Closing entry lines",
+        "noLines": "This year has no income or expense balances. Closing only locks the date, with no entry.",
+        "code": "Code",
+        "account": "Account",
+        "debit": "Debit",
+        "credit": "Credit",
+        "totals": "Total"
+      },
+      "blockers": {
+        "title": "This year cannot be closed now",
+        "year_not_ended": "The fiscal year has not ended yet.",
+        "has_drafts": "There are draft entries in the year (count: {drafts}). Post or delete them first.",
+        "previous_year_open": "Earlier fiscal years are still open. Close them first.",
+        "account_not_closable": "Some accounts are archived or in a foreign currency and hold a balance.",
+        "no_retained_earnings_account": "The company has no retained earnings account.",
+        "no_general_journal": "The company has no miscellaneous journal."
+      },
+      "errors": {
+        "already_closed": "This year is already closed.",
+        "period_locked": "The period is locked by a lock date, so the closing entry cannot be posted in it."
+      },
+      "action": {
+        "title": "Close the year",
+        "hint": "The year is ready to close. The closing entry is posted and the year is locked at its end date.",
+        "close": "Close the year",
+        "confirmTitle": "Close {year}?",
+        "confirmDescription": "The closing entry is posted and the year is locked. This cannot be undone."
+      }
+    },
+    "zatca": {
+      "title": "E-invoicing (ZATCA)",
+      "description": "Connect sales journals to ZATCA and follow the invoices still waiting.",
+      "modes": {
+        "sandbox": "Sandbox",
+        "preprod": "Pre-production",
+        "prod": "Production"
+      },
+      "onboarded": "Connected to ZATCA",
+      "notOnboarded": "Not connected yet",
+      "backlog": {
+        "title": "Waiting invoices",
+        "hint": "Invoices ZATCA has not accepted yet. Rejected and blocked ones need a manual correction.",
+        "to_send": "Waiting to send",
+        "retry": "To retry",
+        "rejected": "Rejected",
+        "blocked": "Blocked"
+      },
+      "journals": {
+        "title": "Sales journals",
+        "hint": "Each sales journal is connected to ZATCA once, with the one-time password of the Fatoora portal.",
+        "empty": "There are no sales journals."
+      },
+      "states": {
+        "not_started": "Not started",
+        "compliance_checked": "Compliance checked",
+        "onboarded": "Connected"
+      },
+      "otp": {
+        "label": "One-time password (6 digits)",
+        "help": "You get it from the Fatoora portal when you add a new device. It expires quickly, so enter it right away."
+      },
+      "onboard": {
+        "start": "Connect journal",
+        "review": "Continue",
+        "cancel": "Cancel",
+        "confirmTitle": "Connect {journal} to ZATCA?",
+        "confirmDescription": "ZATCA is asked to issue a certificate for the journal with this password, and the action is recorded in the audit log.",
+        "confirm": "Connect journal"
+      },
+      "errors": {
+        "zatca_unavailable": "ZATCA cannot be reached right now. Try again later.",
+        "zatca_rejected": "ZATCA rejected the request. Check the password and that it has not expired.",
+        "zatca_local_error": "The request failed before it reached ZATCA.",
+        "zatca_unauthorized": "ZATCA refused the journal certificate. Connect the journal again.",
+        "zatca_mode_not_allowed": "This environment is not allowed for onboarding in this phase.",
+        "zatca_not_onboarded": "The journal is not connected to ZATCA.",
+        "zatca_not_applicable": "This document is not a posted e-invoice."
+      },
+      "setupHint": "The company's full e-invoicing readiness is shown in",
+      "setupLink": "Finance setup"
+    },
+    "audit": {
+      "title": "Finance audit log",
+      "description": "An immutable record of sensitive actions: who did them, when and on which record. Only field names are logged, never values.",
+      "countTag": "{count} event | {count} events",
+      "footer": "Showing {shown} of {total} event | Showing {shown} of {total} events",
+      "empty": "There are no events in the log yet.",
+      "filters": {
+        "action": "Action",
+        "allActions": "All actions",
+        "dateFrom": "From date",
+        "dateTo": "To date"
+      },
+      "columns": {
+        "time": "Time",
+        "actor": "Actor",
+        "action": "Action",
+        "record": "Record",
+        "fields": "Fields written",
+        "outcome": "Outcome"
+      },
+      "actions": {
+        "chart_loaded": "Chart of accounts loaded",
+        "company_written": "Company settings changed",
+        "fiscal_year_closed": "Fiscal year closed",
+        "zatca_onboarded": "Journal connected to ZATCA",
+        "zatca_submitted": "Invoice sent to ZATCA"
+      }
+    }
+  }
+}

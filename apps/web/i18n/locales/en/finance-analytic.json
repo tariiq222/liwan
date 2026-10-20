@@ -1,0 +1,66 @@
+{
+  "financeAnalytic": {
+    "title": "Plans and cost centers",
+    "description": "The plans that group cost centers, and the cost centers income and expense items are spread over.",
+    "forbidden": "You do not have permission to view plans and cost centers.",
+    "saveError": "Could not save",
+    "states": {
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "plans": {
+      "title": "Plans",
+      "description": "A plan is shared by every company of the database; a sub-plan groups cost centers under another plan.",
+      "countTag": "{count} plan | {count} plans",
+      "new": "New plan",
+      "empty": "No plans yet.",
+      "root": "Root plan",
+      "under": "Under {name}",
+      "rename": "Rename",
+      "actionsNamed": "Actions for plan {name}",
+      "form": {
+        "name": "Plan name",
+        "parent": "Parent plan",
+        "parentOptional": "Leave it without a parent to create a root plan.",
+        "parentRequired": "Choose the plan the new plan belongs under.",
+        "noParent": "No parent (root plan)"
+      }
+    },
+    "accounts": {
+      "title": "Cost centers",
+      "description": "The cost centers of the current company. Archiving hides a cost center from the pickers without deleting its items.",
+      "new": "New cost center",
+      "empty": "No cost centers yet.",
+      "footer": "Showing {shown} of {total} cost center | Showing {shown} of {total} cost centers",
+      "actionsNamed": "Actions for cost center {name}",
+      "columns": {
+        "code": "Code",
+        "name": "Name",
+        "plan": "Plan",
+        "state": "Status"
+      },
+      "actions": {
+        "edit": "Edit name and code",
+        "archive": "Archive",
+        "unarchive": "Unarchive"
+      },
+      "confirm": {
+        "archiveTitle": "Archive the cost center \"{name}\"?",
+        "archiveDescription": "It disappears from the pickers and its earlier items stay in the books. You can unarchive it later.",
+        "unarchiveTitle": "Restore the cost center \"{name}\"?",
+        "unarchiveDescription": "It comes back to the pickers."
+      },
+      "form": {
+        "name": "Cost center name",
+        "code": "Code",
+        "plan": "Plan"
+      }
+    },
+    "filters": {
+      "search": "Search by name or code",
+      "plan": "Plan",
+      "allPlans": "All plans",
+      "state": "Status"
+    }
+  }
+}

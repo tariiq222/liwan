@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { FinanceAgedPartnerBalance, FinanceGeneralLedger, FinancePartnerStatement, FinanceVatSummary } from '@webvue/contracts'
-import { agedRows, ledgerRows, selectedLedgerLines, statementRows, vatRows } from '../reportRows'
+import type { FinanceAgedPartnerBalance, FinanceAnalyticReport, FinanceAnalyticReportLine, FinanceGeneralLedger, FinancePartnerStatement, FinanceVatSummary } from '@webvue/contracts'
+import { agedRows, analyticRows, ledgerRows, selectedLedgerLines, statementRows, vatRows } from '../reportRows'
 
 const buckets = { current: 1, days_1_30: 0, days_31_60: 0, days_61_90: 0, days_91_120: 0, days_over_120: 0, total: 1 }
 const line = (id: number) => ({ id, date: '2026-10-01', entry: `E${id}`, journal: 'BNK1', partner: null, label: '', debit: 1, credit: 0, balance: 1 })
@@ -36,5 +36,13 @@ describe('report table rows', () => {
     const section = (id: number) => ({ taxes: [{ tax: { id, name: 'VAT' }, rate: 15, base: 100, tax_amount: 15 }], base: 100, tax_amount: 15 })
     const report: FinanceVatSummary = { date_from: '2026-10-01', date_to: '2026-10-20', currency: 'SAR', sales: section(1), purchases: section(2), net_payable: 0 }
     expect(vatRows(report).map(row => [row.key, row.tax?.name ?? null])).toEqual([['sales1', 'VAT'], ['sales-total', null], ['purchases2', 'VAT'], ['purchases-total', null]])
+  })
+
+  it('opens only the selected cost center under its row', () => {
+    const row = (id: number) => ({ account: { id, name: `C${id}`, code: `C${id}` }, plan: { id: 1, name: 'P' }, income: 0, expense: 0, net: 0 })
+    const report: FinanceAnalyticReport = { date_from: '2026-10-01', date_to: '2026-10-20', currency: 'SAR', plan: null, accounts: [row(1), row(2)], totals: { income: 0, expense: 0, net: 0 } }
+    const item = (id: number): FinanceAnalyticReportLine => ({ id, date: '2026-10-02', name: 'n', ref: '', move: null, general_account: { id: 1, name: 'G' }, partner: null, kind: 'income', amount: 5 })
+    expect(analyticRows(report, null, [item(8)]).map(r => r.key)).toEqual(['a1', 'a2'])
+    expect(analyticRows(report, 2, [item(8), item(9)]).map(r => r.key)).toEqual(['a1', 'a2', 'l8', 'l9'])
   })
 })

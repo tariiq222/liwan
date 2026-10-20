@@ -5,14 +5,14 @@ import { describe, expect, it } from 'vitest'
 // The finance report page and its tables stay on the list template. This is a source guard, not a behaviour test.
 const app = resolve(import.meta.dirname, '../../..')
 const read = (path: string) => readFileSync(resolve(app, path), 'utf8')
-const TABLES = ['TrialBalanceTable', 'GeneralLedgerTable', 'AgedBalanceTable', 'PartnerStatementTable', 'VatTable', 'WithholdingTable']
+const TABLES = ['TrialBalanceTable', 'GeneralLedgerTable', 'AgedBalanceTable', 'PartnerStatementTable', 'VatTable', 'WithholdingTable', 'AnalyticTable']
 const FILES = ['pages/finance/reports/[report].vue', 'components/finance/reports/ReportView.vue', 'components/finance/reports/ReportFilters.vue', ...TABLES.map(name => `components/finance/reports/${name}.vue`)]
 
 describe('the finance report pages stay on their templates', () => {
   it.each([
     ['pages/finance/reports/[report].vue', ['<ReportView', '<SharedNotFoundState', 'reportSlug']],
     ['components/finance/reports/ReportView.vue', ['<SharedListPage', 'kpi-toggle', '<SharedKpiStrip', 'kpisShown', '<SharedListCard', '<SharedPageState', '<SharedForbiddenState', '<SharedEmptyState', '<SharedListFooter', 'useRouteListFilters', 'can(config.value.capability)']],
-    ['components/finance/reports/ReportFilters.vue', ['<SharedFilterBar embedded', '<SharedDateField', '<SharedSegmentedControl', '<PartnerPicker']],
+    ['components/finance/reports/ReportFilters.vue', ['<SharedFilterBar embedded', '<SharedDateField', '<SharedSegmentedControl', '<PartnerPicker', 'finance-report-plan']],
   ])('%s uses its template', (file, needles) => {
     const source = read(file)
     for (const needle of needles) expect(source, needle).toContain(needle)

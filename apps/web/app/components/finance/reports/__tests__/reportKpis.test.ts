@@ -36,6 +36,13 @@ describe('report KPI tiles', () => {
     expect(reportKpiTiles(report(30), t, n).find(tile => tile.id === 'netPayable')?.tone).toBe('warning')
   })
 
+  it('shows the cost center totals, a loss in the danger tone', () => {
+    const report = (net: number): LoadedReport => ({ slug: 'analytic', data: { date_from: '2026-10-01', date_to: '2026-10-20', currency: 'SAR', plan: null, accounts: [], totals: { income: 100, expense: 100 - net, net } } })
+    expect(values(report(-20))).toEqual({ income: '100', expense: '120', net: '-20' })
+    expect(reportKpiTiles(report(-20), t, n).find(tile => tile.id === 'net')?.tone).toBe('danger')
+    expect(reportKpiTiles(report(20), t, n).find(tile => tile.id === 'net')?.tone).toBe('neutral')
+  })
+
   it('shows the withholding totals and nothing for the ledger', () => {
     expect(values({ slug: 'withholding', data: { date_from: '2026-10-01', date_to: '2026-10-20', currency: 'SAR', taxes: [], base: 500, withheld: 25 } })).toEqual({ withholdingBase: '500', withheld: '25' })
     expect(reportKpiTiles({ slug: 'general-ledger', data: { date_from: '2026-10-01', date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', accounts: [] } }, t, n)).toEqual([])

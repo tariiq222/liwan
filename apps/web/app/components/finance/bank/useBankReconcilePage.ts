@@ -1,6 +1,7 @@
 import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 import { ApiError } from '@/composables/useApi'
 import { useFinanceBankStatement, useFinanceReconcileProposals, useReconcileFinanceBankLine } from '@/composables/finance/useFinanceBank'
+import { financeErrorMessage } from '../financeErrors'
 import { bankErrorKey } from './bankErrors'
 import { BANK_STATEMENTS_PATH, sameMoney, statementPath } from './bankModel'
 import { buildReconcileBody, remainingDifference, selectedTotal } from './reconcileModel'
@@ -52,8 +53,7 @@ export function useBankReconcilePage() {
       await navigateTo(backTo.value, { replace: true })
     } catch (cause) {
       confirming.value = false
-      const key = cause instanceof ApiError ? bankErrorKey(cause.code) : null
-      actionError.value = key ? t(key) : cause instanceof ApiError ? cause.message : t('errors.generic')
+      actionError.value = financeErrorMessage(cause, bankErrorKey, t)
     }
   }
 

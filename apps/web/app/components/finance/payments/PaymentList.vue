@@ -2,10 +2,10 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { FinancePayment } from '@webvue/contracts'
 import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
-import { ApiError } from '@/composables/useApi'
 import { useFinancePartner } from '@/composables/finance/useFinancePartners'
 import { useFinancePaymentTransition, useFinancePayments } from '@/composables/finance/useFinancePayments'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
+import { financeErrorMessage } from '../financeErrors'
 import { financeErrorKey } from '../invoices/invoiceErrors'
 import { listReturnTo } from '../invoices/listLocation'
 import Money from '../invoices/Money.vue'
@@ -63,8 +63,7 @@ async function confirmTransition() {
     await transition.mutateAsync({ id: pending.payment.id, action: pending.action })
     confirming.value = null
   } catch (cause) {
-    const key = cause instanceof ApiError ? financeErrorKey(cause.code) : null
-    actionError.value = key ? t(key) : cause instanceof ApiError ? cause.message : t('errors.generic')
+    actionError.value = financeErrorMessage(cause, financeErrorKey, t)
   }
 }
 const label = (payment: FinancePayment) => payment.name || `${t('financeDocuments.payments.draftNumber')} #${payment.id}`

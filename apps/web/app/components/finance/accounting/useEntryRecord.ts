@@ -8,7 +8,8 @@ import {
   type FinanceEntryTransition,
 } from '@/composables/finance/useFinanceEntries'
 import { entryActions } from './entryActions'
-import { entryErrorMessage } from './entryErrors'
+import { financeErrorMessage } from '../financeErrors'
+import { entryErrorKey } from './entryErrors'
 import { ENTRIES_PATH, entryTitle } from './entryPaths'
 import { ENTRY_STATE_TONE } from './entryTones'
 
@@ -61,7 +62,7 @@ export function useEntryRecord() {
       confirming.value = null
       return true
     } catch (cause) {
-      actionError.value = entryErrorMessage(cause, t)
+      actionError.value = financeErrorMessage(cause, entryErrorKey, t)
       return false
     }
   }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useFinanceAnalyticPlans } from '@/composables/finance/useFinanceAnalytic'
 import { useFinancePartner } from '@/composables/finance/useFinancePartners'
 import PartnerPicker from '../invoices/PartnerPicker.vue'
 import { REPORTS, type ReportSlug } from './reportConfig'
@@ -12,11 +13,13 @@ const { t } = useI18n()
 const set = computed(() => REPORTS[props.slug].filters)
 const endsOnly = computed(() => reportEndsOnly(props.slug, props.filters))
 const partner = useFinancePartner(() => props.filters.partnerId)
+const plans = useFinanceAnalyticPlans(() => set.value.plan)
 
 const choices = (group: string, values: readonly string[]) => values.map(value => ({ value, label: t(`financeReports.filters.${group}.${value}`) }))
 const targetMoveItems = computed(() => choices('targetMove', TARGET_MOVES))
 const kindItems = computed(() => choices('kind', STATEMENT_KINDS))
 const typeItems = computed(() => choices('type', STATEMENT_TYPES))
+const planItems = computed(() => [{ value: 'all', label: t('financeReports.filters.allPlans') }, ...(plans.data.value?.items ?? []).map(plan => ({ value: String(plan.id), label: plan.name }))])
 
 // Any filter change restarts the ledger lines at their first page; a new type or period never keeps an old account.
 function change(values: Record<string, string | undefined>) {
@@ -24,6 +27,7 @@ function change(values: Record<string, string | undefined>) {
 }
 const choose = (key: string, fallback: string, value: string) => change({ [key]: value === fallback ? undefined : value })
 const setDate = (key: 'date_from' | 'date_to', value: string | null) => change({ [key]: value ?? undefined })
+const setPlan = (value: unknown) => change({ plan_id: value === 'all' ? undefined : String(value) })
 const setPartner = (value: number | null) => change({ partner_id: value ? String(value) : undefined })
 </script>
 
@@ -43,6 +47,9 @@ const setPartner = (value: number | null) => change({ partner_id: value ? String
     </SharedFilterField>
     <SharedFilterField :label="t(endsOnly ? 'financeReports.filters.asOf' : 'financeReports.filters.dateTo')" for="finance-report-to">
       <SharedDateField id="finance-report-to" :model-value="filters.dateTo" :min-value="endsOnly ? null : filters.dateFrom" :disabled="disabled" @update:model-value="setDate('date_to', $event)" />
+    </SharedFilterField>
+    <SharedFilterField v-if="set.plan" :label="t('financeReports.filters.plan')" for="finance-report-plan">
+      <USelect id="finance-report-plan" class="w-full md:w-48" :model-value="filters.planId ? String(filters.planId) : 'all'" :items="planItems" :disabled="disabled" @update:model-value="setPlan" />
     </SharedFilterField>
     <SharedFilterField v-if="set.targetMove" :label="t('financeReports.filters.targetMoveLabel')">
       <SharedSegmentedControl :label="t('financeReports.filters.targetMoveLabel')" :items="targetMoveItems" :model-value="filters.targetMove" :disabled="disabled" @update:model-value="choose('target_move', 'posted', $event)" />

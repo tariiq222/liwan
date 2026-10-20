@@ -59,6 +59,14 @@ export function reportKpiTiles(report: LoadedReport, t: Translate, n: FormatNumb
         tile('withheld', withheld, currency, 'i-lucide-hand-coins', 'warning'),
       ]
     }
+    case 'analytic': {
+      const { totals, currency } = report.data
+      return [
+        tile('income', totals.income, currency, 'i-lucide-trending-up', 'success'),
+        tile('expense', totals.expense, currency, 'i-lucide-trending-down'),
+        tile('net', totals.net, currency, 'i-lucide-scale', totals.net < 0 ? 'danger' : 'neutral'),
+      ]
+    }
     case 'general-ledger':
       return []
   }

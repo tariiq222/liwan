@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import { ApiError } from '@/composables/useApi'
 import { useCreateFinanceBankStatement, useFinanceBankJournals } from '@/composables/finance/useFinanceBank'
 import { formatAmount } from '../invoices/formatAmount'
 import PartnerPicker from '../invoices/PartnerPicker.vue'
@@ -15,6 +14,7 @@ import {
   newBankLine,
   type BankStatementDraft,
 } from './bankDraft'
+import { financeErrorMessage } from '../financeErrors'
 import { bankErrorKey } from './bankErrors'
 
 // The create panel of a statement: the header (bank journal, date, name, the balances the bank printed) and its lines,
@@ -57,8 +57,7 @@ async function submit() {
     await nextTick()
     emit('saved', record.id)
   } catch (cause) {
-    const key = cause instanceof ApiError ? bankErrorKey(cause.code) : null
-    error.value = key ? t(key) : cause instanceof ApiError ? cause.message : t('errors.generic')
+    error.value = financeErrorMessage(cause, bankErrorKey, t)
   }
 }
 </script>

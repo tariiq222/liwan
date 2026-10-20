@@ -11,6 +11,7 @@ import {
 } from '@/composables/finance/useFinanceInvoices'
 import { registerPaymentLink } from '../payments/paymentModel'
 import { invoiceActions } from './invoiceActions'
+import { financeErrorMessage } from '../financeErrors'
 import { financeErrorKey, zatcaSubmissionFromDetails } from './invoiceErrors'
 import { INVOICE_KINDS, invoiceKindOf, invoiceRecordPath, invoiceTitle, type FinanceMoveType } from './invoiceKinds'
 import { INVOICE_STATE_TONE, PAYMENT_STATE_TONE, ZATCA_STATE_TONE } from './invoiceTones'
@@ -70,11 +71,7 @@ export function useInvoiceRecord(moveType: FinanceMoveType) {
   const zatcaSubmit = useFinanceZatcaSubmit()
   const busy = computed(() => transition.isPending.value || removal.isPending.value || debitNote.isPending.value || zatcaSubmit.isPending.value)
 
-  function failure(cause: unknown) {
-    if (!(cause instanceof ApiError)) return t('errors.generic')
-    const key = financeErrorKey(cause.code)
-    return key ? t(key) : cause.message
-  }
+  const failure = (cause: unknown) => financeErrorMessage(cause, financeErrorKey, t)
   async function attempt(work: () => Promise<unknown>) {
     if (!hydrated.value || busy.value) return false
     actionError.value = ''
