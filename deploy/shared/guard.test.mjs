@@ -33,6 +33,25 @@ test('raw/tampered/expired/revoked sessions, selectors, header and route bypass 
   assert.equal(rotated.open(signed, targets[0]), 'sid_a')
   assert.throws(() => sessionCodec({ next: 'next-test-key-'.repeat(4) }, 'next').open(signed, targets[0]))
 })
+test('rejected sessions recover only on exact public auth routes without forwarding identity', () => {
+  const current = { ...registry, targets: [{ ...targets[0], registryRevision: 2 }] }
+  const invalid = [codec.seal('old_sid', targets[0]), codec.seal('foreign_sid', targets[1]), 'raw', `${codec.seal('sid', targets[0])}x`, sessionCodec(keys, 'test', () => 0).seal('expired', targets[0])]
+  for (const value of invalid) {
+    const cookie = `session_id=${value}; locale=ar`
+    for (const [url, method] of [['/login', 'GET'], ['/login?next=%2Fdashboard', 'HEAD'], ['/api/auth/login', 'POST'], ['/api/auth/logout', 'POST']]) {
+      const plan = requestPlan({ ...req(0, { cookie }, url), method }, current, token, codec)
+      assert.equal(plan.clearSession, true)
+      assert.equal(plan.headers.cookie, 'locale=ar')
+    }
+    for (const url of ['/dashboard', '/api/v1/me', '/api/auth/login/extra', '/api/auth/login/', '/login/', '/other/../api/auth/login', '/api/auth/login#ignored']) {
+      assert.throws(() => requestPlan({ ...req(0, { cookie }, url), method: 'POST' }, current, token, codec))
+    }
+    assert.throws(() => requestPlan({ ...req(0, { cookie }, '/api/auth/login'), method: 'GET' }, current, token, codec))
+    const disabled = { ...current, targets: [{ ...current.targets[0], enabled: false }] }
+    assert.throws(() => requestPlan({ ...req(0, { cookie }, '/login'), method: 'GET' }, disabled, token, codec))
+    assert.throws(() => requestPlan({ ...req(0, { cookie, 'x-forwarded-host': 'forged' }, '/login'), method: 'GET' }, current, token, codec))
+  }
+})
 test('registry revisions, authority, immutable binding and conflicts', () => {
   assert.equal(validateRegistry(registry).schemaVersion, 1)
   assert.throws(() => validateRegistry({ ...registry, targets: [{ ...targets[0], filestore: 'other' }] }))
@@ -112,6 +131,41 @@ test('actual HTTP guard login/MFA/content/BFF, cookie propagation and fresh disa
   writeFileSync(path, JSON.stringify({ ...registry, targets: targets.map((x, i) => i ? x : { ...x, enabled: false, registryRevision: 2 }) }))
   result = await call(url, '/api/v1/me', { host: targets[0].host, cookie })
   assert.equal(result.status, 403)
+})
+test('HTTP recovery clears rejected cookies and preserves a newly issued session', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'webvue-guard-recovery-'))
+  const path = join(root, 'registry.json')
+  const current = { ...targets[0], registryRevision: 2 }
+  writeFileSync(path, JSON.stringify({ ...registry, targets: [current] }))
+  const calls = []
+  const freshCookie = `session_id=${codec.seal('fresh_sid', current)}; Path=/; HttpOnly; Secure; SameSite=Lax`
+  const backend = http.createServer((req, res) => {
+    calls.push({ url: req.url, cookie: req.headers.cookie })
+    if (req.url === '/api/auth/login') res.setHeader('set-cookie', [freshCookie])
+    res.end('ok')
+  })
+  const backendUrl = await listen(backend)
+  const guard = createGuard({ registryPath: path, proxyToken: token, keys, activeKid: 'test', odooUrl: backendUrl, webUrl: backendUrl })
+  const url = await listen(guard)
+  t.after(() => { guard.closeAllConnections(); guard.close(); backend.closeAllConnections(); backend.close() })
+  const headers = { host: current.host, cookie: `session_id=${codec.seal('old_sid', targets[0])}; locale=ar`, 'content-type': 'application/json' }
+  for (const route of ['/login', '/api/auth/logout']) {
+    const reply = await call(url, route, headers, route.startsWith('/api/') ? '{}' : undefined)
+    assert.equal(reply.status, 200)
+    assert.equal(calls.at(-1).cookie, 'locale=ar')
+    assert.match(reply.headers['set-cookie'].join(';'), /session_id=; Path=\/; HttpOnly; Secure; SameSite=Lax; Max-Age=0/)
+    assert.equal(reply.headers['cache-control'], 'no-store')
+  }
+  const login = await call(url, '/api/auth/login', headers, '{}')
+  assert.equal(login.status, 200)
+  const issued = login.headers['set-cookie'].filter(value => value.startsWith('session_id='))
+  assert.deepEqual(issued, [freshCookie])
+  const me = await call(url, '/api/v1/me', { host: current.host, cookie: issued[0].split(';')[0] })
+  assert.equal(me.status, 200)
+  assert.equal(calls.at(-1).cookie, 'session_id=fresh_sid')
+  const before = calls.length
+  assert.equal((await call(url, '/api/v1/me', headers)).status, 403)
+  assert.equal(calls.length, before)
 })
 test('the web CSRF header passes to the Nuxt hop only; other x-webvue headers stay forbidden', () => {
   const web = requestPlan(req(0, { 'x-webvue-csrf': 'c'.repeat(48) }, '/api/commercial/v1/branch-quotes'), registry, token, codec)
