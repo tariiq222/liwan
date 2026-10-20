@@ -25,6 +25,8 @@ from odoo.addons.webvue_finance.serializers.bank import (
 # The leftover of a reconciliation is never booked on a receivable or payable account (it would be an unmatched
 # item without a document) or on a liquidity account (it would move cash without a statement line).
 LEFTOVER_EXCLUDED_TYPES = ('asset_receivable', 'liability_payable', 'asset_cash', 'liability_credit_card')
+# Statements are kept for bank journals and for cash boxes (a cash journal's statement is its count sheet).
+STATEMENT_JOURNAL_TYPES = ('bank', 'cash')
 # The proposals are ranked in Python (exact amount first), so at most this many open items are examined.
 MAX_PROPOSAL_CANDIDATES = 1000
 
@@ -63,7 +65,7 @@ def _open_items_domain(line):
 def _statement_values(parsed):
     journal = company_records(
         'account.journal', [parsed['journal_id']], 'journal_id',
-        [('company_id', '=', request.env.company.id), ('type', '=', 'bank')],
+        [('company_id', '=', request.env.company.id), ('type', 'in', STATEMENT_JOURNAL_TYPES)],
     )
     lines = []
     for index, item in enumerate(parsed['lines']):
@@ -93,7 +95,7 @@ def _suspense_to_account(line, account, label):
 class FinanceBankController(http.Controller):
     """Bank statements and their reconciliation over stock statements and OCA account_reconcile_oca.
 
-    Not covered: statement file import (OFX, CAMT, CSV), reconcile models and rules, matching a line
+    CSV files are imported by ``finance_bank_import``. Not covered: OFX and CAMT files, reconcile models and rules, matching a line
     with several partners, foreign-currency exchange differences and undoing a reconciliation.
     """
 

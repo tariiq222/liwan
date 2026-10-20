@@ -23,6 +23,7 @@ class WebVueFinanceAuditEvent(models.Model):
         ('account_changed', 'Account changed'),
         ('account_archived', 'Account archived'),
         ('account_unarchived', 'Account unarchived'),
+        ('bank_statement_imported', 'Bank statement imported'),
         ('payment_created', 'Payment created'),
         ('payment_changed', 'Payment changed'),
         ('payment_posted', 'Payment posted'),

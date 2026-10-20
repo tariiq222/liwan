@@ -6,6 +6,7 @@ from . import (
     finance_assets,
     finance_audit,
     finance_bank,
+    finance_bank_import,
     finance_budgets,
     finance_closing,
     finance_debit_notes,

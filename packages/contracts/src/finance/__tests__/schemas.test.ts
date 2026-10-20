@@ -5,6 +5,8 @@ import {
   FinanceInvoiceListSchema,
   FinanceInvoiceSchema,
   FinanceJournalListSchema,
+  FinanceBankImportPreviewRequestSchema,
+  FinanceBankImportSchema,
   FinanceJournalSchema,
   FinancePaymentAllocateSchema,
   FinancePaymentPatchSchema,
@@ -158,5 +160,23 @@ describe('standalone payment bodies', () => {
     expect(() => FinancePaymentPatchSchema.parse({ partner_id: 1 })).toThrow()
     expect(() => FinancePaymentAllocateSchema.parse({})).toThrow()
     expect(() => FinancePaymentAllocateSchema.parse({ invoice_ids: [1], payment_ids: [2] })).toThrow()
+  })
+})
+
+describe('bank statement import bodies', () => {
+  const file = { journal_id: 3, content: 'Date,Description,Amount\n2026-10-25,Deposit,100\n' }
+  const mapping = { date: 'Date', payment_ref: 'Description', amount: 'Amount' }
+
+  it('accepts the column proposal request, the mapped preview and the import', () => {
+    expect(FinanceBankImportPreviewRequestSchema.parse(file)).toEqual(file)
+    expect(FinanceBankImportPreviewRequestSchema.parse({ ...file, mapping })).toEqual({ ...file, mapping })
+    const body = { ...file, mapping, balance_start: 0, balance_end_real: 100 }
+    expect(FinanceBankImportSchema.parse(body)).toEqual(body)
+  })
+
+  it('refuses an import with no balances, a missing mapping or an unknown key', () => {
+    expect(() => FinanceBankImportSchema.parse({ ...file, mapping })).toThrow()
+    expect(() => FinanceBankImportSchema.parse({ ...file, balance_start: 0, balance_end_real: 0 })).toThrow()
+    expect(() => FinanceBankImportSchema.parse({ ...file, mapping, balance_start: 0, balance_end_real: 0, colour: 1 })).toThrow()
   })
 })

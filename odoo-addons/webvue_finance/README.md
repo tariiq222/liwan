@@ -36,7 +36,7 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `GET /asset-profiles`, `GET /assets`, `GET /assets/<id>` | `finance.assets.read` |
 | `POST /assets` (201, a draft), `POST /assets/<id>/validate`, `POST /assets/compute-depreciation` | `finance.assets.manage` |
 | `GET /bank-statements`, `GET /bank-statements/<id>`, `GET /bank-statement-lines/<id>/reconcile-proposals` | `finance.bank.read` |
-| `POST /bank-statements` (201), `POST /bank-statement-lines/<id>/reconcile` | `finance.bank.manage` |
+| `POST /bank-statements` (201), `POST /bank-statements/import/preview`, `POST /bank-statements/import` (201), `POST /bank-statement-lines/<id>/reconcile` | `finance.bank.manage` |
 | `GET /budgets` (`state`, `q`), `GET /budgets/<id>`, `GET /reports/budget-vs-actual?budget_id[&date_to]` | `finance.budgets.read` |
 | `POST /budgets` (201), `PATCH /budgets/<id>`, `POST /budgets/<id>/confirm`, `/cancel`, `/reset-to-draft`, `POST /budgets/<id>/lines` (201), `PATCH` and `DELETE` (204) `/budgets/<id>/lines/<line_id>` | `finance.budgets.manage` |
 | `GET /zatca/status`, `GET /invoices/<id>/zatca` | `finance.zatca.read` |
@@ -189,6 +189,28 @@ its reconciliations).
 - Odoo 19 Community has no internal-transfer payment: a transfer between bank and cash accounts is not covered yet (see
   `docs/finance/finance-completion-gaps.md`).
 - Every create, edit, post, allocation and unallocation leaves an audit event.
+
+## Bank statement import (CSV)
+
+Banks export their own layouts, so the import is two steps over the same body `{journal_id, content, delimiter?,
+has_header?, date_format?, decimal_separator?, mapping?}` (`content` is the file text, at most 2 MiB and 5000 rows):
+
+1. `POST /bank-statements/import/preview` writes nothing. Without `mapping` it answers the header, a sample and the
+   columns the header names suggest (`suggested_mapping`, English and Arabic words). With a `mapping` (`date`,
+   `payment_ref`, and `amount` or `debit` with `credit`; columns by header name, or by position when `has_header` is false)
+   it answers every line the import would create (flagged `duplicate` when the journal already holds it), every unreadable
+   row with its row number, and the totals.
+2. `POST /bank-statements/import` adds `balance_start` and `balance_end_real` (both required) and creates one statement, whole
+   or not at all: an unreadable row is 422 `invalid_rows`; lines the journal already holds are 422 `duplicate_lines`
+   (`details.rows`) unless `skip_duplicates` is true; opening balance plus the new lines that is not the closing balance is
+   422 `balance_mismatch` (`details.expected`, `details.given`). The import is audited (`bank_statement_imported`).
+
+Numbers accept thousands separators, parentheses or a sign for negatives, `decimal_separator` `.` or `,`, and Arabic-Indic
+digits; dates use one of the listed formats (`DD/MM/YYYY` is not guessed, it is chosen). A line is a duplicate when the
+journal already holds at least as many lines with the same day, amount and reference as the file has shown so far, so two
+identical coffees in one file are both kept. Statements and imports work on bank and cash journals. OFX and CAMT files are
+not read: the pinned OCA set (`deploy/oca-addons.json`) has no statement-import repository, and adding
+`OCA/bank-statement-import` needs the owner's decision.
 
 ## Journal entries
 
@@ -599,7 +621,7 @@ answer is 422 `not_balanced`; a reconciled line is 422 `invalid_state`.
 The reconcile and proposal routes call private methods of account_reconcile_oca (`_default_reconcile_data`,
 `_add_account_move_line`, `_recompute_suspense_line`): **a pin bump of `account_reconcile_oca` must re-run
 `test_finance_bank`.**
-Not covered: statement file import (OFX, CAMT, CSV), reconcile models and automatic rules, foreign-currency exchange
+Not covered: OFX and CAMT import, reconcile models and automatic rules, foreign-currency exchange
 differences, unreconciling, cash journals and editing a statement.
 
 ## Budgets (`finance.budgets.*`)
