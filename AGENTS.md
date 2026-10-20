@@ -278,6 +278,13 @@ cross-addon links.
 
 ## Safe worktree workflow
 
+Create every task worktree with `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>`:
+it lives only in `<main checkout>/.worktrees/<area>-<slug>`, branches from `main` (or the task's `codex/`
+integration branch) and records its owner and scopes. Never use a bare `git worktree add` or a tool's own
+worktree folder (the Claude app's `worktrees` folder under `.claude`). Overlapping another active claim needs `--allow-overlap
+"<reason>"` agreed with its owner. `npm run wt -- check` reports violations and changes nothing; the full
+rules are in `docs/parallel-work.md` ("Worktree rules").
+
 Use one temporary worktree per bounded task, named `codex/<area>-<slug>`. Worktrees
 must have independent `node_modules` and `.nuxt` directories; do not symlink
 either one. One writer owns each file, and one orchestrator owns shared files,

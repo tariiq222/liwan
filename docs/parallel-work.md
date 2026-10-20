@@ -72,15 +72,45 @@ shared change must state the contract and the single writer before work starts.
 4. Set per-worktree `NUXT_ODOO_URL`, `NUXT_ODOO_DB`, and
    `NUXT_PUBLIC_WS_URL`, and choose a distinct Nuxt `--port`.
 
-`npm run wt -- new <area>-<slug>` performs the worktree creation, steps 3 and 4 (ports and
-scratch database name go to the git-ignored `.env.worktree`) in one command (`tools/wt.py`).
+`npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>` performs the worktree
+creation, steps 3 and 4 (ports and scratch database name go to the git-ignored `.env.worktree`) and the
+ownership claim in one command (`tools/wt.py`).
 
-Task worktrees live in one place only: `<main checkout>/.worktrees/<area>-<slug>` (git-ignored), which is
-where `wt new` creates them, also when run from another worktree. Do not create them under `../webvue-wt/`
-or the Claude app's own worktree folder; `wt status` marks such a worktree with `*`. `npm run wt -- status` answers
-"which worktrees exist, which are merged, which are dirty"; `npm run wt -- gc` lists what is safe to
-remove (merged, clean, behind `main`, no process inside) and `--apply` removes it, which needs the
-owner's authorization.
+### Worktree rules
+
+These rules apply to every worktree created from 2026-10-20 on, by a person, a Codex task or a Claude
+session or subagent. A worktree that predates them is reported by `wt check`, never moved, renamed or
+removed by it; its owner records a claim with `wt claim` or finishes and merges it as it is.
+
+1. **One location.** Task worktrees live only in `<main checkout>/.worktrees/<area>-<slug>` (git-ignored),
+   where `wt new` creates them, also when run from another worktree. Never create one with a bare
+   `git worktree add`, under `../webvue-wt/`, or in a tool's own folder (the Claude app's `worktrees` folder under `.claude`); a
+   Claude subagent or session that needs isolation runs `wt new` instead of its built-in worktree option.
+2. **One name.** The branch is `codex/<area>-<slug>` (or `spike/<slug>`, never merged) and the folder is its
+   `<area>-<slug>`; `<area>` comes from the list in `AGENTS.md`. Auto-generated names such as
+   `worktree-agent-<id>` or `agent-<id>` break this rule.
+3. **One base.** A task branch starts from `main` (default `--base`) or, for a lane of a multi-lane task,
+   from that task's `codex/<area>-<slug>` integration branch. `wt new` refuses any other base.
+4. **One owner.** Every worktree has a claim: its owner (session, agent or person), its task and the
+   workspace-relative paths it will change (`--scope`, repeatable; `.` is the whole repository, used by an
+   integration worktree). The claim lives in the worktree's own git directory, so it is never tracked and
+   goes away with the worktree.
+5. **No silent overlap.** `wt new` and `wt claim` refuse scopes that overlap another worktree's active claim.
+   `--allow-overlap "<reason>"` is the explicit permission: use it only after agreeing with the other
+   owner; the reason is stored in the claim and shown by `wt status`.
+6. **Expiry.** A claim with no commit, no edited file and no refresh for 24 hours is expired: it is still
+   listed, but no longer blocks. Its owner refreshes it with `wt claim --owner <same owner>`; another owner
+   may take over an expired claim with `wt claim`, never an active one.
+
+`npm run wt -- check` reports every worktree that breaks a rule and exits 1 when there is one; it only reads.
+`npm run wt -- status` answers "which worktrees exist, who owns them, which are merged, which are dirty"
+and ends with the same report; it marks a worktree outside `.worktrees/` with `*`. `npm run wt -- gc` lists
+what is safe to remove (merged, clean, behind `main`, no process inside) and `--apply` removes it, which
+needs the owner's authorization.
+
+These are workflow rules carried by the tool, not an operating-system lock: a bare `git worktree add` or
+an edit outside the claimed scopes is still possible. `wt check` makes it visible; the integration checks
+in `docs/agents/integration-rules.md` remain the binding gate.
 
 The Odoo checkout at `/Users/tariq/code/odoo` is upstream and its source,
 configuration, and Git state are read-only. Source inspection and read-only Git
