@@ -3,7 +3,8 @@ import EquipmentCustodyPanel from '@/components/hr/assets/EquipmentCustodyPanel.
 import { formatDate } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { owningListBack } from '@/utils/recordListOrigin'
-import type { HrRef } from '@webvue/contracts'
+import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
+import type { HrEquipment, HrRef } from '@webvue/contracts'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -68,21 +69,24 @@ function openArchive() {
   archiving.value = true
 }
 
-// The asset fields are edited in place on the record page; the watch re-syncs them from the
-// server answer after every write.
+// The asset fields are edited in place on the record page. The form is filled from the record by `fillForm`, which an
+// immediate watch runs on the client and `useSsrQuerySeed` runs on the server (a watcher cannot rerun there once the
+// query settles); the watch also re-syncs the form from the answer after every write.
 const form = reactive({ name: '', categoryId: null as number | null, serialNo: '', model: '', warrantyDate: null as string | null })
 const attempted = ref(false)
 const editError = ref('')
 const editField = ref('')
 
-watch(equipment, (value) => {
+function fillForm(value: HrEquipment | undefined) {
   if (!value) return
   form.name = value.name
   form.categoryId = value.category?.id ?? null
   form.serialNo = value.serial_no
   form.model = value.model
   form.warrantyDate = value.warranty_date
-}, { immediate: true })
+}
+watch(equipment, fillForm, { immediate: true })
+useSsrQuerySeed(query, fillForm)
 
 const categoryOptions = computed(() => (categories.data.value?.items ?? []).map(category => ({
   value: String(category.id),
@@ -103,13 +107,7 @@ const dirty = computed(() => {
 })
 
 function resetForm() {
-  const current = equipment.value
-  if (!current) return
-  form.name = current.name
-  form.categoryId = current.category?.id ?? null
-  form.serialNo = current.serial_no
-  form.model = current.model
-  form.warrantyDate = current.warranty_date
+  fillForm(equipment.value)
   attempted.value = false
   editError.value = ''
   editField.value = ''

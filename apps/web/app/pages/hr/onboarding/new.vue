@@ -2,8 +2,10 @@
 import { useHrOnboardingPlans, useLaunchHrOnboardingRun } from '@/composables/useHrOnboarding'
 import { useHrEmployees } from '@/composables/useHrEmployees'
 import { saveErrorMessage } from '@/utils/formFeedback'
+import { owningListBack } from '@/utils/recordListOrigin'
 
 const NAMESPACE = 'hrOnboarding'
+const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
@@ -19,7 +21,8 @@ const planError = ref<string>()
 const employeeOptions = computed(() => (employees.data.value?.items ?? []).map(employee => ({ value: String(employee.id), label: employee.name })))
 const planOptions = computed(() => (plans.data.value?.items ?? []).map(plan => ({ value: String(plan.id), label: plan.name })))
 const { mutateAsync: launch, isPending } = useLaunchHrOnboardingRun()
-const backTo = '/hr/onboarding'
+const sourcePaths = useRecordListPaths(['/hr/onboarding'])
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 let submitting = false
 async function submit() {
   if (!can('hr.onboarding.manage') || !hydrated.value || isPending.value || submitting) return
