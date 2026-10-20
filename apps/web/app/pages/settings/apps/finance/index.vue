@@ -37,7 +37,7 @@ const ZATCA_TONE = { not_started: 'neutral', compliance_checked: 'info', onboard
 
 <template>
   <SharedSettingsPage width="detail">
-    <SharedPageHeader :title="t('finance.setup.title')" :description="t('finance.setup.description')" :tags="headerTags" />
+    <SharedPageHeader :title="t('finance.setup.title')" :tags="headerTags" />
     <SharedPageState v-if="!can('finance.setup.read')" :empty="true" :empty-text="t('errors.forbidden')" />
     <SharedPageState v-else :loading="setup.isLoading.value" :error="setup.error.value" :empty="!data" @retry="setup.refetch">
       <div v-if="data" class="grid gap-(--webvue-gap-card)">

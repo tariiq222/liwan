@@ -58,7 +58,6 @@ export function useAssetRecord() {
     header: reactive({
       keepContent: computed(() => !!asset.value),
       title: computed(() => asset.value?.name ?? t('financeAssets.assets.record')),
-      description: t('financeAssets.assets.record'),
       tags,
       backTo,
       loading: query.isLoading,

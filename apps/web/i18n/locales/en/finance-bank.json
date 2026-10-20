@@ -1,7 +1,6 @@
 {
   "financeBank": {
     "title": "Bank statements",
-    "description": "Bank statements and their lines, each reconciled with open entries.",
     "new": "New statement",
     "recordKind": "Bank statement",
     "empty": "No bank statements yet.",

@@ -43,7 +43,7 @@ async function place() {
 </script>
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('vendor.customers.changeSubscription')" :description="t('vendor.customers.change.description')" :back-to="detailTo" />
+    <SharedPageHeader :title="t('vendor.customers.changeSubscription')" :back-to="detailTo" />
     <SharedPageState :loading="pending" :error="error" @retry="refresh">
       <SharedForbiddenState v-if="!can('vendor.subscriptions.manage')" />
       <UAlert v-else-if="!data?.sub" color="neutral" variant="subtle" :title="t('vendor.customers.terms.needsSubscription')" />

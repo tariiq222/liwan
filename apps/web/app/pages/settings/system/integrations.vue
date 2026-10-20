@@ -12,7 +12,7 @@ const items = computed(() => data.value?.items ?? [])
 </script>
 
 <template>
-  <SharedListPage data-testid="settings-layout" :title="t('integrations.title')" :description="forbidden ? undefined : t('integrations.description')">
+  <SharedListPage data-testid="settings-layout" :title="t('integrations.title')">
     <SharedForbiddenState v-if="forbidden" :description="t('integrations.forbidden')" />
     <SharedListCard v-else>
       <SharedPageState :loading="isLoading" :error="error" :empty="items.length === 0" :empty-text="t('integrations.empty')" @retry="refetch()">

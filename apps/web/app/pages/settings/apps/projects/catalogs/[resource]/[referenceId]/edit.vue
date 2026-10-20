@@ -34,7 +34,7 @@ function onSaved() {
 
 <template>
   <SharedSettingsPage width="form">
-    <SharedPageHeader :title="t('settings.projects.catalogs.editTitle')" :description="t('projects.refresh.settings.catalogDescription')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')" />
+    <SharedPageHeader :title="t('settings.projects.catalogs.editTitle')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')" />
     <p v-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
     <SharedPageState
       v-else

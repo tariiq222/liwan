@@ -62,7 +62,6 @@ export function useBankReconcilePage() {
     header: reactive({
       keepContent: computed(() => !!line.value),
       title: computed(() => line.value?.payment_ref ?? t('financeBank.reconcile.title')),
-      description: computed(() => statement.value?.name ?? t('financeBank.reconcile.title')),
       backTo,
       backLabel: t('financeBank.reconcile.backToStatement'),
       loading: statementQuery.isLoading,

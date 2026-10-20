@@ -5090,11 +5090,6 @@
           "required": true
         },
         {
-          "name": "description",
-          "type": "string",
-          "required": false
-        },
-        {
           "name": "tags",
           "type": "PageHeaderTag[]",
           "required": false
@@ -5399,11 +5394,6 @@
           "required": true
         },
         {
-          "name": "description",
-          "type": "string",
-          "required": false
-        },
-        {
           "name": "tags",
           "type": "PageHeaderTag[]",
           "required": false
@@ -5526,11 +5516,6 @@
           "name": "title",
           "type": "string",
           "required": true
-        },
-        {
-          "name": "description",
-          "type": "string",
-          "required": false
         },
         {
           "name": "icon",
@@ -5709,11 +5694,6 @@
           "name": "title",
           "type": "string",
           "required": true
-        },
-        {
-          "name": "description",
-          "type": "string",
-          "required": false
         },
         {
           "name": "tags",

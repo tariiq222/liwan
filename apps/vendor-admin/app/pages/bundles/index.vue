@@ -37,7 +37,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 ])
 </script>
 <template>
-<SharedListPage :title="t('vendor.catalog.title')" :description="t('vendor.bundles.description')" :create-to="can('vendor.catalog.manage') ? { path: '/bundles/new', query: { returnTo: listTo } } : undefined" :create-label="t('vendor.bundles.create')" create-test-id="vendor-bundle-new">
+<SharedListPage :title="t('vendor.catalog.title')" :create-to="can('vendor.catalog.manage') ? { path: '/bundles/new', query: { returnTo: listTo } } : undefined" :create-label="t('vendor.bundles.create')" create-test-id="vendor-bundle-new">
 
 <template #filters><VendorCatalogTabs class="mb-3" /><SharedFilterBar :active-count="Number(Boolean(q)) + Number(status !== 'all')" @clear="router.replace('/bundles')">
       <template #search><UInput :model-value="q" :aria-label="t('vendor.bundles.search')" :placeholder="t('vendor.bundles.search')" icon="i-lucide-search" :disabled="!hydrated" @update:model-value="patch({ q: $event || undefined })" /></template>

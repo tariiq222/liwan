@@ -19,7 +19,7 @@ const clean = (html: string) => html.replace(/<!--[\s\S]*?-->/g, '')
 
 describe('SharedPageHeader trail', () => {
   it('draws the published ancestors under the title, never above it', async () => {
-    const html = clean(await renderShared('PageHeader', { title: 'السجل', description: 'مخاطر المشروع' }, {}, options([{ label: 'المشاريع', to: '/projects' }, { label: 'الحوكمة', to: '/projects/7/governance' }])))
+    const html = clean(await renderShared('PageHeader', { title: 'السجل' }, {}, options([{ label: 'المشاريع', to: '/projects' }, { label: 'الحوكمة', to: '/projects/7/governance' }])))
     expect(html).toContain('data-testid="page-header-trail"')
     expect(html.indexOf('السجل')).toBeLessThan(html.indexOf('data-testid="page-header-trail"'))
     expect(html).toContain('href="/projects"')

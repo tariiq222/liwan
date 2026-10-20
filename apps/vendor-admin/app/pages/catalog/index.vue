@@ -24,7 +24,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 ])
 </script>
 <template>
-<SharedListPage :title="t('vendor.catalog.title')" :description="t('vendor.packages.description')">
+<SharedListPage :title="t('vendor.catalog.title')">
 <template #filters><VendorCatalogTabs class="mb-3" /><SharedFilterBar :active-count="Number(Boolean(search)) + Number(Boolean(status))" @clear="router.replace('/catalog')">
       <template #search><UInput :model-value="search" :aria-label="t('vendor.packages.search')" :placeholder="t('vendor.packages.search')" icon="i-lucide-search" :disabled="!hydrated" @update:model-value="filter('q', $event)" /></template>
       <SharedFilterChoice :label="t('vendor.common.status')" :model-value="status" :items="statusOptions" :disabled="!hydrated" @update:model-value="filter('status', $event)" />

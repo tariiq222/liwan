@@ -57,7 +57,6 @@
     },
     "overview": {
       "title": "Finance overview",
-      "description": "Your open balances, finance setup status and what is waiting to be posted.",
       "setupTitle": "Finance setup",
       "setupProgress": "{done} of {total} steps done",
       "setupReady": "Finance setup is complete. You can issue invoices.",
@@ -141,7 +140,6 @@
     },
     "setup": {
       "title": "Finance",
-      "description": "The company's tax identity, fiscal year, e-invoicing readiness and chart of accounts.",
       "ready": "Ready to invoice",
       "notReady": "Setup incomplete",
       "done": "Done",

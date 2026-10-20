@@ -93,7 +93,6 @@ async function confirmHire() {
   <SharedRecordPage
     :keep-content="!!applicant"
     :title="applicant?.partner_name || t('hrRecruitment.title')"
-    :description="applicant?.job?.name"
     :back-to="backTo"
     :loading="query.isLoading.value"
     :error="pageError"

@@ -102,7 +102,6 @@ const applicantsTo = computed(() => ({ path: '/hr/recruitment', query: { job_id:
   <SharedRecordPage
     :keep-content="!!job"
     :title="job?.name || t('hrRecruitment.jobs.title')"
-    :description="job?.department?.name || t('hrRecruitment.noDepartment')"
     :back-to="backTo"
     :loading="query.isLoading.value"
     :error="pageError"

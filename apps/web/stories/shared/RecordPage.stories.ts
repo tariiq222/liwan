@@ -27,7 +27,7 @@ const record = (state: { loading?: boolean; error?: unknown; backSlot?: boolean;
     return { t, project, loading: state.loading ?? false, error: state.error }
   },
   template: `<main class="webvue-shell-main">
-    <RecordPage :title="loading ? '' : project.name" :description="t('projects.description')" back-to="/projects" :back-label="t('projects.backToProjects')" :loading="loading" :error="error">
+    <RecordPage :title="loading ? '' : project.name" back-to="/projects" :back-label="t('projects.backToProjects')" :loading="loading" :error="error">
       ${state.backSlot ? `<template #back><UButton to="/projects" color="neutral" variant="ghost" icon="i-lucide-arrow-right" data-testid="task-detail-back">{{ t('projects.backToProjects') }}</UButton></template>` : ''}
       <template #actions><UButton color="neutral" variant="outline" icon="i-lucide-pencil">{{ t('app.edit') }}</UButton></template>
       ${state.summary ? `<template #summary><PropertiesPanel :title="t('states.properties')"><PropertyRow :label="t('projects.columns.manager')" :value="project.manager?.name" /><PropertyRow :label="t('projects.columns.dateEnd')" :value="project.date_end" /></PropertiesPanel></template>` : ''}

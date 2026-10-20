@@ -169,7 +169,6 @@ function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { 
   <SharedListPage
     :title="t('myTasks.title')"
     :tags="countTags"
-    :description="t('myTasks.description')"
     :create-to="createTo"
     :create-label="t('myTasks.new')"
     create-test-id="my-tasks-new"

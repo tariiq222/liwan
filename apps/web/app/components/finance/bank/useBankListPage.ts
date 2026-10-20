@@ -19,7 +19,6 @@ export function useBankListPage(background = false) {
   const createTo = computed(() => can('finance.bank.manage') ? { path: `${BANK_STATEMENTS_PATH}/new`, query: { returnTo: location.value } } : undefined)
   return reactive({
     title: t('financeBank.title'),
-    description: t('financeBank.description'),
     tags,
     createTo,
     createLabel: t('financeBank.new'),

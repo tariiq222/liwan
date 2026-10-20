@@ -17,7 +17,7 @@ type Story = StoryObj<typeof meta>
 const page: Story['render'] = args => ({
   components: { PageContainer, PageHeader, PageState },
   setup: () => ({ args, t: useI18n().t }),
-  template: `<main class="webvue-shell-main"><PageContainer v-bind="args"><PageHeader :title="t('tasks.title')" :description="t('tasks.description')" /><PageState :empty="true" /></PageContainer></main>`,
+  template: `<main class="webvue-shell-main"><PageContainer v-bind="args"><PageHeader :title="t('tasks.title')" /><PageState :empty="true" /></PageContainer></main>`,
 })
 
 export const List: Story = { name: 'صفحة قائمة', args: { width: 'list' }, parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', 'داخل `main.webvue-shell-main` من `apps/web/app/layouts/default.vue:53`.'), render: page }

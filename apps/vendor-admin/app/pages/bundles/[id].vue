@@ -35,7 +35,7 @@ const editable = computed(() => view.value?.status === 'draft' && can('vendor.ca
 <template>
   <NuxtPage v-if="isEdit" />
 
-    <SharedRecordPage v-else :title="view?.name ?? t('vendor.bundles.details')" :description="view?.description" :back-to="backTo" :back-label="t(back.labelKey)" :loading="pending" :error="error" @retry="refresh">
+    <SharedRecordPage v-else :title="view?.name ?? t('vendor.bundles.details')" :back-to="backTo" :back-label="t(back.labelKey)" :loading="pending" :error="error" @retry="refresh">
       <template #actions><UButton v-if="view && editable" :to="{ path: `/bundles/${view.id}/edit`, query: { returnTo: backTo } }" color="neutral" variant="outline">{{ t('vendor.pricing.edit') }}</UButton></template>
 
     <template v-if="view && data">

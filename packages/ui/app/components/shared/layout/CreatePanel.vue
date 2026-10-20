@@ -15,7 +15,7 @@ const open = ref(true)
 const footerTarget = ref<HTMLElement | null>(null)
 const footerActions = ref(0)
 provide(FORM_ACTIONS_HOST, { target: footerTarget, active: footerActions })
-usePageHeader(() => props.title, () => props.description)
+usePageHeader(() => props.title)
 
 // The #header slot below replaces USlideover's DialogTitle, so reka's aria-labelledby would point at
 // nothing and the dialog would have no name. reka merges these content attributes after its own.

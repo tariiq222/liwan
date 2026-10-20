@@ -2,48 +2,37 @@
   "financeReports": {
     "reports": {
       "trialBalance": {
-        "title": "Trial balance",
-        "description": "Account balances and debit and credit totals for the period."
+        "title": "Trial balance"
       },
       "generalLedger": {
-        "title": "General ledger",
-        "description": "Every account's activity in the period; open an account to see its lines."
+        "title": "General ledger"
       },
       "agedPartnerBalance": {
-        "title": "Aged partner balance",
-        "description": "Open balances up to a day, grouped by how long they are overdue."
+        "title": "Aged partner balance"
       },
       "partnerStatement": {
-        "title": "Partner statement",
-        "description": "A customer's or vendor's activity, or what is still outstanding."
+        "title": "Partner statement"
       },
       "vat": {
-        "title": "VAT",
-        "description": "Sales tax, purchase tax and the net payable for the period."
+        "title": "VAT"
       },
       "withholding": {
-        "title": "Withholding tax",
-        "description": "Tax withheld from vendor payments in the period."
+        "title": "Withholding tax"
       },
       "analytic": {
-        "title": "Cost center report",
-        "description": "Each cost center's income and expense in the period; open one to see its items."
+        "title": "Cost center report"
       },
       "profitLoss": {
-        "title": "Profit and loss",
-        "description": "Revenue, costs, expenses and net profit for the period."
+        "title": "Profit and loss"
       },
       "balanceSheet": {
-        "title": "Balance sheet",
-        "description": "Assets, liabilities and equity as of a day."
+        "title": "Balance sheet"
       },
       "zakatBase": {
-        "title": "Zakat base",
-        "description": "The simplified Zakat base and the Zakat due as of a day."
+        "title": "Zakat base"
       },
       "budgetVsActual": {
-        "title": "Budget vs actual",
-        "description": "A budget's lines against the posted entries up to a day."
+        "title": "Budget vs actual"
       }
     },
     "kpi": {

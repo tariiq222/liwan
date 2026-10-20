@@ -144,7 +144,6 @@ function equipmentTo(row: HrEquipment) {
   <SharedListPage
     v-if="isListRoute"
     :title="t('nav.assets')"
-    :description="t('hrAssets.description')"
     :create-to="createTo"
     :create-label="t('hrAssets.new')"
     create-test-id="hr-asset-new"

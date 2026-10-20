@@ -16,7 +16,6 @@ import ViewSwitch from '../data/ViewSwitch.vue'
  */
 const props = defineProps<{
   title: string
-  description?: string
   tags?: PageHeaderTag[]
   createTo?: RouteLocationRaw
   createLabel?: string
@@ -47,7 +46,7 @@ if (props.viewsInFilters && props.views?.length) provide(LIST_VIEW_KEY, { view, 
 
 <template>
   <PageContainer width="list" data-template="list">
-    <PageHeader :title="props.title" :description="props.description" :tags="props.tags" :back-to="props.backTo" :back-label="props.backLabel" :hide-title="props.hideHeader" :kpi-toggle="props.kpiToggle">
+    <PageHeader :title="props.title" :tags="props.tags" :back-to="props.backTo" :back-label="props.backLabel" :hide-title="props.hideHeader" :kpi-toggle="props.kpiToggle">
       <template v-if="props.createTo || $slots.actions" #actions>
         <UButton
           v-if="props.createTo"

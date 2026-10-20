@@ -15,7 +15,7 @@ const tags = computed<PageHeaderTag[]>(() => plans.data.value
 
 <template>
   <SharedSettingsPage width="detail">
-    <SharedPageHeader :title="t('financeAnalytic.title')" :description="t('financeAnalytic.description')" :tags="tags" />
+    <SharedPageHeader :title="t('financeAnalytic.title')" :tags="tags" />
     <SharedForbiddenState v-if="!allowed" :description="t('financeAnalytic.forbidden')" />
     <div v-else class="grid gap-(--webvue-gap-card)">
       <AnalyticPlansSection />

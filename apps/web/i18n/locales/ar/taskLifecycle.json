@@ -1,7 +1,6 @@
 {
   "taskLifecycle": {
     "archivedTasks": "المهام المؤرشفة",
-    "archivedTasksHint": "المهام التي يمكنك استعادتها",
     "restore": "استعادة",
     "restored": "تمت استعادة المهمة",
     "back": "عودة",

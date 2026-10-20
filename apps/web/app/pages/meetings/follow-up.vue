@@ -67,7 +67,7 @@ function setPage(value: number) { if (value >= 1 && value <= pages.value) patch(
 </script>
 
 <template>
-  <SharedListPage :title="t('nav.meetingFollowup')" :description="t('meetingsUx.followupDescription')" kpi-toggle>
+  <SharedListPage :title="t('nav.meetingFollowup')" kpi-toggle>
     <SharedKpiStrip v-if="hydrated" :tiles="kpis.tiles.value" :loading="kpis.loading.value" :label="t('meetingsKpi.label')" data-testid="meeting-followup-kpi-strip" />
     <SharedListCard>
       <template #filters>

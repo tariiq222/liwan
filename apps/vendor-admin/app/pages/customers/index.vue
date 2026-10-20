@@ -33,7 +33,7 @@ const columns = computed<TableColumn<ClientRow>[]>(() => [
 ])
 </script>
 <template>
-<SharedListPage :title="t('vendor.customers.title')" :description="t('vendor.customers.description')" :create-to="can('vendor.tenants.manage') ? { path: '/customers/new', query: { returnTo: route.fullPath } } : undefined" :create-label="t('vendor.customers.new')" create-test-id="vendor-customer-new">
+<SharedListPage :title="t('vendor.customers.title')" :create-to="can('vendor.tenants.manage') ? { path: '/customers/new', query: { returnTo: route.fullPath } } : undefined" :create-label="t('vendor.customers.new')" create-test-id="vendor-customer-new">
 
 <template #filters><SharedFilterBar :active-count="Number(Boolean(q)) + Number(state !== 'all')" @clear="router.replace('/customers')">
       <template #search><UInput :model-value="q" :aria-label="t('vendor.customers.search')" :placeholder="t('vendor.customers.search')" icon="i-lucide-search" :disabled="!hydrated" @update:model-value="patch({ q: $event || undefined })" /></template>

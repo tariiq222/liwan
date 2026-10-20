@@ -35,7 +35,7 @@ const stats = computed<StatusStat[]>(() => {
 })
 </script>
 <template>
-  <SharedDashboardPage :title="t('vendor.today.title')" :description="t('vendor.today.description')">
+  <SharedDashboardPage :title="t('vendor.today.title')">
     <div class="space-y-8 @min-[768px]:col-span-2">
       <SharedPageState :loading="pending || attentionPending" :error="error" @retry="refresh">
         <section data-testid="today-attention" aria-labelledby="today-attention-title" class="space-y-3">

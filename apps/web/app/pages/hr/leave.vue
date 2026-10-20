@@ -152,7 +152,6 @@ const allocateTo = computed(() => ({ path: '/hr/leave/allocations/new', query: l
     v-if="isListRoute"
     :title="t('nav.leave')"
     :tags="countTags"
-    :description="t('hr.leave.description')"
     :create-to="createTo"
     :create-label="t('hr.leave.new')"
     create-test-id="hr-leave-new"

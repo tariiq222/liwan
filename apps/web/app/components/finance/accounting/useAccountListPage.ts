@@ -1,7 +1,7 @@
 import { useFinanceAccountList } from '@/composables/finance/useFinanceAccounts'
 import { accountFiltersFromQuery, accountListParams } from './accountListParams'
 
-/** The heading of the chart of accounts page: title, description and the result count as a tag. It has no create link. */
+/** The heading of the chart of accounts page: title and the result count as a tag. It has no create link. */
 export function useAccountListPage() {
   const route = useRoute()
   const { t } = useI18n()
@@ -12,7 +12,6 @@ export function useAccountListPage() {
   const tags = computed(() => query.data.value ? [{ label: t('financeAccounting.accounts.countTag', { count: total.value }, total.value), kind: 'count' as const }] : [])
   return reactive({
     title: t('financeAccounting.accounts.title'),
-    description: t('financeAccounting.accounts.description'),
     tags,
   })
 }

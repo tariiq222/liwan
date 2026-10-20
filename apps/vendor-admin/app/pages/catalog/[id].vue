@@ -10,7 +10,7 @@ const history = computed(() => (revisions.value?.items ?? []).filter(item => ite
 </script>
 <template>
 
-    <SharedRecordPage :title="data?.name ?? t('vendor.packages.details')" :description="data?.description" :back-to="backTo" :back-label="t('vendor.packages.title')" :loading="pending" :error="error" @retry="refresh">
+    <SharedRecordPage :title="data?.name ?? t('vendor.packages.details')" :back-to="backTo" :back-label="t('vendor.packages.title')" :loading="pending" :error="error" @retry="refresh">
     <template v-if="data">
 
       <SharedRecordSection :title="t('vendor.packages.included')" class="mt-6"><p>{{ packageLabel('tier', data.catalog_tier, t) }}</p><div class="flex flex-wrap gap-2"><UBadge v-for="module in data.modules" :key="module" color="neutral" variant="subtle">{{ packageLabel('module', module, t) }}</UBadge><UBadge v-for="feature in data.features.filter(value => value.startsWith('boolean:'))" :key="feature" color="neutral" variant="outline">{{ packageLabel('feature', feature, t) }}</UBadge></div></SharedRecordSection>

@@ -15,7 +15,6 @@
     },
     "budgets": {
       "title": "Budgets",
-      "description": "Account budgets per period, compared with the actuals.",
       "new": "New budget",
       "record": "Budget",
       "empty": "No budgets yet.",

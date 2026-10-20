@@ -1,7 +1,6 @@
 {
   "ai": {
     "title": "WebVue AI",
-    "tagline": "المنسّق الذكي لعملك",
     "description": "اسأل عن مهامك ومشاريعك، واطلب ما تريد تجهيزه. يُعدّ WebVue AI، وأنت تعتمد.",
     "composer": {
       "placeholder": "اكتب سؤالك أو طلبك…",

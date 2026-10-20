@@ -16,7 +16,6 @@
     },
     "entries": {
       "title": "Journal entries",
-      "description": "Manual entries from draft to posting.",
       "new": "New entry",
       "record": "Journal entry",
       "empty": "No journal entries yet.",
@@ -25,7 +24,6 @@
     },
     "accounts": {
       "title": "Chart of accounts",
-      "description": "The company's accounts and their types.",
       "empty": "No accounts yet.",
       "reconcileYes": "Yes",
       "reconcileNo": "No",

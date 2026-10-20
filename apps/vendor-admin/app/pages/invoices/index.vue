@@ -42,7 +42,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 ])
 </script>
 <template>
-<SharedListPage :title="t('vendor.invoices.title')" :description="t('vendor.invoices.description')">
+<SharedListPage :title="t('vendor.invoices.title')">
 
 <template #filters><SharedFilterBar :active-count="Number(Boolean(customerId)) + Number(status !== 'all')" @clear="router.replace('/invoices')">
       <SharedFilterField :label="t('vendor.invoices.customer')" for="invoice-customer-filter">

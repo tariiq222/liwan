@@ -15,7 +15,6 @@ export function usePaymentListPage(background = false) {
   const createTo = computed(() => can('finance.payments.manage') ? { path: `${PAYMENTS_PATH}/new`, query: { returnTo: location.value } } : undefined)
   return reactive({
     title: t('financeDocuments.payments.title'),
-    description: t('financeDocuments.payments.description'),
     tags,
     createTo,
     createLabel: t('financeDocuments.payments.new'),

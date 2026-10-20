@@ -7,7 +7,7 @@ const { me } = useMe()
 
 <template>
   <SharedSettingsPage width="form">
-    <SharedPageHeader :title="t('account.title')" :description="t('account.description')" />
+    <SharedPageHeader :title="t('account.title')" />
     <SharedPropertiesPanel v-if="me" :title="me.name">
       <SharedPropertyRow :label="t('auth.username')"><bdi dir="ltr">{{ me.login }}</bdi></SharedPropertyRow>
       <SharedPropertyRow :label="t('account.company')" :value="me.company.name" />

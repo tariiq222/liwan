@@ -12,7 +12,6 @@
     "loadMore": "Load more"
   },
   "home": {
-    "description": "Choose a workspace or start an action.",
     "empty": "No workspaces are currently available for your account."
   },
   "nav": {
@@ -127,7 +126,6 @@
   },
   "account": {
     "title": "Account",
-    "description": "Manage your account settings.",
     "company": "Organization",
     "passwordTitle": "Change password",
     "currentPassword": "Current password",

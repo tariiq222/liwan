@@ -37,7 +37,6 @@ export function useBankStatementRecord() {
     header: reactive({
       keepContent: computed(() => !!statement.value),
       title: computed(() => statement.value?.name ?? t('financeBank.recordKind')),
-      description: t('financeBank.recordKind'),
       tags,
       backTo,
       loading: query.isLoading,

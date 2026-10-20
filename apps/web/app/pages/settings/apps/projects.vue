@@ -16,7 +16,7 @@ const catalogs = computed(() => [
 
 <template>
   <SharedSettingsPage v-if="isBaseRoute" width="form">
-    <SharedPageHeader :title="t('settings.projects.title')" :description="t('settings.projects.scopeHint')" />
+    <SharedPageHeader :title="t('settings.projects.title')" />
     <p v-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
     <div v-else class="webvue-settings-projects grid gap-(--webvue-gap-card)">
       <ProjectSettingsForm />

@@ -19,7 +19,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 ])
 </script>
 <template>
-<SharedListPage :title="t('subscription.invoices.title')" :description="t('subscription.invoices.description')" back-to="/subscription">
+<SharedListPage :title="t('subscription.invoices.title')" back-to="/subscription">
 
 <SharedForbiddenState v-if="!allowed" />
 <SharedListCard v-if="allowed">

@@ -14,7 +14,6 @@ import PageState from '../feedback/PageState.vue'
  */
 const props = withDefaults(defineProps<{
   title: string
-  description?: string
   tags?: PageHeaderTag[]
   backTo?: RouteLocationRaw
   backLabel?: string
@@ -36,7 +35,7 @@ const heading = computed(() => (ready.value ? props.title.trim() || t('states.un
 
 <template>
   <PageContainer :width="props.width" data-template="record">
-    <PageHeader :title="heading" :description="props.description" :tags="props.tags" :back-to="props.backTo" :back-label="props.backLabel" :hide-title="props.hideHeader">
+    <PageHeader :title="heading" :tags="props.tags" :back-to="props.backTo" :back-label="props.backLabel" :hide-title="props.hideHeader">
       <template v-if="props.loading && !props.title" #title>
         <USkeleton class="inline-block h-6 w-48 align-middle" /><span class="sr-only">{{ t('app.loading') }}</span>
       </template>

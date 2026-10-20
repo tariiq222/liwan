@@ -50,7 +50,6 @@ async function onSaved() {
 <template>
   <SharedRecordPage
     :title="schedule?.name || t('hrShifts.schedulesTitle')"
-    :description="t('hrShifts.scheduleDescription')"
     :back-to="backTo"
     :back-label="t('hrShifts.schedulesTitle')"
     :loading="query.isLoading.value"

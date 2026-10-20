@@ -36,7 +36,6 @@ const tabs = computed(() => {
   <SharedRecordPage :keep-content="!!query.data.value"
     data-testid="settings-layout"
     :title="query.data.value?.name ?? t('access.users.title')"
-    :description="query.data.value?.login"
     :back-to="returnTo"
     :loading="query.isLoading.value"
     :error="pageError"

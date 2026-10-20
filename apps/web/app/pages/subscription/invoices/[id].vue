@@ -10,7 +10,7 @@ const view = computed(() => data.value ? subscriptionInvoiceView(data.value, t, 
 definePageMeta({ middleware: 'customer-commercial' })
 </script>
 <template>
-  <SharedRecordPage  :title="data?.number ?? t('subscription.invoices.title')" :description="data ? `${data.period_start} → ${data.period_end}` : undefined" back-to="/subscription/invoices" :back-label="t('subscription.invoices.back')"  :loading="allowed && pending" :error="allowed ? error : undefined" @retry="refresh">
+  <SharedRecordPage  :title="data?.number ?? t('subscription.invoices.title')" back-to="/subscription/invoices" :back-label="t('subscription.invoices.back')"  :loading="allowed && pending" :error="allowed ? error : undefined" @retry="refresh">
 
     <SharedForbiddenState v-if="!allowed" />
     <SharedInvoiceLines v-else-if="view" layout="list" v-bind="view" />

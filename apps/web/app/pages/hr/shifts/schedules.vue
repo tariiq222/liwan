@@ -78,7 +78,6 @@ const createTo = computed(() => canManage.value ? { path: '/hr/shifts/schedules/
   <SharedListPage
     v-if="isListRoute"
     :title="t('hrShifts.schedulesTitle')"
-    :description="t('hrShifts.schedulesDescription')"
     :create-to="createTo"
     :create-label="t('hrShifts.newSchedule')"
     create-test-id="hr-shifts-schedules-new"

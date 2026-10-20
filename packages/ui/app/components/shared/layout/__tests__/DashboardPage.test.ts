@@ -11,11 +11,10 @@ const stubs = {
     setup(props, { attrs, slots }) { return () => h('div', { ...attrs, 'data-layout-width': props.width }, slots.default?.()) },
   }),
   SharedPageHeader: defineComponent({
-    props: { title: String, description: String, hideTitle: Boolean },
+    props: { title: String, hideTitle: Boolean },
     setup(props, { slots }) {
       return () => h('header', { 'data-hide-title': props.hideTitle || undefined }, [
         props.hideTitle ? null : h('h1', props.title),
-        props.description && !props.hideTitle ? h('p', props.description) : null,
         slots.actions ? h('div', { 'data-actions': '' }, slots.actions()) : null,
       ])
     },
@@ -93,7 +92,7 @@ describe('SharedChartPanel span and size', () => {
 
 describe('SharedDashboardPage', () => {
   it('renders header, labelled metric row and chart grid in that order', async () => {
-    const html = await renderShared('DashboardPage', { title: 'Projects dashboard', description: 'All projects' }, {
+    const html = await renderShared('DashboardPage', { title: 'Projects dashboard' }, {
       actions: () => h('button', 'Export'),
       metrics: () => [h('div', { 'data-metric': '' }, '4'), h('div', { 'data-metric': '' }, '2')],
       default: () => h('section', { 'data-chart-panel': '' }),

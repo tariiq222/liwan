@@ -28,7 +28,6 @@ const createTo = computed(() => canManage.value ? { path: '/hr/assets/categories
   <SharedListPage
     v-if="isListRoute"
     :title="t('hrAssets.categories.title')"
-    :description="t('hrAssets.categories.description')"
     :back-to="backTo"
     :back-label="t('nav.assets')"
     :create-to="createTo"

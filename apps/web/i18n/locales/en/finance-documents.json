@@ -7,8 +7,7 @@
         "record": "Customer invoice",
         "partner": "Customer",
         "partnerPlaceholder": "Choose a customer",
-        "empty": "No customer invoices yet.",
-        "description": "Customer invoices from draft to payment."
+        "empty": "No customer invoices yet."
       },
       "out_refund": {
         "title": "Credit notes",
@@ -16,8 +15,7 @@
         "record": "Credit note",
         "partner": "Customer",
         "partnerPlaceholder": "Choose a customer",
-        "empty": "No credit notes yet.",
-        "description": "Amounts returned to customers or deducted from their invoices."
+        "empty": "No credit notes yet."
       },
       "in_invoice": {
         "title": "Vendor bills",
@@ -25,8 +23,7 @@
         "record": "Vendor bill",
         "partner": "Vendor",
         "partnerPlaceholder": "Choose a vendor",
-        "empty": "No vendor bills yet.",
-        "description": "Purchase bills owed to vendors."
+        "empty": "No vendor bills yet."
       },
       "in_refund": {
         "title": "Vendor refunds",
@@ -34,8 +31,7 @@
         "record": "Vendor refund",
         "partner": "Vendor",
         "partnerPlaceholder": "Choose a vendor",
-        "empty": "No vendor refunds yet.",
-        "description": "Amounts vendors return or deduct from their bills."
+        "empty": "No vendor refunds yet."
       }
     },
     "countTag": "{count} document | {count} documents",
@@ -192,7 +188,6 @@
     },
     "payments": {
       "title": "Payments",
-      "description": "Money received from customers and paid to vendors.",
       "new": "Register payment",
       "search": "Search by number, memo or name",
       "empty": "No payments yet.",

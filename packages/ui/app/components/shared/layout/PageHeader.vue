@@ -4,7 +4,6 @@ import type { PageHeaderTag } from '../../../utils/pageHeaderTag'
 
 const props = withDefaults(defineProps<{
   title: string
-  description?: string
   /** Replaces the icon the shell publishes for the current application (the chip keeps the brand colour). */
   icon?: string
   /** Short facts about the page's subject (state, owner, count), drawn inline after the title; a tag with `to` is a link. */
@@ -24,7 +23,7 @@ const props = withDefaults(defineProps<{
 }>(), { sticky: true })
 
 const { t } = useI18n()
-usePageHeader(() => props.title, () => props.description)
+usePageHeader(() => props.title)
 // One back rule: the page that supplies a target gets the control, and Escape
 // leaves for that same target. useEscapeBack is inert without a target, so the
 // keyboard route out and the visible one cannot drift apart. The trail below the
@@ -92,8 +91,8 @@ const trail = computed<HeaderTrailStep[]>(() => {
             <SharedHeaderTags :tags="props.tags" />
           </slot>
         </div>
-        <div v-if="trail.length || $slots.back || props.description" class="mt-0.5 flex min-w-0 items-center gap-x-2 text-xs/5 text-muted">
-          <nav v-if="trail.length || $slots.back" data-testid="page-header-trail" :aria-label="$t('nav.breadcrumb')" class="flex shrink-0 items-center gap-1.5">
+        <div v-if="trail.length || $slots.back" class="mt-0.5 flex min-w-0 items-center gap-x-2 text-xs/5 text-muted">
+          <nav data-testid="page-header-trail" :aria-label="$t('nav.breadcrumb')" class="flex shrink-0 items-center gap-1.5">
             <slot name="back">
               <template v-for="(step, index) in trail" :key="step.label">
                 <UIcon v-if="index" name="i-lucide-chevron-left" aria-hidden="true" class="size-3.5 text-dimmed ltr:rotate-180" />
@@ -102,8 +101,6 @@ const trail = computed<HeaderTrailStep[]>(() => {
               </template>
             </slot>
           </nav>
-          <span v-if="(trail.length || $slots.back) && props.description" aria-hidden="true" class="text-dimmed">·</span>
-          <p v-if="props.description" class="min-w-0 truncate text-start" :title="props.description">{{ props.description }}</p>
         </div>
       </div>
     </template>

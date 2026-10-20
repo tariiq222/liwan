@@ -81,7 +81,6 @@ function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
   <SharedListPage
     v-else-if="showList"
     :title="t('tasks.title')"
-    :description="t('tasks.description')"
     :create-to="createTo"
     :create-label="t('tasks.new')"
     :views="views"

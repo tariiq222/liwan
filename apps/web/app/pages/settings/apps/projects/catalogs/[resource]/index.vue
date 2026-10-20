@@ -154,7 +154,7 @@ async function confirmAction() {
 
 <template>
   <SharedSettingsPage>
-    <SharedPageHeader :title="title" :description="t('projects.refresh.settings.catalogDescription')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')">
+    <SharedPageHeader :title="title" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')">
       <UButton v-if="resource && !forbidden" icon="i-lucide-plus" data-shortcut-create aria-keyshortcuts="c" :disabled="!hydrated" :label="t('settings.projects.catalogs.add')" @click="openNew" />
     </SharedPageHeader>
     <p v-if="!resource" class="text-muted">{{ t('settings.projects.catalogs.notFound') }}</p>

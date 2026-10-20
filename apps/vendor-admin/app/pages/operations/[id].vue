@@ -98,7 +98,7 @@ async function retry() {
 
 <template>
 
-    <SharedRecordPage :title="data ? t(`vendor.operations.types.${data.type}`, data.type) : t('vendor.operations.details')" :description="data ? (isShared ? t(`vendor.operations.reasons.${data.reason}`) : data.reason) : undefined" :back-to="backTo" :loading="pending" :error="error" @retry="refresh">
+    <SharedRecordPage :title="data ? t(`vendor.operations.types.${data.type}`, data.type) : t('vendor.operations.details')" :back-to="backTo" :loading="pending" :error="error" @retry="refresh">
       <template #actions>
         <UButton color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="pending" @click="manualRefresh">{{ t('vendor.common.refresh') }}</UButton>
       </template>
@@ -121,6 +121,7 @@ async function retry() {
           </SharedInlineConfirm>
           <UAlert v-if="actionError" class="mt-3" color="error" :title="t('vendor.errors.action')" />
         </SharedRecordSection>
+        <p v-if="data.reason" class="text-sm text-muted" data-testid="operation-reason">{{ isShared ? t(`vendor.operations.reasons.${data.reason}`) : data.reason }}</p>
         <div v-if="isShared || needsAttention || backupUnverified" class="space-y-3">
           <UAlert v-if="isShared" color="info" variant="subtle" :title="t('vendor.operations.sharedExecution')" :description="t('vendor.operations.sharedExecutionHint')" />
           <UAlert v-if="needsAttention" color="warning" variant="subtle" :title="t(deploymentIncomplete ? 'vendor.operations.deploymentIncomplete' : 'vendor.operations.needsAttention')" :description="t('vendor.operations.reconcileHint')" />

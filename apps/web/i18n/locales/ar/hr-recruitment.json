@@ -1,7 +1,6 @@
 {
   "hrRecruitment": {
     "title": "التوظيف",
-    "description": "الوظائف والمتقدمون ومراحل التوظيف.",
     "searchApplicants": "بحث باسم المتقدم…",
     "searchValue": "بحث: {value}",
     "newApplicant": "متقدم جديد",
@@ -84,7 +83,6 @@
     },
     "jobs": {
       "title": "الوظائف",
-      "description": "الوظائف المفتوحة وعدد المتقدمين لكل وظيفة.",
       "new": "وظيفة جديدة",
       "search": "بحث باسم الوظيفة…",
       "emptyTitle": "لا وظائف",

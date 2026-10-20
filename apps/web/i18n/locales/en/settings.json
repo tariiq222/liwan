@@ -177,7 +177,6 @@
         "charterStepsHint": "The steps a charter of this classification walks through. Basics and review are always present.",
         "charterStepsColumn": "{count} step | {count} steps"
       },
-      "scopeHint": "Policies, defaults, and shared reference data for this company. Existing projects change only where a section says they do.",
       "creation": {
         "title": "Project creation policy",
         "hint": "Controls who can start a project and what must be entered at creation. These rules do not update existing projects."
@@ -282,7 +281,6 @@
       }
     },
     "overview": {
-      "description": "Set up the company, its team, its apps and the system from one place.",
       "separator": ", "
     }
   }

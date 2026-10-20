@@ -4,7 +4,7 @@ import { ENTRIES_PATH } from './entryPaths'
 import { useListFilterQuery, useListLocation } from '../invoices/listLocation'
 
 /**
- * The heading of the journal entries list page: title, description, the result count as a tag and the create link,
+ * The heading of the journal entries list page: title, the result count as a tag and the create link,
  * which carries the list's filters as its returnTo. The page owns the SharedListPage shell and EntryList draws the
  * card in it; `background` is the list behind the create panel, so its header is hidden. The result is reactive so
  * `v-bind` in the page template unwraps the computed values.
@@ -21,7 +21,6 @@ export function useEntryListPage(background = false) {
   const createTo = computed(() => can('finance.entries.manage') ? { path: `${ENTRIES_PATH}/new`, query: { returnTo: location.value } } : undefined)
   return reactive({
     title: t('financeAccounting.entries.title'),
-    description: t('financeAccounting.entries.description'),
     tags,
     createTo,
     createLabel: t('financeAccounting.entries.new'),

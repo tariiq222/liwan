@@ -51,7 +51,7 @@ const columns = computed<TableColumn<AuditEvent>[]>(() => [
 ])
 </script>
 <template>
-<SharedListPage :title="t('vendor.audit.title')" :description="t('vendor.audit.description')">
+<SharedListPage :title="t('vendor.audit.title')">
 
 <template #filters><SharedFilterBar :active-count="auditFilterCount(filters)" @clear="router.replace('/audit')">
       <template #search><UInput v-model="search" :aria-label="t('vendor.audit.search')" :placeholder="t('vendor.audit.search')" icon="i-lucide-search" :disabled="!hydrated" @update:model-value="patchText()" /></template>

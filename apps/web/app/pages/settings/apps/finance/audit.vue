@@ -16,7 +16,7 @@ const tags = computed<PageHeaderTag[]>(() => query.data.value
 
 <template>
   <SharedSettingsPage width="list">
-    <SharedPageHeader :title="t('financeGovernance.audit.title')" :description="t('financeGovernance.audit.description')" :tags="tags" />
+    <SharedPageHeader :title="t('financeGovernance.audit.title')" :tags="tags" />
     <AuditList />
   </SharedSettingsPage>
 </template>

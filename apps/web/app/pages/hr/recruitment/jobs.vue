@@ -97,7 +97,6 @@ function jobTo(job: HrRecruitmentJob) {
   <SharedListPage
     v-if="isJobsRoute"
     :title="t('hrRecruitment.jobs.title')"
-    :description="t('hrRecruitment.jobs.description')"
     :back-to="backTo"
     :back-label="t('hrRecruitment.title')"
     :create-to="createTo"

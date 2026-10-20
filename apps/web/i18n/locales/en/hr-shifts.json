@@ -1,13 +1,10 @@
 {
   "hrShifts": {
     "title": "Shifts",
-    "description": "Work schedules and the employees they are assigned to.",
     "new": "Assign shift",
     "schedules": "Work schedules",
     "schedulesTitle": "Work schedules",
-    "schedulesDescription": "The work schedules assigned to employees for a period.",
     "newSchedule": "New work schedule",
-    "scheduleDescription": "The daily work-time lines of this schedule.",
     "editSchedule": "Edit schedule",
     "archive": "Archive",
     "archiveConfirm": "Archive {name}? A schedule still assigned to an employee cannot be archived.",

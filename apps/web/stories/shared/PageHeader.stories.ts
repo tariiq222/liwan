@@ -28,7 +28,7 @@ export const WithActions: Story = {
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')" :description="t('tasks.description')"><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton><UButton color="neutral" variant="outline">{{ t('taskLifecycle.archivedTasks') }}</UButton></template></PageHeader></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')"><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton><UButton color="neutral" variant="outline">{{ t('taskLifecycle.archivedTasks') }}</UButton></template></PageHeader></PageContainer></main>`,
   }),
 }
 
@@ -38,7 +38,7 @@ export const WithKpiToggle: Story = {
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')" :description="t('tasks.description')" kpi-toggle><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton></template></PageHeader></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')" kpi-toggle><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton></template></PageHeader></PageContainer></main>`,
   }),
 }
 
@@ -72,7 +72,7 @@ export const WithTags: Story = {
       ]
       return { t, tags }
     },
-    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')" :description="t('tasks.description')" :tags="tags"><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton><UButton color="neutral" variant="outline">{{ t('taskLifecycle.archivedTasks') }}</UButton></template></PageHeader></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')" :tags="tags"><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton><UButton color="neutral" variant="outline">{{ t('taskLifecycle.archivedTasks') }}</UButton></template></PageHeader></PageContainer></main>`,
   }),
 }
 
@@ -104,7 +104,7 @@ export const TrailUnderTitle: Story = {
       ])
       return { t }
     },
-    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('nav.reports')" :description="t('projects.description')"><template #actions><UButton icon="i-lucide-plus">{{ t('projects.new') }}</UButton></template></PageHeader><div class="rounded-card bg-default p-6 text-sm text-muted ring ring-default">{{ t('app.noResults') }}</div></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('nav.reports')"><template #actions><UButton icon="i-lucide-plus">{{ t('projects.new') }}</UButton></template></PageHeader><div class="rounded-card bg-default p-6 text-sm text-muted ring ring-default">{{ t('app.noResults') }}</div></PageContainer></main>`,
   }),
 }
 
@@ -114,7 +114,7 @@ export const TitleAndDescription: Story = {
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="webvue-shell-main"><PageContainer width="form"><PageHeader :title="t('account.title')" :description="t('account.description')" /></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="form"><PageHeader :title="t('account.title')" /></PageContainer></main>`,
   }),
 }
 
@@ -153,7 +153,6 @@ export const UnifiedHeaderWithFilters: Story = {
           <!-- 1. ترويسة الصفحة وإجراءاتها (PageHeader & Actions) -->
           <PageHeader
             :title="t('projects.title')"
-            :description="t('projects.description')"
             back-to="/projects"
             :back-label="t('projects.title')"
           >
@@ -229,7 +228,7 @@ export const StickyHeading: Story = {
   render: () => ({
     components: { PageContainer, PageHeader, RecordSection },
     setup: () => ({ t: useI18n().t, rows: [1, 2, 3, 4, 5, 6, 7, 8] }),
-    template: `<div class="webvue-shell" style="height: 30rem; overflow-y: auto"><main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('projects.title')" :description="t('projects.description')"><template #actions><UButton icon="i-lucide-plus">{{ t('projects.new') }}</UButton></template></PageHeader><div class="grid gap-(--webvue-gap-card)"><RecordSection v-for="row in rows" :key="row" variant="panel" :title="t('projects.title') + ' ' + row"><p class="text-sm text-muted">{{ t('projects.description') }}</p></RecordSection></div></PageContainer></main></div>`,
+    template: `<div class="webvue-shell" style="height: 30rem; overflow-y: auto"><main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('projects.title')"><template #actions><UButton icon="i-lucide-plus">{{ t('projects.new') }}</UButton></template></PageHeader><div class="grid gap-(--webvue-gap-card)"><RecordSection v-for="row in rows" :key="row" variant="panel" :title="t('projects.title') + ' ' + row"><p class="text-sm text-muted">{{ t('projects.description') }}</p></RecordSection></div></PageContainer></main></div>`,
   }),
 }
 

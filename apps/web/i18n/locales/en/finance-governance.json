@@ -3,7 +3,6 @@
     "forbidden": "You do not have permission to view this page.",
     "closing": {
       "title": "Fiscal year closing",
-      "description": "Move income and expense balances to retained earnings, then lock the year. A close cannot be undone.",
       "countTag": "{count} year | {count} years",
       "empty": "There are no fiscal years yet. Years appear once the first entry is posted.",
       "yearsTitle": "Fiscal years",
@@ -60,7 +59,6 @@
     },
     "zatca": {
       "title": "E-invoicing (ZATCA)",
-      "description": "Connect sales journals to ZATCA and follow the invoices still waiting.",
       "modes": {
         "sandbox": "Sandbox",
         "preprod": "Pre-production",
@@ -112,7 +110,6 @@
     },
     "audit": {
       "title": "Finance audit log",
-      "description": "An immutable record of sensitive actions: who did them, when and on which record. Only field names are logged, never values.",
       "countTag": "{count} event | {count} events",
       "footer": "Showing {shown} of {total} event | Showing {shown} of {total} events",
       "empty": "There are no events in the log yet.",

@@ -56,7 +56,6 @@
     },
     "today": {
       "title": "Today",
-      "description": "What needs your action now, then the overall status.",
       "attentionTitle": "Needs your action",
       "nothing": "Nothing needs your action right now",
       "nothingHint": "Everything is on track. Anything that needs follow-up will appear here.",
@@ -303,7 +302,6 @@
     },
     "audit": {
       "title": "Audit log",
-      "description": "Recorded vendor workspace actions.",
       "empty": "No audit entries found.",
       "actor": "Actor",
       "subject": "Subject",
@@ -448,7 +446,6 @@
     },
     "packages": {
       "title": "Legacy packages",
-      "description": "Define what each customer can use, review its limits, then make a version available for new customers.",
       "create": "Create package",
       "empty": "There are no legacy packages.",
       "noResults": "No packages match these filters. Clear the filters or try another name.",
@@ -542,7 +539,6 @@
     },
     "bundles": {
       "title": "Bundles",
-      "description": "The app groups plans are built from: apps, limits, prices and status.",
       "create": "New bundle",
       "search": "Search bundles",
       "noResults": "No matching bundles.",
@@ -564,7 +560,6 @@
     },
     "plans": {
       "title": "Plans",
-      "description": "Commercial plans: price, bundles, limits and subscription policies.",
       "create": "New plan",
       "search": "Search plans",
       "noResults": "No matching plans.",
@@ -817,7 +812,6 @@
     },
     "customers": {
       "title": "Customers",
-      "description": "Customer subscriptions, terms, activation state and invoices.",
       "search": "Search by client name",
       "empty": "No commercial customers yet.",
       "noResults": "No customers match the filters.",
@@ -960,7 +954,6 @@
         "noneActive": "No custom terms; plan terms apply."
       },
       "change": {
-        "description": "Quote, then place an order on the customer's behalf.",
         "previewRejected": "The server returned a preview, which cannot be ordered. Try again.",
         "onBehalf": "You are making this change on the customer's behalf.",
         "extraBranches": "Extra branches",
@@ -1057,7 +1050,6 @@
     },
     "invoices": {
       "title": "Invoices and collection",
-      "description": "Commercial customer invoices and collection state.",
       "notOfficial": "Not an official tax invoice",
       "notOfficialHint": "A commercial invoice for tracking only; it does not replace an e-tax invoice.",
       "empty": "No invoices yet.",

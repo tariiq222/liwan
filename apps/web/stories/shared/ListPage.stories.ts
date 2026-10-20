@@ -49,7 +49,7 @@ const makePage = (withBack: boolean) => ({
     ])
     return { t, views, columns, rows, rowTo: (row: Row) => `/projects/${row.id}`, createTo: { path: '/projects/new', query: { from: 'list-page' } } }
   },
-  template: `<ListPage :title="t('projects.title')" :description="t('projects.description')" :create-to="createTo" :create-label="t('nav.newProject')" :views="views"${withBack ? ` back-to="/projects" :back-label="t('projects.backToProjects')"` : ''}>
+  template: `<ListPage :title="t('projects.title')" :create-to="createTo" :create-label="t('nav.newProject')" :views="views"${withBack ? ` back-to="/projects" :back-label="t('projects.backToProjects')"` : ''}>
     <template #actions><UButton color="neutral" variant="outline">{{ t('projects.filters.archived') }}</UButton></template>
     <template #filters>
       <FilterBar inline><template #search><UInput icon="i-lucide-search" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" /></template></FilterBar>

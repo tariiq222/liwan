@@ -133,7 +133,6 @@ async function confirmRemove() {
   <SharedListPage
     v-if="isListRoute"
     :title="t('hrShifts.title')"
-    :description="t('hrShifts.description')"
     :create-to="createTo"
     :create-label="t('hrShifts.new')"
     create-test-id="hr-shifts-new"

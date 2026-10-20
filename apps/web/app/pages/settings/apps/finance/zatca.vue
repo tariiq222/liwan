@@ -20,7 +20,7 @@ const tags = computed<PageHeaderTag[]>(() => {
 
 <template>
   <SharedSettingsPage width="detail">
-    <SharedPageHeader :title="t('financeGovernance.zatca.title')" :description="t('financeGovernance.zatca.description')" :tags="tags" />
+    <SharedPageHeader :title="t('financeGovernance.zatca.title')" :tags="tags" />
     <SharedForbiddenState v-if="!allowed" :description="t('financeGovernance.forbidden')" />
     <ZatcaView v-else />
   </SharedSettingsPage>

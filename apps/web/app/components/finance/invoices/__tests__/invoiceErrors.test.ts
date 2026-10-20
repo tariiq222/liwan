@@ -33,7 +33,7 @@ describe('document kinds', () => {
   it('each kind has its own list path and title wording in both languages', () => {
     expect(new Set(Object.values(INVOICE_KINDS).map(kind => kind.listPath)).size).toBe(4)
     for (const moveType of Object.keys(INVOICE_KINDS)) {
-      for (const code of ['ar', 'en']) expect(Object.keys(locale(code).kinds[moveType]).sort()).toEqual(['description', 'empty', 'new', 'partner', 'partnerPlaceholder', 'record', 'title'])
+      for (const code of ['ar', 'en']) expect(Object.keys(locale(code).kinds[moveType]).sort()).toEqual(['empty', 'new', 'partner', 'partnerPlaceholder', 'record', 'title'])
     }
   })
 

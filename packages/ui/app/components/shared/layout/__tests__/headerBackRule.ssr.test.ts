@@ -105,7 +105,7 @@ describe('the one back rule in the rendered page header', () => {
   })
 
   it('renders no back control when the page supplies neither a target nor a slot', async () => {
-    const html = await renderHeader({ title: 'مهامي', description: 'وصف عام' })
+    const html = await renderHeader({ title: 'مهامي' })
     expect(html).not.toContain('<a href')
     expect(html).toContain('مهامي')
   })
@@ -116,13 +116,6 @@ describe('the one back rule in the rendered page header', () => {
     })
     expect(html).toContain('عودة مخصصة')
     expect(html).toContain('href="/projects?mine=1&amp;q=late"')
-  })
-
-  it('keeps the page description, which the shell no longer repeats', async () => {
-    for (const path of ['/projects/1', '/tasks', '/hr/employees/new']) {
-      const html = await renderHeader({ title: 'عنوان', description: 'وصف عام', backTo: path })
-      expect(html, path).toContain('وصف عام')
-    }
   })
 
   it('is the page H1 outside the project frame', async () => {

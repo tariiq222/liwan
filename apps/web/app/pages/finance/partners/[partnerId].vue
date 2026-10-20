@@ -59,7 +59,6 @@ const menuActions = computed<RowAction[]>(() => {
     v-if="isDetail"
     :keep-content="!!partner"
     :title="partner?.name || t('finance.partners.recordTitle')"
-    :description="[partner?.city, partner?.country?.name].filter(Boolean).join(' · ') || undefined"
     :tags="headerTags"
     :back-to="backTo"
     :loading="query.isLoading.value"

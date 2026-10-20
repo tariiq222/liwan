@@ -147,7 +147,6 @@ async function submit() {
   <SharedRecordPage
     :keep-content="!!equipment"
     :title="equipment?.name || t('hrAssets.title')"
-    :description="equipment?.category?.name || t('hrAssets.noCategory')"
     :back-to="backTo"
     :loading="query.isLoading.value"
     :error="pageError"

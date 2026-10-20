@@ -2,7 +2,6 @@
   "integrations": {
     "title": "Government and bank links",
     "nav": "Integrations",
-    "description": "Status of the links to ZATCA and the banks. This page shows status only.",
     "empty": "No links yet",
     "forbidden": "You do not have permission to view integration status.",
     "kind": {

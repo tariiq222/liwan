@@ -9,7 +9,6 @@ import type { PageHeaderTag } from '../../../utils/pageHeaderTag'
 
 const props = defineProps<{
   title: string
-  description?: string
   tags?: PageHeaderTag[]
   hideHeader?: boolean
   /** The metrics row is the page's KPI strip: the header draws the show/hide toggle and the row follows it. */
@@ -21,7 +20,7 @@ const { shown: kpisShown } = useKpiVisibility()
 
 <template>
   <SharedPageContainer width="list" data-template="dashboard-page">
-    <SharedPageHeader :title="props.title" :description="props.description" :tags="props.tags" :hide-title="props.hideHeader" :kpi-toggle="props.kpiToggle">
+    <SharedPageHeader :title="props.title" :tags="props.tags" :hide-title="props.hideHeader" :kpi-toggle="props.kpiToggle">
       <template v-if="$slots.actions" #actions>
         <slot name="actions" />
       </template>

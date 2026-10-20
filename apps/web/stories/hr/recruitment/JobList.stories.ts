@@ -33,7 +33,7 @@ const meta = {
     layout: 'fullscreen',
     ...storyContext('apps/web/app/pages/hr/recruitment/jobs.vue:97', 'قائمة الوظائف: نطاق النشطة والمؤرشفة، والبحث، وجدول يعرض العدد المطلوب وعدد المتقدمين القيد لكل وظيفة.'),
   },
-  args: { title: 'الوظائف', description: 'الوظائف المفتوحة وعدد المتقدمين لكل وظيفة.', createTo: '/hr/recruitment/jobs/new', createLabel: 'وظيفة جديدة', createTestId: 'hr-recruitment-job-new' },
+  args: { title: 'الوظائف', createTo: '/hr/recruitment/jobs/new', createLabel: 'وظيفة جديدة', createTestId: 'hr-recruitment-job-new' },
   render: args => ({
     components: { ListPage, ListCard, DataTable, SegmentedControl, StatusBadge },
     setup: () => ({ args, t: useI18n().t, jobs, columns }),

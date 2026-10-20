@@ -262,7 +262,6 @@ async function openProject(id: number) {
   <SharedListPage
     :title="t(filters.mine ? 'nav.myProjects' : 'nav.allProjects')"
     :tags="countTags"
-    :description="t(filters.mine ? 'projects.myDescription' : 'projects.description')"
     :create-to="createTo"
     :create-label="t('projects.new')"
     create-test-id="project-new"

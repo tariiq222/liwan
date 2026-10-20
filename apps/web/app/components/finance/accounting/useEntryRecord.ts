@@ -104,7 +104,6 @@ export function useEntryRecord() {
     header: reactive({
       keepContent: computed(() => !!entry.value),
       title,
-      description: t('financeAccounting.entries.record'),
       tags,
       backTo,
       loading: query.isLoading,

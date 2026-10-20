@@ -38,14 +38,13 @@ function loadShared(name: string): Component {
     name,
     props: {
       title: String,
-      description: String,
       backTo: [String, Object],
       backLabel: String,
       width: { type: String, default: 'list' },
     },
     setup(props) {
       return {
-        props, hideBack: false, headerDescription: props.description,
+        props, hideBack: false,
         // The template's script bindings: this harness compiles the template alone, and the
         // trail is the page's own target, as SharedPageHeader builds it without a published one.
         trail: props.backTo ? [{ label: props.backLabel ?? 'Back', to: props.backTo }] : [],
@@ -77,10 +76,10 @@ async function renderShared(
 }
 
 describe('shared composition rendered contracts', () => {
-  it('renders PageHeader title, trail, description, and actions in order', async () => {
+  it('renders PageHeader title, trail, and actions in order', async () => {
     const html = await renderShared(
       'PageHeader',
-      { title: 'Tasks', description: 'Track delivery', backTo: '/tasks', backLabel: 'Back' },
+      { title: 'Tasks', backTo: '/tasks', backLabel: 'Back' },
       {
         title: () => h('span', { 'data-slot-content': 'title' }, 'Title slot'),
         actions: () => h('button', { type: 'button' }, 'Create'),
@@ -90,7 +89,6 @@ describe('shared composition rendered contracts', () => {
     expect(html).toContain('href="/tasks"')
     expect(html).toContain('Back')
     expect(html).toContain('Title slot')
-    expect(html).toContain('Track delivery')
     expect(html).toContain('Create')
     // The trail sits under the title (DESIGN.md §3), so the reading order is title, trail, actions.
     expect(html.indexOf('Title slot')).toBeLessThan(html.indexOf('Back'))

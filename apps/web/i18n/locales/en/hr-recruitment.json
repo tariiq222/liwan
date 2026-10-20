@@ -1,7 +1,6 @@
 {
   "hrRecruitment": {
     "title": "Recruitment",
-    "description": "Job positions, applicants and the recruitment stages.",
     "searchApplicants": "Search applicants by name…",
     "searchValue": "Search: {value}",
     "newApplicant": "New applicant",
@@ -84,7 +83,6 @@
     },
     "jobs": {
       "title": "Job positions",
-      "description": "Open job positions and how many applicants each one holds.",
       "new": "New job position",
       "search": "Search job positions by name…",
       "emptyTitle": "No job positions",

@@ -70,7 +70,7 @@ function setWindow(value: string) {
 </script>
 
 <template>
-  <SharedListPage :title="t('hr.reports.title')" :description="t('hr.reports.description')" :kpi-toggle="!forbidden">
+  <SharedListPage :title="t('hr.reports.title')" :kpi-toggle="!forbidden">
     <SharedForbiddenState v-if="forbidden" :description="t('hr.reports.forbidden')" />
     <div v-else class="webvue-page-stack">
       <SharedRecordSection :title="t('hr.reports.saudization.title')" data-testid="hr-saudization">

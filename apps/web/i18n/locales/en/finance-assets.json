@@ -16,7 +16,6 @@
     },
     "assets": {
       "title": "Fixed assets",
-      "description": "The company's assets and their depreciation boards.",
       "new": "New asset",
       "record": "Fixed asset",
       "empty": "No fixed assets yet.",

@@ -16,7 +16,7 @@ const cards = computed(() => visibleSettingsSections(me.value).map(({ section, e
 
 <template>
   <SharedSettingsPage data-testid="settings-overview">
-    <SharedPageHeader :title="t('settings.title')" :description="t('settings.overview.description')" />
+    <SharedPageHeader :title="t('settings.title')" />
     <section v-if="cards.length" :aria-label="t('settings.title')" class="grid gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-3">
       <SharedLinkCard v-for="card in cards" :key="card.id" :to="card.to" :icon="card.icon" :title="card.title" :description="card.description" :data-testid="`settings-section-${card.id}`" />
     </section>

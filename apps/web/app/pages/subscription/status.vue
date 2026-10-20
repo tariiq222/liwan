@@ -29,7 +29,7 @@ definePageMeta({ middleware: 'customer-commercial' })
 </script>
 <template>
   <SharedSettingsPage width="form">
-    <SharedPageHeader :title="t('subscription.status.title')" :description="t('subscription.status.description')" back-to="/subscription" />
+    <SharedPageHeader :title="t('subscription.status.title')" back-to="/subscription" />
     <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" @retry="refresh">
       <SharedRecordSection variant="panel" :title="t('subscription.status.order')">

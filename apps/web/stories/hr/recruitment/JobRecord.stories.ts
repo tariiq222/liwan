@@ -24,7 +24,7 @@ const meta = {
     layout: 'fullscreen',
     ...storyContext('apps/web/app/pages/hr/recruitment/jobs/[jobId].vue:102', 'سجل الوظيفة: بطاقة الهوية بحالتها، ونموذج الوظيفة داخل الصفحة بتذييل `SharedFormActions`، ووقائع العدد المطلوب والمتقدمين في الشريط الجانبي.'),
   },
-  args: { title: job.name, description: job.department?.name, backTo: '/hr/recruitment/jobs' },
+  args: { title: job.name, backTo: '/hr/recruitment/jobs' },
   render: args => ({
     components: { RecordPage, RecordSection, IdentityCard, PropertiesPanel, PropertyRow, FormActions, StatusBadge },
     setup: () => ({ args, job, t: useI18n().t }),

@@ -92,7 +92,7 @@ function exportCsv() {
 </script>
 
 <template>
-  <SharedDashboardPage :title="t('analytics.title')" :description="t('analytics.description')">
+  <SharedDashboardPage :title="t('analytics.title')">
     <template #actions>
       <UButton icon="i-lucide-download" variant="outline" color="neutral" :disabled="!data" data-testid="analytics-export" @click="exportCsv">{{ t('analytics.export') }}</UButton>
     </template>

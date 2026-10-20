@@ -51,7 +51,6 @@ const restoreActions = (task: Task): RowAction[] => [{ label: t('taskLifecycle.r
 <template>
   <SharedListPage
     :title="t('taskLifecycle.archivedTasks')"
-    :description="t('taskLifecycle.archivedTasksHint')"
     :back-to="backTo"
     :back-label="t('taskLifecycle.back')"
   >

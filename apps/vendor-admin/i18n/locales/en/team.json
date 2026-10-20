@@ -1,7 +1,6 @@
 {
   "team": {
     "title": "Team",
-    "description": "The accounts that sign in to the WebVue admin, their roles, and invitations for people joining.",
     "invite": "Invite a person",
     "empty": "No accounts yet.",
     "you": "You",

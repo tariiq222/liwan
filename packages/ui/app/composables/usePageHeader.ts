@@ -5,7 +5,6 @@ interface PageHeaderRegistration {
   owner: string
   route: string
   title: string
-  description?: string
 }
 
 const PAGE_HEADER_STATE_KEY = 'webvue-page-header'
@@ -14,10 +13,7 @@ function usePageHeaderState() {
   return useState<PageHeaderRegistration | null>(PAGE_HEADER_STATE_KEY, () => null)
 }
 
-export function usePageHeader(
-  title: MaybeRefOrGetter<string>,
-  description?: MaybeRefOrGetter<string | undefined>,
-) {
+export function usePageHeader(title: MaybeRefOrGetter<string>) {
   const route = useRoute()
   const state = usePageHeaderState()
   const owner = useId()
@@ -25,7 +21,6 @@ export function usePageHeader(
   watch(() => ({
     route: route.path,
     title: toValue(title),
-    description: description ? toValue(description) : undefined,
   }), (next, previous) => {
     // During navigation Vue may update the shared route before disposing the
     // outgoing page. Keep its title bound to the old route instead of letting

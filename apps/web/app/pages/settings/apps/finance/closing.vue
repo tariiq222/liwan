@@ -14,7 +14,7 @@ const tags = computed<PageHeaderTag[]>(() => years.data.value
 
 <template>
   <SharedSettingsPage width="detail">
-    <SharedPageHeader :title="t('financeGovernance.closing.title')" :description="t('financeGovernance.closing.description')" :tags="tags" />
+    <SharedPageHeader :title="t('financeGovernance.closing.title')" :tags="tags" />
     <SharedForbiddenState v-if="!allowed" :description="t('financeGovernance.forbidden')" />
     <ClosingView v-else />
   </SharedSettingsPage>

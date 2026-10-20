@@ -26,7 +26,7 @@ const meta = {
     layout: 'fullscreen',
     ...storyContext('apps/web/app/pages/hr/recruitment/[applicantId].vue:93', 'سجل المتقدم: بطاقة الهوية بحالة التوظيف، وضبط المرحلة والتقييم في المكان، وتأكيدات داخلية للرفض وإعادة المرحلة والتعيين، ووقائع السجل في الشريط الجانبي.'),
   },
-  args: { title: applicant.partner_name, description: applicant.job?.name, backTo: '/hr/recruitment' },
+  args: { title: applicant.partner_name, backTo: '/hr/recruitment' },
   render: args => ({
     components: { RecordPage, RecordSection, IdentityCard, PropertiesPanel, PropertyRow, InlineConfirm, StatusBadge },
     setup: () => ({ args, applicant, t: useI18n().t }),

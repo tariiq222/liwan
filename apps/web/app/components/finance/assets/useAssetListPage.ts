@@ -4,7 +4,7 @@ import { assetFiltersFromQuery, assetListParams } from './assetListParams'
 import { ASSETS_PATH } from './assetPaths'
 
 /**
- * The heading of the assets list page: title, description, the result count as a tag and the create link, which
+ * The heading of the assets list page: title, the result count as a tag and the create link, which
  * carries the list's filters as its returnTo. The page owns the SharedListPage shell and AssetList draws the card in
  * it; `background` is the list behind the create panel, so its header is hidden. The result is reactive so `v-bind`
  * in the page template unwraps the computed values.
@@ -21,7 +21,6 @@ export function useAssetListPage(background = false) {
   const createTo = computed(() => can('finance.assets.manage') ? { path: `${ASSETS_PATH}/new`, query: { returnTo: location.value } } : undefined)
   return reactive({
     title: t('financeAssets.assets.title'),
-    description: t('financeAssets.assets.description'),
     tags,
     createTo,
     createLabel: t('financeAssets.assets.new'),

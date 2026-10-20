@@ -27,7 +27,7 @@ function equipmentTo(row: HrEquipment) {
 </script>
 
 <template>
-  <SharedListPage :title="t('nav.myAssets')" :description="t('hrAssets.mine.description')">
+  <SharedListPage :title="t('nav.myAssets')">
     <SharedListCard>
       <SharedPageState :error="mine.error.value" :keep-content="items.length > 0" @retry="mine.refetch">
         <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t('hrAssets.mine.emptyTitle')" :description="t('hrAssets.mine.emptyHint')" />

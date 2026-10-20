@@ -93,7 +93,6 @@ export function useBudgetRecord() {
     header: reactive({
       keepContent: computed(() => !!budget.value),
       title,
-      description: t('financeBudgets.budgets.record'),
       tags,
       backTo,
       loading: query.isLoading,

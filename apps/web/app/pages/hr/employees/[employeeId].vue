@@ -47,7 +47,6 @@ const menuActions = computed<RowAction[]>(() => {
   <SharedRecordPage :keep-content="!!query.data.value"
     v-if="isDetail"
     :title="query.data.value?.name || t('hr.employee.title')"
-    :description="query.data.value?.job_title"
     :tags="headerTags"
     :back-to="backTo"
     :loading="query.isLoading.value"

@@ -125,7 +125,7 @@ async function retryNextPage() {
 </script>
 
 <template>
-  <SharedListPage data-testid="notification-center" :title="t('notifications.title')" :description="hydrated ? `${unreadCount} ${t('notifications.unread')}` : undefined">
+  <SharedListPage data-testid="notification-center" :title="t('notifications.title')">
     <template v-if="hydrated && unreadCount" #actions>
       <UButton
         v-if="hydrated && unreadCount"

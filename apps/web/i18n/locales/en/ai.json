@@ -1,7 +1,6 @@
 {
   "ai": {
     "title": "WebVue AI",
-    "tagline": "Your work's AI coordinator",
     "description": "Ask about your tasks and projects, and request what you want prepared. WebVue AI prepares, you approve.",
     "composer": {
       "placeholder": "Type your question or request…",

@@ -67,7 +67,7 @@ function clearFilters() {
 </script>
 
 <template>
-  <SharedListPage :title="t(`financeReports.reports.${config.key}.title`)" :description="t(`financeReports.reports.${config.key}.description`)" :tags="tags" kpi-toggle>
+  <SharedListPage :title="t(`financeReports.reports.${config.key}.title`)" :tags="tags" kpi-toggle>
     <SharedForbiddenState v-if="!allowed" :description="t('financeReports.forbidden')" />
     <div v-else class="webvue-page-stack">
       <SharedKpiStrip v-if="kpisShown && (loading || tiles.length)" :tiles="tiles" :loading="loading" :skeleton-count="3" :label="t('financeReports.kpi.label')" data-testid="finance-report-kpis" />

@@ -32,7 +32,6 @@ const backTo = computed(() => {
   return { path: '/notifications', query: listQuery }
 })
 const items = computed(() => (data.value?.pages ?? []).flatMap(page => page.items))
-const overdueCount = computed(() => data.value?.pages[0]?.overdue_count ?? items.value.length)
 const queryErrorMessage = computed(() => (
   error.value instanceof ApiError ? error.value.message : t('notifications.loadError')
 ))
@@ -60,7 +59,6 @@ async function retryNextPage() {
   <SharedRecordPage
     data-testid="notification-digest"
     :title="t('tasks.digest.title')"
-    :description="t('tasks.digest.count', { n: overdueCount }, overdueCount)"
     :back-to="backTo"
     :back-label="t('notifications.back')"
     :loading="isLoading && !idInvalid && !items.length"

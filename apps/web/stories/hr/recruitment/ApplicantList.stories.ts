@@ -49,7 +49,7 @@ const meta = {
     layout: 'fullscreen',
     ...storyContext('apps/web/app/pages/hr/recruitment.vue:123', 'قائمة المتقدمين: نطاق الحالة، ومرشحات الوظيفة والمرحلة من الرابط، وجدول `SharedDataTable bare` داخل بطاقة القائمة.'),
   },
-  args: { title: 'التوظيف', description: 'الوظائف والمتقدمون ومراحل التوظيف.', createTo: '/hr/recruitment/new', createLabel: 'متقدم جديد', createTestId: 'hr-recruitment-new' },
+  args: { title: 'التوظيف', createTo: '/hr/recruitment/new', createLabel: 'متقدم جديد', createTestId: 'hr-recruitment-new' },
   render: args => ({
     components: { ListPage, ListCard, DataTable, SegmentedControl, StatusBadge },
     setup: () => ({ args, t: useI18n().t, applicants, columns, statusTone }),

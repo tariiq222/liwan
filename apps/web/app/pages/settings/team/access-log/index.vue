@@ -47,7 +47,7 @@ function setDate(key: 'from' | 'to', value: string | null) { filters[key] = valu
 </script>
 
 <template>
-  <SharedListPage data-testid="settings-layout" :title="t('access.audit.title')" :description="forbidden ? undefined : t('access.audit.description')">
+  <SharedListPage data-testid="settings-layout" :title="t('access.audit.title')">
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
     <SharedListCard v-else>
       <template #filters>

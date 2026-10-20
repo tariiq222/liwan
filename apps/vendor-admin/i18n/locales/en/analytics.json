@@ -1,7 +1,6 @@
 {
   "analytics": {
     "title": "Analytics",
-    "description": "An executive view of revenue, collection, customers and risks.",
     "export": "Export CSV",
     "disclaimer": "These figures are commercial tracking computed from subscriptions and invoices. They are not official accounting or financial statements.",
     "scope": "Period {from} to {to}, compared with {previousFrom} to {previousTo}. Amounts in {currency}, before tax. MRR and ARR use list prices and ignore discounts.",

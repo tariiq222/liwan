@@ -1,7 +1,6 @@
 {
   "taskLifecycle": {
     "archivedTasks": "Archived tasks",
-    "archivedTasksHint": "Tasks you can restore",
     "restore": "Restore",
     "restored": "Task restored",
     "back": "Back",

@@ -1,7 +1,6 @@
 {
   "financeAnalytic": {
     "title": "Plans and cost centers",
-    "description": "The plans that group cost centers, and the cost centers income and expense items are spread over.",
     "forbidden": "You do not have permission to view plans and cost centers.",
     "saveError": "Could not save",
     "states": {

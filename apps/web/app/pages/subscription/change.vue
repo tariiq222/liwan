@@ -49,7 +49,7 @@ definePageMeta({ middleware: 'customer-commercial' })
 </script>
 <template>
   <SharedSettingsPage width="form">
-    <SharedPageHeader :title="t('subscription.change.title')" :description="t('subscription.change.description')" back-to="/subscription" />
+    <SharedPageHeader :title="t('subscription.change.title')" back-to="/subscription" />
     <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" :empty="!pending && !error && !plans.length" :empty-text="t('subscription.change.empty')" @retry="refresh">
       <form class="grid gap-(--webvue-gap-card)" @submit.prevent="review">

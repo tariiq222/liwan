@@ -35,7 +35,7 @@ const progress = computed(() => setup.data.value ? financeSetupProgress(setup.da
 </script>
 
 <template>
-  <SharedListPage :title="t('finance.overview.title')" :description="t('finance.overview.description')" kpi-toggle>
+  <SharedListPage :title="t('finance.overview.title')" kpi-toggle>
     <div class="webvue-page-stack">
       <SharedKpiStrip :tiles="tiles" :loading="loadingTiles" :label="t('finance.kpi.label')" data-testid="finance-kpi-strip" />
       <div class="grid gap-(--webvue-gap-card) lg:grid-cols-2">

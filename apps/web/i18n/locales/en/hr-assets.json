@@ -1,7 +1,6 @@
 {
   "hrAssets": {
     "title": "Assets and custody",
-    "description": "Employee devices, their custody and warranty dates.",
     "new": "New asset",
     "search": "Search by name or serial number…",
     "searchValue": "Search: {value}",
@@ -13,7 +12,6 @@
     "emptyTitle": "No assets yet",
     "emptyHint": "Add an asset to see it here and assign it to an employee.",
     "mine": {
-      "description": "The assets currently assigned to you.",
       "emptyTitle": "You hold no assets",
       "emptyHint": "Assets handed to you appear here."
     },
@@ -78,7 +76,6 @@
     },
     "categories": {
       "title": "Asset categories",
-      "description": "The categories available to assets.",
       "new": "New category",
       "emptyTitle": "No categories",
       "emptyHint": "Create a category to organise the assets.",

@@ -115,7 +115,7 @@ watch(status, (now, before) => {
 
 <template>
   <SharedPageContainer width="detail" data-template="ai-conversation">
-    <SharedPageHeader :title="t('ai.title')" :description="t('ai.tagline')" />
+    <SharedPageHeader :title="t('ai.title')" />
     <AiRunList v-if="!showUnavailable && !isDesktop" disclosure />
     <SharedEmptyState v-if="showUnavailable" :title="t('ai.errors.unavailable')" data-testid="ai-unavailable" />
     <section v-else class="flex min-h-[60svh] flex-col gap-4" :aria-label="t('ai.title')">

@@ -123,7 +123,6 @@ function applicantTo(applicant: HrApplicant) {
   <SharedListPage
     v-if="isListRoute"
     :title="t('nav.recruitment')"
-    :description="t('hrRecruitment.description')"
     :create-to="createTo"
     :create-label="t('hrRecruitment.newApplicant')"
     create-test-id="hr-recruitment-new"

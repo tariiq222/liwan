@@ -37,7 +37,7 @@ const columns = computed<TableColumn<TeamAccount>[]>(() => [
 </script>
 
 <template>
-  <SharedListPage :title="t('team.title')" :description="t('team.description')" :create-to="allowed ? '/team/new' : undefined" :create-label="t('team.invite')" create-test-id="team-invite">
+  <SharedListPage :title="t('team.title')" :create-to="allowed ? '/team/new' : undefined" :create-label="t('team.invite')" create-test-id="team-invite">
     <TeamInvitationLink v-if="invitation" :key="invitation.link" v-bind="invitation" @dismiss="team.dismissInvitation" />
     <UAlert v-if="notice" role="status" color="success" variant="subtle" icon="i-lucide-check" :title="t(notice.key, { name: notice.name })" data-testid="team-notice" />
 

@@ -178,7 +178,6 @@
     },
     "reports": {
       "title": "Reports",
-      "description": "Saudization and upcoming expiries across the company.",
       "forbidden": "Reports are available to HR managers only.",
       "saudization": {
         "title": "Saudization",
@@ -231,7 +230,6 @@
       "leave": {
         "countTag": "{count} request | {count} requests",
         "record": "Leave request",
-        "description": "Leave balances, requests and approvals.",
         "new": "Request leave",
         "allocate": "Grant balance",
         "balancesTitle": "Leave balances",

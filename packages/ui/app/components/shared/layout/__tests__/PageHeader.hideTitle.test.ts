@@ -19,10 +19,9 @@ const actions = { actions: () => h('button', 'Create') }
 const clean = (html: string) => html.replace(/<!--[\s\S]*?-->/g, '')
 
 describe('SharedPageHeader hideTitle', () => {
-  it('still draws the heading, description and back control by default', async () => {
-    const html = clean(await renderShared('PageHeader', { title: 'Tasks', description: 'All tasks', backTo: '/projects', backLabel: 'Back to projects' }, actions, options()))
+  it('still draws the heading and back control by default', async () => {
+    const html = clean(await renderShared('PageHeader', { title: 'Tasks', backTo: '/projects', backLabel: 'Back to projects' }, actions, options()))
     expect(html).toMatch(/<h1[^>]*>Tasks<\/h1>/)
-    expect(html).toContain('All tasks')
     expect(html).toContain('href="/projects"')
   })
 
@@ -33,11 +32,10 @@ describe('SharedPageHeader hideTitle', () => {
   })
 
   it('draws the actions alone when the title is hidden', async () => {
-    const html = clean(await renderShared('PageHeader', { title: 'Tasks', description: 'All tasks', backTo: '/projects', hideTitle: true }, actions, options()))
+    const html = clean(await renderShared('PageHeader', { title: 'Tasks', backTo: '/projects', hideTitle: true }, actions, options()))
     expect(html).toContain('data-slot="page-header"')
     expect(html).toContain('<button>Create</button>')
     expect(html).not.toMatch(/<h[12]/)
-    expect(html).not.toContain('All tasks')
     expect(html).not.toContain('href="/projects"')
   })
 
@@ -50,10 +48,9 @@ describe('SharedPageHeader hideTitle', () => {
   it('keeps naming the page for the shell and keeps the Escape target', async () => {
     registerTitle.mockClear()
     escapeTarget.mockClear()
-    await renderShared('PageHeader', { title: 'Tasks', description: 'All tasks', backTo: '/projects', hideTitle: true }, {}, options())
-    const [title, description] = registerTitle.mock.calls[0]!
+    await renderShared('PageHeader', { title: 'Tasks', backTo: '/projects', hideTitle: true }, {}, options())
+    const [title] = registerTitle.mock.calls[0]!
     expect(title()).toBe('Tasks')
-    expect(description()).toBe('All tasks')
     expect(escapeTarget.mock.calls[0]![0]()).toBe('/projects')
   })
 })

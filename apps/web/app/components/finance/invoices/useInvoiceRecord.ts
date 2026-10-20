@@ -120,7 +120,6 @@ export function useInvoiceRecord(moveType: FinanceMoveType) {
     header: reactive({
       keepContent: computed(() => !!invoice.value),
       title,
-      description: t(`financeDocuments.kinds.${moveType}.record`),
       tags,
       backTo,
       loading: query.isLoading,

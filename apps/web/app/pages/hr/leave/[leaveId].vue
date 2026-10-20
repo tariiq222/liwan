@@ -45,7 +45,6 @@ async function decide(kind: HrLeaveDecision) {
   <SharedRecordPage
     :keep-content="!!leave"
     :title="leave?.leave_type.name || t('hr.leave.record')"
-    :description="leave?.employee.name"
     :tags="headerTags"
     :back-to="backTo"
     :loading="query.isLoading.value"

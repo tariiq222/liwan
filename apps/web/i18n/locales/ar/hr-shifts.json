@@ -1,13 +1,10 @@
 {
   "hrShifts": {
     "title": "الورديات",
-    "description": "جداول العمل وإسنادها للموظفين.",
     "new": "إسناد وردية",
     "schedules": "جداول العمل",
     "schedulesTitle": "جداول العمل",
-    "schedulesDescription": "جداول الدوام التي تُسند للموظفين خلال فترات محددة.",
     "newSchedule": "جدول عمل جديد",
-    "scheduleDescription": "بنود الدوام اليومية لمن يعمل على هذا الجدول.",
     "editSchedule": "تعديل الجدول",
     "archive": "أرشفة",
     "archiveConfirm": "أرشفة الجدول {name}؟ لا يمكن أرشفة جدول ما زال مُسندًا لموظف.",
