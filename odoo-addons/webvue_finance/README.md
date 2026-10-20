@@ -34,7 +34,7 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `GET /reports/trial-balance`, `/reports/general-ledger`, `/reports/aged-partner-balance`, `/reports/partner-statement`, `/reports/profit-loss`, `/reports/balance-sheet` | `finance.statements.read` |
 | `GET /reports/zakat-base` | `finance.zakat.read` |
 | `GET /asset-profiles`, `GET /assets`, `GET /assets/<id>` | `finance.assets.read` |
-| `POST /assets` (201, a draft), `POST /assets/<id>/validate`, `POST /assets/compute-depreciation` | `finance.assets.manage` |
+| `POST /assets` (201, a draft), `POST /assets/<id>/validate`, `POST /assets/<id>/dispose`, `POST /assets/compute-depreciation` | `finance.assets.manage` |
 | `GET /bank-statements`, `GET /bank-statements/<id>`, `GET /bank-statement-lines/<id>/reconcile-proposals` | `finance.bank.read` |
 | `POST /bank-statements` (201), `POST /bank-statements/import/preview`, `POST /bank-statements/import` (201), `POST /bank-statement-lines/<id>/reconcile` | `finance.bank.manage` |
 | `GET /budgets` (`state`, `q`), `GET /budgets/<id>`, `GET /reports/budget-vs-actual?budget_id[&date_to]` | `finance.budgets.read` |
@@ -211,6 +211,17 @@ journal already holds at least as many lines with the same day, amount and refer
 identical coffees in one file are both kept. Statements and imports work on bank and cash journals. OFX and CAMT files are
 not read: the pinned OCA set (`deploy/oca-addons.json`) has no statement-import repository, and adding
 `OCA/bank-statement-import` needs the owner's decision.
+
+## Asset disposal
+
+`POST /assets/<id>/dispose` `{date_remove, sale_value?, sale_account_id?, plus_account_id?, min_account_id?, note?}` sells
+(`sale_value` above zero, proceeds debited to `sale_account_id`: a bank, cash or receivable account) or scraps a running
+or fully depreciated asset, through OCA's removal wizard (`account.asset.remove`, with create/write ACL for the capability
+and no `sudo()`). The wizard first posts the depreciation up to the day before the date (an early removal), clears the asset
+and its accumulated depreciation, and books the gain on `plus_account_id` or the loss on `min_account_id` (profile
+defaults; a missing one the result needs is 422 `invalid`). The removal entry is posted, the asset becomes `removed` and
+carries `date_remove`. A date in a locked period is 422 `period_locked`; a date before the last posted depreciation is
+refused by the wizard (422 `invalid`); a draft or already removed asset is 422 `invalid_state`.
 
 ## Journal entries
 

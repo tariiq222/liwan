@@ -133,6 +133,7 @@
         "account_changed": "تعديل حساب",
         "account_archived": "أرشفة حساب",
         "account_unarchived": "إلغاء أرشفة حساب",
+        "asset_disposed": "استبعاد أصل",
         "bank_statement_imported": "استيراد كشف بنكي",
         "payment_created": "إنشاء دفعة",
         "payment_changed": "تعديل دفعة",

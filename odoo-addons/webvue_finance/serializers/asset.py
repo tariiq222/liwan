@@ -12,6 +12,7 @@ from odoo.addons.webvue_api.controllers.common import ApiError
 
 CREATE_FIELDS = frozenset({'profile_id', 'name', 'code', 'purchase_value', 'salvage_value', 'date_start', 'partner_id', 'note'})
 COMPUTE_FIELDS = frozenset({'date'})
+DISPOSE_FIELDS = frozenset({'date_remove', 'sale_value', 'sale_account_id', 'plus_account_id', 'min_account_id', 'note'})
 ASSET_CODE_SIZE = 32
 
 
@@ -75,6 +76,7 @@ def dump_asset_detail(asset):
     return {
         **dump_asset(asset),
         'note': asset.note or '',
+        'date_remove': dump_day(asset.date_remove),
         'method': asset.method,
         'method_time': asset.method_time,
         'method_number': asset.method_number,
@@ -113,3 +115,20 @@ def parse_compute_depreciation(payload):
     reject_unknown(payload, COMPUTE_FIELDS)
     require_keys(payload, ('date',))
     return {'date': parse_day(payload['date'], 'date')}
+
+
+def parse_asset_dispose(payload):
+    """Validate a disposal body: the date, what the asset was sold for and where the proceeds and the gain or loss go."""
+    reject_unknown(payload, DISPOSE_FIELDS)
+    require_keys(payload, ('date_remove',))
+    parsed = {'date_remove': parse_day(payload['date_remove'], 'date_remove'), 'sale_value': 0.0}
+    if 'sale_value' in payload:
+        parsed['sale_value'] = parse_number(payload['sale_value'], 'sale_value', minimum=0)
+    for field in ('sale_account_id', 'plus_account_id', 'min_account_id'):
+        if payload.get(field) is not None:
+            parsed[field] = parse_id(payload[field], field)
+    if parsed['sale_value'] and 'sale_account_id' not in parsed:
+        raise ApiError(422, 'invalid', 'sale_account_id is required when the asset is sold', field='sale_account_id')
+    if 'note' in payload:
+        parsed['note'] = parse_text(payload['note'], 'note')
+    return parsed

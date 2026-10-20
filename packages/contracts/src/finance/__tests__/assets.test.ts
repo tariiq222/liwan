@@ -37,7 +37,7 @@ describe('finance asset schemas', () => {
     expect(FinanceAssetListSchema.parse({ items: [ASSET], total: 1 })).toEqual({ items: [ASSET], total: 1 })
     expect(FinanceAssetProfileListSchema.parse({ items: [PROFILE], total: 1 })).toEqual({ items: [PROFILE], total: 1 })
     const detail = {
-      ...ASSET, note: '', method: 'linear', method_time: 'year', method_number: 5, method_period: 'year', prorata: false,
+      ...ASSET, note: '', date_remove: null, method: 'linear', method_time: 'year', method_number: 5, method_period: 'year', prorata: false,
       lines: [LINE, { ...LINE, id: 9, type: 'create', posted: false, entry: null }],
     }
     expect(FinanceAssetDetailSchema.parse(detail)).toEqual(detail)
@@ -63,5 +63,21 @@ describe('finance asset schemas', () => {
     expect(() => FinanceAssetComputeInputSchema.parse({})).toThrow()
     expect(FinanceAssetComputeResultSchema.parse({ date: '2026-12-31', entries: [REF] }))
       .toEqual({ date: '2026-12-31', entries: [REF] })
+  })
+})
+
+describe('asset disposal body', () => {
+  it('accepts a sale with its proceeds account and a scrapping', async () => {
+    const { FinanceAssetDisposeSchema } = await import('../assets')
+    const sale = { date_remove: '2026-01-01', sale_value: 8000, sale_account_id: 3 }
+    expect(FinanceAssetDisposeSchema.parse(sale)).toEqual(sale)
+    expect(FinanceAssetDisposeSchema.parse({ date_remove: '2026-01-01', min_account_id: 9 })).toEqual({ date_remove: '2026-01-01', min_account_id: 9 })
+  })
+
+  it('refuses a sale without the proceeds account, a negative value and unknown keys', async () => {
+    const { FinanceAssetDisposeSchema } = await import('../assets')
+    expect(() => FinanceAssetDisposeSchema.parse({ date_remove: '2026-01-01', sale_value: 10 })).toThrow()
+    expect(() => FinanceAssetDisposeSchema.parse({ date_remove: '2026-01-01', sale_value: -1, sale_account_id: 3 })).toThrow()
+    expect(() => FinanceAssetDisposeSchema.parse({ date_remove: '2026-01-01', colour: 1 })).toThrow()
   })
 })
