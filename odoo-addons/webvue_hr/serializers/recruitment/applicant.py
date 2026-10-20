@@ -35,20 +35,27 @@ def parse_status(value):
     return list(STATUS_DOMAINS[value])
 
 
-def dump_applicant(applicant):
+def dump_applicant(applicant, *, include_department=True, include_employee=True):
+    """One applicant.
+
+    ``hr.department`` and ``hr.employee`` are guarded by ``hr.departments.read`` and
+    ``hr.employees.read``, which recruitment does not depend on, so those two references
+    are only read for a caller who may read them; both keys stay present and are null
+    otherwise (the same rule the employee serializer applies to its contract block).
+    """
     return {
         'id': applicant.id,
         'partner_name': applicant.partner_name or '',
         'email_from': applicant.email_from or '',
         'partner_phone': applicant.partner_phone or '',
         'job': ref(applicant.job_id),
-        'department': ref(applicant.department_id),
+        'department': ref(applicant.department_id) if include_department else None,
         'stage': ref(applicant.stage_id),
         'status': applicant.application_status,
         'priority': applicant.priority or '0',
         'availability': fields.Date.to_string(applicant.availability) or None,
         'refuse_reason': ref(applicant.refuse_reason_id),
-        'employee': ref(applicant.employee_id),
+        'employee': ref(applicant.employee_id) if include_employee else None,
         'applied_on': iso(applicant.create_date),
         'active': bool(applicant.active),
     }

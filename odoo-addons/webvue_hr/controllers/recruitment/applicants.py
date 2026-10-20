@@ -2,7 +2,7 @@
 from odoo import http
 from odoo.http import request
 
-from .common import company_relation, current_company, scoped_record, stage_of
+from .common import can, company_relation, current_company, scoped_record, stage_of
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -19,6 +19,16 @@ from odoo.addons.webvue_hr.serializers.recruitment.applicant import (
     parse_status,
 )
 from odoo.addons.webvue_hr.serializers.recruitment.common import reject_unknown
+
+
+def _dump(applicant):
+    """The applicant shape with the department and employee references only for a caller
+    who may read them: neither capability is implied by recruitment."""
+    return dump_applicant(
+        applicant,
+        include_department=can('hr.departments.read'),
+        include_employee=can('hr.employees.read'),
+    )
 
 
 def _applicants():
@@ -65,7 +75,7 @@ class HrRecruitmentApplicantController(http.Controller):
         Applicant = _applicants()
         applicants = Applicant.search(domain, order='create_date desc, id desc', limit=limit, offset=offset)
         return {
-            'items': [dump_applicant(applicant) for applicant in applicants],
+            'items': [_dump(applicant) for applicant in applicants],
             'total': Applicant.search_count(domain),
         }
 
@@ -74,7 +84,7 @@ class HrRecruitmentApplicantController(http.Controller):
     @requires_feature('hr.enabled', 'hr.recruitment', operation='read')
     @requires_capability('hr.recruitment.read')
     def get_applicant(self, applicant_id):
-        return dump_applicant(scoped_record('hr.applicant', applicant_id, active_test=False))
+        return _dump(scoped_record('hr.applicant', applicant_id, active_test=False))
 
     @http.route('/api/v1/hr/recruitment/applicants', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -83,8 +93,13 @@ class HrRecruitmentApplicantController(http.Controller):
     def create_applicant(self, **payload):
         vals = parse_applicant_create(payload)
         vals['job_id'] = company_relation('hr.job', vals['job_id'], 'job_id').id
+        # The route's company scoping also fixes the applicant's company. The stock compute
+        # would derive it from the job (already validated to be of the current company) by
+        # reading the department, which a caller without hr.departments.read may not read;
+        # writing it here keeps the record company-scoped and its own list complete.
+        vals['company_id'] = current_company().id
         applicant = request.env['hr.applicant'].create(vals)
-        return request.make_json_response(dump_applicant(applicant), status=201)
+        return request.make_json_response(_dump(applicant), status=201)
 
     @http.route('/api/v1/hr/recruitment/applicants/<int:applicant_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -97,7 +112,7 @@ class HrRecruitmentApplicantController(http.Controller):
         if vals.get('stage_id'):
             vals['stage_id'] = stage_of(vals['stage_id'], applicant.job_id).id
         applicant.write(vals)
-        return dump_applicant(applicant)
+        return _dump(applicant)
 
     @http.route('/api/v1/hr/recruitment/applicants/<int:applicant_id>/refuse', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -120,7 +135,7 @@ class HrRecruitmentApplicantController(http.Controller):
             'send_mail': False,
         })
         wizard.action_refuse_reason_apply()
-        return dump_applicant(applicant)
+        return _dump(applicant)
 
     @http.route('/api/v1/hr/recruitment/applicants/<int:applicant_id>/reset', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -132,7 +147,7 @@ class HrRecruitmentApplicantController(http.Controller):
         reject_unknown(payload, ())
         applicant.check_access('write')
         applicant.reset_applicant()
-        return dump_applicant(applicant)
+        return _dump(applicant)
 
     @http.route('/api/v1/hr/recruitment/applicants/<int:applicant_id>/hire', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -154,4 +169,4 @@ class HrRecruitmentApplicantController(http.Controller):
         employee = applicant.employee_id
         if not employee:
             raise ApiError(422, 'invalid', 'the applicant was not linked to an employee', field='employee_id')
-        return {'applicant': dump_applicant(applicant), 'employee': {'id': employee.id, 'name': employee.name}}
+        return {'applicant': _dump(applicant), 'employee': {'id': employee.id, 'name': employee.name}}

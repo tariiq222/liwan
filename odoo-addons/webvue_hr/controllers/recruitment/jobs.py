@@ -2,7 +2,7 @@
 from odoo import http
 from odoo.http import request
 
-from .common import company_relation, current_company, scoped_record
+from .common import can, company_relation, current_company, scoped_record
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -31,6 +31,13 @@ def _ongoing_applicants(job):
         ('date_closed', '=', False),
         ('refuse_reason_id', '=', False),
     ])
+
+
+def _dump_job(job):
+    """The job shape with the department reference only for a caller who may read departments."""
+    return dump_job(
+        job, _ongoing_applicants(job), include_department=can('hr.departments.read'),
+    )
 
 
 def _validate_job_relations(vals):
@@ -67,7 +74,7 @@ class HrRecruitmentJobController(http.Controller):
             domain.append(('active', '=', False))
         jobs = Job.search(domain, order='name, id', limit=limit, offset=offset)
         return {
-            'items': [dump_job(job, _ongoing_applicants(job)) for job in jobs],
+            'items': [_dump_job(job) for job in jobs],
             'total': Job.search_count(domain),
         }
 
@@ -77,7 +84,7 @@ class HrRecruitmentJobController(http.Controller):
     @requires_capability('hr.recruitment.read')
     def get_job(self, job_id):
         job = scoped_record('hr.job', job_id, active_test=False)
-        return dump_job(job, _ongoing_applicants(job))
+        return _dump_job(job)
 
     @http.route('/api/v1/hr/recruitment/jobs', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -87,7 +94,7 @@ class HrRecruitmentJobController(http.Controller):
         vals = parse_job_vals(payload, create=True)
         _validate_job_relations(vals)
         job = request.env['hr.job'].create(vals)
-        return request.make_json_response(dump_job(job, 0), status=201)
+        return request.make_json_response(dump_job(job, 0, include_department=can('hr.departments.read')), status=201)
 
     @http.route('/api/v1/hr/recruitment/jobs/<int:job_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -99,7 +106,7 @@ class HrRecruitmentJobController(http.Controller):
         vals = parse_job_vals(payload, create=False)
         _validate_job_relations(vals)
         job.write(vals)
-        return dump_job(job, _ongoing_applicants(job))
+        return _dump_job(job)
 
     @http.route('/api/v1/hr/recruitment/stages', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
