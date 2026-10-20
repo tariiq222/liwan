@@ -213,4 +213,39 @@ describe('palette declarations', () => {
     const jumps = appManifests.flatMap(manifest => manifest.nav.map(item => item.shortcut)).filter(Boolean)
     expect(new Set(jumps).size).toBe(jumps.length)
   })
+
+  describe('HR context links', () => {
+    const hr = appManifests.find(manifest => manifest.id === 'hr')!
+    const links = (path: string) => hr.contextLinks!(path)
+
+    it.each([
+      ['/hr/recruitment', 'hr.new-applicant', '/hr/recruitment/new', 'hr.recruitment.manage'],
+      ['/hr/shifts/schedules', 'hr.new-shift', '/hr/shifts/new', 'hr.shifts.manage'],
+      ['/hr/onboarding', 'hr.new-onboarding', '/hr/onboarding/new', 'hr.onboarding.manage'],
+      ['/hr/offboarding', 'hr.new-departure', '/hr/offboarding/new', 'hr.offboarding.manage'],
+      ['/hr/assets', 'hr.new-asset', '/hr/assets/new', 'hr.assets.manage'],
+      ['/hr', 'hr.new-employee', '/hr/employees/new', 'hr.employees.manage'],
+    ])('pins the own create action on %s', (path, commandId, to, capability) => {
+      const pinned = links(path).filter(link => link.pinned)
+      const command = hr.commands!.find(entry => entry.id === commandId)!
+      expect(pinned).toHaveLength(1)
+      expect(pinned[0]).toMatchObject({ to, capability, labelKey: command.labelKey })
+    })
+
+    it('keeps the directory in the first card and the journey sections in order', () => {
+      const listed = links('/hr').filter(link => !link.pinned)
+      expect(listed.filter(link => !link.section).map(link => link.id)).toEqual(['employees', 'departments'])
+      const sectionOrder = [...new Set(listed.filter(link => link.section).map(link => link.section))]
+      expect(sectionOrder).toEqual(['hr.nav.lifecycle', 'hr.nav.daily', 'hr.nav.mine', 'hr.nav.insights'])
+      expect(listed.filter(link => link.section === 'hr.nav.lifecycle').map(link => link.id)).toEqual(['recruitment', 'onboarding', 'offboarding'])
+      expect(listed.filter(link => link.section === 'hr.nav.daily').map(link => link.id)).toEqual(['leave', 'shifts', 'assets'])
+      expect(listed.filter(link => link.section === 'hr.nav.mine').map(link => link.id)).toEqual(['my-assets'])
+      expect(listed.filter(link => link.section === 'hr.nav.insights').map(link => link.id)).toEqual(['reports'])
+    })
+
+    it('lists the same pages in nav and in the context links', () => {
+      const listed = links('/hr').filter(link => !link.pinned).map(link => link.to)
+      expect(hr.nav.map(item => item.to)).toEqual(listed.filter(to => to !== '/hr/assets/mine'))
+    })
+  })
 })

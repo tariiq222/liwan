@@ -135,6 +135,12 @@
       "employees": "Employees",
       "departments": "Departments"
     },
+    "nav": {
+      "lifecycle": "Employee lifecycle",
+      "daily": "Daily work",
+      "mine": "My services",
+      "insights": "Insights"
+    },
     "employee": {
       "emailInvalid": "Enter a valid email address.",
       "nameRequired": "Enter the employee name.",
