@@ -95,7 +95,7 @@ const label = (invoice: FinanceInvoice) => invoiceTitle(invoice, t('financeDocum
             <USelect id="finance-filter-state" class="w-full md:w-44" :model-value="filters.state ?? 'all'" :items="stateItems" :disabled="!hydrated" @update:model-value="setState" />
           </SharedFilterField>
           <SharedFilterField :label="t(`financeDocuments.kinds.${moveType}.partner`)" for="finance-filter-partner">
-            <PartnerPicker id="finance-filter-partner" class="md:w-56" :model-value="filters.partnerId" :kind="kind.partnerKind" :known="partner.data.value ? { id: partner.data.value.id, name: partner.data.value.name } : null" :placeholder="t('financeDocuments.filters.anyPartner')" @update:model-value="setPartner" />
+            <PartnerPicker id="finance-filter-partner" class="md:w-56" :model-value="filters.partnerId" :kind="kind.partnerKind" :known="partner.data.value ? { id: partner.data.value.id, name: partner.data.value.name } : null" :placeholder="t('financeDocuments.filters.anyPartner')" :ui="{ placeholder: 'text-highlighted' }" @update:model-value="setPartner" />
           </SharedFilterField>
           <SharedFilterField :label="t('financeDocuments.filters.dateFrom')" for="finance-filter-from">
             <SharedDateField id="finance-filter-from" :model-value="filters.dateFrom" :max-value="filters.dateTo" :disabled="!hydrated" @update:model-value="setDate('date_from', $event)" />

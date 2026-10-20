@@ -119,7 +119,7 @@ const dash = computed(() => t('app.notAvailable'))
             <USelect id="finance-payment-filter-state" class="w-full md:w-44" :model-value="filters.state ?? 'all'" :items="stateItems" :disabled="!hydrated" @update:model-value="choose('state')" />
           </SharedFilterField>
           <SharedFilterField :label="t('financeDocuments.payments.partner')" for="finance-payment-filter-partner">
-            <PartnerPicker id="finance-payment-filter-partner" class="md:w-56" :model-value="filters.partnerId" kind="any" :known="partner.data.value ? { id: partner.data.value.id, name: partner.data.value.name } : null" :placeholder="t('financeDocuments.filters.anyPartner')" @update:model-value="value => update({ partner_id: value ? String(value) : undefined, page: undefined })" />
+            <PartnerPicker id="finance-payment-filter-partner" class="md:w-56" :model-value="filters.partnerId" kind="any" :known="partner.data.value ? { id: partner.data.value.id, name: partner.data.value.name } : null" :placeholder="t('financeDocuments.filters.anyPartner')" :ui="{ placeholder: 'text-highlighted' }" @update:model-value="value => update({ partner_id: value ? String(value) : undefined, page: undefined })" />
           </SharedFilterField>
           <SharedFilterField :label="t('financeDocuments.filters.dateFrom')" for="finance-payment-filter-from">
             <SharedDateField id="finance-payment-filter-from" :model-value="filters.dateFrom" :max-value="filters.dateTo" :disabled="!hydrated" @update:model-value="value => update({ date_from: value ?? undefined, page: undefined })" />
