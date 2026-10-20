@@ -8,8 +8,14 @@ import type { ZodType } from 'zod'
  */
 /** Iconify name from the local Lucide collection. */
 export type AppIcon = `i-lucide-${string}`
+/**
+ * `feature` on a nav item, context link or route rule: an extra sub-feature key (e.g. 'hr.assets') the
+ * entry needs on top of its capability and the feature derived from it, at the same read/write level.
+ * For an entry whose capability belongs to another area (own custody is an employee read).
+ */
 export interface AppNavItem {
   to: string; labelKey: string; icon: AppIcon; capability: string
+  feature?: string
   /** One-key jump on the /search page only, not a global shortcut; tools/new_app.py picks a free one. */
   shortcut: string
   /** Letter of the global `G` then letter shortcut: a–z, never g, unique across apps and the foundation (manifests.test.ts). */
@@ -31,7 +37,7 @@ export interface AppCommand {
   shortcut?: string
 }
 export interface AppContextLink {
-  id: string; labelKey: string; icon: AppIcon; to: string; capability: string; pinned?: boolean
+  id: string; labelKey: string; icon: AppIcon; to: string; capability: string; feature?: string; pinned?: boolean
   /** Locale key of the sidebar section heading; consecutive links with the same key form one section. */
   section?: string
 }
@@ -127,7 +133,7 @@ export interface AppManifest {
    */
   defaultRail?: string
   contextLinks?: (path: string | undefined) => AppContextLink[]  // keyed by rail id via link module in nav
-  routeCapabilities?: Array<{ pattern: RegExp; capability: string }>
+  routeCapabilities?: Array<{ pattern: RegExp; capability: string; feature?: string }>
   /**
    * Dynamic list sources this application owns. A recognized pathname may return a record
    * to that list, after both its normal route access and this additional capability pass.

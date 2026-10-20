@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canReach, hasCapability, firstAllowedPath, isNavPathActive, requiredCapabilityForPath, postLoginPath } from '../accessPolicy'
+import { canReach, canReachPath, hasCapability, firstAllowedPath, isNavPathActive, requiredCapabilityForPath, requiredFeatureForPath, postLoginPath } from '../accessPolicy'
 
 describe('access policy navigation', () => {
   it('fails closed for legacy role names without server capabilities', () => {
@@ -112,5 +112,27 @@ describe('access policy navigation', () => {
     // An application with no registered manifest has no nav entries or landing page (a manifest adds them): an unregistered-app-only user lands on /account.
     expect(firstAllowedPath(unregistered(['zz_unregistered.enabled'], ['zz_unregistered.enabled']))).toBe('/account')
     expect(requiredCapabilityForPath('/zz_unregistered/orders')).toBeNull()
+  })
+  describe('explicit feature on a route rule', () => {
+    const hrTenant = (features: string[]) => ({
+      capabilities: ['hr.employees.read', 'hr.assets.read'],
+      platform: { readable_features: features, writable_features: features },
+    })
+    it('denies /hr/assets/mine when hr.assets is off, though hr.employees.read is held', () => {
+      expect(requiredCapabilityForPath('/hr/assets/mine')).toBe('hr.employees.read')
+      expect(requiredFeatureForPath('/hr/assets/mine')).toBe('hr.assets')
+      expect(canReachPath(hrTenant(['hr.enabled']), '/hr/assets/mine')).toBe(false)
+    })
+    it('allows /hr/assets/mine when hr.assets is on, and ungated routes stay as before', () => {
+      expect(canReachPath(hrTenant(['hr.enabled', 'hr.assets']), '/hr/assets/mine')).toBe(true)
+      expect(requiredFeatureForPath('/hr')).toBeUndefined()
+      expect(canReachPath(hrTenant(['hr.enabled']), '/hr')).toBe(true)
+    })
+    it('canReach adds the explicit feature to the capability gates only when given', () => {
+      const off = hrTenant(['hr.enabled'])
+      expect(canReach(off, 'hr.employees.read', '/hr/assets/mine')).toBe(true)
+      expect(canReach(off, 'hr.employees.read', '/hr/assets/mine', 'hr.assets')).toBe(false)
+      expect(canReach(hrTenant(['hr.enabled', 'hr.assets']), 'hr.employees.read', '/hr/assets/mine', 'hr.assets')).toBe(true)
+    })
   })
 })

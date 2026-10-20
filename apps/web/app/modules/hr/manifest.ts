@@ -38,7 +38,7 @@ const manifest: AppManifest = {
     { id: 'onboarding', labelKey: 'nav.onboarding', icon: 'i-lucide-user-plus', to: '/hr/onboarding', capability: 'hr.onboarding.read' },
     { id: 'offboarding', labelKey: 'nav.offboarding', icon: 'i-lucide-user-minus', to: '/hr/offboarding', capability: 'hr.offboarding.read' },
     { id: 'assets', labelKey: 'nav.assets', icon: 'i-lucide-laptop', to: '/hr/assets', capability: 'hr.assets.read' },
-    { id: 'my-assets', labelKey: 'nav.myAssets', icon: 'i-lucide-package-check', to: '/hr/assets/mine', capability: 'hr.employees.read' },
+    { id: 'my-assets', labelKey: 'nav.myAssets', icon: 'i-lucide-package-check', to: '/hr/assets/mine', capability: 'hr.employees.read', feature: 'hr.assets' },
   ],
   landing: [
     { path: '/hr', capability: 'hr.employees.read' },
@@ -78,7 +78,7 @@ const manifest: AppManifest = {
     { pattern: /^\/hr\/offboarding(?:\/|$)/, capability: 'hr.offboarding.read' },
     { pattern: /^\/hr\/assets\/(?:.+\/)?new$/, capability: 'hr.assets.manage' },
     // The caller's own custody is an employee read, not an assets-area read.
-    { pattern: /^\/hr\/assets\/mine$/, capability: 'hr.employees.read' },
+    { pattern: /^\/hr\/assets\/mine$/, capability: 'hr.employees.read', feature: 'hr.assets' },
     { pattern: /^\/hr\/assets(?:\/|$)/, capability: 'hr.assets.read' },
     { pattern: /^\/hr\/leave\/new$/, capability: 'hr.leave.request' },
     { pattern: /^\/hr\/leave\/allocations\/new$/, capability: 'hr.leave.manage' },

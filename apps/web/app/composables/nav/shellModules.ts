@@ -21,7 +21,7 @@ const House = 'i-lucide-house'
 /** Rail module id; applications declare theirs in their manifest, the foundation adds home and settings. */
 export type NavGroup = string
 export type ShellModule = string
-export interface NavItem { to: string; labelKey: string; icon: AppIcon; shortcut: string; goKey?: string; group?: NavGroup; module?: ShellModule; capability: string }
+export interface NavItem { to: string; labelKey: string; icon: AppIcon; shortcut: string; goKey?: string; group?: NavGroup; module?: ShellModule; capability: string; feature?: string }
 
 /** Nav items of the foundation (home, settings, subscription); applications declare theirs in their manifest. */
 const foundationItems: NavItem[] = [
@@ -77,7 +77,7 @@ export function useNav(identity: AccessIdentity): NavItem[] {
       ? internalAccess(item)
       : item.capability.startsWith('subscription.')
         ? customerCommercialOn() && (deriveCustomerCapabilities(identity?.capabilities) as string[]).includes(item.capability)
-        : canReach(identity, item.capability, item.to)
+        : canReach(identity, item.capability, item.to, item.feature)
   ))
 }
 
@@ -116,6 +116,7 @@ export interface ShellContextLink {
   icon: AppIcon
   to: RouteLocationRaw
   capability: string
+  feature?: string
   active?: boolean
   pinned?: boolean
   section?: string
@@ -145,5 +146,5 @@ export function moduleContextLinks(module: ShellModule, path?: string): ShellCon
 }
 
 export function contextLinksForModule(module: ShellModule, identity: AccessIdentity, path?: string): ShellContextLink[] {
-  return moduleContextLinks(module, path).filter(link => canReach(identity, link.capability, typeof link.to === 'string' ? link.to : undefined))
+  return moduleContextLinks(module, path).filter(link => canReach(identity, link.capability, typeof link.to === 'string' ? link.to : undefined, link.feature))
 }
