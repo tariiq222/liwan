@@ -17,7 +17,6 @@ import {
   type HrRecruitmentJobCreate,
   type HrRecruitmentJobPatch,
   type HrRecruitmentStage,
-  type HrRef,
 } from '@webvue/contracts'
 import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
 
@@ -300,4 +299,6 @@ export function useHireHrApplicant() {
   return useMutation({ mutationFn: (id: number) => hireHrApplicant($api, qc, id) })
 }
 
-export type { HrApplicant, HrRecruitmentJob, HrRecruitmentStage, HrRef }
+// HrRef is not re-exported: Nuxt auto-imports every composable export, so a second owner
+// of the name would break the auto-import map. Import it from @webvue/contracts.
+export type { HrApplicant, HrRecruitmentJob, HrRecruitmentStage }

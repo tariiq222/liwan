@@ -14,14 +14,19 @@ JOB_CREATE_FIELDS = ('name', 'department_id', 'no_of_recruitment', 'description'
 JOB_PATCH_FIELDS = (*JOB_CREATE_FIELDS, 'active')
 
 
-def dump_job(job, application_count):
+def dump_job(job, application_count, *, include_department=True):
     """One job position. ``application_count`` is WebVue's own count of the ongoing
     applicants of the company: the stock field is group-gated and misses applicants
-    that were never linked to the job position."""
+    that were never linked to the job position.
+
+    ``hr.department`` is guarded by ``hr.departments.read``, which recruitment does not
+    depend on, so the department reference is only read for a caller who may read
+    departments; the key stays present and is null otherwise (the same rule the employee
+    serializer applies to its contract block)."""
     return {
         'id': job.id,
         'name': job.name,
-        'department': ref(job.department_id),
+        'department': ref(job.department_id) if include_department else None,
         'no_of_recruitment': job.no_of_recruitment,
         'application_count': application_count,
         'description': html2plaintext(job.description or '', include_references=False).strip(),

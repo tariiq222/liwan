@@ -3,7 +3,7 @@ import EquipmentCustodyPanel from '@/components/hr/assets/EquipmentCustodyPanel.
 import { formatDate } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { owningListBack } from '@/utils/recordListOrigin'
-import type { HrRef } from '@/composables/useHrAssets'
+import type { HrRef } from '@webvue/contracts'
 
 const route = useRoute()
 const { t } = useI18n()

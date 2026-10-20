@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import new_test_user, tagged
+from odoo.tools import html2plaintext
 
 from .common import WebVueHrCase, set_hr_feature
 
@@ -128,7 +129,17 @@ class TestHrRecruitment(WebVueHrCase):
         self.assertEqual(res.status_code, 201, res.text)
         body = res.json()
         self.assertEqual(set(body), JOB_KEYS)
-        self.assertEqual(body['description'], 'Own the test plan')
+        # The spec's description is the plain text of the stored Html ('', never a tag).
+        # Stock html2plaintext renders emphasis with markdown markers, so the engine's own
+        # conversion of <b>test</b> is '*test*': the assertion pins exactly that value
+        # instead of assuming tags are dropped silently.
+        stored = self.env['hr.job'].browse(body['id']).description
+        self.assertIn('<', stored)
+        self.assertIn('test', stored)
+        self.assertEqual(body['description'], html2plaintext(stored, include_references=False).strip())
+        self.assertEqual(body['description'], 'Own the *test* plan')
+        self.assertNotIn('<', body['description'])
+        self.assertNotIn('>', body['description'])
         self.assertEqual(body['application_count'], 0)
         patched = self.api('PATCH', f'/api/v1/hr/recruitment/jobs/{body["id"]}', json={
             'name': 'Senior QA Engineer', 'active': False,
@@ -396,10 +407,27 @@ class TestHrRecruitment(WebVueHrCase):
 
     def test_read_only_recruitment_capability_cannot_write(self):
         applicant = self._applicant('Reem')
+        # The reader holds only hr.recruitment.read: per spec §4 it has no dependency, so the
+        # read routes must serve it without hr.departments.read or hr.employees.read. Reading
+        # hr.department or hr.employee would otherwise raise their own capability guard
+        # ('forbidden'), which is what the serializer's capability-scoped references avoid.
         self._user_with_capabilities('hr_recruitment_reader', 'Recruitment reader', ['hr.recruitment.read'])
         self.authenticate('hr_recruitment_reader', 'hr_recruitment_reader_pass_123')
         for path in ('/api/v1/hr/recruitment/jobs', '/api/v1/hr/recruitment/applicants', '/api/v1/hr/recruitment/stages'):
             self.assertEqual(self.api('GET', path).status_code, 200, path)
+        jobs = self.api('GET', '/api/v1/hr/recruitment/jobs').json()
+        self.assertGreaterEqual(jobs['total'], 1)
+        for job in jobs['items']:
+            self.assertEqual(set(job), JOB_KEYS)
+            self.assertIsNone(job['department'], 'a reader without hr.departments.read sees no department reference')
+        applicants = self.api('GET', '/api/v1/hr/recruitment/applicants').json()
+        self.assertTrue(applicants['items'])
+        for entry in applicants['items']:
+            self.assertEqual(set(entry), APPLICANT_KEYS)
+            self.assertIsNone(entry['department'])
+        # The department filter needs hr.departments.read: the field, not an opaque guard 403.
+        filtered = self.api('GET', f'/api/v1/hr/recruitment/jobs?department_id={self.department.id}')
+        self.assertEqual((filtered.status_code, filtered.json()['field']), (422, 'department_id'))
         for method, path, payload in (
             ('POST', '/api/v1/hr/recruitment/jobs', {'name': 'Blocked'}),
             ('PATCH', f'/api/v1/hr/recruitment/jobs/{self.job.id}', {'name': 'Blocked'}),
@@ -415,15 +443,29 @@ class TestHrRecruitment(WebVueHrCase):
 
     def test_hire_needs_employee_management_too(self):
         applicant = self._applicant('Mona')
+        # hr.recruitment.manage depends on hr.recruitment.read only, so this role reads the
+        # applicant list without the department or employee capability: the references it
+        # may not read come back null and the list still answers 200.
         self._user_with_capabilities(
             'hr_recruitment_only', 'Recruitment only', ['hr.recruitment.read', 'hr.recruitment.manage'],
         )
         self.authenticate('hr_recruitment_only', 'hr_recruitment_only_pass_123')
-        self.assertEqual(self.api('GET', '/api/v1/hr/recruitment/applicants').status_code, 200)
+        listed = self.api('GET', '/api/v1/hr/recruitment/applicants')
+        self.assertEqual(listed.status_code, 200, listed.text)
+        items = listed.json()['items']
+        self.assertTrue(items)
+        for entry in items:
+            self.assertEqual(set(entry), APPLICANT_KEYS)
+            self.assertIsNone(entry['department'])
+            self.assertIsNone(entry['employee'])
         created = self.api('POST', '/api/v1/hr/recruitment/applicants', json={
             'partner_name': 'Recruitment Only', 'job_id': self.job.id,
         })
         self.assertEqual(created.status_code, 201, created.text)
+        # The created applicant is company-scoped, so the same caller's list returns it.
+        self.assertIsNone(created.json()['department'])
+        relisted = self.api('GET', '/api/v1/hr/recruitment/applicants').json()
+        self.assertIn(created.json()['id'], {entry['id'] for entry in relisted['items']})
         hire = self.api('POST', f'/api/v1/hr/recruitment/applicants/{applicant.id}/hire', json={})
         self.assertEqual(hire.status_code, 403, hire.text)
         self.assertEqual(hire.json()['code'], 'forbidden')

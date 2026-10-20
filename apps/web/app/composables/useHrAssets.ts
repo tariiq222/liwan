@@ -10,7 +10,6 @@ import {
   type HrEquipment,
   type HrEquipmentCreate,
   type HrEquipmentPatch,
-  type HrRef,
 } from '@webvue/contracts'
 
 type Api = ReturnType<typeof useApi>['$api']
@@ -213,4 +212,6 @@ export function useArchiveHrEquipment() {
   return useMutation({ mutationFn: ({ id, scrapDate }: { id: number; scrapDate?: string }) => archiveHrEquipment($api, qc, { id, scrapDate }) })
 }
 
-export type { HrEquipment, HrRef }
+// HrRef is not re-exported: Nuxt auto-imports every composable export, so a second owner
+// of the name would break the auto-import map. Import it from @webvue/contracts.
+export type { HrEquipment }
