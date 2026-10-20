@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as Vue from 'vue'
-import { renderShared } from '../../../../test/helpers/renderShared'
+import { loadShared, renderShared } from '../../../../test/helpers/renderShared'
 
 const component = resolve(__dirname, '../ShellQuickViews.vue')
 const TooltipStub = Vue.defineComponent({
@@ -9,7 +9,7 @@ const TooltipStub = Vue.defineComponent({
   props: { text: String, disabled: Boolean },
   setup(props, { slots }) { return () => Vue.h('span', { 'data-tooltip': props.disabled ? undefined : props.text }, slots.default?.()) },
 })
-const render = (props: Record<string, unknown>) => renderShared(component, { label: 'Quick', collapsed: false, views: [], actions: [], ...props }, {}, { stubs: { UTooltip: TooltipStub } })
+const render = (props: Record<string, unknown>) => renderShared(component, { label: 'Quick', collapsed: false, views: [], actions: [], ...props }, {}, { stubs: { UTooltip: TooltipStub }, modules: { './ShellQuickRow.vue': { __esModule: true, default: loadShared(resolve(__dirname, '../ShellQuickRow.vue')) } } })
 
 const views = [
   { id: 'today', label: 'Today', icon: 'i-lucide-sun', to: '/tasks?deadline=today', active: true },

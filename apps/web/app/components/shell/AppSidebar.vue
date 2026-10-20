@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { useEventListener, useMediaQuery } from '@vueuse/core'
 import ModuleRail from '@webvue/ui/app/components/shell/ModuleRail.vue'
+import ShellContextSubList from '@webvue/ui/app/components/shell/ShellContextSubList.vue'
 import ShellQuickViews from '@webvue/ui/app/components/shell/ShellQuickViews.vue'
 import ContextSidebar from './ContextSidebar.vue'
 import { useContextSidebar } from '@/composables/useShellNavigation'
 import { useShellModel } from '@/composables/useShellModel'
 import { useQuickViews } from '@/composables/useQuickViews'
-import { sidebarModel } from '@/composables/nav/sidebarModel'
+import { contextLinkTestId, sidebarModel, subListSections } from '@/composables/nav/sidebarModel'
 import { isSidebarToggleShortcut } from '@/composables/nav/sidebarShortcut'
 import { overlayOwnsEscape } from '@webvue/ui/app/composables/useEscapeBack'
 import { hasNoContextSidebar } from './noContextRoutes'
@@ -26,6 +27,7 @@ const model = computed(() => sidebarModel({
   panel: panel.value && isDesktop.value ? { expanded: expanded.value } : null,
   surface: 'desktop',
 }))
+const subSections = computed(() => subListSections(model.value.subSections, t, contextLinkTestId))
 const createLinks = computed(() => model.value.createLinks.map(link => ({ ...link, to: createTo(link) })))
 // The PMO my-tasks counter is deferred (owner decision); no shell request feeds counts yet.
 const counts: Record<string, number> = {}
@@ -56,6 +58,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
       :motion-key="motionKey"
       @toggle="toggle"
     />
+    <ShellContextSubList :label="contextTitle" :sections="subSections" :collapsed="!expanded" />
     <ShellQuickViews
       :label="t('nav.quickViews')"
       :views-label="t('nav.quickViewsList')"

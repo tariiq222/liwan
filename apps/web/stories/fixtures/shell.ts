@@ -1,6 +1,6 @@
 import { BrandingSchema, MeSchema } from '@webvue/contracts'
 import { contextLinksForModule, visibleShellModules, type ShellContextLink } from '../../app/composables/nav/shellModules'
-import { groupSections, railModel, sidebarModel } from '../../app/composables/nav/sidebarModel'
+import { contextLinkTestId, railModel, sidebarModel, subListSections } from '../../app/composables/nav/sidebarModel'
 
 // A workspace user who sees every application and the administration module.
 export const shellMe = MeSchema.parse({
@@ -34,11 +34,13 @@ export const readOnlyShellMe = { ...shellMe, capabilities: shellMe.capabilities.
 const projectLinks: ShellContextLink[] = contextLinksForModule('projects', shellMe, '/tasks').map(link => ({ ...link, active: link.id === 'tasks' }))
 export const projectsSidebar = sidebarModel({ links: projectLinks, moduleLabelKey: 'nav.projects', path: '/tasks', panel: null, surface: 'desktop' })
 
-// Story-only grouping to show section headings; no module ships sections yet (DESIGN.md §3).
+// Story-only grouping: the first link stays in the fixed card, the others sit under a section heading and go to the sub-list card.
 const settingsLinks: ShellContextLink[] = contextLinksForModule('settings', shellMe, '/settings/team/users')
-  .map(link => ({ ...link, active: link.id === 'users', section: link.id === 'branding' ? 'settings.branding.title' : 'nav.systemAdministration' }))
-export const sectionedSidebar = { createLinks: [] as ShellContextLink[], sections: groupSections(settingsLinks), showNav: true }
-
+  .map((link, index) => ({ ...link, active: link.id === 'users', section: index === 0 ? undefined : link.id === 'branding' ? 'settings.branding.title' : 'nav.systemAdministration' }))
+const settingsModel = sidebarModel({ links: settingsLinks, moduleLabelKey: 'nav.settings', path: '/settings/team/users', panel: null, surface: 'desktop' })
+export const sectionedSidebar = { createLinks: settingsModel.createLinks, sections: settingsModel.sections, showNav: settingsModel.showNav }
+// The titled sections, rendered in their own card under the context sidebar (labels already translated).
+export const subListFixture = subListSections(settingsModel.subSections, key => ({ 'settings.branding.title': 'هوية الجهة', 'nav.systemAdministration': 'إدارة النظام' }[key] ?? key.split('.').at(-1)!), contextLinkTestId)
 
 /** The quick views card as the shell hands it over: labels already translated (the tasks list). */
 export const quickViewItems = [

@@ -68,6 +68,7 @@ useShellShortcuts({
         :title="contextTitle"
         :create-links="mobileCreateLinks"
         :sections="mobile.sections"
+        :sub-sections="mobile.subSections"
         :quick-views="quick.views.value"
         :quick-actions="quick.actions.value"
       />
