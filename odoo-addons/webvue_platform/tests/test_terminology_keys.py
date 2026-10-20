@@ -97,24 +97,35 @@ class TestTerminologyKeys(TransactionCase):
             self.assertFalse(seen & own, f'{addon} repeats a key owned by another application')
             seen |= own
 
-    def test_union_covers_current_set_with_all_apps(self):
-        self.assertEqual(self._installed(), set(APPLICATIONS))
+    def _installed_keys(self):
+        return frozenset().union(*(OWNED_KEYS[addon] for addon in self._installed()))
+
+    def test_union_covers_the_keys_of_the_installed_apps(self):
+        # Each application stands alone: the union holds exactly what the installed ones register,
+        # down to none on the foundation alone; with every application it is the full current set.
         keys = self.env['webvue.entitlement.service']._webvue_terminology_keys()
+        self.assertLessEqual(self._installed_keys(), keys)
+        self.assertFalse(keys & (CURRENT_KEYS - self._installed_keys()))
         # Fixed current release keys; the removed HR document surface owns no keys.
-        self.assertLessEqual(CURRENT_KEYS, keys)
         self.assertEqual(len(CURRENT_KEYS), 17)
+        if self._installed() == set(APPLICATIONS):
+            self.assertLessEqual(CURRENT_KEYS, keys)
 
     def test_unknown_key_still_rejected_422(self):
         service = self.env['webvue.entitlement.service']
         with self.assertRaises(ValidationError):
             service._webvue_validate_terminology({'ar': {'bogus.key': 'x'}})
 
-    def test_registered_key_accepted(self):
+    def test_registered_key_accepted_and_absent_app_key_rejected(self):
         service = self.env['webvue.entitlement.service']
-        for key in sorted(CURRENT_KEYS):
+        for key in sorted(self._installed_keys()):
             self.assertEqual(
                 service._webvue_validate_terminology({'ar': {key: 'x'}}), {'ar': {key: 'x'}}, key,
             )
+        # A term of an application that is not installed is not a contract of this database.
+        for key in sorted(CURRENT_KEYS - self._installed_keys()):
+            with self.subTest(key=key), self.assertRaises(ValidationError):
+                service._webvue_validate_terminology({'ar': {key: 'x'}})
 
     def test_removed_hr_document_terms_are_not_a_parallel_contract(self):
         service = self.env['webvue.entitlement.service']

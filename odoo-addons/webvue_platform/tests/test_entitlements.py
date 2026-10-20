@@ -83,7 +83,8 @@ class TestEntitlements(TransactionCase):
             self.assertIsNone(self.record.features['projects.max_projects'])
         self.assertIsNone(self.record.features['storage.limit_mb'])
         # An application added later is granted too: its keys are extra.
-        retained = set(self.record.retained_read_features)
+        # Empty (unset) when no application is installed, as on the foundation alone.
+        retained = set(self.record.retained_read_features or [])
         self.assertEqual(retained & self._release_boolean_keys(), flags)
         self.assertTrue(all(key.endswith('.enabled') for key in retained - flags))
         if self._installed_apps() == set(self.APP_BOOLEANS):
