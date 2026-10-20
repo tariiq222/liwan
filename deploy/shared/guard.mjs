@@ -76,7 +76,22 @@ export function requestPlan(req, registry, token, codec) {
   const cookies = (headers.cookie ?? '').split(';').map(v => v.trim()).filter(Boolean)
   const sessions = cookies.filter(v => v.startsWith('session_id='))
   if (sessions.length > 1) throw Error('ambiguous_session')
-  const rawSid = sessions.length ? codec.open(sessions[0].slice(11), tenant) : null
+  let rawSid = null
+  let clearSession = false
+  if (sessions.length) {
+    try { rawSid = codec.open(sessions[0].slice(11), tenant) }
+    catch (error) {
+      // Recovery never authenticates the rejected identity or bypasses the tenant boundary.
+      const method = req.method ?? 'GET'
+      const recovery = !internal && !odoo && req.url.split('?')[0] === url.pathname && !req.url.includes('#') && (
+        (url.pathname === '/login' && ['GET', 'HEAD'].includes(method)) ||
+        (['/api/auth/login', '/api/auth/logout'].includes(url.pathname) && method === 'POST')
+      )
+      if (!recovery) throw error
+      headers.cookie = cookies.filter(value => !value.startsWith('session_id=')).join('; ')
+      clearSession = true
+    }
+  }
   // Keep the signed envelope on the Nuxt hop; unwrap ONLY at the Odoo hop.
   if (odoo) headers.cookie = rawSid ? `session_id=${rawSid}` : ''
   headers.host = odoo ? tenant.database : host
@@ -84,7 +99,7 @@ export function requestPlan(req, registry, token, codec) {
     headers['x-webvue-proxy-token'] = token
     headers['x-webvue-tenant-revision'] = String(tenant.registryRevision)
   }
-  return { tenant, internal, odoo, headers, path: url.pathname + url.search }
+  return { tenant, internal, odoo, headers, path: url.pathname + url.search, clearSession }
 }
 function cookiesForBrowser(cookies, codec, tenant) {
   return (cookies ?? []).map(cookie => {
@@ -168,6 +183,13 @@ export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl
     const upstream = http.request({ hostname: target.hostname, port: target.port, path: p.path, method: req.method, headers: p.headers }, reply => {
       const headers = { ...reply.headers }
       if (p.odoo) headers['set-cookie'] = cookiesForBrowser(headers['set-cookie'], codec, p.tenant)
+      if (p.clearSession) {
+        headers['cache-control'] = 'no-store'
+        // A successful login may already replace the rejected cookie; never delete its replacement.
+        if (!(headers['set-cookie'] ?? []).some(cookie => cookie.startsWith('session_id='))) {
+          headers['set-cookie'] = [...(headers['set-cookie'] ?? []), 'session_id=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0']
+        }
+      }
       res.writeHead(reply.statusCode, headers); reply.pipe(res)
     })
     upstream.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end() })

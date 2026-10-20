@@ -12,7 +12,8 @@ suite('vendor attention list on PostgreSQL', () => {
   // A database of its own: the list is capped, and other suites leave hundreds of customers needing setup in the shared one.
   const dbName = `webvue_control_scratch_attention${randomUUID().slice(0, 8).replace(/-/g, '')}`
   const withDb = (name: string) => { const u = new URL(url!); u.pathname = `/${name}`; return u.toString() }
-  const pool = new Pool({ connectionString: withDb(dbName) })
+  let pool: Pool
+  let databaseCreated = false
   const tag = `at${randomUUID().slice(0, 8)}`
   const id = { overdue: randomUUID(), stalled: randomUUID(), setup: randomUUID(), renewing: randomUUID(), missed: randomUUID(), calm: randomUUID(), failedOp: randomUUID(), recovered: randomUUID() }
   const tenants = { overdue: randomUUID(), failedOp: randomUUID(), recovered: randomUUID() }
@@ -42,7 +43,11 @@ suite('vendor attention list on PostgreSQL', () => {
 
   beforeAll(async () => {
     const admin = new Pool({ connectionString: withDb('postgres') })
-    await admin.query(`CREATE DATABASE ${dbName}`); await admin.end()
+    try {
+      await admin.query(`CREATE DATABASE ${dbName}`)
+      databaseCreated = true
+    } finally { await admin.end() }
+    pool = new Pool({ connectionString: withDb(dbName) })
     await migrate(pool)
     await tenant(tenants.overdue, `${tag} overdue`); await tenant(tenants.failedOp, `${tag} failed op`); await tenant(tenants.recovered, `${tag} recovered`)
     for (const [key, name] of [['overdue', 'overdue'], ['stalled', 'stalled'], ['setup', 'setup'], ['renewing', 'renewing'], ['missed', 'missed'], ['calm', 'calm']] as const)
@@ -61,9 +66,11 @@ suite('vendor attention list on PostgreSQL', () => {
     await operation(tenants.recovered, 'failed', randomUUID(), 10); await operation(tenants.recovered, 'succeeded', randomUUID(), 5)
   })
   afterAll(async () => {
-    await pool.end()
+    await pool?.end()
+    if (!databaseCreated) return
     const admin = new Pool({ connectionString: withDb('postgres') })
-    await admin.query(`DROP DATABASE ${dbName}`); await admin.end()
+    try { await admin.query(`DROP DATABASE ${dbName}`) }
+    finally { await admin.end() }
   })
 
   it('lists each kind once per customer, most urgent first, naming the exact record', async () => {

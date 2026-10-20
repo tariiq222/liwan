@@ -106,6 +106,8 @@ def finance_summaries_by_project(projects):
 
 def build_dashboard_summary(projects, today, can_read_tasks, task_counts=None, finance_summaries=None):
     """Build the unpaginated project dashboard summary from visible projects."""
+    if finance_summaries is None:
+        finance_summaries = finance_summaries_by_project(projects)
     if can_read_tasks:
         task_counts = task_counts_by_project(projects, today) if task_counts is None else task_counts
     else:
@@ -120,10 +122,7 @@ def build_dashboard_summary(projects, today, can_read_tasks, task_counts=None, f
         overdue = task_values[2] if task_values else 0
         if can_read_tasks:
             overdue_total += overdue
-        finance = (
-            finance_summaries[project.id]
-            if finance_summaries is not None else build_finance_summary(project)
-        )
+        finance = finance_summaries[project.id]
         if status in _ATTENTION_STATUSES or finance['over_budget'] or overdue > 0:
             attention.append((overdue, project.name, project.id, project, task_values))
 
@@ -132,7 +131,7 @@ def build_dashboard_summary(projects, today, can_read_tasks, task_counts=None, f
     for _, _, _, project, task_values in attention[:10]:
         attention_rows.append(dump_report_row(
             project, today, can_read_tasks, task_values,
-            finance_summaries[project.id] if finance_summaries is not None else None,
+            finance_summaries[project.id],
         ))
     return {
         'project_count': len(projects),
