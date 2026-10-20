@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
 import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
@@ -69,7 +70,7 @@ const columns = computed<TableColumn<HrLeave>[]>(() => [
   { accessorKey: 'date_from', header: t('hr.leave.columns.period') },
   { accessorKey: 'number_of_days', header: t('hr.leave.columns.days') },
   { accessorKey: 'state', header: t('hr.leave.columns.state') },
-  { id: 'actions', header: '', meta: { class: { th: 'w-12', td: 'w-12 text-end' } } },
+  { id: 'actions', header: () => h('span', { class: 'sr-only' }, t('app.actions')), meta: { class: { th: 'w-12', td: 'w-12 text-end' } } },
 ])
 
 function writeQuery(next: { scope?: HrLeaveScope; offset?: number }) {

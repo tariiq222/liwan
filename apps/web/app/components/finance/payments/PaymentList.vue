@@ -84,7 +84,7 @@ const columns = computed<TableColumn<FinancePayment>[]>(() => [
   { id: 'date', header: t('financeDocuments.columns.date') },
   { id: 'amount', header: t('financeDocuments.payments.amount'), meta: { class: { th: 'text-end', td: 'text-end' } } },
   { id: 'state', header: t('financeDocuments.columns.state') },
-  { id: 'actions', header: '', meta: { class: { th: 'w-12', td: 'w-12 text-end' } } },
+  { id: 'actions', header: () => h('span', { class: 'sr-only' }, t('app.actions')), meta: { class: { th: 'w-12', td: 'w-12 text-end' } } },
 ])
 const dash = computed(() => t('app.notAvailable'))
 </script>
