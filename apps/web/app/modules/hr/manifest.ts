@@ -36,7 +36,7 @@ const manifest: AppManifest = {
     { to: '/hr/reports', labelKey: 'hr.reports.title', icon: 'i-lucide-chart-pie', shortcut: 'r', capability: 'hr.employees.manage' },
   ],
   // The pinned create follows the open area. The first card holds the directory and structure; the other
-  // links form titled sub-lists in the order of the employee's journey, with the reports last.
+  // links form titled sub-lists in the order of the employee's journey, with the reports section last.
   contextLinks: path => [
     createLink(path),
     { id: 'employees', labelKey: 'nav.employees', icon: 'i-lucide-users', to: '/hr', capability: 'hr.employees.read' },
@@ -48,7 +48,7 @@ const manifest: AppManifest = {
     { id: 'shifts', labelKey: 'nav.shifts', icon: 'i-lucide-calendar-clock', to: '/hr/shifts', capability: 'hr.shifts.read', section: 'hr.nav.daily' },
     { id: 'assets', labelKey: 'nav.assets', icon: 'i-lucide-laptop', to: '/hr/assets', capability: 'hr.assets.read', section: 'hr.nav.daily' },
     { id: 'my-assets', labelKey: 'nav.myAssets', icon: 'i-lucide-package-check', to: '/hr/assets/mine', capability: 'hr.employees.read', feature: 'hr.assets', section: 'hr.nav.mine' },
-    { id: 'reports', labelKey: 'hr.reports.title', icon: 'i-lucide-chart-pie', to: '/hr/reports', capability: 'hr.employees.manage' },
+    { id: 'reports', labelKey: 'hr.reports.title', icon: 'i-lucide-chart-pie', to: '/hr/reports', capability: 'hr.employees.manage', section: 'hr.nav.insights' },
   ],
   landing: [
     { path: '/hr', capability: 'hr.employees.read' },

@@ -234,12 +234,13 @@ describe('palette declarations', () => {
 
     it('keeps the directory in the first card and the journey sections in order', () => {
       const listed = links('/hr').filter(link => !link.pinned)
-      expect(listed.filter(link => !link.section).map(link => link.id)).toEqual(['employees', 'departments', 'reports'])
+      expect(listed.filter(link => !link.section).map(link => link.id)).toEqual(['employees', 'departments'])
       const sectionOrder = [...new Set(listed.filter(link => link.section).map(link => link.section))]
-      expect(sectionOrder).toEqual(['hr.nav.lifecycle', 'hr.nav.daily', 'hr.nav.mine'])
+      expect(sectionOrder).toEqual(['hr.nav.lifecycle', 'hr.nav.daily', 'hr.nav.mine', 'hr.nav.insights'])
       expect(listed.filter(link => link.section === 'hr.nav.lifecycle').map(link => link.id)).toEqual(['recruitment', 'onboarding', 'offboarding'])
       expect(listed.filter(link => link.section === 'hr.nav.daily').map(link => link.id)).toEqual(['leave', 'shifts', 'assets'])
       expect(listed.filter(link => link.section === 'hr.nav.mine').map(link => link.id)).toEqual(['my-assets'])
+      expect(listed.filter(link => link.section === 'hr.nav.insights').map(link => link.id)).toEqual(['reports'])
     })
 
     it('lists the same pages in nav and in the context links', () => {
