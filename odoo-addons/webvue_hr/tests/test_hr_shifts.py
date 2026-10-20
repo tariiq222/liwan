@@ -266,7 +266,7 @@ class TestHrShifts(WebVueHrCase):
             'date_end': '2026-12-15',
         })
         self.assertEqual(overlap.status_code, 422, overlap.text)
-        self.assertEqual(overlap.json()['code'], 'invalid')
+        self.assertEqual((overlap.json()['code'], overlap.json()['field']), ('assignment_overlap', 'date_start'))
         adjacent = self.api('POST', '/api/v1/hr/shifts/assignments', {
             'employee_id': self.worker.id,
             'schedule_id': self.schedule.id,
@@ -274,6 +274,30 @@ class TestHrShifts(WebVueHrCase):
             'date_end': '2026-12-31',
         })
         self.assertEqual(adjacent.status_code, 200, adjacent.text)
+
+    def test_assignment_cuts_the_open_ended_default_row(self):
+        # Outside the engine's own tests every employee carries one open-ended default row.
+        employee = self.env['hr.employee'].create({'name': 'Shift Default Row', 'company_id': self.company.id})
+        default = self.env['hr.employee.calendar'].create({
+            'employee_id': employee.id, 'calendar_id': self.company.resource_calendar_id.id,
+        })
+        self._as_manager()
+        created = self.api('POST', '/api/v1/hr/shifts/assignments', {
+            'employee_id': employee.id, 'schedule_id': self.schedule.id,
+            'date_start': '2026-11-01', 'date_end': '2026-11-30',
+        })
+        self.assertEqual(created.status_code, 200, created.text)
+        self.assertEqual(default.date_end, date(2026, 10, 31))
+        tail = self.env['hr.employee.calendar'].search([
+            ('employee_id', '=', employee.id), ('date_start', '=', date(2026, 12, 1)),
+        ])
+        self.assertEqual((tail.calendar_id, tail.date_end), (self.company.resource_calendar_id, False))
+        # An open-ended assignment takes over the rest of the default row without a tail.
+        open_ended = self.api('POST', '/api/v1/hr/shifts/assignments', {
+            'employee_id': employee.id, 'schedule_id': self.schedule.id, 'date_start': '2027-01-01',
+        })
+        self.assertEqual(open_ended.status_code, 200, open_ended.text)
+        self.assertEqual(tail.date_end, date(2026, 12, 31))
 
     def test_assignment_payload_is_validated(self):
         self._as_manager()

@@ -4,12 +4,14 @@ hr_employee_calendar_planning engine (spec 6.2).
 
 A schedule is a company-owned, non-auto-generated resource.calendar; an assignment is
 one hr.employee.calendar planning row. The engine keeps its own behaviour (overlap
-refusal, the employee's auto calendar regeneration, the in-use refusal on archive);
+refusal as a backstop, the employee's auto calendar regeneration, the in-use refusal on archive);
 this controller checks the WebVue capability, scopes every query to the current
 company and serializes the whitelisted shape. Writes run as the caller: the
 hr.shifts.manage capability depends on hr.employees.manage, whose group supplies the
 engine ACLs.
 """
+from datetime import timedelta
+
 from odoo import http
 from odoo.exceptions import MissingError
 from odoo.http import request
@@ -147,6 +149,50 @@ def _reject_self_assignment(employee):
         raise ApiError(403, 'forbidden', 'an assignment of the caller cannot be planned by the caller')
 
 
+def _make_room_for(employee, date_start, date_end):
+    """Cut the employee's open-ended planning row so a new period fits.
+
+    The engine keeps one non-overlapping planning per employee and gives every employee an
+    open-ended default row, so a plain create would always be refused. That row ends the day
+    before the new period starts; when the new period has an end, the remainder continues as
+    a row of the same calendar. A row with an end date is a planned period and is never cut:
+    ``_reject_overlap`` refuses a period that meets it.
+    """
+    if not date_start:
+        return
+    Planning = request.env['hr.employee.calendar']
+    open_ended = Planning.search([
+        ('employee_id', '=', employee.id),
+        ('date_end', '=', False),
+        '|', ('date_start', '=', False), ('date_start', '<', date_start),
+    ])
+    for row in open_ended:
+        row.date_end = date_start - timedelta(days=1)
+        if date_end:
+            Planning.create({
+                'employee_id': employee.id,
+                'calendar_id': row.calendar_id.id,
+                'date_start': date_end + timedelta(days=1),
+            })
+
+
+def _reject_overlap(employee, date_start, date_end, exclude=None):
+    """422 ``assignment_overlap`` when the period meets another planning row of the employee."""
+    domain = [('employee_id', '=', employee.id)]
+    if exclude:
+        domain.append(('id', '!=', exclude.id))
+    if date_end:
+        domain += ['|', ('date_start', '=', False), ('date_start', '<=', date_end)]
+    if date_start:
+        domain += ['|', ('date_end', '=', False), ('date_end', '>=', date_start)]
+    if request.env['hr.employee.calendar'].search_count(domain):
+        raise ApiError(
+            422, 'assignment_overlap',
+            'the employee already has a work schedule assigned in this period',
+            field='date_start',
+        )
+
+
 class HrShiftController(http.Controller):
 
     @http.route('/api/v1/hr/shifts/schedules', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -241,13 +287,16 @@ class HrShiftController(http.Controller):
         employee = _current_employee(vals['employee_id'])
         schedule = _assignable_schedule(vals['schedule_id'])
         _reject_self_assignment(employee)
-        # An overlapping period for the same employee is refused by the engine (422).
-        row = request.env['hr.employee.calendar'].create({
-            'employee_id': employee.id,
-            'calendar_id': schedule.id,
-            'date_start': vals['date_start'] or False,
-            'date_end': vals['date_end'] or False,
-        })
+        # A refused period leaves the cut rows as they were.
+        with request.env.cr.savepoint():
+            _make_room_for(employee, vals['date_start'], vals['date_end'])
+            _reject_overlap(employee, vals['date_start'], vals['date_end'])
+            row = request.env['hr.employee.calendar'].create({
+                'employee_id': employee.id,
+                'calendar_id': schedule.id,
+                'date_start': vals['date_start'] or False,
+                'date_end': vals['date_end'] or False,
+            })
         return dump_assignment(row)
 
     @http.route('/api/v1/hr/shifts/assignments/<int:assignment_id>', type='json2', auth='user', methods=['PATCH'])
@@ -260,6 +309,9 @@ class HrShiftController(http.Controller):
         vals = parse_assignment_patch(payload, row)
         if 'calendar_id' in vals:
             vals['calendar_id'] = _assignable_schedule(vals['calendar_id']).id
+        _reject_overlap(
+            row.employee_id, vals.get('date_start', row.date_start), vals.get('date_end', row.date_end), exclude=row,
+        )
         row.write(vals)
         return dump_assignment(row)
 
