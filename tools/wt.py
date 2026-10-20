@@ -1,18 +1,32 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Create, list and clean up task worktrees.
+"""Create, claim, check, list and clean up task worktrees.
 
-    python3 -B tools/wt.py new <area>-<slug> [--base main] [--no-install] [--resume]
+    python3 -B tools/wt.py new <area>-<slug> --owner <who> --task <what> --scope <path> [--scope ...]
+                               [--allow-overlap <reason>] [--base main] [--no-install] [--resume]
+    python3 -B tools/wt.py claim --owner <who> [--task <what>] [--scope <path> ...] [--allow-overlap <reason>]
+    python3 -B tools/wt.py check
     python3 -B tools/wt.py status
     python3 -B tools/wt.py gc [--apply] [--branch codex/<area>-<slug>]
 
 ``new`` creates ``.worktrees/<area>-<slug>``, the only location for task worktrees, under the main
-checkout (also when run from a worktree) on branch ``codex/<area>-<slug>``, installs independent ``node_modules`` and ``.nuxt`` (never symlinked), and writes the
+checkout (also when run from a worktree) on branch ``codex/<area>-<slug>`` from ``--base`` (``main``, or a
+``codex/`` integration branch), installs independent ``node_modules`` and ``.nuxt`` (never symlinked), and writes the
 git-ignored ``.env.worktree`` with free Nuxt and Odoo ports and a scratch
 database name (written before the install, so a failed install keeps its ports;
-``--resume`` continues it).
+``--resume`` continues it). It also records the worktree's ownership claim (``tools/worktree_claims.py``):
+the owner (session, agent or person), the task, the base and the workspace-relative paths the task will
+change (``.`` is the whole repository, for an integration worktree). ``new`` refuses scopes that overlap the
+active claim of another worktree unless ``--allow-overlap`` states the reason, which the claim keeps.
+``claim``, run inside a task worktree, records a claim for a worktree that has none, lets its owner change or
+refresh it, or takes over a claim that has expired (no commit, edited file or refresh for
+``CLAIM_TTL_HOURS``); an expired claim stays listed but no longer blocks other claims.
 
+``check`` reports every worktree that breaks a rule: outside ``.worktrees``, a branch that is not
+``codex/<area>-<slug>`` or ``spike/<slug>``, a folder name that is not its branch's ``<area>-<slug>``, no claim,
+and active claims that overlap without a stated reason; it exits 1 when there is one. It only reads: it never
+moves, renames or removes a worktree, so a worktree that predates these rules is reported, never changed.
 ``status`` prints one table of every worktree, wherever it lives (``*`` marks one outside
-``.worktrees``; ``missing`` one whose folder is gone). ``gc`` lists the worktrees and branches that are
+``.worktrees``; ``missing`` one whose folder is gone), with its owner and claim state, then the violations. ``gc`` lists the worktrees and branches that are
 merged into main with commits of their own, clean and held by no process, plus the scratch databases
 of those worktrees nobody is connected to; it only prints unless ``--apply`` is given, which needs the
 owner's authorization. Unmerged, dirty, current, in-use and missing worktrees and databases it cannot
@@ -36,6 +50,16 @@ from typing import NamedTuple
 
 from git_policy import check_branch
 from odoo_test import GC_DB
+from worktree_claims import (
+    CLAIM_TTL_HOURS,
+    Claim,
+    ClaimError,
+    is_expired,
+    make_claim,
+    overlapping,
+    read_claim,
+    write_claim,
+)
 
 NUXT_PORTS = range(3100, 3200)
 ODOO_PORTS = range(8170, 8270)
@@ -53,6 +77,14 @@ INSTALL = (
 
 class WorktreeError(Exception):
     """A refused or failed step; the message is shown to the user."""
+
+
+class ClaimRequest(NamedTuple):
+    """The ownership a caller asks for in ``new`` or ``claim``."""
+    owner: str
+    task: str
+    scopes: tuple
+    overlap_reason: str = ''
 
 
 class WorktreeKept(WorktreeError):
@@ -177,21 +209,59 @@ def install_dependencies(path):
             raise WorktreeError(message)
 
 
-def create(suffix, base, install, resume=False):
+def check_base(base):
+    """Problem with a ``new --base``, or ``None``: task worktrees branch from main or a codex/ integration branch."""
+    if base == MAIN or (base.startswith('codex/') and not check_branch(base)):
+        return None
+    return "--base '%s' must be %s or a codex/<area>-<slug> integration branch" % (base, MAIN)
+
+
+def git_dir(path):
+    """The worktree's own git directory (``.git/worktrees/<id>``, or ``.git`` for the main checkout)."""
+    return Path(sh(['git', 'rev-parse', '--absolute-git-dir'], path))
+
+
+def claim_conflicts(request, others):
+    """Lines describing each active claim of ``others`` whose scopes overlap ``request``'s."""
+    lines = []
+    for other in others:
+        if other.claim is None or other.claim_expired:
+            continue
+        pairs = overlapping(request.scopes, other.claim.scopes)
+        lines += ['%s overlaps %s of %s (owner %s, task: %s)' % (
+            mine, theirs, other.path, other.claim.owner, other.claim.task) for mine, theirs in pairs]
+    return lines
+
+
+def refuse_conflicts(request, others):
+    conflicts = claim_conflicts(request, others)
+    if conflicts and not request.overlap_reason:
+        advice = 'narrow --scope, wait for that worktree, or pass --allow-overlap "<reason>" after agreeing with its owner'
+        message = 'the scopes overlap an active claim:\n  %s\n%s' % ('\n  '.join(conflicts), advice)
+        raise WorktreeError(message)
+
+
+def create(suffix, base, install, request, resume=False):
     branch = 'codex/' + suffix
-    problem = check_branch(branch)
+    problem = check_branch(branch) or check_base(base)
     if problem:
         raise WorktreeError(problem)
     root = repo_root()
     path = root / WORKTREES_DIR / suffix
     entries = parse_worktrees(sh(['git', 'worktree', 'list', '--porcelain'], root))
     registered = any(Path(p).resolve() == path.resolve() and ref == 'refs/heads/' + branch for p, ref in entries)
-    if path.exists():
-        if not (resume and registered):
-            message = '%s already exists' % path
-            raise WorktreeError(message)
-    else:
+    if path.exists() and not (resume and registered):
+        message = '%s already exists' % path
+        raise WorktreeError(message)
+    try:
+        claim = make_claim(request.owner, request.task, base, request.scopes, time.time(), request.overlap_reason)
+    except ClaimError as error:
+        raise WorktreeError(str(error)) from error
+    others = [w for w in inspect_all(root, sizes=False) if not w.is_main and w.path.resolve() != path.resolve()]
+    refuse_conflicts(request._replace(scopes=claim.scopes), others)
+    if not path.exists():
         sh(['git', 'worktree', 'add', str(path), '-b', branch, base], root)
+    write_claim(git_dir(path), claim)
     env = path / '.env.worktree'
     if not env.exists():
         used = used_ports(root / WORKTREES_DIR, [p for p, _ in entries])
@@ -219,6 +289,8 @@ class Worktree(NamedTuple):
     ports: list
     missing: bool = False
     own_commits: bool = True
+    claim: Claim | None = None
+    claim_expired: bool = False
 
 
 AGE_UNITS = ((365, 'y'), (30, 'mo'), (1, 'd'))
@@ -262,8 +334,44 @@ def missing_worktree(root, path, ref):
         ports=[], missing=True)
 
 
-def inspect_worktree(root, path, ref, now=None):
-    """Everything ``status`` and ``gc`` need to know about one registered worktree."""
+def changed_paths(path):
+    """Workspace-relative paths ``git status`` reports in the worktree at ``path``."""
+    output = run(['git', 'status', '--porcelain', '-z', '--untracked-files=all'], path)
+    if output[0]:
+        message = 'git status failed in %s: %s' % (path, output[1].strip()[-TAIL:])
+        raise WorktreeError(message)
+    entries = output[1].split('\0')
+    paths, index = [], 0
+    while index < len(entries):
+        entry = entries[index]
+        if len(entry) > 3:
+            paths.append(entry[3:])
+            if entry[0] in 'RC':
+                index += 1  # a rename or copy is followed by its source path
+        index += 1
+    return paths
+
+
+def last_activity(path, commit_time, changed, claim):
+    """Latest of the last commit, the newest edited file and the claim refresh, in epoch seconds."""
+    times = [commit_time] + ([claim.refreshed_at] if claim else [])
+    for name in changed:
+        try:
+            times.append(int((path / name).lstat().st_mtime))
+        except OSError:
+            continue  # a deleted path has no modification time
+    return max(times)
+
+
+def load_claim(path):
+    try:
+        return read_claim(git_dir(path))
+    except ClaimError as error:
+        raise WorktreeError(str(error)) from error
+
+
+def inspect_worktree(root, path, ref, now=None, sizes=True):
+    """Everything ``status``, ``check`` and ``gc`` need to know about one registered worktree."""
     now = time.time() if now is None else now
     wt_path = Path(path)
     if not wt_path.is_dir():
@@ -272,33 +380,99 @@ def inspect_worktree(root, path, ref, now=None):
     behind, ahead = map(int, sh(['git', 'rev-list', '--left-right', '--count', '%s...%s' % (MAIN, head)], root).split())
     merged = run(['git', 'merge-base', '--is-ancestor', head, MAIN], root)[0] == 0
     own_commits = head not in sh(['git', 'rev-list', '--first-parent', MAIN], root).split()
-    dirty = bool(sh(['git', 'status', '--porcelain'], wt_path))
+    changed = changed_paths(wt_path)
     commit_time = int(sh(['git', 'log', '-1', '--format=%ct'], wt_path))
+    claim = load_claim(wt_path)
     env = env_values(wt_path)
     ports = [int(env[k]) for k in ('NUXT_PORT', 'ODOO_HTTP_PORT') if k in env]
     return Worktree(
         path=wt_path, branch=ref[len('refs/heads/'):] if ref else None, is_main=wt_path.resolve() == root.resolve(),
         canonical=(root / WORKTREES_DIR) in wt_path.resolve().parents or wt_path.resolve() == root.resolve(),
-        ahead=ahead, behind=behind, merged=merged, dirty=dirty, age_days=max(0, int((now - commit_time) // 86400)),
-        size=dir_size_kb(wt_path / 'node_modules'), database=env.get('NUXT_ODOO_DB'), ports=ports,
-        own_commits=own_commits)
+        ahead=ahead, behind=behind, merged=merged, dirty=bool(changed), age_days=max(0, int((now - commit_time) // 86400)),
+        size=dir_size_kb(wt_path / 'node_modules') if sizes else None, database=env.get('NUXT_ODOO_DB'), ports=ports,
+        own_commits=own_commits, claim=claim,
+        claim_expired=claim is not None and is_expired(last_activity(wt_path, commit_time, changed, claim), now))
 
 
-def inspect_all(root):
+def inspect_all(root, sizes=True):
     entries = parse_worktrees(sh(['git', 'worktree', 'list', '--porcelain'], root))
-    return [inspect_worktree(root, path, ref) for path, ref in entries]
+    return [inspect_worktree(root, path, ref, sizes=sizes) for path, ref in entries]
+
+
+def branch_violation(worktree):
+    """Why the worktree's branch or folder name breaks the naming rule, or ``None``."""
+    if not worktree.branch:
+        return 'no branch (detached HEAD); task worktrees are on codex/<area>-<slug>'
+    problem = check_branch(worktree.branch)
+    if problem:
+        return problem
+    expected = worktree.branch.split('/', 1)[1] if '/' in worktree.branch else None
+    if expected and worktree.path.name != expected:
+        return "folder '%s' does not match its branch %s (expected %s/%s)" % (
+            worktree.path.name, worktree.branch, WORKTREES_DIR, expected)
+    return None
+
+
+def violations(worktrees):
+    """``[(worktree, problem)]`` for every rule a task worktree breaks; the main checkout is not checked."""
+    found = []
+    tasks = [w for w in worktrees if not w.is_main]
+    for w in tasks:
+        if not w.canonical:
+            found.append((w, 'outside %s/; task worktrees live only in <main checkout>/%s/<area>-<slug>' % (
+                WORKTREES_DIR, WORKTREES_DIR)))
+        if w.missing:
+            continue
+        problem = branch_violation(w)
+        if problem:
+            found.append((w, problem))
+        if w.claim is None:
+            found.append((w, 'no ownership claim; its owner records one with: wt.py claim --owner ... --task ... --scope ...'))
+    for index, w in enumerate(tasks):
+        for other in tasks[index + 1:]:
+            if not (w.claim and other.claim) or w.claim_expired or other.claim_expired:
+                continue
+            if w.claim.overlap_reason or other.claim.overlap_reason:
+                continue
+            for mine, theirs in overlapping(w.claim.scopes, other.claim.scopes):
+                found.append((w, 'scope %s overlaps %s of %s without a stated reason' % (mine, theirs, other.path)))
+    return found
+
+
+def format_violations(found, root):
+    if not found:
+        return 'no rule violations'
+    lines = ['%d rule violations (reported only; nothing was moved, renamed or removed):' % len(found)]
+    lines += ['  %s: %s' % (display_name(w, root), problem) for w, problem in found]
+    return '\n'.join(lines)
+
+
+def display_name(worktree, root):
+    if worktree.is_main:
+        return '.'
+    if worktree.canonical and not worktree.missing:
+        return str(worktree.path.resolve().relative_to(root))
+    return str(worktree.path)
+
+
+def claim_label(worktree):
+    if worktree.is_main or worktree.missing:
+        return '-'
+    if worktree.claim is None:
+        return 'unclaimed'
+    return '%s%s' % (worktree.claim.owner, ' (expired)' if worktree.claim_expired else '')
 
 
 def format_status(worktrees, root):
-    header = ('WORKTREE', 'BRANCH', 'AHEAD/BEHIND', 'MERGED', 'DIRTY', 'AGE', 'NODE_MODULES', 'SCRATCH DB', 'PORTS')
+    header = ('WORKTREE', 'BRANCH', 'OWNER', 'AHEAD/BEHIND', 'MERGED', 'DIRTY', 'AGE', 'NODE_MODULES', 'SCRATCH DB', 'PORTS')
     rows = [header]
     for w in worktrees:
+        name = display_name(w, root) + ('' if w.canonical else ' *')
         if w.missing:
-            rows.append((str(w.path) + ('' if w.canonical else ' *'), w.branch or '(detached)', 'missing', '-', '-', '-', '-', w.database or '-', '-'))
+            rows.append((name, w.branch or '(detached)', '-', 'missing', '-', '-', '-', '-', w.database or '-', '-'))
             continue
-        name = '.' if w.is_main else str(w.path.resolve().relative_to(root)) if w.canonical else str(w.path)
         rows.append((
-            name + ('' if w.canonical else ' *'), w.branch or '(detached)',
+            name, w.branch or '(detached)', claim_label(w),
             '+%d/-%d' % (w.ahead, w.behind), 'yes' if w.merged else 'no', 'yes' if w.dirty else 'no',
             format_age(w.age_days), format_size(w.size), w.database or '-', ','.join(map(str, w.ports)) or '-'))
     widths = [max(len(row[i]) for row in rows) for i in range(len(header))]
@@ -310,7 +484,40 @@ def format_status(worktrees, root):
     missing = sum(w.missing for w in others)
     if missing:
         summary += ', %d folder missing (git worktree prune)' % missing
-    return '\n'.join(lines + ['', summary])
+    claims = [w for w in others if w.claim]
+    summary += '; %d claimed, %d expired (claims expire after %dh without activity)' % (
+        len(claims), sum(w.claim_expired for w in claims), CLAIM_TTL_HOURS)
+    return '\n'.join(lines + ['', summary, '', format_violations(violations(worktrees), root)])
+
+
+def update_claim(root, current, request, now=None):
+    """Record, change, refresh or take over the claim of the task worktree containing ``current``."""
+    now = time.time() if now is None else now
+    worktrees = inspect_all(root, sizes=False)
+    mine = next((w for w in worktrees if not w.is_main and not w.missing and inside(current.resolve(), w.path.resolve())), None)
+    if mine is None:
+        message = 'run claim inside a task worktree under %s/, not the main checkout' % WORKTREES_DIR
+        raise WorktreeError(message)
+    old = mine.claim
+    if old and old.owner != request.owner.strip() and not mine.claim_expired:
+        template = 'this worktree is claimed by %s (task: %s) and the claim is active; ask that owner, or wait %dh without activity for it to expire'
+        message = template % (old.owner, old.task, CLAIM_TTL_HOURS)
+        raise WorktreeError(message)
+    keep = old and old.owner == request.owner.strip()
+    task = request.task or (old.task if old else '')
+    scopes = request.scopes or (old.scopes if old else ())
+    reason = request.overlap_reason or (old.overlap_reason if keep else '')
+    base = old.base if old else MAIN
+    try:
+        claim = make_claim(request.owner, task, base, scopes, now, reason, old.claimed_at if keep else None)
+    except ClaimError as error:
+        raise WorktreeError(str(error)) from error
+    others = [w for w in worktrees if not w.is_main and w is not mine]
+    refuse_conflicts(request._replace(scopes=claim.scopes, overlap_reason=claim.overlap_reason), others)
+    write_claim(git_dir(mine.path), claim)
+    action = 'refreshed' if keep else 'took over the expired claim of %s' % old.owner if old else 'recorded'
+    return '%s claim of %s: owner %s, task: %s, scopes: %s' % (
+        action, mine.path, claim.owner, claim.task, ', '.join(claim.scopes))
 
 
 def busy_paths():
@@ -448,14 +655,31 @@ def gc(root, apply, current, branch=None):
     return '\n'.join(lines)
 
 
+def add_claim_arguments(parser, required):
+    parser.add_argument('--owner', required=True, help='the session, agent or person that writes in this worktree')
+    parser.add_argument('--task', required=required, help='one line: what this worktree is for')
+    parser.add_argument('--scope', action='append', default=[], required=required,
+                        help='a workspace-relative path the task will change; repeat it; . is the whole repository')
+    parser.add_argument('--allow-overlap', default='', metavar='REASON',
+                        help='claim scopes that overlap another active claim, with the reason agreed with its owner')
+
+
+def claim_request(args):
+    return ClaimRequest(args.owner, args.task or '', tuple(args.scope), args.allow_overlap)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     sub = parser.add_subparsers(dest='command', required=True)
     new = sub.add_parser('new')
     new.add_argument('name', help='<area>-<slug>, e.g. pmo-task-filters')
-    new.add_argument('--base', default='main')
+    new.add_argument('--base', default=MAIN, help='main, or a codex/<area>-<slug> integration branch')
     new.add_argument('--no-install', action='store_true')
     new.add_argument('--resume', action='store_true', help='continue a worktree whose creation failed part way')
+    add_claim_arguments(new, required=True)
+    claim = sub.add_parser('claim', help='record, change, refresh or take over the claim of the current worktree')
+    add_claim_arguments(claim, required=False)
+    sub.add_parser('check', help='report rule violations of every worktree; exit 1 when there is one')
     sub.add_parser('status')
     collect = sub.add_parser('gc')
     collect.add_argument('--apply', action='store_true', help='remove what is listed (needs the owner\'s authorization)')
@@ -465,10 +689,18 @@ def main(argv=None):
         root = repo_root()
         sys.stdout.write(format_status(inspect_all(root), root) + '\n')
         return 0
+    if args.command == 'check':
+        root = repo_root()
+        found = violations(inspect_all(root, sizes=False))
+        sys.stdout.write(format_violations(found, root) + '\n')
+        return 1 if found else 0
+    if args.command == 'claim':
+        sys.stdout.write(update_claim(repo_root(), Path.cwd(), claim_request(args)) + '\n')
+        return 0
     if args.command == 'gc':
         sys.stdout.write(gc(repo_root(), args.apply, Path.cwd(), args.branch) + '\n')
         return 0
-    path, branch, nuxt, odoo = create(args.name, args.base, not args.no_install, args.resume)
+    path, branch, nuxt, odoo = create(args.name, args.base, not args.no_install, claim_request(args), args.resume)
     sys.stdout.write('worktree %s on %s\nNuxt port %d, Odoo port %d, see %s/.env.worktree\n' % (path, branch, nuxt, odoo, path))
     return 0
 

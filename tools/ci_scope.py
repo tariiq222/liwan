@@ -32,7 +32,7 @@ STATIC_ONLY_TOOLS = (
     'tools/new_app_templates/*', 'tools/no_external_refs.py', 'tools/odoo_test.py',
     'tools/secret_guard.py', 'tools/semgrep_gate.py', 'tools/ts_loader.mjs',
     'tools/ui_catalog.mjs', 'tools/ui_inventory.py', 'tools/ui_layer_baseline.mjs',
-    'tools/ui_policy.py', 'tools/ui_templates.mjs', 'tools/wt.py',
+    'tools/ui_policy.py', 'tools/ui_templates.mjs', 'tools/worktree_claims.py', 'tools/wt.py',
 )
 SHARED_PACKAGE_STAGES = ('control-plane', 'vendor-admin', 'e2e-mock', 'rtl-stories')
 UNMAPPED = '(no rule: all stages)'

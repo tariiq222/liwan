@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest import mock
 
 import wt
+from worktree_claims import read_claim
 from wt import (
     WorktreeError,
     clean_env,
@@ -17,6 +18,8 @@ from wt import (
     pick_port,
     used_ports,
 )
+
+REQUEST = wt.ClaimRequest('session-a', 'fix the filters', ('apps/web/app/pages/hr',))
 
 PORCELAIN = """worktree /r/main
 HEAD aaaa
@@ -82,7 +85,7 @@ class TestWt(unittest.TestCase):
     def test_create_rejects_bad_branch_names(self):
         for bad in ('nonsense-thing', 'pmo', 'pmo-Bad_Slug', ''):
             with self.assertRaises(WorktreeError):
-                create(bad, 'main', False)
+                create(bad, 'main', False, REQUEST)
 
     def test_port_is_busy_when_only_ipv6_loopback_listens(self):
         if not socket.has_ipv6:
@@ -143,7 +146,7 @@ class TestWt(unittest.TestCase):
                     mock.patch.object(wt, 'sh', return_value='worktree %s/main\nbranch refs/heads/main\n' % tmp):
                 for resume in (False, True):
                     with self.assertRaises(WorktreeError) as caught:
-                        create('tools-x', 'main', False, resume)
+                        create('tools-x', 'main', False, REQUEST, resume)
                     self.assertIn('already exists', str(caught.exception))
 
     def test_resume_continues_a_registered_worktree_and_keeps_ports(self):
@@ -154,11 +157,13 @@ class TestWt(unittest.TestCase):
             with mock.patch.object(wt, 'repo_root', return_value=root), \
                     mock.patch.object(wt, 'sh', return_value=listing), \
                     mock.patch.object(wt, 'port_is_free', return_value=True), \
-                    mock.patch.object(wt, 'install_dependencies', side_effect=installed.append):
+                    mock.patch.object(wt, 'install_dependencies', side_effect=installed.append), \
+                    mock.patch.object(wt, 'inspect_all', return_value=[]), \
+                    mock.patch.object(wt, 'git_dir', return_value=root / '.git'):
                 with self.assertRaises(WorktreeError):
-                    create('tools-x', 'main', True, False)
-                first = create('tools-x', 'main', True, True)
-                again = create('tools-x', 'main', True, True)
+                    create('tools-x', 'main', True, REQUEST, False)
+                first = create('tools-x', 'main', True, REQUEST, True)
+                again = create('tools-x', 'main', True, REQUEST, True)
             self.assertEqual(first, again)
             self.assertEqual(first[2:], (3100, 8170))
             self.assertTrue((path / '.env.worktree').is_file())
@@ -177,9 +182,14 @@ class TestWt(unittest.TestCase):
             with mock.patch.object(wt, 'repo_root', return_value=root), \
                     mock.patch.object(wt, 'sh', return_value=listing), \
                     mock.patch.object(wt, 'port_is_free', return_value=True), \
-                    mock.patch.object(wt, 'install_dependencies', side_effect=failing_install):
+                    mock.patch.object(wt, 'install_dependencies', side_effect=failing_install), \
+                    mock.patch.object(wt, 'inspect_all', return_value=[]), \
+                    mock.patch.object(wt, 'git_dir', return_value=root / '.git'):
                 with self.assertRaises(WorktreeError):
-                    create('tools-x', 'main', True, True)
+                    create('tools-x', 'main', True, REQUEST, True)
+
+
+CLAIM = wt.Claim('session-a', 'fix the filters', 'main', ('apps/web/app/pages/hr',), 100, 100)
 
 
 def worktree(**overrides):
@@ -252,13 +262,18 @@ class TestStatusAndGc(unittest.TestCase):
             wt.scratch_databases()
         self.assertIn('no server', str(caught.exception))
 
-    def test_format_status_has_a_row_per_worktree_and_a_summary(self):
+    def test_format_status_has_a_row_per_worktree_a_summary_and_the_violations(self):
         root = Path('/r')
-        text = wt.format_status([worktree(is_main=True, path=root), worktree(), worktree(canonical=False, dirty=True, path=Path('/x/y'))], root)
+        claimed = worktree(claim=CLAIM)
+        outside = worktree(canonical=False, dirty=True, path=Path('/x/y'), claim=CLAIM._replace(scopes=('docs',)))
+        text = wt.format_status([worktree(is_main=True, path=root), claimed, outside], root)
         lines = text.splitlines()
-        self.assertEqual(len(lines), 6)
+        self.assertIn('session-a', lines[2])
         self.assertIn('/x/y *', lines[3])
-        self.assertTrue(lines[-1].startswith('2 worktrees: 2 merged, 1 dirty, 1 outside .worktrees'))
+        self.assertTrue(lines[5].startswith('2 worktrees: 2 merged, 1 dirty, 1 outside .worktrees'))
+        self.assertIn('2 claimed, 0 expired', lines[5])
+        self.assertIn('rule violations (reported only', lines[7])
+        self.assertIn('/x/y: outside .worktrees/', text)
 
     def _gc(self, apply, sh_side_effect):
         patches = (
@@ -314,7 +329,6 @@ class TestStatusAndGc(unittest.TestCase):
         with mock.patch.object(wt, 'inspect_all', return_value=[worktree(dirty=True)]), \
                 mock.patch.object(wt, 'busy_paths', return_value=set()):
             self.assertEqual(wt.gc(Path('/r'), True, Path('/x')), 'nothing to clean')
-
 
     def _gc_branch(self, worktrees, branch, busy=(), merged_branch=False, apply=False, current='/elsewhere'):
         calls = []
@@ -389,6 +403,157 @@ class TestStatusAndGc(unittest.TestCase):
             self.assertFalse(wt.merged_local_branch(Path('/r'), 'codex/pmo-a'))
         with mock.patch.object(wt, 'run', side_effect=[(0, ''), (0, '')]):
             self.assertTrue(wt.merged_local_branch(Path('/r'), 'codex/pmo-a'))
+
+
+class TestRules(unittest.TestCase):
+    def problems(self, worktrees):
+        return [problem for _, problem in wt.violations(worktrees)]
+
+    def test_a_claimed_canonical_task_worktree_breaks_no_rule(self):
+        self.assertEqual(self.problems([worktree(is_main=True, path=Path('/r')), worktree(claim=CLAIM)]), [])
+
+    def test_the_main_checkout_is_never_checked(self):
+        self.assertEqual(self.problems([worktree(is_main=True, path=Path('/r'), branch='main', claim=None)]), [])
+
+    def test_location_naming_and_claim_are_reported(self):
+        agent = worktree(path=Path('/r/.claude/worktrees/agent-a1'), canonical=False, branch='worktree-agent-a1')
+        problems = self.problems([agent])
+        self.assertIn('outside .worktrees/', problems[0])
+        self.assertIn("branch 'worktree-agent-a1' must be main, codex/<area>-<slug> or spike/<slug>", problems[1])
+        self.assertIn('no ownership claim', problems[2])
+
+    def test_folder_must_match_its_branch(self):
+        problems = self.problems([worktree(path=Path('/r/.worktrees/other'), claim=CLAIM)])
+        self.assertEqual(problems, ["folder 'other' does not match its branch codex/pmo-a (expected .worktrees/pmo-a)"])
+
+    def test_detached_head_is_reported(self):
+        self.assertIn('detached HEAD', self.problems([worktree(branch=None, claim=CLAIM)])[0])
+
+    def test_a_missing_folder_is_only_checked_for_location(self):
+        self.assertEqual(self.problems([worktree(missing=True, claim=None)]), [])
+
+    def test_active_overlapping_claims_are_reported_unless_a_reason_was_given_or_one_expired(self):
+        first = worktree(claim=CLAIM)
+        second = worktree(path=Path('/r/.worktrees/pmo-b'), branch='codex/pmo-b', claim=CLAIM._replace(scopes=('apps/web',)))
+        self.assertIn('overlaps apps/web of /r/.worktrees/pmo-b without a stated reason', self.problems([first, second])[0])
+        agreed = second._replace(claim=second.claim._replace(overlap_reason='shared page header, agreed with session-a'))
+        self.assertEqual(self.problems([first, agreed]), [])
+        self.assertEqual(self.problems([first, second._replace(claim_expired=True)]), [])
+
+    def test_check_never_runs_git_mutations(self):
+        with mock.patch.object(wt, 'inspect_all', return_value=[worktree()]), \
+                mock.patch.object(wt, 'repo_root', return_value=Path('/r')), \
+                mock.patch.object(wt, 'sh', side_effect=AssertionError('check must not run git')), \
+                mock.patch.object(wt.sys, 'stdout'):
+            self.assertEqual(wt.main(['check']), 1)
+
+
+class TestClaims(unittest.TestCase):
+    def test_new_refuses_an_overlap_with_an_active_claim_and_names_its_owner(self):
+        other = worktree(path=Path('/r/.worktrees/hr-b'), branch='codex/hr-b', claim=CLAIM._replace(owner='session-b', scopes=('apps/web',)))
+        with self.assertRaises(WorktreeError) as caught:
+            wt.refuse_conflicts(REQUEST, [other])
+        self.assertIn('apps/web/app/pages/hr overlaps apps/web of /r/.worktrees/hr-b (owner session-b', str(caught.exception))
+        self.assertIn('--allow-overlap', str(caught.exception))
+
+    def test_a_stated_reason_an_expired_or_a_disjoint_claim_does_not_block(self):
+        other = worktree(claim=CLAIM._replace(scopes=('apps/web',)))
+        wt.refuse_conflicts(REQUEST._replace(overlap_reason='agreed'), [other])
+        wt.refuse_conflicts(REQUEST, [other._replace(claim_expired=True)])
+        wt.refuse_conflicts(REQUEST, [other._replace(claim=CLAIM._replace(scopes=('odoo-addons',)))])
+        wt.refuse_conflicts(REQUEST, [worktree(claim=None)])
+
+    def test_the_whole_repository_scope_overlaps_everything(self):
+        with self.assertRaises(WorktreeError):
+            wt.refuse_conflicts(REQUEST._replace(scopes=('.',)), [worktree(claim=CLAIM._replace(scopes=('docs/a.md',)))])
+
+    def test_new_refuses_a_base_that_is_not_main_or_a_codex_branch(self):
+        for base in ('origin/main', 'HEAD~1', 'feature/x', 'codex/Nope'):
+            with self.subTest(base=base), self.assertRaises(WorktreeError):
+                create('tools-x', base, False, REQUEST)
+        self.assertIsNone(wt.check_base('codex/tools-integrate-x'))
+
+    def test_new_writes_the_claim_and_refuses_before_creating_the_worktree(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / '.git').mkdir()
+            listing = 'worktree %s\nbranch refs/heads/main\n' % root
+            calls = []
+
+            def fake_sh(argv, cwd):
+                calls.append(argv)
+                if argv[:3] == ['git', 'worktree', 'add']:
+                    Path(argv[3]).mkdir(parents=True)
+                return listing
+
+            blocker = worktree(path=root / '.worktrees' / 'hr-b', branch='codex/hr-b', claim=CLAIM._replace(scopes=('apps',)))
+            with mock.patch.object(wt, 'repo_root', return_value=root), mock.patch.object(wt, 'sh', side_effect=fake_sh), \
+                    mock.patch.object(wt, 'port_is_free', return_value=True), \
+                    mock.patch.object(wt, 'git_dir', return_value=root / '.git'):
+                with mock.patch.object(wt, 'inspect_all', return_value=[blocker]), self.assertRaises(WorktreeError):
+                    create('hr-x', 'main', False, REQUEST)
+                self.assertFalse(any(argv[:3] == ['git', 'worktree', 'add'] for argv in calls))
+                with mock.patch.object(wt, 'inspect_all', return_value=[]):
+                    create('hr-x', 'main', False, REQUEST)
+            claim = read_claim(root / '.git')
+            self.assertEqual((claim.owner, claim.task, claim.base, claim.scopes),
+                             ('session-a', 'fix the filters', 'main', ('apps/web/app/pages/hr',)))
+
+    def test_new_needs_owner_task_and_scope(self):
+        for request in (REQUEST._replace(owner=' '), REQUEST._replace(task=''), REQUEST._replace(scopes=()),
+                        REQUEST._replace(scopes=('/abs/path',)), REQUEST._replace(scopes=('../outside',))):
+            with self.subTest(request=request), self.assertRaises(WorktreeError):
+                with mock.patch.object(wt, 'repo_root', return_value=Path('/nonexistent')), \
+                        mock.patch.object(wt, 'sh', return_value=''):
+                    create('hr-x', 'main', False, request)
+
+    def _update(self, mine, others=(), request=REQUEST, current='/r/.worktrees/pmo-a/apps'):
+        written = []
+        with mock.patch.object(wt, 'inspect_all', return_value=[worktree(is_main=True, path=Path('/r')), mine, *others]), \
+                mock.patch.object(wt, 'git_dir', return_value=Path('/r/.git/worktrees/pmo-a')), \
+                mock.patch.object(wt, 'write_claim', side_effect=lambda folder, claim: written.append(claim)):
+            text = wt.update_claim(Path('/r'), Path(current), request, now=500)
+        return text, written
+
+    def test_claim_records_a_claim_for_an_unclaimed_worktree(self):
+        text, written = self._update(worktree(claim=None))
+        self.assertIn('recorded claim', text)
+        self.assertEqual((written[0].owner, written[0].claimed_at, written[0].refreshed_at), ('session-a', 500, 500))
+
+    def test_the_owner_refreshes_and_keeps_task_scopes_and_start_time(self):
+        text, written = self._update(worktree(claim=CLAIM), request=wt.ClaimRequest('session-a', '', ()))
+        self.assertIn('refreshed claim', text)
+        self.assertEqual((written[0].task, written[0].scopes, written[0].claimed_at, written[0].refreshed_at),
+                         (CLAIM.task, CLAIM.scopes, 100, 500))
+
+    def test_another_owner_cannot_take_an_active_claim_but_takes_an_expired_one(self):
+        request = wt.ClaimRequest('session-b', '', ())
+        with self.assertRaises(WorktreeError) as caught:
+            self._update(worktree(claim=CLAIM), request=request)
+        self.assertIn('claimed by session-a', str(caught.exception))
+        text, written = self._update(worktree(claim=CLAIM, claim_expired=True), request=request)
+        self.assertIn('took over the expired claim of session-a', text)
+        self.assertEqual((written[0].owner, written[0].claimed_at), ('session-b', 500))
+
+    def test_claim_refuses_outside_a_task_worktree_and_on_overlap(self):
+        with self.assertRaises(WorktreeError):
+            self._update(worktree(claim=None), current='/r/apps')
+        other = worktree(path=Path('/r/.worktrees/hr-b'), branch='codex/hr-b', claim=CLAIM._replace(owner='session-b'))
+        with self.assertRaises(WorktreeError):
+            self._update(worktree(claim=None), others=[other])
+
+    def test_last_activity_is_the_newest_of_commit_files_and_refresh(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            edited = Path(tmp) / 'a.py'
+            edited.write_text('x', encoding='utf-8')
+            mtime = int(edited.stat().st_mtime)
+            self.assertEqual(wt.last_activity(Path(tmp), 10, ['a.py', 'gone.py'], None), mtime)
+            self.assertEqual(wt.last_activity(Path(tmp), 10, [], CLAIM._replace(refreshed_at=20)), 20)
+
+    def test_changed_paths_reads_renames_and_untracked_files(self):
+        output = ' M tools/wt.py\0R  new.py\0old.py\0?? docs/x.md\0'
+        with mock.patch.object(wt, 'run', return_value=(0, output)):
+            self.assertEqual(wt.changed_paths(Path('/r')), ['tools/wt.py', 'new.py', 'docs/x.md'])
 
 
 class TestCleanEnv(unittest.TestCase):
