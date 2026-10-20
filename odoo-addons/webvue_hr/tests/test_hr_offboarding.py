@@ -226,6 +226,20 @@ class TestHrOffboarding(WebVueHrCase):
         self.assertEqual(self.api('GET', '/api/v1/hr/offboarding/departures').status_code, 200)
         self.assertEqual(self.api('GET', '/api/v1/hr/offboarding/reasons').status_code, 200)
 
+    def test_reader_reads_a_registered_departure(self):
+        self._as_manager()
+        self.assertEqual(self._register().status_code, 201)
+        self._as_reader()
+        listing = self.api('GET', '/api/v1/hr/offboarding/departures')
+        self.assertEqual(listing.status_code, 200, listing.text)
+        item = next(row for row in listing.json()['items'] if row['employee']['id'] == self.employee_record.id)
+        self.assertEqual(set(item), DEPARTURE_KEYS)
+        one = self.api('GET', f'/api/v1/hr/offboarding/departures/{self.employee_record.id}')
+        self.assertEqual(one.status_code, 200, one.text)
+        self.assertEqual(set(one.json()), DEPARTURE_KEYS)
+        self.assertEqual(one.json()['departure_date'], DEPARTURE_DATE)
+        self.assertEqual(one.json()['reason'], {'id': self.reason.id, 'name': self.reason.name})
+
     def test_feature_gate_hides_the_area(self):
         self._as_manager()
         set_hr_feature(self, 'hr.offboarding', False)
