@@ -1,0 +1,175 @@
+{
+  "financeRecords": {
+    "forbidden": "You do not have permission to view this setting.",
+    "saveError": "Could not save",
+    "states": {
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "columns": {
+      "state": "Status"
+    },
+    "filters": {
+      "all": "All",
+      "state": "Status"
+    },
+    "actions": {
+      "edit": "Edit",
+      "archive": "Archive",
+      "unarchive": "Unarchive"
+    },
+    "accounts": {
+      "title": "Chart of accounts",
+      "description": "Add and edit the accounts of the current company. An account with entries keeps its type, and archiving hides it from the pickers without touching the books.",
+      "new": "New account",
+      "empty": "No accounts yet.",
+      "search": "Search by code or name",
+      "actionsNamed": "Actions for account {name}",
+      "footer": "Showing {shown} of {total} account | Showing {shown} of {total} accounts",
+      "columns": {
+        "code": "Code",
+        "name": "Name",
+        "type": "Type"
+      },
+      "form": {
+        "code": "Code",
+        "name": "Account name",
+        "type": "Type",
+        "currency": "Currency",
+        "currencyHelp": "Leave empty for the company currency.",
+        "reconcile": "Allow reconciliation"
+      },
+      "confirm": {
+        "archiveTitle": "Archive the account \"{name}\"?",
+        "archiveDescription": "It disappears from the pickers. An account with a balance, a journal default or a tax cannot be archived.",
+        "unarchiveTitle": "Restore the account \"{name}\"?",
+        "unarchiveDescription": "It comes back to the pickers."
+      }
+    },
+    "journals": {
+      "title": "Journals",
+      "description": "Sales, purchase, bank, cash and general journals of the current company. The type is chosen once and cannot change.",
+      "new": "New journal",
+      "empty": "No journals yet.",
+      "allTypes": "All types",
+      "actionsNamed": "Actions for journal {name}",
+      "footer": "Showing {shown} of {total} journal | Showing {shown} of {total} journals",
+      "types": {
+        "sale": "Sales",
+        "purchase": "Purchases",
+        "bank": "Bank",
+        "cash": "Cash",
+        "general": "General",
+        "credit": "Credit card"
+      },
+      "columns": {
+        "code": "Code",
+        "name": "Name",
+        "type": "Type",
+        "defaultAccount": "Default account"
+      },
+      "form": {
+        "name": "Journal name",
+        "code": "Code",
+        "type": "Type",
+        "currency": "Currency",
+        "currencyHelp": "Leave empty for the company currency.",
+        "defaultAccount": "Cash or bank account",
+        "defaultAccountHelp": "The account whose balance this journal is. Create it in the chart of accounts first."
+      },
+      "confirm": {
+        "archiveTitle": "Archive the journal \"{name}\"?",
+        "archiveDescription": "A journal with draft entries cannot be archived. Posted entries stay in the books.",
+        "unarchiveTitle": "Restore the journal \"{name}\"?",
+        "unarchiveDescription": "It comes back to the pickers."
+      }
+    },
+    "taxes": {
+      "title": "Taxes",
+      "description": "Sale and purchase taxes of the current company. A tax that entries use keeps its rate and account and can only be renamed or archived.",
+      "new": "New tax",
+      "empty": "No taxes yet.",
+      "search": "Search by name",
+      "allUses": "Sales and purchases",
+      "actionsNamed": "Actions for tax {name}",
+      "footer": "Showing {shown} of {total} tax | Showing {shown} of {total} taxes",
+      "uses": {
+        "sale": "Sales",
+        "purchase": "Purchases"
+      },
+      "amountTypes": {
+        "percent": "Percent",
+        "fixed": "Fixed amount"
+      },
+      "columns": {
+        "name": "Name",
+        "use": "Applies to",
+        "amount": "Rate",
+        "taxAccount": "Tax account"
+      },
+      "lockedNote": "Entries use this tax, so only its name can change.",
+      "form": {
+        "name": "Tax name",
+        "use": "Applies to",
+        "amountType": "Computation",
+        "rate": "Rate (%)",
+        "amount": "Amount",
+        "taxAccount": "Tax account",
+        "taxAccountHelp": "Where the tax amount is booked, for example the VAT payable or recoverable account.",
+        "priceInclude": "The price already includes this tax"
+      },
+      "confirm": {
+        "archiveTitle": "Archive the tax \"{name}\"?",
+        "archiveDescription": "It disappears from the pickers; entries that used it are not changed.",
+        "unarchiveTitle": "Restore the tax \"{name}\"?",
+        "unarchiveDescription": "It comes back to the pickers."
+      }
+    },
+    "paymentTerms": {
+      "title": "Payment terms",
+      "description": "How an invoice is split into installments and when each is due. Terms that come with the chart are shared by every company and are read only.",
+      "new": "New payment term",
+      "empty": "No payment terms yet.",
+      "search": "Search by name",
+      "shared": "Shared",
+      "actionsNamed": "Actions for payment term {name}",
+      "footer": "Showing {shown} of {total} payment term | Showing {shown} of {total} payment terms",
+      "columns": {
+        "name": "Name",
+        "lines": "Installments"
+      },
+      "values": {
+        "percent": "Percent",
+        "fixed": "Fixed amount"
+      },
+      "delays": {
+        "days_after": "Days after the invoice date",
+        "days_after_end_of_month": "Days after the end of the month",
+        "days_after_end_of_next_month": "Days after the end of the next month"
+      },
+      "lineSummary": {
+        "percent": "{amount}% after {days} d",
+        "fixed": "{amount} after {days} d"
+      },
+      "form": {
+        "name": "Payment term name",
+        "note": "Description on the invoice",
+        "lines": "Installments",
+        "value": "Kind",
+        "percent": "Percent",
+        "amount": "Amount",
+        "days": "Days",
+        "delay": "Counted from",
+        "addLine": "Add an installment",
+        "removeLine": "Remove installment {line}",
+        "total": "The percent installments add up to {total}%. They must add up to 100%."
+      },
+      "confirm": {
+        "archiveTitle": "Archive the payment term \"{name}\"?",
+        "archiveDescription": "It disappears from the pickers; invoices that used it keep their due dates.",
+        "unarchiveTitle": "Restore the payment term \"{name}\"?",
+        "unarchiveDescription": "It comes back to the pickers."
+      }
+    }
+  }
+}

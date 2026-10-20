@@ -82,6 +82,10 @@ const manifest: AppManifest = {
   ],
   settings: [
     { id: 'finance-setup', labelKey: 'finance.setup.title', icon: 'i-lucide-landmark', to: '/settings/apps/finance', capability: 'finance.setup.read' },
+    { id: 'finance-accounts', labelKey: 'finance.nav.accountsSettings', icon: 'i-lucide-list-tree', to: '/settings/apps/finance/accounts', capability: 'finance.accounts.read' },
+    { id: 'finance-journals', labelKey: 'finance.nav.journalsSettings', icon: 'i-lucide-notebook', to: '/settings/apps/finance/journals', capability: 'finance.journals.read' },
+    { id: 'finance-taxes', labelKey: 'finance.nav.taxesSettings', icon: 'i-lucide-percent', to: '/settings/apps/finance/taxes', capability: 'finance.taxes.read' },
+    { id: 'finance-payment-terms', labelKey: 'finance.nav.paymentTermsSettings', icon: 'i-lucide-calendar-clock', to: '/settings/apps/finance/payment-terms', capability: 'finance.payment_terms.read' },
     { id: 'finance-analytic', labelKey: 'finance.nav.analyticSettings', icon: 'i-lucide-chart-pie', to: '/settings/apps/finance/analytic', capability: 'finance.analytic.read' },
     { id: 'finance-closing', labelKey: 'finance.nav.closing', icon: 'i-lucide-calendar-check', to: '/settings/apps/finance/closing', capability: 'finance.closing.read' },
     { id: 'finance-zatca', labelKey: 'finance.nav.zatca', icon: 'i-lucide-qr-code', to: '/settings/apps/finance/zatca', capability: 'finance.zatca.read' },

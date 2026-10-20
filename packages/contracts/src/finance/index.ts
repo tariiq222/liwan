@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FinanceAnalyticShareSchema } from './analytic'
-import { currency, day, FinanceRefSchema, id, list } from './shared'
+import { currency, day, FinanceRefSchema, id, list, money, PATCH_MESSAGE, requirePatchField, text } from './shared'
 import { FinanceZatcaSubmissionSchema } from './zatca'
 
 export { FinanceRefSchema }
@@ -159,6 +159,87 @@ export type FinanceAccountList = z.infer<typeof FinanceAccountListSchema>
 export type FinanceJournalList = z.infer<typeof FinanceJournalListSchema>
 export type FinanceTaxList = z.infer<typeof FinanceTaxListSchema>
 export type FinancePaymentTermList = z.infer<typeof FinancePaymentTermListSchema>
+
+// The request bodies of the setup records: accounts, journals, taxes and payment terms.
+const currencyCode = z.string().min(1).max(8).nullable()
+
+/** POST /finance/accounts (`finance.accounts.manage`). `currency` is a code; `null` means the company currency. */
+export const FinanceAccountCreateSchema = z.object({
+  code: text.min(1),
+  name: text.min(1),
+  account_type: FinanceAccountTypeSchema,
+  reconcile: z.boolean().optional(),
+  currency: currencyCode.optional(),
+}).strict()
+
+/** PATCH /finance/accounts/{id}. An account with journal items keeps its type (422 `account_in_use`). */
+export const FinanceAccountPatchSchema = FinanceAccountCreateSchema.partial().strict()
+  .refine(requirePatchField, PATCH_MESSAGE)
+
+const JournalTypeSchema = z.enum(['sale', 'purchase', 'cash', 'bank', 'credit', 'general'])
+
+/** POST /finance/journals (`finance.journals.manage`). A bank or cash journal names its default account. */
+export const FinanceJournalCreateSchema = z.object({
+  name: text.min(1),
+  code: text.min(1),
+  type: JournalTypeSchema,
+  currency: currencyCode.optional(),
+  default_account_id: id.optional(),
+}).strict().refine(
+  body => !['bank', 'cash'].includes(body.type) || body.default_account_id !== undefined,
+  'a bank or cash journal needs default_account_id',
+)
+
+/** PATCH /finance/journals/{id}: the type is fixed at creation. */
+export const FinanceJournalPatchSchema = z.object({
+  name: text.min(1).optional(),
+  code: text.min(1).optional(),
+  currency: currencyCode.optional(),
+  default_account_id: id.optional(),
+}).strict().refine(requirePatchField, PATCH_MESSAGE)
+
+/** POST /finance/taxes (`finance.taxes.manage`). `tax_account_id` is where the tax amount is booked. */
+export const FinanceTaxCreateSchema = z.object({
+  name: text.min(1),
+  type_tax_use: z.enum(['sale', 'purchase']),
+  amount_type: z.enum(['percent', 'fixed']).optional(),
+  amount: money.min(0),
+  price_include: z.boolean().optional(),
+  tax_account_id: id,
+}).strict()
+
+/** PATCH /finance/taxes/{id}. A tax used by journal items can only be renamed (422 `tax_in_use`). */
+export const FinanceTaxPatchSchema = FinanceTaxCreateSchema.partial().strict()
+  .refine(requirePatchField, PATCH_MESSAGE)
+
+/** The lines of a payment term as the request sends them (`delay_type` defaults to days after the invoice date). */
+export const FinancePaymentTermLineInputSchema = FinancePaymentTermLineSchema.partial({ delay_type: true, nb_days: true }).strict()
+
+/** POST /finance/payment-terms (`finance.payment_terms.manage`): the percent lines add up to 100. */
+export const FinancePaymentTermCreateSchema = z.object({
+  name: text.min(1),
+  note: text.optional(),
+  lines: z.array(FinancePaymentTermLineInputSchema).min(1).max(12),
+}).strict().refine(
+  body => Math.abs(body.lines.filter(line => line.value === 'percent').reduce((sum, line) => sum + line.value_amount, 0) - 100) < 1e-6,
+  'the percent lines must add up to 100',
+)
+
+/** PATCH /finance/payment-terms/{id}: a body with `lines` replaces them all. */
+export const FinancePaymentTermPatchSchema = z.object({
+  name: text.min(1).optional(),
+  note: text.optional(),
+  lines: FinancePaymentTermCreateSchema.shape.lines.optional(),
+}).strict().refine(requirePatchField, PATCH_MESSAGE)
+
+export type FinanceAccountCreate = z.infer<typeof FinanceAccountCreateSchema>
+export type FinanceAccountPatch = z.infer<typeof FinanceAccountPatchSchema>
+export type FinanceJournalCreate = z.infer<typeof FinanceJournalCreateSchema>
+export type FinanceJournalPatch = z.infer<typeof FinanceJournalPatchSchema>
+export type FinanceTaxCreate = z.infer<typeof FinanceTaxCreateSchema>
+export type FinanceTaxPatch = z.infer<typeof FinanceTaxPatchSchema>
+export type FinancePaymentTermCreate = z.infer<typeof FinancePaymentTermCreateSchema>
+export type FinancePaymentTermPatch = z.infer<typeof FinancePaymentTermPatchSchema>
 
 export * from './analytic'
 export * from './assets'

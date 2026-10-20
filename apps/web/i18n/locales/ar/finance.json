@@ -43,7 +43,11 @@
       "profitLoss": "قائمة الدخل",
       "balanceSheet": "الميزانية العمومية",
       "zakatBase": "وعاء الزكاة",
-      "budgetVsActual": "الميزانية مقابل الفعلي"
+      "budgetVsActual": "الميزانية مقابل الفعلي",
+      "accountsSettings": "إعداد دليل الحسابات",
+      "journalsSettings": "اليوميات",
+      "taxesSettings": "الضرائب",
+      "paymentTermsSettings": "شروط الدفع"
     },
     "kpi": {
       "label": "مؤشرات المالية",
