@@ -424,7 +424,7 @@ export function moduleUiPreviewData(path, url) {
   if (normalizedPath.startsWith('/api/v1/finance/')) return financePreviewData(normalizedPath, parsedUrl)
 
   if (normalizedPath === '/api/v1/admin/users') return page([adminUser], parsedUrl)
-  if (normalizedPath === '/api/v1/admin/users/candidates') return page([candidate], parsedUrl)
+  if (normalizedPath === '/api/v1/admin/employee-accounts/candidates') return page([candidate], parsedUrl)
   if (isId(normalizedPath, '/api/v1/admin/users')) return adminUserDetail
   if (normalizedPath === '/api/v1/admin/roles') return page([role], parsedUrl)
   if (isId(normalizedPath, '/api/v1/admin/roles')) return roleDetail

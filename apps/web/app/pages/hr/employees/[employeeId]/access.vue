@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useAdminUserCandidates } from '@/composables/useAdminUsers'
+import { useEmployeeAccountCandidates } from '@/composables/useEmployeeAccounts'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -14,7 +14,7 @@ const backTo = computed(() => {
   const { returnTo: _referrer, ...listQuery } = route.query
   return { path: `/hr/employees/${employeeId.value}`, query: listQuery }
 })
-const candidates = useAdminUserCandidates(computed(() => ({ employee_id: employeeId.value, limit: 1 })))
+const candidates = useEmployeeAccountCandidates(computed(() => ({ employee_id: employeeId.value, limit: 1 })))
 watch(candidates.data, (data) => {
   const employee = data?.items.find((item) => item.id === employeeId.value)
   if (!employee) return

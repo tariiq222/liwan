@@ -12,7 +12,7 @@ test('HR archival disables linked access and unarchival requires explicit accoun
   const me = MeSchema.parse(await (await page.request.get('/api/v1/me')).json())
   const roles = RoleListSchema.parse(await (await page.request.get('/api/v1/admin/roles')).json())
   const role = roles.items.find(item => item.key === 'employee')!
-  const grant = await page.request.post('/api/v1/admin/users', { data: { employee_id: employee.id, password, assignments: [{ role_id: role.id, scope: { kind: 'company', id: me.company.id } }] } })
+  const grant = await page.request.post('/api/v1/admin/employee-accounts', { data: { employee_id: employee.id, password, assignments: [{ role_id: role.id, scope: { kind: 'company', id: me.company.id } }] } })
   expect(grant.status()).toBe(201)
   const account = AdminUserDetailSchema.parse(await grant.json())
   const employeeContext = await browser.newContext({ baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000' })

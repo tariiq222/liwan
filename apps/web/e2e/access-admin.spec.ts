@@ -28,7 +28,7 @@ async function grantRole(request: APIRequestContext, role: { id: number }, suffi
   const me = await json(request, 'get', '/api/v1/me')
   const login = `access-${suffix}-${Date.now()}@example.test`
   const employee = await json(request, 'post', '/api/v1/hr/employees', { name: `اختبار ${suffix}`, work_email: login })
-  const user = await json(request, 'post', '/api/v1/admin/users', { employee_id: employee.id, password: TEST_PASSWORD, assignments: [{ role_id: role.id, scope: { kind: 'company', id: me.company.id } }] })
+  const user = await json(request, 'post', '/api/v1/admin/employee-accounts', { employee_id: employee.id, password: TEST_PASSWORD, assignments: [{ role_id: role.id, scope: { kind: 'company', id: me.company.id } }] })
   return { user, employee, login }
 }
 async function grantFixture(request: APIRequestContext, roleKey: string, suffix: string) {
@@ -49,7 +49,7 @@ test('system administrator and HR have separate real API and page access', async
     const adminMe = await json(adminPage.request, 'get', '/api/v1/me')
     expect(adminMe.capabilities).not.toContain('hr.employees.manage')
     expect((await adminPage.request.post('/api/v1/hr/employees', { data: { name: 'forbidden' } })).status()).toBe(403)
-    const candidates = await json(adminPage.request, 'get', '/api/v1/admin/users/candidates')
+    const candidates = await json(adminPage.request, 'get', '/api/v1/admin/employee-accounts/candidates')
     expect(candidates).toHaveProperty('total')
     await adminPage.goto(`/hr/employees/${admin.employee.id}/access`)
     await expect(adminPage).toHaveURL(new RegExp(`/settings/team/users/${admin.user.id}(?:\\?|$)`))
@@ -107,7 +107,7 @@ test('employee preselection grants an account through the complete routed form',
   await page.locator(`input[type="checkbox"][value="${employeeRole.id}"]`).check()
   await page.locator('#password').fill(TEST_PASSWORD)
   await page.locator('#password-confirmation').fill(TEST_PASSWORD)
-  await page.getByRole('button', { name: 'منح حساب لموظف', exact: true }).click()
+  await page.getByRole('button', { name: 'إنشاء حساب', exact: true }).click()
   await expect(page).toHaveURL(/\/settings\/team\/users\/\d+$/)
   await expect(page.getByRole('dialog')).toHaveCount(0)
   const context = await browser.newContext()
@@ -116,6 +116,26 @@ test('employee preselection grants an account through the complete routed form',
     await login(employeePage, loginName, TEST_PASSWORD)
     await expect(employeePage).toHaveURL(/\/tasks$/)
     expect((await json(employeePage.request, 'get', '/api/v1/me')).capabilities).toContain('pmo.tasks.read')
+  } finally { await context.close() }
+})
+
+test('a new account is created from name, login, password and roles without an employee', async ({ page, browser }) => {
+  await login(page)
+  const loginName = `access-plain-${Date.now()}@example.test`
+  const employeeRole = await builtinRole(page.request, 'employee')
+  await page.goto('/settings/team/users/new')
+  await page.locator('#name').fill('حساب بلا موظف')
+  await page.locator('#login').fill(loginName)
+  await page.locator(`input[type="checkbox"][value="${employeeRole.id}"]`).check()
+  await page.locator('#password').fill(TEST_PASSWORD)
+  await page.locator('#password-confirmation').fill(TEST_PASSWORD)
+  await page.getByRole('button', { name: 'إنشاء حساب', exact: true }).click()
+  await expect(page).toHaveURL(/\/settings\/team\/users\/\d+$/)
+  const context = await browser.newContext()
+  try {
+    const accountPage = await context.newPage()
+    await login(accountPage, loginName, TEST_PASSWORD)
+    expect((await json(accountPage.request, 'get', '/api/v1/me')).capabilities).toContain('pmo.tasks.read')
   } finally { await context.close() }
 })
 

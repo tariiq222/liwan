@@ -29,7 +29,7 @@ async function grantUser(page: Page, roleKey: string, suffix: string) {
   const stamp = Date.now()
   const loginName = `psc-${suffix}-${stamp}@example.test`
   const employee = await json(page, 'post', '/api/v1/hr/employees', { name: `PSC ${suffix} ${stamp}`, work_email: loginName })
-  const user = await json(page, 'post', '/api/v1/admin/users', {
+  const user = await json(page, 'post', '/api/v1/admin/employee-accounts', {
     employee_id: employee.id,
     password: TEST_PASSWORD,
     assignments: [{ role_id: role.id, scope: { kind: 'company', id: me.company.id } }],

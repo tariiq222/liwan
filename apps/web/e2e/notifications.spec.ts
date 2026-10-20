@@ -40,7 +40,7 @@ async function ensureRecipientUser(page: Page, login: string, password: string):
   const employee = await json(page.request, 'post', '/api/v1/hr/employees', {
     name: 'E2E Notification Recipient', work_email: login,
   })
-  const user = await json(page.request, 'post', '/api/v1/admin/users', {
+  const user = await json(page.request, 'post', '/api/v1/admin/employee-accounts', {
     employee_id: employee.id,
     password,
     assignments: [{ role_id: role.id, scope: { kind: 'company', id: me.company.id } }],

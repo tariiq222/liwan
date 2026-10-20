@@ -48,7 +48,7 @@ const tabs = computed(() => {
       <template v-if="query.data.value">
         <SharedIdentityCard :id="query.data.value.id" :name="query.data.value.name">
           <template #badge><SharedStatusBadge size="sm" :tone="badge.tone" :label="t(badge.labelKey)" :icon="badge.icon" /></template>
-          <template #subtitle><bdi dir="ltr">{{ query.data.value.login }}</bdi> · {{ query.data.value.employee?.name ?? t('access.users.noEmployee') }}</template>
+          <template #subtitle><bdi dir="ltr">{{ query.data.value.login }}</bdi><template v-if="query.data.value.employee !== undefined"> · {{ query.data.value.employee?.name ?? t('access.users.noEmployee') }}</template></template>
         </SharedIdentityCard>
         <SharedRecordSection id="roles" variant="panel" :title="t('access.users.rolesAndScopes')">
           <ul v-if="query.data.value.assignments.length" class="grid gap-2">
@@ -67,7 +67,7 @@ const tabs = computed(() => {
     <template v-if="query.data.value && !forbidden" #aside>
       <SharedPropertiesPanel id="account" :title="t('access.users.account')">
         <SharedPropertyRow :label="t('access.users.loginName')"><bdi dir="ltr">{{ query.data.value.login }}</bdi></SharedPropertyRow>
-        <SharedPropertyRow :label="t('access.users.employee')" :value="query.data.value.employee?.name ?? t('access.users.noEmployee')" />
+        <SharedPropertyRow v-if="query.data.value.employee !== undefined" :label="t('access.users.employee')" :value="query.data.value.employee?.name ?? t('access.users.noEmployee')" />
         <SharedPropertyRow :label="t('access.users.columns.status')">
           <SharedStatusBadge size="sm" :tone="badge.tone" :label="t(badge.labelKey)" :icon="badge.icon" />
         </SharedPropertyRow>

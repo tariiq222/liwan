@@ -79,7 +79,7 @@ test('HR mutation responses match schemas and PMO people refs use the linked use
   const roles = RoleListSchema.parse(await (await page.request.get('/api/v1/admin/roles')).json())
   const employeeRole = roles.items.find(role => role.key === 'employee')!
   const assignments = [{ role_id: employeeRole.id, scope: { kind: 'company', id: me.company.id } }]
-  const accessRes = await page.request.post('/api/v1/admin/users', {
+  const accessRes = await page.request.post('/api/v1/admin/employee-accounts', {
     data: { employee_id: employee.id, password: `E2E-contract-${suffix}`, assignments },
   })
   expect(accessRes.status()).toBe(201)

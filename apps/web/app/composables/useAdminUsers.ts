@@ -3,14 +3,12 @@ import { computed, nextTick, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   AdminUserDetailSchema,
-  AdminUserCandidateListSchema,
   AdminUserListSchema,
   ChangeUserStateInputSchema,
   GrantAccountInputSchema,
   ResetPasswordInputSchema,
   UpdateUserAccessInputSchema,
   type AdminUserDetail,
-  type AdminUserCandidateList,
   type AdminUserList,
   type ChangeUserStateInput,
   type GrantAccountInput,
@@ -22,6 +20,7 @@ export type AdminUserListParams = {
   q?: string
   role_id?: number
   status?: 'active' | 'stopped'
+  /** Only with the employee-account bridge (`useEmployeeAccountBridge().departmentFilter`); core answers 400 `unsupported_filter`. */
   department_id?: number
   limit?: number
   offset?: number
@@ -33,20 +32,6 @@ export const adminUserKeys = {
   all: ['access', 'users'] as const,
   list: (params: AdminUserListParams) => ['access', 'users', 'list', params] as const,
   detail: (id: number) => ['access', 'user', id] as const,
-  candidates: (params: { q?: string; employee_id?: number; limit?: number; offset?: number }) => ['access', 'users', 'candidates', params] as const,
-}
-
-export function adminUserCandidateQuery(params: { q?: string; employee_id?: number; limit?: number; offset?: number } = {}) {
-  return { q: params.q?.trim() || undefined, ...(params.employee_id !== undefined ? { employee_id: params.employee_id } : {}), limit: Math.min(Math.max(params.limit ?? 200, 0), 200), offset: Math.max(params.offset ?? 0, 0) }
-}
-
-export function useAdminUserCandidates(params: MaybeRefOrGetter<{ q?: string; employee_id?: number; limit?: number; offset?: number }> = {}, enabled: MaybeRefOrGetter<boolean> = true) {
-  const { $api } = useApi()
-  return useQuery({
-    queryKey: computed(() => adminUserKeys.candidates(toValue(params))),
-    enabled: computed(() => toValue(enabled)),
-    queryFn: () => $api('/api/v1/admin/users/candidates', { query: adminUserCandidateQuery(toValue(params)), schema: AdminUserCandidateListSchema }),
-  })
 }
 
 export function adminUserListQuery(params: AdminUserListParams = {}) {
@@ -172,7 +157,7 @@ export async function invalidateAdminUserCaches(
   await queryClient.invalidateQueries({ queryKey: ['access', 'audit'] })
 }
 
-function useSecureAdminUserMutation<TBody>(mutationFn: (body: TBody) => Promise<AdminUserDetail>) {
+export function useSecureAdminUserMutation<TBody>(mutationFn: (body: TBody) => Promise<AdminUserDetail>) {
   const queryClient = useQueryClient()
   const nuxt = tryUseNuxtApp()
   const resetRef: { value: () => void } = { value: () => {} }
@@ -227,4 +212,4 @@ function useChangeAdminUserState(action: 'disable' | 'reactivate') {
 export function useDisableAdminUser() { return useChangeAdminUserState('disable') }
 export function useReactivateAdminUser() { return useChangeAdminUserState('reactivate') }
 
-export type { AdminUserCandidateList, AdminUserDetail, AdminUserList }
+export type { AdminUserDetail, AdminUserList }

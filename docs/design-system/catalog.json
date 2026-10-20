@@ -4938,12 +4938,12 @@
         {
           "id": "GuardsLeavingDirtyForm",
           "name": "داخل نموذج عند مغادرة الصفحة",
-          "context": "apps/web/app/pages/settings/team/users/new.vue:106"
+          "context": "apps/web/app/pages/settings/team/users/new.vue:109"
         },
         {
           "id": "CleanForm",
           "name": "نموذج بلا تعديلات",
-          "context": "apps/web/app/pages/settings/team/users/new.vue:106"
+          "context": "apps/web/app/pages/settings/team/users/new.vue:109"
         }
       ]
     },
@@ -5079,7 +5079,7 @@
         {
           "id": "FormTemplate",
           "name": "قالب النموذج",
-          "context": "apps/web/app/pages/settings/team/users/new.vue:103"
+          "context": "apps/web/app/pages/settings/team/users/new.vue:106"
         }
       ]
     },
@@ -5169,7 +5169,7 @@
         {
           "id": "InForm",
           "name": "قسم داخل نموذج",
-          "context": "apps/web/app/pages/settings/team/users/new.vue:107"
+          "context": "apps/web/app/pages/settings/team/users/new.vue:111"
         },
         {
           "id": "Panel",

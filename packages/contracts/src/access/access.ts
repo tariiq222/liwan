@@ -198,19 +198,6 @@ export const EmployeeRefSchema = z.object({
 }).strict()
 export type EmployeeRef = z.infer<typeof EmployeeRefSchema>
 
-export const AdminUserCandidateSchema = z.object({
-  id: z.number().int().positive(),
-  name: z.string(),
-  department: z.object({ id: z.number().int().positive(), name: z.string() }).strict().nullable(),
-  work_email: z.string().email().nullable(),
-  active: z.boolean(),
-  user_id: z.number().int().positive().nullable(),
-  access_active: z.boolean().nullable(),
-}).strict()
-export type AdminUserCandidate = z.infer<typeof AdminUserCandidateSchema>
-export const AdminUserCandidateListSchema = z.object({ items: z.array(AdminUserCandidateSchema), total: z.number().int().nonnegative() }).strict()
-export type AdminUserCandidateList = z.infer<typeof AdminUserCandidateListSchema>
-
 export const CapabilitySourceSchema = z.object({
   role_assignment_id: z.number().int().positive().nullable(),
   role: RoleRefSchema,
@@ -225,7 +212,8 @@ export const AdminUserSummarySchema = z.object({
   id: z.number().int().positive(),
   name: z.string(),
   login: z.string(),
-  employee: EmployeeRefSchema.nullable(),
+  /** Present only when the employee-account bridge is installed. */
+  employee: EmployeeRefSchema.nullable().optional(),
   active: z.boolean(),
   protected: z.boolean(),
   assignments: z.array(RoleAssignmentSchema),
@@ -240,16 +228,18 @@ export type AdminUserDetail = z.infer<typeof AdminUserDetailSchema>
 export const AdminUserListSchema = z.object({ items: z.array(AdminUserSummarySchema), total: z.number().int().nonnegative() }).strict()
 export type AdminUserList = z.infer<typeof AdminUserListSchema>
 
-const PasswordInputSchema = z.string().trim().min(8)
+/** The length counts the trimmed value, but the server keeps the exact text, whitespace included. */
+export const PasswordInputSchema = z.string().refine((value) => value.trim().length >= 8, { message: 'password must have at least 8 characters' })
 const NonEmptyVersionSchema = z.string().trim().min(1)
 const uniqueAssignments = (assignments: RoleAssignmentInput[]) => {
   const keys = assignments.map((assignment) => `${assignment.role_id}:${assignment.scope.kind}:${assignment.scope.id}`)
   return new Set(keys).size === keys.length
 }
-const AssignmentListSchema = z.array(RoleAssignmentInputSchema).min(1).refine(uniqueAssignments, { message: 'assignments must be unique' })
+export const AssignmentListSchema = z.array(RoleAssignmentInputSchema).min(1).refine(uniqueAssignments, { message: 'assignments must be unique' })
 
 export const GrantAccountInputSchema = z.object({
-  employee_id: z.number().int().positive(),
+  name: z.string().trim().min(1),
+  login: z.string().trim().email(),
   password: PasswordInputSchema,
   assignments: AssignmentListSchema,
 }).strict()
@@ -262,7 +252,7 @@ export const ChangeUserStateInputSchema = z.object({ expected_version: NonEmptyV
 export type ChangeUserStateInput = z.infer<typeof ChangeUserStateInputSchema>
 
 export const AuditActionSchema = z.enum([
-  'user.granted', 'user.roles_changed', 'user.disabled', 'user.reactivated',
+  'user.granted', 'user.employee_linked', 'user.roles_changed', 'user.disabled', 'user.reactivated',
   'user.password_reset', 'employee.archived_access_disabled', 'role.created',
   'role.updated', 'role.disabled', 'role.enabled', 'role.deleted',
   'migration.legacy_admin_preserved',

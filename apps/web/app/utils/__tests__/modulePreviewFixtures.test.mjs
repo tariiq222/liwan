@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { moduleUiPreviewData } from '../../../e2e/module-ui-preview-data.mjs'
-import { AdminUserListSchema, AdminUserDetailSchema, AdminUserCandidateListSchema, RoleListSchema, RoleDetailSchema, PermissionCatalogSchema, AccessAuditListSchema, AccessAuditDetailSchema, NotificationListSchema, NotificationDigestDetailSchema } from '@webvue/contracts'
+import { AdminUserListSchema, AdminUserDetailSchema, EmployeeAccountCandidateListSchema, RoleListSchema, RoleDetailSchema, PermissionCatalogSchema, AccessAuditListSchema, AccessAuditDetailSchema, NotificationListSchema, NotificationDigestDetailSchema } from '@webvue/contracts'
 import { PersonRefSchema, HrEmployeeListSchema, HrEmployeeSchema, HrDepartmentListSchema, HrDepartmentSchema, DocumentListSchema, DocumentDetailSchema, MeetingListSchema, MeetingDetailSchema, MeetingSeriesListSchema, MeetingSeriesDetailSchema } from '@webvue/contracts'
 
 describe('synthetic module preview matches production read contracts',()=>{
@@ -12,7 +12,7 @@ describe('synthetic module preview matches production read contracts',()=>{
     ['/api/v1/meetings',MeetingListSchema],['/api/v1/meetings/1',MeetingDetailSchema],
     ['/api/v1/meeting-series',MeetingSeriesListSchema],['/api/v1/meeting-series/1',MeetingSeriesDetailSchema],
     ['/api/v1/admin/users',AdminUserListSchema],['/api/v1/admin/users/1',AdminUserDetailSchema],
-    ['/api/v1/admin/users/candidates',AdminUserCandidateListSchema],
+    ['/api/v1/admin/employee-accounts/candidates',EmployeeAccountCandidateListSchema],
     ['/api/v1/admin/roles',RoleListSchema],['/api/v1/admin/roles/1',RoleDetailSchema],
     ['/api/v1/admin/permissions',PermissionCatalogSchema],
     ['/api/v1/admin/access-log',AccessAuditListSchema],['/api/v1/admin/access-log/1',AccessAuditDetailSchema],
