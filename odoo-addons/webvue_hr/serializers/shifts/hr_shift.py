@@ -171,9 +171,10 @@ def _check_range(date_start, date_end):
         raise ApiError(422, 'invalid', 'date_end is before date_start', field='date_end')
 
 
-def parse_assignment_create(payload):
+def parse_assignment_create(payload, today):
+    """The create body; an assignment without a start date starts ``today``, like a launched onboarding run."""
     _reject_unknown(payload, ASSIGNMENT_FIELDS)
-    date_start = parse_optional_date(payload.get('date_start'), 'date_start')
+    date_start = parse_optional_date(payload.get('date_start'), 'date_start') or today
     date_end = parse_optional_date(payload.get('date_end'), 'date_end')
     _check_range(date_start, date_end)
     return {

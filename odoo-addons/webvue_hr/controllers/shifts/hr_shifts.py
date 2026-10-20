@@ -281,20 +281,18 @@ class HrShiftController(http.Controller):
     @requires_feature('hr.enabled', 'hr.shifts', operation='write')
     @requires_capability('hr.shifts.manage')
     def create_assignment(self, **payload):
-        vals = parse_assignment_create(payload)
+        vals = parse_assignment_create(payload, today=fields.Date.context_today(request.env.user))
         employee = _current_employee(vals['employee_id'])
         schedule = _assignable_schedule(vals['schedule_id'])
         _reject_self_assignment(employee)
-        # An assignment without a start date starts today, like a launched onboarding run.
-        date_start = vals['date_start'] or fields.Date.context_today(employee)
         # A refused period leaves the cut rows as they were.
         with request.env.cr.savepoint():
-            _make_room_for(employee, date_start, vals['date_end'])
-            _reject_overlap(employee, date_start, vals['date_end'])
+            _make_room_for(employee, vals['date_start'], vals['date_end'])
+            _reject_overlap(employee, vals['date_start'], vals['date_end'])
             row = request.env['hr.employee.calendar'].create({
                 'employee_id': employee.id,
                 'calendar_id': schedule.id,
-                'date_start': date_start,
+                'date_start': vals['date_start'],
                 'date_end': vals['date_end'] or False,
             })
         return dump_assignment(row)
