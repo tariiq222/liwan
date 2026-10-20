@@ -31,7 +31,10 @@ const props = withDefaults(defineProps<{
   to?: string
 }>(), { density: 'default', tone: 'neutral' })
 const { t } = useI18n()
-const display = computed(() => props.value === null || props.value === undefined || props.value === '' ? t('app.notAvailable') : props.value)
+// A currency figure from Intl joins the amount and its code with a no-break space; in a tile the code may wrap under the amount.
+const display = computed(() => props.value === null || props.value === undefined || props.value === ''
+  ? t('app.notAvailable')
+  : typeof props.value === 'string' ? props.value.replace(/\u00A0/g, ' ') : props.value)
 const known = computed(() => display.value !== t('app.notAvailable'))
 const compact = computed(() => props.density === 'compact')
 const chip = computed(() => props.emphasis && props.tone === 'neutral' ? 'bg-primary/10 text-primary' : TONE_CHIP[props.tone])

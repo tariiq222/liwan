@@ -33,6 +33,12 @@ describe('SharedMetricTile', () => {
     expect(html).toContain('py-3.5')
   })
 
+  it('lets a currency code wrap under its amount', async () => {
+    const html = await render({ density: 'compact', value: '1,604,300.00\u00A0SAR' })
+    expect(html).toContain('1,604,300.00 SAR')
+    expect(html).not.toContain('\u00A0SAR')
+  })
+
   it('draws a clamped progress bar in the tone colour, and none when undefined', async () => {
     const half = await render({ density: 'compact', tone: 'success', progress: 50 })
     expect(half).toContain('role="progressbar"')
