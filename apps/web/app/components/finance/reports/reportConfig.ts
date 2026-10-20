@@ -2,21 +2,29 @@ import type { ZodType } from 'zod'
 import {
   FinanceAgedPartnerBalanceSchema,
   FinanceAnalyticReportSchema,
+  FinanceBalanceSheetSchema,
+  FinanceBudgetVsActualSchema,
   FinanceGeneralLedgerSchema,
   FinancePartnerStatementSchema,
+  FinanceProfitLossSchema,
   FinanceTrialBalanceSchema,
   FinanceVatSummarySchema,
   FinanceWithholdingSummarySchema,
+  FinanceZakatBaseSchema,
   type FinanceAgedPartnerBalance,
   type FinanceAnalyticReport,
+  type FinanceBalanceSheet,
+  type FinanceBudgetVsActual,
   type FinanceGeneralLedger,
   type FinancePartnerStatement,
+  type FinanceProfitLoss,
   type FinanceTrialBalance,
   type FinanceVatSummary,
   type FinanceWithholdingSummary,
+  type FinanceZakatBase,
 } from '@webvue/contracts'
 
-export const REPORT_SLUGS = ['trial-balance', 'general-ledger', 'aged-partner-balance', 'partner-statement', 'vat', 'withholding', 'analytic'] as const
+export const REPORT_SLUGS = ['trial-balance', 'general-ledger', 'aged-partner-balance', 'partner-statement', 'vat', 'withholding', 'analytic', 'profit-loss', 'balance-sheet', 'zakat-base', 'budget-vs-actual'] as const
 export type ReportSlug = (typeof REPORT_SLUGS)[number]
 
 /** A report as the server sent it, tagged with its slug so the page narrows `data` by `slug` alone. */
@@ -28,6 +36,10 @@ export type LoadedReport =
   | { slug: 'vat'; data: FinanceVatSummary }
   | { slug: 'withholding'; data: FinanceWithholdingSummary }
   | { slug: 'analytic'; data: FinanceAnalyticReport }
+  | { slug: 'profit-loss'; data: FinanceProfitLoss }
+  | { slug: 'balance-sheet'; data: FinanceBalanceSheet }
+  | { slug: 'zakat-base'; data: FinanceZakatBase }
+  | { slug: 'budget-vs-actual'; data: FinanceBudgetVsActual }
 
 /**
  * The filters a report takes. `period`: `range` sends `date_from` and `date_to`, `end` only `date_to` (balances as of a day).
@@ -41,17 +53,19 @@ export interface ReportFilterSet {
   type: boolean
   account: boolean
   plan: boolean
+  /** A budget the report cannot be asked for without; its `date_to` is optional (the budget's own end). */
+  budget: boolean
 }
 
 export interface ReportConfig {
   /** The key under `financeReports.reports` for the title and description. */
   key: string
-  capability: 'finance.statements.read' | 'finance.reports.read' | 'finance.analytic.read'
+  capability: 'finance.statements.read' | 'finance.reports.read' | 'finance.analytic.read' | 'finance.zakat.read' | 'finance.budgets.read'
   schema: ZodType<LoadedReport>
   filters: ReportFilterSet
 }
 
-const NONE: ReportFilterSet = { period: 'range', targetMove: false, kind: false, partner: false, type: false, account: false, plan: false }
+const NONE: ReportFilterSet = { period: 'range', targetMove: false, kind: false, partner: false, type: false, account: false, plan: false, budget: false }
 
 export const REPORTS: Record<ReportSlug, ReportConfig> = {
   'trial-balance': {
@@ -95,6 +109,30 @@ export const REPORTS: Record<ReportSlug, ReportConfig> = {
     capability: 'finance.analytic.read',
     schema: FinanceAnalyticReportSchema.transform(data => ({ slug: 'analytic' as const, data })),
     filters: { ...NONE, plan: true },
+  },
+  'profit-loss': {
+    key: 'profitLoss',
+    capability: 'finance.statements.read',
+    schema: FinanceProfitLossSchema.transform(data => ({ slug: 'profit-loss' as const, data })),
+    filters: { ...NONE, targetMove: true },
+  },
+  'balance-sheet': {
+    key: 'balanceSheet',
+    capability: 'finance.statements.read',
+    schema: FinanceBalanceSheetSchema.transform(data => ({ slug: 'balance-sheet' as const, data })),
+    filters: { ...NONE, period: 'end', targetMove: true },
+  },
+  'zakat-base': {
+    key: 'zakatBase',
+    capability: 'finance.zakat.read',
+    schema: FinanceZakatBaseSchema.transform(data => ({ slug: 'zakat-base' as const, data })),
+    filters: { ...NONE, period: 'end', targetMove: true },
+  },
+  'budget-vs-actual': {
+    key: 'budgetVsActual',
+    capability: 'finance.budgets.read',
+    schema: FinanceBudgetVsActualSchema.transform(data => ({ slug: 'budget-vs-actual' as const, data })),
+    filters: { ...NONE, period: 'end', budget: true },
   },
 }
 

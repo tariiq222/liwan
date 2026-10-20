@@ -4,6 +4,7 @@ import type {
   FinanceAnalyticReportLine,
   FinanceGeneralLedger,
   FinancePartnerStatement,
+  FinanceReportLine,
   FinanceVatSummary,
 } from '@webvue/contracts'
 
@@ -108,4 +109,36 @@ export function analyticRows(report: FinanceAnalyticReport, selectedId: number |
     { kind: 'account', key: `a${row.account.id}`, row },
     ...(row.account.id === selectedId ? lines.map<AnalyticRow>(line => ({ kind: 'line', key: `l${line.id}`, line })) : []),
   ])
+}
+
+/** The reports made of `{code, label, value}` lines; the code names their locale keys under `financeReports.mis`. */
+export type MisKind = 'profitLoss' | 'balanceSheet' | 'zakatBase'
+
+/** The codes that close a group of lines (subtotals and totals): drawn bold. */
+const MIS_STRONG: Record<MisKind, readonly string[]> = {
+  profitLoss: ['gross_profit', 'operating_profit', 'net_profit'],
+  balanceSheet: ['current_assets', 'non_current_assets', 'total_assets', 'current_liabilities', 'non_current_liabilities', 'total_liabilities', 'total_equity', 'total_liabilities_and_equity'],
+  zakatBase: ['adjusted_net_profit', 'total_additions', 'total_deductions'],
+}
+
+/** The Zakat results the server sends as lines and again at the top level; the table leaves them to the totals line. */
+export const ZAKAT_RESULT_CODES = ['zakat_base', 'zakat_rate', 'zakat_due'] as const
+
+export interface MisRow {
+  code: string
+  /** The server's English description, the label of a code the locale does not know. */
+  label: string
+  value: number
+  strong: boolean
+}
+
+export function misRows(kind: MisKind, lines: readonly FinanceReportLine[], hidden: readonly string[] = []): MisRow[] {
+  return lines
+    .filter(line => !hidden.includes(line.code))
+    .map(line => ({ code: line.code, label: line.label, value: line.value, strong: MIS_STRONG[kind].includes(line.code) }))
+}
+
+/** The line a report's code names, or undefined when the server sent none. */
+export function misValue(lines: readonly Pick<FinanceReportLine, 'code' | 'value'>[], code: string): number | undefined {
+  return lines.find(line => line.code === code)?.value
 }

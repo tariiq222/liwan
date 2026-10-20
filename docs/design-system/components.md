@@ -300,6 +300,9 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/finance/analytic/AnalyticAccountEditor.vue` | نموذج مضمّن لإنشاء مركز تكلفة أو تعديل اسمه ورمزه | — | `UForm`, `UAlert`, `UFormField`, `UInput`, `USelect`, `UButton` |
 | `apps/web/app/components/finance/analytic/AnalyticArchiveConfirm.vue` | تأكيد مضمّن لأرشفة مركز تكلفة أو إعادته | — | `SharedInlineConfirm` |
 | `apps/web/app/components/finance/reports/AnalyticTable.vue` | تقرير مراكز التكلفة (إيراد ومصروف وصافي) وبنود المركز المفتوح | — | `UAlert`, `SharedDataTable`, `UIcon` |
+| `apps/web/app/components/finance/reports/MisLinesTable.vue` | قائمة مالية من بنود (رمز وبيان ومبلغ) بتمييز المجاميع الفرعية: قائمة الدخل والميزانية العمومية ووعاء الزكاة | — | `SharedDataTable` |
+| `apps/web/app/components/finance/reports/ZakatBaseTable.vue` | وعاء الزكاة: تنبيه المراجعة المهنية ظاهر دائمًا ثم البنود والوعاء والزكاة المستحقة | — | `UAlert` |
+| `apps/web/app/components/finance/budgets/BudgetVarianceTable.vue` | جدول الميزانية مقابل الفعلي، مشترك بين سجل الميزانية والتقرير | — | `SharedDataTable`, `SharedStatusBadge` |
 | `apps/web/app/components/finance/governance/ClosingView.vue` | جسم صفحة إقفال السنة: السنوات ومعاينة السنة المختارة | — | `SharedPageState` |
 | `apps/web/app/components/finance/governance/ClosingYears.vue` | جدول السنوات المالية بحالتها ونتيجتها وقيد الإقفال | — | `SharedRecordSection`, `SharedDataTable`, `SharedStatusBadge`, `UButton` |
 | `apps/web/app/components/finance/governance/ClosingPreview.vue` | معاينة قيد الإقفال والموانع وإجراء الإقفال بتأكيد مضمّن | — | `SharedPageState`, `SharedRecordSection`, `SharedPropertiesPanel`, `SharedPropertyRow`, `UAlert`, `SharedEmptyState`, `SharedDataTable`, `UButton`, `SharedInlineConfirm` |

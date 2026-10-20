@@ -65,7 +65,8 @@
       "debitSide": "جانب المدين",
       "creditSide": "جانب الدائن",
       "net": "الصافي",
-      "budgetOf": "الميزانية: {amount}"
+      "budgetOf": "الميزانية: {amount}",
+      "openReport": "فتح التقرير"
     },
     "form": {
       "details": "بيانات الميزانية",

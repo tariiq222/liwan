@@ -6,12 +6,12 @@ const filters = (query: Record<string, unknown> = {}) => reportFiltersFromQuery(
 
 describe('report filters from the URL', () => {
   it('defaults the period to this month up to today and the options to the server defaults', () => {
-    expect(filters()).toEqual({ dateFrom: '2026-10-01', dateTo: TODAY, targetMove: 'posted', kind: 'receivable', type: 'activity', partnerId: null, accountId: null, planId: null, page: 1 })
+    expect(filters()).toEqual({ dateFrom: '2026-10-01', dateTo: TODAY, targetMove: 'posted', kind: 'receivable', type: 'activity', partnerId: null, accountId: null, planId: null, budgetId: null, dateToSet: false, page: 1 })
   })
 
   it('reads every supported filter', () => {
     expect(filters({ date_from: '2026-01-01', date_to: '2026-03-31', target_move: 'all', kind: 'payable', type: 'outstanding', partner_id: '7', account_id: '3', plan_id: '5', page: '2' }))
-      .toEqual({ dateFrom: '2026-01-01', dateTo: '2026-03-31', targetMove: 'all', kind: 'payable', type: 'outstanding', partnerId: 7, accountId: 3, planId: 5, page: 2 })
+      .toEqual({ dateFrom: '2026-01-01', dateTo: '2026-03-31', targetMove: 'all', kind: 'payable', type: 'outstanding', partnerId: 7, accountId: 3, planId: 5, budgetId: null, dateToSet: true, page: 2 })
   })
 
   it('drops what the API would refuse and never lets the period run backwards', () => {
@@ -47,6 +47,18 @@ describe('report params', () => {
     expect(reportParams('analytic', filters({ plan_id: '4', account_id: '9', page: '2', target_move: 'all' }))).toEqual({ date_from: '2026-10-01', date_to: TODAY, plan_id: 4 })
   })
 
+  it('sends the period and the posting filter of the profit and loss, and date_to alone for the balance sheet and the Zakat base', () => {
+    expect(reportParams('profit-loss', filters({ target_move: 'all' }))).toEqual({ date_from: '2026-10-01', date_to: TODAY, target_move: 'all' })
+    expect(reportParams('balance-sheet', filters({ date_to: '2026-09-30' }))).toEqual({ date_to: '2026-09-30', target_move: 'posted' })
+    expect(reportParams('zakat-base', filters({ target_move: 'all', date_from: '2026-01-01' }))).toEqual({ date_to: TODAY, target_move: 'all' })
+  })
+
+  it('sends the budget and, only when the URL names one, date_to', () => {
+    expect(reportParams('budget-vs-actual', filters({ budget_id: '4' }))).toEqual({ budget_id: 4 })
+    expect(reportParams('budget-vs-actual', filters({ budget_id: '4', date_to: '2026-06-30', target_move: 'all' }))).toEqual({ date_to: '2026-06-30', budget_id: 4 })
+    expect(reportParams('budget-vs-actual', filters({ date_to: 'soon' }))).toEqual({})
+  })
+
   it('asks for an activity statement with its period and an outstanding one with date_to alone', () => {
     expect(reportParams('partner-statement', filters({ partner_id: '9' }))).toEqual({ date_from: '2026-10-01', date_to: TODAY, kind: 'receivable', type: 'activity', partner_id: 9 })
     expect(reportParams('partner-statement', filters({ partner_id: '9', type: 'outstanding', kind: 'payable' }))).toEqual({ date_to: TODAY, kind: 'payable', type: 'outstanding', partner_id: 9 })
@@ -60,6 +72,12 @@ describe('report readiness and active filters', () => {
     expect(reportReady('trial-balance', filters())).toBe(true)
   })
 
+  it('needs a budget for the budget comparison', () => {
+    expect(reportReady('budget-vs-actual', filters())).toBe(false)
+    expect(reportReady('budget-vs-actual', filters({ budget_id: '3' }))).toBe(true)
+    expect(reportReady('zakat-base', filters())).toBe(true)
+  })
+
   it('counts the filters changed from their defaults that the report takes', () => {
     expect(reportActiveFilterCount('trial-balance', filters(), TODAY)).toBe(0)
     expect(reportActiveFilterCount('trial-balance', filters({ date_from: '2026-10-05', target_move: 'all', kind: 'payable' }), TODAY)).toBe(2)
@@ -67,5 +85,7 @@ describe('report readiness and active filters', () => {
     expect(reportActiveFilterCount('partner-statement', filters({ partner_id: '2', type: 'outstanding', kind: 'payable' }), TODAY)).toBe(3)
     expect(reportActiveFilterCount('vat', filters({ target_move: 'all' }), TODAY)).toBe(0)
     expect(reportActiveFilterCount('analytic', filters({ plan_id: '3', account_id: '9' }), TODAY)).toBe(1)
+    expect(reportActiveFilterCount('budget-vs-actual', filters({ budget_id: '3', date_to: '2026-06-30', target_move: 'all' }), TODAY)).toBe(2)
+    expect(reportActiveFilterCount('balance-sheet', filters({ target_move: 'all', date_from: '2026-10-05' }), TODAY)).toBe(1)
   })
 })

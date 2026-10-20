@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FinanceAgedPartnerBalance, FinanceAnalyticReport, FinanceAnalyticReportLine, FinanceGeneralLedger, FinancePartnerStatement, FinanceVatSummary } from '@webvue/contracts'
-import { agedRows, analyticRows, ledgerRows, selectedLedgerLines, statementRows, vatRows } from '../reportRows'
+import { agedRows, analyticRows, ledgerRows, misRows, misValue, selectedLedgerLines, statementRows, vatRows, ZAKAT_RESULT_CODES } from '../reportRows'
 
 const buckets = { current: 1, days_1_30: 0, days_31_60: 0, days_61_90: 0, days_91_120: 0, days_over_120: 0, total: 1 }
 const line = (id: number) => ({ id, date: '2026-10-01', entry: `E${id}`, journal: 'BNK1', partner: null, label: '', debit: 1, credit: 0, balance: 1 })
@@ -44,5 +44,30 @@ describe('report table rows', () => {
     const item = (id: number): FinanceAnalyticReportLine => ({ id, date: '2026-10-02', name: 'n', ref: '', move: null, general_account: { id: 1, name: 'G' }, partner: null, kind: 'income', amount: 5 })
     expect(analyticRows(report, null, [item(8)]).map(r => r.key)).toEqual(['a1', 'a2'])
     expect(analyticRows(report, 2, [item(8), item(9)]).map(r => r.key)).toEqual(['a1', 'a2', 'l8', 'l9'])
+  })
+})
+
+describe('MIS report rows', () => {
+  const lines = [
+    { code: 'revenue', label: 'Revenue', value: 500 },
+    { code: 'gross_profit', label: 'Gross profit', value: 300 },
+    { code: 'net_profit', label: 'Net profit', value: 120 },
+    { code: 'zakat_base', label: 'Zakat base', value: 9 },
+  ]
+
+  it('marks the subtotals of each report bold and nothing else', () => {
+    expect(misRows('profitLoss', lines).map(row => [row.code, row.strong])).toEqual([['revenue', false], ['gross_profit', true], ['net_profit', true], ['zakat_base', false]])
+    expect(misRows('zakatBase', [{ code: 'total_additions', label: '', value: 1 }, { code: 'net_profit', label: '', value: 2 }]).map(row => row.strong)).toEqual([true, false])
+    expect(misRows('balanceSheet', [{ code: 'total_assets', label: '', value: 1 }, { code: 'cash', label: '', value: 2 }]).map(row => row.strong)).toEqual([true, false])
+  })
+
+  it('keeps the server label for the locale fallback and drops the hidden codes', () => {
+    expect(misRows('zakatBase', lines, ZAKAT_RESULT_CODES).map(row => row.code)).toEqual(['revenue', 'gross_profit', 'net_profit'])
+    expect(misRows('profitLoss', lines)[0]).toEqual({ code: 'revenue', label: 'Revenue', value: 500, strong: false })
+  })
+
+  it('finds a line value by code', () => {
+    expect(misValue(lines, 'gross_profit')).toBe(300)
+    expect(misValue(lines, 'depreciation')).toBeUndefined()
   })
 })

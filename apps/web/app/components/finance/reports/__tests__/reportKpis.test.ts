@@ -47,4 +47,39 @@ describe('report KPI tiles', () => {
     expect(values({ slug: 'withholding', data: { date_from: '2026-10-01', date_to: '2026-10-20', currency: 'SAR', taxes: [], base: 500, withheld: 25 } })).toEqual({ withholdingBase: '500', withheld: '25' })
     expect(reportKpiTiles({ slug: 'general-ledger', data: { date_from: '2026-10-01', date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', accounts: [] } }, t, n)).toEqual([])
   })
+
+  const lines = (...pairs: [string, number][]) => pairs.map(([code, value]) => ({ code, label: code, value }))
+
+  it('shows revenue, gross profit and net profit, a loss in the danger tone', () => {
+    const report = (net: number): LoadedReport => ({ slug: 'profit-loss', data: { date_from: '2026-10-01', date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', lines: lines(['revenue', 500], ['gross_profit', 300], ['net_profit', net]) } })
+    expect(values(report(-20))).toEqual({ revenue: '500', grossProfit: '300', netProfit: '-20' })
+    expect(reportKpiTiles(report(-20), t, n).find(tile => tile.id === 'netProfit')?.tone).toBe('danger')
+    expect(reportKpiTiles(report(20), t, n).find(tile => tile.id === 'netProfit')?.tone).toBe('neutral')
+  })
+
+  it('leaves out a tile whose line the server did not send', () => {
+    const report: LoadedReport = { slug: 'profit-loss', data: { date_from: '2026-10-01', date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', lines: lines(['revenue', 500]) } }
+    expect(values(report)).toEqual({ revenue: '500' })
+  })
+
+  it('shows the balance sheet totals', () => {
+    const report: LoadedReport = { slug: 'balance-sheet', data: { date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', lines: lines(['total_assets', 455], ['total_liabilities', 142], ['total_equity', 313]) } }
+    expect(values(report)).toEqual({ totalAssets: '455', totalLiabilities: '142', equity: '313' })
+  })
+
+  it('shows the Zakat base, rate and due, the due in the warning tone when positive', () => {
+    const report = (due: number): LoadedReport => ({ slug: 'zakat-base', data: { date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', lines: [], base: 1000, rate: 0.025, zakat_due: due, disclaimer: 'x' } })
+    expect(values(report(25))).toEqual({ zakatBase: '1000', zakatRate: '0.025', zakatDue: '25' })
+    expect(reportKpiTiles(report(25), t, n).find(tile => tile.id === 'zakatDue')?.tone).toBe('warning')
+    expect(reportKpiTiles(report(0), t, n).find(tile => tile.id === 'zakatDue')?.tone).toBe('neutral')
+  })
+
+  it('shows the budget sides with their budget as the hint, and the net', () => {
+    const side = (budget: number, actual: number) => ({ budget, actual, variance: budget - actual, variance_percent: null })
+    const report: LoadedReport = { slug: 'budget-vs-actual', data: { budget: { id: 1, name: 'x', state: 'confirmed' }, date_from: '2026-01-01', date_to: '2026-06-30', currency: 'SAR', target_move: 'posted', lines: [], totals: { debit: side(100, 120), credit: side(300, 350), net: { budget: 200, actual: 230 } } } }
+    expect(values(report)).toEqual({ budgetDebit: '120', budgetCredit: '350', budgetNet: '230' })
+    const tiles = reportKpiTiles(report, t, n)
+    expect(tiles.find(tile => tile.id === 'budgetDebit')).toMatchObject({ tone: 'danger', hint: 'financeReports.kpi.budgetOf' })
+    expect(tiles.find(tile => tile.id === 'budgetCredit')?.tone).toBe('success')
+  })
 })

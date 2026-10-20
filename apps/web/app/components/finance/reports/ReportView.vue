@@ -4,14 +4,17 @@ import { analyticLineParams, ANALYTIC_LINE_PAGE_SIZE } from '../analytic/analyti
 import { useFinanceAnalyticLines } from '@/composables/finance/useFinanceAnalytic'
 import { useFinanceReport } from '@/composables/finance/useFinanceReports'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
+import BudgetVarianceTable from '../budgets/BudgetVarianceTable.vue'
 import AgedBalanceTable from './AgedBalanceTable.vue'
 import AnalyticTable from './AnalyticTable.vue'
 import GeneralLedgerTable from './GeneralLedgerTable.vue'
+import MisLinesTable from './MisLinesTable.vue'
 import PartnerStatementTable from './PartnerStatementTable.vue'
 import ReportFilters from './ReportFilters.vue'
 import TrialBalanceTable from './TrialBalanceTable.vue'
 import VatTable from './VatTable.vue'
 import WithholdingTable from './WithholdingTable.vue'
+import ZakatBaseTable from './ZakatBaseTable.vue'
 import { REPORTS, type ReportSlug } from './reportConfig'
 import { LEDGER_PAGE_SIZE, reportActiveFilterCount, reportFiltersFromQuery, reportParams, reportReady } from './reportParams'
 import { reportKpiTiles } from './reportKpis'
@@ -33,6 +36,10 @@ const { hydrated, filterQuery, update } = useRouteListFilters({
 })
 const filters = computed(() => reportFiltersFromQuery(filterQuery.value, today))
 const ready = computed(() => reportReady(props.slug, filters.value))
+// What a report that needs a partner or a budget asks for until one is chosen.
+const pickPrompt = computed(() => config.value.filters.budget
+  ? { title: t('financeReports.pickBudget.title'), description: t('financeReports.pickBudget.description') }
+  : { title: t('financeReports.pickPartner.title'), description: t('financeReports.pickPartner.description') })
 const query = useFinanceReport(() => props.slug, () => reportParams(props.slug, filters.value), computed(() => allowed.value && ready.value))
 const loaded = computed(() => query.data.value)
 const loading = computed(() => ready.value && query.isPending.value)
@@ -55,7 +62,7 @@ const lineFooter = computed(() => {
 })
 
 function clearFilters() {
-  void update({ date_from: undefined, date_to: undefined, target_move: undefined, kind: undefined, type: undefined, partner_id: undefined, account_id: undefined, plan_id: undefined, page: undefined })
+  void update({ date_from: undefined, date_to: undefined, target_move: undefined, kind: undefined, type: undefined, partner_id: undefined, account_id: undefined, plan_id: undefined, budget_id: undefined, page: undefined })
 }
 </script>
 
@@ -68,7 +75,7 @@ function clearFilters() {
         <template #filters>
           <ReportFilters :slug="slug" :filters="filters" :active-count="activeCount" :disabled="!hydrated" @change="update" @clear="clearFilters" />
         </template>
-        <SharedEmptyState v-if="!ready" class="m-(--webvue-card-pad-dense)" :title="t('financeReports.pickPartner.title')" :description="t('financeReports.pickPartner.description')" />
+        <SharedEmptyState v-if="!ready" class="m-(--webvue-card-pad-dense)" :title="pickPrompt.title" :description="pickPrompt.description" />
         <SharedPageState v-else :loading="loading" :error="query.error.value" :keep-content="!!loaded" @retry="query.refetch">
           <template v-if="loaded">
             <TrialBalanceTable v-if="loaded.slug === 'trial-balance'" :report="loaded.data" />
@@ -77,6 +84,10 @@ function clearFilters() {
             <PartnerStatementTable v-else-if="loaded.slug === 'partner-statement'" :report="loaded.data" />
             <VatTable v-else-if="loaded.slug === 'vat'" :report="loaded.data" />
             <AnalyticTable v-else-if="loaded.slug === 'analytic'" :report="loaded.data" :selected-id="filters.accountId" :lines="analyticItems" :lines-failed="!!analyticLines.error.value" />
+            <MisLinesTable v-else-if="loaded.slug === 'profit-loss'" kind="profitLoss" :lines="loaded.data.lines" :currency="loaded.data.currency" :caption="t('financeReports.reports.profitLoss.title')" />
+            <MisLinesTable v-else-if="loaded.slug === 'balance-sheet'" kind="balanceSheet" :lines="loaded.data.lines" :currency="loaded.data.currency" :caption="t('financeReports.reports.balanceSheet.title')" />
+            <ZakatBaseTable v-else-if="loaded.slug === 'zakat-base'" :report="loaded.data" />
+            <BudgetVarianceTable v-else-if="loaded.slug === 'budget-vs-actual'" :lines="loaded.data.lines" :caption="t('financeReports.reports.budgetVsActual.title')" />
             <WithholdingTable v-else :report="loaded.data" />
           </template>
         </SharedPageState>

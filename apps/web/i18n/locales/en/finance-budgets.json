@@ -65,7 +65,8 @@
       "debitSide": "Debit side",
       "creditSide": "Credit side",
       "net": "Net",
-      "budgetOf": "Budget: {amount}"
+      "budgetOf": "Budget: {amount}",
+      "openReport": "Open report"
     },
     "form": {
       "details": "Budget details",

@@ -44,7 +44,8 @@ describe('the finance budgets pages stay on their templates', () => {
     ['components/finance/budgets/BudgetRecordAside.vue', ['<SharedPropertiesPanel', '<SharedPropertyRow']],
     ['components/finance/budgets/BudgetLinesPanel.vue', ['<SharedRecordSection', '<SharedDataTable', ' bare', '#mobile-row', '<BudgetLineForm']],
     ['components/finance/budgets/BudgetLineForm.vue', ['<AccountPicker', 'color="error" variant="subtle"', ':error=']],
-    ['components/finance/budgets/BudgetVsActualPanel.vue', ['<SharedRecordSection', '<SharedDataTable', ' bare', '#mobile-row', '<SharedMetricTile', 'density="compact"', '<SharedPageState']],
+    ['components/finance/budgets/BudgetVsActualPanel.vue', ['<SharedRecordSection', '<BudgetVarianceTable', '#actions', '/finance/reports/budget-vs-actual?budget_id=', '<SharedMetricTile', 'density="compact"', '<SharedPageState']],
+    ['components/finance/budgets/BudgetVarianceTable.vue', ['<SharedDataTable', ' bare', '#mobile-row', '<SharedStatusBadge']],
   ])('%s uses its template', (file, needles) => {
     const source = read(file)
     for (const needle of needles) expect(source, needle).toContain(needle)

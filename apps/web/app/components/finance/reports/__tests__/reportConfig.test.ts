@@ -2,18 +2,34 @@ import { describe, expect, it } from 'vitest'
 import { REPORT_SLUGS, REPORTS, reportCurrency, reportSlug, type LoadedReport } from '../reportConfig'
 
 describe('the report config', () => {
-  it('knows the seven reports and refuses any other slug', () => {
-    expect(REPORT_SLUGS).toHaveLength(7)
+  it('knows the eleven reports and refuses any other slug', () => {
+    expect(REPORT_SLUGS).toHaveLength(11)
     expect(reportSlug('vat')).toBe('vat')
     expect(reportSlug(['withholding', 'x'])).toBe('withholding')
-    expect(reportSlug('profit-loss')).toBeNull()
+    expect(reportSlug('profit-loss')).toBe('profit-loss')
+    expect(reportSlug('income')).toBeNull()
     expect(reportSlug(undefined)).toBeNull()
   })
 
   it('gates the statements and the tax reports by their own capability', () => {
     expect(Object.entries(REPORTS).filter(([, config]) => config.capability === 'finance.reports.read').map(([slug]) => slug)).toEqual(['vat', 'withholding'])
     expect(REPORTS.analytic.capability).toBe('finance.analytic.read')
-    for (const slug of REPORT_SLUGS) expect(REPORTS[slug].capability).toMatch(/^finance\.(statements|reports|analytic)\.read$/)
+    for (const slug of REPORT_SLUGS) expect(REPORTS[slug].capability).toMatch(/^finance\.(statements|reports|analytic|zakat|budgets)\.read$/)
+  })
+
+  it('gates the four newer reports by the capabilities the manifest names', () => {
+    expect(REPORTS['profit-loss'].capability).toBe('finance.statements.read')
+    expect(REPORTS['balance-sheet'].capability).toBe('finance.statements.read')
+    expect(REPORTS['zakat-base'].capability).toBe('finance.zakat.read')
+    expect(REPORTS['budget-vs-actual'].capability).toBe('finance.budgets.read')
+  })
+
+  it('takes the posting filter for the statements and the budget only for the budget comparison', () => {
+    expect(REPORT_SLUGS.filter(slug => REPORTS[slug].filters.budget)).toEqual(['budget-vs-actual'])
+    expect(REPORTS['profit-loss'].filters).toMatchObject({ period: 'range', targetMove: true })
+    expect(REPORTS['balance-sheet'].filters).toMatchObject({ period: 'end', targetMove: true })
+    expect(REPORTS['zakat-base'].filters).toMatchObject({ period: 'end', targetMove: true })
+    expect(REPORTS['budget-vs-actual'].filters).toMatchObject({ period: 'end', targetMove: false })
   })
 
   it('takes the plan filter for the cost center report alone', () => {
@@ -26,6 +42,15 @@ describe('the report config', () => {
     expect(loaded).toEqual({ slug: 'vat', data: vat })
     expect(reportCurrency(loaded)).toBe('SAR')
     expect(() => REPORTS.vat.schema.parse({ ...vat, extra: 1 })).toThrow()
+  })
+
+  it('tags the MIS and budget reports with their slug and company currency', () => {
+    const lines = [{ code: 'revenue', label: 'Revenue', value: 5 }]
+    const profit = { date_from: '2026-10-01', date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', lines }
+    expect(REPORTS['profit-loss'].schema.parse(profit)).toEqual({ slug: 'profit-loss', data: profit })
+    expect(() => REPORTS['balance-sheet'].schema.parse({ ...profit, extra: 1 })).toThrow()
+    const loaded = REPORTS['balance-sheet'].schema.parse({ date_to: '2026-10-20', target_move: 'all', currency: 'SAR', lines })
+    expect(reportCurrency(loaded)).toBe('SAR')
   })
 
   it('has no single currency for a partner statement', () => {

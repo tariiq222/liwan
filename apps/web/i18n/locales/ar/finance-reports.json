@@ -28,6 +28,22 @@
       "analytic": {
         "title": "تقرير مراكز التكلفة",
         "description": "إيراد ومصروف كل مركز تكلفة في الفترة؛ افتح مركزًا لترى بنوده."
+      },
+      "profitLoss": {
+        "title": "قائمة الدخل",
+        "description": "الإيرادات والتكاليف والمصروفات وصافي الربح في الفترة."
+      },
+      "balanceSheet": {
+        "title": "الميزانية العمومية",
+        "description": "الأصول والالتزامات وحقوق الملكية حتى يوم محدد."
+      },
+      "zakatBase": {
+        "title": "وعاء الزكاة",
+        "description": "وعاء الزكاة المبسّط والزكاة المستحقة حتى يوم محدد."
+      },
+      "budgetVsActual": {
+        "title": "الميزانية مقابل الفعلي",
+        "description": "مقارنة بنود ميزانية بالقيود المرحّلة حتى يوم محدد."
       }
     },
     "kpi": {
@@ -47,7 +63,20 @@
       "withheld": "المستقطع",
       "income": "الإيرادات",
       "expense": "المصروفات",
-      "net": "الصافي"
+      "net": "الصافي",
+      "revenue": "الإيرادات",
+      "grossProfit": "مجمل الربح",
+      "netProfit": "صافي الربح",
+      "totalAssets": "إجمالي الأصول",
+      "totalLiabilities": "إجمالي الالتزامات",
+      "equity": "حقوق الملكية",
+      "zakatBase": "وعاء الزكاة",
+      "zakatRate": "نسبة الزكاة",
+      "zakatDue": "الزكاة المستحقة",
+      "budgetDebit": "جانب المدين",
+      "budgetCredit": "جانب الدائن",
+      "budgetNet": "الصافي",
+      "budgetOf": "الميزانية: {amount}"
     },
     "filters": {
       "partner": "الطرف",
@@ -71,7 +100,9 @@
         "outstanding": "مستحق"
       },
       "plan": "الخطة",
-      "allPlans": "كل الخطط"
+      "allPlans": "كل الخطط",
+      "budget": "الميزانية",
+      "budgetPlaceholder": "اختر الميزانية"
     },
     "columns": {
       "code": "الرمز",
@@ -102,7 +133,9 @@
       "planOrAccount": "الخطة / الحساب",
       "income": "إيراد",
       "expense": "مصروف",
-      "net": "الصافي"
+      "net": "الصافي",
+      "item": "البند",
+      "amount": "المبلغ"
     },
     "buckets": {
       "current": "غير مستحق",
@@ -135,6 +168,62 @@
     "empty": "لا توجد بيانات في هذه الفترة.",
     "forbidden": "لا تملك صلاحية عرض هذا التقرير.",
     "linesFooter": "لا أسطر | عرض {shown} من سطر واحد | عرض {shown} من سطرين | عرض {shown} من {total} أسطر | عرض {shown} من {total} سطرًا | عرض {shown} من {total} سطر",
-    "linesFailed": "تعذّر تحميل بنود مركز التكلفة."
+    "linesFailed": "تعذّر تحميل بنود مركز التكلفة.",
+    "pickBudget": {
+      "title": "اختر الميزانية",
+      "description": "تُعرض المقارنة بعد اختيار الميزانية."
+    },
+    "zakat": {
+      "disclaimerLead": "الحساب مبسّط ولا يغني عن مراجعة محاسب قانوني سعودي قبل الاعتماد عليه.",
+      "base": "وعاء الزكاة",
+      "due": "الزكاة المستحقة",
+      "rate": "النسبة"
+    },
+    "mis": {
+      "profitLoss": {
+        "revenue": "الإيرادات",
+        "cost_of_revenue": "تكلفة الإيرادات",
+        "gross_profit": "مجمل الربح",
+        "operating_expenses": "المصروفات التشغيلية",
+        "depreciation": "الإهلاك",
+        "operating_profit": "الربح التشغيلي",
+        "other_income": "إيرادات أخرى",
+        "other_expenses": "مصروفات أخرى",
+        "net_profit": "صافي الربح"
+      },
+      "balanceSheet": {
+        "cash": "النقد والبنوك",
+        "receivables": "الذمم المدينة",
+        "current_assets": "الأصول المتداولة",
+        "prepayments": "مدفوعات مقدمة",
+        "fixed_assets": "الأصول الثابتة بعد الإهلاك",
+        "non_current_assets": "الأصول غير المتداولة",
+        "total_assets": "إجمالي الأصول",
+        "payables": "الذمم الدائنة",
+        "credit_cards": "بطاقات الائتمان",
+        "current_liabilities": "الالتزامات المتداولة",
+        "non_current_liabilities": "الالتزامات غير المتداولة",
+        "total_liabilities": "إجمالي الالتزامات",
+        "equity": "حقوق الملكية",
+        "retained_earnings": "أرباح مبقاة من سنوات سابقة",
+        "current_year_earnings": "أرباح السنة الحالية",
+        "total_equity": "إجمالي حقوق الملكية",
+        "total_liabilities_and_equity": "إجمالي الالتزامات وحقوق الملكية",
+        "difference": "الفرق (الأصول ناقص الالتزامات وحقوق الملكية)"
+      },
+      "zakatBase": {
+        "equity": "حقوق الملكية (رأس المال والاحتياطيات)",
+        "retained_earnings": "أرباح مبقاة من سنوات سابقة",
+        "long_term_liabilities": "الالتزامات طويلة الأجل",
+        "provisions": "المخصصات",
+        "net_profit": "صافي ربح السنة حتى تاريخه",
+        "profit_addbacks": "الزكاة وضريبة الدخل المضافة للربح",
+        "adjusted_net_profit": "صافي الربح المعدّل",
+        "net_fixed_assets": "صافي الأصول الثابتة",
+        "long_term_investments": "الاستثمارات طويلة الأجل والأصول غير المتداولة",
+        "total_additions": "إجمالي الإضافات",
+        "total_deductions": "إجمالي الحسومات"
+      }
+    }
   }
 }

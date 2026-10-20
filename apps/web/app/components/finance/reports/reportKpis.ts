@@ -1,8 +1,13 @@
+import type { FinanceReportLine } from '@webvue/contracts'
 import type { KpiTile } from '@webvue/ui/app/utils/kpiTile'
 import type { LoadedReport } from './reportConfig'
+import { misValue } from './reportRows'
+import { sideTone } from '../budgets/budgetFigures'
 
-type Translate = (key: string) => string
+type Translate = (key: string, named?: Record<string, unknown>) => string
 type FormatNumber = (value: number, options?: Intl.NumberFormatOptions) => string
+type MisLines = readonly Pick<FinanceReportLine, 'code' | 'value'>[]
+type Tile = (id: string, value: number, currency: string, icon: NonNullable<KpiTile['icon']>, tone?: KpiTile['tone']) => KpiTile
 
 const OVER_90 = ['days_91_120', 'days_over_120'] as const
 
@@ -15,7 +20,7 @@ function currencyFormat(currency: string): Intl.NumberFormatOptions {
  * from a paged list. A partner statement in several currencies has no single total, and the general ledger sends none: no tiles.
  */
 export function reportKpiTiles(report: LoadedReport, t: Translate, n: FormatNumber): KpiTile[] {
-  const tile = (id: string, value: number, currency: string, icon: NonNullable<KpiTile['icon']>, tone: KpiTile['tone'] = 'neutral'): KpiTile =>
+  const tile: Tile = (id, value, currency, icon, tone = 'neutral') =>
     ({ id, label: t(`financeReports.kpi.${id}`), value: n(value, currencyFormat(currency)), icon, tone })
   switch (report.slug) {
     case 'trial-balance': {
@@ -67,7 +72,47 @@ export function reportKpiTiles(report: LoadedReport, t: Translate, n: FormatNumb
         tile('net', totals.net, currency, 'i-lucide-scale', totals.net < 0 ? 'danger' : 'neutral'),
       ]
     }
+    case 'profit-loss':
+      return profitLossTiles(report.data, tile)
+    case 'balance-sheet':
+      return lineTiles(report.data.lines, report.data.currency, tile, [
+        ['totalAssets', 'total_assets', 'i-lucide-landmark'],
+        ['totalLiabilities', 'total_liabilities', 'i-lucide-hand-coins'],
+        ['equity', 'total_equity', 'i-lucide-scale'],
+      ])
+    case 'zakat-base': {
+      const { base, rate, zakat_due: due, currency } = report.data
+      return [
+        tile('zakatBase', base, currency, 'i-lucide-landmark'),
+        { id: 'zakatRate', label: t('financeReports.kpi.zakatRate'), value: n(rate, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }), icon: 'i-lucide-percent', tone: 'neutral' },
+        tile('zakatDue', due, currency, 'i-lucide-hand-coins', due > 0 ? 'warning' : 'neutral'),
+      ]
+    }
+    case 'budget-vs-actual': {
+      const { totals, currency } = report.data
+      const side = (id: 'debit' | 'credit', icon: NonNullable<KpiTile['icon']>): KpiTile => ({
+        ...tile(`budget${id === 'debit' ? 'Debit' : 'Credit'}`, totals[id].actual, currency, icon, sideTone(id, totals[id])),
+        hint: t('financeReports.kpi.budgetOf', { amount: n(totals[id].budget, currencyFormat(currency)) }),
+      })
+      return [side('debit', 'i-lucide-arrow-down-left'), side('credit', 'i-lucide-arrow-up-right'), tile('budgetNet', totals.net.actual, currency, 'i-lucide-scale')]
+    }
     case 'general-ledger':
       return []
   }
+}
+
+/** A tile per `[tile id, line code, icon]` for the lines the server sent. */
+function lineTiles(lines: MisLines, currency: string, tile: Tile, wanted: readonly (readonly [string, string, NonNullable<KpiTile['icon']>])[]): KpiTile[] {
+  return wanted.flatMap(([id, code, icon]) => {
+    const value = misValue(lines, code)
+    return value === undefined ? [] : [tile(id, value, currency, icon)]
+  })
+}
+
+function profitLossTiles({ lines, currency }: { lines: MisLines; currency: string }, tile: Tile): KpiTile[] {
+  const net = misValue(lines, 'net_profit')
+  return [
+    ...lineTiles(lines, currency, tile, [['revenue', 'revenue', 'i-lucide-trending-up'], ['grossProfit', 'gross_profit', 'i-lucide-coins']]),
+    ...(net === undefined ? [] : [tile('netProfit', net, currency, 'i-lucide-scale', net < 0 ? 'danger' : 'neutral')]),
+  ]
 }
