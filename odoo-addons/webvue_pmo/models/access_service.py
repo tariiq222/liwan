@@ -98,7 +98,7 @@ class WebVuePmoAccessService(models.AbstractModel):
             extra |= PROJECT_CONTEXTUAL_PERMISSIONS
         if (
             self._webvue_is_employee_principal(user, company=company)
-            and self.env['webvue.pmo.settings'].with_user(user).get()['project_creators'] == 'employees'
+            and self.env['webvue.pmo.settings'].with_user(user)._core_values()['project_creators'] == 'employees'
         ):
             roles.append({
                 'id': None, 'key': 'project_creation_policy',

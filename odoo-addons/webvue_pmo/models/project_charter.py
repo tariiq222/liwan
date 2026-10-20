@@ -54,12 +54,12 @@ class ProjectProject(models.Model):
         changed = self.filtered(lambda project: project._webvue_charter_differs(vals, names))
         if any(project.webvue_charter_state == 'submitted' for project in changed):
             raise WebVueCharterState(self.env._("The charter is waiting for approval; withdraw it to edit."))
-        if not self.env['webvue.pmo.settings'].get()['require_charter_approval']:
+        if not self.env['webvue.pmo.settings']._core_values()['require_charter_approval']:
             return self.browse()
         return changed.filtered(lambda project: project.webvue_charter_state == 'approved')
 
     def _webvue_charter_approval_required(self):
-        return self.env['webvue.pmo.settings'].get()['require_charter_approval']
+        return self.env['webvue.pmo.settings']._core_values()['require_charter_approval']
 
     def _webvue_can_review_charter(self):
         self.ensure_one()

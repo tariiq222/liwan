@@ -45,12 +45,13 @@ class SettingsController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def patch_project_settings(self, **payload):
-        unknown = set(payload) - ALLOWED
+        settings = request.env['webvue.pmo.settings']
+        unknown = set(payload) - ALLOWED - settings._webvue_settings_extension_fields()
         if unknown:
             raise ApiError(422, 'unknown_field', f"field {sorted(unknown)[0]!r} is not writable", field=sorted(unknown)[0])
         if not payload:
             raise ApiError(422, 'invalid', "no fields to update")
         try:
-            return request.env['webvue.pmo.settings'].set_values(payload)
+            return settings.set_values(payload)
         except ValueError as e:
             raise ApiError(422, 'invalid', str(e), field=getattr(e, 'webvue_field', None)) from e

@@ -13,6 +13,7 @@ ENTRY_KEYS = {
 SUMMARY_KEYS = {
     'project_id', 'currency', 'charter_estimate', 'planned', 'actual', 'remaining',
     'utilization_percent', 'over_budget', 'budget_count', 'expense_count',
+    'actual_source', 'actual_account', 'can_read_actual_lines', 'can_choose_actual_account',
 }
 
 

@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import json
 
-from odoo import fields, models
+from odoo import api, fields, models
 from odoo.exceptions import AccessError
 
 PARAM_CREATORS = 'webvue_pmo.project_creators'
@@ -29,6 +29,8 @@ PMO_SETTINGS_COMPANY_FIELDS = {
     'webvue_pmo_project_creators',
     'webvue_pmo_default_stages',
 }
+# The res.company field types a settings extension may declare, by the kind the API reports.
+EXTENSION_KINDS = {'selection': 'selection', 'boolean': 'boolean'}
 PSC_DEFAULTS = {
     'require_manager_on_create': True,
     'require_end_date_on_create': True,
@@ -50,15 +52,19 @@ class ResCompany(models.Model):
     )
     webvue_pmo_default_stages = fields.Text()
 
+    def _webvue_pmo_settings_fields(self):
+        return PMO_SETTINGS_COMPANY_FIELDS | self.env['webvue.pmo.settings']._webvue_settings_extension_fields()
+
     def write(self, vals):
-        if PMO_SETTINGS_COMPANY_FIELDS.intersection(vals):
+        settings_fields = self._webvue_pmo_settings_fields()
+        if settings_fields.intersection(vals):
             allowed_ids = self.env.cr.precommit.data.get(
                 PMO_SETTINGS_COMPANY_MARKER, set(),
             )
             if (
                 not self.ids
                 or not set(self.ids) <= allowed_ids
-                or not set(vals) <= PMO_SETTINGS_COMPANY_FIELDS
+                or not set(vals) <= settings_fields
             ):
                 msg = 'use_protected_webvue_access_operation'
                 raise AccessError(msg)
@@ -70,7 +76,7 @@ class ResCompany(models.Model):
         if self != self.env.company:
             msg = 'forbidden'
             raise AccessError(msg)
-        if not vals or set(vals) - PMO_SETTINGS_COMPANY_FIELDS:
+        if not vals or set(vals) - self._webvue_pmo_settings_fields():
             msg = 'use_protected_webvue_access_operation'
             raise AccessError(msg)
         marker = self.env.cr.precommit.data
@@ -158,6 +164,62 @@ class WebVuePmoSettings(models.AbstractModel):
             'require_charter_approval': self._get_bool(PARAM_REQUIRE_CHARTER_APPROVAL, False),
         }
 
+    @api.model
+    def _webvue_settings_extensions(self):
+        """Company settings an installed application adds to the project settings.
+
+        Extension point: override with ``super()`` and append specs ``{'name': <res.company field>,
+        'kind': 'selection' | 'boolean', 'label': <translated>, 'help': <translated>}``. The field must exist
+        on ``res.company`` with a matching type. ``get`` returns each one under ``extensions`` and
+        ``set_values`` writes it through ``res.company._webvue_write_pmo_settings``. Read the specs through
+        ``_webvue_settings_extension_specs``.
+        """
+        return []
+
+    @api.model
+    def _webvue_settings_extension_specs(self):
+        """The declared extensions, each checked: a bad declaration is a programming error and raises."""
+        return self.env['res.company']._webvue_check_company_field_extensions(
+            'project settings', self._webvue_settings_extensions(), PMO_SETTINGS_COMPANY_FIELDS, EXTENSION_KINDS,
+        )
+
+    @api.model
+    def _webvue_settings_extension_fields(self):
+        return {spec['name'] for spec in self._webvue_settings_extension_specs()}
+
+    def _dump_extension(self, spec):
+        company = self.env.company
+        field = company._fields[spec['name']]
+        value = company[spec['name']]
+        dumped = {
+            'name': spec['name'],
+            'kind': spec['kind'],
+            'label': spec['label'],
+            'help': spec.get('help') or None,
+            'value': (value or None) if spec['kind'] == 'selection' else bool(value),
+        }
+        if spec['kind'] == 'selection':
+            dumped['options'] = [
+                {'value': key, 'label': label} for key, label in field._description_selection(self.env)
+            ]
+        return dumped
+
+    def _validate_extension_payload(self, vals):
+        company = self.env.company
+        writes = {}
+        for spec in self._webvue_settings_extension_specs():
+            name = spec['name']
+            if name not in vals:
+                continue
+            value = vals[name]
+            if spec['kind'] == 'boolean':
+                if not isinstance(value, bool):
+                    raise _invalid(name, f"{name} must be a boolean")
+            elif value not in [key for key, _label in company._fields[name]._description_selection(self.env)]:
+                raise _invalid(name, f"{name} is not one of the allowed options")
+            writes[name] = value
+        return writes
+
     def _legacy_get(self):
         creators = self._params().get_param(PARAM_CREATORS, 'managers')
         return {
@@ -165,7 +227,8 @@ class WebVuePmoSettings(models.AbstractModel):
             'default_stages': self._coerce_stages(self._params().get_param(PARAM_STAGES)),
         }
 
-    def get(self):
+    def _core_values(self):
+        """The settings without the extensions of installed bridges: what PMO's own rules read."""
         company = self.env.company
         if not company.webvue_pmo_settings_initialized:
             values = self._legacy_get()
@@ -176,6 +239,11 @@ class WebVuePmoSettings(models.AbstractModel):
                 'default_stages': self._coerce_stages(company.webvue_pmo_default_stages),
             }
         values.update(self._company_psc_values())
+        return values
+
+    def get(self):
+        values = self._core_values()
+        values['extensions'] = [self._dump_extension(spec) for spec in self._webvue_settings_extension_specs()]
         return values
 
     def get_create_defaults(self):
@@ -275,6 +343,7 @@ class WebVuePmoSettings(models.AbstractModel):
         if 'default_stages' in vals:
             effective['default_stages'] = self._clean_stages(vals['default_stages'])
         psc_writes = self._validate_psc_payload(vals)
+        extension_writes = self._validate_extension_payload(vals)
         company = self.env.company
         snapshot = not company.webvue_pmo_settings_initialized
         write_vals = {}
@@ -299,6 +368,8 @@ class WebVuePmoSettings(models.AbstractModel):
         )
         if write_vals and (snapshot or main_changed):
             company._webvue_write_pmo_settings(write_vals)
+        if extension_writes:
+            company._webvue_write_pmo_settings(extension_writes)
         if psc_writes:
             params = self._params()
             for key, value in psc_writes:
@@ -312,7 +383,7 @@ class WebVuePmoSettings(models.AbstractModel):
         """Create-ready vals for a new project's stages, in policy order."""
         return [
             {'name': s['name'], 'fold': s['fold'], 'sequence': (i + 1) * 10}
-            for i, s in enumerate(self.get()['default_stages'])
+            for i, s in enumerate(self._core_values()['default_stages'])
         ]
 
 

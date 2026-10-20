@@ -6,6 +6,7 @@ from . import (
     feature_registry,
     mail_notification_webvue,
     notification_types,
+    project_actual_source,
     project_charter,
     project_charter_reference,
     project_constants,

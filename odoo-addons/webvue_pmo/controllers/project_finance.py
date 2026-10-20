@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
+from odoo.exceptions import AccessError
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
@@ -21,6 +22,7 @@ from odoo.addons.webvue_pmo.serializers.project_finance import (
 )
 
 LIST_QUERY = {'kind', 'q', 'limit', 'offset'}
+ACTUAL_LINES_QUERY = {'limit', 'offset'}
 
 
 def _finance_project(project_id):
@@ -94,6 +96,9 @@ class ProjectFinanceController(http.Controller):
         args = request.httprequest.args
         kind, q, limit, offset = _parse_list_query(args)
         domain = [('project_id', '=', project.id)]
+        if request.env['webvue.project.actual.source']._webvue_is_external(project):
+            # The actual cost is the external source's: only the planned budget stays a manual entry.
+            domain.append(('kind', '=', 'budget'))
         if kind:
             domain.append(('kind', '=', kind))
         if q:
@@ -123,6 +128,48 @@ class ProjectFinanceController(http.Controller):
         vals = parse_finance_create(payload, project)
         entry = request.env['webvue.project.finance.entry'].create(vals)
         return request.make_json_response(dump_finance_entry(entry), status=201)
+
+    @http.route(
+        '/api/v1/projects/<int:project_id>/finance/actual-lines',
+        type='json2', auth='user', methods=['GET'], readonly=True,
+    )
+    @api_handler
+    @requires_feature('pmo.enabled', operation='read')
+    def list_actual_lines(self, project_id, **_):
+        project = _finance_project(project_id)
+        source = request.env['webvue.project.actual.source']
+        if not source._webvue_is_external(project):
+            raise ApiError(404, 'not_found', "project has no external actual cost")
+        if not source._webvue_can_read_actual_lines(project):
+            raise AccessError(request.env._("You are not allowed to read the lines of the actual cost."))
+        args = request.httprequest.args
+        unknown = set(args) - ACTUAL_LINES_QUERY
+        if unknown:
+            raise ApiError(400, 'unsupported_filter', f"unsupported query parameter {sorted(unknown)[0]!r}")
+        limit = _parse_limit(args.get('limit', 50))
+        offset = parse_nonneg_int(args.get('offset', 0), 'offset')
+        items, total = source._webvue_actual_lines(project, limit, offset)
+        return {'items': items, 'total': total}
+
+    @http.route(
+        '/api/v1/projects/<int:project_id>/finance/actual-account',
+        type='json2', auth='user', methods=['PATCH'], readonly=False,
+    )
+    @api_handler
+    @requires_feature('pmo.enabled', operation='write')
+    def patch_actual_account(self, project_id, **payload):
+        payload.pop('project_id', None)
+        unknown = set(payload) - {'account_id'}
+        if unknown:
+            field = sorted(unknown)[0]
+            raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
+        account_id = payload.get('account_id', False)
+        if account_id is not None and (isinstance(account_id, bool) or not isinstance(account_id, int) or account_id <= 0):
+            raise ApiError(422, 'invalid', "account_id must be a positive integer or null", field='account_id')
+        project = _finance_project(project_id)
+        project._webvue_check_manage()
+        request.env['webvue.project.actual.source']._webvue_set_actual_account(project, account_id)
+        return build_finance_summary(project)
 
     @http.route(
         '/api/v1/projects/<int:project_id>/finance/<int:entry_id>',
