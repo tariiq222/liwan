@@ -365,17 +365,9 @@ def _refuses(node: ast.AST) -> bool:
 
 
 def _service_trees() -> dict[Path, ast.Module]:
-    """Controller and model modules at any depth: the places a capability check can live.
-
-    Both globs are recursive so the nested area packages of a controller addon (and any
-    nested model package) are indexed too; ``__init__.py`` only imports and never carries a
-    handler or a model, so it is skipped at every depth.
-    """
-    paths = [*ADDONS.glob('*/controllers/**/*.py'), *ADDONS.glob('*/models/**/*.py')]
-    return {
-        py: ast.parse(py.read_text(encoding='utf-8'))
-        for py in sorted({py for py in paths if py.name != '__init__.py'})
-    }
+    """Controller and model modules at any depth: the places a capability check can live."""
+    paths = {py for py in [*ADDONS.glob('*/controllers/**/*.py'), *ADDONS.glob('*/models/**/*.py')] if py.name != '__init__.py'}
+    return {py: ast.parse(py.read_text(encoding='utf-8')) for py in sorted(paths)}
 
 
 def extract_routes(trees: dict[Path, ast.Module] | None = None, service_trees: dict[Path, ast.Module] | None = None) -> list[Route]:
@@ -586,11 +578,11 @@ def check() -> list[str]:
 def main() -> int:
     problems = check()
     for problem in problems:
-        sys.stderr.write(problem + '\n')
+        print(problem, file=sys.stderr)
     if problems:
-        sys.stderr.write(f'route gate policy: {len(problems)} problem(s)\n')
+        print(f'route gate policy: {len(problems)} problem(s)', file=sys.stderr)
         return 1
-    sys.stdout.write('route gate policy: ok\n')
+    print('route gate policy: ok')
     return 0
 
 

@@ -114,17 +114,16 @@ def api_version() -> str:
 def addon_name(path: Path) -> str:
     """The addon owning a module: the first path segment under ``odoo-addons``.
 
-    A controller or model module lives at any depth below its addon (a nested area
-    package such as ``controllers/shifts/``), so the addon is read from the path root,
-    never from the module's own parent directories.
+    A controller module lives at any depth below its addon (a nested area package such as
+    ``controllers/shifts/``), so the addon is read from the path root, never from the
+    module's own parent directories.
     """
     return path.relative_to(ADDONS).parts[0]
 
 
 def parse_controllers() -> dict[Path, ast.Module]:
-    """The parsed controller modules of ``odoo-addons/*/controllers`` at any depth,
-    in a stable path order and without duplicates. ``__init__.py`` only imports its
-    package's modules, so it is never a route module and is always skipped."""
+    """The parsed controller modules of ``odoo-addons/*/controllers`` at any depth, in a
+    stable path order. ``__init__.py`` only imports its package's modules and is skipped."""
     paths = sorted({py for py in ADDONS.glob("*/controllers/**/*.py") if py.name != "__init__.py"})
     return {py: ast.parse(py.read_text()) for py in paths}
 
@@ -168,7 +167,7 @@ def extract_routes(trees: dict[Path, ast.Module] | None = None) -> list[dict]:
                         "node": fn,
                         "class_node": cls,
                         "module": tree,
-                    },
+                    }
                 )
     return routes
 
@@ -190,7 +189,7 @@ def openapi_params(odoo_path: str) -> tuple[str, list[dict]]:
                 "in": "path",
                 "required": True,
                 "schema": dict(CONVERTER_SCHEMAS.get(conv or "string", {"type": "string"})),
-            },
+            }
         )
     return PARAM_RE.sub(lambda m: "{%s}" % m.group("name"), odoo_path), params
 
@@ -259,7 +258,7 @@ def build_document(routes: list[dict], contract_schemas: dict) -> dict:
                 "in": "cookie",
                 "name": "session_id",
                 "description": "Odoo session cookie; browser traffic is same-origin, no bearer tokens.",
-            },
+            }
         },
         "responses": {
             "Forbidden": {
@@ -286,7 +285,7 @@ def build_document(routes: list[dict], contract_schemas: dict) -> dict:
                     "field": {"type": "string"},
                     "details": {},
                 },
-            },
+            }
         },
     }
     for name, schema in sorted(contract_schemas.items()):
@@ -335,8 +334,7 @@ def harvest_contracts() -> dict:
     )
     if result.returncode != 0:
         sys.stderr.write(result.stderr)
-        message = "contracts harvest failed"
-        raise SystemExit(message)
+        raise SystemExit("contracts harvest failed")
     return json.loads(result.stdout)
 
 
@@ -345,8 +343,7 @@ def capability_matrix(routes: list | None = None, allow: dict | None = None) -> 
 
     Paths use the openapi.json syntax (``{id}``); the rows come from tools/route_gate_policy.py.
     """
-    # Imported here, not at module level: the policy module imports this one for the extraction.
-    import route_gate_policy  # noqa: PLC0415
+    import route_gate_policy  # imported here: the policy module imports this one for the extraction
 
     routes = routes if routes is not None else route_gate_policy.extract_routes()
     allow = allow if allow is not None else route_gate_policy.load_allowlist()
@@ -403,16 +400,16 @@ def main() -> int:
             sys.stderr.write(message + "\n")
         if stale:
             return 1
-        sys.stdout.write("openapi.json and route-capabilities.json are up to date\n")
+        print("openapi.json and route-capabilities.json are up to date")
         return 0
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(rendered)
     CAPABILITIES_OUTPUT.write_text(matrix)
     operations = sum(len(v) for v in doc["paths"].values())
-    sys.stdout.write(
+    print(
         f"wrote {OUTPUT.relative_to(REPO)}: {len(doc['paths'])} paths, "
-        f"{operations} operations, {len(doc['components']['schemas'])} schemas\n",
+        f"{operations} operations, {len(doc['components']['schemas'])} schemas"
     )
     return 0
 
