@@ -2,7 +2,6 @@
 import PlanForm from '@/components/hr/lifecycle/PlanForm.vue'
 
 const NAMESPACE = 'hrOnboarding'
-const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
 const backTo = '/hr/onboarding/plans'

@@ -4,7 +4,6 @@ import { useHrEmployees } from '@/composables/useHrEmployees'
 import { saveErrorMessage } from '@/utils/formFeedback'
 
 const NAMESPACE = 'hrOnboarding'
-const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()

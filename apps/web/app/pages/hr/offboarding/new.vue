@@ -2,7 +2,6 @@
 import DepartureForm from '@/components/hr/lifecycle/DepartureForm.vue'
 
 const NAMESPACE = 'hrOffboarding'
-const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
 const backTo = '/hr/offboarding'
