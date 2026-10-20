@@ -31,8 +31,14 @@ class TestHrOffboarding(WebVueHrCase):
         cls.reader = cls._make_user('hr_offboarding_reader', 'Offboarding Reader', READER_KEYS)
         cls.reason = cls.env.ref('hr.departure_resigned')
         cls.plan = cls.env.ref('hr.offboarding_plan')
+        # The lead is the manager of the plan steps, so it needs a user; a plain
+        # employee user keeps the manager's own employee unique (hr_employee_user_uniq).
+        cls.lead_user = new_test_user(
+            cls.env, login='hr_offboarding_lead', password='hr_offboarding_lead_pass_123',
+            name='Offboarding Lead', groups='webvue_core.group_employee',
+        )
         cls.lead = cls.env['hr.employee'].create({
-            'name': 'Offboarding Lead', 'company_id': cls.company.id, 'user_id': cls.manager.id,
+            'name': 'Offboarding Lead', 'company_id': cls.company.id, 'user_id': cls.lead_user.id,
         })
         cls.employee_record = cls.env['hr.employee'].create({
             'name': 'Leaving Employee',
