@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from .payroll_common import PayrollCase
@@ -80,3 +81,34 @@ class TestPayrollSettings(PayrollCase):
         res = self.api('DELETE', f'{base}/{created["id"]}')
         self.assertEqual(res.status_code, 204, res.text)
         self.assertEqual(self.api('DELETE', f'{base}/{created["id"]}').status_code, 404)
+
+    def test_shared_gosi_rate_is_read_only(self):
+        base = '/api/v1/hr/payroll/gosi-rates'
+        shared = self.env['webvue.hr.gosi.rate'].search([('company_id', '=', False), ('branch', '=', 'annuities')], limit=1)
+        before = (shared.employee_rate, shared.employer_rate)
+        self._login(self.config)
+        self.assertEqual(self.api('PATCH', f'{base}/{shared.id}', json={'employee_rate': 0}).status_code, 403)
+        self.assertEqual(self.api('DELETE', f'{base}/{shared.id}').status_code, 403)
+        shared.invalidate_recordset()
+        self.assertTrue(shared.exists())
+        self.assertEqual((shared.employee_rate, shared.employer_rate), before)
+        self.assertEqual(self.env.user.env['webvue.hr.gosi.rate'].browse(shared.id).exists(), shared)
+
+    def test_a_rate_of_another_company_is_not_found(self):
+        other = self.env['res.company'].create({'name': 'Other GOSI Co'})
+        foreign = self.env['webvue.hr.gosi.rate'].create({
+            **{key: GCC_RATE[key] for key in ('branch', 'nationality_class', 'employee_rate', 'employer_rate', 'wage_min', 'wage_max')},
+            'date_from': '2026-01-01', 'company_id': other.id,
+        })
+        base = '/api/v1/hr/payroll/gosi-rates'
+        self._login(self.config)
+        self.assertEqual(self.api('PATCH', f'{base}/{foreign.id}', json={'employer_rate': 1}).status_code, 404)
+        self.assertEqual(self.api('DELETE', f'{base}/{foreign.id}').status_code, 404)
+        self.assertTrue(foreign.exists())
+
+    def test_the_orm_refuses_a_payroll_user_writing_a_shared_rate(self):
+        shared = self.env['webvue.hr.gosi.rate'].search([('company_id', '=', False)], limit=1)
+        with self.assertRaises(AccessError):
+            shared.with_user(self.config).write({'employee_rate': 0})
+        with self.assertRaises(AccessError):
+            shared.with_user(self.config).unlink()

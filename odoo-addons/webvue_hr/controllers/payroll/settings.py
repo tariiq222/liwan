@@ -19,11 +19,15 @@ from odoo.addons.webvue_hr.serializers.payroll.settings import (
 )
 
 
-def _scoped_rate(rate_id):
-    """A rate the caller's companies can see (shared rows included) → 404 otherwise."""
-    rate = request.env['webvue.hr.gosi.rate'].search([('id', '=', rate_id)], limit=1)
+def _writable_rate(rate_id):
+    """A rate of the current company; a shared seed rate is read-only → 403, any other company's → 404."""
+    rate = request.env['webvue.hr.gosi.rate'].search([
+        ('id', '=', rate_id), ('company_id', 'in', [False, current_company().id]),
+    ], limit=1)
     if not rate:
         raise MissingError(request.env._('webvue.hr.gosi.rate %(id)s does not exist', id=rate_id))
+    if not rate.company_id:
+        raise ApiError(403, 'forbidden', 'a shared rate is read-only, add a rate of your own')
     return rate
 
 
@@ -100,7 +104,7 @@ class HrPayrollSettingsController(http.Controller):
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.config')
     def patch_gosi_rate(self, rate_id, **payload):
-        rate = _scoped_rate(rate_id)
+        rate = _writable_rate(rate_id)
         vals = parse_rate(payload, request.env['webvue.hr.gosi.rate'], partial=True)
         if not vals:
             raise ApiError(422, 'invalid', 'no fields to update')
@@ -114,7 +118,7 @@ class HrPayrollSettingsController(http.Controller):
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.config')
     def delete_gosi_rate(self, rate_id, **_):
-        _scoped_rate(rate_id).unlink()
+        _writable_rate(rate_id).unlink()
         return request.make_json_response('', status=204)
 
     @http.route('/api/v1/hr/payroll/bank-profiles', type='json2', auth='user', methods=['GET'], readonly=True)

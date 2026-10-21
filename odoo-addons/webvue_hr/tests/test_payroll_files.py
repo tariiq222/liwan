@@ -5,6 +5,7 @@ from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
+from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from .payroll_common import PayrollCase
@@ -252,6 +253,39 @@ class TestPayrollFiles(PayrollCase):
         self.assertEqual(self.api('PATCH', f'{PROFILES}/{self.generic.id}', json={'name': 'x'}).status_code, 403)
         self.assertEqual(self.api('DELETE', f'{PROFILES}/{self.generic.id}').status_code, 403)
         self.assertEqual(self.generic.name, self.env.ref('webvue_hr.profile_generic_csv').name)
+
+    def test_shared_profile_is_read_only_in_the_orm(self):
+        """The config capability cannot reach a shared seed row through the ORM either."""
+        shared = self.env.ref('webvue_hr.profile_generic_csv')
+        self.assertFalse(shared.company_id)
+        column = shared.column_ids[:1]
+        before = (shared.name, column.label)
+        with self.assertRaises(AccessError, msg='a shared profile is writable through the ORM'):
+            shared.with_user(self.config).write({'name': 'Hijacked'})
+        with self.assertRaises(AccessError, msg='a shared profile is removable through the ORM'):
+            shared.with_user(self.config).unlink()
+        with self.assertRaises(AccessError, msg='a shared profile column is writable through the ORM'):
+            column.with_user(self.config).write({'label': 'Hijacked'})
+        with self.assertRaises(AccessError, msg='a shared profile column is removable through the ORM'):
+            column.with_user(self.config).unlink()
+        self.assertEqual((shared.name, column.label), before)
+        own = self.env['webvue.hr.payroll.bank.profile'].with_user(self.config).create({
+            'name': 'Own layout', 'kind': 'bank', 'company_id': self.env.company.id,
+            'column_ids': [(0, 0, {'source': 'name', 'label': 'Name'})],
+        })
+        own.with_user(self.config).write({'name': 'Own layout saved'})
+        self.assertEqual(own.name, 'Own layout saved')
+
+    def test_shared_eos_case_is_read_only_in_the_orm(self):
+        """The same read-only rule on the shared end-of-service case rows (no company)."""
+        shared = self.env.ref('webvue_hr.eos_case_resigned')
+        self.assertFalse(shared.company_id)
+        before = shared.case
+        with self.assertRaises(AccessError, msg='a shared end-of-service case row is writable through the ORM'):
+            shared.with_user(self.config).write({'case': 'termination'})
+        with self.assertRaises(AccessError, msg='a shared end-of-service case row is removable through the ORM'):
+            shared.with_user(self.config).unlink()
+        self.assertEqual(shared.case, before)
 
     def test_profile_crud_needs_config(self):
         body = {

@@ -42,12 +42,23 @@
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
 
-    <!-- GOSI rates: the shared seed rows (no company) and the rows of the user's companies. -->
+    <!-- GOSI rates: the shared seed rows (no company) are readable by every company but writable by none;
+         a company writes only its own rows. -->
     <record id="rule_webvue_hr_gosi_rate_company" model="ir.rule">
         <field name="name">webvue GOSI rate: shared or multi company</field>
         <field name="model_id" ref="model_webvue_hr_gosi_rate"/>
         <field name="global" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_webvue_hr_gosi_rate_write" model="ir.rule">
+        <field name="name">webvue GOSI rate: own company rows only</field>
+        <field name="model_id" ref="model_webvue_hr_gosi_rate"/>
+        <field name="global" eval="True"/>
+        <field name="perm_read" eval="False"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_webvue_hr_payroll_settings_company" model="ir.rule">
         <field name="name">webvue payroll settings: multi company</field>
