@@ -95,11 +95,12 @@ describe('meetings quick views', () => {
 })
 
 describe('other modules', () => {
-  it('puts the create action of the current HR list first', () => {
-    expect(ids(model('/hr').actions)).toEqual(['new-employee', 'new-department'])
-    expect(ids(model('/hr/departments').actions)).toEqual(['new-department', 'new-employee'])
+  it('shows no quick card on HR pages, whose lists carry their own create actions', () => {
+    for (const path of ['/hr', '/hr/departments', '/hr/leave', '/hr/employees/3']) expect(model(path), path).toEqual({ views: [], actions: [] })
+  })
+
+  it('puts the create action of the documents list first', () => {
     expect(ids(model('/documents').actions)[0]).toBe('new-document')
-    expect(model('/hr/employees/3')).toEqual({ views: [], actions: [] })
   })
 
   it('offers request and process creation in operations by capability', () => {

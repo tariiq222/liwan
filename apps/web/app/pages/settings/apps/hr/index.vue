@@ -9,18 +9,14 @@ import { ApiError } from '@/composables/useApi'
 import { isTruncated } from '@/utils/payrollFinanceSettings'
 import type { HrEosCase } from '@webvue/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
-import { owningListBack } from '@/utils/recordListOrigin'
 
-// The payroll settings of the company: the general pay settings and the GOSI contribution rates (reading is payroll
+// The HR application's settings, one page of cards under Settings > Applications. Payroll is its first card: the general pay settings and the GOSI contribution rates (reading is payroll
 // access; changing them needs `hr.payroll.config`), then the accounting mapping and the department cost centers. The
 // accounting part exists only when the finance bridge answers: a 404 or 403 from its settings route hides it, with no
 // guess about installed addons. Changing it needs `finance.setup.manage`, and the cost centers `finance.analytic.manage`.
-const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
-
-const sourcePaths = useRecordListPaths(['/hr/payroll'])
-const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
+const { parts, shows } = useSettingsPage('hr')
 const canConfig = computed(() => can('hr.payroll.config'))
 const settings = useHrPayrollSettings()
 const rates = useHrGosiRates()
@@ -75,7 +71,9 @@ function retry() {
 
 <template>
   <SharedSettingsPage width="list">
-    <SharedPageHeader :title="t('hrPayroll.settings.title')" :back-to="backTo" :back-label="t('hrPayroll.title')" />
+    <SharedPageHeader :title="t('nav.hr')" />
+    <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
+    <section v-else-if="shows('payroll')" id="payroll" class="webvue-settings-anchor grid gap-(--webvue-gap-card)">
     <SharedPageState :loading="settings.isLoading.value || rates.isLoading.value || bankProfiles.isLoading.value || eosCases.isLoading.value" :error="error" :empty="!settings.data.value" @retry="retry">
       <PayrollGeneralSettingsForm v-if="settings.data.value" :settings="settings.data.value" :leave-types="leaveTypeRefs" :can-edit="canConfig" />
       <GosiRateTable :rates="rates.data.value?.items ?? []" :can-edit="canConfig" />
@@ -106,5 +104,6 @@ function retry() {
         />
       </SharedFormSection>
     </SharedPageState>
+    </section>
   </SharedSettingsPage>
 </template>

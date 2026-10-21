@@ -184,24 +184,6 @@ export function quickViewsModel(input: QuickViewsInput): QuickViewsModel {
       ...(input.can('documents.items.archive') ? [{ id: 'archived-documents', labelKey: 'documents.archived', icon: 'i-lucide-archive' as AppIcon, to: { path: '/documents', query: { archived: '1' } }, active: input.query.archived === '1', primary: false }] : []),
     ],
   }
-  if (path === '/hr' || path === '/hr/departments') {
-    const onDepartments = path === '/hr/departments'
-    return { views: [], actions: [
-      ...createAction(input, 'hr.employees.manage', 'new-employee', 'hr.directory.newEmployee', '/hr/employees/new', !onDepartments),
-      ...createAction(input, 'hr.departments.manage', 'new-department', 'hr.depts.new', '/hr/departments/new', onDepartments),
-    ].sort((a, b) => Number(b.primary) - Number(a.primary)) }
-  }
-
-  if (path === '/hr/leave') {
-    return {
-      views: [],
-      actions: [
-        ...createAction(input, 'hr.leave.request', 'new-leave', 'hr.leave.new', '/hr/leave/new', true),
-        ...createAction(input, 'hr.leave.manage', 'new-leave-allocation', 'hr.leave.allocate', '/hr/leave/allocations/new', false),
-      ],
-    }
-  }
-
   if (OPERATION_PATHS.has(path)) {
     const onProcesses = path === '/settings/apps/operations/processes'
     return {

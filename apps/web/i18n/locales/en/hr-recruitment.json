@@ -1,6 +1,7 @@
 {
   "hrRecruitment": {
     "title": "Recruitment",
+    "applicants": "Applicants",
     "searchApplicants": "Search applicants by name…",
     "searchValue": "Search: {value}",
     "newApplicant": "New applicant",

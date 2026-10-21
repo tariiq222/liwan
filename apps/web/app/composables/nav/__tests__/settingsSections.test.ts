@@ -8,8 +8,8 @@ const page = (id: string) => settingsPages().find(candidate => candidate.id === 
 
 describe('settings pages', () => {
   it('are the foundation pages around one page per application, in a fixed order', () => {
-    expect(settingsPages().map(candidate => candidate.id)).toEqual(['company', 'team', 'projects', 'finance', 'operations', 'system', 'billing'])
-    expect(settingsPages().map(candidate => candidate.group)).toEqual([undefined, undefined, 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', undefined, undefined])
+    expect(settingsPages().map(candidate => candidate.id)).toEqual(['company', 'team', 'projects', 'hr', 'finance', 'operations', 'system', 'billing'])
+    expect(settingsPages().map(candidate => candidate.group)).toEqual([undefined, undefined, 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', undefined, undefined])
   })
   it('hold the cards of company and system as parts of one page', () => {
     expect(page('company').to).toBe('/settings/company')
@@ -25,7 +25,8 @@ describe('settings pages', () => {
   })
   it('build one page per application from the registered manifests', () => {
     const apps = () => appSettingsPages().map(candidate => candidate.to)
-    expect(apps()).toEqual(['/settings/apps/projects', '/settings/apps/finance', '/settings/apps/operations/processes'])
+    expect(apps()).toEqual(['/settings/apps/projects', '/settings/apps/hr', '/settings/apps/finance', '/settings/apps/operations/processes'])
+    expect(page('hr').parts.map(part => [part.id, part.capability])).toEqual([['payroll', 'hr.payroll.config']])
     expect(page('projects').parts.map(part => part.id)).toEqual(['project-creation', 'project-defaults', 'project-reminders', 'catalogs'])
     expect(page('finance').parts.map(part => [part.id, part.to, part.within])).toEqual([['setup', undefined, undefined], ['accounts', '/settings/apps/finance/accounts', undefined], ['journals', '/settings/apps/finance/journals', undefined], ['taxes', '/settings/apps/finance/taxes', undefined], ['payment-terms', '/settings/apps/finance/payment-terms', undefined], ['asset-profiles', '/settings/apps/finance/asset-profiles', undefined], ['analytic', undefined, undefined], ['closing', undefined, undefined], ['zatca', undefined, undefined], ['audit', undefined, '/settings/apps/finance/audit']])
     const crm: AppManifest = {
@@ -40,6 +41,7 @@ describe('settings pages', () => {
     expect(settingsPageForPath('/settings/team/users/3?x=1')?.id).toBe('team')
     expect(settingsPageForPath('/settings/apps/projects/catalogs/types')?.id).toBe('projects')
     expect(settingsPageForPath('/settings/apps/finance/audit')?.id).toBe('finance')
+    expect(settingsPageForPath('/settings/apps/hr')?.id).toBe('hr')
     expect(settingsPageForPath('/subscription/invoices/4')?.id).toBe('billing')
     expect(settingsPageForPath('/settings/teams')).toBeNull()
   })

@@ -22,7 +22,6 @@ const isListRoute = computed(() => {
   return path === '/hr/payroll' || path === '/hr/payroll/new'
 })
 const canManage = computed(() => can('hr.payroll.manage'))
-const canConfig = computed(() => can('hr.payroll.config'))
 
 function firstParam(value: unknown) {
   return Array.isArray(value) ? value[0] : value
@@ -92,7 +91,6 @@ const listQuery = computed(() => {
   return context
 })
 const createTo = computed(() => canManage.value ? { path: '/hr/payroll/new', query: listQuery.value } : undefined)
-const settingsTo = computed(() => ({ path: '/hr/payroll/settings', query: returnToQuery(route.fullPath) }))
 function runTo(row: HrPayrollRunSummary) {
   return { path: `/hr/payroll/${row.id}`, query: returnToQuery(route.fullPath) }
 }
@@ -106,10 +104,6 @@ function runTo(row: HrPayrollRunSummary) {
     :create-label="t('hrPayroll.runs.new')"
     create-test-id="hr-payroll-new"
   >
-    <template v-if="canConfig" #actions>
-      <UButton color="neutral" variant="outline" icon="i-lucide-settings" :to="settingsTo" :disabled="!hydrated" :label="t('hrPayroll.settings.title')" data-testid="hr-payroll-settings-link" />
-    </template>
-
     <SharedListCard>
       <template #filters>
         <SharedFilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">

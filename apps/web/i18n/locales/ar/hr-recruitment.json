@@ -1,6 +1,7 @@
 {
   "hrRecruitment": {
     "title": "التوظيف",
+    "applicants": "المتقدمون",
     "searchApplicants": "بحث باسم المتقدم…",
     "searchValue": "بحث: {value}",
     "newApplicant": "متقدم جديد",

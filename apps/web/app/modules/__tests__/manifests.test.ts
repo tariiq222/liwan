@@ -5,6 +5,7 @@ import { canReach, canReachPath, firstAllowedPath, hasCapability, isNavPathActiv
 import type { AppManifest } from '../types'
 import { allNavItems, contextLinksForModule } from '../../composables/nav/shellModules'
 import { goKeyProblems } from '../../composables/nav/paletteModel'
+import { isContextLinkActive } from '../../composables/useShellNavigation'
 import { appCommands } from '../surfaces'
 import { SHELL_RESERVED_KEYS } from '@webvue/ui/app/composables/shortcuts/keymap'
 
@@ -73,7 +74,7 @@ describe('app manifests', () => {
     ['/hr/offboarding', 'hr.offboarding.read'], ['/hr/offboarding/new', 'hr.offboarding.manage'],
     ['/hr/assets/4', 'hr.assets.read'], ['/hr/assets/mine', 'hr.employees.read'], ['/hr/assets/categories/new', 'hr.assets.manage'],
     ['/hr/payroll', 'hr.payroll.read'], ['/hr/payroll/4', 'hr.payroll.read'], ['/hr/payroll/4/payslips/9', 'hr.payroll.read'],
-    ['/hr/payroll/new', 'hr.payroll.manage'], ['/hr/payroll/settings', 'hr.payroll.config'],
+    ['/hr/payroll/new', 'hr.payroll.manage'],
     ['/hr/payroll/mine', 'hr.employees.read'], ['/hr/payroll/mine/7', 'hr.employees.read'],
     ['/notifications', 'webvue.notifications'], ['/settings/team/users/new', 'access.users.grant'],
     ['/settings/team/users/3/access', 'access.users.assign_roles'], ['/settings/team/roles/4/edit', 'access.roles.manage'],
@@ -91,8 +92,7 @@ describe('app manifests', () => {
     ['/hr/assets/mine', '/hr/assets/mine', true], ['/hr/assets/mine', '/hr/assets', false], ['/hr/assets/4', '/hr/assets', true],
     ['/hr/payroll/mine', '/hr/payroll/mine', true], ['/hr/payroll/mine/7', '/hr/payroll/mine', true], ['/hr/payroll/mine', '/hr/payroll', false],
     ['/hr/payroll/mine/7', '/hr/payroll', false], ['/hr/payroll', '/hr/payroll', true], ['/hr/payroll/new', '/hr/payroll', true],
-    ['/hr/payroll/4/payslips/9', '/hr/payroll', true], ['/hr/payroll/settings', '/hr/payroll', false],
-    ['/hr/payroll/settings', '/hr/payroll/settings', true], ['/hr/payroll', '/hr/payroll/settings', false],
+    ['/hr/payroll/4/payslips/9', '/hr/payroll', true]
   ])('nav active %s vs %s -> %s', (path, target, active) => {
     expect(isNavPathActive(path, target)).toBe(active)
   })
@@ -241,34 +241,52 @@ describe('palette declarations', () => {
       expect(pinned[0]).toMatchObject({ to, capability, labelKey: command.labelKey })
     })
 
-    it('keeps the directory in the first card and the journey sections in order', () => {
-      const listed = links('/hr').filter(link => !link.pinned)
-      expect(listed.filter(link => !link.section).map(link => link.id)).toEqual(['employees', 'departments'])
-      const sectionOrder = [...new Set(listed.filter(link => link.section).map(link => link.section))]
-      expect(sectionOrder).toEqual(['hr.nav.lifecycle', 'hr.nav.daily', 'hr.nav.payroll', 'hr.nav.mine', 'hr.nav.insights'])
-      expect(listed.filter(link => link.section === 'hr.nav.lifecycle').map(link => link.id)).toEqual(['recruitment', 'onboarding', 'offboarding'])
-      expect(listed.filter(link => link.section === 'hr.nav.daily').map(link => link.id)).toEqual(['leave', 'shifts', 'assets'])
-      expect(listed.filter(link => link.section === 'hr.nav.payroll').map(link => link.id)).toEqual(['payroll', 'payroll-settings'])
-      expect(listed.filter(link => link.section === 'hr.nav.mine').map(link => link.id)).toEqual(['my-assets', 'my-payslips'])
-      expect(listed.filter(link => link.section === 'hr.nav.insights').map(link => link.id)).toEqual(['reports'])
+    it('keeps the five section links fixed and lists only the open section\'s pages under its heading', () => {
+      const sectionIds = ['section-hiring', 'section-people', 'section-time', 'section-pay', 'section-mine']
+      const subIds = (path: string) => links(path).filter(link => link.section).map(link => link.id)
+      for (const path of ['/hr', '/hr/recruitment/jobs', '/hr/leave', '/hr/payroll/4', '/hr/payroll/mine']) {
+        expect(links(path).filter(link => link.id.startsWith('section-')).map(link => link.id), path).toEqual(sectionIds)
+      }
+      expect(subIds('/hr/recruitment/12')).toEqual(['recruitment', 'recruitment-jobs'])
+      expect(subIds('/hr/employees/7')).toEqual(['employees', 'departments', 'onboarding', 'offboarding', 'assets', 'reports'])
+      expect(subIds('/hr/shifts/schedules')).toEqual(['leave', 'shifts'])
+      expect(subIds('/hr/payroll/4/gosi')).toEqual(['payroll'])
+      expect(subIds('/hr/assets/mine')).toEqual(['my-assets', 'my-payslips'])
+    })
+
+    it('lights a section link on every page of its section only', () => {
+      const lit = (path: string) => links(path).filter(link => link.id.startsWith('section-') && isContextLinkActive(path, link)).map(link => link.id)
+      expect(lit('/hr/recruitment/jobs/new')).toEqual(['section-hiring'])
+      expect(lit('/hr/departments/3')).toEqual(['section-people'])
+      expect(lit('/hr/offboarding/5')).toEqual(['section-people'])
+      expect(lit('/hr/shifts')).toEqual(['section-time'])
+      expect(lit('/hr/payroll/4')).toEqual(['section-pay'])
+      expect(lit('/hr/payroll/mine/9')).toEqual(['section-mine'])
+    })
+
+    it('lights the applicants page and the jobs page separately', () => {
+      const lit = (path: string) => links(path).filter(link => link.section && isContextLinkActive(path, link)).map(link => link.id)
+      expect(lit('/hr/recruitment')).toEqual(['recruitment'])
+      expect(lit('/hr/recruitment/4')).toEqual(['recruitment'])
+      expect(lit('/hr/recruitment/jobs')).toEqual(['recruitment-jobs'])
     })
 
     it.each([
       [['hr.employees.read'], ['hr.assets', 'hr.payroll'], ['my-payslips']],
       [['hr.employees.read', 'hr.payroll.read'], ['hr.payroll'], ['payroll', 'my-payslips']],
-      [['hr.employees.read', 'hr.payroll.read', 'hr.payroll.config'], ['hr.payroll'], ['payroll', 'payroll-settings', 'my-payslips']],
       [['hr.employees.read', 'hr.payroll.read'], [], []],
     ])('shows the payroll links by capability and feature (%j, %j)', (capabilities, readable, expected) => {
       const user = { capabilities, platform: { readable_features: ['hr.enabled', ...readable], writable_features: ['hr.enabled', ...readable] } }
-      const visible = contextLinksForModule('hr', user, '/hr')
-        .filter(link => ['payroll', 'payroll-settings', 'my-payslips'].includes(link.id))
+      const visible = ['/hr/payroll', '/hr/payroll/mine'].flatMap(path => contextLinksForModule('hr', user, path))
+        .filter(link => ['payroll', 'my-payslips'].includes(link.id))
         .map(link => link.id)
       expect(visible).toEqual(expected)
     })
 
     it('lists the same pages in nav and in the context links', () => {
-      const listed = links('/hr').filter(link => !link.pinned).map(link => link.to)
-      expect(hr.nav.map(item => item.to)).toEqual(listed.filter(to => !['/hr/assets/mine', '/hr/payroll/settings', '/hr/payroll/mine'].includes(to)))
+      const listed = ['/hr', '/hr/recruitment', '/hr/leave', '/hr/payroll', '/hr/assets/mine']
+        .flatMap(path => links(path).filter(link => link.section).map(link => link.to))
+      expect(new Set(hr.nav.map(item => item.to))).toEqual(new Set(listed.filter(to => !['/hr/assets/mine', '/hr/payroll/mine', '/hr/recruitment/jobs'].includes(to))))
     })
   })
 })

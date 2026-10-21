@@ -131,16 +131,16 @@
       "fullscreen": "Full page",
       "fullscreenExit": "Back to normal view"
     },
+    "nav": {
+      "hiring": "Recruitment",
+      "people": "People",
+      "time": "Time and leave",
+      "pay": "Payroll and insurance",
+      "mine": "My services"
+    },
     "tabs": {
       "employees": "Employees",
       "departments": "Departments"
-    },
-    "nav": {
-      "lifecycle": "Employee lifecycle",
-      "daily": "Daily work",
-      "payroll": "Payroll",
-      "mine": "My services",
-      "insights": "Insights"
     },
     "employee": {
       "emailInvalid": "Enter a valid email address.",
