@@ -69,7 +69,7 @@ def dump_payslip_rows(payslips):
             'employee': ref(slip.employee_id),
             'department': ref(slip.webvue_department_id),
             'state': slip.state,
-            'paid_days': slip._webvue_paid_days(),
+            'paid_days': slip.webvue_paid_days,
             'inputs': slip._webvue_inputs(),
             **{key: amounts[slip.id][key] for key in ('gross', 'deductions', 'net')},
             'iban_missing': slip.id in iban_missing,

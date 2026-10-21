@@ -1,2 +1,2 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from . import compensation, runs, settings
+from . import compensation, payslips, runs, settings

@@ -33,6 +33,11 @@ class HrPayslip(models.Model):
         'hr.department', string='Department', readonly=True, copy=False,
         help='The department of the contract version in force on the last paid day, snapshotted when the payslip is computed.',
     )
+    webvue_paid_days = fields.Integer(
+        string='Paid days', readonly=True, copy=False,
+        help='Days of the period under contract, snapshotted when the payslip is created and computed: '
+             'the employee reads it on their own payslip without access to the contract.',
+    )
 
     def get_current_contract_dict(self, contract, contracts):
         """Add the Saudi payslip values the structure rules read as ``current_contract.<key>``.
@@ -69,6 +74,7 @@ class HrPayslip(models.Model):
         for payslip in self:
             payslip._webvue_check_structure_and_contract()
             payslip.webvue_department_id = payslip.contract_id.department_id
+            payslip._webvue_snapshot_paid_days()
         return super().compute_sheet()
 
     def _webvue_period_version(self):
@@ -114,12 +120,12 @@ class HrPayslip(models.Model):
         entered = {line.code: line.amount for line in self.input_line_ids}
         return {key: entered.get(code, 0) for key, code in INPUT_CODES.items()}
 
-    def _webvue_paid_days(self):
-        """Days of the period under contract, 0 for a payslip whose version has no start date."""
-        self.ensure_one()
-        if not self.contract_id.contract_date_start:
-            return 0
-        return self.env['webvue.hr.payroll.calculator']._webvue_paid_days(self)
+    def _webvue_snapshot_paid_days(self):
+        """Store the days of the period under contract, 0 for a payslip whose version has no start date."""
+        calculator = self.env['webvue.hr.payroll.calculator']
+        for payslip in self:
+            has_start = payslip.contract_id.contract_date_start
+            payslip.webvue_paid_days = calculator._webvue_paid_days(payslip) if has_start else 0
 
     def _webvue_iban_missing(self):
         """Ids of the payslips whose employee has no IBAN on the compensation record."""

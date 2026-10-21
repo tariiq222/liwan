@@ -123,6 +123,7 @@ class HrPayslipRun(models.Model):
             'payslip_run_id': self.id,
         })
         payslip.contract_id = payslip._webvue_period_version()
+        payslip._webvue_snapshot_paid_days()
         payslip.input_line_ids = [
             (0, 0, {**line, 'amount': INPUT_AMOUNT.get(line['code'], 0)})
             for line in payslip.get_inputs(payslip.contract_id, self.date_start, self.date_end)
