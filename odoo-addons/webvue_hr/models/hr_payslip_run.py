@@ -6,7 +6,7 @@ from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
-from .hr_payslip import AMOUNT_KEYS, INPUT_CODES
+from .hr_payslip import AMOUNT_KEYS, INPUT_CODES, RULE_VALUE_KEYS
 from .payroll_math import money
 from odoo.addons.webvue_hr.rules import WebVueHrRule
 
@@ -16,6 +16,8 @@ STRUCTURE_MISSING = 'structure_missing'
 TRANSITION_FORBIDDEN = 'transition_forbidden'
 NEGATIVE_NET = 'negative_net'
 INVALID = 'invalid'
+RUN_EMPTY = 'run_empty'
+RUN_STALE = 'run_stale'
 INPUT_AMOUNT = {name: 0 for name in INPUT_CODES.values()}
 
 
@@ -144,6 +146,12 @@ class HrPayslipRun(models.Model):
     def _webvue_approval_blockers(self):
         """Reasons the run cannot be approved yet, as ``{code, message, field?, details?}`` dicts."""
         self.ensure_one()
+        if not self.slip_ids:
+            return [{
+                'code': RUN_EMPTY,
+                'message': self.env._('The run has no payslip: no employee with a compensation record is due this month.'),
+                'field': 'employee_id',
+            }]
         return [*self._webvue_settlement_blockers(), *self._webvue_stale_blockers()]
 
     def _webvue_leavers(self):
@@ -158,23 +166,32 @@ class HrPayslipRun(models.Model):
             ('employee_id', 'in', leavers.ids), ('state', '=', 'confirmed'),
         ]).filtered(lambda settlement: not settlement._webvue_departure_mismatch())
 
-    def _webvue_stale_blockers(self):
-        """``run_stale`` for leavers whose payslip lines differ from their confirmed settlement (compute again)."""
-        stale = []
-        for settlement in self._webvue_confirmed_settlements():
-            slip = self.slip_ids.filtered(lambda line_slip, settlement=settlement: line_slip.employee_id == settlement.employee_id)
+    def _webvue_stale_employees(self):
+        """Ids of the employees whose payslip no longer matches what payroll would compute today.
+
+        An employee is stale when they became due or stopped being due since the last compute, or when a line of their
+        payslip differs from the figure the engine would be fed now (a changed compensation, settlement or contract).
+        """
+        stale = set(self._webvue_compensated_employees().ids) ^ set(self.slip_ids.employee_id.ids)
+        calculator = self.env['webvue.hr.payroll.calculator']
+        for slip in self.slip_ids:
             lines = {line.code: money(Decimal(str(line.total))) for line in slip.line_ids}
-            expected = {
-                'EOS': settlement.award, 'LEAVE_ENC': settlement.leave_amount,
-                'SETTLEMENT_DED': -settlement.open_deductions,
-            }
-            if any(lines.get(code, money(0)) != money(Decimal(str(amount))) for code, amount in expected.items()):
-                stale.append(settlement.employee_id.id)
+            values = calculator._webvue_payslip_values(slip)
+            if any(
+                lines.get(code, money(0)) != money(Decimal(str(sign * values[key])))
+                for code, (key, sign) in RULE_VALUE_KEYS.items()
+            ):
+                stale.add(slip.employee_id.id)
+        return sorted(stale)
+
+    def _webvue_stale_blockers(self):
+        """``run_stale`` for employees whose payslip is out of date (compute the run again)."""
+        stale = self._webvue_stale_employees()
         if not stale:
             return []
         return [{
-            'code': 'run_stale',
-            'message': self.env._('A settlement was confirmed or changed after the last compute: compute the run again.'),
+            'code': RUN_STALE,
+            'message': self.env._('Payroll figures changed after the last compute: compute the run again.'),
             'field': 'employee_id',
             'details': {'employee_ids': stale},
         }]

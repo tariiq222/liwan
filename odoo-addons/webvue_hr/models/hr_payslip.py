@@ -24,6 +24,15 @@ INPUT_CODES = {
     'advance_recovery_amount': 'WV_ADVANCE',
 }
 AMOUNT_KEYS = ('gross', 'deductions', 'gosi_employee', 'gosi_employer', 'net')
+# The payslip value each salary rule of the Saudi structure reads (``current_contract.<key>``) and the sign of its
+# line: a stored line differs from this when what it was computed from has changed since.
+RULE_VALUE_KEYS = {
+    'BASIC': ('basic', 1), 'HOUSING': ('housing', 1), 'TRANSPORT': ('transport', 1), 'OTHER': ('other', 1),
+    'EOS': ('eos', 1), 'LEAVE_ENC': ('leave_encashment', 1),
+    'ABSENCE': ('absence', 1), 'UNPAID': ('unpaid', 1), 'SETTLEMENT_DED': ('settlement_deduction', -1),
+    'GOSI_EE_ANN': ('gosi_ee_annuities', -1), 'GOSI_EE_SANED': ('gosi_ee_saned', -1),
+    'GOSI_ER_ANN': ('gosi_er_annuities', 1), 'GOSI_ER_SANED': ('gosi_er_saned', 1), 'GOSI_ER_OH': ('gosi_er_hazards', 1),
+}
 
 
 class HrPayslip(models.Model):

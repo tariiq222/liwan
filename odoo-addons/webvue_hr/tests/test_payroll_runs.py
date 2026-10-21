@@ -273,3 +273,36 @@ class TestPayrollRuns(PayrollCase):
         self.env['webvue.hr.compensation'].search([('employee_id', '=', late.id)]).unlink()
         self.assertEqual(self._post(self.officer, run['id'], 'compute').status_code, 200)
         self.assertEqual(self._rows(run['id'])['total'], 1)
+
+    def test_a_run_without_payslips_cannot_be_approved(self):
+        self.env['webvue.hr.compensation'].search([]).unlink()
+        run = self._created_run()
+        self.assertEqual(run['employee_count'], 0)
+        self.assertEqual(self._post(self.officer, run['id'], 'compute').status_code, 200)
+        res = self._post(self.approver, run['id'], 'approve')
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'run_empty'))
+        self.assertEqual(self.env['hr.payslip.run'].browse(run['id']).webvue_state, 'computed')
+
+    def test_a_compensation_changed_after_compute_makes_the_run_stale(self):
+        run = self._created_run()
+        self.assertEqual(self._post(self.officer, run['id'], 'compute').status_code, 200)
+        self.env['webvue.hr.compensation'].search([('employee_id', '=', self.worker.id)]).basic_wage = 12000
+        res = self._post(self.approver, run['id'], 'approve')
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'run_stale'))
+        self.assertEqual(res.json()['details'], {'employee_ids': [self.worker.id]})
+        self.assertEqual(self._post(self.officer, run['id'], 'compute').status_code, 200)
+        self.assertEqual(self._post(self.approver, run['id'], 'approve').status_code, 200)
+
+    def test_an_employee_who_became_due_after_compute_makes_the_run_stale(self):
+        run = self._created_run()
+        self.assertEqual(self._post(self.officer, run['id'], 'compute').status_code, 200)
+        late = self.make_employee('Run Late Joiner')
+        self.set_compensation(late, 5000, gosi_registration_date=date(2020, 1, 1))
+        res = self._post(self.approver, run['id'], 'approve')
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'run_stale'))
+        self.assertEqual(res.json()['details'], {'employee_ids': [late.id]})
+
+    def test_an_unchanged_computed_run_is_approved(self):
+        run = self._created_run()
+        self.assertEqual(self._post(self.officer, run['id'], 'compute').status_code, 200)
+        self.assertEqual(self._post(self.approver, run['id'], 'approve').status_code, 200)
