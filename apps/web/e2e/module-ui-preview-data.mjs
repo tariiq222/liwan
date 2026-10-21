@@ -9,6 +9,7 @@ import { financeBudgetsPreviewData } from './finance-budgets-ui-preview-data.mjs
 import { financeDocumentsPreviewData } from './finance-documents-ui-preview-data.mjs'
 import { financeGovernancePreviewData } from './finance-governance-ui-preview-data.mjs'
 import { financeReportsPreviewData } from './finance-reports-ui-preview-data.mjs'
+import { hrPayrollPreviewData } from './hr-payroll-ui-preview-data.mjs'
 import { hrPreviewData } from './hr-ui-preview-data.mjs'
 
 export const moduleUiCapabilities = [
@@ -40,6 +41,10 @@ export const moduleUiCapabilities = [
   'hr.onboarding.manage',
   'hr.offboarding.read',
   'hr.offboarding.manage',
+  'hr.payroll.read',
+  'hr.payroll.manage',
+  'hr.payroll.approve',
+  'hr.payroll.config',
   'finance.partners.read',
   'finance.partners.manage',
   'finance.invoices.read',
@@ -441,6 +446,7 @@ export function moduleUiPreviewData(path, url) {
   if (normalizedPath === '/api/v1/meeting-series/1/resolutions') return page([{ ...resolution, meeting_id: 1, meeting_name: meeting.name }], parsedUrl)
 
   if (normalizedPath.startsWith('/api/v1/documents')) return documentsPreviewData(normalizedPath, parsedUrl)
+  if (normalizedPath.startsWith('/api/v1/hr/payroll/')) return hrPayrollPreviewData(normalizedPath, parsedUrl)
   if (normalizedPath.startsWith('/api/v1/hr/')) return hrPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/(invoices|payments|journals)(\/|$)/.test(normalizedPath)) return financeDocumentsPreviewData(normalizedPath, parsedUrl)
   if (/^\/api\/v1\/finance\/(entries|accounts)(\/|$)/.test(normalizedPath)) return financeAccountingPreviewData(normalizedPath, parsedUrl)

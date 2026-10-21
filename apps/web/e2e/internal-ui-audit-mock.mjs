@@ -3,6 +3,7 @@ import http from 'node:http'
 import { projectsPreviewData } from './projects-ui-preview-data.mjs'
 import { pmoPreviewData } from './pmo-ui-preview-data.mjs'
 import { moduleUiCapabilities, moduleUiPreviewData } from './module-ui-preview-data.mjs'
+import { hrPayrollPreviewWrite } from './hr-payroll-ui-preview-data.mjs'
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
 import { handleCommercial } from './commercial-mock-routes.mjs'
 import crypto from 'node:crypto'
@@ -25,7 +26,7 @@ const CAPABILITIES = [
 ]
 
 // The HR area sub-features (`hr.<area>`) gate the recruitment, shifts, onboarding, offboarding and assets pages on top of their capabilities.
-const HR_AREA_FEATURES = ['hr.assets', 'hr.offboarding', 'hr.onboarding', 'hr.recruitment', 'hr.shifts']
+const HR_AREA_FEATURES = ['hr.assets', 'hr.offboarding', 'hr.onboarding', 'hr.payroll', 'hr.recruitment', 'hr.shifts']
 
 const ME = {
   id: 2, name: 'Admin', login: 'admin', email: 'admin@example.com', lang: 'ar_001', tz: 'Asia/Riyadh',
@@ -414,6 +415,14 @@ async function handle(req, res) {
     try { entry = JSON.parse(await readBody(req) || '{}') } catch { entry = {} }
     AI_AUDIT.push(entry)
     return json(res, 200, { id: AI_AUDIT.length, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, messages_limit: 500 })
+  }
+
+  if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(hr\/payroll\/|__mock\/reset-payroll$)/.test(path)) {
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    const write = hrPayrollPreviewWrite(method, path, body)
+    if (write?.status === 204) { res.writeHead(204); return res.end() }
+    if (write) return json(res, write.status, write.body)
   }
 
   if (process.env.MODULE_UI_PREVIEW === '1' && method === 'GET') {
