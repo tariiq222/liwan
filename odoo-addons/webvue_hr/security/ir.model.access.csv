@@ -39,3 +39,5 @@ access_webvue_hr_payroll_payslip_employee,hr.payslip,payroll.model_hr_payslip,gr
 access_webvue_hr_payroll_payslip_line_employee,hr.payslip.line,payroll.model_hr_payslip_line,group_cap_hr_employees_read,1,0,0,0
 access_webvue_hr_payroll_salary_rule_category_employee,hr.salary.rule.category,payroll.model_hr_salary_rule_category,group_cap_hr_employees_read,1,0,0,0
 access_webvue_hr_payroll_version_reader,hr.version.payroll_reader,hr.model_hr_version,group_cap_hr_payroll_read,1,0,0,0
+access_webvue_hr_compensation_reader,webvue.hr.compensation.reader,model_webvue_hr_compensation,group_cap_hr_payroll_read,1,0,0,0
+access_webvue_hr_compensation_manager,webvue.hr.compensation.manager,model_webvue_hr_compensation,group_cap_hr_payroll_manage,1,1,1,0

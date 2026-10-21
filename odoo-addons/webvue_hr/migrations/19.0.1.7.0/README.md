@@ -6,3 +6,6 @@ Schema additions are listed per task below. `post-payroll.py` carries `hr.enable
 Task 2: capabilities `hr.payroll.read|manage|approve|config`, the `payroll_manager` built-in role and the
 `hr.payroll` sub-feature are XML/registry data. `post-payroll.py` copies the stored `hr.enabled` value
 onto `hr.payroll` per tenant profile (idempotent; skipped on a fresh install).
+
+Task 4: new table `webvue_hr_compensation` (one row per employee: wages, IBAN, GOSI number and
+registration date), created by the ORM on update. There is no data to carry.
