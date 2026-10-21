@@ -48,7 +48,9 @@
       "journalsSettings": "Journals",
       "taxesSettings": "Taxes",
       "paymentTermsSettings": "Payment terms",
-      "assetProfilesSettings": "Asset profiles"
+      "assetProfilesSettings": "Asset profiles",
+      "cashFlow": "Cash flow",
+      "vatReturn": "VAT return"
     },
     "kpi": {
       "label": "Finance figures",

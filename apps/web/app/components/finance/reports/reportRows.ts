@@ -2,9 +2,11 @@ import type {
   FinanceAgedPartnerBalance,
   FinanceAnalyticReport,
   FinanceAnalyticReportLine,
+  FinanceCashFlow,
   FinanceGeneralLedger,
   FinancePartnerStatement,
   FinanceReportLine,
+  FinanceVatReturn,
   FinanceVatSummary,
 } from '@webvue/contracts'
 
@@ -142,3 +144,34 @@ export function misRows(kind: MisKind, lines: readonly FinanceReportLine[], hidd
 export function misValue(lines: readonly Pick<FinanceReportLine, 'code' | 'value'>[], code: string): number | undefined {
   return lines.find(line => line.code === code)?.value
 }
+
+/** The statement of cash flows as one list: a heading per activity, its items, a subtotal; then the opening, closing and check lines. */
+export type CashFlowRow =
+  | { kind: 'item'; key: string; label: string; amount: number }
+  | { kind: 'item'; key: string; labelKey: string; amount: number }
+  | { kind: 'total'; key: string; labelKey: string; amount: number }
+
+export function cashFlowRows(report: FinanceCashFlow): CashFlowRow[] {
+  const items = (prefix: string, rows: FinanceCashFlow['investing']['items']): CashFlowRow[] =>
+    rows.map(row => ({ kind: 'item', key: `${prefix}-${row.account.id}`, label: `${row.account.code} ${row.account.name}`, amount: row.amount }))
+  const { operating, investing, financing } = report
+  return [
+    { kind: 'item', key: 'net-income', labelKey: 'netIncome', amount: operating.net_income },
+    ...operating.adjustments.map<CashFlowRow>(row => ({ kind: 'item', key: `adjustment-${row.key}`, labelKey: row.key, amount: row.amount })),
+    ...items('operating', operating.items),
+    { kind: 'total', key: 'operating', labelKey: 'operating', amount: operating.total },
+    ...items('investing', investing.items),
+    ...(investing.depreciation_reclass ? [{ kind: 'item' as const, key: 'reclass', labelKey: 'depreciationReclass', amount: investing.depreciation_reclass }] : []),
+    { kind: 'total', key: 'investing', labelKey: 'investing', amount: investing.total },
+    ...items('financing', financing.items),
+    { kind: 'total', key: 'financing', labelKey: 'financing', amount: financing.total },
+    { kind: 'total', key: 'net-change', labelKey: 'netChange', amount: report.net_change },
+    { kind: 'item', key: 'opening', labelKey: 'opening', amount: report.opening_cash },
+    { kind: 'total', key: 'closing', labelKey: 'closing', amount: report.closing_cash },
+  ]
+}
+
+/** A VAT return box has a base, a tax, or both; the drill-down opens one of them. */
+export interface VatReturnCell { code: string; column: 'base' | 'tax'; amount: number }
+export const vatReturnCells = (box: FinanceVatReturn['boxes'][number]): VatReturnCell[] =>
+  (['base', 'tax'] as const).flatMap(column => box[column] === null ? [] : [{ code: box.code, column, amount: box[column] }])

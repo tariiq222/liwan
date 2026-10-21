@@ -272,6 +272,9 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/finance/reports/AgedBalanceTable.vue` | أعمار الذمم لكل حساب وطرف وفئات الأيام | — | `SharedDataTable` |
 | `apps/web/app/components/finance/reports/PartnerStatementTable.vue` | كشف حساب طرف لكل عملة: الرصيد المرحّل والسطور والمستحق | — | `SharedDataTable` |
 | `apps/web/app/components/finance/reports/VatTable.vue` | ضريبة القيمة المضافة للمبيعات والمشتريات والصافي ووسم الاسترداد | — | `SharedDataTable`, `SharedStatusBadge` |
+| `apps/web/app/components/finance/reports/CashFlowTable.vue` | قائمة التدفقات النقدية بالطريقة غير المباشرة: الأنشطة التشغيلية والاستثمارية والتمويلية بمجاميعها ثم النقد الافتتاحي والختامي، وفحص الإقفال في التذييل | — | `SharedDataTable`, `SharedStatusBadge`, `UAlert` |
+| `apps/web/app/components/finance/reports/VatReturnTable.vue` | خانات إقرار ضريبة القيمة المضافة السعودي بأرقام إدارية للمراجعة (لا تقديم من هنا)، وكل رقم يفتح قيوده | — | `SharedDataTable`, `UButton`, `UAlert` |
+| `apps/web/app/components/finance/reports/VatReturnItems.vue` | قيود اليومية خلف رقم واحد في خانة من الإقرار، بصفحات، مع أثر كل قيد | — | `SharedDataTable`, `SharedPageState`, `SharedEmptyState`, `SharedListFooter`, `UButton` |
 | `apps/web/app/components/finance/reports/WithholdingTable.vue` | ضريبة الاستقطاع لكل ضريبة ومجاميعها | — | `SharedDataTable` |
 | `apps/web/app/components/finance/reports/ReportTotals.vue` | تذييل مجاميع التقرير | — | — |
 | `apps/web/app/components/finance/reports/ReportMobileRow.vue` | صف التقرير في الجوال | — | — |
