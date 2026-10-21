@@ -4,7 +4,36 @@
          which nobody holds; these rules scope the WebVue groups instead. The OCA global
          company rule on hr.payslip still applies to every one of them. An employee reads
          only the approved payslips and lines of the employee record linked to their user;
-         the payroll read capability reads every payslip of its companies. -->
+         the payroll read capability reads every payslip of its companies (the global company
+         rules below and OCA's bound the (1, '=', 1) group rules). -->
+    <!-- OCA scopes only the payslip and its configuration models by company. The child
+         tables and the batch carry no company rule of their own, so every group rule
+         below would reach other companies without these global rules. -->
+    <record id="rule_hr_payslip_line_company" model="ir.rule">
+        <field name="name">webvue payroll: payslip line multi company</field>
+        <field name="model_id" ref="payroll.model_hr_payslip_line"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[('slip_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_hr_payslip_input_company" model="ir.rule">
+        <field name="name">webvue payroll: payslip input multi company</field>
+        <field name="model_id" ref="payroll.model_hr_payslip_input"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[('payslip_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_hr_payslip_worked_days_company" model="ir.rule">
+        <field name="name">webvue payroll: payslip worked days multi company</field>
+        <field name="model_id" ref="payroll.model_hr_payslip_worked_days"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[('payslip_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_hr_payslip_run_company" model="ir.rule">
+        <field name="name">webvue payroll: payslip batch multi company</field>
+        <field name="model_id" ref="payroll.model_hr_payslip_run"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
     <record id="rule_hr_payslip_own_approved" model="ir.rule">
         <field name="name">webvue payroll: own approved payslips</field>
         <field name="model_id" ref="payroll.model_hr_payslip"/>

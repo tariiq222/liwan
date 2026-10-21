@@ -151,3 +151,47 @@ class TestPayrollEngineAccess(TransactionCase):
         slip.compute_sheet()
         self.assertEqual(slip.state, 'verify')
         self.assertTrue(slip.line_ids)
+
+    def test_employee_cannot_read_other_payroll_records(self):
+        run = self.env['hr.payslip.run'].create({'name': 'Run B'})
+        self.done_b.write({'payslip_run_id': run.id})
+        self.env['hr.payslip.input'].create({
+            'name': 'Bonus', 'code': 'BONUS', 'payslip_id': self.done_b.id,
+            'amount': 10.0, 'contract_id': self.employee_b.version_id.id,
+        })
+        user = self.own_user
+        for model in ('hr.payslip.input', 'hr.payslip.worked_days', 'hr.payslip.run', 'hr.version'):
+            with self.assertRaises(AccessError, msg=model):
+                self.env[model].with_user(user).search([])
+        with self.assertRaises(AccessError):
+            self.done_b.line_ids.with_user(user).read(['name'])
+
+    def test_payroll_reader_never_reads_another_company(self):
+        other = self.env['res.company'].create({'name': 'Payroll Other Company'})
+        employee = self.env['hr.employee'].create({
+            'name': 'Payroll Other', 'company_id': other.id,
+            'contract_date_start': date(2026, 1, 1),
+        })
+        structure = self.structure.copy({'name': 'Other structure', 'company_id': other.id})
+        slip = self.env['hr.payslip'].create({
+            'name': 'Slip other', 'employee_id': employee.id,
+            'contract_id': employee.version_id.id, 'struct_id': structure.id,
+            'date_from': date(2026, 10, 1), 'date_to': date(2026, 10, 31),
+            'company_id': other.id,
+        })
+        slip.compute_sheet()
+        run = self.env['hr.payslip.run'].create({'name': 'Run other', 'company_id': other.id})
+        slip.write({'payslip_run_id': run.id, 'state': 'done'})
+        slip_input = self.env['hr.payslip.input'].create({
+            'name': 'Bonus', 'code': 'BONUS', 'payslip_id': slip.id,
+            'amount': 10.0, 'contract_id': employee.version_id.id,
+        })
+        worked = self.env['hr.payslip.worked_days'].create({
+            'name': 'Work', 'code': 'WORK100', 'payslip_id': slip.id,
+            'contract_id': employee.version_id.id, 'number_of_days': 1,
+        })
+        self.assertTrue(slip.line_ids)
+        reader = self.reader
+        for record in (slip, slip.line_ids, slip_input, worked, run):
+            found = self.env[record._name].with_user(reader).search([('id', 'in', record.ids)])
+            self.assertFalse(found, record._name)
