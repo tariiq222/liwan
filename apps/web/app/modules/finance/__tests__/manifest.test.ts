@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import manifest from '../manifest'
 import { invoicesSearch, partnersSearch } from '../search'
 import { financeSectionOf, invoiceRecordPath } from '../routes'
-import { appManifests, manifestForPath, settingsEntryForPath } from '../../manifests'
+import { appManifests, manifestForPath, settingsPartForPath } from '../../manifests'
 import { appCommands, recordLinkFor, recordPickerFor, searchProviders } from '../../surfaces'
 import { canReach, canReachPath, firstAllowedPath, requiredCapabilityForPath } from '../../../utils/accessPolicy'
 import { contextLinksForModule, visibleShellModules } from '../../../composables/nav/shellModules'
@@ -73,9 +73,6 @@ describe('finance manifest', () => {
     ['/finance/reports/zakat-base', 'finance.zakat.read'],
     ['/finance/reports/budget-vs-actual', 'finance.budgets.read'],
     ['/settings/apps/finance', 'finance.setup.read'],
-    ['/settings/apps/finance/analytic', 'finance.analytic.read'],
-    ['/settings/apps/finance/closing', 'finance.closing.read'],
-    ['/settings/apps/finance/zatca', 'finance.zatca.read'],
     ['/settings/apps/finance/audit', 'finance.audit.read'],
   ])('requires %s -> %s', (path, capability) => {
     expect(requiredCapabilityForPath(path)).toBe(capability)
@@ -90,14 +87,14 @@ describe('finance manifest', () => {
     expect(canReachPath({ capabilities: ALL, platform: { readable_features: ['hr.enabled'], writable_features: [] } }, '/finance')).toBe(false)
   })
 
-  it('lets each finance settings page own its subtree, the base page only the rest', () => {
-    expect(settingsEntryForPath('/settings/apps/finance/closing')?.entry.id).toBe('finance-closing')
-    expect(settingsEntryForPath('/settings/apps/finance/zatca')?.entry.id).toBe('finance-zatca')
-    expect(settingsEntryForPath('/settings/apps/finance')?.entry.id).toBe('finance-setup')
+  it('lets the audit card own its full list page, the page\'s first part the rest', () => {
+    expect(settingsPartForPath('/settings/apps/finance/audit')?.part.id).toBe('audit')
+    expect(settingsPartForPath('/settings/apps/finance')?.part.id).toBe('setup')
+    expect(settingsPartForPath('/settings/apps/finance#audit')?.part.id).toBe('setup')
   })
 
-  it('gates the setup page by the registered settings entry and its feature', () => {
-    expect(settingsEntryForPath('/settings/apps/finance')?.entry).toMatchObject({ id: 'finance-setup', capability: 'finance.setup.read' })
+  it('gates the setup page by the registered settings part and its feature', () => {
+    expect(settingsPartForPath('/settings/apps/finance')?.part).toMatchObject({ id: 'setup', capability: 'finance.setup.read' })
     expect(canReach(admin, 'finance.setup.read', '/settings/apps/finance')).toBe(true)
     expect(canReach({ ...admin, platform: { readable_features: ['hr.enabled'], writable_features: [] } }, 'finance.setup.read', '/settings/apps/finance')).toBe(false)
   })

@@ -18,11 +18,11 @@ export function railModel(modules: readonly ShellModuleDefinition[]): { all: She
   return { all, primary: all.filter(item => !UTILITY_MODULES.has(item.id)), utility: all.filter(item => UTILITY_MODULES.has(item.id)) }
 }
 
-/** Consecutive links that share a `section` key form one section, in manifest order. */
-export function groupSections(links: readonly ShellContextLink[]): ShellContextSection[] {
+/** Consecutive links that share a heading key (`section` by default) form one section, in manifest order. */
+export function groupSections(links: readonly ShellContextLink[], headingOf: (link: ShellContextLink) => string | null = link => link.section ?? null): ShellContextSection[] {
   const sections: ShellContextSection[] = []
   for (const link of links) {
-    const titleKey = link.section ?? null
+    const titleKey = headingOf(link)
     const last = sections.at(-1)
     if (last && last.titleKey === titleKey) last.links.push(link)
     else sections.push({ id: `${titleKey ?? 'section'}-${sections.length}`, titleKey, links: [link] })
@@ -51,9 +51,10 @@ export function sidebarModel(input: {
     : visible.filter(link => link.pinned && !(link.id === 'new-project' && hidePinnedNewProject(input.path)))
   const navigation = visible.filter(link => !link.pinned)
   const onlyRepeatsHeading = createLinks.length === 0 && navigation.length === 1 && navigation[0]!.labelKey === input.moduleLabelKey
-  const listed = navigation.length > 0 && (input.surface === 'mobile' || !onlyRepeatsHeading) ? groupSections(navigation) : []
-  const sections = listed.filter(section => section.titleKey === null)
-  return { createLinks, sections, subSections: listed.filter(section => section.titleKey !== null), showNav: sections.length > 0 }
+  const listed = navigation.length > 0 && (input.surface === 'mobile' || !onlyRepeatsHeading) ? navigation : []
+  // Links with a `section` form the sub-list card; the rest are the first card, where `group` heads a run of links.
+  const sections = groupSections(listed.filter(link => !link.section), link => link.group ?? null)
+  return { createLinks, sections, subSections: groupSections(listed.filter(link => link.section)), showNav: sections.length > 0 }
 }
 
 /** The sub-list card's input: each titled section with translated labels and the test id of every row. */
@@ -67,7 +68,7 @@ export function subListSections(sections: readonly ShellContextSection[], transl
 
 const LEGACY_TEST_IDS: Readonly<Record<string, string>> = {
   users: 'sidebar-settings',
-  'project-settings': 'settings-projects-tab',
+  'settings-projects': 'settings-projects-tab',
   branding: 'settings-branding-tab',
 }
 

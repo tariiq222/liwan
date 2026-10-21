@@ -135,6 +135,12 @@
       "employees": "Employees",
       "departments": "Departments"
     },
+    "nav": {
+      "lifecycle": "Employee lifecycle",
+      "daily": "Daily work",
+      "mine": "My services",
+      "insights": "Insights"
+    },
     "employee": {
       "emailInvalid": "Enter a valid email address.",
       "nameRequired": "Enter the employee name.",
@@ -170,7 +176,8 @@
       "accessNeedsEmail": "Add a work email before granting access.",
       "archive": "Archive employee",
       "unarchive": "Restore employee",
-      "archiveConfirm": "Change this employee's active status?",
+      "archiveConfirm": "Archive {name}? They leave the active employee lists and their login account, if any, is disabled.",
+      "unarchiveConfirm": "Restore {name}? They return to the active employee lists, and their login account stays disabled until access is granted again.",
       "archiveVendorReadOnly": "Vendor linked employees cannot be archived here.",
       "edit": "Edit employee",
       "accessManagedInSettings": "Sign-in access is managed in System administration.",
@@ -268,9 +275,11 @@
         "approve": "Approve",
         "refuse": "Refuse",
         "cancel": "Cancel leave",
-        "cancelConfirm": "Cancel {type}? The balance returns if the leave was approved.",
+        "cancelConfirm": "Cancel {type} for {employee} ({period})? The balance returns if the leave was approved.",
         "withdraw": "Withdraw request",
-        "withdrawConfirm": "Withdraw {type}? The request is deleted and the held balance returns.",
+        "withdrawConfirm": "Withdraw {type} for {employee} ({period})? The request is deleted and the held balance returns.",
+        "refuseConfirm": "Refuse {type} for {employee} ({period})?",
+        "reasonOptional": "Reason (optional)",
         "actionsFor": "Actions for {type}",
         "footer": "{shown} of 1 request | {shown} of {total} requests",
         "form": {

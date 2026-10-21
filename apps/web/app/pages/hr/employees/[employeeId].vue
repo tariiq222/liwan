@@ -55,13 +55,13 @@ const menuActions = computed<RowAction[]>(() => {
   >
     <template v-if="query.data.value" #actions>
       <UButton v-if="can('hr.employees.manage')" color="primary" icon="i-lucide-pencil" :disabled="!hydrated" :to="recordChildTo(`/hr/employees/${id}/edit`, route.query, sourcePaths, route.hash)" :label="t('app.edit')" @click="!hydrated && $event.preventDefault()" />
+      <UButton v-if="!query.data.value.user_id && can('access.users.grant')" color="neutral" variant="outline" icon="i-lucide-key-round" :disabled="!hydrated" :to="recordChildTo(`/hr/employees/${id}/access`, route.query, sourcePaths, route.hash)" :label="t('hr.employee.grantAccess')" data-testid="hr-employee-grant-access" @click="!hydrated && $event.preventDefault()" />
       <SharedRowActions :actions="menuActions" :label="t('hr.directory.rowActions', { name: query.data.value.name })" :disabled="archivePending" />
     </template>
     <SharedInlineConfirm
       v-if="query.data.value && confirmArchive"
       :color="query.data.value.active ? 'error' : 'primary'"
-      :description="query.data.value.name"
-      :title="t('hr.employee.archiveConfirm')"
+      :title="t(query.data.value.active ? 'hr.employee.archiveConfirm' : 'hr.employee.unarchiveConfirm', { name: query.data.value.name })"
       :confirm-label="query.data.value.active ? t('hr.employee.archive') : t('hr.employee.unarchive')"
       :pending="archivePending"
       @confirm="toggleArchive"

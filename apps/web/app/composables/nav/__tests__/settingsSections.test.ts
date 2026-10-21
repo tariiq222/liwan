@@ -1,48 +1,77 @@
 import { describe, expect, it } from 'vitest'
-import { entryIsExact, settingsSectionIdForPath, settingsSections } from '../settingsSections'
+import { appSettingsPages, partIsExact, settingsPageForPath, settingsPages, settingsPartPath, settingsPartTarget } from '../settingsSections'
 import { isContextLinkActive } from '../../useShellNavigation'
 import { appManifests, withManifests } from '../../../modules/manifests'
 import type { AppManifest } from '../../../modules/types'
 
-describe('settings sections', () => {
-  it('are five, in a fixed order', () => {
-    expect(settingsSections().map(section => section.id)).toEqual(['company', 'team', 'apps', 'system', 'billing'])
+const page = (id: string) => settingsPages().find(candidate => candidate.id === id)!
+
+describe('settings pages', () => {
+  it('are the foundation pages around one page per application, in a fixed order', () => {
+    expect(settingsPages().map(candidate => candidate.id)).toEqual(['company', 'team', 'projects', 'finance', 'operations', 'system', 'billing'])
+    expect(settingsPages().map(candidate => candidate.group)).toEqual([undefined, undefined, 'settings.sections.apps.title', 'settings.sections.apps.title', 'settings.sections.apps.title', undefined, undefined])
   })
-  it('hold the moved pages under their section prefixes', () => {
-    const byId = Object.fromEntries(settingsSections().map(section => [section.id, section.entries.map(entry => entry.to)]))
-    expect(byId.company).toEqual(['/settings/company/profile', '/settings/company/address', '/settings/company/contact', '/settings/company/branding'])
-    expect(byId.team).toEqual(['/settings/team/users', '/settings/team/roles', '/settings/team/access-log'])
-    expect(byId.system).toEqual(['/settings/system/integrations', '/settings/system/maintenance'])
-    expect(byId.billing).toEqual(['/subscription', '/subscription/change', '/subscription/status', '/subscription/branches', '/subscription/invoices'])
+  it('hold the cards of company and system as parts of one page', () => {
+    expect(page('company').to).toBe('/settings/company')
+    expect(page('company').parts.map(part => part.id)).toEqual(['profile', 'address', 'contact', 'branding'])
+    expect(page('system').to).toBe('/settings/system')
+    expect(page('system').parts.map(part => part.id)).toEqual(['integrations', 'maintenance'])
+    expect(page('company').parts.every(part => part.to === undefined)).toBe(true)
+    expect(page('team').to).toBe('/settings/team')
+    expect(page('team').parts.map(part => part.within)).toEqual(['/settings/team/users', '/settings/team/roles', '/settings/team/access-log'])
   })
-  it('build Apps from the registered manifests', () => {
-    const apps = () => settingsSections().find(section => section.id === 'apps')!.entries.map(entry => entry.to)
-    expect(apps()).toEqual([
-      '/settings/apps/projects', '/settings/apps/finance', '/settings/apps/finance/accounts', '/settings/apps/finance/journals', '/settings/apps/finance/taxes',
-      '/settings/apps/finance/payment-terms', '/settings/apps/finance/asset-profiles', '/settings/apps/finance/analytic', '/settings/apps/finance/closing',
-      '/settings/apps/finance/zatca', '/settings/apps/finance/audit', '/settings/apps/operations/processes',
-    ])
-    const crm: AppManifest = { id: 'crm', feature: 'crm.enabled', routePrefixes: ['/crm'], rail: [{ id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/crm', order: 90 }], nav: [], settings: [{ id: 'crm', labelKey: 'crm.settings', icon: 'i-lucide-handshake', to: '/settings/apps/crm', capability: 'crm.settings.manage' }] }
+  it('keep billing as pages of their own', () => {
+    expect(page('billing').parts.map(part => part.to)).toEqual(['/subscription', '/subscription/change', '/subscription/status', '/subscription/branches', '/subscription/invoices'])
+  })
+  it('build one page per application from the registered manifests', () => {
+    const apps = () => appSettingsPages().map(candidate => candidate.to)
+    expect(apps()).toEqual(['/settings/apps/projects', '/settings/apps/finance', '/settings/apps/operations/processes'])
+    expect(page('projects').parts.map(part => part.id)).toEqual(['project-creation', 'project-defaults', 'project-reminders', 'catalogs'])
+    expect(page('finance').parts.map(part => [part.id, part.to, part.within])).toEqual([['setup', undefined, undefined], ['accounts', '/settings/apps/finance/accounts', undefined], ['journals', '/settings/apps/finance/journals', undefined], ['taxes', '/settings/apps/finance/taxes', undefined], ['payment-terms', '/settings/apps/finance/payment-terms', undefined], ['asset-profiles', '/settings/apps/finance/asset-profiles', undefined], ['analytic', undefined, undefined], ['closing', undefined, undefined], ['zatca', undefined, undefined], ['audit', undefined, '/settings/apps/finance/audit']])
+    const crm: AppManifest = {
+      id: 'crm', feature: 'crm.enabled', routePrefixes: ['/crm'], rail: [{ id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/crm', order: 90 }], nav: [],
+      settings: { id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/settings/apps/crm', parts: [{ id: 'pipeline', labelKey: 'crm.settings', icon: 'i-lucide-handshake', capability: 'crm.settings.manage' }] },
+    }
     withManifests([...appManifests, crm], () => expect(apps()).toContain('/settings/apps/crm'))
   })
   it('own the paths beneath them, the subscription pages included', () => {
-    expect(settingsSectionIdForPath('/settings')).toBeNull()
-    expect(settingsSectionIdForPath('/settings/team/users/3?x=1')).toBe('team')
-    expect(settingsSectionIdForPath('/settings/apps/projects/catalogs/types')).toBe('apps')
-    expect(settingsSectionIdForPath('/subscription/invoices/4')).toBe('billing')
-    expect(settingsSectionIdForPath('/settings/teams')).toBeNull()
+    expect(settingsPageForPath('/settings')).toBeNull()
+    expect(settingsPageForPath('/settings/company#branding')?.id).toBe('company')
+    expect(settingsPageForPath('/settings/team/users/3?x=1')?.id).toBe('team')
+    expect(settingsPageForPath('/settings/apps/projects/catalogs/types')?.id).toBe('projects')
+    expect(settingsPageForPath('/settings/apps/finance/audit')?.id).toBe('finance')
+    expect(settingsPageForPath('/subscription/invoices/4')?.id).toBe('billing')
+    expect(settingsPageForPath('/settings/teams')).toBeNull()
   })
-  it('keeps a page with sibling pages beneath it from matching them', () => {
-    const [pack, change] = settingsSections().find(section => section.id === 'billing')!.entries
-    expect(entryIsExact(pack!, [pack!, change!])).toBe(true)
-    expect(entryIsExact(change!, [pack!, change!])).toBe(false)
+  it('send a card to its page with the id as hash, and a part with its own page to that page', () => {
+    expect(settingsPartTarget(page('company'), page('company').parts[3]!)).toEqual({ path: '/settings/company', hash: '#branding' })
+    expect(settingsPartTarget(page('team'), page('team').parts[1]!)).toEqual({ path: '/settings/team', hash: '#roles' })
+    expect(settingsPartTarget(page('billing'), page('billing').parts[1]!)).toBe('/subscription/change')
+    expect(settingsPartPath(page('company'), page('company').parts[3]!)).toBe('/settings/company#branding')
+    expect(settingsPartPath(page('team'), page('team').parts[0]!)).toBe('/settings/team/users')
+    expect(settingsPartPath(page('company'), page('company').parts[3]!)).toBe('/settings/company#branding')
+    expect(settingsPartPath(page('company'), { ...page('company').parts[0]!, within: '/settings/company/all' })).toBe('/settings/company/all')
   })
-  it('mark links active by prefix, by their own exact path, or by the shared rule', () => {
+  it('keeps a part with sibling pages beneath it from matching them', () => {
+    const [pack, change] = page('billing').parts
+    expect(partIsExact(pack!, [pack!, change!])).toBe(true)
+    expect(partIsExact(change!, [pack!, change!])).toBe(false)
+    expect(partIsExact(page('company').parts[0]!, page('company').parts)).toBe(false)
+  })
+  it('mark links active by prefix, by their own exact path, by the shared rule or by the card being read', () => {
     expect(isContextLinkActive('/settings/team/roles', { to: '/settings/team/users', within: '/settings/team' })).toBe(true)
-    expect(isContextLinkActive('/settings/company/branding', { to: '/settings/team/users', within: '/settings/team' })).toBe(false)
+    expect(isContextLinkActive('/settings/company', { to: '/settings/team/users', within: '/settings/team' })).toBe(false)
     expect(isContextLinkActive('/subscription/status', { to: '/subscription', exact: true })).toBe(false)
     expect(isContextLinkActive('/subscription/', { to: '/subscription', exact: true })).toBe(true)
     expect(isContextLinkActive('/settings/team/users', { to: '/settings', exact: true })).toBe(false)
     expect(isContextLinkActive('/settings/team/users/3', { to: '/settings/team/users' })).toBe(true)
+    const contact = { path: '/settings/company', hash: '#contact' }
+    expect(isContextLinkActive('/settings/company', { to: contact }, 'contact')).toBe(true)
+    expect(isContextLinkActive('/settings/company', { to: contact }, 'branding')).toBe(false)
+    expect(isContextLinkActive('/settings/system', { to: contact }, 'contact')).toBe(false)
+    // A card with a full list page stays lit there too.
+    const audit = { to: { path: '/settings/apps/finance', hash: '#audit' }, within: '/settings/apps/finance/audit' }
+    expect(isContextLinkActive('/settings/apps/finance/audit', audit, 'setup')).toBe(true)
+    expect(isContextLinkActive('/settings/apps/finance', audit, 'setup')).toBe(false)
   })
 })

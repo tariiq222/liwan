@@ -17,6 +17,12 @@
 .webvue-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--webvue-gap-card); }
 
 .webvue-form-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block-start: 20px; border-block-start: 1px solid var(--border); }
+/* A settings panel as a list of rows: name and hint at the start, the control at the end, a rule between rows. */
+.webvue-setting-rows { display: grid; }
+.webvue-setting-rows > * { padding-block: 16px; border-block-start: 1px solid var(--border); }
+.webvue-setting-rows > :first-child { padding-block-start: 0; border-block-start: 0; }
+.webvue-setting-rows > :last-child { padding-block-end: 0; }
+.webvue-setting-rows > [data-orientation="horizontal"] { align-items: center; gap: 24px; }
 .schedule-gantt { overflow-x: auto; }
 /* max-content: the grid must span every track, or its sticky name column stops at the scroller's width. */
 .schedule-gantt-grid { display: grid; width: max-content; min-width: max(720px, 100%); }
@@ -56,6 +62,7 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
 
 @media (max-width: 600px) {
   .webvue-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .webvue-setting-rows > [data-orientation="horizontal"] { flex-direction: column; align-items: stretch; gap: 10px; }
 }
 
 /* Floating shell (owner-approved 2026-10-17): the header, the 64px module rail and the
@@ -218,7 +225,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 }
 .webvue-context-column::-webkit-scrollbar { display: none; }
 .webvue-context-column > :is(.webvue-context-sidebar:not([data-panel="true"]), .webvue-quick-views) { flex: none; }
-/* Context sidebar: a white floating card beside the rail. */
+/* Context sidebar: a white floating card beside the rail. The column's cards carry no shadow: the column scrolls, so it
+   would clip a shadow into a grey band behind the cards. The border alone outlines each card. */
 .webvue-context-sidebar {
   display: flex;
   width: 100%;
@@ -229,7 +237,6 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   background: var(--context-surface);
   border: 1px solid var(--ui-border);
   border-radius: var(--radius-card);
-  box-shadow: var(--webvue-shell-shadow);
   color: var(--ui-text);
 }
 .webvue-context-enter-active, .webvue-context-leave-active { transition: opacity 120ms ease; }
@@ -290,7 +297,6 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   background: var(--context-surface);
   border: 1px solid var(--ui-border);
   border-radius: var(--radius-card);
-  box-shadow: var(--webvue-shell-shadow);
   color: var(--ui-text);
 }
 .webvue-quick-group { display: grid; gap: 2px; }
@@ -301,7 +307,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .webvue-quick-action[data-primary="true"] { color: var(--brand-link); font-weight: 600; }
 .webvue-quick-action[data-primary="true"] .webvue-quick-chip { background: var(--brand-soft); color: var(--brand-link); }
 /* In the mobile drawer the section is flat: no card, no fixed height. */
-.webvue-quick-views[data-surface="drawer"] { overflow: visible; padding: 0; background: none; border: 0; border-radius: 0; box-shadow: none; }
+.webvue-quick-views[data-surface="drawer"] { overflow: visible; padding: 0; background: none; border: 0; border-radius: 0; }
 /* Collapsed: a 64px icon-only bar. Labels, counts, headings and create actions drop out; the toggle stays. */
 @media (min-width: 768px) {
   .webvue-context-sidebar[data-expanded="false"] :is(.webvue-context-heading h2, .webvue-context-create-actions, .webvue-context-section-title, .webvue-context-count) { display: none; }
@@ -360,6 +366,19 @@ html[dir="rtl"] body { padding-right: 0 !important; }
     inset-block-start: calc(var(--shell-top) - var(--shell-inset) + 8px);
     z-index: 30;
   }
+  /* The floating header's backdrop is translucent and stops above the stuck heading, so the strip between them
+     is filled with the canvas: content scrolling under a stuck heading never shows above it. */
+  :is([data-slot="page-header"], .webvue-workspace-head)[data-sticky="true"]::before {
+    content: '';
+    position: absolute;
+    inset-block-end: 100%;
+    inset-inline: calc(-1 * var(--webvue-pad-x, 12px));
+    height: calc(var(--shell-top) - var(--shell-inset) + 8px);
+    z-index: -1;
+    background: var(--webvue-canvas);
+    pointer-events: none;
+  }
+  .webvue-page-stack:has(.webvue-list-card-fill) [data-slot="page-header"][data-sticky="true"]::before { content: none; }
 }
 /* Under the project workspace card the detail and form widths start at the card's inline edge instead of centring, so records line up with it. */
 .webvue-project-workspace:has(.webvue-workspace-head) :is(.webvue-page-width-detail, .webvue-page-width-form) { margin-inline: 0; }

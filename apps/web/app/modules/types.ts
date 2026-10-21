@@ -46,17 +46,23 @@ export interface AppContextLink {
   within?: string
 }
 /**
- * A configuration page an application registers under Settings > Apps (`/settings/apps/<app>/...`). The settings
- * shell lists every active manifest's entries the identity may reach, gated by the application feature and the
- * entry's capability like nav items; the entry's `to` owns its whole subtree for route access.
+ * One card on a settings page. The sidebar sub-list scrolls to the card (its id is the DOM id and the URL hash), or
+ * opens `to` when the part is its own page. `within` is the path prefix of the part's full list page, so the part
+ * stays lit there.
  */
-export interface AppSettingsEntry {
+export interface AppSettingsPart {
+  id: string; labelKey: string; icon: AppIcon; capability: string
+  to?: string
+  within?: string
+}
+/**
+ * The one settings page an application registers under Settings > Applications (`/settings/apps/<app>` or a path
+ * beneath it). `to` owns its whole subtree for route access; the first part's capability opens the page itself.
+ */
+export interface AppSettingsPage {
   id: string; labelKey: string; icon: AppIcon
-  /** `/settings/apps/<app>` or a path beneath it. */
   to: string
-  capability: string
-  /** Locale key of a sub-heading for future grouping when many applications register entries. */
-  group?: string
+  parts: AppSettingsPart[]
 }
 /** `shortLabelKey` names the entry under its rail icon when the full label (still the tooltip) needs two lines. */
 export interface AppRailEntry { id: string; labelKey: string; shortLabelKey?: string; icon: AppIcon; to: string; order: number }
@@ -161,8 +167,8 @@ export interface AppManifest {
    * every nav item. Defaults to the manifest id. PMO sets 'projects'.
    */
   defaultRail?: string
-  /** Configuration pages this application adds to Settings > Apps. */
-  settings?: AppSettingsEntry[]
+  /** The configuration page this application adds to Settings > Applications. */
+  settings?: AppSettingsPage
   contextLinks?: (path: string | undefined) => AppContextLink[]  // keyed by rail id via link module in nav
   routeCapabilities?: Array<{ pattern: RegExp; capability: string; feature?: string }>
   /**

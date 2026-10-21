@@ -4,6 +4,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { AccessAuditSummary } from '@webvue/contracts'
 import type { RouteLocationRaw } from 'vue-router'
 import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
+import { AUDIT_ACTION_LABELS } from '@/components/access/audit/auditActionLabels'
 import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 
 // The access-log table on SharedDataTable: a row (background click, Enter, the time link) opens the event
@@ -17,22 +18,7 @@ const props = defineProps<{
 }>()
 defineEmits<{ retry: [] }>()
 const { t, locale } = useI18n()
-const actionLabels: Record<AccessAuditSummary['action'], string> = {
-  'user.granted': 'access.audit.actions.userGranted',
-  'user.employee_linked': 'access.audit.actions.userEmployeeLinked',
-  'user.roles_changed': 'access.audit.actions.userRolesChanged',
-  'user.disabled': 'access.audit.actions.userDisabled',
-  'user.reactivated': 'access.audit.actions.userReactivated',
-  'user.password_reset': 'access.audit.actions.userPasswordReset',
-  'employee.archived_access_disabled': 'access.audit.actions.employeeArchived',
-  'role.created': 'access.audit.actions.roleCreated',
-  'role.updated': 'access.audit.actions.roleUpdated',
-  'role.disabled': 'access.audit.actions.roleDisabled',
-  'role.enabled': 'access.audit.actions.roleEnabled',
-  'role.deleted': 'access.audit.actions.roleDeleted',
-  'migration.legacy_admin_preserved': 'access.audit.actions.legacyAdminPreserved',
-}
-const actionLabel = (action: AccessAuditSummary['action']) => t(actionLabels[action])
+const actionLabel = (action: AccessAuditSummary['action']) => t(AUDIT_ACTION_LABELS[action])
 const eventTo = (event: AccessAuditSummary) => props.toFor(event.id)
 const when = (event: AccessAuditSummary) => formatWebVueDateTime(event.occurred_at, locale.value)
 const actionsFor = (event: AccessAuditSummary) => [{ label: t('access.view'), to: eventTo(event) }]

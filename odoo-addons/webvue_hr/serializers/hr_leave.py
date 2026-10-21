@@ -136,8 +136,11 @@ def parse_cancel_reason(value):
 
 
 def parse_state_filter(value):
+    """Comma separated states, e.g. ``confirm,validate1``; ``None`` when no filter is given."""
     if value in (None, ''):
         return None
-    if value not in LEAVE_STATES:
-        raise ApiError(422, 'invalid', f"state must be one of {', '.join(LEAVE_STATES)}", field='state')
-    return value
+    states = [part.strip() for part in value.split(',')]
+    for state in states:
+        if state not in LEAVE_STATES:
+            raise ApiError(422, 'invalid', f"state must be one of {', '.join(LEAVE_STATES)}", field='state')
+    return states

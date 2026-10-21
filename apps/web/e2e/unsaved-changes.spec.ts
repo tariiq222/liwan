@@ -20,7 +20,7 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'دخول', exact: true }).click()
     expect((await authenticated).status()).toBe(200)
     await expect(page).not.toHaveURL(/\/login/)
-    await page.goto('/settings/company/branding')
+    await page.goto('/settings/company#branding')
     const color = page.getByTestId('branding-color')
     const saved = await color.inputValue()
     const draft = saved === '#abcdef' ? '#123456' : '#abcdef'
@@ -39,12 +39,12 @@ for (const width of [1440, 390]) {
     await expect(color).toHaveValue(draft)
     await projects.click()
     await dialog.getByRole('button', { name: 'البقاء في الصفحة' }).click()
-    await expect(page).toHaveURL(/\/settings\/company\/branding$/)
+    await expect(page).toHaveURL(/\/settings\/company#branding$/)
     await expect(color).toHaveValue(draft)
     await projects.click()
     await dialog.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()
     await expect(page).toHaveURL(/\/projects$/)
-    await page.goto('/settings/company/branding')
+    await page.goto('/settings/company#branding')
     await expect(color).toHaveValue(saved)
 
     // The same guard also protects non-branding forms, with no data writes.

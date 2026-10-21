@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { visibleSettingsSections } from '@/composables/nav/shellModules'
+import { visibleSettingsPages } from '@/composables/nav/shellModules'
 
-// The settings overview: one card per section the user can reach, listing the pages inside it.
+// The settings overview: one card per page the user can reach, listing the cards inside it.
 const { t } = useI18n()
 const { me, ready } = useMe()
 await ready
-const cards = computed(() => visibleSettingsSections(me.value).map(({ section, entries }) => ({
-  id: section.id,
-  to: entries[0]!.to,
-  icon: section.icon,
-  title: t(section.labelKey),
-  description: entries.map(entry => t(entry.labelKey)).join(t('settings.overview.separator')),
+const cards = computed(() => visibleSettingsPages(me.value).map(({ page, parts }) => ({
+  id: page.id,
+  to: parts[0]!.to ?? page.to,
+  icon: page.icon,
+  title: t(page.labelKey),
+  description: parts.map(part => t(part.labelKey)).join(t('settings.overview.separator')),
 })))
 </script>
 

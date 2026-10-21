@@ -52,8 +52,8 @@ async function confirmToggle() {
     </template>
     <SharedInlineConfirm
       v-if="plan && askingToggle"
-      :title="t(`hrOnboarding.plans.deactivateTitle`)"
-      :description="toggleError ? t(`hrOnboarding.form.saveError`) : t(`hrOnboarding.plans.deactivateDescription`)"
+      :title="plan.active ? t(`hrOnboarding.plans.deactivateTitle`) : t(`hrOnboarding.plans.activateTitle`)"
+      :description="toggleError ? t(`hrOnboarding.form.saveError`) : plan.active ? t(`hrOnboarding.plans.deactivateDescription`) : t(`hrOnboarding.plans.activateDescription`)"
       :confirm-label="plan.active ? t(`hrOnboarding.plans.deactivate`) : t(`hrOnboarding.plans.activate`)"
       :pending="saving"
       @confirm="confirmToggle"
@@ -61,7 +61,7 @@ async function confirmToggle() {
     />
     <SharedIdentityCard v-if="plan" :id="plan.id" :name="plan.name" :subtitle="plan.department?.name || t(`hrOnboarding.form.anyDepartment`)">
       <template #badge>
-        <SharedStatusBadge size="sm" :tone="plan.active ? 'success' : 'neutral'" :label="t(`hrOnboarding.form.active`)" />
+        <SharedStatusBadge size="sm" :tone="plan.active ? 'success' : 'neutral'" :label="plan.active ? t(`hrOnboarding.plans.statusActive`) : t(`hrOnboarding.plans.statusInactive`)" />
       </template>
     </SharedIdentityCard>
     <PlanForm v-if="plan && can('hr.onboarding.manage')" area="onboarding" :namespace="NAMESPACE" :plan="plan" :back-to="backTo" @saved="saved" />

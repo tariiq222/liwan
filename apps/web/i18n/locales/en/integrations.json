@@ -3,7 +3,6 @@
     "title": "Government and bank links",
     "nav": "Integrations",
     "empty": "No links yet",
-    "forbidden": "You do not have permission to view integration status.",
     "kind": {
       "zatca": "E-invoicing (ZATCA)",
       "bank": "Bank connection"

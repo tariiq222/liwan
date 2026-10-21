@@ -173,6 +173,28 @@ class TestHrLeave(WebVueHrCase):
         refused = self.api('POST', f'/api/v1/hr/leave/requests/{first}/refuse', json={})
         self.assertEqual(refused.json()['state'], 'refuse')
 
+    def test_state_filter_takes_several_states(self):
+        self._as_staff()
+        pending = self._request(days=1).json()['id']
+        self._as_manager()
+        both = self.api('GET', '/api/v1/hr/leave/requests?state=confirm,validate1')
+        self.assertEqual(both.status_code, 200, both.text)
+        self.assertIn(pending, {item['id'] for item in both.json()['items']})
+        only_decided = self.api('GET', '/api/v1/hr/leave/requests?state=validate,refuse').json()['items']
+        self.assertNotIn(pending, {item['id'] for item in only_decided})
+        unknown = self.api('GET', '/api/v1/hr/leave/requests?state=confirm,bogus')
+        self.assertEqual((unknown.status_code, unknown.json()['field']), (422, 'state'))
+
+    def test_refuse_keeps_the_reason_on_the_request(self):
+        self._as_staff()
+        leave_id = self._request(days=1).json()['id']
+        self._as_manager()
+        refused = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/refuse', json={'reason': 'Team is short that week'})
+        self.assertEqual(refused.status_code, 200, refused.text)
+        self.assertEqual(refused.json()['state'], 'refuse')
+        leave = self.env['hr.leave'].browse(leave_id)
+        self.assertIn('Team is short that week', ' '.join(leave.message_ids.mapped('body')))
+
     def test_employee_cancels_own_approved_leave(self):
         self._as_staff()
         leave_id = self._request(days=1).json()['id']
