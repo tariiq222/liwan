@@ -2,12 +2,7 @@
 from odoo.exceptions import MissingError
 from odoo.http import request
 
-from odoo.addons.webvue_hr.controllers.assets.common import (
-    current_company,
-    own_employee,
-)
-
-__all__ = ['own_employee', 'payroll_employee']
+from odoo.addons.webvue_hr.controllers.assets.common import current_company
 
 
 def payroll_employee(employee_id):

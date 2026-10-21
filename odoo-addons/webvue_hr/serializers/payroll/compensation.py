@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import math
+
 from odoo.addons.webvue_api.controllers.common import ApiError, parse_positive_int
 from odoo.addons.webvue_hr.models.hr_compensation import normalize_iban
 from odoo.addons.webvue_hr.serializers.assets.common import ref, reject_unknown
@@ -26,6 +28,8 @@ def dump_compensation(record):
 def _amount(value, field, *, minimum_exclusive):
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ApiError(422, 'invalid', f'{field} must be a number', field=field)
+    if not math.isfinite(value):
+        raise ApiError(422, 'invalid', f'{field} must be a finite number', field=field)
     if value < 0 or (minimum_exclusive and value == 0):
         raise ApiError(422, 'invalid', f'{field} must be {"positive" if minimum_exclusive else "zero or more"}', field=field)
     return value

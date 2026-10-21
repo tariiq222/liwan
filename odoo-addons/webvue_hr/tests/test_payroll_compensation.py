@@ -3,6 +3,8 @@ from odoo.tests import tagged
 
 from .common import set_hr_feature
 from .payroll_common import PayrollCase
+from odoo.addons.webvue_api.controllers.common import ApiError
+from odoo.addons.webvue_hr.serializers.payroll.compensation import parse_compensation
 
 COMPENSATION_KEYS = {
     'employee', 'basic_wage', 'housing_allowance', 'transport_allowance', 'other_allowance',
@@ -164,3 +166,17 @@ class TestPayrollCompensation(PayrollCase):
         res = self._get()
         self.assertEqual(res.status_code, 403, res.text)
         self.assertEqual(res.json()['code'], 'feature_not_included')
+
+    def test_non_finite_amounts_are_refused(self):
+        for value in (float('nan'), float('inf')):
+            with self.assertRaises(ApiError) as caught:
+                parse_compensation({**PUT_BODY, 'basic_wage': value})
+            self.assertEqual((caught.exception.status, caught.exception.field), (422, 'basic_wage'))
+
+    def test_bank_is_serialized_as_a_reference(self):
+        bank = self.env['res.bank'].create({'name': 'Al Rajhi Test Bank'})
+        self._login(self.manager)
+        res = self._put({**PUT_BODY, 'bank_id': bank.id})
+        self.assertEqual(res.status_code, 200, res.text)
+        self._login(self.reader)
+        self.assertEqual(self._get().json()['bank'], {'id': bank.id, 'name': 'Al Rajhi Test Bank'})
