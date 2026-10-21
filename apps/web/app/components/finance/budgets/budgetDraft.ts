@@ -6,6 +6,8 @@ export interface BudgetFormDraft {
   description: string
   dateFrom: string | null
   dateTo: string | null
+  /** Several lines of one account may cover the same period, each for a different cost center. */
+  costCenterSplit: boolean
 }
 
 export interface BudgetFormErrors {
@@ -16,7 +18,7 @@ export interface BudgetFormErrors {
   order: boolean
 }
 
-export const emptyBudgetDraft = (): BudgetFormDraft => ({ name: '', description: '', dateFrom: null, dateTo: null })
+export const emptyBudgetDraft = (): BudgetFormDraft => ({ name: '', description: '', dateFrom: null, dateTo: null, costCenterSplit: false })
 
 export function validateBudgetDraft(draft: BudgetFormDraft): BudgetFormErrors {
   return {
@@ -36,6 +38,7 @@ export function buildBudgetCreate(draft: BudgetFormDraft): FinanceBudgetCreate {
     ...(description ? { description } : {}),
     date_from: draft.dateFrom!,
     date_to: draft.dateTo!,
+    ...(draft.costCenterSplit ? { cost_center_split: true } : {}),
   }
 }
 

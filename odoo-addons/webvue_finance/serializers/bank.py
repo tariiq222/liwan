@@ -13,6 +13,7 @@ from odoo.addons.webvue_api.controllers.common import ApiError
 
 STATEMENT_FIELDS = frozenset({'journal_id', 'date', 'name', 'balance_start', 'balance_end_real', 'lines'})
 STATEMENT_LINE_FIELDS = frozenset({'date', 'payment_ref', 'partner_id', 'amount'})
+STATEMENT_PATCH_FIELDS = frozenset({'name', 'balance_start', 'balance_end_real'})
 RECONCILE_FIELDS = frozenset({'move_line_ids', 'account_id', 'label'})
 MAX_STATEMENT_LINES = 500
 
@@ -127,4 +128,18 @@ def parse_reconcile(payload):
         raise ApiError(422, 'invalid', 'move_line_ids or account_id is required', field='move_line_ids')
     if 'label' in parsed and 'account_id' not in parsed:
         raise ApiError(422, 'invalid', 'label needs account_id', field='label')
+    return parsed
+
+
+def parse_statement_patch(payload):
+    """The header of a statement can be corrected: its name and its opening and closing balances."""
+    reject_unknown(payload, STATEMENT_PATCH_FIELDS)
+    if not payload:
+        raise ApiError(422, 'invalid', 'no fields to update')
+    parsed = {}
+    if 'name' in payload:
+        parsed['name'] = parse_text(payload['name'], 'name', required=True)
+    for field in ('balance_start', 'balance_end_real'):
+        if field in payload:
+            parsed[field] = parse_number(payload[field], field)
     return parsed

@@ -85,7 +85,10 @@ class TestFinanceMisReports(WebVueFinanceOcaCase):
 
     def test_the_zakat_base_adds_equity_and_long_term_funds_and_deducts_fixed_assets(self):
         report = self._get('zakat-base', END)
-        self.assertEqual(set(report), {'date_to', 'target_move', 'currency', 'lines', 'base', 'rate', 'zakat_due', 'disclaimer'})
+        self.assertEqual(set(report), {
+            'date_to', 'target_move', 'currency', 'lines', 'template_base', 'adjustments', 'adjustments_total', 'base', 'rate',
+            'zakat_due', 'status', 'filed', 'review', 'disclaimer',
+        })
         figures = self._figures(report)
         self.assertEqual(
             (figures['equity'], figures['retained_earnings'], figures['long_term_liabilities'], figures['provisions']),

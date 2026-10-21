@@ -16,7 +16,8 @@ export function usePaymentCreatePage() {
   }
   return reactive({
     list: usePaymentListPage(true),
-    title: t('financeDocuments.payments.new'),
+    standalone: computed(() => route.query.kind === 'standalone'),
+    title: computed(() => t(route.query.kind === 'standalone' ? 'financeDocuments.payments.standalone.title' : 'financeDocuments.payments.new')),
     backTo,
     invoiceIds: computed(() => prefilledInvoiceIds(route.query.invoice_ids)),
     allowed: computed(() => can('finance.payments.manage')),

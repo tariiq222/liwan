@@ -12,7 +12,7 @@ import { useNav } from '../../composables/nav/shellModules'
 import ar from '../../../i18n/locales/ar/integrations.json'
 import en from '../../../i18n/locales/en/integrations.json'
 
-const page = resolve(import.meta.dirname, '../settings/system/integrations.vue')
+const page = resolve(import.meta.dirname, '../../components/settings/IntegrationConnections.vue')
 const ZATCA = { id: 1, kind: 'zatca', provider: 'ZATCA', state: 'not_configured', last_checked: null, status_message: '' }
 const BANK = { id: 2, kind: 'bank', provider: 'Al Rajhi', state: 'error', last_checked: '2030-01-15T10:30:00Z', status_message: 'Certificate expired' }
 
@@ -25,11 +25,10 @@ const stub = (tag: string, slotNames: string[] = []) => Vue.defineComponent({
 })
 const stubs = {
   ...DEFAULT_STUBS,
-  SharedListPage: stub('main'), SharedListCard: stub('section'), SharedPageState: stub('div'),
-  SharedForbiddenState: stub('p'), SharedStatusBadge: stub('b'),
+  SharedRecordSection: stub('section'), SharedPageState: stub('div'), SharedStatusBadge: stub('b'),
 }
 
-async function render(options: { capabilities: string[]; items?: unknown[] }) {
+async function render(options: { items?: unknown[] }) {
   const messages = flatten(ar)
   const component = loadShared(page, {
     messages,
@@ -41,7 +40,6 @@ async function render(options: { capabilities: string[]; items?: unknown[] }) {
       },
       '@/utils/integrationStateBadge': { integrationStateBadge },
     },
-    globals: { useAccess: () => ({ can: (key: string) => options.capabilities.includes(key) }) },
   })
   const app = Vue.createSSRApp({ render: () => Vue.h(component) })
   app.config.globalProperties.$t = fakeT(messages) as never
@@ -56,10 +54,10 @@ function flatten(tree: Record<string, unknown>, prefix = ''): Record<string, str
   }, {})
 }
 
-describe('/settings/system/integrations', () => {
+describe('the integrations card of /settings/system', () => {
   it('lists each connection with kind, provider, state, last check and message', async () => {
     expect(IntegrationConnectionListSchema.safeParse({ items: [ZATCA, BANK], total: 2 }).success).toBe(true)
-    const html = await render({ capabilities: ['integrations.read'], items: [ZATCA, BANK] })
+    const html = await render({ items: [ZATCA, BANK] })
     expect(html).toContain(ar.integrations.kind.zatca)
     expect(html).toContain(ar.integrations.kind.bank)
     expect(html).toContain('Al Rajhi')
@@ -71,23 +69,17 @@ describe('/settings/system/integrations', () => {
   })
 
   it('shows the empty state when there is no connection', async () => {
-    const html = await render({ capabilities: ['integrations.read'], items: [] })
+    const html = await render({ items: [] })
     expect(html).toContain(ar.integrations.empty)
-  })
-
-  it('shows the forbidden state, not the list, without integrations.read', async () => {
-    const html = await render({ capabilities: [], items: [ZATCA] })
-    expect(html).toContain(ar.integrations.forbidden)
-    expect(html).not.toContain('integration-connections')
   })
 })
 
 describe('integrations navigation and locales', () => {
   it('gates direct navigation and the settings link on integrations.read', () => {
-    expect(canReachPath({ capabilities: [] }, '/settings/system/integrations')).toBe(false)
-    expect(canReachPath({ capabilities: ['integrations.read'] }, '/settings/system/integrations')).toBe(true)
-    expect(useNav({ capabilities: [] }).map(item => item.to)).not.toContain('/settings/system/integrations')
-    expect(useNav({ capabilities: ['integrations.read'] }).map(item => item.to)).toContain('/settings/system/integrations')
+    expect(canReachPath({ capabilities: [] }, '/settings/system')).toBe(false)
+    expect(canReachPath({ capabilities: ['integrations.read'] }, '/settings/system')).toBe(true)
+    expect(useNav({ capabilities: [] }).map(item => item.to)).not.toContain('/settings/system#integrations')
+    expect(useNav({ capabilities: ['integrations.read'] }).map(item => item.to)).toContain('/settings/system#integrations')
   })
 
   it('ships the same keys in Arabic and English', () => {

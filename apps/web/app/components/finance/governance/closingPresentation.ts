@@ -3,7 +3,8 @@ import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
 import { financeErrorMessage } from '../financeErrors'
 import { queryPositiveInt } from '../../../utils/routeQuery'
 
-export const CLOSING_PATH = '/settings/apps/finance/closing'
+export const CLOSING_PATH = '/settings/apps/finance'
+export const CLOSING_HASH = '#closing'
 
 export const FISCAL_YEAR_STATE_TONE: Record<FinanceFiscalYear['state'], StatusTone> = {
   open: 'warning',

@@ -5,10 +5,10 @@ from .common import MANAGER_LOGIN, MANAGER_PASSWORD, WebVueFinanceCase
 
 PAYMENT_KEYS = {
     'id', 'name', 'payment_type', 'partner_type', 'state', 'partner', 'journal', 'date', 'memo',
-    'currency', 'amount',
+    'currency', 'amount', 'unallocated', 'invoices',
 }
-ACCOUNT_KEYS = {'id', 'code', 'name', 'account_type', 'reconcile', 'currency'}
-JOURNAL_KEYS = {'id', 'name', 'code', 'type', 'currency'}
+ACCOUNT_KEYS = {'id', 'code', 'name', 'account_type', 'reconcile', 'currency', 'active'}
+JOURNAL_KEYS = {'id', 'name', 'code', 'type', 'currency', 'default_account', 'active'}
 
 
 @tagged('post_install', '-at_install', 'webvue')

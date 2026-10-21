@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { FinanceZakatBase } from '@webvue/contracts'
 import MisLinesTable from './MisLinesTable.vue'
+import ZakatAdjustments from './ZakatAdjustments.vue'
+import ZakatReview from './ZakatReview.vue'
 import { ZAKAT_RESULT_CODES } from './reportRows'
 
-// The Zakat base lines, then the base and the Zakat due. The server's disclaimer (the formula is simplified and must be
+// The Zakat base lines, then the base and the Zakat due (which include the company's adjustments), the adjustments and the review. The server's disclaimer (the formula is simplified and must be
 // reviewed by a Saudi CPA) is always shown above the table, never hidden behind a setting.
 const props = defineProps<{ report: FinanceZakatBase }>()
 const { t, n } = useI18n()
@@ -22,5 +24,7 @@ const totals = computed(() => [
         <bdi class="font-semibold tabular-nums text-highlighted">{{ n(report.rate, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</bdi>
       </span>
     </MisLinesTable>
+    <ZakatAdjustments :adjustments="report.adjustments" :date-to="report.date_to" :currency="report.currency" />
+    <ZakatReview :report="report" />
   </div>
 </template>

@@ -6,6 +6,7 @@ from odoo.http import request
 from .analytic_support import distribution_values, require_plain_distributions
 from .common import filter_domain, list_page, parse_choice, require_capability
 from .finance_partners import company_partners_domain
+from .idempotency import idempotent
 from .write_support import (
     attempt,
     company_records,
@@ -142,6 +143,7 @@ class FinanceEntryController(http.Controller):
     @http.route('/api/v1/finance/entries', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
+    @idempotent
     def create_entry(self, **payload):
         require_capability('finance.entries.manage')
         parsed = parse_entry_create(payload)

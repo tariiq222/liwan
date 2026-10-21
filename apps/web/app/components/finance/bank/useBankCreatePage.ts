@@ -16,7 +16,8 @@ export function useBankCreatePage() {
   }
   return reactive({
     list: useBankListPage(true),
-    title: t('financeBank.form.title'),
+    importing: computed(() => route.query.kind === 'import'),
+    title: computed(() => t(route.query.kind === 'import' ? 'financeBank.import.title' : 'financeBank.form.title')),
     backTo,
     allowed: computed(() => can('finance.bank.manage')),
     saved,

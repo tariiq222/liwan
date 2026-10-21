@@ -1,7 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { FinanceZatcaJournalSchema, FinanceZatcaStatusSchema, type FinanceZatcaOnboardInput } from '@webvue/contracts'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { FinanceZatcaJournalSchema, FinanceZatcaWaitingDocumentListSchema, FinanceZatcaStatusSchema, type FinanceZatcaOnboardInput } from '@webvue/contracts'
 import { financeSetupKey } from './useFinanceSetup'
 
 export const financeZatcaStatusKey = ['finance', 'zatca', 'status'] as const
@@ -28,5 +28,24 @@ export function useOnboardZatcaJournal() {
       qc.invalidateQueries({ queryKey: financeSetupKey }),
       qc.invalidateQueries({ queryKey: ['finance', 'audit'] }),
     ]),
+  })
+}
+
+export const ZATCA_WAITING_PAGE_SIZE = 25
+
+/** The e-invoices ZATCA has not accepted, oldest first; `state` narrows them to one waiting state. */
+export function useFinanceZatcaWaitingDocuments(params: MaybeRefOrGetter<{ state: string | null; page: number }>, enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => ['finance', 'zatca', 'documents', toValue(params)] as const),
+    enabled: computed(() => toValue(enabled)),
+    placeholderData: keepPreviousData,
+    queryFn: () => {
+      const { state, page } = toValue(params)
+      return $api('/api/v1/finance/zatca/documents', {
+        query: { ...(state ? { state } : {}), limit: ZATCA_WAITING_PAGE_SIZE, offset: (page - 1) * ZATCA_WAITING_PAGE_SIZE },
+        schema: FinanceZatcaWaitingDocumentListSchema,
+      })
+    },
   })
 }

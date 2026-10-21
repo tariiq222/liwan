@@ -29,9 +29,15 @@ const manifest: AppManifest = {
     { path: '/tasks', capability: 'pmo.tasks.read' },
     { path: '/projects', capability: 'pmo.projects.read' },
   ],
-  settings: [
-    { id: 'project-settings', labelKey: 'settings.projects.title', icon: 'i-lucide-folder-kanban', to: '/settings/apps/projects', capability: 'pmo.settings.manage' },
-  ],
+  settings: {
+    id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/settings/apps/projects',
+    parts: [
+      { id: 'project-creation', labelKey: 'settings.projects.creation.title', icon: 'i-lucide-circle-plus', capability: 'pmo.settings.manage' },
+      { id: 'project-defaults', labelKey: 'settings.projects.defaults.title', icon: 'i-lucide-sliders-horizontal', capability: 'pmo.settings.manage' },
+      { id: 'project-reminders', labelKey: 'settings.projects.reminders.label', icon: 'i-lucide-bell-ring', capability: 'pmo.settings.manage' },
+      { id: 'catalogs', labelKey: 'settings.projects.catalogs.title', icon: 'i-lucide-list-tree', capability: 'pmo.settings.manage', within: '/settings/apps/projects/catalogs' },
+    ],
+  },
   recordListSources: [
     { pattern: /^\/projects\/[1-9]\d*\/meetings$/, capability: 'meetings.read' },
   ],

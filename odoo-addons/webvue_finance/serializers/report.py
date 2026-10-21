@@ -58,3 +58,32 @@ def dump_withholding_summary(company, date_from, date_to, totals):
         'base': currency.round(sum(row['base'] for row in rows)),
         'withheld': currency.round(sum(row['withheld'] for row in rows)),
     }
+
+
+def dump_vat_return(company, date_from, date_to, boxes):
+    """The boxes of the Saudi VAT return for a period. It is a draft for the taxpayer's review, never a filed return."""
+    return {
+        'date_from': dump_day(date_from),
+        'date_to': dump_day(date_to),
+        'currency': company.currency_id.name,
+        'status': 'draft_for_review',
+        'filed': False,
+        'boxes': [
+            {'code': box['code'], 'number': int(box['code'].removeprefix('sa_')), 'name': box['name'], 'base': box['base'], 'tax': box['tax']}
+            for box in boxes
+        ],
+    }
+
+
+def dump_vat_return_item(item, amount):
+    return {
+        'id': item.id,
+        'date': dump_day(item.date),
+        'entry': dump_ref(item.move_id),
+        'entry_type': item.move_id.move_type,
+        'account': {'id': item.account_id.id, 'code': item.account_id.with_company(item.company_id).code or '', 'name': item.account_id.name},
+        'partner': dump_ref(item.partner_id),
+        'label': item.name or '',
+        'balance': item.balance,
+        'amount': amount,
+    }

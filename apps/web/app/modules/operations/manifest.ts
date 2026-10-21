@@ -7,9 +7,10 @@ const manifest: AppManifest = {
     { to: '/operations/pending', labelKey: 'operations.nav.pending', icon: 'i-lucide-list-checks', shortcut: 'p', capability: 'operations.requests.review' },
     { to: '/operations/monitoring', labelKey: 'operations.nav.monitoring', icon: 'i-lucide-eye', shortcut: 'v', capability: 'operations.monitoring.read' },
   ],
-  settings: [
-    { id: 'operation-processes', labelKey: 'operations.nav.processes', icon: 'i-lucide-workflow', to: '/settings/apps/operations/processes', capability: 'operations.processes.manage' },
-  ],
+  settings: {
+    id: 'operations', labelKey: 'operations.title', icon: 'i-lucide-workflow', to: '/settings/apps/operations/processes',
+    parts: [{ id: 'processes', labelKey: 'operations.nav.processes', icon: 'i-lucide-workflow', capability: 'operations.processes.manage' }],
+  },
   contextLinks: () => [
     { id: 'new-operation', labelKey: 'operations.newRequest', icon: 'i-lucide-plus', to: '/operations/new', capability: 'operations.requests.create', pinned: true },
     { id: 'operation-mine', labelKey: 'operations.nav.mine', icon: 'i-lucide-files', to: '/operations', capability: 'operations.requests.read' },

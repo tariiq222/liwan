@@ -43,7 +43,14 @@
       "profitLoss": "قائمة الدخل",
       "balanceSheet": "الميزانية العمومية",
       "zakatBase": "وعاء الزكاة",
-      "budgetVsActual": "الميزانية مقابل الفعلي"
+      "budgetVsActual": "الميزانية مقابل الفعلي",
+      "accountsSettings": "إعداد دليل الحسابات",
+      "journalsSettings": "اليوميات",
+      "taxesSettings": "الضرائب",
+      "paymentTermsSettings": "شروط الدفع",
+      "assetProfilesSettings": "ملفات الأصول",
+      "cashFlow": "التدفق النقدي",
+      "vatReturn": "إقرار الضريبة"
     },
     "kpi": {
       "label": "مؤشرات المالية",
@@ -139,7 +146,7 @@
       }
     },
     "setup": {
-      "title": "المالية",
+      "title": "الإعداد",
       "ready": "جاهزة للفوترة",
       "notReady": "الإعداد غير مكتمل",
       "done": "مكتملة",

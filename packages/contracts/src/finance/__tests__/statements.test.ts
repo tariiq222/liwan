@@ -101,9 +101,13 @@ describe('finance statement schemas', () => {
     expect(FinanceProfitLossSchema.parse(loss)).toEqual(loss)
     expect(FinanceBalanceSheetSchema.parse(sheet)).toEqual(sheet)
     expect(() => FinanceBalanceSheetSchema.parse({ ...sheet, lines: [{ code: '', label: 'x', value: 1 }] })).toThrow()
-    const zakat = { ...sheet, base: 103900, rate: 0.0257768, zakat_due: 2678.1, disclaimer: 'Review by a Saudi CPA.' }
+    const zakat = {
+      ...sheet, template_base: 103900, adjustments: [], adjustments_total: 0, base: 103900, rate: 0.0257768, zakat_due: 2678.1,
+      status: 'management_information', filed: false, review: null, disclaimer: 'Review by a Saudi CPA.',
+    }
     expect(FinanceZakatBaseSchema.parse(zakat)).toEqual(zakat)
     expect(() => FinanceZakatBaseSchema.parse({ ...zakat, disclaimer: '' })).toThrow()
     expect(() => FinanceZakatBaseSchema.parse({ ...sheet, base: 1, rate: 0.0257768, zakat_due: 1 })).toThrow()
+    expect(() => FinanceZakatBaseSchema.parse({ ...zakat, filed: true })).toThrow()
   })
 })

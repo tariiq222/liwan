@@ -14,26 +14,35 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `POST /invoices` (201, a draft), `PATCH /invoices/<id>`, `DELETE /invoices/<id>` (204) | `finance.invoices.manage` |
 | `POST /invoices/<id>/post`, `/cancel`, `/reset-to-draft` | `finance.invoices.post` |
 | `GET /payments` | `finance.payments.read` |
-| `POST /payments` (201), `POST /payments/<id>/cancel`, `/reset-to-draft` | `finance.payments.manage` |
-| `GET /accounts` | `finance.accounts.read` |
-| `GET /journals` | `finance.journals.read` |
+| `POST /payments` (201), `POST /payments/standalone` (201), `PATCH /payments/<id>`, `POST /payments/<id>/cancel`, `/reset-to-draft`, `/post`, `/allocate`, `/unallocate` | `finance.payments.manage` |
+| `GET /accounts` (`archived=true\|false`, `account_type`, `q`), `GET /accounts/<id>` | `finance.accounts.read` |
+| `POST /accounts` (201), `PATCH /accounts/<id>`, `POST /accounts/<id>/archive`, `/unarchive` | `finance.accounts.manage` |
+| `GET /taxes` (`type_tax_use`, `archived`, `q`), `GET /taxes/<id>` | `finance.taxes.read` |
+| `POST /taxes` (201), `PATCH /taxes/<id>`, `POST /taxes/<id>/archive`, `/unarchive` | `finance.taxes.manage` |
+| `GET /payment-terms` (`archived`, `q`), `GET /payment-terms/<id>` | `finance.payment_terms.read` |
+| `POST /payment-terms` (201), `PATCH /payment-terms/<id>`, `POST /payment-terms/<id>/archive`, `/unarchive` | `finance.payment_terms.manage` |
+| `GET /journals` (`type`, `archived=true\|false`), `GET /journals/<id>` | `finance.journals.read` |
+| `POST /journals` (201), `PATCH /journals/<id>`, `POST /journals/<id>/archive`, `/unarchive` | `finance.journals.manage` |
 | `GET /setup` | `finance.setup.read` |
 | `POST /setup/chart`, `PATCH /setup/fiscal` | `finance.setup.manage` |
-| `GET /reports/vat?date_from&date_to`, `GET /reports/withholding?date_from&date_to` | `finance.reports.read` |
+| `GET /reports/vat?date_from&date_to`, `GET /reports/vat-return?date_from&date_to`, `GET /reports/vat-return/items?code&column&date_from&date_to`, `GET /reports/withholding?date_from&date_to` | `finance.reports.read` |
 | `GET /entries` (`state`, `journal_id`, `date_from`, `date_to`, `q`), `GET /entries/<id>` | `finance.entries.read` |
 | `POST /entries` (201, a draft), `PATCH /entries/<id>`, `DELETE /entries/<id>` (204) | `finance.entries.manage` |
 | `POST /entries/<id>/post`, `/reset-to-draft`, `/unreconcile` | `finance.entries.post` |
 | `POST /invoices/<id>/debit-note` (201, a draft) | `finance.invoices.manage` |
 | `GET /countries` (`q`), `GET /countries/<id>/states` (`q`) | `finance.partners.read` or `finance.setup.read` |
-| `GET /reports/trial-balance`, `/reports/general-ledger`, `/reports/aged-partner-balance`, `/reports/partner-statement`, `/reports/profit-loss`, `/reports/balance-sheet` | `finance.statements.read` |
-| `GET /reports/zakat-base` | `finance.zakat.read` |
-| `GET /asset-profiles`, `GET /assets`, `GET /assets/<id>` | `finance.assets.read` |
-| `POST /assets` (201, a draft), `POST /assets/<id>/validate`, `POST /assets/compute-depreciation` | `finance.assets.manage` |
+| `GET /reports/trial-balance`, `/reports/general-ledger`, `/reports/cash-flow`, `/reports/aged-partner-balance`, `/reports/partner-statement`, `/reports/profit-loss`, `/reports/balance-sheet` | `finance.statements.read` |
+| `GET /reports/zakat-base`, `GET /zakat/adjustments?date_to`, `GET /zakat/reviews?date_to` | `finance.zakat.read` |
+| `POST /zakat/adjustments` (201), `DELETE /zakat/adjustments/<id>` (204) | `finance.zakat.manage` |
+| `POST /zakat/reviews` (201) | `finance.zakat.review` |
+| `GET /asset-profiles` (`archived`), `GET /asset-profiles/<id>`, `GET /assets`, `GET /assets/<id>` | `finance.assets.read` |
+| `POST /asset-profiles` (201), `PATCH /asset-profiles/<id>`, `POST /asset-profiles/<id>/archive`, `/unarchive` | `finance.assets.manage` |
+| `POST /assets` (201, a draft), `POST /assets/<id>/validate`, `POST /assets/<id>/dispose`, `POST /assets/compute-depreciation` | `finance.assets.manage` |
 | `GET /bank-statements`, `GET /bank-statements/<id>`, `GET /bank-statement-lines/<id>/reconcile-proposals` | `finance.bank.read` |
-| `POST /bank-statements` (201), `POST /bank-statement-lines/<id>/reconcile` | `finance.bank.manage` |
+| `POST /bank-statements` (201), `POST /bank-statements/import/preview`, `POST /bank-statements/import` (201), `PATCH` and `DELETE` (204) `/bank-statements/<id>`, `POST /bank-statements/<id>/auto-reconcile`, `POST /bank-statement-lines/<id>/reconcile`, `/unreconcile` | `finance.bank.manage` |
 | `GET /budgets` (`state`, `q`), `GET /budgets/<id>`, `GET /reports/budget-vs-actual?budget_id[&date_to]` | `finance.budgets.read` |
-| `POST /budgets` (201), `PATCH /budgets/<id>`, `POST /budgets/<id>/confirm`, `/cancel`, `/reset-to-draft`, `POST /budgets/<id>/lines` (201), `PATCH` and `DELETE` (204) `/budgets/<id>/lines/<line_id>` | `finance.budgets.manage` |
-| `GET /zatca/status`, `GET /invoices/<id>/zatca` | `finance.zatca.read` |
+| `POST /budgets` (201), `PATCH /budgets/<id>`, `POST /budgets/<id>/lines/distribute` (201), `POST /budgets/<id>/confirm`, `/cancel`, `/reset-to-draft`, `POST /budgets/<id>/lines` (201), `PATCH` and `DELETE` (204) `/budgets/<id>/lines/<line_id>` | `finance.budgets.manage` |
+| `GET /zatca/status`, `GET /zatca/documents` (`state`), `GET /invoices/<id>/zatca` | `finance.zatca.read` |
 | `POST /zatca/journals/<id>/onboard` (`{otp}`) | `finance.zatca.manage` |
 | `POST /invoices/<id>/zatca/submit`, `POST /invoices/<id>/zatca/retry` | `finance.zatca.submit` |
 | `GET /analytic-plans` (`q`), `GET /analytic-plans/<id>`, `GET /analytic-accounts` (`q`, `plan_id`, `archived=true\|false`), `GET /analytic-accounts/<id>`, `GET /reports/analytic?date_from&date_to&plan_id?`, `GET /reports/analytic/lines?account_id&date_from&date_to` | `finance.analytic.read` |
@@ -50,7 +59,7 @@ no partner delete: archive instead. Capability dependencies: `partners.manage` n
 `payments.manage` needs `payments.read` and `invoices.read`; `setup.manage` needs `setup.read`; `entries.manage` needs
 `entries.read`; `entries.post` needs `entries.manage`; `assets.manage` needs `assets.read`; `bank.manage` needs
 `bank.read`; `analytic.manage` needs `analytic.read`; `budgets.manage` needs `budgets.read`; `zatca.read` needs `invoices.read`; `zatca.manage` and `zatca.submit` need `zatca.read`; `closing.manage` needs `closing.read` and `setup.manage`. The built-in
-`finance_manager` role (and `webvue_core`'s vendor support role) holds all thirty-one capabilities.
+`finance_manager` role (and `webvue_core`'s vendor support role) holds all thirty-nine capabilities.
 
 Two more built-in roles (sets defined once in `models/access_service.py`):
 
@@ -59,7 +68,18 @@ Two more built-in roles (sets defined once in `models/access_service.py`):
   payment move), cancels payments, enters bank statements and reconciles them (including write-offs to accounts other than
   receivable, payable and liquidity). It does not post invoices or journal entries, close years, change setup or onboard ZATCA,
   and cannot manage budgets, assets or cost centers, or read the audit trail or zakat.
-- `finance_auditor` (مدقق): the seventeen `.read` capabilities, listed literally and nothing that changes data.
+- `finance_auditor` (مدقق): the nineteen `.read` capabilities, listed literally and nothing that changes data.
+
+## Repeated requests (`Idempotency-Key`)
+
+The routes that create a document or a payment (`POST /invoices`, `/payments`, `/payments/standalone`, `/entries`,
+`/bank-statements` and `/bank-statements/import`) accept an optional `Idempotency-Key` header (8 to 128 of letters, digits
+and `_ . : -`). A client that lost the answer sends the request again with the same key and gets the first answer back; nothing
+is created twice. The key is claimed in the route's own transaction, so a refused request leaves no key and can be sent again
+corrected. The same key with another route, user or body is 422 `idempotency_key_reused`; the loser of two requests with one key
+racing each other is 409 `duplicate_request`. Keys are per company, kept two days (`webvue.finance.idempotency`, the caller's own
+rows only) and need no cron: the next request purges the old ones. Without the header nothing changes. The race path rests on
+the unique `(company, key)` constraint and is not covered by a test (the test cases run in one transaction).
 
 ## Write semantics
 
@@ -67,7 +87,8 @@ Two more built-in roles (sets defined once in `models/access_service.py`):
   number, never a string. Records named by id (partner, tax, account, journal, invoices) must be
   visible in the current company, else 422 `invalid` on that field. A path record outside the
   company is a 404.
-- Invoices (`out_invoice | in_invoice | out_refund | in_refund`) are created as drafts with at
+- Invoices (`out_invoice | in_invoice | out_refund | in_refund`) are created as drafts, in the optional `journal_id` (a
+  journal of the document's kind in the company, chosen at creation only) or else the first journal of that kind, with at
   least one line `{name, price_unit, quantity=1, discount=0, tax_ids?, account_id?}`. Omitted
   `tax_ids` means the account's default taxes, `[]` means no tax. `currency` is a code and
   defaults to the company currency; `ref` is the customer/bill reference.
@@ -127,6 +148,159 @@ the route gates per capability (`tests/test_finance_capability_isolation.py`,
 
 The capability split is route-level and relies on the pending closing of Odoo's generic ORM
 endpoints, which would otherwise let the broader stock groups act directly.
+
+## Accounts
+
+`finance.accounts.manage` (needs `accounts.read`) creates, edits and archives the accounts of the current company; there
+is no delete. No `sudo()`: `security/ir.model.access.csv` gives the capability group create and write (not unlink) on
+`account.account`, as for cost centers and budgets, and every audit write is in the caller's environment. A body is
+`{code, name, account_type, reconcile?, currency?}` (`currency` is a code or `null`); `PATCH` takes any of them. Odoo's own
+constraints stay in force (unique code, receivable/payable must reconcile, currency and reconcile switches on used
+accounts). On top of them: an account that has journal items keeps its type (422 `account_in_use`), and an account cannot
+be archived while it has a posted balance, is the default account of a journal or sits on a tax (422 `account_in_use`).
+Each write leaves an audit event (`account_created`, `account_changed`, `account_archived`, `account_unarchived`) with
+field names only. The list hides archived accounts unless `archived=true`.
+
+## Journals
+
+`finance.journals.manage` (needs `journals.read`) creates, edits and archives the journals of the current company, with
+create/write ACL rows on `account.journal` and no `sudo()`. `POST {name, code, type, currency?, default_account_id?}`:
+a `bank` or `cash` journal must name its `default_account_id` (an account of the company, made through the accounts
+routes), so the journals route never creates an account. The type is chosen at creation and `PATCH` refuses it. The
+code is unique per company (422 `invalid` on `code`). Odoo refuses to archive a journal that holds draft entries.
+
+## Taxes and payment terms
+
+`finance.taxes.manage` and `finance.payment_terms.manage` (each needs its `.read`) work through ACL rows, no `sudo()`.
+A tax is a single `sale` or `purchase` tax, `percent` or `fixed`, with the default repartition (100% base, 100% tax).
+`tax_account_id` is required on creation and is where the tax amount is booked, on both the invoice and the credit-note
+distribution (a tax without one would book its amount on the line's expense or income account, and a receivable or payable
+account is refused by Odoo); group taxes, cash-basis settings and tax tags are not edited here. Once journal items use
+a tax (`used`), its kind, rate, price-include setting and tax account are fixed (422 `tax_in_use`); it can still be renamed or
+archived. A payment term is `{name, note?, lines: [{value: percent|fixed, value_amount, nb_days, delay_type?}]}`; the
+percent lines must add up to 100 and a `PATCH` with `lines` replaces them. Terms without a company come with the chart
+and are shared: listed and readable, but 422 `shared_record` on every write. Both resources are archived, never deleted,
+and each write leaves an audit event with field names only.
+
+## Receipts, advances and allocation
+
+`POST /payments` still pays posted invoices and refuses an amount above their open balance. Money that names no invoice
+goes through `POST /payments/standalone` `{payment_type, partner_id, amount, payment_date, journal_id, partner_type?,
+payment_method_line_id?, memo?}`: `inbound` is a receipt from a customer, `outbound` a payment to a vendor (`partner_type`
+overrides that, so a refund of a customer advance is an outbound payment to a customer). It is created and posted in one
+step and leaves its whole amount `unallocated`. Every payment carries `unallocated` (what it still holds open on the
+partner's receivable or payable account, zero until posted) and `invoices` (the invoices it is set against now, read from
+its reconciliations).
+
+- `POST /payments/<id>/allocate` takes exactly one of `invoice_ids` or `payment_ids` and reconciles the payment's open
+  balance with the open items of those posted documents (same partner, currency and account); a partial result is allowed.
+  A refund of an advance is an outbound payment allocated against it (`payment_ids`). Nothing to allocate is 422
+  `nothing_to_allocate`; a document that is not of the payment's partner, currency or side is 422 `invalid`.
+- `POST /payments/<id>/unallocate` removes those reconciliations (a locked period refuses it, 422 `period_locked`).
+- A cancelled payment reset to draft can be edited (`PATCH`, drafts only, else 422 `not_draft`) and posted again
+  (`POST /payments/<id>/post`). Odoo forgets the invoice of a payment reset to draft, so posting it again leaves its amount
+  unallocated; allocate it to the invoice again.
+- Odoo 19 Community has no internal-transfer payment: a transfer between bank and cash accounts is not covered yet (see
+  `docs/finance/finance-completion-gaps.md`).
+- Every create, edit, post, allocation and unallocation leaves an audit event.
+
+## Bank statement import (CSV)
+
+Banks export their own layouts, so the import is two steps over the same body `{journal_id, content, delimiter?,
+has_header?, date_format?, decimal_separator?, mapping?}` (`content` is the file text, at most 2 MiB and 5000 rows):
+
+1. `POST /bank-statements/import/preview` writes nothing. Without `mapping` it answers the header, a sample and the
+   columns the header names suggest (`suggested_mapping`, English and Arabic words). With a `mapping` (`date`,
+   `payment_ref`, and `amount` or `debit` with `credit`; columns by header name, or by position when `has_header` is false)
+   it answers every line the import would create (flagged `duplicate` when the journal already holds it), every unreadable
+   row with its row number, and the totals.
+2. `POST /bank-statements/import` adds `balance_start` and `balance_end_real` (both required) and creates one statement, whole
+   or not at all: an unreadable row is 422 `invalid_rows`; lines the journal already holds are 422 `duplicate_lines`
+   (`details.rows`) unless `skip_duplicates` is true; opening balance plus the new lines that is not the closing balance is
+   422 `balance_mismatch` (`details.expected`, `details.given`). The import is audited (`bank_statement_imported`).
+
+Numbers accept thousands separators, parentheses or a sign for negatives, `decimal_separator` `.` or `,`, and Arabic-Indic
+digits; dates use one of the listed formats (`DD/MM/YYYY` is not guessed, it is chosen). A line is a duplicate when the
+journal already holds at least as many lines with the same day, amount and reference as the file has shown so far, so two
+identical coffees in one file are both kept. Statements and imports work on bank and cash journals. OFX and CAMT files are
+not read: the pinned OCA set (`deploy/oca-addons.json`) has no statement-import repository, and adding
+`OCA/bank-statement-import` needs the owner's decision.
+
+## Asset profiles
+
+`POST /asset-profiles` `{name, asset_account_id, depreciation_account_id, expense_account_id, journal_id, method?, method_time?,
+method_number?, method_period?, prorata?, plus_value_account_id?, min_value_account_id?}` makes a depreciation profile for the
+current company: the asset and accumulated depreciation accounts must be fixed or non-current asset accounts, the expense an
+expense account, the journal a general journal. `method` is `linear` or `degressive` here. A profile is archived, never deleted,
+and an archived one cannot be chosen for a new asset. Once an asset uses the profile its accounts, journal and method are
+fixed (422 `profile_in_use`), so the depreciation of a running asset is never re-based silently; the name and the gain and
+loss accounts stay editable. Changing a profile never touches the entries already posted.
+
+## Asset disposal
+
+`POST /assets/<id>/dispose` `{date_remove, sale_value?, sale_account_id?, plus_account_id?, min_account_id?, note?}` sells
+(`sale_value` above zero, proceeds debited to `sale_account_id`: a bank, cash or receivable account) or scraps a running
+or fully depreciated asset, through OCA's removal wizard (`account.asset.remove`, with create/write ACL for the capability
+and no `sudo()`). The wizard first posts the depreciation up to the day before the date (an early removal), clears the asset
+and its accumulated depreciation, and books the gain on `plus_account_id` or the loss on `min_account_id` (profile
+defaults; a missing one the result needs is 422 `invalid`). The removal entry is posted, the asset becomes `removed` and
+carries `date_remove`. A date in a locked period is 422 `period_locked`; a date before the last posted depreciation is
+refused by the wizard (422 `invalid`); a draft or already removed asset is 422 `invalid_state`.
+
+## Undoing, correcting and matching automatically
+
+- `POST /bank-statement-lines/<id>/unreconcile` undoes a reconciliation through OCA's `unreconcile_bank_line`: the journal's
+  reconcile mode decides whether the matching and the entries made for it are removed (`edit`) or the matched entries are
+  reversed (`keep`). A line that is not reconciled is 422 `invalid_state`.
+- `PATCH /bank-statements/<id>` corrects the name and the opening and closing balances; `DELETE` removes a statement none
+  of whose lines is reconciled (422 `has_reconciliations`, `details.line_ids`: undo them first). Both are audited.
+- `POST /bank-statements/<id>/auto-reconcile` `{apply?}` matches only the lines that have exactly one certain item: one open
+  item that clears the line to the cent and is tied to it by the same partner or by its entry number in the line reference.
+  Without `apply: true` nothing is written. Every other line is listed in `review` as `ambiguous`, `no_match` or `failed`;
+  nothing is guessed, and each line is matched in its own savepoint so one refusal does not stop the rest.
+- Not done: foreign-currency exchange differences in a reconciliation, partial matches proposed automatically, and OCA
+  reconcile models and rules (the route above is the only automatic rule).
+
+## Cash flow statement
+
+`GET /reports/cash-flow?date_from&date_to` (`finance.statements.read`) is the statement of cash flows by the indirect method,
+built from the posted journal items of the current company with the year-end closing entries left out. Cash is the
+accounts of type `asset_cash`. Operating is net income, the depreciation added back, and the change of receivables, prepayments,
+other current assets, payables, credit cards and other current liabilities; investing is the change of the fixed and
+non-current asset accounts less the depreciation (so only purchases and sales remain); financing is the change of equity and
+non-current liabilities. Each line is an account with its cash effect (positive when cash comes in), so it can be opened
+down to the entries. `difference` is the check against the change of the cash accounts: it is zero when every account kind
+is classified, and a kind outside the three sections would show there, not be hidden. `basis` is `indirect` and `statutory`
+is always `false`: this is an accounting statement from the books, not a filed one; a Saudi accountant must review its
+classification before it is relied on. The direct method is not offered (it needs the payment-to-document chain that Odoo
+Community's reports do not keep).
+
+## VAT return boxes
+
+`GET /reports/vat-return?date_from&date_to` gives the sixteen boxes of the Saudi VAT return (standard rated sales, private
+healthcare and education, zero rated, exports, exempt, total sales; standard rated, customs, reverse charge, zero rated and
+exempt purchases, total purchases; the VAT due, corrections, carried-forward credit and the net VAT) with a `base` and/or
+a `tax` column. WebVue reads the definition `l10n_sa.tax_report_vat_filing` that the Saudi localisation ships as data (the
+engine that evaluates it is Enterprise) and applies its rule: a tag box is the balance of the posted items that carry the
+tag, negated when the formula starts with a minus; a total box adds and subtracts boxes by code. A tax therefore lands in
+the box its tax tags name, which a company must check for any custom tax it adds. `GET /reports/vat-return/items?code&column`
+lists the journal items behind one column of one box (entry, type, account, partner, balance and contribution), so every
+figure opens down to the documents. The answer is `status: draft_for_review` and `filed: false`: WebVue prepares the figures,
+the taxpayer reviews them and files on the ZATCA portal. Opening a custom tax's tags, the correction boxes 14 and 15 (which
+come from tagged manual entries) and the review by a Saudi accountant are not automated.
+
+## Zakat workpaper
+
+The Zakat base is the books' figure (the MIS template, simplified, for management information) plus what only the company
+knows. `finance.zakat.manage` records **adjustments** for a fiscal year end: `{date_to, kind: add|deduct, label, amount, note?}`;
+`GET /reports/zakat-base` then answers `template_base`, the `adjustments`, `adjustments_total`, and `base` and `zakat_due`
+after them (a negative base owes nothing). `finance.zakat.review` records a **review**: the reviewer states a `credential`
+(for example a SOCPA licence number; WebVue does not verify it) and the row keeps the base and Zakat due as reviewed, the
+reviewer, the time and a fingerprint of the books' figures and the adjustments. `status` is `management_information` until a
+review exists, `reviewed` while the latest review still matches, `review_stale` after any later posting or adjustment; reviews are
+never edited or removed. Preparing the adjustments and reviewing them are separate capabilities, so one person need not do both.
+`filed` is always `false`: this is a workpaper; filing the Zakat return is the taxpayer's, and the formula's compliance with
+ZATCA's rules is for a qualified Saudi accountant to confirm (see the template's `disclaimer`).
 
 ## Journal entries
 
@@ -537,7 +711,7 @@ answer is 422 `not_balanced`; a reconciled line is 422 `invalid_state`.
 The reconcile and proposal routes call private methods of account_reconcile_oca (`_default_reconcile_data`,
 `_add_account_move_line`, `_recompute_suspense_line`): **a pin bump of `account_reconcile_oca` must re-run
 `test_finance_bank`.**
-Not covered: statement file import (OFX, CAMT, CSV), reconcile models and automatic rules, foreign-currency exchange
+Not covered: OFX and CAMT import, reconcile models and automatic rules, foreign-currency exchange
 differences, unreconciling, cash journals and editing a statement.
 
 ## Budgets (`finance.budgets.*`)
@@ -573,7 +747,14 @@ analytic distribution) is used; the by-KPI budget needs a hand-made MIS template
 - The rules live in the ORM too, for any caller: `mis.budget.by.account.item` create, write and unlink are refused unless the
   budget is a draft; `action_confirm`, `action_cancel` and `action_draft` check the same source states as the routes; a copy
   of a budget is a draft. A request body that repeats a path key (`budget_id`, `line_id`) is 422 `invalid`.
-- OCA's overlap rule is kept: lines of one account cannot overlap in time, so **one account cannot be budgeted for two
-  analytic accounts in the same period** (use one line for the account, or distinct periods).
+- OCA's overlap rule is kept by default: lines of one account cannot overlap in time. A budget with `cost_center_split: true`
+  (OCA's own `allow_items_overlap` switch) lets one account be budgeted for several cost centers in the same period, one
+  line per cost center. WebVue keeps an account from being counted twice: on such a budget, lines of one account that overlap
+  in time must each name a different cost center (422 `cost_center_overlap`, so neither a repeated cost center nor a line
+  without one beside a line with one).
+- `POST /budgets/<id>/lines/distribute` `{account_id, amount, shares: [{analytic_account_id, percent}], date_from?, date_to?,
+  label?}` splits one account's budget between cost centers: one line per cost center for `amount` times its percent (the
+  percents add up to 100, each cost center once; the rounding difference goes to the largest share). It switches the split on.
+  The report then compares each cost center's budget with the analytic lines of that cost center, so no data is stored twice.
 - Not covered: budget by KPI, account-group lines, copying a budget, commitments (purchase orders), budget control on
   postings, and several analytic accounts or shares on one line.

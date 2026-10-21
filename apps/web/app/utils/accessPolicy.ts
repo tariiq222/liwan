@@ -1,6 +1,7 @@
 import { canUse, featureForPath, hasFeature, pathIsWrite } from '../modules/registry'
-import { activeManifests, manifestForPath, settingsEntryForPath } from '../modules/manifests'
-import { settingsSections, type SettingsSectionId } from '../composables/nav/settingsSections'
+import { activeManifests, manifestForPath, settingsPartForPath } from '../modules/manifests'
+import { appSettingsPages, settingsPageForPath, settingsPages, type SettingsPage } from '../composables/nav/settingsSections'
+import { normalizedPath } from './routePath'
 import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 
 /** Server capabilities gate navigation; resource authorization remains on the API. */
@@ -30,21 +31,22 @@ export function hasCapability(identity: AccessIdentity, capability: string): boo
 
 type Destination = readonly [path: string, capability: string]
 const FOUNDATION_RETURN_TO = ['/', '/account', '/search', '/notifications']
-/** The settings pages of one section (`settingsSections()` owns them), as destinations. */
-function sectionDestinations(id: SettingsSectionId): Destination[] {
-  return settingsSections().find(section => section.id === id)?.entries.map((entry): Destination => [entry.to, entry.capability]) ?? []
+/** The destinations of a settings page's parts: a part with its own or full list page opens it, a card opens the page. */
+function pageDestinations(pages: readonly SettingsPage[]): Destination[] {
+  return pages.flatMap(page => page.parts.map((part): Destination => [part.to ?? part.within ?? page.to, part.capability]))
 }
+const settingsPage = (id: string) => settingsPages().filter(page => page.id === id)
 /** Application landings in rail order, then team settings, then the landings that sort after settings, the applications' settings pages, then company and system settings. */
 function destinations(): readonly Destination[] {
   const landing = activeManifests().flatMap(manifest => manifest.landing ?? [])
   const toDestination = (entry: { path: string; capability: string }): Destination => [entry.path, entry.capability]
   return [
     ...landing.filter(entry => !entry.late).map(toDestination),
-    ...sectionDestinations('team'),
+    ...pageDestinations(settingsPage('team')),
     ...landing.filter(entry => entry.late).map(toDestination),
-    ...sectionDestinations('apps'),
-    ...sectionDestinations('company'),
-    ...sectionDestinations('system'),
+    ...pageDestinations(appSettingsPages()),
+    ...pageDestinations(settingsPage('company')),
+    ...pageDestinations(settingsPage('system')),
   ]
 }
 /** `feature` is an entry's explicit sub-feature (manifest `feature`), required on top of the capability's own gates. */
@@ -65,8 +67,7 @@ export function postLoginPath(identity: AccessIdentity, next: unknown): string {
   const fallback = Array.isArray(identity?.capabilities) ? '/' : firstAllowedPath(identity)
   const target = safeReturnTo(next, fallback, [...destinations().map(([path]) => path), ...FOUNDATION_RETURN_TO, ...activeManifests().flatMap(manifest => manifest.returnToPaths ?? [])])
   const pathname = new URL(target, 'http://webvue.local').pathname
-  const capability = requiredCapabilityForPath(pathname)
-  return capability && !canReach(identity, capability, pathname, requiredFeatureForPath(pathname)) ? fallback : target
+  return canReachPath(identity, pathname) ? target : fallback
 }
 /** The settings overview page; every other settings page lives beneath it, so it matches only itself. */
 export const SETTINGS_OVERVIEW_PATH = '/settings'
@@ -88,8 +89,8 @@ export function requiredFeatureForPath(path: string): string | undefined {
 export function requiredCapabilityForPath(path: string): string | null {
   const owned = ownedRouteRule(path)
   if (owned) return owned.capability
-  const registered = settingsEntryForPath(path)
-  if (registered) return registered.entry.capability
+  const registered = settingsPartForPath(path)
+  if (registered) return registered.part.capability
   if (path === '/') return INTERNAL_WEBVUE_ACCESS
   if (path === '/notifications') return NOTIFICATION_ACCESS
   if (path === '/settings/team/users/new') return 'access.users.grant'
@@ -97,11 +98,20 @@ export function requiredCapabilityForPath(path: string): string | null {
   if (/^\/settings\/team\/roles\/(new|[^/]+\/edit)$/.test(path)) return 'access.roles.manage'
   return destinations().find(([target]) => isNavPathActive(path, target))?.[1] ?? null
 }
+/** The cards of a settings page when `path` is that page itself: it opens for anyone who may see one of them. */
+function settingsCardsOpeningPage(path: string): string[] | null {
+  const page = settingsPageForPath(path)
+  if (!page || normalizedPath(path) !== page.to) return null
+  const cards = page.parts.filter(part => part.to === undefined)
+  return cards.length ? cards.map(({ capability }) => capability) : null
+}
 /**
  * Route-level gate. A path with a capability rule goes through `canReach`; a path an application
  * claims by prefix but no rule covers still needs that application's feature (never fail-open).
  */
 export function canReachPath(identity: AccessIdentity, path: string): boolean {
+  const cards = settingsCardsOpeningPage(path)
+  if (cards) return cards.some(capability => canReach(identity, capability, normalizedPath(path)))
   const capability = requiredCapabilityForPath(path)
   if (capability) return canReach(identity, capability, path, requiredFeatureForPath(path))
   const manifest = manifestForPath(path)

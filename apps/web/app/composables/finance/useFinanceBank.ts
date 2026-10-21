@@ -2,12 +2,17 @@ import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
+  FinanceBankAutoReconcileSchema,
+  FinanceBankImportColumnsSchema,
+  FinanceBankImportPreviewSchema,
   FinanceBankLineSchema,
   FinanceBankStatementDetailSchema,
   FinanceBankStatementListSchema,
   FinanceJournalListSchema,
   FinanceReconcileProposalListSchema,
+  type FinanceBankImport,
   type FinanceBankReconcile,
+  type FinanceBankStatementPatch,
   type FinanceBankStatementCreate,
 } from '@webvue/contracts'
 import type { BankListParams } from '@/components/finance/bank/bankListParams'
@@ -85,4 +90,48 @@ export function useReconcileFinanceBankLine() {
   const { $api } = useApi()
   return useBankWrite(({ lineId, body }: { lineId: number; body: FinanceBankReconcile }) =>
     $api(`/api/v1/finance/bank-statement-lines/${lineId}/reconcile`, { method: 'POST', body, schema: FinanceBankLineSchema }))
+}
+
+/** Reads the file and writes nothing: without a mapping the answer is the columns, with one the lines the import would create. */
+export function useFinanceBankImportColumns() {
+  const { $api } = useApi()
+  return useMutation({ mutationFn: (body: Record<string, unknown>) => $api('/api/v1/finance/bank-statements/import/preview', { method: 'POST', body, schema: FinanceBankImportColumnsSchema }) })
+}
+
+export function useFinanceBankImportPreview() {
+  const { $api } = useApi()
+  return useMutation({ mutationFn: (body: Record<string, unknown>) => $api('/api/v1/finance/bank-statements/import/preview', { method: 'POST', body, schema: FinanceBankImportPreviewSchema }) })
+}
+
+/** The key stays with the form instance: saving again after a lost answer replays the first import instead of doubling it. */
+export function useImportFinanceBankStatement() {
+  const { $api } = useApi()
+  const key = crypto.randomUUID()
+  return useBankWrite((body: FinanceBankImport) =>
+    $api('/api/v1/finance/bank-statements/import', { method: 'POST', body, headers: { 'Idempotency-Key': key }, schema: FinanceBankStatementDetailSchema }))
+}
+
+export function useUnreconcileFinanceBankLine() {
+  const { $api } = useApi()
+  return useBankWrite((lineId: number) => $api(`/api/v1/finance/bank-statement-lines/${lineId}/unreconcile`, { method: 'POST', body: {}, schema: FinanceBankLineSchema }))
+}
+
+/** Without `apply` the answer is only what would be matched; with it the certain matches are written. */
+export function useAutoReconcileFinanceBankStatement() {
+  const { $api } = useApi()
+  return useBankWrite(({ id, apply }: { id: number; apply: boolean }) =>
+    $api(`/api/v1/finance/bank-statements/${id}/auto-reconcile`, { method: 'POST', body: { apply }, schema: FinanceBankAutoReconcileSchema }))
+}
+
+/** Corrects the name and the balances of a statement; the lines are not edited here. */
+export function usePatchFinanceBankStatement() {
+  const { $api } = useApi()
+  return useBankWrite(({ id, body }: { id: number; body: FinanceBankStatementPatch }) =>
+    $api(`/api/v1/finance/bank-statements/${id}`, { method: 'PATCH', body, schema: FinanceBankStatementDetailSchema }))
+}
+
+/** Removes a statement none of whose lines is reconciled. */
+export function useDeleteFinanceBankStatement() {
+  const { $api } = useApi()
+  return useBankWrite((id: number) => $api(`/api/v1/finance/bank-statements/${id}`, { method: 'DELETE' }))
 }

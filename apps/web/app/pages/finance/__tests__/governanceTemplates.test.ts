@@ -19,7 +19,7 @@ function sources(dir: string): string[] {
   })
 }
 
-const PAGES = ['closing', 'zatca', 'audit'].map(name => `pages/settings/apps/finance/${name}.vue`)
+const PAGES = ['pages/settings/apps/finance/index.vue', 'pages/settings/apps/finance/audit.vue']
 const FILES = [
   ...PAGES,
   ...sources('components/finance/governance'),
@@ -36,12 +36,13 @@ const locale = (code: string) => JSON.parse(readFileSync(resolve(locales, `${cod
 
 describe('the finance governance pages stay on their templates', () => {
   it.each([
-    ['pages/settings/apps/finance/closing.vue', ['<SharedSettingsPage', '<SharedPageHeader', "kind: 'count'", '<SharedForbiddenState', "can('finance.closing.read')"]],
-    ['pages/settings/apps/finance/zatca.vue', ['<SharedSettingsPage', '<SharedPageHeader', "'warning'", 'sandbox', '<SharedForbiddenState', "can('finance.zatca.read')"]],
+    ['pages/settings/apps/finance/index.vue', ['<ClosingView', 'id="closing"', "shows('closing')", '<ZatcaView', 'id="zatca"', "shows('zatca')", '<SettingsPreviewCard', '<AuditPreview', "shows('audit')"]],
+    ['components/finance/governance/AuditPreview.vue', ['<SettingsPreviewList', "can('finance.audit.read')"]],
     ['pages/settings/apps/finance/audit.vue', ['<SharedSettingsPage', '<SharedPageHeader', "kind: 'count'"]],
     ['components/finance/governance/ClosingYears.vue', ['<SharedRecordSection', '<SharedDataTable', ' bare', '#mobile-row', '<SharedStatusBadge']],
     ['components/finance/governance/ClosingPreview.vue', ['variant="action"', '<SharedInlineConfirm', 'color="error" variant="subtle"', '<SharedDataTable', ' bare', '#mobile-row', "can('finance.closing.manage')", "can('finance.setup.manage')"]],
     ['components/finance/governance/ZatcaBacklog.vue', ['<SharedMetricTile', 'density="compact"']],
+    ['components/finance/governance/ZatcaWorkList.vue', ['<SharedRecordSection', '<SharedDataTable', ' bare', '#mobile-row', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState', "can('finance.zatca.read')"]],
     ['components/finance/governance/ZatcaJournals.vue', ['<SharedStatusBadge', "can('finance.zatca.manage')"]],
     ['components/finance/governance/ZatcaOnboardForm.vue', ['inputmode="numeric"', '<SharedInlineConfirm', 'color="error" variant="subtle"', "can('finance.zatca.manage')"]],
     ['components/finance/governance/AuditList.vue', ['<SharedListCard', 'embedded', '<SharedFilterBar', '<SharedDateField', '<SharedDataTable', ' bare', '#mobile-row', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState', 'useRouteListFilters', "can('finance.audit.read')"]],

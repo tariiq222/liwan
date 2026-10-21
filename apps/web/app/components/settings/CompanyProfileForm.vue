@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { CompanyProfilePatch } from '@webvue/contracts'
 import CompanyExtensionField from '@/components/settings/CompanyExtensionField.vue'
-import CompanyHeaderCard from '@/components/settings/CompanyHeaderCard.vue'
 import { ApiError } from '@/composables/useApi'
 import {
   useCompanyProfile,
@@ -12,8 +11,8 @@ import {
 import { companyPatch, profileToForm, sectionExtensions, type CompanyForm, type CompanySection } from '@/utils/companyProfile'
 import { saveErrorMessage } from '@/utils/formFeedback'
 
-// One page of the company profile (the national address, the contact details or the profile itself): the company
-// header card, then the fields of that page. The three pages share this form, so they save and guard drafts alike.
+// One card of the company page (the profile itself, the national address or the contact details). The three cards share
+// this form, so they save and guard drafts alike; the company header card sits once above them.
 const props = defineProps<{ section: CompanySection }>()
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024
@@ -131,7 +130,6 @@ async function onLogo(event: Event) {
     </template>
   </UAlert>
   <div v-else-if="profile" class="webvue-form" :data-testid="`company-${section}`">
-    <CompanyHeaderCard :profile="profile" />
     <form class="webvue-form" novalidate @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <p v-if="!editable" class="text-sm text-muted" data-testid="company-readonly">{{ t('settings.company.readonly') }}</p>

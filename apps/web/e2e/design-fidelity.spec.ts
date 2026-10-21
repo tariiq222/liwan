@@ -84,7 +84,7 @@ test('settings use side navigation on desktop and stack on mobile', async ({ pag
   await page.setViewportSize({ width: 1440, height: 1000 })
   await login(page)
   await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'large' } })
-  await page.goto('/settings/company/branding')
+  await page.goto('/settings/company#branding')
   const nav = page.locator('.webvue-settings-nav')
   const form = page.getByTestId('branding-form')
   await expect(form).toBeVisible()

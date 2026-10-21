@@ -2,8 +2,6 @@
   "financeGovernance": {
     "forbidden": "You do not have permission to view this page.",
     "closing": {
-      "title": "Fiscal year closing",
-      "countTag": "{count} year | {count} years",
       "empty": "There are no fiscal years yet. Years appear once the first entry is posted.",
       "yearsTitle": "Fiscal years",
       "yearsHint": "Choose an open year to preview its closing entry before closing it.",
@@ -58,14 +56,6 @@
       }
     },
     "zatca": {
-      "title": "E-invoicing (ZATCA)",
-      "modes": {
-        "sandbox": "Sandbox",
-        "preprod": "Pre-production",
-        "prod": "Production"
-      },
-      "onboarded": "Connected to ZATCA",
-      "notOnboarded": "Not connected yet",
       "backlog": {
         "title": "Waiting invoices",
         "hint": "Invoices ZATCA has not accepted yet. Rejected and blocked ones need a manual correction.",
@@ -106,7 +96,19 @@
         "zatca_not_applicable": "This document is not a posted e-invoice."
       },
       "setupHint": "The company's full e-invoicing readiness is shown in",
-      "setupLink": "Finance setup"
+      "setupLink": "Finance setup",
+      "work": {
+        "title": "Documents waiting on ZATCA",
+        "hint": "E-invoices ZATCA has not accepted, oldest first. Open one to correct it or send it again.",
+        "allStates": "All waiting states",
+        "state": "State",
+        "invoice": "Invoice",
+        "partner": "Customer",
+        "date": "Date",
+        "amount": "Total",
+        "empty": "No document is waiting on ZATCA.",
+        "footer": "Showing {shown} of {total} document | Showing {shown} of {total} documents"
+      }
     },
     "audit": {
       "title": "Finance audit log",
@@ -129,6 +131,40 @@
       },
       "actions": {
         "chart_loaded": "Chart of accounts loaded",
+        "account_created": "Account created",
+        "account_changed": "Account changed",
+        "account_archived": "Account archived",
+        "account_unarchived": "Account unarchived",
+        "zakat_adjustment_added": "Zakat adjustment added",
+        "zakat_adjustment_removed": "Zakat adjustment removed",
+        "zakat_reviewed": "Zakat computation reviewed",
+        "asset_profile_created": "Asset profile created",
+        "asset_profile_changed": "Asset profile changed",
+        "asset_profile_archived": "Asset profile archived",
+        "asset_profile_unarchived": "Asset profile unarchived",
+        "asset_disposed": "Asset disposed of",
+        "bank_statement_imported": "Bank statement imported",
+        "bank_statement_changed": "Bank statement changed",
+        "bank_statement_deleted": "Bank statement deleted",
+        "bank_line_unreconciled": "Bank line unreconciled",
+        "bank_statement_auto_reconciled": "Bank statement auto-reconciled",
+        "payment_created": "Payment created",
+        "payment_changed": "Payment changed",
+        "payment_posted": "Payment posted",
+        "payment_allocated": "Payment allocated",
+        "payment_unallocated": "Payment unallocated",
+        "journal_created": "Journal created",
+        "journal_changed": "Journal changed",
+        "journal_archived": "Journal archived",
+        "journal_unarchived": "Journal unarchived",
+        "tax_created": "Tax created",
+        "tax_changed": "Tax changed",
+        "tax_archived": "Tax archived",
+        "tax_unarchived": "Tax unarchived",
+        "payment_term_created": "Payment term created",
+        "payment_term_changed": "Payment term changed",
+        "payment_term_archived": "Payment term archived",
+        "payment_term_unarchived": "Payment term unarchived",
         "company_written": "Company settings changed",
         "fiscal_year_closed": "Fiscal year closed",
         "zatca_onboarded": "Journal connected to ZATCA",

@@ -117,7 +117,8 @@
       }
     },
     "actions": {
-      "validate": "Run asset"
+      "validate": "Run asset",
+      "dispose": "Sell or scrap"
     },
     "confirm": {
       "validate": "Run “{name}”?",
@@ -125,7 +126,26 @@
     },
     "errors": {
       "notDraft": "Only a draft asset can be run.",
-      "periodLocked": "The accounting period is locked for this date."
+      "periodLocked": "The accounting period is locked for this date.",
+      "invalidState": "Only a running or fully depreciated asset can be sold or scrapped."
+    },
+    "dispose": {
+      "title": "Sell or scrap \"{name}\"",
+      "hint": "Depreciation is booked up to the date, the asset and its accumulated depreciation are cleared, and the proceeds and the gain or loss are posted. This cannot be edited afterwards.",
+      "date": "Disposal date",
+      "dateRequired": "Choose the disposal date",
+      "saleValue": "Sale proceeds",
+      "saleHelp": "Leave empty to scrap the asset.",
+      "saleInvalid": "Enter a valid amount",
+      "saleAccount": "Proceeds account",
+      "saleAccountHelp": "Where the proceeds are debited: a bank, cash or receivable account.",
+      "saleAccountRequired": "Choose the proceeds account",
+      "plusAccount": "Gain account",
+      "minAccount": "Loss account",
+      "defaultHelp": "Defaults to the profile's account.",
+      "note": "Note",
+      "submitSale": "Sell the asset",
+      "submitScrap": "Scrap the asset"
     }
   }
 }

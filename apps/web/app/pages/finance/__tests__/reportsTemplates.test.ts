@@ -7,8 +7,8 @@ import { financeReportsPreviewData } from '../../../../e2e/finance-reports-ui-pr
 // The finance report page and its tables stay on the list template. This is a source guard, not a behaviour test.
 const app = resolve(import.meta.dirname, '../../..')
 const read = (path: string) => readFileSync(resolve(app, path), 'utf8')
-const TABLES = ['TrialBalanceTable', 'GeneralLedgerTable', 'AgedBalanceTable', 'PartnerStatementTable', 'VatTable', 'WithholdingTable', 'AnalyticTable', 'MisLinesTable']
-const FILES = ['pages/finance/reports/[report].vue', 'components/finance/reports/ReportView.vue', 'components/finance/reports/ReportFilters.vue', ...TABLES.map(name => `components/finance/reports/${name}.vue`), 'components/finance/reports/ZakatBaseTable.vue', 'components/finance/budgets/BudgetVarianceTable.vue']
+const TABLES = ['TrialBalanceTable', 'GeneralLedgerTable', 'AgedBalanceTable', 'PartnerStatementTable', 'VatTable', 'WithholdingTable', 'AnalyticTable', 'MisLinesTable', 'CashFlowTable', 'VatReturnTable']
+const FILES = ['pages/finance/reports/[report].vue', 'components/finance/reports/ReportView.vue', 'components/finance/reports/ReportFilters.vue', ...TABLES.map(name => `components/finance/reports/${name}.vue`), 'components/finance/reports/ZakatBaseTable.vue', 'components/finance/reports/VatReturnItems.vue', 'components/finance/reports/ZakatAdjustments.vue', 'components/finance/reports/ZakatReview.vue', 'composables/finance/useFinanceZakat.ts', 'components/finance/budgets/BudgetVarianceTable.vue']
 
 describe('the finance report pages stay on their templates', () => {
   it.each([
@@ -23,7 +23,7 @@ describe('the finance report pages stay on their templates', () => {
   it.each(TABLES)('%s draws a bare data table with a phone row and a totals footer', (name) => {
     const source = read(`components/finance/reports/${name}.vue`)
     for (const needle of ['<SharedDataTable bare', '#mobile-row', 'amountColumn', 'Money']) expect(source, needle).toContain(needle)
-    if (!['GeneralLedgerTable', 'MisLinesTable'].includes(name)) expect(source).toContain('#footer')
+    if (!['GeneralLedgerTable', 'MisLinesTable', 'VatReturnTable'].includes(name)) expect(source).toContain('#footer')
   })
 
   it('draws the Zakat base with its disclaimer always shown above the table', () => {
@@ -31,6 +31,24 @@ describe('the finance report pages stay on their templates', () => {
     for (const needle of ['<UAlert', 'color="warning"', 'variant="subtle"', 'report.disclaimer', '<MisLinesTable']) expect(source, needle).toContain(needle)
     expect(source).not.toMatch(/v-if=/)
     expect(source.indexOf('<UAlert')).toBeLessThan(source.indexOf('<MisLinesTable'))
+  })
+
+  it('shows the VAT return and cash flow notices always, never behind a condition', () => {
+    for (const [file, id] of [['VatReturnTable', 'finance-vat-return-notice'], ['CashFlowTable', 'finance-cash-flow-notice']] as const) {
+      const source = read(`components/finance/reports/${file}.vue`)
+      const alert = source.slice(source.indexOf('<UAlert'), source.indexOf('/>', source.indexOf(id)))
+      expect(alert, file).not.toMatch(/v-if=/)
+      expect(source.indexOf(id), file).toBeLessThan(source.indexOf('<SharedDataTable'))
+    }
+    expect(read('components/finance/reports/VatReturnTable.vue')).toContain('<VatReturnItems')
+  })
+
+  it('puts the Zakat adjustments and review under the table, each gated by its own capability and never filing', () => {
+    expect(read('components/finance/reports/ZakatBaseTable.vue')).toContain('<ZakatAdjustments')
+    expect(read('components/finance/reports/ZakatBaseTable.vue')).toContain('<ZakatReview')
+    expect(read('components/finance/reports/ZakatAdjustments.vue')).toContain("can('finance.zakat.manage')")
+    expect(read('components/finance/reports/ZakatReview.vue')).toContain("can('finance.zakat.review')")
+    expect(read('components/finance/reports/ZakatAdjustments.vue')).toContain('<SharedInlineConfirm')
   })
 
   it('shares the budget variance table between the budget record and the report', () => {

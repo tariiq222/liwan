@@ -10,6 +10,7 @@ import {
 } from './nav/shellModules'
 import { activeShellModule, contextModuleFor } from './nav/activeRoute'
 import { CONTEXT_SIDEBAR_COOKIE, contextSidebarState, type ContextSidebarCookie } from './nav/contextSidebarState'
+import { effectiveActivePart, anchorOf } from './nav/settingsScroll'
 import { isNavPathActive, type AccessIdentity } from '../utils/accessPolicy'
 
 export function useContextSidebar() {
@@ -25,26 +26,36 @@ export function useContextSidebar() {
 export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
   const route = useRoute()
   const identityValue = computed(() => toValue(identity))
+  const activePart = useSettingsActivePart()
+  // The server never sees the URL hash, so the first client render must not either: a hydration pass that disagrees
+  // with the server's markup leaves the stale attribute in the DOM.
+  const hydrated = useHydrated()
   const activeModule = computed<ShellModule | null>(() => activeShellModule(route.path))
   // Inside a project the sidebar keeps the projects module links (2026-09-11);
   // the project's own sections are tabs inside the page.
   const contextLinks = computed<ShellContextLink[]>(() => {
     const linksModule = contextModuleFor(activeModule.value)
     if (!linksModule) return []
-    return contextLinksForModule(linksModule, identityValue.value, route.path)
+    const links = contextLinksForModule(linksModule, identityValue.value, route.path)
       .map(link => route.path === '/projects' && link.id === 'projects'
         ? { ...link, to: { path: '/projects', query: { ...route.query, mine: undefined, offset: undefined } } }
         : link)
-      .map(link => ({ ...link, active: isContextLinkActive(route.path, link) }))
+    const part = effectiveActivePart(route.path, links, activePart.value, hydrated.value ? route.hash : '')
+    return links.map(link => ({ ...link, active: isContextLinkActive(route.path, link, part) }))
   })
   const module = computed(() => visibleShellModules(identityValue.value).find(item => item.id === activeModule.value) ?? null)
   return { activeModule, module, contextLinks }
 }
 
-/** A link is active on its `within` prefix, only on its own path when `exact`, else by `isContextPathActive`. */
-export function isContextLinkActive(path: string, link: Pick<ShellContextLink, 'to' | 'exact' | 'within'>): boolean {
-  if (link.within) return isNavPathActive(path, link.within)
+/**
+ * A link is active on its `within` prefix, only on its own path when `exact`, else by `isContextPathActive`. A link
+ * that scrolls to a card of its page (a hash target) is active there while that card is `activePart`.
+ */
+export function isContextLinkActive(path: string, link: Pick<ShellContextLink, 'to' | 'exact' | 'within'>, activePart: string | null = null): boolean {
+  const anchor = anchorOf(link)
   const target = typeof link.to === 'string' ? link.to : link.to.path ?? ''
+  if (anchor !== null) return (link.within !== undefined && isNavPathActive(path, link.within)) || ((path.replace(/\/+$/, '') || '/') === target && anchor === activePart)
+  if (link.within) return isNavPathActive(path, link.within)
   return link.exact ? (path.replace(/\/+$/, '') || '/') === target : isContextPathActive(path, link.to)
 }
 

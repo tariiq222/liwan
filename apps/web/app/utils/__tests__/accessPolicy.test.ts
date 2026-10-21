@@ -48,7 +48,13 @@ describe('access policy navigation', () => {
     expect(postLoginPath(admin, '/login')).toBe('/')
     expect(postLoginPath({ capabilities: [] }, '/account')).toBe('/account')
     expect(postLoginPath({ capabilities: [] }, '/settings/appearance')).toBe('/')
-    expect(postLoginPath({ capabilities: [] }, '/settings/company/branding')).toBe('/')
+    expect(postLoginPath({ capabilities: [] }, '/settings/company')).toBe('/')
+  })
+  it('sends a user to a settings page when any of its cards is theirs, not only the first', () => {
+    expect(postLoginPath({ capabilities: ['settings.branding.manage'] }, '/settings/company')).toBe('/settings/company')
+    expect(postLoginPath({ capabilities: ['settings.maintenance.manage'] }, '/settings/system')).toBe('/settings/system')
+    expect(postLoginPath({ capabilities: ['finance.analytic.read'] }, '/settings/apps/finance')).toBe('/settings/apps/finance')
+    expect(postLoginPath({ capabilities: ['settings.maintenance.manage'] }, '/settings/company')).toBe('/')
   })
   it('does not activate the employee item for departments or documents', () => {
     expect(isNavPathActive('/hr/employees/7/edit', '/hr')).toBe(true)
@@ -79,6 +85,19 @@ describe('access policy navigation', () => {
     expect(isNavPathActive('/settings/apps/projects/catalogs/types', '/settings/apps/projects')).toBe(true)
     expect(isNavPathActive('/settings/team/users', '/settings')).toBe(false)
     expect(isNavPathActive('/settings', '/settings')).toBe(true)
+  })
+  it('opens a settings page to anyone who may see one of its cards, and gates its full pages separately', () => {
+    expect(canReachPath({ capabilities: ['integrations.read'] }, '/settings/system')).toBe(true)
+    expect(canReachPath({ capabilities: ['settings.maintenance.manage'] }, '/settings/system')).toBe(true)
+    expect(canReachPath({ capabilities: ['access.users.read'] }, '/settings/system')).toBe(false)
+    expect(canReachPath({ capabilities: ['pmo.settings.manage'] }, '/settings/apps/projects')).toBe(true)
+    expect(canReachPath({ capabilities: ['finance.audit.read'] }, '/settings/apps/finance/audit')).toBe(true)
+    expect(canReachPath({ capabilities: ['finance.audit.read'] }, '/settings/apps/finance')).toBe(true)
+    expect(canReachPath({ capabilities: ['finance.invoices.read'] }, '/settings/apps/finance')).toBe(false)
+    expect(canReachPath({ capabilities: ['access.roles.read'] }, '/settings/team')).toBe(true)
+    expect(canReachPath({ capabilities: ['access.roles.read'] }, '/settings/team/users')).toBe(false)
+    expect(requiredCapabilityForPath('/settings/system')).toBe('integrations.read')
+    expect(firstAllowedPath({ capabilities: ['settings.maintenance.manage'] })).toBe('/settings/system')
   })
   it('keeps /chat for internal WebVue identities and rejects portal or role-only objects', () => {
     const internal = { capabilities: ['access.users.read'] }

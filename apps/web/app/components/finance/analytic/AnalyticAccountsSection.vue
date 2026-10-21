@@ -13,7 +13,7 @@ import { ANALYTIC_PAGE_SIZE, analyticAccountParams, analyticActiveFilterCount, a
 // inline editor or confirmation above it. There is no delete; an archived cost center can be brought back.
 const { t } = useI18n()
 const { can } = useAccess()
-const { hydrated, filterQuery, search, update } = useRouteListFilters({ fallbackPath: () => '/settings/apps/finance/analytic', safeReturnTo: (_value, fallback) => fallback })
+const { hydrated, filterQuery, search, update } = useRouteListFilters({ fallbackPath: () => '/settings/apps/finance', safeReturnTo: (_value, fallback) => fallback })
 const canManage = computed(() => can('finance.analytic.manage'))
 const filters = computed(() => analyticFiltersFromQuery(filterQuery.value))
 const activeCount = computed(() => analyticActiveFilterCount(filters.value))

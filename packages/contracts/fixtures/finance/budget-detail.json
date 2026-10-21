@@ -1,22 +1,42 @@
 {
+  "cost_center_split": true,
   "currency": "SAR",
   "date_from": "2026-01-01",
   "date_to": "2026-12-31",
-  "description": "Annual plan",
+  "description": "",
   "id": 1,
-  "line_count": 1,
+  "line_count": 2,
   "lines": [
     {
       "account": {
         "id": 3,
         "name": "600901 Budgeted expense"
       },
-      "amount": 2500.5,
-      "analytic_account": null,
-      "date_from": "2026-02-01",
-      "date_to": "2026-03-31",
+      "amount": 6000.0,
+      "analytic_account": {
+        "id": 4,
+        "name": "Riyadh branch"
+      },
+      "date_from": "2026-01-01",
+      "date_to": "2026-12-31",
       "id": 2,
-      "label": "Paper",
+      "label": "",
+      "nature": "debit"
+    },
+    {
+      "account": {
+        "id": 3,
+        "name": "600901 Budgeted expense"
+      },
+      "amount": 4000.0,
+      "analytic_account": {
+        "id": 6,
+        "name": "Jeddah branch"
+      },
+      "date_from": "2026-01-01",
+      "date_to": "2026-12-31",
+      "id": 5,
+      "label": "",
       "nature": "debit"
     }
   ],

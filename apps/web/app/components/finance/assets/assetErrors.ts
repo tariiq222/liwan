@@ -2,6 +2,7 @@
 const CODE_KEYS = {
   not_draft: 'notDraft',
   period_locked: 'periodLocked',
+  invalid_state: 'invalidState',
 } as const
 
 export function assetErrorKey(code: string): string | null {

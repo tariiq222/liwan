@@ -4,10 +4,12 @@ import {
   FinanceAnalyticReportSchema,
   FinanceBalanceSheetSchema,
   FinanceBudgetVsActualSchema,
+  FinanceCashFlowSchema,
   FinanceGeneralLedgerSchema,
   FinancePartnerStatementSchema,
   FinanceProfitLossSchema,
   FinanceTrialBalanceSchema,
+  FinanceVatReturnSchema,
   FinanceVatSummarySchema,
   FinanceWithholdingSummarySchema,
   FinanceZakatBaseSchema,
@@ -15,16 +17,18 @@ import {
   type FinanceAnalyticReport,
   type FinanceBalanceSheet,
   type FinanceBudgetVsActual,
+  type FinanceCashFlow,
   type FinanceGeneralLedger,
   type FinancePartnerStatement,
   type FinanceProfitLoss,
   type FinanceTrialBalance,
+  type FinanceVatReturn,
   type FinanceVatSummary,
   type FinanceWithholdingSummary,
   type FinanceZakatBase,
 } from '@webvue/contracts'
 
-export const REPORT_SLUGS = ['trial-balance', 'general-ledger', 'aged-partner-balance', 'partner-statement', 'vat', 'withholding', 'analytic', 'profit-loss', 'balance-sheet', 'zakat-base', 'budget-vs-actual'] as const
+export const REPORT_SLUGS = ['trial-balance', 'general-ledger', 'aged-partner-balance', 'partner-statement', 'vat', 'withholding', 'analytic', 'profit-loss', 'balance-sheet', 'zakat-base', 'budget-vs-actual', 'cash-flow', 'vat-return'] as const
 export type ReportSlug = (typeof REPORT_SLUGS)[number]
 
 /** A report as the server sent it, tagged with its slug so the page narrows `data` by `slug` alone. */
@@ -40,6 +44,8 @@ export type LoadedReport =
   | { slug: 'balance-sheet'; data: FinanceBalanceSheet }
   | { slug: 'zakat-base'; data: FinanceZakatBase }
   | { slug: 'budget-vs-actual'; data: FinanceBudgetVsActual }
+  | { slug: 'cash-flow'; data: FinanceCashFlow }
+  | { slug: 'vat-return'; data: FinanceVatReturn }
 
 /**
  * The filters a report takes. `period`: `range` sends `date_from` and `date_to`, `end` only `date_to` (balances as of a day).
@@ -133,6 +139,18 @@ export const REPORTS: Record<ReportSlug, ReportConfig> = {
     capability: 'finance.budgets.read',
     schema: FinanceBudgetVsActualSchema.transform(data => ({ slug: 'budget-vs-actual' as const, data })),
     filters: { ...NONE, period: 'end', budget: true },
+  },
+  'cash-flow': {
+    key: 'cashFlow',
+    capability: 'finance.statements.read',
+    schema: FinanceCashFlowSchema.transform(data => ({ slug: 'cash-flow' as const, data })),
+    filters: NONE,
+  },
+  'vat-return': {
+    key: 'vatReturn',
+    capability: 'finance.reports.read',
+    schema: FinanceVatReturnSchema.transform(data => ({ slug: 'vat-return' as const, data })),
+    filters: NONE,
   },
 }
 
