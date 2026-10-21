@@ -40,10 +40,11 @@ test.describe('payroll runs list', () => {
     await expect(dialog(page).getByRole('heading', { name: 'مسير رواتب جديد', exact: true })).toBeVisible()
     await expect(page.getByTestId('hr-payroll-run-submit')).toBeEnabled()
     await page.getByTestId('hr-payroll-month').fill('2026-11')
+    // The refused request is logged by the browser; it is the behaviour under test.
+    const withoutRefusals = trackRefusedRequests(page, '/api/v1/hr/payroll/runs')
     await page.getByTestId('hr-payroll-run-submit').click()
     await expect(dialog(page).getByText('يوجد مسير لهذا الشهر بالفعل.')).toBeVisible()
-    // The refused request is logged by the browser; it is the behaviour under test.
-    errors = errors.filter(message => !message.includes('422'))
+    errors = withoutRefusals(errors)
     await page.getByTestId('hr-payroll-month').fill('2027-01')
     await page.getByTestId('hr-payroll-run-submit').click()
     await expect(page).toHaveURL(/\/hr\/payroll\/4\?returnTo=/)
@@ -213,11 +214,12 @@ test.describe('payroll posting and payment', () => {
   test('a refused posting preview shows its own text and blocks the post', async ({ page }) => {
     expect((await page.request.post('/api/v1/__mock/reset-payroll', { data: { previewError: true } })).status()).toBe(200)
     await open(page, '/hr/payroll/1', 'مسير رواتب أكتوبر 2026')
+    // The refused request is logged by the browser; it is the behaviour under test.
+    const withoutRefusals = trackRefusedRequests(page, '/api/v1/hr/payroll/runs/1/posting-preview')
     await page.getByTestId('hr-payroll-post').click()
     await expect(page.getByTestId('hr-payroll-preview-failure')).toContainText('بلا مركز تكلفة')
     await expect(page.getByTestId('inline-confirm-action')).toBeDisabled()
-    // The refused request is logged by the browser; it is the behaviour under test.
-    errors = errors.filter(message => !message.includes('422'))
+    errors = withoutRefusals(errors)
     await expect(page.getByTestId('hr-payroll-preview-retry')).toBeVisible()
   })
 
@@ -255,10 +257,11 @@ test.describe('payroll finance settings', () => {
 
   test('settings hides finance section on 404', async ({ page }) => {
     expect((await page.request.post('/api/v1/__mock/reset-payroll', { data: { finance: false } })).status()).toBe(200)
+    // The refused finance request is logged by the browser; it is the behaviour under test.
+    const withoutFinanceRefusals = trackRefusedRequests(page, '/api/v1/hr/payroll/finance-settings')
     await open(page, '/hr/payroll/settings', 'إعدادات الرواتب')
     await expect(page.getByTestId('hr-payroll-settings-form')).toBeVisible()
-    // The refused finance request is logged by the browser; it is the behaviour under test.
-    errors = errors.filter(message => !message.includes('404'))
+    errors = withoutFinanceRefusals(errors)
     await expect(page.getByTestId('hr-payroll-finance-form')).toHaveCount(0)
     await expect(page.getByTestId('hr-payroll-cost-center-2')).toHaveCount(0)
   })
@@ -301,11 +304,12 @@ test.describe('payroll settings', () => {
 test.describe('payroll salary files', () => {
   test('missing IBAN shows the employee names', async ({ page }) => {
     await open(page, '/hr/payroll/1', 'مسير رواتب أكتوبر 2026')
+    // The refused request is logged by the browser; it is the behaviour under test.
+    const withoutRefusals = trackRefusedRequests(page, '/api/v1/hr/payroll/runs/1/bank-file')
     await page.getByTestId('hr-payroll-download-bank').click()
     await expect(page.getByTestId('hr-payroll-run-failure')).toContainText('خالد الشمري')
     await expect(page.getByTestId('hr-payroll-run-failure')).toContainText('لا آيبان مسجّل')
-    // The refused request is logged by the browser; it is the behaviour under test.
-    errors = errors.filter(message => !message.includes('422'))
+    errors = withoutRefusals(errors)
   })
 
   test('a complete run downloads the bank file with the server file name', async ({ page }) => {
@@ -332,12 +336,13 @@ test.describe('payroll salary files', () => {
   })
 
   test('the GOSI statement of a computed run is refused', async ({ page }) => {
+    // The refused request is logged by the browser; it is the behaviour under test.
+    const withoutRefusals = trackRefusedRequests(page, '/api/v1/hr/payroll/runs/2/gosi-statement')
     await page.goto('/hr/payroll/2/gosi')
     await expect(page.getByTestId('hr-payroll-gosi-not-approved')).toContainText('كشف التأمينات متاح بعد اعتماد المسيّر')
     await page.getByTestId('hr-payroll-gosi-back').click()
     await expect(page).toHaveURL(/\/hr\/payroll\/2/)
-    // The refused request is logged by the browser; it is the behaviour under test.
-    errors = errors.filter(message => !message.includes('403'))
+    errors = withoutRefusals(errors)
   })
 
   test('a company bank profile is added with a constant column, a shared one is read-only', async ({ page }) => {
