@@ -217,6 +217,8 @@ export type FinanceBalanceSheet = z.infer<typeof FinanceBalanceSheetSchema>
 export type FinanceZakatBase = z.infer<typeof FinanceZakatBaseSchema>
 export type FinanceZakatAdjustment = z.infer<typeof FinanceZakatAdjustmentSchema>
 export type FinanceZakatReview = z.infer<typeof FinanceZakatReviewSchema>
+export type FinanceZakatAdjustmentInput = z.infer<typeof FinanceZakatAdjustmentInputSchema>
+export type FinanceZakatReviewInput = z.infer<typeof FinanceZakatReviewInputSchema>
 
 const CashFlowItemSchema = z.object({ account: LedgerAccountSchema, amount }).strict()
 

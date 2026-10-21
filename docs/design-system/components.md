@@ -325,6 +325,8 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/finance/reports/AnalyticTable.vue` | تقرير مراكز التكلفة (إيراد ومصروف وصافي) وبنود المركز المفتوح | — | `UAlert`, `SharedDataTable`, `UIcon` |
 | `apps/web/app/components/finance/reports/MisLinesTable.vue` | قائمة مالية من بنود (رمز وبيان ومبلغ) بتمييز المجاميع الفرعية: قائمة الدخل والميزانية العمومية ووعاء الزكاة | — | `SharedDataTable` |
 | `apps/web/app/components/finance/reports/ZakatBaseTable.vue` | وعاء الزكاة: تنبيه المراجعة المهنية ظاهر دائمًا ثم البنود والوعاء والزكاة المستحقة | — | `UAlert` |
+| `apps/web/app/components/finance/reports/ZakatAdjustments.vue` | تعديلات وعاء الزكاة (إضافة وحسم) لسنة التقرير: قائمة ونموذج إضافة وحذف بتأكيد داخل الصفحة، لمن يملك إدارة الزكاة | — | `SharedInlineConfirm`, `SharedStatusBadge`, `UForm`, `UFormField`, `UInput`, `USelect`, `UAlert` |
+| `apps/web/app/components/finance/reports/ZakatReview.vue` | حالة مراجعة احتساب الزكاة (غير مراجَع، مراجَع، قديمة) وآخر مراجعة ونموذج تسجيل مراجعة بصفة المراجع، لمن يملك صلاحية المراجعة؛ لا يُقدَّم شيء من هنا | — | `SharedStatusBadge`, `UForm`, `UFormField`, `UInput`, `UAlert` |
 | `apps/web/app/components/finance/budgets/BudgetVarianceTable.vue` | جدول الميزانية مقابل الفعلي، مشترك بين سجل الميزانية والتقرير | — | `SharedDataTable`, `SharedStatusBadge` |
 | `apps/web/app/components/finance/governance/ClosingView.vue` | جسم صفحة إقفال السنة: السنوات ومعاينة السنة المختارة | — | `SharedPageState` |
 | `apps/web/app/components/finance/governance/ClosingYears.vue` | جدول السنوات المالية بحالتها ونتيجتها وقيد الإقفال | — | `SharedRecordSection`, `SharedDataTable`, `SharedStatusBadge`, `UButton` |

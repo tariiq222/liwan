@@ -177,7 +177,39 @@
       "disclaimerLead": "This calculation is simplified; have a Saudi CPA review it before relying on it.",
       "base": "Zakat base",
       "due": "Zakat due",
-      "rate": "Rate"
+      "rate": "Rate",
+      "adjustmentsTitle": "Adjustments to the base",
+      "noAdjustments": "No adjustments for this year.",
+      "kinds": {
+        "add": "Addition",
+        "deduct": "Deduction"
+      },
+      "kind": "Type",
+      "amount": "Amount",
+      "amountInvalid": "Enter an amount above zero",
+      "label": "Description",
+      "labelRequired": "Describe the adjustment",
+      "note": "Note",
+      "addAdjustment": "Add adjustment",
+      "remove": "Remove adjustment",
+      "removeFor": "Remove {label}",
+      "removeConfirm": "Remove the adjustment \"{label}\"?",
+      "removeHint": "The base and the Zakat due are recalculated, and any earlier review becomes stale.",
+      "reviewTitle": "Review",
+      "status": {
+        "management_information": "Management information, not reviewed",
+        "reviewed": "Reviewed",
+        "review_stale": "Review out of date"
+      },
+      "notFiled": "Nothing is filed from here: the taxpayer files Zakat, after review by a qualified accountant.",
+      "reviewedBy": "Reviewed by {name} ({credential}) on {date}.",
+      "staleTitle": "The books or the adjustments changed after the last review",
+      "staleHint": "The figures above are not the ones that were reviewed. Review them again.",
+      "review": "Review this computation",
+      "reviewHint": "You are recording that you reviewed this computation as it stands now. The record is permanent and any later change makes it out of date.",
+      "credential": "Your credential",
+      "credentialHelp": "For example your SOCPA licence number. WebVue does not verify it.",
+      "confirmReview": "Record the review"
     },
     "mis": {
       "profitLoss": {

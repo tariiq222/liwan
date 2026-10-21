@@ -8,7 +8,7 @@ import { financeReportsPreviewData } from '../../../../e2e/finance-reports-ui-pr
 const app = resolve(import.meta.dirname, '../../..')
 const read = (path: string) => readFileSync(resolve(app, path), 'utf8')
 const TABLES = ['TrialBalanceTable', 'GeneralLedgerTable', 'AgedBalanceTable', 'PartnerStatementTable', 'VatTable', 'WithholdingTable', 'AnalyticTable', 'MisLinesTable', 'CashFlowTable', 'VatReturnTable']
-const FILES = ['pages/finance/reports/[report].vue', 'components/finance/reports/ReportView.vue', 'components/finance/reports/ReportFilters.vue', ...TABLES.map(name => `components/finance/reports/${name}.vue`), 'components/finance/reports/ZakatBaseTable.vue', 'components/finance/reports/VatReturnItems.vue', 'components/finance/budgets/BudgetVarianceTable.vue']
+const FILES = ['pages/finance/reports/[report].vue', 'components/finance/reports/ReportView.vue', 'components/finance/reports/ReportFilters.vue', ...TABLES.map(name => `components/finance/reports/${name}.vue`), 'components/finance/reports/ZakatBaseTable.vue', 'components/finance/reports/VatReturnItems.vue', 'components/finance/reports/ZakatAdjustments.vue', 'components/finance/reports/ZakatReview.vue', 'composables/finance/useFinanceZakat.ts', 'components/finance/budgets/BudgetVarianceTable.vue']
 
 describe('the finance report pages stay on their templates', () => {
   it.each([
@@ -41,6 +41,14 @@ describe('the finance report pages stay on their templates', () => {
       expect(source.indexOf(id), file).toBeLessThan(source.indexOf('<SharedDataTable'))
     }
     expect(read('components/finance/reports/VatReturnTable.vue')).toContain('<VatReturnItems')
+  })
+
+  it('puts the Zakat adjustments and review under the table, each gated by its own capability and never filing', () => {
+    expect(read('components/finance/reports/ZakatBaseTable.vue')).toContain('<ZakatAdjustments')
+    expect(read('components/finance/reports/ZakatBaseTable.vue')).toContain('<ZakatReview')
+    expect(read('components/finance/reports/ZakatAdjustments.vue')).toContain("can('finance.zakat.manage')")
+    expect(read('components/finance/reports/ZakatReview.vue')).toContain("can('finance.zakat.review')")
+    expect(read('components/finance/reports/ZakatAdjustments.vue')).toContain('<SharedInlineConfirm')
   })
 
   it('shares the budget variance table between the budget record and the report', () => {
