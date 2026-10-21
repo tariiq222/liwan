@@ -98,7 +98,7 @@ export async function patchHrPayslipInputs($api: Api, qc: QueryClient, runId: nu
   return row
 }
 
-/** Every row of a list route, read in the server's page size until its `total` is reached. */
+/** Every row of a list route, read in the server's page size until its `total` is reached; `total` stays the server's, so a short read shows as `items.length < total`. */
 export async function fetchAllPages<T>(
   fetchPage: (offset: number) => Promise<{ items: T[]; total: number }>,
 ): Promise<{ items: T[]; total: number }> {
@@ -106,7 +106,7 @@ export async function fetchAllPages<T>(
   for (;;) {
     const page = await fetchPage(items.length)
     items.push(...page.items)
-    if (page.items.length === 0 || items.length >= page.total) return { items, total: items.length }
+    if (page.items.length === 0 || items.length >= page.total) return { items, total: page.total }
   }
 }
 

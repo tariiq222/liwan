@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/vue-query'
 import type { HrPayrollRun } from '@webvue/contracts'
 import { hrPayrollKeys } from '../useHrPayrollCompensation'
+import { isTruncated } from '../../utils/payrollFinanceSettings'
 import {
   fetchHrPayrollFinanceAccounts,
   fetchHrPayrollPostingPreview,
@@ -79,5 +80,16 @@ describe('payroll finance calls', () => {
     expect(all.items).toHaveLength(450)
     expect(new Set(all.items.map(item => (item as { id: number }).id)).size).toBe(450)
     expect(api).toHaveBeenCalledTimes(3)
+  })
+
+  it('a short read keeps the server total, so the list is flagged as truncated', async () => {
+    const api = vi.fn(async (_path: string, options: { query: { offset: number } }) => ({
+      items: options.query.offset === 0 ? Array.from({ length: 200 }, (_, index) => ({ id: index + 1 })) : [],
+      total: 450,
+    }))
+    const all = await fetchHrPayrollFinanceAccounts(api as never)
+    expect(all.items).toHaveLength(200)
+    expect(all.total).toBe(450)
+    expect(isTruncated(all)).toBe(true)
   })
 })
