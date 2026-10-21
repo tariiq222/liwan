@@ -114,6 +114,14 @@ class TestPayrollFinanceSettings(PayrollFinanceCase):
         res = self.api('PATCH', SETTINGS, json={})
         self.assertRefused(res, 422, 'invalid')
 
+    def test_empty_accounts_body_is_refused(self):
+        self.authenticate('finance_manager', 'finance_manager_pass_123')
+        stored = self.env['webvue.hr.payroll.finance.settings']
+        before = stored.search_count([('company_id', '=', self.company.id)])
+        res = self.api('PATCH', SETTINGS, json={'accounts': {}})
+        self.assertRefused(res, 422, 'invalid')
+        self.assertEqual(stored.search_count([('company_id', '=', self.company.id)]), before)
+
     def test_cost_center_list_covers_every_department(self):
         self.login_as(self.cost_center_reader)
         res = self.api('GET', COST_CENTERS)

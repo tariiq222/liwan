@@ -32,8 +32,7 @@ class HrPayrollPostingController(http.Controller):
     def get_posting_preview(self, run_id, **_):
         run = scoped_run(run_id)
         run._webvue_require_state(('approved',), request.env._('Only an approved run has a posting preview.'))
-        settings = request.env['webvue.hr.payroll.finance.settings']._webvue_for_company(run.company_id)
-        lines, warnings = request.env['webvue.hr.payroll.posting']._webvue_posting_lines(run, settings)
+        settings, lines, warnings = request.env['webvue.hr.payroll.posting']._webvue_preview(run)
         return dump_posting_preview(run, settings, lines, warnings)
 
     @http.route('/api/v1/hr/payroll/runs/<int:run_id>/post', type='json2', auth='user', methods=['POST'], readonly=False)

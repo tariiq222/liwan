@@ -128,14 +128,31 @@ class WebVueHrPayrollPosting(models.AbstractModel):
         return line
 
     @api.model
+    def _webvue_journal(self, settings):
+        """The settings journal when it can book the entry, else the refusal the post route answers."""
+        journal = settings.journal_id
+        if not journal:
+            raise ApiError(422, 'settings_incomplete', 'the payroll journal is not set', field='journal_id')
+        if journal.currency_id and journal.currency_id != journal.company_id.currency_id:
+            raise ApiError(422, 'invalid', 'the journal must be in the company currency', field='journal_id')
+        return journal
+
+    @api.model
+    def _webvue_preview(self, run):
+        """``(settings, lines, warnings)`` of the preview, refusing what posting refuses."""
+        run.ensure_one()
+        settings = self.env['webvue.hr.payroll.finance.settings']._webvue_for_company(run.company_id)
+        self._webvue_journal(settings)
+        lines, warnings = self._webvue_posting_lines(run, settings)
+        return settings, lines, warnings
+
+    @api.model
     def _webvue_post(self, run):
         """Book the approved ``run`` and post its entry; the run becomes ``posted``."""
         run.ensure_one()
         run._webvue_require_state(('approved',), self.env._('Only an approved run can be posted.'))
         settings = self.env['webvue.hr.payroll.finance.settings']._webvue_for_company(run.company_id)
-        journal = settings.journal_id
-        if not journal:
-            raise ApiError(422, 'settings_incomplete', 'the payroll journal is not set', field='journal_id')
+        journal = self._webvue_journal(settings)
         lines, _warnings = self._webvue_posting_lines(run, settings)
         require_balanced(lines)
         if is_period_locked(run.date_end, journal):

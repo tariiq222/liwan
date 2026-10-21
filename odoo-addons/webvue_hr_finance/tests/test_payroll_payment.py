@@ -95,6 +95,10 @@ class TestPayrollPayment(PayrollFinanceCase):
         again = self._pay(run['id'])
         self.assertEqual(again.status_code, 403, again.text)
         self.assertEqual(again.json()['code'], 'transition_forbidden')
+        self.assertEqual(self.env['account.payment'].search_count([('memo', '=', MONTH)]), 1)
+        self.assertEqual(self.env['account.move'].search_count([
+            ('webvue_payroll_origin', '=', 'payment'), ('ref', '=', MONTH),
+        ]), 1)
 
     def test_payment_needs_both_capabilities(self):
         run = self._posted_run()

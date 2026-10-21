@@ -83,6 +83,10 @@ class HrPayrollFinanceSettingsController(http.Controller):
         require_nonempty(parsed)
         company = current_company()
         values = _settings_values(parsed, company)
+        # ``accounts`` naming no role and nothing else is a body that changes nothing; saving it would
+        # create an empty row that shadows the defaults of the company.
+        if not values:
+            raise ApiError(422, 'invalid', 'no fields to update')
         return dump_settings(request.env['webvue.hr.payroll.finance.settings']._webvue_save(company, values))
 
     @http.route('/api/v1/hr/payroll/cost-centers', type='json2', auth='user', methods=['GET'], readonly=True)
