@@ -93,3 +93,21 @@ The expected figures are worked out in the test's docstring for an accountant to
 behavior: the ZATCA e-invoicing format is taken off the fresh company's journals (F3), and the month holds no fixed asset
 depreciation (asset profiles cannot yet be made through the routes) and no foreign currency.
 Not yet in the cycle: depreciation, returns of a purchase, a second company, the year-end close, a period lock.
+
+## Screens (2026-10-21)
+
+The WebVue screens for the functions above. Evidence for all of them is type checking, unit tests of the models and source guards of the
+templates; none was opened in a browser (no Chromium in the session), so they are **not visually verified**.
+
+| Area | Screen | Status |
+| --- | --- | --- |
+| Setup | accounts, journals, taxes, payment terms, asset profiles under `/settings/apps/finance/*` | built |
+| Payments | standalone receipt or payment (`?kind=standalone`), post, allocate, unallocate | built; draft edit has no screen |
+| Bank | CSV import (`?kind=import`: columns, mapping, preview, balances), auto-match, undo match | built; statement correction and delete have no screen |
+| Assets | sell or scrap on the record | built |
+| Reports | cash flow, VAT return with drill-down | built |
+| Zakat | adjustments and review on the Zakat base report | built |
+| Budgets | cost center split on the form, split between cost centers on the lines | built |
+| ZATCA | work list of documents waiting on ZATCA | built |
+
+Not built: draft payment edit, statement correction, OFX/CAMT import (needs the owner's approval of `OCA/bank-statement-import`).

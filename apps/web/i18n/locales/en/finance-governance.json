@@ -106,7 +106,19 @@
         "zatca_not_applicable": "This document is not a posted e-invoice."
       },
       "setupHint": "The company's full e-invoicing readiness is shown in",
-      "setupLink": "Finance setup"
+      "setupLink": "Finance setup",
+      "work": {
+        "title": "Documents waiting on ZATCA",
+        "hint": "E-invoices ZATCA has not accepted, oldest first. Open one to correct it or send it again.",
+        "allStates": "All waiting states",
+        "state": "State",
+        "invoice": "Invoice",
+        "partner": "Customer",
+        "date": "Date",
+        "amount": "Total",
+        "empty": "No document is waiting on ZATCA.",
+        "footer": "Showing {shown} of {total} document | Showing {shown} of {total} documents"
+      }
     },
     "audit": {
       "title": "Finance audit log",
