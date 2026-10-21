@@ -102,7 +102,6 @@
       }
     },
     "mine": {
-      "title": "My payslips",
       "emptyTitle": "You have no payslips yet",
       "emptyHint": "Your payslip appears here once the company approves the month's run.",
       "columns": {

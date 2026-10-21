@@ -116,12 +116,12 @@ export async function fetchAllHrPayslips($api: Api, runId: number): Promise<HrPa
   return items
 }
 
-export function useHrPayrollRuns(query: MaybeRefOrGetter<HrPayrollRunsQuery>) {
+export function useHrPayrollRuns(query: MaybeRefOrGetter<HrPayrollRunsQuery>, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrPayrollKeys.runList(toValue(query))),
-    enabled: computed(() => can('hr.payroll.read')),
+    enabled: computed(() => can('hr.payroll.read') && toValue(enabled)),
     placeholderData: previous => previous,
     queryFn: () => $api(RUNS_PATH, { query: { ...toValue(query) }, schema: HrPayrollRunListSchema }),
   })

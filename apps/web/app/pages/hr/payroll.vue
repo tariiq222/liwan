@@ -42,7 +42,8 @@ function offsetParam(value: unknown) {
 const year = computed(() => yearParam(route.query.year))
 const state = computed(() => stateParam(route.query.state))
 const offset = computed(() => offsetParam(route.query.offset))
-const runs = useHrPayrollRuns(computed(() => hrPayrollRunsQuery({ year: year.value, state: state.value, limit: LIMIT, offset: offset.value })))
+// The list is fetched only on its own routes: a run, its payslips, the settings and "mine" never need it.
+const runs = useHrPayrollRuns(computed(() => hrPayrollRunsQuery({ year: year.value, state: state.value, limit: LIMIT, offset: offset.value })), isListRoute)
 
 const items = computed(() => runs.data.value?.items ?? [])
 const total = computed(() => runs.data.value?.total ?? 0)
