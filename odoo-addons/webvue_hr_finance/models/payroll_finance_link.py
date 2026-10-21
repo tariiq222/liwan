@@ -10,11 +10,16 @@ class WebVueHrPayrollFinanceLink(models.AbstractModel):
     def _webvue_can(self, capability):
         return self.env['webvue.access.service']._webvue_has_capability(self.env.user, capability)
 
+    def _webvue_can_name_payment(self):
+        return self._webvue_can('finance.payments.read') or self._webvue_can('finance.entries.read')
+
     @api.model
     def _webvue_finance_actions(self, run):
         actions = super()._webvue_finance_actions(run)
         if run.webvue_state == 'approved' and self._webvue_can('finance.entries.post'):
             actions.append('post')
+        if run.webvue_state == 'posted' and self._webvue_can('finance.payments.manage'):
+            actions.append('record_payment')
         return actions
 
     @api.model
@@ -25,6 +30,6 @@ class WebVueHrPayrollFinanceLink(models.AbstractModel):
         return {
             'entry_id': run.webvue_move_id.id,
             'entry_name': run.webvue_move_id.name if self._webvue_can('finance.entries.read') else None,
-            'payment_id': None,
-            'payment_name': None,
+            'payment_id': run.webvue_payment_id.id or None,
+            'payment_name': run.webvue_payment_id.name if run.webvue_payment_id and self._webvue_can_name_payment() else None,
         }

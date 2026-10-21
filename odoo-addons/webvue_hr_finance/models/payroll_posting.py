@@ -31,6 +31,7 @@ CREDIT_CODES = ('NET',)
 # The advance is a receivable from one employee, so it always names the employee.
 EMPLOYEE_ROLES = ('advance',)
 UNMAPPED_DEPARTMENT = 'unmapped_department'
+PAYMENT_JOURNAL_TYPES = ('bank', 'cash')
 
 
 class WebVueHrPayrollPosting(models.AbstractModel):
@@ -147,3 +148,33 @@ class WebVueHrPayrollPosting(models.AbstractModel):
         attempt(move.action_post, day=run.date_end, journal=journal)
         run.write({'webvue_move_id': move.id, 'webvue_state': 'posted'})
         return move
+
+    @api.model
+    def _webvue_record_payment(self, run, journal, day):
+        """Pay the salaries payable of the posted ``run`` from ``journal`` on ``day``; the run becomes ``paid``."""
+        run.ensure_one()
+        run._webvue_require_state(('posted',), self.env._('Only a posted run can be paid.'))
+        if journal.company_id != run.company_id or journal.type not in PAYMENT_JOURNAL_TYPES:
+            raise ApiError(422, 'invalid', 'the journal must be a bank or cash journal', field='journal_id')
+        if is_period_locked(day, journal):
+            raise period_locked(field='date')
+        settings = self.env['webvue.hr.payroll.finance.settings']._webvue_for_company(run.company_id)
+        payable = settings.salaries_payable_account_id
+        owed = run.webvue_move_id.line_ids.filtered(lambda line: line.account_id == payable)
+        amount = money(sum((Decimal(str(line.credit - line.debit)) for line in owed), Decimal(0)))
+        if amount <= 0:
+            raise ApiError(422, 'invalid', 'the run owes no salaries payable', field='state')
+        payment = self.env['account.payment'].create({
+            'payment_type': 'outbound',
+            'partner_type': 'supplier',
+            'amount': float(amount),
+            'date': day,
+            'journal_id': journal.id,
+            'memo': run.name,
+            'destination_account_id': payable.id,
+        })
+        attempt(payment.action_post, day=day, journal=journal)
+        payment.move_id.webvue_payroll_origin = 'payment'
+        (owed | payment.move_id.line_ids.filtered(lambda line: line.account_id == payable)).reconcile()
+        run.write({'webvue_payment_id': payment.id, 'webvue_state': 'paid'})
+        return payment

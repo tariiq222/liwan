@@ -10,3 +10,4 @@ access_webvue_hr_payroll_finance_account_payroll_reader,webvue.hr.payroll.financ
 access_webvue_hr_payroll_finance_journal_payroll_reader,webvue.hr.payroll.finance account.journal payroll reader,account.model_account_journal,webvue_hr.group_cap_hr_payroll_read,1,0,0,0
 access_webvue_hr_payroll_finance_analytic_payroll_reader,webvue.hr.payroll.finance account.analytic.account payroll reader,analytic.model_account_analytic_account,webvue_hr.group_cap_hr_payroll_read,1,0,0,0
 access_webvue_hr_payroll_finance_run_poster,webvue.hr.payroll.finance hr.payslip.run entries poster,payroll.model_hr_payslip_run,webvue_finance.group_cap_finance_entries_post,1,1,0,0
+access_webvue_hr_payroll_finance_run_payer,webvue.hr.payroll.finance hr.payslip.run payments manager,payroll.model_hr_payslip_run,webvue_finance.group_cap_finance_payments_manage,1,1,0,0

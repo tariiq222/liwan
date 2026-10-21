@@ -7,6 +7,8 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.webvue_finance.controllers.write_support import company_records
+from odoo.addons.webvue_finance.serializers.parsing import parse_day, parse_id
 from odoo.addons.webvue_hr.controllers.common import hr_rule_handler
 from odoo.addons.webvue_hr.controllers.payroll.runs import scoped_run
 from odoo.addons.webvue_hr.serializers.payroll.run import dump_run
@@ -14,6 +16,7 @@ from odoo.addons.webvue_hr_finance.serializers.posting import dump_posting_previ
 
 FEATURES = ('hr.enabled', 'hr.payroll', 'finance.enabled')
 CAPABILITIES = ('hr.payroll.read', 'finance.entries.post')
+PAYMENT_CAPABILITIES = ('hr.payroll.read', 'finance.payments.manage')
 
 
 class HrPayrollPostingController(http.Controller):
@@ -28,6 +31,7 @@ class HrPayrollPostingController(http.Controller):
     @requires_capability(*CAPABILITIES, match='all')
     def get_posting_preview(self, run_id, **_):
         run = scoped_run(run_id)
+        run._webvue_require_state(('approved',), request.env._('Only an approved run has a posting preview.'))
         settings = request.env['webvue.hr.payroll.finance.settings']._webvue_for_company(run.company_id)
         lines, warnings = request.env['webvue.hr.payroll.posting']._webvue_posting_lines(run, settings)
         return dump_posting_preview(run, settings, lines, warnings)
@@ -40,4 +44,21 @@ class HrPayrollPostingController(http.Controller):
     def post_run(self, run_id, **_):
         run = scoped_run(run_id)
         request.env['webvue.hr.payroll.posting']._webvue_post(run)
+        return dump_run(run)
+
+    @http.route(
+        '/api/v1/hr/payroll/runs/<int:run_id>/payment', type='json2', auth='user', methods=['POST'], readonly=False,
+    )
+    @api_handler
+    @hr_rule_handler
+    @requires_feature(*FEATURES, operation='write')
+    @requires_capability(*PAYMENT_CAPABILITIES, match='all')
+    def record_payment(self, run_id, **payload):
+        run = scoped_run(run_id)
+        day = parse_day(payload.get('date'), 'date')
+        journal = company_records(
+            'account.journal', [parse_id(payload.get('journal_id'), 'journal_id')], 'journal_id',
+            [('company_id', '=', run.company_id.id)],
+        )
+        request.env['webvue.hr.payroll.posting']._webvue_record_payment(run, journal, day)
         return dump_run(run)
