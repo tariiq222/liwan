@@ -68,7 +68,7 @@ describe('report KPI tiles', () => {
   })
 
   it('shows the Zakat base, rate and due, the due in the warning tone when positive', () => {
-    const report = (due: number): LoadedReport => ({ slug: 'zakat-base', data: { date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', lines: [], base: 1000, rate: 0.025, zakat_due: due, disclaimer: 'x' } })
+    const report = (due: number): LoadedReport => ({ slug: 'zakat-base', data: { date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', lines: [], template_base: 1000, adjustments: [], adjustments_total: 0, base: 1000, rate: 0.025, zakat_due: due, status: 'management_information', filed: false, review: null, disclaimer: 'x' } })
     expect(values(report(25))).toEqual({ zakatBase: '1000', zakatRate: '0.025', zakatDue: '25' })
     expect(reportKpiTiles(report(25), t, n).find(tile => tile.id === 'zakatDue')?.tone).toBe('warning')
     expect(reportKpiTiles(report(0), t, n).find(tile => tile.id === 'zakatDue')?.tone).toBe('neutral')
@@ -81,5 +81,23 @@ describe('report KPI tiles', () => {
     const tiles = reportKpiTiles(report, t, n)
     expect(tiles.find(tile => tile.id === 'budgetDebit')).toMatchObject({ tone: 'danger', hint: 'financeReports.kpi.budgetOf' })
     expect(tiles.find(tile => tile.id === 'budgetCredit')?.tone).toBe('success')
+  })
+})
+
+describe('cash flow and VAT return tiles', () => {
+  const t = (key: string) => key
+  const n = (value: number) => String(value)
+  const cashFlow = (difference: number): LoadedReport => ({ slug: 'cash-flow', data: { date_from: '2026-10-01', date_to: '2026-10-31', currency: 'SAR', basis: 'indirect', statutory: false, opening_cash: 50000, closing_cash: 50975, net_change: 975, operating: { net_income: 975, adjustments: [], items: [], total: 975 }, investing: { items: [], depreciation_reclass: 0, total: 0 }, financing: { items: [], total: 0 }, total_change: 975, difference } })
+
+  it('shows the cash at both ends and flags a statement that does not close', () => {
+    expect(reportKpiTiles(cashFlow(0), t, n).map(tile => [tile.id, tile.tone])).toEqual([['cashOpening', 'neutral'], ['cashClosing', 'neutral'], ['cashDifference', 'success']])
+    expect(reportKpiTiles(cashFlow(12), t, n).at(-1)?.tone).toBe('danger')
+  })
+
+  it('shows the net VAT of box 16: payable warns, a claim does not', () => {
+    const report = (tax: number | null): LoadedReport => ({ slug: 'vat-return', data: { date_from: '2026-10-01', date_to: '2026-10-31', currency: 'SAR', status: 'draft_for_review', filed: false, boxes: [{ code: 'sa_16', number: 16, name: 'Net', base: null, tax }] } })
+    expect(reportKpiTiles(report(750), t, n)[0]).toMatchObject({ id: 'netPayable', tone: 'warning' })
+    expect(reportKpiTiles(report(-30), t, n)[0]?.tone).toBe('success')
+    expect(reportKpiTiles(report(null), t, n)).toEqual([])
   })
 })

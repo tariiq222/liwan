@@ -43,7 +43,14 @@
       "profitLoss": "Income statement",
       "balanceSheet": "Balance sheet",
       "zakatBase": "Zakat base",
-      "budgetVsActual": "Budget vs actual"
+      "budgetVsActual": "Budget vs actual",
+      "accountsSettings": "Chart of accounts setup",
+      "journalsSettings": "Journals",
+      "taxesSettings": "Taxes",
+      "paymentTermsSettings": "Payment terms",
+      "assetProfilesSettings": "Asset profiles",
+      "cashFlow": "Cash flow",
+      "vatReturn": "VAT return"
     },
     "kpi": {
       "label": "Finance figures",

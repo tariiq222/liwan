@@ -104,7 +104,7 @@ class TestFinanceBuiltinRoles(TransactionCase):
         for key in (
             'finance.invoices.post', 'finance.entries.post', 'finance.closing.manage', 'finance.closing.read',
             'finance.setup.manage', 'finance.zatca.manage', 'finance.budgets.manage', 'finance.assets.manage',
-            'finance.analytic.manage', 'finance.audit.read', 'finance.zakat.read',
+            'finance.analytic.manage', 'finance.accounts.manage', 'finance.zakat.review', 'finance.zakat.manage', 'finance.payment_terms.manage', 'finance.taxes.manage', 'finance.journals.manage', 'finance.audit.read', 'finance.zakat.read',
         ):
             self.assertNotIn(key, FINANCE_ACCOUNTANT_PERMISSIONS)
 
@@ -113,7 +113,7 @@ class TestFinanceBuiltinRoles(TransactionCase):
         self.assertEqual(set(role.permission_ids.mapped('key')), FINANCE_AUDITOR_PERMISSIONS)
         self.assertLessEqual(FINANCE_AUDITOR_PERMISSIONS, FINANCE_PERMISSIONS)
         self._assert_closed_under_dependencies(FINANCE_AUDITOR_PERMISSIONS)
-        self.assertEqual(len(FINANCE_AUDITOR_PERMISSIONS), 17)
+        self.assertEqual(len(FINANCE_AUDITOR_PERMISSIONS), 19)
         self.assertTrue(all(key.endswith('.read') for key in FINANCE_AUDITOR_PERMISSIONS))
 
 

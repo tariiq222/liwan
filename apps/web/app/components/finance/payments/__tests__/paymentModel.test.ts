@@ -4,7 +4,9 @@ import {
   MAX_PREFILLED_INVOICES,
   PAYMENT_PAGE_SIZE,
   buildPaymentRegister,
+  buildStandalonePayment,
   paymentActions,
+  validateStandaloneDraft,
   paymentActiveFilterCount,
   paymentBatchProblem,
   paymentDirection,
@@ -84,9 +86,24 @@ describe('payment form', () => {
 
   it('offers cancel for a live payment and reset for a final one, to payment managers only', () => {
     const can = () => true
-    expect(paymentActions({ state: 'paid' }, can)).toEqual({ cancel: true, resetToDraft: false })
-    expect(paymentActions({ state: 'canceled' }, can)).toEqual({ cancel: false, resetToDraft: true })
-    expect(paymentActions({ state: 'rejected' }, can)).toEqual({ cancel: false, resetToDraft: true })
-    expect(paymentActions({ state: 'paid' }, () => false)).toEqual({ cancel: false, resetToDraft: false })
+    const none = { unallocated: 0, invoices: [] }
+    expect(paymentActions({ state: 'paid', ...none }, can)).toEqual({ cancel: true, resetToDraft: false, post: false, edit: false, allocate: false, unallocate: false })
+    expect(paymentActions({ state: 'canceled', ...none }, can)).toMatchObject({ cancel: false, resetToDraft: true })
+    expect(paymentActions({ state: 'rejected', ...none }, can)).toMatchObject({ cancel: false, resetToDraft: true })
+    expect(paymentActions({ state: 'paid', ...none }, () => false)).toEqual({ cancel: false, resetToDraft: false, post: false, edit: false, allocate: false, unallocate: false })
+  })
+
+  it('offers post on a draft, allocate on an advance and unallocate on a settled payment', () => {
+    const can = () => true
+    expect(paymentActions({ state: 'draft', unallocated: 0, invoices: [] }, can)).toMatchObject({ post: true, edit: true, allocate: false, unallocate: false })
+    expect(paymentActions({ state: 'paid', unallocated: 50, invoices: [] }, can)).toMatchObject({ allocate: true, unallocate: false })
+    expect(paymentActions({ state: 'paid', unallocated: 0, invoices: [{ id: 3, name: 'INV/1' }] }, can)).toMatchObject({ allocate: false, unallocate: true })
+  })
+
+  it('builds a standalone payment, naming the party type only when it differs from the direction', () => {
+    const draft = { amount: '120', paymentDate: '2026-05-02', journalId: 8, memo: ' ', paymentType: 'inbound' as const, partnerType: 'customer' as const, partnerId: 5 }
+    expect(buildStandalonePayment(draft)).toEqual({ payment_type: 'inbound', partner_id: 5, amount: 120, payment_date: '2026-05-02', journal_id: 8 })
+    expect(buildStandalonePayment({ ...draft, paymentType: 'outbound' })).toMatchObject({ partner_type: 'customer' })
+    expect(validateStandaloneDraft({ ...draft, partnerId: null, amount: '' })).toEqual({ amount: 'required', partnerId: 'required' })
   })
 })

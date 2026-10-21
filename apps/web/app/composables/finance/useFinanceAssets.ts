@@ -7,6 +7,7 @@ import {
   FinanceAssetListSchema,
   FinanceAssetProfileListSchema,
   type FinanceAssetCreate,
+  type FinanceAssetDispose,
 } from '@webvue/contracts'
 import { financeEntryKeys } from '@/composables/finance/useFinanceEntries'
 import type { AssetListParams } from '@/components/finance/assets/assetListParams'
@@ -73,6 +74,19 @@ export function useComputeFinanceDepreciation() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (date: string) => $api('/api/v1/finance/assets/compute-depreciation', { method: 'POST', body: { date }, schema: FinanceAssetComputeResultSchema }),
+    onSuccess: () => Promise.all([
+      qc.invalidateQueries({ queryKey: financeAssetKeys.all }),
+      qc.invalidateQueries({ queryKey: financeEntryKeys.all }),
+    ]),
+  })
+}
+
+/** Sells or scraps a running asset: the removal entry is posted, so the entries and the reports refresh too. */
+export function useDisposeFinanceAsset() {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number; body: FinanceAssetDispose }) => $api(`/api/v1/finance/assets/${id}/dispose`, { method: 'POST', body, schema: FinanceAssetDetailSchema }),
     onSuccess: () => Promise.all([
       qc.invalidateQueries({ queryKey: financeAssetKeys.all }),
       qc.invalidateQueries({ queryKey: financeEntryKeys.all }),

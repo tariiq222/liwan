@@ -42,6 +42,7 @@ describe('the finance governance pages stay on their templates', () => {
     ['components/finance/governance/ClosingYears.vue', ['<SharedRecordSection', '<SharedDataTable', ' bare', '#mobile-row', '<SharedStatusBadge']],
     ['components/finance/governance/ClosingPreview.vue', ['variant="action"', '<SharedInlineConfirm', 'color="error" variant="subtle"', '<SharedDataTable', ' bare', '#mobile-row', "can('finance.closing.manage')", "can('finance.setup.manage')"]],
     ['components/finance/governance/ZatcaBacklog.vue', ['<SharedMetricTile', 'density="compact"']],
+    ['components/finance/governance/ZatcaWorkList.vue', ['<SharedRecordSection', '<SharedDataTable', ' bare', '#mobile-row', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState', "can('finance.zatca.read')"]],
     ['components/finance/governance/ZatcaJournals.vue', ['<SharedStatusBadge', "can('finance.zatca.manage')"]],
     ['components/finance/governance/ZatcaOnboardForm.vue', ['inputmode="numeric"', '<SharedInlineConfirm', 'color="error" variant="subtle"', "can('finance.zatca.manage')"]],
     ['components/finance/governance/AuditList.vue', ['<SharedListCard', 'embedded', '<SharedFilterBar', '<SharedDateField', '<SharedDataTable', ' bare', '#mobile-row', '<SharedListFooter', '<SharedPageState', '<SharedEmptyState', 'useRouteListFilters', "can('finance.audit.read')"]],

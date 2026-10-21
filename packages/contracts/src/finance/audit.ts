@@ -2,7 +2,12 @@ import { z } from 'zod'
 import { id, list } from './shared'
 
 export const FinanceAuditActionSchema = z.enum([
-  'chart_loaded', 'company_written', 'fiscal_year_closed', 'zatca_onboarded', 'zatca_submitted',
+  'chart_loaded', 'account_created', 'account_changed', 'account_archived', 'account_unarchived',
+  'zakat_adjustment_added', 'zakat_adjustment_removed', 'zakat_reviewed', 'asset_profile_created', 'asset_profile_changed', 'asset_profile_archived', 'asset_profile_unarchived', 'asset_disposed', 'bank_statement_imported', 'bank_statement_changed', 'bank_statement_deleted', 'bank_line_unreconciled', 'bank_statement_auto_reconciled', 'payment_created', 'payment_changed', 'payment_posted', 'payment_allocated', 'payment_unallocated',
+  'journal_created', 'journal_changed', 'journal_archived', 'journal_unarchived',
+  'tax_created', 'tax_changed', 'tax_archived', 'tax_unarchived',
+  'payment_term_created', 'payment_term_changed', 'payment_term_archived', 'payment_term_unarchived',
+  'company_written', 'fiscal_year_closed', 'zatca_onboarded', 'zatca_submitted',
 ])
 
 /** One immutable audit row: who (`actor`), when (`created_at`, ISO UTC), what, and the field names written, never values. */

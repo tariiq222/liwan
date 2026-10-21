@@ -19,6 +19,7 @@ from odoo.addons.webvue_finance.serializers.budget import (
     dump_budgets,
     parse_budget_create,
     parse_budget_patch,
+    parse_distribution,
     parse_line_create,
     parse_line_patch,
 )
@@ -107,6 +108,36 @@ def _line_values(parsed, budget, line=None):
     elif 'analytic_account_id' in parsed:
         values['analytic_distribution'] = False
     return values
+
+
+def _analytic_id_of(values, line=None):
+    """The cost center a line is limited to (0 for none), from the new values or the existing line."""
+    distribution = values.get('analytic_distribution', line.analytic_distribution if line else None)
+    return int(next(iter(distribution), 0)) if distribution else 0
+
+
+def _require_distinct_cost_centers(budget, values, line=None):
+    """With the cost-center split on, lines of one account may overlap in time only when each names a different cost center.
+
+    OCA lifts its overlap rule for the whole budget; this keeps the budget from counting an account twice: two lines of
+    the same account, period and cost center (or one with and one without a cost center) would both be compared with
+    the same actual.
+    """
+    if not budget.allow_items_overlap:
+        return
+    account_id = values.get('account_id', line.account_id.id if line else None)
+    date_from = values.get('date_from', line.date_from if line else budget.date_from)
+    date_to = values.get('date_to', line.date_to if line else budget.date_to)
+    analytic = _analytic_id_of(values, line)
+    for other in budget.item_ids - (line or budget.item_ids.browse()):
+        if other.account_id.id != account_id or other.date_from > date_to or other.date_to < date_from:
+            continue
+        other_analytic = _analytic_id_of({}, other)
+        if not analytic or not other_analytic or analytic == other_analytic:
+            raise ApiError(
+                422, 'cost_center_overlap',
+                'lines of one account in the same period must each name a different cost center', field='analytic_account_id',
+            )
 
 
 class FinanceBudgetController(http.Controller):
@@ -204,6 +235,7 @@ class FinanceBudgetController(http.Controller):
         parsed = parse_line_create(payload)
         _require_draft(budget)
         values = _line_values(parsed, budget)
+        _require_distinct_cost_centers(budget, values)
         line = attempt(lambda: request.env[ITEM_MODEL].create(values))
         return request.make_json_response(_dump_lines(line)[0], status=201)
 
@@ -220,8 +252,42 @@ class FinanceBudgetController(http.Controller):
         parsed = parse_line_patch(payload)
         require_nonempty(parsed)
         _require_draft(budget)
-        attempt(lambda: line.write(_line_values(parsed, budget, line)))
+        values = _line_values(parsed, budget, line)
+        _require_distinct_cost_centers(budget, values, line)
+        attempt(lambda: line.write(values))
         return _dump_lines(line)[0]
+
+    @http.route('/api/v1/finance/budgets/<int:budget_id>/lines/distribute', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('finance.enabled', operation='write')
+    def distribute_line(self, budget_id, **payload):
+        """Splits the budget of one account for a period between cost centers: one line per cost center, ``amount`` times its percent.
+
+        The budget's cost-center split is switched on (OCA's overlap switch), so the lines can sit side by side. The
+        rounding difference goes to the largest share, so the lines add up to ``amount`` to the cent.
+        """
+        require_capability('finance.budgets.manage')
+        _reject_path_keys('budget_id')
+        budget = _find_budget(budget_id)
+        parsed = parse_distribution(payload)
+        _require_draft(budget)
+        currency = budget.company_id.currency_id
+        shares = sorted(parsed['shares'], key=lambda share: -share['percent'])
+        amounts = [currency.round(parsed['amount'] * share['percent'] / 100) for share in shares]
+        amounts[0] = currency.round(amounts[0] + parsed['amount'] - sum(amounts))
+        base = {key: value for key, value in parsed.items() if key not in ('shares', 'amount', 'analytic_account_id')}
+
+        def distribute():
+            budget.allow_items_overlap = True
+            lines = request.env[ITEM_MODEL]
+            for share, amount in zip(shares, amounts, strict=True):
+                values = _line_values({**base, 'amount': amount, 'analytic_account_id': share['analytic_account_id']}, budget)
+                _require_distinct_cost_centers(budget, values)
+                lines |= request.env[ITEM_MODEL].create(values)
+            return lines
+
+        lines = attempt(distribute)
+        return request.make_json_response({'items': _dump_lines(lines), 'total': len(lines)}, status=201)
 
     @http.route(
         '/api/v1/finance/budgets/<int:budget_id>/lines/<int:line_id>', type='json2', auth='user', methods=['DELETE'], readonly=False,

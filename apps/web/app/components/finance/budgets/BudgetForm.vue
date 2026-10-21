@@ -64,6 +64,9 @@ async function submit() {
             <SharedDateField id="finance-budget-to" v-model="draft.dateTo" :min-value="draft.dateFrom" :disabled="!hydrated || pending" />
           </UFormField>
         </div>
+        <UFormField name="finance-budget-split" :help="t('financeBudgets.form.costCenterSplitHelp')">
+          <UCheckbox v-model="draft.costCenterSplit" :label="t('financeBudgets.form.costCenterSplit')" :disabled="!hydrated || pending" data-testid="finance-budget-split" />
+        </UFormField>
       </div>
     </SharedFormSection>
 

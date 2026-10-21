@@ -38,6 +38,7 @@ export function useAssetRecord() {
   })
 
   const confirming = ref(false)
+  const disposing = ref(false)
   const actionError = ref('')
   const validation = useValidateFinanceAsset()
   const busy = computed(() => validation.isPending.value)
@@ -69,6 +70,7 @@ export function useAssetRecord() {
     busy,
     hydrated,
     confirming,
+    disposing,
     actionError,
     applyValidation,
   })

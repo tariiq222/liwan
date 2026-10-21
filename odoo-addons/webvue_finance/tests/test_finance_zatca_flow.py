@@ -414,3 +414,52 @@ class TestFinanceZatcaApiModeGuard(WebVueZatcaCase):
                 self.company.l10n_sa_api_mode = mode
         self.company.l10n_sa_api_mode = 'sandbox'
         self.assertEqual(self.company.l10n_sa_api_mode, 'sandbox')
+
+
+@tagged('post_install', '-at_install', 'webvue')
+class TestFinanceZatcaWorkList(WebVueZatcaCase):
+    """The work list of the e-invoices ZATCA has not accepted."""
+
+    DOCUMENTS = '/api/v1/finance/zatca/documents'
+
+    def waiting_invoices(self):
+        self.onboarded_journal()
+        pending, retry, rejected, blocked = (self.sale_invoice() for _index in range(4))
+        for invoice, level, error in (
+            (retry, 'warning', 'ZATCA could not be reached'),
+            (rejected, 'error', '<p>BR-KSA-F-06-C01 : The invoice type code is not valid</p>'),
+            (blocked, 'error', 'signing failed'),
+        ):
+            self.env['account.move'].browse(invoice['id']).edi_document_ids.write({'blocking_level': level, 'error': error})
+        return {'pending': pending, 'retry': retry, 'rejected': rejected, 'blocked': blocked}
+
+    def test_the_list_holds_every_unaccepted_document_with_its_state(self):
+        invoices = self.waiting_invoices()
+        body = self.api('GET', self.DOCUMENTS).json()
+        self.assertEqual(body['total'], 4)
+        states = {item['invoice']['id']: item['submission']['state'] for item in body['items']}
+        self.assertEqual(states, {invoices[name]['id']: name for name in invoices})
+        item = next(item for item in body['items'] if item['submission']['state'] == 'rejected')
+        self.assertEqual(item['submission']['errors'][0]['code'], 'BR-KSA-F-06-C01')
+        self.assertEqual(set(item), {'invoice', 'partner', 'date', 'amount_total', 'move_type', 'submission'})
+        self.assertEqual(secret_keys(body), set())
+
+    def test_the_list_is_filtered_by_state_and_never_holds_another_company(self):
+        invoices = self.waiting_invoices()
+        self.env['account.edi.document'].create({
+            'move_id': self.other_invoice.id, 'edi_format_id': self.env.ref('l10n_sa_edi.edi_sa_zatca').id, 'state': 'to_send',
+        })
+        only = self.api('GET', f'{self.DOCUMENTS}?state=rejected').json()
+        self.assertEqual([item['invoice']['id'] for item in only['items']], [invoices['rejected']['id']])
+        self.assertEqual(self.api('GET', self.DOCUMENTS).json()['total'], 4)
+        self.assertRefused(self.api('GET', f'{self.DOCUMENTS}?state=accepted'), 422, 'invalid', 'state')
+
+    def test_a_document_leaves_the_list_once_zatca_accepts_it(self):
+        invoices = self.waiting_invoices()
+        self.env['account.move'].browse(invoices['pending']['id']).edi_document_ids.write({'state': 'sent'})
+        ids = [item['invoice']['id'] for item in self.api('GET', self.DOCUMENTS).json()['items']]
+        self.assertNotIn(invoices['pending']['id'], ids)
+
+    def test_the_list_needs_the_zatca_read_capability(self):
+        self.authenticate(OUTSIDER_LOGIN, OUTSIDER_PASSWORD)
+        self.assertRefused(self.api('GET', self.DOCUMENTS), 403, 'forbidden')

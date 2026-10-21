@@ -29,6 +29,21 @@ class WebVueFinanceCase(WebVueApiCase):
         return company
 
     @classmethod
+    def _fresh_company_manager(cls, name, login, password):
+        """A Saudi company with no chart and a finance manager who works in it only."""
+        company = cls.env['res.company'].create({
+            'name': name, 'country_id': cls.env.ref('base.sa').id, 'currency_id': cls.env.ref('base.SAR').id,
+        })
+        user = new_test_user(
+            cls.env, login=login, password=password, name=login, groups='webvue_core.group_employee',
+            company_id=company.id, company_ids=[Command.set(company.ids)],
+        )
+        cls.env['webvue.access.service']._webvue_replace_assignments(user, [{
+            'role_id': cls.env.ref('webvue_finance.role_finance_manager').id, 'company_id': company.id,
+        }])
+        return company
+
+    @classmethod
     def _draft_sale_invoice(cls, company, partner):
         vat = cls.env['account.tax'].search([
             ('company_id', '=', company.id), ('type_tax_use', '=', 'sale'),

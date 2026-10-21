@@ -33,7 +33,9 @@
       "state": "Status"
     },
     "record": {
-      "currency": "Currency"
+      "currency": "Currency",
+      "yes": "Yes",
+      "no": "No"
     },
     "nature": {
       "debit": "Debit",
@@ -77,7 +79,9 @@
       "dateRequired": "Choose the date",
       "periodOrder": "The end date cannot be before the start date",
       "requiredHint": "Fields marked with an asterisk are required.",
-      "createDraft": "Create draft"
+      "createDraft": "Create draft",
+      "costCenterSplit": "Split between cost centers",
+      "costCenterSplitHelp": "Lets several lines of one account cover the same period, each for a different cost center."
     },
     "actions": {
       "confirm": "Confirm",
@@ -96,6 +100,23 @@
     "errors": {
       "notDraft": "Only a draft budget can be changed.",
       "invalidState": "This action is not available in the current status."
+    },
+    "distribute": {
+      "open": "Split between cost centers",
+      "title": "Split between cost centers",
+      "hint": "One line is created for each cost center. The percents must add up to 100 and each cost center can appear once. Saving turns on the budget's cost center split.",
+      "amount": "Total amount",
+      "shares": "Shares",
+      "costCenter": "Cost center",
+      "pickCenter": "Choose a cost center",
+      "percent": "Percent",
+      "addShare": "Add cost center",
+      "splitEvenly": "Split evenly",
+      "removeShare": "Remove share {number}",
+      "total": "Total: {percent}%",
+      "sharesInvalid": "Choose at least two different cost centers, each with a percent above zero.",
+      "totalInvalid": "The percents must add up to 100.",
+      "submit": "Create the lines"
     }
   }
 }

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { REPORT_SLUGS, REPORTS, reportCurrency, reportSlug, type LoadedReport } from '../reportConfig'
 
 describe('the report config', () => {
-  it('knows the eleven reports and refuses any other slug', () => {
-    expect(REPORT_SLUGS).toHaveLength(11)
+  it('knows the thirteen reports and refuses any other slug', () => {
+    expect(REPORT_SLUGS).toHaveLength(13)
     expect(reportSlug('vat')).toBe('vat')
     expect(reportSlug(['withholding', 'x'])).toBe('withholding')
     expect(reportSlug('profit-loss')).toBe('profit-loss')
@@ -12,7 +12,7 @@ describe('the report config', () => {
   })
 
   it('gates the statements and the tax reports by their own capability', () => {
-    expect(Object.entries(REPORTS).filter(([, config]) => config.capability === 'finance.reports.read').map(([slug]) => slug)).toEqual(['vat', 'withholding'])
+    expect(Object.entries(REPORTS).filter(([, config]) => config.capability === 'finance.reports.read').map(([slug]) => slug)).toEqual(['vat', 'withholding', 'vat-return'])
     expect(REPORTS.analytic.capability).toBe('finance.analytic.read')
     for (const slug of REPORT_SLUGS) expect(REPORTS[slug].capability).toMatch(/^finance\.(statements|reports|analytic|zakat|budgets)\.read$/)
   })
@@ -56,5 +56,17 @@ describe('the report config', () => {
   it('has no single currency for a partner statement', () => {
     const loaded: LoadedReport = { slug: 'partner-statement', data: { type: 'activity', kind: 'receivable', partner: { id: 1, name: 'x' }, date_from: '2026-10-01', date_to: '2026-10-20', currencies: [] } }
     expect(reportCurrency(loaded)).toBeNull()
+  })
+
+  it('reads the cash flow statement and the VAT return for a period, with the capability the API checks', () => {
+    expect(REPORTS['cash-flow'].capability).toBe('finance.statements.read')
+    expect(REPORTS['vat-return'].capability).toBe('finance.reports.read')
+    for (const slug of ['cash-flow', 'vat-return'] as const) expect(REPORTS[slug].filters).toMatchObject({ period: 'range', targetMove: false })
+  })
+
+  it('tags a VAT return with its slug and refuses a return that claims to be filed', () => {
+    const vatReturn = { date_from: '2026-10-01', date_to: '2026-10-31', currency: 'SAR', status: 'draft_for_review', filed: false, boxes: [{ code: 'sa_1', number: 1, name: 'x', base: 100, tax: 15 }] }
+    expect(REPORTS['vat-return'].schema.parse(vatReturn)).toEqual({ slug: 'vat-return', data: vatReturn })
+    expect(() => REPORTS['vat-return'].schema.parse({ ...vatReturn, filed: true })).toThrow()
   })
 })

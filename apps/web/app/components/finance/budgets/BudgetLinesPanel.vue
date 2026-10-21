@@ -2,14 +2,16 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { FinanceBudgetDetail, FinanceBudgetLine } from '@webvue/contracts'
 import Money from '../invoices/Money.vue'
+import BudgetDistributeForm from './BudgetDistributeForm.vue'
 import BudgetLineForm from './BudgetLineForm.vue'
 import { budgetPeriod } from './budgetPaths'
 import { NATURE_TONE } from './budgetTones'
 
 // The lines of a budget: account (with its label and analytic account underneath), nature, period and amount. While
-// the budget is a draft and the caller may manage it, the add-line form sits inside the section.
+// the budget is a draft and the caller may manage it, the add-line form and the split between cost centers sit inside the section.
 const props = defineProps<{ budget: FinanceBudgetDetail; editable: boolean }>()
 const { t } = useI18n()
+const splitting = ref(false)
 const numeric = { class: { th: 'text-end', td: 'text-end' } }
 const columns = computed<TableColumn<FinanceBudgetLine>[]>(() => [
   { id: 'account', header: t('financeBudgets.lines.account') },
@@ -44,6 +46,12 @@ const detail = (line: FinanceBudgetLine) => [line.label, line.analytic_account?.
         </div>
       </template>
     </SharedDataTable>
-    <BudgetLineForm v-if="props.editable" :budget="budget" />
+    <template v-if="props.editable">
+      <BudgetDistributeForm v-if="splitting" :budget="budget" @done="splitting = false" @cancel="splitting = false" />
+      <div v-else class="border-t border-default p-(--webvue-card-pad-dense)">
+        <UButton color="neutral" variant="outline" icon="i-lucide-split" :label="t('financeBudgets.distribute.open')" data-testid="finance-budget-distribute-open" @click="splitting = true" />
+      </div>
+      <BudgetLineForm :budget="budget" />
+    </template>
   </SharedRecordSection>
 </template>

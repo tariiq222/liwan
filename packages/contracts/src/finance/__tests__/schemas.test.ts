@@ -5,7 +5,14 @@ import {
   FinanceInvoiceListSchema,
   FinanceInvoiceSchema,
   FinanceJournalListSchema,
+  FinanceBankImportPreviewRequestSchema,
+  FinanceBankImportSchema,
+  FinanceCashFlowSchema,
   FinanceJournalSchema,
+  FinanceVatReturnSchema,
+  FinancePaymentAllocateSchema,
+  FinancePaymentPatchSchema,
+  FinancePaymentStandaloneSchema,
   FinancePaymentListSchema,
   FinancePaymentSchema,
 } from '..'
@@ -50,11 +57,13 @@ const PAYMENT = {
   memo: '',
   currency: 'SAR',
   amount: 1150,
+  unallocated: 0,
+  invoices: [],
 }
 const ACCOUNT = {
-  id: 40, code: '400000', name: 'Product Sales', account_type: 'income', reconcile: false, currency: null,
+  id: 40, code: '400000', name: 'Product Sales', account_type: 'income', reconcile: false, currency: null, active: true,
 }
-const JOURNAL = { id: 1, name: 'Customer Invoices', code: 'INV', type: 'sale', currency: 'SAR' }
+const JOURNAL = { id: 1, name: 'Customer Invoices', code: 'INV', type: 'sale', currency: 'SAR', default_account: null, active: true }
 
 describe('draft document numbering', () => {
   it('accepts a null payment name', () => {
@@ -134,5 +143,71 @@ describe('finance list envelopes', () => {
       expect(() => schema.parse({ items: [row], total: 1, next: 2 })).toThrow()
       expect(() => schema.parse({ items: [row], total: -1 })).toThrow()
     }
+  })
+})
+
+describe('standalone payment bodies', () => {
+  const receipt = { payment_type: 'inbound', partner_id: 7, amount: 500, payment_date: '2026-10-19', journal_id: 6 }
+
+  it('accepts a receipt, a draft edit and an allocation', () => {
+    expect(FinancePaymentStandaloneSchema.parse(receipt)).toEqual(receipt)
+    expect(FinancePaymentPatchSchema.parse({ amount: 450 })).toEqual({ amount: 450 })
+    expect(FinancePaymentAllocateSchema.parse({ invoice_ids: [3] })).toEqual({ invoice_ids: [3] })
+    expect(FinancePaymentAllocateSchema.parse({ payment_ids: [9] })).toEqual({ payment_ids: [9] })
+  })
+
+  it('refuses unknown keys, an empty edit and an ambiguous allocation', () => {
+    expect(() => FinancePaymentStandaloneSchema.parse({ ...receipt, invoice_ids: [1] })).toThrow()
+    expect(() => FinancePaymentPatchSchema.parse({})).toThrow()
+    expect(() => FinancePaymentPatchSchema.parse({ partner_id: 1 })).toThrow()
+    expect(() => FinancePaymentAllocateSchema.parse({})).toThrow()
+    expect(() => FinancePaymentAllocateSchema.parse({ invoice_ids: [1], payment_ids: [2] })).toThrow()
+  })
+})
+
+describe('bank statement import bodies', () => {
+  const file = { journal_id: 3, content: 'Date,Description,Amount\n2026-10-25,Deposit,100\n' }
+  const mapping = { date: 'Date', payment_ref: 'Description', amount: 'Amount' }
+
+  it('accepts the column proposal request, the mapped preview and the import', () => {
+    expect(FinanceBankImportPreviewRequestSchema.parse(file)).toEqual(file)
+    expect(FinanceBankImportPreviewRequestSchema.parse({ ...file, mapping })).toEqual({ ...file, mapping })
+    const body = { ...file, mapping, balance_start: 0, balance_end_real: 100 }
+    expect(FinanceBankImportSchema.parse(body)).toEqual(body)
+  })
+
+  it('refuses an import with no balances, a missing mapping or an unknown key', () => {
+    expect(() => FinanceBankImportSchema.parse({ ...file, mapping })).toThrow()
+    expect(() => FinanceBankImportSchema.parse({ ...file, balance_start: 0, balance_end_real: 0 })).toThrow()
+    expect(() => FinanceBankImportSchema.parse({ ...file, mapping, balance_start: 0, balance_end_real: 0, colour: 1 })).toThrow()
+  })
+})
+
+describe('cash flow statement', () => {
+  const statement = {
+    date_from: '2026-01-01', date_to: '2026-12-31', currency: 'SAR', basis: 'indirect', statutory: false,
+    opening_cash: 5000, closing_cash: 103000, net_change: 98000,
+    operating: { net_income: 0, adjustments: [], items: [], total: 0 },
+    investing: { items: [{ account: { id: 1, code: '106002', name: 'Furniture' }, amount: -12000 }], depreciation_reclass: 0, total: -12000 },
+    financing: { items: [], total: 110000 },
+    total_change: 98000, difference: 0,
+  }
+
+  it('accepts a closed statement and refuses a statutory claim or an unknown key', () => {
+    expect(FinanceCashFlowSchema.parse(statement)).toEqual(statement)
+    expect(() => FinanceCashFlowSchema.parse({ ...statement, statutory: true })).toThrow()
+    expect(() => FinanceCashFlowSchema.parse({ ...statement, extra: 1 })).toThrow()
+  })
+})
+
+describe('VAT return', () => {
+  const box = (number: number, base: number | null, tax: number | null) => ({ code: `sa_${number}`, number, name: `${number}. Box`, base, tax })
+
+  it('accepts the boxes of a draft and refuses a filed or unknown shape', () => {
+    const report = { date_from: '2026-10-01', date_to: '2026-10-31', currency: 'SAR', status: 'draft_for_review', filed: false, boxes: [box(1, 1000, 150), box(13, null, 150)] }
+    expect(FinanceVatReturnSchema.parse(report)).toEqual(report)
+    expect(() => FinanceVatReturnSchema.parse({ ...report, filed: true })).toThrow()
+    expect(() => FinanceVatReturnSchema.parse({ ...report, boxes: [box(17, 1, 1)] })).toThrow()
+    expect(() => FinanceVatReturnSchema.parse({ ...report, extra: 1 })).toThrow()
   })
 })

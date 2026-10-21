@@ -3,6 +3,10 @@ const CODE_KEYS = {
   not_balanced: 'notBalanced',
   invalid_state: 'invalidState',
   period_locked: 'periodLocked',
+  invalid_rows: 'invalidRows',
+  duplicate_lines: 'duplicateLines',
+  balance_mismatch: 'balanceMismatch',
+  has_reconciliations: 'hasReconciliations',
 } as const
 
 export function bankErrorKey(code: string): string | null {

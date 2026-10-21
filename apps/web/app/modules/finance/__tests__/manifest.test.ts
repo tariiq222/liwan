@@ -158,7 +158,7 @@ describe('finance context sidebar', () => {
     expect(links.filter(link => link.pinned)).toHaveLength(0)
     expect(links.filter(link => link.section === 'finance.nav.reports').map(link => link.to)).toEqual([
       '/finance/reports/profit-loss', '/finance/reports/balance-sheet', '/finance/reports/trial-balance', '/finance/reports/general-ledger', '/finance/reports/aged-partner-balance',
-      '/finance/reports/partner-statement', '/finance/reports/vat', '/finance/reports/withholding', '/finance/reports/analytic',
+      '/finance/reports/partner-statement', '/finance/reports/cash-flow', '/finance/reports/vat', '/finance/reports/vat-return', '/finance/reports/withholding', '/finance/reports/analytic',
       '/finance/reports/budget-vs-actual', '/finance/reports/zakat-base',
     ])
     for (const link of links.filter(item => item.section === 'finance.nav.reports')) expect(requiredCapabilityForPath(String(link.to))).toBe(link.capability)

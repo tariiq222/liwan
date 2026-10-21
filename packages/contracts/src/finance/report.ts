@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { currency, FinanceRefSchema, list } from './shared'
 
 const id = z.number().int().positive()
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -53,3 +54,42 @@ export const FinanceWithholdingSummarySchema = z.object({
 
 export type FinanceWithholdingTaxRow = z.infer<typeof FinanceWithholdingTaxRowSchema>
 export type FinanceWithholdingSummary = z.infer<typeof FinanceWithholdingSummarySchema>
+
+/**
+ * GET /finance/reports/vat-return?date_from&date_to: the 16 boxes of the Saudi VAT return from the tax tags of the posted
+ * journal items. A box has a `base` and/or a `tax` column (the other is null). It is a draft for the taxpayer's review and
+ * is never filed by WebVue: `filed` is always false.
+ */
+export const FinanceVatReturnSchema = z.object({
+  date_from: day,
+  date_to: day,
+  currency,
+  status: z.literal('draft_for_review'),
+  filed: z.literal(false),
+  boxes: z.array(z.object({
+    code: z.string().regex(/^sa_\d{1,2}$/),
+    number: z.number().int().min(1).max(16),
+    name: z.string(),
+    base: z.number().nullable(),
+    tax: z.number().nullable(),
+  }).strict()),
+}).strict()
+
+/** GET /finance/reports/vat-return/items?code&column: the journal items behind one column of one box. */
+export const FinanceVatReturnItemSchema = z.object({
+  id,
+  date: day,
+  entry: FinanceRefSchema.nullable(),
+  entry_type: z.string(),
+  account: z.object({ id, code: z.string(), name: z.string() }).strict(),
+  partner: FinanceRefSchema.nullable(),
+  label: z.string(),
+  /** The item's balance in the company currency. */
+  balance: z.number(),
+  /** Its contribution to the box column (positive when it adds to the box). */
+  amount: z.number(),
+}).strict()
+export const FinanceVatReturnItemListSchema = list(FinanceVatReturnItemSchema)
+
+export type FinanceVatReturn = z.infer<typeof FinanceVatReturnSchema>
+export type FinanceVatReturnItem = z.infer<typeof FinanceVatReturnItemSchema>

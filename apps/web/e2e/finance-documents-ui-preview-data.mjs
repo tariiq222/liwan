@@ -15,11 +15,11 @@ const CASH = { id: 4, name: 'الصندوق' }
 const MISC = { id: 5, name: 'العمليات المتنوعة' }
 
 const journals = [
-  { ...SALES, code: 'INV', type: 'sale', currency: CURRENCY },
-  { ...PURCHASES, code: 'BILL', type: 'purchase', currency: CURRENCY },
-  { ...BANK, code: 'BNK1', type: 'bank', currency: CURRENCY },
-  { ...CASH, code: 'CSH1', type: 'cash', currency: CURRENCY },
-  { ...MISC, code: 'MISC', type: 'general', currency: CURRENCY },
+  { ...SALES, code: 'INV', type: 'sale', currency: CURRENCY, default_account: null, active: true },
+  { ...PURCHASES, code: 'BILL', type: 'purchase', currency: CURRENCY, default_account: null, active: true },
+  { ...BANK, code: 'BNK1', type: 'bank', currency: CURRENCY, default_account: null, active: true },
+  { ...CASH, code: 'CSH1', type: 'cash', currency: CURRENCY, default_account: null, active: true },
+  { ...MISC, code: 'MISC', type: 'general', currency: CURRENCY, default_account: null, active: true },
 ]
 
 const line = (id, name, quantity, price, discount = 0, taxed = true) => {
@@ -84,13 +84,13 @@ financeDocuments.push(document(18, 'in_invoice', 'cancel', 'not_paid', PRINT, [l
 const summary = ({ lines: _lines, ref: _ref, debit_origin: _origin, zatca: _zatca, ...rest }) => rest
 
 export const financePayments = [
-  { id: 1, name: 'BNK1/2026/0001', payment_type: 'inbound', partner_type: 'customer', state: 'paid', partner: NOOR, journal: BANK, date: '2026-08-10', memo: 'دفعة أولى', currency: CURRENCY, amount: 4600 },
-  { id: 2, name: 'BNK1/2026/0002', payment_type: 'inbound', partner_type: 'customer', state: 'paid', partner: NOOR, journal: BANK, date: '2026-07-20', memo: 'سداد كامل', currency: CURRENCY, amount: 3450 },
-  { id: 3, name: 'CSH1/2026/0001', payment_type: 'outbound', partner_type: 'supplier', state: 'paid', partner: PRINT, journal: CASH, date: '2026-09-01', memo: 'مطبوعات', currency: CURRENCY, amount: 2300 },
-  { id: 4, name: 'BNK1/2026/0003', payment_type: 'outbound', partner_type: 'supplier', state: 'in_process', partner: PRINT, journal: BANK, date: '2026-09-18', memo: '', currency: CURRENCY, amount: 3105 },
-  { id: 5, name: null, payment_type: 'inbound', partner_type: 'customer', state: 'draft', partner: ACME, journal: BANK, date: '2026-10-01', memo: '', currency: CURRENCY, amount: 1000 },
-  { id: 6, name: 'BNK1/2026/0004', payment_type: 'inbound', partner_type: 'customer', state: 'canceled', partner: ACME, journal: BANK, date: '2026-09-05', memo: 'أُلغيت', currency: CURRENCY, amount: 500 },
-  { id: 7, name: 'BNK1/2026/0005', payment_type: 'outbound', partner_type: 'supplier', state: 'rejected', partner: SUPPLY, journal: BANK, date: '2026-09-07', memo: 'رُفضت من البنك', currency: CURRENCY, amount: 800 },
+  { id: 1, name: 'BNK1/2026/0001', payment_type: 'inbound', partner_type: 'customer', state: 'paid', partner: NOOR, journal: BANK, date: '2026-08-10', memo: 'دفعة أولى', currency: CURRENCY, amount: 4600, unallocated: 0, invoices: [] },
+  { id: 2, name: 'BNK1/2026/0002', payment_type: 'inbound', partner_type: 'customer', state: 'paid', partner: NOOR, journal: BANK, date: '2026-07-20', memo: 'سداد كامل', currency: CURRENCY, amount: 3450, unallocated: 0, invoices: [] },
+  { id: 3, name: 'CSH1/2026/0001', payment_type: 'outbound', partner_type: 'supplier', state: 'paid', partner: PRINT, journal: CASH, date: '2026-09-01', memo: 'مطبوعات', currency: CURRENCY, amount: 2300, unallocated: 0, invoices: [] },
+  { id: 4, name: 'BNK1/2026/0003', payment_type: 'outbound', partner_type: 'supplier', state: 'in_process', partner: PRINT, journal: BANK, date: '2026-09-18', memo: '', currency: CURRENCY, amount: 3105, unallocated: 0, invoices: [] },
+  { id: 5, name: null, payment_type: 'inbound', partner_type: 'customer', state: 'draft', partner: ACME, journal: BANK, date: '2026-10-01', memo: '', currency: CURRENCY, amount: 1000, unallocated: 0, invoices: [] },
+  { id: 6, name: 'BNK1/2026/0004', payment_type: 'inbound', partner_type: 'customer', state: 'canceled', partner: ACME, journal: BANK, date: '2026-09-05', memo: 'أُلغيت', currency: CURRENCY, amount: 500, unallocated: 0, invoices: [] },
+  { id: 7, name: 'BNK1/2026/0005', payment_type: 'outbound', partner_type: 'supplier', state: 'rejected', partner: SUPPLY, journal: BANK, date: '2026-09-07', memo: 'رُفضت من البنك', currency: CURRENCY, amount: 800, unallocated: 0, invoices: [] },
 ]
 
 const matches = (text, q) => !q || String(text ?? '').toLocaleLowerCase().includes(q.trim().toLocaleLowerCase())

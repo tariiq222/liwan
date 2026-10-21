@@ -68,6 +68,14 @@ def dump_zatca_readiness(company):
     }
 
 
+def waiting_domain(company):
+    """The domain of the posted ZATCA documents of ``company`` that ZATCA has not accepted yet."""
+    return [
+        ('move_id.company_id', '=', company.id), ('move_id.state', '=', 'posted'),
+        ('edi_format_id.code', '=', ZATCA_FORMAT_CODE), ('state', '=', 'to_send'),
+    ]
+
+
 def dump_zatca_backlog(company):
     """Counts of the posted ZATCA documents of ``company`` still waiting, read in the caller's environment.
 
@@ -75,10 +83,7 @@ def dump_zatca_backlog(company):
     again); ``rejected`` and ``blocked`` are the two kinds of error-level documents, told apart by the same
     classification as a single submission.
     """
-    waiting = [
-        ('move_id.company_id', '=', company.id), ('move_id.state', '=', 'posted'),
-        ('edi_format_id.code', '=', ZATCA_FORMAT_CODE), ('state', '=', 'to_send'),
-    ]
+    waiting = waiting_domain(company)
     documents = company.env['account.edi.document']
     by_level = dict(documents._read_group(waiting, groupby=['blocking_level'], aggregates=['__count']))
     errors = documents.search([*waiting, ('blocking_level', '=', 'error')])
@@ -87,6 +92,11 @@ def dump_zatca_backlog(company):
         'to_send': by_level.get(False, 0), 'retry': by_level.get('warning', 0) + by_level.get('info', 0),
         'rejected': kinds['rejected'], 'blocked': kinds['blocked'],
     }
+
+
+def zatca_state(document):
+    """The submission state of one ZATCA EDI document (see ``dump_zatca_submission``)."""
+    return _classify(document)[0]
 
 
 def zatca_document(move):
@@ -162,4 +172,17 @@ def dump_zatca_submission(move):
         'errors': errors,
         'warnings': _chatter_warnings(move) if state == 'accepted' else [],
         'qr_present': bool(move.l10n_sa_qr_code_str),
+    }
+
+
+def dump_zatca_waiting_document(document):
+    """One document that ZATCA has not accepted: the invoice it belongs to and where it stands."""
+    move = document.move_id
+    return {
+        'invoice': {'id': move.id, 'name': move.name},
+        'partner': {'id': move.partner_id.id, 'name': move.partner_id.name} if move.partner_id else None,
+        'date': move.invoice_date.isoformat() if move.invoice_date else None,
+        'amount_total': move.amount_total,
+        'move_type': move.move_type,
+        'submission': dump_zatca_submission(move),
     }

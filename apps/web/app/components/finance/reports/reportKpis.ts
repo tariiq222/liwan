@@ -96,6 +96,18 @@ export function reportKpiTiles(report: LoadedReport, t: Translate, n: FormatNumb
       })
       return [side('debit', 'i-lucide-arrow-down-left'), side('credit', 'i-lucide-arrow-up-right'), tile('budgetNet', totals.net.actual, currency, 'i-lucide-scale')]
     }
+    case 'cash-flow': {
+      const { opening_cash: opening, closing_cash: closing, difference, currency } = report.data
+      return [
+        tile('cashOpening', opening, currency, 'i-lucide-wallet'),
+        tile('cashClosing', closing, currency, 'i-lucide-landmark'),
+        tile('cashDifference', difference, currency, 'i-lucide-scale', difference === 0 ? 'success' : 'danger'),
+      ]
+    }
+    case 'vat-return': {
+      const net = report.data.boxes.find(box => box.number === 16)?.tax
+      return net === undefined || net === null ? [] : [tile('netPayable', net, report.data.currency, 'i-lucide-percent', net > 0 ? 'warning' : 'success')]
+    }
     case 'general-ledger':
       return []
   }

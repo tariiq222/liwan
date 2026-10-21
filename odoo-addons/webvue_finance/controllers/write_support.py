@@ -21,6 +21,16 @@ def company_records(model, ids, field, domain=()):
     return records
 
 
+def currency_id_of(code):
+    """The id of the currency named ``code``; ``False`` for ``None``, which clears a currency field."""
+    if code is None:
+        return False
+    currency = request.env['res.currency'].search([('name', '=', code)], limit=1)
+    if not currency:
+        raise ApiError(422, 'invalid', 'currency does not reference an available currency', field='currency')
+    return currency.id
+
+
 def require_state(record, state, code):
     if record.state != state:
         raise ApiError(422, code, f'the record must be in the {state} state, it is {record.state}')

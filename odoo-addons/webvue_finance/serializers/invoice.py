@@ -17,7 +17,8 @@ from odoo.addons.webvue_api.serializers.common import iso
 WRITABLE_MOVE_TYPES = ('out_invoice', 'in_invoice', 'out_refund', 'in_refund')
 LINE_FIELDS = frozenset({'name', 'quantity', 'price_unit', 'discount', 'tax_ids', 'account_id', 'analytic_distribution'})
 EDITABLE_FIELDS = frozenset({'partner_id', 'invoice_date', 'invoice_date_due', 'currency', 'ref', 'lines'})
-CREATE_FIELDS = EDITABLE_FIELDS | {'move_type'}
+# The journal is chosen when the document is created; moving a draft to another journal would renumber it.
+CREATE_FIELDS = EDITABLE_FIELDS | {'move_type', 'journal_id'}
 
 
 def dump_invoice(move):
@@ -134,7 +135,10 @@ def parse_invoice_create(payload):
     move_type = payload['move_type']
     if move_type not in WRITABLE_MOVE_TYPES:
         raise ApiError(422, 'invalid', f'move_type must be one of {", ".join(WRITABLE_MOVE_TYPES)}', field='move_type')
-    return {'move_type': move_type, **_parse_editable(payload)}
+    parsed = {'move_type': move_type, **_parse_editable(payload)}
+    if 'journal_id' in payload:
+        parsed['journal_id'] = parse_id(payload['journal_id'], 'journal_id')
+    return parsed
 
 
 def parse_invoice_patch(payload):

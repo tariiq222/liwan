@@ -62,6 +62,15 @@ class TestFinanceInvoiceWrite(WebVueFinanceWriteCase):
         vendor_refund = self.create_invoice(self.bill_body(move_type='in_refund'))
         self.assertEqual(vendor_refund['move_type'], 'in_refund')
 
+    def test_the_journal_is_chosen_at_creation_among_the_journals_of_the_documents_kind(self):
+        second = self.env['account.journal'].create({'name': 'Second sales', 'code': 'SS2', 'type': 'sale', 'company_id': self.company.id})
+        invoice = self.create_invoice(self.invoice_body(journal_id=second.id))
+        self.assertEqual(self.env['account.move'].browse(invoice['id']).journal_id, second)
+        for journal in (self.bank, self._journal(self.other_company, 'sale'), self._journal(self.company, 'purchase')):
+            with self.subTest(journal=journal.display_name):
+                self.assertRefused(self.api('POST', INVOICES, json=self.invoice_body(journal_id=journal.id)), 422, 'invalid', 'journal_id')
+        self.assertRefused(self.api('PATCH', self._route(invoice), json={'journal_id': second.id}), 422, 'invalid', 'journal_id')
+
     def test_a_patch_without_lines_keeps_them_and_a_patch_with_lines_replaces_them(self):
         draft = self.create_invoice(self.invoice_body(lines=[
             {'name': 'A', 'price_unit': 100}, {'name': 'B', 'price_unit': 200, 'discount': 50},

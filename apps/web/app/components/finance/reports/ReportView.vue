@@ -7,11 +7,13 @@ import { useRouteListFilters } from '@/composables/useRouteListFilters'
 import BudgetVarianceTable from '../budgets/BudgetVarianceTable.vue'
 import AgedBalanceTable from './AgedBalanceTable.vue'
 import AnalyticTable from './AnalyticTable.vue'
+import CashFlowTable from './CashFlowTable.vue'
 import GeneralLedgerTable from './GeneralLedgerTable.vue'
 import MisLinesTable from './MisLinesTable.vue'
 import PartnerStatementTable from './PartnerStatementTable.vue'
 import ReportFilters from './ReportFilters.vue'
 import TrialBalanceTable from './TrialBalanceTable.vue'
+import VatReturnTable from './VatReturnTable.vue'
 import VatTable from './VatTable.vue'
 import WithholdingTable from './WithholdingTable.vue'
 import ZakatBaseTable from './ZakatBaseTable.vue'
@@ -88,6 +90,8 @@ function clearFilters() {
             <MisLinesTable v-else-if="loaded.slug === 'balance-sheet'" kind="balanceSheet" :lines="loaded.data.lines" :currency="loaded.data.currency" :caption="t('financeReports.reports.balanceSheet.title')" />
             <ZakatBaseTable v-else-if="loaded.slug === 'zakat-base'" :report="loaded.data" />
             <BudgetVarianceTable v-else-if="loaded.slug === 'budget-vs-actual'" :lines="loaded.data.lines" :caption="t('financeReports.reports.budgetVsActual.title')" />
+            <CashFlowTable v-else-if="loaded.slug === 'cash-flow'" :report="loaded.data" />
+            <VatReturnTable v-else-if="loaded.slug === 'vat-return'" :report="loaded.data" />
             <WithholdingTable v-else :report="loaded.data" />
           </template>
         </SharedPageState>

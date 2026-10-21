@@ -33,6 +33,14 @@
       },
       "budgetVsActual": {
         "title": "Budget vs actual"
+      },
+      "cashFlow": {
+        "title": "Cash flow",
+        "description": "Cash in and out by operating, investing and financing activities, by the indirect method."
+      },
+      "vatReturn": {
+        "title": "VAT return",
+        "description": "The boxes of the Saudi VAT return from the books, with the journal items behind each figure."
       }
     },
     "kpi": {
@@ -65,7 +73,10 @@
       "budgetDebit": "Debit side",
       "budgetCredit": "Credit side",
       "budgetNet": "Net",
-      "budgetOf": "Budget: {amount}"
+      "budgetOf": "Budget: {amount}",
+      "cashOpening": "Opening cash",
+      "cashClosing": "Closing cash",
+      "cashDifference": "Unexplained difference"
     },
     "filters": {
       "partner": "Partner",
@@ -166,7 +177,39 @@
       "disclaimerLead": "This calculation is simplified; have a Saudi CPA review it before relying on it.",
       "base": "Zakat base",
       "due": "Zakat due",
-      "rate": "Rate"
+      "rate": "Rate",
+      "adjustmentsTitle": "Adjustments to the base",
+      "noAdjustments": "No adjustments for this year.",
+      "kinds": {
+        "add": "Addition",
+        "deduct": "Deduction"
+      },
+      "kind": "Type",
+      "amount": "Amount",
+      "amountInvalid": "Enter an amount above zero",
+      "label": "Description",
+      "labelRequired": "Describe the adjustment",
+      "note": "Note",
+      "addAdjustment": "Add adjustment",
+      "remove": "Remove adjustment",
+      "removeFor": "Remove {label}",
+      "removeConfirm": "Remove the adjustment \"{label}\"?",
+      "removeHint": "The base and the Zakat due are recalculated, and any earlier review becomes stale.",
+      "reviewTitle": "Review",
+      "status": {
+        "management_information": "Management information, not reviewed",
+        "reviewed": "Reviewed",
+        "review_stale": "Review out of date"
+      },
+      "notFiled": "Nothing is filed from here: the taxpayer files Zakat, after review by a qualified accountant.",
+      "reviewedBy": "Reviewed by {name} ({credential}) on {date}.",
+      "staleTitle": "The books or the adjustments changed after the last review",
+      "staleHint": "The figures above are not the ones that were reviewed. Review them again.",
+      "review": "Review this computation",
+      "reviewHint": "You are recording that you reviewed this computation as it stands now. The record is permanent and any later change makes it out of date.",
+      "credential": "Your credential",
+      "credentialHelp": "For example your SOCPA licence number. WebVue does not verify it.",
+      "confirmReview": "Record the review"
     },
     "mis": {
       "profitLoss": {
@@ -213,6 +256,57 @@
         "total_additions": "Total additions",
         "total_deductions": "Total deductions"
       }
+    },
+    "cashFlow": {
+      "notice": "Built from the posted books by the indirect method. It is a management statement, not a filed one.",
+      "notClosed": "The statement does not close: the change in cash accounts differs from the activities total. Review the entries before relying on it.",
+      "difference": "Difference from the change in cash accounts",
+      "closes": "Closes",
+      "open": "Does not close",
+      "rows": {
+        "netIncome": "Net income",
+        "depreciation": "Add back depreciation",
+        "depreciationReclass": "Depreciation taken out of asset changes",
+        "operating": "Net cash from operating activities",
+        "investing": "Net cash from investing activities",
+        "financing": "Net cash from financing activities",
+        "netChange": "Net change in cash",
+        "opening": "Opening cash",
+        "closing": "Closing cash"
+      }
+    },
+    "vatReturn": {
+      "noticeTitle": "For review before filing",
+      "notice": "These are management figures built from the tax tags of posted entries. The return is filed by the taxpayer on the ZATCA portal after a qualified accountant has reviewed it; nothing is filed from here.",
+      "box": "Box",
+      "openItems": "Show the items behind box {box}",
+      "itemsTitle": "Items behind box {box} · {column}",
+      "itemsCaption": "Journal items behind a VAT return figure",
+      "noItems": "No items behind this figure.",
+      "contribution": "Contribution",
+      "columns": {
+        "base": "Base",
+        "tax": "Tax"
+      },
+      "boxes": {
+        "sa_1": "Standard-rated sales",
+        "sa_2": "Private healthcare, private education and first-home sales to citizens",
+        "sa_3": "Zero-rated domestic sales",
+        "sa_4": "Exports",
+        "sa_5": "Exempt sales",
+        "sa_6": "Total sales",
+        "sa_7": "Standard-rated domestic purchases",
+        "sa_8": "Imports subject to VAT paid at customs",
+        "sa_9": "Imports subject to VAT under reverse charge",
+        "sa_10": "Zero-rated purchases",
+        "sa_11": "Exempt purchases",
+        "sa_12": "Total purchases",
+        "sa_13": "Total VAT due for the period",
+        "sa_14": "Corrections from previous periods",
+        "sa_15": "VAT credit carried forward from previous periods",
+        "sa_16": "Net VAT due or claim"
+      },
+      "close": "Close"
     }
   }
 }

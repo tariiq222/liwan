@@ -29,7 +29,7 @@ export function useApi() {
 
   async function $api<T>(
     path: string,
-    opts: { method?: string; body?: unknown; query?: Record<string, unknown>; schema?: ZodType<T>; signal?: AbortSignal } = {},
+    opts: { method?: string; body?: unknown; query?: Record<string, unknown>; schema?: ZodType<T>; signal?: AbortSignal; headers?: Record<string, string> } = {},
   ): Promise<T> {
     const writing = !['GET', 'HEAD', 'OPTIONS'].includes((opts.method ?? 'GET').toUpperCase())
     try {
@@ -42,7 +42,7 @@ export function useApi() {
         // Never forward a cookie or private hop identity to an absolute URL,
         // protocol-relative URL, encoded path or normalized traversal target.
         headers: /^\/api\/v1\/[a-zA-Z0-9_/-]+$/.test(path) && !path.includes('..')
-          ? { ...headers, ...trustedHeaders }
+          ? { ...headers, ...trustedHeaders, ...opts.headers }
           : {},
       })
       return opts.schema ? opts.schema.parse(data) : (data as T)

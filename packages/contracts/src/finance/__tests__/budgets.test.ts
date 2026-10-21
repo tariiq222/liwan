@@ -11,7 +11,7 @@ import {
 const REF = { id: 4, name: '600901 Rent' }
 const BUDGET = {
   id: 1, name: 'Budget 2026', description: '', state: 'draft', date_from: '2026-01-01', date_to: '2026-12-31',
-  currency: 'SAR', line_count: 1,
+  currency: 'SAR', line_count: 1, cost_center_split: false,
 }
 const LINE = {
   id: 9, account: REF, nature: 'debit', analytic_account: null, label: '', date_from: '2026-01-01',
@@ -58,5 +58,17 @@ describe('finance budget schemas', () => {
     expect(() => FinanceBudgetLineCreateSchema.parse({ ...line, amount: '10' })).toThrow()
     expect(() => FinanceBudgetLineCreateSchema.parse({ ...line, budget_id: 1 })).toThrow()
     expect(FinanceBudgetLinePatchSchema.parse({ amount: 0 })).toEqual({ amount: 0 })
+  })
+})
+
+describe('budget distribution body', () => {
+  const body = { account_id: 4, amount: 10000, shares: [{ analytic_account_id: 1, percent: 60 }, { analytic_account_id: 2, percent: 40 }] }
+
+  it('accepts shares that add up to 100 and refuses the rest', async () => {
+    const { FinanceBudgetDistributeSchema } = await import('..')
+    expect(FinanceBudgetDistributeSchema.parse(body)).toEqual(body)
+    expect(() => FinanceBudgetDistributeSchema.parse({ ...body, shares: [body.shares[0]] })).toThrow()
+    expect(() => FinanceBudgetDistributeSchema.parse({ ...body, shares: [body.shares[0], { analytic_account_id: 2, percent: 30 }] })).toThrow()
+    expect(() => FinanceBudgetDistributeSchema.parse({ ...body, shares: [body.shares[0], { analytic_account_id: 1, percent: 40 }] })).toThrow()
   })
 })

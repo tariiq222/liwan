@@ -6,6 +6,7 @@ from odoo.http import request
 from .analytic_support import distribution_values, require_plain_distributions
 from .common import filter_domain, list_page, parse_choice, require_capability
 from .finance_partners import company_partners_domain
+from .idempotency import idempotent
 from .write_support import attempt, company_records, require_state
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
@@ -101,6 +102,11 @@ def _move_values(parsed, move_type):
         values['partner_id'] = company_records(
             'res.partner', [parsed['partner_id']], 'partner_id', company_partners_domain(),
         ).id
+    if 'journal_id' in parsed:
+        values['journal_id'] = company_records(
+            'account.journal', [parsed['journal_id']], 'journal_id',
+            [('company_id', '=', request.env.company.id), ('type', '=', _tax_use(move_type))],
+        ).id
     if 'currency' in parsed:
         currency = request.env['res.currency'].search([('name', '=', parsed['currency'])], limit=1)
         if not currency:
@@ -158,13 +164,15 @@ class FinanceInvoiceController(http.Controller):
     @http.route('/api/v1/finance/invoices', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
+    @idempotent
     def create_invoice(self, **payload):
         require_capability('finance.invoices.manage')
         parsed = parse_invoice_create(payload)
         values = _move_values(parsed, parsed['move_type'])
         invoice = attempt(
             lambda: request.env['account.move'].create(values),
-            day=values.get('invoice_date'), journal=_default_journal(parsed['move_type']),
+            day=values.get('invoice_date'),
+            journal=request.env['account.journal'].browse(values['journal_id']) if 'journal_id' in values else _default_journal(parsed['move_type']),
             has_tax=any(line.get('tax_ids') for line in parsed['lines']),
         )
         return request.make_json_response(dump_invoice_detail(invoice), status=201)

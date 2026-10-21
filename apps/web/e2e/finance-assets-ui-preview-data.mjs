@@ -25,6 +25,9 @@ const profile = (id, name, method_number, method_period) => ({
   depreciation_account: depreciationAccount,
   expense_account: expenseAccount,
   journal,
+  plus_value_account: null,
+  min_value_account: null,
+  active: true,
 })
 
 export const financeAssetProfiles = [
@@ -104,7 +107,7 @@ function buildAsset([id, code, name, profileId, purchase_value, salvage_value, d
   summary.value_depreciated = depreciated
   summary.value_residual = state === 'removed' ? 0 : cents(summary.depreciation_base - depreciated)
   const { method, method_time, method_number, method_period, prorata } = profileRow
-  return { ...summary, note, method, method_time, method_number, method_period, prorata, lines }
+  return { ...summary, note, date_remove: state === 'removed' ? TODAY : null, method, method_time, method_number, method_period, prorata, lines }
 }
 
 export const financeAssets = SOURCES.map(buildAsset)
@@ -126,7 +129,7 @@ function filterAssets(url) {
     && (matches(item.name, searchParams.get('q')) || matches(item.code, searchParams.get('q'))))
 }
 
-const summary = ({ lines: _lines, note: _note, method: _method, method_time: _time, method_number: _number, method_period: _period, prorata: _prorata, ...rest }) => rest
+const summary = ({ lines: _lines, note: _note, date_remove: _removed, method: _method, method_time: _time, method_number: _number, method_period: _period, prorata: _prorata, ...rest }) => rest
 
 export function financeAssetsPreviewData(path, url) {
   const route = String(path || '/').replace(/\/+$/, '') || '/'
