@@ -3,6 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { HrCompensationWriteSchema, type HrCompensation } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
+import { parseMoneyInput } from '@/utils/moneyInput'
 
 // The compensation editor of one employee. The bank on record is kept as it is (there is no bank
 // catalog route), and the nationality is read-only: the server derives it from the employee record.
@@ -50,7 +51,11 @@ watch(() => props.compensation, (record) => { if (!dirty.value) seed(record) })
 watch(() => props.employeeId, () => seed(props.compensation))
 
 const compactIban = () => iban.value.replace(/\s+/g, '').toUpperCase()
-const parseAmount = (value: number | string) => typeof value === 'string' && value.trim() === '' ? Number.NaN : Number(value)
+// Arabic-Indic digits and the Arabic decimal mark are accepted; anything unparsable becomes NaN, which the schema refuses.
+function parseAmount(value: number | string) {
+  const parsedAmount = parseMoneyInput(String(value), 2)
+  return parsedAmount.ok ? parsedAmount.value : Number.NaN
+}
 const body = computed(() => ({
   basic_wage: parseAmount(basicWage.value),
   housing_allowance: parseAmount(housingAllowance.value),

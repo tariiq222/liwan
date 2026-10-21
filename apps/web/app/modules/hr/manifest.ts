@@ -10,6 +10,7 @@ const AREA_CREATE: Array<[prefix: string, link: AppContextLink]> = [
   ['/hr/onboarding', { id: 'new-onboarding', labelKey: 'hrOnboarding.runs.new', icon: plus, to: '/hr/onboarding/new', capability: 'hr.onboarding.manage', pinned: true }],
   ['/hr/offboarding', { id: 'new-departure', labelKey: 'hrOffboarding.departures.new', icon: plus, to: '/hr/offboarding/new', capability: 'hr.offboarding.manage', pinned: true }],
   ['/hr/assets', { id: 'new-asset', labelKey: 'hrAssets.new', icon: plus, to: '/hr/assets/new', capability: 'hr.assets.manage', pinned: true }],
+  ['/hr/payroll', { id: 'new-payroll-run', labelKey: 'hrPayroll.runs.new', icon: plus, to: '/hr/payroll/new', capability: 'hr.payroll.manage', pinned: true }],
 ]
 const NEW_EMPLOYEE: AppContextLink = { id: 'new-employee', labelKey: 'hr.directory.newEmployee', icon: plus, to: '/hr/employees/new', capability: 'hr.employees.manage', pinned: true }
 
@@ -59,6 +60,7 @@ const manifest: AppManifest = {
     { path: '/hr/onboarding', capability: 'hr.onboarding.read' },
     { path: '/hr/offboarding', capability: 'hr.offboarding.read' },
     { path: '/hr/assets', capability: 'hr.assets.read' },
+    { path: '/hr/payroll', capability: 'hr.payroll.read' },
   ],
   commands: [
     { id: 'hr.new-employee', labelKey: 'hr.directory.newEmployee', icon: 'i-lucide-users', to: '/hr/employees/new', capability: 'hr.employees.manage' },
@@ -69,6 +71,7 @@ const manifest: AppManifest = {
     { id: 'hr.new-onboarding', labelKey: 'hrOnboarding.runs.new', icon: 'i-lucide-user-plus', to: '/hr/onboarding/new', capability: 'hr.onboarding.manage' },
     { id: 'hr.new-departure', labelKey: 'hrOffboarding.departures.new', icon: 'i-lucide-user-minus', to: '/hr/offboarding/new', capability: 'hr.offboarding.manage' },
     { id: 'hr.new-asset', labelKey: 'hrAssets.new', icon: 'i-lucide-laptop', to: '/hr/assets/new', capability: 'hr.assets.manage' },
+    { id: 'hr.new-payroll-run', labelKey: 'hrPayroll.runs.new', icon: 'i-lucide-banknote', to: '/hr/payroll/new', capability: 'hr.payroll.manage' },
   ],
   subFeatures: {
     'hr.recruitment.': 'hr.recruitment',
@@ -96,6 +99,9 @@ const manifest: AppManifest = {
     { pattern: /^\/hr\/leave(?:\/|$)/, capability: 'hr.leave.read' },
     { pattern: /^\/hr\/reports$/, capability: 'hr.employees.manage' },
     { pattern: /^\/hr\/employees\/[^/]+\/compensation$/, capability: 'hr.payroll.manage', feature: 'hr.payroll' },
+    { pattern: /^\/hr\/payroll\/new$/, capability: 'hr.payroll.manage', feature: 'hr.payroll' },
+    { pattern: /^\/hr\/payroll\/settings$/, capability: 'hr.payroll.config', feature: 'hr.payroll' },
+    { pattern: /^\/hr\/payroll(?:\/|$)/, capability: 'hr.payroll.read', feature: 'hr.payroll' },
     { pattern: /^\/hr\/employees\/(new|[^/]+\/edit)$/, capability: 'hr.employees.manage' },
     { pattern: /^\/hr\/departments\/(new|[^/]+\/edit)$/, capability: 'hr.departments.manage' },
     { pattern: /^\/hr\/employees\/[^/]+\/access$/, capability: 'access.users.grant' },

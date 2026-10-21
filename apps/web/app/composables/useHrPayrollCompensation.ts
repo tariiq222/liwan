@@ -9,6 +9,14 @@ type Api = ReturnType<typeof useApi>['$api']
 export const hrPayrollKeys = {
   all: ['hr', 'payroll'] as const,
   compensation: (employeeId: number) => ['hr', 'payroll', 'compensation', employeeId] as const,
+  runLists: ['hr', 'payroll', 'runs', 'list'] as const,
+  runList: (query: object) => ['hr', 'payroll', 'runs', 'list', query] as const,
+  run: (runId: number) => ['hr', 'payroll', 'runs', 'detail', runId] as const,
+  payslipsOf: (runId: number) => ['hr', 'payroll', 'runs', runId, 'payslips'] as const,
+  payslips: (runId: number, query: object) => ['hr', 'payroll', 'runs', runId, 'payslips', query] as const,
+  payslip: (runId: number, payslipId: number) => ['hr', 'payroll', 'runs', runId, 'payslip', payslipId] as const,
+  settings: ['hr', 'payroll', 'settings'] as const,
+  gosiRates: ['hr', 'payroll', 'gosi-rates'] as const,
 }
 
 const compensationPath = (employeeId: number) => `/api/v1/hr/payroll/compensation/${employeeId}`

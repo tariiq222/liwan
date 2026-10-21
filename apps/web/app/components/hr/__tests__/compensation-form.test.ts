@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { HrCompensationWriteSchema } from '@webvue/contracts'
 import { ApiError } from '../../../composables/useApi'
 import { saveErrorMessage } from '../../../utils/formFeedback'
+import { parseMoneyInput } from '../../../utils/moneyInput'
 
 // Runs the form's real <script setup> without the DOM (the same harness idea as employee-general-form.test.ts).
 const filename = resolve(import.meta.dirname, '../payroll/CompensationForm.vue')
@@ -27,7 +28,7 @@ function load(props: { employeeId: number; compensation: typeof record | null })
     _defineComponent: Vue.defineComponent, computed: Vue.computed, ref: Vue.ref, watch: Vue.watch,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: vi.fn() }),
     useSaveHrCompensation: () => ({ mutateAsync: save, isPending: Vue.ref(false) }),
-    HrCompensationWriteSchema, ApiError, saveErrorMessage,
+    HrCompensationWriteSchema, ApiError, saveErrorMessage, parseMoneyInput,
   }
   const component = new Function(...Object.keys(bindings), code)(...Object.values(bindings))
   const state = component.setup(reactiveProps, { expose: () => {}, emit })
@@ -45,6 +46,13 @@ describe('CompensationForm amounts', () => {
       iban: 'SA0380000000608010167519', bank_id: 4, gosi_number: null, gosi_registration_date: null,
     })
     expect(emit).toHaveBeenCalledWith('saved', expect.anything())
+  })
+
+  it('reads Arabic-Indic digits and the Arabic decimal mark', async () => {
+    const { state, save } = load({ employeeId: 3, compensation: record })
+    state.basicWage.value = '٨٥٠٠٫٥٠'
+    await state.submit()
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ basic_wage: 8500.5 }))
   })
 
   it('refuses an empty basic wage without calling the server', async () => {

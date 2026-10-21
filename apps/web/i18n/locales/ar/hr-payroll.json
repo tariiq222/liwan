@@ -1,5 +1,176 @@
 {
   "hrPayroll": {
+    "currency": "ر.س",
+    "title": "الرواتب",
+    "runs": {
+      "new": "مسير رواتب جديد",
+      "create": "إنشاء المسير",
+      "formTitle": "شهر المسير",
+      "formHint": "يُنشأ مسير واحد لكل شهر، ويضم الموظفين المرتبطين بعقود نشطة فيه.",
+      "month": "الشهر",
+      "monthRequired": "اختر شهرًا صحيحًا.",
+      "requiredHint": "الحقول المعلّمة بـ * مطلوبة.",
+      "anyYear": "كل السنوات",
+      "anyState": "كل الحالات",
+      "yearValue": "سنة {year}",
+      "filter": {
+        "year": "السنة",
+        "state": "الحالة"
+      },
+      "emptyTitle": "لا مسيرات رواتب بعد",
+      "emptyHint": "أنشئ مسير الشهر لاحتساب رواتب الموظفين واعتمادها.",
+      "footer": "عرض {shown} من {total}",
+      "employeeCount": "لا موظفين | موظف واحد | موظفان | {count} موظفين | {count} موظفًا | {count} موظف",
+      "columns": {
+        "month": "الشهر",
+        "state": "الحالة",
+        "employees": "الموظفون",
+        "gross": "الإجمالي",
+        "deductions": "الخصومات",
+        "net": "الصافي",
+        "approvedAt": "تاريخ الاعتماد"
+      },
+      "state": {
+        "draft": "مسودة",
+        "computed": "محسوب",
+        "approved": "معتمد",
+        "posted": "مُرحّل",
+        "paid": "مدفوع"
+      }
+    },
+    "run": {
+      "title": "مسير رواتب {month}",
+      "approvedBy": "اعتمده {name} بتاريخ {date}"
+    },
+    "totals": {
+      "title": "أرقام المسير",
+      "net": "صافي الرواتب",
+      "gross": "إجمالي الرواتب",
+      "deductions": "إجمالي الخصومات",
+      "gosiEmployeeHint": "منها {amount} حصة الموظفين في التأمينات",
+      "gosiEmployer": "حصة صاحب العمل في التأمينات"
+    },
+    "actions": {
+      "compute": "احتساب الرواتب",
+      "recompute": "إعادة الاحتساب",
+      "approve": "اعتماد المسير",
+      "approveTitle": "اعتماد هذا المسير؟",
+      "approveHint": "بعد الاعتماد تُقفل المدخلات والمبالغ ولا يمكن تعديلها.",
+      "cancel": "إلغاء المسير",
+      "cancelTitle": "إلغاء هذا المسير؟",
+      "cancelHint": "يُحذف المسير بكل قسائمه ومدخلاته، ويمكن إنشاؤه من جديد لاحقًا.",
+      "printRegister": "طباعة كشف الرواتب",
+      "printPayslip": "طباعة القسيمة"
+    },
+    "warnings": {
+      "title": "تنبيهات تستحق المراجعة",
+      "compensation_missing": "{name}: لا تعويضات مسجّلة، فلن يدخل في الاحتساب.",
+      "missing_iban": "{name}: لا آيبان مسجّل، فلن يظهر في ملف التحويل البنكي."
+    },
+    "register": {
+      "title": "كشف الرواتب",
+      "hint": "مدخلات الشهر وأرقام كل موظف. يمكن تعديل المدخلات قبل الاعتماد.",
+      "search": "بحث باسم الموظف…",
+      "emptyTitle": "لا قسائم في هذا المسير",
+      "emptyHint": "لا توجد قسائم مطابقة للبحث.",
+      "emptyDraftHint": "احتسب الرواتب لتظهر قسيمة كل موظف.",
+      "footer": "عرض {shown} من {total}",
+      "ibanMissing": "بلا آيبان",
+      "columns": {
+        "employee": "الموظف",
+        "paidDays": "أيام العمل",
+        "gross": "الإجمالي",
+        "deductions": "الخصومات",
+        "net": "الصافي"
+      },
+      "inputs": {
+        "overtime_amount": "العمل الإضافي",
+        "absence_days": "أيام الغياب",
+        "bonus_amount": "مكافأة",
+        "deduction_amount": "خصم",
+        "advance_recovery_amount": "استرداد سلفة"
+      }
+    },
+    "payslip": {
+      "title": "قسيمة راتب",
+      "pageTitle": "قسيمة راتب {name} — {month}",
+      "number": "الرقم",
+      "vat": "الرقم الضريبي",
+      "employee": "الموظف",
+      "department": "القسم",
+      "month": "الشهر",
+      "paidDays": "أيام العمل",
+      "earnings": "المستحقات",
+      "deductions": "الخصومات",
+      "noDeductions": "لا خصومات هذا الشهر.",
+      "gross": "إجمالي المستحقات",
+      "totalDeductions": "إجمالي الخصومات",
+      "net": "صافي الراتب",
+      "gosiEmployerNote": "حصة صاحب العمل في التأمينات الاجتماعية: {amount}، ولا تُخصم من الراتب.",
+      "employeeSignature": "توقيع الموظف",
+      "accountantSignature": "توقيع المحاسب"
+    },
+    "settings": {
+      "title": "إعدادات الرواتب",
+      "saveError": "تعذّر حفظ الإعدادات",
+      "generalTitle": "الإعدادات العامة",
+      "generalHint": "تحكم هذه الإعدادات في احتساب أجر الشهر وأثر الإجازات عليه.",
+      "dayDivisor": "قاسم الأيام",
+      "dayDivisorHint": "عدد الأيام الذي يُقسم عليه الأجر الشهري لاحتساب أجر اليوم.",
+      "structure": "هيكل الراتب",
+      "structureHint": "هيكل الرواتب السعودي المعتمد للشركة.",
+      "noStructure": "غير محدد",
+      "annualLeaveType": "نوع الإجازة السنوية",
+      "noAnnualLeave": "بلا نوع محدد",
+      "unpaidLeaveTypes": "أنواع الإجازة بدون راتب",
+      "unpaidLeaveTypesHint": "تُخصم أيام هذه الإجازات من راتب الشهر."
+    },
+    "gosi": {
+      "title": "نسب التأمينات الاجتماعية",
+      "hint": "نسب الاشتراك حسب الفرع وفئة الجنسية وتاريخ السريان. النسب المشتركة للقراءة فقط.",
+      "add": "إضافة نسبة",
+      "new": "نسبة جديدة",
+      "edit": "تعديل النسبة",
+      "delete": "حذف النسبة",
+      "deleteTitle": "حذف نسبة {rate}؟",
+      "deleteHint": "لن تُستخدم هذه النسبة في الاحتساب بعد حذفها.",
+      "shared": "مشتركة",
+      "empty": "لا نسب مسجّلة",
+      "emptyHint": "أضف نسب الاشتراك ليتمكن النظام من احتساب التأمينات.",
+      "saveError": "تعذّر حفظ النسبة",
+      "fieldInvalid": "أدخل قيمة صحيحة صفرًا أو أكثر.",
+      "wageMin": "أدنى أجر خاضع",
+      "wageMax": "أعلى أجر خاضع",
+      "columns": {
+        "branch": "الفرع",
+        "nationalityClass": "الفئة",
+        "dateFrom": "يسري من",
+        "employeeRate": "حصة الموظف",
+        "employerRate": "حصة صاحب العمل",
+        "wageRange": "نطاق الأجر"
+      },
+      "branch": {
+        "annuities": "المعاشات",
+        "saned": "ساند",
+        "hazards": "الأخطار المهنية"
+      },
+      "class": {
+        "saudi_before_2024": "سعودي مسجّل قبل 3 يوليو 2024",
+        "saudi_from_2024": "سعودي مسجّل من 3 يوليو 2024",
+        "non_saudi": "غير سعودي",
+        "gcc": "خليجي"
+      }
+    },
+    "errors": {
+      "duplicate": "يوجد مسير لهذا الشهر بالفعل.",
+      "negative_net": "صافي الراتب سالب لـ {count} موظف ({names}). عدّل الخصومات ثم أعد الاحتساب.",
+      "transition_forbidden": "لا يمكن تنفيذ هذا الإجراء في حالة المسير الحالية.",
+      "structure_missing": "لم يُحدد هيكل الرواتب في الإعدادات.",
+      "contract_missing": "موظف لا عقد نشط له في هذا الشهر.",
+      "gosi_rate_missing": "لا توجد نسبة تأمينات تسري على هذا الشهر. أضفها من إعدادات الرواتب.",
+      "payroll_structure_mismatch": "هيكل الراتب لا يطابق هيكل الإعدادات.",
+      "notEditable": "لا يمكن تعديل المدخلات بعد اعتماد المسير."
+    },
     "compensation": {
       "title": "التعويضات",
       "editTitle": "تعديل التعويضات",
@@ -29,7 +200,6 @@
       "nationalityHint": "تُقرأ من سجل الموظف.",
       "basicWageInvalid": "يجب أن يكون الأجر الأساسي أكبر من صفر.",
       "amountInvalid": "أدخل مبلغًا صفرًا أو أكثر.",
-      "currency": "ر.س",
       "saved": "تم حفظ التعويضات",
       "saveError": "تعذّر حفظ التعويضات",
       "formHint": "هذه المبالغ تظهر فقط لمن لديه صلاحية الرواتب."

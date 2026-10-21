@@ -72,6 +72,8 @@ describe('app manifests', () => {
     ['/hr/onboarding/9', 'hr.onboarding.read'], ['/hr/onboarding/plans/new', 'hr.onboarding.manage'],
     ['/hr/offboarding', 'hr.offboarding.read'], ['/hr/offboarding/new', 'hr.offboarding.manage'],
     ['/hr/assets/4', 'hr.assets.read'], ['/hr/assets/mine', 'hr.employees.read'], ['/hr/assets/categories/new', 'hr.assets.manage'],
+    ['/hr/payroll', 'hr.payroll.read'], ['/hr/payroll/4', 'hr.payroll.read'], ['/hr/payroll/4/payslips/9', 'hr.payroll.read'],
+    ['/hr/payroll/new', 'hr.payroll.manage'], ['/hr/payroll/settings', 'hr.payroll.config'],
     ['/notifications', 'webvue.notifications'], ['/settings/team/users/new', 'access.users.grant'],
     ['/settings/team/users/3/access', 'access.users.assign_roles'], ['/settings/team/roles/4/edit', 'access.roles.manage'],
     ['/settings/team/roles/4', 'access.roles.read'], ['/settings/company/branding', 'settings.branding.manage'],
@@ -94,6 +96,7 @@ describe('app manifests', () => {
     const all = ['pmo.projects.read', 'pmo.tasks.read', 'meetings.read', 'hr.employees.read', 'access.users.read', 'pmo.settings.manage', 'settings.branding.manage']
     expect(firstAllowedPath({ capabilities: all })).toBe('/projects/dashboard')
     expect(firstAllowedPath({ capabilities: ['hr.employees.read', 'access.users.read'] })).toBe('/hr')
+    expect(firstAllowedPath({ capabilities: ['hr.payroll.read'] })).toBe('/hr/payroll')
     expect(firstAllowedPath({ capabilities: ['access.users.read', 'pmo.settings.manage'] })).toBe('/settings/team/users')
     expect(firstAllowedPath({ capabilities: ['pmo.settings.manage', 'settings.branding.manage'] })).toBe('/settings/apps/projects')
     expect(postLoginPath({ capabilities: ['pmo.tasks.read'] }, '/tasks?scope=archived')).toBe('/tasks?scope=archived')
@@ -224,6 +227,7 @@ describe('palette declarations', () => {
       ['/hr/onboarding', 'hr.new-onboarding', '/hr/onboarding/new', 'hr.onboarding.manage'],
       ['/hr/offboarding', 'hr.new-departure', '/hr/offboarding/new', 'hr.offboarding.manage'],
       ['/hr/assets', 'hr.new-asset', '/hr/assets/new', 'hr.assets.manage'],
+      ['/hr/payroll/4', 'hr.new-payroll-run', '/hr/payroll/new', 'hr.payroll.manage'],
       ['/hr', 'hr.new-employee', '/hr/employees/new', 'hr.employees.manage'],
     ])('pins the own create action on %s', (path, commandId, to, capability) => {
       const pinned = links(path).filter(link => link.pinned)

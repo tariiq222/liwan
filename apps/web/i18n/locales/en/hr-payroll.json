@@ -1,5 +1,176 @@
 {
   "hrPayroll": {
+    "currency": "SAR",
+    "title": "Payroll",
+    "runs": {
+      "new": "New payroll run",
+      "create": "Create run",
+      "formTitle": "Run month",
+      "formHint": "One run is created per month, covering the employees under an active contract in it.",
+      "month": "Month",
+      "monthRequired": "Choose a valid month.",
+      "requiredHint": "Fields marked * are required.",
+      "anyYear": "All years",
+      "anyState": "All states",
+      "yearValue": "Year {year}",
+      "filter": {
+        "year": "Year",
+        "state": "State"
+      },
+      "emptyTitle": "No payroll runs yet",
+      "emptyHint": "Create the month's run to compute the employees' pay and approve it.",
+      "footer": "Showing {shown} of {total}",
+      "employeeCount": "{count} employee | {count} employees",
+      "columns": {
+        "month": "Month",
+        "state": "State",
+        "employees": "Employees",
+        "gross": "Gross",
+        "deductions": "Deductions",
+        "net": "Net",
+        "approvedAt": "Approved on"
+      },
+      "state": {
+        "draft": "Draft",
+        "computed": "Computed",
+        "approved": "Approved",
+        "posted": "Posted",
+        "paid": "Paid"
+      }
+    },
+    "run": {
+      "title": "Payroll {month}",
+      "approvedBy": "Approved by {name} on {date}"
+    },
+    "totals": {
+      "title": "Run figures",
+      "net": "Net pay",
+      "gross": "Gross pay",
+      "deductions": "Total deductions",
+      "gosiEmployeeHint": "Including {amount} employee GOSI share",
+      "gosiEmployer": "Employer GOSI share"
+    },
+    "actions": {
+      "compute": "Compute payroll",
+      "recompute": "Recompute",
+      "approve": "Approve run",
+      "approveTitle": "Approve this run?",
+      "approveHint": "After approval the inputs and amounts are locked and cannot be changed.",
+      "cancel": "Cancel run",
+      "cancelTitle": "Cancel this run?",
+      "cancelHint": "The run is deleted with all its payslips and inputs. You can create it again later.",
+      "printRegister": "Print payroll register",
+      "printPayslip": "Print payslip"
+    },
+    "warnings": {
+      "title": "Warnings to review",
+      "compensation_missing": "{name}: no compensation recorded, so they are left out of the computation.",
+      "missing_iban": "{name}: no IBAN recorded, so they will not appear in the bank transfer file."
+    },
+    "register": {
+      "title": "Payroll register",
+      "hint": "The month's inputs and every employee's figures. Inputs can be edited before approval.",
+      "search": "Search by employee name…",
+      "emptyTitle": "No payslips in this run",
+      "emptyHint": "No payslips match the search.",
+      "emptyDraftHint": "Compute the payroll to see each employee's payslip.",
+      "footer": "Showing {shown} of {total}",
+      "ibanMissing": "No IBAN",
+      "columns": {
+        "employee": "Employee",
+        "paidDays": "Paid days",
+        "gross": "Gross",
+        "deductions": "Deductions",
+        "net": "Net"
+      },
+      "inputs": {
+        "overtime_amount": "Overtime",
+        "absence_days": "Absence days",
+        "bonus_amount": "Bonus",
+        "deduction_amount": "Deduction",
+        "advance_recovery_amount": "Advance recovery"
+      }
+    },
+    "payslip": {
+      "title": "Payslip",
+      "pageTitle": "Payslip of {name} — {month}",
+      "number": "Number",
+      "vat": "VAT number",
+      "employee": "Employee",
+      "department": "Department",
+      "month": "Month",
+      "paidDays": "Paid days",
+      "earnings": "Earnings",
+      "deductions": "Deductions",
+      "noDeductions": "No deductions this month.",
+      "gross": "Total earnings",
+      "totalDeductions": "Total deductions",
+      "net": "Net pay",
+      "gosiEmployerNote": "Employer GOSI share: {amount}, not deducted from the pay.",
+      "employeeSignature": "Employee signature",
+      "accountantSignature": "Accountant signature"
+    },
+    "settings": {
+      "title": "Payroll settings",
+      "saveError": "The settings could not be saved",
+      "generalTitle": "General settings",
+      "generalHint": "These settings control how a month's pay is computed and how leave affects it.",
+      "dayDivisor": "Day divisor",
+      "dayDivisorHint": "The number of days the monthly wage is divided by to get a day's pay.",
+      "structure": "Salary structure",
+      "structureHint": "The Saudi salary structure approved for the company.",
+      "noStructure": "Not set",
+      "annualLeaveType": "Annual leave type",
+      "noAnnualLeave": "No type set",
+      "unpaidLeaveTypes": "Unpaid leave types",
+      "unpaidLeaveTypesHint": "Days of these leaves are deducted from the month's pay."
+    },
+    "gosi": {
+      "title": "GOSI contribution rates",
+      "hint": "Contribution rates by branch, nationality class and start date. Shared rates are read-only.",
+      "add": "Add rate",
+      "new": "New rate",
+      "edit": "Edit rate",
+      "delete": "Delete rate",
+      "deleteTitle": "Delete the rate {rate}?",
+      "deleteHint": "This rate will no longer be used in computations once deleted.",
+      "shared": "Shared",
+      "empty": "No rates recorded",
+      "emptyHint": "Add the contribution rates so the system can compute GOSI.",
+      "saveError": "The rate could not be saved",
+      "fieldInvalid": "Enter a valid value, zero or more.",
+      "wageMin": "Minimum insurable wage",
+      "wageMax": "Maximum insurable wage",
+      "columns": {
+        "branch": "Branch",
+        "nationalityClass": "Class",
+        "dateFrom": "Effective from",
+        "employeeRate": "Employee share",
+        "employerRate": "Employer share",
+        "wageRange": "Wage range"
+      },
+      "branch": {
+        "annuities": "Annuities",
+        "saned": "SANED",
+        "hazards": "Occupational hazards"
+      },
+      "class": {
+        "saudi_before_2024": "Saudi registered before 3 July 2024",
+        "saudi_from_2024": "Saudi registered from 3 July 2024",
+        "non_saudi": "Non-Saudi",
+        "gcc": "GCC national"
+      }
+    },
+    "errors": {
+      "duplicate": "A run already exists for this month.",
+      "negative_net": "The net pay is negative for {count} employees ({names}). Adjust the deductions and compute again.",
+      "transition_forbidden": "This action is not possible in the run's current state.",
+      "structure_missing": "The salary structure is not set in the settings.",
+      "contract_missing": "An employee has no active contract in this month.",
+      "gosi_rate_missing": "No GOSI rate applies to this month. Add one in the payroll settings.",
+      "payroll_structure_mismatch": "The salary structure does not match the one in the settings.",
+      "notEditable": "Inputs cannot be edited once the run is approved."
+    },
     "compensation": {
       "title": "Compensation",
       "editTitle": "Edit compensation",
@@ -29,7 +200,6 @@
       "nationalityHint": "Read from the employee record.",
       "basicWageInvalid": "The basic wage must be greater than zero.",
       "amountInvalid": "Enter an amount of zero or more.",
-      "currency": "SAR",
       "saved": "Compensation saved",
       "saveError": "Compensation was not saved",
       "formHint": "Only people with payroll access see these amounts."
