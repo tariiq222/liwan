@@ -5,7 +5,8 @@ import { login } from './support/tasmim6'
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', MOCK_STACK_ONLY)
 
 // The payroll run pages, the payslip page and the payroll settings against the stateful rows of
-// hr-payroll-ui-preview-data.mjs. Run 1 is approved (2026-10), run 2 computed (2026-11), run 3 a draft (2026-12).
+// hr-payroll-ui-preview-data.mjs. Run 1 is approved (2026-10), run 2 computed (2026-11), run 3 a draft (2026-12). The mock
+// has the finance bridge unless a spec resets it with {finance: false}.
 let errors: string[]
 
 test.beforeEach(async ({ page }) => {
@@ -168,6 +169,87 @@ test.describe('my payslips', () => {
   test('an unknown own payslip shows the not-found state', async ({ page }) => {
     await page.goto('/hr/payroll/mine/999')
     await expect(page.getByText('هذا السجل غير متاح أو لم يعد موجودًا.')).toBeVisible()
+  })
+})
+
+test.describe('payroll posting and payment', () => {
+  test('post shows unmapped-department warning then confirms inline', async ({ page }) => {
+    await open(page, '/hr/payroll/1', 'مسير رواتب أكتوبر 2026')
+    await expect(page.getByTestId('hr-payroll-post')).toBeEnabled()
+    await expect(page.getByTestId('hr-payroll-record-payment')).toHaveCount(0)
+    await page.getByTestId('hr-payroll-post').click()
+    await expect(page.getByTestId('hr-payroll-posting-preview')).toBeVisible()
+    await expect(page.getByTestId('hr-payroll-posting-warnings')).toContainText('خالد الشمري')
+    await expect(page.getByTestId('hr-payroll-posting-totals')).toContainText('مدين')
+    // Cancelling the confirmation posts nothing.
+    await page.getByTestId('inline-confirm-cancel').click()
+    await expect(page.getByTestId('hr-payroll-run-state')).toHaveText('معتمد')
+    await page.getByTestId('hr-payroll-post').click()
+    await page.getByTestId('inline-confirm-action').click()
+    await expect(page.getByTestId('hr-payroll-run-state')).toHaveText('مُرحّل')
+    await expect(page.getByTestId('hr-payroll-post')).toHaveCount(0)
+    await expect(page.getByTestId('hr-payroll-entry')).toContainText('JE/2026/10/0001')
+    await expect(page.getByTestId('hr-payroll-record-payment')).toBeEnabled()
+  })
+
+  test('a posted run records its payment from a bank journal', async ({ page }) => {
+    await open(page, '/hr/payroll/1', 'مسير رواتب أكتوبر 2026')
+    await page.getByTestId('hr-payroll-post').click()
+    await page.getByTestId('inline-confirm-action').click()
+    await expect(page.getByTestId('hr-payroll-run-state')).toHaveText('مُرحّل')
+    await page.getByTestId('hr-payroll-record-payment').click()
+    await expect(page.getByTestId('hr-payroll-payment-form')).toBeVisible()
+    await expect(page.getByTestId('inline-confirm-action')).toBeDisabled()
+    await page.getByTestId('hr-payroll-payment-journal').click()
+    await page.getByRole('option', { name: /البنك/ }).first().click()
+    await expect(page.getByTestId('inline-confirm-action')).toBeEnabled()
+    // The default date (today) is after the run month, so the mock accepts it.
+    await page.getByTestId('inline-confirm-action').click()
+    await expect(page.getByTestId('hr-payroll-run-state')).toHaveText('مدفوع')
+    await expect(page.getByTestId('hr-payroll-payment')).toContainText('PAY/2026/10/0001')
+    await expect(page.getByTestId('hr-payroll-record-payment')).toHaveCount(0)
+  })
+
+  test('the runs list filters posted runs', async ({ page }) => {
+    await open(page, '/hr/payroll', 'الرواتب')
+    await page.getByTestId('hr-payroll-state').click()
+    await expect(page.getByRole('option', { name: 'مُرحّل' })).toBeVisible()
+    await expect(page.getByRole('option', { name: 'مدفوع' })).toBeVisible()
+  })
+
+  test('without the bridge the run offers no post', async ({ page }) => {
+    expect((await page.request.post('/api/v1/__mock/reset-payroll', { data: { finance: false } })).status()).toBe(200)
+    await open(page, '/hr/payroll/1', 'مسير رواتب أكتوبر 2026')
+    await expect(page.getByTestId('hr-payroll-run-state')).toHaveText('معتمد')
+    await expect(page.getByTestId('hr-payroll-post')).toHaveCount(0)
+  })
+})
+
+test.describe('payroll finance settings', () => {
+  test('shows the accounting mapping and saves the entry detail and a department cost center', async ({ page }) => {
+    await open(page, '/hr/payroll/settings', 'إعدادات الرواتب')
+    await expect(page.getByTestId('hr-payroll-finance-form')).toBeVisible()
+    await expect(page.getByTestId('hr-payroll-finance-submit')).toBeDisabled()
+    await page.getByTestId('hr-payroll-finance-detail').click()
+    await page.getByRole('option', { name: /لكل موظف/ }).click()
+    await expect(page.getByTestId('hr-payroll-finance-submit')).toBeEnabled()
+    await page.getByTestId('hr-payroll-finance-submit').click()
+    await expect(page.getByTestId('hr-payroll-finance-submit')).toBeDisabled()
+    await page.getByTestId('hr-payroll-cost-center-2').click()
+    await page.getByRole('option', { name: /BR-JED/ }).click()
+    await page.reload()
+    await expect(page.getByTestId('hr-payroll-cost-center-2')).toContainText('فرع جدة')
+    await expect(page.getByTestId('hr-payroll-finance-detail')).toContainText('لكل موظف')
+  })
+
+  test('settings hides finance section on 404', async ({ page }) => {
+    expect((await page.request.post('/api/v1/__mock/reset-payroll', { data: { finance: false } })).status()).toBe(200)
+    await open(page, '/hr/payroll/settings', 'إعدادات الرواتب')
+    await expect(page.getByTestId('hr-payroll-settings-form')).toBeVisible()
+    // The refused finance request is logged by the browser; it is the behaviour under test.
+    errors = errors.filter(message => !message.includes('404'))
+    await expect(page.getByTestId('hr-payroll-finance-form')).toHaveCount(0)
+    await expect(page.getByTestId('hr-payroll-cost-center-2')).toHaveCount(0)
   })
 })
 

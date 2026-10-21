@@ -17,6 +17,10 @@ export const hrPayrollKeys = {
   payslip: (runId: number, payslipId: number) => ['hr', 'payroll', 'runs', runId, 'payslip', payslipId] as const,
   settings: ['hr', 'payroll', 'settings'] as const,
   gosiRates: ['hr', 'payroll', 'gosi-rates'] as const,
+  financeSettings: ['hr', 'payroll', 'finance-settings'] as const,
+  costCenters: ['hr', 'payroll', 'cost-centers'] as const,
+  postingPreview: (runId: number) => ['hr', 'payroll', 'runs', runId, 'posting-preview'] as const,
+  financeLookup: (kind: string) => ['hr', 'payroll', 'finance-lookup', kind] as const,
 }
 
 const compensationPath = (employeeId: number) => `/api/v1/hr/payroll/compensation/${employeeId}`

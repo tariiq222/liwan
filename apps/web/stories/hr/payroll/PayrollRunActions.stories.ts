@@ -3,8 +3,9 @@ import PayrollRunActions from '../../../app/components/hr/payroll/PayrollRunActi
 import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../../support/context'
 
-// The transitions of one payroll run: compute, approve and cancel, offered exactly as the run's `allowed_actions`
-// say. Approve and cancel ask for an inline confirmation, and every action stays pending until the server answers.
+// The transitions of one payroll run, offered exactly as the run's `allowed_actions` say (post and record payment come
+// with the finance bridge). Approve, cancel and post ask for an inline confirmation, and every action stays pending
+// until the server answers.
 const run = {
   id: 5,
   month: '2026-10',
@@ -23,7 +24,7 @@ const meta = {
   component: PayrollRunActions,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:110', 'إجراءات المسير أسفل رأس الصفحة: احتساب، واعتماد وإلغاء بتأكيد مضمّن، وتبقى الأزرار معلّقة حتى يردّ الخادم.'),
+    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:152', 'إجراءات المسير أسفل رأس الصفحة: احتساب، واعتماد وإلغاء وترحيل بتأكيد مضمّن، وتسجيل الصرف، وتبقى الأزرار معلّقة حتى يردّ الخادم.'),
   },
   args: { run, pending: null },
   render: args => ({
@@ -43,3 +44,9 @@ export const Draft: Story = { name: 'مسودة', args: { run: { ...run, state: 
 export const Approving: Story = { name: 'اعتماد قيد التنفيذ', args: { pending: 'approve' } }
 
 export const Approved: Story = { name: 'معتمد: بلا إجراءات', args: { run: { ...run, state: 'approved', allowed_actions: [] } } }
+
+export const ApprovedWithFinance: Story = { name: 'معتمد: ترحيل متاح', args: { run: { ...run, state: 'approved', allowed_actions: ['post'] } } }
+
+export const Posting: Story = { name: 'ترحيل قيد التنفيذ', args: { pending: 'post', run: { ...run, state: 'approved', allowed_actions: ['post'] } } }
+
+export const Posted: Story = { name: 'مرحّل: تسجيل الصرف', args: { run: { ...run, state: 'posted', allowed_actions: ['record_payment'] } } }

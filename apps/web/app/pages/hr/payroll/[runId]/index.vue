@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import PayrollInputsTable from '@/components/hr/payroll/PayrollInputsTable.vue'
+import PayrollPaymentForm from '@/components/hr/payroll/PayrollPaymentForm.vue'
+import PayrollPostingPreview from '@/components/hr/payroll/PayrollPostingPreview.vue'
 import PayrollRunActions from '@/components/hr/payroll/PayrollRunActions.vue'
 import PayrollRunTotals from '@/components/hr/payroll/PayrollRunTotals.vue'
 import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
@@ -7,10 +9,10 @@ import { formatDate } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { HR_PAYSLIP_PAGE_SIZE, fetchAllHrPayslips, hrPayslipsQuery } from '@/composables/useHrPayrollRuns'
 import { payrollErrorMessage } from '@/utils/payrollErrors'
-import { formatPayrollMonth, payrollRunStateTone } from '@/utils/payrollFormat'
+import { currentPayrollDate, formatPayrollMonth, payrollRunStateTone } from '@/utils/payrollFormat'
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { parsePositiveId } from '@/utils/routeParams'
-import type { HrPayslipInputsPatch, HrPayslipRow } from '@webvue/contracts'
+import type { HrPayrollPaymentCreate, HrPayslipInputsPatch, HrPayslipRow } from '@webvue/contracts'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,7 +42,16 @@ const employeeNames = computed(() => new Map(rows.value.map(row => [row.employee
 const transitions = useHrPayrollRunTransition(() => runId.value ?? 0)
 const patchInputs = usePatchHrPayslipInputs(() => runId.value ?? 0)
 const { $api } = useApi()
-const pendingAction = computed(() => (['compute', 'approve', 'cancel'] as const).find(action => transitions[action].isPending.value) ?? null)
+const posting = usePostHrPayrollRun(() => runId.value ?? 0)
+const payment = useRecordHrPayrollPayment(() => runId.value ?? 0)
+const confirming = ref<'approve' | 'cancel' | 'post' | 'record_payment' | null>(null)
+const preview = useHrPayrollPostingPreview(() => runId.value ?? 0, computed(() => runId.value !== null && confirming.value === 'post'))
+const paymentJournals = usePaymentJournals(() => confirming.value === 'record_payment')
+const pendingAction = computed(() => {
+  if (posting.isPending.value) return 'post'
+  if (payment.isPending.value) return 'record_payment'
+  return (['compute', 'approve', 'cancel'] as const).find(action => transitions[action].isPending.value) ?? null
+})
 const failure = ref<unknown>(null)
 const failureMessage = computed(() => failure.value ? payrollErrorMessage(failure.value, t, employeeNames.value) : '')
 
@@ -51,6 +62,16 @@ async function transition(action: 'compute' | 'approve' | 'cancel') {
     await transitions[action].mutateAsync()
     if (action === 'cancel') await navigateTo(backTo.value, { replace: true })
   } catch (error) { failure.value = error }
+}
+async function post() {
+  if (!hydrated.value || pendingAction.value) return
+  failure.value = null
+  try { await posting.mutateAsync() } catch (error) { failure.value = error }
+}
+async function recordPayment(body: HrPayrollPaymentCreate) {
+  if (!hydrated.value || pendingAction.value) return
+  failure.value = null
+  try { await payment.mutateAsync(body) } catch (error) { failure.value = error }
 }
 // Cells save independently: only the cell being saved waits, and the saves go to the server in the order they were made.
 const savingCells = ref<string[]>([])
@@ -130,14 +151,35 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
 
       <PayrollRunActions
         :run="run"
+        v-model:confirming="confirming"
         :pending="pendingAction"
+        :post-ready="!!preview.data.value"
         @compute="transition('compute')"
         @approve="transition('approve')"
         @cancel="transition('cancel')"
-      />
+        @post="post"
+      >
+        <template #post-preview>
+          <SharedPageState :loading="preview.isLoading.value" :error="preview.error.value" @retry="preview.refetch">
+            <PayrollPostingPreview v-if="preview.data.value" :preview="preview.data.value" />
+          </SharedPageState>
+        </template>
+        <template #payment-form="{ close }">
+          <PayrollPaymentForm
+            :journals="paymentJournals"
+            :pending="payment.isPending.value"
+            :error="failure"
+            :default-date="currentPayrollDate()"
+            @submit="recordPayment"
+            @cancel="close"
+          />
+        </template>
+      </PayrollRunActions>
 
       <PayrollRunTotals :totals="run.totals" :employee-count="run.employee_count" />
       <p v-if="approval" class="text-sm text-muted" data-testid="hr-payroll-approval">{{ approval }}</p>
+      <p v-if="run.finance?.entry_name" class="text-sm text-muted" data-testid="hr-payroll-entry">{{ t('hrPayroll.finance.entryName', { name: run.finance.entry_name }) }}</p>
+      <p v-if="run.finance?.payment_name" class="text-sm text-muted" data-testid="hr-payroll-payment">{{ t('hrPayroll.finance.paymentName', { name: run.finance.payment_name }) }}</p>
 
       <UAlert
         v-if="warnings.length"

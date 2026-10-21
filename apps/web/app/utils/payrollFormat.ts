@@ -31,6 +31,11 @@ export function currentPayrollMonth(date: Date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
+/** Today as `YYYY-MM-DD`, in the browser's own calendar. */
+export function currentPayrollDate(date: Date = new Date()): string {
+  return `${currentPayrollMonth(date)}-${String(date.getDate()).padStart(2, '0')}`
+}
+
 const RUN_STATE_TONE: Record<HrPayrollRunState, StatusTone> = {
   draft: 'neutral',
   computed: 'warning',

@@ -6,6 +6,12 @@ import {
   HrGosiRateSchema,
   HrGosiRateWriteSchema,
   HrMyPayslipListSchema,
+  HrPayrollCostCenterListSchema,
+  HrPayrollCostCenterWriteSchema,
+  HrPayrollFinanceSettingsPatchSchema,
+  HrPayrollFinanceSettingsSchema,
+  HrPayrollPaymentCreateSchema,
+  HrPayrollPostingPreviewSchema,
   HrPayrollRunCreateSchema,
   HrPayrollRunListSchema,
   HrPayrollRunSchema,
@@ -163,5 +169,44 @@ describe('payroll settings schemas', () => {
     expect(HrGosiRateSchema.safeParse({ ...RATE, branch: 'other' }).success).toBe(false)
     expect(HrGosiRateWriteSchema.safeParse({ ...RATE_WRITE, employee_rate: -1 }).success).toBe(false)
     expect(HrGosiRateWriteSchema.safeParse({ ...RATE }).success).toBe(false)
+  })
+})
+
+describe('payroll finance schemas', () => {
+  const ROLES = ['basic_expense', 'allowance_expense', 'variable_expense', 'gosi_expense', 'gosi_payable', 'salaries_payable', 'deduction', 'advance', 'eos_expense', 'eos_provision']
+  const accounts = Object.fromEntries(ROLES.map((role, index) => [role, index % 2 ? null : { id: index + 1, name: `حساب ${index}` }]))
+  const SETTINGS = { journal: { id: 7, name: 'قيود الرواتب' }, accounts, default_analytic_account: null, entry_detail: 'aggregated' }
+
+  it('accepts the finance settings, a partial patch and the cost centers', () => {
+    expect(HrPayrollFinanceSettingsSchema.parse(SETTINGS)).toEqual(SETTINGS)
+    expect(HrPayrollFinanceSettingsPatchSchema.parse({ accounts: { advance: null }, entry_detail: 'per_employee' })).toEqual({ accounts: { advance: null }, entry_detail: 'per_employee' })
+    const centers = { items: [{ department: { id: 1, name: 'المالية' }, analytic_account: null }], total: 1 }
+    expect(HrPayrollCostCenterListSchema.parse(centers)).toEqual(centers)
+    expect(HrPayrollCostCenterWriteSchema.parse({ analytic_account_id: null })).toEqual({ analytic_account_id: null })
+  })
+
+  it('rejects an unknown role, an unknown detail, an empty patch and a missing role', () => {
+    expect(HrPayrollFinanceSettingsSchema.safeParse({ ...SETTINGS, accounts: { ...accounts, other: null } }).success).toBe(false)
+    expect(HrPayrollFinanceSettingsSchema.safeParse({ ...SETTINGS, entry_detail: 'x' }).success).toBe(false)
+    expect(HrPayrollFinanceSettingsPatchSchema.safeParse({}).success).toBe(false)
+    expect(HrPayrollFinanceSettingsPatchSchema.safeParse({ accounts: { other: 1 } }).success).toBe(false)
+    expect(HrPayrollCostCenterWriteSchema.safeParse({}).success).toBe(false)
+  })
+
+  it('accepts the posting preview and the payment body', () => {
+    const preview = {
+      entry_detail: 'aggregated',
+      date: '2026-10-31',
+      journal: { id: 7, name: 'قيود الرواتب' },
+      lines: [{ account: { id: 1, code: '510101', name: 'رواتب' }, analytic_account: null, employee: null, debit: 100, credit: 0 }],
+      debit: 100,
+      credit: 100,
+      warnings: [{ code: 'unmapped_department', employee: { id: 3, name: 'ليلى' } }],
+    }
+    expect(HrPayrollPostingPreviewSchema.parse(preview)).toEqual(preview)
+    expect(HrPayrollPostingPreviewSchema.safeParse({ ...preview, extra: 1 }).success).toBe(false)
+    expect(HrPayrollPaymentCreateSchema.parse({ journal_id: 5, date: '2026-11-01' })).toEqual({ journal_id: 5, date: '2026-11-01' })
+    expect(HrPayrollPaymentCreateSchema.safeParse({ journal_id: 5, date: '1/11/2026' }).success).toBe(false)
+    expect(HrPayrollPaymentCreateSchema.safeParse({ journal_id: 0, date: '2026-11-01' }).success).toBe(false)
   })
 })

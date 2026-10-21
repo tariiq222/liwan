@@ -193,6 +193,65 @@ export const HrGosiRateListSchema = z.object({
 // A create sends every field; a PATCH sends the ones it changes.
 export const HrGosiRateWriteSchema = HrGosiRateSchema.omit({ id: true, shared: true })
 
+// ---- The finance side of payroll, served by the webvue_hr_finance bridge (absent: the routes answer 404) ----
+export const HR_PAYROLL_ACCOUNT_ROLES = [
+  'basic_expense', 'allowance_expense', 'variable_expense', 'gosi_expense', 'gosi_payable',
+  'salaries_payable', 'deduction', 'advance', 'eos_expense', 'eos_provision',
+] as const
+export const HR_PAYROLL_ENTRY_DETAILS = ['aggregated', 'per_employee'] as const
+
+const accountRoleShape = <T extends z.ZodType>(value: T) => z.object(
+  Object.fromEntries(HR_PAYROLL_ACCOUNT_ROLES.map(role => [role, value])) as Record<typeof HR_PAYROLL_ACCOUNT_ROLES[number], T>,
+).strict()
+const recordId = z.number().int().positive()
+
+export const HrPayrollFinanceSettingsSchema = z.object({
+  journal: HrRefSchema.nullable(),
+  accounts: accountRoleShape(HrRefSchema.nullable()),
+  default_analytic_account: HrRefSchema.nullable(),
+  entry_detail: z.enum(HR_PAYROLL_ENTRY_DETAILS),
+}).strict()
+
+// A PATCH names the parts it changes; null clears a reference.
+export const HrPayrollFinanceSettingsPatchSchema = z.object({
+  journal_id: recordId.nullable(),
+  accounts: accountRoleShape(recordId.nullable()).partial().strict(),
+  default_analytic_account_id: recordId.nullable(),
+  entry_detail: z.enum(HR_PAYROLL_ENTRY_DETAILS),
+}).partial().strict().refine(patch => Object.keys(patch).length > 0, 'no settings to update')
+
+export const HrPayrollCostCenterSchema = z.object({
+  department: HrRefSchema,
+  analytic_account: HrRefSchema.nullable(),
+}).strict()
+
+export const HrPayrollCostCenterListSchema = z.object({
+  items: z.array(HrPayrollCostCenterSchema),
+  total: z.number().int().nonnegative(),
+}).strict()
+
+export const HrPayrollCostCenterWriteSchema = z.object({ analytic_account_id: recordId.nullable() }).strict()
+
+export const HrPayrollPostingLineSchema = z.object({
+  account: z.object({ id: recordId, code: z.string(), name: z.string() }).strict(),
+  analytic_account: HrRefSchema.nullable(),
+  employee: HrRefSchema.nullable(),
+  debit: amount,
+  credit: amount,
+}).strict()
+
+export const HrPayrollPostingPreviewSchema = z.object({
+  entry_detail: z.enum(HR_PAYROLL_ENTRY_DETAILS),
+  date: isoDate,
+  journal: HrRefSchema,
+  lines: z.array(HrPayrollPostingLineSchema),
+  debit: amount,
+  credit: amount,
+  warnings: z.array(HrPayrollWarningSchema),
+}).strict()
+
+export const HrPayrollPaymentCreateSchema = z.object({ journal_id: recordId, date: isoDate }).strict()
+
 export type HrPayrollRunState = z.infer<typeof HrPayrollRunStateSchema>
 export type HrPayrollTotals = z.infer<typeof HrPayrollTotalsSchema>
 export type HrPayrollRunSummary = z.infer<typeof HrPayrollRunSummarySchema>
@@ -212,3 +271,11 @@ export type HrPayrollSettingsPatch = z.infer<typeof HrPayrollSettingsPatchSchema
 export type HrGosiRate = z.infer<typeof HrGosiRateSchema>
 export type HrGosiRateList = z.infer<typeof HrGosiRateListSchema>
 export type HrGosiRateWrite = z.infer<typeof HrGosiRateWriteSchema>
+export type HrPayrollAccountRole = typeof HR_PAYROLL_ACCOUNT_ROLES[number]
+export type HrPayrollEntryDetail = typeof HR_PAYROLL_ENTRY_DETAILS[number]
+export type HrPayrollFinanceSettings = z.infer<typeof HrPayrollFinanceSettingsSchema>
+export type HrPayrollFinanceSettingsPatch = z.infer<typeof HrPayrollFinanceSettingsPatchSchema>
+export type HrPayrollCostCenter = z.infer<typeof HrPayrollCostCenterSchema>
+export type HrPayrollCostCenterList = z.infer<typeof HrPayrollCostCenterListSchema>
+export type HrPayrollPostingPreview = z.infer<typeof HrPayrollPostingPreviewSchema>
+export type HrPayrollPaymentCreate = z.infer<typeof HrPayrollPaymentCreateSchema>

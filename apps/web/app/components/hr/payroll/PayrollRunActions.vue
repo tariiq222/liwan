@@ -1,27 +1,36 @@
 <script setup lang="ts">
 import type { HrPayrollRun } from '@webvue/contracts'
 
-// The transitions of one payroll run. Compute is a plain action; approving (it locks the payslips) and cancelling (it
-// deletes the run) ask for an inline confirmation first. Every action stays pending until the server answers, and the
-// buttons offered are exactly the run's `allowed_actions`. Not printed.
-type Action = 'compute' | 'approve' | 'cancel'
+// The transitions of one payroll run. Compute is a plain action; approving (it locks the payslips), cancelling (it
+// deletes the run) and posting (it creates the accounting entry, whose preview the page fills in the `post-preview`
+// slot) ask for an inline confirmation first; recording the payment opens the page's `payment-form` slot, which is its
+// own confirmation. Every action stays pending until the server answers, and the buttons offered are exactly the
+// run's `allowed_actions` (post and record_payment exist only with the finance bridge). Not printed.
+type Action = 'compute' | 'approve' | 'cancel' | 'post' | 'record_payment'
+type Asking = 'approve' | 'cancel' | 'post' | 'record_payment'
+const ACTIONS: Action[] = ['compute', 'approve', 'post', 'record_payment', 'cancel']
 const props = defineProps<{
   run: HrPayrollRun
   /** The action in flight, or null. */
   pending: Action | null
+  /** False while the posting preview is not shown yet (loading or refused): posting then waits. */
+  postReady?: boolean
 }>()
-const emit = defineEmits<{ compute: []; approve: []; cancel: [] }>()
+const emit = defineEmits<{ compute: []; approve: []; cancel: []; post: [] }>()
+/** The action the user is being asked to confirm; the page reads it to load the posting preview only when it is shown. */
+const confirming = defineModel<Asking | null>('confirming', { default: null })
 
 const { t } = useI18n()
 const hydrated = useHydrated()
 
-const confirming = ref<'approve' | 'cancel' | null>(null)
 const allowed = (action: Action) => props.run.allowed_actions.includes(action)
 const busy = computed(() => !hydrated.value || props.pending !== null)
-const visible = computed(() => (['compute', 'approve', 'cancel'] as const).some(allowed))
+const visible = computed(() => ACTIONS.some(allowed))
 
-// The answer of the server (either way) closes the confirmation: a refusal is shown by the page above.
-watch(() => props.pending, (now, was) => { if (was && !now) confirming.value = null })
+// The answer of the server closes the confirmation of approve and cancel, whatever it is: a refusal is shown by the page
+// above. Post and payment stay open after a refusal so they can be retried, and close themselves once the run moves on
+// (their button is no longer in `allowed_actions`).
+watch(() => props.pending, (now, was) => { if (was && !now && was !== 'post' && was !== 'record_payment') confirming.value = null })
 </script>
 
 <template>
@@ -48,6 +57,24 @@ watch(() => props.pending, (now, was) => { if (was && !now) confirming.value = n
         @click="confirming = 'approve'"
       />
       <UButton
+        v-if="allowed('post')"
+        color="primary"
+        icon="i-lucide-book-check"
+        :disabled="busy"
+        :label="t('hrPayroll.actions.post')"
+        data-testid="hr-payroll-post"
+        @click="confirming = 'post'"
+      />
+      <UButton
+        v-if="allowed('record_payment')"
+        color="primary"
+        icon="i-lucide-banknote"
+        :disabled="busy"
+        :label="t('hrPayroll.actions.recordPayment')"
+        data-testid="hr-payroll-record-payment"
+        @click="confirming = 'record_payment'"
+      />
+      <UButton
         v-if="allowed('cancel')"
         color="error"
         variant="outline"
@@ -68,6 +95,20 @@ watch(() => props.pending, (now, was) => { if (was && !now) confirming.value = n
       @confirm="emit('approve')"
       @cancel="confirming = null"
     />
+    <div v-if="confirming === 'post' && allowed('post')" class="grid gap-3">
+      <slot name="post-preview" />
+      <SharedInlineConfirm
+        color="primary"
+        :title="t('hrPayroll.actions.postTitle')"
+        :description="t('hrPayroll.actions.postHint')"
+        :confirm-label="t('hrPayroll.actions.post')"
+        :disabled="props.postReady === false"
+        :pending="props.pending === 'post'"
+        @confirm="emit('post')"
+        @cancel="confirming = null"
+      />
+    </div>
+    <slot v-if="confirming === 'record_payment' && allowed('record_payment')" name="payment-form" :close="() => { confirming = null }" />
     <SharedInlineConfirm
       v-if="confirming === 'cancel' && allowed('cancel')"
       :title="t('hrPayroll.actions.cancelTitle')"

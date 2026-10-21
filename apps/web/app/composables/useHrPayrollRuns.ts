@@ -61,7 +61,7 @@ export function hrPayslipsQuery(input: { q?: string; limit?: number; offset?: nu
 }
 
 /** A run write answers with the full run: replace it in the cache, then refresh what it totals. */
-function replaceRun(qc: QueryClient, run: HrPayrollRun) {
+export function replaceRun(qc: QueryClient, run: HrPayrollRun) {
   qc.setQueryData(hrPayrollKeys.run(run.id), run)
   void qc.invalidateQueries({ queryKey: hrPayrollKeys.runLists })
   void qc.invalidateQueries({ queryKey: hrPayrollKeys.payslipsOf(run.id) })

@@ -1,7 +1,8 @@
 // Synthetic payroll for the isolated mock (MODULE_UI_PREVIEW=1): runs with their payslips, the payroll settings and the
 // GOSI rates. Shapes follow packages/contracts/src/hr/payroll.ts. Unlike the other HR previews it keeps state, so the
 // run page can compute, approve, cancel and edit inputs against it; POST /api/v1/__mock/reset-payroll restores the
-// seeds between spec runs. The figures are a small deterministic stand-in for the payroll engine (not its rules).
+// seeds between spec runs (its body {finance: false} seeds a company without the finance bridge: the finance routes
+// then answer 404, and a run offers no post or payment). The figures are a small deterministic stand-in for the payroll engine (not its rules).
 const ADMIN = { id: 2, name: 'Admin' }
 const INPUT_KEYS = ['overtime_amount', 'absence_days', 'bonus_amount', 'deduction_amount', 'advance_recovery_amount']
 const PEOPLE = [
@@ -14,8 +15,11 @@ const GOSI_EMPLOYER = 0.1175
 const money = value => Math.round(value * 100) / 100
 const noInputs = () => Object.fromEntries(INPUT_KEYS.map(key => [key, 0]))
 
+const ROLES = ['basic_expense', 'allowance_expense', 'variable_expense', 'gosi_expense', 'gosi_payable', 'salaries_payable', 'deduction', 'advance', 'eos_expense', 'eos_provision']
+const ACCOUNT_REFS = { basic_expense: { id: 11, name: '510101 مصروف الأجور الأساسية' }, salaries_payable: { id: 13, name: '210101 الرواتب المستحقة' } }
+
 let state
-function seed() {
+function seed(finance = true) {
   const slips = (runId, bonusOfFirst = 0) => PEOPLE.map((person, index) => ({
     id: runId * 10 + index + 1,
     person,
@@ -35,6 +39,21 @@ function seed() {
       { id: 2, branch: 'hazards', nationality_class: 'non_saudi', date_from: '2026-01-01', employee_rate: 0, employer_rate: 2, wage_min: 0, wage_max: 45000, shared: false },
     ],
     nextRateId: 3,
+    finance: finance
+      ? {
+          settings: {
+            journal: { id: 7, name: 'قيود الرواتب' },
+            accounts: Object.fromEntries(ROLES.map(role => [role, ACCOUNT_REFS[role] ?? null])),
+            default_analytic_account: null,
+            entry_detail: 'aggregated',
+          },
+          // Department 1 has a cost center; department 2 has none (so its employee is flagged in the preview).
+          centers: [
+            { department: { id: 1, name: 'المالية' }, analytic_account: { id: 5, name: 'فرع الرياض' } },
+            { department: { id: 2, name: 'الموارد البشرية' }, analytic_account: null },
+          ],
+        }
+      : null,
   }
 }
 seed()
@@ -61,7 +80,9 @@ function totals(run) {
   return Object.fromEntries(Object.entries(sums).map(([key, value]) => [key, money(value)]))
 }
 
-const ACTIONS = { draft: ['compute', 'cancel', 'edit_inputs'], computed: ['compute', 'approve', 'cancel', 'edit_inputs'], approved: [] }
+const BASE_ACTIONS = { draft: ['compute', 'cancel', 'edit_inputs'], computed: ['compute', 'approve', 'cancel', 'edit_inputs'], approved: [], posted: [], paid: [] }
+const FINANCE_ACTIONS = { approved: ['post'], posted: ['record_payment'] }
+const actionsOf = run => state.finance ? FINANCE_ACTIONS[run.state] ?? BASE_ACTIONS[run.state] : BASE_ACTIONS[run.state]
 
 function summary(run) {
   return { id: run.id, month: run.month, state: run.state, employee_count: run.slips.length, totals: totals(run), approved_at: run.approvedAt }
@@ -70,9 +91,9 @@ function detail(run) {
   return {
     ...summary(run),
     warnings: run.slips.filter(slip => slip.person.ibanMissing).map(slip => ({ code: 'missing_iban', employee: slip.person.employee })),
-    allowed_actions: ACTIONS[run.state],
-    approved_by: run.state === 'approved' ? ADMIN : null,
-    finance: null,
+    allowed_actions: actionsOf(run),
+    approved_by: run.approvedAt ? ADMIN : null,
+    finance: state.finance ? { entry_id: run.entry ? 91 : null, entry_name: run.entry ?? null, payment_id: run.payment ? 92 : null, payment_name: run.payment ?? null } : null,
   }
 }
 function row(slip) {
@@ -95,6 +116,28 @@ function payslip(run, slip) {
   }
 }
 
+const debitCredit = (account, debit, credit) => ({ account, analytic_account: null, employee: null, debit: money(debit), credit: money(credit) })
+function postingPreview(run) {
+  const sums = totals(run)
+  const rows = [
+    debitCredit({ id: 11, code: '510101', name: 'مصروف الأجور الأساسية' }, sums.gross, 0),
+    debitCredit({ id: 14, code: '510401', name: 'مصروف التأمينات' }, sums.gosi_employer, 0),
+    debitCredit({ id: 13, code: '210101', name: 'الرواتب المستحقة' }, 0, sums.net),
+    debitCredit({ id: 15, code: '210201', name: 'التأمينات المستحقة' }, 0, sums.gosi_employee + sums.gosi_employer),
+    debitCredit({ id: 16, code: '210301', name: 'الاستقطاعات' }, 0, sums.deductions - sums.gosi_employee),
+  ].filter(line => line.debit || line.credit)
+  const mapped = new Set(state.finance.centers.filter(center => center.analytic_account).map(center => center.department.id))
+  return {
+    entry_detail: state.finance.settings.entry_detail,
+    date: `${run.month}-28`,
+    journal: state.finance.settings.journal,
+    lines: rows,
+    debit: money(rows.reduce((sum, line) => sum + line.debit, 0)),
+    credit: money(rows.reduce((sum, line) => sum + line.credit, 0)),
+    warnings: run.slips.filter(slip => !slip.person.department || !mapped.has(slip.person.department.id)).map(slip => ({ code: 'unmapped_department', employee: slip.person.employee })),
+  }
+}
+
 const page = (items, url) => {
   const offset = Math.max(0, Number(url.searchParams.get('offset') ?? 0) || 0)
   const limit = Number(url.searchParams.get('limit') ?? 50)
@@ -102,13 +145,15 @@ const page = (items, url) => {
 }
 // The signed-in employee is the first person of each approved run: their own approved payslips, newest month first.
 const mineRoute = /^\/api\/v1\/hr\/payroll\/payslips\/mine(?:\/(\d+))?$/
-const ownSlips = () => state.runs.filter(run => run.state === 'approved').map(run => ({ run, slip: run.slips[0] })).filter(entry => entry.slip)
-const runRoute = /^\/api\/v1\/hr\/payroll\/runs\/(\d+)(?:\/(compute|approve|payslips))?(?:\/(\d+))?(?:\/(inputs))?$/
+const ownSlips = () => state.runs.filter(run => ['approved', 'posted', 'paid'].includes(run.state)).map(run => ({ run, slip: run.slips[0] })).filter(entry => entry.slip)
+const runRoute = /^\/api\/v1\/hr\/payroll\/runs\/(\d+)(?:\/(compute|approve|payslips|posting-preview|post|payment))?(?:\/(\d+))?(?:\/(inputs))?$/
 const findRun = id => state.runs.find(run => run.id === Number(id))
 
 export function hrPayrollPreviewData(route, url) {
   if (route === '/api/v1/hr/payroll/settings') return state.settings
   if (route === '/api/v1/hr/payroll/gosi-rates') return { items: state.rates, total: state.rates.length }
+  if (route === '/api/v1/hr/payroll/finance-settings') return state.finance?.settings
+  if (route === '/api/v1/hr/payroll/cost-centers') return state.finance && { items: state.finance.centers, total: state.finance.centers.length }
   if (route === '/api/v1/hr/payroll/runs') {
     const year = url.searchParams.get('year')
     const stateFilter = url.searchParams.get('state')
@@ -127,6 +172,7 @@ export function hrPayrollPreviewData(route, url) {
   const run = findRun(id)
   if (!run) return undefined
   if (!section) return detail(run)
+  if (section === 'posting-preview') return state.finance && run.state === 'approved' ? postingPreview(run) : undefined
   if (section !== 'payslips') return undefined
   if (slipId) {
     const slip = run.slips.find(item => item.id === Number(slipId))
@@ -142,7 +188,7 @@ const invalid = (message, field) => ({ status: 422, body: { code: 'invalid', mes
 
 /** The writes: `{status, body}`, or undefined for a route this preview does not own. */
 export function hrPayrollPreviewWrite(method, route, body) {
-  if (method === 'POST' && route === '/api/v1/__mock/reset-payroll') { seed(); return ok({ ok: true }) }
+  if (method === 'POST' && route === '/api/v1/__mock/reset-payroll') { seed(body.finance !== false); return ok({ ok: true }) }
   if (method === 'PATCH' && route === '/api/v1/hr/payroll/settings') {
     // Like the server: an empty patch, a divisor outside 28-31 and a null annual leave type are refused.
     if (!Object.keys(body).length) return invalid('no fields to update')
@@ -152,6 +198,25 @@ export function hrPayrollPreviewWrite(method, route, body) {
     if (body.annual_leave_type_id !== undefined) state.settings.annual_leave_type = { id: body.annual_leave_type_id, name: 'إجازة' }
     if (body.unpaid_leave_type_ids !== undefined) state.settings.unpaid_leave_types = body.unpaid_leave_type_ids.map(id => ({ id, name: 'إجازة' }))
     return ok(state.settings)
+  }
+  if (method === 'PATCH' && route === '/api/v1/hr/payroll/finance-settings') {
+    if (!state.finance) return notFound
+    if (!Object.keys(body).length) return invalid('no fields to update')
+    if (body.entry_detail !== undefined && !['aggregated', 'per_employee'].includes(body.entry_detail)) return invalid('entry_detail must be aggregated or per_employee', 'entry_detail')
+    const { settings } = state.finance
+    if (body.entry_detail !== undefined) settings.entry_detail = body.entry_detail
+    if ('journal_id' in body) settings.journal = body.journal_id === null ? null : { id: body.journal_id, name: 'دفتر' }
+    if ('default_analytic_account_id' in body) settings.default_analytic_account = body.default_analytic_account_id === null ? null : { id: body.default_analytic_account_id, name: 'مركز تكلفة' }
+    for (const [role, id] of Object.entries(body.accounts ?? {})) settings.accounts[role] = id === null ? null : { id, name: 'حساب' }
+    return ok(settings)
+  }
+  const centerMatch = /^\/api\/v1\/hr\/payroll\/cost-centers\/(\d+)$/.exec(route)
+  if (centerMatch && method === 'PUT') {
+    const center = state.finance?.centers.find(item => item.department.id === Number(centerMatch[1]))
+    if (!center) return notFound
+    if (!('analytic_account_id' in body)) return invalid('analytic_account_id is required', 'analytic_account_id')
+    center.analytic_account = body.analytic_account_id === null ? null : { id: body.analytic_account_id, name: 'مركز تكلفة' }
+    return ok(center)
   }
   if (method === 'POST' && route === '/api/v1/hr/payroll/gosi-rates') {
     const rate = { id: state.nextRateId++, ...body, shared: false }
@@ -178,26 +243,41 @@ export function hrPayrollPreviewWrite(method, route, body) {
   const run = findRun(id)
   if (!run) return notFound
   if (method === 'DELETE' && !section) {
-    if (!ACTIONS[run.state].includes('cancel')) return { status: 403, body: { code: 'transition_forbidden', message: 'the run cannot be cancelled' } }
+    if (!actionsOf(run).includes('cancel')) return { status: 403, body: { code: 'transition_forbidden', message: 'the run cannot be cancelled' } }
     state.runs = state.runs.filter(item => item !== run)
     return { status: 204, body: '' }
   }
   if (method === 'POST' && section === 'compute') {
-    if (!ACTIONS[run.state].includes('compute')) return { status: 403, body: { code: 'transition_forbidden', message: 'the run cannot be computed' } }
+    if (!actionsOf(run).includes('compute')) return { status: 403, body: { code: 'transition_forbidden', message: 'the run cannot be computed' } }
     run.slips = PEOPLE.map((person, index) => run.slips[index] ?? { id: run.id * 10 + index + 1, person, state: 'draft', inputs: noInputs() })
     run.state = 'computed'
     return ok(detail(run))
   }
   if (method === 'POST' && section === 'approve') {
-    if (!ACTIONS[run.state].includes('approve')) return { status: 403, body: { code: 'transition_forbidden', message: 'the run cannot be approved' } }
+    if (!actionsOf(run).includes('approve')) return { status: 403, body: { code: 'transition_forbidden', message: 'the run cannot be approved' } }
     run.state = 'approved'
     run.approvedAt = '2026-11-28T09:30:00Z'
+    return ok(detail(run))
+  }
+  if (method === 'POST' && section === 'post') {
+    if (!actionsOf(run).includes('post')) return { status: 403, body: { code: 'transition_forbidden', message: 'the run cannot be posted' } }
+    run.state = 'posted'
+    run.entry = `JE/${run.month.replace('-', '/')}/0001`
+    return ok(detail(run))
+  }
+  if (method === 'POST' && section === 'payment') {
+    if (!actionsOf(run).includes('record_payment')) return { status: 403, body: { code: 'transition_forbidden', message: 'the run cannot be paid' } }
+    if (!Number.isInteger(body.journal_id) || body.journal_id < 1) return invalid('journal_id is required', 'journal_id')
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(body.date))) return invalid('date must be a YYYY-MM-DD day', 'date')
+    if (body.date < `${run.month}-01`) return { status: 422, body: { code: 'period_locked', message: 'the accounting period is locked', field: 'date' } }
+    run.state = 'paid'
+    run.payment = `PAY/${run.month.replace('-', '/')}/0001`
     return ok(detail(run))
   }
   if (method === 'PATCH' && section === 'payslips' && inputs) {
     const slip = run.slips.find(item => item.id === Number(slipId))
     if (!slip) return notFound
-    if (!ACTIONS[run.state].includes('edit_inputs')) return { status: 422, body: { code: 'invalid', message: 'the inputs are locked', field: 'state', details: { reason: 'not_editable' } } }
+    if (!actionsOf(run).includes('edit_inputs')) return { status: 422, body: { code: 'invalid', message: 'the inputs are locked', field: 'state', details: { reason: 'not_editable' } } }
     const keys = Object.keys(body)
     const bad = keys.find(key => !INPUT_KEYS.includes(key) || typeof body[key] !== 'number' || body[key] < 0)
     if (!keys.length || bad) return invalid('inputs must be numbers, zero or more', bad)

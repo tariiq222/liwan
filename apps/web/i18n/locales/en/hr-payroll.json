@@ -60,12 +60,19 @@
       "cancelTitle": "Cancel this run?",
       "cancelHint": "The run is deleted with all its payslips and inputs. You can create it again later.",
       "printRegister": "Print payroll register",
-      "printPayslip": "Print payslip"
+      "printPayslip": "Print payslip",
+      "post": "Post to accounting",
+      "postTitle": "Post this run?",
+      "postHint": "The payroll entry is created in accounting and the run can no longer be changed. Review the proposed entry below.",
+      "recordPayment": "Record salary payment",
+      "paymentTitle": "Record the salary payment?",
+      "paymentHint": "The net pay is recorded as paid from the chosen journal on the given date."
     },
     "warnings": {
       "title": "Warnings to review",
       "compensation_missing": "{name}: no compensation recorded, so they are left out of the computation.",
-      "missing_iban": "{name}: no IBAN recorded, so they will not appear in the bank transfer file."
+      "missing_iban": "{name}: no IBAN recorded, so they will not appear in the bank transfer file.",
+      "unmapped_department": "{name}: their department has no cost center, so the cost goes to the default cost center or none."
     },
     "register": {
       "title": "Payroll register",
@@ -182,7 +189,10 @@
       "payroll_structure_mismatch": "The salary structure does not match the one in the settings.",
       "notEditable": "Inputs cannot be edited once the run is approved.",
       "compensation_missing": "An employee has no compensation recorded. Record it and compute again.",
-      "settlement_missing": "An employee who left has no approved end-of-service settlement. Complete it before approving the run."
+      "settlement_missing": "An employee who left has no approved end-of-service settlement. Complete it before approving the run.",
+      "period_locked": "The accounting period of this date is locked. Choose a date in an open period.",
+      "missing_cost_center": "One or more departments have no cost center. Set them in the payroll settings.",
+      "settings_incomplete": "The payroll accounting settings are incomplete. Complete the journal and accounts in the payroll settings."
     },
     "compensation": {
       "title": "Compensation",
@@ -216,6 +226,72 @@
       "saved": "Compensation saved",
       "saveError": "Compensation was not saved",
       "formHint": "Only people with payroll access see these amounts."
+    },
+    "finance": {
+      "payment": {
+        "journal": "Payment journal",
+        "journalPlaceholder": "Choose a bank or cash journal",
+        "date": "Payment date",
+        "noJournals": "You cannot read journals, so a payment journal cannot be chosen.",
+        "confirm": "Record payment"
+      },
+      "preview": {
+        "title": "Proposed entry",
+        "date": "Entry date",
+        "journal": "Journal",
+        "detail": "Level of detail",
+        "aggregated": "Aggregated",
+        "per_employee": "Per employee",
+        "loading": "Preparing the proposed entry…",
+        "totals": "Total",
+        "warningsTitle": "Warnings before posting",
+        "empty": "The entry has no lines.",
+        "columns": {
+          "account": "Account",
+          "analytic": "Cost center",
+          "employee": "Employee",
+          "debit": "Debit",
+          "credit": "Credit"
+        }
+      },
+      "entryName": "Accounting entry: {name}",
+      "paymentName": "Salary payment: {name}"
+    },
+    "financeSettings": {
+      "title": "Payroll accounting",
+      "hint": "The journal and accounts the payroll entry is posted to.",
+      "saveError": "The accounting settings could not be saved",
+      "journal": "Payroll entries journal",
+      "journalPlaceholder": "Choose a general journal",
+      "entryDetail": "Entry level of detail",
+      "aggregated": "Aggregated: one line per account",
+      "per_employee": "Per employee: one line per employee",
+      "defaultAnalytic": "Default cost center",
+      "defaultAnalyticHint": "Used for employees whose department has no cost center.",
+      "none": "None",
+      "notSet": "Not set",
+      "accountsTitle": "Accounts",
+      "roles": {
+        "basic_expense": "Basic wage expense",
+        "allowance_expense": "Allowances expense",
+        "variable_expense": "Variable pay expense",
+        "gosi_expense": "GOSI expense (employer share)",
+        "gosi_payable": "GOSI payable",
+        "salaries_payable": "Salaries payable",
+        "deduction": "Deductions account",
+        "advance": "Advances account",
+        "eos_expense": "End-of-service expense",
+        "eos_provision": "End-of-service provision"
+      }
+    },
+    "costCenters": {
+      "title": "Department cost centers",
+      "hint": "The cost center each department's payroll cost is charged to.",
+      "department": "Department",
+      "analytic": "Cost center",
+      "none": "No cost center",
+      "saveError": "The cost center could not be saved",
+      "empty": "No departments"
     }
   }
 }

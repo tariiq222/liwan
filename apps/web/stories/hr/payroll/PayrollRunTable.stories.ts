@@ -19,7 +19,7 @@ const meta = {
   component: PayrollRunTable,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/payroll.vue:145', 'جدول مسيرات الرواتب داخل بطاقة القائمة: الشهر وحالة المسير وعدد الموظفين والإجمالي والخصومات والصافي وتاريخ الاعتماد.'),
+    ...storyContext('apps/web/app/pages/hr/payroll.vue:146', 'جدول مسيرات الرواتب داخل بطاقة القائمة: الشهر وحالة المسير وعدد الموظفين والإجمالي والخصومات والصافي وتاريخ الاعتماد.'),
   },
   args: { runs, rowTo: () => '/hr/payroll/5', caption: 'الرواتب' },
   render: args => ({
