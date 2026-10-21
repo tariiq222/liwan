@@ -224,11 +224,12 @@ test.describe('offboarding', () => {
     await expect(page).toHaveURL(/\/hr\/offboarding\/2/)
     await expect(heading(page, 'خالد الشمري')).toBeVisible()
     await expect(page.getByText('استلام العهد')).toBeVisible()
-    // The custody link is in the page actions and again in the open-custody warning; both go to the employee's assets.
+    // One custody action in the page header; the open-custody alert is text and count only.
     const custodyLinks = page.getByRole('link', { name: 'عهد الموظف' })
-    await expect(custodyLinks).toHaveCount(2)
-    await expect(page.getByTestId('hr-offboarding-held-assets').getByRole('link', { name: 'عهد الموظف' })).toHaveAttribute('href', '/hr/assets?employee_id=2')
-    await expect(custodyLinks.first()).toHaveAttribute('href', '/hr/assets?employee_id=2')
+    await expect(custodyLinks).toHaveCount(1)
+    await expect(custodyLinks).toHaveAttribute('href', '/hr/assets?employee_id=2')
+    await expect(page.getByTestId('hr-offboarding-held-assets')).toBeVisible()
+    await expect(page.getByTestId('hr-offboarding-held-assets').getByRole('link')).toHaveCount(0)
     await open(page, '/hr/offboarding/4', 'ليلى الدوسري')
     await expect(page.getByText('إغلاق الحسابات')).toBeVisible()
     // The record also reads the end-of-service settlement (a 404 before one is saved) and its estimate (a 422 for a

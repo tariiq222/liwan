@@ -100,7 +100,7 @@ describe('payrollErrorMessage', () => {
   })
 
   it('says a run that can no longer be edited is locked', () => {
-    const error = new ApiError(422, 'invalid', 'raw', 'state', { reason: 'not_editable' })
+    const error = new ApiError(403, 'transition_forbidden', 'raw', undefined, { reason: 'not_editable' })
     expect(payrollErrorMessage(error, t, names)).toBe(arPayroll.errors.notEditable)
   })
 

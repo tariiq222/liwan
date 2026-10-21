@@ -109,8 +109,8 @@ class TestPayrollRuns(PayrollCase):
         self.assertEqual(self.env['hr.payslip.run'].browse(run['id']).state, 'close')
 
         res = self._patch_inputs(run['id'], slip_id, {'bonus_amount': 1})
-        self.assertEqual(res.status_code, 422, res.text)
-        self.assertEqual(res.json()['code'], 'invalid')
+        self.assertEqual(res.status_code, 403, res.text)
+        self.assertEqual(res.json()['code'], 'transition_forbidden')
         self.assertEqual(res.json()['details'], {'reason': 'not_editable'})
         res = self._post(self.officer, run['id'], 'compute')
         self.assertEqual((res.status_code, res.json()['code']), (403, 'transition_forbidden'))

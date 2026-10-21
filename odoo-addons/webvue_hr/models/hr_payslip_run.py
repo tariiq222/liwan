@@ -15,7 +15,6 @@ DUPLICATE = 'duplicate'
 STRUCTURE_MISSING = 'structure_missing'
 TRANSITION_FORBIDDEN = 'transition_forbidden'
 NEGATIVE_NET = 'negative_net'
-INVALID = 'invalid'
 RUN_EMPTY = 'run_empty'
 RUN_STALE = 'run_stale'
 INPUT_AMOUNT = {name: 0 for name in INPUT_CODES.values()}
@@ -72,10 +71,10 @@ class HrPayslipRun(models.Model):
             )
         return structure
 
-    def _webvue_require_state(self, states, message):
+    def _webvue_require_state(self, states, message, details=None):
         """Refuse a transition from any other lifecycle state (403 ``transition_forbidden``)."""
         if any(run.webvue_state not in states for run in self):
-            raise WebVueHrRule(TRANSITION_FORBIDDEN, message, status=403)
+            raise WebVueHrRule(TRANSITION_FORBIDDEN, message, status=403, details=details)
 
     # --- who is paid -------------------------------------------------------------------------
 
@@ -248,11 +247,11 @@ class HrPayslipRun(models.Model):
     def _webvue_set_inputs(self, payslip, values):
         """Write input amounts by engine input code. A computed run goes back to draft: its figures are stale."""
         self.ensure_one()
-        if self.webvue_state not in EDITABLE_STATES:
-            raise WebVueHrRule(
-                INVALID, self.env._('The inputs of an approved run cannot be edited.'),
-                field='state', details={'reason': 'not_editable'},
-            )
+        self._webvue_require_state(
+            EDITABLE_STATES,
+            self.env._('The inputs of an approved run cannot be edited.'),
+            details={'reason': 'not_editable'},
+        )
         lines = {line.code: line for line in payslip.input_line_ids}
         for code, amount in values.items():
             lines[code].amount = amount
