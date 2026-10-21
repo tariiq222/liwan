@@ -48,6 +48,9 @@ class WebVueHrPayrollFinanceSettings(models.Model):
             company = settings.company_id
             if settings.journal_id and settings.journal_id.company_id != company:
                 raise ValidationError(self.env._('The journal must belong to the company.'))
+            currency = settings.journal_id.currency_id
+            if currency and currency != company.currency_id:
+                raise ValidationError(self.env._('The payroll journal must be in the company currency.'))
             analytic = settings.default_analytic_account_id
             if analytic and analytic.company_id != company:
                 raise ValidationError(self.env._('The default cost center must belong to the company.'))

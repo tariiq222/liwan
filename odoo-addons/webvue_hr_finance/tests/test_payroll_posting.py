@@ -228,7 +228,8 @@ class TestPayrollPosting(PayrollFinanceCase):
         run = self._approved_run([self.e1, self.e2], MONTH)
         foreign = self.env['res.currency'].search([('id', '!=', self.company.currency_id.id)], limit=1)
         foreign.active = True
-        self.settings.journal_id = self.general_journal.copy({'code': 'FXG', 'currency_id': foreign.id})
+        # The settings refuse a foreign journal, so it only gets there when the journal changes after the save.
+        self.settings.journal_id.currency_id = foreign
         self.login_as(self.poster)
         preview = self.api('GET', f"{RUNS}/{run['id']}/posting-preview")
         posted = self._post(run['id'])
@@ -422,6 +423,9 @@ class TestPayrollAccountingRace(TransactionCase):
                 ('webvue_payroll_origin', 'in', ('run', 'payment')),
             ])
             if moves:
+                Model.unlink(env['account.partial.reconcile'].search([
+                    '|', ('debit_move_id.move_id', 'in', moves.ids), ('credit_move_id.move_id', 'in', moves.ids),
+                ]))
                 super(PayrollMove, moves.with_context(force_delete=True)).unlink()
             if run:
                 run.slip_ids.write({'state': 'draft'})
