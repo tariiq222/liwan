@@ -21,6 +21,7 @@ from odoo_test import (
     template_name,
     unmanifested_dirs,
     verdict,
+    with_dependencies,
     with_dependents,
 )
 
@@ -121,6 +122,18 @@ class TestAddonTree(TempDirCase):
         depends = local_depends(self.root, known)
         self.assertEqual(depends['webvue_meetings'], ['vendor_like'])
         self.assertEqual(with_dependents({'vendor_like'}, depends), {'vendor_like', 'webvue_meetings'})
+
+    def test_dependency_closure_follows_non_local_dependencies_and_not_dependents(self):
+        self.addon('webvue_hr', ['mail', 'payroll'])
+        self.addon('webvue_hr_finance', ['webvue_hr', 'webvue_finance'])
+        self.addon('webvue_finance', ['account'])
+        known = local_addons(self.root)
+        self.assertEqual(
+            with_dependencies({'webvue_hr_finance'}, self.root, known),
+            {'webvue_hr_finance', 'webvue_hr', 'webvue_finance', 'mail', 'payroll', 'account'},
+        )
+        self.assertEqual(with_dependencies({'webvue_hr'}, self.root, known), {'webvue_hr', 'mail', 'payroll'})
+        self.assertNotIn('webvue_hr_finance', with_dependencies({'webvue_hr'}, self.root, known))
 
 
 class TestFilestoreAndPorts(TempDirCase):

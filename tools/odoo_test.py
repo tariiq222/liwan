@@ -124,6 +124,29 @@ def unmanifested_dirs(paths, known):
     return found
 
 
+def with_dependencies(selected, addons_dir, known):
+    """``selected`` plus every addon it declares as a dependency, local or not, directly or transitively.
+
+    The template is built from the merge base, so an addon the branch changed may declare a dependency (an OCA addon
+    such as ``payroll``) the template never installed. Installing the closure loads it, so the code under test is
+    loaded the way the branch declares it. A dependency without a manifest in the local tree has no manifest to
+    follow and ends the walk there.
+    """
+    result = set(selected)
+    pending = list(selected)
+    while pending:
+        module = pending.pop()
+        if module in known:
+            deps = read_depends(addons_dir, module)
+        else:
+            deps = []
+        for dep in deps:
+            if dep not in result:
+                result.add(dep)
+                pending.append(dep)
+    return result
+
+
 def with_dependents(changed, depends):
     """``changed`` plus every addon that depends on it, directly or transitively."""
     result = set(changed)
@@ -452,8 +475,9 @@ def main(argv=None):
         copied = copy_filestore(cache, template, scratch / 'data', database)
         warn('filestore copied from template %s (%d files)' % (template, copied))
         installed = pg.installed(database)
-        update = sorted(a for a in selected if a in installed)
-        install = sorted(a for a in selected if a not in installed)
+        closure = with_dependencies(selected, addons_dir, known)
+        update = sorted(a for a in closure if a in installed)
+        install = sorted(a for a in closure if a not in installed)
         extra = []
         if update:
             extra += ['-u', ','.join(update)]
