@@ -98,14 +98,22 @@ export async function patchHrPayslipInputs($api: Api, qc: QueryClient, runId: nu
   return row
 }
 
+/** Every row of a list route, read in the server's page size until its `total` is reached. */
+export async function fetchAllPages<T>(
+  fetchPage: (offset: number) => Promise<{ items: T[]; total: number }>,
+): Promise<{ items: T[]; total: number }> {
+  const items: T[] = []
+  for (;;) {
+    const page = await fetchPage(items.length)
+    items.push(...page.items)
+    if (page.items.length === 0 || items.length >= page.total) return { items, total: items.length }
+  }
+}
+
 /** Every payslip row of a run, in the server's page size and ignoring any search: what the printed register lists. */
 export async function fetchAllHrPayslips($api: Api, runId: number): Promise<HrPayslipRow[]> {
-  const rows: HrPayslipRow[] = []
-  for (;;) {
-    const page = await $api(`${RUNS_PATH}/${runId}/payslips`, { query: { limit: HR_PAYSLIP_PAGE_SIZE, offset: rows.length }, schema: HrPayslipRowListSchema })
-    rows.push(...page.items)
-    if (page.items.length === 0 || rows.length >= page.total) return rows
-  }
+  const { items } = await fetchAllPages(offset => $api(`${RUNS_PATH}/${runId}/payslips`, { query: { limit: HR_PAYSLIP_PAGE_SIZE, offset }, schema: HrPayslipRowListSchema }))
+  return items
 }
 
 export function useHrPayrollRuns(query: MaybeRefOrGetter<HrPayrollRunsQuery>) {

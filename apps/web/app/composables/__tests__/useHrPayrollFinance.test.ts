@@ -3,6 +3,7 @@ import { QueryClient } from '@tanstack/vue-query'
 import type { HrPayrollRun } from '@webvue/contracts'
 import { hrPayrollKeys } from '../useHrPayrollCompensation'
 import {
+  fetchHrPayrollFinanceAccounts,
   fetchHrPayrollPostingPreview,
   patchHrPayrollFinanceSettings,
   postHrPayrollRun,
@@ -66,5 +67,17 @@ describe('payroll finance calls', () => {
     const api = vi.fn().mockResolvedValue({ department: { id: 2, name: 'د' }, analytic_account: null })
     await setHrPayrollCostCenter(api, qc, 2, null)
     expect(api).toHaveBeenCalledWith('/api/v1/hr/payroll/cost-centers/2', { method: 'PUT', body: { analytic_account_id: null }, schema: expect.anything() })
+  })
+
+  it('the chart of accounts is read in full, page by page', async () => {
+    const total = 450
+    const api = vi.fn(async (_path: string, options: { query: { limit: number; offset: number } }) => ({
+      items: Array.from({ length: Math.min(options.query.limit, total - options.query.offset) }, (_, index) => ({ id: options.query.offset + index + 1 })),
+      total,
+    }))
+    const all = await fetchHrPayrollFinanceAccounts(api as never)
+    expect(all.items).toHaveLength(450)
+    expect(new Set(all.items.map(item => (item as { id: number }).id)).size).toBe(450)
+    expect(api).toHaveBeenCalledTimes(3)
   })
 })

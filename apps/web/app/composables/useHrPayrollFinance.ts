@@ -14,7 +14,7 @@ import {
   type HrPayrollPaymentCreate,
 } from '@webvue/contracts'
 import { hrPayrollKeys } from './useHrPayrollCompensation'
-import { replaceRun } from './useHrPayrollRuns'
+import { fetchAllPages, replaceRun } from './useHrPayrollRuns'
 
 type Api = ReturnType<typeof useApi>['$api']
 
@@ -128,28 +128,34 @@ function useFinanceLookup<T>(kind: string, capability: string, enabled: MaybeRef
   })
 }
 
-const lookupQuery = { limit: LOOKUP_LIMIT }
+/** The whole chart of accounts: a company can hold more than one page, and a picker must offer every account. */
+export function fetchHrPayrollFinanceAccounts($api: Api) {
+  return fetchAllPages(offset => $api('/api/v1/finance/accounts', { query: { limit: LOOKUP_LIMIT, offset }, schema: FinanceAccountListSchema }))
+}
+
+export function fetchHrPayrollFinanceAnalyticAccounts($api: Api) {
+  return fetchAllPages(offset => $api('/api/v1/finance/analytic-accounts', { query: { limit: LOOKUP_LIMIT, offset }, schema: FinanceAnalyticAccountListSchema }))
+}
 
 function useAccountsLookup(enabled: MaybeRefOrGetter<boolean>) {
   const { $api } = useApi()
-  return useFinanceLookup('accounts', 'finance.accounts.read', enabled, () => $api('/api/v1/finance/accounts', { query: lookupQuery, schema: FinanceAccountListSchema }))
+  return useFinanceLookup('accounts', 'finance.accounts.read', enabled, () => fetchHrPayrollFinanceAccounts($api))
 }
 
 /** The journals of one type; the server filters by a single type, so each type is its own list. */
 function useJournalsLookup(type: 'general' | 'bank' | 'cash', enabled: MaybeRefOrGetter<boolean>) {
   const { $api } = useApi()
-  return useFinanceLookup(`journals-${type}`, 'finance.journals.read', enabled, () => $api('/api/v1/finance/journals', { query: { ...lookupQuery, type }, schema: FinanceJournalListSchema }))
+  return useFinanceLookup(`journals-${type}`, 'finance.journals.read', enabled, () => $api('/api/v1/finance/journals', { query: { limit: LOOKUP_LIMIT, type }, schema: FinanceJournalListSchema }))
 }
 
 function useAnalyticAccountsLookup(enabled: MaybeRefOrGetter<boolean>) {
   const { $api } = useApi()
-  return useFinanceLookup('analytic-accounts', 'finance.analytic.read', enabled, () => $api('/api/v1/finance/analytic-accounts', { query: lookupQuery, schema: FinanceAnalyticAccountListSchema }))
+  return useFinanceLookup('analytic-accounts', 'finance.analytic.read', enabled, () => fetchHrPayrollFinanceAnalyticAccounts($api))
 }
 
 /**
  * The accounts and general journals the mapping form picks from, and the analytic accounts both forms pick from, read
- * through the generic finance lookup routes (one page each: a list with more records than the page is flagged by the
- * callers through its `total`). Without the read capability a list stays unasked and the form shows the current value
+ * through the generic finance lookup routes (accounts and analytic accounts in full, page by page; journals of one type in one page). Without the read capability a list stays unasked and the form shows the current value
  * read-only.
  */
 export function useHrPayrollFinanceLookups(wanted: { mapping: MaybeRefOrGetter<boolean>; analytic: MaybeRefOrGetter<boolean> }) {
