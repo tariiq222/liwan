@@ -37,11 +37,18 @@ class HrPayslipRun(models.Model):
             return ('approved', 'posted')
         if keys == {'webvue_state', 'webvue_payment_id'} and vals['webvue_state'] == 'paid' and vals['webvue_payment_id']:
             return ('posted', 'paid')
-        if approver and keys == {'state'} and vals['state'] == 'close':
+        # The engine close comes after the payslips are done, so it is refused on a run whose payslips are not.
+        if approver and keys == {'state'} and vals['state'] == 'close' and self._webvue_slips_done():
             return ('computed', 'computed')
-        if approver and keys == APPROVAL_KEYS and vals['webvue_state'] == 'approved':
+        if (
+            approver and keys == APPROVAL_KEYS and vals['webvue_state'] == 'approved'
+            and vals['webvue_approved_by_id'] == self.env.user.id and vals['webvue_approved_at']
+        ):
             return ('computed', 'approved')
         return None
+
+    def _webvue_slips_done(self):
+        return all(slip.state == 'done' for run in self for slip in run.slip_ids)
 
     def write(self, vals):
         """Payroll managers write freely; everyone else only moves a run along its approval and accounting steps."""

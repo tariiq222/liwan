@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import date
+from datetime import date, timedelta
+from unittest.mock import patch
 
+from odoo import fields
 from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
@@ -127,11 +129,35 @@ class TestPayrollPayment(PayrollFinanceCase):
 
     def test_payment_date_cannot_precede_the_run_entry(self):
         run = self._posted_run()
-        res = self._pay(run['id'], date='2026-11-15')
+        move_date = self.env['hr.payslip.run'].browse(run['id']).webvue_move_id.date
+        res = self._pay(run['id'], date=str(move_date - timedelta(days=1)))
         self.assertEqual(res.status_code, 422, res.text)
         self.assertEqual(res.json()['code'], 'invalid')
         self.assertEqual(res.json()['field'], 'date')
         self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['state'], 'posted')
+
+    def test_unreconciled_payable_refuses_the_payment(self):
+        run = self._posted_run()
+        with patch.object(self.env.registry['account.move.line'], 'reconcile', lambda lines: None):
+            res = self._pay(run['id'])
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(res.json()['code'], 'invalid')
+        self.assertEqual(res.json()['field'], 'state')
+        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['state'], 'posted')
+        self.assertFalse(self.env['hr.payslip.run'].browse(run['id']).webvue_payment_id)
+
+    def test_approver_cannot_stamp_another_user(self):
+        self.login_as(self.payroll_officer)
+        run_id = self.api('POST', RUNS, json={'month': MONTH}).json()['id']
+        self.assertEqual(self.api('POST', f'{RUNS}/{run_id}/compute').status_code, 200)
+        run = self.env['hr.payslip.run'].browse(run_id).with_user(self.payroll_approver)
+        with self.assertRaises(AccessError):
+            run.write({
+                'webvue_state': 'approved', 'webvue_approved_by_id': self.payroll_officer.id,
+                'webvue_approved_at': fields.Datetime.now(),
+            })
+        with self.assertRaises(AccessError):
+            run.write({'state': 'close'})
 
     def test_approver_can_only_approve(self):
         self.login_as(self.payroll_officer)
