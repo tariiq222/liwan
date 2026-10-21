@@ -30,7 +30,8 @@ test.describe('payroll runs list', () => {
     await row(page, /أكتوبر 2026/).getByRole('link', { name: /أكتوبر 2026/ }).click()
     await expect(page).toHaveURL(/\/hr\/payroll\/1\?returnTo=/)
     await page.getByRole('link', { name: 'رجوع' }).first().click()
-    expect(currentRoute(page)).toBe('/hr/payroll?state=approved')
+    // The return is a client-side navigation: the route settles a moment after the click.
+    await expect.poll(() => currentRoute(page)).toBe('/hr/payroll?state=approved')
   })
 
   test('the create panel refuses a month that has a run and opens the new run', async ({ page }) => {
@@ -164,7 +165,8 @@ test.describe('my payslips', () => {
     await expect(page).toHaveURL(/\/hr\/payroll\/mine\/\d+\?returnTo=/)
     await expect(page.getByTestId('hr-payslip-document')).toContainText('شركة النماء للتقنية')
     await page.getByTestId('hr-my-payslip-back').click()
-    expect(currentRoute(page)).toBe('/hr/payroll/mine')
+    // The return is a client-side navigation: the route settles a moment after the click.
+    await expect.poll(() => currentRoute(page)).toBe('/hr/payroll/mine')
   })
 
   test('an unknown own payslip shows the not-found state', async ({ page }) => {
