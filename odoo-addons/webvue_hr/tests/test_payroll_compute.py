@@ -4,6 +4,7 @@ from datetime import date
 from odoo.tests import tagged
 
 from .payroll_common import PayrollCase
+from odoo.addons.webvue_hr.rules import WebVueHrRule
 
 NOVEMBER = (date(2026, 11, 1), date(2026, 11, 30))
 
@@ -20,14 +21,14 @@ class TestPayrollCompute(PayrollCase):
         cls.structure = cls.env.ref('webvue_hr.structure_saudi')
         cls.unpaid = cls.env.ref('hr_holidays.leave_type_unpaid')
 
-    def _payslip(self, employee, inputs=None):
+    def _payslip(self, employee, inputs=None, structure=None):
         slip_model = self.env['hr.payslip'].with_user(self.manager)
         payslip = slip_model.create({
             'employee_id': employee.id,
             'date_from': NOVEMBER[0],
             'date_to': NOVEMBER[1],
             'company_id': employee.company_id.id,
-            'struct_id': self.structure.id,
+            'struct_id': (structure or self.structure).id,
         })
         payslip.contract_id = payslip._webvue_period_version()
         payslip.write({'input_line_ids': [
@@ -121,3 +122,47 @@ class TestPayrollCompute(PayrollCase):
         employee.version_id.write({'wage': 0})
         self.assertEqual(employee.version_id.wage, 0)
         self.assertEqual(self._lines(self._payslip(employee))['BASIC'], 10000)
+
+    def test_hour_unpaid_leave_deducts_its_fraction_of_a_day(self):
+        hourly = self.env['hr.leave.type'].create({
+            'name': 'Unpaid hours', 'requires_allocation': False, 'request_unit': 'hour',
+        })
+        self.env['webvue.hr.payroll.settings']._webvue_save(self.env.company, {
+            'unpaid_leave_type_ids': [(4, hourly.id)],
+        })
+        employee = self.make_employee('Hourly')
+        self.set_compensation(
+            employee, 9000, 2250, 750, gosi_registration_date=date(2020, 1, 1),
+        )
+        leave = self.env['hr.leave'].create({
+            'employee_id': employee.id, 'holiday_status_id': hourly.id,
+            'request_date_from': date(2026, 11, 3), 'request_date_to': date(2026, 11, 3),
+            'request_unit_hours': True, 'request_hour_from': 9, 'request_hour_to': 11,
+        })
+        leave.action_approve()
+        self.assertEqual(leave.state, 'validate')
+        self.assertEqual(leave.number_of_days, 0.25)
+        self.assertEqual(self._lines(self._payslip(employee))['UNPAID'], -100.00)
+
+    def test_structure_using_saudi_rules_must_be_the_company_structure(self):
+        child = self.env['hr.payroll.structure'].create({
+            'name': 'Child of Saudi', 'parent_id': self.structure.id,
+        })
+        other = self.env['hr.payroll.structure'].create({'name': 'Unrelated'})
+        employee = self.make_employee('Mismatch')
+        self.set_compensation(
+            employee, 10000, 2500, 1000, gosi_registration_date=date(2020, 1, 1),
+        )
+        with self.assertRaises(WebVueHrRule) as refused:
+            self._payslip(employee, structure=child)
+        self.assertEqual(refused.exception.code, 'payroll_structure_mismatch')
+        self.assertEqual(refused.exception.status, 422)
+        self.assertEqual(self._payslip(employee, structure=other).state, 'verify')
+
+    def test_missing_contract_start_is_refused(self):
+        employee = self.env['hr.employee'].create({'name': 'No Contract', 'company_id': self.env.company.id})
+        employee.version_id.write({'contract_date_start': False})
+        with self.assertRaises(WebVueHrRule) as refused:
+            self._payslip(employee)
+        self.assertEqual(refused.exception.code, 'contract_missing')
+        self.assertEqual(refused.exception.field, 'employee_id')

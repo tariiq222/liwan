@@ -67,6 +67,7 @@ class WebVueHrPayrollCalculator(models.AbstractModel):
         calculator = self.with_company(payslip.company_id)
         employee = payslip.employee_id
         version = payslip.contract_id
+        self._webvue_require_contract(payslip)
         settings = self.env['webvue.hr.payroll.settings']._webvue_for_company(payslip.company_id)
         divisor = settings.day_divisor
         compensation = calculator._webvue_compensation(employee)
@@ -106,6 +107,18 @@ class WebVueHrPayrollCalculator(models.AbstractModel):
         }.items()}
 
     @api.model
+    def _webvue_require_contract(self, payslip):
+        """The payslip needs a version of a contract that starts on a date: the engine skips it silently otherwise."""
+        if payslip.contract_id.contract_date_start:
+            return
+        code = 'contract_missing'
+        raise WebVueHrRule(
+            code,
+            self.env._('%(name)s has no contract starting on a date.', name=payslip.employee_id.name),
+            field='employee_id', details={'employee_id': payslip.employee_id.id},
+        )
+
+    @api.model
     def _webvue_earning(self, monthly, days, divisor):
         return money(Decimal(str(monthly)) * days / divisor)
 
@@ -133,10 +146,21 @@ class WebVueHrPayrollCalculator(models.AbstractModel):
             ('request_date_from', '<=', window_end),
             ('request_date_to', '>=', window_start),
         ])
-        return sum((
-            overlap_days(leave.request_date_from, leave.request_date_to, window_start, window_end, leave.request_unit_half)
-            for leave in leaves
-        ), Decimal(0))
+        return sum((self._webvue_leave_days(leave, window_start, window_end) for leave in leaves), Decimal(0))
+
+    @api.model
+    def _webvue_leave_days(self, leave, window_start, window_end):
+        """Calendar days of a leave in the window; a part-day hour leave counts its own fraction of a day."""
+        part_day = (
+            leave.request_unit_hours and not leave.request_unit_half
+            and leave.request_date_from == leave.request_date_to and leave.number_of_days < 1
+        )
+        if part_day:
+            inside = window_start <= leave.request_date_from <= window_end
+            return Decimal(str(leave.number_of_days)) if inside else Decimal(0)
+        return overlap_days(
+            leave.request_date_from, leave.request_date_to, window_start, window_end, leave.request_unit_half,
+        )
 
     @api.model
     def _webvue_absence_days(self, payslip):

@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import fields, models
 
+from odoo.addons.webvue_hr.rules import WebVueHrRule
+
 
 class HrPayslip(models.Model):
     _inherit = 'hr.payslip'
@@ -18,11 +20,27 @@ class HrPayslip(models.Model):
         values = super().get_current_contract_dict(contract, contracts)
         settings = self.env['webvue.hr.payroll.settings']._webvue_for_company(self.company_id)
         if self.struct_id != settings.structure_id:
+            self._webvue_refuse_saudi_rules_outside()
             return values
         return {**values, **self.env['webvue.hr.payroll.calculator']._webvue_payslip_values(self)}
 
+    def _webvue_refuse_saudi_rules_outside(self):
+        """Refuse a structure that uses the Saudi rules but is not the company's: they would read zeros."""
+        saudi_rule = self.env.ref('webvue_hr.rule_net')
+        if saudi_rule not in self.struct_id.get_structure_with_parents().rule_ids:
+            return
+        code = 'payroll_structure_mismatch'
+        raise WebVueHrRule(
+            code,
+            self.env._('The payslip structure uses the Saudi payroll rules but is not the payroll structure of the company.'),
+            field='employee_id', details={'employee_id': self.employee_id.id, 'structure_id': self.struct_id.id},
+        )
+
     def compute_sheet(self):
         for payslip in self:
+            settings = self.env['webvue.hr.payroll.settings']._webvue_for_company(payslip.company_id)
+            if payslip.struct_id == settings.structure_id:
+                self.env['webvue.hr.payroll.calculator']._webvue_require_contract(payslip)
             payslip.webvue_department_id = payslip.contract_id.department_id
         return super().compute_sheet()
 
