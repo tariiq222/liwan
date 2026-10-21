@@ -33,12 +33,20 @@ class WebVueHrPayrollEosProvision(models.Model):
         """The entry lines of ``rows``: expense debit and provision credit for a positive delta, reversed otherwise."""
         posting = self.env['webvue.hr.payroll.posting']
         per_employee = settings.entry_detail == 'per_employee'
-        centers = posting._webvue_cost_centers(run)
+        last_slips = self._webvue_last_slips(run, [employee for employee, slip, _delta, _target in rows if not slip])
+        departments = run.slip_ids.webvue_department_id | self.env['hr.payslip'].concat(
+            *last_slips.values(),
+        ).webvue_department_id
+        centers = posting._webvue_department_centers(departments)
         balances = defaultdict(Decimal)
         for employee, slip, delta, _target in rows:
             if not delta:
                 continue
-            analytic = posting._webvue_slip_analytic(slip, centers, settings.default_analytic_account_id, [])
+            source = slip or last_slips.get(employee, self.env['hr.payslip'])
+            department = source.webvue_department_id
+            analytic = posting._webvue_department_analytic(
+                department, employee, centers, settings.default_analytic_account_id, [],
+            )
             booked = employee if per_employee else self.env['hr.employee']
             balances['eos_expense', analytic.id, booked] += delta
             balances['eos_provision', False, booked] -= delta
@@ -51,6 +59,23 @@ class WebVueHrPayrollEosProvision(models.Model):
         return [posting._webvue_line(run, settings, key, balance) for key, balance in balances.items() if money(balance)]
 
     @api.model
+    def _webvue_last_slips(self, run, employees):
+        """``{employee: their latest payslip of an earlier run of the company}``.
+
+        An employee with no payslip this month (a leaver) is booked to the department snapshot of their last
+        payslip, which payroll users read; the live department sits on the contract version they may not read.
+        """
+        slips = self.env['hr.payslip'].search([
+            ('employee_id', 'in', [employee.id for employee in employees]),
+            ('payslip_run_id.company_id', '=', run.company_id.id),
+            ('payslip_run_id.date_start', '<', run.date_start),
+        ], order='date_from desc, id desc')
+        latest = {}
+        for slip in slips:
+            latest.setdefault(slip.employee_id, slip)
+        return latest
+
+    @api.model
     def _webvue_post_provision(self, company, month_start):
         """Book the end-of-service provision of ``month_start`` and return its posted entry."""
         run = self.env['hr.payslip.run'].search([
@@ -61,10 +86,16 @@ class WebVueHrPayrollEosProvision(models.Model):
             raise ApiError(403, 'transition_forbidden', 'the payroll run of the month must be posted first', field='month')
         if self.search_count([('company_id', '=', company.id), ('month', '>=', month_start)]):
             raise ApiError(422, 'duplicate', 'the provision of this month or a later one is already posted', field='month')
+        unposted = self.env['hr.payslip.run'].search_count([
+            ('company_id', '=', company.id), ('date_start', '<', month_start),
+            ('webvue_state', 'in', ('draft', 'computed', 'approved')),
+        ])
+        if unposted:
+            raise ApiError(
+                422, 'earlier_run_unposted', 'post every earlier payroll run before this provision', field='month',
+            )
         settings = self.env['webvue.hr.payroll.finance.settings']._webvue_for_company(company)
-        journal = settings.journal_id
-        if not journal:
-            raise ApiError(422, 'settings_incomplete', 'the payroll journal is not set', field='journal_id')
+        journal = self.env['webvue.hr.payroll.posting']._webvue_journal(settings)
         if is_period_locked(run.date_end, journal):
             raise period_locked(field='month')
         rows = self.env['webvue.hr.payroll.eos.accrual']._webvue_deltas(run)

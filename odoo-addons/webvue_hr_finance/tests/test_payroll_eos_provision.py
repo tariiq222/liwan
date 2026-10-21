@@ -193,3 +193,53 @@ class TestPayrollEosProvision(PayrollFinanceCase):
         run = self._posted_run('2026-11')
         self.login_as(self.poster)
         self.assertIn('eos_provision', self.api('GET', f'{RUNS}/{run["id"]}').json()['allowed_actions'])
+
+    def test_provision_waits_for_every_earlier_run_to_be_posted(self):
+        self._approved_run([self.employee], '2026-10')
+        self._posted_run('2026-11')
+        res = self._provision('2026-11')
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'earlier_run_unposted'), res.text)
+        self.assertFalse(self.env['webvue.hr.payroll.eos.provision'].search_count([('company_id', '=', self.company.id)]))
+
+    def test_an_earlier_run_cannot_be_posted_after_a_later_provision(self):
+        self._posted_run('2026-11')
+        self.assertEqual(self._provision('2026-11').status_code, 201)
+        late = self._approved_run([self.employee], '2026-10')
+        self.login_as(self.poster)
+        res = self.api('POST', f"{RUNS}/{late['id']}/post")
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'provision_after_run'), res.text)
+        self.assertEqual(self.env['hr.payslip.run'].browse(late['id']).webvue_state, 'approved')
+
+    def test_provision_refuses_a_journal_made_foreign_after_the_save(self):
+        self._posted_run('2026-11')
+        foreign = self.env['res.currency'].search([('id', '!=', self.company.currency_id.id)], limit=1)
+        foreign.active = True
+        self.settings.journal_id.currency_id = foreign
+        res = self._provision('2026-11')
+        self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'journal_id'))
+
+    def test_a_leaver_without_a_payslip_books_to_their_last_payslip_department(self):
+        other_dept = self.make_department('Provision B')
+        jeddah = self.env['account.analytic.account'].create({
+            'name': 'Jeddah payroll', 'plan_id': self.riyadh.plan_id.id, 'company_id': self.company.id,
+        })
+        self.env['webvue.hr.payroll.cost.center'].create({
+            'company_id': self.company.id, 'department_id': other_dept.id, 'analytic_account_id': jeddah.id,
+        })
+        self.employee.department_id = other_dept
+        self._posted_run('2026-11')
+        self.assertEqual(self._provision('2026-11').status_code, 201)
+        # The leaver has no compensation any more, so the December run holds only the stayer; the provision of
+        # December still reverses the leaver's accrual and must book it to the department of their last payslip.
+        self.env['webvue.hr.compensation'].search([('employee_id', '=', self.employee.id)]).unlink()
+        self.employee.departure_date = date(2026, 11, 30)
+        stayer = self.make_employee('Provision Stayer', self.dept)
+        stayer.version_id.contract_date_start = date(2021, 12, 1)
+        self._posted_run('2026-12', [stayer])
+        res = self._provision('2026-12')
+        self.assertEqual(res.status_code, 201, res.text)
+        move = self.env['account.move'].browse(res.json()['entry_id'])
+        reversal = move.line_ids.filtered(
+            lambda line: line.account_id == self.accounts['eos_expense'] and line.credit,
+        )
+        self.assertEqual(reversal.analytic_distribution, {str(jeddah.id): 100})

@@ -56,28 +56,38 @@ class WebVueHrPayrollPosting(models.AbstractModel):
         return [(role, amount) for role, amount in amounts if amount]
 
     @api.model
-    def _webvue_slip_analytic(self, slip, centers, default, warnings):
-        """The cost center of the payslip's department snapshot, else the default with a warning."""
-        mapped = centers.get(slip.webvue_department_id.id)
+    def _webvue_department_analytic(self, department, employee, centers, default, warnings):
+        """The cost center of ``department``, else the default with a warning naming ``employee``."""
+        mapped = centers.get(department.id)
         if mapped:
             return mapped
         if not default:
             raise ApiError(
                 422, 'missing_cost_center', 'a department has no cost center and no default cost center is set',
-                field='default_analytic_account_id', details={'employee_id': slip.employee_id.id},
+                field='default_analytic_account_id', details={'employee_id': employee.id},
             )
-        warnings.append({'code': UNMAPPED_DEPARTMENT, 'employee': slip.employee_id})
+        warnings.append({'code': UNMAPPED_DEPARTMENT, 'employee': employee})
         return default
+
+    @api.model
+    def _webvue_slip_analytic(self, slip, centers, default, warnings):
+        """The cost center of the payslip's department snapshot, else the default with a warning."""
+        return self._webvue_department_analytic(slip.webvue_department_id, slip.employee_id, centers, default, warnings)
+
+    @api.model
+    def _webvue_department_centers(self, departments):
+        """``{department id: analytic account}`` of ``departments``."""
+        return {
+            center.department_id.id: center.analytic_account_id
+            for center in self.env['webvue.hr.payroll.cost.center'].search([
+                ('department_id', 'in', departments.ids),
+            ]) if center.analytic_account_id
+        }
 
     @api.model
     def _webvue_cost_centers(self, run):
         """``{department id: analytic account}`` of the departments on the payslips of ``run``."""
-        return {
-            center.department_id.id: center.analytic_account_id
-            for center in self.env['webvue.hr.payroll.cost.center'].search([
-                ('department_id', 'in', run.slip_ids.webvue_department_id.ids),
-            ]) if center.analytic_account_id
-        }
+        return self._webvue_department_centers(run.slip_ids.webvue_department_id)
 
     @api.model
     def _webvue_posting_lines(self, run, settings):
@@ -151,6 +161,12 @@ class WebVueHrPayrollPosting(models.AbstractModel):
         """Book the approved ``run`` and post its entry; the run becomes ``posted``."""
         run.ensure_one()
         run._webvue_require_state(('approved',), self.env._('Only an approved run can be posted.'))
+        if self.env['webvue.hr.payroll.eos.provision'].search_count([
+            ('company_id', '=', run.company_id.id), ('month', '>', run.date_start),
+        ]):
+            raise ApiError(
+                422, 'provision_after_run', 'a later month already has its end-of-service provision', field='state',
+            )
         settings = self.env['webvue.hr.payroll.finance.settings']._webvue_for_company(run.company_id)
         journal = self._webvue_journal(settings)
         lines, _warnings = self._webvue_posting_lines(run, settings)
