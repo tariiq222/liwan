@@ -140,13 +140,27 @@ class HrPayslipRun(models.Model):
         self.webvue_state = 'computed'
 
     def _webvue_approval_blockers(self):
-        """Reasons the run cannot be approved yet, as ``{code, message, field?, details?}`` dicts.
-
-        Empty here; applications that add approval conditions (the end-of-service settlement of a
-        leaver) extend it through ``super()``.
-        """
+        """Reasons the run cannot be approved yet, as ``{code, message, field?, details?}`` dicts."""
         self.ensure_one()
-        return []
+        return self._webvue_settlement_blockers()
+
+    def _webvue_settlement_blockers(self):
+        """``settlement_missing`` for leavers of the month whose final settlement is not confirmed."""
+        leavers = self.slip_ids.employee_id.filtered(
+            lambda employee: employee.departure_date and self.date_start <= employee.departure_date <= self.date_end,
+        )
+        settled = self.env['webvue.hr.payroll.eos.settlement'].search([
+            ('employee_id', 'in', leavers.ids), ('state', '=', 'confirmed'),
+        ]).filtered(lambda settlement: not settlement._webvue_departure_mismatch()).employee_id
+        missing = leavers - settled
+        if not missing:
+            return []
+        return [{
+            'code': 'settlement_missing',
+            'message': self.env._('Confirm the final settlement of every employee who leaves in this month.'),
+            'field': 'employee_id',
+            'details': {'employee_ids': missing.ids},
+        }]
 
     def _webvue_approve(self):
         self.ensure_one()

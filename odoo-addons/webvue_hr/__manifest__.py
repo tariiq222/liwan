@@ -26,6 +26,7 @@
         'data/hr_access_permissions.xml',
         'data/hr_gosi_rate_data.xml',
         'data/hr_payroll_file_profile_data.xml',
+        'data/hr_eos_case_data.xml',
         'data/hr_payroll_structure_data.xml',
         'data/hr_leave_type_data.xml',
         'data/hr_plan_purpose_data.xml',

@@ -3,6 +3,8 @@ from . import (
     access_service,
     bank_profile,
     entitlement_service,
+    eos_case,
+    eos_settlement,
     feature_registry,
     gosi_rate,
     hr_compensation,

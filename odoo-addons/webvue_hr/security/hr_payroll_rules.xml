@@ -91,6 +91,30 @@
         <field name="domain_force">[('profile_id.company_id', 'in', company_ids)]</field>
     </record>
 
+    <!-- End-of-service case map: shared seed rows are readable by every company, a company writes only its own. -->
+    <record id="rule_webvue_hr_eos_case_read" model="ir.rule">
+        <field name="name">webvue end-of-service case: shared or multi company</field>
+        <field name="model_id" ref="model_webvue_hr_payroll_eos_case"/>
+        <field name="global" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_webvue_hr_eos_case_write" model="ir.rule">
+        <field name="name">webvue end-of-service case: own company rows only</field>
+        <field name="model_id" ref="model_webvue_hr_payroll_eos_case"/>
+        <field name="global" eval="True"/>
+        <field name="perm_read" eval="False"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_webvue_hr_eos_settlement_company" model="ir.rule">
+        <field name="name">webvue end-of-service settlement: multi company</field>
+        <field name="model_id" ref="model_webvue_hr_payroll_eos_settlement"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
     <record id="rule_hr_payslip_own_approved" model="ir.rule">
         <field name="name">webvue payroll: own approved payslips</field>
         <field name="model_id" ref="payroll.model_hr_payslip"/>

@@ -17,6 +17,7 @@ from odoo.addons.webvue_hr.rules import WebVueHrRule
 
 ABSENCE_INPUT = 'WV_ABSENCE_DAYS'
 NO_AMOUNTS = (Decimal(0), Decimal(0))
+SETTLEMENT_KEYS = ('award', 'leave_amount', 'open_deductions')
 
 
 class WebVueHrPayrollCalculator(models.AbstractModel):
@@ -91,6 +92,7 @@ class WebVueHrPayrollCalculator(models.AbstractModel):
         ratio = Decimal(days) / divisor
         gosi_result = calculator._webvue_gosi(employee, compensation, payslip.date_to, ratio)
         gosi = gosi_result['branches']
+        settlement = calculator._webvue_settlement_amounts(payslip)
         return {key: float(value) for key, value in {
             'basic': self._webvue_earning(compensation.basic_wage, days, divisor),
             'housing': self._webvue_earning(compensation.housing_allowance, days, divisor),
@@ -104,12 +106,29 @@ class WebVueHrPayrollCalculator(models.AbstractModel):
             'gosi_er_annuities': gosi.get('annuities', NO_AMOUNTS)[1],
             'gosi_er_saned': gosi.get('saned', NO_AMOUNTS)[1],
             'gosi_er_hazards': gosi.get('hazards', NO_AMOUNTS)[1],
-            'eos': 0,
-            'leave_encashment': 0,
-            'settlement_deduction': 0,
+            'eos': settlement['award'],
+            'leave_encashment': settlement['leave_amount'],
+            'settlement_deduction': settlement['open_deductions'],
             'paid_days': days,
             'unpaid_days': unpaid_days,
         }.items()}
+
+    @api.model
+    def _webvue_settlement_amounts(self, payslip):
+        """Award, leave encashment and open deductions of the confirmed settlement that falls in the payslip's month.
+
+        A settlement whose departure date no longer matches the employee's is not read: approval refuses it.
+        """
+        employee = payslip.employee_id
+        settlement = self.env['webvue.hr.payroll.eos.settlement'].search([
+            ('employee_id', '=', employee.id),
+            ('state', '=', 'confirmed'),
+            ('departure_date', '>=', payslip.date_from),
+            ('departure_date', '<=', payslip.date_to),
+        ], limit=1)
+        if not settlement or settlement.departure_date != employee.departure_date:
+            return dict.fromkeys(SETTLEMENT_KEYS, 0)
+        return {key: money(Decimal(str(settlement[key]))) for key in SETTLEMENT_KEYS}
 
     @api.model
     def _webvue_paid_days(self, payslip):

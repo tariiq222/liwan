@@ -4,14 +4,18 @@
 The GOSI rates themselves are data (``webvue.hr.gosi.rate``); this module only chooses the
 nationality class and applies the rates it is given.
 """
-from datetime import date
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import NamedTuple
+
+from dateutil.relativedelta import relativedelta
 
 GCC_CODES = frozenset({'AE', 'BH', 'KW', 'OM', 'QA'})
 # The date the Saudi social insurance reform took effect: a law date, not a rate.
 SAUDI_REFORM_DATE = date(2024, 7, 3)
 CENTS = Decimal('0.01')
+# How the contract ended: the Saudi Labor Law articles 84 to 87 decide the award from it.
+EOS_CASES = ('termination', 'contract_expiry', 'resignation', 'force_majeure', 'marriage_childbirth', 'no_award')
 NATIONALITY_MISSING = 'nationality_missing'
 GOSI_REGISTRATION_MISSING = 'gosi_registration_missing'
 
@@ -104,3 +108,24 @@ def overlap_days(leave_from, leave_to, window_start, window_end, half_day=False)
 
 def day_amount(monthly, days, divisor):
     return money(monthly / divisor * days)
+
+
+def service_years(start, end):
+    """Years of service from ``start`` to ``end`` inclusive: whole anniversaries plus the remaining days over 365."""
+    after = end + timedelta(days=1)
+    full = relativedelta(after, start).years
+    anniversary = start + relativedelta(years=full)
+    return Decimal(full) + Decimal((after - anniversary).days) / Decimal(365)
+
+
+def eos_award(wage, years, case):
+    """The end-of-service award: half a month's wage per year for five years, a month's wage per year after."""
+    full = wage * (Decimal('0.5') * min(years, 5) + max(years - 5, 0))
+    if case == 'no_award':
+        return money(0)
+    if case != 'resignation':
+        return money(full)  # Articles 84 and 87
+    if years < 2:
+        return money(0)  # Article 85
+    factor = Decimal(1) / 3 if years < 5 else Decimal(2) / 3 if years < 10 else Decimal(1)
+    return money(full * factor)

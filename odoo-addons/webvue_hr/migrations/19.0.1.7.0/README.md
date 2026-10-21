@@ -42,3 +42,8 @@ holds no payslips yet, so there is no data to carry.
 Task 16 fix 2: the unused statistical rule `GOSI_BASE` (`rule_gosi_base`) is removed from the Saudi structure; the
 structure data is updatable (not `noupdate`), so Odoo deletes the orphaned rule record on upgrade. The only thing
 that read it is replaced by `GOSI_WAGE`. Development data only; there is nothing to carry.
+
+Task 18: new tables `webvue_hr_payroll_eos_case` (departure reason to end-of-service case, unique per company
+and reason) and `webvue_hr_payroll_eos_settlement` (one final settlement per employee), created by the ORM on
+update. The shared case seed (`data/hr_eos_case_data.xml`, `noupdate`) loads on upgrade because its records are
+new. There is no data to carry.
