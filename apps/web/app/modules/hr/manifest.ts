@@ -76,6 +76,7 @@ const manifest: AppManifest = {
     'hr.onboarding.': 'hr.onboarding',
     'hr.offboarding.': 'hr.offboarding',
     'hr.assets.': 'hr.assets',
+    'hr.payroll.': 'hr.payroll',
   },
   routeCapabilities: [
     { pattern: /^\/hr\/recruitment\/(?:.+\/)?new$/, capability: 'hr.recruitment.manage' },
@@ -94,6 +95,7 @@ const manifest: AppManifest = {
     { pattern: /^\/hr\/leave\/allocations\/new$/, capability: 'hr.leave.manage' },
     { pattern: /^\/hr\/leave(?:\/|$)/, capability: 'hr.leave.read' },
     { pattern: /^\/hr\/reports$/, capability: 'hr.employees.manage' },
+    { pattern: /^\/hr\/employees\/[^/]+\/compensation$/, capability: 'hr.payroll.manage', feature: 'hr.payroll' },
     { pattern: /^\/hr\/employees\/(new|[^/]+\/edit)$/, capability: 'hr.employees.manage' },
     { pattern: /^\/hr\/departments\/(new|[^/]+\/edit)$/, capability: 'hr.departments.manage' },
     { pattern: /^\/hr\/employees\/[^/]+\/access$/, capability: 'access.users.grant' },

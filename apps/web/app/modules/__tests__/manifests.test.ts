@@ -64,7 +64,7 @@ describe('app manifests', () => {
     ['/documents/new', 'documents.items.manage'],
     ['/documents/2/edit', 'documents.items.manage'], ['/documents/2/access', 'documents.access.manage'],
     ['/hr/employees/new', 'hr.employees.manage'], ['/hr/employees/3/edit', 'hr.employees.manage'],
-    ['/hr/departments/new', 'hr.departments.manage'], ['/hr/employees/3/access', 'access.users.grant'],
+    ['/hr/departments/new', 'hr.departments.manage'], ['/hr/employees/3/access', 'access.users.grant'], ['/hr/employees/3/compensation', 'hr.payroll.manage'],
     ['/hr/departments', 'hr.departments.read'], ['/documents', 'documents.items.read'],
     ['/hr/leave', 'hr.leave.read'], ['/hr/leave/5', 'hr.leave.read'], ['/hr/reports', 'hr.employees.manage'], ['/hr/leave/new', 'hr.leave.request'], ['/hr/leave/allocations/new', 'hr.leave.manage'],
     ['/hr/recruitment', 'hr.recruitment.read'], ['/hr/recruitment/new', 'hr.recruitment.manage'], ['/hr/recruitment/jobs/new', 'hr.recruitment.manage'],

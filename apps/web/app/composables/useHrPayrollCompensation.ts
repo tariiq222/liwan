@@ -1,0 +1,48 @@
+import type { MaybeRefOrGetter } from 'vue'
+import { computed, toValue } from 'vue'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
+import { HrCompensationSchema, type HrCompensation, type HrCompensationWrite } from '@webvue/contracts'
+import { ApiError } from './useApi'
+
+type Api = ReturnType<typeof useApi>['$api']
+
+export const hrPayrollKeys = {
+  all: ['hr', 'payroll'] as const,
+  compensation: (employeeId: number) => ['hr', 'payroll', 'compensation', employeeId] as const,
+}
+
+const compensationPath = (employeeId: number) => `/api/v1/hr/payroll/compensation/${employeeId}`
+
+/** An employee without a compensation record answers 404: that is "nothing recorded yet", not an error. */
+export async function fetchHrCompensation($api: Api, employeeId: number): Promise<HrCompensation | null> {
+  try {
+    return await $api(compensationPath(employeeId), { schema: HrCompensationSchema })
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null
+    throw error
+  }
+}
+
+/** The PUT answers with the full record: it replaces the cached one. */
+export async function saveHrCompensation($api: Api, qc: QueryClient, employeeId: number, body: HrCompensationWrite) {
+  const record = await $api(compensationPath(employeeId), { method: 'PUT', body, schema: HrCompensationSchema })
+  qc.setQueryData(hrPayrollKeys.compensation(employeeId), record)
+  return record
+}
+
+/** Fetched only for a viewer with `hr.payroll.read` (the capability already carries the `hr.payroll` sub-feature gate). */
+export function useHrCompensation(employeeId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const { can } = useAccess()
+  return useQuery({
+    queryKey: computed(() => hrPayrollKeys.compensation(toValue(employeeId))),
+    enabled: computed(() => can('hr.payroll.read') && Number.isSafeInteger(toValue(employeeId)) && toValue(employeeId) > 0),
+    queryFn: () => fetchHrCompensation($api, toValue(employeeId)),
+  })
+}
+
+export function useSaveHrCompensation(employeeId: MaybeRefOrGetter<number>) {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({ mutationFn: (body: HrCompensationWrite) => saveHrCompensation($api, qc, toValue(employeeId), body) })
+}

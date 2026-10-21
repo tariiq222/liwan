@@ -3,8 +3,10 @@ import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { EMPLOYEE_LIST_PATHS } from '@/modules/hr/navigation'
 import EmployeeCard from '@/components/hr/EmployeeCard.vue'
 import EmployeeProperties from '@/components/hr/EmployeeProperties.vue'
+import CompensationSection from '@/components/hr/payroll/CompensationSection.vue'
 import type { PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
+import { useHrCompensation } from '@/composables/useHrPayrollCompensation'
 import { useArchiveHrEmployee, useHrEmployee, useUnarchiveHrEmployee } from '@/composables/useHrEmployees'
 const route = useRoute()
 const sourcePaths = useRecordListPaths(EMPLOYEE_LIST_PATHS); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated()
@@ -15,6 +17,9 @@ const query = useHrEmployee(computed(() => isDetail.value && validId.value ? id.
 // Invalid ids have no record to load and use the same not-found state as an unknown positive id.
 const pageError = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
+// Compensation is payroll data: it is neither fetched nor shown without `hr.payroll.read` (which carries the `hr.payroll` sub-feature gate).
+const canReadCompensation = computed(() => can('hr.payroll.read'))
+const compensation = useHrCompensation(computed(() => isDetail.value && validId.value ? id.value : 0))
 const confirmArchive = ref(false)
 const { mutateAsync: archive, isPending: archiving } = useArchiveHrEmployee()
 const { mutateAsync: unarchive, isPending: unarchiving } = useUnarchiveHrEmployee()
@@ -68,6 +73,9 @@ const menuActions = computed<RowAction[]>(() => {
       @cancel="confirmArchive = false"
     />
     <EmployeeCard v-if="query.data.value" :employee="query.data.value" />
+    <SharedPageState v-if="query.data.value && canReadCompensation" :loading="compensation.isLoading.value" :error="compensation.error.value" keep-content @retry="compensation.refetch">
+      <CompensationSection :compensation="compensation.data.value ?? null" :can-manage="can('hr.payroll.manage')" :edit-to="recordChildTo(`/hr/employees/${id}/compensation`, route.query, sourcePaths, route.hash)" />
+    </SharedPageState>
     <template v-if="query.data.value" #aside>
       <EmployeeProperties :employee="query.data.value" />
     </template>

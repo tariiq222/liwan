@@ -1,0 +1,38 @@
+{
+  "hrPayroll": {
+    "compensation": {
+      "title": "Compensation",
+      "editTitle": "Edit compensation",
+      "edit": "Edit compensation",
+      "empty": "No compensation recorded",
+      "emptyHint": "Record the wage and allowances so payroll can use them.",
+      "add": "Record compensation",
+      "forbidden": "You do not have access to compensation.",
+      "basicWage": "Basic wage",
+      "housingAllowance": "Housing allowance",
+      "transportAllowance": "Transport allowance",
+      "otherAllowance": "Other allowance",
+      "fixedWage": "Fixed wage",
+      "wageSection": "Wage and allowances",
+      "wageHint": "Monthly amounts in Saudi riyals. The fixed wage is the sum and is computed by the server.",
+      "bankSection": "Bank account",
+      "bankHint": "The IBAN is stored without spaces, in capital letters.",
+      "iban": "IBAN",
+      "ibanPlaceholder": "SA0000000000000000000000",
+      "ibanInvalid": "Enter a Saudi IBAN: SA followed by 22 digits.",
+      "bank": "Bank",
+      "bankKept": "The bank on record is kept as it is.",
+      "gosiSection": "GOSI",
+      "gosiNumber": "GOSI number",
+      "gosiRegistrationDate": "GOSI registration date",
+      "nationality": "Nationality",
+      "nationalityHint": "Read from the employee record.",
+      "basicWageInvalid": "The basic wage must be greater than zero.",
+      "amountInvalid": "Enter an amount of zero or more.",
+      "currency": "SAR",
+      "saved": "Compensation saved",
+      "saveError": "Compensation was not saved",
+      "formHint": "Only people with payroll access see these amounts."
+    }
+  }
+}
