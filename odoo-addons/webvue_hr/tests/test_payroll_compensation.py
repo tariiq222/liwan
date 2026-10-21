@@ -117,11 +117,11 @@ class TestPayrollCompensation(PayrollCase):
             'pay_all', ['hr.payroll.read', 'hr.payroll.manage', 'hr.employees.read'],
         )
         self._login(user)
-        for path in (
-            f'/api/v1/hr/employees/{self.target.id}',
-            '/api/v1/hr/employees',
-            '/api/v1/people?q=Layla',
-        ):
+        paths = [f'/api/v1/hr/employees/{self.target.id}', '/api/v1/hr/employees']
+        # The people picker belongs to webvue_directory, which an HR-only installation does not carry.
+        if self.env['ir.module.module'].search_count([('name', '=', 'webvue_directory'), ('state', '=', 'installed')]):
+            paths.append('/api/v1/people?q=Layla')
+        for path in paths:
             res = self.api('GET', path)
             self.assertEqual(res.status_code, 200, (path, res.text))
             self.assertFalse(keys_of(res.json()) & SALARY_KEYS, path)
