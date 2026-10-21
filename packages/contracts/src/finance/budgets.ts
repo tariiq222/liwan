@@ -80,6 +80,9 @@ export const FinanceBudgetCreateSchema = z.object({
   cost_center_split: z.boolean().optional(),
 }).strict()
 
+/** The lines the distribute call created. */
+export const FinanceBudgetLineListSchema = list(FinanceBudgetLineSchema)
+
 /** PATCH /budgets/<id>: a draft only. */
 export const FinanceBudgetPatchSchema = FinanceBudgetCreateSchema.partial().strict()
 

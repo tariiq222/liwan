@@ -3,10 +3,12 @@ import { computed, toValue } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   FinanceBudgetDetailSchema,
+  FinanceBudgetLineListSchema,
   FinanceBudgetLineSchema,
   FinanceBudgetListSchema,
   FinanceBudgetVsActualSchema,
   type FinanceBudgetCreate,
+  type FinanceBudgetDistribute,
   type FinanceBudgetLineCreate,
 } from '@webvue/contracts'
 import type { BudgetListParams } from '@/components/finance/budgets/budgetListParams'
@@ -74,4 +76,11 @@ export function useCreateFinanceBudgetLine() {
   const { $api } = useApi()
   return useBudgetWrite(({ id, body }: { id: number; body: FinanceBudgetLineCreate }) =>
     $api(`/api/v1/finance/budgets/${id}/lines`, { method: 'POST', body, schema: FinanceBudgetLineSchema }))
+}
+
+/** One account's budget split between cost centers, as one line each; the answer is the new lines. */
+export function useDistributeFinanceBudget() {
+  const { $api } = useApi()
+  return useBudgetWrite(({ id, body }: { id: number; body: FinanceBudgetDistribute }) =>
+    $api(`/api/v1/finance/budgets/${id}/lines/distribute`, { method: 'POST', body, schema: FinanceBudgetLineListSchema }))
 }
