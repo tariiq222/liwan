@@ -9,6 +9,7 @@ from . import (
     maintenance_access,
     maintenance_authority,
     maintenance_event,
+    module_load_guard,
     res_company,
     res_users,
     tenant_branch,
