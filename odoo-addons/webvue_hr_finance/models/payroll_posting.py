@@ -2,7 +2,7 @@
 from collections import defaultdict
 from decimal import Decimal
 
-from odoo import Command, api, models
+from odoo import Command, api, fields, models
 
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_finance.controllers.write_support import (
@@ -156,6 +156,10 @@ class WebVueHrPayrollPosting(models.AbstractModel):
         run._webvue_require_state(('posted',), self.env._('Only a posted run can be paid.'))
         if journal.company_id != run.company_id or journal.type not in PAYMENT_JOURNAL_TYPES:
             raise ApiError(422, 'invalid', 'the journal must be a bank or cash journal', field='journal_id')
+        if journal.currency_id and journal.currency_id != run.company_id.currency_id:
+            raise ApiError(422, 'invalid', 'the journal must be in the company currency', field='journal_id')
+        if fields.Date.to_date(day) < run.webvue_move_id.date:
+            raise ApiError(422, 'invalid', 'the payment date is before the payroll entry', field='date')
         if is_period_locked(day, journal):
             raise period_locked(field='date')
         settings = self.env['webvue.hr.payroll.finance.settings']._webvue_for_company(run.company_id)
@@ -176,5 +180,7 @@ class WebVueHrPayrollPosting(models.AbstractModel):
         attempt(payment.action_post, day=day, journal=journal)
         payment.move_id.webvue_payroll_origin = 'payment'
         (owed | payment.move_id.line_ids.filtered(lambda line: line.account_id == payable)).reconcile()
+        if not all(owed.mapped('reconciled')):
+            raise ApiError(422, 'invalid', 'the salaries payable of the run were not fully paid', field='state')
         run.write({'webvue_payment_id': payment.id, 'webvue_state': 'paid'})
         return payment

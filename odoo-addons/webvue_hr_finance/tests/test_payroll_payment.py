@@ -114,6 +114,40 @@ class TestPayrollPayment(PayrollFinanceCase):
             self.assertEqual(res.json()['field'], 'journal_id')
         self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['state'], 'posted')
 
+    def test_payment_journal_must_be_in_the_company_currency(self):
+        run = self._posted_run()
+        foreign = self.env['res.currency'].search([('id', '!=', self.company.currency_id.id)], limit=1)
+        foreign.active = True
+        journal = self.bank_journal.copy({'name': 'Foreign bank', 'code': 'FXB', 'currency_id': foreign.id})
+        res = self._pay(run['id'], journal_id=journal.id)
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(res.json()['code'], 'invalid')
+        self.assertEqual(res.json()['field'], 'journal_id')
+        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['state'], 'posted')
+
+    def test_payment_date_cannot_precede_the_run_entry(self):
+        run = self._posted_run()
+        res = self._pay(run['id'], date='2026-11-15')
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(res.json()['code'], 'invalid')
+        self.assertEqual(res.json()['field'], 'date')
+        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['state'], 'posted')
+
+    def test_approver_can_only_approve(self):
+        self.login_as(self.payroll_officer)
+        created = self.api('POST', RUNS, json={'month': MONTH})
+        run_id = created.json()['id']
+        self.assertEqual(self.api('POST', f'{RUNS}/{run_id}/compute').status_code, 200)
+        run = self.env['hr.payslip.run'].browse(run_id).with_user(self.payroll_approver)
+        for vals in ({'date_start': date(2026, 11, 2)}, {'webvue_state': 'paid'}, {'webvue_state': 'approved'}):
+            with self.assertRaises(AccessError):
+                run.write(vals)
+        self.login_as(self.payroll_approver)
+        self.assertEqual(self.api('POST', f'{RUNS}/{run_id}/approve').status_code, 200)
+        run.invalidate_recordset()
+        with self.assertRaises(AccessError):
+            run.write({'date_start': date(2026, 11, 2)})
+
     def test_per_employee_payable_lines_are_reconciled(self):
         self.settings.entry_detail = 'per_employee'
         run = self._posted_run()

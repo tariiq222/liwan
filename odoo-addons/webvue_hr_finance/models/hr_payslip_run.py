@@ -2,6 +2,8 @@
 from odoo import fields, models
 from odoo.exceptions import AccessError
 
+APPROVAL_KEYS = {'webvue_state', 'webvue_approved_by_id', 'webvue_approved_at'}
+
 
 class HrPayslipRun(models.Model):
     """The accounting side of a payroll run: the states after approval and the entry that books it."""
@@ -24,20 +26,30 @@ class HrPayslipRun(models.Model):
         ondelete='restrict',
     )
 
-    def _webvue_accounting_step(self, vals):
-        """The (from state, to state) pair that ``vals`` is when it is exactly an accounting step, else None."""
-        if set(vals) == {'webvue_state', 'webvue_move_id'} and vals['webvue_state'] == 'posted' and vals['webvue_move_id']:
+    def _webvue_run_step(self, vals, approver):
+        """The (from state, to state) pair that ``vals`` is when it is exactly one of the permitted steps, else None.
+
+        The accounting steps are open to anyone; the two writes of an approval (the engine close, then the approval
+        stamp) only to ``approver``.
+        """
+        keys = set(vals)
+        if keys == {'webvue_state', 'webvue_move_id'} and vals['webvue_state'] == 'posted' and vals['webvue_move_id']:
             return ('approved', 'posted')
-        if set(vals) == {'webvue_state', 'webvue_payment_id'} and vals['webvue_state'] == 'paid' and vals['webvue_payment_id']:
+        if keys == {'webvue_state', 'webvue_payment_id'} and vals['webvue_state'] == 'paid' and vals['webvue_payment_id']:
             return ('posted', 'paid')
+        if approver and keys == {'state'} and vals['state'] == 'close':
+            return ('computed', 'computed')
+        if approver and keys == APPROVAL_KEYS and vals['webvue_state'] == 'approved':
+            return ('computed', 'approved')
         return None
 
     def write(self, vals):
-        """A user who manages or approves payroll writes freely; an accountant only moves a run along its accounting steps."""
+        """Payroll managers write freely; everyone else only moves a run along its approval and accounting steps."""
         if not self.env.su:
             access = self.env['webvue.access.service']
-            if not any(access._webvue_has_capability(self.env.user, key) for key in ('hr.payroll.manage', 'hr.payroll.approve')):
-                step = self._webvue_accounting_step(vals)
+            if not access._webvue_has_capability(self.env.user, 'hr.payroll.manage'):
+                approver = access._webvue_has_capability(self.env.user, 'hr.payroll.approve')
+                step = self._webvue_run_step(vals, approver)
                 if not step or any(run.webvue_state != step[0] for run in self):
-                    raise AccessError(self.env._('Only the posting and the payment of a payroll run can be written without payroll rights.'))
+                    raise AccessError(self.env._('Only the approval, the posting and the payment of a payroll run can be written without payroll management.'))
         return super().write(vals)
