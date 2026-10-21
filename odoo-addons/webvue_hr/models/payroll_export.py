@@ -6,14 +6,11 @@ from decimal import Decimal
 
 from odoo import api, models
 
+from .hr_payslip import DEDUCTION_CODES, OTHER_ALLOWANCE_CODES
 from .payroll_math import money
 from odoo.addons.webvue_hr.rules import WebVueHrRule
 
-# Payslip line codes behind each figure of a salary line (see data/hr_payroll_structure_data.xml).
-OTHER_ALLOWANCE_CODES = ('TRANSPORT', 'OTHER', 'OVERTIME', 'BONUS', 'EOS', 'LEAVE_ENC')
-DEDUCTION_CODES = (
-    'ABSENCE', 'UNPAID', 'DEDUCTION', 'ADVANCE', 'SETTLEMENT_DED', 'GOSI_EE_ANN', 'GOSI_EE_SANED',
-)
+# The figures of a salary and a WPS line are the payslip line codes ``hr_payslip`` owns.
 GOSI_CODES = {
     ('annuities', 'employee'): 'GOSI_EE_ANN',
     ('annuities', 'employer'): 'GOSI_ER_ANN',

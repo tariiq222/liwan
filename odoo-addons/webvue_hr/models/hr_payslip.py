@@ -8,7 +8,8 @@ from odoo.addons.webvue_hr.rules import WebVueHrRule
 
 # Line codes of the Saudi structure (data/hr_payroll_structure_data.xml) that make up the figures
 # a payslip shows. Deductions are negative lines, the employer share is a positive statistical line.
-EARNING_CODES = ('BASIC', 'HOUSING', 'TRANSPORT', 'OTHER', 'OVERTIME', 'BONUS', 'EOS', 'LEAVE_ENC')
+OTHER_ALLOWANCE_CODES = ('TRANSPORT', 'OTHER', 'OVERTIME', 'BONUS', 'EOS', 'LEAVE_ENC')
+EARNING_CODES = ('BASIC', 'HOUSING', *OTHER_ALLOWANCE_CODES)
 GOSI_EMPLOYEE_CODES = ('GOSI_EE_ANN', 'GOSI_EE_SANED')
 DEDUCTION_CODES = (
     'ABSENCE', 'UNPAID', 'DEDUCTION', 'ADVANCE', 'SETTLEMENT_DED', *GOSI_EMPLOYEE_CODES,
