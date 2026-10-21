@@ -241,6 +241,7 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/finance/payments/PaymentForm.vue` | تسجيل دفعة على مستند أو أكثر لطرف وعملة ونوع واحد: المبلغ والتاريخ واليومية والبيان | — | `SharedFormSection`, `SharedFormActions`, `SharedUnsavedChanges`, `SharedDateField`, `SharedPageState`, `UForm`, `UFormField`, `UInput`, `USelect`, `USelectMenu` |
 | `apps/web/app/components/finance/payments/StandalonePaymentForm.vue` | سند قبض أو دفعة بلا مستند (سلفة): النوع والطرف والمبلغ والتاريخ واليومية، بمفتاح تكرار يحمي من تسجيل مزدوج | — | `SharedFormSection`, `SharedFormActions`, `SharedUnsavedChanges`, `SharedDateField`, `SharedPageState`, `UForm`, `UFormField`, `UInput`, `USelect` |
 | `apps/web/app/components/finance/payments/PaymentAllocate.vue` | تخصيص الجزء غير المخصص من دفعة مرحّلة على مستندات مفتوحة لنفس الطرف والعملة، داخل الصفحة | — | `UCard`, `UAlert`, `USelectMenu`, `UButton` |
+| `apps/web/app/components/finance/payments/PaymentEditPanel.vue` | تعديل دفعة مسودة داخل القائمة: المبلغ والتاريخ واليومية والبيان، ويرسل المتغير فقط | — | `UForm`, `UFormField`, `UInput`, `USelect`, `SharedDateField`, `UAlert` |
 
 ## مكونات المالية — المحاسبة والبنك والتقارير
 
@@ -262,6 +263,8 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/finance/bank/BankStatementForm.vue` | إنشاء كشف: اليومية والتاريخ والأرصدة وسطور المبالغ مع الرصيد الختامي المحسوب | — | `SharedFormSection`, `SharedFormActions`, `SharedUnsavedChanges`, `SharedDateField`, `SharedPageState`, `UForm`, `UFormField`, `UInput`, `USelect`, `UAlert`, `UButton` |
 | `apps/web/app/components/finance/bank/BankImportForm.vue` | استيراد كشف CSV على ثلاث خطوات لا تكتب شيئًا قبل الأخيرة: قراءة الأعمدة ثم ربطها ومعاينة كل سطر (المكرر وغير المقروء ظاهران) ثم الرصيدان اللذان يجب أن يتطابقا | — | `SharedFormSection`, `SharedFormActions`, `SharedUnsavedChanges`, `SharedPageState`, `SharedStatusBadge`, `UForm`, `UFormField`, `UInput`, `USelect`, `UCheckbox`, `UAlert` |
 | `apps/web/app/components/finance/bank/BankAutoMatch.vue` | مطابقة كشف الحساب تلقائيًا: ضغطة أولى تعرض ما سيُطابَق دون كتابة، وثانية صريحة تكتب | — | `UAlert`, `UButton` |
+| `apps/web/app/components/finance/bank/BankStatementActions.vue` | إجراءا رأس سجل الكشف: تصحيح الاسم والأرصدة، وحذف الكشف | — | `UButton` |
+| `apps/web/app/components/finance/bank/BankStatementEditPanel.vue` | تصحيح اسم الكشف ورصيديه داخل السجل، ويرسل المتغير فقط | — | `UForm`, `UFormField`, `UInput`, `UAlert` |
 | `apps/web/app/components/finance/bank/BankStatementBody.vue` | سطور الكشف وحالة تسويتها ورابط التسوية | — | `SharedRecordSection`, `SharedEmptyState`, `SharedDataTable`, `SharedStatusBadge`, `UButton` |
 | `apps/web/app/components/finance/bank/BankStatementAside.vue` | خصائص الكشف وأرصدته وعدد البنود المسوّاة والمفتوحة ومبالغها | — | `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge` |
 | `apps/web/app/components/finance/bank/ReconcileBody.vue` | تسوية سطر كشف: المقترحات بالتحديد المتعدد والفرق الحيّ وحساب الفرق وتأكيد مضمّن | — | `SharedRecordSection`, `SharedPageState`, `SharedDataTable`, `SharedStatusBadge`, `SharedInlineConfirm`, `UFormField`, `UInput`, `UAlert`, `UButton` |

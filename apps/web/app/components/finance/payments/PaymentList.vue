@@ -11,6 +11,7 @@ import { listReturnTo } from '../invoices/listLocation'
 import Money from '../invoices/Money.vue'
 import PartnerPicker from '../invoices/PartnerPicker.vue'
 import PaymentAllocate from './PaymentAllocate.vue'
+import PaymentEditPanel from './PaymentEditPanel.vue'
 import {
   PAYMENT_PAGE_SIZE,
   PAYMENTS_PATH,
@@ -61,6 +62,7 @@ const post = useFinancePaymentPost()
 const busy = computed(() => transition.isPending.value || unallocate.isPending.value || post.isPending.value)
 const confirming = ref<{ payment: FinancePayment; action: 'cancel' | 'reset-to-draft' | 'unallocate' } | null>(null)
 const allocating = ref<FinancePayment | null>(null)
+const editing = ref<FinancePayment | null>(null)
 const actionError = ref('')
 async function confirmTransition() {
   const pending = confirming.value
@@ -93,6 +95,7 @@ const label = (payment: FinancePayment) => payment.name || `${t('financeDocument
 function rowActions(payment: FinancePayment) {
   const set = paymentActions(payment, can)
   return [
+    ...(set.edit ? [{ label: t('financeDocuments.payments.edit.action'), icon: 'i-lucide-pencil' as const, onSelect: () => { editing.value = payment } }] : []),
     ...(set.post ? [{ label: t('financeDocuments.payments.post'), icon: 'i-lucide-check' as const, onSelect: () => { void postPayment(payment) } }] : []),
     ...(set.allocate ? [{ label: t('financeDocuments.payments.allocate.action'), icon: 'i-lucide-link' as const, onSelect: () => { allocating.value = payment } }] : []),
     ...(set.unallocate ? [{ label: t('financeDocuments.payments.unallocate.action'), icon: 'i-lucide-unlink' as const, onSelect: () => { confirming.value = { payment, action: 'unallocate' } } }] : []),
@@ -130,6 +133,7 @@ const dash = computed(() => t('app.notAvailable'))
       @confirm="confirmTransition"
       @cancel="confirming = null"
     />
+    <PaymentEditPanel v-if="editing" :key="editing.id" :payment="editing" @done="editing = null" @cancel="editing = null" />
     <PaymentAllocate v-if="allocating" :payment="allocating" @done="allocating = null" @cancel="allocating = null" />
     <div v-if="standaloneTo" class="flex justify-end">
       <UButton color="neutral" variant="outline" icon="i-lucide-banknote" :to="standaloneTo" :label="t('financeDocuments.payments.standalone.link')" data-testid="finance-payment-standalone-new" />

@@ -139,6 +139,7 @@ export function paymentActions(payment: Pick<FinancePayment, 'state' | 'unalloca
     cancel: manage && !revivable,
     resetToDraft: manage && revivable,
     post: manage && payment.state === 'draft',
+    edit: manage && payment.state === 'draft',
     allocate: manage && posted && payment.unallocated > 0,
     unallocate: manage && posted && payment.invoices.length > 0,
   }

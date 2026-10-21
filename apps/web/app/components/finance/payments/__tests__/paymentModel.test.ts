@@ -87,15 +87,15 @@ describe('payment form', () => {
   it('offers cancel for a live payment and reset for a final one, to payment managers only', () => {
     const can = () => true
     const none = { unallocated: 0, invoices: [] }
-    expect(paymentActions({ state: 'paid', ...none }, can)).toEqual({ cancel: true, resetToDraft: false, post: false, allocate: false, unallocate: false })
+    expect(paymentActions({ state: 'paid', ...none }, can)).toEqual({ cancel: true, resetToDraft: false, post: false, edit: false, allocate: false, unallocate: false })
     expect(paymentActions({ state: 'canceled', ...none }, can)).toMatchObject({ cancel: false, resetToDraft: true })
     expect(paymentActions({ state: 'rejected', ...none }, can)).toMatchObject({ cancel: false, resetToDraft: true })
-    expect(paymentActions({ state: 'paid', ...none }, () => false)).toEqual({ cancel: false, resetToDraft: false, post: false, allocate: false, unallocate: false })
+    expect(paymentActions({ state: 'paid', ...none }, () => false)).toEqual({ cancel: false, resetToDraft: false, post: false, edit: false, allocate: false, unallocate: false })
   })
 
   it('offers post on a draft, allocate on an advance and unallocate on a settled payment', () => {
     const can = () => true
-    expect(paymentActions({ state: 'draft', unallocated: 0, invoices: [] }, can)).toMatchObject({ post: true, allocate: false, unallocate: false })
+    expect(paymentActions({ state: 'draft', unallocated: 0, invoices: [] }, can)).toMatchObject({ post: true, edit: true, allocate: false, unallocate: false })
     expect(paymentActions({ state: 'paid', unallocated: 50, invoices: [] }, can)).toMatchObject({ allocate: true, unallocate: false })
     expect(paymentActions({ state: 'paid', unallocated: 0, invoices: [{ id: 3, name: 'INV/1' }] }, can)).toMatchObject({ allocate: false, unallocate: true })
   })

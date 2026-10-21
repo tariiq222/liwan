@@ -260,6 +260,10 @@
       "partnerTypes": {
         "customer": "Customer",
         "supplier": "Vendor"
+      },
+      "edit": {
+        "action": "Edit",
+        "title": "Edit the draft payment \"{name}\""
       }
     }
   }

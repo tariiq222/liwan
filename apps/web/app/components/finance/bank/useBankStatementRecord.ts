@@ -32,6 +32,9 @@ export function useBankStatementRecord() {
     ]
   })
 
+  const editing = ref(false)
+  const deleting = ref(false)
+
   return reactive({
     // SharedRecordPage heading props: `v-bind="record.header"`.
     header: reactive({
@@ -44,6 +47,8 @@ export function useBankStatementRecord() {
     }),
     retry: () => { void query.refetch() },
     id,
+    editing,
+    deleting,
     statement,
     summary,
     backTo,

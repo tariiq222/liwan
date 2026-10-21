@@ -6,6 +6,7 @@ import {
   FinancePaymentListSchema,
   FinancePaymentSchema,
   type FinancePaymentAllocate,
+  type FinancePaymentPatch,
   type FinancePaymentRegister,
   type FinancePaymentStandalone,
 } from '@webvue/contracts'
@@ -87,4 +88,11 @@ export function useFinancePaymentAllocate() {
 export function useFinancePaymentUnallocate() {
   const { $api } = useApi()
   return usePaymentWrite((id: number) => $api(`/api/v1/finance/payments/${id}/unallocate`, { method: 'POST', body: {}, schema: FinancePaymentSchema }))
+}
+
+/** Edits a draft payment (for example after a reset to draft): amount, date, journal and memo. */
+export function usePatchFinancePayment() {
+  const { $api } = useApi()
+  return usePaymentWrite(({ id, body }: { id: number; body: FinancePaymentPatch }) =>
+    $api(`/api/v1/finance/payments/${id}`, { method: 'PATCH', body, schema: FinancePaymentSchema }))
 }

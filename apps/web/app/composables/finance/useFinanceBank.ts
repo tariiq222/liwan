@@ -12,6 +12,7 @@ import {
   FinanceReconcileProposalListSchema,
   type FinanceBankImport,
   type FinanceBankReconcile,
+  type FinanceBankStatementPatch,
   type FinanceBankStatementCreate,
 } from '@webvue/contracts'
 import type { BankListParams } from '@/components/finance/bank/bankListParams'
@@ -120,4 +121,17 @@ export function useAutoReconcileFinanceBankStatement() {
   const { $api } = useApi()
   return useBankWrite(({ id, apply }: { id: number; apply: boolean }) =>
     $api(`/api/v1/finance/bank-statements/${id}/auto-reconcile`, { method: 'POST', body: { apply }, schema: FinanceBankAutoReconcileSchema }))
+}
+
+/** Corrects the name and the balances of a statement; the lines are not edited here. */
+export function usePatchFinanceBankStatement() {
+  const { $api } = useApi()
+  return useBankWrite(({ id, body }: { id: number; body: FinanceBankStatementPatch }) =>
+    $api(`/api/v1/finance/bank-statements/${id}`, { method: 'PATCH', body, schema: FinanceBankStatementDetailSchema }))
+}
+
+/** Removes a statement none of whose lines is reconciled. */
+export function useDeleteFinanceBankStatement() {
+  const { $api } = useApi()
+  return useBankWrite((id: number) => $api(`/api/v1/finance/bank-statements/${id}`, { method: 'DELETE' }))
 }

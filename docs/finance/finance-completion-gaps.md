@@ -102,12 +102,12 @@ templates; none was opened in a browser (no Chromium in the session), so they ar
 | Area | Screen | Status |
 | --- | --- | --- |
 | Setup | accounts, journals, taxes, payment terms, asset profiles under `/settings/apps/finance/*` | built |
-| Payments | standalone receipt or payment (`?kind=standalone`), post, allocate, unallocate | built; draft edit has no screen |
-| Bank | CSV import (`?kind=import`: columns, mapping, preview, balances), auto-match, undo match | built; statement correction and delete have no screen |
+| Payments | standalone receipt or payment (`?kind=standalone`), post, allocate, unallocate | built, with draft edit |
+| Bank | CSV import (`?kind=import`: columns, mapping, preview, balances), auto-match, undo match | built, with statement correction and delete |
 | Assets | sell or scrap on the record | built |
 | Reports | cash flow, VAT return with drill-down | built |
 | Zakat | adjustments and review on the Zakat base report | built |
 | Budgets | cost center split on the form, split between cost centers on the lines | built |
 | ZATCA | work list of documents waiting on ZATCA | built |
 
-Not built: draft payment edit, statement correction, OFX/CAMT import (needs the owner's approval of `OCA/bank-statement-import`).
+Not built: OFX/CAMT import (needs the owner's approval of `OCA/bank-statement-import`).

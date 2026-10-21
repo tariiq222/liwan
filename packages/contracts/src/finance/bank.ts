@@ -159,6 +159,7 @@ export type FinanceReconcileProposal = z.infer<typeof FinanceReconcileProposalSc
 export type FinanceBankStatementCreate = z.infer<typeof FinanceBankStatementCreateSchema>
 export type FinanceBankReconcile = z.infer<typeof FinanceBankReconcileSchema>
 export type FinanceBankImportMapping = z.infer<typeof FinanceBankImportMappingSchema>
+export type FinanceBankStatementPatch = z.infer<typeof FinanceBankStatementPatchSchema>
 export type FinanceBankImport = z.infer<typeof FinanceBankImportSchema>
 export type FinanceBankImportPreview = z.infer<typeof FinanceBankImportPreviewSchema>
 export type FinanceBankImportColumns = z.infer<typeof FinanceBankImportColumnsSchema>

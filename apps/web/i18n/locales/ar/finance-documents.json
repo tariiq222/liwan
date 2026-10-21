@@ -260,6 +260,10 @@
       "partnerTypes": {
         "customer": "عميل",
         "supplier": "مورد"
+      },
+      "edit": {
+        "action": "تعديل",
+        "title": "تعديل الدفعة المسودة «{name}»"
       }
     }
   }

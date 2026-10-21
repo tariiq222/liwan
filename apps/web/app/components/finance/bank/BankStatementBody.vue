@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { FinanceBankLine } from '@webvue/contracts'
-import { useUnreconcileFinanceBankLine } from '@/composables/finance/useFinanceBank'
+import { useDeleteFinanceBankStatement, useUnreconcileFinanceBankLine } from '@/composables/finance/useFinanceBank'
 import { financeErrorMessage } from '../financeErrors'
 import Money from '../invoices/Money.vue'
 import BankAutoMatch from './BankAutoMatch.vue'
+import BankStatementEditPanel from './BankStatementEditPanel.vue'
 import { bankErrorKey } from './bankErrors'
 import { BANK_LINE_TONE, lineState, reconcilePath } from './bankModel'
 import type { BankStatementRecordState } from './useBankStatementRecord'
@@ -41,6 +42,17 @@ async function confirmUndo() {
     undoError.value = financeErrorMessage(cause, bankErrorKey, t)
   }
 }
+const removal = useDeleteFinanceBankStatement()
+async function confirmDelete() {
+  if (!hydrated.value || removal.isPending.value) return
+  undoError.value = ''
+  try {
+    await removal.mutateAsync(props.record.id)
+    await navigateTo(props.record.backTo, { replace: true })
+  } catch (cause) {
+    undoError.value = financeErrorMessage(cause, bankErrorKey, t)
+  }
+}
 const hasOpenLines = computed(() => !!statement.value?.lines.some(line => !line.is_reconciled))
 const showUndo = (line: FinanceBankLine) => canReconcile.value && line.is_reconciled
 const showReconcile = (line: FinanceBankLine) => canReconcile.value && !line.is_reconciled
@@ -49,6 +61,19 @@ const showReconcile = (line: FinanceBankLine) => canReconcile.value && !line.is_
 <template>
   <template v-if="statement">
     <SharedRecordSection variant="list" :title="t('financeBank.linesTitle')" data-testid="finance-bank-lines-panel">
+      <BankStatementEditPanel v-if="record.editing" class="m-(--webvue-card-pad-dense)" :statement="statement" @done="record.editing = false" @cancel="record.editing = false" />
+      <SharedInlineConfirm
+        v-if="record.deleting"
+        class="m-(--webvue-card-pad-dense)"
+        :title="t('financeBank.delete.confirm', { name: statement.name })"
+        :description="t('financeBank.delete.hint')"
+        :confirm-label="t('financeBank.delete.action')"
+        color="error"
+        :pending="removal.isPending.value"
+        :disabled="!hydrated"
+        @confirm="confirmDelete"
+        @cancel="record.deleting = false"
+      />
       <UAlert v-if="undoError" role="alert" color="error" variant="subtle" class="m-(--webvue-card-pad-dense)" :title="undoError" />
       <SharedInlineConfirm
         v-if="undoing"

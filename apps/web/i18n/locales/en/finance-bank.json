@@ -172,7 +172,17 @@
       "periodLocked": "The accounting period is locked for this date.",
       "invalidRows": "The file has rows that cannot be read. Preview it to see which.",
       "duplicateLines": "The journal already holds some of these lines. Skip them or remove them from the file.",
-      "balanceMismatch": "The opening balance plus the lines is not the closing balance."
+      "balanceMismatch": "The opening balance plus the lines is not the closing balance.",
+      "hasReconciliations": "Some lines are reconciled. Undo their matches first, then delete the statement."
+    },
+    "edit": {
+      "action": "Correct",
+      "title": "Correct the statement"
+    },
+    "delete": {
+      "action": "Delete statement",
+      "confirm": "Delete the statement \"{name}\"?",
+      "hint": "Its lines are removed with it. A statement with a reconciled line cannot be deleted: undo those matches first."
     }
   }
 }
