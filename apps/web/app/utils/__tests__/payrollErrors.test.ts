@@ -6,7 +6,7 @@ const t = (key: string, params?: Record<string, unknown>) => params ? `${key}:${
 const names = new Map([[3, 'ليلى'], [4, 'سارة']])
 
 describe('payrollErrorMessage', () => {
-  it.each(['duplicate', 'transition_forbidden', 'structure_missing', 'contract_missing', 'gosi_rate_missing', 'payroll_structure_mismatch'])(
+  it.each(['duplicate', 'transition_forbidden', 'structure_missing', 'contract_missing', 'gosi_rate_missing', 'payroll_structure_mismatch', 'compensation_missing', 'settlement_missing'])(
     'shows the own text of %s', (code) => {
       expect(payrollErrorMessage(new ApiError(422, code, 'raw'), t, names)).toBe(`hrPayroll.errors.${code}`)
     },

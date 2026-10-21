@@ -166,7 +166,7 @@ export const HrPayrollSettingsPatchSchema = z.object({
   day_divisor: dayDivisor,
   structure_id: z.number().int().positive(),
   unpaid_leave_type_ids: z.array(z.number().int().positive()),
-  annual_leave_type_id: z.number().int().positive().nullable(),
+  annual_leave_type_id: z.number().int().positive(),
 }).partial().strict().refine(patch => Object.keys(patch).length > 0, 'no settings to update')
 
 export const HR_GOSI_BRANCHES = ['annuities', 'saned', 'hazards'] as const

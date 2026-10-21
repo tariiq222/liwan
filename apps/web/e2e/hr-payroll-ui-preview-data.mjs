@@ -134,7 +134,13 @@ const invalid = (message, field) => ({ status: 422, body: { code: 'invalid', mes
 export function hrPayrollPreviewWrite(method, route, body) {
   if (method === 'POST' && route === '/api/v1/__mock/reset-payroll') { seed(); return ok({ ok: true }) }
   if (method === 'PATCH' && route === '/api/v1/hr/payroll/settings') {
-    state.settings = { ...state.settings, ...(body.day_divisor !== undefined ? { day_divisor: body.day_divisor } : {}) }
+    // Like the server: an empty patch, a divisor outside 28-31 and a null annual leave type are refused.
+    if (!Object.keys(body).length) return invalid('no fields to update')
+    if (body.day_divisor !== undefined && !(Number.isInteger(body.day_divisor) && body.day_divisor >= 28 && body.day_divisor <= 31)) return invalid('day_divisor must be a whole number from 28 to 31', 'day_divisor')
+    if ('annual_leave_type_id' in body && !(Number.isInteger(body.annual_leave_type_id) && body.annual_leave_type_id > 0)) return invalid('annual_leave_type_id does not reference an existing record', 'annual_leave_type_id')
+    if (body.day_divisor !== undefined) state.settings.day_divisor = body.day_divisor
+    if (body.annual_leave_type_id !== undefined) state.settings.annual_leave_type = { id: body.annual_leave_type_id, name: 'إجازة' }
+    if (body.unpaid_leave_type_ids !== undefined) state.settings.unpaid_leave_types = body.unpaid_leave_type_ids.map(id => ({ id, name: 'إجازة' }))
     return ok(state.settings)
   }
   if (method === 'POST' && route === '/api/v1/hr/payroll/gosi-rates') {

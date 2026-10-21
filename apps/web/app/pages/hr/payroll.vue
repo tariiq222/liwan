@@ -12,7 +12,8 @@ const hydrated = useHydrated()
 const { can } = useAccess()
 
 const LIMIT = HR_PAYROLL_PAGE_SIZE
-const STATES: HrPayrollRunState[] = ['draft', 'computed', 'approved', 'posted', 'paid']
+// The server lists runs by these states only; the finance bridge widens both sides together.
+const STATES: HrPayrollRunState[] = ['draft', 'computed', 'approved']
 const ALL_YEARS = 'all'
 // The runs list is this page's own screen and stays behind its create panel; a run, its payslips and the settings
 // are full pages of their own.

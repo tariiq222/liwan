@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_MONEY_AMOUNT, canonicalFromMinor, parseMoneyInput } from '../moneyInput'
+import { MAX_MONEY_AMOUNT, canonicalFromMinor, normalizeDigits, parseMoneyInput } from '../moneyInput'
 
 describe('parseMoneyInput', () => {
   it('accepts Arabic-Indic digits and Arabic decimal/thousands marks without using float-string parsing', () => {
@@ -60,5 +60,12 @@ describe('parseMoneyInput', () => {
   it('pads short fractions to the currency decimal places instead of leaving a float-string', () => {
     expect(parseMoneyInput('12', 2)).toMatchObject({ ok: true, canonical: '12.00', minor: 1200n })
     expect(parseMoneyInput('12.5', 3)).toMatchObject({ ok: true, canonical: '12.500', minor: 12500n })
+  })
+})
+
+describe('normalizeDigits', () => {
+  it('maps Arabic-Indic and Persian digits and keeps the rest', () => {
+    expect(normalizeDigits('٢٠٢٦-۱۱')).toBe('2026-11')
+    expect(normalizeDigits('ab-1')).toBe('ab-1')
   })
 })

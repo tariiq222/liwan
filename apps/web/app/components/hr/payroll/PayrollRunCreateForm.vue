@@ -3,6 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { HrPayrollRunCreateSchema, type HrPayrollRun } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
+import { normalizeDigits } from '@/utils/moneyInput'
 import { currentPayrollMonth } from '@/utils/payrollFormat'
 
 // The create form of one payroll run, inside the /hr/payroll/new SharedCreatePanel. It only asks for the month,
@@ -21,7 +22,7 @@ const attempted = ref(false)
 const saved = ref(false)
 const failure = ref<unknown>(null)
 const dirty = computed(() => !saved.value && month.value !== initialMonth)
-const parsed = computed(() => HrPayrollRunCreateSchema.safeParse({ month: month.value }))
+const parsed = computed(() => HrPayrollRunCreateSchema.safeParse({ month: normalizeDigits(month.value).trim() }))
 
 // A month that already has a run is refused on the month field; anything else is a general error.
 const serverMonth = computed(() => failure.value instanceof ApiError && failure.value.field === 'month' ? failure.value : null)

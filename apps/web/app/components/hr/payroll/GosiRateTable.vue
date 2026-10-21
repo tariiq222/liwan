@@ -10,6 +10,7 @@ import {
 import { formatDate } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
+import { gosiRatePatch } from '@/utils/payrollSettings'
 import { parseMoneyInput } from '@/utils/moneyInput'
 import { formatPayrollAmount, formatPayrollPercent } from '@/utils/payrollFormat'
 
@@ -78,22 +79,13 @@ const formAlert = computed(() => failure.value && !serverField.value
   ? saveErrorMessage(failure.value, t('errors.generic'), t('errors.saveUncertain'))
   : undefined)
 
-/** Only the fields the user changed go to a PATCH; a create sends them all. */
-function changed(rate: HrGosiRate, data: HrGosiRateWrite): Partial<HrGosiRateWrite> {
-  const patch: Partial<HrGosiRateWrite> = {}
-  for (const key of Object.keys(data) as (keyof HrGosiRateWrite)[]) {
-    if (data[key] !== rate[key]) Object.assign(patch, { [key]: data[key] })
-  }
-  return patch
-}
-
 async function submit() {
   if (!hydrated.value || saving.value || !editing.value) return
   attempted.value = true
   failure.value = null
   if (!parsed.value.success) return
   const target = editing.value
-  const patch = target === 'new' ? parsed.value.data : changed(target, parsed.value.data)
+  const patch = target === 'new' ? parsed.value.data : gosiRatePatch(target, parsed.value.data)
   if (Object.keys(patch).length === 0) { close(); return }
   try {
     await save({ id: target === 'new' ? undefined : target.id, body: patch })

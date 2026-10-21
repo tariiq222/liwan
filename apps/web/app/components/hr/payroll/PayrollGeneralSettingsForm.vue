@@ -2,6 +2,7 @@
 import { HrPayrollSettingsPatchSchema, type HrPayrollSettings, type HrRef } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
+import { payrollSettingsPatch } from '@/utils/payrollSettings'
 
 // The general payroll settings of the company: the day divisor of a month's pay, the leave types that are unpaid, and
 // the annual leave type. The salary structure is shown but not chosen here (no route lists the structures). The
@@ -17,39 +18,28 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const { mutateAsync: save, isPending } = usePatchHrPayrollSettings()
 
-const NO_LEAVE_TYPE = 'none'
 const DAY_DIVISORS = [28, 29, 30, 31]
 
 const dayDivisor = ref(String(props.settings.day_divisor))
 const unpaidLeaveTypes = ref(props.settings.unpaid_leave_types.map(type => String(type.id)))
-const annualLeaveType = ref(props.settings.annual_leave_type ? String(props.settings.annual_leave_type.id) : NO_LEAVE_TYPE)
+const annualLeaveType = ref<string | undefined>(props.settings.annual_leave_type ? String(props.settings.annual_leave_type.id) : undefined)
 const failure = ref<unknown>(null)
 
-const patch = computed(() => {
-  const body: Record<string, unknown> = {}
-  if (Number(dayDivisor.value) !== props.settings.day_divisor) body.day_divisor = Number(dayDivisor.value)
-  const unpaid = unpaidLeaveTypes.value.map(Number).sort((a, b) => a - b)
-  const savedUnpaid = props.settings.unpaid_leave_types.map(type => type.id).sort((a, b) => a - b)
-  if (unpaid.join() !== savedUnpaid.join()) body.unpaid_leave_type_ids = unpaid
-  const annual = annualLeaveType.value === NO_LEAVE_TYPE ? null : Number(annualLeaveType.value)
-  if (annual !== (props.settings.annual_leave_type?.id ?? null)) body.annual_leave_type_id = annual
-  return body
-})
+const patch = computed(() => payrollSettingsPatch(props.settings, {
+  dayDivisor: dayDivisor.value, unpaidLeaveTypes: unpaidLeaveTypes.value, annualLeaveType: annualLeaveType.value,
+}))
 const dirty = computed(() => Object.keys(patch.value).length > 0)
 function seed(settings: HrPayrollSettings) {
   dayDivisor.value = String(settings.day_divisor)
   unpaidLeaveTypes.value = settings.unpaid_leave_types.map(type => String(type.id))
-  annualLeaveType.value = settings.annual_leave_type ? String(settings.annual_leave_type.id) : NO_LEAVE_TYPE
+  annualLeaveType.value = settings.annual_leave_type ? String(settings.annual_leave_type.id) : undefined
 }
 // A background refetch must not discard unsaved edits: re-seed only a form that has no changes.
 watch(() => props.settings, (settings) => { if (!dirty.value) seed(settings) })
 
 const divisorOptions = DAY_DIVISORS.map(value => ({ value: String(value), label: String(value) }))
 const unpaidItems = computed(() => props.leaveTypes.map(type => ({ value: String(type.id), label: type.name })))
-const annualItems = computed(() => [
-  { value: NO_LEAVE_TYPE, label: t('hrPayroll.settings.noAnnualLeave') },
-  ...props.leaveTypes.map(type => ({ value: String(type.id), label: type.name })),
-])
+const annualItems = computed(() => props.leaveTypes.map(type => ({ value: String(type.id), label: type.name })))
 
 const serverField = computed(() => failure.value instanceof ApiError ? failure.value.field : undefined)
 const alertMessage = computed(() => failure.value && !serverField.value
@@ -80,8 +70,8 @@ async function submit() {
         <UFormField :label="t('hrPayroll.settings.structure')" name="hr-payroll-structure" :help="t('hrPayroll.settings.structureHint')" :error="fieldError('structure_id')">
           <UInput id="hr-payroll-structure" class="w-full" :model-value="props.settings.structure?.name ?? t('hrPayroll.settings.noStructure')" readonly disabled />
         </UFormField>
-        <UFormField :label="t('hrPayroll.settings.annualLeaveType')" name="hr-payroll-annual" :error="fieldError('annual_leave_type_id')">
-          <USelect id="hr-payroll-annual" v-model="annualLeaveType" class="w-full" :items="annualItems" :disabled="!hydrated || !props.canEdit || isPending" data-testid="hr-payroll-annual" />
+        <UFormField :label="t('hrPayroll.settings.annualLeaveType')" name="hr-payroll-annual" required :help="t('hrPayroll.settings.annualLeaveTypeHint')" :error="fieldError('annual_leave_type_id')">
+          <USelect id="hr-payroll-annual" v-model="annualLeaveType" class="w-full" :items="annualItems" :placeholder="t('hrPayroll.settings.chooseAnnualLeave')" :disabled="!hydrated || !props.canEdit || isPending" data-testid="hr-payroll-annual" />
         </UFormField>
         <UFormField :label="t('hrPayroll.settings.unpaidLeaveTypes')" name="hr-payroll-unpaid" :help="t('hrPayroll.settings.unpaidLeaveTypesHint')" :error="fieldError('unpaid_leave_type_ids')">
           <UCheckboxGroup v-model="unpaidLeaveTypes" :items="unpaidItems" :disabled="!hydrated || !props.canEdit || isPending" data-testid="hr-payroll-unpaid" />

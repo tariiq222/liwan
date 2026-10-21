@@ -5,7 +5,7 @@ import PayrollRunTotals from '@/components/hr/payroll/PayrollRunTotals.vue'
 import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import { formatDate } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
-import { HR_PAYSLIP_PAGE_SIZE, hrPayslipsQuery } from '@/composables/useHrPayrollRuns'
+import { HR_PAYSLIP_PAGE_SIZE, fetchAllHrPayslips, hrPayslipsQuery } from '@/composables/useHrPayrollRuns'
 import { payrollErrorMessage } from '@/utils/payrollErrors'
 import { formatPayrollMonth, payrollRunStateTone } from '@/utils/payrollFormat'
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
@@ -39,6 +39,7 @@ const employeeNames = computed(() => new Map(rows.value.map(row => [row.employee
 
 const transitions = useHrPayrollRunTransition(() => runId.value ?? 0)
 const patchInputs = usePatchHrPayslipInputs(() => runId.value ?? 0)
+const { $api } = useApi()
 const pendingAction = computed(() => (['compute', 'approve', 'cancel'] as const).find(action => transitions[action].isPending.value) ?? null)
 const failure = ref<unknown>(null)
 const failureMessage = computed(() => failure.value ? payrollErrorMessage(failure.value, t, employeeNames.value) : '')
@@ -51,12 +52,18 @@ async function transition(action: 'compute' | 'approve' | 'cancel') {
     if (action === 'cancel') await navigateTo(backTo.value, { replace: true })
   } catch (error) { failure.value = error }
 }
-async function saveInputs(payload: { payslipId: number; body: HrPayslipInputsPatch }) {
+// Cells save independently: only the cell being saved waits, and the saves go to the server in the order they were made.
+const savingCells = ref<string[]>([])
+let saveQueue: Promise<unknown> = Promise.resolve()
+function saveInputs(payload: { payslipId: number; body: HrPayslipInputsPatch }) {
   if (!hydrated.value) return
+  const key = `${payload.payslipId}:${Object.keys(payload.body)[0]}`
   failure.value = null
-  try {
-    await patchInputs.mutateAsync(payload)
-  } catch (error) { failure.value = error }
+  savingCells.value = [...savingCells.value, key]
+  saveQueue = saveQueue
+    .then(() => patchInputs.mutateAsync(payload))
+    .catch((error) => { failure.value = error })
+    .finally(() => { savingCells.value = savingCells.value.filter(cell => cell !== key) })
 }
 
 const editable = computed(() => !!run.value?.allowed_actions.includes('edit_inputs'))
@@ -84,9 +91,24 @@ function setPage(next: number) {
   if (!hydrated.value || payslips.isFetching.value || next < 1 || next > pages.value) return
   writeQuery({ offset: (next - 1) * LIMIT })
 }
-function printRegister() {
-  if (hydrated.value && import.meta.client) window.print()
+// The printed register lists every payslip the run's totals cover: the rows beyond the shown page and those a search
+// hides are loaded first, shown for the duration of the print, then dropped again.
+const printRows = ref<HrPayslipRow[] | null>(null)
+const printing = ref(false)
+async function printRegister() {
+  if (!hydrated.value || !import.meta.client || printing.value || runId.value === null) return
+  printing.value = true
+  failure.value = null
+  try {
+    printRows.value = await fetchAllHrPayslips($api, runId.value)
+    await nextTick()
+    window.print()
+  } catch (error) { failure.value = error } finally {
+    printRows.value = null
+    printing.value = false
+  }
 }
+const partial = computed(() => !!run.value && rows.value.length < run.value.employee_count && pages.value <= 1)
 </script>
 
 <template>
@@ -101,7 +123,7 @@ function printRegister() {
     @retry="runQuery.refetch"
   >
     <template v-if="run" #actions>
-      <UButton class="webvue-print-hide" color="neutral" variant="outline" icon="i-lucide-printer" :disabled="!hydrated" :label="t('hrPayroll.actions.printRegister')" data-testid="hr-payroll-print" @click="printRegister" />
+      <UButton class="webvue-print-hide" color="neutral" variant="outline" icon="i-lucide-printer" :disabled="!hydrated || printing" :loading="printing" :label="t('hrPayroll.actions.printRegister')" data-testid="hr-payroll-print" @click="printRegister" />
     </template>
 
     <template v-if="run">
@@ -150,14 +172,15 @@ function printRegister() {
               />
             </template>
           </SharedFilterBar>
+          <p v-if="partial && run" class="webvue-print-hide mb-2 text-sm text-muted" data-testid="hr-payroll-register-note">{{ t('hrPayroll.register.footer', { shown: rows.length, total: run.employee_count }) }}</p>
           <SharedEmptyState v-if="!payslips.isLoading.value && rows.length === 0" compact :title="t('hrPayroll.register.emptyTitle')" :description="t(run.state === 'draft' ? 'hrPayroll.register.emptyDraftHint' : 'hrPayroll.register.emptyHint')" />
           <PayrollInputsTable
             v-else
-            :rows="rows"
+            :rows="printRows ?? rows"
             :row-to="payslipTo"
             :totals="run.totals"
             :editable="editable"
-            :pending="patchInputs.isPending.value"
+            :saving="savingCells"
             :loading="payslips.isLoading.value"
             :caption="t('hrPayroll.register.title')"
             @save="saveInputs"

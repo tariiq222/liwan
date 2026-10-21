@@ -121,9 +121,10 @@
       "structureHint": "The Saudi salary structure approved for the company.",
       "noStructure": "Not set",
       "annualLeaveType": "Annual leave type",
-      "noAnnualLeave": "No type set",
       "unpaidLeaveTypes": "Unpaid leave types",
-      "unpaidLeaveTypesHint": "Days of these leaves are deducted from the month's pay."
+      "unpaidLeaveTypesHint": "Days of these leaves are deducted from the month's pay.",
+      "annualLeaveTypeHint": "Required to compute leave encashment at end of service.",
+      "chooseAnnualLeave": "Choose a leave type"
     },
     "gosi": {
       "title": "GOSI contribution rates",
@@ -169,7 +170,9 @@
       "contract_missing": "An employee has no active contract in this month.",
       "gosi_rate_missing": "No GOSI rate applies to this month. Add one in the payroll settings.",
       "payroll_structure_mismatch": "The salary structure does not match the one in the settings.",
-      "notEditable": "Inputs cannot be edited once the run is approved."
+      "notEditable": "Inputs cannot be edited once the run is approved.",
+      "compensation_missing": "An employee has no compensation recorded. Record it and compute again.",
+      "settlement_missing": "An employee who left has no approved end-of-service settlement. Complete it before approving the run."
     },
     "compensation": {
       "title": "Compensation",

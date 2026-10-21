@@ -107,6 +107,21 @@ test.describe('payroll run page', () => {
   })
 })
 
+test.describe('payroll register print', () => {
+  test('a search shows a partial register with a note, and printing loads every payslip first', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.print = () => { (window as unknown as { printedRows: number }).printedRows = document.querySelectorAll('tbody tr').length }
+    })
+    await open(page, '/hr/payroll/2', 'مسير رواتب نوفمبر 2026')
+    await page.getByTestId('hr-payroll-search').fill('ليلى')
+    await expect(page.getByTestId('hr-payroll-register-note')).toHaveText('عرض 1 من 3')
+    await expect(page.locator('tbody tr')).toHaveCount(1)
+    await page.getByTestId('hr-payroll-print').click()
+    await expect.poll(() => page.evaluate(() => (window as unknown as { printedRows?: number }).printedRows)).toBe(3)
+    await expect(page.locator('tbody tr')).toHaveCount(1)
+  })
+})
+
 test.describe('payslip page', () => {
   test('payslip page prints net', async ({ page }) => {
     await page.goto('/hr/payroll/1/payslips/11')

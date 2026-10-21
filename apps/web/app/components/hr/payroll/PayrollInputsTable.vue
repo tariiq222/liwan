@@ -14,8 +14,8 @@ const props = defineProps<{
   totals: HrPayrollTotals
   caption: string
   editable?: boolean
-  /** A save is in flight: the cells wait for the server. */
-  pending?: boolean
+  /** The cells whose save is in flight, as `<payslip id>:<input name>`: only those wait for the server. */
+  saving?: readonly string[]
   loading?: boolean
 }>()
 const emit = defineEmits<{ save: [payload: { payslipId: number; body: HrPayslipInputsPatch }] }>()
@@ -97,7 +97,7 @@ watch(() => props.rows, (rows) => {
         :aria-label="`${row.original.employee.name}: ${t(`hrPayroll.register.inputs.${field}`)}`"
         :aria-invalid="invalid[cellKey(row.original, field)] || undefined"
         :color="invalid[cellKey(row.original, field)] ? 'error' : undefined"
-        :disabled="!hydrated || props.pending"
+        :disabled="!hydrated || props.saving?.includes(cellKey(row.original, field))"
         :data-testid="`hr-payroll-input-${row.original.id}-${field}`"
         @update:model-value="edit(row.original, field, String($event ?? ''))"
         @change="commit(row.original, field)"

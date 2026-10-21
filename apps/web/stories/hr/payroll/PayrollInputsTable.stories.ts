@@ -21,7 +21,7 @@ const meta = {
   component: PayrollInputsTable,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:154', 'كشف الرواتب داخل صفحة المسير: خلايا مدخلات الشهر الخمس قابلة للتعديل قبل الاعتماد، ثم الإجمالي والخصومات والصافي لكل موظف وصف المجاميع.'),
+    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:177', 'كشف الرواتب داخل صفحة المسير: خلايا مدخلات الشهر الخمس قابلة للتعديل قبل الاعتماد، ثم الإجمالي والخصومات والصافي لكل موظف وصف المجاميع.'),
   },
   args: { rows, rowTo: () => '/hr/payroll/5/payslips/11', totals, caption: 'كشف الرواتب', editable: true },
   render: args => ({
@@ -38,4 +38,4 @@ export const Editable: Story = { name: 'مدخلات قابلة للتعديل' 
 
 export const ReadOnly: Story = { name: 'مسير معتمد', args: { editable: false } }
 
-export const Saving: Story = { name: 'حفظ قيد التنفيذ', args: { pending: true } }
+export const Saving: Story = { name: 'حفظ خلية قيد التنفيذ', args: { saving: ['11:bonus_amount'] } }

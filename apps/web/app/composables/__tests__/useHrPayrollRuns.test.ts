@@ -5,6 +5,7 @@ import { ApiError } from '../useApi'
 import { hrPayrollKeys } from '../useHrPayrollCompensation'
 import {
   createHrPayrollRun,
+  fetchAllHrPayslips,
   hrPayrollRunsQuery,
   patchHrPayslipInputs,
   transitionHrPayrollRun,
@@ -99,5 +100,24 @@ describe('patchHrPayslipInputs', () => {
     const cached = qc.getQueryData<{ items: HrPayslipRow[] }>(hrPayrollKeys.payslips(4, query))
     expect(cached?.items[1]).toEqual(serverRow)
     expect(cached?.items[0]).toEqual(row(8, 0))
+  })
+})
+
+describe('fetchAllHrPayslips', () => {
+  it('loads every page of the run in 100-row chunks without a search filter', async () => {
+    const all = Array.from({ length: 230 }, (_, index) => row(index + 1, 0))
+    const api = vi.fn(async (_path: string, opts: { query: { limit: number; offset: number } }) => ({
+      items: all.slice(opts.query.offset, opts.query.offset + opts.query.limit), total: all.length,
+    }))
+    const rows = await fetchAllHrPayslips(api as never, 4)
+    expect(rows).toHaveLength(230)
+    expect(api.mock.calls.map(call => call[1].query)).toEqual([{ limit: 100, offset: 0 }, { limit: 100, offset: 100 }, { limit: 100, offset: 200 }])
+    expect(api.mock.calls[0]![0]).toBe('/api/v1/hr/payroll/runs/4/payslips')
+  })
+
+  it('stops on an empty page even when the total is larger', async () => {
+    const api = vi.fn().mockResolvedValue({ items: [], total: 5 })
+    expect(await fetchAllHrPayslips(api, 4)).toEqual([])
+    expect(api).toHaveBeenCalledTimes(1)
   })
 })

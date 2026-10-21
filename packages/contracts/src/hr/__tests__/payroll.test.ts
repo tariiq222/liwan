@@ -151,7 +151,7 @@ describe('payroll settings schemas', () => {
   it('accepts settings, a partial patch, and GOSI rates', () => {
     expect(HrPayrollSettingsSchema.parse(SETTINGS)).toEqual(SETTINGS)
     expect(HrPayrollSettingsPatchSchema.parse({ day_divisor: 28 })).toEqual({ day_divisor: 28 })
-    expect(HrPayrollSettingsPatchSchema.safeParse({ unpaid_leave_type_ids: [2], annual_leave_type_id: null }).success).toBe(true)
+    expect(HrPayrollSettingsPatchSchema.safeParse({ unpaid_leave_type_ids: [2], annual_leave_type_id: 1 }).success).toBe(true)
     expect(HrGosiRateListSchema.parse({ items: [RATE], total: 1 }).items[0]).toEqual(RATE)
     expect(HrGosiRateWriteSchema.safeParse(RATE_WRITE).success).toBe(true)
   })
@@ -159,6 +159,7 @@ describe('payroll settings schemas', () => {
   it('rejects a divisor outside 28 to 31, an empty patch, unknown branches and negative rates', () => {
     expect(HrPayrollSettingsPatchSchema.safeParse({ day_divisor: 32 }).success).toBe(false)
     expect(HrPayrollSettingsPatchSchema.safeParse({}).success).toBe(false)
+    expect(HrPayrollSettingsPatchSchema.safeParse({ annual_leave_type_id: null }).success).toBe(false)
     expect(HrGosiRateSchema.safeParse({ ...RATE, branch: 'other' }).success).toBe(false)
     expect(HrGosiRateWriteSchema.safeParse({ ...RATE_WRITE, employee_rate: -1 }).success).toBe(false)
     expect(HrGosiRateWriteSchema.safeParse({ ...RATE }).success).toBe(false)

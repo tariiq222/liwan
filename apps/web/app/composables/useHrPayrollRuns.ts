@@ -98,6 +98,16 @@ export async function patchHrPayslipInputs($api: Api, qc: QueryClient, runId: nu
   return row
 }
 
+/** Every payslip row of a run, in the server's page size and ignoring any search: what the printed register lists. */
+export async function fetchAllHrPayslips($api: Api, runId: number): Promise<HrPayslipRow[]> {
+  const rows: HrPayslipRow[] = []
+  for (;;) {
+    const page = await $api(`${RUNS_PATH}/${runId}/payslips`, { query: { limit: HR_PAYSLIP_PAGE_SIZE, offset: rows.length }, schema: HrPayslipRowListSchema })
+    rows.push(...page.items)
+    if (page.items.length === 0 || rows.length >= page.total) return rows
+  }
+}
+
 export function useHrPayrollRuns(query: MaybeRefOrGetter<HrPayrollRunsQuery>) {
   const { $api } = useApi()
   const { can } = useAccess()

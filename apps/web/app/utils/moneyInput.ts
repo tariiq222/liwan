@@ -9,6 +9,11 @@ export type MoneyParse =
 const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'
 const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹'
 
+/** Arabic-Indic and Persian digits as Latin digits; every other character is kept. */
+export function normalizeDigits(text: string): string {
+  return Array.from(text, mapDigit).join('')
+}
+
 function mapDigit(char: string): string {
   const arabic = ARABIC_DIGITS.indexOf(char)
   if (arabic >= 0) return String(arabic)
@@ -92,7 +97,7 @@ export function canonicalFromMinor(minor: bigint, decimalPlaces: number): string
 export function parseMoneyInput(raw: string, decimalPlaces: number): MoneyParse {
   const trimmed = raw.trim()
   if (!trimmed) return { ok: false, code: 'empty' }
-  const mapped = Array.from(trimmed, mapDigit).join('')
+  const mapped = normalizeDigits(trimmed)
   if (mapped.startsWith('-') || mapped.includes('-')) return { ok: false, code: 'negative' }
   if (/[eE+]/.test(mapped) || /^(nan|infinity|true|false)$/i.test(mapped)) return { ok: false, code: 'invalid' }
   if (!/^[0-9.,\u066b\u066c \u00a0\u202f]+$/.test(mapped)) return { ok: false, code: 'invalid' }
