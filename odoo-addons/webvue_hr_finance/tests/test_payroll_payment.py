@@ -223,3 +223,51 @@ class TestPayrollPayment(PayrollFinanceCase):
         run.invalidate_recordset()
         with self.assertRaises(AccessError):
             run.write({'webvue_state': 'posted'})
+
+    def _paid_run(self):
+        run = self._posted_run()
+        res = self._pay(run['id'])
+        self.assertEqual(res.status_code, 200, res.text)
+        return res.json()
+
+    def _assert_still_paid(self, run):
+        self.assertTrue(all(line.reconciled for line in self._payable_lines(run['id'])))
+        self.login_as(self.accountant)
+        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['state'], 'paid')
+
+    def test_the_payroll_entry_cannot_be_unreconciled(self):
+        run = self._paid_run()
+        entry_id = self.env['hr.payslip.run'].browse(run['id']).webvue_move_id.id
+        self.login_as(self.accountant)
+        res = self.api('POST', f'/api/v1/finance/entries/{entry_id}/unreconcile')
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'invalid'), res.text)
+        self._assert_still_paid(run)
+
+    def test_the_salary_payment_cannot_be_unallocated(self):
+        run = self._paid_run()
+        self.login_as(self.accountant)
+        res = self.api('POST', f"/api/v1/finance/payments/{run['finance']['payment_id']}/unallocate")
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'invalid'), res.text)
+        self._assert_still_paid(run)
+
+    def test_an_ordinary_reconciliation_still_unreconciles(self):
+        receivable = self.accounts['advance']
+        expense = self.accounts['basic_expense']
+
+        def entry(debit_account, credit_account):
+            move = self.env['account.move'].create({
+                'move_type': 'entry', 'journal_id': self.general_journal.id, 'date': date(2026, 11, 30),
+                'line_ids': [
+                    (0, 0, {'account_id': debit_account.id, 'debit': 100.0, 'credit': 0.0, 'name': 'x'}),
+                    (0, 0, {'account_id': credit_account.id, 'debit': 0.0, 'credit': 100.0, 'name': 'x'}),
+                ],
+            })
+            move.action_post()
+            return move
+
+        first, second = entry(receivable, expense), entry(expense, receivable)
+        (first | second).line_ids.filtered(lambda line: line.account_id == receivable).reconcile()
+        self.login_as(self.accountant)
+        res = self.api('POST', f'/api/v1/finance/entries/{first.id}/unreconcile')
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertFalse(first.line_ids.filtered(lambda line: line.account_id == receivable).reconciled)

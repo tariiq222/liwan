@@ -29,3 +29,21 @@ class AccountMove(models.Model):
     def unlink(self):
         self._webvue_refuse_payroll_change()
         return super().unlink()
+
+
+class AccountPartialReconcile(models.Model):
+    """The match between a payroll entry's salaries payable and its salary payment stays as payroll made it.
+
+    The run is ``paid`` because of that match; removing it would reopen the payable while the run still reads
+    paid. Every unreconcile path (an entry's, a payment's) goes through this unlink.
+    """
+
+    _inherit = 'account.partial.reconcile'
+
+    def unlink(self):
+        payroll = (self.debit_move_id | self.credit_move_id).move_id.filtered(
+            lambda move: move.webvue_payroll_origin in ('run', 'payment'),
+        )
+        if payroll:
+            raise UserError(self.env._('The salary payment of a payroll run cannot be unreconciled.'))
+        return super().unlink()
