@@ -11,6 +11,7 @@ import { formatDate } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { gosiRatePatch } from '@/utils/payrollSettings'
+import { payrollFieldError } from '@/utils/payrollErrors'
 import { parseMoneyInput } from '@/utils/moneyInput'
 import { formatPayrollAmount, formatPayrollPercent } from '@/utils/payrollFormat'
 
@@ -73,7 +74,7 @@ const invalidFields = computed(() => new Set(parsed.value.success ? [] : parsed.
 const serverField = computed(() => failure.value instanceof ApiError ? failure.value.field : undefined)
 function fieldError(field: string) {
   if (attempted.value && invalidFields.value.has(field)) return t('hrPayroll.gosi.fieldInvalid')
-  return serverField.value === field && failure.value instanceof ApiError ? failure.value.message : undefined
+  return payrollFieldError(failure.value, t, field)
 }
 const formAlert = computed(() => failure.value && !serverField.value
   ? saveErrorMessage(failure.value, t('errors.generic'), t('errors.saveUncertain'))

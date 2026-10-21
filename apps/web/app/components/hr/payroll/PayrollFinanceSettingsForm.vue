@@ -8,6 +8,7 @@ import {
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { NO_RECORD, payrollFinanceDraft, payrollFinancePatch, withCurrent, type FinanceChoice } from '@/utils/payrollFinanceSettings'
+import { payrollFieldError } from '@/utils/payrollErrors'
 
 // The accounting mapping of payroll: the journal the entry goes to, its level of detail, the default cost center and
 // the account of each role. It saves only what changed, and only for `finance.setup.manage`; the pickers are filled
@@ -47,7 +48,7 @@ const serverField = computed(() => failure.value instanceof ApiError ? failure.v
 const alertMessage = computed(() => failure.value && !serverField.value
   ? saveErrorMessage(failure.value, t('errors.generic'), t('errors.saveUncertain'))
   : undefined)
-const fieldError = (field: string) => serverField.value === field && failure.value instanceof ApiError ? failure.value.message : undefined
+const fieldError = (field: string) => payrollFieldError(failure.value, t, field)
 const readOnly = (record: { name: string } | null) => record?.name ?? t('hrPayroll.financeSettings.notSet')
 
 async function submit() {

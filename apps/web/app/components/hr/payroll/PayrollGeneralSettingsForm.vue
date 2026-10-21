@@ -3,6 +3,7 @@ import { HrPayrollSettingsPatchSchema, type HrPayrollSettings, type HrRef } from
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { payrollSettingsPatch } from '@/utils/payrollSettings'
+import { payrollFieldError } from '@/utils/payrollErrors'
 
 // The general payroll settings of the company: the day divisor of a month's pay, the leave types that are unpaid, and
 // the annual leave type. The salary structure is shown but not chosen here (no route lists the structures). The
@@ -45,7 +46,7 @@ const serverField = computed(() => failure.value instanceof ApiError ? failure.v
 const alertMessage = computed(() => failure.value && !serverField.value
   ? saveErrorMessage(failure.value, t('errors.generic'), t('errors.saveUncertain'))
   : undefined)
-const fieldError = (field: string) => serverField.value === field && failure.value instanceof ApiError ? failure.value.message : undefined
+const fieldError = (field: string) => payrollFieldError(failure.value, t, field)
 
 async function submit() {
   if (!hydrated.value || isPending.value || !props.canEdit || !dirty.value) return

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../composables/useApi'
-import { eosProvisionErrorMessage, payrollErrorMessage } from '../payrollErrors'
+import { eosProvisionErrorMessage, payrollErrorMessage, payrollFieldError } from '../payrollErrors'
 
 // The real locale files the UI ships, so a code without a text fails instead of hiding behind the key itself:
 // the payroll namespace, the shared `errors.saveUncertain`, and `errors.generic` from the @webvue/ui layer that
@@ -20,7 +20,8 @@ const sharedAr = {
 const OWN_CODES = [
   'duplicate', 'transition_forbidden', 'structure_missing', 'contract_missing', 'gosi_rate_missing', 'payroll_structure_mismatch',
   'compensation_missing', 'settlement_missing', 'settlement_changed', 'annual_leave_type_missing', 'departure_missing', 'eos_case_missing',
-  'period_locked', 'missing_cost_center', 'settings_incomplete', 'wps_totals_mismatch', 'run_empty',
+  'period_locked', 'missing_cost_center', 'settings_incomplete', 'wps_totals_mismatch', 'run_empty', 'nationality_missing',
+  'gosi_registration_missing', 'provision_after_run',
 ]
 const NAMING_CODES = ['negative_net', 'missing_iban', 'run_stale']
 
@@ -109,7 +110,36 @@ describe('payrollErrorMessage', () => {
     expect(payrollErrorMessage(new Error('boom'), t, names)).toBe(sharedAr.generic)
   })
 
+  it('gives the GOSI rate refusals their own texts', () => {
+    expect(payrollErrorMessage(new ApiError(422, 'invalid', 'raw', 'date_from'), t, names)).toBe(arPayroll.errors.rateDuplicate)
+    expect(payrollErrorMessage(new ApiError(422, 'invalid', 'raw', 'wage_max'), t, names)).toBe(arPayroll.errors.wageRange)
+  })
+
+  it('says a manager cannot approve their own payslip, apart from the run state refusal', () => {
+    const own = new ApiError(403, 'transition_forbidden', 'raw', 'employee_id', { employee_ids: [3] })
+    expect(payrollErrorMessage(own, t, names)).toBe(arPayroll.errors.ownRecordForbidden)
+    expect(payrollErrorMessage(new ApiError(403, 'transition_forbidden', 'raw', 'state'), t, names)).toBe(arPayroll.errors.transition_forbidden)
+  })
+
   it('says an unconfirmed save is uncertain, whatever its code', () => {
     expect(payrollErrorMessage(new ApiError(0, 'http_error', 'offline'), t, names)).toBe(sharedAr.saveUncertain)
+  })
+})
+
+describe('payrollFieldError', () => {
+  it('names the field the server refused, in the page text rather than the server English', () => {
+    const error = new ApiError(422, 'invalid', 'wage_max must not be below wage_min', 'wage_max')
+    expect(payrollFieldError(error, t, 'wage_max')).toBe(arPayroll.errors.wageRange)
+    expect(payrollFieldError(error, t, 'wage_min')).toBeUndefined()
+  })
+
+  it('has nothing to say about a refusal that named no field, or no API error at all', () => {
+    expect(payrollFieldError(new Error('boom'), t, 'iban')).toBeUndefined()
+    expect(payrollFieldError(new ApiError(403, 'forbidden', 'raw'), t, 'iban')).toBeUndefined()
+  })
+
+  it('shows the generic text for a field refusal it has no text for', () => {
+    const error = new ApiError(422, 'invalid', 'bonus_amount must be zero or more', 'bonus_amount')
+    expect(payrollFieldError(error, t, 'bonus_amount')).toBe(sharedAr.generic)
   })
 })

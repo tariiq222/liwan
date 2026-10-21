@@ -4,6 +4,7 @@ import { HrCompensationWriteSchema, type HrCompensation } from '@webvue/contract
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { parseMoneyInput } from '@/utils/moneyInput'
+import { payrollFieldError } from '@/utils/payrollErrors'
 
 // The compensation editor of one employee. The bank on record is kept as it is (there is no bank
 // catalog route), and the nationality is read-only: the server derives it from the employee record.
@@ -72,7 +73,7 @@ function invalid(key: keyof typeof body.value) {
 }
 function fieldError(key: keyof typeof body.value, message: string) {
   if (attempted.value && invalid(key)) return message
-  return formError.value instanceof ApiError && formError.value.field === key ? formError.value.message : undefined
+  return payrollFieldError(formError.value, t, key)
 }
 const errorMessage = computed(() => formError.value ? saveErrorMessage(formError.value, t('errors.generic'), t('errors.saveUncertain')) : undefined)
 const showAlert = computed(() => !!formError.value && !(formError.value instanceof ApiError && formError.value.field))

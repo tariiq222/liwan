@@ -302,7 +302,13 @@
       "departureBeforeStart": "The departure date is before the service start.",
       "eos_provision_duplicate": "The end-of-service provision of this month or a later one is already posted.",
       "eos_provision_empty": "There is no end-of-service provision to post for this month.",
-      "paymentBeforeEntry": "The payment date is before the payroll entry date."
+      "paymentBeforeEntry": "The payment date is before the payroll entry date.",
+      "rateDuplicate": "A rate for this branch and class already starts on that date.",
+      "wageRange": "The maximum wage is below the minimum wage.",
+      "nationality_missing": "This employee has no nationality, so GOSI cannot be computed.",
+      "gosi_registration_missing": "This employee has no GOSI registration date.",
+      "provision_after_run": "A run older than an already posted end-of-service provision cannot be posted.",
+      "ownRecordForbidden": "You cannot approve a run that holds your own payslip. Someone else with the approval capability approves it."
     },
     "compensation": {
       "title": "Compensation",
