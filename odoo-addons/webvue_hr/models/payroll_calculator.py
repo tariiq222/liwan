@@ -117,16 +117,18 @@ class WebVueHrPayrollCalculator(models.AbstractModel):
     def _webvue_settlement_amounts(self, payslip):
         """Award, leave encashment and open deductions of the confirmed settlement that falls in the payslip's month.
 
-        A settlement whose departure date no longer matches the employee's is not read: approval refuses it.
+        Only the settlement dated like the employee's current departure is read: another one is history, and
+        approval refuses a leaver whose current departure has none.
         """
         employee = payslip.employee_id
         settlement = self.env['webvue.hr.payroll.eos.settlement'].search([
             ('employee_id', '=', employee.id),
             ('state', '=', 'confirmed'),
+            ('departure_date', '=', employee.departure_date),
             ('departure_date', '>=', payslip.date_from),
             ('departure_date', '<=', payslip.date_to),
         ], limit=1)
-        if not settlement or settlement.departure_date != employee.departure_date:
+        if not settlement:
             return dict.fromkeys(SETTLEMENT_KEYS, 0)
         return {key: money(Decimal(str(settlement[key]))) for key in SETTLEMENT_KEYS}
 

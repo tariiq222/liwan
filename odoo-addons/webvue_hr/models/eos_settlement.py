@@ -46,8 +46,20 @@ class WebVueHrPayrollEosSettlement(models.Model):
     total = fields.Monetary()
     state = fields.Selection([('draft', 'Draft'), ('confirmed', 'Confirmed')], required=True, default='draft')
 
-    _employee_unique = models.Constraint('UNIQUE(employee_id)', 'an employee has one final settlement')
+    _employee_departure_unique = models.Constraint(
+        'UNIQUE(employee_id, departure_date)', 'an employee has one final settlement per departure',
+    )
     _deductions_valid = models.Constraint('CHECK(open_deductions >= 0)', 'open deductions must not be negative')
+
+    @api.model
+    def _webvue_current(self, employee):
+        """The settlement of the employee's current departure: the one dated like it, else the draft to recompute.
+
+        A confirmed settlement of an earlier departure (a re-hire) is history: it is never returned, never changed.
+        """
+        rows = self.search([('employee_id', '=', employee.id)], order='id desc')
+        dated = rows.filtered(lambda row: row.departure_date == employee.departure_date)[:1]
+        return dated or rows.filtered(lambda row: row.state == 'draft')[:1]
 
     @api.model
     def _webvue_service_start(self, employee):
@@ -146,7 +158,7 @@ class WebVueHrPayrollEosSettlement(models.Model):
 
     def _webvue_save_draft(self, employee, case, open_deductions):
         """Create or recompute the draft settlement of ``employee``; a confirmed one is locked (403)."""
-        settlement = self.search([('employee_id', '=', employee.id)], limit=1)
+        settlement = self._webvue_current(employee)
         if settlement.state == 'confirmed':
             raise WebVueHrRule(
                 TRANSITION_FORBIDDEN, self.env._('A confirmed settlement cannot be changed.'), field='state', status=403,

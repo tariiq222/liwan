@@ -23,7 +23,7 @@ EOS_ROUTE = '/api/v1/hr/payroll/eos'
 
 
 def _settlement(employee):
-    settlement = request.env['webvue.hr.payroll.eos.settlement'].search([('employee_id', '=', employee.id)], limit=1)
+    settlement = request.env['webvue.hr.payroll.eos.settlement']._webvue_current(employee)
     if not settlement:
         raise ApiError(404, 'not_found', 'the employee has no final settlement')
     return settlement

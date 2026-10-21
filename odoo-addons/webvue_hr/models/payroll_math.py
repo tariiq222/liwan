@@ -140,7 +140,7 @@ def continuous_service_start(periods):
     Walks back from the latest period while the gap to the one before it is under ``SERVICE_GAP_DAYS``;
     a period without an end counts as open, like the stock ``no_gap`` rule.
     """
-    ordered = sorted(set(periods), reverse=True)
+    ordered = sorted(set(periods), key=lambda period: (period[0], period[1] or OPEN_ENDED), reverse=True)
     if not ordered:
         return None
     current = ordered[0][0]

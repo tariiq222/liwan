@@ -44,9 +44,12 @@ structure data is updatable (not `noupdate`), so Odoo deletes the orphaned rule 
 that read it is replaced by `GOSI_WAGE`. Development data only; there is nothing to carry.
 
 Task 18: new tables `webvue_hr_payroll_eos_case` (departure reason to end-of-service case, unique per company
-and reason) and `webvue_hr_payroll_eos_settlement` (one final settlement per employee), created by the ORM on
+and reason) and `webvue_hr_payroll_eos_settlement` (one final settlement per employee and departure), created by the ORM on
 update. The shared case seed (`data/hr_eos_case_data.xml`, `noupdate`) loads on upgrade because its records are
 new. There is no data to carry.
 
-Known limits: a settlement is unique per employee, so a re-hire after a confirmed settlement is not supported in this
-phase (the old settlement stays on the employee).
+A final settlement is unique per employee and departure date: a re-hire that leaves again gets a new settlement and the
+confirmed one of the earlier departure stays as locked history (`_webvue_current` picks the settlement dated like the
+employee's current departure). The table is new in this version and unreleased, so there is no production data to
+carry; a development database created from an earlier commit of this branch must be rebuilt (or its old
+`webvue_hr_payroll_eos_settlement_employee_unique` constraint dropped by hand) to take the new constraint.

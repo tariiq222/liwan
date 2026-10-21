@@ -2,7 +2,10 @@
 from datetime import date
 from decimal import Decimal
 
+from psycopg2 import IntegrityError
+
 from odoo.tests import tagged
+from odoo.tools import mute_logger
 
 from .payroll_common import PayrollCase
 from odoo.addons.webvue_hr.models.payroll_math import (
@@ -242,3 +245,50 @@ class TestPayrollEos(PayrollCase):
         self.assertEqual((details['draft']['award'], details['recomputed']['award']), (5250, 5750))
         self.assertEqual(self._put_settlement(self.officer, self.leaver, {}).status_code, 200)
         self.assertEqual(self._confirm(self.approver, self.leaver).status_code, 200)
+
+    def test_periods_sharing_a_start_date_sort_without_comparing_none_to_a_date(self):
+        # Stock hr refuses such versions on one employee (its overlap check), so only the pure rule can be handed
+        # this input; it must still order open and closed periods instead of raising a TypeError.
+        same_start = [(date(2020, 1, 1), None), (date(2020, 1, 1), date(2026, 10, 31))]
+        self.assertEqual(continuous_service_start(same_start), date(2020, 1, 1))
+        self.assertEqual(continuous_service_start(same_start[::-1]), date(2020, 1, 1))
+
+    def test_a_rehired_leaver_gets_a_new_settlement_and_keeps_the_old_one_as_history(self):
+        first = self._confirmed_settlement()
+        old = self.env['webvue.hr.payroll.eos.settlement'].browse(first['id'])
+        self.leaver.write({'departure_date': date(2027, 6, 30), 'departure_reason_id': self.resigned.id})
+        self.assertEqual(self.api('GET', f'{EOS}/{self.leaver.id}/settlement').status_code, 404)
+        res = self._put_settlement(self.officer, self.leaver, {'case': 'resignation', 'open_deductions': 0})
+        self.assertEqual(res.status_code, 200, res.text)
+        new = res.json()
+        self.assertNotEqual(new['id'], first['id'])
+        self.assertEqual((new['state'], new['departure_date']), ('draft', '2027-06-30'))
+        self.assertEqual((old.state, old.departure_date), ('confirmed', DEPARTURE))
+        self.assertEqual(self.api('GET', f'{EOS}/{self.leaver.id}/settlement').json()['id'], new['id'])
+        self.assertEqual(self._confirm(self.approver, self.leaver).json()['id'], new['id'])
+
+    def test_a_rehired_leavers_old_settlement_does_not_block_or_pay_the_new_month(self):
+        self._confirmed_settlement()
+        self.leaver.write({'departure_date': date(2027, 6, 30)})
+        self._login(self.officer)
+        run = self.api('POST', RUNS, json={'month': '2027-06'}).json()
+        self.assertEqual(self.api('POST', f"{RUNS}/{run['id']}/compute").status_code, 200)
+        slip = self.env['hr.payslip'].search([('payslip_run_id', '=', run['id']), ('employee_id', '=', self.leaver.id)])
+        self.assertEqual({line.code: line.total for line in slip.line_ids}.get('EOS', 0), 0)
+        self._login(self.approver)
+        res = self.api('POST', f"{RUNS}/{run['id']}/approve")
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'settlement_missing'))
+        self.assertEqual(self._put_settlement(self.officer, self.leaver, {'case': 'resignation'}).status_code, 200)
+        self.assertEqual(self._confirm(self.approver, self.leaver).status_code, 200)
+        self._login(self.officer)
+        self.assertEqual(self.api('POST', f"{RUNS}/{run['id']}/compute").status_code, 200)
+        self._login(self.approver)
+        self.assertEqual(self.api('POST', f"{RUNS}/{run['id']}/approve").status_code, 200)
+
+    def test_the_database_allows_one_settlement_per_employee_and_departure(self):
+        Settlement = self.env['webvue.hr.payroll.eos.settlement']
+        values = {'employee_id': self.leaver.id, 'case': 'resignation', 'departure_date': DEPARTURE}
+        Settlement.create(values)
+        with self.assertRaises(IntegrityError), mute_logger('odoo.sql_db'), self.cr.savepoint():
+            Settlement.create(values)
+        Settlement.create({**values, 'departure_date': date(2028, 1, 31)})
