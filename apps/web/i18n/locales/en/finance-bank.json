@@ -113,10 +113,66 @@
       "doneHint": "No action is needed on this line.",
       "selectProposal": "Select entry {entry}"
     },
+    "import": {
+      "link": "Import CSV",
+      "title": "Import a bank statement",
+      "fileSection": "File",
+      "file": "CSV file",
+      "fileHint": "Up to 2 MB",
+      "tooLarge": "The file is larger than 2 MB.",
+      "delimiter": "Delimiter",
+      "autoDelimiter": "Detect automatically",
+      "delimiters": {
+        ",": "Comma ( , )",
+        ";": "Semicolon ( ; )",
+        "tab": "Tab",
+        "|": "Vertical bar"
+      },
+      "dateFormat": "Date format",
+      "decimal": "Decimal separator",
+      "hasHeader": "The first row is a header",
+      "readColumns": "Read columns",
+      "mappingSection": "Columns",
+      "rowCount": "{count} row in the file | {count} rows in the file",
+      "notMapped": "Not used",
+      "fields": {
+        "date": "Date",
+        "payment_ref": "Reference",
+        "amount": "Amount",
+        "debit": "Debit",
+        "credit": "Credit"
+      },
+      "mappingHint": "Choose the date, the reference and either one amount column or both debit and credit.",
+      "previewAction": "Preview lines",
+      "previewSection": "Lines to import",
+      "summary": "{lines} lines, {duplicates} already recorded, from {from} to {to}",
+      "rowErrors": "{count} row cannot be read | {count} rows cannot be read",
+      "rowError": "Row {row} ({field}): {message}",
+      "duplicate": "Already recorded",
+      "skipDuplicates": "Skip lines the journal already holds",
+      "mismatch": "The opening balance plus the lines gives {expected}, not the closing balance entered.",
+      "submit": "Import statement"
+    },
+    "auto": {
+      "check": "Match automatically",
+      "found": "{matched} line can be matched with certainty; {review} need a person | {matched} lines can be matched with certainty; {review} need a person",
+      "applied": "{matched} line matched; {review} left for review | {matched} lines matched; {review} left for review",
+      "failed": "{count} line was refused and left open | {count} lines were refused and left open",
+      "apply": "Match {count} line | Match {count} lines"
+    },
+    "undo": {
+      "action": "Undo match",
+      "actionFor": "Undo the match of {label}",
+      "confirm": "Undo the match of \"{label}\"?",
+      "hint": "The line becomes open again; the entries made for it follow the journal's reconcile mode."
+    },
     "errors": {
       "notBalanced": "The selected entries do not cover the line's amount. Choose an account for the difference or change the selection.",
       "invalidState": "This line is already reconciled or cannot be reconciled.",
-      "periodLocked": "The accounting period is locked for this date."
+      "periodLocked": "The accounting period is locked for this date.",
+      "invalidRows": "The file has rows that cannot be read. Preview it to see which.",
+      "duplicateLines": "The journal already holds some of these lines. Skip them or remove them from the file.",
+      "balanceMismatch": "The opening balance plus the lines is not the closing balance."
     }
   }
 }

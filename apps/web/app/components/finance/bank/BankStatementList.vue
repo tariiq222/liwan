@@ -24,6 +24,8 @@ const { hydrated, filterQuery, update } = useRouteListFilters({
 })
 const filters = computed(() => bankFiltersFromQuery(filterQuery.value))
 const activeCount = computed(() => bankActiveFilterCount(filters.value))
+const route = useRoute()
+const importTo = computed(() => can('finance.bank.manage') && !props.background ? { path: `${BANK_STATEMENTS_PATH}/new`, query: { kind: 'import', returnTo: route.fullPath } } : undefined)
 const query = useFinanceBankStatements(() => bankListParams(filters.value), allowed)
 const journals = useFinanceBankJournals(allowed)
 const items = computed(() => query.data.value?.items ?? [])
@@ -66,6 +68,9 @@ const dash = computed(() => t('app.notAvailable'))
   <SharedForbiddenState v-if="!allowed" :description="t('financeBank.forbidden')" />
   <div v-else class="webvue-page-stack">
     <BankKpiStrip v-if="kpisShown" :filters="filters" :filtered="activeCount > 0" />
+    <div v-if="importTo" class="flex justify-end">
+      <UButton color="neutral" variant="outline" icon="i-lucide-file-up" :to="importTo" :label="t('financeBank.import.link')" data-testid="finance-bank-import-link" />
+    </div>
     <SharedListCard>
       <template #filters>
         <SharedFilterBar embedded class="w-full" :active-count="activeCount" :default-open="activeCount > 0" :disabled="!hydrated" @clear="clearFilters">
