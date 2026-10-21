@@ -3,7 +3,7 @@ from odoo import http
 from odoo.exceptions import MissingError
 from odoo.http import request
 
-from .runs import _scoped_run
+from .runs import scoped_run
 from odoo.addons.webvue_api.controllers.common import (
     api_handler,
     parse_page,
@@ -37,7 +37,7 @@ class HrPayrollPayslipController(http.Controller):
     @requires_feature('hr.enabled', 'hr.payroll', operation='read')
     @requires_capability('hr.payroll.read')
     def get_payslip(self, run_id, payslip_id, **_):
-        payslip = _scoped_run(run_id).slip_ids.filtered(lambda slip: slip.id == payslip_id)
+        payslip = scoped_run(run_id).slip_ids.filtered(lambda slip: slip.id == payslip_id)
         if not payslip:
             raise MissingError(request.env._('hr.payslip %(id)s does not exist', id=payslip_id))
         return dump_payslip(payslip)

@@ -96,10 +96,11 @@ class PayrollFinanceCase(AnalyticCase):
         """The ``accounts`` body of the settings route with every role set (``overrides`` replace ids)."""
         return {**{role: account.id for role, account in self.accounts.items()}, **overrides}
 
-    def full_settings(self):
+    @classmethod
+    def full_settings(cls):
         """A stored settings record with every account, as the finance manager would save it."""
-        return self.env['webvue.hr.payroll.finance.settings'].create({
-            'company_id': self.company.id, 'journal_id': self.general_journal.id,
-            **{f'{role}_account_id': account.id for role, account in self.accounts.items()},
-            'default_analytic_account_id': self.riyadh.id,
+        return cls.env['webvue.hr.payroll.finance.settings'].create({
+            'company_id': cls.company.id, 'journal_id': cls.general_journal.id,
+            **{f'{role}_account_id': account.id for role, account in cls.accounts.items()},
+            'default_analytic_account_id': cls.riyadh.id,
         })

@@ -1,0 +1,149 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from collections import defaultdict
+from decimal import Decimal
+
+from odoo import Command, api, models
+
+from odoo.addons.webvue_api.controllers.common import ApiError
+from odoo.addons.webvue_finance.controllers.write_support import (
+    attempt,
+    is_period_locked,
+    period_locked,
+    require_balanced,
+)
+from odoo.addons.webvue_hr.models.payroll_math import money
+from odoo.addons.webvue_hr_finance.models.payroll_finance_settings import account_field
+
+# Codes of the shipped Saudi structure, not a bank layout. A line posts as its signed total: a positive total
+# is a debit, a negative one a credit. NET is the exception, the pay owed to the employee, which is a credit.
+RULE_ACCOUNT_ROLES = {
+    'BASIC': 'basic_expense', 'ABSENCE': 'basic_expense', 'UNPAID': 'basic_expense',
+    'HOUSING': 'allowance_expense', 'TRANSPORT': 'allowance_expense', 'OTHER': 'allowance_expense',
+    'OVERTIME': 'variable_expense', 'BONUS': 'variable_expense', 'LEAVE_ENC': 'variable_expense',
+    'EOS': 'eos_provision',
+    'DEDUCTION': 'deduction', 'SETTLEMENT_DED': 'deduction', 'ADVANCE': 'advance',
+    'GOSI_EE_ANN': 'gosi_payable', 'GOSI_EE_SANED': 'gosi_payable',
+    'NET': 'salaries_payable',
+}
+# The employer share is an expense and a liability at once.
+EMPLOYER_GOSI_CODES = ('GOSI_ER_ANN', 'GOSI_ER_SANED', 'GOSI_ER_OH')
+CREDIT_CODES = ('NET',)
+# The advance is a receivable from one employee, so it always names the employee.
+EMPLOYEE_ROLES = ('advance',)
+UNMAPPED_DEPARTMENT = 'unmapped_department'
+
+
+class WebVueHrPayrollPosting(models.AbstractModel):
+    """Turns an approved payroll run into one balanced journal entry in the caller's environment."""
+
+    _name = 'webvue.hr.payroll.posting'
+    _description = 'WebVue HR payroll posting'
+    _webvue_scope = 'global'
+
+    @api.model
+    def _webvue_slip_amounts(self, slip):
+        """``[(role, signed amount)]`` of one payslip, the amount being debit minus credit."""
+        totals = defaultdict(Decimal)
+        for line in slip.line_ids:
+            totals[line.code] += Decimal(str(line.total))
+        amounts = []
+        for code, role in RULE_ACCOUNT_ROLES.items():
+            if code in totals:
+                amounts.append((role, -totals[code] if code in CREDIT_CODES else totals[code]))
+        employer = sum((totals[code] for code in EMPLOYER_GOSI_CODES), Decimal(0))
+        amounts += [('gosi_expense', employer), ('gosi_payable', -employer)]
+        return [(role, amount) for role, amount in amounts if amount]
+
+    @api.model
+    def _webvue_slip_analytic(self, slip, centers, default, warnings):
+        """The cost center of the payslip's department snapshot, else the default with a warning."""
+        mapped = centers.get(slip.webvue_department_id.id)
+        if mapped:
+            return mapped
+        if not default:
+            raise ApiError(
+                422, 'missing_cost_center', 'a department has no cost center and no default cost center is set',
+                field='default_analytic_account_id', details={'employee_id': slip.employee_id.id},
+            )
+        warnings.append({'code': UNMAPPED_DEPARTMENT, 'employee': slip.employee_id})
+        return default
+
+    @api.model
+    def _webvue_posting_lines(self, run, settings):
+        """``(lines, warnings)`` of the entry of ``run`` under ``settings``.
+
+        A line is ``{account_id, name, debit, credit, employee_id, partner_id?, analytic_distribution?}``;
+        ``employee_id`` is for the preview and is not a field of the entry line.
+        """
+        run.ensure_one()
+        per_employee = settings.entry_detail == 'per_employee'
+        centers = {
+            center.department_id.id: center.analytic_account_id
+            for center in self.env['webvue.hr.payroll.cost.center'].search([
+                ('department_id', 'in', run.slip_ids.webvue_department_id.ids),
+            ]) if center.analytic_account_id
+        }
+        balances = defaultdict(Decimal)
+        warnings = []
+        for slip in run.slip_ids.sorted(lambda slip: (slip.employee_id.name or '', slip.id)):
+            analytic = None  # resolved once per payslip, and only when it books an expense
+            for role, amount in self._webvue_slip_amounts(slip):
+                cost_center = self.env['account.analytic.account']
+                if role.endswith('_expense'):
+                    analytic = analytic or self._webvue_slip_analytic(
+                        slip, centers, settings.default_analytic_account_id, warnings,
+                    )
+                    cost_center = analytic
+                employee = slip.employee_id if per_employee or role in EMPLOYEE_ROLES else self.env['hr.employee']
+                balances[role, cost_center.id, employee] += amount
+        missing = sorted({role for role, _analytic, _employee in balances if not settings[account_field(role)]})
+        if missing:
+            raise ApiError(
+                422, 'settings_incomplete', 'the payroll accounts are not all set', field='accounts',
+                details={'accounts': missing},
+            )
+        return [self._webvue_line(run, settings, key, balance) for key, balance in balances.items() if money(balance)], warnings
+
+    @api.model
+    def _webvue_line(self, run, settings, key, balance):
+        role, analytic_id, employee = key
+        amount = money(balance)
+        line = {
+            'account_id': settings[account_field(role)].id,
+            'name': employee.name if employee else f"{run.name} {role.replace('_', ' ')}",
+            'debit': float(amount) if amount > 0 else 0.0,
+            'credit': float(-amount) if amount < 0 else 0.0,
+            'employee_id': employee.id if employee else None,
+        }
+        if employee.work_contact_id:
+            line['partner_id'] = employee.work_contact_id.id
+        if analytic_id:
+            line['analytic_distribution'] = {str(analytic_id): 100}
+        return line
+
+    @api.model
+    def _webvue_post(self, run):
+        """Book the approved ``run`` and post its entry; the run becomes ``posted``."""
+        run.ensure_one()
+        run._webvue_require_state(('approved',), self.env._('Only an approved run can be posted.'))
+        settings = self.env['webvue.hr.payroll.finance.settings']._webvue_for_company(run.company_id)
+        journal = settings.journal_id
+        if not journal:
+            raise ApiError(422, 'settings_incomplete', 'the payroll journal is not set', field='journal_id')
+        lines, _warnings = self._webvue_posting_lines(run, settings)
+        require_balanced(lines)
+        if is_period_locked(run.date_end, journal):
+            raise period_locked(field='date')
+        move = self.env['account.move'].create({
+            'move_type': 'entry',
+            'date': run.date_end,
+            'journal_id': journal.id,
+            'ref': run.name,
+            'webvue_payroll_origin': 'run',
+            'line_ids': [
+                Command.create({key: value for key, value in line.items() if key != 'employee_id'}) for line in lines
+            ],
+        })
+        attempt(move.action_post, day=run.date_end, journal=journal)
+        run.write({'webvue_move_id': move.id, 'webvue_state': 'posted'})
+        return move

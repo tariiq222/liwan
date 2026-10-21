@@ -9,7 +9,11 @@ from odoo.addons.webvue_hr.models.hr_payslip import INPUT_CODES
 from odoo.addons.webvue_hr.serializers.assets.common import ref
 
 MONTH = re.compile(r'(\d{4})-(0[1-9]|1[0-2])')
-RUN_STATES = ('draft', 'computed', 'approved')
+
+
+def run_states(env):
+    """The run states the lifecycle field offers, bridges included (a bridge adds its own through ``selection_add``)."""
+    return tuple(key for key, _label in env['hr.payslip.run']._fields['webvue_state'].selection)
 
 
 def parse_month(payload):

@@ -14,16 +14,16 @@ from odoo.addons.webvue_api.controllers.common import (
 )
 from odoo.addons.webvue_hr.controllers.common import hr_rule_handler
 from odoo.addons.webvue_hr.serializers.payroll.run import (
-    RUN_STATES,
     dump_payslip_rows,
     dump_run,
     dump_run_summary,
     parse_inputs,
     parse_month,
+    run_states,
 )
 
 
-def _scoped_run(run_id):
+def scoped_run(run_id):
     """A run of the current company → 404 otherwise: another company's run is never a 403."""
     run = request.env['hr.payslip.run'].search([
         ('id', '=', run_id), ('company_id', '=', current_company().id),
@@ -41,8 +41,9 @@ def _run_domain(args):
         domain += [('date_start', '>=', f'{year:04d}-01-01'), ('date_start', '<=', f'{year:04d}-12-31')]
     state = args.get('state')
     if state not in (None, ''):
-        if state not in RUN_STATES:
-            raise ApiError(422, 'invalid', f"state must be one of {', '.join(RUN_STATES)}", field='state')
+        states = run_states(request.env)
+        if state not in states:
+            raise ApiError(422, 'invalid', f"state must be one of {', '.join(states)}", field='state')
         domain.append(('webvue_state', '=', state))
     return domain
 
@@ -77,7 +78,7 @@ class HrPayrollRunController(http.Controller):
     @requires_feature('hr.enabled', 'hr.payroll', operation='read')
     @requires_capability('hr.payroll.read')
     def get_run(self, run_id, **_):
-        return dump_run(_scoped_run(run_id))
+        return dump_run(scoped_run(run_id))
 
     @http.route('/api/v1/hr/payroll/runs/<int:run_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
@@ -85,7 +86,7 @@ class HrPayrollRunController(http.Controller):
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.manage')
     def delete_run(self, run_id, **_):
-        _scoped_run(run_id)._webvue_cancel()
+        scoped_run(run_id)._webvue_cancel()
         return request.make_json_response('', status=204)
 
     @http.route('/api/v1/hr/payroll/runs/<int:run_id>/compute', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -94,7 +95,7 @@ class HrPayrollRunController(http.Controller):
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.manage')
     def compute_run(self, run_id, **_):
-        run = _scoped_run(run_id)
+        run = scoped_run(run_id)
         run._webvue_compute()
         return dump_run(run)
 
@@ -104,7 +105,7 @@ class HrPayrollRunController(http.Controller):
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.approve')
     def approve_run(self, run_id, **_):
-        run = _scoped_run(run_id)
+        run = scoped_run(run_id)
         run._webvue_approve()
         return dump_run(run)
 
@@ -114,7 +115,7 @@ class HrPayrollRunController(http.Controller):
     @requires_feature('hr.enabled', 'hr.payroll', operation='read')
     @requires_capability('hr.payroll.read')
     def list_payslips(self, run_id, **_):
-        run = _scoped_run(run_id)
+        run = scoped_run(run_id)
         args = request.httprequest.args
         limit, offset = parse_page(args)
         domain = [('payslip_run_id', '=', run.id)]
@@ -133,7 +134,7 @@ class HrPayrollRunController(http.Controller):
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.manage')
     def patch_inputs(self, run_id, payslip_id, **payload):
-        run = _scoped_run(run_id)
+        run = scoped_run(run_id)
         values = parse_inputs(payload)
         payslip = run.slip_ids.filtered(lambda slip: slip.id == payslip_id)
         if not payslip:
