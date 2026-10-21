@@ -159,6 +159,15 @@ class TestPayrollCompute(PayrollCase):
         self.assertEqual(refused.exception.status, 422)
         self.assertEqual(self._payslip(employee, structure=other).state, 'verify')
 
+    def test_structure_mismatch_is_refused_when_the_contract_misses_the_period(self):
+        child = self.env['hr.payroll.structure'].create({
+            'name': 'Child of Saudi', 'parent_id': self.structure.id,
+        })
+        employee = self.make_employee('Later Joiner', start=date(2027, 1, 1))
+        with self.assertRaises(WebVueHrRule) as refused:
+            self._payslip(employee, structure=child)
+        self.assertEqual(refused.exception.code, 'payroll_structure_mismatch')
+
     def test_missing_contract_start_is_refused(self):
         employee = self.env['hr.employee'].create({'name': 'No Contract', 'company_id': self.env.company.id})
         employee.version_id.write({'contract_date_start': False})

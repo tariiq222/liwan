@@ -20,7 +20,6 @@ class HrPayslip(models.Model):
         values = super().get_current_contract_dict(contract, contracts)
         settings = self.env['webvue.hr.payroll.settings']._webvue_for_company(self.company_id)
         if self.struct_id != settings.structure_id:
-            self._webvue_refuse_saudi_rules_outside()
             return values
         return {**values, **self.env['webvue.hr.payroll.calculator']._webvue_payslip_values(self)}
 
@@ -36,11 +35,17 @@ class HrPayslip(models.Model):
             field='employee_id', details={'employee_id': self.employee_id.id, 'structure_id': self.struct_id.id},
         )
 
+    def _webvue_check_structure_and_contract(self):
+        """Fail loudly before the engine silently skips a payslip: wrong Saudi structure or no contract."""
+        settings = self.env['webvue.hr.payroll.settings']._webvue_for_company(self.company_id)
+        if self.struct_id == settings.structure_id:
+            self.env['webvue.hr.payroll.calculator']._webvue_require_contract(self)
+        else:
+            self._webvue_refuse_saudi_rules_outside()
+
     def compute_sheet(self):
         for payslip in self:
-            settings = self.env['webvue.hr.payroll.settings']._webvue_for_company(payslip.company_id)
-            if payslip.struct_id == settings.structure_id:
-                self.env['webvue.hr.payroll.calculator']._webvue_require_contract(payslip)
+            payslip._webvue_check_structure_and_contract()
             payslip.webvue_department_id = payslip.contract_id.department_id
         return super().compute_sheet()
 
