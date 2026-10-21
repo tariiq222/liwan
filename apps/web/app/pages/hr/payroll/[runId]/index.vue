@@ -10,7 +10,7 @@ import { formatDate } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { HR_PAYSLIP_PAGE_SIZE, fetchAllHrPayslips, hrPayslipsQuery } from '@/composables/useHrPayrollRuns'
 import { hrPayrollFileUrl } from '@/composables/useHrPayrollFiles'
-import { payrollErrorMessage } from '@/utils/payrollErrors'
+import { eosProvisionErrorMessage, payrollErrorMessage } from '@/utils/payrollErrors'
 import { saveBlob } from '@/utils/saveBlob'
 import { currentPayrollDate, formatPayrollMonth, payrollRunStateTone } from '@/utils/payrollFormat'
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
@@ -64,7 +64,10 @@ const provisions = useHrEosProvisions(() => !!run.value?.finance)
 const provisionEntry = computed(() => provisions.data.value?.items.find(item => item.month === run.value?.month)?.entry_name ?? '')
 // A missing-IBAN refusal names employees the loaded page may not hold: their names are read once, after the refusal.
 const refusedNames = ref<ReadonlyMap<number, string>>(new Map())
-const failureMessage = computed(() => failure.value ? payrollErrorMessage(failure.value, t, new Map([...employeeNames.value, ...refusedNames.value])) : '')
+// The provision's own refusal is kept apart: its codes (`duplicate`, `invalid`) mean something else on the run.
+const provisionFailure = ref<unknown>(null)
+watch(failure, (now) => { if (now) provisionFailure.value = null })
+const failureMessage = computed(() => provisionFailure.value ? eosProvisionErrorMessage(provisionFailure.value, t) : failure.value ? payrollErrorMessage(failure.value, t, new Map([...employeeNames.value, ...refusedNames.value])) : '')
 
 // The salary files exist once the run's figures are fixed; the bank profile list is asked for only then.
 const FILE_STATES = ['approved', 'posted', 'paid']
@@ -111,7 +114,8 @@ async function post() {
 async function postProvision() {
   if (!hydrated.value || pendingAction.value || !run.value) return
   failure.value = null
-  try { await provision.mutateAsync(run.value.month) } catch (error) { failure.value = error }
+  provisionFailure.value = null
+  try { await provision.mutateAsync(run.value.month) } catch (error) { provisionFailure.value = error }
 }
 async function recordPayment(body: HrPayrollPaymentCreate) {
   if (!hydrated.value || pendingAction.value) return

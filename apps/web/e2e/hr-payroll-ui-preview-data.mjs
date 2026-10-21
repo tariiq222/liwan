@@ -317,7 +317,7 @@ export function hrPayrollPreviewWrite(method, route, body) {
     const saved = state.settlements[eosWrite[1]]
     if (eosWrite[2] && method === 'POST') {
       if (!saved) return notFound
-      if (leaver.employee.id === OWN_EMPLOYEE_ID) return { status: 403, body: { code: 'transition_forbidden', message: 'you cannot confirm your own settlement' } }
+      if (leaver.employee.id === OWN_EMPLOYEE_ID) return { status: 403, body: { code: 'transition_forbidden', message: 'you cannot confirm your own settlement', field: 'employee_id', details: { employee_id: leaver.employee.id } } }
       if (saved.state === 'confirmed') return { status: 403, body: { code: 'transition_forbidden', message: 'the settlement is already confirmed' } }
       saved.state = 'confirmed'
       return ok(settlementOf(leaver, saved))

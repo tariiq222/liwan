@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { collectBrowserErrors, currentRoute, dialog, heading, MOCK_STACK_ONLY, openPage as open, row } from './support/mock-pages'
+import { collectBrowserErrors, currentRoute, dialog, heading, MOCK_STACK_ONLY, openPage as open, row, trackRefusedRequests } from './support/mock-pages'
 import { login } from './support/tasmim6'
 
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', MOCK_STACK_ONLY)
@@ -360,9 +360,12 @@ test.describe('payroll salary files', () => {
 // The settlement section of the offboarding record (leavers of the offboarding preview: 2 resigned, 3 is the signed-in
 // employee with no mapped reason). The first read of a settlement that does not exist yet is a 404, and a missing case or
 // a refused confirmation is a 422 or 403: the browser logs those requests, they are the behaviour under test.
-const expectedRefusals = (messages: string[]) => messages.filter(message => !/\b(404|403|422)\b/.test(message))
+// Only refused requests to the end-of-service routes are expected, and one console error per refused response is dropped.
 
 test.describe('end of service', () => {
+  let withoutEosRefusals: (messages: string[]) => string[]
+  test.beforeEach(({ page }) => { withoutEosRefusals = trackRefusedRequests(page, '/api/v1/hr/payroll/eos/') })
+
   test('offboarding record shows the settlement only with payroll read', async ({ page }) => {
     await open(page, '/hr/offboarding/2', 'خالد الشمري')
     await expect(page.getByTestId('hr-eos-section')).toBeVisible()
@@ -371,7 +374,7 @@ test.describe('end of service', () => {
     await page.reload()
     await expect(heading(page, 'خالد الشمري')).toBeVisible()
     await expect(page.getByTestId('hr-eos-section')).toHaveCount(0)
-    errors = expectedRefusals(errors)
+    errors = withoutEosRefusals(errors)
   })
 
   test('a settlement is saved with Arabic-digit deductions and confirmed inline', async ({ page }) => {
@@ -381,6 +384,12 @@ test.describe('end of service', () => {
     await page.getByTestId('hr-eos-save').click()
     await expect(page.getByTestId('hr-eos-state')).toHaveText('مسودة')
     await expect(page.getByTestId('hr-eos-total')).toContainText('9,307.50')
+    // Editing the saved draft marks its figures as stale until it is saved again.
+    await expect(page.getByTestId('hr-eos-stale')).toHaveCount(0)
+    await page.getByTestId('hr-eos-deductions').fill('٤٠٠')
+    await expect(page.getByTestId('hr-eos-stale')).toBeVisible()
+    await page.getByTestId('hr-eos-deductions').fill('300')
+    await expect(page.getByTestId('hr-eos-stale')).toHaveCount(0)
     // Confirming asks first, inline; cancelling changes nothing.
     await page.getByTestId('hr-eos-confirm').click()
     await expect(page.getByTestId('inline-confirm')).toContainText('اعتماد تسوية نهاية الخدمة؟')
@@ -390,7 +399,7 @@ test.describe('end of service', () => {
     await page.getByTestId('inline-confirm-action').click()
     await expect(page.getByTestId('hr-eos-state')).toHaveText('معتمدة')
     await expect(page.getByTestId('hr-eos-save')).toHaveCount(0)
-    errors = expectedRefusals(errors)
+    errors = withoutEosRefusals(errors)
   })
 
   test('a reason without a case asks for one, and the own settlement cannot be confirmed', async ({ page }) => {
@@ -405,7 +414,7 @@ test.describe('end of service', () => {
     await page.getByTestId('inline-confirm-action').click()
     await expect(page.getByTestId('hr-eos-failure')).toContainText('لا يمكنك اعتماد تسوية نهاية خدمتك')
     await expect(page.getByTestId('hr-eos-state')).toHaveText('مسودة')
-    errors = expectedRefusals(errors)
+    errors = withoutEosRefusals(errors)
   })
 
   test('the settings map a departure reason to a case', async ({ page }) => {

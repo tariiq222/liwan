@@ -54,6 +54,8 @@ const body = computed(() => HrSettlementWriteSchema.safeParse({
   case: chosenCase.value,
   open_deductions: parsedDeductions.value.ok ? parsedDeductions.value.value : Number.NaN,
 }))
+// A saved draft whose case or deductions were edited shows the server's figures of the last save, marked as stale.
+const stale = computed(() => !!props.settlement && editable.value && (chosenCase.value !== props.settlement.case || !parsedDeductions.value.ok || parsedDeductions.value.value !== props.settlement.open_deductions))
 const total = computed(() => props.settlement?.total ?? (props.estimate ? props.estimate.award + props.estimate.leave_amount - (parsedDeductions.value.ok ? parsedDeductions.value.value : 0) : null))
 
 function pickCase(value: unknown) {
@@ -79,6 +81,7 @@ watch(() => props.confirming, (now, was) => { if (was && !now) asking.value = fa
     </template>
     <UAlert v-if="props.error" role="alert" color="error" variant="subtle" :title="props.error" data-testid="hr-eos-failure" />
     <UAlert v-if="mismatch" role="status" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('hrPayroll.eos.mismatch', { date: settlement?.departure_date ? formatDate(settlement.departure_date) : '' })" data-testid="hr-eos-mismatch" />
+    <UAlert v-if="stale" role="status" color="info" variant="subtle" icon="i-lucide-info" :title="t('hrPayroll.eos.stale')" data-testid="hr-eos-stale" />
     <div v-if="editable" class="webvue-form-grid">
       <UFormField :label="t('hrPayroll.eos.case')" name="hr-eos-case" required>
         <USelect id="hr-eos-case" :model-value="chosenCase ?? undefined" class="w-full" :items="caseItems" :placeholder="t('hrPayroll.eos.casePlaceholder')" :disabled="busy" data-testid="hr-eos-case" @update:model-value="pickCase" />
@@ -94,7 +97,7 @@ watch(() => props.confirming, (now, was) => { if (was && !now) asking.value = fa
       <SharedPropertyRow :label="t('hrPayroll.eos.award')" :value="money(figures.award)" />
       <SharedPropertyRow :label="t('hrPayroll.eos.leaveDays')" :value="days(figures.leave_days)" />
       <SharedPropertyRow :label="t('hrPayroll.eos.leaveAmount')" :value="money(figures.leave_amount)" />
-      <SharedPropertyRow :label="t('hrPayroll.eos.openDeductions')" :value="money(parsedDeductions.ok && editable ? parsedDeductions.value : (settlement?.open_deductions ?? 0))" />
+      <SharedPropertyRow :label="t('hrPayroll.eos.openDeductions')" :value="money(settlement ? settlement.open_deductions : (parsedDeductions.ok ? parsedDeductions.value : 0))" />
       <SharedPropertyRow v-if="total !== null" :label="t('hrPayroll.eos.total')" :value="money(total)" data-testid="hr-eos-total" />
     </SharedPropertiesPanel>
     <SharedFormActions v-if="editable">

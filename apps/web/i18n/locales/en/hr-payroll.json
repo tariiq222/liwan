@@ -280,7 +280,7 @@
       "negative_net": "The net pay is negative for {count} employees ({names}). Adjust the deductions and compute again.",
       "transition_forbidden": "This action is not possible in the run's current state.",
       "structure_missing": "The salary structure is not set in the settings.",
-      "contract_missing": "An employee has no active contract in this month.",
+      "contract_missing": "An employee has no active contract in this month, or no contract with a start date.",
       "gosi_rate_missing": "No GOSI rate applies to this month. Add one in the payroll settings.",
       "payroll_structure_mismatch": "The salary structure does not match the one in the settings.",
       "notEditable": "Inputs cannot be edited once the run is approved.",
@@ -293,7 +293,15 @@
       "wps_totals_mismatch": "The WPS file totals do not match the run totals. Review the run before downloading.",
       "missing_iban_count": "{count} employee(s) have no IBAN. Record it in the compensation and download again.",
       "negative_net_count": "The net pay is negative for {count} employee(s). Adjust the deductions and compute again.",
-      "eos_case_missing": "The departure reason has no award case. Pick the case here or map it in the payroll settings."
+      "eos_case_missing": "The departure reason has no award case. Pick the case here or map it in the payroll settings.",
+      "run_stale": "A settlement was confirmed or changed after the last compute for {count} employees ({names}). Compute the run again.",
+      "run_stale_count": "A settlement was confirmed or changed after the last compute for {count} employees. Compute the run again.",
+      "settlement_changed": "The settlement figures changed since the draft was saved. Review them and save the draft again before confirming.",
+      "annual_leave_type_missing": "The annual leave type is not set in the payroll settings.",
+      "departure_missing": "This employee has no departure date.",
+      "departureBeforeStart": "The departure date is before the service start.",
+      "eos_provision_duplicate": "The end-of-service provision of this month or a later one is already posted.",
+      "eos_provision_empty": "There is no end-of-service provision to post for this month."
     },
     "compensation": {
       "title": "Compensation",
@@ -427,8 +435,10 @@
         "draft": "Draft",
         "confirmed": "Confirmed"
       },
-      "mismatch": "The settlement was confirmed for a different departure date ({date}). Review the departure date.",
-      "ownRecordForbidden": "You cannot confirm your own end-of-service settlement. Someone else with the approval capability confirms it."
+      "mismatch": "The departure date changed after the settlement was made for {date}. Review the settlement.",
+      "ownRecordForbidden": "You cannot confirm your own end-of-service settlement. Someone else with the approval capability confirms it.",
+      "stale": "The case or the deductions were edited. The figures shown are from the last save: save to recompute them.",
+      "alreadyConfirmed": "The settlement is already confirmed and cannot be changed."
     },
     "eosCases": {
       "title": "End-of-service cases",

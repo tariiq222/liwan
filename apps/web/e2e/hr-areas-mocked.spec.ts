@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { collectBrowserErrors, currentRoute, dialog, heading, MOCK_STACK_ONLY, openPage as open, row } from './support/mock-pages'
+import { collectBrowserErrors, currentRoute, dialog, heading, MOCK_STACK_ONLY, openPage as open, row, trackRefusedRequests } from './support/mock-pages'
 import { login } from './support/tasmim6'
 
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', MOCK_STACK_ONLY)
@@ -218,6 +218,7 @@ test.describe('offboarding', () => {
   })
 
   test('a row opens the departure record with its clearance, which also opens by direct link', async ({ page }) => {
+    const withoutEosRefusals = trackRefusedRequests(page, '/api/v1/hr/payroll/eos/')
     await open(page, '/hr/offboarding', 'إنهاء الخدمة')
     await row(page, /خالد الشمري/).getByRole('link', { name: 'خالد الشمري' }).click()
     await expect(page).toHaveURL(/\/hr\/offboarding\/2/)
@@ -227,8 +228,8 @@ test.describe('offboarding', () => {
     await open(page, '/hr/offboarding/4', 'ليلى الدوسري')
     await expect(page.getByText('إغلاق الحسابات')).toBeVisible()
     // The record also reads the end-of-service settlement (a 404 before one is saved) and its estimate (a 422 for a
-    // reason without a case); the browser logs those requests and the section handles them.
-    errors = errors.filter(message => !/\b(404|422)\b/.test(message))
+    // reason without a case); the browser logs those refused requests (only those URLs are dropped) and the section handles them.
+    errors = withoutEosRefusals(errors)
   })
 
   test('the create panel opens over the list and closing it returns with the filters', async ({ page }) => {

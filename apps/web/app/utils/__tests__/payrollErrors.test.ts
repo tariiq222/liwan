@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../composables/useApi'
-import { payrollErrorMessage } from '../payrollErrors'
+import { eosProvisionErrorMessage, payrollErrorMessage } from '../payrollErrors'
 
 const t = (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key
 const names = new Map([[3, 'ليلى'], [4, 'سارة']])
 
 describe('payrollErrorMessage', () => {
-  it.each(['duplicate', 'transition_forbidden', 'structure_missing', 'contract_missing', 'gosi_rate_missing', 'payroll_structure_mismatch', 'compensation_missing', 'settlement_missing', 'eos_case_missing', 'period_locked', 'missing_cost_center', 'settings_incomplete', 'wps_totals_mismatch'])(
+  it.each(['duplicate', 'transition_forbidden', 'structure_missing', 'contract_missing', 'gosi_rate_missing', 'payroll_structure_mismatch', 'compensation_missing', 'settlement_missing', 'settlement_changed', 'annual_leave_type_missing', 'departure_missing', 'eos_case_missing', 'period_locked', 'missing_cost_center', 'settings_incomplete', 'wps_totals_mismatch'])(
     'shows the own text of %s', (code) => {
       expect(payrollErrorMessage(new ApiError(422, code, 'raw'), t, names)).toBe(`hrPayroll.errors.${code}`)
     },
@@ -25,6 +25,22 @@ describe('payrollErrorMessage', () => {
   it('falls back to the count-only text when no name is known', () => {
     const error = new ApiError(422, 'missing_iban', 'raw', 'iban', { employee_ids: [8, 9] })
     expect(payrollErrorMessage(error, t, names)).toBe('hrPayroll.errors.missing_iban_count:{"names":"","count":2}')
+  })
+
+  it('names the leavers of a stale run and falls back to the count', () => {
+    const error = new ApiError(422, 'run_stale', 'raw', 'employee_id', { employee_ids: [3] })
+    expect(payrollErrorMessage(error, t, names)).toBe('hrPayroll.errors.run_stale:{"names":"ليلى","count":1}')
+    expect(payrollErrorMessage(new ApiError(422, 'run_stale', 'raw', 'employee_id', { employee_ids: [9] }), t, names)).toBe('hrPayroll.errors.run_stale_count:{"names":"","count":1}')
+  })
+
+  it('says a departure before the service start is refused', () => {
+    expect(payrollErrorMessage(new ApiError(422, 'invalid', 'raw', 'date', { start_date: '2023-12-01' }), t, names)).toBe('hrPayroll.errors.departureBeforeStart')
+  })
+
+  it('gives the provision refusals their own texts', () => {
+    expect(eosProvisionErrorMessage(new ApiError(422, 'duplicate', 'raw', 'month'), t)).toBe('hrPayroll.errors.eos_provision_duplicate')
+    expect(eosProvisionErrorMessage(new ApiError(422, 'invalid', 'raw', 'month'), t)).toBe('hrPayroll.errors.eos_provision_empty')
+    expect(eosProvisionErrorMessage(new ApiError(403, 'transition_forbidden', 'raw', 'month'), t)).toBe('hrPayroll.errors.transition_forbidden')
   })
 
   it('says a run that can no longer be edited is locked', () => {

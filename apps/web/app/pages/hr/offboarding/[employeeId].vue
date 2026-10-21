@@ -61,9 +61,11 @@ const eosConfirmRefused = ref(false)
 const eosError = computed(() => {
   const failure = eosFailure.value ?? settlementQuery.error.value ?? estimate.error.value
   if (!failure) return ''
-  return eosConfirmRefused.value && failure instanceof ApiError && failure.code === 'transition_forbidden'
-    ? t('hrPayroll.eos.ownRecordForbidden')
-    : payrollErrorMessage(failure, t, new Map())
+  if (eosConfirmRefused.value && failure instanceof ApiError && failure.code === 'transition_forbidden') {
+    // Only the own-record refusal names the employee; any other one means the settlement is already confirmed.
+    return t(failure.details?.employee_id !== undefined ? 'hrPayroll.eos.ownRecordForbidden' : 'hrPayroll.eos.alreadyConfirmed')
+  }
+  return payrollErrorMessage(failure, t, new Map())
 })
 async function saveEos(body: HrSettlementWrite) {
   eosFailure.value = null
@@ -73,7 +75,10 @@ async function saveEos(body: HrSettlementWrite) {
 async function confirmEos() {
   eosFailure.value = null
   eosConfirmRefused.value = true
-  try { await confirmSettlement.mutateAsync() } catch (error) { eosFailure.value = error }
+  try { await confirmSettlement.mutateAsync() } catch (error) {
+    eosFailure.value = error
+    if (error instanceof ApiError && error.code === 'transition_forbidden' && error.details?.employee_id === undefined) void settlementQuery.refetch()
+  }
 }
 </script>
 

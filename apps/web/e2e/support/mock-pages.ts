@@ -12,6 +12,26 @@ export function collectBrowserErrors(page: Page): string[] {
   return errors
 }
 
+/**
+ * The browser logs every refused request as a console error without its URL. This records the refused responses
+ * (status 400 and up) whose URL contains `urlPart`; the returned function drops from a list of collected errors exactly
+ * one "status of NNN" console error per such response, so any other error, or one more of the same status, still fails.
+ */
+export function trackRefusedRequests(page: Page, urlPart: string): (errors: string[]) => string[] {
+  const statuses: number[] = []
+  page.on('response', (response) => { if (response.status() >= 400 && response.url().includes(urlPart)) statuses.push(response.status()) })
+  return (errors) => {
+    const remaining = [...statuses]
+    return errors.filter((message) => {
+      const status = Number(/status of (\d{3})/.exec(message)?.[1])
+      const at = remaining.indexOf(status)
+      if (at < 0) return true
+      remaining.splice(at, 1)
+      return false
+    })
+  }
+}
+
 /** The route the browser is on, without the origin: path plus query. */
 export function currentRoute(page: Page): string {
   const url = new URL(page.url())
