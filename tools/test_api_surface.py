@@ -38,6 +38,42 @@ class TestFeatureMetadata(unittest.TestCase):
         self.assertEqual(api_surface.feature_metadata(functions['row_level']), ([], None))
 
 
+class TestRoutePathResolution(unittest.TestCase):
+    """A route path may be a literal, a module constant or an f-string over constants; nothing is dropped silently."""
+
+    SOURCE = (
+        "PREFIX = '/api/v1/x'\n"
+        "OTHER = '/api/v1/y'\n"
+        "class P:\n"
+        "    @route('/api/v1/lit', type='json2', auth='user', methods=['GET'])\n"
+        "    def literal(self): pass\n"
+        "    @route(PREFIX, type='json2', auth='user', methods=['GET'])\n"
+        "    def constant(self): pass\n"
+        "    @route(f'{PREFIX}/<int:rid>/go', type='json2', auth='user', methods=['POST'])\n"
+        "    def fstring(self): pass\n"
+        "    @route(OTHER + '/z', type='json2', auth='user', methods=['GET'])\n"
+        "    def concatenated(self): pass\n"
+    )
+
+    def paths(self, source):
+        path = route_gate_policy.ADDONS / 'webvue_hr' / 'controllers' / 'probe.py'
+        return {r['handler']: r['paths'] for r in api_surface.extract_routes({path: ast.parse(source)})}
+
+    def test_literal_constant_fstring_and_concatenation_resolve(self):
+        self.assertEqual(self.paths(self.SOURCE), {
+            'literal': ['/api/v1/lit'],
+            'constant': ['/api/v1/x'],
+            'fstring': ['/api/v1/x/<int:rid>/go'],
+            'concatenated': ['/api/v1/y/z'],
+        })
+
+    def test_an_unresolvable_path_stops_the_generator_instead_of_vanishing(self):
+        source = "class P:\n    @route(f'{unknown}/a', type='json2', auth='user')\n    def lost(self): pass\n"
+        with self.assertRaises(SystemExit) as raised:
+            self.paths(source)
+        self.assertIn('lost', str(raised.exception))
+
+
 class TestCapabilityMatrix(unittest.TestCase):
 
     def test_matrix_lists_keys_and_reasons_per_operation(self):

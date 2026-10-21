@@ -71,12 +71,42 @@ def decorator_name(dec: ast.expr) -> str:
     return ""
 
 
-def const_strings(node: ast.expr) -> list[str]:
+def module_constants(tree: ast.Module) -> dict[str, str]:
+    """The top-level ``NAME = 'text'`` assignments of a module (a route prefix such as ``RUN``)."""
+    return {
+        target.id: node.value.value
+        for node in tree.body
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)
+        for target in node.targets
+        if isinstance(target, ast.Name)
+    }
+
+
+def resolved_string(node: ast.expr, constants: dict[str, str]) -> str | None:
+    """The text of a string literal, a module constant, an f-string over constants or a ``+`` of those; else None."""
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        return [node.value]
+        return node.value
+    if isinstance(node, ast.Name):
+        return constants.get(node.id)
+    if isinstance(node, ast.JoinedStr):
+        parts = [
+            part.value if isinstance(part, ast.Constant) else resolved_string(part.value, constants)
+            for part in node.values
+        ]
+        return None if any(part is None for part in parts) else "".join(parts)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left, right = resolved_string(node.left, constants), resolved_string(node.right, constants)
+        return None if left is None or right is None else left + right
+    return None
+
+
+def const_strings(node: ast.expr, constants: dict[str, str] | None = None) -> list[str]:
+    constants = constants or {}
     if isinstance(node, (ast.List, ast.Tuple)):
-        return [e.value for e in node.elts if isinstance(e, ast.Constant) and isinstance(e.value, str)]
-    return []
+        texts = [resolved_string(e, constants) for e in node.elts]
+    else:
+        texts = [resolved_string(node, constants)]
+    return [text for text in texts if text is not None]
 
 
 def kw_const(call: ast.Call, name: str):
@@ -134,6 +164,7 @@ def extract_routes(trees: dict[Path, ast.Module] | None = None) -> list[dict]:
     routes = []
     for py, tree in (trees if trees is not None else parse_controllers()).items():
         addon = addon_name(py)
+        constants = module_constants(tree)
         for cls in (n for n in tree.body if isinstance(n, ast.ClassDef)):
             for fn in (n for n in cls.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))):
                 names = [decorator_name(d) for d in fn.decorator_list]
@@ -143,9 +174,9 @@ def extract_routes(trees: dict[Path, ast.Module] | None = None) -> list[dict]:
                 )
                 if route is None or not route.args:
                     continue
-                paths = const_strings(route.args[0])
+                paths = const_strings(route.args[0], constants)
                 if not paths:
-                    continue
+                    raise SystemExit(f"{py.relative_to(REPO)}:{fn.name}: route path is not a literal or a module constant")
                 feature_keys, feature_operation = feature_metadata(fn)
                 docstring = ast.get_docstring(fn) or ""
                 routes.append(
