@@ -475,8 +475,10 @@ def main(argv=None):
         copied = copy_filestore(cache, template, scratch / 'data', database)
         warn('filestore copied from template %s (%d files)' % (template, copied))
         installed = pg.installed(database)
+        # Only the local addons are updated: re-updating an installed stock or OCA module would reload its data
+        # over what the WebVue addons configured on top of it. A dependency the template lacks is installed.
         closure = with_dependencies(selected, addons_dir, known)
-        update = sorted(a for a in closure if a in installed)
+        update = sorted(a for a in closure if a in installed and a in known)
         install = sorted(a for a in closure if a not in installed)
         extra = []
         if update:

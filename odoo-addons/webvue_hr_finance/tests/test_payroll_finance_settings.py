@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.exceptions import ValidationError
 from odoo.tests import tagged
 
 from .common import COST_CENTERS, SETTINGS, PayrollFinanceCase
@@ -166,3 +167,10 @@ class TestPayrollFinanceSettings(PayrollFinanceCase):
         worker = self.make_employee('Bridge Worker', self.sales)
         run = self._approved_run([worker], '2026-11')
         self.assertEqual(run['state'], 'approved')
+
+    def test_a_foreign_currency_journal_is_refused(self):
+        foreign = self.env['res.currency'].search([('id', '!=', self.company.currency_id.id)], limit=1)
+        foreign.active = True
+        journal = self.general_journal.copy({'code': 'FXS', 'currency_id': foreign.id})
+        with self.assertRaises(ValidationError):
+            self.env['webvue.hr.payroll.finance.settings']._webvue_save(self.company, {'journal_id': journal.id})

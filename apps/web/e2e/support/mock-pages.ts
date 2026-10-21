@@ -12,18 +12,24 @@ export function collectBrowserErrors(page: Page): string[] {
   return errors
 }
 
+// The exact line Chromium logs for a refused resource load, without the URL it belongs to.
+const RESOURCE_REFUSAL = /^console: Failed to load resource: the server responded with a status of (4\d\d) /
+
 /**
- * The browser logs every refused request as a console error without its URL. This records the refused responses
- * (status 400 and up) whose URL contains `urlPart`; the returned function drops from a list of collected errors exactly
- * one "status of NNN" console error per such response, so any other error, or one more of the same status, still fails.
+ * Records the refused responses (status 400-499) whose URL contains `urlPart`; the returned function drops, from a list
+ * of collected errors, exactly one browser resource-refusal line of the same status per such response. Page errors,
+ * application console errors, server errors (5xx) and any surplus refusal line stay in the list and fail the test.
  */
 export function trackRefusedRequests(page: Page, urlPart: string): (errors: string[]) => string[] {
   const statuses: number[] = []
-  page.on('response', (response) => { if (response.status() >= 400 && response.url().includes(urlPart)) statuses.push(response.status()) })
+  page.on('response', (response) => {
+    const status = response.status()
+    if (status >= 400 && status < 500 && response.url().includes(urlPart)) statuses.push(status)
+  })
   return (errors) => {
     const remaining = [...statuses]
     return errors.filter((message) => {
-      const status = Number(/status of (\d{3})/.exec(message)?.[1])
+      const status = Number(RESOURCE_REFUSAL.exec(message)?.[1])
       const at = remaining.indexOf(status)
       if (at < 0) return true
       remaining.splice(at, 1)
