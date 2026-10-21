@@ -32,7 +32,7 @@ access_webvue_hr_payroll_payslip_manager,hr.payslip,payroll.model_hr_payslip,gro
 access_webvue_hr_payroll_payslip_line_manager,hr.payslip.line,payroll.model_hr_payslip_line,group_cap_hr_payroll_manage,1,1,1,1
 access_webvue_hr_payroll_payslip_input_manager,hr.payslip.input,payroll.model_hr_payslip_input,group_cap_hr_payroll_manage,1,1,1,1
 access_webvue_hr_payroll_payslip_worked_days_manager,hr.payslip.worked.days,payroll.model_hr_payslip_worked_days,group_cap_hr_payroll_manage,1,1,1,1
-access_webvue_hr_payroll_payslip_run_manager,hr.payslip.run,payroll.model_hr_payslip_run,group_cap_hr_payroll_manage,1,1,1,0
+access_webvue_hr_payroll_payslip_run_manager,hr.payslip.run,payroll.model_hr_payslip_run,group_cap_hr_payroll_manage,1,1,1,1
 access_webvue_hr_payroll_payslip_approver,hr.payslip,payroll.model_hr_payslip,group_cap_hr_payroll_approve,1,1,0,0
 access_webvue_hr_payroll_payslip_run_approver,hr.payslip.run,payroll.model_hr_payslip_run,group_cap_hr_payroll_approve,1,1,0,0
 access_webvue_hr_payroll_payslip_employee,hr.payslip,payroll.model_hr_payslip,group_cap_hr_employees_read,1,0,0,0

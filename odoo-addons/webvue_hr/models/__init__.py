@@ -8,10 +8,12 @@ from . import (
     hr_department,
     hr_employee,
     hr_payslip,
+    hr_payslip_run,
     hr_plan_run,
     hr_report,
     hr_version,
     mail_activity_plan,
     payroll_calculator,
+    payroll_finance_link,
     payroll_settings,
 )

@@ -1,7 +1,29 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from decimal import Decimal
+
 from odoo import fields, models
 
+from .payroll_math import money
 from odoo.addons.webvue_hr.rules import WebVueHrRule
+
+# Line codes of the Saudi structure (data/hr_payroll_structure_data.xml) that make up the figures
+# a payslip shows. Deductions are negative lines, the employer share is a positive statistical line.
+EARNING_CODES = ('BASIC', 'HOUSING', 'TRANSPORT', 'OTHER', 'OVERTIME', 'BONUS', 'EOS', 'LEAVE_ENC')
+GOSI_EMPLOYEE_CODES = ('GOSI_EE_ANN', 'GOSI_EE_SANED')
+DEDUCTION_CODES = (
+    'ABSENCE', 'UNPAID', 'DEDUCTION', 'ADVANCE', 'SETTLEMENT_DED', *GOSI_EMPLOYEE_CODES,
+)
+GOSI_EMPLOYER_CODES = ('GOSI_ER_ANN', 'GOSI_ER_SANED', 'GOSI_ER_OH')
+NET_CODE = 'NET'
+# The five payslip inputs a payroll officer enters, by wire key; the values are engine input codes.
+INPUT_CODES = {
+    'overtime_amount': 'WV_OVERTIME',
+    'absence_days': 'WV_ABSENCE_DAYS',
+    'bonus_amount': 'WV_BONUS',
+    'deduction_amount': 'WV_DEDUCTION',
+    'advance_recovery_amount': 'WV_ADVANCE',
+}
+AMOUNT_KEYS = ('gross', 'deductions', 'gosi_employee', 'gosi_employer', 'net')
 
 
 class HrPayslip(models.Model):
@@ -59,3 +81,49 @@ class HrPayslip(models.Model):
         versions = self.env['hr.version'].search([('employee_id', '=', self.employee_id.id)], order='date_version')
         in_force = versions.filtered(lambda version: version.date_version <= last_day)
         return in_force[-1:] or versions[:1]
+
+    def _webvue_amounts(self):
+        """``{payslip_id: {gross, deductions, gosi_employee, gosi_employer, net}}`` from the computed lines.
+
+        Deductions and the employee GOSI share are positive figures. A payslip without lines is all zeros.
+        """
+        by_code = {slip_id: {} for slip_id in self.ids}
+        groups = self.env['hr.payslip.line']._read_group(
+            [('slip_id', 'in', self.ids)], ['slip_id', 'code'], ['total:sum'],
+        )
+        for slip, code, total in groups:
+            by_code[slip.id][code] = Decimal(str(total))
+
+        def amount(codes, lines):
+            return sum((lines.get(code, Decimal(0)) for code in codes), Decimal(0))
+
+        return {
+            slip_id: {key: float(money(value)) for key, value in {
+                'gross': amount(EARNING_CODES, lines),
+                'deductions': -amount(DEDUCTION_CODES, lines),
+                'gosi_employee': -amount(GOSI_EMPLOYEE_CODES, lines),
+                'gosi_employer': amount(GOSI_EMPLOYER_CODES, lines),
+                'net': amount((NET_CODE,), lines),
+            }.items()}
+            for slip_id, lines in by_code.items()
+        }
+
+    def _webvue_inputs(self):
+        """The five entered inputs by wire key; an input line the payslip lacks reads as zero."""
+        self.ensure_one()
+        entered = {line.code: line.amount for line in self.input_line_ids}
+        return {key: entered.get(code, 0) for key, code in INPUT_CODES.items()}
+
+    def _webvue_paid_days(self):
+        """Days of the period under contract, 0 for a payslip whose version has no start date."""
+        self.ensure_one()
+        if not self.contract_id.contract_date_start:
+            return 0
+        return self.env['webvue.hr.payroll.calculator']._webvue_paid_days(self)
+
+    def _webvue_iban_missing(self):
+        """Ids of the payslips whose employee has no IBAN on the compensation record."""
+        with_iban = self.env['webvue.hr.compensation'].search([
+            ('employee_id', 'in', self.employee_id.ids), ('iban', '!=', False),
+        ]).employee_id
+        return {slip.id for slip in self if slip.employee_id not in with_iban}

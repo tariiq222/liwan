@@ -19,3 +19,8 @@ Task 7: new column `webvue_department_id` on `hr_payslip` (the department snapsh
 computed), created by the ORM on update. The Saudi salary structure (`webvue_hr.structure_saudi`) with its
 categories, rules and inputs (`data/hr_payroll_structure_data.xml`, updatable) is new data loaded on upgrade.
 There is no data to carry; the table holds no payslips yet.
+
+Task 8: new columns on `hr_payslip_run` (`webvue_state` required, default `draft`; `webvue_approved_by_id`;
+`webvue_approved_at`) and the unique constraint `(company_id, date_start)`, created by the ORM on update. The
+`hr.payslip.run` unlink right is granted to `hr.payroll.manage` (access CSV). The table holds no runs yet, so
+there is no data to carry. New abstract model `webvue.hr.payroll.finance.link` (no table).

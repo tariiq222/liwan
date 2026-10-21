@@ -75,10 +75,7 @@ class WebVueHrPayrollCalculator(models.AbstractModel):
         window_end = min(
             day for day in (payslip.date_to, version.contract_date_end, employee.departure_date) if day
         )
-        days = paid_days(
-            payslip.date_from, payslip.date_to, version.contract_date_start,
-            version.contract_date_end, employee.departure_date, divisor,
-        )
+        days = calculator._webvue_paid_days(payslip)
         unpaid_days = min(
             calculator._webvue_unpaid_days(employee, settings, window_start, window_end), Decimal(days),
         )
@@ -105,6 +102,17 @@ class WebVueHrPayrollCalculator(models.AbstractModel):
             'paid_days': days,
             'unpaid_days': unpaid_days,
         }.items()}
+
+    @api.model
+    def _webvue_paid_days(self, payslip):
+        """Days of the period the employee is under contract, capped by the day divisor."""
+        employee = payslip.employee_id
+        version = payslip.contract_id
+        settings = self.env['webvue.hr.payroll.settings']._webvue_for_company(payslip.company_id)
+        return paid_days(
+            payslip.date_from, payslip.date_to, version.contract_date_start,
+            version.contract_date_end, employee.departure_date, settings.day_divisor,
+        )
 
     @api.model
     def _webvue_require_contract(self, payslip):
