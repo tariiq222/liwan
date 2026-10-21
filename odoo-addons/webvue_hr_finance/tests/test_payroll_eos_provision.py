@@ -1,10 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import date
+from decimal import Decimal
 
 from odoo.exceptions import UserError
 from odoo.tests import tagged
 
 from .common import RUNS, PayrollFinanceCase
+from odoo.addons.webvue_hr.models.payroll_math import money
 
 PAYROLL_READ = ('hr.payroll.read', 'hr.employees.read')
 POSTING = ('finance.entries.read', 'finance.entries.manage', 'finance.entries.post')
@@ -27,8 +29,8 @@ class TestPayrollEosProvision(PayrollFinanceCase):
         cls.settings = cls.full_settings()
         cls.poster = cls.user_with('pe_poster', [*PAYROLL_READ, *POSTING])
 
-    def _posted_run(self, month):
-        run = self._approved_run([self.employee], month)
+    def _posted_run(self, month, employees=None):
+        run = self._approved_run([self.employee] if employees is None else employees, month)
         self.login_as(self.poster)
         res = self.api('POST', f"{RUNS}/{run['id']}/post")
         self.assertEqual(res.status_code, 200, res.text)
@@ -40,6 +42,35 @@ class TestPayrollEosProvision(PayrollFinanceCase):
 
     def _accrual(self):
         return self.env['webvue.hr.payroll.eos.accrual'].search([('employee_id', '=', self.employee.id)])
+
+    def _second_leaver(self, departure):
+        """A second employee who leaves on ``departure`` in the no-award case.
+
+        The run of that month still holds a payslip for them, so it can be posted, while the provision has
+        nothing to book for them: their target and their award are zero.
+        """
+        employee = self.make_employee('Provision E2', self.dept)
+        employee.departure_date = departure
+        self.env['webvue.hr.payroll.eos.settlement'].create({
+            'employee_id': employee.id, 'departure_date': departure, 'case': 'no_award',
+            'award': 0, 'total': 0, 'state': 'confirmed',
+        })
+        return employee
+
+    def _provision_account_totals(self):
+        """``(credited, debited)`` of the company's provision account, as Decimals.
+
+        The end-of-service lines are the only ones that post there: the provision of the month and, through
+        the payroll entry, the settlement award that entry pays out of it.
+        """
+        lines = self.env['account.move.line'].search([
+            ('account_id', '=', self.accounts['eos_provision'].id),
+            ('company_id', '=', self.company.id),
+        ])
+        return (
+            money(sum((Decimal(str(line.credit)) for line in lines), Decimal(0))),
+            money(sum((Decimal(str(line.debit)) for line in lines), Decimal(0))),
+        )
 
     def test_first_provision_posts_full_accrual(self):
         self._posted_run('2026-11')
@@ -85,6 +116,52 @@ class TestPayrollEosProvision(PayrollFinanceCase):
         move = self.env['account.move'].browse(res.json()['entry_id'])
         self.assertEqual(move.line_ids.filtered(lambda line: line.debit).account_id, self.accounts['eos_provision'])
         self.assertEqual(move.line_ids.filtered(lambda line: line.credit).account_id, self.accounts['eos_expense'])
+        self.assertEqual(self._accrual().amount, 0)
+        self.assertEqual(self._provision_account_totals(), (Decimal('34896.58'), Decimal('34896.58')))
+
+    def test_settlement_equal_to_the_accrual_releases_nothing_in_the_next_month(self):
+        """A leaver whose award equals their accrual: the settlement month books nothing, and the month
+        after it never releases the provision a second time."""
+        self._posted_run('2026-11')
+        self.assertEqual(self._provision('2026-11').status_code, 201)
+        self.employee.departure_date = date(2027, 1, 31)
+        self.env['webvue.hr.payroll.eos.settlement'].create({
+            'employee_id': self.employee.id, 'departure_date': date(2027, 1, 31), 'case': 'termination',
+            'award': 33750.00, 'total': 33750.00, 'state': 'confirmed',
+        })
+        self._posted_run('2027-01')
+        # The award the payroll entry pays out of the provision equals the accrual: the account is at zero.
+        self.assertEqual(self._provision_account_totals(), (Decimal('33750.00'), Decimal('33750.00')))
+        res = self._provision('2027-01')
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'invalid'))
+        self.assertFalse(self.env['webvue.hr.payroll.eos.provision'].search([
+            ('company_id', '=', self.company.id), ('month', '=', date(2027, 1, 1)),
+        ]))
+        # The month after: the payout is netted against the accrual, so it is not released a second time.
+        second = self._second_leaver(date(2027, 2, 28))
+        self._posted_run('2027-02', [second])
+        res = self._provision('2027-02')
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'invalid'))
+        self.assertEqual(self._provision_account_totals(), (Decimal('33750.00'), Decimal('33750.00')))
+
+    def test_settlement_in_an_unposted_month_releases_only_the_unpaid_part(self):
+        """A leaver settled in a month whose provision was never posted: the next month books only the part
+        their payout did not cover, so the provision account is never debited more than it was credited."""
+        self._posted_run('2026-11')
+        self.assertEqual(self._provision('2026-11').status_code, 201)
+        self.employee.departure_date = date(2027, 1, 31)
+        self.env['webvue.hr.payroll.eos.settlement'].create({
+            'employee_id': self.employee.id, 'departure_date': date(2027, 1, 31), 'case': 'termination',
+            'award': 30000.00, 'total': 30000.00, 'state': 'confirmed',
+        })
+        self._posted_run('2027-01')
+        self.assertEqual(self._provision_account_totals(), (Decimal('33750.00'), Decimal('30000.00')))
+        second = self._second_leaver(date(2027, 2, 28))
+        self._posted_run('2027-02', [second])
+        res = self._provision('2027-02')
+        self.assertEqual(res.status_code, 201, res.text)
+        self.assertEqual(res.json()['amount'], 3750.00)
+        self.assertEqual(self._provision_account_totals(), (Decimal('33750.00'), Decimal('33750.00')))
         self.assertEqual(self._accrual().amount, 0)
 
     def test_one_provision_per_month(self):
