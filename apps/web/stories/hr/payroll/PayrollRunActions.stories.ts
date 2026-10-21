@@ -50,3 +50,5 @@ export const ApprovedWithFinance: Story = { name: 'معتمد: ترحيل متا
 export const Posting: Story = { name: 'ترحيل قيد التنفيذ', args: { pending: 'post', run: { ...run, state: 'approved', allowed_actions: ['post'] } } }
 
 export const Posted: Story = { name: 'مرحّل: تسجيل الصرف', args: { run: { ...run, state: 'posted', allowed_actions: ['record_payment'] } } }
+
+export const EosProvision: Story = { name: 'مخصص نهاية الخدمة', args: { run: { ...run, state: 'approved', allowed_actions: ['post', 'eos_provision'] } } }

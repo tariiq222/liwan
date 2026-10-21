@@ -14,6 +14,19 @@ const PEOPLE = [
 ]
 const GOSI_EMPLOYEE = 0.0975
 const GOSI_EMPLOYER = 0.1175
+// End of service: the leavers of the offboarding preview (hr-areas-ui-preview-data.mjs) with their departure reason and
+// date. Employee 3 is the signed-in employee (the own-settlement refusal), and has no reason, so her case is chosen by
+// hand. The award is a small stand-in for the engine's formulas, not their rules.
+const EOS_LEAVERS = {
+  2: { employee: { id: 2, name: 'خالد الشمري' }, reasonId: 1, date: '2026-11-30' },
+  3: { employee: { id: 3, name: 'منى القحطاني' }, reasonId: null, date: '2026-12-15' },
+  4: { employee: { id: 4, name: 'ليلى الدوسري' }, reasonId: 2, date: '2026-08-15' },
+}
+const OWN_EMPLOYEE_ID = 3
+const EOS_CASES = ['termination', 'contract_expiry', 'resignation', 'force_majeure', 'marriage_childbirth', 'no_award']
+const EOS_WAGE = 10500
+const EOS_YEARS = 2.99
+const EOS_LEAVE_DAYS = 12.5
 const money = value => Math.round(value * 100) / 100
 const noInputs = () => Object.fromEntries(INPUT_KEYS.map(key => [key, 0]))
 
@@ -41,6 +54,9 @@ function seed(finance = true, previewError = false, ibansComplete = false) {
       { id: 2, branch: 'hazards', nationality_class: 'non_saudi', date_from: '2026-01-01', employee_rate: 0, employer_rate: 2, wage_min: 0, wage_max: 45000, shared: false },
     ],
     nextRateId: 3,
+    eosCases: [{ reasonId: 1, name: 'استقالة', case: 'resignation' }, { reasonId: 2, name: 'انتهاء العقد', case: null }],
+    settlements: {},
+    provisions: [],
     previewError,
     ibansComplete,
     profiles: [
@@ -94,7 +110,10 @@ function totals(run) {
 
 const BASE_ACTIONS = { draft: ['compute', 'cancel', 'edit_inputs'], computed: ['compute', 'approve', 'cancel', 'edit_inputs'], approved: [], posted: [], paid: [] }
 const FINANCE_ACTIONS = { approved: ['post'], posted: ['record_payment'] }
-const actionsOf = run => state.finance ? FINANCE_ACTIONS[run.state] ?? BASE_ACTIONS[run.state] : BASE_ACTIONS[run.state]
+const provisioned = run => state.provisions.some(item => item.month === run.month)
+// The end-of-service provision is offered once per month, for a run whose figures are fixed.
+const provisionActions = run => state.finance && ['approved', 'posted', 'paid'].includes(run.state) && !provisioned(run) ? ['eos_provision'] : []
+const actionsOf = run => [...(state.finance ? FINANCE_ACTIONS[run.state] ?? BASE_ACTIONS[run.state] : BASE_ACTIONS[run.state]), ...provisionActions(run)]
 
 function summary(run) {
   return { id: run.id, month: run.month, state: run.state, employee_count: run.slips.length, totals: totals(run), approved_at: run.approvedAt }
@@ -161,7 +180,39 @@ const ownSlips = () => state.runs.filter(run => ['approved', 'posted', 'paid'].i
 const runRoute = /^\/api\/v1\/hr\/payroll\/runs\/(\d+)(?:\/(compute|approve|payslips|posting-preview|post|payment|bank-file|wps-file|gosi-statement))?(?:\/(\d+))?(?:\/(inputs))?$/
 const findRun = id => state.runs.find(run => run.id === Number(id))
 
+const eosRoute = /^\/api\/v1\/hr\/payroll\/eos\/(\d+)\/(estimate|settlement)$/
+
+/** The case a leaver is awarded under: the one asked for, otherwise the one its departure reason maps to. */
+function caseOf(leaver, asked) {
+  if (asked) return asked
+  return state.eosCases.find(mapping => mapping.reasonId === leaver.reasonId)?.case ?? null
+}
+
+function eosFigures(leaver, awardCase, openDeductions = 0) {
+  const award = awardCase === 'no_award' ? 0 : money(EOS_WAGE * 0.5 * EOS_YEARS * (awardCase === 'resignation' ? 1 / 3 : 1))
+  const leaveAmount = money(EOS_WAGE / state.settings.day_divisor * EOS_LEAVE_DAYS)
+  return { service_years: EOS_YEARS, eos_wage: EOS_WAGE, case: awardCase, award, leave_days: EOS_LEAVE_DAYS, leave_amount: leaveAmount, open_deductions: openDeductions, total: money(award + leaveAmount - openDeductions) }
+}
+
+function eosEstimate(leaver, url) {
+  const awardCase = caseOf(leaver, url.searchParams.get('case'))
+  if (!awardCase) return { refusal: { status: 422, body: { code: 'eos_case_missing', message: 'the departure reason has no award case', field: 'case' } } }
+  const { open_deductions: _open, total: _total, ...figuresOfCase } = eosFigures(leaver, awardCase)
+  return { employee: leaver.employee, start_date: '2023-12-01', end_date: url.searchParams.get('date') ?? leaver.date, ...figuresOfCase }
+}
+
+const settlementOf = (leaver, saved) => ({ id: leaver.employee.id + 50, employee: leaver.employee, departure_date: saved.state === 'confirmed' ? leaver.date : null, departure_mismatch: false, state: saved.state, ...eosFigures(leaver, saved.case, saved.openDeductions) })
+
 export function hrPayrollPreviewData(route, url) {
+  const eos = eosRoute.exec(route)
+  if (eos) {
+    const leaver = EOS_LEAVERS[eos[1]]
+    if (!leaver) return undefined
+    if (eos[2] === 'estimate') return eosEstimate(leaver, url)
+    return state.settlements[eos[1]] ? settlementOf(leaver, state.settlements[eos[1]]) : { refusal: { status: 404, body: { code: 'not_found', message: 'no settlement yet' } } }
+  }
+  if (route === '/api/v1/hr/payroll/eos-cases') return { items: state.eosCases.map(mapping => ({ departure_reason: { id: mapping.reasonId, name: mapping.name }, case: mapping.case })), total: state.eosCases.length }
+  if (route === '/api/v1/hr/payroll/eos-provisions') return state.finance && { items: state.provisions, total: state.provisions.length }
   if (route === '/api/v1/hr/payroll/settings') return state.settings
   if (route === '/api/v1/hr/payroll/gosi-rates') return { items: state.rates, total: state.rates.length }
   if (route === '/api/v1/hr/payroll/bank-profiles') return { items: state.profiles, total: state.profiles.length }
@@ -258,6 +309,41 @@ export function hrPayrollPreviewWrite(method, route, body) {
     if (!('analytic_account_id' in body)) return invalid('analytic_account_id is required', 'analytic_account_id')
     center.analytic_account = body.analytic_account_id === null ? null : { id: body.analytic_account_id, name: 'مركز تكلفة' }
     return ok(center)
+  }
+  const eosWrite = /^\/api\/v1\/hr\/payroll\/eos\/(\d+)\/settlement(\/confirm)?$/.exec(route)
+  if (eosWrite) {
+    const leaver = EOS_LEAVERS[eosWrite[1]]
+    if (!leaver) return notFound
+    const saved = state.settlements[eosWrite[1]]
+    if (eosWrite[2] && method === 'POST') {
+      if (!saved) return notFound
+      if (leaver.employee.id === OWN_EMPLOYEE_ID) return { status: 403, body: { code: 'transition_forbidden', message: 'you cannot confirm your own settlement' } }
+      if (saved.state === 'confirmed') return { status: 403, body: { code: 'transition_forbidden', message: 'the settlement is already confirmed' } }
+      saved.state = 'confirmed'
+      return ok(settlementOf(leaver, saved))
+    }
+    if (method === 'PUT') {
+      if (!EOS_CASES.includes(body.case)) return invalid('case is not an award case', 'case')
+      if (typeof body.open_deductions !== 'number' || body.open_deductions < 0) return invalid('open_deductions must be zero or more', 'open_deductions')
+      if (saved?.state === 'confirmed') return { status: 403, body: { code: 'transition_forbidden', message: 'a confirmed settlement cannot be changed' } }
+      state.settlements[eosWrite[1]] = { state: 'draft', case: body.case, openDeductions: body.open_deductions }
+      return ok(settlementOf(leaver, state.settlements[eosWrite[1]]))
+    }
+  }
+  if (method === 'PUT' && route === '/api/v1/hr/payroll/eos-cases') {
+    const mapping = state.eosCases.find(item => item.reasonId === body.departure_reason_id)
+    if (!mapping) return notFound
+    if (!EOS_CASES.includes(body.case)) return invalid('case is not an award case', 'case')
+    mapping.case = body.case
+    return ok({ departure_reason: { id: mapping.reasonId, name: mapping.name }, case: mapping.case })
+  }
+  if (method === 'POST' && route === '/api/v1/hr/payroll/eos-provisions') {
+    if (!state.finance) return notFound
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(body.month))) return invalid('month must be a YYYY-MM month', 'month')
+    if (state.provisions.some(item => item.month === body.month)) return { status: 422, body: { code: 'duplicate', message: 'a provision exists for this month', field: 'month' } }
+    const item = { month: body.month, entry_id: 100 + state.provisions.length, entry_name: `JE/${body.month.replace('-', '/')}/EOS`, amount: 1500 }
+    state.provisions.push(item)
+    return { status: 201, body: item }
   }
   if (method === 'POST' && route === '/api/v1/hr/payroll/gosi-rates') {
     const rate = { id: state.nextRateId++, ...body, shared: false }

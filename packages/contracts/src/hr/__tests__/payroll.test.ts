@@ -5,6 +5,15 @@ import {
   HrBankProfileSchema,
   HrBankProfileWriteSchema,
   HrCompensationWriteSchema,
+  HrEosCaseMapListSchema,
+  HrEosCaseMapWriteSchema,
+  HrEosCaseSchema,
+  HrEosEstimateSchema,
+  HrEosProvisionCreateSchema,
+  HrEosProvisionListSchema,
+  HrEosProvisionSchema,
+  HrSettlementSchema,
+  HrSettlementWriteSchema,
   HrGosiStatementSchema,
   HrGosiRateListSchema,
   HrGosiRateSchema,
@@ -262,5 +271,70 @@ describe('salary file schemas', () => {
     expect(HrGosiStatementSchema.safeParse({ ...STATEMENT, extra: 1 }).success).toBe(false)
     const line = { ...STATEMENT.lines[0], branches: { other: { employee: 1, employer: 1 } } }
     expect(HrGosiStatementSchema.safeParse({ ...STATEMENT, lines: [line] }).success).toBe(false)
+  })
+})
+
+describe('end of service contracts', () => {
+  const EMPLOYEE = { id: 3, name: 'ليلى الحربي' }
+  const ESTIMATE = {
+    employee: EMPLOYEE,
+    start_date: '2023-12-01',
+    end_date: '2026-11-30',
+    service_years: 2.99,
+    eos_wage: 10500,
+    case: 'resignation',
+    award: 5250,
+    leave_days: 12.5,
+    leave_amount: 4375,
+  }
+  const SETTLEMENT = {
+    id: 7,
+    employee: EMPLOYEE,
+    departure_date: '2026-11-30',
+    departure_mismatch: false,
+    case: 'resignation',
+    service_years: 2.99,
+    eos_wage: 10500,
+    award: 5250,
+    leave_days: 12.5,
+    leave_amount: 4375,
+    open_deductions: 300,
+    total: 9325,
+    state: 'draft',
+  }
+
+  it('knows the six award cases', () => {
+    expect(HrEosCaseSchema.options).toEqual(['termination', 'contract_expiry', 'resignation', 'force_majeure', 'marriage_childbirth', 'no_award'])
+  })
+
+  it('accepts the estimate and the settlement and rejects an unknown key or case', () => {
+    expect(HrEosEstimateSchema.parse(ESTIMATE)).toEqual(ESTIMATE)
+    expect(HrEosEstimateSchema.safeParse({ ...ESTIMATE, extra: 1 }).success).toBe(false)
+    expect(HrSettlementSchema.parse(SETTLEMENT)).toEqual(SETTLEMENT)
+    expect(HrSettlementSchema.parse({ ...SETTLEMENT, state: 'confirmed' }).state).toBe('confirmed')
+    expect(HrSettlementSchema.safeParse({ ...SETTLEMENT, case: 'other' }).success).toBe(false)
+    expect(HrSettlementSchema.safeParse({ ...SETTLEMENT, state: 'paid' }).success).toBe(false)
+  })
+
+  it('writes a settlement with a case and non-negative open deductions', () => {
+    expect(HrSettlementWriteSchema.parse({ case: 'termination', open_deductions: 0 })).toEqual({ case: 'termination', open_deductions: 0 })
+    expect(HrSettlementWriteSchema.safeParse({ case: 'termination', open_deductions: -1 }).success).toBe(false)
+    expect(HrSettlementWriteSchema.safeParse({ case: 'x', open_deductions: 1 }).success).toBe(false)
+  })
+
+  it('maps departure reasons to cases, with an unmapped reason', () => {
+    const list = { items: [{ departure_reason: { id: 1, name: 'مفصول' }, case: 'termination' }, { departure_reason: { id: 2, name: 'أخرى' }, case: null }], total: 2 }
+    expect(HrEosCaseMapListSchema.parse(list)).toEqual(list)
+    expect(HrEosCaseSchema.safeParse(null).success).toBe(false)
+    expect(HrEosCaseMapWriteSchema.parse({ departure_reason_id: 2, case: 'no_award' })).toEqual({ departure_reason_id: 2, case: 'no_award' })
+    expect(HrEosCaseMapWriteSchema.safeParse({ departure_reason_id: 0, case: 'no_award' }).success).toBe(false)
+  })
+
+  it('lists the posted provisions and creates one for a month', () => {
+    const item = { month: '2026-10', entry_id: 9, entry_name: 'JE/2026/0009', amount: 12000 }
+    expect(HrEosProvisionSchema.parse(item)).toEqual(item)
+    expect(HrEosProvisionListSchema.parse({ items: [item], total: 1 }).total).toBe(1)
+    expect(HrEosProvisionCreateSchema.parse({ month: '2026-10' })).toEqual({ month: '2026-10' })
+    expect(HrEosProvisionCreateSchema.safeParse({ month: '2026-13' }).success).toBe(false)
   })
 })

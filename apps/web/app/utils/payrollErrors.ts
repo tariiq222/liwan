@@ -3,7 +3,7 @@ import { ApiError } from '../composables/useApi'
 type Translate = (key: string, params?: Record<string, unknown>) => string
 
 // The refusals of the payroll routes that have their own text on the page; the server's message is English.
-const OWN_TEXT = new Set(['duplicate', 'transition_forbidden', 'structure_missing', 'contract_missing', 'gosi_rate_missing', 'payroll_structure_mismatch', 'compensation_missing', 'settlement_missing', 'period_locked', 'missing_cost_center', 'settings_incomplete', 'wps_totals_mismatch'])
+const OWN_TEXT = new Set(['duplicate', 'transition_forbidden', 'structure_missing', 'contract_missing', 'gosi_rate_missing', 'payroll_structure_mismatch', 'compensation_missing', 'settlement_missing', 'eos_case_missing', 'period_locked', 'missing_cost_center', 'settings_incomplete', 'wps_totals_mismatch'])
 // The refusals that list the employees they name.
 const NAMING = new Set(['negative_net', 'missing_iban'])
 

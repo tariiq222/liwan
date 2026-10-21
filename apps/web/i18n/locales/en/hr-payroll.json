@@ -66,7 +66,10 @@
       "postHint": "The payroll entry is created in accounting and the run can no longer be changed. Review the proposed entry below.",
       "recordPayment": "Record salary payment",
       "paymentTitle": "Record the salary payment?",
-      "paymentHint": "The net pay is recorded as paid from the chosen journal on the given date."
+      "paymentHint": "The net pay is recorded as paid from the chosen journal on the given date.",
+      "eosProvision": "Post the end-of-service provision",
+      "eosProvisionTitle": "Post the end-of-service provision for this month?",
+      "eosProvisionHint": "The provision entry is created in accounting for this run's month and cannot be posted twice for the same month."
     },
     "warnings": {
       "title": "Warnings to review",
@@ -289,7 +292,8 @@
       "missing_iban": "{count} employee(s) have no IBAN ({names}). Record it in the compensation and download again.",
       "wps_totals_mismatch": "The WPS file totals do not match the run totals. Review the run before downloading.",
       "missing_iban_count": "{count} employee(s) have no IBAN. Record it in the compensation and download again.",
-      "negative_net_count": "The net pay is negative for {count} employee(s). Adjust the deductions and compute again."
+      "negative_net_count": "The net pay is negative for {count} employee(s). Adjust the deductions and compute again.",
+      "eos_case_missing": "The departure reason has no award case. Pick the case here or map it in the payroll settings."
     },
     "compensation": {
       "title": "Compensation",
@@ -391,6 +395,52 @@
       "saveError": "The cost center could not be saved",
       "empty": "No departments",
       "truncated": "The list is shortened: only the first 200 cost centers are shown, plus each department's current one."
+    },
+    "eos": {
+      "title": "End-of-service settlement",
+      "hint": "The end-of-service award, the leave balance and the open deductions of this employee. They enter the departure month's payslip once confirmed.",
+      "case": "Award case",
+      "casePlaceholder": "Choose the case",
+      "cases": {
+        "termination": "Termination by the employer",
+        "contract_expiry": "Contract expiry",
+        "resignation": "Resignation",
+        "force_majeure": "Force majeure",
+        "marriage_childbirth": "Resignation of a woman for marriage or childbirth",
+        "no_award": "No award"
+      },
+      "serviceYears": "Years of service",
+      "wage": "Award wage",
+      "award": "End-of-service award",
+      "leaveDays": "Remaining leave days",
+      "leaveAmount": "Leave payout",
+      "openDeductions": "Open deductions",
+      "openDeductionsHint": "Advances or obligations deducted from the settlement.",
+      "deductionsInvalid": "Enter a valid amount with at most two decimals.",
+      "total": "Net settlement",
+      "pickCase": "Choose the award case to see the estimate.",
+      "save": "Save settlement",
+      "confirm": "Confirm settlement",
+      "confirmTitle": "Confirm the end-of-service settlement?",
+      "confirmHint": "Once confirmed the figures are locked and enter the departure month's payslip.",
+      "state": {
+        "draft": "Draft",
+        "confirmed": "Confirmed"
+      },
+      "mismatch": "The settlement was confirmed for a different departure date ({date}). Review the departure date.",
+      "ownRecordForbidden": "You cannot confirm your own end-of-service settlement. Someone else with the approval capability confirms it."
+    },
+    "eosCases": {
+      "title": "End-of-service cases",
+      "hint": "The case each departure reason is awarded under.",
+      "reason": "Departure reason",
+      "case": "Case",
+      "unmapped": "Not mapped",
+      "empty": "No departure reasons",
+      "saveError": "Could not save the case"
+    },
+    "eosProvisions": {
+      "posted": "End-of-service provision posted for this month: {name}"
     }
   }
 }

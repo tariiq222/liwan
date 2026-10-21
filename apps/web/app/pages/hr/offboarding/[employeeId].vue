@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import RunSteps from '@/components/hr/lifecycle/RunSteps.vue'
 import DepartureForm from '@/components/hr/lifecycle/DepartureForm.vue'
+import EosSettlementSection from '@/components/hr/payroll/EosSettlementSection.vue'
 import { useCompleteHrOffboardingStep, useHrDeparture, useHrOffboardingRun } from '@/composables/useHrOffboarding'
 import { ApiError } from '@/composables/useApi'
+import { payrollErrorMessage } from '@/utils/payrollErrors'
+import type { HrEosCase, HrSettlementWrite } from '@webvue/contracts'
 
 const NAMESPACE = 'hrOffboarding'
 const route = useRoute()
@@ -33,6 +36,44 @@ async function complete(stepId: number, feedback?: string) {
   } catch (error) {
     stepError.value = error
   }
+}
+
+// The end-of-service settlement is payroll data: it is neither fetched nor shown without `hr.payroll.read` (which
+// carries the `hr.payroll` sub-feature gate). Until a settlement is saved the section shows the server's estimate for the
+// departure date; the case the user picks (or the departure reason maps to) drives it.
+const canReadPayroll = computed(() => can('hr.payroll.read'))
+const settlementQuery = useHrSettlement(computed(() => validId.value ? employeeId.value : 0))
+const settlement = computed(() => settlementQuery.data.value ?? null)
+const chosenCase = ref<HrEosCase | null>(null)
+const estimateParams = computed(() => departure.value && settlementQuery.data.value === null
+  ? { date: departure.value.departure_date, case: chosenCase.value ?? undefined }
+  : null)
+const estimate = useHrEosEstimate(computed(() => validId.value ? employeeId.value : 0), estimateParams)
+const eosCase = computed<HrEosCase | null>({
+  get: () => chosenCase.value ?? settlement.value?.case ?? estimate.data.value?.case ?? null,
+  set: (value) => { chosenCase.value = value },
+})
+const saveSettlement = useSaveHrSettlement(computed(() => employeeId.value))
+const confirmSettlement = useConfirmHrSettlement(computed(() => employeeId.value))
+const eosFailure = ref<unknown>(null)
+// Confirming one's own settlement is refused with `transition_forbidden`: say that, not the payroll-run wording.
+const eosConfirmRefused = ref(false)
+const eosError = computed(() => {
+  const failure = eosFailure.value ?? settlementQuery.error.value ?? estimate.error.value
+  if (!failure) return ''
+  return eosConfirmRefused.value && failure instanceof ApiError && failure.code === 'transition_forbidden'
+    ? t('hrPayroll.eos.ownRecordForbidden')
+    : payrollErrorMessage(failure, t, new Map())
+})
+async function saveEos(body: HrSettlementWrite) {
+  eosFailure.value = null
+  eosConfirmRefused.value = false
+  try { await saveSettlement.mutateAsync(body) } catch (error) { eosFailure.value = error }
+}
+async function confirmEos() {
+  eosFailure.value = null
+  eosConfirmRefused.value = true
+  try { await confirmSettlement.mutateAsync() } catch (error) { eosFailure.value = error }
 }
 </script>
 
@@ -77,6 +118,20 @@ async function complete(stepId: number, feedback?: string) {
       <SharedPageState v-else-if="!clearanceId" :empty="true" :empty-text="t(`${NAMESPACE}.run.noSteps`)" />
       <RunSteps v-else-if="clearance.data.value" :run="clearance.data.value" :namespace="NAMESPACE" :pending="isPending" @complete="complete" />
     </SharedRecordSection>
+    <EosSettlementSection
+      v-if="departure && canReadPayroll && settlementQuery.data.value !== undefined"
+      v-model:case="eosCase"
+      :settlement="settlement"
+      :estimate="estimate.data.value ?? null"
+      :estimate-loading="estimate.isLoading.value"
+      :can-manage="can('hr.payroll.manage')"
+      :can-approve="can('hr.payroll.approve')"
+      :saving="saveSettlement.isPending.value"
+      :confirming="confirmSettlement.isPending.value"
+      :error="eosError"
+      @save="saveEos"
+      @confirm="confirmEos"
+    />
     <DepartureForm v-if="departure && can('hr.offboarding.manage')" :namespace="NAMESPACE" :departure="departure" :back-to="backTo" />
     <template v-if="departure" #aside>
       <SharedPropertiesPanel>

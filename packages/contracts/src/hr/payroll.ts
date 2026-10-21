@@ -346,3 +346,68 @@ export type HrBankProfileList = z.infer<typeof HrBankProfileListSchema>
 export type HrBankProfileWrite = z.infer<typeof HrBankProfileWriteSchema>
 export type HrGosiStatementLine = z.infer<typeof HrGosiStatementLineSchema>
 export type HrGosiStatement = z.infer<typeof HrGosiStatementSchema>
+
+// ---- End of service: the award estimate, the final settlement of a leaver, the departure-reason case map and the provision ----
+export const HR_EOS_CASES = ['termination', 'contract_expiry', 'resignation', 'force_majeure', 'marriage_childbirth', 'no_award'] as const
+export const HrEosCaseSchema = z.enum(HR_EOS_CASES)
+
+export const HrEosEstimateSchema = z.object({
+  employee: HrRefSchema,
+  start_date: isoDate,
+  end_date: isoDate,
+  service_years: z.number().min(0),
+  eos_wage: amount,
+  case: HrEosCaseSchema,
+  award: amount,
+  leave_days: z.number(),
+  leave_amount: amount,
+}).strict()
+
+export const HrSettlementSchema = z.object({
+  id: z.number().int().positive(),
+  employee: HrRefSchema,
+  departure_date: isoDate.nullable(),
+  // True when the employee's departure date changed after the settlement was confirmed.
+  departure_mismatch: z.boolean(),
+  case: HrEosCaseSchema,
+  service_years: z.number().min(0),
+  eos_wage: amount,
+  award: amount,
+  leave_days: z.number(),
+  leave_amount: amount,
+  open_deductions: amount,
+  total: z.number(),
+  state: z.enum(['draft', 'confirmed']),
+}).strict()
+
+// A draft settlement is saved with its case and the deductions still open; the figures are the server's.
+export const HrSettlementWriteSchema = z.object({ case: HrEosCaseSchema, open_deductions: amount }).strict()
+
+export const HrEosCaseMapSchema = z.object({ departure_reason: HrRefSchema, case: HrEosCaseSchema.nullable() }).strict()
+
+export const HrEosCaseMapListSchema = z.object({ items: z.array(HrEosCaseMapSchema), total: z.number().int().nonnegative() }).strict()
+
+export const HrEosCaseMapWriteSchema = z.object({ departure_reason_id: z.number().int().positive(), case: HrEosCaseSchema }).strict()
+
+// The monthly provision posted by the finance bridge.
+export const HrEosProvisionSchema = z.object({
+  month: payrollMonth,
+  entry_id: z.number().int().positive(),
+  entry_name: z.string(),
+  amount: z.number(),
+}).strict()
+
+export const HrEosProvisionListSchema = z.object({ items: z.array(HrEosProvisionSchema), total: z.number().int().nonnegative() }).strict()
+
+export const HrEosProvisionCreateSchema = z.object({ month: payrollMonth }).strict()
+
+export type HrEosCase = z.infer<typeof HrEosCaseSchema>
+export type HrEosEstimate = z.infer<typeof HrEosEstimateSchema>
+export type HrSettlement = z.infer<typeof HrSettlementSchema>
+export type HrSettlementWrite = z.infer<typeof HrSettlementWriteSchema>
+export type HrEosCaseMap = z.infer<typeof HrEosCaseMapSchema>
+export type HrEosCaseMapList = z.infer<typeof HrEosCaseMapListSchema>
+export type HrEosCaseMapWrite = z.infer<typeof HrEosCaseMapWriteSchema>
+export type HrEosProvision = z.infer<typeof HrEosProvisionSchema>
+export type HrEosProvisionList = z.infer<typeof HrEosProvisionListSchema>
+export type HrEosProvisionCreate = z.infer<typeof HrEosProvisionCreateSchema>

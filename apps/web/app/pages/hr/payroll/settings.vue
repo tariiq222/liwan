@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EosCaseMapTable from '@/components/hr/payroll/EosCaseMapTable.vue'
 import PayrollCostCenterTable from '@/components/hr/payroll/PayrollCostCenterTable.vue'
 import PayrollFinanceSettingsForm from '@/components/hr/payroll/PayrollFinanceSettingsForm.vue'
 import BankProfileForm from '@/components/hr/payroll/BankProfileForm.vue'
@@ -6,6 +7,7 @@ import GosiRateTable from '@/components/hr/payroll/GosiRateTable.vue'
 import PayrollGeneralSettingsForm from '@/components/hr/payroll/PayrollGeneralSettingsForm.vue'
 import { ApiError } from '@/composables/useApi'
 import { isTruncated } from '@/utils/payrollFinanceSettings'
+import type { HrEosCase } from '@webvue/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { owningListBack } from '@/utils/recordListOrigin'
 
@@ -49,21 +51,39 @@ async function changeCenter(payload: { departmentId: number; analyticAccountId: 
   }
 }
 const centerFailureMessage = computed(() => centerFailure.value ? saveErrorMessage(centerFailure.value, t('errors.generic'), t('errors.saveUncertain')) : '')
-const error = computed(() => settings.error.value ?? rates.error.value ?? bankProfiles.error.value)
+// The end-of-service case of each departure reason: a choice saves at once and only its row waits.
+const eosCases = useHrEosCases()
+const saveEosCase = useSaveHrEosCase()
+const savingReasons = ref<number[]>([])
+const eosFailure = ref<unknown>(null)
+async function changeEosCase(payload: { departureReasonId: number; case: HrEosCase }) {
+  eosFailure.value = null
+  savingReasons.value = [...savingReasons.value, payload.departureReasonId]
+  try { await saveEosCase.mutateAsync({ departure_reason_id: payload.departureReasonId, case: payload.case }) } catch (failure) { eosFailure.value = failure } finally {
+    savingReasons.value = savingReasons.value.filter(id => id !== payload.departureReasonId)
+  }
+}
+const eosFailureMessage = computed(() => eosFailure.value ? saveErrorMessage(eosFailure.value, t('errors.generic'), t('errors.saveUncertain')) : '')
+const error = computed(() => settings.error.value ?? rates.error.value ?? bankProfiles.error.value ?? eosCases.error.value)
 function retry() {
   void settings.refetch()
   void rates.refetch()
   void bankProfiles.refetch()
+  void eosCases.refetch()
 }
 </script>
 
 <template>
   <SharedSettingsPage width="list">
     <SharedPageHeader :title="t('hrPayroll.settings.title')" :back-to="backTo" :back-label="t('hrPayroll.title')" />
-    <SharedPageState :loading="settings.isLoading.value || rates.isLoading.value || bankProfiles.isLoading.value" :error="error" :empty="!settings.data.value" @retry="retry">
+    <SharedPageState :loading="settings.isLoading.value || rates.isLoading.value || bankProfiles.isLoading.value || eosCases.isLoading.value" :error="error" :empty="!settings.data.value" @retry="retry">
       <PayrollGeneralSettingsForm v-if="settings.data.value" :settings="settings.data.value" :leave-types="leaveTypeRefs" :can-edit="canConfig" />
       <GosiRateTable :rates="rates.data.value?.items ?? []" :can-edit="canConfig" />
       <BankProfileForm :profiles="bankProfiles.data.value?.items ?? []" :can-edit="canConfig" />
+      <SharedFormSection panel :title="t('hrPayroll.eosCases.title')" :description="t('hrPayroll.eosCases.hint')">
+        <UAlert v-if="eosFailureMessage" role="alert" color="error" variant="subtle" :title="t('hrPayroll.eosCases.saveError')" :description="eosFailureMessage" />
+        <EosCaseMapTable :mappings="eosCases.data.value?.items ?? []" :can-edit="canConfig" :saving="savingReasons" @change="changeEosCase" />
+      </SharedFormSection>
       <SharedPageState v-if="financeError" :error="financeError" @retry="finance.refetch" />
       <PayrollFinanceSettingsForm
         v-if="financeSettings"

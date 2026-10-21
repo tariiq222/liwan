@@ -226,6 +226,9 @@ test.describe('offboarding', () => {
     await expect(page.getByRole('link', { name: 'عهد الموظف' })).toHaveAttribute('href', '/hr/assets?employee_id=2')
     await open(page, '/hr/offboarding/4', 'ليلى الدوسري')
     await expect(page.getByText('إغلاق الحسابات')).toBeVisible()
+    // The record also reads the end-of-service settlement (a 404 before one is saved) and its estimate (a 422 for a
+    // reason without a case); the browser logs those requests and the section handles them.
+    errors = errors.filter(message => !/\b(404|422)\b/.test(message))
   })
 
   test('the create panel opens over the list and closing it returns with the filters', async ({ page }) => {

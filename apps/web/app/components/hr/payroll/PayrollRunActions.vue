@@ -3,12 +3,12 @@ import type { HrPayrollRun } from '@webvue/contracts'
 
 // The transitions of one payroll run. Compute is a plain action; approving (it locks the payslips), cancelling (it
 // deletes the run) and posting (it creates the accounting entry, whose preview the page fills in the `post-preview`
-// slot) ask for an inline confirmation first; recording the payment opens the page's `payment-form` slot, which is its
+// slot) ask for an inline confirmation first, as does the end-of-service provision (a second accounting entry for the run's month, offered by the finance bridge); recording the payment opens the page's `payment-form` slot, which is its
 // own confirmation. Every action stays pending until the server answers, and the buttons offered are exactly the
 // run's `allowed_actions` (post and record_payment exist only with the finance bridge). Not printed.
-type Action = 'compute' | 'approve' | 'cancel' | 'post' | 'record_payment'
-type Asking = 'approve' | 'cancel' | 'post' | 'record_payment'
-const ACTIONS: Action[] = ['compute', 'approve', 'post', 'record_payment', 'cancel']
+type Action = 'compute' | 'approve' | 'cancel' | 'post' | 'record_payment' | 'eos_provision'
+type Asking = 'approve' | 'cancel' | 'post' | 'record_payment' | 'eos_provision'
+const ACTIONS: Action[] = ['compute', 'approve', 'post', 'record_payment', 'eos_provision', 'cancel']
 const props = defineProps<{
   run: HrPayrollRun
   /** The action in flight, or null. */
@@ -16,7 +16,7 @@ const props = defineProps<{
   /** False while the posting preview is not shown yet (loading or refused): posting then waits. */
   postReady?: boolean
 }>()
-const emit = defineEmits<{ compute: []; approve: []; cancel: []; post: [] }>()
+const emit = defineEmits<{ compute: []; approve: []; cancel: []; post: []; eosProvision: [] }>()
 /** The action the user is being asked to confirm; the page reads it to load the posting preview only when it is shown. */
 const confirming = defineModel<Asking | null>('confirming', { default: null })
 
@@ -75,6 +75,16 @@ watch(() => props.pending, (now, was) => { if (was && !now && was !== 'post' && 
         @click="confirming = 'record_payment'"
       />
       <UButton
+        v-if="allowed('eos_provision')"
+        color="primary"
+        variant="outline"
+        icon="i-lucide-piggy-bank"
+        :disabled="busy"
+        :label="t('hrPayroll.actions.eosProvision')"
+        data-testid="hr-payroll-eos-provision"
+        @click="confirming = 'eos_provision'"
+      />
+      <UButton
         v-if="allowed('cancel')"
         color="error"
         variant="outline"
@@ -109,6 +119,16 @@ watch(() => props.pending, (now, was) => { if (was && !now && was !== 'post' && 
       />
     </div>
     <slot v-if="confirming === 'record_payment' && allowed('record_payment')" name="payment-form" :close="() => { confirming = null }" />
+    <SharedInlineConfirm
+      v-if="confirming === 'eos_provision' && allowed('eos_provision')"
+      color="primary"
+      :title="t('hrPayroll.actions.eosProvisionTitle')"
+      :description="t('hrPayroll.actions.eosProvisionHint')"
+      :confirm-label="t('hrPayroll.actions.eosProvision')"
+      :pending="props.pending === 'eos_provision'"
+      @confirm="emit('eosProvision')"
+      @cancel="confirming = null"
+    />
     <SharedInlineConfirm
       v-if="confirming === 'cancel' && allowed('cancel')"
       :title="t('hrPayroll.actions.cancelTitle')"

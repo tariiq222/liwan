@@ -357,6 +357,79 @@ test.describe('payroll salary files', () => {
   })
 })
 
+// The settlement section of the offboarding record (leavers of the offboarding preview: 2 resigned, 3 is the signed-in
+// employee with no mapped reason). The first read of a settlement that does not exist yet is a 404, and a missing case or
+// a refused confirmation is a 422 or 403: the browser logs those requests, they are the behaviour under test.
+const expectedRefusals = (messages: string[]) => messages.filter(message => !/\b(404|403|422)\b/.test(message))
+
+test.describe('end of service', () => {
+  test('offboarding record shows the settlement only with payroll read', async ({ page }) => {
+    await open(page, '/hr/offboarding/2', 'خالد الشمري')
+    await expect(page.getByTestId('hr-eos-section')).toBeVisible()
+    await expect(page.getByTestId('hr-eos-figures')).toContainText('سنوات الخدمة')
+    await page.context().addCookies([{ name: 'mock_caps', value: 'no_payroll', url: new URL(page.url()).origin }])
+    await page.reload()
+    await expect(heading(page, 'خالد الشمري')).toBeVisible()
+    await expect(page.getByTestId('hr-eos-section')).toHaveCount(0)
+    errors = expectedRefusals(errors)
+  })
+
+  test('a settlement is saved with Arabic-digit deductions and confirmed inline', async ({ page }) => {
+    await open(page, '/hr/offboarding/2', 'خالد الشمري')
+    await expect(page.getByTestId('hr-eos-case')).toContainText('استقالة')
+    await page.getByTestId('hr-eos-deductions').fill('٣٠٠')
+    await page.getByTestId('hr-eos-save').click()
+    await expect(page.getByTestId('hr-eos-state')).toHaveText('مسودة')
+    await expect(page.getByTestId('hr-eos-total')).toContainText('9,307.50')
+    // Confirming asks first, inline; cancelling changes nothing.
+    await page.getByTestId('hr-eos-confirm').click()
+    await expect(page.getByTestId('inline-confirm')).toContainText('اعتماد تسوية نهاية الخدمة؟')
+    await page.getByTestId('inline-confirm-cancel').click()
+    await expect(page.getByTestId('hr-eos-state')).toHaveText('مسودة')
+    await page.getByTestId('hr-eos-confirm').click()
+    await page.getByTestId('inline-confirm-action').click()
+    await expect(page.getByTestId('hr-eos-state')).toHaveText('معتمدة')
+    await expect(page.getByTestId('hr-eos-save')).toHaveCount(0)
+    errors = expectedRefusals(errors)
+  })
+
+  test('a reason without a case asks for one, and the own settlement cannot be confirmed', async ({ page }) => {
+    await open(page, '/hr/offboarding/3', 'منى القحطاني')
+    await expect(page.getByTestId('hr-eos-failure')).toContainText('سبب المغادرة غير مربوط بحالة مكافأة')
+    await page.getByTestId('hr-eos-case').click()
+    await page.getByRole('option', { name: 'إنهاء من صاحب العمل' }).click()
+    await expect(page.getByTestId('hr-eos-figures')).toContainText('مكافأة نهاية الخدمة')
+    await page.getByTestId('hr-eos-save').click()
+    await expect(page.getByTestId('hr-eos-state')).toHaveText('مسودة')
+    await page.getByTestId('hr-eos-confirm').click()
+    await page.getByTestId('inline-confirm-action').click()
+    await expect(page.getByTestId('hr-eos-failure')).toContainText('لا يمكنك اعتماد تسوية نهاية خدمتك')
+    await expect(page.getByTestId('hr-eos-state')).toHaveText('مسودة')
+    errors = expectedRefusals(errors)
+  })
+
+  test('the settings map a departure reason to a case', async ({ page }) => {
+    await open(page, '/hr/payroll/settings', 'إعدادات الرواتب')
+    await expect(page.getByTestId('hr-eos-case-2')).toContainText('غير مربوط')
+    await page.getByTestId('hr-eos-case-2').click()
+    await page.getByRole('option', { name: 'انتهاء العقد' }).click()
+    await page.reload()
+    await expect(page.getByTestId('hr-eos-case-2')).toContainText('انتهاء العقد')
+  })
+
+  test('an approved run posts the end-of-service provision once, after an inline confirmation', async ({ page }) => {
+    await open(page, '/hr/payroll/1', 'مسير رواتب أكتوبر 2026')
+    await page.getByTestId('hr-payroll-eos-provision').click()
+    await expect(page.getByTestId('inline-confirm')).toContainText('تكوين مخصص نهاية الخدمة لهذا الشهر؟')
+    await page.getByTestId('inline-confirm-cancel').click()
+    await expect(page.getByTestId('hr-payroll-eos-provision-entry')).toHaveCount(0)
+    await page.getByTestId('hr-payroll-eos-provision').click()
+    await page.getByTestId('inline-confirm-action').click()
+    await expect(page.getByTestId('hr-payroll-eos-provision')).toHaveCount(0)
+    await expect(page.getByTestId('hr-payroll-eos-provision-entry')).toContainText('JE/2026/10/EOS')
+  })
+})
+
 test.describe('payroll pages for a reader', () => {
   test('a reader without the manage capability gets no create button', async ({ page }) => {
     await page.goto('/login')

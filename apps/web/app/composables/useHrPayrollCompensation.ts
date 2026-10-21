@@ -9,6 +9,7 @@ type Api = ReturnType<typeof useApi>['$api']
 export const hrPayrollKeys = {
   all: ['hr', 'payroll'] as const,
   compensation: (employeeId: number) => ['hr', 'payroll', 'compensation', employeeId] as const,
+  runs: ['hr', 'payroll', 'runs'] as const,
   runLists: ['hr', 'payroll', 'runs', 'list'] as const,
   runList: (query: object) => ['hr', 'payroll', 'runs', 'list', query] as const,
   run: (runId: number) => ['hr', 'payroll', 'runs', 'detail', runId] as const,
@@ -22,6 +23,10 @@ export const hrPayrollKeys = {
   financeSettings: ['hr', 'payroll', 'finance-settings'] as const,
   costCenters: ['hr', 'payroll', 'cost-centers'] as const,
   postingPreview: (runId: number) => ['hr', 'payroll', 'runs', runId, 'posting-preview'] as const,
+  settlement: (employeeId: number) => ['hr', 'payroll', 'settlement', employeeId] as const,
+  eosEstimate: (employeeId: number, params: object) => ['hr', 'payroll', 'eos-estimate', employeeId, params] as const,
+  eosCases: ['hr', 'payroll', 'eos-cases'] as const,
+  eosProvisions: ['hr', 'payroll', 'eos-provisions'] as const,
   financeLookup: (kind: string) => ['hr', 'payroll', 'finance-lookup', kind] as const,
 }
 

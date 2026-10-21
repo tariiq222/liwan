@@ -48,15 +48,20 @@ const { $api, $download } = useApi()
 const { can } = useAccess()
 const posting = usePostHrPayrollRun(() => runId.value ?? 0)
 const payment = useRecordHrPayrollPayment(() => runId.value ?? 0)
-const confirming = ref<'approve' | 'cancel' | 'post' | 'record_payment' | null>(null)
+const provision = usePostHrEosProvision()
+const confirming = ref<'approve' | 'cancel' | 'post' | 'record_payment' | 'eos_provision' | null>(null)
 const preview = useHrPayrollPostingPreview(() => runId.value ?? 0, computed(() => runId.value !== null && confirming.value === 'post'))
 const paymentJournals = usePaymentJournals(() => confirming.value === 'record_payment')
 const pendingAction = computed(() => {
   if (posting.isPending.value) return 'post'
   if (payment.isPending.value) return 'record_payment'
+  if (provision.isPending.value) return 'eos_provision'
   return (['compute', 'approve', 'cancel'] as const).find(action => transitions[action].isPending.value) ?? null
 })
 const failure = ref<unknown>(null)
+// The provision of the run's month, read only where the finance bridge answered for this run (its `finance` block exists).
+const provisions = useHrEosProvisions(() => !!run.value?.finance)
+const provisionEntry = computed(() => provisions.data.value?.items.find(item => item.month === run.value?.month)?.entry_name ?? '')
 // A missing-IBAN refusal names employees the loaded page may not hold: their names are read once, after the refusal.
 const refusedNames = ref<ReadonlyMap<number, string>>(new Map())
 const failureMessage = computed(() => failure.value ? payrollErrorMessage(failure.value, t, new Map([...employeeNames.value, ...refusedNames.value])) : '')
@@ -102,6 +107,11 @@ async function post() {
     await posting.mutateAsync()
     confirming.value = null
   } catch (error) { failure.value = error }
+}
+async function postProvision() {
+  if (!hydrated.value || pendingAction.value || !run.value) return
+  failure.value = null
+  try { await provision.mutateAsync(run.value.month) } catch (error) { failure.value = error }
 }
 async function recordPayment(body: HrPayrollPaymentCreate) {
   if (!hydrated.value || pendingAction.value) return
@@ -196,6 +206,7 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
         @approve="transition('approve')"
         @cancel="transition('cancel')"
         @post="post"
+        @eos-provision="postProvision"
       >
         <template #post-preview>
           <UAlert
@@ -252,6 +263,7 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
       <PayrollRunTotals :totals="run.totals" :employee-count="run.employee_count" />
       <p v-if="approval" class="text-sm text-muted" data-testid="hr-payroll-approval">{{ approval }}</p>
       <p v-if="run.finance?.entry_name" class="text-sm text-muted" data-testid="hr-payroll-entry">{{ t('hrPayroll.finance.entryName', { name: run.finance.entry_name }) }}</p>
+      <p v-if="provisionEntry" class="text-sm text-muted" data-testid="hr-payroll-eos-provision-entry">{{ t('hrPayroll.eosProvisions.posted', { name: provisionEntry }) }}</p>
       <p v-if="run.finance?.payment_name" class="text-sm text-muted" data-testid="hr-payroll-payment">{{ t('hrPayroll.finance.paymentName', { name: run.finance.payment_name }) }}</p>
 
       <UAlert
