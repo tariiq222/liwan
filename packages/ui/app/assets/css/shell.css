@@ -366,6 +366,19 @@ html[dir="rtl"] body { padding-right: 0 !important; }
     inset-block-start: calc(var(--shell-top) - var(--shell-inset) + 8px);
     z-index: 30;
   }
+  /* The floating header's backdrop is translucent and stops above the stuck heading, so the strip between them
+     is filled with the canvas: content scrolling under a stuck heading never shows above it. */
+  :is([data-slot="page-header"], .webvue-workspace-head)[data-sticky="true"]::before {
+    content: '';
+    position: absolute;
+    inset-block-end: 100%;
+    inset-inline: calc(-1 * var(--webvue-pad-x, 12px));
+    height: calc(var(--shell-top) - var(--shell-inset) + 8px);
+    z-index: -1;
+    background: var(--webvue-canvas);
+    pointer-events: none;
+  }
+  .webvue-page-stack:has(.webvue-list-card-fill) [data-slot="page-header"][data-sticky="true"]::before { content: none; }
 }
 /* Under the project workspace card the detail and form widths start at the card's inline edge instead of centring, so records line up with it. */
 .webvue-project-workspace:has(.webvue-workspace-head) :is(.webvue-page-width-detail, .webvue-page-width-form) { margin-inline: 0; }
