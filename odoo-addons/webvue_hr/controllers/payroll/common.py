@@ -17,3 +17,11 @@ def payroll_employee(employee_id):
     if not employee:
         raise MissingError(request.env._('hr.employee %(id)s does not exist', id=employee_id))
     return employee
+
+
+def scoped_profile(profile_id):
+    """A salary file profile the caller's company can see (shared seed rows included) → 404 otherwise."""
+    profile = request.env['webvue.hr.payroll.bank.profile'].search([('id', '=', profile_id)], limit=1)
+    if not profile:
+        raise MissingError(request.env._('webvue.hr.payroll.bank.profile %(id)s does not exist', id=profile_id))
+    return profile

@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
     access_service,
+    bank_profile,
     entitlement_service,
     feature_registry,
     gosi_rate,
@@ -14,6 +15,7 @@ from . import (
     hr_version,
     mail_activity_plan,
     payroll_calculator,
+    payroll_export,
     payroll_finance_link,
     payroll_settings,
 )

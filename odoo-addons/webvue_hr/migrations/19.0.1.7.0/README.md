@@ -28,3 +28,8 @@ there is no data to carry. New abstract model `webvue.hr.payroll.finance.link` (
 Task 9: new column `webvue_paid_days` on `hr_payslip` (the paid days snapshot written when a payslip is created
 and computed, so an employee reads it on their own payslip without access to the contract), created by the ORM on
 update. The table holds no payslips yet, so there is no data to carry.
+
+Task 16: new tables `webvue_hr_payroll_bank_profile` and `webvue_hr_payroll_bank_profile_column` (salary file
+layouts: delimiter, encoding and ordered columns), created by the ORM on update. The shared seed profiles
+(`data/hr_payroll_file_profile_data.xml`, `noupdate`) load on upgrade because their records are new. New abstract
+model `webvue.hr.payroll.export` (no table). There is no data to carry.

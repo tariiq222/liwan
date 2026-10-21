@@ -56,6 +56,41 @@
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
 
+    <!-- Salary file profiles: the shared seed rows (no company) are readable by every company but
+         writable by none; a company writes only its own rows. -->
+    <record id="rule_webvue_hr_bank_profile_read" model="ir.rule">
+        <field name="name">webvue salary file profile: shared or multi company</field>
+        <field name="model_id" ref="model_webvue_hr_payroll_bank_profile"/>
+        <field name="global" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_webvue_hr_bank_profile_write" model="ir.rule">
+        <field name="name">webvue salary file profile: own company rows only</field>
+        <field name="model_id" ref="model_webvue_hr_payroll_bank_profile"/>
+        <field name="global" eval="True"/>
+        <field name="perm_read" eval="False"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_webvue_hr_bank_profile_column_read" model="ir.rule">
+        <field name="name">webvue salary file profile column: shared or multi company</field>
+        <field name="model_id" ref="model_webvue_hr_payroll_bank_profile_column"/>
+        <field name="global" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="domain_force">['|', ('profile_id.company_id', '=', False), ('profile_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_webvue_hr_bank_profile_column_write" model="ir.rule">
+        <field name="name">webvue salary file profile column: own company rows only</field>
+        <field name="model_id" ref="model_webvue_hr_payroll_bank_profile_column"/>
+        <field name="global" eval="True"/>
+        <field name="perm_read" eval="False"/>
+        <field name="domain_force">[('profile_id.company_id', 'in', company_ids)]</field>
+    </record>
+
     <record id="rule_hr_payslip_own_approved" model="ir.rule">
         <field name="name">webvue payroll: own approved payslips</field>
         <field name="model_id" ref="payroll.model_hr_payslip"/>

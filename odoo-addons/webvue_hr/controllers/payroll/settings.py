@@ -3,13 +3,14 @@ from odoo import http
 from odoo.exceptions import MissingError
 from odoo.http import request
 
-from .common import current_company
+from .common import current_company, scoped_profile
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
     requires_capability,
     requires_feature,
 )
+from odoo.addons.webvue_hr.serializers.payroll.files import dump_profile, parse_profile
 from odoo.addons.webvue_hr.serializers.payroll.settings import (
     dump_rate,
     dump_settings,
@@ -46,6 +47,14 @@ def _reject_inverted_wages(rate, vals):
     wage_max = vals.get('wage_max', rate.wage_max if rate else 0)
     if wage_max < wage_min:
         raise ApiError(422, 'invalid', 'wage_max must not be below wage_min', field='wage_max')
+
+
+def _writable_profile(profile_id):
+    """A profile of the caller's company; the shared seed profiles are read-only → 403."""
+    profile = scoped_profile(profile_id)
+    if not profile.company_id:
+        raise ApiError(403, 'forbidden', 'a shared profile is read-only, add a profile of your own')
+    return profile
 
 
 class HrPayrollSettingsController(http.Controller):
@@ -106,4 +115,41 @@ class HrPayrollSettingsController(http.Controller):
     @requires_capability('hr.payroll.config')
     def delete_gosi_rate(self, rate_id, **_):
         _scoped_rate(rate_id).unlink()
+        return request.make_json_response('', status=204)
+
+    @http.route('/api/v1/hr/payroll/bank-profiles', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.payroll', operation='read')
+    @requires_capability('hr.payroll.read')
+    def list_bank_profiles(self, **_):
+        profiles = request.env['webvue.hr.payroll.bank.profile'].search([])
+        return {'items': [dump_profile(profile) for profile in profiles], 'total': len(profiles)}
+
+    @http.route('/api/v1/hr/payroll/bank-profiles', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.payroll', operation='write')
+    @requires_capability('hr.payroll.config')
+    def create_bank_profile(self, **payload):
+        model = request.env['webvue.hr.payroll.bank.profile']
+        profile = model.create({**parse_profile(payload, model, partial=False), 'company_id': current_company().id})
+        return request.make_json_response(dump_profile(profile), status=201)
+
+    @http.route('/api/v1/hr/payroll/bank-profiles/<int:profile_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.payroll', operation='write')
+    @requires_capability('hr.payroll.config')
+    def patch_bank_profile(self, profile_id, **payload):
+        profile = _writable_profile(profile_id)
+        vals = parse_profile(payload, request.env['webvue.hr.payroll.bank.profile'], partial=True)
+        if not vals:
+            raise ApiError(422, 'invalid', 'no fields to update')
+        profile.write(vals)
+        return dump_profile(profile)
+
+    @http.route('/api/v1/hr/payroll/bank-profiles/<int:profile_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.payroll', operation='write')
+    @requires_capability('hr.payroll.config')
+    def delete_bank_profile(self, profile_id, **_):
+        _writable_profile(profile_id).unlink()
         return request.make_json_response('', status=204)

@@ -45,3 +45,7 @@ access_webvue_hr_gosi_rate_reader,webvue.hr.gosi.rate.reader,model_webvue_hr_gos
 access_webvue_hr_gosi_rate_config,webvue.hr.gosi.rate.config,model_webvue_hr_gosi_rate,group_cap_hr_payroll_config,1,1,1,1
 access_webvue_hr_payroll_settings_reader,webvue.hr.payroll.settings.reader,model_webvue_hr_payroll_settings,group_cap_hr_payroll_read,1,0,0,0
 access_webvue_hr_payroll_settings_config,webvue.hr.payroll.settings.config,model_webvue_hr_payroll_settings,group_cap_hr_payroll_config,1,1,1,0
+access_webvue_hr_bank_profile_reader,webvue.hr.payroll.bank.profile.reader,model_webvue_hr_payroll_bank_profile,group_cap_hr_payroll_read,1,0,0,0
+access_webvue_hr_bank_profile_config,webvue.hr.payroll.bank.profile.config,model_webvue_hr_payroll_bank_profile,group_cap_hr_payroll_config,1,1,1,1
+access_webvue_hr_bank_profile_column_reader,webvue.hr.payroll.bank.profile.column.reader,model_webvue_hr_payroll_bank_profile_column,group_cap_hr_payroll_read,1,0,0,0
+access_webvue_hr_bank_profile_column_config,webvue.hr.payroll.bank.profile.column.config,model_webvue_hr_payroll_bank_profile_column,group_cap_hr_payroll_config,1,1,1,1
