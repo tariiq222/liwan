@@ -4,7 +4,12 @@ from odoo.exceptions import AccessError
 from odoo.fields import Domain
 from odoo.tools import SQL
 
-from odoo.addons.webvue_hr.models.hr_version import CONTRACT_GROUPS, OFFBOARDING_GROUPS
+from odoo.addons.webvue_hr.models.hr_version import (
+    CONTRACT_GROUPS,
+    OFFBOARDING_GROUPS,
+    PAYROLL_CONTRACT_GROUPS,
+    PAYROLL_OFFBOARDING_GROUPS,
+)
 from odoo.addons.webvue_hr.rules import WebVueHrRule
 
 EMPLOYEE_WRITE_ERROR = 'employee management capability is required'
@@ -20,10 +25,14 @@ class WebVueHrEmployee(models.Model):
     # Version fields behind a group are redeclared on the employee, like stock hr does.
     contract_date_start = fields.Date(
         related='version_id.contract_date_start', readonly=False,
-        inherited=True, groups=CONTRACT_GROUPS)
+        inherited=True, groups=PAYROLL_CONTRACT_GROUPS)
     contract_date_end = fields.Date(
         related='version_id.contract_date_end', readonly=False,
-        inherited=True, groups=CONTRACT_GROUPS)
+        inherited=True, groups=PAYROLL_CONTRACT_GROUPS)
+    date_start = fields.Date(
+        related='version_id.date_start', inherited=True, groups=PAYROLL_CONTRACT_GROUPS)
+    date_end = fields.Date(
+        related='version_id.date_end', inherited=True, groups=PAYROLL_CONTRACT_GROUPS)
     trial_date_end = fields.Date(
         related='version_id.trial_date_end', readonly=False,
         inherited=True, groups=CONTRACT_GROUPS)
@@ -36,16 +45,17 @@ class WebVueHrEmployee(models.Model):
     notice_period_days = fields.Integer(
         related='version_id.notice_period_days', readonly=False,
         inherited=True, groups=CONTRACT_GROUPS)
-    # The departure block: readable and writable with the offboarding read capability too.
+    # The departure block: readable and writable with the offboarding read capability too;
+    # the payroll read capability reads the reason and the date for the end of service.
     departure_reason_id = fields.Many2one(
         related='version_id.departure_reason_id', readonly=False,
-        inherited=True, groups=OFFBOARDING_GROUPS)
+        inherited=True, groups=PAYROLL_OFFBOARDING_GROUPS)
     departure_description = fields.Html(
         related='version_id.departure_description', readonly=False,
         inherited=True, groups=OFFBOARDING_GROUPS)
     departure_date = fields.Date(
         related='version_id.departure_date', readonly=False,
-        inherited=True, groups=OFFBOARDING_GROUPS)
+        inherited=True, groups=PAYROLL_OFFBOARDING_GROUPS)
 
     @api.model
     def _search(

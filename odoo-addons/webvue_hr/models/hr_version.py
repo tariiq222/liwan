@@ -14,6 +14,19 @@ OFFBOARDING_GROUPS = 'hr.group_hr_user,webvue_hr.group_cap_hr_offboarding_read'
 # The pair that opens hr.version for reading only (writing stays behind
 # hr.employees.manage): the offboarding area reads the departure fields of an employee.
 OFFBOARDING_READ_CAPABILITIES = ('hr.employees.read', 'hr.offboarding.read')
+# The payroll engine and the Saudi calculator read these stock version fields (service
+# dates, nationality, national ID, departure); the payroll read capability joins their
+# groups. wage is not opened: WebVue never reads or writes hr.version.wage.
+PAYROLL_READ_GROUP = 'webvue_hr.group_cap_hr_payroll_read'
+# The pair that opens hr.version for reading only, like the offboarding pair.
+PAYROLL_READ_CAPABILITIES = ('hr.employees.read', 'hr.payroll.read')
+PAYROLL_CONTRACT_GROUPS = f'{CONTRACT_GROUPS},{PAYROLL_READ_GROUP}'
+PAYROLL_PERSONAL_GROUPS = f'hr.group_hr_user,{PAYROLL_READ_GROUP}'
+# hr.payslip.line is ordered by its version, so every reader of payslip lines (an employee
+# reads their own approved ones) resolves date_version in that ORDER BY join; the field
+# is a bare version date and hr.version itself stays unreadable to the employee.
+PAYROLL_VERSION_ORDER_GROUPS = f'{PAYROLL_PERSONAL_GROUPS},webvue_hr.group_cap_hr_employees_read'
+PAYROLL_OFFBOARDING_GROUPS = f'{OFFBOARDING_GROUPS},{PAYROLL_READ_GROUP}'
 VERSION_SCOPE_ERROR = 'employee version is outside the current company'
 ACCESS_USER_CREATE_MARKER = 'webvue_core.access_user_create_depth'
 ACCESS_USER_WRITE_MARKER = 'webvue_core.access_user_write'
@@ -23,8 +36,13 @@ class WebVueHrVersion(models.Model):
     _inherit = 'hr.version'
 
     # Stock fields redeclared with the manage capability added to their groups.
-    contract_date_start = fields.Date(groups=CONTRACT_GROUPS)
-    contract_date_end = fields.Date(groups=CONTRACT_GROUPS)
+    contract_date_start = fields.Date(groups=PAYROLL_CONTRACT_GROUPS)
+    contract_date_end = fields.Date(groups=PAYROLL_CONTRACT_GROUPS)
+    date_start = fields.Date(groups=PAYROLL_CONTRACT_GROUPS)
+    date_end = fields.Date(groups=PAYROLL_CONTRACT_GROUPS)
+    date_version = fields.Date(groups=PAYROLL_VERSION_ORDER_GROUPS)
+    country_id = fields.Many2one(groups=PAYROLL_PERSONAL_GROUPS)
+    identification_id = fields.Char(groups=PAYROLL_PERSONAL_GROUPS)
     trial_date_end = fields.Date(groups=CONTRACT_GROUPS)
     contract_type_id = fields.Many2one(groups=CONTRACT_GROUPS)
     identification_expiration_date = fields.Date(
@@ -36,9 +54,9 @@ class WebVueHrVersion(models.Model):
         help='Days of notice either party must give to end the contract.',
         groups=CONTRACT_GROUPS, tracking=True)
     # The stock departure block, regrouped for the offboarding capability.
-    departure_reason_id = fields.Many2one(groups=OFFBOARDING_GROUPS)
+    departure_reason_id = fields.Many2one(groups=PAYROLL_OFFBOARDING_GROUPS)
     departure_description = fields.Html(groups=OFFBOARDING_GROUPS)
-    departure_date = fields.Date(groups=OFFBOARDING_GROUPS)
+    departure_date = fields.Date(groups=PAYROLL_OFFBOARDING_GROUPS)
 
     _notice_period_days_non_negative = models.Constraint(
         'CHECK (notice_period_days >= 0)',
@@ -57,14 +75,15 @@ class WebVueHrVersion(models.Model):
 
         The employee management capability owns the whole record. The offboarding read
         pair opens it for reading only, because a departure is the departure fields of an
-        employee the area is allowed to see; every write stays behind hr.employees.manage.
+        employee the area is allowed to see; the payroll read pair opens it for the payslip
+        engine. Every write stays behind hr.employees.manage.
         """
         service = self.env['webvue.access.service']
         if service._webvue_has_capability(self.env.user, 'hr.employees.manage'):
             return True
-        return all(
-            service._webvue_has_capability(self.env.user, key)
-            for key in OFFBOARDING_READ_CAPABILITIES
+        return any(
+            all(service._webvue_has_capability(self.env.user, key) for key in pair)
+            for pair in (OFFBOARDING_READ_CAPABILITIES, PAYROLL_READ_CAPABILITIES)
         )
 
     def _webvue_require_version_read(self):

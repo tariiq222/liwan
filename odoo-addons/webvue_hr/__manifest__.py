@@ -22,6 +22,7 @@
         'security/hr_capability_groups.xml',
         'security/ir.model.access.csv',
         'security/hr_engine_rules.xml',
+        'security/hr_payroll_rules.xml',
         'data/hr_access_permissions.xml',
         'data/hr_leave_type_data.xml',
         'data/hr_plan_purpose_data.xml',
