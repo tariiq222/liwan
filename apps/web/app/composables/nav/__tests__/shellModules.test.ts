@@ -196,7 +196,7 @@ describe('projects dashboard navigation', () => {
   })
   it('orders meetings as list, calendar, recurring series after the pinned create action', () => {
     expect(contextLinksForModule('meetings', full).map(link => link.id)).toEqual(['new-meeting', 'meetings', 'meeting-followup', 'meeting-series'])
-    expect(contextLinksForModule('hr', full, '/hr').map(link => link.labelKey)).toEqual(['nav.employees', 'nav.departments', 'nav.myAssets'])
+    expect(contextLinksForModule('hr', full, '/hr').map(link => link.labelKey)).toEqual(['nav.employees', 'nav.departments', 'nav.myAssets', 'nav.myPayslips'])
   })
 })
 

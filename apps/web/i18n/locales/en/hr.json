@@ -138,6 +138,7 @@
     "nav": {
       "lifecycle": "Employee lifecycle",
       "daily": "Daily work",
+      "payroll": "Payroll",
       "mine": "My services",
       "insights": "Insights"
     },

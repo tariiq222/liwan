@@ -91,6 +91,16 @@
         "advance_recovery_amount": "Advance recovery"
       }
     },
+    "mine": {
+      "title": "My payslips",
+      "emptyTitle": "You have no payslips yet",
+      "emptyHint": "Your payslip appears here once the company approves the month's run.",
+      "columns": {
+        "month": "Month",
+        "number": "Number",
+        "net": "Net pay"
+      }
+    },
     "payslip": {
       "title": "Payslip",
       "pageTitle": "Payslip of {name} — {month}",

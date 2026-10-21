@@ -18,6 +18,8 @@ function createLink(path?: string): AppContextLink {
   return AREA_CREATE.find(([prefix]) => path?.startsWith(prefix))?.[1] ?? NEW_EMPLOYEE
 }
 
+// The caller's own payslips and the payroll settings are pages of their own: the runs entry claims neither.
+const PAYROLL_OWN_PAGES = ['/hr/payroll/mine', '/hr/payroll/settings']
 const areaTargets = ['/hr/recruitment', '/hr/shifts', '/hr/onboarding', '/hr/offboarding', '/hr/assets']
 
 const manifest: AppManifest = {
@@ -34,6 +36,7 @@ const manifest: AppManifest = {
     { to: '/hr/leave', labelKey: 'nav.leave', icon: 'i-lucide-calendar-days', shortcut: 's', goKey: 'l', capability: 'hr.leave.read' },
     { to: '/hr/shifts', labelKey: 'nav.shifts', icon: 'i-lucide-calendar-clock', shortcut: '', capability: 'hr.shifts.read' },
     { to: '/hr/assets', labelKey: 'nav.assets', icon: 'i-lucide-laptop', shortcut: '', capability: 'hr.assets.read' },
+    { to: '/hr/payroll', labelKey: 'nav.payroll', icon: 'i-lucide-banknote', shortcut: '', capability: 'hr.payroll.read' },
     { to: '/hr/reports', labelKey: 'hr.reports.title', icon: 'i-lucide-chart-pie', shortcut: 'r', capability: 'hr.employees.manage' },
   ],
   // The pinned create follows the open area. The first card holds the directory and structure; the other
@@ -48,7 +51,10 @@ const manifest: AppManifest = {
     { id: 'leave', labelKey: 'nav.leave', icon: 'i-lucide-calendar-days', to: '/hr/leave', capability: 'hr.leave.read', section: 'hr.nav.daily' },
     { id: 'shifts', labelKey: 'nav.shifts', icon: 'i-lucide-calendar-clock', to: '/hr/shifts', capability: 'hr.shifts.read', section: 'hr.nav.daily' },
     { id: 'assets', labelKey: 'nav.assets', icon: 'i-lucide-laptop', to: '/hr/assets', capability: 'hr.assets.read', section: 'hr.nav.daily' },
+    { id: 'payroll', labelKey: 'nav.payroll', icon: 'i-lucide-banknote', to: '/hr/payroll', capability: 'hr.payroll.read', feature: 'hr.payroll', section: 'hr.nav.payroll' },
+    { id: 'payroll-settings', labelKey: 'nav.payrollSettings', icon: 'i-lucide-settings-2', to: '/hr/payroll/settings', capability: 'hr.payroll.config', feature: 'hr.payroll', section: 'hr.nav.payroll' },
     { id: 'my-assets', labelKey: 'nav.myAssets', icon: 'i-lucide-package-check', to: '/hr/assets/mine', capability: 'hr.employees.read', feature: 'hr.assets', section: 'hr.nav.mine' },
+    { id: 'my-payslips', labelKey: 'nav.myPayslips', icon: 'i-lucide-receipt', to: '/hr/payroll/mine', capability: 'hr.employees.read', feature: 'hr.payroll', section: 'hr.nav.mine' },
     { id: 'reports', labelKey: 'hr.reports.title', icon: 'i-lucide-chart-pie', to: '/hr/reports', capability: 'hr.employees.manage', section: 'hr.nav.insights' },
   ],
   landing: [
@@ -101,6 +107,8 @@ const manifest: AppManifest = {
     { pattern: /^\/hr\/employees\/[^/]+\/compensation$/, capability: 'hr.payroll.manage', feature: 'hr.payroll' },
     { pattern: /^\/hr\/payroll\/new$/, capability: 'hr.payroll.manage', feature: 'hr.payroll' },
     { pattern: /^\/hr\/payroll\/settings$/, capability: 'hr.payroll.config', feature: 'hr.payroll' },
+    // The caller's own approved payslips are an employee read, not a payroll-area read.
+    { pattern: /^\/hr\/payroll\/mine(?:\/[^/]+)?$/, capability: 'hr.employees.read', feature: 'hr.payroll' },
     { pattern: /^\/hr\/payroll(?:\/|$)/, capability: 'hr.payroll.read', feature: 'hr.payroll' },
     { pattern: /^\/hr\/employees\/(new|[^/]+\/edit)$/, capability: 'hr.employees.manage' },
     { pattern: /^\/hr\/departments\/(new|[^/]+\/edit)$/, capability: 'hr.departments.manage' },
@@ -112,6 +120,8 @@ const manifest: AppManifest = {
     // The own-custody page is its own entry: the assets area does not claim it.
     if (target === '/hr/assets/mine') return path === target
     if (target === '/hr/assets' && path === '/hr/assets/mine') return false
+    if (PAYROLL_OWN_PAGES.includes(target)) return path === target || (target === '/hr/payroll/mine' && path.startsWith(`${target}/`))
+    if (target === '/hr/payroll') return path === target || (path.startsWith(`${target}/`) && !PAYROLL_OWN_PAGES.some(own => path === own || path.startsWith(`${own}/`)))
     if (areaTargets.includes(target)) return path === target || path.startsWith(`${target}/`)
     if (target === '/hr/leave') return path === target || path === '/hr/leave/allocations/new'
     if (target === '/hr/departments') return path === target || (path.startsWith(`${target}/`) && path !== '/hr/departments/new')

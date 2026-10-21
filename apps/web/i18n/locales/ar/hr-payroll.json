@@ -91,6 +91,16 @@
         "advance_recovery_amount": "استرداد سلفة"
       }
     },
+    "mine": {
+      "title": "قسائمي",
+      "emptyTitle": "لا قسائم راتب لك بعد",
+      "emptyHint": "تظهر هنا قسيمتك بعد أن تعتمد الشركة مسير الشهر.",
+      "columns": {
+        "month": "الشهر",
+        "number": "الرقم",
+        "net": "صافي الراتب"
+      }
+    },
     "payslip": {
       "title": "قسيمة راتب",
       "pageTitle": "قسيمة راتب {name} — {month}",

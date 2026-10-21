@@ -100,6 +100,9 @@ const page = (items, url) => {
   const limit = Number(url.searchParams.get('limit') ?? 50)
   return { items: items.slice(offset, offset + (Number.isFinite(limit) && limit > 0 ? limit : 50)), total: items.length }
 }
+// The signed-in employee is the first person of each approved run: their own approved payslips, newest month first.
+const mineRoute = /^\/api\/v1\/hr\/payroll\/payslips\/mine(?:\/(\d+))?$/
+const ownSlips = () => state.runs.filter(run => run.state === 'approved').map(run => ({ run, slip: run.slips[0] })).filter(entry => entry.slip)
 const runRoute = /^\/api\/v1\/hr\/payroll\/runs\/(\d+)(?:\/(compute|approve|payslips))?(?:\/(\d+))?(?:\/(inputs))?$/
 const findRun = id => state.runs.find(run => run.id === Number(id))
 
@@ -110,6 +113,13 @@ export function hrPayrollPreviewData(route, url) {
     const year = url.searchParams.get('year')
     const stateFilter = url.searchParams.get('state')
     return page(state.runs.filter(run => (!year || run.month.startsWith(year)) && (!stateFilter || run.state === stateFilter)).map(summary), url)
+  }
+  const own = mineRoute.exec(route)
+  if (own) {
+    const entries = ownSlips().sort((a, b) => b.run.month.localeCompare(a.run.month))
+    if (!own[1]) return { items: entries.map(({ run, slip }) => ({ id: slip.id, number: payslip(run, slip).number, month: run.month, net: figures(slip).net })), total: entries.length }
+    const entry = entries.find(({ slip }) => slip.id === Number(own[1]))
+    return entry ? payslip(entry.run, entry.slip) : undefined
   }
   const match = runRoute.exec(route)
   if (!match) return undefined
