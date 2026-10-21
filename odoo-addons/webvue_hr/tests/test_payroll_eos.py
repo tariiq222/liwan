@@ -5,7 +5,11 @@ from decimal import Decimal
 from odoo.tests import tagged
 
 from .payroll_common import PayrollCase
-from odoo.addons.webvue_hr.models.payroll_math import eos_award, service_years
+from odoo.addons.webvue_hr.models.payroll_math import (
+    continuous_service_start,
+    eos_award,
+    service_years,
+)
 
 ESTIMATE_KEYS = {
     'employee', 'start_date', 'end_date', 'service_years', 'eos_wage', 'case', 'award', 'leave_days', 'leave_amount',
@@ -191,3 +195,50 @@ class TestPayrollEos(PayrollCase):
         self._login(self.reader)
         self.assertEqual(self.api('GET', f'{EOS}/{self.leaver.id}/settlement').status_code, 200)
         self.assertEqual(self.api('GET', f'{EOS}/999999/settlement').status_code, 404)
+
+    def test_run_goes_stale_when_the_settlement_is_confirmed_after_compute(self):
+        self.assertEqual(self._put_settlement(self.officer, self.leaver, {'case': 'resignation', 'open_deductions': 300}).status_code, 200)
+        self._login(self.officer)
+        run = self.api('POST', RUNS, json={'month': '2026-11'}).json()
+        self.assertEqual(self.api('POST', f"{RUNS}/{run['id']}/compute").status_code, 200)
+        self.assertEqual(self._confirm(self.approver, self.leaver).status_code, 200)
+        self._login(self.approver)
+        res = self.api('POST', f"{RUNS}/{run['id']}/approve")
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'run_stale'))
+        self.assertEqual(res.json()['details'], {'employee_ids': [self.leaver.id]})
+        self._login(self.officer)
+        self.assertEqual(self.api('POST', f"{RUNS}/{run['id']}/compute").status_code, 200)
+        self._login(self.approver)
+        self.assertEqual(self.api('POST', f"{RUNS}/{run['id']}/approve").status_code, 200)
+        slip = self.env['hr.payslip'].search([('payslip_run_id', '=', run['id']), ('employee_id', '=', self.leaver.id)])
+        self.assertEqual({line.code: line.total for line in slip.line_ids}['EOS'], 5250.00)
+
+    def test_service_counts_from_the_last_unbroken_contract(self):
+        self.assertEqual(
+            continuous_service_start([(date(2015, 1, 1), date(2018, 12, 31)), (date(2024, 1, 1), None)]),
+            date(2024, 1, 1),
+        )
+        self.assertEqual(
+            continuous_service_start([(date(2015, 1, 1), date(2018, 12, 31)), (date(2019, 1, 3), None)]),
+            date(2015, 1, 1),
+        )
+        rehired = self.make_employee('Eos Rehired', start=date(2015, 1, 1))
+        rehired.version_id.contract_date_end = date(2018, 12, 31)
+        self.env['hr.version'].create({
+            'employee_id': rehired.id, 'date_version': date(2024, 1, 1), 'contract_date_start': date(2024, 1, 1),
+        })
+        self.assertEqual(self.env['webvue.hr.payroll.eos.settlement']._webvue_service_start(rehired), date(2024, 1, 1))
+
+    def test_departure_before_service_start_is_refused(self):
+        res = self._estimate(self.reader, self.leaver, '?date=2023-11-30&case=resignation')
+        self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'date'))
+
+    def test_confirm_refuses_figures_that_changed_since_the_draft(self):
+        self.assertEqual(self._put_settlement(self.officer, self.leaver, {'case': 'resignation'}).status_code, 200)
+        self.env['webvue.hr.compensation'].search([('employee_id', '=', self.leaver.id)]).basic_wage = 9000
+        res = self._confirm(self.approver, self.leaver)
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'settlement_changed'))
+        details = res.json()['details']
+        self.assertEqual((details['draft']['award'], details['recomputed']['award']), (5250, 5750))
+        self.assertEqual(self._put_settlement(self.officer, self.leaver, {}).status_code, 200)
+        self.assertEqual(self._confirm(self.approver, self.leaver).status_code, 200)

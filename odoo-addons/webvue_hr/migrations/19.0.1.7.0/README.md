@@ -47,3 +47,6 @@ Task 18: new tables `webvue_hr_payroll_eos_case` (departure reason to end-of-ser
 and reason) and `webvue_hr_payroll_eos_settlement` (one final settlement per employee), created by the ORM on
 update. The shared case seed (`data/hr_eos_case_data.xml`, `noupdate`) loads on upgrade because its records are
 new. There is no data to carry.
+
+Known limits: a settlement is unique per employee, so a re-hire after a confirmed settlement is not supported in this
+phase (the old settlement stays on the employee).

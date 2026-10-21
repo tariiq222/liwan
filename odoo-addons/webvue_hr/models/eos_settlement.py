@@ -1,14 +1,21 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from decimal import Decimal
 
-from odoo import fields, models
+from odoo import api, fields, models
 
 from .eos_case import EOS_CASE_SELECTION
-from .payroll_math import day_amount, eos_award, money, service_years
+from .payroll_math import (
+    continuous_service_start,
+    day_amount,
+    eos_award,
+    money,
+    service_years,
+)
 from odoo.addons.webvue_hr.rules import WebVueHrRule
 
 TRANSITION_FORBIDDEN = 'transition_forbidden'
 EOS_CASE_MISSING = 'eos_case_missing'
+COMPARED_KEYS = ('service_years', 'eos_wage', 'award', 'leave_days', 'leave_amount', 'open_deductions', 'total')
 
 
 class WebVueHrPayrollEosSettlement(models.Model):
@@ -42,19 +49,35 @@ class WebVueHrPayrollEosSettlement(models.Model):
     _employee_unique = models.Constraint('UNIQUE(employee_id)', 'an employee has one final settlement')
     _deductions_valid = models.Constraint('CHECK(open_deductions >= 0)', 'open deductions must not be negative')
 
+    @api.model
+    def _webvue_service_start(self, employee):
+        """Start of the employee's unbroken service, or False without a contract.
+
+        Reads the versions payroll may read (the stock helper is HR-user only) and applies the stock rule
+        that a gap of four days or more between two contracts starts a new service.
+        """
+        versions = self.env['hr.version'].search([
+            ('employee_id', '=', employee.id), ('contract_date_start', '!=', False),
+        ])
+        return continuous_service_start(
+            [(version.contract_date_start, version.contract_date_end) for version in versions],
+        ) or False
+
     def _webvue_estimate(self, employee, day, case):
         """The settlement figures of ``employee`` leaving on ``day`` in ``case``, as Decimals."""
         calculator = self.env['webvue.hr.payroll.calculator']
-        # The stock first-contract-date helper is HR-user only; the payroll reader reads the versions instead.
-        starts = self.env['hr.version'].search([
-            ('employee_id', '=', employee.id), ('contract_date_start', '!=', False),
-        ]).mapped('contract_date_start')
-        start = min(starts, default=False)
+        start = self._webvue_service_start(employee)
         if not start:
             code = 'contract_missing'
             raise WebVueHrRule(
                 code, self.env._('%(name)s has no contract starting on a date.', name=employee.name),
                 field='employee_id', details={'employee_id': employee.id},
+            )
+        if day < start:
+            code = 'invalid'
+            raise WebVueHrRule(
+                code, self.env._('The departure date is before the service start.'), field='date',
+                details={'start_date': start.isoformat()},
             )
         wage = calculator._webvue_compensation(employee)._webvue_fixed_wage()
         years = service_years(start, day)
@@ -148,7 +171,24 @@ class WebVueHrPayrollEosSettlement(models.Model):
                 TRANSITION_FORBIDDEN, self.env._('You cannot confirm your own settlement.'),
                 field='employee_id', status=403, details={'employee_id': self.employee_id.id},
             )
-        self.write({**self._webvue_values(self.employee_id, self.case, self.open_deductions), 'state': 'confirmed'})
+        values = self._webvue_values(self.employee_id, self.case, self.open_deductions)
+        if self._webvue_differs(values):
+            code = 'settlement_changed'
+            raise WebVueHrRule(
+                code, self.env._('The settlement figures changed since the draft: review and save the draft again.'),
+                field='state', details={
+                    'draft': {key: self[key] for key in COMPARED_KEYS},
+                    'recomputed': {key: values[key] for key in COMPARED_KEYS},
+                },
+            )
+        self.write({'state': 'confirmed'})
+
+    def _webvue_differs(self, values):
+        """Whether recomputed ``values`` differ from the saved figures (floats compared at four places)."""
+        self.ensure_one()
+        return self.departure_date != values['departure_date'] or self.case != values['case'] or any(
+            round(self[key], 4) != round(values[key], 4) for key in COMPARED_KEYS
+        )
 
     def _webvue_departure_mismatch(self):
         self.ensure_one()

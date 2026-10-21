@@ -14,6 +14,9 @@ GCC_CODES = frozenset({'AE', 'BH', 'KW', 'OM', 'QA'})
 # The date the Saudi social insurance reform took effect: a law date, not a rate.
 SAUDI_REFORM_DATE = date(2024, 7, 3)
 CENTS = Decimal('0.01')
+# A break of this many days or more between two contracts ends the continuous service (as in stock hr).
+SERVICE_GAP_DAYS = 4
+OPEN_ENDED = date(2100, 1, 1)
 # How the contract ended: the Saudi Labor Law articles 84 to 87 decide the award from it.
 EOS_CASES = ('termination', 'contract_expiry', 'resignation', 'force_majeure', 'marriage_childbirth', 'no_award')
 NATIONALITY_MISSING = 'nationality_missing'
@@ -129,3 +132,20 @@ def eos_award(wage, years, case):
         return money(0)  # Article 85
     factor = Decimal(1) / 3 if years < 5 else Decimal(2) / 3 if years < 10 else Decimal(1)
     return money(full * factor)
+
+
+def continuous_service_start(periods):
+    """Start of the service that runs unbroken up to the latest of ``periods`` (``(start, end or None)`` pairs).
+
+    Walks back from the latest period while the gap to the one before it is under ``SERVICE_GAP_DAYS``;
+    a period without an end counts as open, like the stock ``no_gap`` rule.
+    """
+    ordered = sorted(set(periods), reverse=True)
+    if not ordered:
+        return None
+    current = ordered[0][0]
+    for start, end in ordered[1:]:
+        if (current - (end or OPEN_ENDED)).days >= SERVICE_GAP_DAYS:
+            break
+        current = start
+    return current

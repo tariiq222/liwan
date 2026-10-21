@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from decimal import Decimal
+
 from dateutil.relativedelta import relativedelta
 
 from odoo import api, fields, models
@@ -142,17 +144,45 @@ class HrPayslipRun(models.Model):
     def _webvue_approval_blockers(self):
         """Reasons the run cannot be approved yet, as ``{code, message, field?, details?}`` dicts."""
         self.ensure_one()
-        return self._webvue_settlement_blockers()
+        return [*self._webvue_settlement_blockers(), *self._webvue_stale_blockers()]
+
+    def _webvue_leavers(self):
+        return self.slip_ids.employee_id.filtered(
+            lambda employee: employee.departure_date and self.date_start <= employee.departure_date <= self.date_end,
+        )
+
+    def _webvue_confirmed_settlements(self):
+        """Confirmed settlements of the month's leavers whose departure date still matches the employee's."""
+        leavers = self._webvue_leavers()
+        return self.env['webvue.hr.payroll.eos.settlement'].search([
+            ('employee_id', 'in', leavers.ids), ('state', '=', 'confirmed'),
+        ]).filtered(lambda settlement: not settlement._webvue_departure_mismatch())
+
+    def _webvue_stale_blockers(self):
+        """``run_stale`` for leavers whose payslip lines differ from their confirmed settlement (compute again)."""
+        stale = []
+        for settlement in self._webvue_confirmed_settlements():
+            slip = self.slip_ids.filtered(lambda line_slip, settlement=settlement: line_slip.employee_id == settlement.employee_id)
+            lines = {line.code: money(Decimal(str(line.total))) for line in slip.line_ids}
+            expected = {
+                'EOS': settlement.award, 'LEAVE_ENC': settlement.leave_amount,
+                'SETTLEMENT_DED': -settlement.open_deductions,
+            }
+            if any(lines.get(code, money(0)) != money(Decimal(str(amount))) for code, amount in expected.items()):
+                stale.append(settlement.employee_id.id)
+        if not stale:
+            return []
+        return [{
+            'code': 'run_stale',
+            'message': self.env._('A settlement was confirmed or changed after the last compute: compute the run again.'),
+            'field': 'employee_id',
+            'details': {'employee_ids': stale},
+        }]
 
     def _webvue_settlement_blockers(self):
         """``settlement_missing`` for leavers of the month whose final settlement is not confirmed."""
-        leavers = self.slip_ids.employee_id.filtered(
-            lambda employee: employee.departure_date and self.date_start <= employee.departure_date <= self.date_end,
-        )
-        settled = self.env['webvue.hr.payroll.eos.settlement'].search([
-            ('employee_id', 'in', leavers.ids), ('state', '=', 'confirmed'),
-        ]).filtered(lambda settlement: not settlement._webvue_departure_mismatch()).employee_id
-        missing = leavers - settled
+        leavers = self._webvue_leavers()
+        missing = leavers - self._webvue_confirmed_settlements().employee_id
         if not missing:
             return []
         return [{
