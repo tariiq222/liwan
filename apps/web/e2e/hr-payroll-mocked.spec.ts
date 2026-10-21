@@ -120,6 +120,17 @@ test.describe('payroll register print', () => {
     await expect.poll(() => page.evaluate(() => (window as unknown as { printedRows?: number }).printedRows)).toBe(3)
     await expect(page.locator('tbody tr')).toHaveCount(1)
   })
+
+  test('printing with a search that matches nothing still prints every payslip', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.print = () => { (window as unknown as { printedRows: number }).printedRows = document.querySelectorAll('tbody tr').length }
+    })
+    await open(page, '/hr/payroll/2', 'مسير رواتب نوفمبر 2026')
+    await page.getByTestId('hr-payroll-search').fill('لا يوجد')
+    await expect(page.locator('tbody tr')).toHaveCount(0)
+    await page.getByTestId('hr-payroll-print').click()
+    await expect.poll(() => page.evaluate(() => (window as unknown as { printedRows?: number }).printedRows)).toBe(3)
+  })
 })
 
 test.describe('payslip page', () => {

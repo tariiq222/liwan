@@ -98,7 +98,6 @@ const printing = ref(false)
 async function printRegister() {
   if (!hydrated.value || !import.meta.client || printing.value || runId.value === null) return
   printing.value = true
-  failure.value = null
   try {
     printRows.value = await fetchAllHrPayslips($api, runId.value)
     await nextTick()
@@ -108,7 +107,7 @@ async function printRegister() {
     printing.value = false
   }
 }
-const partial = computed(() => !!run.value && rows.value.length < run.value.employee_count && pages.value <= 1)
+const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.value.length < run.value.employee_count)
 </script>
 
 <template>
@@ -173,7 +172,7 @@ const partial = computed(() => !!run.value && rows.value.length < run.value.empl
             </template>
           </SharedFilterBar>
           <p v-if="partial && run" class="webvue-print-hide mb-2 text-sm text-muted" data-testid="hr-payroll-register-note">{{ t('hrPayroll.register.footer', { shown: rows.length, total: run.employee_count }) }}</p>
-          <SharedEmptyState v-if="!payslips.isLoading.value && rows.length === 0" compact :title="t('hrPayroll.register.emptyTitle')" :description="t(run.state === 'draft' ? 'hrPayroll.register.emptyDraftHint' : 'hrPayroll.register.emptyHint')" />
+          <SharedEmptyState v-if="!payslips.isLoading.value && (printRows ?? rows).length === 0" compact :title="t('hrPayroll.register.emptyTitle')" :description="t(run.state === 'draft' ? 'hrPayroll.register.emptyDraftHint' : 'hrPayroll.register.emptyHint')" />
           <PayrollInputsTable
             v-else
             :rows="printRows ?? rows"
