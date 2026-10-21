@@ -70,6 +70,16 @@ class WebVueHrPayrollPosting(models.AbstractModel):
         return default
 
     @api.model
+    def _webvue_cost_centers(self, run):
+        """``{department id: analytic account}`` of the departments on the payslips of ``run``."""
+        return {
+            center.department_id.id: center.analytic_account_id
+            for center in self.env['webvue.hr.payroll.cost.center'].search([
+                ('department_id', 'in', run.slip_ids.webvue_department_id.ids),
+            ]) if center.analytic_account_id
+        }
+
+    @api.model
     def _webvue_posting_lines(self, run, settings):
         """``(lines, warnings)`` of the entry of ``run`` under ``settings``.
 
@@ -78,12 +88,7 @@ class WebVueHrPayrollPosting(models.AbstractModel):
         """
         run.ensure_one()
         per_employee = settings.entry_detail == 'per_employee'
-        centers = {
-            center.department_id.id: center.analytic_account_id
-            for center in self.env['webvue.hr.payroll.cost.center'].search([
-                ('department_id', 'in', run.slip_ids.webvue_department_id.ids),
-            ]) if center.analytic_account_id
-        }
+        centers = self._webvue_cost_centers(run)
         balances = defaultdict(Decimal)
         warnings = []
         for slip in run.slip_ids.sorted(lambda slip: (slip.employee_id.name or '', slip.id)):

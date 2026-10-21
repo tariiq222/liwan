@@ -185,9 +185,9 @@ class TestPayrollPayment(PayrollFinanceCase):
     def test_actions_and_refs_follow_the_run_state(self):
         run = self._posted_run()
         self.login_as(self.accountant)
-        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['allowed_actions'], ['record_payment'])
+        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['allowed_actions'], ['record_payment', 'eos_provision'])
         self.login_as(self.poster)
-        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['allowed_actions'], [])
+        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['allowed_actions'], ['eos_provision'])
         paid = self._pay(run['id']).json()
         self.assertEqual(paid['allowed_actions'], [])
         self.assertIsNotNone(paid['finance']['payment_name'])

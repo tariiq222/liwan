@@ -20,6 +20,8 @@ class WebVueHrPayrollFinanceLink(models.AbstractModel):
             actions.append('post')
         if run.webvue_state == 'posted' and self._webvue_can('finance.payments.manage'):
             actions.append('record_payment')
+        if run.webvue_state in ('posted', 'paid') and self._webvue_can('finance.entries.post'):
+            actions.append('eos_provision')
         return actions
 
     @api.model

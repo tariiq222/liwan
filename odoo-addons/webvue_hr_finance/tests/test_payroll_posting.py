@@ -188,14 +188,14 @@ class TestPayrollPosting(PayrollFinanceCase):
         again = self._post(run['id'])
         self.assertEqual(again.status_code, 403, again.text)
 
-    def test_posted_run_is_listed_and_offers_no_post_action(self):
+    def test_posted_run_is_listed_and_offers_only_the_provision_action(self):
         run = self._approved_run([self.e1, self.e2], MONTH)
         self.login_as(self.poster)
         self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['allowed_actions'], ['post'])
         self.assertEqual(self._post(run['id']).status_code, 200)
         self.assertEqual(self.api('GET', f'{RUNS}?state=posted').json()['total'], 1)
         self.assertEqual(self.api('GET', f'{RUNS}?state=approved').json()['total'], 0)
-        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['allowed_actions'], [])
+        self.assertEqual(self.api('GET', f"{RUNS}/{run['id']}").json()['allowed_actions'], ['eos_provision'])
 
     def test_entry_name_needs_entries_read(self):
         run, move = self._posted()
