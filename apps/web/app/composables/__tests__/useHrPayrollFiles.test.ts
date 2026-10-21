@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/vue-query'
 import type { HrBankProfile, HrBankProfileWrite } from '@webvue/contracts'
 import { hrPayrollKeys } from '../useHrPayrollCompensation'
-import { deleteHrBankProfile, downloadHrPayrollFile, hrPayrollFileUrl, saveHrBankProfile } from '../useHrPayrollFiles'
+import { deleteHrBankProfile, hrPayrollFileUrl, saveHrBankProfile } from '../useHrPayrollFiles'
 
 const profile = { id: 4, name: 'ملف' } as HrBankProfile
 const body = {
@@ -23,14 +23,6 @@ describe('payroll salary files', () => {
 
   it('builds the WPS file url without a value date', () => {
     expect(hrPayrollFileUrl(7, 'wps', { profileId: 2 })).toBe('/api/v1/hr/payroll/runs/7/wps-file?profile_id=2')
-  })
-
-  it('downloads through the raw download of useApi, once', async () => {
-    const result = { blob: new Blob(['a']), filename: 'salaries-2026-10.csv' }
-    const download = vi.fn().mockResolvedValue(result)
-    await expect(downloadHrPayrollFile(download, 7, 'bank', { profileId: 1 })).resolves.toBe(result)
-    expect(download).toHaveBeenCalledTimes(1)
-    expect(download).toHaveBeenCalledWith('/api/v1/hr/payroll/runs/7/bank-file?profile_id=1')
   })
 })
 

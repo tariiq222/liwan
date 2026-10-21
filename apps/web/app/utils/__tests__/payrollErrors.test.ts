@@ -22,6 +22,11 @@ describe('payrollErrorMessage', () => {
     expect(payrollErrorMessage(error, t, names)).toBe('hrPayroll.errors.missing_iban:{"names":"سارة، ليلى","count":2}')
   })
 
+  it('falls back to the count-only text when no name is known', () => {
+    const error = new ApiError(422, 'missing_iban', 'raw', 'iban', { employee_ids: [8, 9] })
+    expect(payrollErrorMessage(error, t, names)).toBe('hrPayroll.errors.missing_iban_count:{"names":"","count":2}')
+  })
+
   it('says a run that can no longer be edited is locked', () => {
     const error = new ApiError(422, 'invalid', 'raw', 'state', { reason: 'not_editable' })
     expect(payrollErrorMessage(error, t, names)).toBe('hrPayroll.errors.notEditable')

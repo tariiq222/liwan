@@ -1,3 +1,5 @@
+const REVOKE_DELAY_MS = 10_000
+
 /** Hands a downloaded blob to the browser as a file with the given name. */
 export function saveBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
@@ -7,5 +9,6 @@ export function saveBlob(blob: Blob, filename: string) {
   document.body.append(link)
   link.click()
   link.remove()
-  URL.revokeObjectURL(url)
+  // The browser starts reading the blob after the click returns: revoke only afterwards.
+  setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS)
 }

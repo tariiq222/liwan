@@ -20,7 +20,7 @@ export function payrollErrorMessage(error: unknown, t: Translate, employeeNames:
   if (NAMING.has(error.code)) {
     const ids = employeeIds(error)
     const names = ids.flatMap(id => employeeNames.get(id) ?? [])
-    return t(`hrPayroll.errors.${error.code}`, { names: names.join('، '), count: ids.length })
+    return t(`hrPayroll.errors.${error.code}${names.length ? '' : '_count'}`, { names: names.join('، '), count: ids.length })
   }
   if (error.code === 'invalid' && error.details?.reason === 'not_editable') return t('hrPayroll.errors.notEditable')
   return error.message || t('errors.generic')

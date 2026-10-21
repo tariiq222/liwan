@@ -21,7 +21,7 @@ const meta = {
   component: PayrollInputsTable,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:274', 'كشف الرواتب داخل صفحة المسير: خلايا مدخلات الشهر الخمس قابلة للتعديل قبل الاعتماد، ثم الإجمالي والخصومات والصافي لكل موظف وصف المجاميع.'),
+    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:291', 'كشف الرواتب داخل صفحة المسير: خلايا مدخلات الشهر الخمس قابلة للتعديل قبل الاعتماد، ثم الإجمالي والخصومات والصافي لكل موظف وصف المجاميع.'),
   },
   args: { rows, rowTo: () => '/hr/payroll/5/payslips/11', totals, caption: 'كشف الرواتب', editable: true },
   render: args => ({

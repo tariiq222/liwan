@@ -187,14 +187,15 @@
       "valueDate": "Value date",
       "downloadBank": "Download bank file",
       "downloadWps": "Download WPS file",
-      "noProfiles": "No file profiles. Add them in the payroll settings."
+      "noProfiles": "No file profiles. Add them in the payroll settings.",
+      "profilesError": "The file profiles could not be loaded."
     },
     "gosiStatement": {
       "title": "GOSI statement",
       "pageTitle": "GOSI statement {month}",
       "open": "GOSI statement",
       "print": "Print statement",
-      "emptyTitle": "No employees in the statement",
+      "emptyTitle": "No GOSI contributions in this run",
       "emptyHint": "This run has no payslips.",
       "columns": {
         "employee": "Employee",
@@ -203,7 +204,10 @@
         "contributoryWage": "Contributory wage",
         "employeeAmount": "Employee share",
         "employerAmount": "Employer share"
-      }
+      },
+      "notApprovedTitle": "The GOSI statement is available once the run is approved",
+      "notApprovedHint": "Approve the run first, then open the statement.",
+      "backToRun": "Back to the run"
     },
     "bankProfiles": {
       "title": "Bank and WPS file profiles",
@@ -283,7 +287,9 @@
       "missing_cost_center": "One or more departments have no cost center. Set them in the payroll settings.",
       "settings_incomplete": "The payroll accounting settings are incomplete. Complete the journal and accounts in the payroll settings.",
       "missing_iban": "{count} employee(s) have no IBAN ({names}). Record it in the compensation and download again.",
-      "wps_totals_mismatch": "The WPS file totals do not match the run totals. Review the run before downloading."
+      "wps_totals_mismatch": "The WPS file totals do not match the run totals. Review the run before downloading.",
+      "missing_iban_count": "{count} employee(s) have no IBAN. Record it in the compensation and download again.",
+      "negative_net_count": "The net pay is negative for {count} employee(s). Adjust the deductions and compute again."
     },
     "compensation": {
       "title": "Compensation",

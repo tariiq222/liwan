@@ -8,6 +8,8 @@ import type { HrBankProfile } from '@webvue/contracts'
 type Kind = 'bank' | 'wps'
 const props = defineProps<{
   profiles: HrBankProfile[]
+  /** False while the profiles are loading or refused: the empty-list note then stays hidden. */
+  profilesReady: boolean
   /** The file being downloaded, or null. */
   pending: Kind | null
   /** The value date the bank file starts with (`YYYY-MM-DD`). */
@@ -52,6 +54,6 @@ function download(kind: Kind) {
       <UButton color="primary" variant="outline" icon="i-lucide-file-spreadsheet" :disabled="!canDownload('wps')" :loading="props.pending === 'wps'" :label="t('hrPayroll.files.downloadWps')" data-testid="hr-payroll-download-wps" @click="download('wps')" />
       <UButton color="neutral" variant="outline" icon="i-lucide-shield-check" :to="props.gosiTo" :label="t('hrPayroll.gosiStatement.open')" data-testid="hr-payroll-open-gosi" />
     </div>
-    <p v-if="props.profiles.length === 0" class="text-sm text-muted" data-testid="hr-payroll-files-no-profiles">{{ t('hrPayroll.files.noProfiles') }}</p>
+    <p v-if="props.profilesReady && props.profiles.length === 0" class="text-sm text-muted" data-testid="hr-payroll-files-no-profiles">{{ t('hrPayroll.files.noProfiles') }}</p>
   </SharedFormSection>
 </template>

@@ -20,7 +20,7 @@ const meta = {
   component: GosiStatementTable,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/gosi.vue:35', 'كشف التأمينات الاجتماعية لمسير معتمد: صف لكل موظف بالأجر الخاضع للاشتراك وحصتي الموظف وصاحب العمل لكل فرع، وصف إجماليات يُطبع.'),
+    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/gosi.vue:42', 'كشف التأمينات الاجتماعية لمسير معتمد: صف لكل موظف بالأجر الخاضع للاشتراك وحصتي الموظف وصاحب العمل لكل فرع، وصف إجماليات يُطبع.'),
   },
   args: { statement, caption: 'كشف التأمينات الاجتماعية' },
   render: args => ({

@@ -9,7 +9,7 @@ import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import { formatDate } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { HR_PAYSLIP_PAGE_SIZE, fetchAllHrPayslips, hrPayslipsQuery } from '@/composables/useHrPayrollRuns'
-import { downloadHrPayrollFile } from '@/composables/useHrPayrollFiles'
+import { hrPayrollFileUrl } from '@/composables/useHrPayrollFiles'
 import { payrollErrorMessage } from '@/utils/payrollErrors'
 import { saveBlob } from '@/utils/saveBlob'
 import { currentPayrollDate, formatPayrollMonth, payrollRunStateTone } from '@/utils/payrollFormat'
@@ -71,14 +71,17 @@ async function downloadFile(file: { kind: 'bank' | 'wps'; profileId: number; val
   failure.value = null
   downloading.value = file.kind
   try {
-    const { blob, filename } = await downloadHrPayrollFile($download, runId.value, file.kind, file)
+    const { blob, filename } = await $download(hrPayrollFileUrl(runId.value, file.kind, file))
     saveBlob(blob, filename ?? `${file.kind === 'bank' ? 'salaries' : 'wps'}-${run.value?.month ?? runId.value}.csv`)
   } catch (error) {
+    await nameRefusedEmployees(error, runId.value)
     failure.value = error
-    if (error instanceof ApiError && error.code === 'missing_iban') await nameRefusedEmployees(runId.value)
   } finally { downloading.value = null }
 }
-async function nameRefusedEmployees(id: number) {
+// Only a missing-IBAN refusal names employees, and the payslip list is read only for those not already on the page.
+async function nameRefusedEmployees(error: unknown, id: number) {
+  const ids = error instanceof ApiError && error.code === 'missing_iban' && Array.isArray(error.details?.employee_ids) ? error.details.employee_ids : []
+  if (ids.every(employeeId => employeeNames.value.has(employeeId))) return
   try {
     refusedNames.value = new Map((await fetchAllHrPayslips($api, id)).map(row => [row.employee.id, row.employee.name]))
   } catch { refusedNames.value = new Map() }
@@ -223,9 +226,23 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
         </template>
       </PayrollRunActions>
 
+      <UAlert
+        v-if="showFiles && profiles.error.value"
+        class="webvue-print-hide"
+        role="alert"
+        color="error"
+        variant="subtle"
+        :title="t('hrPayroll.files.profilesError')"
+        data-testid="hr-payroll-files-profiles-failure"
+      >
+        <template #actions>
+          <UButton type="button" color="neutral" variant="outline" :label="t('app.retry')" data-testid="hr-payroll-files-profiles-retry" @click="profiles.refetch()" />
+        </template>
+      </UAlert>
       <PayrollFileActions
-        v-if="showFiles && profiles.data.value"
-        :profiles="profiles.data.value.items"
+        v-if="showFiles"
+        :profiles="profiles.data.value?.items ?? []"
+        :profiles-ready="!!profiles.data.value"
         :pending="downloading"
         :default-date="currentPayrollDate()"
         :gosi-to="recordChildTo(`/hr/payroll/${run.id}/gosi`, route.query, sourcePaths, route.hash)"

@@ -333,7 +333,9 @@ test.describe('payroll salary files', () => {
 
   test('the GOSI statement of a computed run is refused', async ({ page }) => {
     await page.goto('/hr/payroll/2/gosi')
-    await expect(page.getByRole('alert')).toContainText('ليس لديك صلاحية لعرض هذه الصفحة.')
+    await expect(page.getByTestId('hr-payroll-gosi-not-approved')).toContainText('كشف التأمينات متاح بعد اعتماد المسيّر')
+    await page.getByTestId('hr-payroll-gosi-back').click()
+    await expect(page).toHaveURL(/\/hr\/payroll\/2/)
     // The refused request is logged by the browser; it is the behaviour under test.
     errors = errors.filter(message => !message.includes('403'))
   })

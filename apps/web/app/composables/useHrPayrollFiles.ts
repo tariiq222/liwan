@@ -10,7 +10,6 @@ import {
 import { hrPayrollKeys } from './useHrPayrollCompensation'
 
 type Api = ReturnType<typeof useApi>['$api']
-type Download = ReturnType<typeof useApi>['$download']
 
 const PAYROLL_PATH = '/api/v1/hr/payroll'
 const PROFILES_PATH = `${PAYROLL_PATH}/bank-profiles`
@@ -21,11 +20,6 @@ export function hrPayrollFileUrl(runId: number, kind: 'bank' | 'wps', params: { 
   const query = new URLSearchParams({ profile_id: String(params.profileId) })
   if (params.valueDate) query.set('value_date', params.valueDate)
   return `${PAYROLL_PATH}/runs/${runId}/${FILE_ROUTES[kind]}?${query}`
-}
-
-/** One request, the raw file back: a refusal (missing IBAN, WPS totals) is thrown as the server's ApiError. */
-export function downloadHrPayrollFile(download: Download, runId: number, kind: 'bank' | 'wps', params: { profileId: number; valueDate?: string }) {
-  return download(hrPayrollFileUrl(runId, kind, params))
 }
 
 /** Without an id the profile is created (every field), with one it is patched (the changed fields). */
