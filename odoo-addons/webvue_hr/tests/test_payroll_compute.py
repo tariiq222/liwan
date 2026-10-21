@@ -78,7 +78,7 @@ class TestPayrollCompute(PayrollCase):
         self.assertEqual(lines['HOUSING'], 1125.00)
         self.assertEqual(lines['TRANSPORT'], 375.00)
         self.assertEqual(lines['UNPAID'], -1200.00)
-        self.assertEqual(lines['GOSI_BASE'], 5625.00)
+        self.assertEqual(lines['GOSI_WAGE'], 5625.00)
         self.assertEqual(lines['GOSI_EE_ANN'], -506.25)
         self.assertEqual(lines['GOSI_EE_SANED'], -42.19)
         self.assertEqual(lines['NET'], 4251.56)

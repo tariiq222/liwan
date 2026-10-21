@@ -98,7 +98,6 @@ class WebVueHrPayrollCalculator(models.AbstractModel):
             'other': self._webvue_earning(compensation.other_allowance, days, divisor),
             'absence': -day_amount(fixed_wage, absence_days, divisor),
             'unpaid': -day_amount(fixed_wage, unpaid_days, divisor),
-            'gosi_base': money(compensation._webvue_gosi_base() * ratio),
             'gosi_wage': gosi_result['contributory_wage'],
             'gosi_ee_annuities': gosi.get('annuities', NO_AMOUNTS)[0],
             'gosi_ee_saned': gosi.get('saned', NO_AMOUNTS)[0],

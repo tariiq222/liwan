@@ -38,3 +38,7 @@ Task 16 fix: new column `webvue_gosi_class` on `hr_payslip` (the GOSI nationalit
 is computed, so the GOSI statement of an approved run does not read live data), created by the ORM on update. The
 non-payslip structure rule `GOSI_WAGE` (capped, prorated contributory wage) is new data loaded on upgrade. The table
 holds no payslips yet, so there is no data to carry.
+
+Task 16 fix 2: the unused statistical rule `GOSI_BASE` (`rule_gosi_base`) is removed from the Saudi structure; the
+structure data is updatable (not `noupdate`), so Odoo deletes the orphaned rule record on upgrade. The only thing
+that read it is replaced by `GOSI_WAGE`. Development data only; there is nothing to carry.

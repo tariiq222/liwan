@@ -250,17 +250,6 @@
         <field name="amount_select">code</field>
         <field name="amount_python_compute">result = current_contract.gosi_er_hazards</field>
     </record>
-    <record id="rule_gosi_base" model="hr.salary.rule">
-        <field name="name">GOSI base</field>
-        <field name="code">GOSI_BASE</field>
-        <field name="sequence">70</field>
-        <field name="category_id" ref="category_base"/>
-        <field name="company_id" eval="False"/>
-        <field name="condition_select">none</field>
-        <field name="amount_select">code</field>
-        <field name="appears_on_payslip" eval="False"/>
-        <field name="amount_python_compute">result = current_contract.gosi_base</field>
-    </record>
     <record id="rule_gosi_wage" model="hr.salary.rule">
         <field name="name">GOSI contributory wage</field>
         <field name="code">GOSI_WAGE</field>
@@ -306,7 +295,6 @@
             Command.link(ref('rule_gosi_er_ann')),
             Command.link(ref('rule_gosi_er_saned')),
             Command.link(ref('rule_gosi_er_oh')),
-            Command.link(ref('rule_gosi_base')),
             Command.link(ref('rule_gosi_wage')),
             Command.link(ref('rule_net')),
         ]"/>
