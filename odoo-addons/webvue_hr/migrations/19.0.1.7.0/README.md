@@ -9,3 +9,8 @@ onto `hr.payroll` per tenant profile (idempotent; skipped on a fresh install).
 
 Task 4: new table `webvue_hr_compensation` (one row per employee: wages, IBAN, GOSI number and
 registration date), created by the ORM on update. There is no data to carry.
+
+Task 6: new tables `webvue_hr_gosi_rate` (dated GOSI rates per branch and nationality class) and
+`webvue_hr_payroll_settings` (one row per company, plus its unpaid-leave-type relation), created by the
+ORM on update. The shared GOSI seed (`data/hr_gosi_rate_data.xml`, `noupdate`) loads on upgrade because
+its records are new. There is no data to carry.

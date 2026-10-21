@@ -3,6 +3,7 @@ from . import (
     access_service,
     entitlement_service,
     feature_registry,
+    gosi_rate,
     hr_compensation,
     hr_department,
     hr_employee,
@@ -10,4 +11,6 @@ from . import (
     hr_report,
     hr_version,
     mail_activity_plan,
+    payroll_calculator,
+    payroll_settings,
 )

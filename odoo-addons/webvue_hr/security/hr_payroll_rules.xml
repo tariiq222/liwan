@@ -42,6 +42,20 @@
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
 
+    <!-- GOSI rates: the shared seed rows (no company) and the rows of the user's companies. -->
+    <record id="rule_webvue_hr_gosi_rate_company" model="ir.rule">
+        <field name="name">webvue GOSI rate: shared or multi company</field>
+        <field name="model_id" ref="model_webvue_hr_gosi_rate"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_webvue_hr_payroll_settings_company" model="ir.rule">
+        <field name="name">webvue payroll settings: multi company</field>
+        <field name="model_id" ref="model_webvue_hr_payroll_settings"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
     <record id="rule_hr_payslip_own_approved" model="ir.rule">
         <field name="name">webvue payroll: own approved payslips</field>
         <field name="model_id" ref="payroll.model_hr_payslip"/>
