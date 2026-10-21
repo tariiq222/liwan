@@ -23,6 +23,20 @@
       "handler": "remove_member",
       "no_capability_reason": "Chat has no capability keys by design: webvue.chat.service requires an active internal WebVue user and limits every row to the caller's conversations."
     },
+    "DELETE /api/v1/finance/bank-statements/{statement_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.bank.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "delete_bank_statement",
+      "no_capability_reason": null
+    },
     "DELETE /api/v1/finance/budgets/{budget_id}/lines/{line_id}": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -65,6 +79,20 @@
       "handler": "delete_invoice",
       "no_capability_reason": null
     },
+    "DELETE /api/v1/finance/zakat/adjustments/{adjustment_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.zakat.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "delete_adjustment",
+      "no_capability_reason": null
+    },
     "DELETE /api/v1/hr/departments/{department_id}": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -77,6 +105,51 @@
         "hr.enabled"
       ],
       "handler": "delete_department",
+      "no_capability_reason": null
+    },
+    "DELETE /api/v1/hr/payroll/bank-profiles/{profile_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "delete_bank_profile",
+      "no_capability_reason": null
+    },
+    "DELETE /api/v1/hr/payroll/gosi-rates/{rate_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "delete_gosi_rate",
+      "no_capability_reason": null
+    },
+    "DELETE /api/v1/hr/payroll/runs/{run_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "delete_run",
       "no_capability_reason": null
     },
     "DELETE /api/v1/hr/shifts/assignments/{assignment_id}": {
@@ -619,6 +692,20 @@
       "handler": "list_accounts",
       "no_capability_reason": null
     },
+    "GET /api/v1/finance/accounts/{account_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.accounts.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "get_account",
+      "no_capability_reason": null
+    },
     "GET /api/v1/finance/analytic-accounts": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -687,6 +774,20 @@
         "finance.enabled"
       ],
       "handler": "list_asset_profiles",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/finance/asset-profiles/{profile_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.assets.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "get_asset_profile",
       "no_capability_reason": null
     },
     "GET /api/v1/finance/assets": {
@@ -951,6 +1052,20 @@
       "handler": "list_journals",
       "no_capability_reason": null
     },
+    "GET /api/v1/finance/journals/{journal_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.journals.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "get_journal",
+      "no_capability_reason": null
+    },
     "GET /api/v1/finance/partners": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -977,6 +1092,34 @@
         "finance.enabled"
       ],
       "handler": "get_partner",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/finance/payment-terms": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.payment_terms.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "list_payment_terms",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/finance/payment-terms/{term_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.payment_terms.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "get_payment_term",
       "no_capability_reason": null
     },
     "GET /api/v1/finance/payments": {
@@ -1063,6 +1206,20 @@
       "handler": "budget_vs_actual",
       "no_capability_reason": null
     },
+    "GET /api/v1/finance/reports/cash-flow": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.statements.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "cash_flow",
+      "no_capability_reason": null
+    },
     "GET /api/v1/finance/reports/general-ledger": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -1133,6 +1290,34 @@
       "handler": "vat_summary",
       "no_capability_reason": null
     },
+    "GET /api/v1/finance/reports/vat-return": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.reports.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "vat_return",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/finance/reports/vat-return/items": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.reports.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "vat_return_items",
+      "no_capability_reason": null
+    },
     "GET /api/v1/finance/reports/withholding": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -1173,6 +1358,76 @@
         "finance.enabled"
       ],
       "handler": "get_setup",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/finance/taxes": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.taxes.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "list_taxes",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/finance/taxes/{tax_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.taxes.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "get_tax",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/finance/zakat/adjustments": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.zakat.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "list_adjustments",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/finance/zakat/reviews": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.zakat.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "list_reviews",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/finance/zatca/documents": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.zatca.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "list_waiting_documents",
       "no_capability_reason": null
     },
     "GET /api/v1/finance/zatca/status": {
@@ -1538,6 +1793,207 @@
         "hr.onboarding"
       ],
       "handler": "get_onboarding_run",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/bank-profiles": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "list_bank_profiles",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/compensation/{employee_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "get_compensation",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/cost-centers": {
+      "addon": "webvue_hr_finance",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read",
+        "finance.analytic.read"
+      ],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "list_cost_centers",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/eos-cases": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "list_cases",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/finance-settings": {
+      "addon": "webvue_hr_finance",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read",
+        "finance.setup.read"
+      ],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "get_finance_settings",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/gosi-rates": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "list_gosi_rates",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/payslips/mine": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "list_my_payslips",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/payslips/mine/{payslip_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "get_my_payslip",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/runs": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "list_runs",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/runs/{run_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "get_run",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/runs/{run_id}/payslips": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "list_payslips",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/runs/{run_id}/payslips/{payslip_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "get_payslip",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/runs/{run_id}/posting-preview": {
+      "addon": "webvue_hr_finance",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "get_posting_preview",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/settings": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "get_settings",
       "no_capability_reason": null
     },
     "GET /api/v1/hr/recruitment/applicants": {
@@ -2663,6 +3119,20 @@
       "handler": "patch_document",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/finance/accounts/{account_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.accounts.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "patch_account",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/finance/analytic-accounts/{account_id}": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -2689,6 +3159,34 @@
         "finance.enabled"
       ],
       "handler": "patch_analytic_plan",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/finance/asset-profiles/{profile_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.assets.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "patch_asset_profile",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/finance/bank-statements/{statement_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.bank.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "patch_bank_statement",
       "no_capability_reason": null
     },
     "PATCH /api/v1/finance/budgets/{budget_id}": {
@@ -2747,6 +3245,20 @@
       "handler": "patch_invoice",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/finance/journals/{journal_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.journals.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "patch_journal",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/finance/partners/{partner_id}": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -2761,6 +3273,34 @@
       "handler": "patch_partner",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/finance/payment-terms/{term_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.payment_terms.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "patch_payment_term",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/finance/payments/{payment_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.payments.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "patch_payment",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/finance/setup/fiscal": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -2773,6 +3313,20 @@
         "finance.enabled"
       ],
       "handler": "patch_fiscal",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/finance/taxes/{tax_id}": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.taxes.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "patch_tax",
       "no_capability_reason": null
     },
     "PATCH /api/v1/hr/assets/equipment/{equipment_id}": {
@@ -2861,6 +3415,78 @@
         "hr.onboarding"
       ],
       "handler": "patch_onboarding_plan",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/payroll/bank-profiles/{profile_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "patch_bank_profile",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/payroll/finance-settings": {
+      "addon": "webvue_hr_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.setup.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "patch_finance_settings",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/payroll/gosi-rates/{rate_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "patch_gosi_rate",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/payroll/runs/{run_id}/payslips/{payslip_id}/inputs": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "patch_inputs",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/payroll/settings": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "patch_settings",
       "no_capability_reason": null
     },
     "PATCH /api/v1/hr/recruitment/applicants/{applicant_id}": {
@@ -3533,6 +4159,48 @@
       "handler": "set_document_active",
       "no_capability_reason": null
     },
+    "POST /api/v1/finance/accounts": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.accounts.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "create_account",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/accounts/{account_id}/archive": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.accounts.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "archive_account",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/accounts/{account_id}/unarchive": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.accounts.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "unarchive_account",
+      "no_capability_reason": null
+    },
     "POST /api/v1/finance/analytic-accounts": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -3559,6 +4227,48 @@
         "finance.enabled"
       ],
       "handler": "create_analytic_plan",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/asset-profiles": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.assets.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "create_asset_profile",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/asset-profiles/{profile_id}/archive": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.assets.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "archive_asset_profile",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/asset-profiles/{profile_id}/unarchive": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.assets.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "unarchive_asset_profile",
       "no_capability_reason": null
     },
     "POST /api/v1/finance/assets": {
@@ -3589,6 +4299,20 @@
       "handler": "compute_depreciation",
       "no_capability_reason": null
     },
+    "POST /api/v1/finance/assets/{asset_id}/dispose": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.assets.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "dispose_asset",
+      "no_capability_reason": null
+    },
     "POST /api/v1/finance/assets/{asset_id}/validate": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -3617,6 +4341,20 @@
       "handler": "reconcile",
       "no_capability_reason": null
     },
+    "POST /api/v1/finance/bank-statement-lines/{line_id}/unreconcile": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.bank.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "unreconcile",
+      "no_capability_reason": null
+    },
     "POST /api/v1/finance/bank-statements": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -3629,6 +4367,48 @@
         "finance.enabled"
       ],
       "handler": "create_bank_statement",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/bank-statements/import": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.bank.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "import_bank_statement",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/bank-statements/import/preview": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.bank.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "preview_bank_import",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/bank-statements/{statement_id}/auto-reconcile": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.bank.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "auto_reconcile",
       "no_capability_reason": null
     },
     "POST /api/v1/finance/budgets": {
@@ -3690,6 +4470,20 @@
         "finance.enabled"
       ],
       "handler": "create_line",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/budgets/{budget_id}/lines/distribute": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.budgets.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "distribute_line",
       "no_capability_reason": null
     },
     "POST /api/v1/finance/budgets/{budget_id}/reset-to-draft": {
@@ -3877,6 +4671,48 @@
       "handler": "submit_invoice",
       "no_capability_reason": null
     },
+    "POST /api/v1/finance/journals": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.journals.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "create_journal",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/journals/{journal_id}/archive": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.journals.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "archive_journal",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/journals/{journal_id}/unarchive": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.journals.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "unarchive_journal",
+      "no_capability_reason": null
+    },
     "POST /api/v1/finance/partners": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -3919,6 +4755,48 @@
       "handler": "unarchive_partner",
       "no_capability_reason": null
     },
+    "POST /api/v1/finance/payment-terms": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.payment_terms.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "create_payment_term",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/payment-terms/{term_id}/archive": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.payment_terms.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "archive_payment_term",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/payment-terms/{term_id}/unarchive": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.payment_terms.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "unarchive_payment_term",
+      "no_capability_reason": null
+    },
     "POST /api/v1/finance/payments": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -3931,6 +4809,34 @@
         "finance.enabled"
       ],
       "handler": "register_payment",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/payments/standalone": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.payments.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "create_standalone_payment",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/payments/{payment_id}/allocate": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.payments.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "allocate_payment",
       "no_capability_reason": null
     },
     "POST /api/v1/finance/payments/{payment_id}/cancel": {
@@ -3947,6 +4853,20 @@
       "handler": "cancel_payment",
       "no_capability_reason": null
     },
+    "POST /api/v1/finance/payments/{payment_id}/post": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.payments.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "post_payment",
+      "no_capability_reason": null
+    },
     "POST /api/v1/finance/payments/{payment_id}/reset-to-draft": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -3961,6 +4881,20 @@
       "handler": "reset_payment_to_draft",
       "no_capability_reason": null
     },
+    "POST /api/v1/finance/payments/{payment_id}/unallocate": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.payments.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "unallocate_payment",
+      "no_capability_reason": null
+    },
     "POST /api/v1/finance/setup/chart": {
       "addon": "webvue_finance",
       "auth": "user",
@@ -3973,6 +4907,76 @@
         "finance.enabled"
       ],
       "handler": "load_chart",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/taxes": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.taxes.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "create_tax",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/taxes/{tax_id}/archive": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.taxes.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "archive_tax",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/taxes/{tax_id}/unarchive": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.taxes.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "unarchive_tax",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/zakat/adjustments": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.zakat.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "create_adjustment",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/finance/zakat/reviews": {
+      "addon": "webvue_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.zakat.review"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "create_review",
       "no_capability_reason": null
     },
     "POST /api/v1/finance/zatca/journals/{journal_id}/onboard": {
@@ -4293,6 +5297,101 @@
         "hr.onboarding"
       ],
       "handler": "complete_onboarding_step",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/payroll/bank-profiles": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "create_bank_profile",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/payroll/gosi-rates": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "create_gosi_rate",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/payroll/runs": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "create_run",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/payroll/runs/{run_id}/approve": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.approve"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "approve_run",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/payroll/runs/{run_id}/compute": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "compute_run",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/payroll/runs/{run_id}/payment": {
+      "addon": "webvue_hr_finance",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "record_payment",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/payroll/runs/{run_id}/post": {
+      "addon": "webvue_hr_finance",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "post_run",
       "no_capability_reason": null
     },
     "POST /api/v1/hr/recruitment/applicants": {
@@ -5141,6 +6240,48 @@
         "documents.enabled"
       ],
       "handler": "set_access",
+      "no_capability_reason": null
+    },
+    "PUT /api/v1/hr/payroll/compensation/{employee_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "put_compensation",
+      "no_capability_reason": null
+    },
+    "PUT /api/v1/hr/payroll/cost-centers/{department_id}": {
+      "addon": "webvue_hr_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.analytic.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "put_cost_center",
+      "no_capability_reason": null
+    },
+    "PUT /api/v1/hr/payroll/eos-cases": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "put_case",
       "no_capability_reason": null
     },
     "PUT /api/v1/projects/{project_id}/stages/order": {
