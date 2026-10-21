@@ -2,6 +2,9 @@ import type {
   FinanceAccount,
   FinanceAccountCreate,
   FinanceAccountPatch,
+  FinanceAssetProfile,
+  FinanceAssetProfileCreate,
+  FinanceAssetProfilePatch,
   FinanceJournal,
   FinanceJournalCreate,
   FinanceJournalPatch,
@@ -114,5 +117,65 @@ export function termPatch(term: FinancePaymentTerm, draft: TermDraft): FinancePa
     ...(trim(draft.name) !== term.name ? { name: trim(draft.name) } : {}),
     ...(trim(draft.note) ? { note: trim(draft.note) } : {}),
     ...(sameLines ? {} : { lines }),
+  })
+}
+
+export interface AssetProfileDraft {
+  name: string
+  method: 'linear' | 'degressive'
+  methodTime: FinanceAssetProfile['method_time']
+  methodNumber: number | null
+  methodPeriod: FinanceAssetProfile['method_period']
+  prorata: boolean
+  assetAccountId: number | null
+  depreciationAccountId: number | null
+  expenseAccountId: number | null
+  journalId: number | null
+  plusAccountId: number | null
+  minAccountId: number | null
+}
+
+export function assetProfileDraft(profile?: FinanceAssetProfile): AssetProfileDraft {
+  return {
+    name: profile?.name ?? '',
+    method: profile?.method === 'degressive' ? 'degressive' : 'linear',
+    methodTime: profile?.method_time ?? 'year',
+    methodNumber: profile?.method_number ?? 5,
+    methodPeriod: profile?.method_period ?? 'year',
+    prorata: profile?.prorata ?? false,
+    assetAccountId: profile?.asset_account.id ?? null,
+    depreciationAccountId: profile?.depreciation_account.id ?? null,
+    expenseAccountId: profile?.expense_account.id ?? null,
+    journalId: profile?.journal.id ?? null,
+    plusAccountId: profile?.plus_value_account?.id ?? null,
+    minAccountId: profile?.min_value_account?.id ?? null,
+  }
+}
+export const assetProfileValid = (draft: AssetProfileDraft) =>
+  trim(draft.name) !== '' && draft.assetAccountId !== null && draft.depreciationAccountId !== null && draft.expenseAccountId !== null
+  && draft.journalId !== null && draft.methodNumber !== null && Number.isInteger(draft.methodNumber) && draft.methodNumber >= 1 && draft.methodNumber <= 1200
+export function assetProfileCreate(draft: AssetProfileDraft): FinanceAssetProfileCreate {
+  return {
+    name: trim(draft.name), asset_account_id: draft.assetAccountId!, depreciation_account_id: draft.depreciationAccountId!, expense_account_id: draft.expenseAccountId!,
+    journal_id: draft.journalId!, method: draft.method, method_time: draft.methodTime, method_number: draft.methodNumber!, method_period: draft.methodPeriod, prorata: draft.prorata,
+    ...(draft.plusAccountId !== null ? { plus_value_account_id: draft.plusAccountId } : {}),
+    ...(draft.minAccountId !== null ? { min_value_account_id: draft.minAccountId } : {}),
+  }
+}
+/** Only what changed is sent: once an asset uses the profile the server fixes its accounts, journal and method, and refuses a change to them. */
+export function assetProfilePatch(profile: FinanceAssetProfile, draft: AssetProfileDraft): FinanceAssetProfilePatch | null {
+  return changes<FinanceAssetProfilePatch>({
+    ...(trim(draft.name) !== profile.name ? { name: trim(draft.name) } : {}),
+    ...(draft.assetAccountId !== profile.asset_account.id ? { asset_account_id: draft.assetAccountId! } : {}),
+    ...(draft.depreciationAccountId !== profile.depreciation_account.id ? { depreciation_account_id: draft.depreciationAccountId! } : {}),
+    ...(draft.expenseAccountId !== profile.expense_account.id ? { expense_account_id: draft.expenseAccountId! } : {}),
+    ...(draft.journalId !== profile.journal.id ? { journal_id: draft.journalId! } : {}),
+    ...(draft.method !== profile.method ? { method: draft.method } : {}),
+    ...(draft.methodTime !== profile.method_time ? { method_time: draft.methodTime } : {}),
+    ...(draft.methodNumber !== profile.method_number ? { method_number: draft.methodNumber! } : {}),
+    ...(draft.methodPeriod !== profile.method_period ? { method_period: draft.methodPeriod } : {}),
+    ...(draft.prorata !== profile.prorata ? { prorata: draft.prorata } : {}),
+    ...(draft.plusAccountId !== (profile.plus_value_account?.id ?? null) ? { plus_value_account_id: draft.plusAccountId } : {}),
+    ...(draft.minAccountId !== (profile.min_value_account?.id ?? null) ? { min_value_account_id: draft.minAccountId } : {}),
   })
 }

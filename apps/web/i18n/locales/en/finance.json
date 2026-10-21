@@ -47,7 +47,8 @@
       "accountsSettings": "Chart of accounts setup",
       "journalsSettings": "Journals",
       "taxesSettings": "Taxes",
-      "paymentTermsSettings": "Payment terms"
+      "paymentTermsSettings": "Payment terms",
+      "assetProfilesSettings": "Asset profiles"
     },
     "kpi": {
       "label": "Finance figures",

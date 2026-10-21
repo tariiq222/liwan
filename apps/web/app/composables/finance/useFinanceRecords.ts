@@ -3,6 +3,8 @@ import { computed, toValue } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { z } from 'zod'
 import {
+  FinanceAssetProfileListSchema,
+  FinanceAssetProfileSchema,
   FinanceAccountListSchema,
   FinanceAccountSchema,
   FinanceJournalListSchema,
@@ -11,6 +13,8 @@ import {
   FinancePaymentTermSchema,
   FinanceTaxListSchema,
   FinanceTaxSchema,
+  type FinanceAssetProfileCreate,
+  type FinanceAssetProfilePatch,
   type FinanceAccountCreate,
   type FinanceAccountPatch,
   type FinanceJournalCreate,
@@ -22,15 +26,16 @@ import {
 } from '@webvue/contracts'
 import type { RecordParams } from '@/components/finance/records/recordParams'
 
-// The setup records of a company: accounts, journals, taxes and payment terms. Each has a list (with an archived switch), a create,
+// The setup records of a company: accounts, journals, taxes, payment terms and asset profiles. Each has a list (with an archived switch), a create,
 // a patch and an archive/unarchive; a write waits for the server and the lists refresh from the answer.
-export type SetupResource = 'accounts' | 'journals' | 'taxes' | 'payment-terms'
+export type SetupResource = 'accounts' | 'journals' | 'taxes' | 'payment-terms' | 'asset-profiles'
 
 const PATHS: Record<SetupResource, string> = {
   accounts: '/api/v1/finance/accounts',
   journals: '/api/v1/finance/journals',
   taxes: '/api/v1/finance/taxes',
   'payment-terms': '/api/v1/finance/payment-terms',
+  'asset-profiles': '/api/v1/finance/asset-profiles',
 }
 
 export const financeRecordKeys = {
@@ -87,3 +92,8 @@ export const useSetupPaymentTerms = (params: MaybeRefOrGetter<RecordParams>, ena
 export const useCreateSetupPaymentTerm = () => useWrite('payment-terms', create<FinancePaymentTermCreate>(), FinancePaymentTermSchema)
 export const usePatchSetupPaymentTerm = () => useWrite('payment-terms', patch<FinancePaymentTermPatch>(), FinancePaymentTermSchema)
 export const useArchiveSetupPaymentTerm = () => useWrite('payment-terms', archive(), FinancePaymentTermSchema)
+
+export const useSetupAssetProfiles = (params: MaybeRefOrGetter<RecordParams>, enabled: MaybeRefOrGetter<boolean> = true) => useList('asset-profiles', FinanceAssetProfileListSchema, params, enabled)
+export const useCreateSetupAssetProfile = () => useWrite('asset-profiles', create<FinanceAssetProfileCreate>(), FinanceAssetProfileSchema)
+export const usePatchSetupAssetProfile = () => useWrite('asset-profiles', patch<FinanceAssetProfilePatch>(), FinanceAssetProfileSchema)
+export const useArchiveSetupAssetProfile = () => useWrite('asset-profiles', archive(), FinanceAssetProfileSchema)

@@ -47,7 +47,8 @@
       "accountsSettings": "إعداد دليل الحسابات",
       "journalsSettings": "اليوميات",
       "taxesSettings": "الضرائب",
-      "paymentTermsSettings": "شروط الدفع"
+      "paymentTermsSettings": "شروط الدفع",
+      "assetProfilesSettings": "ملفات الأصول"
     },
     "kpi": {
       "label": "مؤشرات المالية",

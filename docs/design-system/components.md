@@ -297,6 +297,7 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/finance/assets/AssetComputeButton.vue` | زر «احتساب الإهلاك» في رأس القائمة | — | `UButton` |
 | `apps/web/app/components/finance/assets/AssetComputeSection.vue` | احتساب الإهلاك حتى تاريخ بتأكيد مضمّن، ثم القيود المرحّلة | — | `SharedInlineConfirm`, `UFormField`, `SharedDateField`, `UAlert` |
 | `apps/web/app/components/finance/assets/AssetForm.vue` | إنشاء أصل: الفئة والاسم والرمز والتاريخ والمورّد والقيم والملاحظة | — | `SharedUnsavedChanges`, `UForm`, `UAlert`, `SharedFormSection`, `UFormField`, `USelect`, `UInput`, `SharedDateField`, `UTextarea`, `SharedFormActions`, `UButton` |
+| `apps/web/app/components/finance/assets/AssetDisposePanel.vue` | بيع أصل جارٍ أو إتلافه داخل سجله: التاريخ والمتحصلات وحسابها وحسابا الربح والخسارة، ويُرحَّل القيد مرة واحدة | — | `UForm`, `UFormField`, `UInput`, `SharedDateField`, `UButton`, `UAlert` |
 | `apps/web/app/components/finance/assets/AssetRecordActions.vue` | إجراء «تشغيل الأصل» في رأس السجل | — | `UButton` |
 | `apps/web/app/components/finance/assets/AssetRecordBody.vue` | عمود سجل الأصل: الرسائل وتأكيد التشغيل والملاحظة وجدول الإهلاك | — | `UAlert`, `SharedInlineConfirm`, `SharedRecordSection` |
 | `apps/web/app/components/finance/assets/AssetRecordAside.vue` | خصائص الأصل وطريقة الإهلاك والقيم | — | `SharedPropertiesPanel`, `SharedPropertyRow` |
@@ -314,6 +315,8 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/finance/records/TaxEditor.vue` | نموذج مضمّن لإنشاء ضريبة أو تعديلها؛ الضريبة المستخدمة في قيود يتغير اسمها فقط | — | `UForm`, `UAlert`, `UFormField`, `UInput`, `UInputNumber`, `USelect`, `USwitch`, `UButton` |
 | `apps/web/app/components/finance/records/PaymentTermsSection.vue` | قسم شروط الدفع في الإعدادات: بحث وأرشفة في الرابط وجدول وترقيم؛ الشروط المشتركة للقراءة فقط | — | `SharedRecordSection`, `UButton`, `SharedPageState`, `SharedEmptyState`, `SharedDataTable`, `SharedStatusBadge`, `SharedRowActions`, `SharedListFooter` |
 | `apps/web/app/components/finance/records/PaymentTermEditor.vue` | نموذج مضمّن لشرط دفع: الاسم والدفعات (نسبة أو مبلغ وأيام وأساس الاحتساب) ومجموع النسب | — | `UForm`, `UAlert`, `UFormField`, `UInput`, `UInputNumber`, `USelect`, `UButton` |
+| `apps/web/app/components/finance/records/AssetProfilesSection.vue` | ملفات إهلاك الأصول: القائمة مع مفتاح المؤرشف، والمحرر والتأكيد داخل الصفحة | — | `SharedRecordSection`, `SharedDataTable`, `SharedRowActions`, `SharedStatusBadge`, `SharedListFooter`, `SharedPageState` |
+| `apps/web/app/components/finance/records/AssetProfileEditor.vue` | نموذج ملف الأصل: الطريقة والمدة وحسابات الأصل ومجمع الإهلاك والمصروف واليومية وحسابي الربح والخسارة | — | `UForm`, `UFormField`, `UInput`, `USelect`, `UCheckbox`, `UButton`, `UAlert` |
 | `apps/web/app/components/finance/records/RecordsFilters.vue` | شريط فلاتر قوائم الإعداد: بحث اختياري ونوع اختياري ونشط أو مؤرشف | — | `SharedFilterBar`, `SharedFilterField`, `UInput`, `USelect` |
 | `apps/web/app/components/finance/records/RecordArchiveConfirm.vue` | تأكيد مضمّن لأرشفة سجل إعداد أو إعادته | — | `SharedInlineConfirm` |
 | `apps/web/app/components/finance/reports/AnalyticTable.vue` | تقرير مراكز التكلفة (إيراد ومصروف وصافي) وبنود المركز المفتوح | — | `UAlert`, `SharedDataTable`, `UIcon` |

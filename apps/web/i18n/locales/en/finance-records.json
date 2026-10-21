@@ -170,6 +170,66 @@
         "unarchiveTitle": "Restore the payment term \"{name}\"?",
         "unarchiveDescription": "It comes back to the pickers."
       }
+    },
+    "assetProfiles": {
+      "title": "Asset profiles",
+      "description": "How each class of fixed assets is depreciated and which accounts and journal its entries use. Once an asset uses a profile, its accounts, journal and method are fixed.",
+      "new": "New profile",
+      "empty": "No asset profiles yet.",
+      "actionsNamed": "Actions for profile {name}",
+      "footer": "Showing {shown} of {total} profile | Showing {shown} of {total} profiles",
+      "methods": {
+        "linear": "Straight line",
+        "degressive": "Declining balance"
+      },
+      "methodsAll": {
+        "linear": "Straight line",
+        "linear-limit": "Straight line to the salvage value",
+        "degressive": "Declining balance",
+        "degr-linear": "Declining then straight line",
+        "degr-limit": "Declining to the salvage value"
+      },
+      "times": {
+        "year": "By number of years",
+        "number": "By number of periods"
+      },
+      "periods": {
+        "month": "Monthly",
+        "quarter": "Quarterly",
+        "year": "Yearly"
+      },
+      "duration": {
+        "year": "{count} year, {period} | {count} years, {period}",
+        "number": "{count} period, {period} | {count} periods, {period}"
+      },
+      "columns": {
+        "name": "Name",
+        "method": "Method",
+        "duration": "Duration",
+        "accounts": "Asset · depreciation account"
+      },
+      "form": {
+        "name": "Profile name",
+        "method": "Method",
+        "methodTime": "Duration is set",
+        "years": "Number of years",
+        "periods": "Number of periods",
+        "methodPeriod": "Depreciation posted",
+        "prorata": "Prorate the first period from the start date",
+        "assetAccount": "Asset account",
+        "depreciationAccount": "Accumulated depreciation account",
+        "expenseAccount": "Depreciation expense account",
+        "journal": "Journal",
+        "plusAccount": "Gain on disposal account",
+        "minAccount": "Loss on disposal account",
+        "disposalHelp": "Used when an asset of this profile is sold or scrapped."
+      },
+      "confirm": {
+        "archiveTitle": "Archive the profile \"{name}\"?",
+        "archiveDescription": "It can no longer be chosen for new assets. Assets that use it keep running.",
+        "unarchiveTitle": "Restore the profile \"{name}\"?",
+        "unarchiveDescription": "It comes back to the asset form."
+      }
     }
   }
 }

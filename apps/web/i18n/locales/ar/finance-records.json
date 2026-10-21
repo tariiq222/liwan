@@ -170,6 +170,66 @@
         "unarchiveTitle": "استعادة شرط الدفع «{name}»؟",
         "unarchiveDescription": "يعود إلى القوائم."
       }
+    },
+    "assetProfiles": {
+      "title": "ملفات الأصول",
+      "description": "كيف يُهلَك كل صنف من الأصول الثابتة، وأي حسابات ويومية تُسجَّل بها قيوده. متى استخدم أصل ملفًّا، ثبتت حساباته ويوميته وطريقته.",
+      "new": "ملف جديد",
+      "empty": "لا توجد ملفات أصول بعد.",
+      "actionsNamed": "إجراءات الملف {name}",
+      "footer": "لا ملفات | عرض {shown} من ملف واحد | عرض {shown} من ملفين | عرض {shown} من {total} ملفات | عرض {shown} من {total} ملفًا | عرض {shown} من {total} ملف",
+      "methods": {
+        "linear": "القسط الثابت",
+        "degressive": "القسط المتناقص"
+      },
+      "methodsAll": {
+        "linear": "القسط الثابت",
+        "linear-limit": "القسط الثابت حتى القيمة التخريدية",
+        "degressive": "القسط المتناقص",
+        "degr-linear": "متناقص ثم ثابت",
+        "degr-limit": "متناقص حتى القيمة التخريدية"
+      },
+      "times": {
+        "year": "بعدد السنوات",
+        "number": "بعدد الفترات"
+      },
+      "periods": {
+        "month": "شهريًا",
+        "quarter": "ربع سنوي",
+        "year": "سنويًا"
+      },
+      "duration": {
+        "year": "لا سنوات، {period} | سنة واحدة، {period} | سنتان، {period} | {count} سنوات، {period} | {count} سنة، {period} | {count} سنة، {period}",
+        "number": "لا فترات، {period} | فترة واحدة، {period} | فترتان، {period} | {count} فترات، {period} | {count} فترة، {period} | {count} فترة، {period}"
+      },
+      "columns": {
+        "name": "الاسم",
+        "method": "الطريقة",
+        "duration": "المدة",
+        "accounts": "حساب الأصل · مجمع الإهلاك"
+      },
+      "form": {
+        "name": "اسم الملف",
+        "method": "الطريقة",
+        "methodTime": "تُحدَّد المدة",
+        "years": "عدد السنوات",
+        "periods": "عدد الفترات",
+        "methodPeriod": "ترحيل الإهلاك",
+        "prorata": "احتساب الفترة الأولى بالتناسب من تاريخ البدء",
+        "assetAccount": "حساب الأصل",
+        "depreciationAccount": "حساب مجمع الإهلاك",
+        "expenseAccount": "حساب مصروف الإهلاك",
+        "journal": "اليومية",
+        "plusAccount": "حساب أرباح الاستبعاد",
+        "minAccount": "حساب خسائر الاستبعاد",
+        "disposalHelp": "يُستخدم عند بيع أصل من هذا الملف أو إتلافه."
+      },
+      "confirm": {
+        "archiveTitle": "أرشفة الملف «{name}»؟",
+        "archiveDescription": "لا يمكن اختياره لأصول جديدة. الأصول التي تستخدمه تواصل عملها.",
+        "unarchiveTitle": "استعادة الملف «{name}»؟",
+        "unarchiveDescription": "يعود إلى نموذج الأصل."
+      }
     }
   }
 }

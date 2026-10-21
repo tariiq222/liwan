@@ -125,5 +125,6 @@ export type FinanceAsset = z.infer<typeof FinanceAssetSchema>
 export type FinanceAssetDetail = z.infer<typeof FinanceAssetDetailSchema>
 export type FinanceAssetDispose = z.infer<typeof FinanceAssetDisposeSchema>
 export type FinanceAssetProfileCreate = z.infer<typeof FinanceAssetProfileCreateSchema>
+export type FinanceAssetProfilePatch = z.infer<typeof FinanceAssetProfilePatchSchema>
 export type FinanceAssetCreate = z.infer<typeof FinanceAssetCreateSchema>
 export type FinanceAssetComputeResult = z.infer<typeof FinanceAssetComputeResultSchema>

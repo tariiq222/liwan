@@ -1,6 +1,7 @@
-import type { FinanceAccount, FinanceJournal, FinancePaymentTerm, FinanceTax } from '@webvue/contracts'
+import type { FinanceAssetProfile, FinanceAccount, FinanceJournal, FinancePaymentTerm, FinanceTax } from '@webvue/contracts'
 import {
   FinanceAccountCreateSchema,
+  FinanceAssetProfileCreateSchema,
   FinanceJournalCreateSchema,
   FinancePaymentTermCreateSchema,
   FinanceTaxCreateSchema,
@@ -8,6 +9,7 @@ import {
 import { describe, expect, it } from 'vitest'
 import {
   accountCreate, accountDraft, accountPatch, accountValid,
+  assetProfileCreate, assetProfileDraft, assetProfilePatch, assetProfileValid,
   journalCreate, journalDraft, journalPatch, journalValid,
   newTermLine, percentTotal, taxCreate, taxDraft, taxPatch, taxValid,
   termCreate, termDraft, termPatch, termValid,
@@ -89,5 +91,27 @@ describe('the payment term form', () => {
     const longer = termDraft(TERM)
     longer.lines[0]!.days = 60
     expect(termPatch(TERM, longer)).toEqual({ lines: [{ value: 'percent', value_amount: 100, nb_days: 60, delay_type: 'days_after' }] })
+  })
+})
+
+describe('asset profile drafts', () => {
+  const profile = {
+    id: 3, name: 'Vehicles', method: 'linear', method_time: 'year', method_number: 5, method_period: 'year', prorata: false,
+    asset_account: { id: 1, name: 'Vehicles' }, depreciation_account: { id: 2, name: 'Accumulated' }, expense_account: { id: 4, name: 'Expense' },
+    journal: { id: 7, name: 'Misc' }, plus_value_account: null, min_value_account: null, active: true,
+  } as FinanceAssetProfile
+
+  it('needs a name, the three accounts, a journal and a whole duration', () => {
+    expect(assetProfileValid(assetProfileDraft())).toBe(false)
+    expect(assetProfileValid(assetProfileDraft(profile))).toBe(true)
+    expect(assetProfileValid({ ...assetProfileDraft(profile), methodNumber: 0 })).toBe(false)
+    expect(assetProfileValid({ ...assetProfileDraft(profile), methodNumber: 2.5 })).toBe(false)
+  })
+
+  it('builds a body the contract accepts and sends only the changes on edit', () => {
+    expect(FinanceAssetProfileCreateSchema.parse(assetProfileCreate(assetProfileDraft(profile)))).toMatchObject({ name: 'Vehicles', journal_id: 7, method_number: 5 })
+    expect(assetProfilePatch(profile, assetProfileDraft(profile))).toBeNull()
+    expect(assetProfilePatch(profile, { ...assetProfileDraft(profile), name: ' Cars ', minAccountId: 9 })).toEqual({ name: 'Cars', min_value_account_id: 9 })
+    expect(assetProfilePatch({ ...profile, min_value_account: { id: 9, name: 'Loss' } }, { ...assetProfileDraft(profile), minAccountId: null })).toEqual({ min_value_account_id: null })
   })
 })
