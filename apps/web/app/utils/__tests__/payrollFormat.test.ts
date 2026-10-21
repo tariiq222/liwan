@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { currentPayrollDate, currentPayrollMonth, formatPayrollAmount, formatPayrollMonth, formatPayrollPercent, payrollRunStateTone } from '../payrollFormat'
+import { currentPayrollMonth, formatPayrollAmount, formatPayrollMonth, formatPayrollPercent, payrollRunStateTone } from '../payrollFormat'
 
 describe('payroll formatting', () => {
   it('prints amounts with two decimals and Latin digits in both locales', () => {
@@ -20,7 +20,6 @@ describe('payroll formatting', () => {
 
   it('reads the current month from the local calendar', () => {
     expect(currentPayrollMonth(new Date(2026, 0, 31))).toBe('2026-01')
-    expect(currentPayrollDate(new Date(2026, 0, 5))).toBe('2026-01-05')
   })
 
   it('gives every run state its own badge tone', () => {

@@ -58,17 +58,19 @@ const facts = computed(() => [
       </section>
       <section class="grid content-start gap-2" :aria-label="t('hrPayroll.payslip.deductions')">
         <h2 class="text-sm font-semibold text-highlighted">{{ t('hrPayroll.payslip.deductions') }}</h2>
-        <dl class="grid gap-1.5">
+        <div class="grid gap-1.5">
           <p v-if="deductions.length === 0" class="text-sm text-muted">{{ t('hrPayroll.payslip.noDeductions') }}</p>
-          <div v-for="line in deductions" :key="line.code" class="flex justify-between gap-3 border-b border-default pb-1.5" :data-testid="`hr-payslip-line-${line.code}`">
-            <dt>{{ line.name }}</dt>
-            <dd class="tabular-nums">{{ amount(Math.abs(line.amount)) }}</dd>
-          </div>
-          <div class="flex justify-between gap-3 font-semibold text-highlighted">
-            <dt>{{ t('hrPayroll.payslip.totalDeductions') }}</dt>
-            <dd class="tabular-nums" data-testid="hr-payslip-deductions">{{ amount(props.payslip.deductions) }}</dd>
-          </div>
-        </dl>
+          <dl class="grid gap-1.5">
+            <div v-for="line in deductions" :key="line.code" class="flex justify-between gap-3 border-b border-default pb-1.5" :data-testid="`hr-payslip-line-${line.code}`">
+              <dt>{{ line.name }}</dt>
+              <dd class="tabular-nums">{{ amount(Math.abs(line.amount)) }}</dd>
+            </div>
+            <div class="flex justify-between gap-3 font-semibold text-highlighted">
+              <dt>{{ t('hrPayroll.payslip.totalDeductions') }}</dt>
+              <dd class="tabular-nums" data-testid="hr-payslip-deductions">{{ amount(props.payslip.deductions) }}</dd>
+            </div>
+          </dl>
+        </div>
       </section>
     </div>
 

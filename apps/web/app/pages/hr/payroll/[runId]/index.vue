@@ -6,13 +6,13 @@ import PayrollPostingPreview from '@/components/hr/payroll/PayrollPostingPreview
 import PayrollRunActions from '@/components/hr/payroll/PayrollRunActions.vue'
 import PayrollRunTotals from '@/components/hr/payroll/PayrollRunTotals.vue'
 import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
-import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import { formatDate, localIsoDay } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { HR_PAYSLIP_PAGE_SIZE, fetchAllHrPayslips, hrPayslipsQuery } from '@/composables/useHrPayrollRuns'
 import { hrPayrollFileUrl } from '@/composables/useHrPayrollFiles'
 import { eosProvisionErrorMessage, payrollErrorMessage } from '@/utils/payrollErrors'
 import { saveBlob } from '@/utils/saveBlob'
-import { currentPayrollDate, formatPayrollMonth, payrollRunStateTone } from '@/utils/payrollFormat'
+import { formatPayrollMonth, payrollRunStateTone } from '@/utils/payrollFormat'
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { parsePositiveId } from '@/utils/routeParams'
 import type { HrPayrollPaymentCreate, HrPayslipInputsPatch, HrPayslipRow } from '@webvue/contracts'
@@ -234,7 +234,7 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
             :journals="paymentJournals"
             :pending="payment.isPending.value"
             :error="failure"
-            :default-date="currentPayrollDate()"
+            :default-date="localIsoDay()"
             @submit="recordPayment"
             @cancel="close"
           />
@@ -259,7 +259,7 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
         :profiles="profiles.data.value?.items ?? []"
         :profiles-ready="!!profiles.data.value"
         :pending="downloading"
-        :default-date="currentPayrollDate()"
+        :default-date="localIsoDay()"
         :gosi-to="recordChildTo(`/hr/payroll/${run.id}/gosi`, route.query, sourcePaths, route.hash)"
         @download="downloadFile"
       />

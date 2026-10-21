@@ -3,7 +3,7 @@ import { ApiError } from '../composables/useApi'
 type Translate = (key: string, params?: Record<string, unknown>) => string
 
 // The refusals of the payroll routes that have their own text on the page; the server's message is English.
-const OWN_TEXT = new Set(['duplicate', 'transition_forbidden', 'structure_missing', 'contract_missing', 'gosi_rate_missing', 'payroll_structure_mismatch', 'compensation_missing', 'settlement_missing', 'settlement_changed', 'annual_leave_type_missing', 'departure_missing', 'eos_case_missing', 'period_locked', 'missing_cost_center', 'settings_incomplete', 'wps_totals_mismatch'])
+const OWN_TEXT = new Set(['duplicate', 'transition_forbidden', 'structure_missing', 'contract_missing', 'gosi_rate_missing', 'payroll_structure_mismatch', 'compensation_missing', 'settlement_missing', 'settlement_changed', 'annual_leave_type_missing', 'departure_missing', 'eos_case_missing', 'period_locked', 'missing_cost_center', 'settings_incomplete', 'wps_totals_mismatch', 'run_empty'])
 // The refusals that list the employees they name.
 const NAMING = new Set(['negative_net', 'missing_iban', 'run_stale'])
 
@@ -12,7 +12,7 @@ function employeeIds(error: ApiError): number[] {
   return Array.isArray(ids) ? ids.filter((id): id is number => typeof id === 'number') : []
 }
 
-/** The text a refused payroll write shows: its own message for the known codes, otherwise the server's. */
+/** The text a refused payroll write shows: its own message for the known codes, otherwise the generic one. */
 export function payrollErrorMessage(error: unknown, t: Translate, employeeNames: ReadonlyMap<number, string>): string {
   if (!(error instanceof ApiError)) return t('errors.generic')
   if (error.status === 0) return t('errors.saveUncertain')
@@ -25,7 +25,7 @@ export function payrollErrorMessage(error: unknown, t: Translate, employeeNames:
   if (error.code === 'invalid' && error.details?.reason === 'not_editable') return t('hrPayroll.errors.notEditable')
   // Only the settlement estimate names the service start; the other `invalid` date is the payment date.
   if (error.code === 'invalid' && error.field === 'date') return t(error.details?.start_date !== undefined ? 'hrPayroll.errors.departureBeforeStart' : 'hrPayroll.errors.paymentBeforeEntry')
-  return error.message || t('errors.generic')
+  return t('errors.generic')
 }
 
 /** The refusals of the end-of-service provision have their own wording: the run's `duplicate` text would be wrong for them. */

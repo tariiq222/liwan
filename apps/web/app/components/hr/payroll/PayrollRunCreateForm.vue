@@ -16,12 +16,18 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const { mutateAsync: createRun, isPending } = useCreateHrPayrollRun()
 
-const initialMonth = currentPayrollMonth()
-const month = ref(initialMonth)
+const month = ref('')
+const initialMonth = ref('')
+// Filled after mount from the browser's own month: the server's clock can sit in another time zone, so the same
+// value must never be server-rendered into the field. `initialMonth` is what the untouched form compares against.
+onMounted(() => {
+  initialMonth.value = currentPayrollMonth()
+  month.value ||= initialMonth.value
+})
 const attempted = ref(false)
 const saved = ref(false)
 const failure = ref<unknown>(null)
-const dirty = computed(() => !saved.value && month.value !== initialMonth)
+const dirty = computed(() => !saved.value && month.value !== initialMonth.value)
 const parsed = computed(() => HrPayrollRunCreateSchema.safeParse({ month: normalizeDigits(month.value).trim() }))
 
 // A month that already has a run is refused on the month field; anything else is a general error.
