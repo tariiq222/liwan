@@ -26,6 +26,18 @@ def require_state(record, state, code):
         raise ApiError(422, code, f'the record must be in the {state} state, it is {record.state}')
 
 
+def require_balanced(lines):
+    """The debits equal the credits in the company currency, else 422 ``unbalanced`` before Odoo is called."""
+    currency = request.env.company.currency_id
+    debit = sum(line['debit'] for line in lines)
+    credit = sum(line['credit'] for line in lines)
+    if currency.compare_amounts(debit, credit):
+        raise ApiError(
+            422, 'unbalanced', 'the total debit must equal the total credit', field='lines',
+            details={'debit': currency.round(debit), 'credit': currency.round(credit)},
+        )
+
+
 def _zatca_blocks_posting(move):
     """True when the sales journal of a Saudi sale document is not ZATCA-onboarded.
 

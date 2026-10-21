@@ -95,6 +95,12 @@ limits describe implementation stages, not permanent product exclusions.
   `webvue.project.actual.source` hooks and the PMO settings extension (cost-center mode `auto` or
   `manual`), and reads analytic lines in the caller's own environment through its own ACLs and
   record rules, with no `sudo()`.
+- `odoo-addons/webvue_hr_finance` (bridge, rank 5, `auto_install`) is installed whenever `webvue_hr`
+  and `webvue_finance` both are. It holds the accounting mapping of a company's payroll (journal,
+  accounts, entry detail) and the analytic cost center of each department, edited through
+  `/api/v1/hr/payroll/finance-settings` and `/api/v1/hr/payroll/cost-centers`. It answers the neutral
+  `webvue.hr.payroll.finance.link` hooks of `webvue_hr` and runs in the caller's own environment through
+  its own ACLs and record rules, with no `sudo()`.
 - `packages/contracts/src/common`, `src/access`, `src/pmo`, `src/hr`, `src/meetings`, `src/chat`,
   `src/tasks` and `src/operations` hold the Zod wire
   contracts; each namespace has a barrel re-exported from `src/index.ts`.

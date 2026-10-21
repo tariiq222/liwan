@@ -11,6 +11,7 @@ from .write_support import (
     company_records,
     is_period_locked,
     period_locked,
+    require_balanced,
     require_state,
 )
 from odoo.addons.webvue_api.controllers.common import (
@@ -55,18 +56,6 @@ def _find_entry(entry_id):
     return entry
 
 
-def _require_balanced(lines):
-    """The debits equal the credits in the company currency, else 422 ``unbalanced`` before Odoo is called."""
-    currency = request.env.company.currency_id
-    debit = sum(line['debit'] for line in lines)
-    credit = sum(line['credit'] for line in lines)
-    if currency.compare_amounts(debit, credit):
-        raise ApiError(
-            422, 'unbalanced', 'the total debit must equal the total credit', field='lines',
-            details={'debit': currency.round(debit), 'credit': currency.round(credit)},
-        )
-
-
 def _line_command(line, index):
     values = {key: line[key] for key in ('name', 'debit', 'credit')}
     values['account_id'] = company_records(
@@ -95,7 +84,7 @@ def _entry_values(parsed):
             [('company_id', '=', request.env.company.id), ('type', '=', 'general')],
         ).id
     if 'lines' in parsed:
-        _require_balanced(parsed['lines'])
+        require_balanced(parsed['lines'])
         # A body that carries lines replaces every existing line of the entry.
         values['line_ids'] = [
             Command.clear(),

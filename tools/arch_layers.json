@@ -23,7 +23,8 @@
     "webvue_integrations_sa": 3,
     "webvue_documents_hr": 5,
     "webvue_access_hr": 5,
-    "webvue_pmo_finance": 5
+    "webvue_pmo_finance": 5,
+    "webvue_hr_finance": 5
   },
   "exempt": [],
   "web_apps": {

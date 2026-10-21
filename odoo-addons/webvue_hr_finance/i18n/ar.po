@@ -1,0 +1,89 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* webvue_hr_finance
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 00:00+0000\n"
+"PO-Revision-Date: 2026-10-21 00:00+0000\n"
+"Last-Translator: WebVue\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+
+#. module: webvue_hr_finance
+#. odoo-python
+#: code:addons/webvue_hr_finance/models/payroll_finance_settings.py:0
+msgid "Every account must belong to the company."
+msgstr "يجب أن ينتمي كل حساب إلى الشركة."
+
+#. module: webvue_hr_finance
+#. odoo-python
+#: code:addons/webvue_hr_finance/models/payroll_finance_settings.py:0
+msgid "The default cost center must belong to the company."
+msgstr "يجب أن ينتمي مركز التكلفة الافتراضي إلى الشركة."
+
+#. module: webvue_hr_finance
+#. odoo-python
+#: code:addons/webvue_hr_finance/models/payroll_finance_settings.py:0
+msgid "The journal must belong to the company."
+msgstr "يجب أن تنتمي اليومية إلى الشركة."
+
+#. module: webvue_hr_finance
+#. odoo-python
+#: code:addons/webvue_hr_finance/models/payroll_finance_settings.py:0
+msgid "The payable and advance accounts must allow reconciliation."
+msgstr "يجب أن يقبل حسابا الرواتب المستحقة والسلف التسوية."
+
+#. module: webvue_hr_finance
+#. odoo-python
+#: code:addons/webvue_hr_finance/models/payroll_cost_center.py:0
+msgid "The cost center must belong to the company."
+msgstr "يجب أن ينتمي مركز التكلفة إلى الشركة."
+
+#. module: webvue_hr_finance
+#. odoo-python
+#: code:addons/webvue_hr_finance/models/payroll_cost_center.py:0
+msgid "The department must belong to the company."
+msgstr "يجب أن ينتمي القسم إلى الشركة."
+
+#. module: webvue_hr_finance
+#. odoo-python
+#: code:addons/webvue_hr_finance/controllers/settings.py:0
+msgid "hr.department %(id)s does not exist"
+msgstr "القسم %(id)s غير موجود"
+
+#. module: webvue_hr_finance
+#: model:ir.model,name:webvue_hr_finance.model_webvue_hr_payroll_cost_center
+msgid "WebVue HR payroll department cost center"
+msgstr "مركز تكلفة رواتب القسم"
+
+#. module: webvue_hr_finance
+#: model:ir.model,name:webvue_hr_finance.model_webvue_hr_payroll_finance_settings
+msgid "WebVue HR payroll finance settings"
+msgstr "إعدادات محاسبة الرواتب"
+
+#. module: webvue_hr_finance
+#: model:ir.model.constraint,message:webvue_hr_finance.constraint_webvue_hr_payroll_cost_center_department_unique
+msgid "a department has one payroll cost center"
+msgstr "للقسم مركز تكلفة رواتب واحد فقط."
+
+#. module: webvue_hr_finance
+#: model:ir.model.constraint,message:webvue_hr_finance.constraint_webvue_hr_payroll_finance_settings_company_unique
+msgid "a company has one payroll finance settings record"
+msgstr "للشركة سجل إعدادات محاسبة رواتب واحد فقط."
+
+#. module: webvue_hr_finance
+#: model:ir.model.fields.selection,name:webvue_hr_finance.selection__webvue_hr_payroll_finance_settings__entry_detail__aggregated
+msgid "Aggregated"
+msgstr "مجمّع"
+
+#. module: webvue_hr_finance
+#: model:ir.model.fields.selection,name:webvue_hr_finance.selection__webvue_hr_payroll_finance_settings__entry_detail__per_employee
+msgid "Per employee"
+msgstr "لكل موظف"
