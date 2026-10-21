@@ -20,6 +20,10 @@ HR = frozenset({
     'hr.offboarding.read', 'hr.offboarding.manage',
     'hr.assets.read', 'hr.assets.manage',
 })
+# Payroll is a section of webvue_hr behind its own keys: no HR role or group grants them.
+PAYROLL = frozenset({
+    'hr.payroll.read', 'hr.payroll.manage', 'hr.payroll.approve', 'hr.payroll.config',
+})
 PMO = frozenset({
     'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage',
     'pmo.settings.manage', 'pmo.tasks.read', 'pmo.tasks.create',
@@ -32,12 +36,12 @@ EMPLOYEE = frozenset({
     'pmo.projects.read', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write',
     'meetings.read',
 })
-CATALOG = SYSTEM | HR | PMO | MEETINGS
+CATALOG = SYSTEM | HR | PAYROLL | PMO | MEETINGS
 # These tests pin today's applications. An application added later extends the
 # composition with its own keys, roles and groups; those are checked only for
 # what every application must satisfy (an installed owner, one domain per key).
 RELEASE_OWNERS = frozenset({'webvue_core', 'webvue_hr', 'webvue_pmo', 'webvue_meetings'})
-BUILT_IN_ROLES = frozenset({'employee', 'hr_manager', 'pmo_manager', 'system_admin', 'vendor_support'})
+BUILT_IN_ROLES = frozenset({'employee', 'hr_manager', 'payroll_manager', 'pmo_manager', 'system_admin', 'vendor_support'})
 DEPENDENCIES = {
     'access.users.grant': {'access.users.read', 'access.roles.read'},
     'access.users.assign_roles': {'access.users.read', 'access.roles.read'},
@@ -62,6 +66,10 @@ DEPENDENCIES = {
     'hr.offboarding.manage': {'hr.offboarding.read', 'hr.employees.manage'},
     'hr.assets.read': {'hr.employees.read'},
     'hr.assets.manage': {'hr.assets.read'},
+    'hr.payroll.read': {'hr.employees.read'},
+    'hr.payroll.manage': {'hr.payroll.read'},
+    'hr.payroll.approve': {'hr.payroll.read'},
+    'hr.payroll.config': {'hr.payroll.read'},
     'pmo.projects.create': {'pmo.projects.read'},
     'pmo.projects.manage': {'pmo.projects.read'},
     'pmo.settings.manage': {'pmo.projects.read'},
@@ -104,10 +112,10 @@ class TestAccessComposition(TransactionCase):
     def _group(self, key):
         return self.env.ref(self.Permission.search([('key', '=', key)]).group_xmlid)
 
-    def test_catalog_is_the_same_42_keys_each_owned_by_one_addon(self):
+    def test_catalog_is_the_same_46_keys_each_owned_by_one_addon(self):
         catalog = self.service._webvue_capability_map()
         self.assertEqual(self._release(catalog), CATALOG)
-        self.assertEqual(len(self._release(catalog)), 42)
+        self.assertEqual(len(self._release(catalog)), 46)
         permissions = self.Permission.search([])
         self.assertEqual(sorted(permissions.mapped('key')), sorted(catalog))
         installed = set(self.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))
@@ -125,7 +133,8 @@ class TestAccessComposition(TransactionCase):
         self.assertEqual(self._role_keys('hr_manager'), HR)
         self.assertEqual(self._role_keys('pmo_manager'), PMO)
         self.assertEqual(self._role_keys('system_admin'), SYSTEM | MEETINGS)
-        self.assertEqual(self._role_keys('vendor_support'), CATALOG)
+        self.assertEqual(self._role_keys('vendor_support'), CATALOG - PAYROLL)
+        self.assertEqual(self._role_keys('payroll_manager'), PAYROLL)
         self.assertLessEqual(
             BUILT_IN_ROLES,
             set(self.env['webvue.access.role'].search([('type', '=', 'built_in')]).mapped('key')),
@@ -152,7 +161,7 @@ class TestAccessComposition(TransactionCase):
             permission.key for permission in self.Permission.search([])
             if self.env.ref(permission.group_xmlid) in vendor.all_implied_ids
         }
-        self.assertEqual(self._release(implied_keys), CATALOG - {'meetings.read', 'meetings.create'})
+        self.assertEqual(self._release(implied_keys), CATALOG - PAYROLL - {'meetings.read', 'meetings.create'})
         access_admin = self.env.ref('webvue_core.group_access_admin')
         self.assertIn(self._group('meetings.manage'), access_admin.all_implied_ids)
         legacy_admin = self.env.ref('webvue_core.group_customer_admin')

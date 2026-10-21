@@ -49,7 +49,8 @@
         "boolean:hr.shifts",
         "boolean:hr.onboarding",
         "boolean:hr.offboarding",
-        "boolean:hr.assets"
+        "boolean:hr.assets",
+        "boolean:hr.payroll"
       ]
     },
     {

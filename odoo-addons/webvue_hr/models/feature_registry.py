@@ -44,6 +44,12 @@ class WebVueHrFeatureRegistry(models.AbstractModel):
                 'owner': 'webvue_hr',
                 'module': 'webvue_hr',
             },
+            {
+                'key': 'hr.payroll',
+                'type': 'boolean',
+                'owner': 'webvue_hr',
+                'module': 'webvue_hr',
+            },
         )
 
     @api.model

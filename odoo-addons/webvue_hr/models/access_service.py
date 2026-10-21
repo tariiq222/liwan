@@ -25,6 +25,16 @@ HR_PERMISSIONS = frozenset(
         'hr.assets.manage',
     },
 )
+# Payroll is a section of this addon behind its own keys: no HR capability, role or
+# group implies them, and they imply no HR write (they build only on employee read).
+PAYROLL_PERMISSIONS = frozenset(
+    {
+        'hr.payroll.read',
+        'hr.payroll.manage',
+        'hr.payroll.approve',
+        'hr.payroll.config',
+    },
+)
 EMPLOYEE_HR_PERMISSIONS = frozenset(
     {
         'hr.employees.read',
@@ -63,6 +73,12 @@ HR_PERMISSION_DEPENDENCIES = {
     'hr.assets.read': {'hr.employees.read'},
     'hr.assets.manage': {'hr.assets.read'},
 }
+PAYROLL_PERMISSION_DEPENDENCIES = {
+    'hr.payroll.read': {'hr.employees.read'},
+    'hr.payroll.manage': {'hr.payroll.read'},
+    'hr.payroll.approve': {'hr.payroll.read'},
+    'hr.payroll.config': {'hr.payroll.read'},
+}
 
 
 class WebVueHrAccessService(models.AbstractModel):
@@ -71,13 +87,15 @@ class WebVueHrAccessService(models.AbstractModel):
     @api.model
     def _webvue_capability_definitions(self):
         return super()._webvue_capability_definitions() + tuple(
-            {'key': key, 'owner': 'webvue_hr'} for key in sorted(HR_PERMISSIONS)
+            {'key': key, 'owner': 'webvue_hr'} for key in sorted(HR_PERMISSIONS | PAYROLL_PERMISSIONS)
         )
 
     @api.model
     def _webvue_permission_dependencies(self):
         dependencies = super()._webvue_permission_dependencies()
-        for key, required in HR_PERMISSION_DEPENDENCIES.items():
+        for key, required in (
+            HR_PERMISSION_DEPENDENCIES | PAYROLL_PERMISSION_DEPENDENCIES
+        ).items():
             # An HR capability without a dependency (hr.recruitment.read) is listed in the
             # constant for completeness, but the composed map only names keys that require
             # something: the stored permissions filter on dependency_ids, so a key with an
@@ -94,6 +112,7 @@ class WebVueHrAccessService(models.AbstractModel):
             ('webvue_hr.role_hr_manager', HR_PERMISSIONS),
             ('webvue_core.role_employee', EMPLOYEE_HR_PERMISSIONS),
             ('webvue_core.role_vendor_support', HR_PERMISSIONS),
+            ('webvue_hr.role_payroll_manager', PAYROLL_PERMISSIONS),
         ):
             grants[role_xmlid] = grants.get(role_xmlid, set()) | keys
         return grants

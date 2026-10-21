@@ -143,12 +143,12 @@ describe('commercial catalog and entitlement compiler', () => {
     core.features.push({ ...core.features[0]!, key: 'core.always', kind: 'boolean', selectable: false, ceiling: undefined })
     expect(compileEntitlements(input).features['core.always']).toBe(true)
   })
-  it('compiles the real v3 catalog into exactly the fourteen policy keys', () => {
+  it('compiles the real v3 catalog into exactly the fifteen policy keys', () => {
     const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))
     const input = fixture()
     input.release.applications = catalogApplicationsFromSolution(v3, 'v3')
     input.plan.platform_limits = { 'users.limit': 20, 'storage.limit_mb': null }
-    expect(compileEntitlements(input).features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.assets': false, 'hr.enabled': true, 'hr.offboarding': false, 'hr.onboarding': false, 'hr.recruitment': false, 'hr.shifts': false, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': null, 'tasks.enabled': false, 'users.limit': 20 })
+    expect(compileEntitlements(input).features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.assets': false, 'hr.enabled': true, 'hr.offboarding': false, 'hr.onboarding': false, 'hr.payroll': false, 'hr.recruitment': false, 'hr.shifts': false, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': null, 'tasks.enabled': false, 'users.limit': 20 })
   })
   it('names an application unknown to the platform from its catalog tier', () => {
     const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))

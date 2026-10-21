@@ -37,7 +37,7 @@ class TestEntitlements(TransactionCase):
         'webvue_pmo': {'pmo.enabled'},
         'webvue_meetings': {'meetings.enabled'},
         'webvue_hr': {
-            'hr.enabled', 'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets',
+            'hr.enabled', 'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets', 'hr.payroll',
         },
         'webvue_chat': {'chat.enabled'},
     }
@@ -220,12 +220,12 @@ class TestEntitlements(TransactionCase):
             if key not in release_map:
                 self.assertIn(value['owner'], installed_owners, key)
         self.assertEqual(capability_map['settings.maintenance.manage']['owner'], 'webvue_platform')
-        # 11 core capabilities, plus 20 for HR, 8 for PMO and 3 for meetings (42).
+        # 11 core capabilities, plus 24 for HR (20 and 4 payroll), 8 for PMO and 3 for meetings (46).
         # Document permissions now belong to the independent documents application.
-        expected = 11 + 20 * ('webvue_hr' in apps) + 8 * ('webvue_pmo' in apps) + 3 * ('webvue_meetings' in apps)
+        expected = 11 + 24 * ('webvue_hr' in apps) + 8 * ('webvue_pmo' in apps) + 3 * ('webvue_meetings' in apps)
         self.assertEqual(len(release_map), expected)
         if apps == set(self.APP_BOOLEANS):
-            self.assertEqual(len(release_map), 42)
+            self.assertEqual(len(release_map), 46)
         self.assertNotIn('probe.inspect', capability_map)
         self.assertNotIn('probe.enabled', self.features._webvue_feature_map())
 

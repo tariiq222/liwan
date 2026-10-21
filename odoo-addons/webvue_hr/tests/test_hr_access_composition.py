@@ -7,6 +7,7 @@ from odoo.addons.webvue_hr.models.access_service import (
     EMPLOYEE_HR_PERMISSIONS,
     HR_PERMISSION_DEPENDENCIES,
     HR_PERMISSIONS,
+    PAYROLL_PERMISSIONS,
 )
 
 # The five HR areas added over ready-made engines: capability -> (group xmlid suffix
@@ -78,7 +79,7 @@ class TestHrAccessComposition(TransactionCase):
         catalog = self.service._webvue_capability_map()
         self.assertEqual(len(HR_PERMISSIONS), 20)
         self.assertLessEqual(HR_AREA_PERMISSIONS, HR_PERMISSIONS)
-        self.assertEqual({key for key, item in catalog.items() if item['owner'] == 'webvue_hr'}, set(HR_PERMISSIONS))
+        self.assertEqual({key for key, item in catalog.items() if item['owner'] == 'webvue_hr'}, set(HR_PERMISSIONS) | PAYROLL_PERMISSIONS)
         permissions = self.Permission.search([('key', 'in', sorted(HR_PERMISSIONS))])
         self.assertEqual(len(permissions), 20)
         xmlids = permissions.get_external_id()
