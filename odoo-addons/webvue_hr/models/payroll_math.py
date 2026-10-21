@@ -52,16 +52,32 @@ def money(value):
     return Decimal(value).quantize(CENTS, rounding=ROUND_HALF_UP)
 
 
+def branch_wage(base, row, ratio):
+    """The wage one branch is taken on: the cap bounds the full monthly base, then the ratio prorates."""
+    return contributory_wage(base, row.wage_min, row.wage_max) * ratio
+
+
 def gosi_amounts(base, rates, ratio):
-    """Per branch ``(employee, employer)``; the cap bounds the full monthly base, then the ratio prorates."""
+    """Per branch ``(employee, employer)`` on the capped, prorated wage of that branch."""
     amounts = {}
     for branch, row in rates.items():
-        wage = contributory_wage(base, row.wage_min, row.wage_max) * ratio
+        wage = branch_wage(base, row, ratio)
         amounts[branch] = (
             money(wage * row.employee_rate / 100),
             money(wage * row.employer_rate / 100),
         )
     return amounts
+
+
+def reported_gosi_wage(base, rates, ratio):
+    """The contributory wage a GOSI statement reports: that of the annuities branch, else the first branch present.
+
+    Non-Saudis pay no annuities, so their statement line shows the wage of the branch they do pay.
+    """
+    for branch in ('annuities', 'saned', 'hazards'):
+        if branch in rates:
+            return money(branch_wage(base, rates[branch], ratio))
+    return money(0)
 
 
 def paid_days(month_start, month_end, contract_start, contract_end, departure_date, divisor):

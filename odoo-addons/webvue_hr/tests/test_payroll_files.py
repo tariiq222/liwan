@@ -8,6 +8,7 @@ from decimal import Decimal
 from odoo.tests import tagged
 
 from .payroll_common import PayrollCase
+from odoo.addons.webvue_hr.models.payroll_export import FORMULA_STARTS
 from odoo.addons.webvue_hr.rules import WebVueHrRule
 
 RUNS = '/api/v1/hr/payroll/runs'
@@ -154,6 +155,7 @@ class TestPayrollFiles(PayrollCase):
 
     def test_formula_injection_is_neutralised_in_text_columns(self):
         hostile = self.make_employee('=HYPERLINK("http://x")', country='EG')
+        self.assertTrue("\t" in FORMULA_STARTS and "\r" in FORMULA_STARTS)
         self.set_compensation(hostile, 3000, iban=IBAN_TWO)
         run_id = self._run()
         res = self.api('GET', f'{RUNS}/{run_id}/bank-file?profile_id={self.generic.id}')
@@ -203,6 +205,42 @@ class TestPayrollFiles(PayrollCase):
         two = lines[self.employee_two.id]
         self.assertEqual(two['nationality_class'], 'non_saudi')
         self.assertEqual((two['employee_amount'], two['employer_amount']), (0.0, 150.0))
+
+    def test_gosi_statement_reports_the_capped_wage(self):
+        rich = self.make_employee('Rich Hand')
+        self.set_compensation(rich, 50000, 10000, iban=IBAN_TWO, gosi_registration_date=date(2020, 1, 1))
+        poor = self.make_employee('Poor Hand')
+        self.set_compensation(poor, 1000, iban=IBAN_TWO, gosi_registration_date=date(2020, 1, 1))
+        run_id = self._run()
+        lines = {line['employee']['id']: line for line in self.api('GET', f'{RUNS}/{run_id}/gosi-statement').json()['lines']}
+        self.assertEqual(lines[rich.id]['contributory_wage'], 45000.0)
+        self.assertEqual(lines[rich.id]['branches']['annuities']['employee'], 4050.0)
+        self.assertEqual(lines[poor.id]['contributory_wage'], 1500.0)
+        self.assertEqual(lines[poor.id]['branches']['annuities']['employee'], 135.0)
+
+    def test_gosi_statement_reads_snapshots_after_approval(self):
+        run_id = self._run()
+        compensation = self.env['webvue.hr.compensation'].search([('employee_id', '=', self.employee_one.id)])
+        compensation.write({'gosi_registration_date': False})
+        self.env['webvue.hr.compensation'].search([('employee_id', '=', self.employee_two.id)]).unlink()
+        res = self.api('GET', f'{RUNS}/{run_id}/gosi-statement')
+        self.assertEqual(res.status_code, 200, res.text)
+        classes = {line['employee']['id']: line['nationality_class'] for line in res.json()['lines']}
+        self.assertEqual(classes, {self.employee_one.id: 'saudi_before_2024', self.employee_two.id: 'non_saudi'})
+
+    def test_other_company_profile_is_not_found(self):
+        other = self.env['res.company'].create({'name': 'Other Files Co'})
+        profile = self.env['webvue.hr.payroll.bank.profile'].create({
+            'name': 'Theirs', 'kind': 'bank', 'company_id': other.id,
+            'column_ids': [(0, 0, {'source': 'name', 'label': 'Name'})],
+        })
+        self.officer.company_ids |= other
+        self.config.company_ids |= other
+        run_id = self._run()
+        res = self.api('GET', f'{RUNS}/{run_id}/bank-file?profile_id={profile.id}')
+        self.assertEqual(res.status_code, 404, res.text)
+        self._login(self.config)
+        self.assertEqual(self.api('DELETE', f'{PROFILES}/{profile.id}').status_code, 404)
 
     def test_shared_profile_is_read_only(self):
         self._login(self.config)

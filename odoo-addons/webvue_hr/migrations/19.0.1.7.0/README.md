@@ -33,3 +33,8 @@ Task 16: new tables `webvue_hr_payroll_bank_profile` and `webvue_hr_payroll_bank
 layouts: delimiter, encoding and ordered columns), created by the ORM on update. The shared seed profiles
 (`data/hr_payroll_file_profile_data.xml`, `noupdate`) load on upgrade because their records are new. New abstract
 model `webvue.hr.payroll.export` (no table). There is no data to carry.
+
+Task 16 fix: new column `webvue_gosi_class` on `hr_payslip` (the GOSI nationality class snapshotted when a payslip
+is computed, so the GOSI statement of an approved run does not read live data), created by the ORM on update. The
+non-payslip structure rule `GOSI_WAGE` (capped, prorated contributory wage) is new data loaded on upgrade. The table
+holds no payslips yet, so there is no data to carry.

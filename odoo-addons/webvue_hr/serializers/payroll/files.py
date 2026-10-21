@@ -76,6 +76,7 @@ def _parse_column(column, model, index):
 
 
 def dump_gosi_statement(statement):
+    """The statement document. ``contributory_wage`` is the capped, prorated wage of the annuities branch (the first branch paid when there is none)."""
     return {
         'month': statement['month'],
         'lines': [

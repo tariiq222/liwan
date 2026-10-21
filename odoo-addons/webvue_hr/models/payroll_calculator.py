@@ -11,6 +11,7 @@ from .payroll_math import (
     nationality_class,
     overlap_days,
     paid_days,
+    reported_gosi_wage,
 )
 from odoo.addons.webvue_hr.rules import WebVueHrRule
 
@@ -25,19 +26,23 @@ class WebVueHrPayrollCalculator(models.AbstractModel):
     _description = 'WebVue HR payroll calculator'
 
     @api.model
-    def _webvue_gosi(self, employee, compensation, day, ratio):
-        """GOSI contributions of one employee for the part ``ratio`` of a month ending on ``day``.
-
-        Returns the nationality class, the contributory wage and per branch ``(employee, employer)``.
-        """
-        country = employee.current_version_id.country_id
+    def _webvue_gosi_class(self, employee, compensation):
+        """The GOSI class of an employee; a missing nationality or registration date is a structured 422."""
         try:
-            gosi_class = nationality_class(country.code, compensation.gosi_registration_date)
+            return nationality_class(employee.current_version_id.country_id.code, compensation.gosi_registration_date)
         except PayrollMathError as error:
             raise WebVueHrRule(
                 error.code, self.env._('Payroll cannot compute GOSI: %(code)s', code=error.code),
                 field='employee_id', details={'employee_id': employee.id},
             ) from error
+
+    @api.model
+    def _webvue_gosi(self, employee, compensation, day, ratio):
+        """GOSI contributions of one employee for the part ``ratio`` of a month ending on ``day``.
+
+        Returns the nationality class, the contributory wage and per branch ``(employee, employer)``.
+        """
+        gosi_class = self._webvue_gosi_class(employee, compensation)
         rates = self.env['webvue.hr.gosi.rate']._webvue_rates_for(gosi_class, day)
         if not rates:
             code = 'gosi_rate_missing'
@@ -49,8 +54,10 @@ class WebVueHrPayrollCalculator(models.AbstractModel):
             )
         base = compensation._webvue_gosi_base()
         branches = gosi_amounts(base, {branch: row._webvue_as_rate() for branch, row in rates.items()}, Decimal(ratio))
+        table = {branch: row._webvue_as_rate() for branch, row in rates.items()}
         return {
             'nationality_class': gosi_class,
+            'contributory_wage': reported_gosi_wage(base, table, Decimal(ratio)),
             'branches': branches,
             'employee_total': sum((employee_part for employee_part, _ in branches.values()), Decimal(0)),
             'employer_total': sum((employer_part for _, employer_part in branches.values()), Decimal(0)),
@@ -82,7 +89,8 @@ class WebVueHrPayrollCalculator(models.AbstractModel):
         absence_days = min(calculator._webvue_absence_days(payslip), Decimal(days) - unpaid_days)
         fixed_wage = compensation._webvue_fixed_wage()
         ratio = Decimal(days) / divisor
-        gosi = calculator._webvue_gosi(employee, compensation, payslip.date_to, ratio)['branches']
+        gosi_result = calculator._webvue_gosi(employee, compensation, payslip.date_to, ratio)
+        gosi = gosi_result['branches']
         return {key: float(value) for key, value in {
             'basic': self._webvue_earning(compensation.basic_wage, days, divisor),
             'housing': self._webvue_earning(compensation.housing_allowance, days, divisor),
@@ -91,6 +99,7 @@ class WebVueHrPayrollCalculator(models.AbstractModel):
             'absence': -day_amount(fixed_wage, absence_days, divisor),
             'unpaid': -day_amount(fixed_wage, unpaid_days, divisor),
             'gosi_base': money(compensation._webvue_gosi_base() * ratio),
+            'gosi_wage': gosi_result['contributory_wage'],
             'gosi_ee_annuities': gosi.get('annuities', NO_AMOUNTS)[0],
             'gosi_ee_saned': gosi.get('saned', NO_AMOUNTS)[0],
             'gosi_er_annuities': gosi.get('annuities', NO_AMOUNTS)[1],

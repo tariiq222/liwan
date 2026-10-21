@@ -39,6 +39,13 @@ class HrPayslip(models.Model):
              'the employee reads it on their own payslip without access to the contract.',
     )
 
+    webvue_gosi_class = fields.Selection(
+        selection=lambda self: self.env['webvue.hr.gosi.rate']._fields['nationality_class'].selection,
+        string='GOSI class', readonly=True, copy=False,
+        help='The GOSI nationality class used when the payslip was computed: the GOSI statement of an approved '
+             'run reads it instead of the live nationality and registration date.',
+    )
+
     def get_current_contract_dict(self, contract, contracts):
         """Add the Saudi payslip values the structure rules read as ``current_contract.<key>``.
 
@@ -75,6 +82,7 @@ class HrPayslip(models.Model):
             payslip._webvue_check_structure_and_contract()
             payslip.webvue_department_id = payslip.contract_id.department_id
             payslip._webvue_snapshot_paid_days()
+            payslip._webvue_snapshot_gosi_class()
         return super().compute_sheet()
 
     def _webvue_period_version(self):
@@ -126,6 +134,15 @@ class HrPayslip(models.Model):
         for payslip in self:
             has_start = payslip.contract_id.contract_date_start
             payslip.webvue_paid_days = calculator._webvue_paid_days(payslip) if has_start else 0
+
+    def _webvue_snapshot_gosi_class(self):
+        """Store the GOSI class of a payslip of the company's payroll structure (other structures have none)."""
+        calculator = self.env['webvue.hr.payroll.calculator']
+        for payslip in self:
+            settings = self.env['webvue.hr.payroll.settings']._webvue_for_company(payslip.company_id)
+            if payslip.struct_id == settings.structure_id:
+                compensation = calculator._webvue_compensation(payslip.employee_id)
+                payslip.webvue_gosi_class = calculator._webvue_gosi_class(payslip.employee_id, compensation)
 
     def _webvue_iban_missing(self):
         """Ids of the payslips whose employee has no IBAN on the compensation record."""

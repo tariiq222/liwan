@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from odoo import api, models
 
-from .payroll_math import money, nationality_class
+from .payroll_math import money
 from odoo.addons.webvue_hr.rules import WebVueHrRule
 
 # Payslip line codes behind each figure of a salary line (see data/hr_payroll_structure_data.xml).
@@ -21,9 +21,9 @@ GOSI_CODES = {
     ('saned', 'employer'): 'GOSI_ER_SANED',
     ('hazards', 'employer'): 'GOSI_ER_OH',
 }
-GOSI_BASE_CODE = 'GOSI_BASE'
+GOSI_WAGE_CODE = 'GOSI_WAGE'
 TOTALS_MISMATCH = 'wps_totals_mismatch'
-FORMULA_STARTS = ('=', '+', '-', '@')
+FORMULA_STARTS = ('=', '+', '-', '@', '\t', '\r')
 NUMERIC_SOURCES = ('basic', 'housing', 'other_allowances', 'deductions', 'net')
 
 
@@ -151,10 +151,10 @@ class WebVueHrPayrollExport(models.AbstractModel):
         lines = []
         for slip in run.slip_ids.sorted(lambda row: (row.employee_id.name or '', row.id)):
             codes = totals[slip.id]
-            if not any(codes.get(code) for code in (GOSI_BASE_CODE, *GOSI_CODES.values())):
+            if not any(codes.get(code) for code in (GOSI_WAGE_CODE, *GOSI_CODES.values())):
                 continue
             employee = slip.employee_id
-            compensation = by_employee[employee.id]
+            compensation = by_employee.get(employee.id)
             branches = {}
             for branch in ('annuities', 'saned', 'hazards'):
                 branches[branch] = {
@@ -163,11 +163,9 @@ class WebVueHrPayrollExport(models.AbstractModel):
                 }
             lines.append({
                 'employee': employee,
-                'gosi_number': compensation.gosi_number or '',
-                'nationality_class': nationality_class(
-                    employee.current_version_id.country_id.code, compensation.gosi_registration_date,
-                ),
-                'contributory_wage': money(codes.get(GOSI_BASE_CODE, Decimal(0))),
+                'gosi_number': (compensation.gosi_number if compensation else '') or '',
+                'nationality_class': slip.webvue_gosi_class,
+                'contributory_wage': money(codes.get(GOSI_WAGE_CODE, Decimal(0))),
                 'branches': branches,
                 'employee_amount': sum((branch['employee'] for branch in branches.values()), Decimal(0)),
                 'employer_amount': sum((branch['employer'] for branch in branches.values()), Decimal(0)),
