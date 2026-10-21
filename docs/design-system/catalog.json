@@ -516,6 +516,34 @@
       ]
     },
     {
+      "name": "HrPayrollPayslipDocument",
+      "file": "apps/web/app/components/hr/payroll/PayslipDocument.vue",
+      "story": "apps/web/stories/hr/payroll/PayslipDocument.stories.ts",
+      "title": "HR/Payroll/PayslipDocument",
+      "props": [
+        {
+          "name": "payslip",
+          "type": "{ id: number; number: string; month: string; state: string; employee: { id: number; name: string; }; department: { id: number; name: string; } | null; paid_days: number; lines: { code: string; name: string; category: string; amount: number; }[]; gross: number; deductions: number; net: number; gosi_employer: number; company: { name: string; vat: string; }; }",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "قسيمة راتب",
+          "context": "apps/web/app/pages/hr/payroll/[runId]/payslips/[payslipId].vue:35"
+        },
+        {
+          "id": "NoDeductions",
+          "name": "بلا خصومات",
+          "context": "apps/web/app/pages/hr/payroll/[runId]/payslips/[payslipId].vue:35"
+        }
+      ]
+    },
+    {
       "name": "MeetingsMeetingAttachmentsTab",
       "file": "apps/web/app/components/meetings/MeetingAttachmentsTab.vue",
       "story": "apps/web/stories/meetings/MeetingAttachmentsTab.stories.ts",
