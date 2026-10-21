@@ -60742,6 +60742,294 @@
         }
       }
     },
+    "/api/v1/hr/payroll/eos-provisions": {
+      "get": {
+        "operationId": "webvue_hr_finance.HrPayrollEosProvisionController.list_provisions.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_provisions",
+        "tags": [
+          "webvue_hr_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrPayrollEosProvisionController",
+          "feature_keys": [],
+          "feature_operation": "read",
+          "handler": "list_provisions",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "webvue_hr_finance.HrPayrollEosProvisionController.post_provision.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "post_provision",
+        "tags": [
+          "webvue_hr_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrPayrollEosProvisionController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "post_provision",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/payroll/eos/{employee_id}/estimate": {
+      "get": {
+        "operationId": "webvue_hr.HrPayrollEosController.estimate.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "employee_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "estimate",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrPayrollEosController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll"
+          ],
+          "feature_operation": "read",
+          "handler": "estimate",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/payroll/eos/{employee_id}/settlement": {
+      "get": {
+        "operationId": "webvue_hr.HrPayrollEosController.get_settlement.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "employee_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_settlement",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrPayrollEosController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll"
+          ],
+          "feature_operation": "read",
+          "handler": "get_settlement",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "put": {
+        "operationId": "webvue_hr.HrPayrollEosController.put_settlement.put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "employee_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "put_settlement",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrPayrollEosController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll"
+          ],
+          "feature_operation": "write",
+          "handler": "put_settlement",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/payroll/eos/{employee_id}/settlement/confirm": {
+      "post": {
+        "operationId": "webvue_hr.HrPayrollEosController.confirm_settlement.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "employee_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "confirm_settlement",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrPayrollEosController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll"
+          ],
+          "feature_operation": "write",
+          "handler": "confirm_settlement",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/hr/payroll/finance-settings": {
       "get": {
         "operationId": "webvue_hr_finance.HrPayrollFinanceSettingsController.get_finance_settings.get",
@@ -61337,6 +61625,59 @@
         }
       }
     },
+    "/api/v1/hr/payroll/runs/{run_id}/bank-file": {
+      "get": {
+        "operationId": "webvue_hr.HrPayrollFilesController.bank_file.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The bank salary file of a fixed run: employees with a net to pay, each of them with an IBAN.",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "hr",
+          "controller": "HrPayrollFilesController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll"
+          ],
+          "feature_operation": "read",
+          "handler": "bank_file",
+          "readonly": true,
+          "route_type": "http"
+        }
+      }
+    },
     "/api/v1/hr/payroll/runs/{run_id}/compute": {
       "post": {
         "operationId": "webvue_hr.HrPayrollRunController.compute_run.post",
@@ -61387,6 +61728,60 @@
           "feature_operation": "write",
           "handler": "compute_run",
           "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/payroll/runs/{run_id}/gosi-statement": {
+      "get": {
+        "operationId": "webvue_hr.HrPayrollFilesController.gosi_statement.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "gosi_statement",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrPayrollFilesController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll"
+          ],
+          "feature_operation": "read",
+          "handler": "gosi_statement",
+          "readonly": true,
           "route_type": "json2"
         }
       }
@@ -61719,6 +62114,59 @@
           "handler": "get_posting_preview",
           "readonly": true,
           "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/payroll/runs/{run_id}/wps-file": {
+      "get": {
+        "operationId": "webvue_hr.HrPayrollFilesController.wps_file.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The WPS file of a fixed run: every payslip, zero net included, once its totals add up.",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "hr",
+          "controller": "HrPayrollFilesController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll"
+          ],
+          "feature_operation": "read",
+          "handler": "wps_file",
+          "readonly": true,
+          "route_type": "http"
         }
       }
     },

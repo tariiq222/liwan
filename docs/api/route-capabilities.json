@@ -1853,6 +1853,49 @@
       "handler": "list_cases",
       "no_capability_reason": null
     },
+    "GET /api/v1/hr/payroll/eos-provisions": {
+      "addon": "webvue_hr_finance",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read",
+        "finance.entries.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "list_provisions",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/eos/{employee_id}/estimate": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "estimate",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/eos/{employee_id}/settlement": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "get_settlement",
+      "no_capability_reason": null
+    },
     "GET /api/v1/hr/payroll/finance-settings": {
       "addon": "webvue_hr_finance",
       "auth": "user",
@@ -1941,6 +1984,36 @@
       "handler": "get_run",
       "no_capability_reason": null
     },
+    "GET /api/v1/hr/payroll/runs/{run_id}/bank-file": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "bank_file",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/runs/{run_id}/gosi-statement": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "gosi_statement",
+      "no_capability_reason": null
+    },
     "GET /api/v1/hr/payroll/runs/{run_id}/payslips": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -1979,6 +2052,21 @@
       "capability_source": "decorator",
       "feature_keys": [],
       "handler": "get_posting_preview",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/payroll/runs/{run_id}/wps-file": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "wps_file",
       "no_capability_reason": null
     },
     "GET /api/v1/hr/payroll/settings": {
@@ -5314,6 +5402,34 @@
       "handler": "create_bank_profile",
       "no_capability_reason": null
     },
+    "POST /api/v1/hr/payroll/eos-provisions": {
+      "addon": "webvue_hr_finance",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.read",
+        "finance.entries.post"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "post_provision",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/payroll/eos/{employee_id}/settlement/confirm": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.approve"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "confirm_settlement",
+      "no_capability_reason": null
+    },
     "POST /api/v1/hr/payroll/gosi-rates": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -6282,6 +6398,21 @@
         "hr.payroll"
       ],
       "handler": "put_case",
+      "no_capability_reason": null
+    },
+    "PUT /api/v1/hr/payroll/eos/{employee_id}/settlement": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "put_settlement",
       "no_capability_reason": null
     },
     "PUT /api/v1/projects/{project_id}/stages/order": {
