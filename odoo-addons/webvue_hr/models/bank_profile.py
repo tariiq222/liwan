@@ -25,9 +25,12 @@ class WebVueHrPayrollBankProfile(models.Model):
 
 
 class WebVueHrPayrollBankProfileColumn(models.Model):
+    """One ordered column of a salary file profile; it carries no company of its own."""
+
     _name = 'webvue.hr.payroll.bank.profile.column'
     _description = 'WebVue HR salary file profile column'
     _order = 'profile_id, sequence, id'
+    _webvue_scope = 'global'
 
     profile_id = fields.Many2one('webvue.hr.payroll.bank.profile', required=True, ondelete='cascade', index=True)
     sequence = fields.Integer(default=10)
