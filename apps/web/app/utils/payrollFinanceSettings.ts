@@ -43,3 +43,14 @@ export function payrollFinancePatch(settings: HrPayrollFinanceSettings, draft: P
   if (Object.keys(accounts).length > 0) patch.accounts = accounts
   return patch
 }
+
+/** The record a picker offers, as `{id, name, code?}`. */
+export interface FinanceChoice { id: number; name: string; code?: string }
+
+/** The choices with the record the field holds now added when the lookup page does not contain it (archived, beyond the page). */
+export function withCurrent(choices: FinanceChoice[], current: { id: number; name: string } | null): FinanceChoice[] {
+  return current && !choices.some(choice => choice.id === current.id) ? [...choices, { id: current.id, name: current.name }] : choices
+}
+
+/** True when a lookup holds more records than the page that was read. */
+export const isTruncated = (list: { items: unknown[]; total: number } | undefined): boolean => !!list && list.total > list.items.length

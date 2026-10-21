@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { HrPayrollCostCenter } from '@webvue/contracts'
-import { NO_RECORD } from '@/utils/payrollFinanceSettings'
+import { NO_RECORD, withCurrent } from '@/utils/payrollFinanceSettings'
 
 // The cost center each department's payroll cost is charged to. A choice is saved at once; only the row being saved
 // waits. Without `canEdit`, or without the right to read analytic accounts, the table is read-only.
@@ -9,6 +9,8 @@ const props = defineProps<{
   centers: HrPayrollCostCenter[]
   /** The analytic accounts to choose from; null when the user cannot read them. */
   analyticAccounts: { id: number; name: string; code?: string }[] | null
+  /** True when the analytic accounts hold more records than were loaded. */
+  truncated: boolean
   canEdit: boolean
   /** The departments whose choice is being saved. */
   saving: number[]
@@ -23,10 +25,11 @@ const columns = computed<TableColumn<HrPayrollCostCenter>[]>(() => [
   { id: 'analytic', header: t('hrPayroll.costCenters.analytic') },
 ])
 const editable = computed(() => props.canEdit && props.analyticAccounts !== null)
-const items = computed(() => [
+// A row always offers the account it holds, even when it is archived or beyond the loaded page.
+const itemsFor = (center: HrPayrollCostCenter) => [
   { value: NO_RECORD, label: t('hrPayroll.costCenters.none') },
-  ...(props.analyticAccounts ?? []).map(account => ({ value: String(account.id), label: account.code ? `${account.code} ${account.name}` : account.name })),
-])
+  ...withCurrent(props.analyticAccounts ?? [], center.analytic_account).map(account => ({ value: String(account.id), label: account.code ? `${account.code} ${account.name}` : account.name })),
+]
 const select = (center: HrPayrollCostCenter, value: unknown) => emit('change', {
   departmentId: center.department.id,
   analyticAccountId: value === NO_RECORD ? null : Number(value),
@@ -34,6 +37,7 @@ const select = (center: HrPayrollCostCenter, value: unknown) => emit('change', {
 </script>
 
 <template>
+  <UAlert v-if="props.truncated" class="mb-3" color="info" variant="subtle" icon="i-lucide-info" :title="t('hrPayroll.costCenters.truncated')" data-testid="hr-payroll-cost-centers-truncated" />
   <SharedDataTable
     :rows="props.centers"
     :columns="columns"
@@ -47,7 +51,7 @@ const select = (center: HrPayrollCostCenter, value: unknown) => emit('change', {
         v-if="editable"
         class="w-full min-w-48"
         :model-value="row.original.analytic_account ? String(row.original.analytic_account.id) : NO_RECORD"
-        :items="items"
+        :items="itemsFor(row.original)"
         :disabled="!hydrated || props.saving.includes(row.original.department.id)"
         :aria-label="t('hrPayroll.costCenters.analytic')"
         :data-testid="`hr-payroll-cost-center-${row.original.department.id}`"
@@ -61,7 +65,7 @@ const select = (center: HrPayrollCostCenter, value: unknown) => emit('change', {
         v-if="editable"
         class="mt-2 w-full"
         :model-value="row.analytic_account ? String(row.analytic_account.id) : NO_RECORD"
-        :items="items"
+        :items="itemsFor(row)"
         :disabled="!hydrated || props.saving.includes(row.department.id)"
         :aria-label="t('hrPayroll.costCenters.analytic')"
         @update:model-value="select(row, $event)"

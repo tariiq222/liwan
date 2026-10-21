@@ -25,7 +25,10 @@ const body = computed(() => HrPayrollPaymentCreateSchema.safeParse({ journal_id:
 const items = computed(() => props.journals.map(item => ({ value: String(item.id), label: item.name })))
 
 const serverField = computed(() => props.error instanceof ApiError ? props.error.field : undefined)
-const fieldError = (field: string) => props.error && serverField.value === field ? payrollErrorMessage(props.error, t, new Map()) : undefined
+const fieldError = (field: string) => {
+  if (!props.error || serverField.value !== field) return undefined
+  return props.error instanceof ApiError && props.error.code === 'period_locked' ? t('hrPayroll.finance.payment.periodLocked') : payrollErrorMessage(props.error, t, new Map())
+}
 
 function submitPayment() {
   if (props.pending || !body.value.success) return

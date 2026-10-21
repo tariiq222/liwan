@@ -3,6 +3,8 @@ import PayrollCostCenterTable from '@/components/hr/payroll/PayrollCostCenterTab
 import PayrollFinanceSettingsForm from '@/components/hr/payroll/PayrollFinanceSettingsForm.vue'
 import GosiRateTable from '@/components/hr/payroll/GosiRateTable.vue'
 import PayrollGeneralSettingsForm from '@/components/hr/payroll/PayrollGeneralSettingsForm.vue'
+import { ApiError } from '@/composables/useApi'
+import { isTruncated } from '@/utils/payrollFinanceSettings'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { owningListBack } from '@/utils/recordListOrigin'
 
@@ -24,9 +26,15 @@ const leaveTypes = useHrLeaveTypes()
 const leaveTypeRefs = computed(() => (leaveTypes.data.value?.items ?? []).map(type => ({ id: type.id, name: type.name })))
 const finance = useHrPayrollFinanceSettings()
 const financeSettings = computed(() => finance.data.value)
+// A refusal (403) or a missing bridge (404) hides the finance part; any other failure is shown with a retry.
+const financeError = computed(() => {
+  const failure = finance.error.value
+  return failure instanceof ApiError && (failure.status === 403 || failure.status === 404) ? null : failure
+})
 const canSetup = computed(() => can('finance.setup.manage'))
 const canAnalytic = computed(() => can('finance.analytic.manage'))
 const lookups = useHrPayrollFinanceLookups({ mapping: () => !!financeSettings.value && canSetup.value, analytic: () => !!financeSettings.value && (canSetup.value || canAnalytic.value) })
+const truncated = computed(() => [lookups.accounts, lookups.journals, lookups.analyticAccounts].some(lookup => isTruncated(lookup.data.value)))
 const centers = useHrPayrollCostCenters(() => !!financeSettings.value)
 const setCenter = useSetHrPayrollCostCenter()
 const savingCenters = ref<number[]>([])
@@ -52,11 +60,13 @@ function retry() {
     <SharedPageState :loading="settings.isLoading.value || rates.isLoading.value" :error="error" :empty="!settings.data.value" @retry="retry">
       <PayrollGeneralSettingsForm v-if="settings.data.value" :settings="settings.data.value" :leave-types="leaveTypeRefs" :can-edit="canConfig" />
       <GosiRateTable :rates="rates.data.value?.items ?? []" :can-edit="canConfig" />
+      <SharedPageState v-if="financeError" :error="financeError" @retry="finance.refetch" />
       <PayrollFinanceSettingsForm
         v-if="financeSettings"
         :settings="financeSettings"
         :can-edit="canSetup"
-        :journals="lookups.journals.data.value?.items.filter(journal => journal.type === 'general') ?? null"
+        :truncated="truncated"
+        :journals="lookups.journals.data.value?.items ?? null"
         :accounts="lookups.accounts.data.value?.items ?? null"
         :analytic-accounts="lookups.analyticAccounts.data.value?.items ?? null"
       />
@@ -65,6 +75,7 @@ function retry() {
         <PayrollCostCenterTable
           :centers="centers.data.value.items"
           :analytic-accounts="lookups.analyticAccounts.data.value?.items ?? null"
+          :truncated="isTruncated(lookups.analyticAccounts.data.value)"
           :can-edit="canAnalytic"
           :saving="savingCenters"
           @change="changeCenter"

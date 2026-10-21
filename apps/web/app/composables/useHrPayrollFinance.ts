@@ -135,9 +135,10 @@ function useAccountsLookup(enabled: MaybeRefOrGetter<boolean>) {
   return useFinanceLookup('accounts', 'finance.accounts.read', enabled, () => $api('/api/v1/finance/accounts', { query: lookupQuery, schema: FinanceAccountListSchema }))
 }
 
-function useJournalsLookup(enabled: MaybeRefOrGetter<boolean>) {
+/** The journals of one type; the server filters by a single type, so each type is its own list. */
+function useJournalsLookup(type: 'general' | 'bank' | 'cash', enabled: MaybeRefOrGetter<boolean>) {
   const { $api } = useApi()
-  return useFinanceLookup('journals', 'finance.journals.read', enabled, () => $api('/api/v1/finance/journals', { query: lookupQuery, schema: FinanceJournalListSchema }))
+  return useFinanceLookup(`journals-${type}`, 'finance.journals.read', enabled, () => $api('/api/v1/finance/journals', { query: { ...lookupQuery, type }, schema: FinanceJournalListSchema }))
 }
 
 function useAnalyticAccountsLookup(enabled: MaybeRefOrGetter<boolean>) {
@@ -146,20 +147,22 @@ function useAnalyticAccountsLookup(enabled: MaybeRefOrGetter<boolean>) {
 }
 
 /**
- * The accounts and journals the mapping form picks from, and the analytic accounts both forms pick from, read through
- * the generic finance lookup routes. Without the read capability a list stays unasked and the form shows the current
- * value read-only.
+ * The accounts and general journals the mapping form picks from, and the analytic accounts both forms pick from, read
+ * through the generic finance lookup routes (one page each: a list with more records than the page is flagged by the
+ * callers through its `total`). Without the read capability a list stays unasked and the form shows the current value
+ * read-only.
  */
 export function useHrPayrollFinanceLookups(wanted: { mapping: MaybeRefOrGetter<boolean>; analytic: MaybeRefOrGetter<boolean> }) {
   return {
     accounts: useAccountsLookup(wanted.mapping),
-    journals: useJournalsLookup(wanted.mapping),
+    journals: useJournalsLookup('general', wanted.mapping),
     analyticAccounts: useAnalyticAccountsLookup(wanted.analytic),
   }
 }
 
 /** The bank and cash journals the payment is made from. */
 export function usePaymentJournals(enabled: MaybeRefOrGetter<boolean>) {
-  const query = useJournalsLookup(enabled)
-  return computed(() => (query.data.value?.items ?? []).filter(journal => journal.type === 'bank' || journal.type === 'cash'))
+  const banks = useJournalsLookup('bank', enabled)
+  const cash = useJournalsLookup('cash', enabled)
+  return computed(() => [...(banks.data.value?.items ?? []), ...(cash.data.value?.items ?? [])])
 }

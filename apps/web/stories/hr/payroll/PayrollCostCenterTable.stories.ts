@@ -14,11 +14,12 @@ const meta = {
   component: PayrollCostCenterTable,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/payroll/settings.vue:65', 'جدول مراكز تكلفة الأقسام في إعدادات الرواتب: يُحمَّل راتب كل قسم على مركز التكلفة المختار له.'),
+    ...storyContext('apps/web/app/pages/hr/payroll/settings.vue:75', 'جدول مراكز تكلفة الأقسام في إعدادات الرواتب: يُحمَّل راتب كل قسم على مركز التكلفة المختار له.'),
   },
   args: {
     centers,
     analyticAccounts: [{ id: 5, code: 'BR-RUH', name: 'فرع الرياض' }, { id: 6, code: 'BR-JED', name: 'فرع جدة' }],
+    truncated: false,
     canEdit: true,
     saving: [],
   },
@@ -37,3 +38,5 @@ export const Editable: Story = { name: 'قابل للتعديل' }
 export const Saving: Story = { name: 'حفظ صف قيد التنفيذ', args: { saving: [2] } }
 
 export const ReadOnly: Story = { name: 'قراءة فقط', args: { canEdit: false } }
+
+export const Truncated: Story = { name: 'قائمة مختصرة', args: { truncated: true } }

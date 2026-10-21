@@ -210,6 +210,17 @@ test.describe('payroll posting and payment', () => {
     await expect(page.getByTestId('hr-payroll-record-payment')).toHaveCount(0)
   })
 
+  test('a refused posting preview shows its own text and blocks the post', async ({ page }) => {
+    expect((await page.request.post('/api/v1/__mock/reset-payroll', { data: { previewError: true } })).status()).toBe(200)
+    await open(page, '/hr/payroll/1', 'مسير رواتب أكتوبر 2026')
+    await page.getByTestId('hr-payroll-post').click()
+    await expect(page.getByTestId('hr-payroll-preview-failure')).toContainText('بلا مركز تكلفة')
+    await expect(page.getByTestId('inline-confirm-action')).toBeDisabled()
+    // The refused request is logged by the browser; it is the behaviour under test.
+    errors = errors.filter(message => !message.includes('422'))
+    await expect(page.getByTestId('hr-payroll-preview-retry')).toBeVisible()
+  })
+
   test('the runs list filters posted runs', async ({ page }) => {
     await open(page, '/hr/payroll', 'الرواتب')
     await page.getByTestId('hr-payroll-state').click()

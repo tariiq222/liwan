@@ -23,11 +23,12 @@ const meta = {
   component: PayrollFinanceSettingsForm,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/payroll/settings.vue:55', 'قسم ربط الرواتب بالمحاسبة في إعدادات الرواتب: الدفتر ومستوى تفصيل القيد ومركز التكلفة الافتراضي وحساب كل دور.'),
+    ...storyContext('apps/web/app/pages/hr/payroll/settings.vue:64', 'قسم ربط الرواتب بالمحاسبة في إعدادات الرواتب: الدفتر ومستوى تفصيل القيد ومركز التكلفة الافتراضي وحساب كل دور.'),
   },
   args: {
     settings,
     canEdit: true,
+    truncated: false,
     journals: [{ id: 7, name: 'قيود الرواتب' }, { id: 8, name: 'قيود عامة' }],
     accounts,
     analyticAccounts: [{ id: 5, code: 'BR-RUH', name: 'فرع الرياض' }],
@@ -47,3 +48,5 @@ export const Editable: Story = { name: 'قابل للتعديل' }
 export const ReadOnly: Story = { name: 'قراءة فقط', args: { canEdit: false } }
 
 export const LookupsUnavailable: Story = { name: 'بلا صلاحية قراءة القوائم', args: { journals: null, accounts: null, analyticAccounts: null } }
+
+export const Truncated: Story = { name: 'قائمة مختصرة', args: { truncated: true } }

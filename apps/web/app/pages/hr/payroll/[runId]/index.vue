@@ -66,12 +66,18 @@ async function transition(action: 'compute' | 'approve' | 'cancel') {
 async function post() {
   if (!hydrated.value || pendingAction.value) return
   failure.value = null
-  try { await posting.mutateAsync() } catch (error) { failure.value = error }
+  try {
+    await posting.mutateAsync()
+    confirming.value = null
+  } catch (error) { failure.value = error }
 }
 async function recordPayment(body: HrPayrollPaymentCreate) {
   if (!hydrated.value || pendingAction.value) return
   failure.value = null
-  try { await payment.mutateAsync(body) } catch (error) { failure.value = error }
+  try {
+    await payment.mutateAsync(body)
+    confirming.value = null
+  } catch (error) { failure.value = error }
 }
 // Cells save independently: only the cell being saved waits, and the saves go to the server in the order they were made.
 const savingCells = ref<string[]>([])
@@ -160,7 +166,19 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
         @post="post"
       >
         <template #post-preview>
-          <SharedPageState :loading="preview.isLoading.value" :error="preview.error.value" @retry="preview.refetch">
+          <UAlert
+            v-if="preview.error.value"
+            role="alert"
+            color="error"
+            variant="subtle"
+            :title="payrollErrorMessage(preview.error.value, t, employeeNames)"
+            data-testid="hr-payroll-preview-failure"
+          >
+            <template #actions>
+              <UButton type="button" color="neutral" variant="outline" :label="t('app.retry')" data-testid="hr-payroll-preview-retry" @click="preview.refetch()" />
+            </template>
+          </UAlert>
+          <SharedPageState v-else :loading="preview.isLoading.value">
             <PayrollPostingPreview v-if="preview.data.value" :preview="preview.data.value" />
           </SharedPageState>
         </template>

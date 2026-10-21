@@ -190,7 +190,7 @@
       "notEditable": "Inputs cannot be edited once the run is approved.",
       "compensation_missing": "An employee has no compensation recorded. Record it and compute again.",
       "settlement_missing": "An employee who left has no approved end-of-service settlement. Complete it before approving the run.",
-      "period_locked": "The accounting period of this date is locked. Choose a date in an open period.",
+      "period_locked": "The accounting period of this action is locked.",
       "missing_cost_center": "One or more departments have no cost center. Set them in the payroll settings.",
       "settings_incomplete": "The payroll accounting settings are incomplete. Complete the journal and accounts in the payroll settings."
     },
@@ -233,7 +233,8 @@
         "journalPlaceholder": "Choose a bank or cash journal",
         "date": "Payment date",
         "noJournals": "You cannot read journals, so a payment journal cannot be chosen.",
-        "confirm": "Record payment"
+        "confirm": "Record payment",
+        "periodLocked": "The accounting period of the payment date is locked. Choose a date in an open period."
       },
       "preview": {
         "title": "Proposed entry",
@@ -242,7 +243,6 @@
         "detail": "Level of detail",
         "aggregated": "Aggregated",
         "per_employee": "Per employee",
-        "loading": "Preparing the proposed entry…",
         "totals": "Total",
         "warningsTitle": "Warnings before posting",
         "empty": "The entry has no lines.",
@@ -282,7 +282,8 @@
         "advance": "Advances account",
         "eos_expense": "End-of-service expense",
         "eos_provision": "End-of-service provision"
-      }
+      },
+      "truncated": "The list is shortened: only the first 200 records are shown, plus the values currently set."
     },
     "costCenters": {
       "title": "Department cost centers",
@@ -291,7 +292,8 @@
       "analytic": "Cost center",
       "none": "No cost center",
       "saveError": "The cost center could not be saved",
-      "empty": "No departments"
+      "empty": "No departments",
+      "truncated": "The list is shortened: only the first 200 cost centers are shown, plus each department's current one."
     }
   }
 }

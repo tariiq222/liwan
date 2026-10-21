@@ -11,7 +11,7 @@ const meta = {
   component: PayrollPaymentForm,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:168', 'نموذج تسجيل صرف الرواتب داخل صفحة المسير المرحّل: دفتر البنك أو الصندوق وتاريخ الصرف بتأكيد مضمّن.'),
+    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:186', 'نموذج تسجيل صرف الرواتب داخل صفحة المسير المرحّل: دفتر البنك أو الصندوق وتاريخ الصرف بتأكيد مضمّن.'),
   },
   args: {
     journals: [{ id: 5, name: 'بنك الراجحي' }, { id: 6, name: 'الصندوق' }],

@@ -2,7 +2,8 @@
 // GOSI rates. Shapes follow packages/contracts/src/hr/payroll.ts. Unlike the other HR previews it keeps state, so the
 // run page can compute, approve, cancel and edit inputs against it; POST /api/v1/__mock/reset-payroll restores the
 // seeds between spec runs (its body {finance: false} seeds a company without the finance bridge: the finance routes
-// then answer 404, and a run offers no post or payment). The figures are a small deterministic stand-in for the payroll engine (not its rules).
+// then answer 404, and a run offers no post or payment; {previewError: true} makes the posting preview refuse with
+// missing_cost_center, returned as `{refusal: {status, body}}` for the mock server to send). The figures are a small deterministic stand-in for the payroll engine (not its rules).
 const ADMIN = { id: 2, name: 'Admin' }
 const INPUT_KEYS = ['overtime_amount', 'absence_days', 'bonus_amount', 'deduction_amount', 'advance_recovery_amount']
 const PEOPLE = [
@@ -19,7 +20,7 @@ const ROLES = ['basic_expense', 'allowance_expense', 'variable_expense', 'gosi_e
 const ACCOUNT_REFS = { basic_expense: { id: 11, name: '510101 مصروف الأجور الأساسية' }, salaries_payable: { id: 13, name: '210101 الرواتب المستحقة' } }
 
 let state
-function seed(finance = true) {
+function seed(finance = true, previewError = false) {
   const slips = (runId, bonusOfFirst = 0) => PEOPLE.map((person, index) => ({
     id: runId * 10 + index + 1,
     person,
@@ -39,6 +40,7 @@ function seed(finance = true) {
       { id: 2, branch: 'hazards', nationality_class: 'non_saudi', date_from: '2026-01-01', employee_rate: 0, employer_rate: 2, wage_min: 0, wage_max: 45000, shared: false },
     ],
     nextRateId: 3,
+    previewError,
     finance: finance
       ? {
           settings: {
@@ -172,6 +174,7 @@ export function hrPayrollPreviewData(route, url) {
   const run = findRun(id)
   if (!run) return undefined
   if (!section) return detail(run)
+  if (section === 'posting-preview' && state.previewError) return { refusal: { status: 422, body: { code: 'missing_cost_center', message: 'a department has no cost center' } } }
   if (section === 'posting-preview') return state.finance && run.state === 'approved' ? postingPreview(run) : undefined
   if (section !== 'payslips') return undefined
   if (slipId) {
@@ -188,7 +191,7 @@ const invalid = (message, field) => ({ status: 422, body: { code: 'invalid', mes
 
 /** The writes: `{status, body}`, or undefined for a route this preview does not own. */
 export function hrPayrollPreviewWrite(method, route, body) {
-  if (method === 'POST' && route === '/api/v1/__mock/reset-payroll') { seed(body.finance !== false); return ok({ ok: true }) }
+  if (method === 'POST' && route === '/api/v1/__mock/reset-payroll') { seed(body.finance !== false, body.previewError === true); return ok({ ok: true }) }
   if (method === 'PATCH' && route === '/api/v1/hr/payroll/settings') {
     // Like the server: an empty patch, a divisor outside 28-31 and a null annual leave type are refused.
     if (!Object.keys(body).length) return invalid('no fields to update')

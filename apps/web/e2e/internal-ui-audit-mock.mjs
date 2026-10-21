@@ -428,6 +428,7 @@ async function handle(req, res) {
   if (process.env.MODULE_UI_PREVIEW === '1' && method === 'GET') {
     if (path === '/api/v1/me') return json(res, 200, { ...ME, appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, moduleUiCapabilities), AI_USE] })
     const preview = moduleUiPreviewData(path, url)
+    if (preview?.refusal) return json(res, preview.refusal.status, preview.refusal.body)
     if (preview !== undefined) return json(res, 200, preview)
   }
 
