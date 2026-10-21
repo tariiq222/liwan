@@ -31,6 +31,36 @@ describe('useApi', () => {
   })
 })
 
+describe('useApi download', () => {
+  beforeEach(() => {
+    vi.stubGlobal('useI18n', () => ({ t: (key: string) => key }))
+    ;(globalThis as any).useRequestHeaders = vi.fn().mockReturnValue({})
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    delete (globalThis as any).$fetch
+    delete (globalThis as any).useRequestHeaders
+  })
+
+  it('returns the blob and the file name the server chose', async () => {
+    const blob = new Blob(['a,b'])
+    ;(globalThis as any).$fetch = Object.assign(vi.fn(), {
+      raw: vi.fn().mockResolvedValue({ _data: blob, headers: new Headers({ 'content-disposition': 'attachment; filename="salaries-2026-10.csv"' }) }),
+    })
+    const { $download } = useApi()
+    await expect($download('/api/v1/hr/payroll/runs/1/bank-file?profile_id=1')).resolves.toEqual({ blob, filename: 'salaries-2026-10.csv' })
+  })
+
+  it('reads the structured refusal out of a blob body', async () => {
+    const data = new Blob([JSON.stringify({ code: 'missing_iban', message: 'x', details: { employee_ids: [4] } })])
+    ;(globalThis as any).$fetch = Object.assign(vi.fn(), { raw: vi.fn().mockRejectedValue({ statusCode: 422, data }) })
+    const { $download } = useApi()
+    const error = await $download('/api/v1/hr/payroll/runs/1/bank-file?profile_id=1').catch(value => value)
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({ status: 422, code: 'missing_iban', details: { employee_ids: [4] } })
+  })
+})
+
 const quotaMessages = {
   'errors.packageQuota.users': 'بلغت الحد المسموح للمستخدمين في حزمتك.',
   'errors.packageQuota.projects': 'بلغت الحد المسموح للمشاريع في حزمتك.',

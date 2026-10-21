@@ -298,6 +298,63 @@ test.describe('payroll settings', () => {
   })
 })
 
+test.describe('payroll salary files', () => {
+  test('missing IBAN shows the employee names', async ({ page }) => {
+    await open(page, '/hr/payroll/1', 'مسير رواتب أكتوبر 2026')
+    await page.getByTestId('hr-payroll-download-bank').click()
+    await expect(page.getByTestId('hr-payroll-run-failure')).toContainText('خالد الشمري')
+    await expect(page.getByTestId('hr-payroll-run-failure')).toContainText('لا آيبان مسجّل')
+    // The refused request is logged by the browser; it is the behaviour under test.
+    errors = errors.filter(message => !message.includes('422'))
+  })
+
+  test('a complete run downloads the bank file with the server file name', async ({ page }) => {
+    expect((await page.request.post('/api/v1/__mock/reset-payroll', { data: { ibansComplete: true } })).status()).toBe(200)
+    await open(page, '/hr/payroll/1', 'مسير رواتب أكتوبر 2026')
+    const download = page.waitForEvent('download')
+    await page.getByTestId('hr-payroll-download-bank').click()
+    expect((await download).suggestedFilename()).toBe('salaries-2026-10.csv')
+    await expect(page.getByTestId('hr-payroll-run-failure')).toHaveCount(0)
+  })
+
+  test('a computed run offers no salary files', async ({ page }) => {
+    await open(page, '/hr/payroll/2', 'مسير رواتب نوفمبر 2026')
+    await expect(page.getByTestId('hr-payroll-totals')).toBeVisible()
+    await expect(page.getByTestId('hr-payroll-files')).toHaveCount(0)
+  })
+
+  test('the GOSI statement opens from the run and lists the branches and totals', async ({ page }) => {
+    await open(page, '/hr/payroll/1', 'مسير رواتب أكتوبر 2026')
+    await page.getByTestId('hr-payroll-open-gosi').click()
+    await expect(heading(page, 'كشف التأمينات الاجتماعية أكتوبر 2026')).toBeVisible()
+    await expect(row(page, /ليلى الحربي/)).toBeVisible()
+    await expect(page.getByTestId('hr-payroll-gosi-totals')).toContainText('حصة صاحب العمل')
+  })
+
+  test('the GOSI statement of a computed run is refused', async ({ page }) => {
+    await page.goto('/hr/payroll/2/gosi')
+    await expect(page.getByRole('alert')).toContainText('ليس لديك صلاحية لعرض هذه الصفحة.')
+    // The refused request is logged by the browser; it is the behaviour under test.
+    errors = errors.filter(message => !message.includes('403'))
+  })
+
+  test('a company bank profile is added with a constant column, a shared one is read-only', async ({ page }) => {
+    await open(page, '/hr/payroll/settings', 'إعدادات الرواتب')
+    await expect(row(page, /ملف بنكي عام.*مشترك/)).toBeVisible()
+    await page.getByTestId('hr-bank-profile-add').click()
+    await page.getByTestId('hr-bank-profile-name').fill('تحويل الراجحي')
+    await page.getByTestId('hr-bank-profile-label-0').fill('IBAN')
+    await page.getByTestId('hr-bank-profile-add-column').click()
+    await page.getByTestId('hr-bank-profile-source-1').click()
+    await page.getByRole('option', { name: 'قيمة ثابتة' }).click()
+    await page.getByTestId('hr-bank-profile-label-1').fill('Type')
+    await page.getByTestId('hr-bank-profile-constant-1').fill('SAL')
+    await page.getByTestId('hr-bank-profile-submit').click()
+    await expect(row(page, /تحويل الراجحي/)).toBeVisible()
+    await expect(page.getByTestId('hr-bank-profile-form')).toHaveCount(0)
+  })
+})
+
 test.describe('payroll pages for a reader', () => {
   test('a reader without the manage capability gets no create button', async ({ page }) => {
     await page.goto('/login')

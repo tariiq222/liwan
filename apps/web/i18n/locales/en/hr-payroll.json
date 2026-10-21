@@ -179,6 +179,95 @@
         "gcc": "GCC national"
       }
     },
+    "files": {
+      "title": "Salary files",
+      "hint": "The bank transfer file and the WPS file, laid out by the chosen profile. Both are available once the run is approved.",
+      "bankProfile": "Bank file profile",
+      "wpsProfile": "WPS file profile",
+      "valueDate": "Value date",
+      "downloadBank": "Download bank file",
+      "downloadWps": "Download WPS file",
+      "noProfiles": "No file profiles. Add them in the payroll settings."
+    },
+    "gosiStatement": {
+      "title": "GOSI statement",
+      "pageTitle": "GOSI statement {month}",
+      "open": "GOSI statement",
+      "print": "Print statement",
+      "emptyTitle": "No employees in the statement",
+      "emptyHint": "This run has no payslips.",
+      "columns": {
+        "employee": "Employee",
+        "gosiNumber": "GOSI number",
+        "nationalityClass": "Class",
+        "contributoryWage": "Contributory wage",
+        "employeeAmount": "Employee share",
+        "employerAmount": "Employer share"
+      }
+    },
+    "bankProfiles": {
+      "title": "Bank and WPS file profiles",
+      "hint": "The column layout, delimiter and encoding of each file. Shared profiles are read-only.",
+      "add": "Add profile",
+      "new": "New profile",
+      "edit": "Edit profile",
+      "delete": "Delete profile",
+      "deleteTitle": "Delete the profile {name}?",
+      "deleteHint": "This profile will no longer be offered when downloading salary files.",
+      "shared": "Shared",
+      "empty": "No profiles recorded",
+      "emptyHint": "Add a profile to download the bank transfer file or the WPS file.",
+      "saveError": "The profile could not be saved",
+      "fieldInvalid": "Enter a valid value.",
+      "columnsHint": "The order of the columns is their order in the file. A constant column carries one value for every row.",
+      "columnsRequired": "Add at least one column.",
+      "addColumn": "Add column",
+      "removeColumn": "Remove column",
+      "columnLabel": "Column heading",
+      "constantValue": "Constant value",
+      "delimiterLabel": "Delimiter",
+      "encodingLabel": "Encoding",
+      "footerLabel": "Closing line",
+      "includeHeader": "Column heading line",
+      "columns": {
+        "name": "Name",
+        "kind": "Type",
+        "columns": "Columns"
+      },
+      "kind": {
+        "bank": "Bank file",
+        "wps": "WPS"
+      },
+      "delimiter": {
+        "comma": "Comma (,)",
+        "semicolon": "Semicolon (;)",
+        "tab": "Tab",
+        "pipe": "Pipe (|)"
+      },
+      "encoding": {
+        "utf8": "UTF-8",
+        "utf8Bom": "UTF-8 with BOM"
+      },
+      "footer": {
+        "none": "None",
+        "totals": "Totals"
+      },
+      "source": {
+        "label": "Column source",
+        "employee_ref": "Employee reference",
+        "identification": "Identification number",
+        "name": "Employee name",
+        "iban": "IBAN",
+        "bank_code": "Bank code",
+        "basic": "Basic wage",
+        "housing": "Housing allowance",
+        "other_allowances": "Other allowances",
+        "deductions": "Deductions",
+        "net": "Net pay",
+        "value_date": "Value date",
+        "constant": "Constant"
+      }
+    },
     "errors": {
       "duplicate": "A run already exists for this month.",
       "negative_net": "The net pay is negative for {count} employees ({names}). Adjust the deductions and compute again.",
@@ -192,7 +281,9 @@
       "settlement_missing": "An employee who left has no approved end-of-service settlement. Complete it before approving the run.",
       "period_locked": "The accounting period of this action is locked.",
       "missing_cost_center": "One or more departments have no cost center. Set them in the payroll settings.",
-      "settings_incomplete": "The payroll accounting settings are incomplete. Complete the journal and accounts in the payroll settings."
+      "settings_incomplete": "The payroll accounting settings are incomplete. Complete the journal and accounts in the payroll settings.",
+      "missing_iban": "{count} employee(s) have no IBAN ({names}). Record it in the compensation and download again.",
+      "wps_totals_mismatch": "The WPS file totals do not match the run totals. Review the run before downloading."
     },
     "compensation": {
       "title": "Compensation",

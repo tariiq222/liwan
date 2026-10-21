@@ -429,6 +429,10 @@ async function handle(req, res) {
     if (path === '/api/v1/me') return json(res, 200, { ...ME, appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, moduleUiCapabilities), AI_USE] })
     const preview = moduleUiPreviewData(path, url)
     if (preview?.refusal) return json(res, preview.refusal.status, preview.refusal.body)
+    if (preview?.file) {
+      res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${preview.file.filename}"` })
+      return res.end(preview.file.body)
+    }
     if (preview !== undefined) return json(res, 200, preview)
   }
 

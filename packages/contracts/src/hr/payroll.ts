@@ -193,6 +193,67 @@ export const HrGosiRateListSchema = z.object({
 // A create sends every field; a PATCH sends the ones it changes.
 export const HrGosiRateWriteSchema = HrGosiRateSchema.omit({ id: true, shared: true })
 
+// ---- Salary files: bank/WPS file layouts and the GOSI statement of a fixed run ----
+export const HR_BANK_PROFILE_KINDS = ['bank', 'wps'] as const
+export const HR_BANK_PROFILE_DELIMITERS = [',', ';', '\t', '|'] as const
+export const HR_BANK_PROFILE_ENCODINGS = ['utf-8', 'utf-8-sig'] as const
+export const HR_BANK_PROFILE_FOOTERS = ['none', 'totals'] as const
+export const HR_BANK_COLUMN_SOURCES = [
+  'employee_ref', 'identification', 'name', 'iban', 'bank_code', 'basic', 'housing',
+  'other_allowances', 'deductions', 'net', 'value_date', 'constant',
+] as const
+
+export const HrBankProfileColumnSchema = z.object({
+  source: z.enum(HR_BANK_COLUMN_SOURCES),
+  label: z.string().min(1),
+  constant_value: z.string(),
+}).strict()
+
+export const HrBankProfileSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  kind: z.enum(HR_BANK_PROFILE_KINDS),
+  delimiter: z.enum(HR_BANK_PROFILE_DELIMITERS),
+  encoding: z.enum(HR_BANK_PROFILE_ENCODINGS),
+  include_header: z.boolean(),
+  footer: z.enum(HR_BANK_PROFILE_FOOTERS),
+  columns: z.array(HrBankProfileColumnSchema),
+  // A shared row belongs to no company: it is read-only for a tenant.
+  shared: z.boolean(),
+}).strict()
+
+export const HrBankProfileListSchema = z.object({
+  items: z.array(HrBankProfileSchema),
+  total: z.number().int().nonnegative(),
+}).strict()
+
+// A create sends every field; a PATCH sends the ones it changes. A constant column carries a value, any other none.
+export const HrBankProfileWriteSchema = HrBankProfileSchema.omit({ id: true, shared: true }).extend({
+  name: z.string().trim().min(1),
+  columns: z.array(HrBankProfileColumnSchema).min(1),
+}).refine(
+  profile => profile.columns.every(column => (column.source === 'constant') === (column.constant_value.trim() !== '')),
+  { message: 'only a constant column carries a value, and it needs one', path: ['columns'] },
+)
+
+const gosiSide = z.object({ employee: amount, employer: amount }).strict()
+
+export const HrGosiStatementLineSchema = z.object({
+  employee: HrRefSchema,
+  gosi_number: z.string(),
+  nationality_class: z.enum(HR_GOSI_NATIONALITY_CLASSES),
+  contributory_wage: amount,
+  branches: z.object({ annuities: gosiSide, saned: gosiSide, hazards: gosiSide }).strict(),
+  employee_amount: amount,
+  employer_amount: amount,
+}).strict()
+
+export const HrGosiStatementSchema = z.object({
+  month: payrollMonth,
+  lines: z.array(HrGosiStatementLineSchema),
+  totals: z.object({ contributory_wage: amount, employee_amount: amount, employer_amount: amount }).strict(),
+}).strict()
+
 // ---- The finance side of payroll, served by the webvue_hr_finance bridge (absent: the routes answer 404) ----
 export const HR_PAYROLL_ACCOUNT_ROLES = [
   'basic_expense', 'allowance_expense', 'variable_expense', 'gosi_expense', 'gosi_payable',
@@ -279,3 +340,9 @@ export type HrPayrollCostCenter = z.infer<typeof HrPayrollCostCenterSchema>
 export type HrPayrollCostCenterList = z.infer<typeof HrPayrollCostCenterListSchema>
 export type HrPayrollPostingPreview = z.infer<typeof HrPayrollPostingPreviewSchema>
 export type HrPayrollPaymentCreate = z.infer<typeof HrPayrollPaymentCreateSchema>
+export type HrBankProfileColumn = z.infer<typeof HrBankProfileColumnSchema>
+export type HrBankProfile = z.infer<typeof HrBankProfileSchema>
+export type HrBankProfileList = z.infer<typeof HrBankProfileListSchema>
+export type HrBankProfileWrite = z.infer<typeof HrBankProfileWriteSchema>
+export type HrGosiStatementLine = z.infer<typeof HrGosiStatementLineSchema>
+export type HrGosiStatement = z.infer<typeof HrGosiStatementSchema>

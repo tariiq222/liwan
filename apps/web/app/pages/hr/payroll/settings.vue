@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import PayrollCostCenterTable from '@/components/hr/payroll/PayrollCostCenterTable.vue'
 import PayrollFinanceSettingsForm from '@/components/hr/payroll/PayrollFinanceSettingsForm.vue'
+import BankProfileForm from '@/components/hr/payroll/BankProfileForm.vue'
 import GosiRateTable from '@/components/hr/payroll/GosiRateTable.vue'
 import PayrollGeneralSettingsForm from '@/components/hr/payroll/PayrollGeneralSettingsForm.vue'
 import { ApiError } from '@/composables/useApi'
@@ -21,6 +22,7 @@ const backTo = computed(() => owningListBack(route.query, sourcePaths.value, rou
 const canConfig = computed(() => can('hr.payroll.config'))
 const settings = useHrPayrollSettings()
 const rates = useHrGosiRates()
+const bankProfiles = useHrBankProfiles()
 // The leave pickers need the leave catalog; without leave access they are empty and the rest of the page still works.
 const leaveTypes = useHrLeaveTypes()
 const leaveTypeRefs = computed(() => (leaveTypes.data.value?.items ?? []).map(type => ({ id: type.id, name: type.name })))
@@ -47,19 +49,21 @@ async function changeCenter(payload: { departmentId: number; analyticAccountId: 
   }
 }
 const centerFailureMessage = computed(() => centerFailure.value ? saveErrorMessage(centerFailure.value, t('errors.generic'), t('errors.saveUncertain')) : '')
-const error = computed(() => settings.error.value ?? rates.error.value)
+const error = computed(() => settings.error.value ?? rates.error.value ?? bankProfiles.error.value)
 function retry() {
   void settings.refetch()
   void rates.refetch()
+  void bankProfiles.refetch()
 }
 </script>
 
 <template>
   <SharedSettingsPage width="list">
     <SharedPageHeader :title="t('hrPayroll.settings.title')" :back-to="backTo" :back-label="t('hrPayroll.title')" />
-    <SharedPageState :loading="settings.isLoading.value || rates.isLoading.value" :error="error" :empty="!settings.data.value" @retry="retry">
+    <SharedPageState :loading="settings.isLoading.value || rates.isLoading.value || bankProfiles.isLoading.value" :error="error" :empty="!settings.data.value" @retry="retry">
       <PayrollGeneralSettingsForm v-if="settings.data.value" :settings="settings.data.value" :leave-types="leaveTypeRefs" :can-edit="canConfig" />
       <GosiRateTable :rates="rates.data.value?.items ?? []" :can-edit="canConfig" />
+      <BankProfileForm :profiles="bankProfiles.data.value?.items ?? []" :can-edit="canConfig" />
       <SharedPageState v-if="financeError" :error="financeError" @retry="finance.refetch" />
       <PayrollFinanceSettingsForm
         v-if="financeSettings"

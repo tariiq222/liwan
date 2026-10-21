@@ -12,7 +12,7 @@ const meta = {
   component: PayrollGeneralSettingsForm,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/payroll/settings.vue:61', 'نموذج الإعدادات العامة للرواتب: قاسم الأيام، وهيكل الراتب، ونوع الإجازة السنوية، وأنواع الإجازة بدون راتب.'),
+    ...storyContext('apps/web/app/pages/hr/payroll/settings.vue:64', 'نموذج الإعدادات العامة للرواتب: قاسم الأيام، وهيكل الراتب، ونوع الإجازة السنوية، وأنواع الإجازة بدون راتب.'),
   },
   args: {
     settings: { day_divisor: 30, structure: { id: 1, name: 'هيكل الرواتب السعودي' }, unpaid_leave_types: [{ id: 2, name: 'إجازة بدون راتب' }], annual_leave_type: { id: 1, name: 'إجازة سنوية' } },

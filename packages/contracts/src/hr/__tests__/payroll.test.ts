@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   HrCompensationSchema,
+  HrBankProfileListSchema,
+  HrBankProfileSchema,
+  HrBankProfileWriteSchema,
   HrCompensationWriteSchema,
+  HrGosiStatementSchema,
   HrGosiRateListSchema,
   HrGosiRateSchema,
   HrGosiRateWriteSchema,
@@ -208,5 +212,55 @@ describe('payroll finance schemas', () => {
     expect(HrPayrollPaymentCreateSchema.parse({ journal_id: 5, date: '2026-11-01' })).toEqual({ journal_id: 5, date: '2026-11-01' })
     expect(HrPayrollPaymentCreateSchema.safeParse({ journal_id: 5, date: '1/11/2026' }).success).toBe(false)
     expect(HrPayrollPaymentCreateSchema.safeParse({ journal_id: 0, date: '2026-11-01' }).success).toBe(false)
+  })
+})
+
+describe('salary file schemas', () => {
+  const PROFILE = {
+    id: 4,
+    name: 'ملف البنك',
+    kind: 'bank',
+    delimiter: ',',
+    encoding: 'utf-8',
+    include_header: true,
+    footer: 'none',
+    columns: [{ source: 'iban', label: 'IBAN', constant_value: '' }, { source: 'constant', label: 'Type', constant_value: 'SAL' }],
+    shared: false,
+  }
+  const STATEMENT = {
+    month: '2026-10',
+    lines: [{
+      employee: { id: 3, name: 'ليلى الحربي' },
+      gosi_number: '123',
+      nationality_class: 'saudi_from_2024',
+      contributory_wage: 10000,
+      branches: { annuities: { employee: 950, employer: 1150 }, saned: { employee: 75, employer: 75 }, hazards: { employee: 0, employer: 100 } },
+      employee_amount: 1025,
+      employer_amount: 1325,
+    }],
+    totals: { contributory_wage: 10000, employee_amount: 1025, employer_amount: 1325 },
+  }
+
+  it('accepts a bank profile, its list and the write body', () => {
+    expect(HrBankProfileSchema.parse(PROFILE)).toEqual(PROFILE)
+    expect(HrBankProfileListSchema.parse({ items: [PROFILE], total: 1 }).total).toBe(1)
+    const { id: _id, shared: _shared, ...body } = PROFILE
+    expect(HrBankProfileWriteSchema.parse(body)).toEqual(body)
+  })
+
+  it('rejects an unknown delimiter, a column without a label and a misplaced constant', () => {
+    expect(HrBankProfileSchema.safeParse({ ...PROFILE, delimiter: 'x' }).success).toBe(false)
+    expect(HrBankProfileSchema.safeParse({ ...PROFILE, columns: [{ source: 'iban', label: '', constant_value: '' }] }).success).toBe(false)
+    const { id: _id, shared: _shared, ...body } = PROFILE
+    expect(HrBankProfileWriteSchema.safeParse({ ...body, columns: [{ source: 'iban', label: 'IBAN', constant_value: 'x' }] }).success).toBe(false)
+    expect(HrBankProfileWriteSchema.safeParse({ ...body, columns: [{ source: 'constant', label: 'T', constant_value: '' }] }).success).toBe(false)
+    expect(HrBankProfileWriteSchema.safeParse({ ...body, columns: [] }).success).toBe(false)
+  })
+
+  it('accepts the GOSI statement and rejects an unknown key or branch', () => {
+    expect(HrGosiStatementSchema.parse(STATEMENT)).toEqual(STATEMENT)
+    expect(HrGosiStatementSchema.safeParse({ ...STATEMENT, extra: 1 }).success).toBe(false)
+    const line = { ...STATEMENT.lines[0], branches: { other: { employee: 1, employer: 1 } } }
+    expect(HrGosiStatementSchema.safeParse({ ...STATEMENT, lines: [line] }).success).toBe(false)
   })
 })

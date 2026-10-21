@@ -10,7 +10,7 @@ const meta = {
   component: PayrollRunTotals,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:197', 'شريط أرقام المسير أعلى كشف الرواتب: صافي الرواتب، والإجمالي، والخصومات، وحصة صاحب العمل في التأمينات.'),
+    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:235', 'شريط أرقام المسير أعلى كشف الرواتب: صافي الرواتب، والإجمالي، والخصومات، وحصة صاحب العمل في التأمينات.'),
   },
   args: {
     totals: { gross: 98400, deductions: 12000, gosi_employee: 5400, gosi_employer: 6900, net: 86400 },

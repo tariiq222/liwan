@@ -1,6 +1,7 @@
 import type { ZodType } from 'zod'
 import { saveErrorMessage } from '../utils/formFeedback'
 import { ApiErrorSchema } from '@webvue/contracts'
+import { contentDispositionFilename } from '../utils/contentDisposition'
 
 export class ApiError extends Error {
   constructor(
@@ -12,6 +13,12 @@ export class ApiError extends Error {
   ) {
     super(message)
   }
+}
+
+/** A refusal of a file route arrives as a blob: its JSON text is the structured error. */
+async function errorBody(data: unknown): Promise<unknown> {
+  if (!(data instanceof Blob)) return data
+  try { return JSON.parse(await data.text()) } catch { return undefined }
 }
 
 export function useApi() {
@@ -47,29 +54,47 @@ export function useApi() {
       })
       return opts.schema ? opts.schema.parse(data) : (data as T)
     } catch (e: any) {
-      // A ZodError is a contract bug, not a user-facing API error: let it
-      // propagate unchanged rather than wrapping it as an ApiError.
-      if (e?.name === 'ZodError' || e?.cause?.name === 'ZodError') throw e
-      const status: number = e?.statusCode ?? e?.response?.status ?? 0
-      const parsed = ApiErrorSchema.safeParse(e?.data)
-      if (parsed.success) {
-        const { code, field, details } = parsed.data
-        let message = parsed.data.message
-        // Translate only structured quota denials; arbitrary server messages
-        // and other feature denials retain their existing meaning.
-        if (code === 'feature_not_included' && details?.reason === 'limit') {
-          const key = details.limit_key
-          const quota = key === 'users.limit' ? 'users'
-            : key === 'projects.max_projects' ? 'projects'
-              : key === 'storage.limit_mb' ? 'storage' : 'generic'
-          message = t(`errors.packageQuota.${quota}`)
-        }
-        throw new ApiError(status, code, message, field, details)
-      }
-      const message = writing ? saveErrorMessage({ status, message: e?.message }, t('errors.generic'), t('errors.saveUncertain')) : e?.message ?? t('errors.generic')
-      throw new ApiError(status, 'http_error', message)
+      throw await toError(e, writing)
     }
   }
 
-  return { $api }
+  /** What a failed request throws: a contract bug passes through, a structured refusal becomes an ApiError. */
+  async function toError(e: any, writing: boolean): Promise<Error> {
+    // A ZodError is a contract bug, not a user-facing API error: let it
+    // propagate unchanged rather than wrapping it as an ApiError.
+    if (e?.name === 'ZodError' || e?.cause?.name === 'ZodError') return e
+    const status: number = e?.statusCode ?? e?.response?.status ?? 0
+    const parsed = ApiErrorSchema.safeParse(await errorBody(e?.data))
+    if (parsed.success) {
+      const { code, field, details } = parsed.data
+      let message = parsed.data.message
+      // Translate only structured quota denials; arbitrary server messages
+      // and other feature denials retain their existing meaning.
+      if (code === 'feature_not_included' && details?.reason === 'limit') {
+        const key = details.limit_key
+        const quota = key === 'users.limit' ? 'users'
+          : key === 'projects.max_projects' ? 'projects'
+            : key === 'storage.limit_mb' ? 'storage' : 'generic'
+        message = t(`errors.packageQuota.${quota}`)
+      }
+      return new ApiError(status, code, message, field, details)
+    }
+    const message = writing ? saveErrorMessage({ status, message: e?.message }, t('errors.generic'), t('errors.saveUncertain')) : e?.message ?? t('errors.generic')
+    return new ApiError(status, 'http_error', message)
+  }
+
+  /** A file route: the raw body and the file name the server chose. A refusal is the same ApiError `$api` throws. */
+  async function $download(path: string): Promise<{ blob: Blob; filename: string | null }> {
+    try {
+      const response = await $fetch.raw<Blob>(path, {
+        responseType: 'blob',
+        headers: /^\/api\/v1\/[a-zA-Z0-9_/-]+$/.test(path.split('?')[0] ?? '') && !path.includes('..') ? { ...headers, ...trustedHeaders } : {},
+      })
+      return { blob: response._data as Blob, filename: contentDispositionFilename(response.headers.get('content-disposition')) }
+    } catch (e: any) {
+      throw await toError(e, false)
+    }
+  }
+
+  return { $api, $download }
 }

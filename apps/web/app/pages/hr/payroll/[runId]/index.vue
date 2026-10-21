@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PayrollFileActions from '@/components/hr/payroll/PayrollFileActions.vue'
 import PayrollInputsTable from '@/components/hr/payroll/PayrollInputsTable.vue'
 import PayrollPaymentForm from '@/components/hr/payroll/PayrollPaymentForm.vue'
 import PayrollPostingPreview from '@/components/hr/payroll/PayrollPostingPreview.vue'
@@ -8,7 +9,9 @@ import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import { formatDate } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { HR_PAYSLIP_PAGE_SIZE, fetchAllHrPayslips, hrPayslipsQuery } from '@/composables/useHrPayrollRuns'
+import { downloadHrPayrollFile } from '@/composables/useHrPayrollFiles'
 import { payrollErrorMessage } from '@/utils/payrollErrors'
+import { saveBlob } from '@/utils/saveBlob'
 import { currentPayrollDate, formatPayrollMonth, payrollRunStateTone } from '@/utils/payrollFormat'
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { parsePositiveId } from '@/utils/routeParams'
@@ -41,7 +44,8 @@ const employeeNames = computed(() => new Map(rows.value.map(row => [row.employee
 
 const transitions = useHrPayrollRunTransition(() => runId.value ?? 0)
 const patchInputs = usePatchHrPayslipInputs(() => runId.value ?? 0)
-const { $api } = useApi()
+const { $api, $download } = useApi()
+const { can } = useAccess()
 const posting = usePostHrPayrollRun(() => runId.value ?? 0)
 const payment = useRecordHrPayrollPayment(() => runId.value ?? 0)
 const confirming = ref<'approve' | 'cancel' | 'post' | 'record_payment' | null>(null)
@@ -53,7 +57,32 @@ const pendingAction = computed(() => {
   return (['compute', 'approve', 'cancel'] as const).find(action => transitions[action].isPending.value) ?? null
 })
 const failure = ref<unknown>(null)
-const failureMessage = computed(() => failure.value ? payrollErrorMessage(failure.value, t, employeeNames.value) : '')
+// A missing-IBAN refusal names employees the loaded page may not hold: their names are read once, after the refusal.
+const refusedNames = ref<ReadonlyMap<number, string>>(new Map())
+const failureMessage = computed(() => failure.value ? payrollErrorMessage(failure.value, t, new Map([...employeeNames.value, ...refusedNames.value])) : '')
+
+// The salary files exist once the run's figures are fixed; the bank profile list is asked for only then.
+const FILE_STATES = ['approved', 'posted', 'paid']
+const showFiles = computed(() => can('hr.payroll.read') && !!run.value && FILE_STATES.includes(run.value.state))
+const profiles = useHrBankProfiles(showFiles)
+const downloading = ref<'bank' | 'wps' | null>(null)
+async function downloadFile(file: { kind: 'bank' | 'wps'; profileId: number; valueDate?: string }) {
+  if (!hydrated.value || downloading.value || runId.value === null) return
+  failure.value = null
+  downloading.value = file.kind
+  try {
+    const { blob, filename } = await downloadHrPayrollFile($download, runId.value, file.kind, file)
+    saveBlob(blob, filename ?? `${file.kind === 'bank' ? 'salaries' : 'wps'}-${run.value?.month ?? runId.value}.csv`)
+  } catch (error) {
+    failure.value = error
+    if (error instanceof ApiError && error.code === 'missing_iban') await nameRefusedEmployees(runId.value)
+  } finally { downloading.value = null }
+}
+async function nameRefusedEmployees(id: number) {
+  try {
+    refusedNames.value = new Map((await fetchAllHrPayslips($api, id)).map(row => [row.employee.id, row.employee.name]))
+  } catch { refusedNames.value = new Map() }
+}
 
 async function transition(action: 'compute' | 'approve' | 'cancel') {
   if (!hydrated.value || pendingAction.value) return
@@ -193,6 +222,15 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
           />
         </template>
       </PayrollRunActions>
+
+      <PayrollFileActions
+        v-if="showFiles && profiles.data.value"
+        :profiles="profiles.data.value.items"
+        :pending="downloading"
+        :default-date="currentPayrollDate()"
+        :gosi-to="recordChildTo(`/hr/payroll/${run.id}/gosi`, route.query, sourcePaths, route.hash)"
+        @download="downloadFile"
+      />
 
       <PayrollRunTotals :totals="run.totals" :employee-count="run.employee_count" />
       <p v-if="approval" class="text-sm text-muted" data-testid="hr-payroll-approval">{{ approval }}</p>
