@@ -62,3 +62,29 @@ def gosi_amounts(base, rates, ratio):
             money(wage * row.employer_rate / 100),
         )
     return amounts
+
+
+def paid_days(month_start, month_end, contract_start, contract_end, departure_date, divisor):
+    """Paid days of one pay month: a whole month is always the divisor, a part month counts calendar days."""
+    start = max(month_start, contract_start)
+    end = min(day for day in (month_end, contract_end, departure_date) if day)
+    if end < start:
+        return 0
+    if start == month_start and end == month_end:
+        return divisor
+    return min((end - start).days + 1, divisor)
+
+
+def overlap_days(leave_from, leave_to, window_start, window_end, half_day=False):
+    """Calendar days of a leave inside a window, inclusive; a half-day leave counts one half."""
+    start = max(leave_from, window_start)
+    end = min(leave_to, window_end)
+    if end < start:
+        return Decimal(0)
+    if half_day:
+        return Decimal('0.5')
+    return Decimal((end - start).days + 1)
+
+
+def day_amount(monthly, days, divisor):
+    return money(monthly / divisor * days)

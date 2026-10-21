@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The Saudi monthly salary structure of the payroll section. Every figure the rules read is
+         computed by webvue.hr.payroll.calculator and reaches them as current_contract.<key>; the
+         rules only pick a value or negate a deduction. The structure belongs to the main company
+         (hr.payroll.structure requires one); rules and categories are company-less. -->
+    <record id="category_basic" model="hr.salary.rule.category">
+        <field name="name">Basic</field>
+        <field name="code">BASIC</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="category_allowance" model="hr.salary.rule.category">
+        <field name="name">Allowances</field>
+        <field name="code">ALW</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="category_variable" model="hr.salary.rule.category">
+        <field name="name">Variable pay</field>
+        <field name="code">VAR</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="category_deduction" model="hr.salary.rule.category">
+        <field name="name">Deductions</field>
+        <field name="code">DED</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="category_gosi" model="hr.salary.rule.category">
+        <field name="name">GOSI employee share</field>
+        <field name="code">GOSI</field>
+        <field name="parent_id" ref="category_deduction"/>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="category_company" model="hr.salary.rule.category">
+        <field name="name">Employer contributions</field>
+        <field name="code">COMP</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="category_net" model="hr.salary.rule.category">
+        <field name="name">Net</field>
+        <field name="code">NET</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="category_base" model="hr.salary.rule.category">
+        <field name="name">Statistical bases</field>
+        <field name="code">BASE</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="rule_basic" model="hr.salary.rule">
+        <field name="name">Basic wage</field>
+        <field name="code">BASIC</field>
+        <field name="sequence">10</field>
+        <field name="category_id" ref="category_basic"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = current_contract.basic</field>
+    </record>
+    <record id="rule_housing" model="hr.salary.rule">
+        <field name="name">Housing allowance</field>
+        <field name="code">HOUSING</field>
+        <field name="sequence">11</field>
+        <field name="category_id" ref="category_allowance"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = current_contract.housing</field>
+    </record>
+    <record id="rule_transport" model="hr.salary.rule">
+        <field name="name">Transport allowance</field>
+        <field name="code">TRANSPORT</field>
+        <field name="sequence">12</field>
+        <field name="category_id" ref="category_allowance"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = current_contract.transport</field>
+    </record>
+    <record id="rule_other" model="hr.salary.rule">
+        <field name="name">Other allowance</field>
+        <field name="code">OTHER</field>
+        <field name="sequence">13</field>
+        <field name="category_id" ref="category_allowance"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = current_contract.other</field>
+    </record>
+    <record id="rule_overtime" model="hr.salary.rule">
+        <field name="name">Overtime</field>
+        <field name="code">OVERTIME</field>
+        <field name="sequence">20</field>
+        <field name="category_id" ref="category_variable"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = inputs.WV_OVERTIME and inputs.WV_OVERTIME.amount or 0</field>
+    </record>
+    <record id="input_wv_overtime" model="hr.rule.input">
+        <field name="name">Overtime amount</field>
+        <field name="code">WV_OVERTIME</field>
+        <field name="input_id" ref="rule_overtime"/>
+    </record>
+    <record id="rule_bonus" model="hr.salary.rule">
+        <field name="name">Bonus</field>
+        <field name="code">BONUS</field>
+        <field name="sequence">21</field>
+        <field name="category_id" ref="category_variable"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = inputs.WV_BONUS and inputs.WV_BONUS.amount or 0</field>
+    </record>
+    <record id="input_wv_bonus" model="hr.rule.input">
+        <field name="name">Bonus amount</field>
+        <field name="code">WV_BONUS</field>
+        <field name="input_id" ref="rule_bonus"/>
+    </record>
+    <record id="rule_eos" model="hr.salary.rule">
+        <field name="name">End of service award</field>
+        <field name="code">EOS</field>
+        <field name="sequence">30</field>
+        <field name="category_id" ref="category_variable"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = current_contract.eos</field>
+    </record>
+    <record id="rule_leave_enc" model="hr.salary.rule">
+        <field name="name">Leave encashment</field>
+        <field name="code">LEAVE_ENC</field>
+        <field name="sequence">31</field>
+        <field name="category_id" ref="category_variable"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = current_contract.leave_encashment</field>
+    </record>
+    <record id="rule_absence" model="hr.salary.rule">
+        <field name="name">Absence</field>
+        <field name="code">ABSENCE</field>
+        <field name="sequence">40</field>
+        <field name="category_id" ref="category_deduction"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = current_contract.absence</field>
+    </record>
+    <record id="input_wv_absence_days" model="hr.rule.input">
+        <field name="name">Absence days</field>
+        <field name="code">WV_ABSENCE_DAYS</field>
+        <field name="input_id" ref="rule_absence"/>
+    </record>
+    <record id="rule_unpaid" model="hr.salary.rule">
+        <field name="name">Unpaid leave</field>
+        <field name="code">UNPAID</field>
+        <field name="sequence">41</field>
+        <field name="category_id" ref="category_deduction"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = current_contract.unpaid</field>
+    </record>
+    <record id="rule_deduction" model="hr.salary.rule">
+        <field name="name">Deduction</field>
+        <field name="code">DEDUCTION</field>
+        <field name="sequence">42</field>
+        <field name="category_id" ref="category_deduction"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -(inputs.WV_DEDUCTION and inputs.WV_DEDUCTION.amount or 0)</field>
+    </record>
+    <record id="input_wv_deduction" model="hr.rule.input">
+        <field name="name">Deduction amount</field>
+        <field name="code">WV_DEDUCTION</field>
+        <field name="input_id" ref="rule_deduction"/>
+    </record>
+    <record id="rule_advance" model="hr.salary.rule">
+        <field name="name">Advance repayment</field>
+        <field name="code">ADVANCE</field>
+        <field name="sequence">43</field>
+        <field name="category_id" ref="category_deduction"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -(inputs.WV_ADVANCE and inputs.WV_ADVANCE.amount or 0)</field>
+    </record>
+    <record id="input_wv_advance" model="hr.rule.input">
+        <field name="name">Advance repayment amount</field>
+        <field name="code">WV_ADVANCE</field>
+        <field name="input_id" ref="rule_advance"/>
+    </record>
+    <record id="rule_settlement_ded" model="hr.salary.rule">
+        <field name="name">Settlement deduction</field>
+        <field name="code">SETTLEMENT_DED</field>
+        <field name="sequence">44</field>
+        <field name="category_id" ref="category_deduction"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -current_contract.settlement_deduction</field>
+    </record>
+    <record id="rule_gosi_ee_ann" model="hr.salary.rule">
+        <field name="name">GOSI annuities (employee)</field>
+        <field name="code">GOSI_EE_ANN</field>
+        <field name="sequence">50</field>
+        <field name="category_id" ref="category_gosi"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -current_contract.gosi_ee_annuities</field>
+    </record>
+    <record id="rule_gosi_ee_saned" model="hr.salary.rule">
+        <field name="name">GOSI SANED (employee)</field>
+        <field name="code">GOSI_EE_SANED</field>
+        <field name="sequence">51</field>
+        <field name="category_id" ref="category_gosi"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -current_contract.gosi_ee_saned</field>
+    </record>
+    <record id="rule_gosi_er_ann" model="hr.salary.rule">
+        <field name="name">GOSI annuities (employer)</field>
+        <field name="code">GOSI_ER_ANN</field>
+        <field name="sequence">60</field>
+        <field name="category_id" ref="category_company"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = current_contract.gosi_er_annuities</field>
+    </record>
+    <record id="rule_gosi_er_saned" model="hr.salary.rule">
+        <field name="name">GOSI SANED (employer)</field>
+        <field name="code">GOSI_ER_SANED</field>
+        <field name="sequence">61</field>
+        <field name="category_id" ref="category_company"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = current_contract.gosi_er_saned</field>
+    </record>
+    <record id="rule_gosi_er_oh" model="hr.salary.rule">
+        <field name="name">GOSI occupational hazards (employer)</field>
+        <field name="code">GOSI_ER_OH</field>
+        <field name="sequence">62</field>
+        <field name="category_id" ref="category_company"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = current_contract.gosi_er_hazards</field>
+    </record>
+    <record id="rule_gosi_base" model="hr.salary.rule">
+        <field name="name">GOSI base</field>
+        <field name="code">GOSI_BASE</field>
+        <field name="sequence">70</field>
+        <field name="category_id" ref="category_base"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="appears_on_payslip" eval="False"/>
+        <field name="amount_python_compute">result = current_contract.gosi_base</field>
+    </record>
+    <record id="rule_net" model="hr.salary.rule">
+        <field name="name">Net</field>
+        <field name="code">NET</field>
+        <field name="sequence">100</field>
+        <field name="category_id" ref="category_net"/>
+        <field name="company_id" eval="False"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = categories.BASIC + categories.ALW + categories.VAR + categories.DED</field>
+    </record>
+    <record id="structure_saudi" model="hr.payroll.structure">
+        <field name="name">Saudi monthly salary</field>
+        <field name="code">SA_MONTHLY</field>
+        <field name="company_id" ref="base.main_company"/>
+        <field name="parent_id" eval="False"/>
+        <field name="rule_ids" eval="[
+            Command.link(ref('rule_basic')),
+            Command.link(ref('rule_housing')),
+            Command.link(ref('rule_transport')),
+            Command.link(ref('rule_other')),
+            Command.link(ref('rule_overtime')),
+            Command.link(ref('rule_bonus')),
+            Command.link(ref('rule_eos')),
+            Command.link(ref('rule_leave_enc')),
+            Command.link(ref('rule_absence')),
+            Command.link(ref('rule_unpaid')),
+            Command.link(ref('rule_deduction')),
+            Command.link(ref('rule_advance')),
+            Command.link(ref('rule_settlement_ded')),
+            Command.link(ref('rule_gosi_ee_ann')),
+            Command.link(ref('rule_gosi_ee_saned')),
+            Command.link(ref('rule_gosi_er_ann')),
+            Command.link(ref('rule_gosi_er_saned')),
+            Command.link(ref('rule_gosi_er_oh')),
+            Command.link(ref('rule_gosi_base')),
+            Command.link(ref('rule_net')),
+        ]"/>
+    </record>
+</odoo>

@@ -7,6 +7,7 @@ from . import (
     hr_compensation,
     hr_department,
     hr_employee,
+    hr_payslip,
     hr_plan_run,
     hr_report,
     hr_version,

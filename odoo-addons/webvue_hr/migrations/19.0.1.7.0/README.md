@@ -14,3 +14,8 @@ Task 6: new tables `webvue_hr_gosi_rate` (dated GOSI rates per branch and nation
 `webvue_hr_payroll_settings` (one row per company, plus its unpaid-leave-type relation), created by the
 ORM on update. The shared GOSI seed (`data/hr_gosi_rate_data.xml`, `noupdate`) loads on upgrade because
 its records are new. There is no data to carry.
+
+Task 7: new column `webvue_department_id` on `hr_payslip` (the department snapshot written when a payslip is
+computed), created by the ORM on update. The Saudi salary structure (`webvue_hr.structure_saudi`) with its
+categories, rules and inputs (`data/hr_payroll_structure_data.xml`, updatable) is new data loaded on upgrade.
+There is no data to carry; the table holds no payslips yet.
