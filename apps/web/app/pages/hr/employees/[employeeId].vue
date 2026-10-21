@@ -73,7 +73,7 @@ const menuActions = computed<RowAction[]>(() => {
       @cancel="confirmArchive = false"
     />
     <EmployeeCard v-if="query.data.value" :employee="query.data.value" />
-    <SharedPageState v-if="query.data.value && canReadCompensation" :loading="compensation.isLoading.value" :error="compensation.error.value" keep-content @retry="compensation.refetch">
+    <SharedPageState v-if="query.data.value && canReadCompensation" :loading="compensation.isLoading.value" :error="compensation.error.value" :keep-content="compensation.data.value !== undefined" @retry="compensation.refetch">
       <CompensationSection :compensation="compensation.data.value ?? null" :can-manage="can('hr.payroll.manage')" :edit-to="recordChildTo(`/hr/employees/${id}/compensation`, route.query, sourcePaths, route.hash)" />
     </SharedPageState>
     <template v-if="query.data.value" #aside>

@@ -30,10 +30,11 @@ const attempted = ref(false)
 const formError = ref<unknown>(null)
 
 const amountText = (value: number | undefined) => value === undefined ? '' : String(value)
+// A field may hold text or a number (a numeric input emits numbers), so the parse accepts both.
 const state = () => JSON.stringify([basicWage.value, housingAllowance.value, transportAllowance.value, otherAllowance.value, iban.value, gosiNumber.value, gosiRegistrationDate.value])
 const dirty = computed(() => savedState.value !== state())
 
-watch(() => props.compensation, (record) => {
+function seed(record: HrCompensation | null) {
   basicWage.value = amountText(record?.basic_wage)
   housingAllowance.value = amountText(record?.housing_allowance ?? 0)
   transportAllowance.value = amountText(record?.transport_allowance ?? 0)
@@ -42,10 +43,14 @@ watch(() => props.compensation, (record) => {
   gosiNumber.value = record?.gosi_number ?? ''
   gosiRegistrationDate.value = record?.gosi_registration_date ?? null
   savedState.value = state()
-}, { immediate: true })
+}
+// A background refetch must not discard unsaved edits: re-seed only a clean form or another employee.
+seed(props.compensation)
+watch(() => props.compensation, (record) => { if (!dirty.value) seed(record) })
+watch(() => props.employeeId, () => seed(props.compensation))
 
 const compactIban = () => iban.value.replace(/\s+/g, '').toUpperCase()
-const parseAmount = (text: string) => text.trim() === '' ? Number.NaN : Number(text)
+const parseAmount = (value: number | string) => typeof value === 'string' && value.trim() === '' ? Number.NaN : Number(value)
 const body = computed(() => ({
   basic_wage: parseAmount(basicWage.value),
   housing_allowance: parseAmount(housingAllowance.value),
@@ -88,16 +93,16 @@ async function submit() {
     <SharedFormSection panel :title="t('hrPayroll.compensation.wageSection')" :description="t('hrPayroll.compensation.wageHint')">
       <div class="webvue-form-grid">
         <UFormField :label="t('hrPayroll.compensation.basicWage')" name="hr-compensation-basic" required :error="fieldError('basic_wage', t('hrPayroll.compensation.basicWageInvalid'))">
-          <UInput id="hr-compensation-basic" v-model="basicWage" type="number" inputmode="decimal" min="0" step="0.01" class="w-full" :disabled="!hydrated || isPending" />
+          <UInput id="hr-compensation-basic" v-model="basicWage" inputmode="decimal" class="w-full" :disabled="!hydrated || isPending" />
         </UFormField>
         <UFormField :label="t('hrPayroll.compensation.housingAllowance')" name="hr-compensation-housing" :error="fieldError('housing_allowance', t('hrPayroll.compensation.amountInvalid'))">
-          <UInput id="hr-compensation-housing" v-model="housingAllowance" type="number" inputmode="decimal" min="0" step="0.01" class="w-full" :disabled="!hydrated || isPending" />
+          <UInput id="hr-compensation-housing" v-model="housingAllowance" inputmode="decimal" class="w-full" :disabled="!hydrated || isPending" />
         </UFormField>
         <UFormField :label="t('hrPayroll.compensation.transportAllowance')" name="hr-compensation-transport" :error="fieldError('transport_allowance', t('hrPayroll.compensation.amountInvalid'))">
-          <UInput id="hr-compensation-transport" v-model="transportAllowance" type="number" inputmode="decimal" min="0" step="0.01" class="w-full" :disabled="!hydrated || isPending" />
+          <UInput id="hr-compensation-transport" v-model="transportAllowance" inputmode="decimal" class="w-full" :disabled="!hydrated || isPending" />
         </UFormField>
         <UFormField :label="t('hrPayroll.compensation.otherAllowance')" name="hr-compensation-other" :error="fieldError('other_allowance', t('hrPayroll.compensation.amountInvalid'))">
-          <UInput id="hr-compensation-other" v-model="otherAllowance" type="number" inputmode="decimal" min="0" step="0.01" class="w-full" :disabled="!hydrated || isPending" />
+          <UInput id="hr-compensation-other" v-model="otherAllowance" inputmode="decimal" class="w-full" :disabled="!hydrated || isPending" />
         </UFormField>
       </div>
     </SharedFormSection>
