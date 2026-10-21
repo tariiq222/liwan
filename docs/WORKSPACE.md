@@ -46,3 +46,12 @@ the same tables.
 - تشغيل SaaS التجاري: [saas-commercial-runbook.md](operations/saas-commercial-runbook.md).
 - فصل لوحة تحكم البائع: [المواصفة](superpowers/specs/2026-10-15-webvue-vendor-admin-separation-design.md)؛ `apps/vendor-admin` هو العميل الوحيد لخدمة التحكم.
 - التحديثات المستمرة: [التصميم](superpowers/specs/2026-10-16-webvue-continuous-updates-design.md) و[سجل القبول](verification/2026-10-16-continuous-updates.html).
+
+## الرواتب السعودية: بوابات الإطلاق المفتوحة
+
+قسم الرواتب في `webvue_hr` وجسر `webvue_hr_finance` منفّذان ومختبَران محليًا ([المواصفة](superpowers/specs/2026-10-20-hr-saudi-payroll-design.md)، [الخطة](superpowers/plans/2026-10-21-hr-saudi-payroll.md)). نجاح الاختبارات المحلية ليس اعتمادًا للإطلاق؛ تبقى هذه البوابات مفتوحة:
+
+- نسب التأمينات الاجتماعية في `data/hr_gosi_rate_data.xml` (وسمها `VERIFY`) تُؤكَّد على gosi.gov.sa، ومنها نسب الخليجيين التي لا صفوف لها بعد.
+- أعمدة ملف حماية الأجور في الملف الأساسي `profile_mudad_wps` تُطابَق مع قالب مُدد الحالي، ويُضاف ملف خاص لكل بنك عند طلب العميل.
+- معادلات مكافأة نهاية الخدمة وطريقة المخصص الشهري والقيد المحاسبي تراجعها محاسبة قانونية سعودية.
+- حدود معروفة: لا حضور وانصراف بعد؛ التسوية فريدة لكل موظف فلا إعادة تعيين بعد تسوية معتمدة؛ مُنتقي أسماء البنوك غير موجود في نموذج التعويضات.
