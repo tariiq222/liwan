@@ -301,7 +301,8 @@
       "departure_missing": "This employee has no departure date.",
       "departureBeforeStart": "The departure date is before the service start.",
       "eos_provision_duplicate": "The end-of-service provision of this month or a later one is already posted.",
-      "eos_provision_empty": "There is no end-of-service provision to post for this month."
+      "eos_provision_empty": "There is no end-of-service provision to post for this month.",
+      "paymentBeforeEntry": "The payment date is before the payroll entry date."
     },
     "compensation": {
       "title": "Compensation",

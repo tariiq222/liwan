@@ -37,9 +37,14 @@ describe('payrollErrorMessage', () => {
     expect(payrollErrorMessage(new ApiError(422, 'invalid', 'raw', 'date', { start_date: '2023-12-01' }), t, names)).toBe('hrPayroll.errors.departureBeforeStart')
   })
 
+  it('says a payment date before the payroll entry is refused, apart from the departure date', () => {
+    expect(payrollErrorMessage(new ApiError(422, 'invalid', 'raw', 'date'), t, names)).toBe('hrPayroll.errors.paymentBeforeEntry')
+  })
+
   it('gives the provision refusals their own texts', () => {
     expect(eosProvisionErrorMessage(new ApiError(422, 'duplicate', 'raw', 'month'), t)).toBe('hrPayroll.errors.eos_provision_duplicate')
     expect(eosProvisionErrorMessage(new ApiError(422, 'invalid', 'raw', 'month'), t)).toBe('hrPayroll.errors.eos_provision_empty')
+    expect(eosProvisionErrorMessage(new ApiError(422, 'invalid', 'raw', 'date'), t)).toBe('hrPayroll.errors.paymentBeforeEntry')
     expect(eosProvisionErrorMessage(new ApiError(403, 'transition_forbidden', 'raw', 'month'), t)).toBe('hrPayroll.errors.transition_forbidden')
   })
 

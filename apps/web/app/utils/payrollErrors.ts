@@ -23,13 +23,14 @@ export function payrollErrorMessage(error: unknown, t: Translate, employeeNames:
     return t(`hrPayroll.errors.${error.code}${names.length ? '' : '_count'}`, { names: names.join('، '), count: ids.length })
   }
   if (error.code === 'invalid' && error.details?.reason === 'not_editable') return t('hrPayroll.errors.notEditable')
-  if (error.code === 'invalid' && error.field === 'date') return t('hrPayroll.errors.departureBeforeStart')
+  // Only the settlement estimate names the service start; the other `invalid` date is the payment date.
+  if (error.code === 'invalid' && error.field === 'date') return t(error.details?.start_date !== undefined ? 'hrPayroll.errors.departureBeforeStart' : 'hrPayroll.errors.paymentBeforeEntry')
   return error.message || t('errors.generic')
 }
 
 /** The refusals of the end-of-service provision have their own wording: the run's `duplicate` text would be wrong for them. */
 export function eosProvisionErrorMessage(error: unknown, t: Translate): string {
   if (error instanceof ApiError && error.code === 'duplicate') return t('hrPayroll.errors.eos_provision_duplicate')
-  if (error instanceof ApiError && error.code === 'invalid') return t('hrPayroll.errors.eos_provision_empty')
+  if (error instanceof ApiError && error.code === 'invalid' && error.field === 'month') return t('hrPayroll.errors.eos_provision_empty')
   return payrollErrorMessage(error, t, new Map())
 }

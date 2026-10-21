@@ -301,7 +301,8 @@
       "departure_missing": "لا تاريخ مغادرة مسجّل لهذا الموظف.",
       "departureBeforeStart": "تاريخ المغادرة قبل بداية الخدمة.",
       "eos_provision_duplicate": "مخصص نهاية الخدمة لهذا الشهر أو لشهر لاحق مكوَّن بالفعل.",
-      "eos_provision_empty": "لا مخصص نهاية خدمة يُكوَّن لهذا الشهر."
+      "eos_provision_empty": "لا مخصص نهاية خدمة يُكوَّن لهذا الشهر.",
+      "paymentBeforeEntry": "تاريخ الدفع قبل تاريخ قيد المسير."
     },
     "compensation": {
       "title": "التعويضات",
