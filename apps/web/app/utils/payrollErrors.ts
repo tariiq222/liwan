@@ -18,13 +18,14 @@ export function payrollErrorMessage(error: unknown, t: Translate, employeeNames:
   if (error.status === 0) return t('errors.saveUncertain')
   // The one `transition_forbidden` that is about the caller, not the run's state: approving your own payslip.
   if (error.code === 'transition_forbidden' && error.field === 'employee_id') return t('hrPayroll.errors.ownRecordForbidden')
+  // Approved (or later) run: inputs are locked — keep the precise wording, not the generic transition text.
+  if (error.code === 'transition_forbidden' && error.details?.reason === 'not_editable') return t('hrPayroll.errors.notEditable')
   if (OWN_TEXT.has(error.code)) return t(`hrPayroll.errors.${error.code}`)
   if (NAMING.has(error.code)) {
     const ids = employeeIds(error)
     const names = ids.flatMap(id => employeeNames.get(id) ?? [])
     return t(`hrPayroll.errors.${error.code}${names.length ? '' : '_count'}`, { names: names.join('، '), count: ids.length })
   }
-  if (error.code === 'invalid' && error.details?.reason === 'not_editable') return t('hrPayroll.errors.notEditable')
   // The GOSI rate form: a second row for a branch and class on the same date, or a maximum below the minimum.
   if (error.code === 'invalid' && error.field === 'date_from') return t('hrPayroll.errors.rateDuplicate')
   if (error.code === 'invalid' && error.field === 'wage_max') return t('hrPayroll.errors.wageRange')

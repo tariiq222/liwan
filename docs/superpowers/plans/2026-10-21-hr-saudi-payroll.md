@@ -309,7 +309,7 @@ Risk: risky (state machine, segregation of duties).
   - `PATCH /runs/<id>/payslips/<int:payslip_id>/inputs` (`hr.payroll.manage`) body: any non-empty subset of the five input keys, numbers >= 0 -> `HrPayslipRow`.
 
 - [ ] Write `test_payroll_runs.py` (`PayrollCase`; users officer `hr.payroll.manage`, approver `hr.payroll.approve`, reader, HR manager):
-  - `test_run_state_machine`: create 201 `draft` -> PATCH inputs ok -> compute `computed` -> PATCH inputs returns run to `draft` -> compute -> approve `approved`; after approve PATCH inputs 422 `invalid`/`not_editable`, compute 403 `transition_forbidden`, DELETE 403.
+  - `test_run_state_machine`: create 201 `draft` -> PATCH inputs ok -> compute `computed` -> PATCH inputs returns run to `draft` -> compute -> approve `approved`; after approve PATCH inputs 403 `transition_forbidden` with `details.reason='not_editable'`, compute 403 `transition_forbidden`, DELETE 403.
   - `test_one_run_per_company_month`: second POST same month -> 422 `duplicate` `field='month'`.
   - `test_approver_cannot_approve_run_with_own_payslip`: approver has an employee with compensation -> 403 `transition_forbidden`.
   - `test_approve_refuses_negative_net` and `test_zero_net_payslip_is_approvable` (Review Focus 3: `WV_DEDUCTION` 20000 on a 12281.25 net -> 422; deduction equal to net -> approve 200 with `NET` 0).

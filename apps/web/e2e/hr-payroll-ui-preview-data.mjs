@@ -417,7 +417,7 @@ export function hrPayrollPreviewWrite(method, route, body) {
   if (method === 'PATCH' && section === 'payslips' && inputs) {
     const slip = run.slips.find(item => item.id === Number(slipId))
     if (!slip) return notFound
-    if (!actionsOf(run).includes('edit_inputs')) return { status: 422, body: { code: 'invalid', message: 'the inputs are locked', field: 'state', details: { reason: 'not_editable' } } }
+    if (!actionsOf(run).includes('edit_inputs')) return { status: 403, body: { code: 'transition_forbidden', message: 'the inputs are locked', details: { reason: 'not_editable' } } }
     const keys = Object.keys(body)
     const bad = keys.find(key => !INPUT_KEYS.includes(key) || typeof body[key] !== 'number' || body[key] < 0)
     if (!keys.length || bad) return invalid('inputs must be numbers, zero or more', bad)

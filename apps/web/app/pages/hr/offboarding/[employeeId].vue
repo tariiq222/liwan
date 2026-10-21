@@ -108,11 +108,7 @@ async function confirmEos() {
       icon="i-lucide-package"
       :title="t(`${NAMESPACE}.departures.heldAssets`, { count: heldAssets }, heldAssets)"
       data-testid="hr-offboarding-held-assets"
-    >
-      <template #actions>
-        <UButton color="neutral" variant="outline" :to="{ path: '/hr/assets', query: { employee_id: String(departure.employee.id) } }" :label="t(`${NAMESPACE}.departures.assetsLink`)" />
-      </template>
-    </UAlert>
+    />
     <SharedIdentityCard v-if="departure" :id="departure.employee.id" :name="departure.employee.name" :subtitle="departure.reason?.name || t(`${NAMESPACE}.departures.noReason`)">
       <template #badge>
         <SharedStatusBadge size="sm" :tone="cleared ? 'success' : 'warning'" :label="cleared ? t(`${NAMESPACE}.departures.cleared`) : t(`${NAMESPACE}.departures.notCleared`)" />
