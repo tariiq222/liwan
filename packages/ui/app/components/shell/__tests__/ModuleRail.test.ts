@@ -14,6 +14,11 @@ const rail = {
 const render = (props: Record<string, unknown>) => renderShared(component, { rail, activeId: 'projects', homeTo: '/', ...props }, {}, { modules: { '../shared/layout/BrandWordmark.vue': { __esModule: true, default: Vue.defineComponent({ render: () => Vue.h('span') }) } } })
 
 describe('ModuleRail', () => {
+  it('labels a scrollable application group without implying user pins in the vendor console', async () => {
+    const html = await render({ rail: { ...rail, pinnedLabelKey: 'nav.railApps' } })
+    expect(html).toMatch(/<nav[^>]*aria-label="nav.railApps"[^>]*data-group="pinned"/)
+    expect(html).not.toContain('nav.pinned')
+  })
   it('draws the groups top to bottom: fixed entries, pinned, customize, utility, then the brand', async () => {
     const html = await render({})
     const at = (needle: string) => html.indexOf(needle)

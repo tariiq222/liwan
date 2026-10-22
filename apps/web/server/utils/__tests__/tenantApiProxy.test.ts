@@ -61,6 +61,8 @@ describe('API proxy tenancy mode separation', () => {
     let caught: unknown
     try { await handler(event as never) } catch (error) { caught = error }
     expect(caught).toHaveProperty('data.code', 'session_required')
+    // The identity middleware recognizes 403 as logged out and must still render /login.
+    expect(caught).toHaveProperty('statusCode', 403)
     expect(proxy).not.toHaveBeenCalled()
     expect(transport).not.toHaveBeenCalled()
   })

@@ -1,4 +1,4 @@
-import type { ShellRailItem } from '@webvue/ui/app/types/shell'
+import type { ShellRailGroups, ShellRailItem } from '@webvue/ui/app/types/shell'
 import { CATALOG_TABS } from './vendorCatalog'
 
 /** `to`: the section's landing path when it is not `/<id>`; `alsoUnder`: further path prefixes that belong to this section (workspaces without a customer sit under customers, bundles and the retired legacy packages under the catalog). */
@@ -36,9 +36,12 @@ export function activeNavId(items: readonly ShellRailItem[], path: string): stri
 const UTILITY_IDS: readonly string[] = ['audit', 'team']
 
 /** The rail's two groups: the commercial sections, then the administration of the console itself. */
-export function splitRail(items: readonly ShellRailItem[]): { modules: ShellRailItem[], utility: ShellRailItem[] } {
+export function splitRail(items: readonly ShellRailItem[]): ShellRailGroups {
   return {
-    modules: items.filter(item => !UTILITY_IDS.includes(item.id)),
+    top: [],
+    pinned: items.filter(item => !UTILITY_IDS.includes(item.id)),
+    pinnedLabelKey: 'nav.railApps',
+    customize: null,
     utility: items.filter(item => UTILITY_IDS.includes(item.id)),
   }
 }

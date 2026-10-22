@@ -12,7 +12,7 @@ export const leaveApprovalAttention: AppAttentionProvider = {
   module: 'hr',
   work: 'decide',
   capability: 'hr.leave.approve',
-  queryKey: ['attention', 'hr', 'leave-approvals'],
+  queryKey: ['hr', 'leave', 'attention', 'approvals'],
   async load(api) {
     const page = await api('/api/v1/hr/leave/requests', { query: { state: HR_LEAVE_PENDING_STATES.join(','), limit: PAGE }, schema: HrLeaveListSchema })
     return page.items

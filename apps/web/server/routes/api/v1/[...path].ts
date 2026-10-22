@@ -18,7 +18,7 @@ export default defineEventHandler((event) => {
   // or an upstream slot is held, so the queue cannot be filled anonymously.
   const apiPath = event.path.split('?')[0] ?? event.path
   if (!PUBLIC_API_PATHS.has(apiPath) && !getHeader(event, 'cookie')?.includes('session_id=')) {
-    throw createError({ statusCode: 401, data: { code: 'session_required' } })
+    throw createError({ statusCode: 403, data: { code: 'session_required' } })
   }
   // Dedicated keeps the original two-argument proxy contract. Invalid/shared
   // requests still go through tenantUpstreamHeaders validation before forwarding.

@@ -9,7 +9,7 @@ export const overdueTasksAttention: AppAttentionProvider = {
   module: 'projects',
   work: 'execute',
   capability: 'pmo.tasks.read',
-  queryKey: ['attention', 'pmo', 'tasks-overdue'],
+  queryKey: ['tasks', 'attention', 'overdue'],
   async load(api, t) {
     const page = await api('/api/v1/tasks', { query: { filter: 'mine', deadline: 'overdue', sort: 'date_deadline', limit: ATTENTION_ROWS_PER_PROVIDER }, schema: TaskListSchema })
     const rows = page.items.slice(0, ATTENTION_ROWS_PER_PROVIDER).map(task => ({
@@ -33,7 +33,7 @@ export const projectsAtRiskAttention: AppAttentionProvider = {
   module: 'projects',
   work: 'follow',
   capability: 'pmo.projects.read',
-  queryKey: ['attention', 'pmo', 'projects-at-risk'],
+  queryKey: ['projects', 'attention', 'at-risk'],
   async load(api, t) {
     const pages = await Promise.all(RISK_STATUSES.map(status => api('/api/v1/projects', { query: { status, limit: ATTENTION_ROWS_PER_PROVIDER }, schema: ProjectListSchema })))
     return pages

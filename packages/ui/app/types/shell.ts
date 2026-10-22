@@ -7,7 +7,7 @@ export interface ShellCrumb { label: string; to?: string }
 export interface ShellRailItem { id: string; labelKey: string; shortLabelKey?: string; icon: string; to: string; utility?: boolean }
 
 /** The module rail as it is drawn, top to bottom: fixed entries, the user's pinned applications (they scroll), the customize entry, the utility slot. */
-export interface ShellRailGroups { top: ShellRailItem[]; pinned: ShellRailItem[]; customize: ShellRailItem | null; utility: ShellRailItem[] }
+export interface ShellRailGroups { top: ShellRailItem[]; pinned: ShellRailItem[]; pinnedLabelKey?: string; customize: ShellRailItem | null; utility: ShellRailItem[] }
 
 /** One row of the quick views card: a preset link (`primary` unset) or an action (the create action is `primary`). */
 export interface ShellQuickItem { id: string; label: string; icon: string; to: RouteLocationRaw; active?: boolean; count?: number; primary?: boolean }

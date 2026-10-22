@@ -12,7 +12,7 @@ export const todayMeetingsAttention: AppAttentionProvider = {
   module: 'meetings',
   work: 'follow',
   capability: 'meetings.read',
-  queryKey: ['attention', 'meetings', 'today'],
+  queryKey: ['meetings', 'attention', 'today'],
   async load(api) {
     const now = new Date()
     const today = localIsoDay(now)
@@ -38,7 +38,7 @@ export const overdueFollowupAttention: AppAttentionProvider = {
   module: 'meetings',
   work: 'execute',
   capability: 'meetings.read',
-  queryKey: ['attention', 'meetings', 'followup-overdue'],
+  queryKey: ['meetings', 'attention', 'followup-overdue'],
   async load(api, t) {
     const page = await api('/api/v1/meetings/resolutions', { query: { mine: true, state: 'overdue', limit: ATTENTION_ROWS_PER_PROVIDER }, schema: MeetingFollowupListSchema })
     const rows = page.items.slice(0, ATTENTION_ROWS_PER_PROVIDER).map(resolution => ({

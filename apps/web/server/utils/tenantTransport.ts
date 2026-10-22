@@ -15,16 +15,21 @@ const UPSTREAM_QUEUE_TIMEOUT = 15_000
 let inFlight = 0
 const waiters: Array<() => void> = []
 
-function acquire(): Promise<void> {
+function acquire(signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.reject(failure())
   if (inFlight < UPSTREAM_MAX_CONCURRENCY) { inFlight++; return Promise.resolve() }
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
+    const cleanup = () => { clearTimeout(timer); signal?.removeEventListener('abort', cancel) }
+    const cancel = () => {
       const index = waiters.indexOf(resume)
       if (index >= 0) waiters.splice(index, 1)
+      cleanup()
       reject(failure())
-    }, UPSTREAM_QUEUE_TIMEOUT)
-    const resume = () => { clearTimeout(timer); resolve() }
+    }
+    const timer = setTimeout(cancel, UPSTREAM_QUEUE_TIMEOUT)
+    const resume = () => { cleanup(); resolve() }
     waiters.push(resume)
+    signal?.addEventListener('abort', cancel, { once: true })
   })
 }
 
@@ -65,16 +70,28 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   const cookie = options.headers?.cookie ?? getHeader(event, 'cookie')
   if (cookie) headers.cookie = cookie
   if (body) headers['content-length'] = String(Buffer.byteLength(body))
-  await acquire()
+  // Listen before admission: a queued request must not miss a client disconnect and send a write later.
+  const cancellation = new AbortController()
+  const cancel = () => cancellation.abort()
+  const disconnected = () => { if (!event.node.res.writableEnded) cancel() }
+  if (!options.ignoreClientClose) {
+    event.node.req.once('aborted', cancel)
+    event.node.res.once('close', disconnected)
+    if (event.node.req.aborted || (event.node.res.destroyed && !event.node.res.writableEnded)) cancel()
+  }
+  if (options.signal?.aborted) cancel(); else options.signal?.addEventListener('abort', cancel, { once: true })
+  let admitted = false
   try {
+    await acquire(cancellation.signal)
+    admitted = true
+    // Cancellation can win after release grants this slot but before this continuation runs.
+    if (cancellation.signal.aborted) throw failure()
     return await new Promise<Response>((resolve, reject) => {
     let settled = false
     const finish = (error?: Error, result?: Response) => {
       if (settled) return
       settled = true; clearTimeout(timer)
-      event.node.req.removeListener('aborted', abort)
-      event.node.res.removeListener('close', disconnected)
-      options.signal?.removeEventListener('abort', abort)
+      cancellation.signal.removeEventListener('abort', abort)
       if (error) reject(error); else resolve(result!)
     }
     const request = (base.protocol === 'https:' ? https : http).request({ protocol: base.protocol, hostname: base.hostname, port: base.port, method: options.method ?? 'GET', path, headers, agent: false }, reply => {
@@ -99,15 +116,16 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
       })
     })
     const abort = () => { request.destroy(); finish(failure()) }
-    const disconnected = () => { if (!event.node.res.writableEnded) abort() }
     const timer = setTimeout(abort, 15000)
-    if (!options.ignoreClientClose) { event.node.req.once('aborted', abort); event.node.res.once('close', disconnected) }
-    if (options.signal?.aborted) abort(); else options.signal?.addEventListener('abort', abort, { once: true })
+    cancellation.signal.addEventListener('abort', abort, { once: true })
     request.on('error', () => finish(failure()))
     request.end(body)
     })
   } finally {
-    release()
+    event.node.req.removeListener('aborted', cancel)
+    event.node.res.removeListener('close', disconnected)
+    options.signal?.removeEventListener('abort', cancel)
+    if (admitted) release()
   }
 }
 

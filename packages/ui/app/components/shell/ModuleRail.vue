@@ -16,7 +16,7 @@ const { t } = useI18n()
 const groups = computed(() => [
   { key: 'top', items: props.rail.top, label: t('nav.railApps'), class: 'webvue-module-rail-top' },
   // Always present: the run takes the free height, so the entries below it stay at the bottom.
-  { key: 'pinned', items: props.rail.pinned, label: t('nav.pinned'), class: 'webvue-module-rail-links', divider: true },
+  { key: 'pinned', items: props.rail.pinned, label: t(props.rail.pinnedLabelKey ?? 'nav.pinned'), class: 'webvue-module-rail-links', divider: true },
   { key: 'customize', items: props.rail.customize ? [props.rail.customize] : [], label: t('nav.customize'), class: 'webvue-module-rail-top' },
   { key: 'utility', items: props.rail.utility, label: t('nav.railTools'), class: 'webvue-module-rail-utility' },
 ].filter(group => group.items.length || group.key === 'pinned'))

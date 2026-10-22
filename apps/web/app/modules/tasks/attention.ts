@@ -22,7 +22,7 @@ export const myTasksAttention: AppAttentionProvider = {
   module: 'tasks',
   work: 'execute',
   capability: 'tasks.tasks.read',
-  queryKey: ['attention', 'tasks', 'due'],
+  queryKey: ['my-tasks', 'attention', 'due'],
   async load(api, t) {
     const page = await api('/api/v1/my-tasks', { query: { closed: 0, assigned: 'me', sort: 'deadline', limit: PAGE }, schema: MyTaskListPageSchema })
     const today = localIsoDay(new Date())

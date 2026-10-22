@@ -8,7 +8,7 @@ export const pendingReviewAttention: AppAttentionProvider = {
   module: 'operations',
   work: 'decide',
   capability: 'operations.requests.review',
-  queryKey: ['attention', 'operations', 'pending'],
+  queryKey: ['operations', 'requests', 'list', 'attention', 'pending'],
   async load(api, t) {
     const page = await api('/api/v1/operations/requests', { query: { scope: 'pending', limit: ATTENTION_ROWS_PER_PROVIDER }, schema: OperationRequestListSchema })
     return page.items.slice(0, ATTENTION_ROWS_PER_PROVIDER).map(request => ({
