@@ -19,8 +19,8 @@ class MeetingRule(models.Model):
         }
         if model_name not in meeting_models and model_name != 'webvue.meeting.series':
             return domain
-        # Native ir.rule caches the XML helpers' company sets. Reapply privacy
-        # after that cache so revoked inherited management cannot expose minutes.
+        # Mutable grant predicates stay outside native ir.rule caches so both
+        # inherited grants and revocations take effect without clearing that cache.
         company_ids = self.env['webvue.access.service']._webvue_scoped_company_ids()
         if model_name == 'webvue.meeting.series':
             visibility = self.env.user._webvue_meeting_series_access_domain(self.env.company.id, company_ids)
@@ -28,4 +28,14 @@ class MeetingRule(models.Model):
             visibility = self.env.user._webvue_meeting_access_domain(
                 self.env.company.id, company_ids, resolution=meeting_models[model_name],
             )
-        return domain & Domain(visibility)
+        visibility = Domain(visibility)
+        if mode != 'read' and model_name in {'webvue.meeting.minute', 'webvue.meeting.resolution'}:
+            mutation = Domain(self.env.user._webvue_meeting_manager_domain(self.env.company.id, company_ids))
+            if mode in {'create', 'write'}:
+                prefix = 'meeting_id.' if model_name == 'webvue.meeting.resolution' else ''
+                mutation |= Domain(prefix + 'organizer_id', '=', self.env.uid)
+                mutation |= Domain(prefix + 'secretary_id', '=', self.env.uid)
+                if prefix:
+                    mutation |= Domain('responsible_id', '=', self.env.uid)
+            visibility &= mutation
+        return domain & visibility

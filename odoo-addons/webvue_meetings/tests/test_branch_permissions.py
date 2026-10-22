@@ -218,6 +218,26 @@ class TestMeetingBranchPermissions(WebVueApiCase):
     def test_warm_private_visibility_revoked_when_mode_becomes_delegated(self):
         self._check_warm_inherited_visibility_revoked(revoke_mode=True)
 
+    def test_warm_private_denial_is_lifted_when_inherited_management_is_enabled(self):
+        private_records = [self.scoped(record) for record in self.records[self.branch.id]]
+        for record in private_records:
+            self.assertFalse(record.search([('id', '=', record.id)]))
+            self.assertFalse(record.has_access('write'))
+        self.env['webvue.access.branch.rule'].create({
+            'company_id': self.parent.id, 'branch_id': self.branch.id, 'inherit': True,
+            'role_ids': [Command.set(self.manager_role.ids)],
+        })
+        self.parent.write({'webvue_branch_access_mode': 'inherited'})
+        service = private_records[0].env['webvue.access.service']
+        self.assertTrue(service._webvue_has_capability(service.env.user, 'meetings.manage', company=self.branch))
+        for record in private_records:
+            with self.subTest(model=record._name, operation='read'):
+                self.assertEqual(record.search([('id', '=', record.id)]), record)
+                self.assertTrue(record.read(['name']))
+            with self.subTest(model=record._name, operation='write'):
+                record.write({'name': 'Newly inherited manager edit'})
+                self.assertEqual(record.name, 'Newly inherited manager edit')
+
     def test_actual_branch_manager_keeps_private_read_and_mutation(self):
         self.env['webvue.access.assignment'].create({
             'user_id': self.actor.id, 'role_id': self.manager_role.id, 'company_id': self.branch.id,
