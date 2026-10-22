@@ -22,7 +22,7 @@ describe('API proxy tenancy mode separation', () => {
   it('preserves dedicated two-argument call without registry access', async () => {
     vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
     const { proxy, handler } = await setup()
-    const event = { path: '/api/v1/me' }
+    const event = { path: '/api/v1/me', node: { req: { headers: { cookie: 'session_id=synthetic' } } } }
     await handler(event as never)
     expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080/api/v1/me')
   })
@@ -34,7 +34,7 @@ describe('API proxy tenancy mode separation', () => {
     vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared')
     vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token)
     vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', path)
-    const headers = { host: 'alpha.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '3' }
+    const headers = { host: 'alpha.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '3', cookie: 'session_id=synthetic' }
     const event = { path: '/api/v1/me', node: { req: { headers } } }
     const { proxy, handler } = await setup()
     await handler(event as never)
@@ -51,5 +51,25 @@ describe('API proxy tenancy mode separation', () => {
     const { proxy, handler } = await setup()
     expect(() => handler({ path: '/api/v1/me' } as never)).toThrow('invalid_tenancy_mode')
     expect(proxy).not.toHaveBeenCalled()
+  })
+
+  it('rejects anonymous requests before reading the body or holding a slot', async () => {
+    vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
+    transport.mockClear()
+    const { proxy, handler } = await setup()
+    const event = { path: '/api/v1/me', node: { req: { headers: {} } } }
+    let caught: unknown
+    try { await handler(event as never) } catch (error) { caught = error }
+    expect(caught).toHaveProperty('data.code', 'session_required')
+    expect(proxy).not.toHaveBeenCalled()
+    expect(transport).not.toHaveBeenCalled()
+  })
+
+  it('still serves the public api paths without a session cookie', async () => {
+    vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
+    const { proxy, handler } = await setup()
+    const event = { path: '/api/v1/branding', node: { req: { headers: {} } } }
+    await handler(event as never)
+    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080/api/v1/branding')
   })
 })
