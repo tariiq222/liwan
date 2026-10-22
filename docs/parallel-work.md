@@ -91,6 +91,9 @@ removed by it; its owner records a claim with `wt claim` or finishes and merges 
    `worktree-agent-<id>` or `agent-<id>` break this rule.
 3. **One base.** A task branch starts from `main` (default `--base`) or, for a lane of a multi-lane task,
    from that task's `codex/<area>-<slug>` integration branch. `wt new` refuses any other base.
+   Fetch and compare local `main` with `origin/main` first. When local `main` is dirty or stale,
+   preserve it; after creation update the clean task candidate to the recorded remote baseline
+   before implementation. Do not call the default local base current without checking.
 4. **One owner.** Every worktree has a claim: its owner (session, agent or person), its task and the
    workspace-relative paths it will change (`--scope`, repeatable; `.` is the whole repository, used by an
    integration worktree). The claim lives in the worktree's own git directory, so it is never tracked and
@@ -152,6 +155,14 @@ the task branches, and runs `python3 tools/api_surface.py --check` there. The pe
 `tools/route_gate_policy.py`, run inside `npm test`: it needs no generated file.
 
 ## Finishing a task
+
+Use [integration-rules.md](agents/integration-rules.md) for delivery: one draft PR
+per independent task or agreed integration batch, followed by review, checks and
+explicit merge authorization. CI never merges a PR, and marking ready is not
+merge authorization. `wt status` compares ancestry with **local** `main`; when it is stale, compare
+with current remote `main` too. A merged head with dirty files still contains
+undelivered work. A child sharing its parent's head is dependent work, not a
+second independent delivery.
 
 The task owner reports the files changed and focused verification. The
 orchestrator then runs the relevant final checks once, resolves shared-file
