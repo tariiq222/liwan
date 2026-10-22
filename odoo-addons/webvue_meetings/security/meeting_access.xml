@@ -2,14 +2,14 @@
 <odoo>
     <!-- Global rules apply to every ORM access path: capability, company and participation. -->
     <record id="rule_meeting_capability_scope" model="ir.rule">
-        <field name="name">WebVue meetings: current company capability and participation</field>
+        <field name="name">WebVue meetings: pinned-company capability and participation</field>
         <field name="model_id" ref="model_webvue_meeting_minute"/>
-        <field name="domain_force">user._webvue_meeting_access_domain(company_id)</field>
+        <field name="domain_force">user._webvue_meeting_access_domain(company_id, company_ids)</field>
     </record>
     <record id="rule_resolution_capability_scope" model="ir.rule">
-        <field name="name">WebVue resolutions: current company capability and participation</field>
+        <field name="name">WebVue resolutions: pinned-company capability and participation</field>
         <field name="model_id" ref="model_webvue_meeting_resolution"/>
-        <field name="domain_force">user._webvue_meeting_access_domain(company_id, resolution=True)</field>
+        <field name="domain_force">user._webvue_meeting_access_domain(company_id, company_ids, resolution=True)</field>
     </record>
     <!-- Group rules narrow who may write: organizers and secretaries edit minutes, and
          assignees also update their recommendations. Managers write every record they can read. -->

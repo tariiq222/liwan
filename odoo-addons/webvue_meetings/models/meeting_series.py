@@ -222,17 +222,22 @@ class ResUsers(models.Model):
     _inherit = 'res.users'
 
     @api.private
-    def _webvue_meeting_series_access_domain(self, company_id):
+    def _webvue_meeting_series_access_domain(self, company_id, company_ids):
+        """Series of the request's pinned companies (current company + branches).
+
+        The capability stays checked in the caller's current company; the record
+        scope follows ``company_ids`` like the meeting rules do.
+        """
         self.ensure_one()
         service = self.env['webvue.access.service']
         company = self.env['res.company'].browse(company_id)
         if not service._webvue_has_capability(self, 'meetings.read', company=company):
             return [('id', '=', 0)]
-        domain = [('company_id', '=', company_id)]
+        domain = [('company_id', 'in', company_ids)]
         if service._webvue_has_capability(self, 'meetings.manage', company=company):
             return domain
         occurrence_visibility = [
-            ('company_id', '=', company_id), '|', '|',
+            ('company_id', 'in', company_ids), '|', '|',
             ('organizer_id', '=', self.id),
             ('secretary_id', '=', self.id),
             ('attendee_ids', 'in', self.ids),
