@@ -5,6 +5,41 @@ import { tenantUpstreamHeaders } from './tenantRequest'
 
 const MAX_REQUEST = 16 * 1024 * 1024
 const MAX_RESPONSE = 32 * 1024 * 1024
+/** Admission gate to the fixed operator upstreams. Odoo serves one request per worker process,
+ * and an idle keep-alive connection would pin a worker, so each request uses its own connection
+ * and at most UPSTREAM_MAX_CONCURRENCY requests are in flight at once. Excess requests queue
+ * here instead of opening connections the kernel drops once the listen backlog fills. */
+const configuredConcurrency = Number(process.env.NUXT_ODOO_MAX_CONCURRENCY)
+const UPSTREAM_MAX_CONCURRENCY = Number.isFinite(configuredConcurrency) && configuredConcurrency > 0 ? Math.floor(configuredConcurrency) : 32
+const UPSTREAM_QUEUE_TIMEOUT = 15_000
+let inFlight = 0
+const waiters: Array<() => void> = []
+
+function acquire(): Promise<void> {
+  if (inFlight < UPSTREAM_MAX_CONCURRENCY) { inFlight++; return Promise.resolve() }
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const index = waiters.indexOf(resume)
+      if (index >= 0) waiters.splice(index, 1)
+      reject(failure())
+    }, UPSTREAM_QUEUE_TIMEOUT)
+    const resume = () => { clearTimeout(timer); resolve() }
+    waiters.push(resume)
+  })
+}
+
+function release(): void {
+  const next = waiters.shift()
+  if (next) next(); else inFlight--
+}
+
+/** Runs `run` while holding one upstream concurrency slot. Every path that talks to the Odoo
+ * upstream must go through this, so overload queues inside this process instead of opening
+ * connections the kernel drops once the upstream listen backlog fills. */
+export async function withUpstreamSlot<T>(run: () => Promise<T>): Promise<T> {
+  await acquire()
+  try { return await run() } finally { release() }
+}
 const failure = () => createError({ statusCode: 502, message: 'tenant_upstream_unavailable' })
 
 /** Server-only, fixed operator configuration. No request-controlled destination or redirects.
@@ -30,7 +65,9 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   const cookie = options.headers?.cookie ?? getHeader(event, 'cookie')
   if (cookie) headers.cookie = cookie
   if (body) headers['content-length'] = String(Buffer.byteLength(body))
-  return new Promise((resolve, reject) => {
+  await acquire()
+  try {
+    return await new Promise<Response>((resolve, reject) => {
     let settled = false
     const finish = (error?: Error, result?: Response) => {
       if (settled) return
@@ -68,7 +105,10 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
     if (options.signal?.aborted) abort(); else options.signal?.addEventListener('abort', abort, { once: true })
     request.on('error', () => finish(failure()))
     request.end(body)
-  })
+    })
+  } finally {
+    release()
+  }
 }
 
 export async function boundedTenantBody(event: H3Event): Promise<Buffer | undefined> {

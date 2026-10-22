@@ -1,4 +1,4 @@
-import { tenantTransport } from '../../utils/tenantTransport'
+import { tenantTransport, withUpstreamSlot } from '../../utils/tenantTransport'
 import { tenantRequest } from '../../utils/tenantRequest'
 import { authUpstreamHeaders } from '../../utils/authUpstreamHeaders'
 
@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
   const { odooUrl, odooDb, authProxyClientIpHeader } = useRuntimeConfig(event)
   const tenant = tenantRequest(event)
 
-  const send = tenant || process.env.WEBVUE_RELEASE_ROUTES_DIR ? (options: { method: string; headers: Record<string, string>; body: string }) => tenantTransport(event, odooUrl, '/web/session/authenticate', options) : (options: RequestInit) => fetch(`${odooUrl}/web/session/authenticate`, options)
+  const send = tenant || process.env.WEBVUE_RELEASE_ROUTES_DIR ? (options: { method: string; headers: Record<string, string>; body: string }) => tenantTransport(event, odooUrl, '/web/session/authenticate', options) : (options: RequestInit) => withUpstreamSlot(() => fetch(`${odooUrl}/web/session/authenticate`, options))
   const upstream = await send({
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authUpstreamHeaders(event, authProxyClientIpHeader) },
