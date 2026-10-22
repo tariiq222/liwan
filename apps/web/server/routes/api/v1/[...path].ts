@@ -1,4 +1,4 @@
-import { createError, getHeader, sendWebResponse } from 'h3'
+import { createError, getCookie, sendWebResponse } from 'h3'
 import { boundedTenantBody, tenantTransport, withUpstreamSlot } from '../../../utils/tenantTransport'
 import { joinURL } from 'ufo'
 import { tenantUpstreamHeaders } from '../../../utils/tenantRequest'
@@ -17,7 +17,7 @@ export default defineEventHandler((event) => {
   // Requests without a session cookie are rejected before their body is read
   // or an upstream slot is held, so the queue cannot be filled anonymously.
   const apiPath = event.path.split('?')[0] ?? event.path
-  if (!PUBLIC_API_PATHS.has(apiPath) && !getHeader(event, 'cookie')?.includes('session_id=')) {
+  if (!PUBLIC_API_PATHS.has(apiPath) && !getCookie(event, 'session_id')?.trim()) {
     throw createError({ statusCode: 403, data: { code: 'session_required' } })
   }
   // Dedicated preserves h3 proxying and cancels it when its client disconnects. Invalid/shared

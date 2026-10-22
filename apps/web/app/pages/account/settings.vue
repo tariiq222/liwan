@@ -4,10 +4,12 @@ import PasswordForm from '@/components/account/PasswordForm.vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import type { AppearanceMode, FontSize } from '@/utils/appearance'
 import { clearAiSessionState } from '@/utils/aiDraft'
+import { useAiConversation } from '@/composables/useAiConversation'
 
 // Personal preferences keep their existing persistence and session cleanup.
 // Mode and size are saved per user on the server (useAppearance); the language is a cookie.
 const queryClient = useQueryClient()
+const { clear: clearAiConversation } = useAiConversation()
 const { t, locale, setLocale } = useI18n()
 const { mode, fontSize, setMode, setFontSize } = useAppearance()
 const localeCookie = useCookie<string | null>('webvue-locale', { default: () => null, path: '/', sameSite: 'lax', maxAge: 60 * 60 * 24 * 365 })
@@ -31,6 +33,7 @@ async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST', body: {} })
   sessionStorage.removeItem(navPreferenceKey.value)
   clearAiSessionState()
+  clearAiConversation()
   await queryClient.cancelQueries()
   queryClient.clear()
   await refreshNuxtData('me')

@@ -17,6 +17,6 @@ export function useMyWork() {
   const { me } = useMe()
   const { can } = useAccess()
   const available = computed(() => canReachPath(me.value, '/work') && visibleProviders(attentionProviders(), can).length > 0)
-  const { rows, pending, failed, cappedKinds } = useAttention(() => (available.value ? 'all' : null), { limit: WORK_ROWS_LIMIT })
-  return { available, rows, grouped: computed(() => groupByWork(rows.value)), pending, failed, cappedKinds }
+  const { rows, pending, failed, cappedKinds, refetch } = useAttention(() => (available.value ? 'all' : null), { limit: WORK_ROWS_LIMIT })
+  return { available, rows, grouped: computed(() => groupByWork(rows.value)), pending, failed, cappedKinds, refetch }
 }

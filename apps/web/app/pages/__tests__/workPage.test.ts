@@ -20,8 +20,8 @@ const slot = (tag: string, extra: Record<string, unknown> = {}) => Vue.defineCom
 const SharedPageHeader = Vue.defineComponent({ props: { title: { type: String, default: '' } }, setup: (props, { slots }) => () => Vue.h('header', [Vue.h('h1', props.title), slots.default?.()]) })
 const SharedSegmentedControl = Vue.defineComponent({
   inheritAttrs: false,
-  props: { modelValue: { type: String, default: '' }, items: { type: Array, default: () => [] } },
-  setup: (props, { attrs }) => () => Vue.h('div', attrs, (props.items as Array<{ value: string; label: string }>).map(item => Vue.h('button', { 'aria-pressed': String(item.value === props.modelValue), 'data-value': item.value }, item.label))),
+  props: { modelValue: { type: String, default: '' }, items: { type: Array, default: () => [] }, disabled: Boolean },
+  setup: (props, { attrs }) => () => Vue.h('div', attrs, (props.items as Array<{ value: string; label: string }>).map(item => Vue.h('button', { 'aria-pressed': String(item.value === props.modelValue), 'data-value': item.value, disabled: props.disabled }, item.label))),
 })
 const SharedFilterBar = Vue.defineComponent({ inheritAttrs: false, setup: (_, { slots }) => () => Vue.h('div', [slots.search?.(), slots.default?.()]) })
 const SharedEmptyState = Vue.defineComponent({ inheritAttrs: false, props: { title: { type: String, default: '' } }, setup: (props, { attrs }) => () => Vue.h('div', attrs, props.title) })
@@ -43,12 +43,12 @@ const rowsOf = (spec: Array<[AppWorkKind, string, string, 'urgent' | 'normal', s
     rows: [{ id: String(index), label, to: `/${module}/${index}`, tone, ...(suggestion ? { suggestion } : {}) }],
   })), WORK_ROWS_LIMIT)
 
-interface Setup { rows?: ReturnType<typeof rowsOf>; capped?: string[]; pending?: boolean; failed?: boolean; tab?: unknown; create?: boolean }
-async function render({ rows = [], capped = [], pending = false, failed = false, tab, create = true }: Setup = {}) {
+interface Setup { rows?: ReturnType<typeof rowsOf>; capped?: string[]; pending?: boolean; failed?: boolean; tab?: unknown; create?: boolean; hydrated?: boolean }
+async function render({ rows = [], capped = [], pending = false, failed = false, tab, create = true, hydrated = true }: Setup = {}) {
   const useAttention = vi.fn(() => ({ rows: Vue.computed(() => rows), pending: Vue.computed(() => pending), failed: Vue.computed(() => failed), cappedKinds: Vue.computed(() => capped), refetch: vi.fn() }))
   const WorkRow = { __esModule: true, default: loadShared(rowFile, { messages, stubs: { ...DEFAULT_STUBS, NuxtLink, UBadge } }) }
   const html = await renderShared(file, {}, {}, {
-    messages,
+    messages, hydrated,
     stubs: { ...DEFAULT_STUBS, NuxtLink, UButton, UBadge, UInput, USelect, SharedPageContainer: slot('main'), SharedPageHeader, SharedListCard: slot('section'), SharedSegmentedControl, SharedFilterBar, SharedEmptyState, SharedErrorState, SharedLoadingSkeleton },
     globals: {
       useRoute: () => ({ query: tab === undefined ? {} : { tab } }), useRouter: () => ({ push: vi.fn() }),
@@ -72,6 +72,17 @@ const sample = rowsOf([
 ])
 
 describe('work page', () => {
+  it('disables tabs, search and source until hydration and enables them afterward', async () => {
+    const before = (await render({ rows: sample, hydrated: false })).html
+    const after = (await render({ rows: sample, hydrated: true })).html
+    for (const id of ['work-search', 'work-source']) {
+      expect(before.match(new RegExp(`<[^>]*data-testid="${id}"[^>]*>`))?.[0]).toContain('disabled')
+      expect(after.match(new RegExp(`<[^>]*data-testid="${id}"[^>]*>`))?.[0]).not.toContain('disabled')
+    }
+    expect(before).toMatch(/data-value="decide" disabled/)
+    expect(after).not.toMatch(/data-value="decide" disabled/)
+  })
+
   it('has the title, the description and the links to the plain list and to a new task', async () => {
     const { html } = await render({ rows: sample })
     expect(html).toContain('<h1>مهامي</h1>')
