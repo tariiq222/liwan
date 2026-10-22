@@ -1,7 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import manifest from '../manifest'
+import { canReachPath } from '../../../utils/accessPolicy'
 
 describe('HR personal contributions', () => {
+  it('opens HR settings to a shifts manager without requiring payroll capability', () => {
+    const identity = { capabilities: ['hr.shifts.manage'], platform: { readable_features: ['hr.enabled', 'hr.shifts'], writable_features: ['hr.enabled', 'hr.shifts'] } }
+    expect(canReachPath(identity, '/settings/apps/hr#shifts')).toBe(true)
+    expect(manifest.settings?.parts.find(part => part.id === 'shifts')?.capability).toBe('hr.shifts.manage')
+    expect(canReachPath({ ...identity, capabilities: ['hr.employees.read'] }, '/settings/apps/hr')).toBe(false)
+  })
   it('contributes every own HR destination without a mine administration section', () => {
     expect(manifest.personal?.map(entry => entry.to)).toEqual(['/account/profile','/account/leave','/account/pay','/account/assets','/account/schedule'])
     expect(manifest.contextLinks?.('/hr').some(link => link.id === 'section-mine')).toBe(false)
@@ -50,5 +57,28 @@ describe('HR overview privacy and ownership', () => {
     const summary = await manifest.personal!.find(entry => entry.section === 'leave')!.summary!.load(api,translate)
     expect(calls[2]).toEqual({path:'/api/v1/hr/leave/requests',query:{mine:'1',limit:3,offset:0}})
     expect(summary.rows).toEqual([{id:9,label:'Annual',to:'/account/leave/9',caption:'hr.leave.state.confirm'}])
+  })
+})
+
+describe('personal schedule policy day', () => {
+  afterEach(() => { vi.useRealTimers() })
+  it.each(['2026-10-22', '2026-10-24'])('uses server day %s inclusively regardless of browser day', async (today) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2030-01-01T00:00:00Z'))
+    const assignments = [
+      { id: 1, employee: { id: 4, name: 'Sara' }, schedule: { id: 7, name: 'Ending today' }, date_start: null, date_end: today },
+      { id: 2, employee: { id: 4, name: 'Sara' }, schedule: { id: 8, name: 'Expired' }, date_start: null, date_end: '2026-10-21' },
+    ]
+    const calls: string[] = []
+    const api = (async (path: string, options: any) => {
+      calls.push(path)
+      const data = path === '/api/v1/hr/me' ? employee : path.endsWith('/settings')
+        ? { day_reference: 'company', company_timezone: 'Pacific/Honolulu', effective_timezone: 'Pacific/Honolulu', today, revision: 0 }
+        : { items: assignments, total: assignments.length }
+      return options.schema.parse(data)
+    }) as import('../../types').AppSearchApi
+    const summary = await manifest.personal!.find(entry => entry.section === 'schedule')!.summary!.load(api, translate)
+    expect(calls).toContain('/api/v1/hr/shifts/settings')
+    expect(summary.rows?.map(row => row.label)).toEqual(['Ending today'])
   })
 })

@@ -79,7 +79,10 @@ const manifest: AppManifest = {
   // The application's settings are one page under Settings > Applications; payroll is its first card.
   settings: {
     id: 'hr', labelKey: 'nav.hr', icon: 'i-lucide-users', to: '/settings/apps/hr',
-    parts: [{ id: 'payroll', labelKey: 'hrPayroll.settings.title', icon: 'i-lucide-settings-2', capability: 'hr.payroll.config' }],
+    parts: [
+      { id: 'payroll', labelKey: 'hrPayroll.settings.title', icon: 'i-lucide-settings-2', capability: 'hr.payroll.config' },
+      { id: 'shifts', labelKey: 'hr.shiftSettings.title', icon: 'i-lucide-calendar-clock', capability: 'hr.shifts.manage' },
+    ],
   },
   // The pinned create follows the open area. The four section links stay on screen in every page of the application;
   // the open section's pages follow in the sub-list card under its own heading.

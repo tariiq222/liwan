@@ -55,3 +55,6 @@ access_webvue_hr_eos_settlement_reader,webvue.hr.payroll.eos.settlement.reader,m
 access_webvue_hr_eos_settlement_manager,webvue.hr.payroll.eos.settlement.manager,model_webvue_hr_payroll_eos_settlement,group_cap_hr_payroll_manage,1,1,1,0
 access_webvue_hr_eos_settlement_approver,webvue.hr.payroll.eos.settlement.approver,model_webvue_hr_payroll_eos_settlement,group_cap_hr_payroll_approve,1,1,0,0
 access_webvue_hr_payroll_departure_reason_reader,hr.departure.reason.payroll_reader,hr.model_hr_departure_reason,group_cap_hr_payroll_read,1,0,0,0
+access_webvue_hr_shift_settings_reader,webvue.hr.shift.settings.reader,model_webvue_hr_shift_settings,group_cap_hr_employees_read,1,0,0,0
+access_webvue_hr_shift_settings_manager,webvue.hr.shift.settings.manager,model_webvue_hr_shift_settings,group_cap_hr_shifts_manage,1,1,1,0
+access_webvue_hr_shift_settings_employee,webvue.hr.shift.settings.employee,model_webvue_hr_shift_settings,webvue_core.group_employee,1,0,0,0

@@ -18,7 +18,7 @@ const meta = {
   component: BankProfileForm,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:80', 'قسم تنسيقات ملفات البنك وحماية الأجور في إعدادات الرواتب: جدول الملفات، والملفات المشتركة للقراءة فقط، ونموذج الأعمدة.'),
+    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:84', 'قسم تنسيقات ملفات البنك وحماية الأجور في إعدادات الرواتب: جدول الملفات، والملفات المشتركة للقراءة فقط، ونموذج الأعمدة.'),
   },
   args: { profiles, canEdit: true },
   render: args => ({

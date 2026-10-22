@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ShiftSettingsForm from '@/components/hr/shifts/ShiftSettingsForm.vue'
 import EosCaseMapTable from '@/components/hr/payroll/EosCaseMapTable.vue'
 import PayrollCostCenterTable from '@/components/hr/payroll/PayrollCostCenterTable.vue'
 import PayrollFinanceSettingsForm from '@/components/hr/payroll/PayrollFinanceSettingsForm.vue'
@@ -17,6 +18,8 @@ import { saveErrorMessage } from '@/utils/formFeedback'
 const { t } = useI18n()
 const { can } = useAccess()
 const { parts, shows } = useSettingsPage('hr')
+const shiftSettings = useHrShiftSettings(() => shows('shifts'))
+const canManageShifts = computed(() => can('hr.shifts.manage'))
 const canConfig = computed(() => can('hr.payroll.config'))
 const settings = useHrPayrollSettings()
 const rates = useHrGosiRates()
@@ -73,7 +76,8 @@ function retry() {
   <SharedSettingsPage width="list">
     <SharedPageHeader :title="t('nav.hr')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
-    <section v-else-if="shows('payroll')" id="payroll" class="webvue-settings-anchor grid gap-(--webvue-gap-card)">
+    <template v-else>
+    <section v-if="shows('payroll')" id="payroll" class="webvue-settings-anchor grid gap-(--webvue-gap-card)">
     <SharedPageState :loading="settings.isLoading.value || rates.isLoading.value || bankProfiles.isLoading.value || eosCases.isLoading.value" :error="error" :empty="!settings.data.value" @retry="retry">
       <PayrollGeneralSettingsForm v-if="settings.data.value" :settings="settings.data.value" :leave-types="leaveTypeRefs" :can-edit="canConfig" />
       <GosiRateTable :rates="rates.data.value?.items ?? []" :can-edit="canConfig" />
@@ -105,5 +109,11 @@ function retry() {
       </SharedFormSection>
     </SharedPageState>
     </section>
+    <section v-if="shows('shifts')" id="shifts" class="webvue-settings-anchor">
+      <SharedPageState :loading="shiftSettings.isLoading.value" :error="shiftSettings.error.value" :empty="!shiftSettings.data.value" @retry="shiftSettings.refetch">
+        <ShiftSettingsForm v-if="shiftSettings.data.value" :settings="shiftSettings.data.value" :can-edit="canManageShifts" @reload="shiftSettings.refetch" />
+      </SharedPageState>
+    </section>
+    </template>
   </SharedSettingsPage>
 </template>

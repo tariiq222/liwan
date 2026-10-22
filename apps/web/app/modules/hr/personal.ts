@@ -5,6 +5,7 @@ import {
   HrLeaveListSchema,
   HrMyPayslipListSchema,
   HrShiftAssignmentListSchema,
+  HrShiftSettingsSchema,
 } from '@webvue/contracts'
 import type { AppPersonalEntry, AppPersonalSummary, AppSearchApi } from '../types'
 
@@ -75,8 +76,11 @@ export const hrPersonalEntries: AppPersonalEntry[] = [
       queryKey: ['hr', 'shifts', 'personal'],
       async load(api, t) {
         if (!await profile(api)) return missingEmployee(t)
-        const assignments = await api('/api/v1/hr/shifts/me', { schema: HrShiftAssignmentListSchema })
-        const today = new Date().toISOString().slice(0, 10)
+        const [assignments, settings] = await Promise.all([
+          api('/api/v1/hr/shifts/me', { schema: HrShiftAssignmentListSchema }),
+          api('/api/v1/hr/shifts/settings', { schema: HrShiftSettingsSchema }),
+        ])
+        const today = settings.today
         const upcoming = assignments.items.filter(item => !item.date_end || item.date_end >= today).sort((a, b) => (a.date_start ?? '').localeCompare(b.date_start ?? ''))
         return { caption: upcoming.length ? t('hr.self.scheduleDesc') : t('hrShifts.emptyMine'), rows: upcoming.slice(0, 3).map(item => ({ id: item.id, label: item.schedule.name, to: '/account/schedule', caption: item.date_start ?? t('hrShifts.rangeOpen') })) }
       },
