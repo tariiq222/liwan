@@ -31,7 +31,11 @@ beforeAll(async () => {
       return
     }
     workCalls++
-    res.end('{}')
+    if (req.url === '/api/v1/echo') {
+      const chunks: Buffer[] = []
+      req.on('data', chunk => chunks.push(Buffer.from(chunk)))
+      req.on('end', () => res.end(JSON.stringify({ hex: Buffer.concat(chunks).toString('hex') })))
+    } else res.end('{}')
   })
   await new Promise<void>(resolve => upstream.listen(0, '127.0.0.1', resolve))
   upstreamUrl = `http://127.0.0.1:${(upstream.address() as { port: number }).port}`
@@ -84,6 +88,12 @@ describe('API session preadmission on the wire', () => {
     expect(response.status).toBe(200)
     expect(calls).toBe(2)
     expect(workCalls).toBe(1)
+  })
+  it('preserves buffered upload bytes through dedicated forwarding', async () => {
+    const bytes = Buffer.from([0, 255, 1, 128, 42])
+    const response = await fetch(`${url}/api/v1/echo`, { method: 'POST', headers: { cookie: 'session_id=valid-wire-session', 'content-type': 'application/octet-stream' }, body: new Uint8Array(bytes) })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ hex: bytes.toString('hex') })
   })
   it('coalesces cold parallel requests from one valid session', async () => {
     holdChecks = true

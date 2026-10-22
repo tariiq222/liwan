@@ -23,6 +23,6 @@ export default defineEventHandler(async (event) => {
   return Object.keys(headers).length
     ? sendWebResponse(event, await tenantTransport(event, odooUrl, event.path, { method: event.method, body }))
     : withUpstreamSlot(signal => sendProxy(event, url, {
-        fetchOptions: { method: event.method, body, headers: getProxyRequestHeaders(event, { host: false }), signal },
+        fetchOptions: { method: event.method, body: body ? new Uint8Array(body) : undefined, headers: getProxyRequestHeaders(event, { host: false }), signal },
       }), event)
 })
