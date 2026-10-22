@@ -8,6 +8,7 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
+    declare_read_capability_scope,
     get_record,
     requires_feature,
 )
@@ -41,6 +42,7 @@ class ProjectScheduleController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def get_schedule(self, project_id):
+        declare_read_capability_scope('pmo.projects.read')
         # get_record answers the uniform not-found for a foreign-company
         # project and lets the pinned record rules decide the rest.
         project = get_record('project.project', project_id)

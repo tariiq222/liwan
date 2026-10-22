@@ -8,6 +8,7 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     api_handler,
     parse_nonneg_int,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_pmo.models.notification_types import DIGEST_KIND
@@ -22,6 +23,7 @@ class NotificationController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def get_digest(self, notification_id, **_):
+        require_capabilities('pmo.tasks.read')
         args = request.httprequest.args
         limit = parse_nonneg_int(args.get('limit', 50), 'limit') or 50
         limit = min(limit, MAX_LIMIT)

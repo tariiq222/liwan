@@ -11,6 +11,7 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_tasks.models.my_task_service import MAX_ID, MAX_LIMIT
@@ -79,6 +80,7 @@ def _summary_params(args):
 def _require(key):
     """The capability check runs first, so a caller without it never learns what is valid."""
     request.env['webvue.my.task.service']._require(key)
+    require_capabilities(key)
 
 
 def _task_for(task_id):
@@ -116,6 +118,7 @@ class MyTasksController(http.Controller):
     @api_handler
     @requires_feature('tasks.enabled', operation='read')
     def get_my_task(self, task_id, **_):
+        _require('tasks.tasks.read')
         return dump_personal_task(request.env['webvue.my.task.service']._get_personal(task_id))
 
     @http.route('/api/v1/my-tasks/<int:task_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -130,6 +133,7 @@ class MyTasksController(http.Controller):
         return dump_personal_task(task)
 
     def _transition(self, task_id, action):
+        _require('tasks.tasks.write')
         task = request.env['webvue.my.task.service']._transition(_task_for(task_id), action)
         return dump_personal_task(task)
 

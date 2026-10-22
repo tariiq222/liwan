@@ -41,15 +41,21 @@ class WebVueAccessBranchRule(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         self._require_protected()
-        return super().create(vals_list)
+        result = super().create(vals_list)
+        self.env['webvue.access.service']._webvue_clear_branch_cache()
+        return result
 
     def write(self, vals):
         self._require_protected()
-        return super().write(vals)
+        result = super().write(vals)
+        self.env['webvue.access.service']._webvue_clear_branch_cache()
+        return result
 
     def unlink(self):
         self._require_protected()
-        return super().unlink()
+        result = super().unlink()
+        self.env['webvue.access.service']._webvue_clear_branch_cache()
+        return result
 
 
 class WebVueBranchAccessService(models.AbstractModel):
@@ -111,11 +117,21 @@ class WebVueBranchAccessService(models.AbstractModel):
     @api.model
     def _webvue_scoped_company_ids(self):
         scopes = self.env.context.get('webvue_capability_scope')
+        cache = self._webvue_branch_cache()
+        cache_key = ('scope', self.env.uid, self.env.su, self.env.company.id, scopes)
+        if cache_key not in cache:
+            cache[cache_key] = tuple(self._webvue_compute_scoped_company_ids(scopes))
+        return list(cache[cache_key])
+
+    @api.model
+    def _webvue_compute_scoped_company_ids(self, scopes):
         if not scopes:
             return [self.env.company.id]
         companies = None
-        for keys, match in scopes:
+        for keys, match, *kind in scopes:
             granted = set(self._webvue_capability_company_ids(keys, match))
+            if kind == ['contextual_read']:
+                granted.add(self.env.company.id)
             companies = granted if companies is None else companies & granted
         return sorted(companies)
 
@@ -129,13 +145,27 @@ class WebVueBranchAccessService(models.AbstractModel):
         an actual capability group whose native ACL (including native implications) grants the operation.
         """
         candidates = self._webvue_scoped_company_ids()
+        if operation != 'read' and any(
+            gate[2:] == ('contextual_read',) for gate in (self.env.context.get('webvue_capability_scope') or ())
+        ):
+            candidates = [company_id for company_id in candidates if company_id == self.env.company.id]
         if not candidates:
             return []
         access = self.env['ir.model.access']._get_access_groups(model_name, operation)
         definitions = self.env['res.groups']._get_group_definitions()
-        # Permission catalog is security metadata; reading only our owned table avoids elevated ORM.
-        self.env.cr.execute('SELECT key, group_xmlid FROM webvue_access_permission')
-        group_by_key = {key: self.env.ref(xmlid, raise_if_not_found=False).id for key, xmlid in self.env.cr.fetchall()}
+        cache = self._webvue_branch_cache()
+        cache_key = ('model', self.env.uid, self.env.su, self.env.company.id,
+                     tuple(candidates), model_name, operation, access, definitions)
+        if cache_key in cache:
+            return list(cache[cache_key])
+        # Native ACL/group-definition cache identities change when their definitions change.
+        catalog_key = ('catalog', definitions)
+        if catalog_key not in cache:
+            # Permission catalog is our security metadata; no elevated ORM or stock SQL.
+            self.env.cr.execute('SELECT key, group_xmlid FROM webvue_access_permission')
+            cache[catalog_key] = {key: self.env.ref(xmlid, raise_if_not_found=False).id
+                                  for key, xmlid in self.env.cr.fetchall()}
+        group_by_key = cache[catalog_key]
         internal = self.env.ref('base.group_user').id
         managed, main_company_id = self._webvue_identity_management_state(self.env.user)
         allowed = []
@@ -150,10 +180,9 @@ class WebVueBranchAccessService(models.AbstractModel):
                     # permission groups imply those roles. Preserve that identity's native
                     # ACLs only in its home company, as legacy capability fallback does.
                     projected.update(self.env.user._get_group_ids())
-            else:
-                projected.discard(internal)
             if access.matches(projected):
                 allowed.append(company.id)
+        cache[cache_key] = tuple(allowed)
         return allowed
 
     @api.model

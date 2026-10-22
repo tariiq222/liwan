@@ -6,6 +6,7 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
+    declare_read_capability_scope,
     get_record,
     parse_nonneg_int,
     parse_positive_int,
@@ -179,6 +180,7 @@ class ProjectGovernanceController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def list_stakeholders(self, project_id):
+        declare_read_capability_scope('pmo.projects.read')
         project = _project(project_id)
         args = request.httprequest.args
         q = (args.get('q') or '').strip()
@@ -192,6 +194,7 @@ class ProjectGovernanceController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def get_stakeholder(self, project_id, item_id):
+        declare_read_capability_scope('pmo.projects.read')
         project = _project(project_id)
         item = _same_project('webvue.project.stakeholder', item_id, project, 'stakeholder_id', missing=True)
         return dump_stakeholder(item)
@@ -236,6 +239,7 @@ class ProjectGovernanceController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def list_raci(self, project_id):
+        declare_read_capability_scope('pmo.projects.read')
         project = _project(project_id)
         args = request.httprequest.args
         domain = [('project_id', '=', project.id)]
@@ -291,6 +295,7 @@ class ProjectGovernanceController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def list_register(self, project_id):
+        declare_read_capability_scope('pmo.projects.read')
         project = _project(project_id)
         args = request.httprequest.args
         domain = [('project_id', '=', project.id)]
@@ -311,6 +316,7 @@ class ProjectGovernanceController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def get_register(self, project_id, item_id):
+        declare_read_capability_scope('pmo.projects.read')
         project = _project(project_id)
         item = _same_project('webvue.project.register', item_id, project, 'register_id', missing=True)
         include_task = _task_visible(item.task_id)

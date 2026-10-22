@@ -8,6 +8,7 @@ from odoo.addons.webvue_api.controllers.attachment_download import (
 )
 from odoo.addons.webvue_api.controllers.common import (
     api_handler,
+    declare_read_capability_scope,
     get_record,
     requires_feature,
 )
@@ -27,6 +28,7 @@ class TaskAttachmentController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def list_task_attachments(self, task_id):
+        declare_read_capability_scope('pmo.tasks.read')
         task = get_record('project.task', task_id)
         attachments = task._webvue_task_attachments()
         for attachment in attachments:
@@ -43,6 +45,7 @@ class TaskAttachmentController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def download_task_attachment(self, task_id, attachment_id, **_):
+        declare_read_capability_scope('pmo.tasks.read')
         """The file of one direct task attachment, for a caller who can see the task."""
         task = get_record('project.task', task_id)
         return download_linked_attachment(task._webvue_task_attachments(), attachment_id)

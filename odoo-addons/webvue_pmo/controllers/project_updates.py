@@ -6,6 +6,7 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
+    declare_read_capability_scope,
     get_record,
     requires_feature,
 )
@@ -20,6 +21,7 @@ class ProjectUpdateController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def list_updates(self, project_id):
+        declare_read_capability_scope('pmo.projects.read')
         project = get_record('project.project', project_id)
         updates = request.env['project.update'].search([('project_id', '=', project.id)], order='date desc, id desc', limit=MAX_UPDATES)
         return [dump_update(u) for u in updates]

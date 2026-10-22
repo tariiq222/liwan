@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Command
 from odoo.tests import TransactionCase, new_test_user, tagged
 
@@ -88,10 +88,18 @@ class TestBranchAccess(TransactionCase):
             {'id': self.branch.id, 'inherit': True, 'role_ids': [self.writer.id]},
         ])
         self.assertTrue(svc._webvue_has_capability(self.user, 'probe.items.manage', record=self.record))
+        scoped = svc.with_context(webvue_capability_scope=((('probe.items.read',), 'all'),))
+        self.assertIn(self.branch.id, scoped._webvue_model_company_ids('res.partner', 'read'))
+        self.writer.active = False
+        self.assertNotIn(self.branch.id, scoped._webvue_model_company_ids('res.partner', 'read'))
+        self.writer.active = True
+        self.assertIn(self.branch.id, scoped._webvue_model_company_ids('res.partner', 'read'))
+        updated = svc._webvue_branch_policy()
         svc._webvue_update_branch_policy(updated['version'], 'inherited', [
             {'id': self.branch.id, 'inherit': False, 'role_ids': [self.writer.id]},
         ])
         self.assertFalse(svc._webvue_has_capability(self.user, 'probe.items.manage', record=self.record))
+        self.assertNotIn(self.branch.id, scoped._webvue_model_company_ids('res.partner', 'read'))
 
     def test_policy_rejects_stale_foreign_and_unauthorized_mutation(self):
         with self.assertRaises(AccessError):
@@ -207,6 +215,130 @@ class TestBranchAccess(TransactionCase):
             {'id': self.branch.id, 'role_ids': []},
         ])
         self.assertEqual(result['branches'][0]['role_ids'], [])
+
+    def test_local_capability_keeps_its_native_internal_group_implication(self):
+        self.env['ir.model.access'].search([('name', '=', 'branch probe reader')]).unlink()
+        self.read_group.implied_ids = [Command.link(self.env.ref('base.group_user').id)]
+        self.grant(self.reader)
+        scoped = self.record.with_env(self.service.env).with_context(
+            webvue_capability_scope=((('probe.items.read',), 'all'),),
+        )
+        self.assertTrue(scoped.has_access('read'), 'a locally implied native group keeps its native read ACL')
+        self.assertFalse(scoped.has_access('write'), 'the parent writer group must still not reach this branch')
+
+    def test_repeated_native_scope_is_bounded_and_mutations_revoke_immediately(self):
+        assignment = self.grant(self.reader)
+        service = self.service.with_context(webvue_capability_scope=((('probe.items.read',), 'all'),))
+        self.assertIn(self.branch.id, service._webvue_model_company_ids('res.partner', 'read'))
+        before = self.env.cr.sql_log_count
+        for _index in range(10):
+            self.assertIn(self.branch.id, service._webvue_model_company_ids('res.partner', 'read'))
+        self.assertLess(self.env.cr.sql_log_count - before, 30)
+        assignment.unlink()
+        self.assertNotIn(self.branch.id, service._webvue_model_company_ids('res.partner', 'read'))
+        self.grant(self.reader)
+        self.assertIn(self.branch.id, service._webvue_model_company_ids('res.partner', 'read'))
+        self.reader.permission_ids = [Command.clear()]
+        self.assertNotIn(self.branch.id, service._webvue_model_company_ids('res.partner', 'read'))
+
+    def test_transaction_memo_observes_assignment_move_and_native_definition_changes(self):
+        assignment = self.grant(self.reader)
+        scoped = self.service.with_context(webvue_capability_scope=((('probe.items.read',), 'all'),))
+
+        def allowed():
+            return scoped._webvue_model_company_ids('res.partner', 'read')
+
+        self.assertIn(self.branch.id, allowed())
+        assignment.write({'company_id': self.other.id})
+        self.assertNotIn(self.branch.id, allowed())
+        assignment.write({'company_id': self.branch.id})
+        self.assertIn(self.branch.id, allowed())
+        assignment.write({'role_id': self.writer.id})
+        self.assertIn(self.branch.id, scoped._webvue_model_company_ids('res.partner', 'write'))
+        assignment.write({'role_id': self.reader.id})
+        self.assertNotIn(self.branch.id, scoped._webvue_model_company_ids('res.partner', 'write'))
+        acl = self.env['ir.model.access'].search([('name', '=', 'branch probe reader')])
+        acl.write({'perm_read': False})
+        self.assertNotIn(self.branch.id, allowed())
+        self.read_group.write({'implied_ids': [Command.link(self.env.ref('base.group_user').id)]})
+        self.assertIn(self.branch.id, allowed())
+        self.read_group.write({'implied_ids': [Command.clear()]})
+        self.assertNotIn(self.branch.id, allowed())
+
+    def test_transaction_memo_observes_membership_hierarchy_and_scope_context(self):
+        self.grant(self.reader)
+        scoped = self.service.with_context(allowed_company_ids=[self.parent.id],
+                                           webvue_capability_scope=((('probe.items.read',), 'all'),))
+
+        def allowed(service=scoped):
+            return service._webvue_model_company_ids('res.partner', 'read')
+
+        self.assertIn(self.branch.id, allowed())
+        self.assertNotIn(self.branch.id, allowed(self.service))
+        self.assertNotIn(self.branch.id, allowed(scoped.with_context(
+            webvue_capability_scope=((('probe.items.read', 'probe.items.manage'), 'all'),))))
+        self.assertIn(self.branch.id, allowed(scoped.with_context(
+            webvue_capability_scope=((('probe.items.read', 'probe.items.manage'), 'any'),))))
+        self.assertEqual(allowed(scoped.with_company(self.branch)), [self.branch.id])
+        self.user.write({'company_ids': [Command.unlink(self.branch.id)]})
+        self.assertNotIn(self.branch.id, allowed())
+        self.user.write({'company_ids': [Command.link(self.branch.id)]})
+        self.assertIn(self.branch.id, allowed())
+        with self.assertRaises(UserError):
+            self.branch.write({'parent_id': False})
+        self.assertIn(self.branch.id, allowed(), 'native Odoo rejects hierarchy mutation')
+        self.parent.write({'webvue_branch_access_mode': 'isolated'})
+        self.assertNotIn(self.branch.id, allowed())
+
+    def test_protected_user_create_reuses_home_contact_without_lending_business_create(self):
+        admin = new_test_user(self.env, login='existing_contact_admin', groups='webvue_core.group_access_admin',
+                              company_id=self.parent.id, company_ids=[self.parent.id])
+        home, foreign = self.env['res.partner'].create([
+            {'name': 'Home account contact', 'company_id': self.parent.id},
+            {'name': 'Foreign account contact', 'company_id': self.other.id},
+        ])
+        Users = self.env['res.users'].with_user(admin).with_context(allowed_company_ids=[self.parent.id])
+        values = {'name': 'Existing contact account', 'login': 'existing.contact@example.test',
+                  'company_id': self.parent.id, 'company_ids': [Command.set([self.parent.id])],
+                  'group_ids': [Command.set([self.env.ref('base.group_user').id])], 'partner_id': home.id}
+        user = Users._webvue_access_create(values)
+        self.assertEqual(user.partner_id.id, home.id)
+        with self.assertRaises(AccessError), self.env.cr.savepoint():
+            Users._webvue_access_create({**values, 'login': 'foreign.contact@example.test', 'partner_id': foreign.id})
+        with self.assertRaises(AccessError), self.env.cr.savepoint():
+            self.env['res.partner'].with_user(admin).create({'name': 'Ordinary denied contact'})
+
+    def test_native_internal_identity_read_does_not_grant_business_or_attachment_access(self):
+        identity = new_test_user(self.env, login='foreign_identity_reference', groups='base.group_user',
+                                 company_id=self.other.id).partner_id
+        identity.company_id = self.other
+        business = self.env['res.partner'].create({'name': 'Foreign business', 'company_id': self.other.id})
+        attachment = self.env['ir.attachment'].create({
+            'name': 'Identity private attachment', 'raw': b'private', 'type': 'binary',
+            'res_model': 'res.partner', 'res_id': identity.id, 'company_id': self.other.id,
+        })
+        actor_identity = identity.with_env(self.service.env)
+        self.assertTrue(actor_identity.has_access('read'), 'native internal identity references remain readable')
+        self.assertFalse(actor_identity.has_access('write'))
+        self.assertFalse(actor_identity.has_access('unlink'))
+        self.assertFalse(business.with_env(self.service.env).has_access('read'))
+        self.assertFalse(business.with_env(self.service.env).has_access('write'))
+        self.assertFalse(attachment.with_env(self.service.env).has_access('read'), 'identity refs do not authorize files')
+        self.env['ir.rule'].create({
+            'name': 'Private identity native rule', 'model_id': self.env['ir.model']._get_id('res.partner'),
+            'domain_force': repr([('id', '!=', identity.id)]),
+        })
+        self.assertFalse(actor_identity.has_access('read'), 'the original native domain still intersects')
+
+    def test_transaction_memo_cannot_keep_a_rolled_back_grant(self):
+        scoped = self.service.with_context(webvue_capability_scope=((('probe.items.read',), 'all'),))
+        self.assertNotIn(self.branch.id, scoped._webvue_model_company_ids('res.partner', 'read'))
+        with self.assertRaisesRegex(ValidationError, 'rollback_probe'), self.env.cr.savepoint():
+            self.grant(self.reader)
+            self.assertIn(self.branch.id, scoped._webvue_model_company_ids('res.partner', 'read'))
+            message = 'rollback_probe'
+            raise ValidationError(message)
+        self.assertNotIn(self.branch.id, scoped._webvue_model_company_ids('res.partner', 'read'))
 
 
 @tagged('post_install', '-at_install', 'webvue', 'webvue_access')

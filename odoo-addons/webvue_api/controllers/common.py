@@ -159,9 +159,9 @@ def requires_capability(*keys, match='all'):
     (tools/route_gate_policy.py enforces the order). The keys are read statically by
     tools/route_gate_policy.py and tools/api_surface.py.
 
-    It checks capabilities the caller holds in the current company only. It cannot grant a
-    contextual (record) capability of a registered scope kind, which needs the record: a handler
-    that depends on one checks it itself with ``_webvue_has_capability(user, key, record=...)``.
+    It selects only companies holding the declared operation capabilities, intersecting earlier
+    gates. It cannot grant contextual (record) capabilities, which still require the record's
+    own permission and native access checks.
     """
     if not keys or not all(isinstance(key, str) and key for key in keys):
         msg = 'requires_capability keys are required'
@@ -179,6 +179,26 @@ def requires_capability(*keys, match='all'):
         wrapper._webvue_capability_match = match
         return wrapper
     return decorator
+
+
+def declare_read_capability_scope(*keys, match='all'):
+    """Scope a known contextual GET reader without replacing its record authorization.
+
+    Keep the current company's native/contextual baseline and add only branches holding this
+    operation's capabilities. Earlier gates still intersect. The native fence permits branch
+    reads only under this marker, even if another role would supply a native write ACL.
+    """
+    if (not keys or not all(isinstance(key, str) and key for key in keys)
+            or match not in ('all', 'any') or request.httprequest.method != 'GET'):
+        msg = 'read capability scope requires a GET and capability keys with all/any match'
+        raise ValueError(msg)
+    catalog = request.env['webvue.access.service']._webvue_capability_map()
+    if any(key not in catalog for key in keys):
+        msg = 'read capability scope requires known capability keys'
+        raise ValueError(msg)
+    previous = request.env.context.get('webvue_capability_scope') or ()
+    gate = (tuple(keys), match, 'contextual_read')
+    _pin_current_company(previous if gate in previous else (*previous, gate))
 
 
 def require_capabilities(*keys, match='all'):

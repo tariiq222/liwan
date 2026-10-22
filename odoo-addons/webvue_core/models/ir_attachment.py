@@ -6,6 +6,12 @@ from odoo.exceptions import AccessError
 class IrAttachment(models.Model):
     _inherit = 'ir.attachment'
 
+    def _inaccessible_comodel_records(self, model_and_ids, operation):
+        # Stock ir_attachment.py:591-617 centralizes target checks for direct reads and
+        # search. Identity reference visibility must never authorize the target's files.
+        target_checks = self.with_context(webvue_attachment_target_check=True)
+        yield from super(IrAttachment, target_checks)._inaccessible_comodel_records(model_and_ids, operation)
+
     @api.model
     def _webvue_check_identity_target(self, target):
         if self.env.is_system():

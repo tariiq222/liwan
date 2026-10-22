@@ -8,6 +8,7 @@ from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
     parse_nonneg_int,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_hr.serializers.hr_department import (
@@ -26,6 +27,7 @@ def _can(capability):
 def _require(capability):
     if not _can(capability):
         raise ApiError(403, 'forbidden', f'{capability} capability is required')
+    require_capabilities(capability)
 
 
 def _admin_department(department_id):

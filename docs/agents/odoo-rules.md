@@ -286,3 +286,26 @@ Regression evidence: `webvue_core/tests/test_branch_access.py`,
 read-only delegation, operation gates, inheritance/revocation, ordinary ORM,
 exports/attachment targets and real finance HTTP requests. No stock source or
 ACL is weakened and no new elevated access is introduced.
+
+### Native identity reference reads (branch fence exception)
+
+The branch `ir.rule._compute_domain` extension preserves Odoo 19's native
+`res.partner` **read** exception for `partner_share=False` (internal-user identities).
+Source: `/Users/tariq/code/odoo/odoo/addons/base/security/base_security.xml:12-19`
+explains why these references remain visible across companies; `/Users/tariq/code/odoo/odoo/addons/base/models/res_partner.py:443-448`
+computes the flag from internal users. The exception remains ANDed with the original native
+domain and native ACLs. It does not cover ordinary business contacts, writes, creates or
+unlinks. The supported `ir.attachment._inaccessible_comodel_records` target-check hook
+(upstream `/Users/tariq/code/odoo/odoo/addons/base/models/ir_attachment.py:591-617`) explicitly suppresses this read exception
+while checking files, so visible identity references do not authorize foreign files.
+Focused regressions cover foreign internal authors, ordinary foreign contacts, native
+private identity rules, writes/unlinks and linked attachment denial.
+
+Native `_compute_domain` recursively embeds `_inherits` parent rules inside its ormcache
+(upstream `/Users/tariq/code/odoo/odoo/addons/base/models/ir_rule.py:141-152`). A trusted cursor marker keeps every recursive
+native computation native-only. Fresh company/operation fences for the outer model and its
+stored delegated parents are applied **after** that cache, including parent ACL projections.
+Identity metadata such as `res.users` intentionally keeps only native inherited rules;
+protected account creation may reuse a validated current-company employee contact without
+granting general business-contact create rights. Tests retain foreign-contact and ordinary
+contact-create denial. This prevents native child caches from retaining revoked branch grants.

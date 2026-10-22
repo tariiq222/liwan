@@ -75,7 +75,10 @@ class ResCompany(models.Model):
             )):
                 msg = 'use_protected_webvue_access_operation'
                 raise AccessError(msg)
-        return super().write(vals)
+        result = super().write(vals)
+        if {'parent_id', 'active', 'webvue_branch_access_mode'}.intersection(vals):
+            service._webvue_clear_branch_cache()
+        return result
 
     def _webvue_write_branding(self, vals):
         self.ensure_one()

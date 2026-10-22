@@ -5,6 +5,7 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_pmo.models.project_project import STATUS_VALUES
@@ -47,7 +48,7 @@ class ProjectReportsController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def project_dashboard_summary(self, **_):
-        request.env['webvue.access.service']._webvue_require_capability('pmo.projects.read')
+        require_capabilities('pmo.projects.read')
         domain = self._project_report_domain(request.httprequest.args, SUMMARY_QUERY)
         projects = request.env['project.project'].search(domain, order='name, id')
         can_read_tasks = request.env['webvue.access.service']._webvue_has_capability(
@@ -59,7 +60,7 @@ class ProjectReportsController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def project_dashboard_analytics(self, **_):
-        request.env['webvue.access.service']._webvue_require_capability('pmo.projects.read')
+        require_capabilities('pmo.projects.read')
         domain = self._project_report_domain(request.httprequest.args, SUMMARY_QUERY)
         projects = request.env['project.project'].search(domain, order='name, id')
         can_read_tasks = request.env['webvue.access.service']._webvue_has_capability(

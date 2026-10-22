@@ -75,3 +75,19 @@ class WebVueAccessPermission(models.Model):
                 'access.roles.read',
             )
         return super().check_access(operation)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        result = super().create(vals_list)
+        self.env['webvue.access.service']._webvue_clear_branch_cache()
+        return result
+
+    def write(self, vals):
+        result = super().write(vals)
+        self.env['webvue.access.service']._webvue_clear_branch_cache()
+        return result
+
+    def unlink(self):
+        result = super().unlink()
+        self.env['webvue.access.service']._webvue_clear_branch_cache()
+        return result

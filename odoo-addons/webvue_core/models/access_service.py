@@ -205,6 +205,16 @@ class WebVueAccessService(models.AbstractModel):
         return seen
 
     @api.model
+    def _webvue_branch_cache(self):
+        # Cursor callbacks are cleared on commit and savepoint rollback (BaseCursor.clear).
+        # Never share authorization results between transactions or registry workers.
+        return self.env.cr.precommit.data.setdefault('webvue_core.branch_access_cache', {})
+
+    @api.model
+    def _webvue_clear_branch_cache(self):
+        self.env.cr.precommit.data.pop('webvue_core.branch_access_cache', None)
+
+    @api.model
     def _webvue_identity_management_state(self, user):
         self.env.cr.execute(
             '''
@@ -225,6 +235,14 @@ class WebVueAccessService(models.AbstractModel):
     def _webvue_capability_keys(self, user=None, company=None):
         user = user or self.env.user
         company = company or self.env.company
+        cache = self._webvue_branch_cache()
+        cache_key = ('keys', self.env.uid, self.env.su, self.env.company.id, user.id, company.id)
+        if cache_key not in cache:
+            cache[cache_key] = frozenset(self._webvue_compute_capability_keys(user, company))
+        return set(cache[cache_key])
+
+    @api.model
+    def _webvue_compute_capability_keys(self, user, company):
         if user._is_superuser() or user.has_group('webvue_core.group_vendor_support'):
             return set(self._webvue_capability_map())
         self.env.cr.execute(
@@ -330,6 +348,7 @@ class WebVueAccessService(models.AbstractModel):
 
     @api.model
     def _webvue_bump_policy(self, companies):
+        self._webvue_clear_branch_cache()
         company_ids = list(set(companies.ids))
         if not company_ids:
             return

@@ -18,6 +18,7 @@ class WebVueResUsers(models.Model):
     webvue_access_managed = fields.Boolean(default=False, required=True, readonly=True)
 
     def _webvue_mark_access_managed(self):
+        self.env['webvue.access.service']._webvue_clear_branch_cache()
         if not self.ids:
             return self
         self.env.cr.execute(
@@ -151,6 +152,7 @@ class WebVueResUsers(models.Model):
         )
 
     def _webvue_bump_record_versions(self):
+        self.env['webvue.access.service']._webvue_clear_branch_cache()
         if self.ids:
             self.env.cr.execute(
                 'UPDATE res_users SET webvue_access_version = COALESCE(webvue_access_version, 0) + 1 WHERE id = ANY(%s)',

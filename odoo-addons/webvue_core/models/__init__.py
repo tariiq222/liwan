@@ -9,6 +9,7 @@ from . import (
     ir_attachment,
     ir_rule,
     res_company,
+    res_groups,
     res_partner,
     res_users,
     webvue_model,
