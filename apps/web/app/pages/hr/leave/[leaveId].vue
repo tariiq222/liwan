@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import LeaveRecord from '@/components/hr/LeaveRecord.vue'
+import HrLeaveRecord from '@/components/hr/LeaveRecord.vue'
 </script>
 
-<template><LeaveRecord /></template>
+<template><HrLeaveRecord /></template>

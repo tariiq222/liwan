@@ -592,7 +592,7 @@ def theme_errors(current: dict[str, str]) -> list[str]:
 PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage', 'webvue-page-width-form',
                'ChatWorkspace', 'TaskDetailPage',
                # Application-owned reusable pages compose the approved shared shells.
-               'LeaveList', 'LeaveRecord', 'RequestCreate', 'RequestRecord', 'RequestEdit',
+               'HrLeaveList', 'HrLeaveRecord', 'RequestCreate', 'RequestRecord', 'RequestEdit',
                # The Plan 4 page templates are shells themselves (each wraps SharedPageContainer).
                'SharedListPage', 'SharedRecordPage', 'SharedDashboardPage', 'SharedTimelineFrame',
                'SharedConversationLayout', 'SharedStandalonePage')
