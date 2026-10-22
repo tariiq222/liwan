@@ -140,7 +140,7 @@ class DocumentLinks(models.AbstractModel):
                 name = employee_names.get(employee_id)
                 result[document.id] = {
                     'kind': 'hr.employee', 'id': employee_id, 'label': name,
-                    'href': ('/account/profile' if employee_id in own_ids else f'/hr/{employee_id}') if name else None,
+                    'href': ('/account/profile' if employee_id in own_ids else f'/hr/employees/{employee_id}') if name else None,
                 }
                 continue
             department_id = document.department_id.id

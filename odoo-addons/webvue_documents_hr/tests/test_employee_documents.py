@@ -52,6 +52,17 @@ class TestEmployeeDocuments(DocumentHttpCase):
         self.assertFalse(service._webvue_has_capability(user, 'hr.departments.read'))
         return user
 
+    def test_employee_context_links_use_profile_for_self_and_employee_route_for_manager(self):
+        document = self.linked(self.own_employee, grant=True)
+        self.authenticate('docs_reader', 'docs_reader')
+        own = self.api('GET', f'/api/v1/documents/employee/me/{document.id}')
+        self.assertEqual(own.status_code, 200, own.text)
+        self.assertEqual(own.json()['context']['href'], '/account/profile')
+        self.authenticate('employee_docs_linker', 'employee_docs_linker')
+        managed = self.api('GET', f'/api/v1/documents/{document.id}')
+        self.assertEqual(managed.status_code, 200, managed.text)
+        self.assertEqual(managed.json()['context']['href'], f'/hr/employees/{self.own_employee.id}')
+
     def test_employee_manager_needs_no_department_read_for_employee_only_context(self):
         manager = self.employee_context_manager()
         self.authenticate(manager.login, manager.login)
