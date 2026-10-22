@@ -5539,17 +5539,17 @@
         {
           "id": "Default",
           "name": "وجهة",
-          "context": "apps/web/app/pages/index.vue:34"
+          "context": "apps/web/app/components/services/ServicesGroups.vue:18"
         },
         {
           "id": "WithoutDescription",
           "name": "بلا وصف",
-          "context": "apps/web/app/pages/index.vue:34"
+          "context": "apps/web/app/components/services/ServicesGroups.vue:18"
         },
         {
           "id": "Tones",
           "name": "الدرجات",
-          "context": "apps/web/app/pages/index.vue:34"
+          "context": "apps/web/app/components/services/ServicesGroups.vue:18"
         }
       ]
     },
@@ -6271,13 +6271,8 @@
       "title": "Shell/ModuleRail",
       "props": [
         {
-          "name": "modules",
-          "type": "ShellRailItem[]",
-          "required": true
-        },
-        {
-          "name": "utility",
-          "type": "ShellRailItem[]",
+          "name": "rail",
+          "type": "ShellRailGroups",
           "required": true
         },
         {
@@ -6310,6 +6305,21 @@
         {
           "id": "AssistantUtility",
           "name": "أداة فوق الإعدادات",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+        },
+        {
+          "id": "LauncherActive",
+          "name": "المشغّل نشط",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+        },
+        {
+          "id": "FewPinned",
+          "name": "تطبيق واحد مثبّت",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+        },
+        {
+          "id": "NonePinned",
+          "name": "لا تطبيق مثبّت",
           "context": "apps/web/app/components/shell/AppSidebar.vue:44"
         }
       ]
@@ -6733,6 +6743,20 @@
         {
           "id": "Scale",
           "name": "الخط والأحجام"
+        }
+      ]
+    },
+    {
+      "title": "Home/Today",
+      "story": "apps/web/stories/home/HomeToday.stories.ts",
+      "stories": [
+        {
+          "id": "Busy",
+          "name": "عمل ينتظر"
+        },
+        {
+          "id": "Quiet",
+          "name": "لا شيء عاجل"
         }
       ]
     },
