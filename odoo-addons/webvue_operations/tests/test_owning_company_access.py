@@ -120,6 +120,8 @@ class TestOperationsOwningCompanyAccess(WebVueApiCase):
         self.assertTrue(self.drafts[self.parent.id].with_env(env).has_access('read'))
 
     def test_http_private_child_detail_and_attachment_are_hidden(self):
+        # Exercise real login/HTTP with cold native membership and rule caches.
+        self.env.registry.clear_cache()
         self.login(self.actor)
         record = self.requests[self.child.id]
         attachment = self.attachments[self.child.id]
@@ -138,6 +140,8 @@ class TestOperationsOwningCompanyAccess(WebVueApiCase):
         self.assertNotIn(record.id, {item['id'] for item in response.json()['items']})
 
     def test_child_only_read_role_enters_scoped_routes_without_parent_capability(self):
+        # No operator priming of the actor's membership may authorize this request.
+        self.env.registry.clear_cache()
         self.login(self.child_only)
         response = self.api('GET', '/api/v1/operations/processes')
         self.assertEqual(response.status_code, 200, response.text)
