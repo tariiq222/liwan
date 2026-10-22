@@ -170,6 +170,54 @@ class TestMeetingBranchPermissions(WebVueApiCase):
         with self.assertRaises(AccessError):
             meeting.read(['name'])
 
+    def _check_warm_inherited_visibility_revoked(self, *, revoke_mode=False):
+        self.parent.write({'webvue_branch_access_mode': 'inherited'})
+        rule = self.env['webvue.access.branch.rule'].create({
+            'company_id': self.parent.id, 'branch_id': self.branch.id, 'inherit': True,
+            'role_ids': [Command.set(self.manager_role.ids)],
+        })
+        participant_series = self.env['webvue.meeting.series'].create({
+            'name': 'Participant branch series', 'company_id': self.branch.id,
+            'organizer_id': self.organizer.id, 'attendee_ids': [Command.link(self.actor.id)],
+        })
+        participant_meeting = self.env['webvue.meeting.minute'].with_company(self.branch).create({
+            'name': 'Participant branch minute', 'company_id': self.branch.id,
+            'organizer_id': self.organizer.id, 'attendee_ids': [Command.link(self.actor.id)],
+            'series_id': participant_series.id, 'meeting_date': fields.Date.today(),
+        })
+        participant_resolution = self.env['webvue.meeting.resolution'].with_company(self.branch).create({
+            'meeting_id': participant_meeting.id, 'name': 'Participant branch decision',
+            'responsible_id': self.organizer.id, 'deadline': fields.Date.today(),
+        })
+        private_records = [self.scoped(record) for record in self.records[self.branch.id]]
+        participant_records = [self.scoped(record) for record in (
+            participant_meeting, participant_series, participant_resolution,
+        )]
+        # Warm the real native ir.rule cache with inherited manage; retain these same environments.
+        for record in (*private_records, *participant_records):
+            self.assertEqual(record.search([('id', '=', record.id)]), record)
+        if revoke_mode:
+            self.parent.write({'webvue_branch_access_mode': 'delegated'})
+        else:
+            rule.write({'inherit': False})
+        service = private_records[0].env['webvue.access.service']
+        self.assertTrue(service._webvue_has_capability(service.env.user, 'meetings.read', company=self.branch))
+        self.assertFalse(service._webvue_has_capability(service.env.user, 'meetings.manage', company=self.branch))
+        for record in private_records:
+            with self.subTest(model=record._name):
+                self.assertFalse(record.search([('id', '=', record.id)]))
+                with self.assertRaises(AccessError):
+                    record.read(['name'])
+        for record in participant_records:
+            self.assertEqual(record.search([('id', '=', record.id)]), record)
+            self.assertTrue(record.read(['name']))
+
+    def test_warm_private_visibility_revoked_when_inheritance_is_disabled(self):
+        self._check_warm_inherited_visibility_revoked()
+
+    def test_warm_private_visibility_revoked_when_mode_becomes_delegated(self):
+        self._check_warm_inherited_visibility_revoked(revoke_mode=True)
+
     def test_actual_branch_manager_keeps_private_read_and_mutation(self):
         self.env['webvue.access.assignment'].create({
             'user_id': self.actor.id, 'role_id': self.manager_role.id, 'company_id': self.branch.id,
