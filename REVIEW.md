@@ -18,8 +18,9 @@ Claude runs with **no tools**, empty settings sources and no MCP servers: it
 cannot read files, run commands or access credentials. Its runtime GitHub token
 is read-only; there is no PR checkout or PR execution. Oversized diffs fail
 closed rather than being silently truncated. A separate deterministic job publishes its structured report as
-a standard PR review. Neither provider has an automated merge path. CI and owner
-merge authorization remain separate gates. Drafts and forks are not automatically
+a standard PR review. The separate deterministic `pr-delivery` controller owns
+bounded automatic repair and protected merge after current CI/review/scope gates;
+sensitive scope requires exact-head owner approval. Models never merge directly. Drafts and forks are not automatically
 reviewed by this privileged workflow; fork support needs its own trusted approval
 flow. Native Codex review must be enabled for the repository and the Claude
 subscription credential must be valid; the presence of a secret is not proof.

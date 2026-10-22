@@ -69,6 +69,16 @@ class ReviewSelectionTest(unittest.TestCase):
         reviews = [self.native('CHANGES_REQUESTED'), self.native('COMMENTED')]
         self.assertTrue(pr_review.codex_review(reviews, HEAD)['blocking'])
 
+    def test_codex_inline_priority_one_blocks_even_when_review_is_commented(self):
+        inline = self.native()
+        inline['body'] = '**[P1] Fix lost data**'
+        self.assertTrue(pr_review.codex_review([self.native()], HEAD, [inline])['blocking'])
+
+    def test_priority_two_bug_requires_repair_before_automatic_delivery(self):
+        report = {'head_sha': HEAD, 'complete': True, 'summary': 'Bug', 'findings': [
+            {'priority': 'P2', 'file': 'a.py', 'line': 1, 'message': 'Incorrect result'}]}
+        self.assertTrue(pr_review.claude_review(json.dumps(report), HEAD)['blocking'])
+
     def test_backup_covers_service_unavailability_but_neither_means_blocked(self):
         backup = {'provider': 'claude', 'blocking': False}
         self.assertEqual(pr_review.choose_review(None, backup), backup)

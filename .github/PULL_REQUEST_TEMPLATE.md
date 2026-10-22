@@ -23,12 +23,12 @@ Distinguish focused checks, combined-candidate checks and a full release run.
 
 ## Authorization and delivery
 
-- Merge authorization (owner's actual instruction and approved scope):
+- Delivery scope (low-risk policy, or sensitive owner approval of this exact SHA):
 - Remaining risks / recovery approach:
 
 Keep this PR **draft** until local preparation and checks are complete. Mark
-ready to request GitHub review, then wait for current-head review and CI. Ready
-is not merge authorization; CI never merges this PR. These boxes are a
-handoff record, not an automated check of owner authorization. Before merge,
+ready to request GitHub review, CI and bounded automatic delivery. Sensitive scope
+needs `/webvue approve <head-sha>` from the owner. Safe repairs have a three-cycle
+limit. These boxes are evidence; actual SHA-bound gates control protected merging. Before merge,
 recheck base/head and repeat affected verification if either moved. Publication,
 merge, release, deployment and cleanup have separate authorization boundaries.

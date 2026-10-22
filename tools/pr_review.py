@@ -13,6 +13,8 @@ import sys
 import time
 from pathlib import Path
 
+from github_trust import require_main
+
 CODEX = 'chatgpt-codex-connector[bot]'
 REPORT_SCHEMA = {
     'type': 'object', 'required': ['head_sha', 'complete', 'summary', 'findings'],
@@ -35,9 +37,12 @@ def matching_reviews(reviews: list[dict], head: str, login: str, marker: str = '
             and review.get('state') in ('COMMENTED', 'APPROVED', 'CHANGES_REQUESTED')]
 
 
-def codex_review(reviews: list[dict], head: str) -> dict | None:
+def codex_review(reviews: list[dict], head: str, inline: list[dict] | None = None) -> dict | None:
     found = matching_reviews(reviews, head, CODEX)
-    return {'provider': 'codex', 'blocking': any(x['state'] == 'CHANGES_REQUESTED' for x in found),
+    findings = [x for x in (inline or []) if x.get('commit_id') == head
+                and x.get('user', {}).get('login') == CODEX and x.get('user', {}).get('type') == 'Bot']
+    priority = any(re.search(r'\bP[012]\b', x.get('body', '')) for x in [*found, *findings])
+    return {'provider': 'codex', 'blocking': priority or any(x['state'] == 'CHANGES_REQUESTED' for x in found),
             'body': 'Codex review: ' + found[-1].get('html_url', '')} if found else None
 
 
@@ -74,7 +79,7 @@ def claude_review(raw: str, head: str) -> dict | None:
             return None
     body = f'Claude Code review of `{head}`\n\n{summary}\n\n'
     body += '\n'.join(f"- **{x['priority']}** `{x['file']}:{x['line']}`: {x['message']}" for x in findings)
-    return {'provider': 'claude', 'blocking': any(x['priority'] in ('P0', 'P1') for x in findings),
+    return {'provider': 'claude', 'blocking': any(x['priority'] in ('P0', 'P1', 'P2') for x in findings),
             'body': body}
 
 
@@ -143,7 +148,7 @@ def api(endpoint: str, payload: dict | None = None, pages: bool = False):
                             capture_output=True, text=True, timeout=45, check=False)
     if result.returncode:
         raise RuntimeError(f'GitHub request failed: {endpoint} (exit {result.returncode})')
-    value = json.loads(result.stdout)
+    value = json.loads(result.stdout) if result.stdout.strip() else None
     return [item for page in value for item in page] if pages else value
 
 
@@ -173,7 +178,8 @@ def output(**values):
 def native_state(repo: str, pr: int, head: str, request_id: int, reviews: list[dict] | None = None) -> dict | None:
     if reviews is None:
         reviews = api(f'repos/{repo}/pulls/{pr}/reviews', pages=True)
-    review = codex_review(reviews, head)
+    inline = api(f'repos/{repo}/pulls/{pr}/comments', pages=True)
+    review = codex_review(reviews, head, inline)
     if review is None and request_id:
         trigger = api(f'repos/{repo}/issues/comments/{request_id}')
         reactions = api(f'repos/{repo}/issues/comments/{request_id}/reactions', pages=True)
@@ -234,6 +240,7 @@ def finalize(repo: str, pr: int, head: str, request_id: int) -> int:
 
 
 def main() -> int:
+    require_main()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('command', choices=('codex', 'claude', 'finalize'))
     parser.add_argument('--repo', required=True)

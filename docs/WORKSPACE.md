@@ -31,10 +31,12 @@ git tag -l 'archive/*'
 
 CI is the `ci` workflow in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): twelve stages,
 selected per change by `tools/ci_scope.py`, each runnable through `deploy/ci`.
-Delivery uses a draft PR, ready to request GitHub review, applicable checks, explicit merge authorization,
-then verification of the merged commit. CI never merges a PR; ready is a review
-state, not permission to merge. GitHub requires current `ci-result`, an up-to-date
-branch and resolved review threads, with no ruleset bypass actors. The separate
+Delivery uses a draft PR, then ready requests review and bounded automatic delivery.
+`pr-delivery` requires current CI/review/scope gates, repairs safe failures at most
+three times, and merges normally. Sensitive scope needs exact-head owner approval. GitHub requires current `ci-result`, an up-to-date
+branch and resolved review threads, with no ruleset bypass actors. The target also
+requires `code-review` and `delivery-policy`; successful full main CI produces the
+next `release/19.0.X.Y.Z` tag without deploying production. The separate
 `pr-review` workflow supplies `code-review`: Codex first, Claude on service
 unavailability; activation prerequisites and bootstrap are in the integration policy.
 The full procedure and live-protection caveats are in

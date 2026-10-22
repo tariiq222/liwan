@@ -1,7 +1,18 @@
 name: pr-review
+run-name: 'pr-review #${{ github.event.pull_request.number || inputs.pr }}'
 
 # Trusted base code only: a PR is data to review, never code to run with credentials.
 on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Same-repository PR number
+        required: true
+        type: string
+      head:
+        description: Exact expected head SHA
+        required: true
+        type: string
   pull_request_target:
     branches: [main]
     types: [opened, reopened, synchronize, ready_for_review]
@@ -10,21 +21,43 @@ permissions:
   contents: read
 
 concurrency:
-  group: pr-review-${{ github.event.pull_request.number }}
+  group: pr-review-${{ github.event.pull_request.number || inputs.pr }}
   cancel-in-progress: true
 
 env:
   REVIEW_REPO: ${{ github.repository }}
-  REVIEW_PR: ${{ github.event.pull_request.number }}
-  REVIEW_HEAD: ${{ github.event.pull_request.head.sha }}
 
 jobs:
+  resolve:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      pr: ${{ steps.pr.outputs.pr }}
+      head: ${{ steps.pr.outputs.head }}
+      eligible: ${{ steps.pr.outputs.eligible }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: main
+          persist-credentials: false
+      - id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUEST_PR: ${{ github.event.pull_request.number || inputs.pr }}
+          REQUEST_HEAD: ${{ github.event.pull_request.head.sha || inputs.head }}
+        run: >-
+          python3 -B tools/pr_delivery.py resolve-review --repo "$REVIEW_REPO"
+          --pr "$REQUEST_PR" --head "$REQUEST_HEAD"
+
   codex:
-    if: >-
-      !github.event.pull_request.draft
-      && github.event.pull_request.head.repo.full_name == github.repository
-      && (github.event.pull_request.user.login == github.repository_owner
-          || contains(fromJSON('["claude[bot]","chatgpt-codex-connector[bot]","github-actions[bot]"]'), github.event.pull_request.user.login))
+    env:
+      REVIEW_PR: ${{ needs.resolve.outputs.pr }}
+      REVIEW_HEAD: ${{ needs.resolve.outputs.head }}
+    needs: resolve
+    if: github.ref == 'refs/heads/main' && needs.resolve.outputs.eligible == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     permissions:
@@ -37,7 +70,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: main
           persist-credentials: false
       - name: Request Codex and wait at most five minutes
         id: review
@@ -48,13 +81,13 @@ jobs:
           --pr "$REVIEW_PR" --head "$REVIEW_HEAD" --wait-seconds 300
 
   claude:
-    needs: codex
+    env:
+      REVIEW_PR: ${{ needs.resolve.outputs.pr }}
+      REVIEW_HEAD: ${{ needs.resolve.outputs.head }}
+    needs: [resolve, codex]
     if: >-
-      always() && !cancelled()
-      && !github.event.pull_request.draft
-      && github.event.pull_request.head.repo.full_name == github.repository
-      && (github.event.pull_request.user.login == github.repository_owner
-          || contains(fromJSON('["claude[bot]","chatgpt-codex-connector[bot]","github-actions[bot]"]'), github.event.pull_request.user.login))
+      always() && !cancelled() && github.ref == 'refs/heads/main'
+      && needs.resolve.outputs.eligible == 'true'
       && needs.codex.outputs.completed != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 18
@@ -69,20 +102,9 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: main
           persist-credentials: false
-      - uses: ./.github/actions/setup
-        with:
-          npm-ci: 'false'
-      - name: Install pinned Claude CLI in runner scratch space
-        run: |
-          set -euo pipefail
-          # Make the runner binary a required dependency: npm otherwise silently ignores download failures.
-          npm install --ignore-scripts --no-package-lock --prefix "$RUNNER_TEMP/claude-review" \
-            @anthropic-ai/claude-code@2.1.308 @anthropic-ai/claude-code-linux-x64@2.1.308
-          node "$RUNNER_TEMP/claude-review/node_modules/@anthropic-ai/claude-code/install.cjs"
-          "$RUNNER_TEMP/claude-review/node_modules/.bin/claude" --version
-          echo "$RUNNER_TEMP/claude-review/node_modules/.bin" >> "$GITHUB_PATH"
+      - uses: ./.github/actions/claude-subscription
       - name: Read-only Claude fallback
         id: review
         timeout-minutes: 15
@@ -95,13 +117,13 @@ jobs:
           --pr "$REVIEW_PR" --head "$REVIEW_HEAD"
 
   review-result:
-    needs: [codex, claude]
+    env:
+      REVIEW_PR: ${{ needs.resolve.outputs.pr }}
+      REVIEW_HEAD: ${{ needs.resolve.outputs.head }}
+    needs: [resolve, codex, claude]
     if: >-
-      always() && !cancelled()
-      && !github.event.pull_request.draft
-      && github.event.pull_request.head.repo.full_name == github.repository
-      && (github.event.pull_request.user.login == github.repository_owner
-          || contains(fromJSON('["claude[bot]","chatgpt-codex-connector[bot]","github-actions[bot]"]'), github.event.pull_request.user.login))
+      always() && !cancelled() && github.ref == 'refs/heads/main'
+      && needs.resolve.outputs.eligible == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -111,7 +133,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: main
           persist-credentials: false
       - name: Require a valid review of the current head
         env:

@@ -7,30 +7,25 @@ replace the current policy. The former direct-push exception is superseded.
 
 ## Authorization and the current automation
 
-Commit, branch push, PR creation, merge, release, deployment and cleanup are
-separate actions. Use existing explicit authorization without asking again;
-never infer authorization for the next action from the preceding one.
-«كومت ودمج» authorizes committing the requested work and integrating that scope;
-GitHub publication still needs push authorization. If publication is not authorized,
-prepare and verify a local candidate and report the pending delivery step.
-Do not silently fall back to a local `main` merge as a second delivery route.
+The owner approved automatic delivery on 2026-10-22: ready, bounded PRs can merge
+when `ci-result`, `code-review` and `delivery-policy` succeed for the current head.
+Drafts remain preparation; ready requests review and evaluation against this policy.
+The deterministic `pr-delivery` controller merges normally through GitHub; it never
+pushes main or bypasses protection. Native repository auto-merge obeys the same gates.
 
-Create authorized PRs as **drafts**. Keep them draft while scope, local checks or
-prepublication inspection are incomplete. Mark ready to request GitHub review;
-ready never means permission to merge. The CI
-workflow has no merge job and repository auto-merge stays disabled. Only an
-explicit owner instruction for the reviewed scope permits the coordinator to
-merge; existing explicit approval remains valid without asking again. New scope
-needs its own decision. Never enable auto-merge, use an administrative bypass or
-weaken checks to get a candidate through.
+Low-risk eligibility is deliberately conservative in `tools/pr_delivery.py`:
+selected frontend component/page, Storybook/shared UI and non-policy documentation
+paths, with sensitive path/content exclusions, no deletions/renames and complete
+file evidence. Any uncertain or broader change needs an owner-authored exact comment:
+`/webvue approve <40-character-current-head-sha>`. Permission/security/data migrations,
+dependency/build/CI/controller/policy changes and breaking API work need that explicit
+approval. Approval never waives review, checks, thread resolution or current-base
+requirements. New commits invalidate it. Do not have automation impersonate the owner.
 
-The required `ci-result` check must come from GitHub Actions and the PR must be
-up to date with `main`. Every selected stage must actually succeed; only
-unselected stages may be skipped. Missing jobs, failure and cancellation block
-integration. Review findings must be resolved. A recorded review can be an
-agent's review: the repository currently has one writer, so it does not require
-a formal approval from a nonexistent second account. Owner authorization is a
-workflow rule, not an automated check of the conversation.
+Task authorization, publication, production deployment and cleanup remain distinct.
+The standing delivery policy covers reserved safe repair commits, normal merges and the version tags described
+below. It does not authorize production deployment, destructive cleanup or changing
+its own gates through an automatic repair.
 
 ## Two review providers, one decision
 
@@ -42,8 +37,8 @@ The controller supplies the complete diff as data; Claude has no tools or
 filesystem access and returns a structured report. A separate
 non-model job publishes it on GitHub. Current-head reviews are required; an old
 head, an incomplete report or two unavailable services cannot yield a green
-`code-review`. P0/P1 fallback findings and explicit Codex change requests fail it.
-Other review findings remain for resolution and the owner's decision.
+`code-review`. P0/P1/P2 fallback findings and explicit Codex change requests fail it.
+P0/P1/P2 Codex inline findings also block; unresolved conversations remain binding at merge.
 
 Prerequisites: Codex code review enabled for this repository and a valid Claude
 subscription token in the existing main-only `agent` environment. No paid API
@@ -83,15 +78,22 @@ report that state and keep the merge blocked.
    successful `ci-result`, current-head `code-review` and every selected stage on the current PR
    candidate; inspect skipped stages and scope. A prior green head, local test
    run or merge conflict check alone does not establish readiness.
-5. **Authorize and merge the reviewed candidate.** Wait for current-head GitHub review and CI after marking ready.
-   Ready does not authorize merge. With
-   the owner's explicit merge authorization, reread remote `main`, PR head,
-   draft state and check runs immediately before merging.
-   If the base or head moved, update the candidate and repeat affected checks
-   and review. Use a merge commit to retain branch ancestry. For a manual merge,
-   use `gh pr merge <number> --merge --match-head-commit <reviewed-head-sha>`;
-   this pins the head only, so the base must also be rechecked. Do not bypass a
-   failing check, overwrite another writer or push local `main` over GitHub.
+5. **Evaluate and merge the reviewed candidate.** `pr-delivery` rereads the current
+   head, latest CI run, current-head review status, complete file inventory and
+   sensitive approval. CI/review failures can request at most three durable repair
+   cycles across the PR, one per head. Pending, cancelled, unavailable services or
+   an already-attempted head do not start another repair. Sensitive scope and tests are never
+   rewritten autonomously. After a new clean review, only outdated Codex-only
+   threads may be resolved automatically; human discussions stay manual. Claude receives bounded evidence as text with zero tools,
+   hooks/settings disabled and a read-only token, then returns structured replacement
+   content. A separate model-free publisher validates original modified regular files,
+   size/scope, reserved attempt and unchanged head before a non-force API update.
+   It explicitly dispatches full CI and trusted-main review for the new head because
+   GitHub token mutations do not reliably trigger those events. Failed generation
+   consumes its reservation and stops; no quota retry or budget reset. At three
+   unsuccessful cycles, stop and report owner action needed. Successful current gates
+   merge with exact head through the normal merge API. Conflicts or a behind branch
+   wait for integration; do not rewrite history or weaken protection to proceed.
 6. **Verify and synchronize.** Confirm the PR is merged and record its actual
    merge SHA and post-merge CI result. Fetch and compare local/remote `main`.
    Fast-forward local `main` only when behind without divergence and clean,
@@ -114,53 +116,51 @@ until tested against the intended combined result. When the parent merges,
 update and retest the child against current `main`; do not deliver inherited
 changes twice. A clean merge simulation proves textual compatibility only.
 
-## Enforced GitHub rules and their limit
+## Enforced GitHub rules and activation
 
-The target `protect-main` configuration requires a PR, `ci-result` and
-`code-review` from GitHub Actions on an up-to-date branch, resolved review threads
-and merge commits. It blocks deletion
-and non-fast-forward updates and has no bypass actors. Repository auto-merge is
-disabled and the `ci` workflow carries read-only permissions, with no merge job.
-Verify those live settings before delivery; this document cannot enforce itself.
+`protect-main` requires a PR, `ci-result`, `code-review` and `delivery-policy` from
+GitHub Actions, an up-to-date branch, resolved conversations and merge commits.
+No bypass actors, force updates or branch deletion. No formal second-account
+approval is required while only the owner has write access. The exact-head owner
+comment provides the sensitive-scope decision. Recheck actual settings before delivery.
 
-There is no formal second-account approval requirement while the owner is the
-only writer. The review and owner's merge decision are recorded in the PR.
-An administrator can still edit repository settings; removing the ruleset's
-bypass does not remove that administrative ability. CI success is verification
-of the checked candidate, not release, deployment or cleanup authorization.
+The owner explicitly authorized activation of PR32, including its sensitive governance
+scope. Bootstrap it with current CI and a recorded independent review, through a normal
+explicit merge. Add the new required contexts once their trusted-main producers exist,
+before enabling native auto-merge or allowing subsequent delivery. Do not require a
+context before its producer exists, bypass protection or expose credentials to PR code.
+Verify providers live; a configured secret is not proof of working authentication.
 
-### First activation
+## Release numbers
 
-The new `pull_request_target` review workflow runs only after it exists on trusted
-`main`. Bootstrap this policy PR with a recorded GitHub review and current CI,
-then an explicit owner merge decision. Add the required `code-review` context
-immediately after that normal PR merge, before any subsequent delivery; requiring
-it before its producer exists would deadlock the bootstrap. Do not use an admin
-bypass, direct push, untrusted PR checkout or weakened environment to bootstrap.
-Verify both providers live before claiming the failover is operational.
+`release-version` runs after successful CI on main. It verifies the CI workflow identity,
+repository, event, exact main SHA and all twelve stage groups, including every matrix
+job and `ci-result`, with no skipped stages. It then creates the next immutable
+`release/19.0.X.Y.Z` tag by incrementing the final numeric component. Repeated events
+reuse the same commit's existing tag. From `19.0.1.0.1`, next is `19.0.1.0.2`.
+Scoped PR CI cannot create a release number; bot merges explicitly request full main CI.
+Versioning never deploys production or changes addon schema versions automatically.
 
 ## Delivery flow
 
 ```mermaid
 flowchart TD
-    A[Latest origin/main and isolated worktree] --> B[Implement and focused checks]
-    B --> C[Draft PR to main]
-    C --> D[Ready for GitHub review]
-    D --> E[Codex review of this head]
-    D --> F[CI on the combined candidate]
-    E --> G{Review completed?}
-    G -->|Yes, with or without findings| H[Retain review and findings]
-    G -->|Unavailable or timeout| I[Read-only Claude review]
-    I --> J{Valid current-head report?}
-    J -->|Yes| H
-    J -->|No| K[Merge blocked: both unavailable]
-    H --> L{Review gate green, findings resolved and CI green?}
-    F --> L
-    L -->|No| M[Fix and update same PR]
-    M --> E
-    M --> F
-    L -->|Yes| N[Wait for explicit owner decision]
-    N --> O[Explicit merge commit]
-    O --> P[Verify main and preserve local edits]
-    P -. Separate authorization .-> Q[Release / deploy / cleanup]
+    A[Isolated work and local checks] --> B[Ready PR]
+    B --> C[Codex; Claude if unavailable]
+    B --> D[CI]
+    B --> E{Sensitive scope?}
+    E -->|Yes| F[Owner approval of exact SHA]
+    E -->|No| G[Delivery eligible]
+    F --> G
+    C --> H{Current checks and review green?}
+    D --> H
+    G --> H
+    H -->|Code failure and safe scope| I[Repair same branch: at most 3 cycles]
+    I --> C
+    I --> D
+    H -->|Unavailable, conflict or exhausted| J[Stop and report]
+    H -->|Yes| K[Automatic protected merge]
+    K --> L[Full main CI: all 12 groups]
+    L -->|Success| M[Next immutable release number]
+    M -. Separate approval .-> N[Production deployment]
 ```

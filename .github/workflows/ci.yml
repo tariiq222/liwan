@@ -48,7 +48,7 @@ jobs:
       - name: Select the stages
         id: select
         env:
-          FULL: ${{ inputs.full }}
+          FULL: ${{ inputs.full || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
           PULL_REQUEST_BASE: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
         run: |

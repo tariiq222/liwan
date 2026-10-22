@@ -158,8 +158,8 @@ the task branches, and runs `python3 tools/api_surface.py --check` there. The pe
 
 Use [integration-rules.md](agents/integration-rules.md) for delivery: one draft PR
 per independent task or agreed integration batch, followed by review, checks and
-explicit merge authorization. CI never merges a PR, and marking ready is not
-merge authorization. `wt status` compares ancestry with **local** `main`; when it is stale, compare
+bounded automatic delivery: current CI/review/scope gates, at most three safe
+repair cycles, and exact-head owner approval for sensitive changes. `wt status` compares ancestry with **local** `main`; when it is stale, compare
 with current remote `main` too. A merged head with dirty files still contains
 undelivered work. A child sharing its parent's head is dependent work, not a
 second independent delivery.

@@ -53,8 +53,10 @@ stages). Each job runs its `deploy/ci` script and can be reproduced locally with
 isolated resources. `ci-result` aggregates selected stages; its success is needed
 before merge, but does not prove a full run or owner authorization.
 
-There is no `automerge` job. Keep the PR draft while local preparation is incomplete; mark ready to request
-GitHub review, then wait for that review and current CI. Ready does not authorize a merge. `ci-result` fails if a
+`ci` remains read-only. Keep the PR draft during local preparation; ready requests
+review and bounded `pr-delivery`. It merges only after current CI/review/scope gates
+and repairs safe code failures at most three cycles per PR. Sensitive scope needs
+owner approval of the exact head. `ci-result` fails if a
 selected stage was skipped or missing, or any stage failed/cancelled. Only
 unselected stages may be skipped. The GitHub ruleset requires `ci-result` from
 GitHub Actions on an up-to-date branch, resolves review threads and offers no
@@ -91,7 +93,8 @@ python3 -B tools/ci_scope.py --base main [--commit codex/<area>-<slug>]
 
 A manual `workflow_dispatch` run with `full: true` runs all twelve stages whatever the change. A
 `release/19.0.X.Y.Z` tag is cut only from a `main` commit whose `ci` run was such a full run with all
-twelve stages green. This is a manual rule, no tool enforces it.
+twelve stages green. `release-version` enforces all twelve groups including every
+matrix job and aggregate on the exact main commit, and creates the next immutable tag.
 
 ### After the merge
 
