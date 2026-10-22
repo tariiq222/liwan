@@ -81,10 +81,16 @@ class TestFinanceTaxWrite(WebVueFinanceWriteCase):
             ({'name': 'x', 'type_tax_use': 'none', 'amount': 5, 'tax_account_id': acc}, 'type_tax_use'),
             ({'name': 'x', 'type_tax_use': 'sale', 'amount': -1, 'tax_account_id': acc}, 'amount'),
             ({'name': 'x', 'type_tax_use': 'sale', 'amount': 5, 'tax_account_id': acc, 'amount_type': 'group'}, 'amount_type'),
-            ({'name': 'x', 'type_tax_use': 'sale', 'amount': 5, 'tax_account_id': acc, 'company_id': 1}, 'company_id'),
         ):
             with self.subTest(body=body):
                 self.assertRefused(self.api('POST', TAXES, json=body), 422, 'invalid', field)
+        # A payload company_id outside the pinned request set is the uniform not-found.
+        self.assertRefused(
+            self.api('POST', TAXES, json={
+                'name': 'x', 'type_tax_use': 'sale', 'amount': 5, 'tax_account_id': acc, 'company_id': 1,
+            }),
+            404, 'not_found',
+        )
         self.assertRefused(self.api('GET', f'{TAXES}/999999'), 404, 'not_found')
         self.assertRefused(self.api('PATCH', f'{TAXES}/{self.create_tax()["id"]}', json={}), 422, 'invalid')
 

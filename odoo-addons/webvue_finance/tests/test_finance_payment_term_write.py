@@ -58,10 +58,14 @@ class TestFinancePaymentTermWrite(WebVueFinanceWriteCase):
             ({'name': 'x', 'lines': [{'value': 'percent', 'value_amount': 100, 'nb_days': -1}]}, 'lines[0].nb_days'),
             ({'name': 'x', 'lines': [{'value': 'ratio', 'value_amount': 100}]}, 'lines[0].value'),
             ({'name': 'x', 'lines': [{'value': 'percent', 'value_amount': 100, 'color': 1}]}, 'lines[0].color'),
-            ({'name': 'x', 'lines': HALF_AND_HALF, 'company_id': 1}, 'company_id'),
         ):
             with self.subTest(body=body):
                 self.assertRefused(self.api('POST', TERMS, json=body), 422, 'invalid', field)
+        # A payload company_id outside the pinned request set is the uniform not-found.
+        self.assertRefused(
+            self.api('POST', TERMS, json={'name': 'x', 'lines': HALF_AND_HALF, 'company_id': 1}),
+            404, 'not_found',
+        )
         self.assertRefused(self.api('GET', f'{TERMS}/999999'), 404, 'not_found')
 
     def test_a_shared_term_is_listed_but_not_editable(self):
