@@ -131,6 +131,13 @@
       "fullscreen": "عرض الصفحة بالكامل",
       "fullscreenExit": "العودة للعرض العادي"
     },
+    "services": {
+      "myLeave": "طلبات إجازتي",
+      "requestLeaveDesc": "قدّم طلب إجازة جديدًا",
+      "myLeaveDesc": "تابع حالة طلباتك ورصيدك",
+      "myPayslipsDesc": "اطّلع على قسائم راتبك المعتمدة",
+      "myAssetsDesc": "العهد المسلّمة لك الآن"
+    },
     "nav": {
       "hiring": "الاستقطاب والتوظيف",
       "people": "شؤون الموظفين",

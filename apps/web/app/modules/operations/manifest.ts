@@ -31,6 +31,11 @@ const manifest: AppManifest = {
     { pattern: /^\/operations(?:\/|$)/, capability: 'operations.requests.read' },
   ],
   attention: [pendingReviewAttention],
+  services: [
+    { id: 'operations-new', labelKey: 'operations.newRequest', descriptionKey: 'operations.services.newRequestDesc', icon: 'i-lucide-plus', to: '/operations/new', capability: 'operations.requests.create' },
+    { id: 'operations-mine', labelKey: 'operations.nav.mine', descriptionKey: 'operations.services.mineDesc', icon: 'i-lucide-files', to: '/operations', capability: 'operations.requests.read' },
+    { id: 'operations-pending', labelKey: 'operations.nav.pending', descriptionKey: 'operations.services.pendingDesc', icon: 'i-lucide-list-checks', to: '/operations/pending', capability: 'operations.requests.review' },
+  ],
   isNavActive(path, target) {
     if (target === '/operations') return path === '/operations' || /^\/operations\/\d+(?:\/|$)/.test(path)
     if (target === '/operations/pending' || target === '/operations/monitoring') return path === target

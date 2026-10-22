@@ -131,6 +131,13 @@
       "fullscreen": "Full page",
       "fullscreenExit": "Back to normal view"
     },
+    "services": {
+      "myLeave": "My leave requests",
+      "requestLeaveDesc": "Submit a new leave request",
+      "myLeaveDesc": "Follow your requests and balance",
+      "myPayslipsDesc": "View your approved payslips",
+      "myAssetsDesc": "Equipment currently assigned to you"
+    },
     "nav": {
       "hiring": "Recruitment",
       "people": "People",
