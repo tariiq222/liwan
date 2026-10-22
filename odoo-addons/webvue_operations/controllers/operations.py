@@ -34,7 +34,9 @@ def body(allowed):
 
 def find(model, record_id, capability):
     require(request.env, capability, write=False)
-    record = request.env[model].search([('id', '=', record_id), ('company_id', '=', request.env.company.id)], limit=1)
+    # The pinned company subtree (current company + its own branches); a
+    # foreign-company record is not-found like a missing one.
+    record = request.env[model].search([('id', '=', record_id), ('company_id', 'in', request.env.companies.ids)], limit=1)
     if not record:
         raise ApiError(404, 'not_found', 'Record not found.')
     return record
@@ -64,7 +66,7 @@ class OperationsController(http.Controller):
         require(request.env, 'operations.requests.read', write=False)
         args = request.httprequest.args
         limit, offset = parse_page(args)
-        domain = [('company_id', '=', request.env.company.id)]
+        domain = [('company_id', 'in', request.env.companies.ids)]
         if args.get('published') == '1':
             domain.append(('state', '=', 'published'))
         if args.get('q'):
@@ -120,7 +122,7 @@ class OperationsController(http.Controller):
             raise ApiError(422, 'invalid', 'Invalid request scope.', field='scope')
         require(request.env, 'operations.monitoring.read' if scope == 'monitoring' else 'operations.requests.read', write=False)
         limit, offset = parse_page(args)
-        domain = [('company_id', '=', request.env.company.id)]
+        domain = [('company_id', 'in', request.env.companies.ids)]
         if scope == 'mine':
             domain.append(('requester_id', '=', request.env.uid))
         elif scope == 'pending':
