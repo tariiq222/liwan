@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { appStartFor } from '@/composables/nav/servicesStartModel'
+import { appStartFor } from '@/composables/nav/appStartModel'
 import { useAttention } from '@/composables/useAttention'
 
 // The generic start page of an application, from its manifest alone: attention rows, then the pages and create actions to start from.
@@ -14,15 +14,15 @@ const { rows: attention } = useAttention(() => (start.value.kind === 'ready' ? i
 <template>
   <SharedPageContainer width="list" data-testid="app-start-page">
     <template v-if="start.kind === 'ready'">
-      <SharedPageHeader :title="t(start.labelKey)" :icon="start.icon" back-to="/apps" :back-label="t('services.browseApps')">
+      <SharedPageHeader :title="t(start.labelKey)" :icon="start.icon" back-to="/apps" :back-label="t('nav.apps')">
         <template #actions><UButton :to="start.openTo" color="primary" class="rounded-full" :label="t('appStart.open')" data-testid="app-start-open" /></template>
       </SharedPageHeader>
       <AppsStartContent :attention="attention" :cards="start.cards" :creates="start.creates" />
     </template>
     <template v-else>
-      <SharedPageHeader :title="t('services.browseApps')" back-to="/apps" />
+      <SharedPageHeader :title="t('nav.apps')" back-to="/apps" />
       <SharedForbiddenState v-if="start.kind === 'forbidden'" />
-      <SharedNotFoundState v-else back-to="/apps" :back-label="t('services.browseApps')" />
+      <SharedNotFoundState v-else back-to="/apps" :back-label="t('nav.apps')" />
     </template>
   </SharedPageContainer>
 </template>

@@ -1,3 +1,4 @@
+import { useHrOwnIdentity } from './useHrOwnIdentity'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
@@ -105,9 +106,11 @@ export function useHrShiftAssignments(params: MaybeRefOrGetter<HrShiftAssignment
 /** The caller's own planning rows: the only list an employee without hr.shifts.read may read. */
 export function useMyHrShiftAssignments(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
+  const identity = useHrOwnIdentity()
+  const { can } = useAccess()
   return useQuery({
-    queryKey: hrShiftKeys.mine,
-    enabled: computed(() => toValue(enabled)),
+    queryKey: computed(() => [...hrShiftKeys.mine, identity.scope.value]),
+    enabled: computed(() => identity.ready.value && toValue(enabled) && can('hr.employees.read')),
     queryFn: () => $api('/api/v1/hr/shifts/me', { schema: HrShiftAssignmentListSchema }),
   })
 }

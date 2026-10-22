@@ -105,12 +105,11 @@ describe('activeNavId', () => {
 describe('splitRail', () => {
   it('keeps every item once and puts audit and team in the administration group', () => {
     const items = adminNav(caps('owner'))
-    const { top, pinned, customize, utility } = splitRail(items)
+    const { top, applications, utility } = splitRail(items)
     expect(utility.map(item => item.id)).toEqual(['audit', 'team'])
     expect(top).toEqual([])
-    expect(pinned.map(item => item.id)).toEqual([...BEFORE_INVOICES, 'invoices', 'operations'])
-    expect(customize).toBeNull()
-    expect([...pinned, ...utility]).toHaveLength(items.length)
+    expect(applications.map(item => item.id)).toEqual([...BEFORE_INVOICES, 'invoices', 'operations'])
+    expect([...applications, ...utility]).toHaveLength(items.length)
     expect(splitRail(adminNav(caps('finance'))).utility).toEqual([])
   })
 })

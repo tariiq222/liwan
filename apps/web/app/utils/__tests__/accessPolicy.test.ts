@@ -32,7 +32,7 @@ describe('access policy navigation', () => {
     const taskReader = { capabilities: ['tasks.tasks.read'], platform: { readable_features: ['tasks.enabled'], writable_features: ['tasks.enabled'] } }
     expect(postLoginPath(taskReader, '/work?tab=decide')).toBe('/work?tab=decide')
     expect(postLoginPath({ capabilities: [] }, '/work?tab=decide')).toBe('/')
-    expect(postLoginPath({ capabilities: [] }, '/services')).toBe('/services')
+    expect(postLoginPath({ capabilities: [] }, '/account')).toBe('/account')
   })
   it('opens the shared inbox for task or meeting readers without granting the other domain', () => {
     const meetingReader = { capabilities: ['meetings.read'] }
@@ -145,21 +145,39 @@ describe('access policy navigation', () => {
       capabilities: ['hr.employees.read', 'hr.assets.read'],
       platform: { readable_features: features, writable_features: features },
     })
-    it('denies /hr/assets/mine when hr.assets is off, though hr.employees.read is held', () => {
-      expect(requiredCapabilityForPath('/hr/assets/mine')).toBe('hr.employees.read')
-      expect(requiredFeatureForPath('/hr/assets/mine')).toBe('hr.assets')
-      expect(canReachPath(hrTenant(['hr.enabled']), '/hr/assets/mine')).toBe(false)
+    it('denies /account/assets when hr.assets is off, though hr.employees.read is held', () => {
+      expect(requiredCapabilityForPath('/account/assets')).toBe('hr.employees.read')
+      expect(requiredFeatureForPath('/account/assets')).toBe('hr.assets')
+      expect(canReachPath(hrTenant(['hr.enabled']), '/account/assets')).toBe(false)
     })
-    it('allows /hr/assets/mine when hr.assets is on, and ungated routes stay as before', () => {
-      expect(canReachPath(hrTenant(['hr.enabled', 'hr.assets']), '/hr/assets/mine')).toBe(true)
+    it('allows /account/assets when hr.assets is on, and ungated routes stay as before', () => {
+      expect(canReachPath(hrTenant(['hr.enabled', 'hr.assets']), '/account/assets')).toBe(true)
       expect(requiredFeatureForPath('/hr')).toBeUndefined()
       expect(canReachPath(hrTenant(['hr.enabled']), '/hr')).toBe(true)
     })
     it('canReach adds the explicit feature to the capability gates only when given', () => {
       const off = hrTenant(['hr.enabled'])
-      expect(canReach(off, 'hr.employees.read', '/hr/assets/mine')).toBe(true)
-      expect(canReach(off, 'hr.employees.read', '/hr/assets/mine', 'hr.assets')).toBe(false)
-      expect(canReach(hrTenant(['hr.enabled', 'hr.assets']), 'hr.employees.read', '/hr/assets/mine', 'hr.assets')).toBe(true)
+      expect(canReach(off, 'hr.employees.read', '/account/assets')).toBe(true)
+      expect(canReach(off, 'hr.employees.read', '/account/assets', 'hr.assets')).toBe(false)
+      expect(canReach(hrTenant(['hr.enabled', 'hr.assets']), 'hr.employees.read', '/account/assets', 'hr.assets')).toBe(true)
     })
+  })
+})
+
+
+describe('personal and HR management route boundaries', () => {
+  it('lets staff see their own leave while requiring an administrative role for the HR queue', () => {
+    const employee = { capabilities: ['hr.employees.read', 'hr.leave.read'] }
+    expect(canReachPath(employee, '/account/leave')).toBe(true)
+    expect(canReachPath(employee, '/hr/leave')).toBe(false)
+    for (const role of ['hr.leave.manage', 'hr.leave.approve']) {
+      expect(canReachPath({ capabilities: [...employee.capabilities, role] }, '/hr/leave')).toBe(true)
+    }
+    expect(firstAllowedPath({ capabilities: ['hr.leave.read'] })).toBe('/account')
+  })
+  it('retains administrative read access in a read-only tenant without enabling a new own request', () => {
+    const identity = { capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.manage', 'hr.leave.request'], platform: { readable_features: ['hr.enabled'], writable_features: [] } }
+    expect(canReachPath(identity, '/hr/leave')).toBe(true)
+    expect(canReachPath(identity, '/account/leave/new')).toBe(false)
   })
 })

@@ -24,7 +24,7 @@ const assignments = [
 const meta = {
   title: 'HR/ShiftAssignmentTable',
   component: ShiftAssignmentTable,
-  parameters: storyContext('apps/web/app/pages/hr/shifts.vue:218', 'داخل بطاقة القائمة في `/hr/shifts`؛ المدير يرى إجراء الإزالة.'),
+  parameters: storyContext('apps/web/app/pages/hr/shifts.vue:213', 'داخل بطاقة القائمة في `/hr/shifts`؛ المدير يرى إجراء الإزالة.'),
   args: { assignments, caption: 'الورديات', loading: false, error: null, canManage: true },
   render: args => ({
     components: { ShiftAssignmentTable },
@@ -36,6 +36,8 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Manager: Story = { name: 'مدير الورديات' }
+
+export const SelfService: Story = { name: 'جدول عملي بلا إدارة', args: { assignments: [assignments[0]!], caption: 'جدول عملي', canManage: false } }
 
 export const Reader: Story = { name: 'قارئ بلا إجراءات', args: { canManage: false } }
 

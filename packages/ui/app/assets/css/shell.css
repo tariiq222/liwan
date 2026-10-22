@@ -177,9 +177,14 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .webvue-module-rail-brand { display: grid; height: var(--shell-header-height); flex: none; border-block-start: 1px solid var(--ui-border); place-items: center; color: var(--ui-primary); text-decoration: none; }
 .webvue-module-rail-brand:focus-visible { outline: 2px solid var(--ring); outline-offset: -4px; }
 .webvue-module-rail-top, .webvue-module-rail-links, .webvue-module-rail-utility { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; }
-.webvue-module-rail-links { min-height: 0; flex: 1; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
+.webvue-module-rail-group { flex: none; }
+.webvue-module-rail-scroll { position: relative; min-height: 0; flex: 1; }
+.webvue-module-rail-links { height: 100%; min-height: 0; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
+.webvue-module-rail-content { display: flex; flex: none; flex-direction: column; gap: 2px; }
+.webvue-module-rail-fade { position: absolute; inset-inline: 0; z-index: 1; height: 24px; pointer-events: none; backdrop-filter: blur(3px); }
+.webvue-module-rail-fade-top { inset-block-start: 0; background: linear-gradient(to bottom, var(--ui-bg), transparent); mask-image: linear-gradient(to bottom, black, transparent); }
+.webvue-module-rail-fade-bottom { inset-block-end: 0; background: linear-gradient(to top, var(--ui-bg), transparent); mask-image: linear-gradient(to top, black, transparent); }
 .webvue-module-rail-top, .webvue-module-rail-utility { flex: none; }
-.webvue-module-rail-divider { padding-block: 2px; color: var(--ui-text-muted); font-size: 11px; line-height: 16px; text-align: center; border-block-start: 1px solid var(--ui-border); }
 .webvue-module-rail-link {
   display: flex;
   min-height: 55px;

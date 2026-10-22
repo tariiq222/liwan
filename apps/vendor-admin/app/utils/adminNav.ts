@@ -39,9 +39,7 @@ const UTILITY_IDS: readonly string[] = ['audit', 'team']
 export function splitRail(items: readonly ShellRailItem[]): ShellRailGroups {
   return {
     top: [],
-    pinned: items.filter(item => !UTILITY_IDS.includes(item.id)),
-    pinnedLabelKey: 'nav.railApps',
-    customize: null,
+    applications: items.filter(item => !UTILITY_IDS.includes(item.id)),
     utility: items.filter(item => UTILITY_IDS.includes(item.id)),
   }
 }

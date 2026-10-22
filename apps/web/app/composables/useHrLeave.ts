@@ -1,3 +1,4 @@
+import { useHrOwnIdentity } from './useHrOwnIdentity'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
@@ -30,6 +31,7 @@ export const hrLeaveKeys = {
   types: ['hr', 'leave', 'types'] as const,
   balances: (employeeId: number | null) => ['hr', 'leave', 'balances', employeeId] as const,
   requests: (params: HrLeaveListParams) => ['hr', 'leave', 'requests', params] as const,
+  ownRequest: (id: number) => ['hr', 'leave', 'me', id] as const,
   request: (id: number) => ['hr', 'leave', 'request', id] as const,
 }
 
@@ -61,9 +63,10 @@ export function useHrLeaveTypes() {
 
 export function useHrLeaveBalances(employeeId: MaybeRefOrGetter<number | null> = null, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
+  const identity = useHrOwnIdentity()
   return useQuery({
-    queryKey: computed(() => hrLeaveKeys.balances(toValue(employeeId))),
-    enabled: computed(() => toValue(enabled)),
+    queryKey: computed(() => toValue(employeeId) === null ? [...hrLeaveKeys.balances(null), identity.scope.value] : hrLeaveKeys.balances(toValue(employeeId))),
+    enabled: computed(() => toValue(enabled) && (toValue(employeeId) !== null || identity.ready.value)),
     queryFn: () => $api('/api/v1/hr/leave/balances', {
       query: { employee_id: toValue(employeeId) ?? undefined },
       schema: HrLeaveBalanceListSchema,
@@ -73,9 +76,10 @@ export function useHrLeaveBalances(employeeId: MaybeRefOrGetter<number | null> =
 
 export function useHrLeaveRequests(params: MaybeRefOrGetter<HrLeaveListParams>, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
+  const identity = useHrOwnIdentity()
   return useQuery({
-    queryKey: computed(() => hrLeaveKeys.requests(toValue(params))),
-    enabled: computed(() => toValue(enabled)),
+    queryKey: computed(() => toValue(params).scope === 'mine' ? [...hrLeaveKeys.requests(toValue(params)), identity.scope.value] : hrLeaveKeys.requests(toValue(params))),
+    enabled: computed(() => toValue(enabled) && (toValue(params).scope !== 'mine' || identity.ready.value)),
     queryFn: () => $api('/api/v1/hr/leave/requests', {
       query: hrLeaveRequestQuery(toValue(params)),
       schema: HrLeaveListSchema,
@@ -89,6 +93,17 @@ export function useHrLeaveRequest(id: MaybeRefOrGetter<number | null>) {
     queryKey: computed(() => hrLeaveKeys.request(toValue(id) ?? 0)),
     enabled: computed(() => !!toValue(id)),
     queryFn: () => $api(`/api/v1/hr/leave/requests/${toValue(id)}`, { schema: HrLeaveSchema }),
+  })
+}
+
+/** Own record reads never fall back to the administrative endpoint, even for approvers. */
+export function useMyHrLeaveRequest(id: MaybeRefOrGetter<number | null>) {
+  const { $api } = useApi()
+  const identity = useHrOwnIdentity()
+  return useQuery({
+    queryKey: computed(() => [...hrLeaveKeys.ownRequest(toValue(id) ?? 0), identity.scope.value]),
+    enabled: computed(() => identity.ready.value && !!toValue(id)),
+    queryFn: () => $api(`/api/v1/hr/leave/me/${toValue(id)}`, { schema: HrLeaveSchema }),
   })
 }
 

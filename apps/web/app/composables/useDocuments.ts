@@ -1,6 +1,6 @@
 import { computed, ref, watch, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { DocumentListSchema, DocumentDetailSchema, DocumentFileListSchema, DocumentAccessSchema, DocumentTagListSchema, DocumentTagSchema, DocumentContextListSchema, DocumentContextOptionListSchema, type DocumentCreate, type DocumentPatch, type DocumentAccessUpdate, type DocumentUpload, type DocumentDetail, type DocumentAccess } from '@webvue/contracts'
+import { HrEmployeeSchema, DocumentListSchema, DocumentDetailSchema, DocumentFileListSchema, DocumentAccessSchema, DocumentTagListSchema, DocumentTagSchema, DocumentContextListSchema, DocumentContextOptionListSchema, type DocumentCreate, type DocumentPatch, type DocumentAccessUpdate, type DocumentUpload, type DocumentDetail, type DocumentAccess } from '@webvue/contracts'
 import { ApiError } from './useApi'
 import { documentKeys, type DocumentListQueryParams, type DocumentLookupParams } from '../lib/documentKeys'
 import { replaceDocumentDetail, invalidateDocumentLists, preferNewerDocumentRevision } from '../lib/documentListCache'
@@ -40,21 +40,72 @@ export function useDocument(id: MaybeRefOrGetter<number | null>) {
   })
 }
 
-export function useDocumentFiles(id: MaybeRefOrGetter<number | null>, params: MaybeRefOrGetter<DocumentListQueryParams>, revision: MaybeRefOrGetter<number>, onConflict?: () => void | Promise<unknown>) {
-  const { $api } = useApi(); const companyId = useDocumentCompany()
+/** Own employment documents never share the library's detail/list cache. */
+export const employeeDocumentKeys = {
+  list: (company: number, user: number, params: EmployeeDocumentListParams) => ['documents', company, 'employee', user, 'list', params] as const,
+  detail: (company: number, user: number, id: number) => ['documents', company, 'employee', user, 'detail', id] as const,
+}
+export type EmployeeDocumentListParams = Pick<DocumentListQueryParams, 'q' | 'limit' | 'offset'>
+function useEmployeeDocumentIdentity() {
+  const { me } = useMe()
+  return computed(() => ({ company: me.value?.company.id ?? 0, user: me.value?.id ?? 0 }))
+}
+function assertEmployeeDocumentIdentity(current: { company: number; user: number }, company: number, user: number) {
+  if (!company || !user || current.company !== company || current.user !== user) throw new ApiError(409, 'identity_changed', 'Identity changed before the request started')
+}
+/** Nullable own employee lookup; this documents-owned query imports no HR UI. */
+export function useEmployeeDocumentLink(enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi(); const identity = useEmployeeDocumentIdentity()
+  return useQuery({
+    queryKey: computed(() => ['documents', identity.value.company, 'employee', identity.value.user, 'link'] as const),
+    enabled: computed(() => !!identity.value.company && !!identity.value.user && toValue(enabled)),
+    queryFn: ({ queryKey, signal }) => {
+      assertEmployeeDocumentIdentity(identity.value, queryKey[1], queryKey[3])
+      return $api('/api/v1/hr/me', { signal, schema: HrEmployeeSchema.nullable() })
+    },
+  })
+}
+export function useEmployeeDocuments(params: MaybeRefOrGetter<EmployeeDocumentListParams>, enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi(); const identity = useEmployeeDocumentIdentity()
+  return useQuery({
+    queryKey: computed(() => employeeDocumentKeys.list(identity.value.company, identity.value.user, toValue(params))),
+    enabled: computed(() => !!identity.value.company && !!identity.value.user && toValue(enabled)),
+    queryFn: ({ queryKey, signal }) => {
+      assertEmployeeDocumentIdentity(identity.value, queryKey[1], queryKey[3])
+      return $api('/api/v1/documents/employee/me', { query: queryKey[5], signal, schema: DocumentListSchema })
+    },
+  })
+}
+export function useEmployeeDocument(id: MaybeRefOrGetter<number | null>, enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi(); const identity = useEmployeeDocumentIdentity()
+  return useQuery({
+    queryKey: computed(() => employeeDocumentKeys.detail(identity.value.company, identity.value.user, toValue(id) ?? 0)),
+    enabled: computed(() => !!identity.value.company && !!identity.value.user && !!toValue(id) && toValue(enabled)),
+    queryFn: ({ queryKey, signal }) => {
+      assertEmployeeDocumentIdentity(identity.value, queryKey[1], queryKey[3])
+      return $api(`/api/v1/documents/employee/me/${queryKey[5]}`, { signal, schema: DocumentDetailSchema })
+    },
+    structuralSharing: (previous, incoming) => preferNewerDocumentRevision(previous as DocumentDetail | undefined, incoming as DocumentDetail),
+  })
+}
+
+export function useDocumentFiles(id: MaybeRefOrGetter<number | null>, params: MaybeRefOrGetter<DocumentListQueryParams>, revision: MaybeRefOrGetter<number>, onConflict?: () => void | Promise<unknown>, options: { personal?: boolean } = {}) {
+  const { $api } = useApi(); const identity = useEmployeeDocumentIdentity()
+  const companyId = computed(() => identity.value.company || null)
   const recovering = ref(false); let recoveredKey: string | null = null
   const query = useQuery({
-    queryKey: computed(() => documentKeys.filePage(companyId.value ?? 0, toValue(id) ?? 0, toValue(revision), toValue(params))),
-    enabled: computed(() => !!companyId.value && !!toValue(id) && toValue(revision) > 0 && !recovering.value),
+    queryKey: computed(() => [...documentKeys.filePage(companyId.value ?? 0, toValue(id) ?? 0, toValue(revision), toValue(params)), ...(options.personal ? ['employee', identity.value.user] as const : [])] as const),
+    enabled: computed(() => !!companyId.value && !!toValue(id) && toValue(revision) > 0 && !recovering.value && (!options.personal || !!identity.value.user)),
     retry: (count, cause) => !(cause instanceof ApiError && cause.status === 409) && count < 1,
     queryFn: ({ queryKey, signal }) => {
       assertDocumentCompany(companyId.value, queryKey[1])
+      if (options.personal) assertEmployeeDocumentIdentity(identity.value, queryKey[1], Number(queryKey[7]))
       return $api(`/api/v1/documents/${queryKey[3]}/files`, { query: { ...queryKey[5], revision: queryKey[4] }, signal, schema: DocumentFileListSchema })
     },
   })
   watch(query.error, async cause => {
     if (!(cause instanceof ApiError) || cause.status !== 409 || !onConflict || recovering.value) return
-    const key = `${companyId.value}:${toValue(id)}:${toValue(revision)}`
+    const key = `${companyId.value}:${toValue(id)}:${toValue(revision)}:${options.personal ? identity.value.user : ''}`
     if (key === recoveredKey) return
     recoveredKey = key; recovering.value = true
     try { await onConflict() }

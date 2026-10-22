@@ -23,15 +23,14 @@ function identity(capabilities: string[]) {
   return { id: 1, capabilities, platform: { state: 'active', read_only: false, readable_features: features, writable_features: features } }
 }
 
-async function render(capabilities: string[], pinned: string[], query = '') {
+async function render(capabilities: string[], query = '') {
   const messages = {
-    ...names, 'launcher.title': 'التطبيقات', 'launcher.description': 'افتح تطبيقك أو ثبّته في الشريط', 'launcher.search': 'ابحث في التطبيقات',
-    'launcher.noResults': 'لا يوجد تطبيق بهذا الاسم.', 'launcher.empty': 'لا توجد تطبيقات', 'launcher.pin': 'تثبيت في الشريط',
-    'launcher.pinned': 'مثبّت', 'launcher.open': 'فتح التطبيق', 'launcher.overview': 'نظرة عامة', 'launcher.order': 'ترتيب',
+    ...names, 'launcher.title': 'التطبيقات', 'launcher.description': 'تطبيقاتك وأهم إجراءاتك في مكان واحد', 'launcher.search': 'ابحث في التطبيقات',
+    'launcher.noResults': 'لا يوجد تطبيق بهذا الاسم.', 'launcher.empty': 'لا توجد تطبيقات',
+    'launcher.open': 'فتح التطبيق', 'launcher.actions': 'إجراءات سريعة',
     'launcher.apps.tasks.description': 'مهامك الشخصية',
   }
   const me = Vue.ref(identity(capabilities))
-  const calls: string[] = []
   const Stub = (tag: string, text?: (props: Record<string, string>) => string) => Vue.defineComponent({ inheritAttrs: false, props: { title: String }, setup(props, { attrs, slots }) { return () => Vue.h(tag, attrs, [text ? text(props as Record<string, string>) : '', slots.default?.()]) } })
   const html = await withManifests(manifests, () => renderShared(page, {}, {}, {
     messages,
@@ -51,7 +50,6 @@ async function render(capabilities: string[], pinned: string[], query = '') {
       '@/components/launcher/LauncherCard.vue': { __esModule: true, default: loadShared(cardFile, { messages, stubs: {} }) },
       '@/composables/nav/launcherModel': launcherModel,
       '@/composables/nav/shellModules': shellModules,
-      '@/composables/useAppPins': { useAppPins: () => ({ pinned: Vue.ref(pinned), toggle: (id: string) => calls.push(`toggle:${id}`), move: (id: string, delta: number) => calls.push(`move:${id}:${delta}`) }) },
     },
   }))
   return html
@@ -60,41 +58,20 @@ async function render(capabilities: string[], pinned: string[], query = '') {
 const cards = (html: string) => [...html.matchAll(/data-app="([^"]+)"/g)].map(match => match[1])
 
 describe('launcher page', () => {
-  it('shows the title, the description, a search field and one card per reachable application', async () => {
-    const html = await render(['tasks.read', 'finance.read', 'chat.read', 'ai.use'], ['finance'])
-    expect(html).toMatch(/<h1>التطبيقات/)
-    expect(html).toContain('افتح تطبيقك أو ثبّته في الشريط')
+  it('shows all reachable applications in manifest order with search and descriptions', async () => {
+    const html = await render(['tasks.read', 'finance.read', 'chat.read', 'ai.use'])
+    expect(html).toContain('تطبيقاتك وأهم إجراءاتك في مكان واحد')
+    expect(cards(html)).toEqual(['tasks', 'finance', 'chat', 'ai'])
     expect(html).toContain('data-testid="launcher-search"')
-    expect(cards(html)).toEqual(['finance', 'tasks', 'chat', 'ai'])
-    expect(html).toContain('>مهامك الشخصية</p>')
+    expect(html).not.toContain('launcher-pin')
+    expect(html).not.toContain('launcher-move')
   })
-
-  it('has a polite live region for the new place of a moved card, empty until a move', async () => {
-    const html = await render(['tasks.read', 'finance.read'], ['finance', 'tasks'])
-    expect(html).toMatch(/role="status"[^>]*aria-live="polite"[^>]*data-testid="launcher-announcement"><\/p>|aria-live="polite"[^>]*role="status"[^>]*data-testid="launcher-announcement"><\/p>/)
+  it('keeps applications permission-scoped', async () => {
+    expect(cards(await render(['chat.read']))).toEqual(['chat'])
+    expect(await render([])).toContain('لا توجد تطبيقات')
   })
-
-  it('shows only the applications the user may reach', async () => {
-    const html = await render(['chat.read'], ['chat'])
-    expect(cards(html)).toEqual(['chat'])
-  })
-
-  it('marks the pinned ones with the pill and the pressed toggle', async () => {
-    const html = await render(['tasks.read', 'finance.read'], ['finance'])
-    expect(html.match(/launcher-pinned-pill/g)).toHaveLength(1)
-    expect(html.match(/aria-pressed="true"/g)).toHaveLength(1)
-    expect(html.match(/aria-pressed="false"/g)).toHaveLength(1)
-  })
-
-  it('filters by name and shows the empty-search state', async () => {
-    const found = await render(['tasks.read', 'finance.read'], [], 'مال')
-    expect(cards(found)).toEqual(['finance'])
-    const none = await render(['tasks.read', 'finance.read'], [], 'zzz')
-    expect(cards(none)).toEqual([])
-    expect(none).toContain('لا يوجد تطبيق بهذا الاسم.')
-  })
-
-  it('shows the empty state when no application is reachable', async () => {
-    expect(await render([], [])).toContain('لا توجد تطبيقات')
+  it('filters by translated name and keeps the empty-search state', async () => {
+    expect(cards(await render(['tasks.read', 'finance.read'], 'مال'))).toEqual(['finance'])
+    expect(await render(['tasks.read'], 'zzz')).toContain('لا يوجد تطبيق بهذا الاسم.')
   })
 })

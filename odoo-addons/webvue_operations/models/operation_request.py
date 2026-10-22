@@ -30,6 +30,10 @@ class OperationRequest(models.Model):
     process_id = fields.Many2one('webvue.operation.process', required=True, ondelete='restrict', check_company=True)
     process_name = fields.Char(readonly=True)
     process_revision = fields.Integer(readonly=True, default=0)
+    purpose = fields.Selection(
+        [('work', 'Work'), ('employee', 'Employee affairs')],
+        default='work', required=True, readonly=True, index=True,
+    )
     state = fields.Selection([(v, v.title()) for v in ('draft', 'pending', 'returned', 'rejected', 'withdrawn', 'done')], default='draft', required=True)
     revision = fields.Integer(default=0, readonly=True)
     cycle = fields.Integer(default=0, readonly=True)
@@ -69,7 +73,9 @@ class OperationRequest(models.Model):
             if vals.get('company_id', self.env.company.id) != self.env.company.id:
                 raise AccessError(self.env._('Use the current company.'))
             vals.update(name=text(self.env, vals.get('name'), 'name', 200, True), description=text(self.env, vals.get('description', ''), 'description', 20000), company_id=self.env.company.id, state='draft', requester_id=self.env.uid, revision=0, cycle=0, process_revision=0, participant_ids=[], stage_snapshot=[], execution_count=0, execution_kind='approval', process_name=process.name, event_ids=[])
-            vals.update(target)
+            # Classification belongs to this request, including returned/resubmitted
+            # cycles; later process edits must never move its historical purpose.
+            vals.update(target, purpose=process.purpose)
             prepared.append(vals)
         clean = {k: v for k, v in self.env.context.items() if not k.startswith('default_') and k not in {'_operations_write', 'skip_validation_check', '_tier_review_workflow'}}
         return super(OperationRequest, self.with_context(clean)).create(prepared).with_env(self.env)

@@ -30,7 +30,7 @@ export function hasCapability(identity: AccessIdentity, capability: string): boo
 }
 
 type Destination = readonly [path: string, capability: string]
-const FOUNDATION_RETURN_TO = ['/', '/account', '/search', '/notifications', '/apps', '/services']
+const FOUNDATION_RETURN_TO = ['/', '/account', '/search', '/notifications', '/apps']
 /** The destinations of a settings page's parts: a part with its own or full list page opens it, a card opens the page. */
 function pageDestinations(pages: readonly SettingsPage[]): Destination[] {
   return pages.flatMap(page => page.parts.map((part): Destination => [part.to ?? part.within ?? page.to, part.capability]))
@@ -61,7 +61,7 @@ export function canReach(identity: AccessIdentity, capability: string, path?: st
   return hasFeature(identity, path ? featureForPath(path) : null, write) && hasFeature(identity, feature ?? null, write)
 }
 export function firstAllowedPath(identity: AccessIdentity): string {
-  return destinations().find(([path, capability]) => canReach(identity, capability, path))?.[0] ?? '/account'
+  return destinations().find(([path, capability]) => canReach(identity, capability, path) && canReachPath(identity, path))?.[0] ?? '/account'
 }
 export function postLoginPath(identity: AccessIdentity, next: unknown): string {
   const fallback = Array.isArray(identity?.capabilities) ? '/' : firstAllowedPath(identity)
@@ -110,6 +110,9 @@ function settingsCardsOpeningPage(path: string): string[] | null {
  * claims by prefix but no rule covers still needs that application's feature (never fail-open).
  */
 export function canReachPath(identity: AccessIdentity, path: string): boolean {
+  const rule = ownedRouteRule(path)
+  if (rule?.anyCapabilities && !rule.anyCapabilities.some(key => hasCapability(identity, key))) return false
+  if (rule?.requiredCapabilities && !rule.requiredCapabilities.every(key => canReach(identity, key))) return false
   const cards = settingsCardsOpeningPage(path)
   if (cards) return cards.some(capability => canReach(identity, capability, normalizedPath(path)))
   const capability = requiredCapabilityForPath(path)

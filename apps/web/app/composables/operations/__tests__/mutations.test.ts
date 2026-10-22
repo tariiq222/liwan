@@ -3,7 +3,7 @@ import { MutationObserver, QueryClient } from '@tanstack/vue-query'
 import { operationRequestMutationOptions } from '../mutations'
 
 const record = {
-  id: 8, name: 'طلب', process: { id: 3, name: 'اعتماد' }, process_revision: 2,
+  id: 8, purpose: 'employee', name: 'طلب', process: { id: 3, name: 'اعتماد' }, process_revision: 2,
   state: 'pending', revision: 4, cycle: 1, requester: { id: 2, user_id: 2, name: 'طلب' },
   created_at: '2026-10-14', execution_count: 0, description: '', target: null, steps: [], events: [], attachments: [],
   allowed_actions: { edit: false, submit: false, approve: true, reject: true, return: true, withdraw: false },
@@ -14,6 +14,8 @@ describe('operation mutations use confirmed server state', () => {
     const client = new QueryClient()
     client.setQueryData(['operations', 'requests', 'detail', 8], { ...record, revision: 3 })
     client.setQueryData(['operations', 'requests', 'list', {}], { items: [], total: 0 })
+    client.setQueryData(['operations', 'requests', 'personal', 1, 2, 8], { ...record, revision: 3 })
+    client.setQueryData(['operations', 'requests', 'summary', 'self-service', 1, 2], { total: 1 })
     let resolve!: (value: unknown) => void
     const calls: unknown[] = []
     const api = async (path: string, options: unknown) => { calls.push([path, options]); return await new Promise(res => { resolve = res }) }
@@ -28,6 +30,8 @@ describe('operation mutations use confirmed server state', () => {
     expect(calls[0]).toMatchObject(['/api/v1/operations/requests/8/approve', { method: 'POST', body: { revision: 3 } }])
     expect(client.getQueryData(['operations', 'requests', 'detail', 8])).toEqual(record)
     expect(client.getQueryState(['operations', 'requests', 'list', {}])?.isInvalidated).toBe(true)
+    expect(client.getQueryState(['operations', 'requests', 'personal', 1, 2, 8])?.isInvalidated).toBe(true)
+    expect(client.getQueryState(['operations', 'requests', 'summary', 'self-service', 1, 2])?.isInvalidated).toBe(true)
   })
   it('never automatically retries decisions after conflict or execution failure', async () => {
     for (const error of [{ status: 409, code: 'revision_conflict' }, { status: 422, code: 'execution_failed' }]) {

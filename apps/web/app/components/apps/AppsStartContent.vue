@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StartCard } from '@/composables/nav/servicesStartModel'
+import type { StartCard } from '@/composables/nav/appStartModel'
 import type { AttentionRowWithModule } from '@/composables/nav/attentionModel'
 
 // The body of an application's start page: what needs attention (hidden when nothing does), then the pages and

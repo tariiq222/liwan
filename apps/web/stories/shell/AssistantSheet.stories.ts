@@ -36,14 +36,14 @@ const frame = (open: boolean) => () => ({
 
 export const Open: Story = {
   name: 'مفتوح بجانب الصفحة',
-  parameters: storyContext('apps/web/app/layouts/default.vue:74', 'من 1100px تحجز الصفحة مكان اللوحة، وتنطوي القائمة السياقية إلى شريط 64px. أقل من ذلك تطفو اللوحة فوق الصفحة، وتحت 768px تملأ الشاشة.'),
+  parameters: storyContext('apps/web/app/layouts/default.vue:75', 'من 1100px تحجز الصفحة مكان اللوحة، وتنطوي القائمة السياقية إلى شريط 64px. أقل من ذلك تطفو اللوحة فوق الصفحة، وتحت 768px تملأ الشاشة.'),
   loaders: [at('/tasks')],
   render: frame(true),
 }
 
 export const Closed: Story = {
   name: 'مغلق',
-  parameters: storyContext('apps/web/app/layouts/default.vue:74'),
+  parameters: storyContext('apps/web/app/layouts/default.vue:75'),
   loaders: [at('/tasks')],
   render: frame(false),
 }

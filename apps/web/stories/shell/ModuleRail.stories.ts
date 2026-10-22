@@ -27,6 +27,6 @@ export const AssistantUtility: Story = { ...Default, name: 'أداة فوق ال
 
 export const LauncherActive: Story = { ...Default, name: 'المشغّل نشط', args: { activeId: 'apps' } }
 
-export const FewPinned: Story = { ...Default, name: 'تطبيق واحد مثبّت', args: { rail: { ...shellRail, pinned: shellRail.pinned.slice(0, 1) }, activeId: 'apps' } }
-
-export const NonePinned: Story = { ...Default, name: 'لا تطبيق مثبّت', args: { rail: { ...shellRail, pinned: [] }, activeId: 'apps' } }
+export const FewApplications: Story = { ...Default, name: 'تطبيق واحد', args: { rail: { ...shellRail, applications: shellRail.applications.slice(0, 1) }, activeId: 'apps' } }
+export const NoApplications: Story = { ...Default, name: 'بلا تطبيقات متاحة', args: { rail: { ...shellRail, applications: [] }, activeId: 'apps' } }
+export const Overflow: Story = { ...Default, name: 'تطبيقات كثيرة مع تمويه التمرير', args: { rail: { ...shellRail, applications: Array.from({ length: 16 }, (_, index) => ({ ...shellRail.applications[index % shellRail.applications.length]!, id: `app-${index}` })) }, activeId: 'apps' } }

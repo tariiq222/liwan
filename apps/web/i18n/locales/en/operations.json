@@ -7,11 +7,6 @@
       "monitoring": "Request monitoring",
       "processes": "Work procedures"
     },
-    "services": {
-      "newRequestDesc": "Start a request under an approved process",
-      "mineDesc": "Follow your requests and their status",
-      "pendingDesc": "Requests waiting for your review"
-    },
     "newRequest": "New request",
     "newProcess": "New procedure",
     "editRequest": "Edit request",
@@ -153,6 +148,19 @@
     },
     "attention": {
       "from": "From {name}"
+    },
+    "purpose": "Process purpose",
+    "purposeHint": "Controls where new requests appear. Existing requests keep their original purpose.",
+    "purposes": {
+      "work": "Work requests",
+      "employee": "Employee affairs"
+    },
+    "personal": {
+      "title": "My requests",
+      "description": "Your employment service requests and their progress.",
+      "new": "Request an employee service",
+      "leaveRequests": "Track leave requests",
+      "returned": "This request was returned for you to complete."
     }
   }
 }

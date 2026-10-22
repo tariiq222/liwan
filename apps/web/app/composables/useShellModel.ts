@@ -8,7 +8,6 @@ import { railActiveId, railModel } from './nav/sidebarModel'
 import { sidebarPanelFor } from '../modules/surfaces'
 import type { AppSidebarPanel } from '../modules/types'
 import { postLoginPath } from '../utils/accessPolicy'
-import { useAppPins } from './useAppPins'
 
 // One async wrapper per declared panel, so a route change inside the module never remounts it.
 const panelViews = new WeakMap<AppSidebarPanel, Component>()
@@ -29,16 +28,15 @@ export function useShellModel() {
   const { activeModule, module, contextLinks } = useShellNavigation(me)
   const contextModule = computed(() => contextModuleFor(activeModule.value))
   const definition = computed(() => shellModuleList().find(item => item.id === contextModule.value) ?? module.value)
-  const { pinned } = useAppPins()
-  const rail = computed(() => railModel(visibleShellModules(me.value), pinned.value))
-  // The rail entry that stands for the active module: an unpinned application has none, so the launcher is lit.
+  const rail = computed(() => railModel(visibleShellModules(me.value)))
   const railActive = computed(() => railActiveId(rail.value, activeModule.value))
   const homePath = computed(() => postLoginPath(me.value, undefined))
-  const contextTitle = computed(() => t(areaLabelKey(definition.value, activeModule.value)))
-  const contextLabelKey = computed(() => definition.value?.labelKey ?? null)
+  const personal = computed(() => route.path === '/account' || route.path.startsWith('/account/'))
+  const contextTitle = computed(() => t(personal.value ? 'nav.account' : areaLabelKey(definition.value, activeModule.value)))
+  const contextLabelKey = computed(() => personal.value ? 'nav.account' : definition.value?.labelKey ?? null)
   const panel = computed(() => sidebarPanelFor(contextModule.value) ?? null)
   const panelComponent = computed(() => panel.value ? panelView(panel.value) : null)
-  const motionKey = computed(() => `module:${contextModule.value ?? 'none'}`)
+  const motionKey = computed(() => `module:${personal.value ? 'account' : contextModule.value ?? 'none'}`)
 
   function createTo(link: Pick<ShellContextLink, 'id' | 'to'>): RouteLocationRaw {
     return createLinkTo(link, { path: route.path, fullPath: route.fullPath, query: route.query, params: route.params })

@@ -1,6 +1,6 @@
 import { BrandingSchema, MeSchema } from '@webvue/contracts'
 import { contextLinksForModule, visibleShellModules, type ShellContextLink } from '../../app/composables/nav/shellModules'
-import { contextLinkTestId, pinnableModules, railModel, sidebarModel, subListSections } from '../../app/composables/nav/sidebarModel'
+import { contextLinkTestId, railModel, sidebarModel, subListSections } from '../../app/composables/nav/sidebarModel'
 
 // A workspace user who sees every application and the administration module.
 export const shellMe = MeSchema.parse({
@@ -27,8 +27,8 @@ export const shellBranding = BrandingSchema.parse({
 })
 
 const shellModules = visibleShellModules(shellMe)
-/** The rail of a user who has pinned every application (the default). */
-export const shellRail = railModel(shellModules, pinnableModules(shellModules).map(module => module.id))
+/** Every application this workspace user can reach. */
+export const shellRail = railModel(shellModules)
 
 /** The same workspace user without any create or manage capability (palette Actions must be empty). */
 export const readOnlyShellMe = { ...shellMe, capabilities: shellMe.capabilities.filter(key => !/\.(create|manage)$/.test(key)) }

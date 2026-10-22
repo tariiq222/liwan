@@ -13,45 +13,28 @@ export interface ShellSidebarModel { createLinks: ShellContextLink[]; sections: 
 const SETTINGS_MODULE_ID = 'settings'
 
 const HOME_MODULE_ID = 'home'
-const CUSTOMIZE_ITEM: ShellRailItem = { id: 'customize', labelKey: 'nav.customize', icon: 'i-lucide-plus', to: LAUNCHER_MODULE.to }
-
 const toRailItem = (module: ShellModuleDefinition): ShellRailItem =>
   ({ id: module.id, labelKey: module.labelKey, shortLabelKey: module.shortLabelKey, icon: module.icon, to: module.to, ...(module.utility ? { utility: true } : {}) })
 
-/** The ids a user can pin: the reachable applications, not the foundation entries and not the utility slot. */
-export function pinnableModules(modules: readonly ShellModuleDefinition[]): ShellModuleDefinition[] {
-  return modules.filter(module => !module.utility && module.id !== HOME_MODULE_ID && module.id !== SETTINGS_MODULE_ID)
-}
-
 export interface ShellRailModel extends ShellRailGroups {
-  /** Every reachable entry, so a trail or a context sidebar resolves for an unpinned application too: launcher, today, pinned (in pin order), the unpinned, then the utility slot. */
   all: ShellRailItem[]
-  /** What the mobile drawer lists: the rail as drawn, customize included. */
   drawer: ShellRailItem[]
 }
 
-/**
- * The rail: the launcher and today on top, the pinned applications (in pin order), the customize entry, then the utility slot (flagged entries in order, settings last).
- */
-export function railModel(modules: readonly ShellModuleDefinition[], pinnedIds: readonly string[]): ShellRailModel {
-  const applications = pinnableModules(modules).map(toRailItem)
+/** Every reachable application stays in manifest order; the same destinations appear in the mobile drawer. */
+export function railModel(modules: readonly ShellModuleDefinition[]): ShellRailModel {
   const home = modules.find(module => module.id === HOME_MODULE_ID)
   const top = [toRailItem(LAUNCHER_MODULE), ...(home ? [toRailItem(home)] : [])]
-  const pinned = pinnedIds.flatMap(id => applications.find(item => item.id === id) ?? [])
-  const utility = modules.filter(module => module.utility).map(toRailItem)
-  const orderedUtility = [...utility.filter(item => item.id !== SETTINGS_MODULE_ID), ...utility.filter(item => item.id === SETTINGS_MODULE_ID)]
-  const unpinned = applications.filter(item => !pinned.includes(item))
-  return {
-    top, pinned, customize: CUSTOMIZE_ITEM, utility: orderedUtility,
-    all: [...top, ...pinned, ...unpinned, ...orderedUtility],
-    drawer: [...top, ...pinned, CUSTOMIZE_ITEM, ...orderedUtility],
-  }
+  const applications = modules.filter(module => !module.utility && module.id !== HOME_MODULE_ID && module.id !== SETTINGS_MODULE_ID).map(toRailItem)
+  const utilities = modules.filter(module => module.utility).map(toRailItem)
+  const utility = [...utilities.filter(item => item.id !== SETTINGS_MODULE_ID), ...utilities.filter(item => item.id === SETTINGS_MODULE_ID)]
+  const all = [...top, ...applications, ...utility]
+  return { top, applications, utility, all, drawer: all }
 }
 
-/** The rail entry to light for the active module: an application the user has not pinned has none, so the launcher stands in. */
-export function railActiveId(rail: Pick<ShellRailModel, 'top' | 'pinned' | 'utility'>, activeId: string | null): string | null {
+export function railActiveId(rail: Pick<ShellRailModel, 'top' | 'applications' | 'utility'>, activeId: string | null): string | null {
   if (activeId === null) return null
-  return [...rail.top, ...rail.pinned, ...rail.utility].some(item => item.id === activeId) ? activeId : LAUNCHER_MODULE.id
+  return [...rail.top, ...rail.applications, ...rail.utility].some(item => item.id === activeId) ? activeId : LAUNCHER_MODULE.id
 }
 
 /** Consecutive links that share a heading key (`section` by default) form one section, in manifest order. */

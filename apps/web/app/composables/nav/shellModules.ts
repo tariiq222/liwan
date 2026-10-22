@@ -1,7 +1,7 @@
 import type { RouteLocationRaw } from 'vue-router'
 // Relative imports: the `@/` alias does not resolve for value imports under a
 // plain `vitest run`, and this module is unit-tested directly.
-import { canReach, SETTINGS_OVERVIEW_PATH, type AccessIdentity } from '../../utils/accessPolicy'
+import { canReach, canReachPath, SETTINGS_OVERVIEW_PATH, type AccessIdentity } from '../../utils/accessPolicy'
 import { hasFeature } from '../../modules/registry'
 import { activeManifests } from '../../modules/manifests'
 import { normalizedPath } from '../../utils/routePath'
@@ -80,7 +80,7 @@ const COMMERCIAL_CAPABILITIES: readonly string[] = CUSTOMER_COMMERCIAL_CAPABILIT
 function navAllowed(identity: AccessIdentity, capability: string, to?: string, feature?: string): boolean {
   return COMMERCIAL_CAPABILITIES.includes(capability)
     ? customerCommercialOn() && (deriveCustomerCapabilities(identity?.capabilities) as string[]).includes(capability)
-    : canReach(identity, capability, to, feature)
+    : canReach(identity, capability, to, feature) && (!to || canReachPath(identity, to.split(/[?#]/, 1)[0]!))
 }
 export function useNav(identity: AccessIdentity): NavItem[] {
   // Shared-inbox access has no capability key: an authenticated identity may use the application when its feature is open.

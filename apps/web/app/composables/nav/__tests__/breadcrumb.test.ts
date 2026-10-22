@@ -14,6 +14,7 @@ describe('shell breadcrumb', () => {
     ['/settings/team', 'settings.sections.team.title', [{ label: 'nav.settings', to: '/settings' }]],
     ['/meetings/calendar', null, [{ label: 'nav.meetings' }]],
     ['/notifications', 'الإشعارات', []],
+    ['/account/leave/7', 'إجازة', [{ label: 'nav.account', to: '/account' }]],
     ['/tasks', 'nav.tasks', [{ label: 'nav.projects', to: '/projects' }]],
     ['/settings/apps/projects', 'nav.projects', [{ label: 'nav.settings', to: '/settings' }]],
     ['/projects', 'nav.projects', []],

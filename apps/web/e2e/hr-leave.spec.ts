@@ -55,10 +55,10 @@ async function annualRemaining(page: Page, typeId?: number) {
   return (typeId ? items.find(item => item.leave_type.id === typeId) : items[0])?.remaining
 }
 
-test('an employee requests leave, a manager approves it and the employee cancels it', async ({ page }) => {
+test('an employee requests leave and a manager approves and administratively cancels it', async ({ page }) => {
   await login(page, STAFF)
-  await page.goto('/hr/leave')
-  await expect(page.getByRole('heading', { level: 1, name: 'الإجازات' })).toBeVisible()
+  await page.goto('/account/leave')
+  await expect(page.getByRole('heading', { level: 1, name: 'إجازاتي' })).toBeVisible()
   await expect(page.getByTestId('hr-leave-balances')).toBeVisible()
   // An employee sees no approver scopes and no grant action.
   await expect(page.getByTestId('hr-leave-scope-pending')).toHaveCount(0)
@@ -71,7 +71,7 @@ test('an employee requests leave, a manager approves it and the employee cancels
   await page.waitForFunction(() => !document.querySelector('[data-testid="hr-leave-balances"] [aria-busy="true"]'))
   await expect(page.getByTestId('hr-leave-new')).not.toHaveAttribute('aria-disabled', 'true')
   await page.getByTestId('hr-leave-new').click()
-  await expect(page).toHaveURL(/\/hr\/leave\/new(?:\?|$)/)
+  await expect(page).toHaveURL(/\/account\/leave\/new(?:\?|$)/)
   const panel = page.getByRole('dialog')
   await expect(panel.getByRole('heading', { name: 'طلب إجازة' })).toBeVisible()
 
@@ -102,18 +102,28 @@ test('an employee requests leave, a manager approves it and the employee cancels
   expect(leave.date_to).toBe(iso(day))
   expect(leave.number_of_days).toBe(1)
   // Saving closes the panel back to the list.
-  await expect(page).toHaveURL(/\/hr\/leave(?:\?|$)/)
+  await expect(page).toHaveURL(/\/account\/leave(?:\?|$)/)
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
-  await page.goto('/hr/leave')
+  await page.goto('/account/leave')
   const row = leaveRow(page, leave.id)
   await expect(row.getByTestId('hr-leave-state')).toHaveText('بانتظار الاعتماد')
   expect(await annualRemaining(page, annual.id)).toBe(before - 1)
+  await row.getByRole('link', { name: annual.name }).click()
+  await expect(page).toHaveURL(new RegExp(`/account/leave/${leave.id}\\?returnTo=`))
+  await page.reload()
+  await expect(page.getByTestId('hr-leave-record-approve')).toHaveCount(0)
+  expect((await page.request.get(`/api/v1/hr/leave/me/${leave.id}`)).status()).toBe(200)
 
   // The employee cannot approve through the API either.
   const forbidden = await page.request.post(`/api/v1/hr/leave/requests/${leave.id}/approve`, { data: {} })
   expect(forbidden.status()).toBe(403)
 
+  // An HR manager's Self-service remains their own list, even with a forged management scope.
+  await login(page, MANAGER)
+  await page.goto('/account/leave?scope=all&employee_id=999')
+  await expect(page.getByTestId('hr-leave-scope-pending')).toHaveCount(0)
+  await expect(page.getByTestId(`hr-leave-row-${leave.id}`)).toHaveCount(0)
   // The manager approves from the pending queue.
   await login(page, MANAGER)
   await page.goto('/hr/leave?scope=pending')
@@ -134,16 +144,22 @@ test('an employee requests leave, a manager approves it and the employee cancels
   await page.reload()
   await expect(page).toHaveURL(/scope=all/)
 
-  // The employee cancels the approved leave with an inline confirmation and gets the day back.
+  // The employee sees their approved request without administrative cancellation.
   await login(page, STAFF)
-  await page.goto('/hr/leave')
-  const ownRow = leaveRow(page, leave.id)
-  await ownRow.getByTestId('row-actions-menu').click()
+  await page.goto('/account/leave')
+  await expect(leaveRow(page, leave.id).getByTestId('hr-leave-state')).toHaveText('معتمدة')
+  await expect(leaveRow(page, leave.id).getByTestId('row-actions-menu')).toHaveCount(0)
+
+  // Administrative cancellation stays in HR and asks inline before changing the balance.
+  await login(page, MANAGER)
+  await page.goto('/hr/leave?scope=all')
+  await leaveRow(page, leave.id).getByTestId('row-actions-menu').click()
   await page.getByRole('menuitem', { name: 'إلغاء الإجازة' }).click()
-  // The cancellation asks inside the page first; nothing is sent until it is confirmed.
   const cancelled = page.waitForResponse(response => response.url().endsWith(`/api/v1/hr/leave/requests/${leave.id}/cancel`))
   await page.getByRole('button', { name: 'إلغاء الإجازة' }).last().click()
   expect((await cancelled).status()).toBe(200)
+  await login(page, STAFF)
+  await page.goto('/account/leave')
   await expect(leaveRow(page, leave.id).getByTestId('hr-leave-state')).toHaveText('ملغاة')
   expect(await annualRemaining(page)).toBe(before)
 })
@@ -159,7 +175,7 @@ test('an employee withdraws a request that is still waiting for a decision', asy
   expect(created.status()).toBe(201)
   const leave = await created.json()
 
-  await page.goto('/hr/leave')
+  await page.goto('/account/leave')
   const row = leaveRow(page, leave.id)
   await expect(row.getByTestId('hr-leave-state')).toHaveText('بانتظار الاعتماد')
   await row.getByTestId('row-actions-menu').click()

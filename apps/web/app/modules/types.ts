@@ -166,7 +166,14 @@ export interface AppAttentionProvider {
   load: (api: AppSearchApi, t: (key: string, params?: Record<string, unknown>) => string) => Promise<AppAttentionRow[]>
 }
 /** One self-service entry an application offers the signed-in user; `to` opens the page that does it. */
-export interface AppServiceEntry {
+export type PersonalSection = 'profile' | 'leave' | 'requests' | 'pay' | 'assets' | 'documents' | 'schedule'
+export interface AppPersonalSummary {
+  value?: string
+  caption?: string
+  rows?: AppSearchRow[]
+  attention?: AppAttentionRow[]
+}
+export interface AppPersonalEntry {
   id: string
   labelKey: string
   descriptionKey: string
@@ -174,6 +181,15 @@ export interface AppServiceEntry {
   to: string
   /** Capability that opens the target; the entry is hidden without it (and without the application feature). */
   capability: string
+
+  section: PersonalSection
+  feature?: string
+  requiredCapabilities?: string[]
+  primaryAction?: AppCommand
+  summary?: {
+    queryKey: readonly unknown[]
+    load: (api: AppSearchApi, t: (key: string, params?: Record<string, unknown>) => string) => Promise<AppPersonalSummary>
+  }
 }
 /** A record one application lets another application pick or filter by. */
 export interface AppRecordOption { id: number; name: string }
@@ -225,7 +241,7 @@ export interface AppManifest {
   /** The configuration page this application adds to Settings > Applications. */
   settings?: AppSettingsPage
   contextLinks?: (path: string | undefined) => AppContextLink[]  // keyed by rail id via link module in nav
-  routeCapabilities?: Array<{ pattern: RegExp; capability: string; feature?: string }>
+  routeCapabilities?: Array<{ pattern: RegExp; capability: string; feature?: string; anyCapabilities?: string[]; requiredCapabilities?: string[] }>
   /**
    * Dynamic list sources this application owns. A recognized pathname may return a record
    * to that list, after both its normal route access and this additional capability pass.
@@ -251,8 +267,8 @@ export interface AppManifest {
   assistant?: AppAssistantSurface
   /** What needs the user's attention, for the assistant surfaces and the home suggestions. */
   attention?: AppAttentionProvider[]
-  /** Self-service entries shown on the user's own services page ("my services"): leave, payslips, requests... */
-  services?: AppServiceEntry[]
+  /** Employee-owned services, separate from work and administrative navigation. */
+  personal?: AppPersonalEntry[]
   /** Record kinds other applications may pick or filter by. */
   recordPickers?: AppRecordPicker[]
   /** Record kinds other applications may link to. */

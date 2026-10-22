@@ -23,6 +23,7 @@ providePageTrail(trail)
 // The page header draws the chip before its title from the application that owns the route; a page
 // no application owns (account, search) gets the generic icon.
 providePageApp(() => {
+  if (route.path === '/account' || route.path.startsWith('/account/')) return { icon: 'i-lucide-user-round', label: t('nav.account'), to: '/account' }
   const owner = rail.value.all.find(item => item.id === activeModule.value)
   if (!owner) return { icon: 'i-lucide-layout-grid' }
   return { icon: owner.icon, label: t(owner.labelKey), to: owner.to }

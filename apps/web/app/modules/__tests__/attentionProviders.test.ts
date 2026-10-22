@@ -60,7 +60,7 @@ describe('attention providers', () => {
 
   describe('operations', () => {
     const request = (id: number) => ({
-      id, name: `طلب ${id}`, process: { id: 1, name: 'شراء' }, process_revision: 1, state: 'pending', revision: 1, cycle: 1,
+      id, name: `طلب ${id}`, process: { id: 1, name: 'شراء' }, purpose: 'work', process_revision: 1, state: 'pending', revision: 1, cycle: 1,
       requester: person, created_at: '2026-10-20T10:00:00Z', execution_count: 0,
     })
 

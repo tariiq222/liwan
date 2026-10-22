@@ -56,7 +56,7 @@ const kpiTiles = computed(() => documentKpiTiles({
 }, t))
 const contexts = useDocumentContexts(isListRoute)
 const contextKind = ref(typeof route.query.context_kind === 'string' ? route.query.context_kind : '')
-const provider = computed(() => can('documents.items.manage') && contexts.data.value?.items.some(item => item.kind === contextKind.value) ? contextKind.value : null)
+const provider = computed(() => isListRoute.value && can('documents.items.manage') && contexts.data.value?.items.some(item => item.kind === contextKind.value) ? contextKind.value : null)
 const options = useDocumentContextOptions(provider)
 const contextOptions = computed(() => [{ value: 'all', label: t('documents.allContexts') }, ...(options.data.value?.items ?? []).map(item => ({ value: String(item.id), label: item.name }))])
 const page = computed(() => Math.floor(committedListParams.value.offset / limit) + 1)

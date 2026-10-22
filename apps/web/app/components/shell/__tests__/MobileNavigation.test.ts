@@ -10,9 +10,9 @@ const module = (id: string, extra: Partial<ShellModuleDefinition> = {}): ShellMo
 const modules = [module('home', { to: '/' }), module('tasks'), module('projects'), module('chat'), module('ai', { utility: true }), module('settings', { utility: true })]
 const stub = (tag: string) => Vue.defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) { return () => Vue.h(tag, attrs, slots.default?.()) } })
 
-function render(pinned: string[], activeId: string | null = 'tasks') {
+function render(activeId: string | null = 'tasks') {
   const route = { path: '/tasks', fullPath: '/tasks' }
-  const rail = railModel(modules, pinned)
+  const rail = railModel(modules)
   return renderShared(component, {
     modules: rail.drawer, activeId, title: 'المهام', createLinks: [], sections: [], subSections: [], quickViews: [], quickActions: [],
   }, {}, {
@@ -40,18 +40,12 @@ function render(pinned: string[], activeId: string | null = 'tasks') {
 const order = (html: string) => [...html.matchAll(/aria-label="nav\.(\w+)"/g)].map(match => match[1]).filter(id => id !== 'toggleSidebar' && id !== 'modules')
 
 describe('MobileNavigation', () => {
-  it('lists the launcher, today, the pinned applications, customize, then the utility slot with settings last', async () => {
-    const html = await render(['projects', 'tasks'])
-    expect(order(html)).toEqual(['apps', 'home', 'projects', 'tasks', 'customize', 'ai', 'settings'])
+  it('lists every reachable application in the same order as desktop', async () => {
+    expect(order(await render())).toEqual(['apps', 'home', 'tasks', 'projects', 'chat', 'ai', 'settings'])
   })
-
-  it('omits an application the user has not pinned', async () => {
-    expect(order(await render(['tasks']))).not.toContain('chat')
-  })
-
-  it('marks only the active entry', async () => {
-    const html = await render(['projects', 'tasks'], 'tasks')
+  it('marks only the active application', async () => {
+    const html = await render('chat')
     expect(html.match(/aria-current="page"/g)).toHaveLength(1)
-    expect(html).toMatch(/aria-current="page"[^>]*aria-label="nav\.tasks"|aria-label="nav\.tasks"[^>]*aria-current="page"/)
+    expect(html).toMatch(/aria-current="page"[^>]*aria-label="nav\.chat"|aria-label="nav\.chat"[^>]*aria-current="page"/)
   })
 })

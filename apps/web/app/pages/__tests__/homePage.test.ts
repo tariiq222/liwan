@@ -13,7 +13,7 @@ const section = (tag: string) => Vue.defineComponent({ inheritAttrs: false, setu
 const SharedPageHeader = Vue.defineComponent({ props: { title: { type: String, default: '' } }, setup: (props) => () => Vue.h('h1', props.title) })
 const SharedEmptyState = Vue.defineComponent({ inheritAttrs: false, props: { title: { type: String, default: '' } }, setup: (props, { attrs, slots }) => () => Vue.h('div', attrs, [props.title, slots.action?.()]) })
 const Marker = (testid: string) => Vue.defineComponent({ setup: () => () => Vue.h('div', { 'data-testid': testid }) })
-const messages = { 'nav.home': 'يومي', 'home.greeting': 'أهلًا {name}', 'home.quick': 'الوصول السريع', 'home.empty': 'لا توجد مساحات عمل', 'home.openApps': 'التطبيقات', 'home.nothingToday': 'لا شيء لك اليوم', 'nav.account': 'حسابي', 'nav.newTask': 'مهمة جديدة', 'services.title': 'خدماتي' }
+const messages = { 'nav.home': 'يومي', 'home.greeting': 'أهلًا {name}', 'home.quick': 'الوصول السريع', 'home.empty': 'لا توجد مساحات عمل', 'home.openApps': 'التطبيقات', 'home.nothingToday': 'لا شيء لك اليوم', 'nav.account': 'الخدمة الذاتية', 'nav.newTask': 'مهمة جديدة', 'services.title': 'خدماتي' }
 
 async function render({ apps = true, services = false, work = true, commands = [] as Array<{ id: string; to: string; labelKey: string }>, name = 'سارة العتيبي' } = {}) {
   return renderShared(file, {}, {}, {
@@ -33,7 +33,7 @@ async function render({ apps = true, services = false, work = true, commands = [
       '@/composables/nav/launcherModel': { reachableApplications: (modules: Array<{ id: string }>) => modules.filter(module => module.id !== 'home' && module.id !== 'settings') },
       '@/composables/nav/paletteModel': { visibleCommands: () => commands },
       '@/composables/useMyWork': { useMyWork: () => ({ available: Vue.computed(() => work) }) },
-      '@/composables/nav/servicesStartModel': { serviceGroups: () => (services ? [{ id: 'hr' }] : []) },
+      '@/composables/nav/personalModel': { personalEntries: () => (services ? [{ id: 'hr' }] : []) },
       '@/utils/accessPolicy': { postLoginPath: () => '/' },
     },
   })
@@ -60,8 +60,8 @@ describe('home page', () => {
     expect(html).toContain('مهمة جديدة')
   })
 
-  it('links «خدماتي» only when the user can see a service', async () => {
-    expect(await render({ services: true })).toMatch(/href="\/services"[^>]*>خدماتي</)
+  it('links «الخدمة الذاتية» only when the user can see a service', async () => {
+    expect(await render({ services: true })).toMatch(/href="\/account"[^>]*>الخدمة الذاتية</)
     expect(await render({ services: false })).not.toContain('home-services')
   })
 
@@ -79,7 +79,7 @@ describe('home page', () => {
   it('with no reachable application, explains it and links to the account page', async () => {
     const html = await render({ work: false, apps: false })
     expect(html).toMatch(/data-testid="home-empty-no-apps"[^>]*>لا توجد مساحات عمل/)
-    expect(html).toMatch(/href="\/account"[^>]*>حسابي</)
+    expect(html).toMatch(/href="\/account"[^>]*>الخدمة الذاتية</)
     expect(html).not.toContain('لا شيء لك اليوم')
   })
 

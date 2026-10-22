@@ -44,7 +44,7 @@ describe('hidden KPIs ask nothing', () => {
   })
 
   it('the leave balances keep their error and retry while the tiles are hidden', () => {
-    const source = read('pages/hr/leave.vue')
+    const source = read('components/hr/LeaveList.vue')
     expect(source).not.toContain('<section v-if="kpisShown"')
     expect(source).toContain('<template v-if="kpisShown">')
     expect(source).toContain(':error="balances.error.value" @retry="balances.refetch"')

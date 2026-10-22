@@ -54,8 +54,8 @@ test('an internal account without application features can use Home without prot
   await enterFoundation(page, '/account')
   await page.getByTestId('module-rail').locator('.webvue-module-rail-brand').click()
   await expect(page.getByTestId('foundation-home')).toContainText('لا توجد مساحات عمل')
-  // Launcher, Today and Customize remain; every application entry and the utility slot are gone.
-  await expect(page.getByTestId('module-rail').locator('.webvue-module-rail-link')).toHaveCount(3)
+  // Only Launcher and Today remain when the user cannot reach any applications.
+  await expect(page.getByTestId('module-rail').locator('.webvue-module-rail-link')).toHaveCount(2)
   await expect(page.getByTestId('foundation-home').locator('a[href^="/projects"]')).toHaveCount(0)
 })
 

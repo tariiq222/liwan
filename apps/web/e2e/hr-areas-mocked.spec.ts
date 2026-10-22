@@ -111,12 +111,12 @@ test.describe('assets', () => {
   })
 
   test('my assets lists only the custody of the caller', async ({ page }) => {
-    await open(page, '/hr/assets/mine', 'عهدي')
+    await open(page, '/account/assets', 'عهدي')
     await expect(page.getByTestId('hr-my-assets-table')).toBeVisible()
     await expect(row(page, /حاسوب محمول ديل.*حواسيب محمولة/)).toBeVisible()
     await expect(row(page, /هاتف آيفون 15/)).toHaveCount(0)
-    await row(page, /حاسوب محمول ديل/).getByText('حاسوب محمول ديل').click()
-    await expect(page).toHaveURL(/\/hr\/assets\/1/)
+    await expect(row(page, /حاسوب محمول ديل/).getByRole('link')).toHaveCount(0)
+    await expect(page).toHaveURL(/\/account\/assets$/)
   })
 })
 

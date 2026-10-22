@@ -4,7 +4,7 @@ import HomeIndicators from '@/components/home/HomeIndicators.vue'
 import { reachableApplications } from '@/composables/nav/launcherModel'
 import { visibleShellModules } from '@/composables/nav/shellModules'
 import { visibleCommands } from '@/composables/nav/paletteModel'
-import { serviceGroups } from '@/composables/nav/servicesStartModel'
+import { personalEntries } from '@/composables/nav/personalModel'
 import { useMyWork } from '@/composables/useMyWork'
 import { postLoginPath } from '@/utils/accessPolicy'
 const { t, locale } = useI18n()
@@ -12,7 +12,7 @@ const { me, ready } = useMe()
 await ready
 if (!Array.isArray(me.value?.capabilities)) await navigateTo(postLoginPath(me.value, undefined))
 const actions = computed(() => visibleCommands(me.value))
-const hasServices = computed(() => serviceGroups(me.value).length > 0)
+const hasServices = computed(() => personalEntries(me.value).length > 0)
 const { available: hasWork } = useMyWork()
 const hasApps = computed(() => reachableApplications(visibleShellModules(me.value)).length > 0)
 
@@ -33,7 +33,7 @@ onMounted(() => { today.value = new Date().toLocaleDateString(locale.value, { we
     <section v-if="actions.length || hasServices" :aria-label="t('home.quick')" class="space-y-3" data-testid="home-quick-actions">
       <h2 class="text-sm font-semibold text-muted">{{ t('home.quick') }}</h2>
       <div class="flex flex-wrap gap-2">
-        <UButton v-if="hasServices" to="/services" color="neutral" variant="soft" size="sm" class="rounded-full" icon="i-lucide-concierge-bell" :label="t('services.title')" data-testid="home-services" />
+        <UButton v-if="hasServices" to="/account" color="neutral" variant="soft" size="sm" class="rounded-full" icon="i-lucide-concierge-bell" :label="t('nav.account')" data-testid="home-services" />
         <UButton v-for="action in actions" :key="action.id" :to="{ path: action.to, query: { returnTo: '/' } }" color="neutral" variant="soft" size="sm" class="rounded-full">
           <span class="flex size-5 items-center justify-center rounded-full bg-primary/10 text-primary" aria-hidden="true"><UIcon name="i-lucide-plus" class="size-3.5" /></span>
           {{ t(action.labelKey) }}
