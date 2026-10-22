@@ -21,7 +21,7 @@ class HrShiftSettingsController(http.Controller):
     @http.route('/api/v1/hr/shifts/settings', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('hr.enabled', 'hr.shifts', operation='read')
-    @requires_capability('hr.employees.read')
+    @requires_capability('hr.employees.read', 'hr.shifts.manage', match='any')
     def get_settings(self, **_):
         return dump_settings(request.env['webvue.hr.shift.settings']._webvue_current(), request.env.company, request.env.user)
 

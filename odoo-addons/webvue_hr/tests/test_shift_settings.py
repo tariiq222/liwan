@@ -86,6 +86,42 @@ class TestHrShiftSettings(WebVueHrCase):
                 'company_id': self.company.id, 'day_reference': 'user',
             })
 
+    def test_independent_shift_manager_can_read_and_edit_only_current_policy(self):
+        # Product custom roles receive employee read transitively through catalog
+        # dependencies. This test-only role isolates the settings capability contract.
+        role = self.env['webvue.access.role'].create({
+            'key': 'test_independent_shift_policy_manager', 'name_ar': 'Shift policy contract',
+            'type': 'built_in', 'permission_ids': [(6, 0, self.env['webvue.access.permission'].search([
+                ('key', '=', 'hr.shifts.manage'),
+            ]).ids)],
+        })
+        self.env['webvue.access.service']._webvue_replace_assignments(self.manager, [{
+            'role_id': role.id, 'company_id': self.company.id,
+        }])
+        service = self.env['webvue.access.service']
+        self.assertFalse(service._webvue_has_capability(self.manager, 'hr.employees.read'))
+        self.assertTrue(service._webvue_has_capability(self.manager, 'hr.shifts.manage'))
+        own = self.env['webvue.hr.shift.settings'].create({'company_id': self.company.id})
+        other = self.env['webvue.hr.shift.settings'].create({'company_id': self.other_company.id})
+        self.manager.company_ids = [(4, self.other_company.id)]
+        self._as_manager()
+        response = self.api('GET', '/api/v1/hr/shifts/settings')
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['revision'], own.revision)
+        saved = self.api('PATCH', '/api/v1/hr/shifts/settings', {'day_reference': 'user', 'revision': own.revision})
+        self.assertEqual(saved.status_code, 200, saved.text)
+        model = self.env['webvue.hr.shift.settings'].with_user(self.manager).with_context(
+            allowed_company_ids=[self.company.id, self.other_company.id],
+        )
+        self.assertEqual(model.search([]), own)
+        self.assertEqual(model.browse(own.id).read(['day_reference'])[0]['day_reference'], 'user')
+        with self.assertRaises(AccessError):
+            model.browse(other.id).read(['day_reference'])
+        self.env['webvue.access.service']._webvue_replace_assignments(self.manager, [])
+        self.assertEqual(self.api('GET', '/api/v1/hr/shifts/settings').status_code, 403)
+        with self.assertRaises(AccessError):
+            model.search([])
+
     def test_cross_company_policy_is_separate_and_not_writable(self):
         other = self.env['webvue.hr.shift.settings'].create({'company_id': self.other_company.id, 'day_reference': 'user'})
         self._as_manager()

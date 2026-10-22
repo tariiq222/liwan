@@ -176,14 +176,14 @@ export function useDeleteHrShiftAssignment() {
   })
 }
 
-/** Current-company policy; own-account readers need no administrative shifts access. */
+/** Current-company policy for employee readers and shift-policy managers. */
 export function useHrShiftSettings(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const identity = useHrOwnIdentity()
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => [...hrShiftKeys.settings, identity.scope.value]),
-    enabled: computed(() => identity.ready.value && toValue(enabled) && can('hr.employees.read')),
+    enabled: computed(() => identity.ready.value && toValue(enabled) && (can('hr.employees.read') || can('hr.shifts.manage'))),
     queryFn: () => $api('/api/v1/hr/shifts/settings', { schema: HrShiftSettingsSchema }),
   })
 }
