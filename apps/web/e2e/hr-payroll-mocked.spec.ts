@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { HrShiftSettingsSchema } from '@webvue/contracts'
 import { collectBrowserErrors, currentRoute, dialog, heading, MOCK_STACK_ONLY, openPage as open, row, trackRefusedRequests } from './support/mock-pages'
 import { login } from './support/tasmim6'
 
@@ -242,6 +243,12 @@ test.describe('payroll posting and payment', () => {
 
 test.describe('payroll finance settings', () => {
   test('shows the accounting mapping and saves the entry detail and a department cost center', async ({ page }) => {
+    // The shared HR settings page also loads its shifts card under the existing mock entitlements.
+    const shiftSettings = await page.request.get('/api/v1/hr/shifts/settings')
+    expect(shiftSettings.status(), 'the shifts settings request on the payroll settings page').toBe(200)
+    expect(HrShiftSettingsSchema.parse(await shiftSettings.json())).toMatchObject({
+      day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', revision: 0,
+    })
     await open(page, '/settings/apps/hr', 'الموارد البشرية')
     await expect(page.getByTestId('hr-payroll-finance-form')).toBeVisible()
     await expect(page.getByTestId('hr-payroll-finance-submit')).toBeDisabled()
