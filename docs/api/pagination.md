@@ -9,7 +9,7 @@ contract and must not be introduced on one route without a versioned change.
 | --- | --- |
 | `limit` | Optional non-negative integer. Missing and explicit `0` both mean the route default, because Odoo treats `search(limit=0)` as unlimited. |
 | `offset` | Optional non-negative integer. Missing means `0`. |
-| anything else | `422 invalid` with `field` set to the rejected name. |
+| other query parameters | Route-specific; `parse_page` validates only `limit` and `offset`. |
 
 `webvue_api.controllers.common.parse_page(args, default=50, maximum=200)` is the
 shared reader. A route may pass a lower maximum, but it must not pass a higher

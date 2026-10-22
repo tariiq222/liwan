@@ -2,13 +2,14 @@
 
 WebVue's Odoo runs with a few OCA 19.0 repositories on its addons path (finance reporting,
 reconciliation, assets, MIS reports and document management). They are separate, pinned dependencies fetched at run or build
-time. OCA code is never copied into this repository, and never into `odoo-addons/`.
+time. The fetched repositories stay outside this checkout. The separately maintained
+`odoo-addons/base_tier_validation` is the documented vendored OCA exception.
 
 ## Source of truth
 
-`deploy/oca-addons.json` lists each repository with its branch and a full 40-character commit, and
-`python_requirements` (the Python packages the manifests of the used modules declare). Nothing else
-names an OCA repository or commit. `tools/oca_addons.py` (stdlib only) reads it:
+`deploy/oca-addons.json` lists each fetched repository with its branch and a full 40-character commit, and
+`python_requirements` (the Python packages the manifests of the used modules declare). `tools/oca_addons.py`
+(stdlib only) reads it:
 
 | Command | Effect |
 |---|---|
@@ -59,9 +60,10 @@ reports, assets and bank"). Only modules a route uses are declared:
 `date_range` and `report_xlsx` (server-ux, reporting-engine) come in as their dependencies. `account_tax_balance` and
 `account_fiscal_year` are in the pinned repositories but unused.
 
-`dms` (OCA/dms) is pinned for the independent documents replacement. Its adoption remains
-subject to the attachment, migration and access acceptance gates; the pin alone does not
-replace HR documents. Provenance and license headers are recorded in
+`dms` (OCA/dms) is the engine used by the implemented `webvue_documents` library; the
+`webvue_documents_hr` bridge adds HR department contexts. Attachment, migration and access
+acceptance remain separate release checks. Source implementation and a pin do not prove deployment
+or tenant acceptance. Provenance and license headers are recorded in
 [the DMS provenance record](verification/oca-dms/PROVENANCE.md).
 
 `hr_employee_calendar_planning` (OCA/hr) is the shifts engine of `webvue_hr`: date-ranged
@@ -105,5 +107,3 @@ requires.
   `webvue_finance` until its addons path gets the OCA directories**.
 - The `addons_path` written into a managed bundle's `odoo.conf` (`tools/webvue_cli/managed_bundle.py`,
   checked by `managed_probe.py`): the image entrypoint passes `--addons-path`, which overrides it.
-- `deploy/verification-checks.json` does not pass `--with-oca`; add it when `webvue_finance` depends on
-  OCA modules.

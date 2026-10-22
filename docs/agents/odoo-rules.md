@@ -144,12 +144,11 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   (`permission_access_users_read`, `webvue_hr_document_company_rule`); qualify
   cross-addon ids. ACLs live in `security/ir.model.access.csv` (PMO also has
   suffixed ACL CSVs), with `access_*` ids and `model_<dots_as_underscores>` refs.
-- Tests live in `tests/test_*.py`. `tests/__init__.py` is
-  `from odoo.addons.webvue_core.testing import import_all_tests` followed by
-  `import_all_tests(__name__)`, so no test file can be left out of the run (`webvue_finance` and `webvue_hr` are converted to it at the next integration; from then
-  on only the helper style is accepted, with the vendored OCA addon `base_tier_validation` as the
-  single documented exception. `tools/test_addon_test_imports.py` enforces this and its
-  `EXPLICIT_IMPORTS_ALLOWED` set shrinks with each conversion).
+- Tests live in `tests/test_*.py`. First-party `tests/__init__.py` files call
+  `import_all_tests(__name__)` from `webvue_core.testing`, so new test files are
+  discovered automatically. The vendored OCA addon `base_tier_validation` is the
+  sole exception allowed to import tests explicitly; `tools/test_addon_test_imports.py`
+  enforces this boundary.
   Model tests use `TransactionCase`; HTTP tests use `WebVueApiCase(HttpCase)` via
   `WebVueHrCase` / `WebVuePmoCase`. Mirror existing `webvue` / `webvue_access` tags and
   `post_install`, `-at_install` selection where appropriate.
