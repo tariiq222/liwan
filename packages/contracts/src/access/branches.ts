@@ -5,7 +5,7 @@ const Id = z.number().int().positive()
 const RoleIds = z.array(Id).refine(ids => new Set(ids).size === ids.length, 'duplicate role')
 const Version = z.string().trim().min(1)
 const Mode = z.enum(['isolated', 'delegated', 'inherited'])
-const Role = z.object({ id: Id, key: z.string().min(1), name: LocalizedLabelSchema, company_id: Id.nullable() }).strict()
+const Role = z.object({ id: Id, key: z.string().min(1), name: LocalizedLabelSchema, company_id: Id.nullable(), active: z.boolean() }).strict()
 const UniqueBranches = <T extends z.ZodType<{ id: number }>>(item: T) => z.array(item)
   .refine(items => new Set(items.map(branch => branch.id)).size === items.length, 'duplicate branch')
 

@@ -207,3 +207,124 @@ class TestBranchAccess(TransactionCase):
             {'id': self.branch.id, 'role_ids': []},
         ])
         self.assertEqual(result['branches'][0]['role_ids'], [])
+
+
+@tagged('post_install', '-at_install', 'webvue', 'webvue_access')
+class TestLegacyNativeBranchAccess(TransactionCase):
+    def test_unmanaged_native_home_grants_are_preserved_only_at_home(self):
+        parent = self.env.company
+        branch = self.env['res.company'].create({'name': 'Legacy native member branch', 'parent_id': parent.id})
+        user = new_test_user(self.env, login='legacy_native_partner_manager',
+                             groups='base.group_user,base.group_partner_manager', company_id=parent.id,
+                             company_ids=[Command.set((parent | branch).ids)])
+        actor = self.env['res.partner'].with_user(user).with_context(allowed_company_ids=[parent.id])
+        self.assertIn(parent.id, actor.env['webvue.access.service']._webvue_model_company_ids('res.partner', 'create'))
+        contact = actor.create({'name': 'Authorized legacy home contact', 'company_id': parent.id})
+        contact.write({'name': 'Updated legacy home contact'})
+        foreign = self.env['res.partner'].create({'name': 'Forbidden branch contact', 'company_id': branch.id})
+        self.assertFalse(foreign.with_env(actor.env).has_access('write'))
+        branch_actor = actor.with_context(allowed_company_ids=[branch.id])
+        self.assertFalse(foreign.with_env(branch_actor.env).has_access('write'),
+                         'legacy home group must not lend its native write ACL to a member branch')
+
+    def test_managed_identity_does_not_reuse_unscoped_native_groups(self):
+        user = new_test_user(self.env, login='managed_native_partner_manager',
+                             groups='base.group_user,base.group_partner_manager')
+        self.env['webvue.access.assignment'].create({
+            'user_id': user.id, 'role_id': self.env.ref('webvue_core.role_employee').id,
+            'company_id': self.env.company.id,
+        })
+        actor = self.env['res.partner'].with_user(user)
+        self.assertNotIn(self.env.company.id, actor.env['webvue.access.service']._webvue_model_company_ids('res.partner', 'create'))
+
+
+@tagged('post_install', '-at_install', 'webvue', 'webvue_access')
+class TestBranchRoleLifecycle(TransactionCase):
+    def test_assigned_inactive_branch_role_is_visible_retainable_and_revocable(self):
+        service = self.env['webvue.access.service']
+        parent = self.env.company
+        branch = self.env['res.company'].create({'name': 'Disabled role branch', 'parent_id': parent.id})
+        user = new_test_user(self.env, login='disabled_branch_role_target', groups='base.group_user',
+                             company_ids=[Command.set((parent | branch).ids)])
+        self.env['webvue.access.assignment'].create({
+            'user_id': user.id, 'company_id': parent.id, 'role_id': self.env.ref('webvue_core.role_system_admin').id,
+        })
+        actor_service = service.with_user(user)
+        disabled = self.env['webvue.access.role'].with_company(branch).create({'name_ar': 'Disabled branch role'})
+        self.env['webvue.access.assignment'].create({'user_id': user.id, 'company_id': branch.id, 'role_id': disabled.id})
+        disabled.write({'active': False})
+        state = actor_service._webvue_user_branch_access(user)
+        self.assertIn(disabled.id, [role['id'] for role in state['roles']])
+        self.assertFalse(next(role for role in state['roles'] if role['id'] == disabled.id)['active'])
+        employee = self.env.ref('webvue_core.role_employee')
+        updated = actor_service._webvue_update_user_branch_access(user, state['version'], [
+            {'id': branch.id, 'role_ids': [disabled.id, employee.id]},
+        ])
+        self.assertEqual(set(updated['branches'][0]['role_ids']), {disabled.id, employee.id})
+        revoked = actor_service._webvue_update_user_branch_access(user, updated['version'], [
+            {'id': branch.id, 'role_ids': [employee.id]},
+        ])
+        self.assertNotIn(disabled.id, [role['id'] for role in revoked['roles']])
+        with self.assertRaisesRegex(ValidationError, 'invalid'):
+            actor_service._webvue_update_user_branch_access(user, revoked['version'], [
+                {'id': branch.id, 'role_ids': [disabled.id]},
+            ])
+
+    def test_inactive_global_role_cannot_be_added_to_another_branch(self):
+        parent = self.env.company
+        branches = self.env['res.company'].create([
+            {'name': 'Inactive grant branch A', 'parent_id': parent.id},
+            {'name': 'Inactive grant branch B', 'parent_id': parent.id},
+        ])
+        user = new_test_user(self.env, login='inactive_global_branch_target', groups='base.group_user',
+                             company_ids=[Command.set((parent | branches).ids)])
+        Assignment = self.env['webvue.access.assignment']
+        Assignment.create({'user_id': user.id, 'company_id': parent.id,
+                           'role_id': self.env.ref('webvue_core.role_system_admin').id})
+        role = self.env['webvue.access.role'].create({'key': 'inactive_global_branch', 'name_ar': 'Inactive global', 'type': 'built_in'})
+        Assignment.create({'user_id': user.id, 'company_id': branches[0].id, 'role_id': role.id})
+        role.write({'active': False})
+        service = self.env['webvue.access.service'].with_user(user)
+        state = service._webvue_user_branch_access(user)
+        self.assertIn(role.id, [item['id'] for item in state['roles']])
+        with self.assertRaisesRegex(ValidationError, 'invalid'):
+            service._webvue_update_user_branch_access(user, state['version'], [
+                {'id': branches[1].id, 'role_ids': [role.id]},
+            ])
+        policy = service._webvue_branch_policy()
+        with self.assertRaisesRegex(ValidationError, 'invalid'):
+            service._webvue_update_branch_policy(policy['version'], 'inherited', [
+                {'id': branches[1].id, 'inherit': True, 'role_ids': [role.id]},
+            ])
+
+    def test_configured_inactive_inherited_role_remains_visible_for_removal(self):
+        parent = self.env.company
+        branches = self.env['res.company'].create([
+            {'name': 'Disabled inheritance A', 'parent_id': parent.id},
+            {'name': 'Disabled inheritance B', 'parent_id': parent.id},
+        ])
+        user = new_test_user(self.env, login='inactive_inheritance_actor', groups='base.group_user',
+                             company_ids=[Command.set((parent | branches).ids)])
+        self.env['webvue.access.assignment'].create({'user_id': user.id, 'company_id': parent.id,
+                                                   'role_id': self.env.ref('webvue_core.role_system_admin').id})
+        role = self.env['webvue.access.role'].create({'key': 'inactive_inheritance', 'name_ar': 'Disabled inheritance', 'type': 'built_in'})
+        service = self.env['webvue.access.service'].with_user(user)
+        state = service._webvue_branch_policy()
+        service._webvue_update_branch_policy(state['version'], 'inherited', [
+            {'id': branches[0].id, 'inherit': True, 'role_ids': [role.id]},
+        ])
+        role.write({'active': False})
+        state = service._webvue_branch_policy()
+        self.assertIn(role.id, [item['id'] for item in state['roles']])
+        self.assertFalse(next(item for item in state['roles'] if item['id'] == role.id)['active'])
+        updated = service._webvue_update_branch_policy(state['version'], 'inherited', [
+            {'id': branches[0].id, 'inherit': False, 'role_ids': [role.id]},
+        ])
+        with self.assertRaisesRegex(ValidationError, 'invalid'):
+            service._webvue_update_branch_policy(updated['version'], 'inherited', [
+                {'id': branches[1].id, 'inherit': True, 'role_ids': [role.id]},
+            ])
+        removed = service._webvue_update_branch_policy(updated['version'], 'inherited', [
+            {'id': branches[0].id, 'inherit': False, 'role_ids': []},
+        ])
+        self.assertNotIn(role.id, [item['id'] for item in removed['roles']])
