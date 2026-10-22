@@ -26,6 +26,7 @@
     "collapseContext": "طي القائمة الجانبية",
     "expandContext": "توسيع القائمة الجانبية",
     "context": "التنقل السياقي",
+    "assistantSheet": { "region": "لوحة المساعد", "close": "إغلاق المساعد", "openFullPage": "فتح بملء الصفحة" },
     "backToProjects": "العودة إلى المشاريع",
     "projectWorkspace": "مساحة المشروع",
     "archivedTasks": "المهام المؤرشفة",

@@ -37,14 +37,14 @@ const frame = (sidebar: 'open' | 'closed' = 'open') => ({
 
 export const Default: Story = {
   name: 'الإطار الكامل',
-  parameters: storyContext('apps/web/app/layouts/default.vue:68'),
+  parameters: storyContext('apps/web/app/layouts/default.vue:71'),
   loaders: [at('/tasks')],
   render: () => frame(),
 }
 
 export const Collapsed: Story = {
   name: 'القائمة السياقية مطويّة',
-  parameters: storyContext('apps/web/app/layouts/default.vue:68', 'القائمة السياقية بعرض 48px: يبقى زر الطي والأيقونات فقط.'),
+  parameters: storyContext('apps/web/app/layouts/default.vue:71', 'القائمة السياقية بعرض 48px: يبقى زر الطي والأيقونات فقط.'),
   loaders: [at('/tasks')],
   render: () => frame('closed'),
 }

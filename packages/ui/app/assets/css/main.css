@@ -3,6 +3,7 @@
 @import "./tokens.css";
 @import "./components.css";
 @import "./shell.css";
+@import "./assistant-sheet.css";
 
 @custom-variant dark (&:is(.dark *));
 
