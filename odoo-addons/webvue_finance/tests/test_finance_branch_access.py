@@ -94,3 +94,44 @@ class TestFinanceBranchAccess(WebVueFinanceCase):
             response = self.api('GET', f'/api/v1/finance/invoices/{self.branch_invoice.id}/pdf')
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(render.call_args[0][1], 'account.account_invoices_without_payment')
+
+    def test_delegated_statement_parent_rule_refreshes_after_branch_policy_changes(self):
+        """A cached native _inherits rule must not retain an earlier WebVue fence."""
+        bank_reader = self.env['webvue.access.role'].with_company(self.branch)._webvue_access_create({
+            'key': 'finance_branch_bank_reader', 'name_ar': 'قارئ بنك الفرع',
+            'permission_ids': [Command.set(self.env['webvue.access.permission'].search([
+                ('key', '=', 'finance.bank.read'),
+            ]).ids)],
+        })
+        self.env['webvue.access.assignment']._webvue_access_create({
+            'user_id': self.manager.id, 'role_id': bank_reader.id, 'company_id': self.branch.id,
+        })
+        journal = self.env['account.journal'].with_company(self.branch).create({
+            'name': 'Branch Bank', 'code': 'BRBK', 'type': 'bank', 'company_id': self.branch.id,
+        })
+        line = self.env['account.bank.statement.line'].with_company(self.branch).create({
+            'journal_id': journal.id, 'date': '2026-10-18', 'payment_ref': 'Branch deposit', 'amount': 10,
+        })
+        policy = self.env['webvue.access.service'].with_company(self.company)
+
+        def set_mode(mode):
+            current = policy._webvue_branch_policy()
+            policy._webvue_update_branch_policy(current['version'], mode, [])
+
+        # Keep the same user and ordinary ORM environment across transitions. A
+        # caller's broad membership context cannot widen the owning policy.
+        statement_lines = line.with_user(self.manager).with_context(
+            allowed_company_ids=(self.company | self.branch).ids,
+            webvue_capability_scope=((('finance.bank.read',), 'all'),),
+        )
+        set_mode('isolated')
+        self.assertFalse(statement_lines.search([('id', '=', line.id)]))
+        set_mode('delegated')
+        self.assertEqual(statement_lines.search([('id', '=', line.id)]), statement_lines)
+        with self.assertRaises(AccessError):
+            statement_lines.write({'payment_ref': 'forbidden parent write'})
+        set_mode('isolated')
+        self.assertFalse(statement_lines.search([('id', '=', line.id)]))
+        set_mode('delegated')
+        self.assertEqual(statement_lines.search([('id', '=', line.id)]), statement_lines)
+        self.assertEqual(line.payment_ref, 'Branch deposit')
