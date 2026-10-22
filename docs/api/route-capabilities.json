@@ -2338,9 +2338,10 @@
       "addon": "webvue_hr",
       "auth": "user",
       "capability_keys": [
-        "hr.employees.read"
+        "hr.employees.read",
+        "hr.shifts.manage"
       ],
-      "capability_match": "all",
+      "capability_match": "any",
       "capability_source": "decorator",
       "feature_keys": [
         "hr.enabled",
