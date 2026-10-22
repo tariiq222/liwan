@@ -29,10 +29,12 @@ Integration policy and authorization are owned by [AGENTS.md](AGENTS.md) and the
 [testing guide](docs/testing.md#ci-workflow); workflow implementation lives in
 [ci.yml](.github/workflows/ci.yml). Agents do not push without the owner's authorization.
 
-As of the 2026-10-22 documentation audit, the approved review, repair and release-numbering
-update is pending in [PR #32](https://github.com/tariiq222/webvue/pull/32). Its proposed
-workflow is not an activation record; verify the merged revision and actual CI run
-before relying on it.
+The review, repair and release-numbering update in [PR #32](https://github.com/tariiq222/webvue/pull/32)
+merged on 2026-10-22 at `89b3382622dd490d84763a0a0c78985951b5cdf1`.
+At this documentation check, the [Claude subscription check](https://github.com/tariiq222/webvue/actions/runs/39834619932)
+passed, while the [main CI run](https://github.com/tariiq222/webvue/actions/runs/39834527483)
+was queued. This does not establish complete delivery-flow acceptance, release creation,
+or production deployment; verify the relevant run and release records before relying on them.
 
 ## Current product
 
