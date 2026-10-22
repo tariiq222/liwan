@@ -35,7 +35,7 @@ ODOO_ROOT = Path(os.environ.get('ODOO_ROOT', '/Users/tariq/code/odoo'))
 SCRATCH_DB = re.compile(r'webvue_scratch_[a-z0-9_]{1,42}')
 GC_DB = re.compile(r'webvue_scratch_(tplb|run|tpl)_[a-z0-9_]{1,42}')
 RESULT_RE = re.compile(r'(\d+) failed, (\d+) error\(s\) of (\d+) tests')
-TEMPLATE_FORMAT = 2
+TEMPLATE_FORMAT = 3
 PORTS = range(8170, 8200)
 
 
@@ -274,6 +274,14 @@ class Pg:
         sql = "select 1 from pg_database where datname = '%s'" % require_scratch(name)
         return self._query(sql) == '1'
 
+    def column_exists(self, name, table, column):
+        sql = "select 1 from information_schema.columns where table_name = '%s' and column_name = '%s'" % (table, column)
+        out = self._run(['psql', '-d', require_scratch(name), '-t', '-A', '-c', sql])
+        return out == '1'
+
+    def execute(self, name, sql):
+        self._run(['psql', '-d', require_scratch(name), '-c', sql])
+
     def create_from(self, name, template):
         self._run(['createdb', '-T', require_scratch(template), require_scratch(name)])
 
@@ -376,6 +384,10 @@ def build_template(pg, name, modules, merge_base, scratch, cache, port, log):
             code, log_text, err = run_odoo(
                 [addons, *oca_dirs()], building, scratch, build_dir / 'data', port, ['-i', ','.join(present)], 'template.log')
             _check_template(code, log_text, err)
+            # Odoo's upgrade run leaves calendar_default_privacy without a DB default, so settings inserts fail on null.
+            if pg.column_exists(building, 'res_users_settings', 'calendar_default_privacy'):
+                pg.execute(building, "ALTER TABLE res_users_settings ALTER COLUMN calendar_default_privacy SET DEFAULT 'public'")
+                log('set the res_users_settings.calendar_default_privacy default on the template')
             pg.rename(building, name)
             renamed = True
             built = filestore_dest(build_dir / 'data', building)

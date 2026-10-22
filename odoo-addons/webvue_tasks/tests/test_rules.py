@@ -49,7 +49,7 @@ class TestPersonalTaskRules(WebVueTasksCase):
         found = self.env['project.task'].with_user(self.alice).search([('id', '=', task.id)])
         self.assertEqual(found, task)
 
-    def test_user_whose_current_company_differs_cannot_read(self):
+    def test_task_of_a_company_outside_the_pinned_set_cannot_read(self):
         task = self.make_personal_task(self.alice, assignees=[self.alice.id, self.bob.id])
         main_company = task.company_id
         # With webvue_pmo installed its search gate wants pmo.tasks.read in the current
@@ -63,12 +63,14 @@ class TestPersonalTaskRules(WebVueTasksCase):
                 self.env['webvue.access.assignment'].create({
                     'user_id': user.id, 'role_id': role.id, 'company_id': company.id})
         for user in (self.alice, self.bob):
-            # Both companies stay allowed, so Odoo's own multi-company rule passes;
-            # only the personal-task rule sees the other company as the current one.
+            # The rule follows the request's pinned company set: a session
+            # pinned to the other company alone stays blind to the main
+            # company's personal task, while the default (main-company)
+            # session still reads it.
             other = task.with_user(user).with_context(
-                allowed_company_ids=[self.other_company.id, main_company.id])
+                allowed_company_ids=[self.other_company.id])
             self.assertEqual(other.env.company, self.other_company)
-            self.assertIn(main_company, other.env.companies)
+            self.assertNotIn(main_company, other.env.companies)
             self.assertFalse(other.has_access('read'), user.login)
             self.assertFalse(other.search([('id', '=', task.id)]), user.login)
             self.assertTrue(task.with_user(user).has_access('read'), user.login)

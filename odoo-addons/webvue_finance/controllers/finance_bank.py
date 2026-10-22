@@ -36,7 +36,7 @@ MAX_PROPOSAL_CANDIDATES = 1000
 
 def _find_statement(statement_id):
     statement = request.env['account.bank.statement'].search(
-        [('id', '=', statement_id), ('company_id', '=', request.env.company.id)], limit=1,
+        [('id', '=', statement_id), ('company_id', 'in', request.env.companies.ids)], limit=1,
     )
     if not statement:
         raise MissingError(request.env._('account.bank.statement %(id)s does not exist', id=statement_id))
@@ -45,7 +45,7 @@ def _find_statement(statement_id):
 
 def _find_statement_line(line_id):
     line = request.env['account.bank.statement.line'].search(
-        [('id', '=', line_id), ('company_id', '=', request.env.company.id)], limit=1,
+        [('id', '=', line_id), ('company_id', 'in', request.env.companies.ids)], limit=1,
     )
     if not line:
         raise MissingError(request.env._('account.bank.statement.line %(id)s does not exist', id=line_id))
@@ -140,7 +140,7 @@ class FinanceBankController(http.Controller):
         """Bank statements, filtered by ``journal_id`` and ``date_from``/``date_to``."""
         require_capability('finance.bank.read')
         args = request.httprequest.args
-        domain = [('company_id', '=', request.env.company.id), *filter_domain(args, 'date')]
+        domain = [('company_id', 'in', request.env.companies.ids), *filter_domain(args, 'date')]
         if args.get('journal_id'):
             domain.append(('journal_id', '=', parse_positive_int(args['journal_id'], 'journal_id')))
         return list_page('account.bank.statement', domain, dump_bank_statements)

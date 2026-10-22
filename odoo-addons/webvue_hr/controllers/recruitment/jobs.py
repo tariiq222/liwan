@@ -2,7 +2,7 @@
 from odoo import http
 from odoo.http import request
 
-from .common import can, company_relation, current_company, scoped_record
+from .common import can, company_relation, scoped_record
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -26,7 +26,7 @@ def _ongoing_applicants(job):
     because the stock `application_count` is group-gated and ignores the company."""
     return request.env['hr.applicant'].search_count([
         ('job_id', '=', job.id),
-        ('company_id', '=', current_company().id),
+        ('company_id', 'in', request.env.companies.ids),
         ('active', '=', True),
         ('date_closed', '=', False),
         ('refuse_reason_id', '=', False),
@@ -57,7 +57,7 @@ class HrRecruitmentJobController(http.Controller):
         if active not in ACTIVE_VALUES:
             raise ApiError(422, 'invalid', "active must be 'true', 'false' or 'all'", field='active')
         limit, offset = parse_page(args)
-        domain = [('company_id', '=', current_company().id)]
+        domain = [('company_id', 'in', request.env.companies.ids)]
         q = args.get('q')
         if q:
             domain.append(('name', 'ilike', q))

@@ -24,7 +24,7 @@ from odoo.addons.webvue_finance.serializers.common import dump_day, dump_ref
 
 def _find_asset(asset_id):
     asset = request.env['account.asset'].search(
-        [('id', '=', asset_id), ('company_id', '=', request.env.company.id)], limit=1,
+        [('id', '=', asset_id), ('company_id', 'in', request.env.companies.ids)], limit=1,
     )
     if not asset:
         raise MissingError(request.env._('account.asset %(id)s does not exist', id=asset_id))
@@ -51,7 +51,7 @@ class FinanceAssetController(http.Controller):
         """Fixed assets, filtered by ``state``, ``profile_id`` and ``q``."""
         require_capability('finance.assets.read')
         args = request.httprequest.args
-        domain = [('company_id', '=', request.env.company.id)]
+        domain = [('company_id', 'in', request.env.companies.ids)]
         state = parse_choice(args.get('state'), request.env['account.asset']._fields['state'].get_values(request.env), 'state')
         if state:
             domain.append(('state', '=', state))
@@ -106,7 +106,7 @@ class FinanceAssetController(http.Controller):
         day = parse_compute_depreciation(payload)['date']
         if day > fields.Date.context_today(request.env['account.asset']):
             raise ApiError(422, 'invalid', 'date must not be in the future', field='date')
-        assets = request.env['account.asset'].search([('company_id', '=', request.env.company.id), ('state', '=', 'open')])
+        assets = request.env['account.asset'].search([('company_id', 'in', request.env.companies.ids), ('state', '=', 'open')])
         move_ids, error_log = attempt(lambda: assets._compute_entries(day, check_triggers=True), day=day)
         if error_log:
             raise ApiError(422, 'invalid', error_log.strip())

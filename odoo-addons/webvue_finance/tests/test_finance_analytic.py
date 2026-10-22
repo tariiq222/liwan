@@ -95,12 +95,17 @@ class TestFinanceAnalyticAccounts(AnalyticCase):
     def test_refusals(self):
         for body, field in (
             ({'plan_id': self.branches.id}, 'name'), ({'name': 'x'}, 'plan_id'),
-            ({'name': 'x', 'plan_id': 999999}, 'plan_id'), ({'name': 'x', 'plan_id': self.branches.id, 'company_id': 1}, 'company_id'),
+            ({'name': 'x', 'plan_id': 999999}, 'plan_id'),
             ({'name': 'x', 'plan_id': self.branches.id, 'active': 'yes'}, 'active'),
             ({'name': '', 'plan_id': self.branches.id}, 'name'),
         ):
             with self.subTest(body=body):
                 self.assertRefused(self.api('POST', ACCOUNTS, json=body), 422, 'invalid', field)
+        # A payload company_id outside the pinned request set is the uniform not-found.
+        self.assertRefused(
+            self.api('POST', ACCOUNTS, json={'name': 'x', 'plan_id': self.branches.id, 'company_id': 1}),
+            404, 'not_found',
+        )
         url = f'{ACCOUNTS}/{self.riyadh.id}'
         self.assertRefused(self.api('PATCH', url, json={}), 422, 'invalid')
         self.assertRefused(self.api('PATCH', url, json={'plan_id': 999999}), 422, 'invalid', 'plan_id')

@@ -277,7 +277,10 @@ cross-addon links.
   ZATCA onboarding of a sales journal and the submission of one invoice through stock `l10n_sa_edi`,
   after the `finance.zatca.manage` / `finance.zatca.submit` capability and current-company checks,
   in the sandbox api mode only (ZATCA onboarding is sandbox-only in this phase, so production invoicing for real
-  tenants is a release blocker until the preprod/prod policy is approved). Do not add
+  tenants is a release blocker until the preprod/prod policy is approved).
+  `webvue_api` uses it only in `controllers/common.py`, for the single company-ownership
+  read in `get_record`, before any access check, so another company's record answers the
+  same 404 not-found as a missing one instead of a 403 that leaks its existence. Do not add
   another case without documenting it and fixing ACLs/rules where possible.
   Documented cases are listed per file in `tools/arch_documented_sudo.json`, outside the
   shrink-only baseline. Adding one or raising its count needs the owner's

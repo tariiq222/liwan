@@ -61,7 +61,7 @@ def _resolution_page(domain, *, order):
 
 
 def _meeting_ids_for_series(series):
-    return series.meeting_ids.filtered(lambda meeting: meeting.company_id == request.env.company).ids
+    return series.meeting_ids.filtered(lambda meeting: meeting.company_id in request.env.companies).ids
 
 
 class MeetingWorkspaceController(http.Controller):
@@ -77,7 +77,7 @@ class MeetingWorkspaceController(http.Controller):
         meeting = get_record('webvue.meeting.minute', meeting_id)
         limit, offset = _page_args()
         Event = request.env['webvue.meeting.event']
-        domain = [('meeting_id', '=', meeting.id), ('company_id', '=', request.env.company.id)]
+        domain = [('meeting_id', '=', meeting.id), ('company_id', 'in', request.env.companies.ids)]
         rows = Event.search(domain, order='occurred_at desc, id desc', limit=limit, offset=offset)
         return {'items': [dump_event(event, meeting) for event in rows], 'total': Event.search_count(domain)}
 
@@ -90,7 +90,7 @@ class MeetingWorkspaceController(http.Controller):
         meeting_ids = _meeting_ids_for_series(series)
         limit, offset = _page_args()
         Event = request.env['webvue.meeting.event']
-        domain = [('meeting_id', 'in', meeting_ids), ('company_id', '=', request.env.company.id)]
+        domain = [('meeting_id', 'in', meeting_ids), ('company_id', 'in', request.env.companies.ids)]
         rows = Event.search(domain, order='occurred_at desc, id desc', limit=limit, offset=offset)
         return {'items': [dump_event(event) for event in rows], 'total': Event.search_count(domain)}
 
@@ -102,7 +102,7 @@ class MeetingWorkspaceController(http.Controller):
         meeting = get_record('webvue.meeting.minute', meeting_id)
         limit, offset = _page_args()
         Version = request.env['webvue.meeting.minutes.version']
-        domain = [('meeting_id', '=', meeting.id), ('company_id', '=', request.env.company.id)]
+        domain = [('meeting_id', '=', meeting.id), ('company_id', 'in', request.env.companies.ids)]
         rows = Version.search(domain, order='captured_at desc, id desc', limit=limit, offset=offset)
         return {'items': [dump_version(version) for version in rows], 'total': Version.search_count(domain)}
 
@@ -113,7 +113,7 @@ class MeetingWorkspaceController(http.Controller):
         self._read()
         meeting = get_record('webvue.meeting.minute', meeting_id)
         version = get_record('webvue.meeting.minutes.version', version_id)
-        if version.company_id != request.env.company or version.meeting_id != meeting:
+        if version.company_id not in request.env.companies or version.meeting_id != meeting:
             raise ApiError(404, 'not_found', 'meeting version not found')
         return dump_version(version)
 
@@ -125,7 +125,7 @@ class MeetingWorkspaceController(http.Controller):
         series = get_record('webvue.meeting.series', series_id)
         domain = _resolution_filters([
             ('meeting_id.series_id', '=', series.id),
-            ('meeting_id.company_id', '=', request.env.company.id),
+            ('meeting_id.company_id', 'in', request.env.companies.ids),
         ])
         return _resolution_page(domain, order='meeting_id, sequence, id')
 
@@ -134,6 +134,6 @@ class MeetingWorkspaceController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def meeting_followup(self, **_):
         self._read()
-        domain = _resolution_filters([('meeting_id.company_id', '=', request.env.company.id)])
+        domain = _resolution_filters([('meeting_id.company_id', 'in', request.env.companies.ids)])
         # Odoo's date ascending order keeps unscheduled recommendations last.
         return _resolution_page(domain, order='deadline asc, id desc')

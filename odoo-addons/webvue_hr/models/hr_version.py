@@ -99,7 +99,8 @@ class WebVueHrVersion(models.Model):
             'SELECT company_id FROM %s WHERE id = ANY(%s)',
             SQL.identifier(self._table), self.ids,
         ))
-        if any(company_id != self.env.company.id for company_id, in self.env.cr.fetchall()):
+        pinned = self.env['webvue.access.service']._webvue_pinned_company_ids()
+        if any(company_id not in pinned for company_id, in self.env.cr.fetchall()):
             raise AccessError(VERSION_SCOPE_ERROR)
 
     @api.model
@@ -114,7 +115,8 @@ class WebVueHrVersion(models.Model):
             and not self._webvue_trusted_internal_user_change()
         ):
             self._webvue_require_version_read()
-            domain = Domain(domain) & Domain('company_id', '=', self.env.company.id)
+            pinned = self.env['webvue.access.service']._webvue_pinned_company_ids()
+            domain = Domain(domain) & Domain('company_id', 'in', pinned)
         return super()._search(
             domain, offset=offset, limit=limit, order=order,
             active_test=active_test, bypass_access=bypass_access,

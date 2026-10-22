@@ -29,7 +29,7 @@ def _invoice_types():
 
 def company_invoices_domain():
     return [
-        ('company_id', '=', request.env.company.id),
+        ('company_id', 'in', request.env.companies.ids),
         ('move_type', 'in', _invoice_types()),
     ]
 

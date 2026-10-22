@@ -14,7 +14,7 @@ from odoo.addons.webvue_finance.serializers.analytic import has_combined_keys
 
 def company_analytic_domain():
     """The analytic accounts of the current company: shared (company-less) accounts are not offered."""
-    return [('company_id', '=', request.env.company.id)]
+    return [('company_id', 'in', request.env.companies.ids)]
 
 
 def distribution_values(distribution, field):
