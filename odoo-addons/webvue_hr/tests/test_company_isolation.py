@@ -240,6 +240,66 @@ class TestHrCompanyIsolation(CompanyIsolationCase):
         with self.assertRaises(AccessError):
             version.read(['notice_period_days'])
 
+    def test_branch_status_native_version_and_attachment_access_requires_version_grant(self):
+        self._branch_privacy_role(['hr.employees.read', 'hr.employees.access_status.read'])
+        employee = self.recs['p1']['employee']
+        attachment = self.env['ir.attachment'].create({
+            'name': 'Private branch contract file', 'raw': b'private contract', 'type': 'binary',
+            'res_model': 'hr.version', 'res_id': employee.version_id.id,
+            'company_id': self.company_p1.id,
+        })
+        context = {
+            'allowed_company_ids': [self.company_p.id, self.company_p1.id],
+            'webvue_capability_scope': ((('hr.employees.read',), 'all'),),
+        }
+        version = employee.version_id.with_user(self.iso_user).with_context(**context)
+        file = attachment.with_env(version.env)
+        files = version.env['ir.attachment']
+        target = [('res_model', '=', 'hr.version'), ('res_id', '=', version.id)]
+        for label, check in (
+            ('version has_access', lambda: version.has_access('read')),
+            ('version filtered_access', lambda: bool(version._filtered_access('read'))),
+            ('file has_access', lambda: file.has_access('read')),
+            ('file search', lambda: bool(files.search(target))),
+            ('file count', lambda: files.search_count(target)),
+        ):
+            with self.subTest(label=label):
+                self.assertFalse(check(), label)
+        with self.assertRaises(AccessError):
+            file.read(['raw'])
+
+        self.company_p.webvue_branch_access_mode = 'inherited'
+        inheritance = self.env['webvue.access.branch.rule'].create({
+            'company_id': self.company_p.id, 'branch_id': self.company_p1.id, 'inherit': True,
+            'role_ids': [(6, 0, [self.env.ref('webvue_hr.role_hr_manager').id])],
+        })
+        self.assertTrue(version.has_access('read'))
+        self.assertEqual(version._filtered_access('read'), version)
+        self.assertTrue(file.has_access('read'))
+        self.assertEqual(files.search(target), file)
+        self.assertEqual(files.search_count(target), 1)
+        inheritance.inherit = False
+        self.assertFalse(version.has_access('read'))
+        self.assertFalse(version._filtered_access('read'))
+        self.assertFalse(file.has_access('read'))
+        self.assertFalse(files.search(target))
+        self.assertEqual(files.search_count(target), 0)
+        # The established payroll/offboarding reader pairs still open versions,
+        # but each pair must be held together in the owning branch.
+        role = self.env['webvue.access.role'].with_company(self.company_p1).search([
+            ('key', '=', 'branch_privacy_reader'),
+        ], limit=1)
+        for key in ('hr.offboarding.read', 'hr.payroll.read'):
+            permissions = self.env['webvue.access.permission'].search([
+                ('key', 'in', ['hr.employees.read', 'hr.employees.access_status.read', key]),
+            ])
+            role.permission_ids = [(6, 0, permissions.ids)]
+            self.assertTrue(version.has_access('read'), key)
+            self.assertEqual(version._filtered_access('read'), version, key)
+            self.assertTrue(file.has_access('read'), key)
+            self.assertEqual(files.search(target), file, key)
+            self.assertEqual(files.search_count(target), 1, key)
+
     def test_parent_leave_staff_cannot_read_other_branch_employees_requests(self):
         self._branch_privacy_role(['hr.leave.read', 'hr.employees.read', 'hr.employees.access_status.read'])
         own_employee = self.env['hr.employee'].create({
