@@ -7,7 +7,7 @@ describe('branch authorization contracts', () => {
       branches: [{ id: 2, inherit: false, role_ids: [3] }] }).branches[0]?.role_ids).toEqual([3])
     expect(BranchPolicySchema.safeParse({ version: 'b1-v2', mode: 'delegated', branches: [], roles: [] }).success).toBe(true)
     expect(UserBranchAccessSchema.safeParse({ version: 'b1-v2-u1-r3', branches: [], roles: [
-      { id: 3, key: 'custom_reader', name: { ar: 'قراءة', en: null }, company_id: 2 },
+      { id: 3, key: 'custom_reader', name: { ar: 'قراءة', en: null }, company_id: 2, active: false },
     ] }).success).toBe(true)
   })
   it('rejects duplicate ids, injected fields and invalid scalar types', () => {

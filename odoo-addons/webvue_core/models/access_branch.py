@@ -162,23 +162,41 @@ class WebVueBranchAccessService(models.AbstractModel):
         self._webvue_require_capability('access.roles.read')
 
     @api.model
-    def _webvue_branch_roles(self):
-        return self.env['webvue.access.role'].search([
-            ('active', '=', True), ('assignable', '=', True),
-            ('type', '=', 'built_in'), ('company_id', '=', False),
-        ])
+    def _webvue_selected_branch_role_ids(self, branches, user=None):
+        selected = {branch.id: [] for branch in branches}
+        if user:
+            for branch in branches:
+                with marked(self.env, {BRANCH_METADATA_MARKER: {branch.id}}):
+                    selected[branch.id] = self.env['webvue.access.assignment'].with_context(active_test=False).search([
+                        ('user_id', '=', user.id), ('company_id', '=', branch.id),
+                    ]).role_id.ids
+        else:
+            rules = self.env['webvue.access.branch.rule'].search([
+                ('company_id', '=', self.env.company.id), ('branch_id', 'in', branches.ids),
+            ])
+            selected.update({rule.branch_id.id: rule.with_context(active_test=False).role_ids.ids for rule in rules})
+        return selected
 
     @api.model
-    def _webvue_branch_role_catalog(self, branches=None):
+    def _webvue_branch_role_catalog(self, branches=None, *, selected=None):
+        selected = selected or {}
+
         def dump(role):
             return {'id': role.id, 'key': role.key, 'name': {'ar': role.name_ar, 'en': role.name_en or None},
-                    'company_id': role.company_id.id or None}
-        result = [dump(role) for role in self._webvue_branch_roles()]
+                    'company_id': role.company_id.id or None, 'active': role.active}
+
+        Role = self.env['webvue.access.role'].with_context(active_test=False)
+        retained_ids = sorted({role_id for role_ids in selected.values() for role_id in role_ids})
+        builtins = Role.search([
+            ('assignable', '=', True), ('type', '=', 'built_in'), ('company_id', '=', False),
+            '|', ('active', '=', True), ('id', 'in', retained_ids),
+        ])
+        result = [dump(role) for role in builtins]
         for branch in branches or self.env['res.company']:
             with marked(self.env, {BRANCH_METADATA_MARKER: {branch.id}}):
-                roles = self.env['webvue.access.role'].search([
-                    ('active', '=', True), ('assignable', '=', True),
-                    ('type', '=', 'custom'), ('company_id', '=', branch.id),
+                roles = Role.search([
+                    ('assignable', '=', True), ('type', '=', 'custom'), ('company_id', '=', branch.id),
+                    '|', ('active', '=', True), ('id', 'in', selected.get(branch.id, [])),
                 ])
                 result.extend(dump(role) for role in roles)
         return result
@@ -192,12 +210,14 @@ class WebVueBranchAccessService(models.AbstractModel):
         self._webvue_require_branch_admin()
         rules = self.env['webvue.access.branch.rule'].search([('company_id', '=', self.env.company.id)])
         by_branch = {rule.branch_id.id: rule for rule in rules}
+        branches = self._webvue_descendant_memberships()
+        selected = self._webvue_selected_branch_role_ids(branches)
         return {'version': self._webvue_branch_policy_version(), 'mode': self.env.company.webvue_branch_access_mode,
                 'branches': [{'id': branch.id, 'name': branch.name,
                               'inherit': bool(by_branch.get(branch.id) and by_branch[branch.id].inherit),
-                              'role_ids': by_branch[branch.id].role_ids.ids if branch.id in by_branch else []}
-                             for branch in self._webvue_descendant_memberships()],
-                'roles': self._webvue_branch_role_catalog()}
+                              'role_ids': selected[branch.id]}
+                             for branch in branches],
+                'roles': self._webvue_branch_role_catalog(selected=selected)}
 
     @api.model
     def _webvue_check_branch_version(self, expected, user=None):
@@ -211,12 +231,13 @@ class WebVueBranchAccessService(models.AbstractModel):
                                    details={'current_version': current})
 
     @api.model
-    def _webvue_parse_branch_changes(self, changes, branches, *, inheritance=False):
+    def _webvue_parse_branch_changes(self, changes, branches, *, inheritance=False, user=None):
         if not isinstance(changes, list):
             msg = 'invalid'
             raise WebVueAccessRule(msg, field='branches')
-        catalog = self._webvue_branch_role_catalog(None if inheritance else branches)
-        allowed_roles = {role['id']: role['company_id'] for role in catalog}
+        selected = self._webvue_selected_branch_role_ids(branches, user=user)
+        catalog = self._webvue_branch_role_catalog(None if inheritance else branches, selected=selected)
+        allowed_roles = {role['id']: role for role in catalog}
         seen = set()
         for item in changes:
             fields = {'id', 'role_ids', 'inherit'} if inheritance else {'id', 'role_ids'}
@@ -228,7 +249,9 @@ class WebVueBranchAccessService(models.AbstractModel):
             if (type(branch_id) is not int or branch_id not in branches.ids or branch_id in seen
                     or not isinstance(role_ids, list) or any(type(role_id) is not int for role_id in role_ids)
                     or len(set(role_ids)) != len(role_ids) or not set(role_ids) <= set(allowed_roles)
-                    or any(allowed_roles[role_id] not in (None, branch_id) for role_id in role_ids if role_id in allowed_roles)
+                    or any(allowed_roles[role_id]['company_id'] not in (None, branch_id)
+                           or (not allowed_roles[role_id]['active'] and role_id not in selected.get(branch_id, []))
+                           for role_id in role_ids if role_id in allowed_roles)
                     or (inheritance and type(item['inherit']) is not bool)):
                 msg = 'invalid'
                 raise WebVueAccessRule(msg, 'invalid branch or role', field='branches')
@@ -269,16 +292,10 @@ class WebVueBranchAccessService(models.AbstractModel):
         self._webvue_require_branch_admin()
         self._webvue_assert_user_scope(user)
         branches = self._webvue_descendant_memberships() & user.company_ids
-        # Assignment rule remains current-company scoped; use each shared membership's ordinary environment.
-        items = []
-        for branch in branches:
-            with marked(self.env, {BRANCH_METADATA_MARKER: {branch.id}}):
-                role_ids = self.env['webvue.access.assignment'].search([
-                    ('user_id', '=', user.id), ('company_id', '=', branch.id),
-                ]).role_id.ids
-            items.append({'id': branch.id, 'name': branch.name, 'role_ids': role_ids})
+        selected = self._webvue_selected_branch_role_ids(branches, user=user)
+        items = [{'id': branch.id, 'name': branch.name, 'role_ids': selected[branch.id]} for branch in branches]
         return {'version': self._webvue_user_branch_version(user), 'branches': items,
-                'roles': self._webvue_branch_role_catalog(branches)}
+                'roles': self._webvue_branch_role_catalog(branches, selected=selected)}
 
     @api.model
     def _webvue_update_user_branch_access(self, user, expected, changes):
@@ -286,7 +303,7 @@ class WebVueBranchAccessService(models.AbstractModel):
         self._webvue_assert_user_scope(user)
         self._webvue_check_branch_version(expected, user=user)
         branches = self._webvue_descendant_memberships() & user.company_ids
-        changes = self._webvue_parse_branch_changes(changes, branches)
+        changes = self._webvue_parse_branch_changes(changes, branches, user=user)
         if user.has_group('webvue_core.group_vendor_support'):
             msg = 'protected_user'
             raise WebVueAccessRule(msg, status=403)
