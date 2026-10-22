@@ -2,7 +2,7 @@ name: agent-fix
 
 # Daily scan opens candidate issues; the owner promotes one to `agent-fix` by hand; Claude fixes it and opens a PR.
 # The repository is public, so every trigger below is gated on the repository owner, never on issue or comment authors.
-# Draft: needs the ANTHROPIC_API_KEY secret and the Claude GitHub App before it can run.
+# Draft: needs the CLAUDE_CODE_OAUTH_TOKEN secret (from `claude setup-token`) and the Claude GitHub App before it can run.
 
 on:
   schedule:
@@ -32,7 +32,7 @@ jobs:
       - uses: ./.github/actions/setup
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             Scan this repository for real defects: failing or flaky tests, type errors, violations of the
             architecture rules in AGENTS.md (R1-R10), accumulation the clean-codebase rules forbid, and
@@ -68,7 +68,7 @@ jobs:
       - uses: ./.github/actions/setup
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           branch_prefix: codex/tools-agent-
           prompt: |
             Fix issue #${{ github.event.issue.number }} in ${{ github.repository }}.
@@ -104,7 +104,7 @@ jobs:
       - uses: ./.github/actions/setup
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           branch_prefix: codex/tools-agent-
           claude_args: |
             --max-turns 40
