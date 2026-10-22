@@ -33,6 +33,7 @@ const { me } = useMe()
 const { rows: attentionRows } = useAttention('all', { limit: 3 })
 const { data: runList } = useAiRuns(false)
 const { currentRunId } = useAiConversation()
+const identity = computed(() => me.value ? `${me.value.company.id}:${me.value.id}` : null)
 
 const disabledByConfig = computed(() => !config.public.aiEnabled)
 const showUnavailable = computed(() => disabledByConfig.value || unavailable.value)
@@ -73,17 +74,29 @@ watch(items, async (now, before) => {
 })
 const summary = (item: { summaryAr: string; summaryEn: string }) => (locale.value === 'en' ? item.summaryEn : item.summaryAr)
 
+// The route loader owns opening runs; ending the shared conversation or changing identity
+// must also clear this page's local transcript, including a load not yet published as a run id.
+watch([identity, currentRunId], ([owner, id], [beforeOwner]) => {
+  if (owner === beforeOwner && id !== null) return
+  reset()
+  if (route.path !== '/ai') return
+  const { run: _run, resume: _resume, created: _created, ...query } = route.query
+  if (_run !== undefined || _resume !== undefined || _created !== undefined) void router.replace({ path: '/ai', query })
+}, { flush: 'sync' })
+
 // Reopen a run by link/refresh; a `resume` query means the create page finished (or left) a draft.
 onMounted(async () => {
   if (disabledByConfig.value) return
   // Without `?run=` the conversation the sheet has open continues here.
   const id = typeof route.query.run === 'string' ? route.query.run : currentRunId.value
   if (!id) return
+  const owner = identity.value
   const resume = typeof route.query.resume === 'string' ? route.query.resume : null
   const created = parseCreatedId(route.query.created)
   // Kept before anything can fail, until the decision reaches the server: a failed load or decide cannot lose the project.
   if (resume && created !== null) rememberCreatedId(id, resume, created)
   await load(id)
+  if (identity.value !== owner || runId.value !== id) return
   // The query goes first, so a refresh during the answer cannot resume a second time.
   if (resume) {
     const { resume: _resume, created: _created, ...rest } = route.query
@@ -124,18 +137,23 @@ async function onSend(text: string) {
 watch(runId, async (id) => {
   // Leaving the page empties its own run; the shared conversation (the sheet's) must survive that.
   if (route.path !== '/ai') return
-  currentRunId.value = id
+  if (id) currentRunId.value = id
   if (id && route.query.run !== id) await router.replace({ path: '/ai', query: { ...route.query, run: id } })
-})
+}, { flush: 'sync' })
 
 // The history list opens another conversation or starts a new one by changing `?run=` (back/forward do the same).
 watch(() => route.query.run, async (value) => {
   // Navigating away drops the query too: that is not "start a new conversation".
   if (route.path !== '/ai') return
   const id = typeof value === 'string' ? value : null
+  if (id === null) {
+    currentRunId.value = null
+    reset()
+    return
+  }
   if (id === runId.value) return
   reset()
-  if (id) await load(id)
+  await load(id)
 })
 
 // A conversation that was created, answered or decided changes the history list: fetch it again once the stream settles.
