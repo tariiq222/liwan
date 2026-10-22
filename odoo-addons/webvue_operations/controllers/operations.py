@@ -15,7 +15,6 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.webvue_api.serializers.attachment import parse_attachment_upload
-from odoo.addons.webvue_operations.models.common import require as require_operation
 from odoo.addons.webvue_operations.models.operation_request import (
     OperationExecutionError,
 )
@@ -33,14 +32,8 @@ def body(allowed):
     return payload
 
 
-def require(env, key, write=True):
-    # Preserve entitlement and operation validation before declaring its request scope.
-    require_operation(env, key, write=write)
-    require_capabilities(key)
-
-
 def find(model, record_id, capability, *, domain=()):
-    require(request.env, capability, write=False)
+    require_capabilities(capability)
     # The pinned company subtree (current company + its own branches); a
     # foreign-company record is not-found like a missing one.
     record = request.env[model].search([('id', '=', record_id), ('company_id', 'in', request.env.companies.ids), *domain], limit=1)
@@ -60,7 +53,7 @@ class OperationsController(http.Controller):
     @api_handler
     @requires_feature('operations.enabled', operation='read')
     def execution_kinds(self, **_):
-        require(request.env, 'operations.processes.manage', write=False)
+        require_capabilities('operations.processes.manage')
         items = list(request.env['webvue.operation.process']._operations_execution_kinds())
         return {'items': items, 'total': len(items)}
 
@@ -76,7 +69,7 @@ class OperationsController(http.Controller):
     @api_handler
     @requires_feature('operations.enabled', operation='read')
     def list_processes(self, **_):
-        require(request.env, 'operations.requests.read', write=False)
+        require_capabilities('operations.requests.read')
         args = request.httprequest.args
         limit, offset = parse_page(args)
         domain = [('company_id', 'in', request.env.companies.ids)]
@@ -136,7 +129,7 @@ class OperationsController(http.Controller):
         scope = args.get('scope', 'mine')
         if scope not in ('mine', 'pending', 'monitoring'):
             raise ApiError(422, 'invalid', 'Invalid request scope.', field='scope')
-        require(request.env, 'operations.monitoring.read' if scope == 'monitoring' else 'operations.requests.read', write=False)
+        require_capabilities('operations.monitoring.read' if scope == 'monitoring' else 'operations.requests.read')
         limit, offset = parse_page(args)
         domain = [('company_id', 'in', request.env.companies.ids)]
         if 'purpose' in args:
@@ -144,7 +137,7 @@ class OperationsController(http.Controller):
         if scope == 'mine':
             domain.append(('requester_id', '=', request.env.uid))
         elif scope == 'pending':
-            require(request.env, 'operations.requests.review', write=False)
+            require_capabilities('operations.requests.review')
             domain += [('state', '=', 'pending'), ('can_review', '=', True)]
         if args.get('q'):
             domain.append(('name', 'ilike', args['q'][:200]))
