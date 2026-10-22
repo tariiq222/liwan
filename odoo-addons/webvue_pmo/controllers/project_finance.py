@@ -27,13 +27,11 @@ ACTUAL_LINES_QUERY = {'limit', 'offset'}
 
 def _finance_project(project_id):
     request.env['webvue.access.service']._webvue_require_capability('pmo.projects.read')
+    # get_record answers the uniform not-found for a foreign-company project
+    # and lets the pinned record rules decide the rest; no duplicate company
+    # check here. Finance stays out of scope for archived projects.
     project = get_record('project.project', project_id)
-    project._webvue_check_visible_current()
-    # Finance is explicitly out of scope for archived and company-less/legacy
-    # projects: project.project's own rule_project_current_company allows a
-    # company-less project through (`company_id in [company_id, False]`), so
-    # this must be its own, stricter check - not just the base visibility one.
-    if not project.active or project.company_id != request.env.company:
+    if not project.active:
         raise ApiError(404, 'not_found', "project not found")
     return project
 

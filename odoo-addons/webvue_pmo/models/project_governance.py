@@ -91,13 +91,13 @@ class GovernanceVisibility(models.AbstractModel):
         # Build the related queries in the original caller environment instead.
         # Query objects remain SQL subqueries; no ids or environments are cached.
         projects = self.env['project.project']._search([
-            ('active', '=', True), ('company_id', '=', self.env.company.id),
+            ('active', '=', True), ('company_id', 'in', self.env.companies.ids),
         ])
         domain = Domain('project_id', 'in', projects)
         if self._webvue_governance_task_mode:
             try:
                 tasks = self.env['project.task']._search([
-                    ('active', '=', True), ('company_id', '=', self.env.company.id),
+                    ('active', '=', True), ('company_id', 'in', self.env.companies.ids),
                     ('project_id.active', '=', True),
                 ])
                 task_domain = Domain('task_id', 'in', tasks)

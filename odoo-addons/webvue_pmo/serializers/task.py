@@ -180,10 +180,10 @@ def dump_task_detail(task, today=None):
     cycle = (task.date_end - start).days if task.is_closed and task.date_end and start else None
     dependencies = task.env['project.task'].search([
         ('id', 'in', task.depend_on_ids.ids),
-        ('company_id', '=', task.env.company.id),
+        ('company_id', 'in', task.env.companies.ids),
         ('project_id', '=', task.project_id.id),
         ('project_id.active', '=', True),
-        ('project_id.company_id', '=', task.env.company.id),
+        ('project_id.company_id', 'in', task.env.companies.ids),
     ])
     data.update({
         'description_html': task.description or '',

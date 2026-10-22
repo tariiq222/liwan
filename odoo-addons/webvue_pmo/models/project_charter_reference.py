@@ -120,7 +120,7 @@ class WebVueProjectCharterCatalogMixin(models.AbstractModel):
     ):
         if not bypass_access and not self._webvue_is_privileged():
             self._webvue_require_read()
-            domain = Domain(domain) & Domain('company_id', '=', self.env.company.id)
+            domain = Domain(domain) & Domain('company_id', 'in', self.env.companies.ids)
             if not self._webvue_can_manage_catalog():
                 domain = Domain(domain) & Domain('active', '=', True)
         return super()._search(
