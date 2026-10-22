@@ -68,9 +68,8 @@ def _register_departure(payload):
     if employee.departure_date:
         raise ApiError(422, 'invalid', 'this employee already has a departure date', field='departure_date')
     reason = _departure_reason(vals['departure_reason_id'])
-    wizard = request.env['hr.departure.wizard'].with_context(
-        allowed_company_ids=[request.env.company.id],
-    ).create({
+    # The request company is already pinned by api_handler; no extra context.
+    wizard = request.env['hr.departure.wizard'].create({
         'employee_ids': [Command.set([employee.id])],
         'departure_reason_id': reason.id,
         'departure_date': vals['departure_date'],
@@ -106,7 +105,7 @@ def _list_departures():
     latest = _clearance_runs()
     cleared_ids = [employee_id for employee_id, run in latest.items() if clearance_done(run)]
     domain = [
-        ('company_id', '=', request.env.company.id),
+        ('company_id', 'in', request.env.companies.ids),
         ('departure_date', '!=', False),
     ]
     if query:

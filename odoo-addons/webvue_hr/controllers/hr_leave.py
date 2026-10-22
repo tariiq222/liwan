@@ -72,7 +72,7 @@ def _own_employee():
 def _company_employee(employee_id):
     employee = request.env['hr.employee'].search([
         ('id', '=', employee_id),
-        ('company_id', '=', request.env.company.id),
+        ('company_id', 'in', request.env.companies.ids),
     ], limit=1)
     if not employee:
         raise ApiError(422, 'invalid', 'employee_id is outside the current company', field='employee_id')
@@ -115,7 +115,7 @@ def _current_leave(leave_id):
     hr_holidays' record rules already hide other people's requests from an employee; the
     explicit employee filter keeps that guarantee in WebVue instead of in stock data.
     """
-    domain = [('id', '=', int(leave_id)), ('company_id', '=', request.env.company.id)]
+    domain = [('id', '=', int(leave_id)), ('company_id', 'in', request.env.companies.ids)]
     if not _is_staff():
         domain.append(('employee_id.user_id', '=', request.env.user.id))
     leave = request.env['hr.leave'].search(domain, limit=1)
@@ -160,7 +160,7 @@ class HrLeaveController(http.Controller):
         _require('hr.leave.read')
         args = request.httprequest.args
         limit, offset = parse_page(args)
-        domain = [('company_id', '=', request.env.company.id)]
+        domain = [('company_id', 'in', request.env.companies.ids)]
         states = parse_state_filter(args.get('state'))
         if states:
             domain.append(('state', 'in', states))

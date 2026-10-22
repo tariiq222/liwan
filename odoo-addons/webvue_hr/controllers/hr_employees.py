@@ -40,7 +40,7 @@ def _dump(employee):
 def _admin_employee(employee_id):
     employee = request.env['hr.employee'].with_context(active_test=False).search([
         ('id', '=', int(employee_id)),
-        ('company_id', '=', request.env.company.id),
+        ('company_id', 'in', request.env.companies.ids),
     ], limit=1)
     if not employee:
         raise MissingError(request.env._('hr.employee %(id)s does not exist', id=employee_id))
@@ -52,7 +52,7 @@ def _public_employee(employee_id):
     employee = request.env['hr.employee.public'].search([
         ('id', '=', int(employee_id)),
         ('active', '=', True),
-        ('company_id', '=', request.env.company.id),
+        ('company_id', 'in', request.env.companies.ids),
     ], limit=1)
     if not employee:
         raise MissingError(request.env._('hr.employee %(id)s does not exist', id=employee_id))
@@ -64,7 +64,7 @@ def _relation(model, record_id, field):
     try:
         if not record.exists():
             raise ApiError(422, 'invalid', f'{field} does not reference an existing record', field=field)
-        if record.company_id != request.env.company:
+        if record.company_id not in request.env.companies:
             raise ApiError(422, 'invalid', f'{field} is outside the current company', field=field)
         record.check_access('read')
     except AccessError:
@@ -115,7 +115,7 @@ class HrEmployeeController(http.Controller):
             raise ApiError(403, 'forbidden', 'hr.employees.archive capability is required')
         limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), MAX_LIMIT)
         offset = parse_nonneg_int(args.get('offset', 0), 'offset')
-        domain = [('company_id', '=', request.env.company.id)]
+        domain = [('company_id', 'in', request.env.companies.ids)]
         if q:
             domain.append(('name', 'ilike', q))
         if department_id not in (None, ''):

@@ -23,7 +23,7 @@ def scoped_record(model, record_id, *, active_test=True):
     records = request.env[model] if active_test else request.env[model].with_context(active_test=False)
     record = records.search([
         ('id', '=', record_id),
-        ('company_id', '=', current_company().id),
+        ('company_id', 'in', request.env.companies.ids),
     ], limit=1)
     if not record:
         raise MissingError(request.env._('%(model)s %(id)s does not exist', model=model, id=record_id))
@@ -43,7 +43,7 @@ def company_relation(model, record_id, field):
     try:
         if not record.exists():
             raise ApiError(422, 'invalid', f'{field} does not reference an existing record', field=field)
-        if record.company_id != current_company():
+        if record.company_id not in request.env.companies:
             raise ApiError(422, 'invalid', f'{field} is outside the current company', field=field)
         record.check_access('read')
     except AccessError:

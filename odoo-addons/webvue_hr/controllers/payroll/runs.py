@@ -3,7 +3,6 @@ from odoo import http
 from odoo.exceptions import MissingError
 from odoo.http import request
 
-from .common import current_company
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -26,7 +25,7 @@ from odoo.addons.webvue_hr.serializers.payroll.run import (
 def scoped_run(run_id):
     """A run of the current company → 404 otherwise: another company's run is never a 403."""
     run = request.env['hr.payslip.run'].search([
-        ('id', '=', run_id), ('company_id', '=', current_company().id),
+        ('id', '=', run_id), ('company_id', 'in', request.env.companies.ids),
     ], limit=1)
     if not run:
         raise MissingError(request.env._('hr.payslip.run %(id)s does not exist', id=run_id))
@@ -34,7 +33,7 @@ def scoped_run(run_id):
 
 
 def _run_domain(args):
-    domain = [('company_id', '=', current_company().id)]
+    domain = [('company_id', 'in', request.env.companies.ids)]
     year = args.get('year')
     if year not in (None, ''):
         year = parse_nonneg_int(year, 'year')

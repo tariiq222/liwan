@@ -30,7 +30,7 @@ def _list_plans(area):
     domain = [
         ('res_model', '=', EMPLOYEE_MODEL),
         ('hr_purpose', '=', area),
-        ('company_id', 'in', [request.env.company.id, False]),
+        ('company_id', 'in', [*request.env.companies.ids, False]),
     ]
     if active is not None:
         domain.append(('active', '=', active))
@@ -77,7 +77,7 @@ def _validate_plan_relations(vals, steps):
     department_id = vals.get('department_id')
     if department_id and not _visible('hr.department', [
         ('id', '=', department_id),
-        ('company_id', 'in', [request.env.company.id, False]),
+        ('company_id', 'in', [*request.env.companies.ids, False]),
     ]):
         raise ApiError(422, 'invalid', 'department_id is not available', field='department_id')
     for step in steps:

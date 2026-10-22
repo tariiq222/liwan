@@ -37,7 +37,8 @@ class WebVueHrDepartment(models.Model):
             self.env['webvue.access.service']._webvue_require_capability(
                 'hr.departments.read',
             )
-            domain = Domain(domain) & Domain('company_id', '=', self.env.company.id)
+            pinned = self.env['webvue.access.service']._webvue_pinned_company_ids()
+            domain = Domain(domain) & Domain('company_id', 'in', pinned)
         return super()._search(
             domain,
             offset=offset,
@@ -78,10 +79,8 @@ class WebVueHrDepartment(models.Model):
                 self.ids,
             ),
         )
-        if any(
-            company_id != self.env.company.id
-            for (company_id,) in self.env.cr.fetchall()
-        ):
+        pinned = self.env['webvue.access.service']._webvue_pinned_company_ids()
+        if any(company_id not in pinned for (company_id,) in self.env.cr.fetchall()):
             raise AccessError(DEPARTMENT_SCOPE_ERROR)
 
     @staticmethod
@@ -98,9 +97,8 @@ class WebVueHrDepartment(models.Model):
             record = (
                 self.env[model].browse(self._webvue_relation_id(vals[key])).exists()
             )
-            if not record or any(
-                item.company_id != self.env.company for item in record
-            ):
+            pinned = self.env['webvue.access.service']._webvue_pinned_company_ids()
+            if not record or any(item.company_id.id not in pinned for item in record):
                 raise AccessError('%s is outside the current company' % key)
 
     def _webvue_create(self, vals):
@@ -150,17 +148,17 @@ class WebVueHrDepartment(models.Model):
         if not self.ids:
             return {}
         self._webvue_validate_scope()
-        company_id = self.env.company.id
+        pinned = self.env['webvue.access.service']._webvue_pinned_company_ids()
         self.env.cr.execute(
             SQL(
                 """
                 SELECT department.id, department.parent_id, manager.id, manager.name
                   FROM hr_department department
                   LEFT JOIN hr_employee manager ON manager.id = department.manager_id
-                 WHERE department.id = ANY(%s) AND department.company_id = %s
+                 WHERE department.id = ANY(%s) AND department.company_id IN %s
             """,
                 self.ids,
-                company_id,
+                tuple(pinned),
             ),
         )
         rows = self.env.cr.fetchall()
@@ -179,11 +177,11 @@ class WebVueHrDepartment(models.Model):
                 """
                 SELECT parent_id, id
                   FROM hr_department
-                 WHERE parent_id = ANY(%s) AND company_id = %s
+                 WHERE parent_id = ANY(%s) AND company_id IN %s
                  ORDER BY id
             """,
                 self.ids,
-                company_id,
+                tuple(pinned),
             ),
         )
         child_ids = {department_id: [] for department_id in self.ids}
@@ -199,12 +197,12 @@ class WebVueHrDepartment(models.Model):
                 SELECT version.department_id, COUNT(*)
                   FROM hr_employee employee
                   JOIN hr_version version ON version.id = employee.current_version_id
-                 WHERE employee.company_id = %s
+                 WHERE employee.company_id IN %s
                    AND version.department_id = ANY(%s)
                    AND (%s OR employee.active IS TRUE)
                  GROUP BY version.department_id
             """,
-                company_id,
+                tuple(pinned),
                 self.ids,
                 include_archived,
             ),
