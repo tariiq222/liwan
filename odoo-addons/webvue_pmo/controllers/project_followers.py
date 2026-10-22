@@ -5,6 +5,7 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
+    declare_read_capability_scope,
     get_record,
     requires_feature,
 )
@@ -29,6 +30,7 @@ class ProjectFollowerController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def list_followers(self, project_id):
+        declare_read_capability_scope('pmo.projects.read')
         return _dump_users(get_record('project.project', project_id)._webvue_followers())
 
     @http.route('/api/v1/projects/<int:project_id>/followers', type='json2', auth='user', methods=['POST'], readonly=False)

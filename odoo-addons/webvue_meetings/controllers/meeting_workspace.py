@@ -7,6 +7,7 @@ from odoo.addons.webvue_api.controllers.common import (
     api_handler,
     get_record,
     parse_nonneg_int,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_meetings.serializers.meeting import (
@@ -67,7 +68,7 @@ def _meeting_ids_for_series(series):
 class MeetingWorkspaceController(http.Controller):
 
     def _read(self):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
 
     @http.route('/api/v1/meetings/<int:meeting_id>/events', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

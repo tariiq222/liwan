@@ -8,7 +8,7 @@ from odoo import Command, fields
 from odoo.exceptions import MissingError
 from odoo.http import request
 
-from odoo.addons.webvue_api.controllers.common import ApiError
+from odoo.addons.webvue_api.controllers.common import ApiError, require_capabilities
 from odoo.addons.webvue_hr.serializers.lifecycle.run import run_activities
 
 ONBOARDING = 'onboarding'
@@ -24,6 +24,7 @@ def _can(capability):
 def _require(capability):
     if not _can(capability):
         raise ApiError(403, 'forbidden', f'{capability} capability is required')
+    require_capabilities(capability)
 
 
 def _missing(model, record_id):

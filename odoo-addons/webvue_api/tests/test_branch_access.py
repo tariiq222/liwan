@@ -154,3 +154,60 @@ class TestBranchGateScope(TransactionCase):
             with self.assertRaises(ApiError):
                 require_capabilities('unknown.read', match='any')
             self.assertEqual(req.env['webvue.access.service']._webvue_scoped_company_ids(), [])
+
+    def test_contextual_read_scope_preserves_home_and_requires_branch_operation(self):
+        user = new_test_user(self.env, login='contextual_branch_actor', groups='base.group_user',
+                             company_id=self.company.id,
+                             company_ids=[Command.set((self.company | self.branch).ids)])
+        permission = self.env['webvue.access.permission'].search([('key', '=', 'settings.company.read')])
+        role = self.env['webvue.access.role'].create({
+            'key': 'contextual_read_probe', 'type': 'built_in', 'name_ar': 'probe',
+            'permission_ids': [Command.set(permission.ids)],
+        })
+        self.env['ir.model.access'].create({
+            'name': 'contextual native writer', 'model_id': self.env['ir.model']._get_id('res.partner'),
+            'group_id': self.env.ref(permission.group_xmlid).id, 'perm_read': True, 'perm_write': True,
+        })
+        home, branch = self.env['res.partner'].create([
+            {'name': 'Contextual home', 'company_id': self.company.id},
+            {'name': 'Contextual branch', 'company_id': self.branch.id},
+        ])
+        req = self.request()
+        req.env = req.env(user=user)
+        req.httprequest = SimpleNamespace(method='GET')
+        with mock.patch.object(common, 'request', req):
+            common.declare_read_capability_scope('settings.company.read')
+            self.assertFalse(req.env['webvue.access.service']._webvue_has_capability(user, 'settings.company.read'))
+            self.assertTrue(home.with_env(req.env).has_access('read'), 'contextual home baseline remains')
+            self.assertFalse(branch.with_env(req.env).has_access('read'), 'membership alone grants nothing')
+            assignment = self.env['webvue.access.assignment'].create({
+                'user_id': user.id, 'company_id': self.branch.id, 'role_id': role.id,
+            })
+            # Re-pin as a real new request would: the earlier membership-only scope never widens itself.
+            common._pin_current_company()
+            common.declare_read_capability_scope('settings.company.read')
+            self.assertTrue(branch.with_env(req.env).has_access('read'))
+            self.assertFalse(branch.with_env(req.env).has_access('write'), 'read declaration cannot lend native writer ACL')
+            self.env['ir.rule'].create({
+                'name': 'private contextual probe', 'model_id': self.env['ir.model']._get_id('res.partner'),
+                'domain_force': repr([('id', '!=', branch.id)]),
+            })
+            self.assertFalse(branch.with_env(req.env).has_access('read'), 'downstream private record rule still applies')
+            assignment.unlink()
+            self.assertNotIn(self.branch.id, req.env['webvue.access.service']._webvue_scoped_company_ids())
+
+    def test_contextual_read_scope_intersects_prior_gates_and_resets(self):
+        req = self.request()
+        req.httprequest = SimpleNamespace(method='GET')
+        with mock.patch.object(common, 'request', req):
+            require_capabilities('access.roles.read')
+            common.declare_read_capability_scope('settings.company.read', 'access.roles.read', match='any')
+            self.assertEqual(req.env['webvue.access.service']._webvue_scoped_company_ids(), [self.company.id])
+            with self.assertRaises(ValueError):
+                common.declare_read_capability_scope('unknown.read')
+            req.httprequest.method = 'POST'
+            with self.assertRaises(ValueError):
+                common.declare_read_capability_scope('settings.company.read')
+            common._pin_current_company()
+            self.assertFalse(req.env.context.get('webvue_capability_scope'))
+            self.assertEqual(req.env.companies.ids, [self.company.id])

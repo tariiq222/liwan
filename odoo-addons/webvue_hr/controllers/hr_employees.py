@@ -8,6 +8,7 @@ from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
     parse_nonneg_int,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_hr.serializers.hr_employee import (
@@ -26,6 +27,7 @@ def _can(capability):
 def _require(capability):
     if not _can(capability):
         raise ApiError(403, 'forbidden', f'{capability} capability is required')
+    require_capabilities(capability)
 
 
 def _dump(employee):
@@ -116,10 +118,9 @@ class HrEmployeeController(http.Controller):
         if archived_param not in (None, '0', 'false', '1', 'true'):
             raise ApiError(422, 'invalid', "archived must be '0', 'false', '1' or 'true'", field='archived')
         archived = archived_param in ('1', 'true')
-        if not _can('hr.employees.read'):
-            raise ApiError(403, 'forbidden', 'hr.employees.read capability is required')
-        if archived and not _can('hr.employees.archive'):
-            raise ApiError(403, 'forbidden', 'hr.employees.archive capability is required')
+        _require('hr.employees.read')
+        if archived:
+            _require('hr.employees.archive')
         limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), MAX_LIMIT)
         offset = parse_nonneg_int(args.get('offset', 0), 'offset')
         domain = [('company_id', 'in', request.env.companies.ids)]

@@ -11,10 +11,11 @@ from odoo.addons.webvue_api.controllers.common import (
     error_response,
     parse_page,
     parse_positive_int,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_api.serializers.attachment import parse_attachment_upload
-from odoo.addons.webvue_operations.models.common import require
+from odoo.addons.webvue_operations.models.common import require as require_operation
 from odoo.addons.webvue_operations.models.operation_request import (
     OperationExecutionError,
 )
@@ -30,6 +31,12 @@ def body(allowed):
     if not isinstance(payload, dict) or set(payload) - allowed:
         raise ApiError(422, 'invalid', 'Invalid request fields.')
     return payload
+
+
+def require(env, key, write=True):
+    # Preserve entitlement and operation validation before declaring its request scope.
+    require_operation(env, key, write=write)
+    require_capabilities(key)
 
 
 def find(model, record_id, capability, *, domain=()):

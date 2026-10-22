@@ -44,6 +44,7 @@ class MyTaskAttachmentsController(http.Controller):
     @api_handler
     @requires_feature('tasks.enabled', operation='read')
     def list_my_task_attachments(self, task_id, **_):
+        _require('tasks.tasks.read')
         task = request.env['webvue.my.task.service']._get_personal(task_id)
         attachments = _task_attachments(task)
         return {'items': [dump_attachment(item, _attachments_route(task)) for item in attachments], 'total': len(attachments)}
@@ -55,6 +56,7 @@ class MyTaskAttachmentsController(http.Controller):
     @api_handler
     @requires_feature('tasks.enabled', operation='read')
     def download_my_task_attachment(self, task_id, att_id, **_):
+        _require('tasks.tasks.read')
         task = request.env['webvue.my.task.service']._get_personal(task_id)
         return download_linked_attachment(_task_attachments(task), att_id)
 

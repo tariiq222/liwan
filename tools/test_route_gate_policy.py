@@ -72,6 +72,12 @@ class TopLevelCheckTests(unittest.TestCase):
         route = only(handler("require_any_capability(['a', 'b'])"))
         self.assertEqual(route.capability_match, 'any')
 
+    def test_shared_plural_gate_keeps_explicit_any_semantics(self):
+        route = only(handler("require_capabilities('a.read', 'b.read', match='any')"))
+        self.assertEqual(route.capability_keys, ['a.read', 'b.read'])
+        self.assertEqual(route.capability_match, 'any')
+        self.assertFalse(only(handler("declare_read_capability_scope('a.read')")).has_capability)
+
     def test_a_check_inside_an_if_branch_does_not_count(self):
         self.assertFalse(only(handler("if flag:\n    require_capability('hr.read')")).has_capability)
 

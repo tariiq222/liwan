@@ -71,10 +71,10 @@ class ChatCompanyIsolationCase(CompanyIsolationCase):
             )
 
     def assert_conversation_matrix(self, route):
-        """current=P: own and member-branch conversations 200; current=P1: own 200, others 403.
+        """Chat declares no operation capability, so only the current company is visible.
 
-        The chat record rule follows the pinned company set, so a member
-        branch's conversation is visible from the parent; anything outside the
+        Conversation membership cannot replace an explicit company operation grant;
+        every branch, parent, sibling and unrelated company's conversation outside the
         set is reported by the service as a missing membership (403).
         """
         for current in (self.company_p, self.company_p1):
@@ -83,8 +83,7 @@ class ChatCompanyIsolationCase(CompanyIsolationCase):
             for company in self.all_companies:
                 if company == current:
                     continue
-                branch = current == self.company_p and company in (self.company_p1, self.company_p2)
-                self.assert_status_every_way(route(company), company.id, 403 if not branch else 200)
+                self.assert_status_every_way(route(company), company.id, 403)
 
     def test_conversation_record_is_company_scoped(self):
         self.assert_conversation_matrix(
@@ -107,9 +106,9 @@ class ChatCompanyIsolationCase(CompanyIsolationCase):
         ))
 
     def test_conversations_list_is_company_scoped(self):
-        """The list follows the pinned company set: P reads its branches, P1 only itself."""
+        """The undeclared chat route keeps the current company only."""
         for current, visible in (
-            (self.company_p, (self.company_p, self.company_p1, self.company_p2)),
+            (self.company_p, (self.company_p,)),
             (self.company_p1, (self.company_p1,)),
         ):
             self.env_in(current)

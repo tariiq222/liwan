@@ -8,6 +8,7 @@ from odoo.addons.webvue_api.controllers.common import (
     api_handler,
     get_record,
     parse_nonneg_int,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_pmo.models.project_finance import (
@@ -26,7 +27,7 @@ ACTUAL_LINES_QUERY = {'limit', 'offset'}
 
 
 def _finance_project(project_id):
-    request.env['webvue.access.service']._webvue_require_capability('pmo.projects.read')
+    require_capabilities('pmo.projects.read')
     # get_record answers the uniform not-found for a foreign-company project
     # and lets the pinned record rules decide the rest; no duplicate company
     # check here. Finance stays out of scope for archived projects.

@@ -9,6 +9,7 @@ from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
     parse_nonneg_int,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_pmo.serializers.project_charter import dump_currency
@@ -28,6 +29,7 @@ class ProjectCharterCatalogController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def get_defaults(self, **_):
+        require_capabilities('pmo.projects.read', 'pmo.projects.create', 'pmo.settings.manage', match='any')
         Catalog = request.env['webvue.project.type']
         if not Catalog._webvue_can_read_catalog():
             raise AccessError(request.env._("You are not allowed to read project charter defaults."))
@@ -40,6 +42,7 @@ class ProjectCharterCatalogController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def list_catalog(self, resource, **_):
+        require_capabilities('pmo.projects.read', 'pmo.projects.create', 'pmo.settings.manage', match='any')
         Model = _catalog_model(resource)
         args = request.httprequest.args
         unknown = set(args) - {'q', 'active', 'offset', 'limit'}
@@ -85,6 +88,7 @@ class ProjectCharterCatalogController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def get_catalog_item(self, resource, item_id, **_):
+        require_capabilities('pmo.projects.read', 'pmo.projects.create', 'pmo.settings.manage', match='any')
         record = _get_catalog_record(resource, item_id)
         if not record.active and not record._webvue_can_manage_catalog():
             raise MissingError(request.env._("catalog value does not exist"))
