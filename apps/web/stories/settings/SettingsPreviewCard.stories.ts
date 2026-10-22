@@ -6,7 +6,7 @@ import { previewRows } from './fixtures'
 
 const meta = {
   title: 'Settings/SettingsPreviewCard', component: SettingsPreviewCard,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/team/index.vue:29', 'بطاقة معاينة لقائمة طويلة في صفحة إعدادات: آخر خمسة صفوف بلا فلاتر وذيلها رابط «الكل» إلى صفحة القائمة الكاملة.') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/team/index.vue:34', 'بطاقة معاينة لقائمة طويلة في صفحة إعدادات: آخر خمسة صفوف بلا فلاتر وذيلها رابط «الكل» إلى صفحة القائمة الكاملة.') },
   args: { title: 'المستخدمون', allLabel: 'كل المستخدمين', allTo: '/settings/team/users' },
   render: args => ({ components: { SettingsPreviewCard, SettingsPreviewList }, setup: () => ({ args, rows: previewRows.slice(0, 3) }), template: '<div class="max-w-lg"><SettingsPreviewCard v-bind="args"><SettingsPreviewList :items="rows" empty-text="لا توجد سجلات بعد" /></SettingsPreviewCard></div>' }),
 } satisfies Meta<typeof SettingsPreviewCard>

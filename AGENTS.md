@@ -117,6 +117,22 @@ Accumulation in code or in the database schema is a defect, not technical debt t
   artifact, or a schema remnant behind. Reviewers (`REVIEW.md`, `odoo-reviewer`) report
   accumulation as a blocking finding, in the same class as a failing test.
 
+## User-facing decisions and configurable customer policies — 2026-10-22
+
+- Before changing user-visible behavior with materially different valid outcomes,
+  present the owner with the options, user impact and a recommended default.
+- Legitimate policies that vary across customers must have an explicit setting
+  in the owning WebVue settings surface. State its scope (customer, company,
+  branch or user), default, who may change it and how it affects existing data.
+  Reuse the owning configuration model; do not hardcode customer-specific behavior.
+- Configurable authorization policies must enforce the selected policy on the
+  server for reads, writes, exports and attachments, with tests for each supported
+  mode. Membership alone never grants a sensitive capability. No setting may
+  bypass tenant isolation or expose data without an explicit authorized grant.
+- Correctness, broken links, session isolation and error handling are defects to
+  fix, not customer options to preserve faulty behavior. Deployment secrets and
+  infrastructure policies remain in their owning operator/vendor configuration.
+
 ## Architecture rules (R1–R10)
 
 Spec: [reference architecture and Git workflow](docs/superpowers/specs/2026-10-05-webvue-reference-architecture-and-git-workflow-design.md).

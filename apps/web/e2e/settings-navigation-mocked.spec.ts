@@ -59,7 +59,26 @@ const USERS = {
   total: 1,
 }
 
+const BRANCH_ROLES = [
+  { id: 4, key: 'finance_manager', name: { ar: 'Finance manager', en: 'Finance manager' }, company_id: null },
+]
+const BRANCH_POLICY = {
+  version: 'b1-v1', mode: 'delegated',
+  branches: [{ id: 2, name: 'Riyadh branch', inherit: false, role_ids: [] as number[] }, { id: 3, name: 'Jeddah branch', inherit: false, role_ids: [] as number[] }],
+  roles: BRANCH_ROLES,
+}
+const BRANCH_DELEGATION = {
+  version: 'u18-a3-v7-b1-v1',
+  branches: [{ id: 2, name: 'Riyadh branch', role_ids: [] as number[] }, { id: 3, name: 'Jeddah branch', role_ids: [] as number[] }],
+  roles: [...BRANCH_ROLES,
+    { id: 8, key: 'riyadh_reader', name: { ar: 'Riyadh finance reader', en: 'Riyadh finance reader' }, company_id: 2 },
+    { id: 9, key: 'jeddah_reader', name: { ar: 'Jeddah finance reader', en: 'Jeddah finance reader' }, company_id: 3 },
+  ],
+}
+
 function jsonFor(pathname: string): unknown {
+  if (pathname === '/api/v1/admin/access/branches') return BRANCH_POLICY
+  if (pathname === '/api/v1/admin/users/18/branches') return BRANCH_DELEGATION
   if (pathname === '/api/v1/me') return ME
   if (pathname === '/api/v1/branding' || pathname === '/api/v1/admin/branding') return BRANDING
   if (pathname === '/api/v1/settings/projects') return PROJECT_SETTINGS
@@ -154,6 +173,7 @@ test.afterAll(async () => {
 })
 
 async function openApp(page: Page, path: string) {
+  await page.context().addCookies([{ name: 'session_id', value: 'settings_mock', url: origin, httpOnly: true, sameSite: 'Lax' }])
   await page.route('**/api/v1/**', fulfillApi)
   await page.route('**/api/auth/**', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' })
@@ -275,4 +295,54 @@ test('unsaved branding draft is guarded when leaving to project settings', async
   await page.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()
   await expect(page).toHaveURL(/\/settings\/apps\/projects$/)
   await page.screenshot({ path: testInfo.outputPath('unsaved-desktop-rtl.png'), fullPage: true })
+})
+
+test('branch policy selects controlled inheritance and saves exact per-branch grants', async ({ page }, testInfo) => {
+  await openApp(page, '/settings/team/branches')
+  let policy = structuredClone(BRANCH_POLICY)
+  let submitted: Record<string, unknown> | null = null
+  await page.route('**/api/v1/admin/access/branches', async route => {
+    if (route.request().method() === 'PATCH') {
+      submitted = route.request().postDataJSON()
+      const body = submitted as unknown as { mode: string; branches: Array<{ id: number; inherit: boolean; role_ids: number[] }> }
+      policy = { ...policy, mode: body.mode, version: 'b1-v2', branches: policy.branches.map(branch => ({ ...branch, ...body.branches.find(row => row.id === branch.id) })) }
+    }
+    await route.fulfill({ json: policy })
+  })
+  const modes = page.getByRole('combobox')
+  await expect(modes).toBeEnabled()
+  await modes.click()
+  await page.getByRole('option').last().click()
+  await expect(page.getByRole('heading', { name: 'Riyadh branch' })).toBeVisible()
+  await page.getByRole('checkbox').nth(0).check()
+  await page.getByRole('checkbox', { name: 'Finance manager', exact: true }).first().check()
+  await expect(page.getByRole('checkbox', { name: 'Finance manager', exact: true }).last()).toBeDisabled()
+  await page.getByRole('button', { name: 'حفظ', exact: true }).click()
+  await expect(page.getByText('حُفظت صلاحيات الفروع.', { exact: true })).toBeVisible()
+  expect(submitted).toMatchObject({ expected_version: 'b1-v1', mode: 'inherited', branches: [{ id: 2, inherit: true, role_ids: [4] }, { id: 3, inherit: false, role_ids: [] }] })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: testInfo.outputPath('branch-policy-mobile-rtl.png'), fullPage: true })
+})
+
+test('branch delegation keeps each custom role in its owning branch', async ({ page }, testInfo) => {
+  await openApp(page, '/settings/team/users/18/branches')
+  let submitted: Record<string, unknown> | null = null
+  await page.route('**/api/v1/admin/users/18/branches', async route => {
+    if (route.request().method() === 'PATCH') {
+      submitted = route.request().postDataJSON()
+      const body = submitted as unknown as { branches: Array<{ id: number; role_ids: number[] }> }
+      await route.fulfill({ json: { ...BRANCH_DELEGATION, version: 'u18-a4-v8-b1-v1', branches: BRANCH_DELEGATION.branches.map(branch => ({ ...branch, ...body.branches.find(row => row.id === branch.id) })) } })
+      return
+    }
+    await route.fulfill({ json: BRANCH_DELEGATION })
+  })
+  const reader = page.getByRole('checkbox', { name: 'Riyadh finance reader', exact: true })
+  await expect(reader).toHaveCount(1)
+  await expect(reader).toBeEnabled()
+  await reader.check()
+  await page.getByRole('button', { name: 'حفظ', exact: true }).click()
+  await expect(page.getByText('حُفظت صلاحيات الفروع.', { exact: true })).toBeVisible()
+  expect(submitted).toMatchObject({ expected_version: BRANCH_DELEGATION.version, branches: [{ id: 2, role_ids: [8] }, { id: 3, role_ids: [] }] })
+  await page.screenshot({ path: testInfo.outputPath('branch-delegation-desktop-rtl.png'), fullPage: true })
 })

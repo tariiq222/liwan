@@ -267,3 +267,22 @@ a mismatched revision returns 409 and restarts traversal after refreshing detail
 Mutation responses retain the complete current detail shape and invalidate file
 pages. Metadata context/tag lookups search and page in the provider's normal
 company/ACL environment, retaining selected values outside the current page.
+
+## Company-scoped native ACL fence (branch policy)
+
+`webvue_core.models.ir_rule.IrRule._compute_domain` extends Odoo 19's native
+`ir.rule._compute_domain` (upstream `/Users/tariq/code/odoo/odoo/addons/base/models/ir_rule.py:141`) with
+an uncached company/operation fence. Stock ACL groups are global; WebVue grants
+are company-scoped. The fence uses the native ACL group expression from
+`ir.model.access._get_access_groups` and the groups of the actor's effective
+company grants; it never promotes global group membership into a branch grant.
+It is ANDed after the native cached domain so a revoked delegation or inherited
+role is rechecked for searches, direct reads/writes and exports. Identity/access
+metadata retain their protected service checks to avoid recursive authorization;
+trusted transaction markers are never accepted from client context.
+Regression evidence: `webvue_core/tests/test_branch_access.py`,
+`webvue_api/tests/test_branch_access.py` and
+`webvue_finance/tests/test_finance_branch_access.py` cover membership-only denial,
+read-only delegation, operation gates, inheritance/revocation, ordinary ORM,
+exports/attachment targets and real finance HTTP requests. No stock source or
+ACL is weakened and no new elevated access is introduced.

@@ -4,6 +4,8 @@ import type { AccessAuditSummary } from '@webvue/contracts'
 export const AUDIT_ACTION_LABELS: Record<AccessAuditSummary['action'], string> = {
   'user.granted': 'access.audit.actions.userGranted',
   'user.employee_linked': 'access.audit.actions.userEmployeeLinked',
+  'user.branch_roles_changed': 'access.audit.actions.userBranchRolesChanged',
+  'branch.policy_changed': 'access.audit.actions.branchPolicyChanged',
   'user.roles_changed': 'access.audit.actions.userRolesChanged',
   'user.disabled': 'access.audit.actions.userDisabled',
   'user.reactivated': 'access.audit.actions.userReactivated',

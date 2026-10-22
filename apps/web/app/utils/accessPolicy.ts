@@ -94,7 +94,7 @@ export function requiredCapabilityForPath(path: string): string | null {
   if (path === '/') return INTERNAL_WEBVUE_ACCESS
   if (path === '/notifications') return NOTIFICATION_ACCESS
   if (path === '/settings/team/users/new') return 'access.users.grant'
-  if (/^\/settings\/team\/users\/[^/]+\/access$/.test(path)) return 'access.users.assign_roles'
+  if (/^\/settings\/team\/users\/[^/]+\/(access|branches)$/.test(path)) return 'access.users.assign_roles'
   if (/^\/settings\/team\/roles\/(new|[^/]+\/edit)$/.test(path)) return 'access.roles.manage'
   return destinations().find(([target]) => isNavPathActive(path, target))?.[1] ?? null
 }
@@ -110,6 +110,7 @@ function settingsCardsOpeningPage(path: string): string[] | null {
  * claims by prefix but no rule covers still needs that application's feature (never fail-open).
  */
 export function canReachPath(identity: AccessIdentity, path: string): boolean {
+  if (/^\/settings\/team\/(branches|users\/[^/]+\/branches)$/.test(normalizedPath(path)) && !hasCapability(identity, 'access.roles.read')) return false
   const rule = ownedRouteRule(path)
   if (rule?.anyCapabilities && !rule.anyCapabilities.some(key => hasCapability(identity, key))) return false
   if (rule?.requiredCapabilities && !rule.requiredCapabilities.every(key => canReach(identity, key))) return false

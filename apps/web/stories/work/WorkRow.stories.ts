@@ -6,7 +6,7 @@ const row = { id: 'tasks-due:task-1', label: 'تقرير الربع الثالث
 const meta = {
   title: 'Work/WorkRow',
   component: WorkRow,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/work.vue:69', 'صف في «مهامي» و«ابدأ بالأهم»: الرابط، التطبيق المصدر، السطر الوصفي، واقتراح نصي فقط. العاجل بنقطة دافئة وشارة «عاجل».') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/work.vue:70', 'صف في «مهامي» و«ابدأ بالأهم»: الرابط، التطبيق المصدر، السطر الوصفي، واقتراح نصي فقط. العاجل بنقطة دافئة وشارة «عاجل».') },
   args: { row, sourceLabel: 'مهامي' },
   render: args => ({ components: { WorkRow }, setup: () => ({ args }), template: '<ul class="max-w-xl rounded-card bg-default ring ring-default"><WorkRow v-bind="args" /></ul>' }),
 } satisfies Meta<typeof WorkRow>

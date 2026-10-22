@@ -22,4 +22,4 @@ export const Locked: Story = { ...Default, args: { document, files: [{ ...files[
 export const Empty: Story = { ...Default, args: { document: { ...document, file_count: 0 }, files: [] } }
 export const EmptyReader: Story = { ...Empty, args: { files: [], document: { ...document, file_count: 0, allowed_actions: { update: false, archive: false, restore: false, upload_file: false, manage_access: false } } } }
 
-export const Personal: Story = { ...Default, args: { readonly: true }, parameters: storyContext('apps/web/app/pages/documents/self/[documentId].vue:35') }
+export const Personal: Story = { ...Default, args: { readonly: true }, parameters: storyContext('apps/web/app/pages/documents/self/[documentId].vue:39') }

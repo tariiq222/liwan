@@ -25,6 +25,11 @@ const eventRows = computed(() => (events.data.value?.items ?? []).map(event => e
     <SharedPageHeader :title="t('settings.sections.team.title')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('access.forbidden')" />
     <template v-else>
+      <section v-if="shows('branches')" id="branches" class="webvue-settings-anchor">
+        <SharedRecordSection :title="t('access.branches.title')" :description="t('access.branches.description')">
+          <UButton to="/settings/team/branches" color="neutral" variant="outline" :label="t('access.branches.configure')" />
+        </SharedRecordSection>
+      </section>
       <section v-if="shows('users')" id="users" class="webvue-settings-anchor">
         <SettingsPreviewCard :title="t('access.users.title')" :all-label="t('settings.preview.allUsers')" all-to="/settings/team/users" test-id="team-users-preview">
           <SettingsPreviewList :items="userRows" :loading="users.isLoading.value" :error="users.error.value" :empty-text="t('access.users.empty')" @retry="users.refetch" />
