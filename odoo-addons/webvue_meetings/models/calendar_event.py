@@ -19,11 +19,10 @@ class CalendarEvent(models.Model):
 
     def _webvue_meeting_schedule_values(self, company=None, fallback_organizer=None):
         self.ensure_one()
-        company = company or (
-            self.user_id.company_id
-            if self.user_id and self.user_id.company_id in self.env.companies
-            else self.env.company
-        )
+        # The schedule company is the caller's pinned request company; picking
+        # the organizer's company when the caller happens to see it made the
+        # value depend on who opened the meeting.
+        company = company or self.env.company
         organizer = self.user_id
         if not organizer or company not in organizer.company_ids:
             organizer = fallback_organizer or self.env.user
