@@ -170,6 +170,7 @@ class WebVueMeetingMinute(models.Model):
                 vals['state'] = 'draft'
                 if not self._webvue_is_manager():
                     vals['organizer_id'] = self.env.user.id
+            vals.setdefault('state', 'draft')
             if vals.get('reference', _('New')) == _('New'):
                 vals['reference'] = sequence.next_by_code('webvue.meeting.minute') or _('New')
             prepared.append(vals)
