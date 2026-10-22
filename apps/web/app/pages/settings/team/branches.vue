@@ -7,6 +7,9 @@ import { useBranchPolicy, useUpdateBranchPolicy } from '@/composables/useBranchA
 const { t } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
+const { me } = useMe()
+const identity = computed(() => me.value ? `${me.value.id}:${me.value.company.id}` : null)
+let generation = 0
 const forbidden = computed(() => !can('access.users.assign_roles') || !can('access.roles.read'))
 const query = useBranchPolicy(computed(() => !forbidden.value))
 const update = useUpdateBranchPolicy()
@@ -25,22 +28,36 @@ function accept(value: BranchPolicy) {
   feedback.value = ''
   confirmReload.value = false
 }
+function resetDraft() {
+  generation++
+  mode.value = 'delegated'
+  original.value = null
+  branches.value = []
+  feedback.value = ''
+  saved.value = false
+  confirmReload.value = false
+}
+watch(identity, resetDraft, { flush: 'sync' })
 watch(query.data, value => { if (value && !dirty.value) accept(value) }, { immediate: true })
 async function save() {
   if (!original.value || forbidden.value || !hydrated.value || update.isPending.value) return
+  const started = generation
   feedback.value = ''
   saved.value = false
   try {
     const value = await update.mutateAsync({ expected_version: original.value.version, mode: mode.value, branches: branches.value.map(({ id, inherit, role_ids }) => ({ id, inherit: !!inherit, role_ids })) })
+    if (started !== generation) return
     accept(value)
     saved.value = true
   } catch (error) {
+    if (started !== generation) return
     feedback.value = error instanceof ApiError && error.status === 409 ? 'access.errors.conflict' : 'errors.generic'
   }
 }
 async function reload() {
+  const started = generation
   const result = await query.refetch()
-  if (result.data && !result.error) { accept(result.data); saved.value = false }
+  if (started === generation && result.data && !result.error) { accept(result.data); saved.value = false }
 }
 </script>
 

@@ -10,9 +10,9 @@ export function useBranchPolicy(enabled: MaybeRefOrGetter<boolean>) {
   const { $api } = useApi()
   const { me } = useMe()
   return useQuery({
-    queryKey: computed(() => ['access', 'branch-policy', me.value?.company.id]),
-    enabled: computed(() => toValue(enabled)),
-    queryFn: () => $api('/api/v1/admin/access/branches', { schema: BranchPolicySchema }),
+    queryKey: computed(() => ['access', 'branch-policy', me.value?.id, me.value?.company.id]),
+    enabled: computed(() => !!me.value && toValue(enabled)),
+    queryFn: ({ signal }) => $api('/api/v1/admin/access/branches', { schema: BranchPolicySchema, signal }),
   })
 }
 
@@ -20,9 +20,9 @@ export function useUserBranchAccess(id: MaybeRefOrGetter<number>, enabled: Maybe
   const { $api } = useApi()
   const { me } = useMe()
   return useQuery({
-    queryKey: computed(() => ['access', 'branch-delegation', me.value?.company.id, toValue(id)]),
-    enabled: computed(() => toValue(enabled) && Number.isSafeInteger(toValue(id)) && toValue(id) > 0),
-    queryFn: () => $api(`/api/v1/admin/users/${toValue(id)}/branches`, { schema: UserBranchAccessSchema }),
+    queryKey: computed(() => ['access', 'branch-delegation', me.value?.id, me.value?.company.id, toValue(id)]),
+    enabled: computed(() => !!me.value && toValue(enabled) && Number.isSafeInteger(toValue(id)) && toValue(id) > 0),
+    queryFn: ({ signal }) => $api(`/api/v1/admin/users/${toValue(id)}/branches`, { schema: UserBranchAccessSchema, signal }),
   })
 }
 

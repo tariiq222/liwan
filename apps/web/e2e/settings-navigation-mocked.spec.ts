@@ -60,7 +60,7 @@ const USERS = {
 }
 
 const BRANCH_ROLES = [
-  { id: 4, key: 'finance_manager', name: { ar: 'Finance manager', en: 'Finance manager' }, company_id: null },
+  { id: 4, key: 'finance_manager', active: true, name: { ar: 'Finance manager', en: 'Finance manager' }, company_id: null },
 ]
 const BRANCH_POLICY = {
   version: 'b1-v1', mode: 'delegated',
@@ -71,8 +71,8 @@ const BRANCH_DELEGATION = {
   version: 'u18-a3-v7-b1-v1',
   branches: [{ id: 2, name: 'Riyadh branch', role_ids: [] as number[] }, { id: 3, name: 'Jeddah branch', role_ids: [] as number[] }],
   roles: [...BRANCH_ROLES,
-    { id: 8, key: 'riyadh_reader', name: { ar: 'Riyadh finance reader', en: 'Riyadh finance reader' }, company_id: 2 },
-    { id: 9, key: 'jeddah_reader', name: { ar: 'Jeddah finance reader', en: 'Jeddah finance reader' }, company_id: 3 },
+    { id: 8, key: 'riyadh_reader', active: true, name: { ar: 'Riyadh finance reader', en: 'Riyadh finance reader' }, company_id: 2 },
+    { id: 9, key: 'jeddah_reader', active: true, name: { ar: 'Jeddah finance reader', en: 'Jeddah finance reader' }, company_id: 3 },
   ],
 }
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 export type BranchRoleRow = { id: number; name: string; inherit?: boolean; role_ids: number[] }
-type Role = { id: number; key: string; name: { ar: string; en: string | null }; company_id?: number | null }
+type Role = { id: number; key: string; name: { ar: string; en: string | null }; company_id?: number | null; active?: boolean }
 const props = defineProps<{ modelValue: BranchRoleRow[]; roles: Role[]; inherited?: boolean; disabled?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: BranchRoleRow[]] }>()
 const { t, locale } = useI18n()
@@ -24,7 +24,7 @@ function toggleRole(branch: BranchRoleRow, roleId: number, enabled: boolean) {
       <fieldset :disabled="disabled || (inherited && !branch.inherit)" class="grid gap-3">
         <legend class="sr-only">{{ branch.name }}</legend>
         <p v-if="!availableRoles(branch).length" class="text-sm text-muted">{{ t('access.branches.rolesEmpty') }}</p>
-        <UCheckbox v-for="role in availableRoles(branch)" :key="role.id" :model-value="branch.role_ids.includes(role.id)" :disabled="disabled || (inherited && !branch.inherit)" :label="role.name[locale === 'ar' ? 'ar' : 'en'] ?? role.name.ar" @update:model-value="toggleRole(branch, role.id, Boolean($event))" />
+        <UCheckbox v-for="role in availableRoles(branch)" :key="role.id" :model-value="branch.role_ids.includes(role.id)" :disabled="disabled || (inherited && !branch.inherit) || (role.active === false && !branch.role_ids.includes(role.id))" :description="role.active === false ? t('access.roles.disabledExistingAssignments') : undefined" :label="role.name[locale === 'ar' ? 'ar' : 'en'] ?? role.name.ar" @update:model-value="toggleRole(branch, role.id, Boolean($event))" />
       </fieldset>
     </SharedFormSection>
   </div>
