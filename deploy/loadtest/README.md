@@ -45,6 +45,10 @@ COOKIE="session_id=..." PATH_=/api/v1/... node probe.cjs
 
 `odoo-loadtest.conf` قالب جاهز لوضع workers — كل المسارات فيه قيم بديلة (`<...>`) تُملأ قبل التشغيل، ومعه تُطبق قاعدة `PGGSSENCMODE=disable` أدناه.
 
+### pgbouncer (اختياري — لفك قيد `max_connections`)
+
+`pgbouncer-loadtest.ini` قالب مُجرَّب مع Odoo 19 في وضع transaction pooling: القراءات والكتابات وcron نجحت في اختبار الدخان. انتبه لملاحظتين موثقتين فيه: `db_host = 127.0.0.1` صراحةً في إعداد Odoo، وتمرير قاعدتي `postgres`/`template1` في قسم `[databases]`. التوافق العميق (advisory locks بين العمال وNOTIFY) يحتاج فترة soak قبل الإنتاج.
+
 ## إعداد Odoo في وضع workers
 
 - `workers = N` (عدد العمليات العاملة).
