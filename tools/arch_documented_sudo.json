@@ -1,5 +1,9 @@
 {
   "cases": {
+    "odoo-addons/webvue_api/controllers/common.py": {
+      "count": 1,
+      "reason": "api get_record: company ownership of an existing record, read through sudo before the access check so a foreign record answers the identical 404 not-found instead of a 403 that would leak its existence (owner approved 2026-10-22)"
+    },
     "odoo-addons/webvue_finance/models/setup_service.py": {
       "count": 2,
       "reason": "finance setup: chart load and company fiscal settings, after the finance.setup.manage check, field whitelist (owner approved 2026-10-18)"

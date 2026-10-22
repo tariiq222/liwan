@@ -52,6 +52,16 @@ class WebVueAccessService(models.AbstractModel):
     _webvue_scope = 'global'
 
     @api.model
+    def _webvue_pinned_company_ids(self):
+        """The company set the API request pinned: current company + its own branches.
+
+        Only the pin writes ``webvue_pinned_company_ids``; plain ORM code has no
+        such context and stays on the current company alone, so a user's
+        membership never widens a read by itself.
+        """
+        return list(self.env.context.get('webvue_pinned_company_ids') or [self.env.company.id])
+
+    @api.model
     def _webvue_capability_definitions(self):
         """Pure descriptors composed through super(); each addon adds only the keys it owns."""
         return tuple({'key': key, 'owner': 'webvue_core'} for key in sorted(CAPABILITIES))
