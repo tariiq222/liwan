@@ -24,7 +24,7 @@ def _journal_types():
 
 def _find_journal(journal_id):
     journal = request.env['account.journal'].with_context(active_test=False).search(
-        [('id', '=', journal_id), ('company_id', '=', request.env.company.id)], limit=1,
+        [('id', '=', journal_id), ('company_id', 'in', request.env.companies.ids)], limit=1,
     )
     if not journal:
         raise MissingError(request.env._('account.journal %(id)s does not exist', id=journal_id))
@@ -61,7 +61,7 @@ class FinanceJournalController(http.Controller):
         require_capability('finance.journals.read')
         args = request.httprequest.args
         archived = parse_choice(args.get('archived'), {'true', 'false'}, 'archived') == 'true'
-        domain = [('company_id', '=', request.env.company.id), ('active', '=', not archived)]
+        domain = [('company_id', 'in', request.env.companies.ids), ('active', '=', not archived)]
         journal_type = parse_choice(args.get('type'), _journal_types(), 'type')
         if journal_type:
             domain.append(('type', '=', journal_type))
