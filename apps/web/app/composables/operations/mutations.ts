@@ -28,7 +28,7 @@ export function operationRequestMutationOptions(api: OperationApi, client: Query
     },
     onSuccess: async (record: OperationRequest) => {
       client.setQueryData(['operations', 'requests', 'detail', record.id], record)
-      await client.invalidateQueries({ queryKey: ['operations', 'requests', 'list'] })
+      await client.invalidateQueries({ queryKey: ['operations', 'requests'] })
     },
   }
 }

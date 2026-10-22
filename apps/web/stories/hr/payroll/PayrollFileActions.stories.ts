@@ -17,7 +17,7 @@ const meta = {
   component: PayrollFileActions,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:242', 'ملفات الرواتب في صفحة المسير المعتمد: ملف التحويل البنكي بتاريخ القيمة، وملف حماية الأجور، ورابط كشف التأمينات الاجتماعية.'),
+    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:257', 'ملفات الرواتب في صفحة المسير المعتمد: ملف التحويل البنكي بتاريخ القيمة، وملف حماية الأجور، ورابط كشف التأمينات الاجتماعية.'),
   },
   args: { profiles, profilesReady: true, pending: null, defaultDate: '2026-11-01', gosiTo: '/hr/payroll/1/gosi' },
   render: args => ({

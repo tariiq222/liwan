@@ -33,6 +33,9 @@ function loadLayout(route: { path: string }) {
     // read it, so the harness stands in with an empty rail and no page title.
     useHydrated: () => Vue.ref(true),
     useShellModel: () => ({ rail: Vue.ref({ all: [] }), activeModule: Vue.ref(null) }),
+    // The assistant sheet is not under test here: no surface, closed.
+    useAssistantSheet: () => ({ shown: Vue.ref(false), surface: Vue.ref(undefined) }),
+    AssistantSheet: {},
     usePageHeaderTitle: () => Vue.ref(null),
     shellBreadcrumb: () => [],
     providePageTrail: () => undefined,

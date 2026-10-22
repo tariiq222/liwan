@@ -5,19 +5,23 @@ import { useApi } from '../useApi'
 import { operationProcessMutationOptions, operationRequestMutationOptions, type OperationApi } from './mutations'
 
 export type OperationScope = 'mine' | 'pending' | 'monitoring'
+export function operationRequestListParams(scope: OperationScope, personal = false): { scope: OperationScope; purpose?: 'work' | 'employee' } {
+  return personal ? { scope: 'mine', purpose: 'employee' } : scope === 'mine' ? { scope, purpose: 'work' } : { scope }
+}
 function prefetch(query: { suspense: () => Promise<unknown> }, enabled: MaybeRefOrGetter<boolean>) {
   onServerPrefetch(async () => { if (toValue(enabled)) { try { await query.suspense() } catch { /* Query renders structured read errors. */ } } })
 }
-export function useOperationRequests(params: MaybeRefOrGetter<{ scope: OperationScope; q?: string; state?: string; limit?: number; offset?: number }>, enabled: MaybeRefOrGetter<boolean> = true) {
+export function useOperationRequests(params: MaybeRefOrGetter<{ scope: OperationScope; purpose?: 'work' | 'employee'; q?: string; state?: string; limit?: number; offset?: number }>, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
+  const { me } = useMe()
   const query = useQuery({
-    queryKey: computed(() => ['operations', 'requests', 'list', toValue(params)]), enabled: computed(() => toValue(enabled)),
+    queryKey: computed(() => ['operations', 'requests', 'list', toValue(params), me.value?.company.id, me.value?.id]), enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/operations/requests', { query: toValue(params), schema: OperationRequestListSchema }),
   })
   prefetch(query, enabled)
   return query
 }
-export function useOperationProcesses(params: MaybeRefOrGetter<{ published?: number; q?: string; limit?: number; offset?: number }> = {}, enabled: MaybeRefOrGetter<boolean> = true) {
+export function useOperationProcesses(params: MaybeRefOrGetter<{ published?: number; purpose?: 'work' | 'employee'; q?: string; limit?: number; offset?: number }> = {}, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const query = useQuery({
     queryKey: computed(() => ['operations', 'processes', 'list', toValue(params)]), enabled: computed(() => toValue(enabled)),
@@ -26,11 +30,19 @@ export function useOperationProcesses(params: MaybeRefOrGetter<{ published?: num
   prefetch(query, enabled)
   return query
 }
-export function useOperationRequest(id: MaybeRefOrGetter<number | null>) {
+export function operationRequestQueryOptions(api: OperationApi, id: MaybeRefOrGetter<number | null>, personal: boolean, identity: MaybeRefOrGetter<{ id: number; company: { id: number } } | null>) {
+  return {
+    queryKey: computed(() => personal ? ['operations', 'requests', 'personal', toValue(identity)?.company.id, toValue(identity)?.id, toValue(id)] : ['operations', 'requests', 'detail', toValue(id)]),
+    enabled: computed(() => toValue(id) !== null && (!personal || !!toValue(identity))),
+    queryFn: () => api(`/api/v1/operations/requests/${personal ? 'employee/me/' : ''}${toValue(id)}`, { schema: OperationRequestSchema }),
+  }
+}
+export function useOperationRequest(id: MaybeRefOrGetter<number | null>, personal = false) {
   const { $api } = useApi()
-  const enabled = computed(() => toValue(id) !== null)
-  const query = useQuery({ queryKey: computed(() => ['operations', 'requests', 'detail', toValue(id)]), enabled, queryFn: () => $api(`/api/v1/operations/requests/${toValue(id)}`, { schema: OperationRequestSchema }) })
-  prefetch(query, enabled)
+  const { me } = useMe()
+  const options = operationRequestQueryOptions($api, id, personal, me)
+  const query = useQuery(options)
+  prefetch(query, options.enabled)
   return query
 }
 export function useOperationProcess(id: MaybeRefOrGetter<number | null>) {

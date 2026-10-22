@@ -26,3 +26,12 @@ it('shows file collection fetch failures in the page state instead of an empty l
   expect((await view.rendered()).find(node => node.name === 'SharedPageState')?.props.error).toBe(failure)
   view.stop()
 })
+
+it('enforces personal readonly mode even when the employee has administrative file grants', async () => {
+  const file = { id: 10, name: 'Contract.pdf', file_size: 1024, active: true, is_locked: false, allowed_actions: { archive: true, restore: true, lock: true, unlock: true } }
+  const view = await load('app/components/documents/DocumentFiles.vue', { document: documentFixture, files: [file], readonly: true })
+  expect((await view.rendered()).some(node => node.name === 'SharedFileField')).toBe(false)
+  expect(view.state.actions(file)).toEqual([])
+  view.state.upload({ target: { files: [{ name: 'blocked.txt', size: 1 }], value: '' } })
+  expect(view.emit).not.toHaveBeenCalled(); view.stop()
+})

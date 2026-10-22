@@ -22,6 +22,6 @@ describe.each(['ar', 'en'])('shell navigation labels (%s)', locale => {
   })
 
   it('gives the rail navigation groups names that differ from the rail landmark and from each other', () => {
-    expect(new Set([labels.modules, labels.railApps, labels.railAdmin]).size).toBe(3)
+    expect(new Set([labels.modules, labels.railApps, labels.railTools]).size).toBe(3)
   })
 })

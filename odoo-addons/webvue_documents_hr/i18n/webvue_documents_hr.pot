@@ -1,0 +1,95 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* webvue_documents_hr
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-22 18:13+0000\n"
+"PO-Revision-Date: 2026-10-22 18:13+0000\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Plural-Forms: \n"
+
+#. module: webvue_documents_hr
+#: model:ir.model,name:webvue_documents_hr.model_hr_department
+#: model:ir.model.fields,field_description:webvue_documents_hr.field_webvue_document__department_id
+msgid "Department"
+msgstr ""
+
+#. module: webvue_documents_hr
+#: model:ir.model.fields,field_description:webvue_documents_hr.field_hr_department__display_name
+#: model:ir.model.fields,field_description:webvue_documents_hr.field_webvue_access_service__display_name
+#: model:ir.model.fields,field_description:webvue_documents_hr.field_webvue_document__display_name
+#: model:ir.model.fields,field_description:webvue_documents_hr.field_webvue_document_links__display_name
+#: model:ir.model.fields,field_description:webvue_documents_hr.field_webvue_hr_report__display_name
+msgid "Display Name"
+msgstr ""
+
+#. module: webvue_documents_hr
+#: model:ir.model,name:webvue_documents_hr.model_webvue_document
+msgid "Document"
+msgstr ""
+
+#. module: webvue_documents_hr
+#: model:ir.model,name:webvue_documents_hr.model_webvue_document_links
+msgid "Document application links"
+msgstr ""
+
+#. module: webvue_documents_hr
+#: model:ir.model.fields,field_description:webvue_documents_hr.field_webvue_document__employee_id
+msgid "Employee"
+msgstr ""
+
+#. module: webvue_documents_hr
+#. odoo-python
+#: code:addons/webvue_documents_hr/models/document.py:0
+msgid "Employee context is not available."
+msgstr ""
+
+#. module: webvue_documents_hr
+#. odoo-python
+#: code:addons/webvue_documents_hr/models/document.py:0
+msgid "Employee documents must have one restricted employee context."
+msgstr ""
+
+#. module: webvue_documents_hr
+#. odoo-python
+#: code:addons/webvue_documents_hr/models/document.py:0
+msgid "Employee documents must remain restricted."
+msgstr ""
+
+#. module: webvue_documents_hr
+#: model:ir.model,name:webvue_documents_hr.model_webvue_hr_report
+msgid "HR Reports"
+msgstr ""
+
+#. module: webvue_documents_hr
+#: model:ir.model.fields,field_description:webvue_documents_hr.field_hr_department__id
+#: model:ir.model.fields,field_description:webvue_documents_hr.field_webvue_access_service__id
+#: model:ir.model.fields,field_description:webvue_documents_hr.field_webvue_document__id
+#: model:ir.model.fields,field_description:webvue_documents_hr.field_webvue_document_links__id
+#: model:ir.model.fields,field_description:webvue_documents_hr.field_webvue_hr_report__id
+msgid "ID"
+msgstr ""
+
+#. module: webvue_documents_hr
+#. odoo-python
+#: code:addons/webvue_documents_hr/models/document.py:0
+msgid "Invalid employee context."
+msgstr ""
+
+#. module: webvue_documents_hr
+#. odoo-python
+#: code:addons/webvue_documents_hr/models/document.py:0
+msgid "Restrict document access before assigning an employee."
+msgstr ""
+
+#. module: webvue_documents_hr
+#: model:ir.model,name:webvue_documents_hr.model_webvue_access_service
+msgid "WebVue Access Service"
+msgstr ""

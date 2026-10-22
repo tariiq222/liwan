@@ -23,7 +23,7 @@ export const InMeetingAttachments: Story = {
 
 export const InDocumentCard: Story = {
   name: 'رفع فوري من ترويسة المستند',
-  parameters: storyContext('apps/web/app/components/documents/DocumentFiles.vue:30', 'زر رفع مباشر بلا اسم ملف معلّق؛ يحافظ الحقل في النماذج على الاختيار التقليدي افتراضيًا.'),
+  parameters: storyContext('apps/web/app/components/documents/DocumentFiles.vue:31', 'زر رفع مباشر بلا اسم ملف معلّق؛ يحافظ الحقل في النماذج على الاختيار التقليدي افتراضيًا.'),
   render: args => ({
     components: { FileField },
     setup: () => ({ args, t: useI18n().t }),

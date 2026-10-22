@@ -8,11 +8,11 @@ def person(user):
 
 
 def dump_process(process):
-    return {'id': process.id, 'name': process.name, 'description': process.description or '', 'state': process.state, 'revision': process.revision, 'execution_kind': process.execution_kind, 'steps': [{'name': step.name, 'reviewer_ids': step.reviewer_ids.ids, 'reviewers': [person(user) for user in step.reviewer_ids]} for step in process.step_ids.sorted('sequence')]}
+    return {'id': process.id, 'name': process.name, 'description': process.description or '', 'purpose': process.purpose, 'state': process.state, 'revision': process.revision, 'execution_kind': process.execution_kind, 'steps': [{'name': step.name, 'reviewer_ids': step.reviewer_ids.ids, 'reviewers': [person(user) for user in step.reviewer_ids]} for step in process.step_ids.sorted('sequence')]}
 
 
 def dump_summary(record):
-    return {'id': record.id, 'name': record.name, 'process': {'id': record.process_id.id, 'name': record.process_name or record.name}, 'process_revision': record.process_revision, 'state': record.state, 'revision': record.revision, 'cycle': record.cycle, 'requester': person(record.requester_id), 'created_at': iso(record.create_date), 'execution_count': record.execution_count}
+    return {'id': record.id, 'name': record.name, 'process': {'id': record.process_id.id, 'name': record.process_name or record.name}, 'process_revision': record.process_revision, 'purpose': record.purpose, 'state': record.state, 'revision': record.revision, 'cycle': record.cycle, 'requester': person(record.requester_id), 'created_at': iso(record.create_date), 'execution_count': record.execution_count}
 
 
 def dump_request(record):

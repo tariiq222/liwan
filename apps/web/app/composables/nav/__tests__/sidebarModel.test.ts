@@ -1,20 +1,37 @@
 import { describe, expect, it } from 'vitest'
-import type { ShellContextLink } from '../shellModules'
-import { contextLinkTestId, groupSections, railModel, sidebarModel, subListSections } from '../sidebarModel'
+import type { ShellContextLink, ShellModuleDefinition } from '../shellModules'
+import { contextLinkTestId, groupSections, railActiveId, railModel, sidebarModel, subListSections } from '../sidebarModel'
 
 const link = (id: string, extra: Partial<ShellContextLink> = {}): ShellContextLink =>
   ({ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, capability: 'x.y.read', ...extra })
 
 describe('rail model', () => {
-  it('keeps rail order and puts settings in the utility slot', () => {
-    const rail = railModel([
-      { id: 'home', labelKey: 'nav.home', icon: 'i-lucide-house', to: '/projects/dashboard' },
-      { id: 'settings', labelKey: 'nav.settings', icon: 'i-lucide-settings', to: '/settings/team/users' },
-      { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects' },
-    ])
-    expect(rail.all.map(item => item.id)).toEqual(['home', 'settings', 'projects'])
-    expect(rail.primary.map(item => item.id)).toEqual(['home', 'projects'])
-    expect(rail.utility.map(item => item.id)).toEqual(['settings'])
+  const module = (id: string, extra: Partial<ShellModuleDefinition> = {}): ShellModuleDefinition => ({ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, ...extra })
+  const modules = [
+    module('home', { to: '/' }), module('tasks'), module('projects'), module('chat'),
+    module('settings', { utility: true }), module('assistant', { utility: true }),
+  ]
+
+  it('shows every reachable app in manifest order with fixed entries and utilities', () => {
+    const rail = railModel(modules)
+    expect(rail.top.map(item => item.id)).toEqual(['apps', 'home'])
+    expect(rail.applications.map(item => item.id)).toEqual(['tasks', 'projects', 'chat'])
+    expect(rail.utility.map(item => item.id)).toEqual(['assistant', 'settings'])
+    expect(rail.drawer.map(item => item.id)).toEqual(['apps', 'home', 'tasks', 'projects', 'chat', 'assistant', 'settings'])
+    expect(rail.all).toEqual(rail.drawer)
+  })
+
+  it('never inserts an application not supplied by the permission-filtered model', () => {
+    expect(railModel(modules.filter(item => item.id !== 'chat')).applications.map(item => item.id)).toEqual(['tasks', 'projects'])
+    expect(railModel([]).applications).toEqual([])
+    expect(railModel([]).top.map(item => item.id)).toEqual(['apps'])
+  })
+
+  it('lights the actual application and keeps home optional', () => {
+    const rail = railModel(modules)
+    for (const id of ['tasks', 'projects', 'chat', 'home', 'apps', 'settings']) expect(railActiveId(rail, id)).toBe(id)
+    expect(railActiveId(rail, null)).toBeNull()
+    expect(railModel(modules.filter(item => item.id !== 'home')).top.map(item => item.id)).toEqual(['apps'])
   })
 })
 

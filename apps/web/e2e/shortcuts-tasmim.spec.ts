@@ -102,16 +102,16 @@ test.describe('Tasmim palette and shortcuts', () => {
     await expect(page).toHaveURL(/\/tasks\/new\?returnTo=(?:%2F|\/)tasks$/)
   })
 
-  test('? opens the shortcut help, and no plain shortcut fires while a menu is open', async ({ page }) => {
+  test('? opens the shortcut help, and no plain shortcut fires while a popover is open', async ({ page }) => {
     await hydrated(page, '/tasks')
     await page.getByRole('heading', { level: 1 }).click()
     await page.keyboard.press('Shift+Slash')
     await expect(page.getByTestId('command-palette')).toHaveAttribute('data-view', 'shortcuts')
     await page.keyboard.press('Escape')
     await expect(dialog(page)).toBeHidden()
-    await page.getByTestId('account-menu').click()
+    await page.getByTestId('notification-bell').click()
     await expect(page.locator('[data-dismissable-layer]')).not.toHaveCount(0)
-    // Record whether the page saw g unprevented: the shell must leave a plain key alone while a menu is open.
+    // Record whether the page saw g unprevented: the shell must leave a plain key alone while a popover is open.
     await page.evaluate(() => {
       (window as unknown as { __gPrevented: boolean[] }).__gPrevented = []
       window.addEventListener('keydown', event => {
@@ -126,10 +126,10 @@ test.describe('Tasmim palette and shortcuts', () => {
     await expect(page).toHaveURL(/\/tasks$/)
   })
 
-  test('Cmd+K does not open the palette over an open menu', async ({ page }) => {
+  test('Cmd+K does not open the palette over an open popover', async ({ page }) => {
     await hydrated(page, '/tasks')
-    await page.getByTestId('account-menu').click()
-    await expect(page.getByRole('menu')).toBeVisible()
+    await page.getByTestId('notification-bell').click()
+    await expect(page.getByTestId('notification-preview')).toBeVisible()
     await page.keyboard.press('ControlOrMeta+k')
     await expect(page.getByRole('dialog')).toHaveCount(0)
   })

@@ -1,6 +1,8 @@
 import type { AppManifest } from '../types'
+import { operationPersonalEntry } from './personal'
+import { pendingReviewAttention } from './attention'
 const manifest: AppManifest = {
-  id: 'operations', feature: 'operations.enabled', routePrefixes: ['/operations'],
+  id: 'operations', feature: 'operations.enabled', routePrefixes: ['/operations', '/account/requests'],
   rail: [{ id: 'operations', labelKey: 'operations.title', icon: 'i-lucide-workflow', to: '/operations', order: 60 }],
   nav: [
     { to: '/operations', labelKey: 'operations.nav.mine', icon: 'i-lucide-files', shortcut: 'o', capability: 'operations.requests.read' },
@@ -23,12 +25,17 @@ const manifest: AppManifest = {
     { path: '/operations/monitoring', capability: 'operations.monitoring.read' },
   ],
   routeCapabilities: [
+    { pattern: /^\/account\/requests\/new$/, capability: 'operations.requests.create' },
+    { pattern: /^\/account\/requests\/[^/]+\/edit$/, capability: 'operations.requests.create' },
+    { pattern: /^\/account\/requests(?:\/|$)/, capability: 'operations.requests.read' },
     { pattern: /^\/operations\/new$/, capability: 'operations.requests.create' },
     { pattern: /^\/operations\/[^/]+\/edit$/, capability: 'operations.requests.create' },
     { pattern: /^\/operations\/pending$/, capability: 'operations.requests.review' },
     { pattern: /^\/operations\/monitoring$/, capability: 'operations.monitoring.read' },
     { pattern: /^\/operations(?:\/|$)/, capability: 'operations.requests.read' },
   ],
+  attention: [pendingReviewAttention],
+  personal: [operationPersonalEntry],
   isNavActive(path, target) {
     if (target === '/operations') return path === '/operations' || /^\/operations\/\d+(?:\/|$)/.test(path)
     if (target === '/operations/pending' || target === '/operations/monitoring') return path === target

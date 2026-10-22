@@ -38,10 +38,10 @@
     "title": "Search and filters"
   },
   "nav": {
-    "home": "Home",
+    "home": "Today",
     "modules": "Modules",
     "railApps": "Applications",
-    "railAdmin": "Administration",
+    "railTools": "Tools",
     "breadcrumb": "Breadcrumb"
   },
   "states": {

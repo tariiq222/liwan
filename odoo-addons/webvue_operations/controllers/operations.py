@@ -32,14 +32,20 @@ def body(allowed):
     return payload
 
 
-def find(model, record_id, capability):
+def find(model, record_id, capability, *, domain=()):
     require(request.env, capability, write=False)
     # The pinned company subtree (current company + its own branches); a
     # foreign-company record is not-found like a missing one.
-    record = request.env[model].search([('id', '=', record_id), ('company_id', 'in', request.env.companies.ids)], limit=1)
+    record = request.env[model].search([('id', '=', record_id), ('company_id', 'in', request.env.companies.ids), *domain], limit=1)
     if not record:
         raise ApiError(404, 'not_found', 'Record not found.')
     return record
+
+
+def purpose_value(value):
+    if value not in ('work', 'employee'):
+        raise ApiError(422, 'invalid', 'Invalid process purpose.', field='purpose')
+    return value
 
 
 class OperationsController(http.Controller):
@@ -67,6 +73,8 @@ class OperationsController(http.Controller):
         args = request.httprequest.args
         limit, offset = parse_page(args)
         domain = [('company_id', 'in', request.env.companies.ids)]
+        if 'purpose' in args:
+            domain.append(('purpose', '=', purpose_value(args['purpose'])))
         if args.get('published') == '1':
             domain.append(('state', '=', 'published'))
         if args.get('q'):
@@ -84,9 +92,10 @@ class OperationsController(http.Controller):
     @api_handler
     @requires_feature('operations.enabled')
     def create_process(self, **_):
-        payload = body({'name', 'description', 'execution_kind', 'steps'})
-        record = request.env['webvue.operation.process'].create({'name': payload.get('name'), 'description': payload.get('description', ''), 'execution_kind': payload.get('execution_kind', 'approval')})
-        record.action_configure(0, payload.get('name'), payload.get('description', ''), payload.get('execution_kind', 'approval'), payload.get('steps'))
+        payload = body({'name', 'description', 'execution_kind', 'purpose', 'steps'})
+        purpose = purpose_value(payload.get('purpose', 'work'))
+        record = request.env['webvue.operation.process'].create({'name': payload.get('name'), 'description': payload.get('description', ''), 'execution_kind': payload.get('execution_kind', 'approval'), 'purpose': purpose})
+        record.action_configure(0, payload.get('name'), payload.get('description', ''), payload.get('execution_kind', 'approval'), payload.get('steps'), purpose=purpose)
         return dump_process(record)
 
     @http.route('/api/v1/operations/processes/<int:process_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -94,8 +103,8 @@ class OperationsController(http.Controller):
     @requires_feature('operations.enabled')
     def update_process(self, process_id, **_):
         record = find('webvue.operation.process', process_id, 'operations.processes.manage')
-        payload = body({'name', 'description', 'execution_kind', 'steps', 'revision'})
-        record.action_configure(payload.get('revision'), payload.get('name'), payload.get('description', ''), payload.get('execution_kind', 'approval'), payload.get('steps'))
+        payload = body({'name', 'description', 'execution_kind', 'purpose', 'steps', 'revision'})
+        record.action_configure(payload.get('revision'), payload.get('name'), payload.get('description', ''), payload.get('execution_kind', 'approval'), payload.get('steps'), purpose=purpose_value(payload.get('purpose', record.purpose)))
         return dump_process(record)
 
     @http.route('/api/v1/operations/processes/<int:process_id>/<string:action>', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -123,6 +132,8 @@ class OperationsController(http.Controller):
         require(request.env, 'operations.monitoring.read' if scope == 'monitoring' else 'operations.requests.read', write=False)
         limit, offset = parse_page(args)
         domain = [('company_id', 'in', request.env.companies.ids)]
+        if 'purpose' in args:
+            domain.append(('purpose', '=', purpose_value(args['purpose'])))
         if scope == 'mine':
             domain.append(('requester_id', '=', request.env.uid))
         elif scope == 'pending':
@@ -142,6 +153,15 @@ class OperationsController(http.Controller):
     @requires_feature('operations.enabled', operation='read')
     def get_request(self, request_id, **_):
         return dump_request(find('webvue.operation.request', request_id, 'operations.requests.read'))
+
+    @http.route('/api/v1/operations/requests/employee/me/<int:request_id>', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('operations.enabled', operation='read')
+    def get_own_employee_request(self, request_id, **_):
+        return dump_request(find(
+            'webvue.operation.request', request_id, 'operations.requests.read',
+            domain=[('requester_id', '=', request.env.uid), ('purpose', '=', 'employee')],
+        ))
 
     @http.route('/api/v1/operations/requests', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

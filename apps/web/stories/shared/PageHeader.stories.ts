@@ -24,7 +24,7 @@ type Story = StoryObj<typeof meta>
 
 export const WithActions: Story = {
   name: 'مع إجراءات الصفحة',
-  parameters: storyContext('apps/web/app/pages/projects/[id]/settings.vue:22'),
+  parameters: storyContext('apps/web/app/pages/account/settings.vue:44'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -34,7 +34,7 @@ export const WithActions: Story = {
 
 export const WithKpiToggle: Story = {
   name: 'مع زر المؤشرات',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:50', '`kpi-toggle` يرسم قبل الإجراءات زر أيقونة دائريًا واحدًا يخفي شريط المؤشرات `SharedKpiStrip` أو يظهره؛ الاختيار عام ويُحفظ في الكوكي `webvue-kpis`.'),
+  parameters: storyContext('apps/web/app/pages/account/settings.vue:44', '`kpi-toggle` يرسم قبل الإجراءات زر أيقونة دائريًا واحدًا يخفي شريط المؤشرات `SharedKpiStrip` أو يظهره؛ الاختيار عام ويُحفظ في الكوكي `webvue-kpis`.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -46,7 +46,7 @@ export const WithKpiToggle: Story = {
 // page passes nothing; a title alone is the smallest header.
 export const TitleOnly: Story = {
   name: 'عنوان فقط',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:39', 'أصغر ترويسة: بطاقة مدمجة بأيقونة التطبيق من الغلاف وعنوان واحد، بلا وصف ولا وسوم ولا إجراءات.'),
+  parameters: storyContext('apps/web/app/pages/account/settings.vue:44', 'أصغر ترويسة: بطاقة مدمجة بأيقونة التطبيق من الغلاف وعنوان واحد، بلا وصف ولا وسوم ولا إجراءات.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -60,7 +60,7 @@ export const TitleOnly: Story = {
 // Tags are short facts about the page's subject (state, count, owner) drawn inline after the title; a tag with `to` is a link.
 export const WithTags: Story = {
   name: 'وسوم بعد العنوان',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:39', 'الوسوم: حالة السجل وعدد القائمة وصاحبه تظهر بعد العنوان في السطر نفسه كشارات ناعمة، والوسم الذي له `to` رابط.'),
+  parameters: storyContext('apps/web/app/pages/account/settings.vue:44', 'الوسوم: حالة السجل وعدد القائمة وصاحبه تظهر بعد العنوان في السطر نفسه كشارات ناعمة، والوسم الذي له `to` رابط.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -80,7 +80,7 @@ export const WithTags: Story = {
 // shell's published ancestors come before it. A step that only links back to this same page is dropped.
 export const WithBack: Story = {
   name: 'مسار تحت العنوان',
-  parameters: storyContext('apps/web/app/pages/projects/[id]/finance/[entryId]/edit.vue:67'),
+  parameters: storyContext('apps/web/app/pages/account/settings.vue:44'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -92,7 +92,7 @@ export const WithBack: Story = {
 // above stays quiet and the reader still sees where the page sits.
 export const TrailUnderTitle: Story = {
   name: 'مسار الأسلاف تحت العنوان',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:50', 'المسار من الغلاف: ينشر الغلاف سلسلة الأسلاف ويستقبلها رأس الصفحة ويرسمها تحت العنوان، ويُسقط العنوان الحالي والخطوة التي تشير إلى الصفحة نفسها.'),
+  parameters: storyContext('apps/web/app/pages/account/settings.vue:44', 'المسار من الغلاف: ينشر الغلاف سلسلة الأسلاف ويستقبلها رأس الصفحة ويرسمها تحت العنوان، ويُسقط العنوان الحالي والخطوة التي تشير إلى الصفحة نفسها.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -110,7 +110,7 @@ export const TrailUnderTitle: Story = {
 
 export const TitleAndDescription: Story = {
   name: 'عنوان ووصف',
-  parameters: storyContext('apps/web/app/pages/account.vue:10'),
+  parameters: storyContext('apps/web/app/pages/account/settings.vue:44'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -122,7 +122,7 @@ export const TitleAndDescription: Story = {
 // on the shell's canvas wash and blur, while the sections pass beneath it.
 export const UnifiedHeaderWithFilters: Story = {
   name: 'الترويسة والفلاتر الموحدة (شامل المكونات)',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:50', 'الترويسة الموحدة لجميع الصفحات: عنوان ووصف مع زر الرجوع، إجراءات الصفحة الأساسية، وشريط الفلاتر المدمج (بحث، منسدلة متعددة، خيارات سريعة، نطاق الحالات، تبديل العرض، وشرائح التصفية النشطة).'),
+  parameters: storyContext('apps/web/app/pages/account/settings.vue:44', 'الترويسة الموحدة لجميع الصفحات: عنوان ووصف مع زر الرجوع، إجراءات الصفحة الأساسية، وشريط الفلاتر المدمج (بحث، منسدلة متعددة، خيارات سريعة، نطاق الحالات، تبديل العرض، وشرائح التصفية النشطة).'),
   render: () => ({
     components: { FilterBar, FilterChip, PageContainer, PageHeader, RecordSection, SegmentedControl, ViewSwitch },
     setup: () => {
@@ -224,7 +224,7 @@ export const UnifiedHeaderWithFilters: Story = {
 
 export const StickyHeading: Story = {
   name: 'رأس ثابت مع تمرير',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:50', 'الرأس الملتصق: يبقى عنوان الصفحة وإجراءاتها أسفل الهيدر العائم أثناء التمرير، بخلفية ضبابية على لون اللوحة، ولا يلتصق على الجوال (أقل من 768px) ولا حين تملك البطاقة المرساة خانة الالتصاق.'),
+  parameters: storyContext('apps/web/app/pages/account/settings.vue:44', 'الرأس الملتصق: يبقى عنوان الصفحة وإجراءاتها أسفل الهيدر العائم أثناء التمرير، بخلفية ضبابية على لون اللوحة، ولا يلتصق على الجوال (أقل من 768px) ولا حين تملك البطاقة المرساة خانة الالتصاق.'),
   render: () => ({
     components: { PageContainer, PageHeader, RecordSection },
     setup: () => ({ t: useI18n().t, rows: [1, 2, 3, 4, 5, 6, 7, 8] }),
@@ -234,7 +234,7 @@ export const StickyHeading: Story = {
 
 export const HiddenTitle: Story = {
   name: 'عنوان يملكه الإطار',
-  parameters: storyContext('unused', 'داخل إطار مشروع يملك العنوان: `hideTitle` يرسم الإجراءات وحدها ويبقى اسم الصفحة مسجلًا للغلاف.'),
+  parameters: storyContext('apps/web/app/pages/account/settings.vue:44', 'داخل إطار مشروع يملك العنوان: `hideTitle` يرسم الإجراءات وحدها ويبقى اسم الصفحة مسجلًا للغلاف.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),

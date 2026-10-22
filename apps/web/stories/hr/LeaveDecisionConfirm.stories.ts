@@ -14,7 +14,7 @@ const leave: HrLeave = {
 const meta = {
   title: 'HR/LeaveDecisionConfirm',
   component: LeaveDecisionConfirm,
-  parameters: storyContext('apps/web/app/pages/hr/leave.vue:193', 'تحت شريط الأخطاء وقبل بطاقة القائمة، وفي سجل الإجازة تحت الترويسة.'),
+  parameters: storyContext('apps/web/app/components/hr/LeaveList.vue:193', 'تحت شريط الأخطاء وقبل بطاقة القائمة، وفي مكوّن سجل الإجازة تحت الترويسة.'),
   args: { leave, kind: 'refuse', pending: false },
 } satisfies Meta<typeof LeaveDecisionConfirm>
 export default meta

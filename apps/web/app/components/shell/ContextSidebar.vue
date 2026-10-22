@@ -14,6 +14,8 @@ const props = defineProps<{
   preference?: 'auto' | 'open' | 'closed'
   expanded: boolean
   hydrated: boolean
+  /** Collapsed by another layer: the toggle is inert until it lets go. */
+  locked?: boolean
   panel: Component | null
   renderPanel: boolean
   panelWidth: 'default' | 'wide'
@@ -67,7 +69,7 @@ const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
               size="sm"
               class="webvue-context-toggle"
               data-testid="context-sidebar-toggle"
-              :disabled="!props.hydrated"
+              :disabled="!props.hydrated || props.locked"
               :aria-expanded="props.expanded"
               :aria-controls="navigationId"
               aria-keyshortcuts="["

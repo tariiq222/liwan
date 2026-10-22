@@ -126,6 +126,20 @@ def _current_leave(leave_id):
 
 class HrLeaveController(http.Controller):
 
+    @http.route('/api/v1/hr/leave/me/<int:leave_id>', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', operation='read')
+    def get_own_request(self, leave_id):
+        _require('hr.leave.read')
+        leave = request.env['hr.leave'].search([
+            ('id', '=', leave_id),
+            ('company_id', '=', request.env.company.id),
+            ('employee_id.user_id', '=', request.env.uid),
+        ], limit=1)
+        if not leave:
+            raise MissingError(request.env._('hr.leave %(id)s does not exist', id=leave_id))
+        return dump_leave(leave)
+
     @http.route('/api/v1/hr/leave/types', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('hr.enabled', operation='read')

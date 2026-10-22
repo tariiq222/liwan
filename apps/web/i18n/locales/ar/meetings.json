@@ -102,6 +102,9 @@
     },
     "footer": {
       "results": "لا نتائج | عرض {shown} من نتيجة واحدة | عرض {shown} من نتيجتين | عرض {shown} من {total} نتائج | عرض {shown} من {total} نتيجة | عرض {shown} من {total} نتيجة"
+    },
+    "attention": {
+      "reviewOverdue": "راجع التوصيات المتأخرة قبل الاجتماع القادم."
     }
   },
   "meetingsUx": {

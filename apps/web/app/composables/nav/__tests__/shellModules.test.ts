@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { allNavItems, contextLinksForModule, featureForRailModule, hidePinnedNewProject, shellModuleList, visibleSettingsPages, visibleShellModules, useNav } from '../shellModules'
+import { allNavItems, areaLabelKey, contextLinksForModule, featureForRailModule, hidePinnedNewProject, shellModuleList, visibleSettingsPages, visibleShellModules, useNav } from '../shellModules'
 import { appManifests, withManifests } from '../../../modules/manifests'
 import type { AppManifest } from '../../../modules/types'
 import { activeShellModule } from '../activeRoute'
@@ -208,7 +208,7 @@ describe('projects dashboard navigation', () => {
   })
   it('orders meetings as list, calendar, recurring series after the pinned create action', () => {
     expect(contextLinksForModule('meetings', full).map(link => link.id)).toEqual(['new-meeting', 'meetings', 'meeting-followup', 'meeting-series'])
-    expect(contextLinksForModule('hr', full, '/hr').map(link => link.labelKey)).toEqual(['hr.nav.people', 'hr.nav.mine', 'nav.employees', 'nav.departments'])
+    expect(contextLinksForModule('hr', full, '/hr').map(link => link.labelKey)).toEqual(['hr.nav.people', 'nav.employees', 'nav.departments'])
   })
 })
 
@@ -278,21 +278,13 @@ describe('navigation built from app manifests', () => {
     })
   })
 
-  describe('context link with an explicit feature', () => {
-    const hrTenant = (features: string[]) => ({
-      capabilities: ['hr.employees.read', 'hr.departments.read'],
-      platform: { readable_features: features, writable_features: features },
-    })
-    const ids = (identity: ReturnType<typeof hrTenant>, path = '/hr') => contextLinksForModule('hr', identity, path).map(link => link.id)
-    it('hides my-assets when hr.assets is off but keeps the other employee links', () => {
-      expect(ids(hrTenant(['hr.enabled']))).toEqual(expect.arrayContaining(['employees', 'departments']))
-      expect(ids(hrTenant(['hr.enabled']), '/hr/assets/mine')).not.toContain('my-assets')
-    })
-    it('shows my-assets when hr.assets is on', () => {
-      expect(ids(hrTenant(['hr.enabled', 'hr.assets']), '/hr/assets/mine')).toContain('my-assets')
-    })
-    it('shows links without a feature as before when the tenant policy is absent', () => {
-      expect(ids({ capabilities: ['hr.employees.read'] } as ReturnType<typeof hrTenant>, '/hr/assets/mine')).toContain('my-assets')
-    })
+
+})
+
+describe('areaLabelKey', () => {
+  it('names the module, then «التطبيقات» on the launcher, then the product', () => {
+    expect(areaLabelKey({ labelKey: 'nav.home' }, 'home')).toBe('nav.home')
+    expect(areaLabelKey(null, 'apps')).toBe('nav.apps')
+    expect(areaLabelKey(null, null)).toBe('app.productName')
   })
 })

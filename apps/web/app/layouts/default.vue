@@ -3,6 +3,8 @@ import { pageArea } from '@/utils/workspacePresentation'
 import { hasNoContextSidebar } from '@/components/shell/noContextRoutes'
 import { shellBreadcrumb } from '@/composables/nav/breadcrumb'
 import { useShellModel } from '@/composables/useShellModel'
+import { useAssistantSheet } from '@/composables/useAssistantSheet'
+import AssistantSheet from '@/components/shell/AssistantSheet.vue'
 import { usePageHeaderTitle } from '@webvue/ui/app/composables/usePageHeader'
 import { providePageTrail } from '@webvue/ui/app/composables/usePageTrail'
 import { providePageApp } from '@webvue/ui/app/composables/usePageApp'
@@ -10,6 +12,7 @@ const route = useRoute()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { rail, activeModule } = useShellModel()
+const assistant = useAssistantSheet()
 const pageTitle = usePageHeaderTitle()
 // The trail belongs to the page header now (DESIGN.md §3): the shell publishes the ancestors of the
 // current route and SharedPageHeader draws them under the page title, so the floating header stays
@@ -20,6 +23,7 @@ providePageTrail(trail)
 // The page header draws the chip before its title from the application that owns the route; a page
 // no application owns (account, search) gets the generic icon.
 providePageApp(() => {
+  if (route.path === '/account' || route.path.startsWith('/account/')) return { icon: 'i-lucide-user-round', label: t('nav.account'), to: '/account' }
   const owner = rail.value.all.find(item => item.id === activeModule.value)
   if (!owner) return { icon: 'i-lucide-layout-grid' }
   return { icon: owner.icon, label: t(owner.labelKey), to: owner.to }
@@ -65,9 +69,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <ShellFrame :no-sidebar="noSidebar">
+  <ShellFrame :no-sidebar="noSidebar" :sheet-open="assistant.shown.value">
     <template #header><ShellHeader /></template>
     <template #sidebar><ShellAppSidebar /></template>
+    <template #sheet><AssistantSheet v-if="assistant.surface.value" :surface="assistant.surface.value" /></template>
     <main ref="shellMain" tabindex="-1" data-testid="shell-main" class="webvue-shell-main focus:outline-none" :class="{ 'webvue-page-content-motion': pageMotionActive }">
       <slot />
     </main>
