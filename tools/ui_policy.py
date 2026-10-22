@@ -81,6 +81,7 @@ LOCALE_ROOTS = ('apps/web/i18n/locales/', 'apps/vendor-admin/i18n/locales/')
 # component starts being reused across pages, together with its story.
 STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'access/branches/BranchRoleAssignments.vue',
+    'hr/shifts/ShiftSettingsForm.vue',
     'documents/DocumentEditor.vue',
     'hr/payroll/PayslipDocument.vue',
     'documents/DocumentReader.vue',

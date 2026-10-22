@@ -342,6 +342,19 @@
       "handler": "event",
       "no_capability_reason": null
     },
+    "GET /api/v1/admin/access/branches": {
+      "addon": "webvue_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.assign_roles",
+        "access.roles.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "policy",
+      "no_capability_reason": null
+    },
     "GET /api/v1/admin/branding": {
       "addon": "webvue_api",
       "auth": "user",
@@ -458,6 +471,19 @@
       "capability_source": "body",
       "feature_keys": [],
       "handler": "user",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/admin/users/{user_id}/branches": {
+      "addon": "webvue_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.assign_roles",
+        "access.roles.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "user_branches",
       "no_capability_reason": null
     },
     "GET /api/v1/ai/tools": {
@@ -2308,6 +2334,21 @@
       "handler": "get_schedule",
       "no_capability_reason": null
     },
+    "GET /api/v1/hr/shifts/settings": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "get_settings",
+      "no_capability_reason": null
+    },
     "GET /api/v1/integrations/connections": {
       "addon": "webvue_integrations_sa",
       "auth": "user",
@@ -2560,7 +2601,9 @@
     "GET /api/v1/my-tasks/{task_id}": {
       "addon": "webvue_tasks",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "tasks.tasks.read"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -2572,7 +2615,9 @@
     "GET /api/v1/my-tasks/{task_id}/attachments": {
       "addon": "webvue_tasks",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "tasks.tasks.read"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -2584,7 +2629,9 @@
     "GET /api/v1/my-tasks/{task_id}/attachments/{att_id}/download": {
       "addon": "webvue_tasks",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "tasks.tasks.read"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -2596,7 +2643,9 @@
     "GET /api/v1/my-tasks/{task_id}/comments": {
       "addon": "webvue_tasks",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "tasks.tasks.read"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -2608,14 +2657,16 @@
     "GET /api/v1/notification-digests/{notification_id}": {
       "addon": "webvue_pmo",
       "auth": "user",
-      "capability_keys": [],
-      "capability_match": null,
-      "capability_source": "none",
+      "capability_keys": [
+        "pmo.tasks.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
       "feature_keys": [
         "pmo.enabled"
       ],
       "handler": "get_digest",
-      "no_capability_reason": "Recipient-owned rows: the notify service returns and updates only the caller's own notifications (digests and the caller's personal stages likewise)."
+      "no_capability_reason": null
     },
     "GET /api/v1/notifications": {
       "addon": "webvue_notify",
@@ -2759,8 +2810,12 @@
     "GET /api/v1/project-charter/catalogs/{resource}": {
       "addon": "webvue_pmo",
       "auth": "user",
-      "capability_keys": [],
-      "capability_match": "all",
+      "capability_keys": [
+        "pmo.projects.create",
+        "pmo.projects.read",
+        "pmo.settings.manage"
+      ],
+      "capability_match": "any",
       "capability_source": "body",
       "feature_keys": [
         "pmo.enabled"
@@ -2771,20 +2826,28 @@
     "GET /api/v1/project-charter/catalogs/{resource}/{item_id}": {
       "addon": "webvue_pmo",
       "auth": "user",
-      "capability_keys": [],
-      "capability_match": null,
-      "capability_source": "none",
+      "capability_keys": [
+        "pmo.projects.create",
+        "pmo.projects.read",
+        "pmo.settings.manage"
+      ],
+      "capability_match": "any",
+      "capability_source": "body",
       "feature_keys": [
         "pmo.enabled"
       ],
       "handler": "get_catalog_item",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": null
     },
     "GET /api/v1/project-charter/defaults": {
       "addon": "webvue_pmo",
       "auth": "user",
-      "capability_keys": [],
-      "capability_match": "all",
+      "capability_keys": [
+        "pmo.projects.create",
+        "pmo.projects.read",
+        "pmo.settings.manage"
+      ],
+      "capability_match": "any",
       "capability_source": "body",
       "feature_keys": [
         "pmo.enabled"
@@ -2878,7 +2941,7 @@
         "pmo.enabled"
       ],
       "handler": "list_followers",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
     "GET /api/v1/projects/{project_id}/milestones": {
       "addon": "webvue_pmo",
@@ -2890,7 +2953,7 @@
         "pmo.enabled"
       ],
       "handler": "list_milestones",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
     "GET /api/v1/projects/{project_id}/raci": {
       "addon": "webvue_pmo",
@@ -2902,7 +2965,7 @@
         "pmo.enabled"
       ],
       "handler": "list_raci",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
     "GET /api/v1/projects/{project_id}/register": {
       "addon": "webvue_pmo",
@@ -2914,7 +2977,7 @@
         "pmo.enabled"
       ],
       "handler": "list_register",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
     "GET /api/v1/projects/{project_id}/register/{item_id}": {
       "addon": "webvue_pmo",
@@ -2926,7 +2989,7 @@
         "pmo.enabled"
       ],
       "handler": "get_register",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
     "GET /api/v1/projects/{project_id}/schedule": {
       "addon": "webvue_pmo",
@@ -2938,7 +3001,7 @@
         "pmo.enabled"
       ],
       "handler": "get_schedule",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
     "GET /api/v1/projects/{project_id}/stakeholders": {
       "addon": "webvue_pmo",
@@ -2950,7 +3013,7 @@
         "pmo.enabled"
       ],
       "handler": "list_stakeholders",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
     "GET /api/v1/projects/{project_id}/stakeholders/{item_id}": {
       "addon": "webvue_pmo",
@@ -2962,7 +3025,7 @@
         "pmo.enabled"
       ],
       "handler": "get_stakeholder",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
     "GET /api/v1/projects/{project_id}/updates": {
       "addon": "webvue_pmo",
@@ -2974,7 +3037,7 @@
         "pmo.enabled"
       ],
       "handler": "list_updates",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
     "GET /api/v1/reports/projects/analytics": {
       "addon": "webvue_pmo",
@@ -3106,7 +3169,7 @@
         "pmo.enabled"
       ],
       "handler": "list_task_attachments",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
     "GET /api/v1/tasks/{task_id}/attachments/{attachment_id}/download": {
       "addon": "webvue_pmo",
@@ -3118,7 +3181,7 @@
         "pmo.enabled"
       ],
       "handler": "download_task_attachment",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
     "GET /api/v1/tasks/{task_id}/dependencies": {
       "addon": "webvue_pmo",
@@ -3130,7 +3193,7 @@
         "pmo.enabled"
       ],
       "handler": "list_dependencies",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
     "GET /api/v1/tasks/{task_id}/dependencies/candidates": {
       "addon": "webvue_pmo",
@@ -3142,7 +3205,7 @@
         "pmo.enabled"
       ],
       "handler": "list_candidates",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
     "GET /api/v1/tasks/{task_id}/thread-tasks": {
       "addon": "webvue_pmo",
@@ -3154,7 +3217,7 @@
         "pmo.enabled"
       ],
       "handler": "thread_tasks",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
     "GET /api/v1/tasks/{task_id}/timeline": {
       "addon": "webvue_pmo",
@@ -3166,7 +3229,7 @@
         "pmo.enabled"
       ],
       "handler": "timeline",
-      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
+      "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks."
     },
     "HEAD /api/v1/documents/{document_id}/files/{file_id}/download": {
       "addon": "webvue_documents",
@@ -3180,6 +3243,19 @@
         "documents.enabled"
       ],
       "handler": "download",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/admin/access/branches": {
+      "addon": "webvue_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.assign_roles",
+        "access.roles.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "update_policy",
       "no_capability_reason": null
     },
     "PATCH /api/v1/admin/branding": {
@@ -3242,6 +3318,19 @@
       "capability_source": "body",
       "feature_keys": [],
       "handler": "access",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/admin/users/{user_id}/branches": {
+      "addon": "webvue_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.assign_roles",
+        "access.roles.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "update_user_branches",
       "no_capability_reason": null
     },
     "PATCH /api/v1/chat/conversations/{conversation_id}": {
@@ -3710,6 +3799,21 @@
         "hr.shifts"
       ],
       "handler": "update_schedule",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/shifts/settings": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.shifts.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "patch_settings",
       "no_capability_reason": null
     },
     "PATCH /api/v1/me/appearance": {
