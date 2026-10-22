@@ -4,6 +4,52 @@ For anyone reviewing a diff in this repository: `/code-review`, the `odoo-review
 The rules themselves live in `AGENTS.md`, `docs/agents/odoo-rules.md` and `docs/agents/web-rules.md`;
 this file says what to report and what not to.
 
+## GitHub PR review and failover
+
+The `pr-review` workflow requests native Codex review for a ready, same-repository
+owner or explicitly trusted automation PR. It waits at most five minutes, then uses Claude Code with the existing
+subscription credential only if Codex did not complete. Never substitute another
+reviewer because the first found defects. The `code-review` status is bound to
+the exact head SHA; new commits require a new review. Both unavailable, incomplete
+reports and blocking findings prevent success. Findings remain visible on GitHub.
+
+A stored Claude report is a blocker record only: it cannot turn a later failed or
+missing review into success, and a stored clean report does not skip Codex.
+A Codex reaction alone never completes review. A completed formal review for the
+current head is required; P0/P1/P2 findings in its body or inline comments block.
+Claude cannot approve PRs or current commits authored by Claude or generic GitHub
+Actions automation. Those heads require Codex; unavailability keeps the gate
+blocked rather than letting the repair model review its own changes.
+
+The fallback credential belongs to the separate, main-only `review` environment.
+Adding it does not populate `agent` or `agent-scan`. The review environment has no
+per-run human approval: sensitive changes retain the separate exact-head owner
+approval required by delivery policy. No API-key fallback is permitted.
+If Codex does not complete within five minutes and the review environment has no
+valid Claude credential, `code-review = error` is expected and merge stays blocked.
+
+### Not verified
+
+- Whether native Codex responds to `@codex review` requests authored by
+  `github-actions[bot]` in this repository. No live response has been established;
+  the presence of a request or reaction is not proof of a completed review.
+- The new review environment's subscription credential and fallback execution on
+  GitHub. Local Claude subscription login is not evidence of the CI connection.
+
+The controller prefetches the complete diff and trusted base guidance as data.
+Claude runs with **no tools**, empty settings sources and no MCP servers: it
+cannot read files, run commands or access credentials. Its runtime GitHub token
+is read-only; there is no PR checkout or PR execution. Oversized diffs fail
+closed rather than being silently truncated. A separate deterministic job publishes its structured report as
+a standard comment review with a deterministic blocking marker. The required
+`code-review` status enforces findings, including bot-authored PRs, without leaving
+stale change-request approvals. The separate deterministic `pr-delivery` controller owns
+bounded automatic repair and protected merge after current CI/review/scope gates;
+sensitive scope requires exact-head owner approval. Models never merge directly. Drafts and forks are not automatically
+reviewed by this privileged workflow; fork support needs its own trusted approval
+flow. Native Codex review must be enabled for the repository and the Claude
+subscription credential must be valid; the presence of a secret is not proof.
+
 ## Already automated: do not re-report what is covered
 
 | Tool | Covers | Does not cover |
@@ -53,13 +99,16 @@ file the tool does not scan).
 
 ## Advisory signal: Jev
 
-Every review runs `npm run review:jev -- --task "<what the change does>"` (`tools/jev_review.mjs`)
+Local reviews run `npm run review:jev -- --task "<what the change does>"` (`tools/jev_review.mjs`)
 and reports its scores; implementers also run it after a coherent slice and again before handoff; save `--json` output and pass it back with `--previous <file>` to see
 score deltas. It returns scores and confidence per dimension, no prose. The scores are advisory:
 never a merge gate, never a reason to skip or override the checks above, and a finding still needs
 its own `file:line` evidence. The diff leaves the machine, so never send secrets, customer data,
 `.env` files, key files or deploy data: the script refuses diffs that `tools/secret_guard.py`
 flags, but anything else sensitive is the sender's responsibility.
+
+GitHub AI reviews follow the criteria above and consume CI evidence; they do
+not run local tests or invoke the advisory Jev service from the review job.
 
 ## How to report
 

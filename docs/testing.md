@@ -46,18 +46,39 @@ changes) and only ever creates, clones or drops `webvue_scratch_*` databases. St
 
 ## CI workflow
 
-Integration into `main` is a direct push after local checks (owner decision 2026-10-17, valid until the first
-server deployment). The `ci` workflow (`.github/workflows/ci.yml`) is a safety net, not a gate: it runs on pull
-requests and can be started by hand (`workflow_dispatch`, input `full`), which is the step that follows each push. Each stage is a job that runs `deploy/ci/<stage>.sh`, so a stage
-can also be run locally from a clean checkout. The aggregate job `ci-result` passes only when every
-selected stage passed. The `automerge` job still merges a non-draft PR whose `ci-result` passed, but direct
-push is the normal route (GitHub branch protection and auto-merge are unavailable on this private repository's
-plan). The owner will replace this before deployment. The preservation steps in
-[`agents/integration-rules.md`](agents/integration-rules.md) apply before every integration.
+Integration uses a PR to `main`, following
+[`agents/integration-rules.md`](agents/integration-rules.md). `ci` runs on PRs and
+pushes to `main`, and can be started with `workflow_dispatch` (`full: true` for all
+stages). Each job runs its `deploy/ci` script and can be reproduced locally with
+isolated resources. `ci-result` aggregates selected stages; its success is needed
+before merge, but does not prove a full run or owner authorization.
+
+`ci` remains read-only. Keep the PR draft during local preparation; ready requests
+review and bounded `pr-delivery`. It merges only after current CI/review/scope gates
+and repairs safe code failures at most three cycles per PR. Sensitive scope needs
+owner approval of the exact head. `ci-result` fails if a
+selected stage was skipped or missing, or any stage failed/cancelled. Only
+unselected stages may be skipped. The GitHub ruleset requires `ci-result` from
+GitHub Actions on an up-to-date branch, resolves review threads and offers no
+bypass actors. Recheck live settings; formal second-account approval is not
+required while the repository has only one writer.
 
 The twelve stages are `static`, `ai-service`, `control-plane`, `vendor-admin`, `odoo`,
 `odoo-app-standalone`, `odoo-bridge`, `upgrade`, `restore-drill`, `image`, `e2e-mock` and
 `rtl-stories`.
+
+### GitHub AI review gate
+
+`pr-review` is separate from the twelve CI stages. It uses trusted base code on
+`pull_request_target` for a ready same-repository owner/approved-bot PR: native Codex first,
+Claude Code subscription fallback after a five-minute wait. No PR checkout or
+execution occurs in the credential-bearing job. The controller fetches the diff deterministically, then Claude has no tools,
+settings or MCP servers; its runtime GitHub token is read-only. A deterministic
+job publishes its report and current-head `code-review` status.
+A primary finding is not a reason to invoke the fallback. If neither provider
+completes, or a blocking finding remains, the status cannot be green. Validate
+controller behavior with `python3 -B -m unittest discover -s tools -p test_pr_review.py`.
+The integration policy records the first-activation order and live-provider prerequisites.
 
 ### Change-scoped stages
 
@@ -72,7 +93,8 @@ python3 -B tools/ci_scope.py --base main [--commit codex/<area>-<slug>]
 
 A manual `workflow_dispatch` run with `full: true` runs all twelve stages whatever the change. A
 `release/19.0.X.Y.Z` tag is cut only from a `main` commit whose `ci` run was such a full run with all
-twelve stages green. This is a manual rule, no tool enforces it.
+twelve stages green. `release-version` enforces all twelve groups including every
+matrix job and aggregate on the exact main commit, and creates the next immutable tag.
 
 ### After the merge
 

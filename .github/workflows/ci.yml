@@ -48,7 +48,7 @@ jobs:
       - name: Select the stages
         id: select
         env:
-          FULL: ${{ inputs.full }}
+          FULL: ${{ inputs.full || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
           PULL_REQUEST_BASE: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
         run: |
@@ -362,21 +362,12 @@ jobs:
           NEEDS: ${{ toJSON(needs) }}
         run: |
           echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
-          # Stages the change cannot affect are skipped; scope and static always run.
-          echo "$NEEDS" | jq -e '.scope.result == "success" and .static.result == "success" and all(.[]; .result == "success" or .result == "skipped")' > /dev/null
-
-  # The repository is private on a plan without branch protection, so the merge is a job here instead of GitHub auto-merge.
-  # Owner decision 2026-10-17: every pull request merges once ci-result passes, until the first server deployment.
-  automerge:
-    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && needs.ci-result.result == 'success'
-    needs: ci-result
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Merge the pull request with a merge commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh pr merge "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --merge
+          # Only stages outside the selected scope may be skipped. Fail closed on
+          # missing jobs or malformed scope; a green aggregate must prove the selection ran.
+          echo "$NEEDS" | jq -e '
+            . as $needs | (.scope.outputs.stages | fromjson) as $selected |
+            .scope.result == "success" and .static.result == "success" and
+            ($selected | type == "array" and index("static") != null) and
+            all($selected[]; . as $stage | $needs[$stage].result == "success") and
+            all(.[]; .result == "success" or .result == "skipped")
+          ' > /dev/null

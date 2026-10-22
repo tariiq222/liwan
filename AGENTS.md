@@ -172,33 +172,45 @@ another application) needs the owner's approval, recorded by the owner as an
   `feat fix refactor perf test docs ci build chore` and `scope` from the `<area>` list. One logical change
   per commit. No `wip` commit reaches `main`. A schema change carries its version bump and migration
   directory in the same commit.
-- Integration is a direct push of `main` (owner decision 2026-10-17, valid until the first server deployment):
-  no pull request and no CI gate before the push. The orchestrator builds the combined result in an isolated
-  integration worktree (merge current `origin/main` first, a merge commit per branch; never rebase a branch another
-  worker owns), runs the checks below on that result, verifies `main` still points to the recorded baseline,
-  fast-forwards local `main` to the exact tested commit and pushes it, each step with the owner's authorization for
-  that integration. Checks before the push: the focused checks and `npm test` (plus
-  `npm -w apps/vendor-admin run test` after `npx nuxt prepare` there); `python3 -B tools/git_policy.py --base main`
-  and `python3 -B tools/arch_policy.py --base main`; the Odoo tests of every addon the change touches against a
-  scratch database; addon or contract changes reviewed by the `odoo-reviewer` agent; the working tree clean.
-- The `ci` workflow (`.github/workflows/ci.yml`) is a safety net after the push, not a gate: start it by hand
-  (`workflow_dispatch`, `full: true` runs all twelve stages; the default selects the stages a change can affect with
-  `tools/ci_scope.py`). If a stage fails, fix forward or `git revert` the merge. GitHub branch protection is
-  unavailable on the repository's current plan, so no server-side protection exists; do not claim it does.
-- A `release/19.0.X.Y.Z` tag is cut only from a `main` commit whose `ci` run was a full run (`workflow_dispatch`
-  with `full: true`, all twelve stages green); a manual rule, no tool enforces it.
+- `main` is protected on GitHub with PR and current CI requirements and no admin bypass.
+  Integration uses a pull request; direct pushes and protection bypasses are prohibited. The preservation procedure, authorization boundaries and merge
+  checklist have one owner: [integration-rules.md](docs/agents/integration-rules.md).
+  Read that current policy before integrating an older branch. The 2026-10-17
+  direct-push exception is superseded by this PR workflow.
+- Prepare and check the combined result against the current remote `main`, preserving
+  unrelated dirty work and each worker's history. Use a task PR for an independent change;
+  use one `codex/tools-integrate-<slug>` candidate and one PR for a coupled batch.
+  Regenerate the API artifacts there when needed. Do not submit both a batch and its
+  constituent branches for separate merge.
+- A PR stays **draft** while scope, local checks or prepublication inspection are incomplete.
+  Marking ready requests GitHub review and the owner-approved bounded delivery policy.
+  After current-head CI/review succeed, `pr-delivery` merges eligible low-risk changes.
+  Sensitive changes require the owner's `/webvue approve <head-sha>` comment; a new head
+  invalidates that approval. At most three repair cycles per PR may update safe original
+  files. Missing services, stale checks or protected scope never authorize a bypass.
+- The `ci` workflow runs on PRs and pushes to `main`; selected stages must pass before
+  integration. `workflow_dispatch` with `full: true` runs all twelve stages. A scoped
+  green run is not evidence of a full release run. A `release/19.0.X.Y.Z` tag requires
+  all twelve stages green in a full run on that exact `main` commit. The owner authorizes
+  `release-version` to increment the last release-number component automatically after
+  that evidence; a tag is not deployment authorization.
+- Check actual GitHub rules before delivery. Branch protection, required reviews, required
+  status checks and administrator bypass are separate settings; a protected branch alone
+  does not prove CI is enforced. Report gaps instead of assuming a plan limitation.
 - After a branch is merged, removing its worktree, branch and scratch database is `python3 -B tools/wt.py gc`, only with
   the owner's authorization and only after the content is preserved and no process uses it; unmerged work is
   tagged `archive/<name>` before its branch is removed.
-- Only `main`, tags and authorized task branches are pushed, each push with the owner's explicit authorization.
+- Only `main`, tags and authorized task branches are pushed, each push with the owner's explicit authorization. The approved bounded delivery
+  policy authorizes reserved safe repair pushes; it grants no unrelated publication permission.
   `release/19.0.X.Y.Z` tags on `main` are the releases; there is no per-customer branch.
 
 
 ## Preserve approved work on every merge — 2026-09-08
 
 The user's instruction «كومت ودمج» means: commit the requested work and
-integrate it into the latest local `main`, preserving previously approved
-behavior and adding the requested changes. It does not authorize undoing an
+prepare its integration against the latest remote `main`, preserving previously
+approved behavior and adding the requested changes. Follow the publication and
+merge authorization boundaries in `docs/agents/integration-rules.md`. It does not authorize undoing an
 earlier decision, merging unrelated worktrees, or deleting recovery material.
 
 Before every integration, including from an older worktree, follow the six steps in
@@ -208,12 +220,22 @@ These are mandatory agent workflow instructions. They are not a Git hook or
 server-enforced branch protection; do not claim automated merge protection
 exists unless it has actually been installed and verified.
 
-## Implementation agent routing — 2026-09-07 (scoped 2026-09-09)
+## Agent routing
 
-This rule applies to Codex only. When the coordinator runs inside Codex, all
-implementation agents must use GPT-5.6 Luna with high reasoning effort
-(`luna-high`); read-only review agents may use Astra. Do not substitute another
-implementation model there without a new user instruction.
+Follow the owner's current global routing policy `sol61-all-v1`: GPT-6.1 Sol
+(`gpt-6.1-sol`) for the coordinator and every worker or reviewer; effort follows
+risk and uncertainty. Older Luna/Astra assignments in this repository are
+superseded. If the required model is unavailable, report the blocker rather
+than substituting another model. Delegate only when justified by independently
+owned work, with explicit scopes and isolated mutable resources. A routing rule
+never authorizes commit, push, merge, deployment or cleanup.
+
+The owner explicitly authorizes native Codex GitHub review with Claude Code as
+its service-availability fallback and bounded zero-tools repair in `pr-delivery`.
+This is a narrow exception for trusted GitHub review/repair jobs;
+local coordinators, implementation agents and independent local reviewers remain
+Sol-only. A completed review with findings is not an availability failure.
+Never retry exhausted quota or use paid API credentials as a hidden fallback.
 
 ## Repository layout and product state
 

@@ -29,12 +29,20 @@ git tag -l 'archive/*'
 
 ## CI — GitHub Actions
 
-CI is the `ci` workflow in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): twelve stages, each a
-`deploy/ci/<stage>.sh` script, selected per change by `tools/ci_scope.py`. Its aggregate job `ci-result` gates the
-`automerge` job for pull requests; the normal route is a direct push of `main` followed by a manual full `ci` run
-(owner decision 2026-10-17, valid until the first server deployment; branch protection is not available on the
-current plan). Details are in [`testing.md`](testing.md#ci-workflow). The migration policy is
-[`migrations.md`](migrations.md). The control-plane live-PG suites run serially by design: its `test` script sets
+CI is the `ci` workflow in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): twelve stages,
+selected per change by `tools/ci_scope.py`, each runnable through `deploy/ci`.
+Delivery uses a draft PR, then ready requests review and bounded automatic delivery.
+`pr-delivery` requires current CI/review/scope gates, repairs safe failures at most
+three times, and merges normally. Sensitive scope needs exact-head owner approval. GitHub requires current `ci-result`, an up-to-date
+branch and resolved review threads, with no ruleset bypass actors. The target also
+requires `code-review` and `delivery-policy`; successful full main CI produces the
+next `release/19.0.X.Y.Z` tag without deploying production. The separate
+`pr-review` workflow supplies `code-review`: Codex first, Claude on service
+unavailability; activation prerequisites and bootstrap are in the integration policy.
+The full procedure and live-protection caveats are in
+[integration-rules.md](agents/integration-rules.md); check commands are in
+[testing.md](testing.md#ci-workflow), migrations in [migrations.md](migrations.md).
+The control-plane live-PG suites run serially by design: its `test` script sets
 `--no-file-parallelism` and a 60s hook timeout because the suites share one scratch control database and TRUNCATE
 the same tables.
 
