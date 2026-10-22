@@ -7,6 +7,8 @@ import {
   HrShiftAssignmentSchema,
   HrShiftScheduleListSchema,
   HrShiftScheduleSchema,
+  HrShiftSettingsSchema,
+  type HrShiftSettingsPatch,
   type HrShiftAssignment,
   type HrShiftAssignmentCreate,
   type HrShiftSchedule,
@@ -42,6 +44,7 @@ export const hrShiftKeys = {
   schedule: (id: number) => ['hr', 'shifts', 'schedule', id] as const,
   assignments: (params: HrShiftAssignmentListParams) => ['hr', 'shifts', 'assignments', params] as const,
   mine: ['hr', 'shifts', 'me'] as const,
+  settings: ['hr', 'shifts', 'settings'] as const,
 }
 
 /** The schedule list query: the default is "active only", so `true` sends no filter. */
@@ -169,6 +172,27 @@ export function useDeleteHrShiftAssignment() {
   const { $api } = useApi()
   return useMutation({
     mutationFn: (id: number) => $api<{ id: number }>(`/api/v1/hr/shifts/assignments/${id}`, { method: 'DELETE' }),
+    onSuccess: () => refreshShifts(qc),
+  })
+}
+
+/** Current-company policy; own-account readers need no administrative shifts access. */
+export function useHrShiftSettings(enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  const identity = useHrOwnIdentity()
+  const { can } = useAccess()
+  return useQuery({
+    queryKey: computed(() => [...hrShiftKeys.settings, identity.scope.value]),
+    enabled: computed(() => identity.ready.value && toValue(enabled) && can('hr.employees.read')),
+    queryFn: () => $api('/api/v1/hr/shifts/settings', { schema: HrShiftSettingsSchema }),
+  })
+}
+
+export function usePatchHrShiftSettings() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: (body: HrShiftSettingsPatch) => $api('/api/v1/hr/shifts/settings', { method: 'PATCH', body, schema: HrShiftSettingsSchema }),
     onSuccess: () => refreshShifts(qc),
   })
 }
