@@ -18,7 +18,7 @@ The vision serves companies across business functions and industries. The
 currently implemented roles below do not limit the long-term audience to PMO
 or HR teams.
 
-Roles inside that company (from shipped routes, not a ranked persona): project managers and PMO staff, task assignees, meeting participants, HR directory operators, and account/permission administrators.
+Examples of roles inside that company (from shipped routes, not ranked personas): project managers and PMO staff, task assignees, meeting participants, HR and finance operators, operations requesters/reviewers, document users, AI users, and account/permission administrators.
 
 ## Product Purpose
 
@@ -60,7 +60,7 @@ company; it does not permit sharing data between customer companies.
 ## Operating Context
 
 - Customer UI: `apps/web` (Nuxt 4) talking to Odoo through `/api/v1`.
-- Engine: Odoo 19 CE. Pillars: `webvue_core` (capabilities/identity), `webvue_pmo` (projects/tasks), `webvue_hr` (directory), `webvue_api` (shared HTTP). `webvue_meetings` owns the meeting engine and links to projects through the bridge `webvue_meetings_pmo`.
+- Engine: Odoo 19 CE. Foundation: `webvue_core` (capabilities/identity) and `webvue_api` (HTTP). Application addons: `webvue_tasks` (personal tasks without a project), `webvue_pmo` (projects and project-linked task workflows), `webvue_hr`, `webvue_finance`, `webvue_documents`, and `webvue_operations`. `webvue_tasks_pmo` bridges personal-task creation when Tasks and PMO are both installed. `webvue_meetings` owns the meeting engine and links it to projects through `webvue_meetings_pmo`; `webvue_documents_hr` links the document library to HR department contexts. The `/ai` workspace calls the separately configured `apps/ai-service`.
 - Primary hosting target: self-service SaaS on shared application services,
   with a separate database and filestore per customer. Managed dedicated and
   customer-hosted deployments remain separate options. See the
@@ -79,7 +79,11 @@ updating the definition does not implement or authorize them automatically.
 - PMO: projects, tasks, schedules, templates, milestones, dependencies, stakeholders, RACI, register, finance/costs, updates, attachments, archive/restore, notifications.
 - Meetings: list, calendar, recurring series, minutes; print stays outside the record sheet.
 - Chat: conversation workspace (not the record-sheet recipe).
-- HR: employees, departments/org, documents. No payroll or time logging.
+- Finance: sales and purchase records, payments, partners, accounting, bank statements, budgets, assets and reports; see the finance gap register for remaining work and verification status.
+- Documents: document list, creation, editing and access routes.
+- Operations: request, pending-approval, monitoring and process-settings routes.
+- AI: `/ai` workspace backed by the configured WebVue AI service; provider, model and API-key configuration is held by that service.
+- HR: employees, departments/org, document-library contexts through `webvue_documents_hr`, leave, recruitment, shifts, onboarding/offboarding, assets and payroll.
 - Settings: appearance, users, roles, access log, institution branding (one document colour for invoices, reports and printouts; it never themes the interface, which keeps the fixed WebVue palette; ignore the backend's legacy `secondary_color` field; name and logo remain Odoo system-admin).
 - Authorization is capability-based, not role-name-based.
 - Default locale Arabic / RTL-first; English secondary. Business screens are real routes: direct link, refresh, back with list filters. Overlay exceptions: global search dialog, notification popover (latest five, then `/notifications`), unsaved-draft guard, value-selection menus, inline destroy confirm. Do not stack business dialogs.
@@ -109,7 +113,7 @@ Name: ويب فيو (WebVue). Binding UI constitution: [DESIGN.md](../../DESIGN.
 
 ## Accessibility & Inclusion
 
-Product requirements already binding in DESIGN.md: Arabic RTL-first and English LTR, three appearance modes, three type sizes, keyboard use, reduced motion, text contrast ≥ 4.5:1 and fill ≥ 3:1. No additional inclusion standard was confirmed.
+Product requirements already binding in DESIGN.md: Arabic RTL-first and English LTR, two appearance modes (light and dark), three type sizes, keyboard use, reduced motion, text contrast ≥ 4.5:1 and fill ≥ 3:1. No additional inclusion standard was confirmed.
 
 ## Open Decisions
 

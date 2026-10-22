@@ -18,7 +18,7 @@ limits describe implementation stages, not permanent product exclusions.
 
 ## Repository layout
 
-- `odoo-addons/webvue_core` depends on `base` only. It owns the access service, the eleven system capabilities, the
+- `odoo-addons/webvue_core` depends on `base` only. It owns the access service, the system capabilities, the
   built-in `employee`, `system_admin` and `vendor_support` roles, assignments, access audit, migration and identity
   protection. Applications add their capabilities to the catalog through `webvue.access.service` hooks.
 - `odoo-addons/webvue_platform` owns the tenant profile singleton and `root_company_id`.
@@ -44,19 +44,22 @@ limits describe implementation stages, not permanent product exclusions.
   register their feature keys in `webvue.directory`.
 - `odoo-addons/webvue_pmo` owns projects, tasks, timelines, project settings,
   attachments, dependencies, archive/restore, its task and digest notification
-  kinds, producers and `/api/v1/notification-digests`, and the eight `pmo.*`
+  kinds, producers and `/api/v1/notification-digests`, and the `pmo.*`
   capabilities, their groups and the `pmo_manager` role. It does not depend on
   the meeting engine.
-- `odoo-addons/webvue_hr` owns the HR directory, departments, documents, HR
+- `odoo-addons/webvue_hr` owns the HR directory, departments, HR-specific
   serializers/controllers, `/api/v1/hr/*` (employee ids are
-  `hr.employee` ids), and the eight `hr.*` capabilities, their groups and the
+  `hr.employee` ids), and the `hr.*` capabilities, their groups and the
   `hr_manager` role.
+- `odoo-addons/webvue_documents` (application, rank 4) owns the central DMS-backed
+  document library and `/api/v1/documents` routes. `odoo-addons/webvue_documents_hr`
+  (bridge, rank 5, `auto_install`) adds HR department contexts to that library.
 - `odoo-addons/webvue_meetings` (application, rank 4) owns the meeting engine
   (`webvue.meeting.minute`, `webvue.meeting.resolution`; LGPL, vendored from Cyan,
   see `odoo-addons/webvue_meetings/PROVENANCE.md`) and the meeting,
   series, minutes and recommendation routes (`/api/v1/meetings`,
   `/api/v1/meeting-series`), their serializers, the seven meeting notification
-  kinds, `meetings.enabled`, the three `meetings.*` capabilities, their groups
+  kinds, `meetings.enabled`, the `meetings.*` capabilities, their groups
   and the meeting record rules. It knows no other application: links to other
   records go through the `webvue.meeting.links` hooks, which answer "no project,
   no linked task" by default.
@@ -72,7 +75,7 @@ limits describe implementation stages, not permanent product exclusions.
   account when an employee is archived. The foundation account routes (`/api/v1/admin/users`) know no HR.
 - `odoo-addons/webvue_tasks` (application, rank 4) owns personal tasks (a `project.task` without a
   project, with `webvue_parent_id` for sub-tasks), `/api/v1/my-tasks` (the unified list, CRUD,
-  transitions, comments, attachments), `tasks.enabled`, the three `tasks.*` capabilities, their
+  transitions, comments, attachments), `tasks.enabled`, the `tasks.*` capabilities, their
   groups, the global personal-task record rule and the `tasks.assigned` notification kind. It
   knows no other application: project rows and conversion go through the `webvue.task.links` hooks,
   which answer "none" by default.
@@ -83,7 +86,7 @@ limits describe implementation stages, not permanent product exclusions.
 - `odoo-addons/base_tier_validation` (shared service, rank 3) is the vendored OCA tier-validation
   engine (AGPL-3) used by `webvue_operations`.
 - `odoo-addons/webvue_operations` (application, rank 4) owns versioned process definitions and
-  permission-checked approval requests, `/api/v1/operations`, and the five `operations.*`
+  permission-checked approval requests, `/api/v1/operations`, and the `operations.*`
   capabilities and their groups.
 - `odoo-addons/webvue_operations_pmo` (bridge, rank 5, `auto_install`) is installed whenever
   `webvue_operations` and `webvue_pmo` both are. It executes task completion through the original

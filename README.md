@@ -25,25 +25,40 @@ See [the hosting contract](docs/superpowers/specs/webvue-shared-saas-and-soverei
 and [WORKSPACE.md](docs/WORKSPACE.md) for implementation and acceptance evidence;
 the product vision does not establish production readiness.
 
-Integration into `main` is a GitHub pull request; the `ci` workflow (`.github/workflows/ci.yml`) is the only gate
-and merges the PR when it passes (until the first server deployment). See the
-[testing guide](docs/testing.md#ci-workflow). Agents do not push without the owner's authorization.
+Integration policy and authorization are owned by [AGENTS.md](AGENTS.md) and the
+[testing guide](docs/testing.md#ci-workflow); workflow implementation lives in
+[ci.yml](.github/workflows/ci.yml). Agents do not push without the owner's authorization.
+
+As of the 2026-10-22 documentation audit, the approved review, repair and release-numbering
+update is pending in [PR #32](https://github.com/tariiq222/webvue/pull/32). Its proposed
+workflow is not an activation record; verify the merged revision and actual CI run
+before relying on it.
 
 ## Current product
 
-This unified checkout contains the PMO, HR and access administration surfaces:
+This checkout contains the following implemented application and administration
+surfaces; their presence does not by itself establish release readiness:
 
-- Tasks at `/tasks`, including personal stages, board and table views,
-  timelines, comments, task updates, and real-time bus updates.
+- Project tasks at `/tasks` and personal tasks at `/my-tasks`, including their
+  separate task spaces, board/table views, timelines, comments, and updates.
 - Projects at `/projects`, including project tasks, stages, milestones, status
   updates, followers, archive actions, tags, and project settings.
-- The HR directory at `/hr`, including company-wide employee cards, department
-  hierarchy, employee archive controls, and department documents.
+- Meetings at `/meetings` (including calendar, recurring series and minutes),
+  conversations at `/chat`, and documents at `/documents`.
+- Finance at `/finance` (sales and purchase records, payments, partners,
+  accounting, bank statements, budgets, assets and reports). Individual gaps and
+  verification status are tracked in the finance documentation.
+- Operations at `/operations` (requests, pending approvals and monitoring), and
+  the AI workspace at `/ai`.
+- HR at `/hr`, including the employee directory, leave, recruitment, shifts,
+  onboarding/offboarding, assets and payroll; department documents are linked to
+  the separate document library.
   HR routes live under `/api/v1/hr/*` and use employee ids. The PMO assignee
   picker at `/api/v1/people` remains a user-id resource.
 - Access administration at `/settings/team/users`, roles and audit with capability
-  checks. Branding settings edit the primary colour; Odoo system administrators
-  manage institution name/logo. `/account` handles self password changes.
+  checks. Company branding colour is for documents and reports and does not
+  change the fixed UI palette; Odoo system administrators manage institution
+  name/logo. `/account` handles self password changes.
 - PMO adds task attachments, recipient notifications, dependencies and a routed
   archived-task list with restore. HR document creation and edits use pages.
 - Arabic is the default locale and the UI supports RTL. Navigation follows
@@ -75,10 +90,11 @@ cd /Users/tariq/code/odoo
 
 # Nuxt, from the selected WebVue worktree
 cd /path/to/webvue-worktree
+# 3100 is reserved for vendor-admin; this example uses 3200 for apps/web.
 NUXT_ODOO_URL=http://127.0.0.1:8169 \
 NUXT_ODOO_DB=webvue_scratch \
 NUXT_PUBLIC_WS_URL=ws://localhost:8169/websocket \
-npm -w apps/web run dev -- --port 3100
+npm -w apps/web run dev -- --port 3200
 ```
 
 Use a unique Odoo database and HTTP port, and a matching Nuxt port, for every
@@ -113,10 +129,13 @@ No production deployment or DNS cutover is implied by this repository.
   capabilities, groups and roles;
   `webvue_api` owns shared API plumbing; the shared services `webvue_notify` (the
   notification bell) and `webvue_directory` (the user-id people picker) know no
-  application; `webvue_pmo` owns projects/tasks; `webvue_meetings` owns meetings,
-  series and minutes, and the bridge `webvue_meetings_pmo` links them to projects
-  and tasks; `webvue_hr` owns HR routes, documents, and employee directory
-  behavior.
+  application; `webvue_tasks` owns personal tasks without a project, while
+  `webvue_pmo` owns projects and project-linked task workflows, with
+  `webvue_tasks_pmo` bridging personal-task creation when both are installed;
+  `webvue_meetings` owns meetings, series and minutes, and `webvue_meetings_pmo` links them to projects and tasks;
+  `webvue_finance`, `webvue_documents`, `webvue_operations` and `webvue_hr` own
+  their corresponding application APIs and capabilities; `webvue_documents_hr`
+  connects the document library to HR department contexts.
 - `deploy` contains per-customer provisioning and reverse-proxy templates.
 
 The detailed one-writer ownership and isolation workflow is in
