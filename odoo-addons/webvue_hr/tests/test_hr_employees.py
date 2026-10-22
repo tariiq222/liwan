@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import new_test_user, tagged
 
-from .common import WebVueHrCase
+from .common import WebVueHrCase, set_hr_feature
 
 EMP_KEYS = {
     'id', 'name', 'job_title', 'department', 'work_email', 'work_phone', 'user_id',
@@ -58,6 +58,51 @@ class TestHrEmployees(WebVueHrCase):
         self.assertEqual(body['department'], {'id': self.dept_a.id, 'name': 'Engineering'})
         self.assertEqual(body['work_email'], 'sara@example.com')
         self.assertEqual(body['work_phone'], '+966500000000')
+
+    def test_self_service_profile_is_own_public_shape_even_for_hr_manager(self):
+        for user, login, password in (
+            (self.employee, 'api_emp', 'api_emp_pass_123'),
+            (self.admin, 'hr_emp_admin', 'hr_emp_admin_pass_123'),
+        ):
+            employee = self.hr_emp if user == self.employee else self.env['hr.employee'].create({
+                'name': 'HR manager own profile', 'user_id': user.id,
+            })
+            self.authenticate(login, password)
+            result = self.api('GET', f'/api/v1/hr/me?employee_id={self.hr_other.id}')
+            self.assertEqual(result.status_code, 200, result.text)
+            data = result.json()
+            self.assertEqual(set(data), EMP_KEYS)
+            self.assertEqual((data['id'], data['user_id']), (employee.id, user.id))
+            self.assertIsNone(data['access'])
+            self.assertIsNone(data['contract'])
+
+    def test_self_service_profile_uses_current_company_and_missing_link_is_null(self):
+        other_company = self.env['res.company'].create({'name': 'Own profile foreign company'})
+        self.employee.company_ids |= other_company
+        self.env['hr.employee'].create({
+            'name': 'Other company own profile', 'user_id': self.employee.id,
+            'company_id': other_company.id,
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        result = self.api('GET', '/api/v1/hr/me')
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(result.json()['id'], self.hr_emp.id)
+        self.hr_emp.write({'active': False})
+        result = self.api('GET', '/api/v1/hr/me')
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertIsNone(result.json())
+        self.authenticate('hr_emp_admin', 'hr_emp_admin_pass_123')
+        result = self.api('GET', '/api/v1/hr/me')
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertIsNone(result.json())
+
+    def test_self_service_profile_requires_feature_and_employee_read(self):
+        denied = new_test_user(self.env, login='profile_denied', password='profile_denied_test_123', groups='base.group_user')
+        self.authenticate(denied.login, 'profile_denied_test_123')
+        self.assertEqual(self.api('GET', '/api/v1/hr/me').status_code, 403)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        set_hr_feature(self, 'hr.enabled', False)
+        self.assertEqual(self.api('GET', '/api/v1/hr/me').status_code, 403)
 
     def test_list_by_department_id(self):
         self.authenticate('api_emp', 'api_emp_pass_123')

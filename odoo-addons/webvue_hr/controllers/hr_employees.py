@@ -3,7 +3,7 @@ from odoo import http
 from odoo.exceptions import AccessError, MissingError
 from odoo.http import request
 
-from .common import hr_rule_handler
+from .common import hr_rule_handler, own_public_employee
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -97,6 +97,13 @@ def _validate_contract_vals(vals, employee):
 
 
 class HrEmployeeController(http.Controller):
+    @http.route('/api/v1/hr/me', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', operation='read')
+    def own_profile(self, **_):
+        _require('hr.employees.read')
+        employee = own_public_employee()
+        return dump_employee(employee, include_access=False, include_contract=False) if employee else None
 
     @http.route('/api/v1/hr/employees', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
