@@ -1,32 +1,63 @@
 import { describe, expect, it } from 'vitest'
-import type { ShellContextLink } from '../shellModules'
-import { contextLinkTestId, groupSections, railModel, sidebarModel, subListSections } from '../sidebarModel'
+import type { ShellContextLink, ShellModuleDefinition } from '../shellModules'
+import { contextLinkTestId, groupSections, pinnableModules, railActiveId, railModel, sidebarModel, subListSections } from '../sidebarModel'
 
 const link = (id: string, extra: Partial<ShellContextLink> = {}): ShellContextLink =>
   ({ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, capability: 'x.y.read', ...extra })
 
 describe('rail model', () => {
-  it('keeps rail order and puts settings in the utility slot', () => {
-    const rail = railModel([
-      { id: 'home', labelKey: 'nav.home', icon: 'i-lucide-house', to: '/projects/dashboard' },
-      { id: 'settings', labelKey: 'nav.settings', icon: 'i-lucide-settings', to: '/settings/team/users', utility: true },
-      { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects' },
-    ])
-    expect(rail.all.map(item => item.id)).toEqual(['home', 'settings', 'projects'])
-    expect(rail.primary.map(item => item.id)).toEqual(['home', 'projects'])
-    expect(rail.utility.map(item => item.id)).toEqual(['settings'])
+  const module = (id: string, extra: Partial<ShellModuleDefinition> = {}): ShellModuleDefinition => ({ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, ...extra })
+  const modules = [
+    module('home', { to: '/' }), module('tasks'), module('projects'), module('chat'),
+    module('settings', { utility: true }), module('assistant', { utility: true }),
+  ]
+
+  it('puts the launcher and today on top, then the pins in pin order, customize, and the utility slot with settings last', () => {
+    const rail = railModel(modules, ['chat', 'tasks'])
+    expect(rail.top.map(item => [item.id, item.to])).toEqual([['apps', '/apps'], ['home', '/']])
+    expect(rail.pinned.map(item => item.id)).toEqual(['chat', 'tasks'])
+    expect(rail.customize).toMatchObject({ id: 'customize', to: '/apps', icon: 'i-lucide-plus' })
+    expect(rail.utility.map(item => item.id)).toEqual(['assistant', 'settings'])
   })
 
-  it('places flagged entries in the utility slot before settings, which stays last', () => {
-    const rail = railModel([
-      { id: 'home', labelKey: 'nav.home', icon: 'i-lucide-house', to: '/' },
-      { id: 'settings', labelKey: 'nav.settings', icon: 'i-lucide-settings', to: '/settings', utility: true },
-      { id: 'helper', labelKey: 'nav.helper', icon: 'i-lucide-sparkles', to: '/helper', utility: true },
-      { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects' },
-    ])
-    expect(rail.utility.map(item => item.id)).toEqual(['helper', 'settings'])
-    expect(rail.primary.map(item => item.id)).toEqual(['home', 'projects'])
-    expect(rail.all.map(item => item.id)).toEqual(['home', 'settings', 'helper', 'projects'])
+  it('lists today once, and never lists an unpinned application in the displayed groups', () => {
+    const rail = railModel(modules, ['tasks'])
+    const shown = [...rail.top, ...rail.pinned, ...rail.utility].map(item => item.id)
+    expect(shown.filter(id => id === 'home')).toHaveLength(1)
+    expect(shown).not.toContain('projects')
+    expect(shown).not.toContain('chat')
+  })
+
+  it('keeps every reachable application in the flat list, pinned first, so an unpinned one still resolves', () => {
+    const rail = railModel(modules, ['chat'])
+    expect(rail.all.map(item => item.id)).toEqual(['apps', 'home', 'chat', 'tasks', 'projects', 'assistant', 'settings'])
+  })
+
+  it('drops a pin that is no longer reachable and shows nothing pinned for an empty list', () => {
+    expect(railModel(modules, ['gone', 'tasks']).pinned.map(item => item.id)).toEqual(['tasks'])
+    expect(railModel(modules, []).pinned).toEqual([])
+  })
+
+  it('lists the rail as drawn for the mobile drawer, customize included', () => {
+    expect(railModel(modules, ['tasks', 'projects']).drawer.map(item => item.id)).toEqual(['apps', 'home', 'tasks', 'projects', 'customize', 'assistant', 'settings'])
+  })
+
+  it('leaves out today when the user cannot reach it', () => {
+    expect(railModel(modules.filter(item => item.id !== 'home'), ['tasks']).top.map(item => item.id)).toEqual(['apps'])
+  })
+
+  it('lights the active entry, and the launcher stands in for an unpinned application', () => {
+    const rail = railModel(modules, ['tasks'])
+    expect(railActiveId(rail, 'tasks')).toBe('tasks')
+    expect(railActiveId(rail, 'home')).toBe('home')
+    expect(railActiveId(rail, 'apps')).toBe('apps')
+    expect(railActiveId(rail, 'settings')).toBe('settings')
+    expect(railActiveId(rail, 'projects')).toBe('apps')
+    expect(railActiveId(rail, null)).toBeNull()
+  })
+
+  it('names the pinnable modules: applications only', () => {
+    expect(pinnableModules(modules).map(item => item.id)).toEqual(['tasks', 'projects', 'chat'])
   })
 })
 

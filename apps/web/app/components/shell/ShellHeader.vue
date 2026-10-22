@@ -21,7 +21,7 @@ const { t } = useI18n()
 const route = useRoute()
 const { branding } = useBranding()
 const { can } = useAccess()
-const { activeModule, rail, homePath, contextTitle, contextLabelKey, contextLinks, panel, createTo } = useShellModel()
+const { railActive, rail, homePath, contextTitle, contextLabelKey, contextLinks, panel, createTo } = useShellModel()
 const { expanded } = useContextSidebar()
 const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 // The tenant's own mark: its logo, else its initials on the primary colour. A tenant without a
@@ -64,8 +64,8 @@ useShellShortcuts({
     <div class="webvue-shell-header-start">
       <MobileNavigation
         v-model:open="mobileOpen"
-        :modules="rail.all"
-        :active-id="activeModule"
+        :modules="rail.drawer"
+        :active-id="railActive"
         :title="contextTitle"
         :create-links="mobileCreateLinks"
         :sections="mobile.sections"

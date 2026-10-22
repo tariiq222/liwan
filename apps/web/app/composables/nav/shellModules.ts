@@ -5,6 +5,7 @@ import { canReach, SETTINGS_OVERVIEW_PATH, type AccessIdentity } from '../../uti
 import { hasFeature } from '../../modules/registry'
 import { activeManifests } from '../../modules/manifests'
 import { normalizedPath } from '../../utils/routePath'
+import { LAUNCHER_MODULE_ID } from './activeRoute'
 import { partIsExact, settingsPageForPath, settingsPartPath, settingsPartTarget, settingsPages, type SettingsPage } from './settingsSections'
 import type { AppSettingsPart } from '../../modules/types'
 import { CUSTOMER_COMMERCIAL_CAPABILITIES, deriveCustomerCapabilities } from '../../utils/customerCapabilities'
@@ -99,6 +100,15 @@ export interface ShellModuleDefinition {
   to: string
   /** Placed in the rail's bottom utility slot above settings. */
   utility?: boolean
+}
+
+/** The launcher page; it is not a manifest module, so no navigation item or capability belongs to it. */
+export const LAUNCHER_MODULE: ShellModuleDefinition = { id: LAUNCHER_MODULE_ID, labelKey: 'nav.apps', icon: 'i-lucide-layout-grid', to: '/apps' }
+
+/** The label key naming the open area in the drawer and sidebar heading: its module, «التطبيقات» on the launcher, else the product name. */
+export function areaLabelKey(definition: Pick<ShellModuleDefinition, 'labelKey'> | null | undefined, activeModule: ShellModule | null): string {
+  if (definition) return definition.labelKey
+  return activeModule === LAUNCHER_MODULE_ID ? LAUNCHER_MODULE.labelKey : 'app.productName'
 }
 
 /** Rail order (user decision 2026-09-11): applications by manifest `order`, then the settings utility slot. */

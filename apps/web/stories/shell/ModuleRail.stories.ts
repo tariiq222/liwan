@@ -7,7 +7,7 @@ const meta = {
   title: 'Shell/ModuleRail',
   component: ModuleRail,
   parameters: { layout: 'fullscreen' },
-  args: { modules: shellRail.primary, utility: shellRail.utility, activeId: 'projects', homeTo: '/projects/dashboard' },
+  args: { rail: shellRail, activeId: 'projects', homeTo: '/' },
 } satisfies Meta<typeof ModuleRail>
 export default meta
 type Story = StoryObj<typeof meta>
@@ -23,4 +23,10 @@ export const SettingsActive: Story = { ...Default, name: 'الإعدادات ن�
 const assistantItem = { id: 'assistant', labelKey: 'nav.ai', shortLabelKey: 'nav.rail.ai', icon: 'i-lucide-sparkles', to: '/ai', utility: true }
 const utilityWithAssistant = [assistantItem, ...shellRail.utility]
 
-export const AssistantUtility: Story = { ...Default, name: 'أداة فوق الإعدادات', args: { utility: utilityWithAssistant, activeId: 'assistant' } }
+export const AssistantUtility: Story = { ...Default, name: 'أداة فوق الإعدادات', args: { rail: { ...shellRail, utility: utilityWithAssistant }, activeId: 'assistant' } }
+
+export const LauncherActive: Story = { ...Default, name: 'المشغّل نشط', args: { activeId: 'apps' } }
+
+export const FewPinned: Story = { ...Default, name: 'تطبيق واحد مثبّت', args: { rail: { ...shellRail, pinned: shellRail.pinned.slice(0, 1) }, activeId: 'apps' } }
+
+export const NonePinned: Story = { ...Default, name: 'لا تطبيق مثبّت', args: { rail: { ...shellRail, pinned: [] }, activeId: 'apps' } }

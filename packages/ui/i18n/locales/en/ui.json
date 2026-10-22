@@ -38,9 +38,11 @@
     "title": "Search and filters"
   },
   "nav": {
-    "home": "Home",
+    "home": "Today",
     "modules": "Modules",
     "railApps": "Applications",
+    "customize": "Customize",
+    "pinned": "Pinned",
     "railTools": "Tools",
     "breadcrumb": "Breadcrumb"
   },

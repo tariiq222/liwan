@@ -176,9 +176,10 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 }
 .webvue-module-rail-brand { display: grid; height: var(--shell-header-height); flex: none; border-block-start: 1px solid var(--ui-border); place-items: center; color: var(--ui-primary); text-decoration: none; }
 .webvue-module-rail-brand:focus-visible { outline: 2px solid var(--ring); outline-offset: -4px; }
-.webvue-module-rail-links, .webvue-module-rail-utility { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; }
+.webvue-module-rail-top, .webvue-module-rail-links, .webvue-module-rail-utility { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; }
 .webvue-module-rail-links { min-height: 0; flex: 1; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
-.webvue-module-rail-utility { flex: none; }
+.webvue-module-rail-top, .webvue-module-rail-utility { flex: none; }
+.webvue-module-rail-divider { padding-block: 2px; color: var(--ui-text-muted); font-size: 11px; line-height: 16px; text-align: center; border-block-start: 1px solid var(--ui-border); }
 .webvue-module-rail-link {
   display: flex;
   min-height: 55px;
