@@ -411,9 +411,8 @@ class WebVueAccessService(models.AbstractModel):
         if excluding_user:
             users -= excluding_user
         if not any(
-            self._webvue_has_capability(
-                user, 'access.users.assign_roles', company=company,
-            )
+            company.id in user._get_company_ids()
+            and 'access.users.assign_roles' in self._webvue_capability_keys(user, company=company)
             for user in users
         ):
             msg = 'last_access_admin'
