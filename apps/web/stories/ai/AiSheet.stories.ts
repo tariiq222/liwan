@@ -19,7 +19,7 @@ const meta = {
   loaders: [async () => { await __getRouter()!.replace('/tasks'); return {} }],
   render: () => ({
     components: { AiSheet },
-    template: '<div class="flex h-[40rem] w-[380px] flex-col overflow-hidden rounded-card border border-default bg-default"><AiSheet /></div>',
+    template: '<div class="flex h-[40rem] w-[380px] max-w-[calc(100vw_-_2rem)] flex-col overflow-hidden rounded-card border border-default bg-default"><AiSheet /></div>',
   }),
 } satisfies Meta<typeof AiSheet>
 export default meta
