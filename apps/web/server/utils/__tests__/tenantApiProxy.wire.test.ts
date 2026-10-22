@@ -7,6 +7,10 @@ let app: http.Server
 let upstreamUrl: string
 let url: string
 let calls = 0
+let workCalls = 0
+let holdChecks = false
+let checkUnavailable = false
+let releaseChecks: Array<() => void> = []
 
 beforeAll(async () => {
   vi.stubGlobal('defineEventHandler', defineEventHandler)
@@ -17,6 +21,16 @@ beforeAll(async () => {
     calls++
     req.resume()
     res.setHeader('content-type', 'application/json')
+    if (req.url === '/api/v1/me') {
+      if (checkUnavailable) { res.statusCode = 503; res.end('{}'); return }
+      const reply = () => {
+        if (!['session_id=valid-wire-session', 'session_id=valid-cold-session', 'session_id=valid-abort-session'].includes(req.headers.cookie ?? '')) { res.statusCode = 403; res.end('{}'); return }
+        res.end(JSON.stringify({ id: 7, company: { id: 1 } }))
+      }
+      if (holdChecks) releaseChecks.push(reply); else reply()
+      return
+    }
+    workCalls++
     res.end('{}')
   })
   await new Promise<void>(resolve => upstream.listen(0, '127.0.0.1', resolve))
@@ -27,7 +41,7 @@ beforeAll(async () => {
   await new Promise<void>(resolve => app.listen(0, '127.0.0.1', resolve))
   url = `http://127.0.0.1:${(app.address() as { port: number }).port}`
 })
-beforeEach(() => { calls = 0; vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated') })
+beforeEach(() => { calls = 0; workCalls = 0; holdChecks = false; checkUnavailable = false; releaseChecks = []; vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated') })
 afterEach(() => vi.unstubAllEnvs())
 afterAll(async () => {
   for (const server of [app, upstream]) {
@@ -43,10 +57,79 @@ describe('API session preadmission on the wire', () => {
     expect(response.status).toBe(403)
     expect(calls).toBe(0)
   })
-  it('forwards an exact nonempty session cookie among other cookies', async () => {
-    const response = await fetch(`${url}/api/v1/me`, { headers: { cookie: 'other=ok; session_id=synthetic; preference=ar' } })
+  it('rejects a forged exact cookie before forwarding the operation', async () => {
+    const response = await fetch(`${url}/api/v1/tasks`, { method: 'POST', headers: { cookie: 'session_id=synthetic' }, body: '{}' })
+    expect(response.status).toBe(403)
+    expect(workCalls).toBe(0)
+  })
+  it('rejects a forged slow upload without waiting for its body', async () => {
+    const status = await new Promise<number>((resolve, reject) => {
+      const req = http.request(`${url}/api/v1/tasks`, { method: 'POST', headers: { cookie: 'session_id=forged-slow', 'content-type': 'application/json', 'content-length': '100000' } }, res => {
+        resolve(res.statusCode!); res.resume(); req.destroy()
+      })
+      req.on('error', error => { if ((error as NodeJS.ErrnoException).code !== 'ECONNRESET') reject(error) })
+      req.setTimeout(1000, () => { req.destroy(); reject(new Error('waited for anonymous body')) })
+      req.write('{')
+    })
+    expect(status).toBe(403)
+    expect(workCalls).toBe(0)
+  })
+  it('reports validation outages as unavailable rather than signing the user out', async () => {
+    checkUnavailable = true
+    expect((await fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'session_id=unknown-during-outage' } })).status).toBe(503)
+    expect(workCalls).toBe(0)
+  })
+  it('verifies an existing valid Odoo session and preserves application forwarding', async () => {
+    const response = await fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'other=ok; session_id=valid-wire-session; preference=ar' } })
     expect(response.status).toBe(200)
-    expect(calls).toBe(1)
+    expect(calls).toBe(2)
+    expect(workCalls).toBe(1)
+  })
+  it('coalesces cold parallel requests from one valid session', async () => {
+    holdChecks = true
+    const requests = Array.from({ length: 5 }, () => fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'session_id=valid-cold-session' } }))
+    try {
+      await vi.waitFor(() => expect(releaseChecks).toHaveLength(1))
+    } finally { for (const release of releaseChecks) release() }
+    expect((await Promise.all(requests)).map(response => response.status)).toEqual([200, 200, 200, 200, 200])
+    expect(workCalls).toBe(5)
+  })
+  it('does not cancel another valid consumer when the first cold caller disconnects', async () => {
+    holdChecks = true
+    const controller = new AbortController()
+    const first = fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'session_id=valid-abort-session' }, signal: controller.signal }).catch(() => undefined)
+    await vi.waitFor(() => expect(releaseChecks).toHaveLength(1))
+    const second = fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'session_id=valid-abort-session' } })
+    await new Promise(resolve => setTimeout(resolve, 30))
+    controller.abort()
+    for (const release of releaseChecks) release()
+    expect((await second).status).toBe(200)
+    await first
+  })
+  it('keeps a public MFA slow upload outside application slots', async () => {
+    const upload = http.request(`${url}/api/v1/auth/totp`, { method: 'POST', headers: { 'content-type': 'application/json', 'content-length': '100000' } })
+    upload.on('error', () => {})
+    upload.write('{')
+    try {
+      await new Promise(resolve => setTimeout(resolve, 30))
+      expect(calls).toBe(0)
+      expect((await fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'session_id=valid-wire-session' } })).status).toBe(200)
+    } finally { upload.destroy() }
+  })
+  it('bounds unknown-session checks separately and keeps verified application work available', async () => {
+    expect((await fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'session_id=valid-wire-session' } })).status).toBe(200)
+    workCalls = 0
+    holdChecks = true
+    const pending = ['a', 'b'].map(id => fetch(`${url}/api/v1/tasks`, { method: 'POST', headers: { cookie: `session_id=forged-${id}` }, body: '{}' }))
+    try {
+      await vi.waitFor(() => expect(releaseChecks).toHaveLength(2))
+      expect((await fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'session_id=forged-c' } })).status).toBe(429)
+      expect((await fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'session_id=valid-wire-session' } })).status).toBe(200)
+      expect(workCalls).toBe(1)
+    } finally {
+      for (const release of releaseChecks) release()
+      expect((await Promise.all(pending)).map(response => response.status)).toEqual([403, 403])
+    }
   })
   it('preserves public branding without a session', async () => {
     expect((await fetch(`${url}/api/v1/branding`)).status).toBe(200)

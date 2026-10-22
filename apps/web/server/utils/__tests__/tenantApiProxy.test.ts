@@ -3,14 +3,16 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+const proxyMock = vi.hoisted(() => vi.fn().mockResolvedValue({ ok: true }))
 const transport = vi.hoisted(() => vi.fn().mockResolvedValue(new Response('{}')))
 vi.mock('../tenantTransport', () => ({ tenantTransport: transport, boundedTenantBody: async () => undefined, withUpstreamSlot: async (run: (signal: AbortSignal) => unknown) => run(new AbortController().signal) }))
-vi.mock('h3', async importOriginal => ({ ...await importOriginal<typeof import('h3')>(), sendWebResponse: vi.fn() }))
+vi.mock('../apiSessionAdmission', () => ({ requireApiSession: async (event: { node: { req: { headers: { cookie?: string } } } }) => { if (!event.node.req.headers.cookie) { const error = Object.assign(new Error('session_required'), { statusCode: 403, data: { code: 'session_required' } }); throw error } } }))
+vi.mock('h3', async importOriginal => ({ ...await importOriginal<typeof import('h3')>(), sendWebResponse: vi.fn(), sendProxy: (...args: unknown[]) => proxyMock(...args), getProxyRequestHeaders: () => ({}) }))
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 async function setup() {
-  const proxy = vi.fn().mockResolvedValue({ ok: true })
+  const proxy = proxyMock; proxy.mockClear()
   vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
   vi.stubGlobal('useRuntimeConfig', () => ({ odooUrl: 'http://guard:8080' }))
   vi.stubGlobal('proxyRequest', proxy)
@@ -24,7 +26,7 @@ describe('API proxy tenancy mode separation', () => {
     const { proxy, handler } = await setup()
     const event = { path: '/api/v1/me', node: { req: { headers: { cookie: 'session_id=synthetic' } } } }
     await handler(event as never)
-    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080/api/v1/me', { fetchOptions: { signal: expect.any(AbortSignal) } })
+    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080/api/v1/me', { fetchOptions: { method: undefined, body: undefined, headers: {}, signal: expect.any(AbortSignal) } })
   })
 
   it('shared explicitly forwards trusted host, token and per-tenant revision', async () => {
@@ -42,14 +44,14 @@ describe('API proxy tenancy mode separation', () => {
     expect(transport).toHaveBeenCalledWith(event, 'http://guard:8080', '/api/v1/me', { method: undefined, body: undefined })
     proxy.mockClear()
     event.node.req.headers['x-webvue-tenant-revision'] = '2'
-    expect(() => handler(event as never)).toThrow('tenant_boundary_rejected')
+    await expect(handler(event as never)).rejects.toThrow('tenant_boundary_rejected')
     expect(proxy).not.toHaveBeenCalled()
   })
 
   it('unknown modes never fall back to dedicated forwarding', async () => {
     vi.stubEnv('WEBVUE_TENANCY_MODE', 'typo')
     const { proxy, handler } = await setup()
-    expect(() => handler({ path: '/api/v1/me' } as never)).toThrow('invalid_tenancy_mode')
+    await expect(handler({ path: '/api/v1/me' } as never)).rejects.toThrow('invalid_tenancy_mode')
     expect(proxy).not.toHaveBeenCalled()
   })
 
@@ -72,6 +74,6 @@ describe('API proxy tenancy mode separation', () => {
     const { proxy, handler } = await setup()
     const event = { path: '/api/v1/branding', node: { req: { headers: {} } } }
     await handler(event as never)
-    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080/api/v1/branding', { fetchOptions: { signal: expect.any(AbortSignal) } })
+    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080/api/v1/branding', { fetchOptions: { method: undefined, body: undefined, headers: {}, signal: expect.any(AbortSignal) } })
   })
 })
