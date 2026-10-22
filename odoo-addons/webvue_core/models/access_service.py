@@ -59,7 +59,7 @@ class WebVueAccessService(models.AbstractModel):
         such context and stays on the current company alone, so a user's
         membership never widens a read by itself.
         """
-        return list(self.env.context.get('webvue_pinned_company_ids') or [self.env.company.id])
+        return self._webvue_scoped_company_ids()
 
     @api.model
     def _webvue_capability_definitions(self):
@@ -241,6 +241,7 @@ class WebVueAccessService(models.AbstractModel):
         managed, main_company_id = self._webvue_identity_management_state(user)
         if not managed and main_company_id == company.id:
             keys |= self._webvue_legacy_capability_keys(user)
+        keys |= self._webvue_inherited_capability_keys(user, company)
         return keys
 
     @api.model
@@ -248,8 +249,12 @@ class WebVueAccessService(models.AbstractModel):
         company = company or self.env.company
         if record:
             record_company = self._webvue_record_company(record)
-            if record_company and record_company != company:
-                return False
+            if record_company:
+                if company != self.env.company and company != record_company:
+                    return False
+                company = record_company
+        if not self._webvue_branch_company_allowed(user, company):
+            return False
         if key in self._webvue_capability_keys(user, company=company):
             return True
         if not record or key not in self._webvue_contextual_keys():
@@ -396,8 +401,11 @@ class WebVueAccessService(models.AbstractModel):
 
     @api.model
     def _webvue_assert_admin_survives(self, company, excluding_user=None):
+        self.env['webvue.access.assignment'].flush_model(['user_id', 'company_id'])
+        self.env.cr.execute('SELECT DISTINCT user_id FROM webvue_access_assignment WHERE company_id = %s', [company.id])
+        assigned_ids = [user_id for user_id, in self.env.cr.fetchall()]
         users = self.env['res.users'].with_context(active_test=False).search([
-            ('active', '=', True), ('company_id', '=', company.id),
+            ('active', '=', True), '|', ('company_id', '=', company.id), ('id', 'in', assigned_ids),
         ])
         users = users.filtered(lambda u: not u.has_group('webvue_core.group_vendor_support'))
         if excluding_user:

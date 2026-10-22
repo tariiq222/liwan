@@ -27,7 +27,7 @@ class WebVueAccessAudit(models.Model):
     company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade')
     actor_id = fields.Many2one('res.users', index=True, ondelete='set null')
     action = fields.Char(required=True, index=True)
-    target_type = fields.Selection([('user', 'User'), ('role', 'Role')], required=True, index=True)
+    target_type = fields.Selection([('user', 'User'), ('role', 'Role'), ('company', 'Company')], required=True, index=True)
     target_id = fields.Integer(required=True, index=True)
     target_name = fields.Char(required=True)
     result = fields.Selection([('succeeded', 'Succeeded')], required=True, default='succeeded')
@@ -83,7 +83,7 @@ class WebVueAccessAudit(models.Model):
     def _webvue_log(self, action, target, before=None, after=None, reason=None, actor=None):
         _assert_safe(before)
         _assert_safe(after)
-        target_type = 'role' if target._name == 'webvue.access.role' else 'user'
+        target_type = {'webvue.access.role': 'role', 'res.company': 'company'}.get(target._name, 'user')
         company = (target.company_id if 'company_id' in target._fields else False) or self.env.company
         actor = actor if actor is not None else self.env.user
         vals = {

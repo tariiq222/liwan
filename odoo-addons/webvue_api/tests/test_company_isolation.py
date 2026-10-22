@@ -19,12 +19,13 @@ from odoo.addons.webvue_api.tests.common import (
 # GET /api/v1 record routes served by webvue_api's own controllers, counted
 # from the runtime routing map; re-asserted from discovery on every run.
 # Pillar routes are held accountable by each pillar's own isolation tests.
-EXPECTED_GET_RECORD_ROUTES = 4
+EXPECTED_GET_RECORD_ROUTES = 5
 
 # webvue_api routes this file exercises with the full matrix.
 COVERED = (
     '/api/v1/admin/users/<int:user_id>',
     '/api/v1/admin/access-log/<int:event_id>',
+    '/api/v1/admin/users/<int:user_id>/branches',
 )
 
 
@@ -116,6 +117,12 @@ class WebVueApiCompanyIsolationCase(CompanyIsolationCase):
         self.assertEqual(response.status_code, 404,
                          f'/api/v1/admin/access-log/{c_event.id} must be not-found from P: {response.text[:200]}')
         self.assertEqual(response.json()['code'], 'not_found')
+
+    def test_branch_delegation_target_is_hidden_outside_current_company(self):
+        self.env_admin_in(self.company_p)
+        self.assertHidden(f'/api/v1/admin/users/{self.c_only_user.id}/branches')
+        response = self.api('GET', f'/api/v1/admin/users/{self.p_record_user.id}/branches')
+        self.assertEqual(response.status_code, 200, response.text)
 
     def test_discovery_covers_every_get_record_route(self):
         """Every GET /api/v1 record route webvue_api owns is covered or exempted."""

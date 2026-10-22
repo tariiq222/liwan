@@ -285,13 +285,14 @@ export type ChangeUserStateInput = z.infer<typeof ChangeUserStateInputSchema>
 
 export const AuditActionSchema = z.enum([
   'user.granted', 'user.employee_linked', 'user.roles_changed', 'user.disabled', 'user.reactivated',
-  'user.password_reset', 'employee.archived_access_disabled', 'role.created',
+  'user.password_reset', 'user.branch_roles_changed', 'branch.policy_changed',
+  'employee.archived_access_disabled', 'role.created',
   'role.updated', 'role.disabled', 'role.enabled', 'role.deleted',
   'migration.legacy_admin_preserved',
 ])
 export type AuditAction = z.infer<typeof AuditActionSchema>
 export const AuditActorSchema = z.object({ id: z.number().int().positive(), name: z.string(), login: z.string() }).strict().nullable()
-export const AuditTargetSchema = z.object({ type: z.enum(['user', 'role']), id: z.number().int().positive(), name: z.string() }).strict()
+export const AuditTargetSchema = z.object({ type: z.enum(['user', 'role', 'company']), id: z.number().int().positive(), name: z.string() }).strict()
 export const AccessAuditSummarySchema = z.object({
   id: z.number().int().positive(),
   occurred_at: z.string().datetime({ offset: true }),

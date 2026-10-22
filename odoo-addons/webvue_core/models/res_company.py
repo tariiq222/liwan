@@ -27,6 +27,11 @@ class ResCompany(models.Model):
 
     webvue_access_policy_version = fields.Integer(default=1, required=True)
 
+    webvue_branch_access_mode = fields.Selection(
+        [('isolated', 'Isolated'), ('delegated', 'Delegated'), ('inherited', 'Inherited')],
+        default='delegated', required=True, readonly=True,
+    )
+
     font = fields.Selection(
         selection_add=[('IBM_Plex_Sans_Arabic', 'IBM Plex Sans Arabic')],
         default='IBM_Plex_Sans_Arabic',
@@ -40,6 +45,10 @@ class ResCompany(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
+        if ('webvue_branch_access_mode' in vals and not self.env.is_superuser()
+                and self.env.company.id not in self.env.cr.precommit.data.get('webvue_core.branch_policy', set())):
+            msg = 'use_protected_webvue_access_operation'
+            raise AccessError(msg)
         profile_allowed = is_marked_write(
             self, COMPANY_PROFILE_MARKER, COMPANY_PROFILE_FIELDS | self._webvue_company_profile_extension_fields(), vals,
         )
@@ -56,10 +65,14 @@ class ResCompany(models.Model):
             and (
                 service._webvue_has_capability(self.env.user, 'settings.branding.manage')
                 or service._webvue_has_capability(self.env.user, 'settings.company.manage')
+                or service._webvue_has_capability(self.env.user, 'access.users.assign_roles')
             )
         ):
             branding_allowed = is_marked_write(self, BRANDING_COMPANY_MARKER, BRANDING_COMPANY_FIELDS, vals)
-            if not (branding_allowed or profile_allowed):
+            if not (branding_allowed or profile_allowed or (
+                set(vals) == {'webvue_branch_access_mode'}
+                and self.id in self.env.cr.precommit.data.get('webvue_core.branch_policy', set())
+            )):
                 msg = 'use_protected_webvue_access_operation'
                 raise AccessError(msg)
         return super().write(vals)

@@ -173,9 +173,7 @@ def requires_capability(*keys, match='all'):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            error = _capability_error(keys, match)
-            if error:
-                raise error
+            require_capabilities(*keys, match=match)
             return func(*args, **kwargs)
         wrapper._webvue_capability_keys = keys
         wrapper._webvue_capability_match = match
@@ -183,36 +181,49 @@ def requires_capability(*keys, match='all'):
     return decorator
 
 
-def _pin_current_company():
-    """Scope the route to the caller's current company and its own branches only.
+def require_capabilities(*keys, match='all'):
+    """Declare an imperative capability gate with the decorator's exact company scope.
 
-    Runs before any read on every /api/v1 route. The current company comes from
-    the session user (env.company resolves to user.company_id here: no client
-    vector feeds allowed_company_ids into json2 routes), and the client's cids
-    cookie, query or body context are overwritten, never merged. Branches are
-    the child companies of the current one intersected with the user's own
-    memberships, so a branch user never inherits the parent and a parent never
-    inherits a branch it is not a member of. Only the caller's own companies are
-    read, so no elevated access is needed here.
+    Multiple gates intersect, so a later operation can only narrow earlier grants.
+    Capability predicates themselves have no scope-changing side effects.
+    """
+    if not keys or not all(isinstance(key, str) and key for key in keys) or match not in ('all', 'any'):
+        msg = 'capability keys and all/any match are required'
+        raise ValueError(msg)
+    error = _capability_error(keys, match)
+    if request.env.uid and not request.env.user._is_public():
+        previous = request.env.context.get('webvue_capability_scope') or ()
+        gate = (tuple(keys), match)
+        scopes = previous if gate in previous else (*previous, gate)
+        _pin_current_company(scopes)
+        if request.env['webvue.access.service']._webvue_scoped_company_ids():
+            return
+    elif not error:
+        return
+    if error:
+        raise error
+    raise ApiError(403, 'forbidden', 'capabilities are not granted in the same company')
+
+
+def _pin_current_company(scope=None):
+    """Overwrite all client company context with the server session's operation scope.
+
+    A declared gate admits only descendant memberships authorized for its exact keys.
+    Routes without one remain current-only. Native per-model/per-operation fences
+    independently restrict stock ACLs, so an any gate cannot lend one app another's grant.
     """
     env = request.env
     if env.uid and not env.user._is_public():
-        current = env.company
-
-        def is_descendant(company):
-            # Walk the user's OWN companies only: no sudo, nothing outside
-            # env.user.company_ids is ever read.
-            while company.parent_id:
-                company = company.parent_id
-                if company == current:
-                    return True
-            return False
-
-        branches = env.user.company_ids.filtered(is_descendant)
-        pinned = [current.id] + branches.ids
-        # allowed_company_ids drives the ORM; webvue_pinned_company_ids lets the
-        # model guards read the same set (plain ORM never widens by membership).
-        request.update_context(allowed_company_ids=pinned, webvue_pinned_company_ids=pinned)
+        current = env.user.company_id
+        request.update_context(allowed_company_ids=[current.id], webvue_capability_scope=None,
+                               webvue_pinned_company_ids=[current.id])
+        if scope:
+            request.update_context(webvue_capability_scope=scope)
+            pinned = request.env['webvue.access.service']._webvue_scoped_company_ids()
+            # env.company must remain the session company even when it has no matching grant.
+            allowed = [current.id, *[company_id for company_id in pinned if company_id != current.id]]
+            request.update_context(allowed_company_ids=allowed, webvue_capability_scope=scope,
+                                   webvue_pinned_company_ids=pinned)
 
 
 def _reject_foreign_company_payload(kwargs):
@@ -237,7 +248,9 @@ def api_handler(func):
             # so Odoo would otherwise commit mutations performed before the error.
             # Catch outside the savepoint to guarantee an atomic request operation.
             with request.env.cr.savepoint():
-                _pin_current_company()
+                keys = getattr(func, '_webvue_capability_keys', None)
+                scope = ((keys, getattr(func, '_webvue_capability_match', 'all')),) if keys else None
+                _pin_current_company(scope)
                 _reject_foreign_company_payload(kwargs)
                 request.env['webvue.entitlement.service'].sudo()._webvue_guard_api()
                 return func(*args, **kwargs)
