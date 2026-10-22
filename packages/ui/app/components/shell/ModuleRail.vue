@@ -2,8 +2,8 @@
 import BrandWordmark from '../shared/layout/BrandWordmark.vue'
 import type { ShellRailItem } from '../../types/shell'
 
-// The module rail: a white floating card, 64px, a 20px icon over a 12px label, and the logo
-// mark alone at the bottom, under settings. The active module is tinted blue with a bar on the card's inline-start edge.
+// The module rail: a white floating card, a 20px icon over a 12px label, and the logo mark alone at the bottom,
+// under the utility group (assistant, then settings). The active module has a tinted icon circle with an 8px blue dot on its inline-start edge.
 const props = defineProps<{
   modules: ShellRailItem[]
   utility: ShellRailItem[]
@@ -13,7 +13,7 @@ const props = defineProps<{
 const { t } = useI18n()
 const groups = computed(() => [
   { key: 'modules', items: props.modules, label: t('nav.railApps'), class: 'webvue-module-rail-links' },
-  { key: 'utility', items: props.utility, label: t('nav.railAdmin'), class: 'webvue-module-rail-utility' },
+  { key: 'utility', items: props.utility, label: t('nav.railTools'), class: 'webvue-module-rail-utility' },
 ].filter(group => group.items.length))
 </script>
 

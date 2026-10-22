@@ -64,8 +64,11 @@ export interface AppSettingsPage {
   to: string
   parts: AppSettingsPart[]
 }
-/** `shortLabelKey` names the entry under its rail icon when the full label (still the tooltip) needs two lines. */
-export interface AppRailEntry { id: string; labelKey: string; shortLabelKey?: string; icon: AppIcon; to: string; order: number }
+/**
+ * `shortLabelKey` names the entry under its rail icon when the full label (still the tooltip) needs two lines.
+ * `utility` places the entry in the rail's bottom slot above settings (the assistant), in `order` among the utility entries.
+ */
+export interface AppRailEntry { id: string; labelKey: string; shortLabelKey?: string; icon: AppIcon; to: string; order: number; utility?: boolean }
 /** The fetcher a search provider receives: `useApi().$api`, so requests keep its cookies, errors and zod parsing. */
 export type AppSearchApi = <T>(
   url: string,
@@ -119,6 +122,44 @@ export interface AppSidebarPanel {
   /** 'wide' widens the sidebar to 400px (320px between 768 and 1100px). */
   width: 'default' | 'wide'
   load: () => Promise<{ default: Component }>
+}
+/**
+ * The assistant's sheet: a panel the shell hosts beside the page, opened from a header button. The body is
+ * the owning application's own component, loaded lazily so the shell imports no application code (R3).
+ */
+export interface AppAssistantSurface {
+  /** Capability that shows the header button and the sheet. */
+  capability: string
+  labelKey: string
+  /** The full page the sheet's "open full page" link goes to. */
+  to: string
+  load: () => Promise<{ default: Component }>
+}
+/** One thing an application says needs the user's attention; `to` opens the record. */
+export interface AppAttentionRow {
+  id: string
+  label: string
+  to: string
+  /** One short line under the label (a due date, a status). */
+  caption?: string
+  /** `urgent` is overdue or waiting on the user's decision; it leads the list and is drawn warm. */
+  tone: 'urgent' | 'normal'
+  /** What the user could do next, translated; shown as a plain suggestion, never as an action the assistant takes. */
+  suggestion?: string
+}
+/**
+ * What an application tells the assistant surfaces (the sheet's "this page now", the full page's morning summary,
+ * the home suggestions). Built only from the application's own existing endpoints, through the caller's session.
+ */
+export interface AppAttentionProvider {
+  id: string
+  /** Rail module this provider belongs to; the sheet shows the providers of the module the user is in. */
+  module: string
+  capability: string
+  /** Vue-query key; the surfaces append nothing. */
+  queryKey: readonly unknown[]
+  /** Runs through useApi(); `t` is the i18n translate function for `suggestion`. Returns at most a handful of rows. */
+  load: (api: AppSearchApi, t: (key: string, params?: Record<string, unknown>) => string) => Promise<AppAttentionRow[]>
 }
 /** A record one application lets another application pick or filter by. */
 export interface AppRecordOption { id: number; name: string }
@@ -192,6 +233,10 @@ export interface AppManifest {
   /** Palette actions (Actions group of the command palette). */
   commands?: AppCommand[]
   sidebarPanel?: AppSidebarPanel
+  /** The assistant's header button and sheet; only the assistant application declares it. */
+  assistant?: AppAssistantSurface
+  /** What needs the user's attention, for the assistant surfaces and the home suggestions. */
+  attention?: AppAttentionProvider[]
   /** Record kinds other applications may pick or filter by. */
   recordPickers?: AppRecordPicker[]
   /** Record kinds other applications may link to. */

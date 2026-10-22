@@ -10,12 +10,17 @@ export interface ShellContextSection { id: string; titleKey: string | null; link
  */
 export interface ShellSidebarModel { createLinks: ShellContextLink[]; sections: ShellContextSection[]; subSections: ShellContextSection[]; showNav: boolean }
 
-const UTILITY_MODULES: ReadonlySet<string> = new Set(['settings'])
+const SETTINGS_MODULE_ID = 'settings'
 
-/** Rail entries in rail order; settings sits in the utility slot at the bottom. */
+/** Rail entries in rail order; entries flagged `utility` sit in the bottom slot in their order, settings always last. */
 export function railModel(modules: readonly ShellModuleDefinition[]): { all: ShellRailItem[]; primary: ShellRailItem[]; utility: ShellRailItem[] } {
-  const all = modules.map(module => ({ id: module.id, labelKey: module.labelKey, shortLabelKey: module.shortLabelKey, icon: module.icon, to: module.to }))
-  return { all, primary: all.filter(item => !UTILITY_MODULES.has(item.id)), utility: all.filter(item => UTILITY_MODULES.has(item.id)) }
+  const all = modules.map((module): ShellRailItem => ({ id: module.id, labelKey: module.labelKey, shortLabelKey: module.shortLabelKey, icon: module.icon, to: module.to, ...(module.utility ? { utility: true } : {}) }))
+  const utility = all.filter(item => item.utility)
+  return {
+    all,
+    primary: all.filter(item => !item.utility),
+    utility: [...utility.filter(item => item.id !== SETTINGS_MODULE_ID), ...utility.filter(item => item.id === SETTINGS_MODULE_ID)],
+  }
 }
 
 /** Consecutive links that share a heading key (`section` by default) form one section, in manifest order. */

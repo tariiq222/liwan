@@ -97,6 +97,8 @@ export interface ShellModuleDefinition {
   shortLabelKey?: string
   icon: AppIcon
   to: string
+  /** Placed in the rail's bottom utility slot above settings. */
+  utility?: boolean
 }
 
 /** Rail order (user decision 2026-09-11): applications by manifest `order`, then the settings utility slot. */
@@ -104,9 +106,9 @@ export function shellModuleList(): ShellModuleDefinition[] {
   const applications = activeManifests().flatMap(manifest => manifest.rail).sort((a, b) => a.order - b.order)
   return [
     { id: 'home', labelKey: 'nav.home', icon: House, to: '/' },
-    ...applications.map(({ id, labelKey, shortLabelKey, icon, to }) => ({ id, labelKey, shortLabelKey, icon, to })),
+    ...applications.map(({ id, labelKey, shortLabelKey, icon, to, utility }) => ({ id, labelKey, shortLabelKey, icon, to, ...(utility ? { utility } : {}) })),
     // Settings is administration only: account and appearance live in the header.
-    { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: SETTINGS_OVERVIEW_PATH },
+    { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: SETTINGS_OVERVIEW_PATH, utility: true },
   ]
 }
 /** The rail of the discovered manifests, for consumers that only look up a heading or icon. */

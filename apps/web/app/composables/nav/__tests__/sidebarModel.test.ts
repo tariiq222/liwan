@@ -9,12 +9,24 @@ describe('rail model', () => {
   it('keeps rail order and puts settings in the utility slot', () => {
     const rail = railModel([
       { id: 'home', labelKey: 'nav.home', icon: 'i-lucide-house', to: '/projects/dashboard' },
-      { id: 'settings', labelKey: 'nav.settings', icon: 'i-lucide-settings', to: '/settings/team/users' },
+      { id: 'settings', labelKey: 'nav.settings', icon: 'i-lucide-settings', to: '/settings/team/users', utility: true },
       { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects' },
     ])
     expect(rail.all.map(item => item.id)).toEqual(['home', 'settings', 'projects'])
     expect(rail.primary.map(item => item.id)).toEqual(['home', 'projects'])
     expect(rail.utility.map(item => item.id)).toEqual(['settings'])
+  })
+
+  it('places flagged entries in the utility slot before settings, which stays last', () => {
+    const rail = railModel([
+      { id: 'home', labelKey: 'nav.home', icon: 'i-lucide-house', to: '/' },
+      { id: 'settings', labelKey: 'nav.settings', icon: 'i-lucide-settings', to: '/settings', utility: true },
+      { id: 'helper', labelKey: 'nav.helper', icon: 'i-lucide-sparkles', to: '/helper', utility: true },
+      { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects' },
+    ])
+    expect(rail.utility.map(item => item.id)).toEqual(['helper', 'settings'])
+    expect(rail.primary.map(item => item.id)).toEqual(['home', 'projects'])
+    expect(rail.all.map(item => item.id)).toEqual(['home', 'settings', 'helper', 'projects'])
   })
 })
 

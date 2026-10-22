@@ -19,3 +19,8 @@ export const Default: Story = {
 }
 
 export const SettingsActive: Story = { ...Default, name: 'الإعدادات نشطة', args: { activeId: 'settings' } }
+
+const assistantItem = { id: 'assistant', labelKey: 'nav.ai', shortLabelKey: 'nav.rail.ai', icon: 'i-lucide-sparkles', to: '/ai', utility: true }
+const utilityWithAssistant = [assistantItem, ...shellRail.utility]
+
+export const AssistantUtility: Story = { ...Default, name: 'أداة فوق الإعدادات', args: { utility: utilityWithAssistant, activeId: 'assistant' } }

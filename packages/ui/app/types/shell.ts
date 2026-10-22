@@ -4,7 +4,7 @@ import type { RouteLocationRaw } from 'vue-router'
 export interface ShellCrumb { label: string; to?: string }
 
 /** One rail entry as the module rail and the mobile drawer render it. */
-export interface ShellRailItem { id: string; labelKey: string; shortLabelKey?: string; icon: string; to: string }
+export interface ShellRailItem { id: string; labelKey: string; shortLabelKey?: string; icon: string; to: string; utility?: boolean }
 
 /** One row of the quick views card: a preset link (`primary` unset) or an action (the create action is `primary`). */
 export interface ShellQuickItem { id: string; label: string; icon: string; to: RouteLocationRaw; active?: boolean; count?: number; primary?: boolean }
