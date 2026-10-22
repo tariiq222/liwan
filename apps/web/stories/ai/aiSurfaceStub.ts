@@ -5,6 +5,7 @@ import type { AppAttentionProvider, AppManifest } from '../../app/modules/types'
 const provider: AppAttentionProvider = {
   id: 'story-attention',
   module: 'tasks',
+  work: 'execute',
   capability: 'ai.use',
   queryKey: ['attention', 'story'],
   load: async () => [

@@ -1,9 +1,14 @@
 import { activeManifests } from './manifests'
-import type { AppAssistantSurface, AppAttentionProvider, AppBellKind, AppCommand, AppRecordLink, AppRecordPicker, AppSearchProvider, AppSidebarPanel } from './types'
+import type { AppAssistantSurface, AppAttentionProvider, AppServiceEntry, AppBellKind, AppCommand, AppRecordLink, AppRecordPicker, AppSearchProvider, AppSidebarPanel } from './types'
 
 /** The assistant's sheet surface, declared by the one application that provides it. */
 export function assistantSurface(): AppAssistantSurface | undefined {
   return activeManifests().find(manifest => manifest.assistant)?.assistant
+}
+
+/** Self-service entries of every application, in rail order. */
+export function serviceEntries(): AppServiceEntry[] {
+  return activeManifests().flatMap(manifest => manifest.services ?? [])
 }
 
 /** Attention providers of every application, in rail order. */

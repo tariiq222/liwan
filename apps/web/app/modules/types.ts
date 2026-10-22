@@ -147,6 +147,8 @@ export interface AppAttentionRow {
   /** What the user could do next, translated; shown as a plain suggestion, never as an action the assistant takes. */
   suggestion?: string
 }
+/** The three kinds of work the user's own page groups rows by. */
+export type AppWorkKind = 'execute' | 'decide' | 'follow'
 /**
  * What an application tells the assistant surfaces (the sheet's "this page now", the full page's morning summary,
  * the home suggestions). Built only from the application's own existing endpoints, through the caller's session.
@@ -155,11 +157,23 @@ export interface AppAttentionProvider {
   id: string
   /** Rail module this provider belongs to; the sheet shows the providers of the module the user is in. */
   module: string
+  /** What the row asks of the user: do it (`execute`), decide on it (`decide`), or keep an eye on it (`follow`). Drives "my work". */
+  work: AppWorkKind
   capability: string
   /** Vue-query key; the surfaces append nothing. */
   queryKey: readonly unknown[]
   /** Runs through useApi(); `t` is the i18n translate function for `suggestion`. Returns at most a handful of rows. */
   load: (api: AppSearchApi, t: (key: string, params?: Record<string, unknown>) => string) => Promise<AppAttentionRow[]>
+}
+/** One self-service entry an application offers the signed-in user; `to` opens the page that does it. */
+export interface AppServiceEntry {
+  id: string
+  labelKey: string
+  descriptionKey: string
+  icon: AppIcon
+  to: string
+  /** Capability that opens the target; the entry is hidden without it (and without the application feature). */
+  capability: string
 }
 /** A record one application lets another application pick or filter by. */
 export interface AppRecordOption { id: number; name: string }
@@ -237,6 +251,8 @@ export interface AppManifest {
   assistant?: AppAssistantSurface
   /** What needs the user's attention, for the assistant surfaces and the home suggestions. */
   attention?: AppAttentionProvider[]
+  /** Self-service entries shown on the user's own services page ("my services"): leave, payslips, requests... */
+  services?: AppServiceEntry[]
   /** Record kinds other applications may pick or filter by. */
   recordPickers?: AppRecordPicker[]
   /** Record kinds other applications may link to. */

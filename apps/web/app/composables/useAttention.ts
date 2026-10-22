@@ -1,9 +1,11 @@
 import { computed, toValue, type ComputedRef, type MaybeRefOrGetter } from 'vue'
 import { useQueries } from '@tanstack/vue-query'
 import { attentionProviders } from '../modules/surfaces'
+import type { AppWorkKind } from '../modules/types'
 import {
   allFailed,
-  ATTENTION_ROWS_PER_PROVIDER,
+  cappedWorkKinds,
+  DEFAULT_SURFACE_ROWS,
   mergeAttentionRows,
   providersInScope,
   visibleProviders,
@@ -20,6 +22,9 @@ export function useAttention(scope: MaybeRefOrGetter<AttentionScope>, options: {
   rows: ComputedRef<AttentionRowWithModule[]>
   pending: ComputedRef<boolean>
   failed: ComputedRef<boolean>
+  /** Work kinds whose count is a lower bound: a provider of that kind returned as many rows as it may. */
+  cappedKinds: ComputedRef<AppWorkKind[]>
+  refetch: () => Promise<unknown>
 } {
   const { $api } = useApi()
   const { t } = useI18n()
@@ -37,13 +42,13 @@ export function useAttention(scope: MaybeRefOrGetter<AttentionScope>, options: {
       enabled: ready.value,
     }))),
   })
-  const rows = computed(() => mergeAttentionRows(
-    visible.value.map((provider, index) => ({ provider, rows: results.value[index]?.data ?? [] })),
-    options.limit ?? ATTENTION_ROWS_PER_PROVIDER,
-  ))
+  const perProvider = computed(() => visible.value.map((provider, index) => ({ provider, rows: results.value[index]?.data ?? [] })))
+  const rows = computed(() => mergeAttentionRows(perProvider.value, options.limit ?? DEFAULT_SURFACE_ROWS))
   return {
     rows,
+    cappedKinds: computed(() => cappedWorkKinds(perProvider.value)),
     pending: computed(() => visible.value.length > 0 && results.value.some(result => result.isPending)),
     failed: computed(() => allFailed(results.value)),
+    refetch: () => Promise.all(results.value.map(result => result.refetch())),
   }
 }

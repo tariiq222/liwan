@@ -6,6 +6,7 @@ import type { AppAttentionProvider } from '../types'
 export const pendingReviewAttention: AppAttentionProvider = {
   id: 'operations-pending',
   module: 'operations',
+  work: 'decide',
   capability: 'operations.requests.review',
   queryKey: ['attention', 'operations', 'pending'],
   async load(api, t) {

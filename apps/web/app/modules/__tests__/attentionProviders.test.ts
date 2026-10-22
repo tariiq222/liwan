@@ -46,10 +46,10 @@ describe('attention providers', () => {
         { id: 'task-2', label: 'مهمة 2', to: '/my-tasks/2', caption: 'myTasks.attention.today', tone: 'normal' },
       ])
     })
-    it('gives no suggestion when nothing is overdue and returns at most three rows', async () => {
-      const { fetcher } = fakeApi({ items: [1, 2, 3, 4, 5].map(id => task(id, '2026-10-22T12:00:00Z')), total: 5 })
+    it('gives no suggestion when nothing is overdue and returns at most twenty rows', async () => {
+      const { fetcher } = fakeApi({ items: Array.from({ length: 25 }, (_, index) => task(index + 1, '2026-10-22T12:00:00Z')), total: 25 })
       const rows = await myTasksAttention.load(fetcher, t)
-      expect(rows).toHaveLength(3)
+      expect(rows).toHaveLength(20)
       expect(rows.every(row => row.tone === 'normal' && row.suggestion === undefined)).toBe(true)
     })
     it('is empty without tasks and passes a failure on', async () => {
@@ -67,7 +67,7 @@ describe('attention providers', () => {
     it('lists requests waiting for my review as urgent', async () => {
       const { api, fetcher } = fakeApi({ items: [request(7), request(8)], total: 2 })
       const rows = await pendingReviewAttention.load(fetcher, t)
-      expect(api).toHaveBeenCalledWith('/api/v1/operations/requests', expect.objectContaining({ query: { scope: 'pending', limit: 3 } }))
+      expect(api).toHaveBeenCalledWith('/api/v1/operations/requests', expect.objectContaining({ query: { scope: 'pending', limit: 20 } }))
       expect(rows).toEqual([
         { id: 'operation-7', label: 'طلب 7', to: '/operations/7', caption: 'operations.attention.from:{"name":"سارة"}', tone: 'urgent' },
         { id: 'operation-8', label: 'طلب 8', to: '/operations/8', caption: 'operations.attention.from:{"name":"سارة"}', tone: 'urgent' },
@@ -116,7 +116,7 @@ describe('attention providers', () => {
     it('lists my overdue follow-up resolutions as urgent with a suggestion on the first', async () => {
       const { api, fetcher } = fakeApi({ items: [resolution(1), resolution(2)], total: 2 })
       const rows = await overdueFollowupAttention.load(fetcher, t)
-      expect(api).toHaveBeenCalledWith('/api/v1/meetings/resolutions', expect.objectContaining({ query: { mine: true, state: 'overdue', limit: 3 } }))
+      expect(api).toHaveBeenCalledWith('/api/v1/meetings/resolutions', expect.objectContaining({ query: { mine: true, state: 'overdue', limit: 20 } }))
       expect(rows).toEqual([
         { id: 'resolution-1', label: 'توصية 1', to: '/meetings/41', caption: 'اجتماع 1', tone: 'urgent', suggestion: 'meetingsUi.attention.reviewOverdue' },
         { id: 'resolution-2', label: 'توصية 2', to: '/meetings/42', caption: 'اجتماع 2', tone: 'urgent' },
@@ -137,7 +137,7 @@ describe('attention providers', () => {
     it('lists my overdue project tasks as urgent with a suggestion on the first', async () => {
       const { api, fetcher } = fakeApi({ items: [task(1), task(2)], total: 2 })
       const rows = await overdueTasksAttention.load(fetcher, t)
-      expect(api).toHaveBeenCalledWith('/api/v1/tasks', expect.objectContaining({ query: { filter: 'mine', deadline: 'overdue', sort: 'date_deadline', limit: 3 } }))
+      expect(api).toHaveBeenCalledWith('/api/v1/tasks', expect.objectContaining({ query: { filter: 'mine', deadline: 'overdue', sort: 'date_deadline', limit: 20 } }))
       expect(rows).toEqual([
         { id: 'task-1', label: 'مهمة 1', to: '/tasks/1', caption: 'مشروع الرياض', tone: 'urgent', suggestion: 'tasks.attention.startOverdue' },
         { id: 'task-2', label: 'مهمة 2', to: '/tasks/2', caption: 'مشروع الرياض', tone: 'urgent' },
@@ -158,8 +158,8 @@ describe('attention providers', () => {
       return { api, fetcher: api as unknown as AppSearchApi }
     }
 
-    it('lists off-track projects before at-risk ones, as normal, cut to three', async () => {
-      const { api, fetcher } = projectsApi({ off_track: [project(1, 'off_track')], at_risk: [project(2, 'at_risk'), project(3, 'at_risk'), project(4, 'at_risk')] })
+    it('lists off-track projects before at-risk ones, as normal', async () => {
+      const { api, fetcher } = projectsApi({ off_track: [project(1, 'off_track')], at_risk: [project(2, 'at_risk'), project(3, 'at_risk')] })
       const rows = await projectsAtRiskAttention.load(fetcher, t)
       expect(api).toHaveBeenCalledTimes(2)
       expect(rows.map(row => [row.id, row.to, row.caption, row.tone])).toEqual([
@@ -190,11 +190,24 @@ describe('attention providers', () => {
       ])
       expect(rows[0]!.caption).toContain('01/11/2026')
     })
-    it('is empty when nothing awaits me, returns at most three and passes a failure on', async () => {
+    it('is empty when nothing awaits me, returns at most twenty and passes a failure on', async () => {
       expect(await leaveApprovalAttention.load(fakeApi({ items: [leave(1, false)], total: 1 }).fetcher, t)).toEqual([])
-      const many = fakeApi({ items: [1, 2, 3, 4, 5].map(id => leave(id, true)), total: 5 })
-      expect(await leaveApprovalAttention.load(many.fetcher, t)).toHaveLength(3)
+      const many = fakeApi({ items: Array.from({ length: 25 }, (_, index) => leave(index + 1, true)), total: 25 })
+      expect(await leaveApprovalAttention.load(many.fetcher, t)).toHaveLength(20)
       await expect(leaveApprovalAttention.load((async () => { throw new Error('403') }) as unknown as AppSearchApi, t)).rejects.toThrow('403')
+    })
+  })
+
+  it('gives every provider the work kind its rows ask for', () => {
+    const kinds = Object.fromEntries(attentionProviders().map(provider => [provider.id, provider.work]))
+    expect(kinds).toEqual({
+      'tasks-due': 'execute',
+      'pmo-tasks-overdue': 'execute',
+      'meetings-followup-overdue': 'execute',
+      'operations-pending': 'decide',
+      'hr-leave-approvals': 'decide',
+      'pmo-projects-at-risk': 'follow',
+      'meetings-today': 'follow',
     })
   })
 

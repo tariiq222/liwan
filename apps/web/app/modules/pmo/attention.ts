@@ -7,6 +7,7 @@ import type { AppAttentionProvider } from '../types'
 export const overdueTasksAttention: AppAttentionProvider = {
   id: 'pmo-tasks-overdue',
   module: 'projects',
+  work: 'execute',
   capability: 'pmo.tasks.read',
   queryKey: ['attention', 'pmo', 'tasks-overdue'],
   async load(api, t) {
@@ -30,6 +31,7 @@ const RISK_STATUSES = ['off_track', 'at_risk'] as const
 export const projectsAtRiskAttention: AppAttentionProvider = {
   id: 'pmo-projects-at-risk',
   module: 'projects',
+  work: 'follow',
   capability: 'pmo.projects.read',
   queryKey: ['attention', 'pmo', 'projects-at-risk'],
   async load(api, t) {

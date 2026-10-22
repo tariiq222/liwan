@@ -8,7 +8,7 @@ import { useAttention } from '../useAttention'
 const row = (id: string, tone: AppAttentionRow['tone'] = 'normal'): AppAttentionRow => ({ id, label: id, to: `/${id}`, tone })
 
 function provider(id: string, module: string, capability: string, load: AppAttentionProvider['load']): AppAttentionProvider {
-  return { id, module, capability, queryKey: ['attention', id], load }
+  return { id, module, work: 'execute', capability, queryKey: ['attention', id], load }
 }
 const manifest = (id: string, attention: AppAttentionProvider[]): AppManifest =>
   ({ id, feature: `${id}.enabled`, routePrefixes: [`/${id}`], rail: [{ id, labelKey: id, icon: 'i-lucide-circle', to: `/${id}`, order: 10 }], nav: [], attention })
@@ -37,6 +37,14 @@ async function settle() {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('useAttention', () => {
+  it('reports the work kinds in which a provider returned as many rows as it may', async () => {
+    const full = provider('full', 'tasks', 'tasks.read', async () => Array.from({ length: 20 }, (_, index) => row(`f${index}`)))
+    const few = { ...provider('few', 'tasks', 'tasks.read', async () => [row('x1')]), work: 'decide' as const }
+    const { cappedKinds } = mountAttention([manifest('tasks', [full, few])], { capabilities: ['tasks.read'] }, 'all', { limit: 100 })
+    await settle()
+    expect(cappedKinds.value).toEqual(['execute'])
+  })
+
   it('returns the rows of the scope\'s module, urgent first, cut to the default of three', async () => {
     const tasks = provider('tasks', 'tasks', 'tasks.read', async () => [row('t1'), row('t2', 'urgent'), row('t3'), row('t4')])
     const meetings = provider('meetings', 'meetings', 'meetings.read', async () => [row('m1', 'urgent')])
@@ -44,7 +52,7 @@ describe('useAttention', () => {
     expect(pending.value).toBe(true)
     await settle()
     expect(rows.value.map(item => item.id)).toEqual(['tasks:t2', 'tasks:t1', 'tasks:t3'])
-    expect(rows.value.every(item => item.module === 'tasks')).toBe(true)
+    expect(rows.value.every(item => item.module === 'tasks' && item.work === 'execute')).toBe(true)
     expect(pending.value).toBe(false)
     expect(failed.value).toBe(false)
   })

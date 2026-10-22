@@ -10,6 +10,7 @@ const TODAY_PAGE = 50
 export const todayMeetingsAttention: AppAttentionProvider = {
   id: 'meetings-today',
   module: 'meetings',
+  work: 'follow',
   capability: 'meetings.read',
   queryKey: ['attention', 'meetings', 'today'],
   async load(api) {
@@ -35,6 +36,7 @@ export const todayMeetingsAttention: AppAttentionProvider = {
 export const overdueFollowupAttention: AppAttentionProvider = {
   id: 'meetings-followup-overdue',
   module: 'meetings',
+  work: 'execute',
   capability: 'meetings.read',
   queryKey: ['attention', 'meetings', 'followup-overdue'],
   async load(api, t) {

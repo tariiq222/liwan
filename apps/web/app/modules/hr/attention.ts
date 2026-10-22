@@ -10,6 +10,7 @@ const PAGE = 50
 export const leaveApprovalAttention: AppAttentionProvider = {
   id: 'hr-leave-approvals',
   module: 'hr',
+  work: 'decide',
   capability: 'hr.leave.approve',
   queryKey: ['attention', 'hr', 'leave-approvals'],
   async load(api) {

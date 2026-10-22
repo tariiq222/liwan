@@ -20,6 +20,7 @@ function dueOf(task: MyTaskListItem, today: string): Due | null {
 export const myTasksAttention: AppAttentionProvider = {
   id: 'tasks-due',
   module: 'tasks',
+  work: 'execute',
   capability: 'tasks.tasks.read',
   queryKey: ['attention', 'tasks', 'due'],
   async load(api, t) {
