@@ -207,3 +207,32 @@ class TestBranchAccess(TransactionCase):
             {'id': self.branch.id, 'role_ids': []},
         ])
         self.assertEqual(result['branches'][0]['role_ids'], [])
+
+
+@tagged('post_install', '-at_install', 'webvue', 'webvue_access')
+class TestLegacyNativeBranchAccess(TransactionCase):
+    def test_unmanaged_native_home_grants_are_preserved_only_at_home(self):
+        parent = self.env.company
+        branch = self.env['res.company'].create({'name': 'Legacy native member branch', 'parent_id': parent.id})
+        user = new_test_user(self.env, login='legacy_native_partner_manager',
+                             groups='base.group_user,base.group_partner_manager', company_id=parent.id,
+                             company_ids=[Command.set((parent | branch).ids)])
+        actor = self.env['res.partner'].with_user(user).with_context(allowed_company_ids=[parent.id])
+        self.assertIn(parent.id, actor.env['webvue.access.service']._webvue_model_company_ids('res.partner', 'create'))
+        contact = actor.create({'name': 'Authorized legacy home contact', 'company_id': parent.id})
+        contact.write({'name': 'Updated legacy home contact'})
+        foreign = self.env['res.partner'].create({'name': 'Forbidden branch contact', 'company_id': branch.id})
+        self.assertFalse(foreign.with_env(actor.env).has_access('write'))
+        branch_actor = actor.with_context(allowed_company_ids=[branch.id])
+        self.assertFalse(foreign.with_env(branch_actor.env).has_access('write'),
+                         'legacy home group must not lend its native write ACL to a member branch')
+
+    def test_managed_identity_does_not_reuse_unscoped_native_groups(self):
+        user = new_test_user(self.env, login='managed_native_partner_manager',
+                             groups='base.group_user,base.group_partner_manager')
+        self.env['webvue.access.assignment'].create({
+            'user_id': user.id, 'role_id': self.env.ref('webvue_core.role_employee').id,
+            'company_id': self.env.company.id,
+        })
+        actor = self.env['res.partner'].with_user(user)
+        self.assertNotIn(self.env.company.id, actor.env['webvue.access.service']._webvue_model_company_ids('res.partner', 'create'))

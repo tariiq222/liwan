@@ -124,7 +124,8 @@ class WebVueBranchAccessService(models.AbstractModel):
         """Project native ACLs onto fresh per-company capability groups, never the global union.
 
         The request capability gate selects candidate companies; native ACLs select the operation.
-        The base internal-user group is retained in the current company only. Descendants require
+        Native grants for unmanaged identities are retained only in their current home company;
+        managed identities retain the internal-user baseline in the current company. Descendants require
         an actual capability group whose native ACL (including native implications) grants the operation.
         """
         candidates = self._webvue_scoped_company_ids()
@@ -136,6 +137,7 @@ class WebVueBranchAccessService(models.AbstractModel):
         self.env.cr.execute('SELECT key, group_xmlid FROM webvue_access_permission')
         group_by_key = {key: self.env.ref(xmlid, raise_if_not_found=False).id for key, xmlid in self.env.cr.fetchall()}
         internal = self.env.ref('base.group_user').id
+        managed, main_company_id = self._webvue_identity_management_state(self.env.user)
         allowed = []
         for company in self.env['res.company'].browse(candidates):
             groups = [group_by_key[key] for key in self._webvue_capability_keys(company=company)
@@ -143,6 +145,11 @@ class WebVueBranchAccessService(models.AbstractModel):
             projected = set(definitions.get_superset_ids(groups)) | set(groups)
             if company == self.env.company:
                 projected.add(internal)
+                if not managed and company.id == main_company_id:
+                    # Legacy applications can authorize native roles without making their
+                    # permission groups imply those roles. Preserve that identity's native
+                    # ACLs only in its home company, as legacy capability fallback does.
+                    projected.update(self.env.user._get_group_ids())
             else:
                 projected.discard(internal)
             if access.matches(projected):
