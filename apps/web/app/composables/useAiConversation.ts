@@ -6,7 +6,14 @@ import { watch, type Ref } from 'vue'
  */
 export function useAiConversation() {
   const currentRunId = useState<string | null>('ai-current-run', () => null)
-  return { currentRunId }
+  const owner = useState<string | null>('ai-conversation-owner', () => null)
+  const { me } = useMe()
+  watch(() => me.value ? `${me.value.company.id}:${me.value.id}` : null, (identity) => {
+    if (owner.value !== identity) currentRunId.value = null
+    owner.value = identity
+  }, { immediate: true, flush: 'sync' })
+  const clear = () => { currentRunId.value = null }
+  return { currentRunId, clear }
 }
 
 /**
@@ -22,10 +29,12 @@ export function followSharedConversation(
 ) {
   const { currentRunId } = useAiConversation()
   watch(currentRunId, async (id) => {
+    // Ending a conversation clears hidden surfaces too, including in-flight requests on logout.
+    if (id === null) { run.reset(); return }
     if (!enabled() || id === run.runId.value) return
     run.reset()
-    if (id) await run.load(id)
-  }, { immediate: true })
+    await run.load(id)
+  }, { immediate: true, flush: 'sync' })
   watch(enabled, async (now, before) => {
     if (!now || before || run.streaming.value) return
     const id = currentRunId.value
@@ -34,7 +43,7 @@ export function followSharedConversation(
   })
   watch(run.runId, (id) => {
     if (id) currentRunId.value = id
-  })
+  }, { flush: 'sync' })
   function startNew() {
     run.reset()
     currentRunId.value = null

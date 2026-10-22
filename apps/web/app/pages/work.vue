@@ -11,6 +11,7 @@ const route = useRoute()
 const router = useRouter()
 const { can } = useAccess()
 const sourceLabel = useModuleLabel()
+const hydrated = useHydrated()
 const { rows, pending, failed, cappedKinds, refetch } = useAttention('all', { limit: WORK_ROWS_LIMIT })
 const grouped = computed(() => groupByWork(rows.value))
 
@@ -53,12 +54,12 @@ function clearFilters() {
     <SharedListCard>
       <template #filters>
         <div class="min-w-0 space-y-3">
-          <SharedSegmentedControl :model-value="kind" :items="kindItems" :label="t('myTasks.work.kindsLabel')" data-testid="work-tabs" @update:model-value="selectKind" />
+          <SharedSegmentedControl :disabled="!hydrated" :model-value="kind" :items="kindItems" :label="t('myTasks.work.kindsLabel')" data-testid="work-tabs" @update:model-value="selectKind" />
           <SharedFilterBar embedded :active-count="activeFilters" @clear="clearFilters">
             <template #search>
-              <UInput v-model="search" type="search" icon="i-lucide-search" :placeholder="t('myTasks.work.search')" :aria-label="t('myTasks.work.search')" data-testid="work-search" />
+              <UInput v-model="search" :disabled="!hydrated" type="search" icon="i-lucide-search" :placeholder="t('myTasks.work.search')" :aria-label="t('myTasks.work.search')" data-testid="work-search" />
             </template>
-            <USelect v-model="source" :items="sourceItems" class="min-w-40" :aria-label="t('myTasks.work.source')" data-testid="work-source" />
+            <USelect v-model="source" :disabled="!hydrated" :items="sourceItems" class="min-w-40" :aria-label="t('myTasks.work.source')" data-testid="work-source" />
           </SharedFilterBar>
         </div>
       </template>
