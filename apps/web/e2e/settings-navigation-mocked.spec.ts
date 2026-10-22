@@ -307,7 +307,7 @@ test('unsaved branding draft is guarded when leaving to project settings', async
   await expect(color).toHaveValue('#abcdef')
   await page.getByTestId('context-sidebar').getByRole('link', { name: 'المشاريع', exact: true }).click()
   await page.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()
-  await expect(page).toHaveURL(/\/settings\/apps\/projects$/)
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/settings/apps/projects')
   await page.screenshot({ path: testInfo.outputPath('unsaved-desktop-rtl.png'), fullPage: true })
 })
 
