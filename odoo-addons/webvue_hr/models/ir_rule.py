@@ -9,6 +9,12 @@ class WebVueHrIrRule(models.Model):
     @api.model
     def _webvue_fresh_company_domain(self, model_name, mode):
         domain = super()._webvue_fresh_company_domain(model_name, mode)
+        if (model_name == 'hr.version' and mode == 'read' and not self.env.su
+                and not self.env.user.has_group('base.group_system')):
+            # Native has_access/_filtered_access call _check_access directly;
+            # public check_access overrides do not protect attachment targets.
+            companies = self.env['hr.version']._webvue_version_read_company_ids()
+            domain &= Domain('company_id', 'in', companies)
         if (model_name in {'hr.leave', 'hr.leave.allocation'} and mode == 'read' and not self.env.su
                 and not self.env.user.has_group('base.group_system')):
             # Native staff rules use globally unioned groups. Recheck staff rights
