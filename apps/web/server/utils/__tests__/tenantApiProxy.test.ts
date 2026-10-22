@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const transport = vi.hoisted(() => vi.fn().mockResolvedValue(new Response('{}')))
-vi.mock('../tenantTransport', () => ({ tenantTransport: transport, boundedTenantBody: async () => undefined }))
+vi.mock('../tenantTransport', () => ({ tenantTransport: transport, boundedTenantBody: async () => undefined, withUpstreamSlot: async (run: () => unknown) => run() }))
 vi.mock('h3', async importOriginal => ({ ...await importOriginal<typeof import('h3')>(), sendWebResponse: vi.fn() }))
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
