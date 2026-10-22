@@ -20,12 +20,12 @@ export default defineEventHandler((event) => {
   if (!PUBLIC_API_PATHS.has(apiPath) && !getHeader(event, 'cookie')?.includes('session_id=')) {
     throw createError({ statusCode: 403, data: { code: 'session_required' } })
   }
-  // Dedicated keeps the original two-argument proxy contract. Invalid/shared
+  // Dedicated preserves h3 proxying and cancels it when its client disconnects. Invalid/shared
   // requests still go through tenantUpstreamHeaders validation before forwarding.
   // Only the proxyRequest branch holds an upstream slot here: the
   // tenantTransport branch already gates inside tenantTransport, and holding a
   // second slot for the same request would starve the login path under pressure.
   return Object.keys(headers).length
     ? boundedTenantBody(event).then(body => tenantTransport(event, odooUrl, event.path, { method: event.method, body })).then(response => sendWebResponse(event, response))
-    : withUpstreamSlot(() => proxyRequest(event, url))
+    : withUpstreamSlot(signal => proxyRequest(event, url, { fetchOptions: { signal } }), event)
 })

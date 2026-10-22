@@ -4,7 +4,7 @@ import { EventEmitter, getEventListeners } from 'node:events'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { H3Event } from 'h3'
+import { createEvent, proxyRequest, type H3Event } from 'h3'
 
 afterEach(() => { vi.unstubAllEnvs(); vi.resetModules() })
 
@@ -172,4 +172,56 @@ it('allows a claimed write to complete after its client closes while queued', as
     expect(client.req.listenerCount('aborted')).toBe(0)
     expect(client.res.listenerCount('close')).toBe(0)
   } finally { await wire.close() }
+})
+
+// Dedicated requests use h3's proxy, so they must be cancelled before it reads a closed request stream.
+it.each(['aborted', 'close'] as const)('cancels dedicated admission on client %s and returns capacity', async kind => {
+  const wire = await wireFixture()
+  const client = wire.event()
+  try {
+    const pending = wire.withUpstreamSlot(signal => fetch(wire.base + '/dedicated', { method: 'POST', body: '{}', signal }), client.event)
+      .then(() => 'sent', () => 'cancelled')
+    if (kind === 'aborted') { client.req.aborted = true; client.req.emit('aborted') }
+    else { client.res.destroyed = true; client.res.emit('close') }
+    wire.freeSlot()
+    expect(await pending).toBe('cancelled')
+    expect((await wire.withUpstreamSlot(() => fetch(wire.base + '/healthy'))).status).toBe(200)
+    expect(wire.calls).toEqual(['/healthy'])
+    expect(client.req.listenerCount('aborted')).toBe(0)
+    expect(client.res.listenerCount('close')).toBe(0)
+  } finally { await wire.close() }
+})
+
+it('cancels a dedicated POST whose real socket closes before proxy body reading', async () => {
+  const wire = await wireFixture()
+  let queued!: () => void
+  let closed!: () => void
+  const waiting = new Promise<void>(resolve => { queued = resolve })
+  const disconnected = new Promise<void>(resolve => { closed = resolve })
+  let outcome = 'pending'
+  const proxy = http.createServer((req, res) => {
+    res.once('close', closed)
+    const event = createEvent(req, res)
+    void wire.withUpstreamSlot(signal => proxyRequest(event, wire.base + '/abandoned', { fetchOptions: { signal } }), event)
+      .then(() => { outcome = 'sent' }, () => { outcome = 'cancelled' }).finally(() => res.end())
+    queued()
+  })
+  await new Promise<void>(resolve => proxy.listen(0, '127.0.0.1', resolve))
+  const client = http.request({ hostname: '127.0.0.1', port: (proxy.address() as { port: number }).port, method: 'POST' })
+  client.on('error', () => { /* Disconnect is the behavior under test. */ })
+  try {
+    client.end('{}')
+    await waiting
+    client.destroy()
+    await disconnected
+    wire.freeSlot()
+    await vi.waitFor(() => expect(outcome).toBe('cancelled'), { timeout: 500 })
+    expect((await wire.withUpstreamSlot(() => fetch(wire.base + '/healthy'))).status).toBe(200)
+    expect(wire.calls).toEqual(['/healthy'])
+  } finally {
+    client.destroy()
+    proxy.closeAllConnections()
+    await new Promise<void>(resolve => proxy.close(() => resolve()))
+    await wire.close()
+  }
 })

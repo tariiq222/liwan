@@ -38,12 +38,40 @@ function release(): void {
   if (next) next(); else inFlight--
 }
 
-/** Runs `run` while holding one upstream concurrency slot. Every path that talks to the Odoo
- * upstream must go through this, so overload queues inside this process instead of opening
- * connections the kernel drops once the upstream listen backlog fills. */
-export async function withUpstreamSlot<T>(run: () => Promise<T>): Promise<T> {
-  await acquire()
-  try { return await run() } finally { release() }
+/** Bind cancellation before admission so a disconnected request never starts later. */
+function clientCancellation(event?: H3Event, options: { signal?: AbortSignal; ignoreClientClose?: boolean } = {}) {
+  const controller = new AbortController()
+  const cancel = () => controller.abort()
+  const disconnected = () => { if (!event?.node.res.writableEnded) cancel() }
+  if (event && !options.ignoreClientClose) {
+    event.node.req.once('aborted', cancel)
+    event.node.res.once('close', disconnected)
+    if (event.node.req.aborted || (event.node.res.destroyed && !event.node.res.writableEnded)) cancel()
+  }
+  if (options.signal?.aborted) cancel(); else options.signal?.addEventListener('abort', cancel, { once: true })
+  return {
+    signal: controller.signal,
+    dispose() {
+      event?.node.req.removeListener('aborted', cancel)
+      event?.node.res.removeListener('close', disconnected)
+      options.signal?.removeEventListener('abort', cancel)
+    },
+  }
+}
+
+/** Hold one upstream slot, cancelling admission and forwarding with the caller. */
+export async function withUpstreamSlot<T>(run: (signal: AbortSignal) => Promise<T>, event?: H3Event): Promise<T> {
+  const cancellation = clientCancellation(event)
+  let admitted = false
+  try {
+    await acquire(cancellation.signal)
+    admitted = true
+    if (cancellation.signal.aborted) throw failure()
+    return await run(cancellation.signal)
+  } finally {
+    cancellation.dispose()
+    if (admitted) release()
+  }
 }
 const failure = () => createError({ statusCode: 502, message: 'tenant_upstream_unavailable' })
 
@@ -70,16 +98,7 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   const cookie = options.headers?.cookie ?? getHeader(event, 'cookie')
   if (cookie) headers.cookie = cookie
   if (body) headers['content-length'] = String(Buffer.byteLength(body))
-  // Listen before admission: a queued request must not miss a client disconnect and send a write later.
-  const cancellation = new AbortController()
-  const cancel = () => cancellation.abort()
-  const disconnected = () => { if (!event.node.res.writableEnded) cancel() }
-  if (!options.ignoreClientClose) {
-    event.node.req.once('aborted', cancel)
-    event.node.res.once('close', disconnected)
-    if (event.node.req.aborted || (event.node.res.destroyed && !event.node.res.writableEnded)) cancel()
-  }
-  if (options.signal?.aborted) cancel(); else options.signal?.addEventListener('abort', cancel, { once: true })
+  const cancellation = clientCancellation(event, options)
   let admitted = false
   try {
     await acquire(cancellation.signal)
@@ -122,9 +141,7 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
     request.end(body)
     })
   } finally {
-    event.node.req.removeListener('aborted', cancel)
-    event.node.res.removeListener('close', disconnected)
-    options.signal?.removeEventListener('abort', cancel)
+    cancellation.dispose()
     if (admitted) release()
   }
 }

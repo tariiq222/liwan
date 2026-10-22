@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const transport = vi.hoisted(() => vi.fn().mockResolvedValue(new Response('{}')))
-vi.mock('../tenantTransport', () => ({ tenantTransport: transport, boundedTenantBody: async () => undefined, withUpstreamSlot: async (run: () => unknown) => run() }))
+vi.mock('../tenantTransport', () => ({ tenantTransport: transport, boundedTenantBody: async () => undefined, withUpstreamSlot: async (run: (signal: AbortSignal) => unknown) => run(new AbortController().signal) }))
 vi.mock('h3', async importOriginal => ({ ...await importOriginal<typeof import('h3')>(), sendWebResponse: vi.fn() }))
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
@@ -19,12 +19,12 @@ async function setup() {
 }
 
 describe('API proxy tenancy mode separation', () => {
-  it('preserves dedicated two-argument call without registry access', async () => {
+  it('forwards dedicated calls with cancellation and without registry access', async () => {
     vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
     const { proxy, handler } = await setup()
     const event = { path: '/api/v1/me', node: { req: { headers: { cookie: 'session_id=synthetic' } } } }
     await handler(event as never)
-    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080/api/v1/me')
+    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080/api/v1/me', { fetchOptions: { signal: expect.any(AbortSignal) } })
   })
 
   it('shared explicitly forwards trusted host, token and per-tenant revision', async () => {
@@ -72,6 +72,6 @@ describe('API proxy tenancy mode separation', () => {
     const { proxy, handler } = await setup()
     const event = { path: '/api/v1/branding', node: { req: { headers: {} } } }
     await handler(event as never)
-    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080/api/v1/branding')
+    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080/api/v1/branding', { fetchOptions: { signal: expect.any(AbortSignal) } })
   })
 })
