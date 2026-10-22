@@ -186,3 +186,24 @@ class TestBranchAccess(TransactionCase):
             self.service._webvue_update_branch_policy(policy['version'], 'inherited', [
                 {'id': other_branch.id, 'inherit': True, 'role_ids': [role.id]},
             ])
+
+    def test_isolated_mode_keeps_last_branch_administrator_guard(self):
+        admin_role = self.env.ref('webvue_core.role_system_admin')
+        self.grant(admin_role, self.parent)
+        self.grant(admin_role)
+        self.parent.webvue_branch_access_mode = 'isolated'
+        state = self.service._webvue_user_branch_access(self.user)
+        with self.assertRaisesRegex(ValidationError, 'last_access_admin'):
+            self.service._webvue_update_user_branch_access(self.user, state['version'], [
+                {'id': self.branch.id, 'role_ids': []},
+            ])
+        second = new_test_user(self.env, login='isolated_branch_second_admin', groups='base.group_user',
+                               company_ids=[Command.set((self.parent | self.branch).ids)])
+        self.env['webvue.access.assignment'].create({
+            'user_id': second.id, 'role_id': admin_role.id, 'company_id': self.branch.id,
+        })
+        state = self.service._webvue_user_branch_access(self.user)
+        result = self.service._webvue_update_user_branch_access(self.user, state['version'], [
+            {'id': self.branch.id, 'role_ids': []},
+        ])
+        self.assertEqual(result['branches'][0]['role_ids'], [])

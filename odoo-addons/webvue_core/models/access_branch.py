@@ -295,7 +295,9 @@ class WebVueBranchAccessService(models.AbstractModel):
                 removed = existing.filtered(lambda assignment: assignment.role_id.id not in role_ids)
                 future_admin = any('access.users.assign_roles' in role.permission_ids.mapped('key')
                                    for role in self.env['webvue.access.role'].browse(list(role_ids)))
-                if self._webvue_has_capability(user, 'access.users.assign_roles', company=branch) and not future_admin:
+                removed_admin = any('access.users.assign_roles' in assignment.role_id.permission_ids.mapped('key')
+                                    for assignment in removed)
+                if removed_admin and not future_admin:
                     self._webvue_assert_admin_survives(branch, excluding_user=user)
                 removed._webvue_access_unlink()
                 for role_id in role_ids - old_role_ids:
