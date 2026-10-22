@@ -23,12 +23,17 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    concurrency:
+      group: agent-fix-scan
+      cancel-in-progress: false
     permissions:
       contents: read
       issues: write
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
       - uses: anthropics/claude-code-action@v1
         with:
@@ -65,6 +70,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
       - uses: anthropics/claude-code-action@v1
         with:
@@ -81,11 +88,12 @@ jobs:
             tools/arch_baseline.json, tools/arch_layers.json or tools/arch_documented_sudo.json, and never
             add an Architecture-approved-by trailer; never push to main.
 
-            When the checks pass, push the branch and open a pull request against main that links the issue.
+            When the checks pass, push only the current `codex/tools-agent-*` branch with
+            `git push origin <branch>` and open a pull request against main that links the issue.
             If you cannot fix it safely, comment on the issue with what you found and stop.
           claude_args: |
             --max-turns 60
-            --allowedTools "Read,Edit,Write,Grep,Glob,Bash(git status:*),Bash(git diff:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git checkout:*),Bash(npm test:*),Bash(npm -w apps/web run lint:*),Bash(python3 -B tools/git_policy.py:*),Bash(python3 -B tools/arch_policy.py:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh pr create:*)"
+            --allowedTools "Read,Edit,Write,Grep,Glob,Bash(git status:*),Bash(git diff:*),Bash(git add:*),Bash(git commit:*),Bash(git push origin codex/tools-agent-:*),Bash(git push -u origin codex/tools-agent-:*),Bash(git checkout:*),Bash(npm test:*),Bash(npm -w apps/web run lint:*),Bash(python3 -B tools/git_policy.py:*),Bash(python3 -B tools/arch_policy.py:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh pr create:*)"
 
   mention:
     if: >-
@@ -101,6 +109,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
       - uses: anthropics/claude-code-action@v1
         with:
@@ -108,4 +118,4 @@ jobs:
           branch_prefix: codex/tools-agent-
           claude_args: |
             --max-turns 40
-            --allowedTools "Read,Edit,Write,Grep,Glob,Bash(git status:*),Bash(git diff:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(npm test:*),Bash(npm -w apps/web run lint:*),Bash(python3 -B tools/git_policy.py:*)"
+            --allowedTools "Read,Edit,Write,Grep,Glob,Bash(git status:*),Bash(git diff:*),Bash(git add:*),Bash(git commit:*),Bash(git push origin codex/tools-agent-:*),Bash(git push -u origin codex/tools-agent-:*),Bash(npm test:*),Bash(npm -w apps/web run lint:*),Bash(python3 -B tools/git_policy.py:*)"
