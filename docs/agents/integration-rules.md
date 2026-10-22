@@ -41,7 +41,8 @@ head, an incomplete report or two unavailable services cannot yield a green
 P0/P1/P2 Codex inline findings also block; unresolved conversations remain binding at merge.
 
 Prerequisites: Codex code review enabled for this repository and a valid Claude
-subscription token in the existing main-only `agent` environment. No paid API
+subscription token in the separate main-only `review` environment. Repair uses
+its own `agent` environment; do not populate it when configuring review. No paid API
 fallback is configured. The workflow uses trusted base code, never PR checkout
 or PR commands with secrets. Both providers can be temporarily unavailable;
 report that state and keep the merge blocked.

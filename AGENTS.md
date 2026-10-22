@@ -172,8 +172,8 @@ another application) needs the owner's approval, recorded by the owner as an
   `feat fix refactor perf test docs ci build chore` and `scope` from the `<area>` list. One logical change
   per commit. No `wip` commit reaches `main`. A schema change carries its version bump and migration
   directory in the same commit.
-- Integration uses a pull request to `main`; direct pushes and protection bypasses are not
-  the normal delivery path. The preservation procedure, authorization boundaries and merge
+- `main` is protected on GitHub with PR and current CI requirements and no admin bypass.
+  Integration uses a pull request; direct pushes and protection bypasses are prohibited. The preservation procedure, authorization boundaries and merge
   checklist have one owner: [integration-rules.md](docs/agents/integration-rules.md).
   Read that current policy before integrating an older branch. The 2026-10-17
   direct-push exception is superseded by this PR workflow.

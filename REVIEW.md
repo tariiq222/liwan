@@ -13,12 +13,37 @@ reviewer because the first found defects. The `code-review` status is bound to
 the exact head SHA; new commits require a new review. Both unavailable, incomplete
 reports and blocking findings prevent success. Findings remain visible on GitHub.
 
+A stored Claude report is a blocker record only: it cannot turn a later failed or
+missing review into success, and a stored clean report does not skip Codex.
+A Codex reaction alone never completes review. A completed formal review for the
+current head is required; P0/P1/P2 findings in its body or inline comments block.
+Claude cannot approve PRs or current commits authored by Claude or generic GitHub
+Actions automation. Those heads require Codex; unavailability keeps the gate
+blocked rather than letting the repair model review its own changes.
+
+The fallback credential belongs to the separate, main-only `review` environment.
+Adding it does not populate `agent` or `agent-scan`. The review environment has no
+per-run human approval: sensitive changes retain the separate exact-head owner
+approval required by delivery policy. No API-key fallback is permitted.
+If Codex does not complete within five minutes and the review environment has no
+valid Claude credential, `code-review = error` is expected and merge stays blocked.
+
+### Not verified
+
+- Whether native Codex responds to `@codex review` requests authored by
+  `github-actions[bot]` in this repository. No live response has been established;
+  the presence of a request or reaction is not proof of a completed review.
+- The new review environment's subscription credential and fallback execution on
+  GitHub. Local Claude subscription login is not evidence of the CI connection.
+
 The controller prefetches the complete diff and trusted base guidance as data.
 Claude runs with **no tools**, empty settings sources and no MCP servers: it
 cannot read files, run commands or access credentials. Its runtime GitHub token
 is read-only; there is no PR checkout or PR execution. Oversized diffs fail
 closed rather than being silently truncated. A separate deterministic job publishes its structured report as
-a standard PR review. The separate deterministic `pr-delivery` controller owns
+a standard comment review with a deterministic blocking marker. The required
+`code-review` status enforces findings, including bot-authored PRs, without leaving
+stale change-request approvals. The separate deterministic `pr-delivery` controller owns
 bounded automatic repair and protected merge after current CI/review/scope gates;
 sensitive scope requires exact-head owner approval. Models never merge directly. Drafts and forks are not automatically
 reviewed by this privileged workflow; fork support needs its own trusted approval

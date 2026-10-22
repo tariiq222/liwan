@@ -47,15 +47,19 @@ def codex_review(reviews: list[dict], head: str, inline: list[dict] | None = Non
 
 
 def stored_claude_review(reviews: list[dict], head: str) -> dict | None:
-    found = matching_reviews(reviews, head, 'github-actions[bot]', f'<!-- webvue-review:claude:{head} -->')
-    return {'provider': 'claude', 'blocking': any(x['state'] == 'CHANGES_REQUESTED' for x in found),
+    marker = f'<!-- webvue-review:claude:{head} -->'
+    found = matching_reviews(reviews, head, 'github-actions[bot]', marker)
+    return {'provider': 'claude', 'blocking': any(x['state'] == 'CHANGES_REQUESTED' or x['body'].startswith(
+                marker + '\n<!-- webvue-review-blocking:true -->\n') for x in found),
             'body': found[-1]['body']} if found else None
 
 
-def codex_confirmation(trigger: dict, reactions: list[dict], head: str) -> bool:
-    return f'<!-- webvue-review-head:{head} -->' in trigger.get('body', '') and any(
-        item.get('content') == '+1' and item.get('user', {}).get('login') == CODEX
-        and item.get('user', {}).get('type') == 'Bot' for item in reactions)
+def claude_independent(repo: str, pr: dict, head: str) -> bool:
+    # Generic Actions commits have no trustworthy model attribution. Require Codex
+    # rather than let the Claude repairer review its own replacement content.
+    actors = [pr.get('user', {}).get('login'),
+              (api(f'repos/{repo}/commits/{head}').get('author') or {}).get('login')]
+    return all(actors) and not any(x in ('claude[bot]', 'github-actions[bot]') for x in actors)
 
 
 def claude_review(raw: str, head: str) -> dict | None:
@@ -100,7 +104,10 @@ def structured_claude_output(stdout: str, returncode: int, head: str) -> str:
 
 
 def run_claude(repo: str, pr: int, head: str) -> int:
-    current(repo, pr, head)
+    value = current(repo, pr, head)
+    if not claude_independent(repo, value, head):
+        sys.stderr.write('Claude cannot independently review this automation-authored head; require Codex\n')
+        return 1
     if not os.environ.get('CLAUDE_CODE_OAUTH_TOKEN'):
         sys.stderr.write('Claude subscription credential unavailable; no paid API fallback\n')
         return 1
@@ -179,14 +186,8 @@ def native_state(repo: str, pr: int, head: str, request_id: int, reviews: list[d
     if reviews is None:
         reviews = api(f'repos/{repo}/pulls/{pr}/reviews', pages=True)
     inline = api(f'repos/{repo}/pulls/{pr}/comments', pages=True)
-    review = codex_review(reviews, head, inline)
-    if review is None and request_id:
-        trigger = api(f'repos/{repo}/issues/comments/{request_id}')
-        reactions = api(f'repos/{repo}/issues/comments/{request_id}/reactions', pages=True)
-        if codex_confirmation(trigger, reactions, head):
-            review = {'provider': 'codex', 'blocking': False,
-                      'body': f'Codex confirmed review: https://github.com/{repo}/pull/{pr}#issuecomment-{request_id}'}
-    return review
+    # Reactions acknowledge a request; only a SHA-bound review completes it.
+    return codex_review(reviews, head, inline)
 
 
 def request_codex(repo: str, pr: int, head: str, wait_seconds: int):
@@ -199,7 +200,8 @@ def request_codex(repo: str, pr: int, head: str, wait_seconds: int):
     history = api(f'repos/{repo}/pulls/{pr}/reviews', pages=True)
     review = native_state(repo, pr, head, trigger['id'] if trigger else 0, history)
     if review is None:
-        review = stored_claude_review(history, head)
+        persisted = stored_claude_review(history, head)
+        review = persisted if persisted and persisted['blocking'] else None
     if review is None and trigger is None:
         trigger = api(f'repos/{repo}/issues/{pr}/comments', {
             'body': '@codex review\n\n' + marker + '\nReview only this head. Do not modify or merge the PR.'})
@@ -216,12 +218,16 @@ def request_codex(repo: str, pr: int, head: str, wait_seconds: int):
 
 
 def finalize(repo: str, pr: int, head: str, request_id: int) -> int:
-    current(repo, pr, head)
+    value = current(repo, pr, head)
     history = api(f'repos/{repo}/pulls/{pr}/reviews', pages=True)
     primary = native_state(repo, pr, head, request_id, history)
     persisted = stored_claude_review(history, head)
     backup = claude_review(os.environ.get('CLAUDE_REVIEW', ''), head)
-    review = choose_review(primary, backup or persisted)
+    if backup is not None and not claude_independent(repo, value, head):
+        backup = None
+    review = choose_review(primary, backup)
+    if review is None and persisted is not None and persisted['blocking']:
+        review = persisted
     if review is None:
         status(repo, head, 'error', 'Neither reviewer completed a valid review of this head; merge blocked')
         sys.stderr.write('Neither reviewer is available; code-review remains blocked\n')
@@ -230,11 +236,14 @@ def finalize(repo: str, pr: int, head: str, request_id: int) -> int:
     blocking = review['blocking'] or any(x is not None and x['blocking'] for x in (backup, persisted))
     if backup is not None:
         api(f'repos/{repo}/pulls/{pr}/reviews', {
-            'commit_id': head, 'event': 'REQUEST_CHANGES' if backup['blocking'] else 'COMMENT',
-            'body': f'<!-- webvue-review:claude:{head} -->\n' + backup['body']})
+            # A bot may be the PR author; it cannot request changes on its own PR.
+            # The required SHA-bound status enforces findings without stale review deadlocks.
+            'commit_id': head, 'event': 'COMMENT',
+            'body': f'<!-- webvue-review:claude:{head} -->\n'
+                    f'<!-- webvue-review-blocking:{str(backup["blocking"]).lower()} -->\n' + backup['body']})
     current(repo, pr, head)
     status(repo, head, 'failure' if blocking else 'success',
-           f"{review['provider']} review complete; " + ('blocking findings require correction' if blocking else 'owner merge decision required'))
+           f"{review['provider']} review complete; " + ('blocking findings require correction' if blocking else 'CI and delivery policy required'))
     sys.stdout.write(review['body'] + '\n')
     return 1 if blocking else 0
 

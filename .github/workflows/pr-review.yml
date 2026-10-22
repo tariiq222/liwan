@@ -91,7 +91,7 @@ jobs:
       && needs.codex.outputs.completed != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 18
-    environment: agent
+    environment: review
     # The model receives only a read token. A separate, model-free job posts the result.
     permissions:
       contents: read

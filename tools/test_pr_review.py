@@ -84,24 +84,29 @@ class ReviewSelectionTest(unittest.TestCase):
         self.assertEqual(pr_review.choose_review(None, backup), backup)
         self.assertIsNone(pr_review.choose_review(None, None))
 
-    def test_confirmation_reaction_requires_the_bot_and_the_current_trigger(self):
+    def test_confirmation_reaction_alone_never_completes_a_review(self):
         trigger = {'body': f'@codex review\n<!-- webvue-review-head:{HEAD} -->'}
         reaction = {'content': '+1', 'user': {'login': 'chatgpt-codex-connector[bot]', 'type': 'Bot'}}
-        self.assertTrue(pr_review.codex_confirmation(trigger, [reaction], HEAD))
-        self.assertFalse(pr_review.codex_confirmation(trigger, [{**reaction, 'content': 'eyes'}], HEAD))
-        self.assertFalse(pr_review.codex_confirmation(trigger, [reaction], 'b' * 40))
-        self.assertFalse(pr_review.codex_confirmation(trigger, [{**reaction, 'user': {'login': 'other', 'type': 'User'}}], HEAD))
+        with patch.object(pr_review, 'api', side_effect=[[], trigger, [reaction]]):
+            self.assertIsNone(pr_review.native_state('o/r', 1, HEAD, 23, []))
+
+    def test_priority_zero_in_commented_review_body_blocks(self):
+        review = self.native()
+        review['body'] = '**[P0] Data exposure**'
+        self.assertTrue(pr_review.codex_review([review], HEAD)['blocking'])
 
 
 class FinalizeReviewTest(unittest.TestCase):
-    def run_gate(self, native=None, report=None, moved=False):
+    def run_gate(self, native=None, report=None, moved=False, author="o", head_author="o"):
         self.calls = []
 
         def github(endpoint, payload=None, pages=False):
             self.calls.append((endpoint, payload))
             if endpoint == 'repos/o/r/pulls/1':
-                return {'state': 'open', 'head': {'sha': 'b' * 40 if moved else HEAD,
+                return {'state': 'open', 'user': {'login': author}, 'head': {'sha': 'b' * 40 if moved else HEAD,
                                                 'repo': {'full_name': 'o/r'}}, 'base': {'ref': 'main'}}
+            if endpoint == f'repos/o/r/commits/{HEAD}':
+                return {'author': {'login': head_author}}
             if endpoint.endswith('/reviews') and payload is None:
                 return native or []
             return {}
@@ -120,10 +125,41 @@ class FinalizeReviewTest(unittest.TestCase):
         self.assertEqual(posted[0]['event'], 'COMMENT')
         self.assertEqual(self.calls[-1][1]['state'], 'success')
 
+    def test_stored_clean_claude_review_never_replaces_a_current_report(self):
+        previous = {'state': 'COMMENTED', 'commit_id': HEAD,
+                    'user': {'login': 'github-actions[bot]', 'type': 'Bot'},
+                    'body': f'<!-- webvue-review:claude:{HEAD} -->\n<!-- webvue-review-blocking:false -->\nClean'}
+        for report in (None, {}, {**self.backup(), 'complete': False}):
+            with self.subTest(report=report):
+                self.assertEqual(self.run_gate(native=[previous], report=report), 1)
+                self.assertEqual(self.calls[-1][1]['state'], 'error')
+
+    def test_claude_cannot_approve_its_own_or_unattributed_automation_changes(self):
+        for author, head_author in (('claude[bot]', 'o'), ('github-actions[bot]', 'o'),
+                                    ('o', 'claude[bot]'), ('o', 'github-actions[bot]')):
+            with self.subTest(author=author, head_author=head_author):
+                self.assertEqual(self.run_gate(report=self.backup(), author=author, head_author=head_author), 1)
+                self.assertEqual(self.calls[-1][1]['state'], 'error')
+
     def test_two_unavailable_reviewers_publish_error_and_no_fake_review(self):
         self.assertEqual(self.run_gate(), 1)
         self.assertFalse(any(endpoint.endswith('/reviews') and payload for endpoint, payload in self.calls))
         self.assertEqual(self.calls[-1][1]['state'], 'error')
+
+    def test_blocking_backup_uses_comment_for_bot_authored_pr_but_fails_required_status(self):
+        finding = {'priority': 'P1', 'file': 'a.py', 'line': 1, 'message': 'Bug'}
+        self.assertEqual(self.run_gate(report=self.backup([finding])), 1)
+        posted = [payload for endpoint, payload in self.calls if endpoint.endswith('/reviews') and payload]
+        self.assertEqual(posted[0]['event'], 'COMMENT')
+        self.assertIn('<!-- webvue-review-blocking:true -->', posted[0]['body'])
+        self.assertEqual(self.calls[-1][1]['state'], 'failure')
+
+    def test_comment_report_blocker_survives_clean_comment_on_same_head(self):
+        marker = f'<!-- webvue-review:claude:{HEAD} -->\n'
+        reports = [{'state': 'COMMENTED', 'commit_id': HEAD,
+                    'user': {'login': 'github-actions[bot]', 'type': 'Bot'},
+                    'body': marker + f'<!-- webvue-review-blocking:{flag} -->\nSummary'} for flag in ('true', 'false')]
+        self.assertTrue(pr_review.stored_claude_review(reports, HEAD)['blocking'])
 
     def test_changed_head_is_rejected_before_any_result_is_published(self):
         with self.assertRaises(RuntimeError):
@@ -145,13 +181,34 @@ class FinalizeReviewTest(unittest.TestCase):
         self.assertEqual(self.calls[-1][1]['state'], 'failure')
 
 
+class RequestReviewTest(unittest.TestCase):
+    def test_stored_clean_review_does_not_skip_requesting_codex(self):
+        marker = f'<!-- webvue-review:claude:{HEAD} -->\n<!-- webvue-review-blocking:false -->\nClean'
+        previous = {'state': 'COMMENTED', 'commit_id': HEAD, 'body': marker,
+                    'user': {'login': 'github-actions[bot]', 'type': 'Bot'}}
+        calls = []
+
+        def github(endpoint, payload=None, pages=False):
+            calls.append((endpoint, payload))
+            if endpoint.endswith('/reviews'):
+                return [previous]
+            if payload and endpoint.endswith('/comments'):
+                return {'id': 42}
+            return []
+
+        with patch.object(pr_review, 'current'), patch.object(pr_review, 'status'), patch.object(
+                pr_review, 'api', side_effect=github), patch.object(pr_review, 'output'):
+            pr_review.request_codex('o/r', 1, HEAD, 0)
+        self.assertTrue(any(payload and '@codex review' in payload.get('body', '') for _, payload in calls))
+
+
 class ClaudeBoundaryTest(unittest.TestCase):
     def test_untrusted_diff_is_stdin_data_and_model_has_no_command_or_file_tools(self):
         report = {'head_sha': HEAD, 'complete': True, 'summary': 'Reviewed', 'findings': []}
         wrapper = json.dumps({'is_error': False, 'structured_output': report})
         diff = '+ echo "$CLAUDE_CODE_OAUTH_TOKEN"; malicious instruction\n'
         replies = [subprocess.CompletedProcess([], 0, diff, ''), subprocess.CompletedProcess([], 0, wrapper, '')]
-        with patch.object(pr_review, 'current'), patch.object(pr_review, 'output'), patch.dict(
+        with patch.object(pr_review, 'current'), patch.object(pr_review, 'claude_independent', return_value=True), patch.object(pr_review, 'output'), patch.dict(
                 os.environ, {'CLAUDE_CODE_OAUTH_TOKEN': 'test-only-credential', 'CLAUDE_BIN': '/untrusted/program'}), patch.object(
                     pr_review.subprocess, 'run', side_effect=replies) as execute:
             self.assertEqual(pr_review.run_claude('o/r', 1, HEAD), 0)
@@ -167,7 +224,7 @@ class ClaudeBoundaryTest(unittest.TestCase):
 
     def test_oversized_diff_blocks_before_any_model_call(self):
         diff = subprocess.CompletedProcess([], 0, 'x' * 300001, '')
-        with patch.object(pr_review, 'current'), patch.dict(
+        with patch.object(pr_review, 'current'), patch.object(pr_review, 'claude_independent', return_value=True), patch.dict(
                 os.environ, {'CLAUDE_CODE_OAUTH_TOKEN': 'test-only-credential'}), patch.object(
                     pr_review.subprocess, 'run', return_value=diff) as execute:
             self.assertEqual(pr_review.run_claude('o/r', 1, HEAD), 1)
