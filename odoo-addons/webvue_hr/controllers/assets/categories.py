@@ -2,7 +2,6 @@
 from odoo import http
 from odoo.http import request
 
-from .common import current_company
 from odoo.addons.webvue_api.controllers.common import (
     api_handler,
     requires_capability,
@@ -24,7 +23,7 @@ class HrAssetsCategoryController(http.Controller):
     def list_categories(self, **_):
         # A category is either the company's own or shared with every company.
         categories = request.env['maintenance.equipment.category'].search([
-            '|', ('company_id', '=', current_company().id), ('company_id', '=', False),
+            '|', ('company_id', 'in', request.env.companies.ids), ('company_id', '=', False),
         ], order='name, id')
         return {'items': dump_categories(categories), 'total': len(categories)}
 

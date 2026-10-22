@@ -58,7 +58,7 @@ class HrRecruitmentApplicantController(http.Controller):
     @requires_capability('hr.recruitment.read')
     def list_applicants(self, **_):
         args = request.httprequest.args
-        domain = [('company_id', '=', current_company().id)]
+        domain = [('company_id', 'in', request.env.companies.ids)]
         q = args.get('q')
         if q:
             domain.append(('partner_name', 'ilike', q))

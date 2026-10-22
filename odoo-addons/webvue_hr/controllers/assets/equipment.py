@@ -52,7 +52,7 @@ class HrAssetsEquipmentController(http.Controller):
         if active not in ACTIVE_VALUES:
             raise ApiError(422, 'invalid', "active must be 'true', 'false' or 'all'", field='active')
         limit, offset = parse_page(args)
-        domain = [('company_id', '=', current_company().id)]
+        domain = [('company_id', 'in', request.env.companies.ids)]
         q = args.get('q')
         if q:
             domain += ['|', ('name', 'ilike', q), ('serial_no', 'ilike', q)]
