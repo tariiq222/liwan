@@ -59,17 +59,19 @@ def _task_visible(task):
     if not task:
         return False
     try:
-        task._webvue_check_visible_current()
+        task.check_access('read')
         return True
     except AccessError:
         return False
 
 
 def _project(project_id):
+    # get_record answers the uniform not-found for a foreign-company project
+    # and lets the pinned record rules decide the rest; no duplicate company
+    # check here. Governance stays out of scope for archived projects.
     project = get_record('project.project', project_id)
-    if not project.active or project.company_id != request.env.company:
+    if not project.active:
         raise ApiError(404, 'not_found', 'project not found')
-    project._webvue_check_visible_current()
     return project
 
 

@@ -20,15 +20,15 @@ class TaskDependencyController(http.Controller):
     @requires_feature('pmo.enabled', operation='read')
     def list_dependencies(self, task_id):
         task = get_record('project.task', task_id)
-        task._webvue_check_visible_current()
-        if not task.project_id or not task.project_id.active or task.project_id.company_id != request.env.company:
+        if not task.project_id or not task.project_id.active \
+                or task.project_id.company_id not in request.env.companies:
             return {'items': [], 'total': 0, 'can_manage': False, 'enabled': False}
         dependencies = request.env['project.task'].search([
             ('id', 'in', task.depend_on_ids.ids),
-            ('company_id', '=', request.env.company.id),
+            ('company_id', 'in', request.env.companies.ids),
             ('project_id', '=', task.project_id.id),
             ('project_id.active', '=', True),
-            ('project_id.company_id', '=', request.env.company.id),
+            ('project_id.company_id', 'in', request.env.companies.ids),
         ])
         return {
             'items': [
@@ -45,11 +45,10 @@ class TaskDependencyController(http.Controller):
     @requires_feature('pmo.enabled', operation='read')
     def list_candidates(self, task_id, **_):
         task = get_record('project.task', task_id)
-        task._webvue_check_visible_current()
         args = request.httprequest.args
         if not task.project_id:
             return {'items': [], 'total': 0}
-        if not task.project_id.active or task.project_id.company_id != request.env.company:
+        if not task.project_id.active or task.project_id.company_id not in request.env.companies:
             return {'items': [], 'total': 0}
         unknown = set(args) - {'q', 'limit', 'offset'}
         if unknown:
@@ -58,10 +57,10 @@ class TaskDependencyController(http.Controller):
         offset = parse_nonneg_int(args.get('offset', 0), 'offset')
         domain = [
             ('active', '=', True),
-            ('company_id', '=', request.env.company.id),
+            ('company_id', 'in', request.env.companies.ids),
             ('project_id', '=', task.project_id.id),
             ('project_id.active', '=', True),
-            ('project_id.company_id', '=', request.env.company.id),
+            ('project_id.company_id', 'in', request.env.companies.ids),
             ('id', '!=', task.id),
         ]
         if args.get('q'):

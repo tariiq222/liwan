@@ -203,7 +203,7 @@ class WebVueProjectFinanceEntry(models.Model):
         """A live, caller-owned subquery of the caller's visible projects.
 
         Deliberately built from an explicit domain (`active = True`,
-        `company_id = <current company>`) rather than trusting whatever
+        `company_id in <pinned companies>`) rather than trusting whatever
         `active_test`/company context the *caller* happens to have set on
         `self` - a caller doing `Entry.with_context(active_test=False).search(...)`
         must not leak archived-project entries just because that context also
@@ -219,7 +219,7 @@ class WebVueProjectFinanceEntry(models.Model):
         itself before ever calling this, so it never hits that raise.
         """
         return self.env['project.project'].with_context(active_test=True)._search([
-            ('active', '=', True), ('company_id', '=', self.env.company.id),
+            ('active', '=', True), ('company_id', 'in', self.env.companies.ids),
         ])
 
     @api.model
