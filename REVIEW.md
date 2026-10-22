@@ -4,6 +4,26 @@ For anyone reviewing a diff in this repository: `/code-review`, the `odoo-review
 The rules themselves live in `AGENTS.md`, `docs/agents/odoo-rules.md` and `docs/agents/web-rules.md`;
 this file says what to report and what not to.
 
+## GitHub PR review and failover
+
+The `pr-review` workflow requests native Codex review for a ready, same-repository
+owner or explicitly trusted automation PR. It waits at most five minutes, then uses Claude Code with the existing
+subscription credential only if Codex did not complete. Never substitute another
+reviewer because the first found defects. The `code-review` status is bound to
+the exact head SHA; new commits require a new review. Both unavailable, incomplete
+reports and blocking findings prevent success. Findings remain visible on GitHub.
+
+The controller prefetches the complete diff and trusted base guidance as data.
+Claude runs with **no tools**, empty settings sources and no MCP servers: it
+cannot read files, run commands or access credentials. Its runtime GitHub token
+is read-only; there is no PR checkout or PR execution. Oversized diffs fail
+closed rather than being silently truncated. A separate deterministic job publishes its structured report as
+a standard PR review. Neither provider has an automated merge path. CI and owner
+merge authorization remain separate gates. Drafts and forks are not automatically
+reviewed by this privileged workflow; fork support needs its own trusted approval
+flow. Native Codex review must be enabled for the repository and the Claude
+subscription credential must be valid; the presence of a secret is not proof.
+
 ## Already automated: do not re-report what is covered
 
 | Tool | Covers | Does not cover |
@@ -53,13 +73,16 @@ file the tool does not scan).
 
 ## Advisory signal: Jev
 
-Every review runs `npm run review:jev -- --task "<what the change does>"` (`tools/jev_review.mjs`)
+Local reviews run `npm run review:jev -- --task "<what the change does>"` (`tools/jev_review.mjs`)
 and reports its scores; implementers also run it after a coherent slice and again before handoff; save `--json` output and pass it back with `--previous <file>` to see
 score deltas. It returns scores and confidence per dimension, no prose. The scores are advisory:
 never a merge gate, never a reason to skip or override the checks above, and a finding still needs
 its own `file:line` evidence. The diff leaves the machine, so never send secrets, customer data,
 `.env` files, key files or deploy data: the script refuses diffs that `tools/secret_guard.py`
 flags, but anything else sensitive is the sender's responsibility.
+
+GitHub AI reviews follow the criteria above and consume CI evidence; they do
+not run local tests or invoke the advisory Jev service from the review job.
 
 ## How to report
 

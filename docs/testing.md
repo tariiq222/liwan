@@ -53,8 +53,8 @@ stages). Each job runs its `deploy/ci` script and can be reproduced locally with
 isolated resources. `ci-result` aggregates selected stages; its success is needed
 before merge, but does not prove a full run or owner authorization.
 
-There is no `automerge` job. Keep the PR draft while review or checks are
-incomplete; marking ready does not authorize a merge. `ci-result` fails if a
+There is no `automerge` job. Keep the PR draft while local preparation is incomplete; mark ready to request
+GitHub review, then wait for that review and current CI. Ready does not authorize a merge. `ci-result` fails if a
 selected stage was skipped or missing, or any stage failed/cancelled. Only
 unselected stages may be skipped. The GitHub ruleset requires `ci-result` from
 GitHub Actions on an up-to-date branch, resolves review threads and offers no
@@ -64,6 +64,19 @@ required while the repository has only one writer.
 The twelve stages are `static`, `ai-service`, `control-plane`, `vendor-admin`, `odoo`,
 `odoo-app-standalone`, `odoo-bridge`, `upgrade`, `restore-drill`, `image`, `e2e-mock` and
 `rtl-stories`.
+
+### GitHub AI review gate
+
+`pr-review` is separate from the twelve CI stages. It uses trusted base code on
+`pull_request_target` for a ready same-repository owner/approved-bot PR: native Codex first,
+Claude Code subscription fallback after a five-minute wait. No PR checkout or
+execution occurs in the credential-bearing job. The controller fetches the diff deterministically, then Claude has no tools,
+settings or MCP servers; its runtime GitHub token is read-only. A deterministic
+job publishes its report and current-head `code-review` status.
+A primary finding is not a reason to invoke the fallback. If neither provider
+completes, or a blocking finding remains, the status cannot be green. Validate
+controller behavior with `python3 -B -m unittest discover -s tools -p test_pr_review.py`.
+The integration policy records the first-activation order and live-provider prerequisites.
 
 ### Change-scoped stages
 

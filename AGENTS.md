@@ -182,8 +182,8 @@ another application) needs the owner's approval, recorded by the owner as an
   use one `codex/tools-integrate-<slug>` candidate and one PR for a coupled batch.
   Regenerate the API artifacts there when needed. Do not submit both a batch and its
   constituent branches for separate merge.
-- A PR stays **draft** while scope, applicable checks or review are incomplete.
-  Marking ready is a handoff state, not merge authorization. CI never merges a PR.
+- A PR stays **draft** while scope, local checks or prepublication inspection are incomplete.
+  Marking ready requests GitHub review; it is not merge authorization. CI never merges a PR.
   The owner authorizes the reviewed scope, then the coordinator performs an explicit
   merge after checking the current base/head and required CI. New changes need
   renewed verification and review; existing authorization remains valid for its scope.
@@ -225,6 +225,12 @@ superseded. If the required model is unavailable, report the blocker rather
 than substituting another model. Delegate only when justified by independently
 owned work, with explicit scopes and isolated mutable resources. A routing rule
 never authorizes commit, push, merge, deployment or cleanup.
+
+The owner explicitly authorizes native Codex GitHub review with Claude Code as
+its service-availability fallback. This is a narrow exception for GitHub review;
+local coordinators, implementation agents and independent local reviewers remain
+Sol-only. A completed review with findings is not an availability failure.
+Never retry exhausted quota or use paid API credentials as a hidden fallback.
 
 ## Repository layout and product state
 

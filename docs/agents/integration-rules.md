@@ -15,8 +15,9 @@ GitHub publication still needs push authorization. If publication is not authori
 prepare and verify a local candidate and report the pending delivery step.
 Do not silently fall back to a local `main` merge as a second delivery route.
 
-Create authorized PRs as **drafts**. Keep them draft while scope, review or checks
-are incomplete. Ready means reviewable, never permission to merge. The CI
+Create authorized PRs as **drafts**. Keep them draft while scope, local checks or
+prepublication inspection are incomplete. Mark ready to request GitHub review;
+ready never means permission to merge. The CI
 workflow has no merge job and repository auto-merge stays disabled. Only an
 explicit owner instruction for the reviewed scope permits the coordinator to
 merge; existing explicit approval remains valid without asking again. New scope
@@ -30,6 +31,25 @@ integration. Review findings must be resolved. A recorded review can be an
 agent's review: the repository currently has one writer, so it does not require
 a formal approval from a nonexistent second account. Owner authorization is a
 workflow rule, not an automated check of the conversation.
+
+## Two review providers, one decision
+
+The `pr-review` workflow starts when a same-repository owner/approved-bot PR becomes ready,
+is reopened or receives commits. Codex is primary; Claude Code is a bounded
+fallback if Codex does not complete within five minutes or the request fails.
+An actual review with findings is complete and never triggers a softer reviewer.
+The controller supplies the complete diff as data; Claude has no tools or
+filesystem access and returns a structured report. A separate
+non-model job publishes it on GitHub. Current-head reviews are required; an old
+head, an incomplete report or two unavailable services cannot yield a green
+`code-review`. P0/P1 fallback findings and explicit Codex change requests fail it.
+Other review findings remain for resolution and the owner's decision.
+
+Prerequisites: Codex code review enabled for this repository and a valid Claude
+subscription token in the existing main-only `agent` environment. No paid API
+fallback is configured. The workflow uses trusted base code, never PR checkout
+or PR commands with secrets. Both providers can be temporarily unavailable;
+report that state and keep the merge blocked.
 
 ## Six integration steps
 
@@ -59,11 +79,12 @@ workflow rule, not an automated check of the conversation.
    databases, never `odoo19`. Record commands, commit, environment, pass/fail and
    gaps in the PR. Retain baseline regression requirements. Diagnose failures;
    a reproduced baseline failure is still disclosed, not silently waived.
-   Require successful `ci-result` and every selected stage on the current PR
+   After local preparation, mark the PR ready to request GitHub review. Require
+   successful `ci-result`, current-head `code-review` and every selected stage on the current PR
    candidate; inspect skipped stages and scope. A prior green head, local test
    run or merge conflict check alone does not establish readiness.
-5. **Authorize and merge the reviewed candidate.** Keep the PR draft until
-   scope, review and checks are complete. Ready does not authorize merge. With
+5. **Authorize and merge the reviewed candidate.** Wait for current-head GitHub review and CI after marking ready.
+   Ready does not authorize merge. With
    the owner's explicit merge authorization, reread remote `main`, PR head,
    draft state and check runs immediately before merging.
    If the base or head moved, update the candidate and repeat affected checks
@@ -95,10 +116,11 @@ changes twice. A clean merge simulation proves textual compatibility only.
 
 ## Enforced GitHub rules and their limit
 
-The `protect-main` ruleset requires a PR, `ci-result` from GitHub Actions on an
-up-to-date branch, resolved review threads and merge commits. It blocks deletion
+The target `protect-main` configuration requires a PR, `ci-result` and
+`code-review` from GitHub Actions on an up-to-date branch, resolved review threads
+and merge commits. It blocks deletion
 and non-fast-forward updates and has no bypass actors. Repository auto-merge is
-disabled and the workflow carries read-only permissions, with no merge job.
+disabled and the `ci` workflow carries read-only permissions, with no merge job.
 Verify those live settings before delivery; this document cannot enforce itself.
 
 There is no formal second-account approval requirement while the owner is the
@@ -107,26 +129,38 @@ An administrator can still edit repository settings; removing the ruleset's
 bypass does not remove that administrative ability. CI success is verification
 of the checked candidate, not release, deployment or cleanup authorization.
 
+### First activation
+
+The new `pull_request_target` review workflow runs only after it exists on trusted
+`main`. Bootstrap this policy PR with a recorded GitHub review and current CI,
+then an explicit owner merge decision. Add the required `code-review` context
+immediately after that normal PR merge, before any subsequent delivery; requiring
+it before its producer exists would deadlock the bootstrap. Do not use an admin
+bypass, direct push, untrusted PR checkout or weakened environment to bootstrap.
+Verify both providers live before claiming the failover is operational.
+
 ## Delivery flow
 
 ```mermaid
 flowchart TD
-    A[Latest origin/main and ownership check] --> B[Isolated task worktree]
-    B --> C[Implement and run focused checks]
-    C --> D{Independent or coupled work?}
-    D -->|Independent| E[Task branch]
-    D -->|Coupled| F[One integration candidate]
-    E --> G[Draft PR to main]
-    F --> G
-    G --> H[Diff review and current CI]
-    H --> I{Review resolved and ci-result green?}
-    I -->|No| C
-    I -->|Yes| J[Ready for explicit owner decision]
-    J --> K{Merge authorized and base/head current?}
-    K -->|Base or head changed| H
-    K -->|No authorization| J
-    K -->|Yes| L[Explicit merge commit]
-    L --> M[Verify main and post-merge CI]
-    M --> N[Safely synchronize local checkout]
-    N -. Separate authorization .-> O[Release / deploy / cleanup]
+    A[Latest origin/main and isolated worktree] --> B[Implement and focused checks]
+    B --> C[Draft PR to main]
+    C --> D[Ready for GitHub review]
+    D --> E[Codex review of this head]
+    D --> F[CI on the combined candidate]
+    E --> G{Review completed?}
+    G -->|Yes, with or without findings| H[Retain review and findings]
+    G -->|Unavailable or timeout| I[Read-only Claude review]
+    I --> J{Valid current-head report?}
+    J -->|Yes| H
+    J -->|No| K[Merge blocked: both unavailable]
+    H --> L{Review gate green, findings resolved and CI green?}
+    F --> L
+    L -->|No| M[Fix and update same PR]
+    M --> E
+    M --> F
+    L -->|Yes| N[Wait for explicit owner decision]
+    N --> O[Explicit merge commit]
+    O --> P[Verify main and preserve local edits]
+    P -. Separate authorization .-> Q[Release / deploy / cleanup]
 ```

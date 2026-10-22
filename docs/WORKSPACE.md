@@ -31,10 +31,12 @@ git tag -l 'archive/*'
 
 CI is the `ci` workflow in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): twelve stages,
 selected per change by `tools/ci_scope.py`, each runnable through `deploy/ci`.
-Delivery uses a draft PR, review, applicable checks, explicit merge authorization,
+Delivery uses a draft PR, ready to request GitHub review, applicable checks, explicit merge authorization,
 then verification of the merged commit. CI never merges a PR; ready is a review
 state, not permission to merge. GitHub requires current `ci-result`, an up-to-date
-branch and resolved review threads, with no ruleset bypass actors.
+branch and resolved review threads, with no ruleset bypass actors. The separate
+`pr-review` workflow supplies `code-review`: Codex first, Claude on service
+unavailability; activation prerequisites and bootstrap are in the integration policy.
 The full procedure and live-protection caveats are in
 [integration-rules.md](agents/integration-rules.md); check commands are in
 [testing.md](testing.md#ci-workflow), migrations in [migrations.md](migrations.md).
