@@ -24,6 +24,10 @@ class TestSecretGuard(unittest.TestCase):
         text = 'env: { POSTGRES_USER: odoo, POSTGRES_PASSWORD: odoo, POSTGRES_DB: postgres }\n'
         self.assertEqual(find_secret_lines('ci.yml', text), [])
 
+    def test_oidc_permission_scope_is_not_a_secret(self):
+        self.assertEqual(find_secret_lines('agent.yml', '    permissions:\n      id-token: write\n'), [])
+        self.assertEqual(find_secret_lines('agent.yml', '      id-token: abcdef123456\n'), [('agent.yml', 1)])
+
     def test_empty_shell_password_default_is_not_a_secret(self):
         text = 'case "${VENDOR_PASSWORD:-}" in\n'
         self.assertEqual(find_secret_lines('provision.sh', text), [])
