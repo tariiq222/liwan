@@ -19,26 +19,26 @@ class WebVueHrShiftSettings(models.Model):
     _revision_positive = models.Constraint('CHECK(revision > 0)', 'a saved revision must be positive')
 
     @api.model
-    def _webvue_require_current_company(self, capability):
-        if not self.env['webvue.access.service']._webvue_has_capability(
+    def _webvue_require_current_company(self, *capabilities):
+        if not any(self.env['webvue.access.service']._webvue_has_capability(
             self.env.user, capability, company=self.env.company,
-        ):
+        ) for capability in capabilities):
             raise AccessError(self.env._('forbidden'))
 
     @api.model
     def _webvue_current(self):
-        self._webvue_require_current_company('hr.employees.read')
+        self._webvue_require_current_company('hr.employees.read', 'hr.shifts.manage')
         return self.search([('company_id', '=', self.env.company.id)], limit=1)
 
     def check_access(self, operation):
         # Odoo search checks this public hook before applying record rules.
         if operation == 'read' and not self.env.is_superuser():
-            self._webvue_require_current_company('hr.employees.read')
+            self._webvue_require_current_company('hr.employees.read', 'hr.shifts.manage')
         return super().check_access(operation)
 
     def read(self, fields=None, load='_classic_read'):
         if not self.env.is_superuser():
-            self._webvue_require_current_company('hr.employees.read')
+            self._webvue_require_current_company('hr.employees.read', 'hr.shifts.manage')
         return super().read(fields=fields, load=load)
 
     @api.model_create_multi
