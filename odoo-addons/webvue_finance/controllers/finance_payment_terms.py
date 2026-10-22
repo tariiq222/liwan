@@ -19,7 +19,7 @@ from odoo.addons.webvue_finance.serializers.payment_term import (
 
 
 def _terms_domain():
-    return ['|', ('company_id', '=', False), ('company_id', '=', request.env.company.id)]
+    return ['|', ('company_id', '=', False), ('company_id', 'in', request.env.companies.ids)]
 
 
 def _find_term(term_id):

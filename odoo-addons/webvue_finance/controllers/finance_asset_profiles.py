@@ -31,7 +31,7 @@ ACCOUNT_TYPES = {
 
 def _find_profile(profile_id):
     profile = request.env['account.asset.profile'].with_context(active_test=False).search(
-        [('id', '=', profile_id), ('company_id', '=', request.env.company.id)], limit=1,
+        [('id', '=', profile_id), ('company_id', 'in', request.env.companies.ids)], limit=1,
     )
     if not profile:
         raise MissingError(request.env._('account.asset.profile %(id)s does not exist', id=profile_id))
@@ -80,7 +80,7 @@ class FinanceAssetProfileController(http.Controller):
         """The asset profiles of the current company (``archived=true`` for the archived ones)."""
         require_capability('finance.assets.read')
         archived = parse_choice(request.httprequest.args.get('archived'), {'true', 'false'}, 'archived') == 'true'
-        domain = [('company_id', '=', request.env.company.id), ('active', '=', not archived)]
+        domain = [('company_id', 'in', request.env.companies.ids), ('active', '=', not archived)]
         return list_page('account.asset.profile', domain, dump_asset_profiles)
 
     @http.route('/api/v1/finance/asset-profiles/<int:profile_id>', type='json2', auth='user', methods=['GET'], readonly=True)

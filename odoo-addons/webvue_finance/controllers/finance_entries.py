@@ -38,7 +38,7 @@ def manual_entries_domain():
     ``entry`` moves at all.
     """
     return [
-        ('company_id', '=', request.env.company.id),
+        ('company_id', 'in', request.env.companies.ids),
         ('move_type', '=', 'entry'),
         ('origin_payment_id', '=', False),
         ('statement_line_id', '=', False),

@@ -22,7 +22,7 @@ from odoo.addons.webvue_finance.serializers.tax import (
 
 
 def _company_taxes_domain():
-    return [('company_id', '=', request.env.company.id), ('type_tax_use', 'in', TAX_USES)]
+    return [('company_id', 'in', request.env.companies.ids), ('type_tax_use', 'in', TAX_USES)]
 
 
 def _find_tax(tax_id):
