@@ -15,6 +15,7 @@ export type AppIcon = `i-lucide-${string}`
  */
 export interface AppNavItem {
   to: string; labelKey: string; icon: AppIcon; capability: string
+  anyCapabilities?: string[]
   feature?: string
   /** One-key jump on the /search page only, not a global shortcut; tools/new_app.py picks a free one. An application takes one key (its landing item); its other items pass '' so the single-key space lasts as applications grow. */
   shortcut: string
@@ -38,6 +39,7 @@ export interface AppCommand {
 }
 export interface AppContextLink {
   id: string; labelKey: string; icon: AppIcon; to: string; capability: string; feature?: string; pinned?: boolean
+  anyCapabilities?: string[]
   /** Locale key of the sidebar section heading; consecutive links with the same key form one section. */
   section?: string
   /** Active only on exactly this path (a section's overview page). */
