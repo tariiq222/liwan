@@ -52,10 +52,9 @@ def _resolution_page(domain, *, order):
     links = request.env['webvue.meeting.links']
     readable = links._webvue_readable_links(records)
     linked_ids = links._webvue_linked_resolution_ids(records)
-    manager = records._webvue_is_manager()
     items = []
     for resolution in records:
-        row = dump_resolution(resolution, readable.get(resolution.id), linked_ids=linked_ids, manager=manager)
+        row = dump_resolution(resolution, readable.get(resolution.id), linked_ids=linked_ids)
         row.update(meeting_id=resolution.meeting_id.id, meeting_name=resolution.meeting_id.name)
         items.append(row)
     return {'items': items, 'total': Resolution.search_count(domain)}

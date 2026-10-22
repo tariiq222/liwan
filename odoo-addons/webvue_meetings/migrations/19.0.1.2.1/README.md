@@ -1,0 +1,1 @@
+The module update reloads the persisted manager record rules with owning-company capability domains. No schema or business-data transformation is required; participant and contextual editor rules remain in place.
