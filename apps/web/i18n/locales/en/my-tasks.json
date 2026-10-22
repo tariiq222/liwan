@@ -164,6 +164,11 @@
     },
     "description": "Your personal tasks and related project tasks.",
     "pendingWork": "An action is in progress. Wait for its result; leaving does not cancel it on the server.",
-    "draftBeforeState": "Send or clear the draft before changing the task state."
+    "draftBeforeState": "Send or clear the draft before changing the task state.",
+    "attention": {
+      "overdue": "Overdue",
+      "today": "Due today",
+      "startOverdue": "Start with the overdue one."
+    }
   }
 }

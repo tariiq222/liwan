@@ -1,4 +1,5 @@
 import type { AppManifest } from '../types'
+import { myTasksAttention } from './attention'
 
 const manifest: AppManifest = {
   id: 'tasks',
@@ -14,6 +15,7 @@ const manifest: AppManifest = {
   ],
   landing: [{ path: '/my-tasks', capability: 'tasks.tasks.read' }],
   routeCapabilities: [{ pattern: /^\/my-tasks\/new$/, capability: 'tasks.tasks.create' }],
+  attention: [myTasksAttention],
   bell: {
     capabilities: ['tasks.tasks.read'],
     kinds: [{

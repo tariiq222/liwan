@@ -33,9 +33,9 @@ export const hrLeaveKeys = {
   request: (id: number) => ['hr', 'leave', 'request', id] as const,
 }
 
-// The pending queue is every request still waiting for a decision: first and second approval.
-const PENDING_STATES: readonly HrLeaveState[] = ['confirm', 'validate1']
-const SCOPE_STATE: Record<HrLeaveScope, string | undefined> = { mine: undefined, pending: PENDING_STATES.join(','), all: undefined }
+/** The pending queue is every request still waiting for a decision: first and second approval. */
+export const HR_LEAVE_PENDING_STATES: readonly HrLeaveState[] = ['confirm', 'validate1']
+const SCOPE_STATE: Record<HrLeaveScope, string | undefined> = { mine: undefined, pending: HR_LEAVE_PENDING_STATES.join(','), all: undefined }
 
 /** The query string of one scope: the caller's own list, the queue waiting for a decision, or every request. */
 export function hrLeaveRequestQuery(params: HrLeaveListParams) {

@@ -1,4 +1,5 @@
 import type { AppManifest } from '../types'
+import { pendingReviewAttention } from './attention'
 const manifest: AppManifest = {
   id: 'operations', feature: 'operations.enabled', routePrefixes: ['/operations'],
   rail: [{ id: 'operations', labelKey: 'operations.title', icon: 'i-lucide-workflow', to: '/operations', order: 60 }],
@@ -29,6 +30,7 @@ const manifest: AppManifest = {
     { pattern: /^\/operations\/monitoring$/, capability: 'operations.monitoring.read' },
     { pattern: /^\/operations(?:\/|$)/, capability: 'operations.requests.read' },
   ],
+  attention: [pendingReviewAttention],
   isNavActive(path, target) {
     if (target === '/operations') return path === '/operations' || /^\/operations\/\d+(?:\/|$)/.test(path)
     if (target === '/operations/pending' || target === '/operations/monitoring') return path === target

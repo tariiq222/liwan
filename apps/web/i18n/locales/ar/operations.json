@@ -145,6 +145,9 @@
         "rejected": "مرفوضة",
         "done": "مكتملة"
       }
+    },
+    "attention": {
+      "from": "من {name}"
     }
   }
 }
