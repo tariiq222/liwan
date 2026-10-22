@@ -1,14 +1,19 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
+import AiAvatar from '../../app/components/ai/AiAvatar.vue'
 import AiComposer from '../../app/components/ai/AiComposer.vue'
 import AiConfirmCard from '../../app/components/ai/AiConfirmCard.vue'
+import AiContextChip from '../../app/components/ai/AiContextChip.vue'
+import AiCopyButton from '../../app/components/ai/AiCopyButton.vue'
 import AiDraftCard from '../../app/components/ai/AiDraftCard.vue'
 import AiLimitNotice from '../../app/components/ai/AiLimitNotice.vue'
 import AiMessage from '../../app/components/ai/AiMessage.vue'
 import AiRecordCards from '../../app/components/ai/AiRecordCards.vue'
+import AiSuggestionChips from '../../app/components/ai/AiSuggestionChips.vue'
 import AiToolTrace from '../../app/components/ai/AiToolTrace.vue'
+import AiTypingDots from '../../app/components/ai/AiTypingDots.vue'
 import { storyContext } from '../support/context'
 
-const components = { AiComposer, AiConfirmCard, AiDraftCard, AiLimitNotice, AiMessage, AiRecordCards, AiToolTrace }
+const components = { AiAvatar, AiComposer, AiConfirmCard, AiContextChip, AiCopyButton, AiDraftCard, AiLimitNotice, AiMessage, AiRecordCards, AiSuggestionChips, AiToolTrace, AiTypingDots }
 
 const meta = {
   title: 'Ai/Thread',
@@ -30,8 +35,15 @@ export const Conversation: Story = {
     template: `<div class="mx-auto flex max-w-2xl flex-col gap-4">
       <AiMessage role="user" text="ما مهامي المتأخرة؟" />
       <AiToolTrace summary="مهامك المتأخرة" state="ok" />
-      <AiMessage role="assistant" text="عندك مهمتان متأخرتان، وكلتاهما في مشروع بوابة العملاء." />
-      <AiRecordCards :records="records" />
+      <AiMessage role="assistant" text="عندك مهمتان متأخرتان، وكلتاهما في مشروع بوابة العملاء.">
+        <template #footer>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <AiRecordCards :records="records" />
+            <AiCopyButton text="عندك مهمتان متأخرتان، وكلتاهما في مشروع بوابة العملاء." />
+          </div>
+        </template>
+      </AiMessage>
+      <AiSuggestionChips :items="['ما أهم مهمة؟', 'لخّص لي ذلك باختصار']" label="أسئلة متابعة" />
       <AiComposer :disabled="false" :pending="false" />
     </div>`,
   }),
@@ -151,4 +163,40 @@ export const MarkdownStreaming: Story = {
       <AiMessage role="assistant" text="عندك **ثلاثة مشاريع نشطة، وأهمها [بوابة العملاء](https://exa" streaming />
     </div>`,
   }),
+}
+
+export const Compact: Story = {
+  name: 'مضغوط (للشيت)',
+  render: () => ({
+    components,
+    setup: () => ({ records }),
+    template: `<div class="mx-auto flex max-w-sm flex-col gap-4">
+      <AiMessage role="user" text="ما مهامي المتأخرة؟" compact />
+      <AiMessage role="assistant" text="عندك مهمتان متأخرتان." compact>
+        <template #footer><AiRecordCards :records="records" /></template>
+      </AiMessage>
+      <AiComposer :disabled="false" :pending="false" compact />
+    </div>`,
+  }),
+}
+
+export const EmptyStart: Story = {
+  name: 'بداية محادثة',
+  render: () => ({
+    components,
+    setup: () => ({ starters: ['ما مهامي المتأخرة؟', 'كيف حال مشاريعي النشطة؟', 'ماذا عندي هذا الأسبوع؟', 'ما اجتماعاتي القادمة؟'] }),
+    template: `<div class="mx-auto flex max-w-180 flex-col items-center gap-4 text-center">
+      <AiAvatar size="lg" />
+      <h2 class="text-2xl font-bold text-highlighted">أهلًا نورة</h2>
+      <p class="text-base text-muted">كيف أساعدك في عملك اليوم؟</p>
+      <AiContextChip page="project" />
+      <AiComposer class="w-full text-start" :disabled="false" :pending="false" />
+      <AiSuggestionChips :items="starters" label="أسئلة للبدء" />
+    </div>`,
+  }),
+}
+
+export const Typing: Story = {
+  name: 'مؤشر الكتابة',
+  render: () => ({ components, template: '<div class="mx-auto flex max-w-2xl gap-3"><AiAvatar /><AiTypingDots /></div>' }),
 }

@@ -1,4 +1,4 @@
-import { AiDraftHandoffSchema, type AiAuditRequest, type AiDraftHandoff, type AiDraftPayload } from '@webvue/contracts'
+import { AiDraftHandoffSchema, AiDraftPayloadSchema, type AiAuditRequest, type AiDraftHandoff, type AiDraftPayload } from '@webvue/contracts'
 import { emptyObjective, type CharterDraft } from './projectCharter'
 
 const DRAFT_PREFIX = 'webvue:ai-draft:'
@@ -16,6 +16,20 @@ export function readAiDraft(draftId: string): AiDraftHandoff | null {
   catch {
     return null
   }
+}
+
+/**
+ * Keeps a draft card's payload for the create page and returns where to go: the create page with `aiDraft`, and a `returnTo`
+ * that brings the user back to `/ai` for the decision. The create page is the validation boundary: a payload without a
+ * usable name still opens the form, empty.
+ */
+export function prepareDraftHandoff(runId: string, item: { callId: string; tool: string; payload: Record<string, unknown> }) {
+  const draftId = `${runId}:${item.callId}`
+  const base = { run_id: runId, call_id: item.callId, tool: item.tool }
+  const parsed = AiDraftHandoffSchema.safeParse({ ...base, payload: item.payload })
+  const handoff = parsed.success ? parsed.data : { ...base, payload: AiDraftPayloadSchema.partial().safeParse(item.payload).data ?? {} }
+  try { sessionStorage.setItem(storageKey(draftId), JSON.stringify(handoff)) } catch { /* private mode: the page still opens empty */ }
+  return { path: '/projects/new', query: { aiDraft: draftId, returnTo: `/ai?run=${runId}&resume=${item.callId}` } }
 }
 
 export function clearAiDraft(draftId: string): void {

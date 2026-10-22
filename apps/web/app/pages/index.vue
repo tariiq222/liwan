@@ -30,6 +30,7 @@ const describe = (to: string) => {
 <template>
   <SharedPageContainer width="list" data-testid="foundation-home">
     <SharedPageHeader :title="t('nav.home')" />
+    <HomeAssistantSuggestions />
     <section v-if="destinations.length" :aria-label="t('nav.goTo')" class="grid gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-3">
       <SharedLinkCard v-for="item in destinations" :key="item.to" :to="item.to" :icon="item.icon" :title="t(item.labelKey)" :description="describe(item.to)" />
     </section>
