@@ -8,6 +8,7 @@ from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
+    _pin_current_company,
     api_handler,
     get_record,
     parse_nonneg_int,
@@ -523,6 +524,8 @@ class MeetingController(http.Controller):
     @http.route('/api/v1/meetings/<int:meeting_id>/minutes.pdf', type='http', auth='user', methods=['GET'], csrf=False)
     @requires_feature('meetings.enabled', operation='read')
     def minutes_pdf(self, meeting_id, **_):
+        # type='http' without api_handler: the pin still runs before any read.
+        _pin_current_company()
         request.env['webvue.access.service']._webvue_require_capability('meetings.read')
         meeting = get_record('webvue.meeting.minute', meeting_id)
         pdf, _type = request.env['ir.actions.report']._render_qweb_pdf(
