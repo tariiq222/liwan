@@ -57,7 +57,7 @@ const ARCHIVED = [run('r_9', 'قديمة', true)]
 const apps: Vue.App[] = []
 afterEach(() => { for (const app of apps.splice(0)) app.unmount() })
 
-function mountList(props: { disclosure?: boolean } = {}) {
+function mountList(props: { disclosure?: boolean } = {}, hydrated = Vue.ref(true)) {
   const actions = { rename: vi.fn(async (_id: string, _title: string) => {}), setArchived: vi.fn(async (_id: string, _archived: boolean) => {}) }
   const toast = { add: vi.fn() }
   const asked: boolean[] = []
@@ -65,7 +65,7 @@ function mountList(props: { disclosure?: boolean } = {}) {
   const select = vi.fn()
   const Component = loadComponent({
     formatDate: () => 'D', formatTime: () => 'T', ApiError, AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema, filterRunsByTitle, groupRunsByDate,
-    useRoute: () => ({ query: {} }), useI18n: () => ({ t: (key: string) => messages[key] ?? key }), useHydrated: () => Vue.ref(true),
+    useRoute: () => ({ query: {} }), useI18n: () => ({ t: (key: string) => messages[key] ?? key }), useHydrated: () => hydrated,
     useToast: () => toast, useAiRunActions: () => actions,
     useAiRuns: (archived: Vue.Ref<boolean>) => {
       const data = Vue.computed(() => { asked.push(archived.value); const items = archived.value ? ARCHIVED : ACTIVE; return { items, total: items.length } })
@@ -114,6 +114,15 @@ function mountList(props: { disclosure?: boolean } = {}) {
 }
 
 describe('AiRunList actions', () => {
+  it('disables search until hydration and enables it when hydration completes', async () => {
+    const hydrated = Vue.ref(false)
+    const list = mountList({}, hydrated)
+    expect(list.control('ai-run-search').props.disabled).toBe(true)
+    hydrated.value = true
+    await Vue.nextTick()
+    expect(list.control('ai-run-search').props.disabled).toBe(false)
+  })
+
   it('filters the loaded conversations live by title and says so when nothing matches', async () => {
     const list = mountList()
     const search = list.control('ai-run-search')

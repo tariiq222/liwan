@@ -72,8 +72,8 @@ export function filterWorkRows(rows: readonly AttentionRowWithModule[], filter: 
     && (!needle || [row.label, row.caption, row.suggestion].some(text => text?.toLocaleLowerCase().includes(needle))))
 }
 
-/** The most rows the personal surfaces read from the providers in one go. */
-export const WORK_ROWS_LIMIT = 100
+/** Personal surfaces retain every provider-bounded row before grouping and counting by kind. */
+export const WORK_ROWS_LIMIT = Number.POSITIVE_INFINITY
 
 /**
  * The work kinds for which some provider returned as many rows as it is allowed to: it may have had more, so a count
@@ -83,7 +83,7 @@ export function cappedWorkKinds(results: ReadonlyArray<{ provider: AppAttentionP
   return WORK_KINDS.filter(kind => results.some(({ provider, rows }) => provider.work === kind && rows.length >= ATTENTION_ROWS_PER_PROVIDER))
 }
 
-/** A count of rows as a figure: with a "+" when it is only a lower bound (a provider hit its cap, or the merged work limit was reached). */
+/** A count of loaded rows, with a "+" only when a provider hit its cap so the count is a lower bound. */
 export function workCountLabel(count: number, kindCapped: boolean): string {
-  return kindCapped || count >= WORK_ROWS_LIMIT ? `${count}+` : String(count)
+  return kindCapped ? `${count}+` : String(count)
 }

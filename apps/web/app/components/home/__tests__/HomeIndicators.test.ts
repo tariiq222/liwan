@@ -32,11 +32,14 @@ describe('HomeIndicators', () => {
     expect(html).toMatch(/href="\/work\?tab=follow"[^>]*>للمتابعة:0</)
   })
 
-  it('adds a plus once the work limit is reached', async () => {
-    expect(await render({ counts: { execute: 100, decide: 2, follow: 0 } })).toContain('للتنفيذ:100+')
+  it('keeps fully loaded counts exact above the former aggregate limit', async () => {
+    const html = await render({ counts: { execute: 133, decide: 38, follow: 0 } })
+    expect(html).toContain('للتنفيذ:133<')
+    expect(html).toContain('للقرار:38<')
+    expect(html).not.toContain('+')
   })
 
-  it('adds a plus to a kind whose provider returned all it may, even below the work limit', async () => {
+  it('adds a plus to a kind whose provider returned all it may', async () => {
     const html = await render({ capped: ['decide'], counts: { execute: 3, decide: 20, follow: 0 } })
     expect(html).toContain('للقرار:20+')
     expect(html).toContain('للتنفيذ:3<')

@@ -70,6 +70,21 @@ describe('allFailed', () => {
 })
 
 describe('groupByWork', () => {
+  it('keeps every provider-bounded row before grouping so later work kinds retain exact counts', () => {
+    const results = Array.from({ length: 7 }, (_, index) => ({
+      provider: { ...provider(`provider-${index}`, `module-${index}`), work: index < 5 ? 'execute' as const : 'decide' as const },
+      rows: Array.from({ length: 19 }, (_, item) => row(`provider-${index}-row-${item}`, 'normal')),
+    }))
+    const merged = mergeAttentionRows(results, WORK_ROWS_LIMIT)
+    const grouped = groupByWork(merged)
+    const capped = cappedWorkKinds(results)
+    expect(merged).toHaveLength(133)
+    expect(grouped.execute).toHaveLength(95)
+    expect(grouped.decide).toHaveLength(38)
+    expect(capped).toEqual([])
+    expect(workCountLabel(grouped.decide.length, capped.includes('decide'))).toBe('38')
+  })
+
   it('splits rows by work kind, keeping the order inside each group and empty groups present', () => {
     const rows = mergeAttentionRows([
       { provider: tasks, rows: [row('t1', 'normal'), row('t2', 'urgent')] },
@@ -117,8 +132,8 @@ describe('work page filters', () => {
 describe('workCountLabel', () => {
   it('shows the figure, and a plus when it is only a lower bound', () => {
     expect(workCountLabel(0, false)).toBe('0')
-    expect(workCountLabel(WORK_ROWS_LIMIT - 1, false)).toBe(String(WORK_ROWS_LIMIT - 1))
-    expect(workCountLabel(WORK_ROWS_LIMIT, false)).toBe(`${WORK_ROWS_LIMIT}+`)
+    expect(workCountLabel(100, false)).toBe('100')
+    expect(workCountLabel(133, false)).toBe('133')
     expect(workCountLabel(7, true)).toBe('7+')
   })
 })

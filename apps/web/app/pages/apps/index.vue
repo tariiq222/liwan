@@ -19,7 +19,7 @@ const descriptionOf = (id: string) => (te(`launcher.apps.${id}.description`) ? t
     <p class="-mt-2 text-sm text-muted">{{ t('launcher.description') }}</p>
     <FilterBar embedded :active-count="query.trim() ? 1 : 0" :disabled="!hydrated" @clear="query = ''">
       <template #search>
-        <UInput v-model="query" type="search" icon="i-lucide-search" class="min-w-48 flex-1" data-testid="launcher-search" :aria-label="t('launcher.search')" :placeholder="t('launcher.search')" />
+        <UInput v-model="query" :disabled="!hydrated" type="search" icon="i-lucide-search" class="min-w-48 flex-1" data-testid="launcher-search" :aria-label="t('launcher.search')" :placeholder="t('launcher.search')" />
       </template>
     </FilterBar>
     <section v-if="entries.length" :aria-label="t('launcher.title')" class="grid gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-3">
