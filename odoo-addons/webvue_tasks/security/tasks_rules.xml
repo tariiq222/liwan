@@ -10,7 +10,7 @@
         <field name="name">Tasks: personal tasks are private to creator and assignees</field>
         <field name="model_id" ref="project.model_project_task"/>
         <field name="domain_force">['|', ('webvue_personal', '=', False),
-            '&amp;', ('company_id', '=', company_id),
+            '&amp;', ('company_id', 'in', company_ids),
             '|', '|', ('create_uid', '=', user.id), ('user_ids', 'in', [user.id]),
             '|', ('webvue_parent_id.create_uid', '=', user.id), ('webvue_parent_id.user_ids', 'in', [user.id])]</field>
     </record>
