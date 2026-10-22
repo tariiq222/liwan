@@ -1,4 +1,4 @@
-export type AuditDiffLine = { text: string; changed: boolean }
+type AuditDiffLine = { text: string; changed: boolean }
 
 const lines = (value: unknown) => JSON.stringify(value ?? null, null, 2).split('\n')
 

@@ -3,10 +3,10 @@ import { queryPositiveInt, queryText } from '../../../utils/routeQuery'
 
 export const ACCOUNT_PAGE_SIZE = 25
 export const ACCOUNT_TYPES = FinanceAccountTypeSchema.options
-export type AccountTypeFilter = FinanceAccount['account_type']
+type AccountTypeFilter = FinanceAccount['account_type']
 
 /** What the filter bar can say: only the filters `GET /finance/accounts` supports. */
-export interface AccountListFilters {
+interface AccountListFilters {
   q: string
   accountType: AccountTypeFilter | null
   page: number

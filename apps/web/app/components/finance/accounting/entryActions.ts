@@ -2,7 +2,7 @@ import type { JournalEntry } from '@webvue/contracts'
 
 type Can = (capability: string) => boolean
 
-export interface EntryActionSet {
+interface EntryActionSet {
   post: boolean
   resetToDraft: boolean
   unreconcile: boolean

@@ -1,11 +1,8 @@
 interface ScrollOffset { left: number, top: number }
 
-// A record used to open over its list, so the list kept its scroll while it was
-// read. As ordinary pages the list unmounts, and vue-router hands back a
-// savedPosition only for browser back/forward — never for the router.push a
-// back control (or Escape) performs. These are the offsets the app remembers
-// for its own pushes, keyed by the full URL because the filters that decide how
-// long a list is live in the query.
+// Lists unmount when a record page opens. Vue-router restores savedPosition
+// for browser back/forward, but back controls and Escape use router.push.
+// Remember those offsets by full URL so each filtered list has its own position.
 const positions = new Map<string, number>()
 // Oldest entry out first, so a long session cannot grow this without bound.
 const REMEMBERED_LIMIT = 40

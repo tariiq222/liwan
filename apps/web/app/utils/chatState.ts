@@ -6,7 +6,6 @@ export const CHAT_PAGE_SIZE = 50
 export type ChatFilter = 'all' | 'unread' | 'groups' | 'channels' | 'starred'
 export const CHAT_REACTIONS = ['👍', '❤️', '😂', '🎉', '😮', '😢'] as const
 export type ChatListRoute = { q: string; filter: ChatFilter; offset: number }
-export type ChatSendState = 'pending' | 'sent'
 
 const FILTERS: ChatFilter[] = ['all', 'unread', 'groups', 'channels', 'starred']
 

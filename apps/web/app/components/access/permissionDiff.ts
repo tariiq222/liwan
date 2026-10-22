@@ -1,6 +1,6 @@
 import type { EffectiveCapability } from '@webvue/contracts'
 
-export type PermissionDiff = {
+type PermissionDiff = {
   added: EffectiveCapability[]
   removed: EffectiveCapability[]
   retained: EffectiveCapability[]

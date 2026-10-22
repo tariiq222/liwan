@@ -6,9 +6,8 @@
  * `'3.2'`, `'0'` and `'-3'` are not ids a server route would have produced, and
  * silently coercing them makes two different URLs address the same record.
  *
- * Shared by every module: project finance and the meetings filters each used to
- * carry their own copy under this same name, one strict and one permissive, and
- * Nuxt's auto-import namespace silently kept only one of them.
+ * Keep this parser shared and uniquely named so Nuxt auto-imports expose one
+ * consistent validation policy to every module.
  */
 export function parsePositiveId(value: unknown): number | null {
   const raw = Array.isArray(value) ? value[0] : value

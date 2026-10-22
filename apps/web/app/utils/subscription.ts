@@ -9,10 +9,6 @@ export const DISPLAY_STATE_KEYS: Record<SubscriptionDisplayState, string> = {
   awaiting_payment: 'subscription.state.awaitingPayment', activating: 'subscription.state.activating',
   active: 'subscription.state.active', failed: 'subscription.state.failed', inactive: 'subscription.state.inactive',
 }
-export const DISPLAY_STATE_COLORS: Record<SubscriptionDisplayState, 'warning' | 'info' | 'success' | 'error' | 'neutral'> = {
-  awaiting_payment: 'warning', activating: 'info', active: 'success', failed: 'error', inactive: 'neutral',
-}
-
 const DISPLAY_STATE_TONES: Record<SubscriptionDisplayState, StatusBadgeEntry['tone']> = {
   awaiting_payment: 'warning', activating: 'info', active: 'success', failed: 'destructive', inactive: 'neutral',
 }
