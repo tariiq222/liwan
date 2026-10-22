@@ -1,4 +1,4 @@
-import { effectScope, nextTick, ref } from 'vue'
+import { computed, effectScope, nextTick, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useAiRun } from '../useAiRun'
 import { followSharedConversation, useAiConversation } from '../useAiConversation'
@@ -51,7 +51,8 @@ describe('the shared conversation', () => {
     vi.stubGlobal('fetch', fetch)
     const scope = effectScope()
     const run = scope.run(() => useAiRun())!
-    scope.run(() => followSharedConversation(run, () => true))
+    const streaming = computed(() => run.status.value === 'streaming')
+    scope.run(() => followSharedConversation({ ...run, streaming }, () => true))
     useAiConversation().currentRunId.value = 'identity-a-run'
     await bodyReading
     me.value = null
