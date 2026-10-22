@@ -41,7 +41,7 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
 - The HR page is `/hr`; `/api/v1/people` remains the user-id picker (owned by `webvue_directory`). Preserve
   HR documents and the `{items, total}` list envelopes.
 - Presentation (pages, the one route-backed create panel `SharedCreatePanel`,
-  and the three overlay exceptions: search, notification bell, unsaved draft)
+  and the four overlay exceptions: search, notification bell, unsaved draft, the assistant sheet)
   follows DESIGN.md. `/new` routes open that panel; records and edits are
   pages. Task board view is `?view=board`. Keep direct links, refresh/back,
   filters, permissions and draft protection. Do not stack business dialogs.

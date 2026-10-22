@@ -30,7 +30,7 @@ export function hasCapability(identity: AccessIdentity, capability: string): boo
 }
 
 type Destination = readonly [path: string, capability: string]
-const FOUNDATION_RETURN_TO = ['/', '/account', '/search', '/notifications']
+const FOUNDATION_RETURN_TO = ['/', '/account', '/search', '/notifications', '/apps', '/services']
 /** The destinations of a settings page's parts: a part with its own or full list page opens it, a card opens the page. */
 function pageDestinations(pages: readonly SettingsPage[]): Destination[] {
   return pages.flatMap(page => page.parts.map((part): Destination => [part.to ?? part.within ?? page.to, part.capability]))

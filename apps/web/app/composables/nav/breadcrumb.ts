@@ -1,6 +1,6 @@
 // Relative imports: unit-tested directly under plain vitest.
 import { activeShellModule, contextModuleFor } from './activeRoute'
-import { allNavItems, moduleContextLinks, shellModuleList } from './shellModules'
+import { allNavItems, LAUNCHER_MODULE, moduleContextLinks, shellModuleList } from './shellModules'
 import { isNavPathActive } from '../../utils/accessPolicy'
 
 import type { ShellCrumb } from '@webvue/ui/app/types/shell'
@@ -24,8 +24,8 @@ export function shellBreadcrumb(input: { path: string; pageTitle?: string | null
   // True when the path is exactly the active section's own page.
   let sectionIsPage = false
   const module = activeShellModule(input.path)
-  const definition = module ? shellModuleList().find(item => item.id === module) : undefined
-  if (definition) push({ label: input.t(definition.labelKey), to: input.rail.find(item => item.id === definition.id)?.to })
+  const definition = module ? [LAUNCHER_MODULE, ...shellModuleList()].find(item => item.id === module) : undefined
+  if (definition) push({ label: input.t(definition.labelKey), to: definition === LAUNCHER_MODULE ? LAUNCHER_MODULE.to : input.rail.find(item => item.id === definition.id)?.to })
   const contextModule = contextModuleFor(module)
   if (contextModule) {
     const section = moduleContextLinks(contextModule, input.path)

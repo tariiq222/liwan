@@ -7,6 +7,11 @@
       "monitoring": "متابعة التنفيذ",
       "processes": "إعداد الإجراءات"
     },
+    "services": {
+      "newRequestDesc": "ابدأ طلبًا جديدًا ضمن الإجراءات المعتمدة",
+      "mineDesc": "تابع طلباتك وحالتها",
+      "pendingDesc": "الطلبات التي تنتظر مراجعتك"
+    },
     "newRequest": "طلب جديد",
     "newProcess": "إجراء جديد",
     "editRequest": "تعديل الطلب",
@@ -145,6 +150,9 @@
         "rejected": "مرفوضة",
         "done": "مكتملة"
       }
+    },
+    "attention": {
+      "from": "من {name}"
     }
   }
 }

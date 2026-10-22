@@ -30,7 +30,7 @@ const nuxtApp = {
 }
 export function useNuxtApp() { return nuxtApp }
 export function tryUseNuxtApp() { return nuxtApp }
-export function useRuntimeConfig() { return { app: { baseURL: '/' }, public: { wsUrl: '' } } }
+export function useRuntimeConfig() { return { app: { baseURL: '/' }, public: { wsUrl: '', aiEnabled: true } } }
 export function navigateTo(to: Parameters<Router['push']>[0], _opts?: unknown) { return router?.push(to) }
 
 // --- state / cookie --------------------------------------------------------

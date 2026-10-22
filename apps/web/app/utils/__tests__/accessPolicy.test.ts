@@ -28,6 +28,12 @@ describe('access policy navigation', () => {
     expect(isNavPathActive('/projects/dashboard', '/projects')).toBe(false)
     expect(postLoginPath({ capabilities: ['pmo.projects.read', 'pmo.tasks.read'] }, undefined)).toBe('/')
   })
+  it('returns to «مهامي» (with its tab) for a task reader and to «خدماتي» for anyone signed in', () => {
+    const taskReader = { capabilities: ['tasks.tasks.read'], platform: { readable_features: ['tasks.enabled'], writable_features: ['tasks.enabled'] } }
+    expect(postLoginPath(taskReader, '/work?tab=decide')).toBe('/work?tab=decide')
+    expect(postLoginPath({ capabilities: [] }, '/work?tab=decide')).toBe('/')
+    expect(postLoginPath({ capabilities: [] }, '/services')).toBe('/services')
+  })
   it('opens the shared inbox for task or meeting readers without granting the other domain', () => {
     const meetingReader = { capabilities: ['meetings.read'] }
     const taskReader = { capabilities: ['pmo.tasks.read'] }

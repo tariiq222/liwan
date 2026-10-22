@@ -1,4 +1,5 @@
 import type { AppContextLink, AppManifest } from '../types'
+import { leaveApprovalAttention } from './attention'
 import { hrSectionActive, hrSectionOf, hrSectionTarget, type HrSection } from './routes'
 
 const plus = 'i-lucide-plus'
@@ -99,6 +100,13 @@ const manifest: AppManifest = {
     { path: '/hr/offboarding', capability: 'hr.offboarding.read' },
     { path: '/hr/assets', capability: 'hr.assets.read' },
     { path: '/hr/payroll', capability: 'hr.payroll.read' },
+  ],
+  attention: [leaveApprovalAttention],
+  services: [
+    { id: 'hr-leave-new', labelKey: 'hr.leave.new', descriptionKey: 'hr.services.requestLeaveDesc', icon: 'i-lucide-calendar-plus', to: '/hr/leave/new', capability: 'hr.leave.request' },
+    { id: 'hr-leave-mine', labelKey: 'hr.services.myLeave', descriptionKey: 'hr.services.myLeaveDesc', icon: 'i-lucide-calendar-days', to: '/hr/leave?scope=mine', capability: 'hr.leave.read' },
+    { id: 'hr-payslips-mine', labelKey: 'nav.myPayslips', descriptionKey: 'hr.services.myPayslipsDesc', icon: 'i-lucide-receipt', to: '/hr/payroll/mine', capability: 'hr.employees.read' },
+    { id: 'hr-assets-mine', labelKey: 'nav.myAssets', descriptionKey: 'hr.services.myAssetsDesc', icon: 'i-lucide-package-check', to: '/hr/assets/mine', capability: 'hr.employees.read' },
   ],
   commands: [
     { id: 'hr.new-employee', labelKey: 'hr.directory.newEmployee', icon: 'i-lucide-users', to: '/hr/employees/new', capability: 'hr.employees.manage' },

@@ -2905,7 +2905,7 @@
         {
           "id": "Default",
           "name": "الحساب",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:86"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:88"
         }
       ]
     },
@@ -2922,7 +2922,7 @@
         {
           "id": "Default",
           "name": "الشريط والقائمة السياقية",
-          "context": "apps/web/app/layouts/default.vue:70"
+          "context": "apps/web/app/layouts/default.vue:73"
         }
       ]
     },
@@ -2971,6 +2971,12 @@
           "name": "hydrated",
           "type": "boolean",
           "required": true
+        },
+        {
+          "name": "locked",
+          "type": "boolean",
+          "required": false,
+          "description": "Collapsed by another layer: the toggle is inert until it lets go."
         },
         {
           "name": "panel",
@@ -3047,32 +3053,32 @@
         {
           "id": "Default",
           "name": "زر البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:82"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:83"
         },
         {
           "id": "PaletteMain",
           "name": "لوحة الأوامر",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:82"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:83"
         },
         {
           "id": "PaletteSearch",
           "name": "نتائج البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:82"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:83"
         },
         {
           "id": "PaletteError",
           "name": "تعذّر البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:82"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:83"
         },
         {
           "id": "PaletteShortcuts",
           "name": "اختصارات لوحة المفاتيح",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:82"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:83"
         },
         {
           "id": "PaletteReadOnly",
           "name": "قارئ بلا صلاحية إنشاء",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:82"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:83"
         }
       ]
     },
@@ -3146,7 +3152,7 @@
         {
           "id": "Open",
           "name": "القائمة مفتوحة",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:64"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:65"
         }
       ]
     },
@@ -3163,7 +3169,7 @@
         {
           "id": "Default",
           "name": "مهامي",
-          "context": "apps/web/app/layouts/default.vue:69"
+          "context": "apps/web/app/layouts/default.vue:72"
         }
       ]
     },
@@ -3311,7 +3317,7 @@
       "props": [
         {
           "name": "usage",
-          "type": "{ tenant_id: string; observed_at: string | null; policy_revision_id: string; freshness: \"fresh\" | \"stale\" | \"unavailable\"; metrics: { key: string; used: number | null; limit: number | null; unit: \"count\" | \"users\" | \"projects\" | \"attachment_bytes\" | \"extra_branches\" | \"mebibytes\"; reason: \"source_unreachable\" | \"timeout\" | \"not_collected\" | \"forbidden\" | null; }[]; }",
+          "type": "{ tenant_id: string; observed_at: string | null; policy_revision_id: string; freshness: \"fresh\" | \"stale\" | \"unavailable\"; metrics: { key: string; used: number | null; limit: number | null; unit: \"count\" | \"projects\" | \"users\" | \"attachment_bytes\" | \"extra_branches\" | \"mebibytes\"; reason: \"source_unreachable\" | \"timeout\" | \"not_collected\" | \"forbidden\" | null; }[]; }",
           "required": true
         }
       ],
@@ -4592,8 +4598,8 @@
       ],
       "slots": [],
       "nuxtUi": [
-        "UAlert",
-        "UButton"
+        "UButton",
+        "UIcon"
       ],
       "stories": [
         {
@@ -5533,17 +5539,17 @@
         {
           "id": "Default",
           "name": "وجهة",
-          "context": "apps/web/app/pages/index.vue:34"
+          "context": "apps/web/app/components/services/ServicesGroups.vue:18"
         },
         {
           "id": "WithoutDescription",
           "name": "بلا وصف",
-          "context": "apps/web/app/pages/index.vue:34"
+          "context": "apps/web/app/components/services/ServicesGroups.vue:18"
         },
         {
           "id": "Tones",
           "name": "الدرجات",
-          "context": "apps/web/app/pages/index.vue:34"
+          "context": "apps/web/app/components/services/ServicesGroups.vue:18"
         }
       ]
     },
@@ -6265,13 +6271,8 @@
       "title": "Shell/ModuleRail",
       "props": [
         {
-          "name": "modules",
-          "type": "ShellRailItem[]",
-          "required": true
-        },
-        {
-          "name": "utility",
-          "type": "ShellRailItem[]",
+          "name": "rail",
+          "type": "ShellRailGroups",
           "required": true
         },
         {
@@ -6299,6 +6300,26 @@
         {
           "id": "SettingsActive",
           "name": "الإعدادات نشطة",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+        },
+        {
+          "id": "AssistantUtility",
+          "name": "أداة فوق الإعدادات",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+        },
+        {
+          "id": "LauncherActive",
+          "name": "المشغّل نشط",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+        },
+        {
+          "id": "FewPinned",
+          "name": "تطبيق واحد مثبّت",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+        },
+        {
+          "id": "NonePinned",
+          "name": "لا تطبيق مثبّت",
           "context": "apps/web/app/components/shell/AppSidebar.vue:44"
         }
       ]
@@ -6378,12 +6399,12 @@
         {
           "id": "Default",
           "name": "أقسام القائمة الفرعية",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:61"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:62"
         },
         {
           "id": "Collapsed",
           "name": "مطوية (أيقونات)",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:61"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:62"
         }
       ]
     },
@@ -6397,12 +6418,18 @@
           "name": "noSidebar",
           "type": "boolean",
           "required": false
+        },
+        {
+          "name": "sheetOpen",
+          "type": "boolean",
+          "required": false
         }
       ],
       "events": [],
       "slots": [
         "header",
         "sidebar",
+        "sheet",
         "default"
       ],
       "nuxtUi": [],
@@ -6410,12 +6437,12 @@
         {
           "id": "Default",
           "name": "الإطار الكامل",
-          "context": "apps/web/app/layouts/default.vue:68"
+          "context": "apps/web/app/layouts/default.vue:71"
         },
         {
           "id": "Collapsed",
           "name": "القائمة السياقية مطويّة",
-          "context": "apps/web/app/layouts/default.vue:68"
+          "context": "apps/web/app/layouts/default.vue:71"
         }
       ]
     },
@@ -6481,17 +6508,17 @@
         {
           "id": "Default",
           "name": "مهام: عروض وإجراءات",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:62"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:63"
         },
         {
           "id": "ActionsOnly",
           "name": "إجراءات فقط",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:62"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:63"
         },
         {
           "id": "Collapsed",
           "name": "مطوية (أيقونات)",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:62"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:63"
         }
       ]
     }
@@ -6576,6 +6603,10 @@
           "name": "تعذّر التحميل"
         },
         {
+          "id": "Searching",
+          "name": "بحث في المحادثات"
+        },
+        {
           "id": "Archived",
           "name": "المحادثات المؤرشفة"
         },
@@ -6636,6 +6667,18 @@
         {
           "id": "MarkdownStreaming",
           "name": "جواب يُبث بتنسيق ناقص"
+        },
+        {
+          "id": "Compact",
+          "name": "مضغوط (للشيت)"
+        },
+        {
+          "id": "EmptyStart",
+          "name": "بداية محادثة"
+        },
+        {
+          "id": "Typing",
+          "name": "مؤشر الكتابة"
         }
       ]
     },
@@ -6700,6 +6743,20 @@
         {
           "id": "Scale",
           "name": "الخط والأحجام"
+        }
+      ]
+    },
+    {
+      "title": "Home/Today",
+      "story": "apps/web/stories/home/HomeToday.stories.ts",
+      "stories": [
+        {
+          "id": "Busy",
+          "name": "عمل ينتظر"
+        },
+        {
+          "id": "Quiet",
+          "name": "لا شيء عاجل"
         }
       ]
     },

@@ -258,6 +258,9 @@
     "card": {
       "subtasks": "المهام الفرعية",
       "attachments": "المرفقات"
+    },
+    "attention": {
+      "startOverdue": "ابدأ بالمهمة الأقدم تأخرًا."
     }
   }
 }

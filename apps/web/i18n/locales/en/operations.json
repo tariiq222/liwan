@@ -7,6 +7,11 @@
       "monitoring": "Request monitoring",
       "processes": "Work procedures"
     },
+    "services": {
+      "newRequestDesc": "Start a request under an approved process",
+      "mineDesc": "Follow your requests and their status",
+      "pendingDesc": "Requests waiting for your review"
+    },
     "newRequest": "New request",
     "newProcess": "New procedure",
     "editRequest": "Edit request",
@@ -145,6 +150,9 @@
         "rejected": "Rejected",
         "done": "Completed"
       }
+    },
+    "attention": {
+      "from": "From {name}"
     }
   }
 }
