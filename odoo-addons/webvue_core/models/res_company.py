@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
+from odoo.tools import reset_cached_properties
 
 from .protected_write import is_marked_write, marked
 from .res_partner import (
@@ -76,7 +77,14 @@ class ResCompany(models.Model):
                 msg = 'use_protected_webvue_access_operation'
                 raise AccessError(msg)
         result = super().write(vals)
-        if {'parent_id', 'active', 'webvue_branch_access_mode'}.intersection(vals):
+        if 'user_ids' in vals:
+            # Inverse of res.users.company_ids: invalidate the same native company cache.
+            self.env.registry.clear_cache()
+            # Match native res.users.write(company_ids): cached env.companies must
+            # refresh too when the inverse adds or removes a membership.
+            for environment in list(self.env.transaction.envs):
+                reset_cached_properties(environment)
+        if {'parent_id', 'active', 'webvue_branch_access_mode', 'user_ids'}.intersection(vals):
             service._webvue_clear_branch_cache()
         return result
 

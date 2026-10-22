@@ -177,11 +177,8 @@ class WebVueResUsers(models.Model):
         for user in self:
             desired = self.env['res.groups']
             capability_keys = set()
-            self.env.cr.execute(
-                'SELECT cid FROM res_company_users_rel WHERE user_id = %s',
-                [user.id],
-            )
-            company_ids = [company_id for company_id, in self.env.cr.fetchall()]
+            # Stored memberships, including archived companies, through the native field.
+            company_ids = user.with_context(active_test=False).company_ids.ids
             for company in self.env['res.company'].browse(company_ids):
                 capability_keys |= service._webvue_capability_keys(
                     user, company=company,

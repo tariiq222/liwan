@@ -20,13 +20,13 @@ from odoo.addons.webvue_hr.serializers.hr_employee import (
 MAX_LIMIT = 200
 
 
-def _can(capability):
-    return request.env['webvue.access.service']._webvue_has_capability(request.env.user, capability)
+def _can(capability, employee=None):
+    return request.env['webvue.access.service']._webvue_has_capability(
+        request.env.user, capability, record=employee,
+    )
 
 
 def _require(capability):
-    if not _can(capability):
-        raise ApiError(403, 'forbidden', f'{capability} capability is required')
     require_capabilities(capability)
 
 
@@ -34,8 +34,8 @@ def _dump(employee):
     """Detail shape: the contract block needs management; the list shape never carries it."""
     return dump_employee(
         employee,
-        include_access=_can('hr.employees.access_status.read'),
-        include_contract=_can('hr.employees.manage'),
+        include_access=_can('hr.employees.access_status.read', employee),
+        include_contract=_can('hr.employees.manage', employee),
     )
 
 
@@ -50,12 +50,14 @@ def _admin_employee(employee_id):
     return employee
 
 
-def _public_employee(employee_id):
-    employee = request.env['hr.employee.public'].search([
+def _public_employee(employee_id, *, include_archived=False):
+    domain = [
         ('id', '=', int(employee_id)),
-        ('active', '=', True),
         ('company_id', 'in', request.env.companies.ids),
-    ], limit=1)
+    ]
+    if not include_archived:
+        domain.append(('active', '=', True))
+    employee = request.env['hr.employee.public'].with_context(active_test=False).search(domain, limit=1)
     if not employee:
         raise MissingError(request.env._('hr.employee %(id)s does not exist', id=employee_id))
     return employee
@@ -135,10 +137,8 @@ class HrEmployeeController(http.Controller):
                 raise ApiError(422, 'invalid', 'department_id must be a positive integer', field='department_id')
             domain.append(('department_id', '=', department_id))
         if archived:
-            Employee = request.env['hr.employee'].with_context(active_test=False)
+            Employee = request.env['hr.employee.public'].with_context(active_test=False)
             domain.append(('active', '=', False))
-        elif _can('hr.employees.access_status.read'):
-            Employee = request.env['hr.employee']
         else:
             Employee = request.env['hr.employee.public']
         recs = Employee.search(domain, order='name, id', limit=limit, offset=offset)
@@ -146,7 +146,7 @@ class HrEmployeeController(http.Controller):
             'items': [
                 dump_employee(
                     employee,
-                    include_access=_can('hr.employees.access_status.read'),
+                    include_access=_can('hr.employees.access_status.read', employee),
                 ) for employee in recs
             ],
             'total': Employee.search_count(domain),
@@ -159,12 +159,14 @@ class HrEmployeeController(http.Controller):
         _require('hr.employees.read')
         # Deliberate: managing employees implies the full record, archived ones included
         # (_admin_employee searches with active_test=False); only the archived list needs archive.
-        privileged = (
-            _can('hr.employees.manage')
-            or _can('hr.employees.archive')
-            or _can('hr.employees.access_status.read')
-        )
-        employee = _admin_employee(employee_id) if privileged else _public_employee(employee_id)
+        employee = _public_employee(employee_id, include_archived=True)
+        privileged = any(_can(key, employee) for key in (
+            'hr.employees.manage', 'hr.employees.archive', 'hr.employees.access_status.read',
+        ))
+        if _can('hr.employees.manage', employee):
+            employee = _admin_employee(employee_id)
+        elif not privileged and not employee.active:
+            raise MissingError(request.env._('hr.employee %(id)s does not exist', id=employee_id))
         return _dump(employee)
 
     @http.route('/api/v1/hr/employees', type='json2', auth='user', methods=['POST'], readonly=False)

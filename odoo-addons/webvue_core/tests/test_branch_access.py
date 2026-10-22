@@ -324,11 +324,85 @@ class TestBranchAccess(TransactionCase):
         self.assertFalse(business.with_env(self.service.env).has_access('read'))
         self.assertFalse(business.with_env(self.service.env).has_access('write'))
         self.assertFalse(attachment.with_env(self.service.env).has_access('read'), 'identity refs do not authorize files')
+        files = self.env['ir.attachment'].with_env(self.service.env)
+        target = [('res_model', '=', 'res.partner'), ('res_id', '=', identity.id)]
+        self.assertFalse(files.search(target), 'optimized target search cannot expose identity files')
+        self.assertEqual(files.search_count(target), 0)
+        user_file = self.env['ir.attachment'].create({
+            'name': 'User identity private attachment', 'raw': b'private', 'type': 'binary',
+            'res_model': 'res.users', 'res_id': identity.user_ids.id, 'company_id': self.other.id,
+        })
+        self.service._webvue_clear_branch_cache()
+        self.assertFalse(user_file.with_env(self.service.env).has_access('read'))
+        user_target = [('res_model', '=', 'res.users'), ('res_id', '=', identity.user_ids.id)]
+        self.assertFalse(files.search(user_target))
+        self.assertEqual(files.search_count(user_target), 0)
         self.env['ir.rule'].create({
             'name': 'Private identity native rule', 'model_id': self.env['ir.model']._get_id('res.partner'),
             'domain_force': repr([('id', '!=', identity.id)]),
         })
         self.assertFalse(actor_identity.has_access('read'), 'the original native domain still intersects')
+
+    def test_inverse_company_membership_removal_revokes_warmed_scope(self):
+        self.grant(self.reader)
+        scoped = self.service.with_context(allowed_company_ids=[self.parent.id],
+                                           webvue_capability_scope=((('probe.items.read',), 'all'),))
+        self.assertIn(self.branch.id, scoped._webvue_scoped_company_ids())
+        self.assertIn(self.branch.id, scoped._webvue_model_company_ids('res.partner', 'read'))
+        self.branch.write({'user_ids': [Command.unlink(self.user.id)]})
+        self.assertNotIn(self.branch.id, self.user._get_company_ids())
+        self.assertNotIn(self.branch.id, scoped._webvue_scoped_company_ids())
+        self.assertNotIn(self.branch.id, scoped._webvue_model_company_ids('res.partner', 'read'))
+
+    def test_inverse_current_membership_removal_revokes_native_baseline(self):
+        # Empty context uses native main-company fallback, which otherwise survives
+        # even after the main membership itself has been removed.
+        scoped = self.service.with_context(allowed_company_ids=[])
+        self.assertIn(self.parent.id, scoped._webvue_scoped_company_ids())
+        self.assertIn(self.parent.id, scoped._webvue_model_company_ids('res.partner', 'read'))
+        self.parent.write({'user_ids': [Command.unlink(self.user.id)]})
+        self.assertNotIn(self.parent.id, self.user._get_company_ids())
+        self.assertFalse(scoped._webvue_scoped_company_ids())
+        self.assertFalse(scoped._webvue_model_company_ids('res.partner', 'read'))
+
+    def test_archived_memberships_survive_group_sync_and_reactivation(self):
+        self.grant(self.reader)
+        self.branch.active = False
+        self.user._webvue_sync_capability_groups()
+        self.assertIn(self.branch, self.user.with_context(active_test=False).company_ids)
+        self.branch.active = True
+        self.user._webvue_sync_capability_groups()
+        self.assertIn(self.read_group, self.user.group_ids)
+        self.assertTrue(self.service._webvue_has_capability(self.user, 'probe.items.read', record=self.record))
+
+    def test_membership_grant_rollback_cannot_preserve_operation_scope(self):
+        self.grant(self.reader)
+        self.branch.write({'user_ids': [Command.unlink(self.user.id)]})
+        scoped = self.service.with_context(allowed_company_ids=[self.parent.id],
+                                           webvue_capability_scope=((('probe.items.read',), 'all'),))
+        self.assertNotIn(self.branch.id, scoped._webvue_scoped_company_ids())
+        with self.assertRaisesRegex(ValidationError, 'rollback_membership'), self.env.cr.savepoint():
+            self.branch.write({'user_ids': [Command.link(self.user.id)]})
+            self.assertIn(self.branch.id, scoped._webvue_scoped_company_ids())
+            self.assertIn(self.branch.id, scoped._webvue_model_company_ids('res.partner', 'read'))
+            message = 'rollback_membership'
+            raise ValidationError(message)
+        self.assertNotIn(self.branch.id, scoped._webvue_scoped_company_ids())
+        self.assertNotIn(self.branch.id, scoped._webvue_model_company_ids('res.partner', 'read'))
+
+    def test_company_enable_rollback_cannot_preserve_operation_scope(self):
+        self.grant(self.reader)
+        self.branch.active = False
+        scoped = self.service.with_context(allowed_company_ids=[self.parent.id],
+                                           webvue_capability_scope=((('probe.items.read',), 'all'),))
+        self.assertNotIn(self.branch.id, scoped._webvue_scoped_company_ids())
+        with self.assertRaisesRegex(ValidationError, 'rollback_company_enable'), self.env.cr.savepoint():
+            self.branch.active = True
+            self.assertIn(self.branch.id, scoped._webvue_scoped_company_ids())
+            message = 'rollback_company_enable'
+            raise ValidationError(message)
+        self.assertNotIn(self.branch.id, scoped._webvue_scoped_company_ids())
+        self.assertNotIn(self.branch.id, scoped._webvue_model_company_ids('res.partner', 'read'))
 
     def test_transaction_memo_cannot_keep_a_rolled_back_grant(self):
         scoped = self.service.with_context(webvue_capability_scope=((('probe.items.read',), 'all'),))

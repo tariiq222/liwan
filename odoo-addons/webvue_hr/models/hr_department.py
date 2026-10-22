@@ -34,10 +34,10 @@ class WebVueHrDepartment(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
             and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
         ):
-            self.env['webvue.access.service']._webvue_require_capability(
-                'hr.departments.read',
-            )
-            pinned = self.env['webvue.access.service']._webvue_pinned_company_ids()
+            service = self.env['webvue.access.service']
+            if not service._webvue_has_operation_capability(self.env.user, 'hr.departments.read'):
+                raise AccessError(DEPARTMENT_WRITE_ERROR)
+            pinned = service._webvue_operation_capability_company_ids('hr.departments.read')
             domain = Domain(domain) & Domain('company_id', 'in', pinned)
         return super()._search(
             domain,
@@ -56,10 +56,10 @@ class WebVueHrDepartment(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
             and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
         ):
-            self.env['webvue.access.service']._webvue_require_capability(
-                'hr.departments.read',
-            )
-            self._webvue_validate_scope()
+            service = self.env['webvue.access.service']
+            if not service._webvue_has_operation_capability(self.env.user, 'hr.departments.read'):
+                raise AccessError(DEPARTMENT_WRITE_ERROR)
+            self._webvue_validate_scope(read_capability='hr.departments.read')
         return super().check_access(operation)
 
     def _webvue_require_admin(self):
@@ -69,7 +69,7 @@ class WebVueHrDepartment(models.Model):
         ):
             raise AccessError(DEPARTMENT_WRITE_ERROR)
 
-    def _webvue_validate_scope(self):
+    def _webvue_validate_scope(self, read_capability=None):
         if not self.ids:
             return
         self.env.cr.execute(
@@ -79,7 +79,9 @@ class WebVueHrDepartment(models.Model):
                 self.ids,
             ),
         )
-        pinned = self.env['webvue.access.service']._webvue_pinned_company_ids()
+        service = self.env['webvue.access.service']
+        pinned = (service._webvue_operation_capability_company_ids(read_capability) if read_capability
+                  else service._webvue_pinned_company_ids())
         if any(company_id not in pinned for (company_id,) in self.env.cr.fetchall()):
             raise AccessError(DEPARTMENT_SCOPE_ERROR)
 
