@@ -23,7 +23,7 @@ function identity(capabilities: string[]) {
   return { id: 1, capabilities, platform: { state: 'active', read_only: false, readable_features: features, writable_features: features } }
 }
 
-async function render(capabilities: string[], query = '') {
+async function render(capabilities: string[], query = '', hydrated = true) {
   const messages = {
     ...names, 'launcher.title': 'التطبيقات', 'launcher.description': 'تطبيقاتك وأهم إجراءاتك في مكان واحد', 'launcher.search': 'ابحث في التطبيقات',
     'launcher.noResults': 'لا يوجد تطبيق بهذا الاسم.', 'launcher.empty': 'لا توجد تطبيقات',
@@ -33,7 +33,7 @@ async function render(capabilities: string[], query = '') {
   const me = Vue.ref(identity(capabilities))
   const Stub = (tag: string, text?: (props: Record<string, string>) => string) => Vue.defineComponent({ inheritAttrs: false, props: { title: String }, setup(props, { attrs, slots }) { return () => Vue.h(tag, attrs, [text ? text(props as Record<string, string>) : '', slots.default?.()]) } })
   const html = await withManifests(manifests, () => renderShared(page, {}, {}, {
-    messages,
+    messages, hydrated,
     stubs: {
       SharedPageContainer: Stub('div'),
       SharedPageHeader: Stub('h1', props => props.title ?? ''),
@@ -58,6 +58,13 @@ async function render(capabilities: string[], query = '') {
 const cards = (html: string) => [...html.matchAll(/data-app="([^"]+)"/g)].map(match => match[1])
 
 describe('launcher page', () => {
+  it('disables its named-slot search until hydration, then enables it', async () => {
+    const before = await render(['tasks.read'], '', false)
+    const after = await render(['tasks.read'], '', true)
+    const search = (html: string) => html.match(/<input[^>]*data-testid="launcher-search"[^>]*>/)?.[0]
+    expect(search(before)).toContain('disabled')
+    expect(search(after)).not.toContain('disabled')
+  })
   it('shows all reachable applications in manifest order with search and descriptions', async () => {
     const html = await render(['tasks.read', 'finance.read', 'chat.read', 'ai.use'])
     expect(html).toContain('تطبيقاتك وأهم إجراءاتك في مكان واحد')
