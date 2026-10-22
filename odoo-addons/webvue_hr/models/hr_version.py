@@ -70,36 +70,32 @@ class WebVueHrVersion(models.Model):
             or data.get(ACCESS_USER_WRITE_MARKER),
         )
 
-    def _webvue_version_read_allowed(self):
-        """Whether the caller may read employee versions.
-
-        The employee management capability owns the whole record. The offboarding read
-        pair opens it for reading only, because a departure is the departure fields of an
-        employee the area is allowed to see; the payroll read pair opens it for the payslip
-        engine. Every write stays behind hr.employees.manage.
-        """
+    def _webvue_version_read_company_ids(self):
+        """Exact already scoped companies with management or a complete reader pair."""
         service = self.env['webvue.access.service']
-        if service._webvue_has_capability(self.env.user, 'hr.employees.manage'):
-            return True
-        return any(
-            all(service._webvue_has_capability(self.env.user, key) for key in pair)
-            for pair in (OFFBOARDING_READ_CAPABILITIES, PAYROLL_READ_CAPABILITIES)
-        )
+        allowed = set(service._webvue_operation_capability_company_ids('hr.employees.manage'))
+        for pair in (OFFBOARDING_READ_CAPABILITIES, PAYROLL_READ_CAPABILITIES):
+            allowed.update(set(service._webvue_operation_capability_company_ids(pair[0]))
+                           & set(service._webvue_operation_capability_company_ids(pair[1])))
+        return sorted(allowed)
+
+    def _webvue_version_read_allowed(self):
+        return bool(self._webvue_version_read_company_ids())
 
     def _webvue_require_version_read(self):
         if not self._webvue_version_read_allowed():
-            self.env['webvue.access.service']._webvue_require_capability(
-                'hr.employees.manage',
-            )
+            message = 'hr.employees.manage capability is required'
+            raise AccessError(message)
 
-    def _webvue_validate_scope(self):
+    def _webvue_validate_scope(self, *, read=False):
         if not self.ids:
             return
         self.env.cr.execute(SQL(
             'SELECT company_id FROM %s WHERE id = ANY(%s)',
             SQL.identifier(self._table), self.ids,
         ))
-        pinned = self.env['webvue.access.service']._webvue_pinned_company_ids()
+        pinned = (self._webvue_version_read_company_ids() if read else
+                  self.env['webvue.access.service']._webvue_pinned_company_ids())
         if any(company_id not in pinned for company_id, in self.env.cr.fetchall()):
             raise AccessError(VERSION_SCOPE_ERROR)
 
@@ -115,7 +111,7 @@ class WebVueHrVersion(models.Model):
             and not self._webvue_trusted_internal_user_change()
         ):
             self._webvue_require_version_read()
-            pinned = self.env['webvue.access.service']._webvue_pinned_company_ids()
+            pinned = self._webvue_version_read_company_ids()
             domain = Domain(domain) & Domain('company_id', 'in', pinned)
         return super()._search(
             domain, offset=offset, limit=limit, order=order,
@@ -135,7 +131,7 @@ class WebVueHrVersion(models.Model):
                 self.env['webvue.access.service']._webvue_require_capability(
                     'hr.employees.manage',
                 )
-            self._webvue_validate_scope()
+            self._webvue_validate_scope(read=operation == 'read')
         return super().check_access(operation)
 
     @api.model_create_multi

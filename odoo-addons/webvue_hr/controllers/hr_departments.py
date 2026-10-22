@@ -25,8 +25,6 @@ def _can(capability):
 
 
 def _require(capability):
-    if not _can(capability):
-        raise ApiError(403, 'forbidden', f'{capability} capability is required')
     require_capabilities(capability)
 
 

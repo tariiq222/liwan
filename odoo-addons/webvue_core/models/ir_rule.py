@@ -37,7 +37,8 @@ class IrRule(models.Model):
         # In particular res.users must not inherit the business-contact create fence.
         model = self.env[model_name]
         if (self.env.su or self.env.user.has_group('base.group_system')
-                or model_name in {'res.company', 'res.users', 'ir.attachment'}
+                or model_name in {'res.company', 'ir.attachment'}
+                or (model_name == 'res.users' and not self.env.context.get('webvue_attachment_target_check'))
                 or model_name.startswith('webvue.access.')):
             return Domain.TRUE
         fences = []

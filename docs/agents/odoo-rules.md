@@ -287,7 +287,49 @@ Native `_compute_domain` recursively embeds `_inherits` parent rules inside its 
 (upstream `/Users/tariq/code/odoo/odoo/addons/base/models/ir_rule.py:141-152`). A trusted cursor marker keeps every recursive
 native computation native-only. Fresh company/operation fences for the outer model and its
 stored delegated parents are applied **after** that cache, including parent ACL projections.
-Identity metadata such as `res.users` intentionally keeps only native inherited rules;
-protected account creation may reuse a validated current-company employee contact without
+Identity metadata such as `res.users` intentionally keeps only native inherited rules
+for ordinary identity references; attachment target checks retain the fresh user/partner
+fences instead. Protected account creation may reuse a validated current-company employee contact without
 granting general business-contact create rights. Tests retain foreign-contact and ordinary
 contact-create denial. This prevents native child caches from retaining revoked branch grants.
+
+The optimized native attachment search also invokes `comodel._search` directly when the
+`res_model` domain names at most five models (upstream
+`/Users/tariq/code/odoo/odoo/addons/base/models/ir_attachment.py:650-677`). The narrow
+`ir.attachment._search` wrapper forwards the original domain, pagination and native access
+flags under the same target-check context, preserving native search while suppressing the
+identity-reference exception. Regression checks include direct reads, exact-target searches
+and counts for private files linked to both partner and user identities.
+
+
+The HR extension of `_webvue_fresh_company_domain` adds a read-only staff/own-employee
+fence for `hr.leave` and `hr.leave.allocation` after the native rule cache. Approve/manage
+capabilities are checked in each already scoped owning company. The existing read-only
+payroll engine grant (`hr_payroll_rules.xml:162-178`) is preserved only where the actual
+`hr.payroll.read` capability is held. A parent's globally unioned native staff group
+cannot reveal another branch employee's leave; own requests and actual branch staff
+remain readable. The allocation owner is stored `employee_company_id`, related to the
+employee company (upstream `/Users/tariq/code/odoo/addons/hr_holidays/models/hr_leave_allocation.py:74-77`);
+its fresh read fence also intersects the model ACL/company scope so own employee identity
+cannot authorize a foreign allocation. Warm inherited grants are rechecked after opt-out. Employee/version
+readers likewise filter exact capability companies, and API contract/access fields use
+the employee's owning-company capability rather than the parent capability.
+
+Capability-group synchronization reads stored memberships through
+`res.users.with_context(active_test=False).company_ids`, replacing its former stock
+membership-table SELECT. This preserves archived memberships without using the active-only
+`_get_company_ids()` result. Inverse `res.company.user_ids` changes invalidate the native
+registry company cache (matching upstream
+`/Users/tariq/code/odoo/odoo/addons/base/models/res_users.py:638-643`) and the transaction
+branch memo. Focused tests retain archived memberships/reactivation and revoke warmed
+branch/home scopes after inverse removal.
+
+Branch authorization itself uses stored active memberships in the rollback-cleared
+transaction memo, rather than native process-cached `_get_company_ids` (upstream
+`/Users/tariq/code/odoo/odoo/addons/base/models/res_users.py:725-729`). A grant computed
+inside a savepoint must disappear after rollback. The helper intersects actor/target
+memberships for ordinary callers and reads native identity/company metadata in a separate
+empty-company context with only the attachment target marker suppressed; the service's
+policy root and operation scope stay unchanged. Cold users-target file denial is tested.
+Inverse membership changes also reset cached environment properties, matching native
+`res.users.write(company_ids)` at `/Users/tariq/code/odoo/odoo/addons/base/models/res_users.py:625-632`.

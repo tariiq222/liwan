@@ -6,7 +6,8 @@ the current company and its branches see the record, every other company gets
 the route's byte-identical not-found answer under every company forgery — and
 the leak cases MUST fail on current main, before the pin in api_handler lands.
 """
-from odoo.tests import tagged
+from odoo.exceptions import AccessError
+from odoo.tests import new_test_user, tagged
 
 from odoo.addons.webvue_api.tests.common import (
     CompanyIsolationCase,
@@ -143,6 +144,180 @@ class TestHrCompanyIsolation(CompanyIsolationCase):
                 self.assert_hidden_every_way(template.format(record.id), record.id)
 
     # --- the record matrix, one test per GET record route ------------------------------------------
+
+    def test_child_only_read_never_exposes_parent_or_private_records(self):
+        assignments = self.env['webvue.access.assignment']
+        assignments.search([('user_id', '=', self.iso_user.id)]).unlink()
+        permissions = self.env['webvue.access.permission'].search([
+            ('key', 'in', ['hr.employees.read', 'hr.departments.read']),
+        ])
+        role = self.env['webvue.access.role'].with_company(self.company_p1).create({
+            'key': 'branch_only_hr_reader', 'type': 'custom', 'company_id': self.company_p1.id,
+            'name_ar': 'Branch reader', 'permission_ids': [(6, 0, permissions.ids)],
+        })
+        assignments.create({'user_id': self.iso_user.id, 'company_id': self.company_p1.id, 'role_id': role.id})
+        private = self.env['hr.employee'].create({'name': 'Private branch employee', 'company_id': self.company_p1.id})
+        self.env['ir.rule'].create([
+            {'name': 'Private branch employee probe', 'model_id': self.env['ir.model']._get_id(model),
+             'domain_force': repr([('id', '!=', private.id)])}
+            for model in ('hr.employee', 'hr.employee.public')
+        ])
+        self.env_in(self.company_p)
+        for path, kind in (('/api/v1/hr/employees', 'employee'), ('/api/v1/hr/departments', 'department')):
+            body = self.assertVisible(path).json()
+            self.assertEqual([item['id'] for item in body['items']], [self.recs['p1'][kind].id])
+            self.assertVisible(f"{path}/{self.recs['p1'][kind].id}")
+            for tag in ('p', 'p2', 'c'):
+                self.assert_hidden_every_way(f"{path}/{self.recs[tag][kind].id}", self.by_tag[tag].id)
+        self.assert_hidden_every_way(f'/api/v1/hr/employees/{private.id}', self.company_p1.id)
+        write = self.api('PATCH', f"/api/v1/hr/employees/{self.recs['p1']['employee'].id}", json={'job_title': 'Denied'})
+        self.assertEqual(write.status_code, 403, write.text)
+        # A contextual read's current baseline must not turn a child-only role into parent HR access.
+        context = {'allowed_company_ids': [self.company_p.id, self.company_p1.id],
+                   'webvue_capability_scope': ((('hr.employees.read',), 'all', 'contextual_read'),)}
+        records = self.env['hr.employee.public'].with_user(self.iso_user).with_context(**context).search([])
+        self.assertIn(self.recs['p1']['employee'].id, records.ids)
+        self.assertNotIn(self.recs['p']['employee'].id, records.ids)
+
+    def test_parent_manager_cannot_lend_sensitive_fields_to_branch_reader(self):
+        # Keep the employee grant in P1, but its manage/status/version grants belong only to P.
+        self.env['webvue.access.assignment'].search([
+            ('user_id', '=', self.iso_user.id), ('company_id', '=', self.company_p1.id),
+            ('role_id', '!=', self.env.ref('webvue_core.role_employee').id),
+        ]).unlink()
+        linked = new_test_user(self.env, login='branch_sensitive_employee', groups='webvue_core.group_employee',
+                               company_id=self.company_p1.id, company_ids=[self.company_p1.id])
+        employee = self.recs['p1']['employee']
+        employee.write({'user_id': linked.id, 'contract_date_start': '2026-01-01', 'notice_period_days': 45})
+        self.env_in(self.company_p)
+        detail = self.assertVisible(f'/api/v1/hr/employees/{employee.id}').json()
+        self.assertEqual(detail['id'], employee.id)
+        self.assertIsNone(detail['access'])
+        self.assertIsNone(detail['contract'])
+        rows = self.assertVisible('/api/v1/hr/employees').json()['items']
+        row = next(row for row in rows if row['id'] == employee.id)
+        self.assertIsNone(row['access'])
+        self.assertIsNone(row['contract'])
+        own = self.assertVisible(f"/api/v1/hr/employees/{self.recs['p']['employee'].id}").json()
+        self.assertIsNotNone(own['contract'])
+
+    def _branch_privacy_role(self, keys):
+        assignments = self.env['webvue.access.assignment']
+        assignments.search([('user_id', '=', self.iso_user.id), ('company_id', '=', self.company_p1.id)]).unlink()
+        permissions = self.env['webvue.access.permission'].search([('key', 'in', keys)])
+        role = self.env['webvue.access.role'].with_company(self.company_p1).create({
+            'key': 'branch_privacy_reader', 'type': 'custom', 'name_ar': 'Branch reader',
+            'permission_ids': [(6, 0, permissions.ids)],
+        })
+        assignments.create({'user_id': self.iso_user.id, 'company_id': self.company_p1.id, 'role_id': role.id})
+
+    def test_branch_status_read_does_not_borrow_parent_contract_permission(self):
+        self._branch_privacy_role(['hr.employees.read', 'hr.employees.access_status.read'])
+        linked = new_test_user(self.env, login='branch_status_employee', groups='webvue_core.group_employee',
+                               company_id=self.company_p1.id, company_ids=[self.company_p1.id])
+        employee = self.recs['p1']['employee']
+        employee.write({'user_id': linked.id, 'contract_date_start': '2026-01-01', 'notice_period_days': 45})
+        self.env_in(self.company_p)
+        detail = self.assertVisible(f'/api/v1/hr/employees/{employee.id}').json()
+        self.assertIsNotNone(detail['access'])
+        self.assertIsNone(detail['contract'])
+        row = next(row for row in self.assertVisible('/api/v1/hr/employees').json()['items'] if row['id'] == employee.id)
+        self.assertIsNotNone(row['access'])
+        self.assertIsNone(row['contract'])
+        version = employee.version_id.with_user(self.iso_user).with_context(
+            allowed_company_ids=[self.company_p.id, self.company_p1.id],
+            webvue_capability_scope=((('hr.employees.read',), 'all'),),
+        )
+        with self.assertRaises(AccessError):
+            version.read(['notice_period_days', 'contract_date_start'])
+        self.company_p.webvue_branch_access_mode = 'inherited'
+        inheritance = self.env['webvue.access.branch.rule'].create({
+            'company_id': self.company_p.id, 'branch_id': self.company_p1.id, 'inherit': True,
+            'role_ids': [(6, 0, [self.env.ref('webvue_hr.role_hr_manager').id])],
+        })
+        self.assertEqual(version.read(['notice_period_days'])[0]['notice_period_days'], 45)
+        inheritance.inherit = False
+        with self.assertRaises(AccessError):
+            version.read(['notice_period_days'])
+
+    def test_parent_leave_staff_cannot_read_other_branch_employees_requests(self):
+        self._branch_privacy_role(['hr.leave.read', 'hr.employees.read', 'hr.employees.access_status.read'])
+        own_employee = self.env['hr.employee'].create({
+            'name': 'Branch own leave employee', 'company_id': self.company_p1.id, 'user_id': self.iso_user.id,
+        })
+        own_leave = self.env['hr.leave'].create({
+            'employee_id': own_employee.id, 'holiday_status_id': self.recs['p1']['leave'].holiday_status_id.id,
+            'request_date_from': '2026-06-01', 'request_date_to': '2026-06-02',
+        })
+        self.env_in(self.company_p)
+        target = self.recs['p1']['leave']
+        allocation_type = self.env['hr.leave.type'].create({
+            'name': 'Branch private allocation', 'requires_allocation': True,
+            'company_id': self.company_p1.id,
+        })
+        allocation = self.env['hr.leave.allocation'].create({
+            'employee_id': target.employee_id.id, 'holiday_status_id': allocation_type.id,
+            'number_of_days': 2, 'date_from': '2026-01-01',
+        })
+        own_allocation = self.env['hr.leave.allocation'].create({
+            'employee_id': own_employee.id, 'holiday_status_id': allocation_type.id,
+            'number_of_days': 2, 'date_from': '2026-01-01',
+        })
+        self.assert_hidden_every_way(f'/api/v1/hr/leave/requests/{target.id}', self.company_p1.id)
+        scoped = target.with_user(self.iso_user).with_context(
+            allowed_company_ids=[self.company_p.id, self.company_p1.id],
+            webvue_capability_scope=((('hr.leave.read',), 'all'),),
+        )
+        self.assertFalse(scoped.has_access('read'), 'parent staff rights cannot expose branch private leave in ORM')
+        self.assertFalse(scoped.search([('id', '=', target.id)]))
+        scoped_allocation = allocation.with_env(scoped.env)
+        self.assertFalse(scoped_allocation.has_access('read'))
+        self.assertFalse(scoped_allocation.search([('id', '=', allocation.id)]))
+        self.assertTrue(own_allocation.with_env(scoped.env).has_access('read'))
+        foreign_employee = self.env['hr.employee'].create({
+            'name': 'Foreign own allocation employee', 'company_id': self.company_c.id,
+            'user_id': self.iso_user.id,
+        })
+        foreign_type = self.env['hr.leave.type'].create({
+            'name': 'Foreign private allocation', 'requires_allocation': True,
+            'company_id': self.company_c.id,
+        })
+        foreign_allocation = self.env['hr.leave.allocation'].create({
+            'employee_id': foreign_employee.id, 'holiday_status_id': foreign_type.id,
+            'number_of_days': 2, 'date_from': '2026-01-01',
+        }).with_env(scoped.env)
+        self.assertFalse(foreign_allocation.has_access('read'), 'own employee cannot bypass the company scope')
+        self.assertFalse(foreign_allocation.search([('id', '=', foreign_allocation.id)]))
+        self.assertVisible(f'/api/v1/hr/leave/requests/{own_leave.id}')
+        rows = self.assertVisible('/api/v1/hr/leave/requests').json()['items']
+        self.assertNotIn(target.id, [row['id'] for row in rows])
+        self.assertIn(own_leave.id, [row['id'] for row in rows])
+        staff_grant = self.env['webvue.access.assignment'].create({
+            'user_id': self.iso_user.id, 'company_id': self.company_p1.id,
+            'role_id': self.env.ref('webvue_hr.role_hr_manager').id,
+        })
+        self.assertVisible(f'/api/v1/hr/leave/requests/{target.id}')
+        self.assertTrue(scoped.has_access('read'))
+        self.assertTrue(scoped_allocation.has_access('read'))
+        rows = self.assertVisible('/api/v1/hr/leave/requests').json()['items']
+        self.assertIn(target.id, [row['id'] for row in rows])
+        staff_grant.unlink()
+        self.assertFalse(scoped.has_access('read'), 'revoking staff retains private leave protection')
+        self.assertFalse(scoped_allocation.has_access('read'))
+        self.company_p.webvue_branch_access_mode = 'inherited'
+        inheritance = self.env['webvue.access.branch.rule'].create({
+            'company_id': self.company_p.id, 'branch_id': self.company_p1.id, 'inherit': True,
+            'role_ids': [(6, 0, [self.env.ref('webvue_hr.role_hr_manager').id])],
+        })
+        self.assertTrue(scoped.has_access('read'))
+        self.assertTrue(scoped.search([('id', '=', target.id)]))
+        self.assertTrue(scoped_allocation.has_access('read'))
+        self.assertTrue(scoped_allocation.search([('id', '=', allocation.id)]))
+        inheritance.inherit = False
+        self.assertFalse(scoped.has_access('read'), 'warm native staff rule cannot retain revoked inheritance')
+        self.assertFalse(scoped_allocation.has_access('read'))
+        self.assertFalse(scoped_allocation.search([('id', '=', allocation.id)]))
+        self.assertFalse(scoped.search([('id', '=', target.id)]))
 
     def test_employee_record_is_company_scoped(self):
         self.assert_matrix('employee')

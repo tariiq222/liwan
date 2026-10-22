@@ -84,6 +84,31 @@ class WebVueTasksIsolationCase(CompanyIsolationCase):
             self.opener.cookies.clear(domain=HOST, path='/', name='cids')
         return responses
 
+    def test_child_only_read_never_exposes_parent_or_private_tasks(self):
+        assignments = self.env['webvue.access.assignment']
+        assignments.search([('user_id', '=', self.iso_user.id)]).unlink()
+        permission = self.env['webvue.access.permission'].search([('key', '=', 'tasks.tasks.read')])
+        role = self.env['webvue.access.role'].with_company(self.company_p1).create({
+            'key': 'branch_only_tasks_reader', 'type': 'custom', 'company_id': self.company_p1.id,
+            'name_ar': 'Branch reader', 'permission_ids': [(6, 0, permission.ids)],
+        })
+        assignments.create({'user_id': self.iso_user.id, 'company_id': self.company_p1.id, 'role_id': role.id})
+        private = self.env['project.task'].with_company(self.company_p1).create({
+            'name': 'Private branch task', 'company_id': self.company_p1.id,
+        })
+        self.assertEqual(private.company_id, self.company_p1)
+        self.env_in(self.company_p)
+        path = '/api/v1/my-tasks'
+        body = self.assertVisible(path).json()
+        self.assertEqual([item['id'] for item in body['items']], [self.task_of[self.company_p1.id].id])
+        for suffix in ('', '/comments', '/attachments'):
+            self.assertVisible(f'{path}/{self.task_of[self.company_p1.id].id}{suffix}')
+            for company in (self.company_p, self.company_p2, self.company_c):
+                self.assertHiddenEveryWay('GET', f'{path}/{self.task_of[company.id].id}{suffix}', company.id)
+        self.assertHiddenEveryWay('GET', f'{path}/{private.id}', self.company_p1.id)
+        write = self.api('PATCH', f'{path}/{self.task_of[self.company_p1.id].id}', json={'name': 'Denied'})
+        self.assertEqual(write.status_code, 403, write.text)
+
     def test_my_task_record_matrix(self):
         def path_of(company):
             return f'/api/v1/my-tasks/{self.task_of[company.id].id}'

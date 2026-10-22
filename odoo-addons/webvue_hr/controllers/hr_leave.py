@@ -7,6 +7,7 @@ query to the current company and serializes a whitelisted shape.
 """
 from odoo import http
 from odoo.exceptions import MissingError
+from odoo.fields import Domain
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
@@ -31,19 +32,25 @@ from odoo.addons.webvue_hr.serializers.hr_leave import (
 STAFF_CAPABILITIES = ('hr.leave.approve', 'hr.leave.manage')
 
 
-def _can(capability):
-    return request.env['webvue.access.service']._webvue_has_capability(request.env.user, capability)
+def _can(capability, record=None):
+    return request.env['webvue.access.service']._webvue_has_capability(
+        request.env.user, capability, record=record,
+    )
 
 
 def _require(capability):
-    if not _can(capability):
-        raise ApiError(403, 'forbidden', f'{capability} capability is required')
     require_capabilities(capability)
 
 
-def _is_staff():
-    """An approver or manager may read and act on other employees' leave."""
-    return any(_can(capability) for capability in STAFF_CAPABILITIES)
+def _leave_visibility_domain():
+    """Staff rights belong to each request's company, never another parent."""
+    service = request.env['webvue.access.service']
+    staff_ids = set()
+    for key in STAFF_CAPABILITIES:
+        staff_ids.update(service._webvue_operation_capability_company_ids(key))
+    return (Domain('company_id', 'in', service._webvue_scoped_company_ids())
+            & (Domain('company_id', 'in', sorted(staff_ids))
+               | Domain('employee_id.user_id', '=', request.env.uid)))
 
 
 def _is_own(leave):
@@ -85,12 +92,10 @@ def _target_employee(employee_id):
     """The caller's own employee, or another one when the caller manages leave."""
     if employee_id is None:
         return _own_employee()
-    if not _can('hr.leave.manage'):
-        own = _own_employee()
-        if own.id != employee_id:
-            raise ApiError(403, 'forbidden', 'hr.leave.manage capability is required')
-        return own
-    return _company_employee(employee_id)
+    employee = _company_employee(employee_id)
+    if not _can('hr.leave.manage', employee) and employee.user_id != request.env.user:
+        raise ApiError(403, 'forbidden', 'hr.leave.manage capability is required')
+    return employee
 
 
 def _leave_types_domain():
@@ -117,9 +122,7 @@ def _current_leave(leave_id):
     hr_holidays' record rules already hide other people's requests from an employee; the
     explicit employee filter keeps that guarantee in WebVue instead of in stock data.
     """
-    domain = [('id', '=', int(leave_id)), ('company_id', 'in', request.env.companies.ids)]
-    if not _is_staff():
-        domain.append(('employee_id.user_id', '=', request.env.user.id))
+    domain = Domain('id', '=', int(leave_id)) & _leave_visibility_domain()
     leave = request.env['hr.leave'].search(domain, limit=1)
     if not leave:
         raise MissingError(request.env._('hr.leave %(id)s does not exist', id=leave_id))
@@ -176,15 +179,15 @@ class HrLeaveController(http.Controller):
         _require('hr.leave.read')
         args = request.httprequest.args
         limit, offset = parse_page(args)
-        domain = [('company_id', 'in', request.env.companies.ids)]
+        domain = list(_leave_visibility_domain())
         states = parse_state_filter(args.get('state'))
         if states:
             domain.append(('state', 'in', states))
         raw_employee = args.get('employee_id')
         if raw_employee not in (None, ''):
             domain.append(('employee_id', '=', parse_positive_int(raw_employee, 'employee_id')))
-        if not _is_staff() or args.get('mine') == '1':
-            domain.append(('employee_id', '=', _own_employee().id))
+        if args.get('mine') == '1':
+            domain.append(('employee_id.user_id', '=', request.env.uid))
         Leave = request.env['hr.leave']
         leaves = Leave.search(domain, order='request_date_from desc, id desc', limit=limit, offset=offset)
         return {'items': [dump_leave(leave) for leave in leaves], 'total': Leave.search_count(domain)}

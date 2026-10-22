@@ -6,6 +6,16 @@ from odoo.exceptions import AccessError
 class IrAttachment(models.Model):
     _inherit = 'ir.attachment'
 
+    @api.model
+    def _search(self, domain, offset=0, limit=None, order=None, *, active_test=True, bypass_access=False):
+        # Native ir_attachment.py:650-677 optimizes a small res_model restriction by
+        # calling comodel._search directly instead of _inaccessible_comodel_records.
+        targets = self.with_context(webvue_attachment_target_check=True)
+        return super(IrAttachment, targets)._search(
+            domain, offset=offset, limit=limit, order=order,
+            active_test=active_test, bypass_access=bypass_access,
+        )
+
     def _inaccessible_comodel_records(self, model_and_ids, operation):
         # Stock ir_attachment.py:591-617 centralizes target checks for direct reads and
         # search. Identity reference visibility must never authorize the target's files.

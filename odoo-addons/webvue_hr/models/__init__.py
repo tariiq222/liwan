@@ -15,6 +15,7 @@ from . import (
     hr_plan_run,
     hr_report,
     hr_version,
+    ir_rule,
     mail_activity_plan,
     payroll_calculator,
     payroll_export,

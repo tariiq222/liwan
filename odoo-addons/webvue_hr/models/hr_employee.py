@@ -69,8 +69,10 @@ class WebVueHrEmployee(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
             and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
         ):
-            self._webvue_require_capability('hr.employees.read')
-            pinned = self.env['webvue.access.service']._webvue_pinned_company_ids()
+            service = self.env['webvue.access.service']
+            if not service._webvue_has_operation_capability(self.env.user, 'hr.employees.read'):
+                raise AccessError(EMPLOYEE_WRITE_ERROR)
+            pinned = service._webvue_operation_capability_company_ids('hr.employees.read')
             domain = Domain(domain) & Domain('company_id', 'in', pinned)
         return super()._search(
             domain, offset=offset, limit=limit, order=order,
@@ -85,8 +87,10 @@ class WebVueHrEmployee(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
             and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
         ):
-            self._webvue_require_capability('hr.employees.read')
-            self._webvue_validate_scope()
+            service = self.env['webvue.access.service']
+            if not service._webvue_has_operation_capability(self.env.user, 'hr.employees.read'):
+                raise AccessError(EMPLOYEE_WRITE_ERROR)
+            self._webvue_validate_scope(read_capability='hr.employees.read')
         return super().check_access(operation)
 
     def _webvue_has_capability(self, capability):
@@ -96,10 +100,12 @@ class WebVueHrEmployee(models.Model):
         if not self._webvue_has_capability(capability):
             raise AccessError(EMPLOYEE_WRITE_ERROR)
 
-    def _webvue_validate_scope(self):
+    def _webvue_validate_scope(self, read_capability=None):
         if not self.ids:
             return
-        pinned = self.env['webvue.access.service']._webvue_pinned_company_ids()
+        service = self.env['webvue.access.service']
+        pinned = (service._webvue_operation_capability_company_ids(read_capability) if read_capability
+                  else service._webvue_pinned_company_ids())
         self.env.cr.execute(SQL(
             'SELECT company_id FROM %s WHERE id = ANY(%s)',
             SQL.identifier(self._table), self.ids,
@@ -269,8 +275,10 @@ class WebVueHrEmployeePublic(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
             and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
         ):
-            self.env['webvue.access.service']._webvue_require_capability('hr.employees.read')
-            pinned = self.env['webvue.access.service']._webvue_pinned_company_ids()
+            service = self.env['webvue.access.service']
+            if not service._webvue_has_operation_capability(self.env.user, 'hr.employees.read'):
+                raise AccessError(EMPLOYEE_WRITE_ERROR)
+            pinned = service._webvue_operation_capability_company_ids('hr.employees.read')
             domain = Domain(domain) & Domain('company_id', 'in', pinned)
         return super()._search(
             domain, offset=offset, limit=limit, order=order,
@@ -285,8 +293,10 @@ class WebVueHrEmployeePublic(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
             and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
         ):
-            self.env['webvue.access.service']._webvue_require_capability('hr.employees.read')
-            pinned = self.env['webvue.access.service']._webvue_pinned_company_ids()
+            service = self.env['webvue.access.service']
+            if not service._webvue_has_operation_capability(self.env.user, 'hr.employees.read'):
+                raise AccessError(EMPLOYEE_WRITE_ERROR)
+            pinned = service._webvue_operation_capability_company_ids('hr.employees.read')
             if self.ids:
                 self.env.cr.execute(SQL(
                     'SELECT company_id FROM %s WHERE id = ANY(%s)',

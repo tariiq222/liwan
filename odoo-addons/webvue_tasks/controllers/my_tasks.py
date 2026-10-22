@@ -79,7 +79,6 @@ def _summary_params(args):
 
 def _require(key):
     """The capability check runs first, so a caller without it never learns what is valid."""
-    request.env['webvue.my.task.service']._require(key)
     require_capabilities(key)
 
 

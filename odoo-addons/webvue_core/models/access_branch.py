@@ -62,10 +62,35 @@ class WebVueBranchAccessService(models.AbstractModel):
     _inherit = 'webvue.access.service'
 
     @api.model
+    def _webvue_membership_company_ids(self, user=None):
+        """Stored, active memberships in the rollback-cleared transaction memo.
+
+        Native _get_company_ids is process-cached and can retain a grant computed
+        inside a rolled-back savepoint. Read native identity metadata separately
+        from attachment targets; this environment never authorizes the target file.
+        """
+        user = user or self.env.user
+        cache = self._webvue_branch_cache()
+        key = ('membership', self.env.uid, self.env.su, user.id)
+        if key not in cache:
+            metadata = self.with_context(allowed_company_ids=[], active_test=False,
+                                         webvue_attachment_target_check=False)
+            try:
+                target_ids = set(metadata.env['res.users'].browse(user.id).company_ids.ids)
+                if not self.env.su:
+                    target_ids &= set(metadata.env.user.company_ids.ids)
+                companies = metadata.env['res.company'].browse(sorted(target_ids))
+                cache[key] = tuple(companies.filtered('active').ids)
+            except AccessError:
+                cache[key] = ()
+        return list(cache[key])
+
+    @api.model
     def _webvue_descendant_memberships(self, user=None):
         user = user or self.env.user
         root = self.env.company
-        memberships = sorted(set(user._get_company_ids()) & set(self.env.user._get_company_ids()))
+        memberships = sorted(set(self._webvue_membership_company_ids(user))
+                             & set(self._webvue_membership_company_ids()))
         companies = self.env['res.company'].with_context(allowed_company_ids=memberships).browse(memberships)
         return companies.filtered(
             lambda company: company != root and company.parent_path.startswith(root.parent_path),
@@ -74,7 +99,7 @@ class WebVueBranchAccessService(models.AbstractModel):
     @api.model
     def _webvue_branch_company_allowed(self, user, company):
         root = self.env.company
-        if company.id not in user._get_company_ids():
+        if company.id not in self._webvue_membership_company_ids(user):
             return False
         return company == root or (
             root.webvue_branch_access_mode != 'isolated'
@@ -125,6 +150,10 @@ class WebVueBranchAccessService(models.AbstractModel):
 
     @api.model
     def _webvue_compute_scoped_company_ids(self, scopes):
+        # Cached environments must not preserve even the home baseline after an
+        # inverse membership removal in this transaction.
+        if not self.env.su and self.env.company.id not in self._webvue_membership_company_ids():
+            return []
         if not scopes:
             return [self.env.company.id]
         companies = None
@@ -134,6 +163,21 @@ class WebVueBranchAccessService(models.AbstractModel):
                 granted.add(self.env.company.id)
             companies = granted if companies is None else companies & granted
         return sorted(companies)
+
+    @api.model
+    def _webvue_operation_capability_company_ids(self, key, user=None):
+        """Filter an existing operation scope; never declare or expand one.
+
+        Recheck the exact key in each owning company, including contextual scopes whose
+        current-company baseline carries no company-wide capability grant.
+        """
+        user = user or self.env.user
+        return [company.id for company in self.env['res.company'].browse(self._webvue_scoped_company_ids())
+                if self._webvue_has_capability(user, key, company=company)]
+
+    @api.model
+    def _webvue_has_operation_capability(self, user, key):
+        return bool(self._webvue_operation_capability_company_ids(key, user=user))
 
     @api.model
     def _webvue_model_company_ids(self, model_name, operation):

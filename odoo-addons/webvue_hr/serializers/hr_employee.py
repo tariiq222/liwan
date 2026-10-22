@@ -133,7 +133,10 @@ def dump_employee(employee, *, include_access=True, include_contract=False):
     refs = employee._webvue_relation_refs()
     user = employee.user_id
     role = None
-    if user:
+    if user and include_access:
+        # Status was authorized for this employee's company by the caller. Keep
+        # the linked identity lookup in that company under its native rules.
+        user = user.with_company(employee.company_id)
         if user.has_group('webvue_core.group_vendor_support'):
             role = 'vendor'
         elif user.has_group('webvue_core.group_customer_admin'):
