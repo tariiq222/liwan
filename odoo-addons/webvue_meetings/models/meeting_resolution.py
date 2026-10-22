@@ -63,10 +63,13 @@ class WebVueMeetingResolution(models.Model):
         return values
 
     def _webvue_is_manager(self):
-        return self.env.su or self.env['webvue.access.service']._webvue_has_capability(self.env.user, 'meetings.manage')
+        self.ensure_one()
+        if not self.env.su and not self.has_access('read'):
+            return False
+        return self.meeting_id._webvue_is_manager()
 
     def _webvue_is_meeting_editor(self, meeting):
-        return self._webvue_is_manager() or self.env.user in (meeting.organizer_id | meeting.secretary_id)
+        return meeting._webvue_is_editor()
 
     def _webvue_allowed_follower_partners(self):
         self.ensure_one()
@@ -215,7 +218,7 @@ class WebVueMeetingResolution(models.Model):
                 if new_state not in allowed.get(resolution.state, ()):
                     raise UserError(_("This resolution state change is not allowed."))
                 if resolution.state in {"done", "cancelled"}:
-                    if not self._webvue_is_manager():
+                    if not resolution._webvue_is_manager():
                         raise UserError(_("Only a Meeting Manager may reopen this resolution."))
                     extra = set(vals) - {"state"}
                     if extra:
@@ -232,7 +235,7 @@ class WebVueMeetingResolution(models.Model):
         if not self.env.su:
             if any(resolution.meeting_id.state in ("done", "cancelled") for resolution in self):
                 raise UserError(_("Resolutions of a completed or cancelled meeting cannot be deleted."))
-            if not self._webvue_is_manager():
+            if any(not resolution._webvue_is_manager() for resolution in self):
                 raise AccessError(_("Only a Meeting Manager may delete resolutions."))
         return super().unlink()
 
@@ -264,14 +267,13 @@ class WebVueMeetingResolution(models.Model):
             if not resolution.deadline and not (resolution.execution_period or "").strip():
                 raise ValidationError(_("A deadline or execution period is required."))
 
-    @api.depends("state", "responsible_id", "meeting_id.state", "meeting_id.organizer_id", "meeting_id.secretary_id")
+    @api.depends("state", "company_id", "responsible_id", "meeting_id.state", "meeting_id.organizer_id", "meeting_id.secretary_id")
     @api.depends_context("uid", "allowed_company_ids")
     def _compute_can_update_execution(self):
-        is_manager = self._webvue_is_manager()
         user = self.env.user
         for resolution in self:
             meeting = resolution.meeting_id
-            editor = is_manager or user in (meeting.organizer_id | meeting.secretary_id)
+            editor = meeting._webvue_is_editor()
             resolution.can_update_execution = meeting.state != "cancelled" and (
                 editor or user == resolution.responsible_id
             )

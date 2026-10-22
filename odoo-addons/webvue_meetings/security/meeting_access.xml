@@ -25,7 +25,8 @@
         <field name="name">WebVue meetings: managers write company records</field>
         <field name="model_id" ref="model_webvue_meeting_minute"/>
         <field name="groups" eval="[(4, ref('group_cap_meetings_manage'))]"/>
-        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="domain_force">user._webvue_meeting_manager_domain(company_id, company_ids)</field>
+        <field name="perm_read" eval="False"/>
     </record>
     <record id="rule_resolution_editors_write" model="ir.rule">
         <field name="name">WebVue resolutions: editors and assignees write</field>
@@ -39,6 +40,7 @@
         <field name="name">WebVue resolutions: managers write company records</field>
         <field name="model_id" ref="model_webvue_meeting_resolution"/>
         <field name="groups" eval="[(4, ref('group_cap_meetings_manage'))]"/>
-        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="domain_force">user._webvue_meeting_manager_domain(company_id, company_ids)</field>
+        <field name="perm_read" eval="False"/>
     </record>
 </odoo>

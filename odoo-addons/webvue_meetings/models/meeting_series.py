@@ -50,22 +50,31 @@ class WebVueMeetingSeries(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         if not self.env.su:
-            self.env['webvue.access.service']._webvue_require_capability('meetings.create')
             for vals in vals_list:
-                if not self._webvue_is_manager():
+                company = self.env['res.company'].browse(vals.get('company_id')) if vals.get('company_id') else self.env.company
+                if not self.env['webvue.access.service']._webvue_has_capability(self.env.user, 'meetings.create', company=company):
+                    msg = 'forbidden'
+                    raise AccessError(msg)
+                if not self._webvue_is_manager(company=company):
                     vals['organizer_id'] = self.env.user.id
         return super().create(vals_list)
 
     def write(self, vals):
-        if not self.env.su and not self._webvue_is_manager():
+        if not self.env.su:
             if any(not series._webvue_is_editor() for series in self):
                 raise AccessError(self.env._("Only the organizer, secretary or a meetings manager may edit this series."))
-            vals = dict(vals)
-            vals.pop('organizer_id', None)
+            if any(not series._webvue_is_manager() for series in self):
+                vals = dict(vals)
+                vals.pop('organizer_id', None)
         return super().write(vals)
 
-    def _webvue_is_manager(self):
-        return self.env.su or self.env['webvue.access.service']._webvue_has_capability(self.env.user, 'meetings.manage')
+    def _webvue_is_manager(self, company=None):
+        if self and not self.env.su and not self.has_access('read'):
+            return False
+        company = company or (self.company_id if self else self.env.company)
+        return self.env.su or self.env['webvue.access.service']._webvue_has_capability(
+            self.env.user, 'meetings.manage', company=company,
+        )
 
     def _webvue_is_editor(self):
         self.ensure_one()
@@ -223,27 +232,17 @@ class ResUsers(models.Model):
 
     @api.private
     def _webvue_meeting_series_access_domain(self, company_id, company_ids):
-        """Series of the request's pinned companies (current company + branches).
-
-        The capability stays checked in the caller's current company; the record
-        scope follows ``company_ids`` like the meeting rules do.
-        """
+        """Series are visible to their owning-company managers or actual participants."""
         self.ensure_one()
-        service = self.env['webvue.access.service']
-        company = self.env['res.company'].browse(company_id)
-        if not service._webvue_has_capability(self, 'meetings.read', company=company):
-            return [('id', '=', 0)]
-        domain = [('company_id', 'in', company_ids)]
-        if service._webvue_has_capability(self, 'meetings.manage', company=company):
-            return domain
-        occurrence_visibility = [
-            ('company_id', 'in', company_ids), '|', '|',
-            ('organizer_id', '=', self.id),
-            ('secretary_id', '=', self.id),
-            ('attendee_ids', 'in', self.ids),
-        ]
-        return domain + [
-            '|', '|', '|',
+        actor = self.with_context(allowed_company_ids=[company_id, *[item for item in company_ids if item != company_id]])
+        service = actor.env['webvue.access.service']
+        companies = self.env['res.company'].browse(company_ids)
+        readable = [company.id for company in companies
+                    if service._webvue_has_capability(actor, 'meetings.read', company=company)]
+        occurrence_visibility = self._webvue_meeting_access_domain(company_id, company_ids)
+        return [
+            ('company_id', 'in', readable), '|',
+            *self._webvue_meeting_manager_domain(company_id, company_ids), '|', '|', '|',
             ('organizer_id', '=', self.id),
             ('secretary_id', '=', self.id),
             ('attendee_ids', 'in', self.ids),

@@ -103,8 +103,13 @@ class WebVueMeetingMinute(models.Model):
 
     # ----- access -----
 
-    def _webvue_is_manager(self):
-        return self.env.su or self.env['webvue.access.service']._webvue_has_capability(self.env.user, 'meetings.manage')
+    def _webvue_is_manager(self, company=None):
+        if self and not self.env.su and not self.has_access('read'):
+            return False
+        company = company or (self.company_id if self else self.env.company)
+        return self.env.su or self.env['webvue.access.service']._webvue_has_capability(
+            self.env.user, 'meetings.manage', company=company,
+        )
 
     def _webvue_participant_users(self):
         self.ensure_one()
@@ -124,12 +129,12 @@ class WebVueMeetingMinute(models.Model):
         if company and company not in user.company_ids:
             raise ValidationError(_('Organizer, secretary and attendees must have access to the meeting company.'))
 
-    @api.depends('state', 'organizer_id', 'secretary_id')
+    @api.depends('state', 'company_id', 'organizer_id', 'secretary_id')
     @api.depends_context('uid', 'allowed_company_ids')
     def _compute_can_flags(self):
-        is_manager = self._webvue_is_manager()
         user = self.env.user
         for meeting in self:
+            is_manager = meeting._webvue_is_manager()
             meeting.can_manage = is_manager
             meeting.can_edit = meeting.state not in self._LOCKED_STATES and (
                 is_manager or user in (meeting.organizer_id | meeting.secretary_id)
@@ -152,13 +157,15 @@ class WebVueMeetingMinute(models.Model):
             raise AccessError(self.env._('Historical meeting snapshots are server generated.'))
         for vals in vals_list:
             self._webvue_apply_series_defaults(vals)
-        if not self.env.su:
-            self.env['webvue.access.service']._webvue_require_capability('meetings.create')
         sequence = self.env['ir.sequence']
         prepared = []
         for vals in vals_list:
             vals = dict(vals)
             if not self.env.su:
+                company = self.env['res.company'].browse(vals.get('company_id')) if vals.get('company_id') else self.env.company
+                if not self.env['webvue.access.service']._webvue_has_capability(self.env.user, 'meetings.create', company=company):
+                    msg = 'forbidden'
+                    raise AccessError(msg)
                 if 'state' in vals and vals['state'] != 'draft':
                     raise UserError(_('New meetings must start in draft.'))
                 if vals.get('reference') and vals['reference'] != _('New'):
@@ -168,7 +175,7 @@ class WebVueMeetingMinute(models.Model):
                 for name in self._INTERNAL_FIELDS:
                     vals.pop(name, None)
                 vals['state'] = 'draft'
-                if not self._webvue_is_manager():
+                if not self._webvue_is_manager(company=company):
                     vals['organizer_id'] = self.env.user.id
             vals.setdefault('state', 'draft')
             if vals.get('reference', _('New')) == _('New'):
@@ -306,7 +313,7 @@ class WebVueMeetingMinute(models.Model):
     def _webvue_check_human_write(self, vals):
         if not self:
             return
-        if not self._webvue_is_manager() and any(not meeting._webvue_is_editor() for meeting in self):
+        if any(not meeting._webvue_is_editor() for meeting in self):
             raise AccessError(_('Only the organizer, secretary or a Meeting Manager may edit this meeting.'))
         new_state = vals.get('state')
         content_keys = self._CONTENT_FIELDS.intersection(vals) | ({'active'} & set(vals))
@@ -316,7 +323,7 @@ class WebVueMeetingMinute(models.Model):
                 if new_state == 'draft':
                     if extra or content_keys:
                         raise UserError(_('Reopen a completed or cancelled meeting before changing its content.'))
-                    if not self._webvue_is_manager():
+                    if not meeting._webvue_is_manager():
                         raise UserError(_('Only a Meeting Manager may reopen completed or cancelled meetings.'))
                     continue
                 if new_state and new_state != meeting.state:
@@ -325,7 +332,7 @@ class WebVueMeetingMinute(models.Model):
                     raise UserError(_('Completed and cancelled meetings are immutable.'))
             elif new_state:
                 self._webvue_check_transition(meeting, new_state)
-            elif content_keys and not meeting._webvue_is_editor() and not self._webvue_is_manager():
+            elif content_keys and not meeting._webvue_is_editor():
                 raise AccessError(_('Only the organizer, secretary or a Meeting Manager may edit this meeting.'))
 
     def _webvue_check_transition(self, meeting, new_state):
@@ -339,9 +346,9 @@ class WebVueMeetingMinute(models.Model):
         }
         if new_state not in allowed.get(meeting.state, ()):
             raise UserError(_('This meeting state change is not allowed.'))
-        if new_state in {'done', 'cancelled'} and not self._webvue_is_manager():
+        if new_state in {'done', 'cancelled'} and not meeting._webvue_is_manager():
             raise UserError(_('Only a Meeting Manager may complete or cancel meetings.'))
-        if new_state == 'confirmed' and not (self._webvue_is_manager() or meeting._webvue_is_editor()):
+        if new_state == 'confirmed' and not meeting._webvue_is_editor():
             raise AccessError(_('Only the organizer, secretary or a Meeting Manager may confirm this meeting.'))
 
     def copy(self, default=None):
@@ -362,7 +369,7 @@ class WebVueMeetingMinute(models.Model):
         if not self.env.su:
             if any(meeting.state in self._LOCKED_STATES for meeting in self):
                 raise UserError(_('Completed and cancelled meetings cannot be deleted.'))
-            if not self._webvue_is_manager():
+            if any(not meeting._webvue_is_manager() for meeting in self):
                 raise AccessError(_('Only a Meeting Manager may delete meetings.'))
         return super().unlink()
 
