@@ -13,7 +13,7 @@ const CAPABILITIES = [
   'access.users.read', 'access.users.grant', 'access.users.assign_roles', 'access.users.disable', 'access.users.reset_password',
   'access.roles.read', 'access.roles.manage', 'access.audit.read',
   'hr.employees.read', 'hr.employees.manage', 'hr.employees.archive', 'hr.employees.access_status.read',
-  'hr.departments.read', 'hr.departments.manage', 'documents.items.read', 'documents.items.manage',
+  'hr.shifts.manage', 'hr.departments.read', 'hr.departments.manage', 'documents.items.read', 'documents.items.manage',
   'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage', 'pmo.settings.manage',
   'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write', 'pmo.tasks.approve',
   'settings.branding.manage',
@@ -77,6 +77,7 @@ const BRANCH_DELEGATION = {
 }
 
 function jsonFor(pathname: string): unknown {
+  if (pathname === '/api/v1/hr/shifts/settings') return { day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 0 }
   if (pathname === '/api/v1/admin/access/branches') return BRANCH_POLICY
   if (pathname === '/api/v1/admin/users/18/branches') return BRANCH_DELEGATION
   if (pathname === '/api/v1/me') return ME
@@ -345,4 +346,31 @@ test('branch delegation keeps each custom role in its owning branch', async ({ p
   await expect(page.getByText('حُفظت صلاحيات الفروع.', { exact: true })).toBeVisible()
   expect(submitted).toMatchObject({ expected_version: BRANCH_DELEGATION.version, branches: [{ id: 2, role_ids: [8] }, { id: 3, role_ids: [] }] })
   await page.screenshot({ path: testInfo.outputPath('branch-delegation-desktop-rtl.png'), fullPage: true })
+})
+
+
+test('shift settings default to company timezone and save the user reference without payroll permission', async ({ page }, testInfo) => {
+  await openApp(page, '/settings/apps/hr#shifts')
+  let submitted: Record<string, unknown> | null = null
+  await page.route('**/api/v1/hr/shifts/settings', async route => {
+    if (route.request().method() === 'PATCH') {
+      submitted = route.request().postDataJSON()
+      await route.fulfill({ json: { day_reference: 'user', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 1 } })
+      return
+    }
+    await route.fulfill({ json: jsonFor('/api/v1/hr/shifts/settings') })
+  })
+  const reference = page.locator('#shift-day-reference')
+  await expect(reference).toBeEnabled()
+  await expect(reference).toContainText('المنطقة الزمنية للشركة (الافتراضي)')
+  await reference.click()
+  await page.getByRole('option', { name: 'المنطقة الزمنية لكل مستخدم', exact: true }).click()
+  const save = page.getByRole('button', { name: 'حفظ التغييرات', exact: true })
+  await expect(save).toBeEnabled()
+  await save.click()
+  await expect.poll(() => submitted).toEqual({ day_reference: 'user', revision: 0 })
+  await expect(save).toBeDisabled()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: testInfo.outputPath('shift-day-settings-mobile-rtl.png'), fullPage: true })
 })

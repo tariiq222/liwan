@@ -23,7 +23,7 @@ describe('branch role assignments', () => {
     const model = ref([{ id: 2, name: 'Branch', role_ids: [7] }])
     const app = hostRenderer.createApp({ render: () => h(loadShared(resolve(import.meta.dirname, '../BranchRoleAssignments.vue')), {
       modelValue: model.value, roles: [{ ...roles[0]!, active: false }],
-      'onUpdate:modelValue': value => { model.value = value },
+      'onUpdate:modelValue': (value: typeof model.value) => { model.value = value },
     }) })
     app.component('SharedFormSection', defineComponent({ setup: (_, { slots }) => () => h('section', slots.default?.()) }))
     app.component('UCheckbox', defineComponent({ props: ['modelValue', 'label', 'disabled'], emits: ['update:modelValue'], setup: (props, { emit }) => () => h('input', {
