@@ -8,6 +8,7 @@ from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
     clear_security_caches_after_commit,
+    get_record,
     parse_nonneg_int,
     parse_positive_int,
 )
@@ -404,7 +405,7 @@ class AccessAdminAuditController(http.Controller):
     @api_handler
     def event(self, event_id):
         request.env['webvue.access.service']._webvue_require_capability('access.audit.read')
-        event = request.env['webvue.access.audit'].browse(event_id).exists()
-        if not event or event.company_id != request.env.company:
-            raise ApiError(404, 'not_found', 'event does not exist')
+        # get_record answers another company's event with the same not-found as a
+        # missing id, before the audit rule would raise a 403 that marks it real.
+        event = get_record('webvue.access.audit', event_id)
         return dump_audit(event, detail=True)

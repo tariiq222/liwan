@@ -183,6 +183,51 @@ def requires_capability(*keys, match='all'):
     return decorator
 
 
+def _pin_current_company():
+    """Scope the route to the caller's current company and its own branches only.
+
+    Runs before any read on every /api/v1 route. The current company comes from
+    the session user (env.company resolves to user.company_id here: no client
+    vector feeds allowed_company_ids into json2 routes), and the client's cids
+    cookie, query or body context are overwritten, never merged. Branches are
+    the child companies of the current one intersected with the user's own
+    memberships, so a branch user never inherits the parent and a parent never
+    inherits a branch it is not a member of. Only the caller's own companies are
+    read, so no elevated access is needed here.
+    """
+    env = request.env
+    if env.uid and not env.user._is_public():
+        current = env.company
+
+        def is_descendant(company):
+            # Walk the user's OWN companies only: no sudo, nothing outside
+            # env.user.company_ids is ever read.
+            while company.parent_id:
+                company = company.parent_id
+                if company == current:
+                    return True
+            return False
+
+        branches = env.user.company_ids.filtered(is_descendant)
+        pinned = [current.id] + branches.ids
+        # allowed_company_ids drives the ORM; webvue_pinned_company_ids lets the
+        # model guards read the same set (plain ORM never widens by membership).
+        request.update_context(allowed_company_ids=pinned, webvue_pinned_company_ids=pinned)
+
+
+def _reject_foreign_company_payload(kwargs):
+    """Not-found when a write payload pins a company outside the request set.
+
+    Runs before any write on every non-GET /api/v1 route: a payload company_id
+    outside the pinned companies is answered exactly like a missing record and
+    writes nothing.
+    """
+    company_id = kwargs.get('company_id')
+    if isinstance(company_id, int) and not isinstance(company_id, bool) \
+            and company_id not in request.env.companies.ids:
+        raise MissingError(request.env._("Record does not exist"))
+
+
 def api_handler(func):
     """Map exceptions raised by an /api/v1 controller to the contract error shape."""
     @functools.wraps(func)
@@ -192,6 +237,8 @@ def api_handler(func):
             # so Odoo would otherwise commit mutations performed before the error.
             # Catch outside the savepoint to guarantee an atomic request operation.
             with request.env.cr.savepoint():
+                _pin_current_company()
+                _reject_foreign_company_payload(kwargs)
                 request.env['webvue.entitlement.service'].sudo()._webvue_guard_api()
                 return func(*args, **kwargs)
         except ApiError as e:
@@ -222,7 +269,16 @@ def get_record(model, rec_id):
     """
     record = request.env[model].browse(int(rec_id))
     if not record.exists():
-        raise MissingError(request.env._("%(model)s %(id)s does not exist", model=model, id=rec_id))
+        raise MissingError(request.env._("Record does not exist"))
+    if 'company_id' in record._fields:
+        # Another company's record is not-found, before any access check, with
+        # the exact not-found wording so the answer leaks nothing. Reading
+        # company_id through sudo is the documented exception: the pinned rule
+        # would otherwise raise AccessError before the comparison and leak
+        # existence through a 403.
+        owner_company = record.sudo().company_id
+        if owner_company and owner_company not in request.env.companies:
+            raise MissingError(request.env._("Record does not exist"))
     record.check_access('read')
     return record
 
