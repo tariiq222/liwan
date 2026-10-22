@@ -7,7 +7,6 @@ import {
   useDeleteHrShiftAssignment,
   useHrShiftAssignments,
   useHrShiftSchedules,
-  useMyHrShiftAssignments,
 } from '@/composables/useHrShifts'
 import { useHrEmployees } from '@/composables/useHrEmployees'
 import ShiftAssignmentTable from '@/components/hr/shifts/ShiftAssignmentTable.vue'
@@ -43,15 +42,12 @@ const params = computed(() => ({
   offset: offset.value,
 }))
 
-// A caller without hr.shifts.read still sees their own planning rows through /me.
-const assignments = useHrShiftAssignments(params)
-const mine = useMyHrShiftAssignments(computed(() => !canRead.value))
-const source = computed(() => canRead.value ? assignments : mine)
-const items = computed(() => source.value.data.value?.items ?? [])
-const total = computed(() => source.value.data.value?.total ?? 0)
+const source = useHrShiftAssignments(params)
+const items = computed(() => source.data.value?.items ?? [])
+const total = computed(() => source.data.value?.total ?? 0)
 const page = computed(() => Math.floor(offset.value / HR_SHIFTS_PAGE_SIZE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / HR_SHIFTS_PAGE_SIZE)))
-const showEmpty = computed(() => !source.value.isLoading.value && !source.value.error.value && items.value.length === 0)
+const showEmpty = computed(() => !source.isLoading.value && !source.error.value && items.value.length === 0)
 
 const employees = useHrEmployees({ limit: 200 })
 const schedules = useHrShiftSchedules({ active: 'true', limit: 200, offset: 0 })
@@ -100,7 +96,7 @@ function clearFilters() {
 }
 
 function setPage(next: number) {
-  if (!hydrated.value || source.value.isFetching.value || next < 1 || next > pages.value) return
+  if (!hydrated.value || source.isFetching.value || next < 1 || next > pages.value) return
   writeQuery({ offset: (next - 1) * HR_SHIFTS_PAGE_SIZE })
 }
 
@@ -211,8 +207,8 @@ async function confirmRemove() {
           <SharedEmptyState
             v-if="showEmpty"
             class="m-(--webvue-card-pad-dense)"
-            :title="canRead ? t('hrShifts.empty') : t('hrShifts.emptyMine')"
-            :description="canRead ? t('hrShifts.emptyHint') : t('hrShifts.emptyMineHint')"
+            :title="t('hrShifts.empty')"
+            :description="t('hrShifts.emptyHint')"
           />
           <ShiftAssignmentTable
             v-else

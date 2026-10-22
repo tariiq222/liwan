@@ -67,6 +67,11 @@ export function hrPreviewData(path, url) {
   const route = String(path || '/').replace(/\/+$/, '') || '/'
   const q = url.searchParams.get('q') ?? ''
   const department = Number(url.searchParams.get('department_id') ?? 0)
+  if (route === '/api/v1/hr/me') return { ...employees[0], access: null, contract: null }
+  if (route.startsWith('/api/v1/hr/leave/me/')) {
+    const leave = byId(leaves, route, '/api/v1/hr/leave/me')
+    return leave?.employee.id === SARA.id ? leave : undefined
+  }
   if (route === '/api/v1/hr/employees') {
     const archived = ['1', 'true'].includes(url.searchParams.get('archived') ?? '')
     return page(employees.filter(row => row.active !== archived && matches(row.name, q) && (!department || row.department?.id === department)), url)
@@ -81,8 +86,9 @@ export function hrPreviewData(path, url) {
   if (route === '/api/v1/hr/leave/types') return { items: leaveTypes, total: leaveTypes.length }
   if (route === '/api/v1/hr/leave/balances') return { items: leaveBalances, total: leaveBalances.length }
   if (route === '/api/v1/hr/leave/requests') {
-    const state = url.searchParams.get('state')
-    return page(leaves.filter(leave => !state || leave.state === state), url)
+    const states = url.searchParams.get('state')?.split(',')
+    const mine = url.searchParams.get('mine') === '1'
+    return page(leaves.filter(leave => (!mine || leave.employee.id === SARA.id) && (!states || states.includes(leave.state))), url)
   }
   if (route.startsWith('/api/v1/hr/leave/requests/')) return byId(leaves, route, '/api/v1/hr/leave/requests')
   if (route === '/api/v1/hr/departments') return page(departments, url)

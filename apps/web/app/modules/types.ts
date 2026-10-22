@@ -15,6 +15,7 @@ export type AppIcon = `i-lucide-${string}`
  */
 export interface AppNavItem {
   to: string; labelKey: string; icon: AppIcon; capability: string
+  anyCapabilities?: string[]
   feature?: string
   /** One-key jump on the /search page only, not a global shortcut; tools/new_app.py picks a free one. An application takes one key (its landing item); its other items pass '' so the single-key space lasts as applications grow. */
   shortcut: string
@@ -38,6 +39,7 @@ export interface AppCommand {
 }
 export interface AppContextLink {
   id: string; labelKey: string; icon: AppIcon; to: string; capability: string; feature?: string; pinned?: boolean
+  anyCapabilities?: string[]
   /** Locale key of the sidebar section heading; consecutive links with the same key form one section. */
   section?: string
   /** Active only on exactly this path (a section's overview page). */
@@ -175,6 +177,24 @@ export interface AppServiceEntry {
   /** Capability that opens the target; the entry is hidden without it (and without the application feature). */
   capability: string
 }
+/** Stable employee destinations; applications own their data and routes. */
+export type PersonalSection = 'profile' | 'leave' | 'requests' | 'pay' | 'assets' | 'documents' | 'schedule'
+export interface AppPersonalSummary {
+  value?: string
+  caption?: string
+  rows?: AppSearchRow[]
+  attention?: AppAttentionRow[]
+}
+export interface AppPersonalEntry extends AppServiceEntry {
+  section: PersonalSection
+  feature?: string
+  requiredCapabilities?: string[]
+  primaryAction?: AppCommand
+  summary?: {
+    queryKey: readonly unknown[]
+    load: (api: AppSearchApi, t: (key: string, params?: Record<string, unknown>) => string) => Promise<AppPersonalSummary>
+  }
+}
 /** A record one application lets another application pick or filter by. */
 export interface AppRecordOption { id: number; name: string }
 /**
@@ -225,7 +245,7 @@ export interface AppManifest {
   /** The configuration page this application adds to Settings > Applications. */
   settings?: AppSettingsPage
   contextLinks?: (path: string | undefined) => AppContextLink[]  // keyed by rail id via link module in nav
-  routeCapabilities?: Array<{ pattern: RegExp; capability: string; feature?: string }>
+  routeCapabilities?: Array<{ pattern: RegExp; capability: string; feature?: string; anyCapabilities?: string[]; requiredCapabilities?: string[] }>
   /**
    * Dynamic list sources this application owns. A recognized pathname may return a record
    * to that list, after both its normal route access and this additional capability pass.
@@ -253,6 +273,8 @@ export interface AppManifest {
   attention?: AppAttentionProvider[]
   /** Self-service entries shown on the user's own services page ("my services"): leave, payslips, requests... */
   services?: AppServiceEntry[]
+  /** Employee-owned services, separate from work and administrative navigation. */
+  personal?: AppPersonalEntry[]
   /** Record kinds other applications may pick or filter by. */
   recordPickers?: AppRecordPicker[]
   /** Record kinds other applications may link to. */

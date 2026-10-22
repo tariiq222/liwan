@@ -37,6 +37,8 @@ type Story = StoryObj<typeof meta>
 
 export const Manager: Story = { name: 'مدير الورديات' }
 
+export const SelfService: Story = { name: 'جدول عملي بلا إدارة', args: { assignments: [assignments[0]!], caption: 'جدول عملي', canManage: false } }
+
 export const Reader: Story = { name: 'قارئ بلا إجراءات', args: { canManage: false } }
 
 export const Loading: Story = { name: 'أثناء التحميل', args: { assignments: [], loading: true } }

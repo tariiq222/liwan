@@ -22,6 +22,16 @@ describe('the HR preview fixtures', () => {
     ]) expect(() => schema.parse(moduleUiPreviewData(path, at(path))), path).not.toThrow()
   })
 
+  it('serves own profile and own leave details without exposing another employee in the mock', () => {
+    expect(hrPreviewData('/api/v1/hr/me', at('/api/v1/hr/me'))).toMatchObject({ id: 1, access: null, contract: null })
+    expect(hrPreviewData('/api/v1/hr/leave/me/1', at('/api/v1/hr/leave/me/1'))).toMatchObject({ id: 1, employee: { id: 1 } })
+    expect(hrPreviewData('/api/v1/hr/leave/me/2', at('/api/v1/hr/leave/me/2'))).toBeUndefined()
+    const mine = hrPreviewData('/api/v1/hr/leave/requests', at('/api/v1/hr/leave/requests', '?mine=1'))
+    expect(mine.items.map(item => item.id)).toEqual([1, 3])
+    const pending = hrPreviewData('/api/v1/hr/leave/requests', at('/api/v1/hr/leave/requests', '?state=confirm,validate1'))
+    expect(pending.items.map(item => item.id)).toEqual([1])
+  })
+
   it('narrow the expiring items to the asked window, overdue ones included', () => {
     const list = (days) => hrPreviewData('/api/v1/hr/expiring', at('/api/v1/hr/expiring', `?within_days=${days}`))
     expect(list(30).items.map(item => item.days_left)).toEqual([-3, 5, 12, 25])

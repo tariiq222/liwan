@@ -352,3 +352,8 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | صفحة مهامي `/work` | `apps/web/app/components/work/WorkRow.vue` (قصة: `apps/web/stories/work/WorkRow.stories.ts`) | صف عمل بنقطة عاجل ورقاقة التطبيق المصدر وسطر الاقتراح؛ الأقسام الثلاثة للتنفيذ والقرار والمتابعة في `SharedSegmentedControl` |
 | خدماتي `/services` | `apps/web/app/components/services/ServicesGroups.vue` (قصة: `apps/web/stories/services/ServicesGroups.stories.ts`) | مجموعات `SharedLinkCard` من خدمات تعلنها التطبيقات في الـmanifest (`services`) |
 | بداية التطبيق `/apps/<id>` | `apps/web/app/components/apps/AppsStartContent.vue` (قصة: `apps/web/stories/apps/AppsStartContent.stories.ts`) | «يحتاج انتباهك» ثم «ابدأ من هنا» من بيانات التطبيق نفسه دون كود لكل تطبيق |
+
+### Shared HR leave screens
+
+- `apps/web/app/components/hr/LeaveList.vue`: shared administrative and personal leave list; owns `SharedListPage` and uses Nuxt UI controls.
+- `apps/web/app/components/hr/LeaveRecord.vue`: shared administrative and personal leave record; owns `SharedRecordPage` and uses Nuxt UI controls.

@@ -590,6 +590,8 @@ def theme_errors(current: dict[str, str]) -> list[str]:
 # vocabulary lives in CSS classes rather than ad-hoc max-width utilities.
 PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage', 'webvue-page-width-form',
                'ChatWorkspace', 'TaskDetailPage',
+               # Shared HR leave screens own the list/record page shell.
+               'HrLeaveList', 'HrLeaveRecord',
                # The Plan 4 page templates are shells themselves (each wraps SharedPageContainer).
                'SharedListPage', 'SharedRecordPage', 'SharedDashboardPage', 'SharedTimelineFrame',
                'SharedConversationLayout', 'SharedStandalonePage')
