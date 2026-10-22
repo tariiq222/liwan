@@ -2,10 +2,12 @@
 from . import (
     access_assignment,
     access_audit,
+    access_branch,
     access_permission,
     access_role,
     access_service,
     ir_attachment,
+    ir_rule,
     res_company,
     res_partner,
     res_users,

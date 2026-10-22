@@ -394,7 +394,7 @@ class AccessAdminAuditController(http.Controller):
             if filters.get(key):
                 domain.append((key, '=', parse_positive_int(filters[key], key)))
         if filters.get('target_type'):
-            if filters['target_type'] not in ('user', 'role'):
+            if filters['target_type'] not in ('user', 'role', 'company'):
                 raise ApiError(422, 'invalid', 'unknown target type', field='target_type')
             domain.append(('target_type', '=', filters['target_type']))
         Event = request.env['webvue.access.audit']

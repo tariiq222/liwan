@@ -340,6 +340,8 @@ describe('admin input schemas and fail-closed security fields', () => {
       'user.disabled',
       'user.reactivated',
       'user.password_reset',
+      'user.branch_roles_changed',
+      'branch.policy_changed',
       'employee.archived_access_disabled',
       'role.created',
       'role.updated',
