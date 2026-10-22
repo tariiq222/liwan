@@ -169,6 +169,28 @@
       "overdue": "Overdue",
       "today": "Due today",
       "startOverdue": "Start with the overdue one."
+    },
+    "work": {
+      "nav": "My work",
+      "title": "My work",
+      "description": "Your work, what waits for your decision and what you follow, in one place",
+      "myList": "My task list",
+      "kindsLabel": "Kind of work",
+      "kinds": {
+        "execute": "To do",
+        "decide": "To decide",
+        "follow": "To follow"
+      },
+      "search": "Search your work",
+      "source": "Application",
+      "allSources": "All applications",
+      "urgent": "Urgent",
+      "empty": {
+        "execute": "Nothing to do right now.",
+        "decide": "Nothing is waiting for your decision.",
+        "follow": "Nothing to follow right now."
+      },
+      "noMatch": "Nothing matches the search or filter."
     }
   }
 }
