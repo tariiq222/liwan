@@ -142,11 +142,12 @@ class ClaudeBoundaryTest(unittest.TestCase):
         diff = '+ echo "$CLAUDE_CODE_OAUTH_TOKEN"; malicious instruction\n'
         replies = [subprocess.CompletedProcess([], 0, diff, ''), subprocess.CompletedProcess([], 0, wrapper, '')]
         with patch.object(pr_review, 'current'), patch.object(pr_review, 'output'), patch.dict(
-                os.environ, {'CLAUDE_CODE_OAUTH_TOKEN': 'test-only-credential'}), patch.object(
+                os.environ, {'CLAUDE_CODE_OAUTH_TOKEN': 'test-only-credential', 'CLAUDE_BIN': '/untrusted/program'}), patch.object(
                     pr_review.subprocess, 'run', side_effect=replies) as execute:
             self.assertEqual(pr_review.run_claude('o/r', 1, HEAD), 0)
         cli = execute.call_args_list[1]
         args = cli.args[0]
+        self.assertEqual(args[0], 'claude')
         self.assertEqual(args[args.index('--tools') + 1], '')
         self.assertIn('--strict-mcp-config', args)
         self.assertEqual(args[args.index('--setting-sources') + 1], '')

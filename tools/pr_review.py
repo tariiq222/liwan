@@ -120,7 +120,7 @@ def run_claude(repo: str, pr: int, head: str) -> int:
         f'<untrusted-pr-diff>\n{diff.stdout}\n</untrusted-pr-diff>\n'
     )
     done = subprocess.run([
-        os.environ.get('CLAUDE_BIN', 'claude'), '--print', '--model', 'sonnet', '--max-turns', '30',
+        'claude', '--print', '--model', 'sonnet', '--max-turns', '30',
         '--output-format', 'json', '--json-schema', json.dumps(REPORT_SCHEMA),
         '--tools', '', '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}', '--setting-sources', '',
     ], input=prompt, capture_output=True, text=True, timeout=780, check=False)
