@@ -1,5 +1,5 @@
 import { sendWebResponse } from 'h3'
-import { boundedTenantBody, tenantTransport } from '../../../utils/tenantTransport'
+import { boundedTenantBody, tenantTransport, withUpstreamSlot } from '../../../utils/tenantTransport'
 import { joinURL } from 'ufo'
 import { tenantUpstreamHeaders } from '../../../utils/tenantRequest'
 
@@ -12,7 +12,9 @@ export default defineEventHandler((event) => {
   const url = joinURL(odooUrl, event.path)
   // Dedicated keeps the original two-argument proxy contract. Invalid/shared
   // requests still go through tenantUpstreamHeaders validation before forwarding.
+  // Both branches hold an upstream concurrency slot: overload queues here
+  // instead of opening connections the kernel drops.
   return Object.keys(headers).length
-    ? boundedTenantBody(event).then(body => tenantTransport(event, odooUrl, event.path, { method: event.method, body })).then(response => sendWebResponse(event, response))
-    : proxyRequest(event, url)
+    ? boundedTenantBody(event).then(body => withUpstreamSlot(() => tenantTransport(event, odooUrl, event.path, { method: event.method, body }))).then(response => sendWebResponse(event, response))
+    : withUpstreamSlot(() => proxyRequest(event, url))
 })

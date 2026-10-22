@@ -1,4 +1,4 @@
-import { tenantTransport } from '../../utils/tenantTransport'
+import { tenantTransport, withUpstreamSlot } from '../../utils/tenantTransport'
 import { tenantRequest, tenantUpstreamHeaders } from '../../utils/tenantRequest'
 
 export default defineEventHandler(async (event) => {
@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   const { odooUrl } = useRuntimeConfig(event)
   const cookie = getHeader(event, 'cookie') ?? ''
   const bound = Boolean(tenantRequest(event) || process.env.WEBVUE_RELEASE_ROUTES_DIR)
-  const send = bound ? (options: { method: string; headers: Record<string, string>; body: string }) => tenantTransport(event, odooUrl, '/web/session/destroy', options) : (options: RequestInit) => fetch(`${odooUrl}/web/session/destroy`, options)
+  const send = bound ? (options: { method: string; headers: Record<string, string>; body: string }) => tenantTransport(event, odooUrl, '/web/session/destroy', options) : (options: RequestInit) => withUpstreamSlot(() => fetch(`${odooUrl}/web/session/destroy`, options))
   const upstream = await send({
     method: 'POST',
     headers: { 'Content-Type': 'application/json', cookie, ...tenantUpstreamHeaders(event) },
