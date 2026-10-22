@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { createSSRApp, effectScope, nextTick, ref, type EffectScope } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { useDocument, useDocuments, useDocumentAccess, useDocumentContexts, useDocumentContextOptions, useDocumentTags, useUpdateDocument, useUpdateDocumentAccess, useCreateDocumentTag } from '../useDocuments'
+import * as documents from '../useDocuments'
 import { documentKeys } from '../../lib/documentKeys'
 import { replaceDocumentDetail } from '../../lib/documentListCache'
 import { documentFixture } from '../../pages/documents/__tests__/helpers'
@@ -10,7 +11,7 @@ const clients: QueryClient[] = []
 afterEach(() => { scopes.splice(0).forEach(scope => scope.stop()); clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals() })
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done }); return { promise, resolve } }
 function harness(api: (path: string, options?: any) => Promise<any>) {
-  const me = ref({ company: { id: 1, name: 'First company' } })
+  const me = ref<{ id: number; company: { id: number; name: string } } | null>({ id: 7, company: { id: 1, name: 'First company' } })
   vi.stubGlobal('useMe', () => ({ me })); vi.stubGlobal('useApi', () => ({ $api: api }))
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } }); clients.push(client)
   const app = createSSRApp({ render: () => null }); app.use(VueQueryPlugin, { queryClient: client })
@@ -23,7 +24,7 @@ it('switches the same document id to a distinct company cache before delayed old
   const view = harness(async () => ++request === 1 ? old.promise : second)
   const query = view.use(() => useDocument(8))
   await expect.poll(() => request).toBe(1)
-  view.me.value = { company: { id: 2, name: 'Second company' } }; await nextTick()
+  view.me.value = { id: 7, company: { id: 2, name: 'Second company' } }; await nextTick()
   await expect.poll(() => query.data.value?.name).toBe('Second company content')
   old.resolve({ ...documentFixture, name: 'Old company content' }); await nextTick(); await Promise.resolve()
   expect(query.data.value?.name).toBe('Second company content')
@@ -35,7 +36,7 @@ it('binds a delayed mutation response to the company at request start', async ()
   const mutation = view.use(useUpdateDocument)
   const saving = mutation.mutateAsync({ id: 8, patch: { expected_revision: 3, body: 'Saved for first company' } })
   await expect.poll(() => mutation.isPending.value).toBe(true)
-  await Promise.resolve(); view.me.value = { company: { id: 2, name: 'Second company' } }
+  await Promise.resolve(); view.me.value = { id: 7, company: { id: 2, name: 'Second company' } }
   const second = { ...documentFixture, name: 'Second company original', revision: 1 }
   replaceDocumentDetail(view.client, 2, second)
   const saved = { ...documentFixture, revision: 4, body: 'Saved for first company' }; response.resolve(saved)
@@ -63,7 +64,7 @@ it('scopes list, access, contexts, options and tags to the current company', asy
   expect(keys).toEqual(expect.arrayContaining([
     ['documents', 1, 'list', { q: 'Policy' }], ['documents', 1, 'access', 8], ['documents', 1, 'contexts'], ['documents', 1, 'context-options', 'hr.department', {}], ['documents', 1, 'tags', {}],
   ]))
-  view.me.value = { company: { id: 2, name: 'Second company' } }; await nextTick()
+  view.me.value = { id: 7, company: { id: 2, name: 'Second company' } }; await nextTick()
   expect(view.client.getQueryCache().getAll().filter(query => query.queryKey[1] === 2)).toHaveLength(5)
 })
 it('keeps delayed access and tag mutation cache effects in their original company', async () => {
@@ -73,15 +74,15 @@ it('keeps delayed access and tag mutation cache effects in their original compan
   const tagMutation = view.use(useCreateDocumentTag)
   const firstAccess = accessMutation.mutateAsync({ id: 8, body: { expected_revision: 3, visibility: 'company', grants: [{ user_id: 7, access: 'editor' }] } })
   await expect.poll(() => started.length).toBe(1)
-  view.me.value = { company: { id: 2, name: 'Second company' } }; await nextTick()
+  view.me.value = { id: 7, company: { id: 2, name: 'Second company' } }; await nextTick()
   view.client.setQueryData(documentKeys.access(2, 8), { revision: 1, visibility: 'restricted', grants: [] })
   access.resolve({ revision: 4, visibility: 'company', grants: [{ user: { id: 7, name: 'Editor' }, access: 'editor' }] }); await firstAccess
   expect(view.client.getQueryData(documentKeys.access(1, 8))).toMatchObject({ revision: 4, visibility: 'company' })
   expect(view.client.getQueryData(documentKeys.access(2, 8))).toMatchObject({ revision: 1, visibility: 'restricted' })
-  view.me.value = { company: { id: 1, name: 'First company' } }; await nextTick()
+  view.me.value = { id: 7, company: { id: 1, name: 'First company' } }; await nextTick()
   view.client.setQueryData(documentKeys.tags(1), { items: [], total: 0 }); view.client.setQueryData(documentKeys.tags(2), { items: [], total: 0 })
   const creating = tagMutation.mutateAsync('Policy'); await expect.poll(() => started.length).toBe(2)
-  view.me.value = { company: { id: 2, name: 'Second company' } }; await nextTick()
+  view.me.value = { id: 7, company: { id: 2, name: 'Second company' } }; await nextTick()
   tag.resolve({ id: 10, name: 'Policy' }); await creating
   expect(view.client.getQueryState(documentKeys.tags(1))?.isInvalidated).toBe(true)
   expect(view.client.getQueryState(documentKeys.tags(2))?.isInvalidated).toBe(false)
@@ -99,7 +100,7 @@ it('blocks a stale-company query refetch rather than fetching the new company un
   const requests: string[] = []
   const view = harness(async path => { requests.push(path); return documentFixture })
   const query = view.use(() => useDocument(8)); await expect.poll(() => query.data.value?.id).toBe(8)
-  view.me.value = { company: { id: 2, name: 'Second company' } }
+  view.me.value = { id: 7, company: { id: 2, name: 'Second company' } }
   // Before Vue flushes the new query key, a mutation invalidation can still reach the previous observer.
   await view.client.invalidateQueries({ queryKey: documentKeys.detail(1, 8) })
   await nextTick()
@@ -113,7 +114,7 @@ it('rejects an old-company queued mutation before it can send under the new sess
   const saving = first.mutateAsync({ id: 8, patch: { expected_revision: 3, body: 'First' } })
   await expect.poll(() => requests.length).toBe(1)
   const queued = second.mutateAsync({ id: 9, patch: { expected_revision: 1, body: 'Queued' } }).then(() => null, error => error)
-  view.me.value = { company: { id: 2, name: 'Second company' } }; await nextTick()
+  view.me.value = { id: 7, company: { id: 2, name: 'Second company' } }; await nextTick()
   firstResponse.resolve({ ...documentFixture, revision: 4 }); await saving
   expect(await queued).toMatchObject({ status: 409, code: 'company_changed' })
   expect(requests).toEqual(['/api/v1/documents/8'])
@@ -138,7 +139,7 @@ it('loads file pages separately and rejects delayed results after a document rev
   await expect.poll(() => query.data.value?.items[0]?.id).toBe(2)
   expect(requests[1]).toEqual({ path: '/api/v1/documents/8/files', query: { limit: 50, offset: 200, revision: 1 } })
   revision.value = 2; await expect.poll(() => requests.length).toBe(3)
-  view.me.value = { company: { id: 2, name: 'Second company' } }; await expect.poll(() => requests.length).toBe(4)
+  view.me.value = { id: 7, company: { id: 2, name: 'Second company' } }; await expect.poll(() => requests.length).toBe(4)
   old.resolve({ items: [{ id: 1 }], total: 205 }); await nextTick(); await Promise.resolve()
   expect(query.data.value?.items[0]?.id).toBe(4)
 })
@@ -177,4 +178,88 @@ it('restarts a conflicted file page at the refreshed revision without retrying t
   await expect.poll(() => query.data.value?.revision).toBe(4)
   expect(restart).toHaveBeenCalledOnce()
   expect(requests).toEqual([{ limit: 50, offset: 200, revision: 3 }, { limit: 50, offset: 0, revision: 4 }])
+})
+
+it('uses employee-only list/detail endpoints and isolates pagination and identity from general documents', async () => {
+  const requests: any[] = []
+  const view = harness(async (path, options) => {
+    requests.push({ path, query: options.query })
+    return path.endsWith('/8') ? documentFixture : { items: [], total: 51 }
+  })
+  const params = ref({ limit: 25, offset: 0 })
+  const list = view.use(() => documents.useEmployeeDocuments(params))
+  const detail = view.use(() => documents.useEmployeeDocument(8))
+  await expect.poll(() => detail.data.value?.id).toBe(8)
+  params.value = { limit: 25, offset: 50 }
+  await expect.poll(() => requests.length).toBe(3)
+  expect(requests).toEqual([
+    { path: '/api/v1/documents/employee/me', query: { limit: 25, offset: 0 } },
+    { path: '/api/v1/documents/employee/me/8', query: undefined },
+    { path: '/api/v1/documents/employee/me', query: { limit: 25, offset: 50 } },
+  ])
+  expect(list.data.value?.total).toBe(51)
+  expect(view.client.getQueryData(documentKeys.detail(1, 8))).toBeUndefined()
+  view.me.value = { id: 9, company: { id: 1, name: 'First company' } }
+  await expect.poll(() => requests.length).toBe(5)
+  expect(view.client.getQueryCache().getAll().filter(query => query.queryKey.includes('employee'))).toHaveLength(5)
+})
+it('does not request personal documents without identity, permission or a valid personal detail id', async () => {
+  const api = vi.fn(async () => documentFixture); const view = harness(api)
+  view.me.value = null
+  view.use(() => documents.useEmployeeDocuments({ limit: 3 }))
+  view.use(() => documents.useEmployeeDocument(8))
+  await nextTick(); await Promise.resolve(); expect(api).not.toHaveBeenCalled()
+  view.me.value = { id: 7, company: { id: 1, name: 'First company' } }
+  const allowed = ref(false)
+  const gated = view.use(() => documents.useEmployeeDocument(9, allowed))
+  view.use(() => documents.useEmployeeDocument(null))
+  await expect.poll(() => api.mock.calls.length).toBe(2)
+  expect(gated.data.value).toBeUndefined()
+  allowed.value = true
+  await expect.poll(() => api.mock.calls.length).toBe(3)
+})
+it('does not retain another user personal detail when identity changes or signs out', async () => {
+  const old = deferred<typeof documentFixture>(); let count = 0
+  const view = harness(async () => ++count === 1 ? old.promise : { ...documentFixture, name: 'Second employee' })
+  const query = view.use(() => documents.useEmployeeDocument(8))
+  await expect.poll(() => count).toBe(1)
+  view.me.value = { id: 9, company: { id: 1, name: 'First company' } }
+  await expect.poll(() => query.data.value?.name).toBe('Second employee')
+  old.resolve(documentFixture); await nextTick(); await Promise.resolve()
+  expect(query.data.value?.name).toBe('Second employee')
+  view.me.value = null; await nextTick()
+  expect(query.data.value).toBeUndefined()
+})
+
+it('waits for the own detail before requesting files and isolates the file cache by user', async () => {
+  const first = deferred<typeof documentFixture>(); const requests: string[] = []
+  const view = harness(async path => {
+    requests.push(path)
+    if (path.endsWith('/files')) return { items: [], total: 0, revision: 3 }
+    return requests.length === 1 ? first.promise : documentFixture
+  })
+  const detail = view.use(() => documents.useEmployeeDocument(8))
+  view.use(() => documents.useDocumentFiles(() => detail.data.value?.id ?? null, { limit: 50 }, () => detail.data.value?.revision ?? 0, undefined, { personal: true }))
+  await expect.poll(() => requests.length).toBe(1)
+  expect(requests).toEqual(['/api/v1/documents/employee/me/8'])
+  first.resolve(documentFixture)
+  await expect.poll(() => requests.length).toBe(2)
+  view.me.value = { id: 9, company: { id: 1, name: 'First company' } }
+  await expect.poll(() => requests.length).toBe(4)
+  expect(requests).toEqual(['/api/v1/documents/employee/me/8', '/api/v1/documents/8/files', '/api/v1/documents/employee/me/8', '/api/v1/documents/8/files'])
+  const files = view.client.getQueryCache().getAll().filter(query => query.queryKey[2] === 'files' && query.queryKey[3] === 8)
+  expect(files.map(query => query.queryKey[7])).toEqual([7, 9])
+})
+
+it('checks the caller employee link through the nullable own HR contract and isolates identities', async () => {
+  const requests: string[] = []
+  const view = harness(async path => { requests.push(path); return null })
+  const query = view.use(() => documents.useEmployeeDocumentLink())
+  await expect.poll(() => query.data.value).toBeNull()
+  expect(requests).toEqual(['/api/v1/hr/me'])
+  view.me.value = { id: 9, company: { id: 1, name: 'First company' } }
+  await expect.poll(() => requests.length).toBe(2)
+  expect(view.client.getQueryCache().getAll().map(query => query.queryKey)).toEqual([
+    ['documents', 1, 'employee', 7, 'link'], ['documents', 1, 'employee', 9, 'link'],
+  ])
 })

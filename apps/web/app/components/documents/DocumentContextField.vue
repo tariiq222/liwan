@@ -35,7 +35,7 @@ function selectOption(value: unknown) {
     <UFormField :label="t('documents.context')" name="document-context-kind">
       <USelect id="document-context-kind" :model-value="kind || 'none'" :items="[{ value: 'none', label: t('documents.noContext') }, ...available.map(item => ({ value: item.kind, label: item.label }))]" class="w-full" :disabled="disabled || !hydrated" @update:model-value="selectKind" />
     </UFormField>
-    <UFormField v-if="selectedKind" :label="t('documents.contextRecord')" name="document-context-id">
+    <UFormField v-if="selectedKind" :label="t('documents.contextRecord')" name="document-context-id" :help="selectedKind === 'hr.employee' ? t('documents.employeeContextHelp') : undefined">
       <USelectMenu id="document-context-id" v-model:search-term="search" :model-value="modelValue?.id" :items="items" value-key="value" ignore-filter :aria-label="t('documents.contextRecord')" :search-input="{ placeholder: t('documents.contextRecord') }" :loading="options.isFetching.value || selected.isFetching.value" class="w-full" :disabled="disabled || !hydrated" @update:model-value="selectOption" />
       <UAlert v-if="options.error.value || selected.error.value" class="mt-2" color="error" :title="t('errors.generic')"><template #actions><UButton type="button" :label="t('documents.reload')" @click="options.refetch(); selected.refetch()" /></template></UAlert>
       <SharedPagination class="mt-2" :page="Math.floor(offset / limit) + 1" :pages="pages" :disabled="disabled || options.isFetching.value" @update:page="offset = ($event - 1) * limit" />
