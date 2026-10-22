@@ -14,6 +14,8 @@ FORBIDDEN_PATH_RE = re.compile(
 SECRET_LINE_RE = re.compile(
     r'(?i)\b(\w*(password|passwd|secret|token|api_key)\w*)\s*[=:]\s*["\']?([^\s"\'#]+)',
 )
+# The GitHub Actions OIDC permission (`id-token: write`) is a scope, not a token value.
+OIDC_PERMISSION_RE = re.compile(r'\s*id-token:\s*(read|write|none)\s*')
 # `odoo` is the throwaway password of the ephemeral CI postgres service.
 # `-` is the empty-default marker in shell `${VAR:-}` expansions.
 PLACEHOLDERS = frozenset({'-', 'change-me', 'changeme', 'x', 'validation-only', 'none', 'false', 'true', 'odoo'})
@@ -32,7 +34,7 @@ def find_secret_lines(path: str, text: str) -> list[tuple[str, int]]:
     hits = []
     for number, line in enumerate(text.splitlines(), start=1):
         match = SECRET_LINE_RE.search(line)
-        if not match:
+        if not match or OIDC_PERMISSION_RE.fullmatch(line):
             continue
         value = match.group(3).rstrip(',;}')
         if value.startswith(('${', '$', '<', 'REPLACE_WITH_')) or value.lower() in PLACEHOLDERS:
