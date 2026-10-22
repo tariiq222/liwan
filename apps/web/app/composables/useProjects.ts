@@ -1,13 +1,10 @@
 import { toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import type { z } from 'zod'
-import { PROJECT_STATUSES, ProjectDashboardSummarySchema, ProjectDetailSchema, ProjectListSchema, ProjectRefSchema, type ProjectCharterAction, type ProjectCopyInput, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectPhase, type ProjectStatus } from '@webvue/contracts'
+import { PROJECT_STATUSES, ProjectDashboardSummarySchema, ProjectDetailSchema, ProjectListSchema, type ProjectCharterAction, type ProjectCopyInput, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectPhase, type ProjectStatus } from '@webvue/contracts'
 import { ApiError } from './useApi'
 import { invalidateProjectCaches, projectKeys } from './projectKeys'
 import { parseOffset } from '../utils/routeQuery'
 import { projectPicker } from '../modules/pmo/recordPicker'
-
-export type ProjectRef = z.infer<typeof ProjectRefSchema>
 
 export const PROJECT_PAGE = 50
 

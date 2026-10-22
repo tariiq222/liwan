@@ -2910,26 +2910,6 @@
       ]
     },
     {
-      "name": "ShellAppearanceMenu",
-      "file": "apps/web/app/components/shell/AppearanceMenu.vue",
-      "story": "apps/web/stories/shell/AppearanceMenu.stories.ts",
-      "title": "Shell/AppearanceMenu",
-      "props": [],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [
-        "UButton",
-        "UDropdownMenu"
-      ],
-      "stories": [
-        {
-          "id": "Default",
-          "name": "زر المظهر",
-          "context": "unused"
-        }
-      ]
-    },
-    {
       "name": "ShellAppSidebar",
       "file": "apps/web/app/components/shell/AppSidebar.vue",
       "story": "apps/web/stories/shell/AppSidebar.stories.ts",

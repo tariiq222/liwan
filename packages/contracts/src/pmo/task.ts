@@ -9,8 +9,8 @@ const TaskDeliverableSchema = z.object({ name: z.string().trim().min(1), done: z
 export const TaskSchema = z.object({
   id: z.number().int().positive(), name: z.string(), description_excerpt: z.string().max(140),
   project: RefSchema.nullable(), state: TaskStateSchema,
-  // Phase 1 rules add priority values '2' and '3' on top of the design spec's '0'/'1' —
-  // see odoo-addons/webvue_api/serializers/task.py::parse_task_vals, which accepts '0'..'3'.
+  // Priorities match the '0'..'3' values accepted by
+  // odoo-addons/webvue_pmo/serializers/task.py::parse_task_vals.
   priority: z.enum(['0', '1', '2', '3']), date_deadline: z.string().nullable(), days_remaining: z.number().int().nullable(),
   is_overdue: z.boolean(), is_closed: z.boolean(), personal_stage: RefSchema.nullable(), stage: RefSchema.nullable(),
   assignees: z.array(RefSchema), tags: z.array(TagSchema),

@@ -1,7 +1,7 @@
 import type { JournalEntryCreate, JournalEntryLineInput } from '@webvue/contracts'
 
 /** One line of the editor as typed: amounts stay strings until they are validated. */
-export interface EntryLineDraft {
+interface EntryLineDraft {
   key: number
   accountId: number | null
   partnerId: number | null
@@ -17,8 +17,8 @@ export interface EntryFormDraft {
   lines: EntryLineDraft[]
 }
 
-export type EntryLineField = 'account' | 'name' | 'amount'
-export interface EntryFormErrors {
+type EntryLineField = 'account' | 'name' | 'amount'
+interface EntryFormErrors {
   journal: boolean
   date: boolean
   tooFewLines: boolean
@@ -26,7 +26,7 @@ export interface EntryFormErrors {
   lines: Array<Partial<Record<EntryLineField, true>>>
 }
 
-export interface EntryTotals { debit: number; credit: number; difference: number }
+interface EntryTotals { debit: number; credit: number; difference: number }
 
 const MIN_LINES = 2
 /** Amounts are compared in hundredths, so typed decimals never fail a balance by floating-point dust. */

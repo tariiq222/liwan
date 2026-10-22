@@ -5,9 +5,7 @@
  * string), and `parseOffset` reads a non-negative integer pagination offset,
  * defaulting to `0` on anything invalid.
  *
- * Shared by every module: project finance, meeting filters, the legacy tab
- * redirect, admin settings paths and several pages each used to carry their
- * own copy of one or both.
+ * Shared across modules so route query values follow one parsing policy.
  */
 export function firstQuery(value: unknown): string | undefined {
   const raw = Array.isArray(value) ? value[0] : value

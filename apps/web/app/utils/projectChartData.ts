@@ -169,9 +169,6 @@ export function projectStatusDoughnutChart(rows: readonly ProjectReportRow[], la
   return { kind: 'donut', data, palette: 'status', total: rows.length, centerLabel: String(rows.length), centerSubLabel }
 }
 
-/** A part-to-whole of five categories or fewer reads better as ranked bars than as a pie. */
-export const PIE_MAX_CATEGORIES = 5
-
 /** Project count per status as horizontal bars, empty statuses left out, each bar in its status colour. */
 export function projectStatusBarChart(rows: readonly ProjectReportRow[], labels: ChartLabels): DashboardBarChart {
   const data = projectStatusDoughnutData(rows, labels).filter(item => item.value > 0)

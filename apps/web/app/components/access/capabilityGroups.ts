@@ -1,6 +1,6 @@
 import type { EffectiveCapability } from '@webvue/contracts'
 
-export type CapabilityGroup = { domain: string; items: EffectiveCapability[] }
+type CapabilityGroup = { domain: string; items: EffectiveCapability[] }
 
 /** Above this many capabilities a record opens its groups collapsed. */
 export const CAPABILITY_GROUPS_OPEN_LIMIT = 12

@@ -51,7 +51,7 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
 /* Keep compact desktop geometry while preserving touch target sizes. */
 @media (pointer: coarse) {
   :is([data-webvue-shell], .webvue-mobile-menu, .webvue-create-panel, .webvue-search-dialog, [data-testid="unsaved-changes-dialog"]) :is(
-    button[data-slot="base"], a[data-slot="base"], [data-testid="notification-bell"], [data-testid="appearance-menu"],
+    button[data-slot="base"], a[data-slot="base"], [data-testid="notification-bell"],
     [data-slot="select-trigger"], .header-account, .webvue-search-trigger,
     .webvue-context-toggle, .webvue-context-link
   ) {
@@ -411,7 +411,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .webvue-shell-header-search { flex: none; }
   .webvue-shell-header-search + .webvue-shell-header-actions { flex: none; }
   .webvue-shell-header .webvue-search-trigger { width: 44px; padding: 0; justify-content: center; }
-  .webvue-shell-header :is(.webvue-search-trigger, .webvue-mobile-menu-trigger, [data-testid="notification-bell"], [data-slot="header-account"], [data-testid="appearance-menu"]) { min-height: 44px; min-width: 44px; }
+  .webvue-shell-header :is(.webvue-search-trigger, .webvue-mobile-menu-trigger, [data-testid="notification-bell"], [data-slot="header-account"]) { min-height: 44px; min-width: 44px; }
   .webvue-shell-header .header-account { justify-content: center; padding-inline: 0; width: 44px; }
   .webvue-shell-workspace { margin-inline: 0; }
   .webvue-shell-main { --webvue-pad-x: 12px; --webvue-pad-top: 16px; padding: var(--webvue-pad-top) var(--webvue-pad-x) max(16px, env(safe-area-inset-bottom)); }
