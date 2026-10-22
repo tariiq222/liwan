@@ -41,7 +41,7 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | المكوّن | القصة | مكونات الأساس المستخدمة فعليًا |
 | --- | --- | --- |
 | `packages/ui/app/components/shared/feedback/LoadingSkeleton.vue` | `apps/web/stories/shared/LoadingSkeleton.stories.ts` | `USkeleton`؛ صفوف، سجل، بطاقات |
-| `packages/ui/app/components/shared/feedback/ErrorState.vue` | `apps/web/stories/shared/ErrorState.stories.ts` | `UAlert`، `UButton` (إعادة المحاولة بعد الترطيب) |
+| `packages/ui/app/components/shared/feedback/ErrorState.vue` | `apps/web/stories/shared/ErrorState.stories.ts` | `UIcon` في دائرة بصبغة الخطأ، `UButton` حبّة صغيرة (إعادة المحاولة بعد الترطيب)؛ صغيرة في المنتصف دون خلفية حمراء عريضة |
 | `packages/commercial-ui/app/components/shared/data/InvoiceLines.vue` | `apps/web/stories/shared/InvoiceLines.stories.ts` | جدول أو قائمة لبنود الفاتورة مع إشعار وإجماليات اختيارية؛ `UBadge` لنوع البند؛ المبالغ ينسّقها المستدعي (`subscriptionInvoiceView`) |
 | `packages/ui/app/components/shared/feedback/ForbiddenState.vue` | `apps/web/stories/shared/ForbiddenState.stories.ts` | `UIcon`؛ 403 بلا إعادة محاولة |
 | `packages/ui/app/components/shared/feedback/NotFoundState.vue` | `apps/web/stories/shared/NotFoundState.stories.ts` | `UIcon`، `UButton` رابط رجوع اختياري؛ 404 |

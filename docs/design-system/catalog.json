@@ -4598,8 +4598,8 @@
       ],
       "slots": [],
       "nuxtUi": [
-        "UAlert",
-        "UButton"
+        "UButton",
+        "UIcon"
       ],
       "stories": [
         {
