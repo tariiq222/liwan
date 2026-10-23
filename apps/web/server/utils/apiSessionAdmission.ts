@@ -11,10 +11,12 @@ const verified = new Map<string, number>()
 const pending = new Map<string, Promise<void>>()
 const MAX_VERIFIED = 512
 const TTL_MS = 15_000
-const MAX_CHECKS = 2
+// Both deployed Odoo topologies have two HTTP workers. Keep one available
+// for verified application work even while an unknown session probe stalls.
+const MAX_CHECKS = 1
 let checking = 0
-const unavailable = () => createError({ statusCode: 503, data: { code: 'session_validation_unavailable' } })
-const required = () => createError({ statusCode: 403, data: { code: 'session_required' } })
+const unavailable = () => createError({ statusCode: 503, data: { code: 'session_validation_unavailable', message: 'Session validation is temporarily unavailable.' } })
+const required = () => createError({ statusCode: 403, data: { code: 'session_required', message: 'A valid session is required.' } })
 
 export async function requireApiSession(event: H3Event, upstream: string, binding: Record<string, string>): Promise<void> {
   const session = getCookie(event, 'session_id')?.trim()
@@ -25,7 +27,7 @@ export async function requireApiSession(event: H3Event, upstream: string, bindin
   verified.delete(key)
   const existing = pending.get(key)
   if (existing) return existing
-  if (checking >= MAX_CHECKS) throw createError({ statusCode: 429, data: { code: 'session_admission_busy' } })
+  if (checking >= MAX_CHECKS) throw createError({ statusCode: 429, data: { code: 'session_admission_busy', message: 'Session validation is busy. Try again shortly.' } })
   const check = (async () => {
     checking++
     try {

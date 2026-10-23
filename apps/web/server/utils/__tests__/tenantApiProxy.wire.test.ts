@@ -130,15 +130,15 @@ describe('API session preadmission on the wire', () => {
     expect((await fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'session_id=valid-wire-session' } })).status).toBe(200)
     workCalls = 0
     holdChecks = true
-    const pending = ['a', 'b'].map(id => fetch(`${url}/api/v1/tasks`, { method: 'POST', headers: { cookie: `session_id=forged-${id}` }, body: '{}' }))
+    const pending = ['a'].map(id => fetch(`${url}/api/v1/tasks`, { method: 'POST', headers: { cookie: `session_id=forged-${id}` }, body: '{}' }))
     try {
-      await vi.waitFor(() => expect(releaseChecks).toHaveLength(2))
+      await vi.waitFor(() => expect(releaseChecks).toHaveLength(1))
       expect((await fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'session_id=forged-c' } })).status).toBe(429)
       expect((await fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'session_id=valid-wire-session' } })).status).toBe(200)
       expect(workCalls).toBe(1)
     } finally {
       for (const release of releaseChecks) release()
-      expect((await Promise.all(pending)).map(response => response.status)).toEqual([403, 403])
+      expect((await Promise.all(pending)).map(response => response.status)).toEqual([403])
     }
   })
   it('preserves public branding without a session', async () => {
