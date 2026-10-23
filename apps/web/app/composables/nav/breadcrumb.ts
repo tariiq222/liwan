@@ -15,6 +15,7 @@ const target = (to: unknown): string => (typeof to === 'string' ? to : (to as { 
  * label without a link.
  */
 export function shellBreadcrumb(input: { path: string; pageTitle?: string | null; t: (key: string) => string; rail: readonly { id: string; to: string }[] }): ShellCrumb[] {
+  if (normalize(input.path).startsWith('/account/')) return [{ label: input.t('nav.account'), to: '/account' }]
   const crumbs: ShellCrumb[] = []
   const push = (crumb: ShellCrumb) => {
     const last = crumbs.at(-1)

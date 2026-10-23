@@ -20,6 +20,10 @@ class OperationProcess(models.Model):
     state = fields.Selection([('draft', 'Draft'), ('published', 'Published'), ('archived', 'Archived')], default='draft', required=True)
     revision = fields.Integer(default=0, readonly=True, copy=False)
     execution_kind = fields.Char(default='approval', required=True)
+    purpose = fields.Selection(
+        [('work', 'Work'), ('employee', 'Employee affairs')],
+        default='work', required=True, index=True,
+    )
     step_ids = fields.One2many('webvue.operation.process.step', 'process_id')
 
     @api.model
@@ -39,7 +43,7 @@ class OperationProcess(models.Model):
     def create(self, vals_list):
         require(self.env, 'operations.processes.manage')
         for vals in vals_list:
-            if not trusted(self.env) and set(vals) - {'name', 'description', 'execution_kind', 'company_id'}:
+            if not trusted(self.env) and set(vals) - {'name', 'description', 'execution_kind', 'purpose', 'company_id'}:
                 raise AccessError(self.env._('Process control fields cannot be supplied.'))
             if vals.get('company_id', self.env.company.id) != self.env.company.id:
                 raise AccessError(self.env._('Use the current company.'))
@@ -55,12 +59,15 @@ class OperationProcess(models.Model):
     def unlink(self):
         raise AccessError(self.env._('Archive processes to preserve their history.'))
 
-    def action_configure(self, revision, name, description, execution_kind, steps):
+    def action_configure(self, revision, name, description, execution_kind, steps, *, purpose=None):
         self.ensure_one()
         self._guard()
         self.lock_for_update()
         self.invalidate_recordset()
         check_revision(self, revision)
+        purpose = self.purpose if purpose is None else purpose
+        if purpose not in ('work', 'employee'):
+            raise ValidationError(self.env._('Choose a valid process purpose.'))
         if execution_kind not in self._operations_execution_kinds():
             raise ValidationError(self.env._('This execution action is not available.'))
         if not isinstance(steps, list) or not 1 <= len(steps) <= 20:
@@ -73,7 +80,7 @@ class OperationProcess(models.Model):
             prepared.append(Command.create({'name': text(self.env, item['name'], 'stage', 200, True), 'sequence': sequence, 'reviewer_ids': [Command.set(users.ids)], 'company_id': self.company_id.id}))
         process = self.with_context(_operations_write=TOKEN)
         process.step_ids.unlink()
-        process.write({'name': text(self.env, name, 'name', 200, True), 'description': text(self.env, description, 'description', 20000), 'execution_kind': execution_kind, 'step_ids': prepared, 'state': 'draft', 'revision': self.revision + 1})
+        process.write({'name': text(self.env, name, 'name', 200, True), 'description': text(self.env, description, 'description', 20000), 'execution_kind': execution_kind, 'purpose': purpose, 'step_ids': prepared, 'state': 'draft', 'revision': self.revision + 1})
         return self
 
     def action_publish(self, revision):

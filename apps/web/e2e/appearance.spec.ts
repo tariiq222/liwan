@@ -16,15 +16,13 @@ async function primary(page: Page) {
   return page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())
 }
 
-// Display mode and font size are in the account menu (checkbox items behaving as
-// two radio groups) saved per user through PATCH /api/v1/me/appearance.
+// Display mode and font size live in Self-service account settings, saved per user.
 async function choose(page: Page, label: string) {
-  await page.getByTestId('account-menu').click()
-  const item = page.getByRole('menuitemcheckbox', { name: label, exact: true })
+  await page.goto('/account/settings')
+  const item = page.getByRole('radio', { name: label, exact: true })
   await expect(item).toBeVisible()
   // Selecting the already active value is intentionally a no-op, not a write.
   if (await item.getAttribute('aria-checked') === 'true') {
-    await page.keyboard.press('Escape')
     return
   }
   const response = page.waitForResponse(response => response.url().includes('/api/v1/me/appearance') && response.request().method() === 'PATCH')
@@ -33,9 +31,8 @@ async function choose(page: Page, label: string) {
 }
 
 async function expectChecked(page: Page, label: string) {
-  await page.getByTestId('account-menu').click()
-  await expect(page.getByRole('menuitemcheckbox', { name: label, exact: true })).toHaveAttribute('aria-checked', 'true')
-  await page.keyboard.press('Escape')
+  await page.goto('/account/settings')
+  await expect(page.getByRole('radio', { name: label, exact: true })).toHaveAttribute('aria-checked', 'true')
 }
 
 const MODE = { light: 'فاتح', dark: 'داكن' } as const
@@ -101,8 +98,8 @@ test('the saved appearance belongs to the signed-in user, not the browser', asyn
   })
   expect(created.status(), 'Requires a backend with account creation and separate user sessions').toBe(201)
   // Another user on the same browser starts from their own (default) preference.
-  await page.locator('[data-slot="header-account"]').click()
-  await page.getByRole('menuitem', { name: 'تسجيل الخروج' }).click()
+  await page.goto('/account/settings')
+  await page.getByRole('button', { name: 'تسجيل الخروج' }).click()
   await expect(page).toHaveURL(/\/login/)
   await page.getByLabel('اسم المستخدم').fill(`appearance-${suffix}@example.test`)
   await page.getByLabel('كلمة المرور').fill('Appearance-Initial-123!')

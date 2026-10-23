@@ -1,10 +1,11 @@
 import type { AppContextLink, AppManifest } from '../types'
+import { hrPersonalEntries } from './personal'
 import { hrSectionActive, hrSectionOf, hrSectionTarget, type HrSection } from './routes'
 
 const plus = 'i-lucide-plus'
 // Each area pins its own create action; the employee directory is the fallback.
 const AREA_CREATE: Array<[prefix: string, link: AppContextLink]> = [
-  ['/hr/leave', { id: 'new-leave', labelKey: 'hr.leave.new', icon: plus, to: '/hr/leave/new', capability: 'hr.leave.request', pinned: true }],
+  ['/hr/leave', { id: 'new-allocation', labelKey: 'hr.leave.allocate', icon: plus, to: '/hr/leave/allocations/new', capability: 'hr.leave.manage', pinned: true }],
   ['/hr/departments', { id: 'new-department', labelKey: 'hr.depts.new', icon: plus, to: '/hr/departments/new', capability: 'hr.departments.manage', pinned: true }],
   ['/hr/recruitment', { id: 'new-applicant', labelKey: 'hrRecruitment.newApplicant', icon: plus, to: '/hr/recruitment/new', capability: 'hr.recruitment.manage', pinned: true }],
   ['/hr/shifts', { id: 'new-shift', labelKey: 'hrShifts.new', icon: plus, to: '/hr/shifts/new', capability: 'hr.shifts.manage', pinned: true }],
@@ -19,8 +20,6 @@ function createLink(path?: string): AppContextLink {
   return AREA_CREATE.find(([prefix]) => path?.startsWith(prefix))?.[1] ?? NEW_EMPLOYEE
 }
 
-// The caller's own payslips are a page of their own: the runs entry does not claim them.
-const PAYROLL_OWN_PAGES = ['/hr/payroll/mine']
 const areaTargets = ['/hr/recruitment', '/hr/shifts', '/hr/onboarding', '/hr/offboarding', '/hr/assets']
 
 const section = (id: HrSection, labelKey: string, icon: AppContextLink['icon'], to: string, capability: string, feature?: string): AppContextLink =>
@@ -32,7 +31,6 @@ const SECTIONS: AppContextLink[] = [
   section('people', 'hr.nav.people', 'i-lucide-users', '/hr', 'hr.employees.read'),
   section('time', 'hr.nav.time', 'i-lucide-calendar-clock', '/hr/leave', 'hr.leave.read'),
   section('pay', 'hr.nav.pay', 'i-lucide-banknote', '/hr/payroll', 'hr.payroll.read', 'hr.payroll'),
-  section('mine', 'hr.nav.mine', 'i-lucide-user-round', '/hr/assets/mine', 'hr.employees.read'),
 ]
 
 const page = (id: string, labelKey: string, icon: AppContextLink['icon'], to: string, capability: string, owner: HrSection, feature?: string): AppContextLink =>
@@ -58,16 +56,12 @@ const SUB_LISTS: Record<HrSection, AppContextLink[]> = {
   pay: [
     page('payroll', 'nav.payroll', 'i-lucide-banknote', '/hr/payroll', 'hr.payroll.read', 'pay', 'hr.payroll'),
   ],
-  mine: [
-    page('my-assets', 'nav.myAssets', 'i-lucide-package-check', '/hr/assets/mine', 'hr.employees.read', 'mine', 'hr.assets'),
-    page('my-payslips', 'nav.myPayslips', 'i-lucide-receipt', '/hr/payroll/mine', 'hr.employees.read', 'mine', 'hr.payroll'),
-  ],
 }
 
 const manifest: AppManifest = {
   id: 'hr',
   feature: 'hr.enabled',
-  routePrefixes: ['/hr'],
+  routePrefixes: ['/hr', '/account/profile', '/account/leave', '/account/pay', '/account/assets', '/account/schedule'],
   rail: [{ id: 'hr', labelKey: 'nav.hr', shortLabelKey: 'nav.rail.hr', icon: 'i-lucide-users', to: '/hr', order: 50 }],
   nav: [
     { to: '/hr', labelKey: 'nav.employees', icon: 'i-lucide-users', shortcut: '3', goKey: 'e', capability: 'hr.employees.read' },
@@ -89,7 +83,7 @@ const manifest: AppManifest = {
       { id: 'shifts', labelKey: 'hr.shiftSettings.title', icon: 'i-lucide-calendar-clock', capability: 'hr.shifts.manage' },
     ],
   },
-  // The pinned create follows the open area. The five section links stay on screen in every page of the application;
+  // The pinned create follows the open area. The four section links stay on screen in every page of the application;
   // the open section's pages follow in the sub-list card under its own heading.
   contextLinks: path => [createLink(path), ...SECTIONS, ...SUB_LISTS[hrSectionOf(path)]],
   landing: [
@@ -103,10 +97,11 @@ const manifest: AppManifest = {
     { path: '/hr/assets', capability: 'hr.assets.read' },
     { path: '/hr/payroll', capability: 'hr.payroll.read' },
   ],
+  personal: hrPersonalEntries,
   commands: [
     { id: 'hr.new-employee', labelKey: 'hr.directory.newEmployee', icon: 'i-lucide-users', to: '/hr/employees/new', capability: 'hr.employees.manage' },
     { id: 'hr.new-department', labelKey: 'hr.depts.new', icon: 'i-lucide-network', to: '/hr/departments/new', capability: 'hr.departments.manage' },
-    { id: 'hr.new-leave', labelKey: 'hr.leave.new', icon: 'i-lucide-calendar-days', to: '/hr/leave/new', capability: 'hr.leave.request' },
+    { id: 'hr.new-leave', labelKey: 'hr.leave.new', icon: 'i-lucide-calendar-days', to: '/account/leave/new', capability: 'hr.leave.request' },
     { id: 'hr.new-applicant', labelKey: 'hrRecruitment.newApplicant', icon: 'i-lucide-user-search', to: '/hr/recruitment/new', capability: 'hr.recruitment.manage' },
     { id: 'hr.new-shift', labelKey: 'hrShifts.new', icon: 'i-lucide-calendar-clock', to: '/hr/shifts/new', capability: 'hr.shifts.manage' },
     { id: 'hr.new-onboarding', labelKey: 'hrOnboarding.runs.new', icon: 'i-lucide-user-plus', to: '/hr/onboarding/new', capability: 'hr.onboarding.manage' },
@@ -123,6 +118,12 @@ const manifest: AppManifest = {
     'hr.payroll.': 'hr.payroll',
   },
   routeCapabilities: [
+    { pattern: /^\/account\/profile$/, capability: 'hr.employees.read' },
+    { pattern: /^\/account\/leave\/new$/, capability: 'hr.leave.request', requiredCapabilities: ['hr.employees.read'] },
+    { pattern: /^\/account\/leave(?:\/[^/]+)?$/, capability: 'hr.leave.read', requiredCapabilities: ['hr.employees.read'] },
+    { pattern: /^\/account\/pay(?:\/[^/]+)?$/, capability: 'hr.employees.read', feature: 'hr.payroll' },
+    { pattern: /^\/account\/assets$/, capability: 'hr.employees.read', feature: 'hr.assets' },
+    { pattern: /^\/account\/schedule$/, capability: 'hr.employees.read', feature: 'hr.shifts' },
     { pattern: /^\/hr\/recruitment\/(?:.+\/)?new$/, capability: 'hr.recruitment.manage' },
     { pattern: /^\/hr\/recruitment(?:\/|$)/, capability: 'hr.recruitment.read' },
     { pattern: /^\/hr\/shifts\/(?:.+\/)?new$/, capability: 'hr.shifts.manage' },
@@ -132,17 +133,12 @@ const manifest: AppManifest = {
     { pattern: /^\/hr\/offboarding\/(?:.+\/)?new$/, capability: 'hr.offboarding.manage' },
     { pattern: /^\/hr\/offboarding(?:\/|$)/, capability: 'hr.offboarding.read' },
     { pattern: /^\/hr\/assets\/(?:.+\/)?new$/, capability: 'hr.assets.manage' },
-    // The caller's own custody is an employee read, not an assets-area read.
-    { pattern: /^\/hr\/assets\/mine$/, capability: 'hr.employees.read', feature: 'hr.assets' },
     { pattern: /^\/hr\/assets(?:\/|$)/, capability: 'hr.assets.read' },
-    { pattern: /^\/hr\/leave\/new$/, capability: 'hr.leave.request' },
     { pattern: /^\/hr\/leave\/allocations\/new$/, capability: 'hr.leave.manage' },
-    { pattern: /^\/hr\/leave(?:\/|$)/, capability: 'hr.leave.read' },
+    { pattern: /^\/hr\/leave(?:\/|$)/, capability: 'hr.leave.read', anyCapabilities: ['hr.leave.approve', 'hr.leave.manage'] },
     { pattern: /^\/hr\/reports$/, capability: 'hr.employees.manage' },
     { pattern: /^\/hr\/employees\/[^/]+\/compensation$/, capability: 'hr.payroll.manage', feature: 'hr.payroll' },
     { pattern: /^\/hr\/payroll\/new$/, capability: 'hr.payroll.manage', feature: 'hr.payroll' },
-    // The caller's own approved payslips are an employee read, not a payroll-area read.
-    { pattern: /^\/hr\/payroll\/mine(?:\/[^/]+)?$/, capability: 'hr.employees.read', feature: 'hr.payroll' },
     { pattern: /^\/hr\/payroll(?:\/|$)/, capability: 'hr.payroll.read', feature: 'hr.payroll' },
     { pattern: /^\/hr\/employees\/(new|[^/]+\/edit)$/, capability: 'hr.employees.manage' },
     { pattern: /^\/hr\/departments\/(new|[^/]+\/edit)$/, capability: 'hr.departments.manage' },
@@ -153,11 +149,7 @@ const manifest: AppManifest = {
     if (inSection !== undefined) return inSection
     // Create forms (`.../new`) belong to the pinned create link, not to a list entry.
     if (target === '/hr') return path === '/hr' || (path.startsWith('/hr/employees/') && path !== '/hr/employees/new')
-    // The own-custody page is its own entry: the assets area does not claim it.
-    if (target === '/hr/assets/mine') return path === target
-    if (target === '/hr/assets' && path === '/hr/assets/mine') return false
-    if (PAYROLL_OWN_PAGES.includes(target)) return path === target || (target === '/hr/payroll/mine' && path.startsWith(`${target}/`))
-    if (target === '/hr/payroll') return path === target || (path.startsWith(`${target}/`) && !PAYROLL_OWN_PAGES.some(own => path === own || path.startsWith(`${own}/`)))
+    if (target === '/hr/payroll') return path === target || path.startsWith(`${target}/`)
     // The applicants page is the recruitment list; the jobs pages are their own entry.
     if (target === '/hr/recruitment') return path === target || (path.startsWith(`${target}/`) && !path.startsWith('/hr/recruitment/jobs'))
     if (target === '/hr/recruitment/jobs') return path === target || path.startsWith(`${target}/`)

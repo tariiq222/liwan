@@ -9,3 +9,5 @@ type Story = StoryObj<typeof meta>
 export const Mine: Story = {}
 export const Pending: Story = { args: { scope: 'pending' } }
 export const Monitoring: Story = { args: { scope: 'monitoring' } }
+
+export const Personal: Story = { args: { scope: 'mine', personal: true } }

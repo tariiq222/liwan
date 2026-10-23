@@ -10,7 +10,7 @@ export function operationListLocation(path: string, query: Record<string, unknow
   return `${path}${search.size ? `?${search}` : ''}${hash}`
 }
 export function safeOperationReturnTo(value: unknown, fallback: string) {
-  return typeof value === 'string' && /^\/operations(?:\/(?:pending|monitoring|processes))?(?:[?#]|$)/.test(value) ? value : fallback
+  return typeof value === 'string' && /^\/(?:operations(?:\/(?:pending|monitoring|processes))?|account\/requests)(?:[?#]|$)/.test(value) ? value : fallback
 }
 export function requestFormErrors(form: { name: string; process_id: number | null }, edit: boolean) {
   const errors: Record<string, string> = {}

@@ -11,13 +11,13 @@ import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const cleanups: Array<() => void> = []
 afterEach(() => { cleanups.splice(0).forEach(cleanup => cleanup()) })
-async function loadPage(allowed = true) {
+async function loadPage(allowed = true, initialPath = '/documents?q=term&context_kind=hr.department&context_id=2&offset=25') {
   const filename = resolve(import.meta.dirname, '../../documents.vue')
   const script = compileScript(parse(readFileSync(filename, 'utf8'), { filename }).descriptor, { id: 'documents-index-behavior-test' }).content
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
   const module = { exports: {} as Record<string, unknown> }
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/documents', component: {} }] })
-  await router.push('/documents?q=term&context_kind=hr.department&context_id=2&offset=25')
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/documents', component: {} }, { path: '/account/documents/:id?', component: {} }] })
+  await router.push(initialPath)
   const route = Vue.reactive({
     get path() { return router.currentRoute.value.path }, get query() { return router.currentRoute.value.query },
     get fullPath() { return router.currentRoute.value.fullPath }, get hash() { return router.currentRoute.value.hash },
@@ -104,4 +104,10 @@ it('keeps the visibility and expiry filters from the URL in the document request
   await expect.poll(() => loaded.route.query.visibility).toBeUndefined()
   ;(loaded.state.clearFilters as () => void)()
   await expect.poll(() => loaded.route.query.expired).toBeUndefined()
+})
+
+it('suppresses administrative context options on personal children even with a warm context cache and crafted filters', async () => {
+  const loaded = await loadPage(true, '/account/documents/8?context_kind=hr.department&context_id=2')
+  expect((loaded.state.isListRoute as Vue.ComputedRef<boolean>).value).toBe(false)
+  expect((loaded.state.provider as Vue.ComputedRef<string | null>).value).toBeNull()
 })
