@@ -42,8 +42,8 @@ def dump_leave(leave, cancellation=None):
         cancellation = model.search([('leave_id', '=', leave.id)], limit=1)
     pending = bool(cancellation and cancellation.state == 'pending')
     policy = leave.env['webvue.hr.leave.settings']._webvue_effective_policy(leave.company_id)
-    can_request = own and model._webvue_can('hr.leave.request')
-    can_manage = not own and model._webvue_can('hr.leave.approve')
+    can_request = own and model._webvue_can('hr.leave.request', company=leave.company_id)
+    can_manage = not own and model._webvue_can('hr.leave.approve', company=leave.company_id)
     eligible = False
     if (can_request or can_manage) and leave.state == 'validate':
         try:

@@ -191,7 +191,7 @@ class HrLeaveController(http.Controller):
         if cancellation_state not in (None, '', 'pending'):
             raise ApiError(422, 'invalid', 'cancellation_state must be pending', field='cancellation_state')
         if cancellation_state == 'pending':
-            pending = request.env['webvue.hr.leave.cancellation'].search([('state', '=', 'pending'), ('company_id', '=', request.env.company.id)])
+            pending = request.env['webvue.hr.leave.cancellation'].search([('state', '=', 'pending')])
             domain.append(('id', 'in', pending.mapped('leave_id').ids))
         raw_employee = args.get('employee_id')
         if raw_employee not in (None, ''):
@@ -275,7 +275,8 @@ class HrLeaveController(http.Controller):
             if pending or (leave.state == 'validate' and policy == 'manager_approval'):
                 model.action_request(leave.id, reason)
             else:
-                request.env['hr.holidays.cancel.leave'].create({'leave_id': leave.id, 'reason': reason}).action_cancel_leave()
+                owned = model._webvue_owner_leave(leave)
+                owned.env['hr.holidays.cancel.leave'].create({'leave_id': owned.id, 'reason': reason}).action_cancel_leave()
         else:
             _require('hr.leave.approve')
             model.action_direct_cancel(leave.id, reason, vals.get('revision'))

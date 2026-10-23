@@ -33,4 +33,15 @@ class WebVueHrIrRule(models.Model):
             domain &= (Domain(owner_field, 'in', companies)
                        & (Domain(owner_field, 'in', sorted(staff_ids))
                           | Domain('employee_id.user_id', '=', self.env.uid)))
+        if model_name == 'webvue.hr.leave.settings' and not self.env.su:
+            service = self.env['webvue.access.service']
+            companies = set()
+            for key in ('hr.leave.read', 'hr.leave.config'):
+                companies.update(service._webvue_operation_capability_company_ids(key))
+            domain &= Domain('company_id', 'in', sorted(companies))
+        if model_name == 'webvue.hr.leave.cancellation' and not self.env.su:
+            # Aggregate history requires its own actor grant and the native leave
+            # visibility, reevaluated after every policy change outside ir.rule's cache.
+            domain &= (self.env['webvue.hr.leave.cancellation']._webvue_visibility_domain()
+                       & Domain('leave_id', 'in', self.env['hr.leave']._search([])))
         return domain
