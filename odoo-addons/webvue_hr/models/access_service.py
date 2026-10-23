@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
-from .hr_applicant import HIRE_FRAME_MARKER
+from .hr_applicant import HIRE_FRAME_ATTRIBUTE
 
 HR_PERMISSIONS = frozenset(
     {
@@ -88,11 +88,8 @@ class WebVueHrAccessService(models.AbstractModel):
 
     @api.model
     def _webvue_native_hire_frame(self):
-        frames = self.env.cr.precommit.data.get(HIRE_FRAME_MARKER, set())
-        if len(frames) != 1:
-            return None
-        frame = next(iter(frames))
-        return frame if frame[0] == self.env.uid and self.env.company.id in frame[1:3] else None
+        frame = getattr(self.env.cr, HIRE_FRAME_ATTRIBUTE, None)
+        return frame if frame and frame[0] == self.env.uid and self.env.company.id in frame[1:3] else None
 
     @api.model
     def _webvue_native_hire_company(self):

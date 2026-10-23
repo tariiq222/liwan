@@ -313,3 +313,15 @@ class TestHrRecruitmentBranchConsumers(CompanyIsolationCase):
         self.assertFalse(self.env['res.partner'].search([('name', '=', 'Inner rolled back hire')]))
         with self.assertRaises(AccessError), self.env.cr.savepoint():
             outer.env['hr.employee'].create({'name': 'Leaked rollback frame', 'company_id': self.company_p1.id})
+
+    def test_first_native_hire_survives_pending_precommit_callbacks(self):
+        self._hire_grants(parent=False)
+        applicant = self._hire_applicant('Native hire after precommit flush')
+        callbacks = []
+        self.env.cr.precommit.add(lambda: callbacks.append('flushed'))
+        employee = applicant._webvue_hire()
+        self.assertTrue(callbacks, 'the native savepoint must actually run the queued callback')
+        self.assertEqual(employee.company_id, self.company_p1)
+        self.assertEqual(applicant.employee_id, employee)
+        with self.assertRaises(AccessError), self.env.cr.savepoint():
+            applicant.env['hr.employee'].create({'name': 'Leaked flushed frame', 'company_id': self.company_p1.id})
