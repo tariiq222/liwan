@@ -451,6 +451,160 @@ class TestFinanceBranchAccess(WebVueFinanceCase):
         self._assert_invalid_reference('PATCH', route, {'journal_id': foreign_journal.id}, 'journal_id')
         self.assertEqual(self.manager.company_id, self.company)
 
+    def _branch_payment_lifecycle_grant(self):
+        return self.env['webvue.access.assignment']._webvue_access_create({
+            'user_id': self.manager.id, 'role_id': self.env.ref('webvue_finance.role_finance_manager').id,
+            'company_id': self.branch.id,
+        })
+
+    def _payment_lifecycle_fixture(self, company=None, payment_type='inbound', journal=None, amount=1000):
+        company = company or self.branch
+        journal = journal or self.env['account.journal'].with_company(company).create({
+            'name': 'Payment lifecycle bank', 'code': 'PLBK', 'type': 'bank', 'company_id': company.id,
+        })
+        payment = self.env['account.payment'].with_company(company).create({
+            'company_id': company.id, 'journal_id': journal.id, 'partner_id': self.partner.id,
+            'partner_type': 'customer', 'payment_type': payment_type, 'amount': amount,
+            'date': '2026-10-19', 'memo': 'Payment lifecycle fixture',
+        })
+        return payment, journal
+
+    def _register_branch_lifecycle_payment(self):
+        assignment = self._branch_payment_lifecycle_grant()
+        journal = self.env['account.journal'].with_company(self.branch).create({
+            'name': 'Registered lifecycle bank', 'code': 'LCRB', 'type': 'bank', 'company_id': self.branch.id,
+        })
+        self.branch_invoice.action_post()
+        response = self.api('POST', '/api/v1/finance/payments', json={
+            'invoice_ids': self.branch_invoice.ids, 'amount': self.branch_invoice.amount_residual,
+            'payment_date': '2026-10-19', 'journal_id': journal.id,
+        })
+        self.assertEqual(response.status_code, 201, response.text)
+        return self.env['account.payment'].browse(response.json()['id']), assignment, journal
+
+    def _lifecycle_payment_rows(self, query=''):
+        response = self.api('GET', '/api/v1/finance/payments' + query)
+        self.assertEqual(response.status_code, 200, response.text)
+        return {row['id']: row for row in response.json()['items']}
+
+    def _assert_payment_lifecycle_hidden(self, payment):
+        path = f'/api/v1/finance/payments/{payment.id}'
+        for method, suffix, payload in (
+            ('PATCH', '', {'memo': 'must stay hidden'}),
+            ('POST', '/cancel', {}), ('POST', '/reset-to-draft', {}), ('POST', '/post', {}),
+            ('POST', '/allocate', {'invoice_ids': self.branch_invoice.ids}), ('POST', '/unallocate', {}),
+        ):
+            with self.subTest(payment=payment.id, method=method, suffix=suffix):
+                response = self.api(method, path + suffix, json=payload)
+                self.assertEqual((response.status_code, response.json().get('code')), (404, 'not_found'), response.text)
+
+    def test_registered_branch_payment_remains_reachable_through_its_lifecycle(self):
+        payment, _assignment, journal = self._register_branch_lifecycle_payment()
+        path = f'/api/v1/finance/payments/{payment.id}'
+        amount = self.branch_invoice.amount_total
+        rows = self._lifecycle_payment_rows()
+        self.assertIn(payment.id, rows)
+        self.assertEqual((rows[payment.id]['journal']['id'], rows[payment.id]['amount']), (journal.id, amount))
+        response = self.api('POST', path + '/unallocate', json={})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['unallocated'], amount)
+        response = self.api('POST', path + '/allocate', json={'invoice_ids': self.branch_invoice.ids})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['unallocated'], 0)
+        response = self.api('POST', path + '/cancel', json={})
+        self.assertEqual((response.status_code, response.json().get('state')), (200, 'canceled'), response.text)
+        response = self.api('POST', path + '/reset-to-draft', json={})
+        self.assertEqual((response.status_code, response.json().get('state')), (200, 'draft'), response.text)
+        response = self.api('PATCH', path, json={
+            'journal_id': journal.id, 'payment_date': '2026-10-20', 'memo': 'Branch lifecycle corrected',
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual((response.json()['journal']['id'], response.json()['date']), (journal.id, '2026-10-20'))
+        response = self.api('POST', path + '/post', json={})
+        self.assertEqual(response.status_code, 200, response.text)
+        response = self.api('POST', path + '/allocate', json={'invoice_ids': self.branch_invoice.ids})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['unallocated'], 0)
+        self.assertIn(payment.id, self._lifecycle_payment_rows('?q=Branch%20lifecycle%20corrected'))
+        payment.invalidate_recordset()
+        self.assertEqual(payment.company_id, self.branch)
+        self.assertEqual(self.manager.company_id, self.company)
+
+    def test_parent_payment_grant_and_membership_do_not_reveal_branch_or_foreign_payments(self):
+        branch_payment, _journal = self._payment_lifecycle_fixture()
+        current_payment, _journal = self._payment_lifecycle_fixture(company=self.company)
+        foreign_payment, _journal = self._payment_lifecycle_fixture(company=self.other_company)
+        self.manager.company_ids = [Command.link(self.other_company.id)]
+        rows = self._lifecycle_payment_rows()
+        self.assertIn(current_payment.id, rows)
+        self.assertNotIn(branch_payment.id, rows)
+        self.assertNotIn(foreign_payment.id, rows)
+        self._assert_payment_lifecycle_hidden(branch_payment)
+        self._assert_payment_lifecycle_hidden(foreign_payment)
+
+    def test_branch_payment_read_grant_does_not_borrow_parent_manage_grant(self):
+        payment, journal = self._payment_lifecycle_fixture()
+        role = self.env['webvue.access.role'].with_company(self.branch)._webvue_access_create({
+            'key': 'branch_lifecycle_payment_reader', 'name_ar': 'Branch payment reader',
+            'permission_ids': [Command.set(self.env['webvue.access.permission'].search([
+                ('key', '=', 'finance.payments.read'),
+            ]).ids)],
+        })
+        self.env['webvue.access.assignment']._webvue_access_create({
+            'user_id': self.manager.id, 'role_id': role.id, 'company_id': self.branch.id,
+        })
+        self.assertIn(payment.id, self._lifecycle_payment_rows())
+        self._assert_payment_lifecycle_hidden(payment)
+        # Standalone creation remains owned by the current company.
+        self._assert_invalid_reference('POST', '/api/v1/finance/payments/standalone', {
+            'partner_id': self.partner.id, 'journal_id': journal.id, 'payment_type': 'inbound',
+            'amount': 10, 'payment_date': '2026-10-19',
+        }, 'journal_id')
+
+    def test_revoking_branch_payment_grant_denies_warmed_read_and_write_scopes(self):
+        payment, assignment, _journal = self._register_branch_lifecycle_payment()
+        self.assertIn(payment.id, self._lifecycle_payment_rows())
+        response = self.api('POST', f'/api/v1/finance/payments/{payment.id}/unallocate', json={})
+        self.assertEqual(response.status_code, 200, response.text)
+        assignment._webvue_access_unlink()
+        self.assertNotIn(payment.id, self._lifecycle_payment_rows())
+        self._assert_payment_lifecycle_hidden(payment)
+        self.assertEqual(self.manager.company_id, self.company)
+
+    def test_branch_payment_changes_use_its_own_period_locks(self):
+        self._branch_payment_lifecycle_grant()
+        payment, _journal = self._payment_lifecycle_fixture()
+        self.branch.fiscalyear_lock_date = '2026-10-31'
+        path = f'/api/v1/finance/payments/{payment.id}'
+        response = self.api('POST', path + '/post', json={})
+        self.assertEqual((response.status_code, response.json().get('code')), (422, 'period_locked'), response.text)
+        response = self.api('PATCH', path, json={'payment_date': '2026-10-20'})
+        self.assertEqual((response.status_code, response.json().get('code'), response.json().get('field')),
+                         (422, 'period_locked', 'payment_date'), response.text)
+        payment.invalidate_recordset()
+        self.assertEqual(payment.state, 'draft')
+        self.assertEqual(payment.date.isoformat(), '2026-10-19')
+
+    def test_branch_payment_refund_allocation_uses_only_authorized_target_companies(self):
+        payment, _assignment, journal = self._register_branch_lifecycle_payment()
+        path = f'/api/v1/finance/payments/{payment.id}'
+        response = self.api('POST', path + '/unallocate', json={})
+        self.assertEqual(response.status_code, 200, response.text)
+        refund, _journal = self._payment_lifecycle_fixture(payment_type='outbound', journal=journal, amount=payment.amount)
+        refund.action_post()
+        sibling = self.env['res.company'].create({'name': 'Unmanaged payment sibling', 'parent_id': self.company.id})
+        self.manager.company_ids = [Command.link(sibling.id)]
+        unmanaged_refund, _journal = self._payment_lifecycle_fixture(company=sibling, payment_type='outbound', amount=payment.amount)
+        unmanaged_refund.action_post()
+        self._assert_invalid_reference('POST', path + '/allocate', {'payment_ids': unmanaged_refund.ids}, 'payment_ids')
+        response = self.api('POST', path + '/allocate', json={'payment_ids': refund.ids})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['unallocated'], 0)
+        rows = self._lifecycle_payment_rows()
+        self.assertEqual(rows[refund.id]['unallocated'], 0)
+        self.assertNotIn(unmanaged_refund.id, rows)
+        self.assertEqual(self.manager.company_id, self.company)
+
     def test_branch_pdf_does_not_use_the_parent_payment_permission(self):
         self._grant_read()
         self.branch_invoice.action_post()
