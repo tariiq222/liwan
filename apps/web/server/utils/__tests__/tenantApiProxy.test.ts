@@ -3,14 +3,16 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+const proxyMock = vi.hoisted(() => vi.fn().mockResolvedValue({ ok: true }))
 const transport = vi.hoisted(() => vi.fn().mockResolvedValue(new Response('{}')))
-vi.mock('../tenantTransport', () => ({ tenantTransport: transport, boundedTenantBody: async () => undefined }))
-vi.mock('h3', async importOriginal => ({ ...await importOriginal<typeof import('h3')>(), sendWebResponse: vi.fn() }))
+vi.mock('../tenantTransport', () => ({ tenantTransport: transport, boundedTenantBody: async () => undefined, withUpstreamSlot: async (run: (signal: AbortSignal) => unknown) => run(new AbortController().signal) }))
+vi.mock('../apiSessionAdmission', () => ({ requireApiSession: async (event: { node: { req: { headers: { cookie?: string } } } }) => { if (!event.node.req.headers.cookie) { const error = Object.assign(new Error('session_required'), { statusCode: 403, data: { code: 'session_required' } }); throw error } } }))
+vi.mock('h3', async importOriginal => ({ ...await importOriginal<typeof import('h3')>(), sendWebResponse: vi.fn(), sendProxy: (...args: unknown[]) => proxyMock(...args), getProxyRequestHeaders: () => ({}) }))
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 async function setup() {
-  const proxy = vi.fn().mockResolvedValue({ ok: true })
+  const proxy = proxyMock; proxy.mockClear()
   vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
   vi.stubGlobal('useRuntimeConfig', () => ({ odooUrl: 'http://guard:8080' }))
   vi.stubGlobal('proxyRequest', proxy)
@@ -19,12 +21,12 @@ async function setup() {
 }
 
 describe('API proxy tenancy mode separation', () => {
-  it('preserves dedicated two-argument call without registry access', async () => {
+  it('forwards dedicated calls with cancellation and without registry access', async () => {
     vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
     const { proxy, handler } = await setup()
-    const event = { path: '/api/v1/me' }
+    const event = { path: '/api/v1/me', node: { req: { headers: { cookie: 'session_id=synthetic' } } } }
     await handler(event as never)
-    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080/api/v1/me')
+    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080/api/v1/me', { fetchOptions: { method: undefined, body: undefined, headers: {}, signal: expect.any(AbortSignal) } })
   })
 
   it('shared explicitly forwards trusted host, token and per-tenant revision', async () => {
@@ -34,7 +36,7 @@ describe('API proxy tenancy mode separation', () => {
     vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared')
     vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token)
     vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', path)
-    const headers = { host: 'alpha.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '3' }
+    const headers = { host: 'alpha.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '3', cookie: 'session_id=synthetic' }
     const event = { path: '/api/v1/me', node: { req: { headers } } }
     const { proxy, handler } = await setup()
     await handler(event as never)
@@ -42,14 +44,36 @@ describe('API proxy tenancy mode separation', () => {
     expect(transport).toHaveBeenCalledWith(event, 'http://guard:8080', '/api/v1/me', { method: undefined, body: undefined })
     proxy.mockClear()
     event.node.req.headers['x-webvue-tenant-revision'] = '2'
-    expect(() => handler(event as never)).toThrow('tenant_boundary_rejected')
+    await expect(handler(event as never)).rejects.toThrow('tenant_boundary_rejected')
     expect(proxy).not.toHaveBeenCalled()
   })
 
   it('unknown modes never fall back to dedicated forwarding', async () => {
     vi.stubEnv('WEBVUE_TENANCY_MODE', 'typo')
     const { proxy, handler } = await setup()
-    expect(() => handler({ path: '/api/v1/me' } as never)).toThrow('invalid_tenancy_mode')
+    await expect(handler({ path: '/api/v1/me' } as never)).rejects.toThrow('invalid_tenancy_mode')
     expect(proxy).not.toHaveBeenCalled()
+  })
+
+  it('rejects anonymous requests before reading the body or holding a slot', async () => {
+    vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
+    transport.mockClear()
+    const { proxy, handler } = await setup()
+    const event = { path: '/api/v1/me', node: { req: { headers: {} } } }
+    let caught: unknown
+    try { await handler(event as never) } catch (error) { caught = error }
+    expect(caught).toHaveProperty('data.code', 'session_required')
+    // The identity middleware recognizes 403 as logged out and must still render /login.
+    expect(caught).toHaveProperty('statusCode', 403)
+    expect(proxy).not.toHaveBeenCalled()
+    expect(transport).not.toHaveBeenCalled()
+  })
+
+  it('still serves the public api paths without a session cookie', async () => {
+    vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
+    const { proxy, handler } = await setup()
+    const event = { path: '/api/v1/branding', node: { req: { headers: {} } } }
+    await handler(event as never)
+    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080/api/v1/branding', { fetchOptions: { method: undefined, body: undefined, headers: {}, signal: expect.any(AbortSignal) } })
   })
 })
