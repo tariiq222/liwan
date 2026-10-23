@@ -1,30 +1,32 @@
 #!/usr/bin/env bash
 # PreToolUse guard for Bash. Enforces two CLAUDE.md rules that nothing else enforces:
-#   1. no mutating git commands inside the Odoo checkout (~/code/odoo is upstream-only)
+#   1. no mutating git commands inside the Odoo checkout (it is upstream-only)
 #   2. never run Odoo tests / installs against the dev DB odoo19
+# The Odoo checkout is WEBVUE_ODOO_SRC (default: the owner's ~/code/odoo); the WebVue checkout is the project dir.
 # Exit 2 = block (stderr goes back to Claude). Anything else = allow.
 input=$(cat)
 cmd=$(printf '%s' "$input" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("tool_input",{}).get("command",""))' 2>/dev/null || true)
 cwd=$(printf '%s' "$input" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("cwd",""))' 2>/dev/null || true)
 [ -n "$cmd" ] || exit 0
 
-ODOO=/Users/tariq/code/odoo
+ODOO=${WEBVUE_ODOO_SRC:-$HOME/code/odoo}
+WEBVUE=${CLAUDE_PROJECT_DIR:-$HOME/code/webvue}
 # --- rule 2: tests against odoo19 -------------------------------------------------------
 if printf '%s' "$cmd" | grep -qE -- '-d[= ]+odoo19\b' && printf '%s' "$cmd" | grep -qE -- '--test-(tags|enable|file)|(^|\s)-i[= ]'; then
-  echo "BLOCKED: odoo19 is the dev database. Run tests/installs against webvue_test (see /webvue-odoo-test); use '-d odoo19 -u <addon> --no-http --stop-after-init' only to load changes." >&2
+  echo "BLOCKED: odoo19 is the dev database. Run tests/installs against a scratch database (docs/agents/odoo-rules.md); use '-d odoo19 -u <addon> --no-http --stop-after-init' only to load changes." >&2
   exit 2
 fi
 # --- rule 1: mutating git in the Odoo checkout ------------------------------------------
 if printf '%s' "$cmd" | grep -qE '(^|[;&|]\s*|\s)git\s+(-C\s+\S+\s+)?(add|commit|checkout|switch|reset|stash|rebase|merge|pull|push|clean|tag|restore|cherry-pick|am|apply|rm|mv|branch\s+-[dDm])\b'; then
-  # explicit -C to another repo is fine
-  if printf '%s' "$cmd" | grep -qE 'git\s+-C\s+/Users/tariq/code/webvue'; then exit 0; fi
+  # explicit -C to the WebVue checkout is fine
+  if printf '%s' "$cmd" | grep -qF "git -C $WEBVUE"; then exit 0; fi
   target_is_odoo=0
   case "$cwd" in "$ODOO"|"$ODOO"/*) target_is_odoo=1;; esac
-  printf '%s' "$cmd" | grep -qE "cd\s+(~|/Users/tariq)/code/odoo(\s|;|&|$)" && target_is_odoo=1
-  printf '%s' "$cmd" | grep -qE "git\s+-C\s+(~|/Users/tariq)/code/odoo(\s|/)" && target_is_odoo=1
-  printf '%s' "$cmd" | grep -qE "cd\s+(~|/Users/tariq)/code/webvue" && target_is_odoo=0
+  printf '%s' "$cmd" | grep -qE "cd\s+($ODOO|~/code/odoo)(\s|;|&|$)" && target_is_odoo=1
+  printf '%s' "$cmd" | grep -qE "git\s+-C\s+($ODOO|~/code/odoo)(\s|/)" && target_is_odoo=1
+  printf '%s' "$cmd" | grep -qF "cd $WEBVUE" && target_is_odoo=0
   if [ "$target_is_odoo" = 1 ]; then
-    echo "BLOCKED: ~/code/odoo is the upstream Odoo checkout and must stay untouched. Product work lives in /Users/tariq/code/webvue — run git there (cd /Users/tariq/code/webvue && git ... or git -C /Users/tariq/code/webvue ...)." >&2
+    echo "BLOCKED: $ODOO is the upstream Odoo checkout and must stay untouched. Product work lives in $WEBVUE — run git there (cd $WEBVUE && git ... or git -C $WEBVUE ...)." >&2
     exit 2
   fi
 fi

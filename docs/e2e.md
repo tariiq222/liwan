@@ -10,14 +10,14 @@ Setup of the open-source [e2e](https://e2e.tester.army/docs) framework in this r
 - `npm run e2e:smoke` — run only `e2e/tests/smoke.e2e.ts`.
 - Pick an agent with `--agent <name>`: `E2E_TELEMETRY_DISABLED=1 e2e run --agent fast`.
 - The config starts `npm run dev` (Nuxt on `http://localhost:3000`) when no server is running and reuses one that is already up; override with `E2E_BASE_URL`.
-- Inspect collected tests: `npx e2e list`. Skill for coding agents: `.agents/skills/e2e/`. MCP server: `npx e2e mcp` (register it in the agent's own MCP config; the repository ships no `.mcp.json`).
+- Inspect collected tests: `npx e2e list`. Skill for coding agents: `.claude/skills/e2e/`. MCP server: `npx e2e mcp` (register it in the agent's own MCP config; the repository ships no `.mcp.json`).
 
 **العربية**
 
 - `npm run e2e` لتشغيل كل الاختبارات، و`npm run e2e:smoke` لاختبار الدخان فقط.
 - اختر الوكيل بـ `--agent <name>` مثل: `E2E_TELEMETRY_DISABLED=1 e2e run --agent fast`.
 - يبدأ الإعداد خادم التطوير تلقائيًا (Nuxt على `http://localhost:3000`) إن لم يكن يعمل، ويعيد استخدام الجاري تشغيله؛ يمكن تغيير العنوان بمتغيّر `E2E_BASE_URL`.
-- استعرض الاختبارات بـ `npx e2e list`، ومهارة وكلاء البرمجة في `.agents/skills/e2e/`.
+- استعرض الاختبارات بـ `npx e2e list`، ومهارة وكلاء البرمجة في `.claude/skills/e2e/`.
 
 ## Agents / الوكلاء
 
