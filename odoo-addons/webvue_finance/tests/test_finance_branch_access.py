@@ -121,7 +121,8 @@ class TestFinanceBranchAccess(WebVueFinanceCase):
             ('company_ids', 'in', self.other_company.ids), ('account_type', '=', 'income'),
         ], limit=1)
         branch_partner = self.env['res.partner'].create({'name': 'Branch customer', 'company_id': self.branch.id})
-        parent_partner = self.env['res.partner'].create({'name': 'Parent-only customer', 'company_id': self.company.id})
+        parent_partner = self.env['res.partner'].create({'name': 'Ancestor customer', 'company_id': self.company.id})
+        unrelated_partner = self.env['res.partner'].create({'name': 'Unrelated customer', 'company_id': self.other_company.id})
         plan = self.env['account.analytic.plan'].create({'name': 'Invoice owner plan'})
         branch_analytic, parent_analytic, foreign_analytic = self.env['account.analytic.account'].create([
             {'name': 'Branch invoice project', 'plan_id': plan.id, 'company_id': self.branch.id},
@@ -152,12 +153,17 @@ class TestFinanceBranchAccess(WebVueFinanceCase):
         self.assertEqual(self.branch_invoice.company_id, self.branch)
         self.assertEqual(self.branch_invoice.invoice_line_ids.tax_ids, parent_tax)
         self.assertEqual(self.branch_invoice.journal_id, parent_journal)
+        self.assertTrue(parent_partner.filtered_domain(parent_partner._check_company_domain(self.branch)))
+        response = self.api('PATCH', route, json={'partner_id': parent_partner.id})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.branch_invoice.invalidate_recordset()
+        self.assertEqual(self.branch_invoice.partner_id, parent_partner)
         for payload, field in (
             ({'lines': [{**line, 'tax_ids': [foreign_tax.id]}]}, 'lines[0].tax_ids'),
             ({'lines': [{**line, 'tax_ids': [branch_purchase_tax.id]}]}, 'lines[0].tax_ids'),
             ({'lines': [{**line, 'account_id': unrelated_account.id}]}, 'lines[0].account_id'),
             ({'lines': [{**line, 'analytic_distribution': {str(foreign_analytic.id): 100}}]}, 'lines[0].analytic_distribution'),
-            ({'partner_id': parent_partner.id}, 'partner_id'),
+            ({'partner_id': unrelated_partner.id}, 'partner_id'),
         ):
             with self.subTest(field=field, payload=payload):
                 response = self.api('PATCH', route, json=payload)
@@ -165,7 +171,7 @@ class TestFinanceBranchAccess(WebVueFinanceCase):
                 self.assertEqual(response.json().get('field'), field, response.text)
         self.branch_invoice.invalidate_recordset()
         self.assertEqual(self.branch_invoice.company_id, self.branch)
-        self.assertEqual(self.branch_invoice.partner_id, branch_partner)
+        self.assertEqual(self.branch_invoice.partner_id, parent_partner)
 
     def _grant_owner_mutations(self):
         # Give both companies actual Finance grants: an unrelated reference is
@@ -246,14 +252,47 @@ class TestFinanceBranchAccess(WebVueFinanceCase):
         self._grant_owner_mutations()
         profile = self._branch_asset_profile()
         route = f'/api/v1/finance/asset-profiles/{profile.id}'
-        for company, prefix in ((self.branch, '994'), (self.company, '995')):
-            account = self._owner_account(company, prefix + '001', 'asset_fixed')
-            journal = self._owner_journal(company, prefix + 'J')
-            response = self.api('PATCH', route, json={'asset_account_id': account.id, 'journal_id': journal.id})
-            self.assertEqual(response.status_code, 200, response.text)
-            profile.invalidate_recordset()
-            self.assertEqual((profile.company_id, profile.account_asset_id, profile.journal_id),
-                             (self.branch, account, journal))
+        branch_account = self._owner_account(self.branch, '994001', 'asset_fixed')
+        branch_journal = self._owner_journal(self.branch, '994J')
+        response = self.api('PATCH', route, json={'asset_account_id': branch_account.id, 'journal_id': branch_journal.id})
+        self.assertEqual(response.status_code, 200, response.text)
+        profile.invalidate_recordset()
+        self.assertEqual((profile.company_id, profile.account_asset_id, profile.journal_id),
+                         (self.branch, branch_account, branch_journal))
+
+        # Ancestor references remain valid where there is no child-profile
+        # inverse: the depreciation account and general journal are compatible.
+        ancestor_depreciation = self._owner_account(self.company, '995001', 'asset_fixed')
+        ancestor_journal = self._owner_journal(self.company, '995J')
+        response = self.api('PATCH', route, json={
+            'depreciation_account_id': ancestor_depreciation.id, 'journal_id': ancestor_journal.id,
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        profile.invalidate_recordset()
+        self.assertEqual(profile.account_depreciation_id, ancestor_depreciation)
+        self.assertEqual(profile.journal_id, ancestor_journal)
+
+        # OCA also writes account.asset_profile_id. Parent-only membership is
+        # forward-compatible, but the child profile is not inverse-compatible.
+        parent_only = self._owner_account(self.company, '995002', 'asset_fixed')
+        self.assertTrue(parent_only.filtered_domain(parent_only._check_company_domain(self.branch)))
+        self.assertFalse(profile.filtered_domain(profile._check_company_domain(parent_only.company_ids)))
+        response = self.api('PATCH', route, json={'asset_account_id': parent_only.id})
+        self.assertEqual((response.status_code, response.json().get('code')), (422, 'invalid'), response.text)
+        profile.invalidate_recordset()
+        parent_only.invalidate_recordset()
+        self.assertEqual(profile.account_asset_id, branch_account)
+        self.assertFalse(parent_only.asset_profile_id)
+
+        shared = self._owner_account(self.company, '995003', 'asset_fixed')
+        shared.company_ids = [Command.set((self.company | self.branch).ids)]
+        self.assertTrue(profile.filtered_domain(profile._check_company_domain(shared.company_ids)))
+        response = self.api('PATCH', route, json={'asset_account_id': shared.id})
+        self.assertEqual(response.status_code, 200, response.text)
+        profile.invalidate_recordset()
+        shared.invalidate_recordset()
+        self.assertEqual(profile.account_asset_id, shared)
+        self.assertEqual(shared.asset_profile_id, profile)
         foreign = self._owner_account(self.other_company, '996001', 'asset_fixed')
         foreign_journal = self._owner_journal(self.other_company, 'FORJ')
         self._assert_invalid_reference('PATCH', route, {'asset_account_id': foreign.id}, 'asset_account_id')
@@ -312,8 +351,8 @@ class TestFinanceBranchAccess(WebVueFinanceCase):
         self.assertFalse(self.env['webvue.access.service'].with_company(self.company)._webvue_has_capability(
             self.manager, 'finance.invoices.manage', company=self.company,
         ))
-        branch_account = self._owner_account(self.branch, '999001', 'income')
-        parent_account = self._owner_account(self.company, '999002', 'income')
+        branch_account = self._owner_account(self.branch, '987651', 'income')
+        parent_account = self._owner_account(self.company, '987652', 'income')
         branch_journal = self.env['account.journal'].with_company(self.branch).create({
             'name': 'Branch-only Sales', 'code': 'BOSL', 'type': 'sale', 'company_id': self.branch.id,
         })
