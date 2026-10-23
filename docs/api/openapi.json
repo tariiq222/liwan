@@ -45,6 +45,8 @@
               "user.disabled",
               "user.reactivated",
               "user.password_reset",
+              "user.branch_roles_changed",
+              "branch.policy_changed",
               "employee.archived_access_disabled",
               "role.created",
               "role.updated",
@@ -146,7 +148,8 @@
               "type": {
                 "enum": [
                   "user",
-                  "role"
+                  "role",
+                  "company"
                 ],
                 "type": "string"
               }
@@ -188,6 +191,8 @@
                     "user.disabled",
                     "user.reactivated",
                     "user.password_reset",
+                    "user.branch_roles_changed",
+                    "branch.policy_changed",
                     "employee.archived_access_disabled",
                     "role.created",
                     "role.updated",
@@ -255,7 +260,8 @@
                     "type": {
                       "enum": [
                         "user",
-                        "role"
+                        "role",
+                        "company"
                       ],
                       "type": "string"
                     }
@@ -304,6 +310,8 @@
               "user.disabled",
               "user.reactivated",
               "user.password_reset",
+              "user.branch_roles_changed",
+              "branch.policy_changed",
               "employee.archived_access_disabled",
               "role.created",
               "role.updated",
@@ -371,7 +379,8 @@
               "type": {
                 "enum": [
                   "user",
-                  "role"
+                  "role",
+                  "company"
                 ],
                 "type": "string"
               }
@@ -2875,6 +2884,8 @@
           "user.disabled",
           "user.reactivated",
           "user.password_reset",
+          "user.branch_roles_changed",
+          "branch.policy_changed",
           "employee.archived_access_disabled",
           "role.created",
           "role.updated",
@@ -2930,7 +2941,8 @@
           "type": {
             "enum": [
               "user",
-              "role"
+              "role",
+              "company"
             ],
             "type": "string"
           }
@@ -3298,6 +3310,178 @@
             "type": "object"
           }
         ]
+      },
+      "BranchPolicyInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "branches": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "inherit": {
+                  "type": "boolean"
+                },
+                "role_ids": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "id",
+                "inherit",
+                "role_ids"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "expected_version": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "isolated",
+              "delegated",
+              "inherited"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_version",
+          "mode",
+          "branches"
+        ],
+        "type": "object"
+      },
+      "BranchPolicySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "branches": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "inherit": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "role_ids": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "inherit",
+                "role_ids"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "mode": {
+            "enum": [
+              "isolated",
+              "delegated",
+              "inherited"
+            ],
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "company_id": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "name": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "type": "string"
+                    },
+                    "en": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "id",
+                "key",
+                "name",
+                "company_id",
+                "active"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "version": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "mode",
+          "branches",
+          "roles"
+        ],
+        "type": "object"
       },
       "BrandingPatchSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -37981,6 +38165,13 @@
                 "name": {
                   "type": "string"
                 },
+                "purpose": {
+                  "enum": [
+                    "work",
+                    "employee"
+                  ],
+                  "type": "string"
+                },
                 "revision": {
                   "maximum": 9007199254740991,
                   "minimum": 0,
@@ -38051,6 +38242,7 @@
                 "id",
                 "name",
                 "description",
+                "purpose",
                 "state",
                 "revision",
                 "execution_kind",
@@ -38089,6 +38281,13 @@
             "type": "integer"
           },
           "name": {
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "work",
+              "employee"
+            ],
             "type": "string"
           },
           "revision": {
@@ -38161,12 +38360,21 @@
           "id",
           "name",
           "description",
+          "purpose",
           "state",
           "revision",
           "execution_kind",
           "steps"
         ],
         "type": "object"
+      },
+      "OperationPurposeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "work",
+          "employee"
+        ],
+        "type": "string"
       },
       "OperationRequestListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -38220,6 +38428,13 @@
                   "minimum": 0,
                   "type": "integer"
                 },
+                "purpose": {
+                  "enum": [
+                    "work",
+                    "employee"
+                  ],
+                  "type": "string"
+                },
                 "requester": {
                   "additionalProperties": false,
                   "properties": {
@@ -38266,6 +38481,7 @@
                 "name",
                 "process",
                 "process_revision",
+                "purpose",
                 "state",
                 "revision",
                 "cycle",
@@ -38461,6 +38677,13 @@
             "minimum": 0,
             "type": "integer"
           },
+          "purpose": {
+            "enum": [
+              "work",
+              "employee"
+            ],
+            "type": "string"
+          },
           "requester": {
             "additionalProperties": false,
             "properties": {
@@ -38596,6 +38819,7 @@
           "name",
           "process",
           "process_revision",
+          "purpose",
           "state",
           "revision",
           "cycle",
@@ -38659,6 +38883,13 @@
             "minimum": 0,
             "type": "integer"
           },
+          "purpose": {
+            "enum": [
+              "work",
+              "employee"
+            ],
+            "type": "string"
+          },
           "requester": {
             "additionalProperties": false,
             "properties": {
@@ -38705,6 +38936,7 @@
           "name",
           "process",
           "process_revision",
+          "purpose",
           "state",
           "revision",
           "cycle",
@@ -47819,6 +48051,152 @@
         ],
         "type": "object"
       },
+      "UserBranchAccessInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "branches": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "role_ids": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "id",
+                "role_ids"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "expected_version": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_version",
+          "branches"
+        ],
+        "type": "object"
+      },
+      "UserBranchAccessSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "branches": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "role_ids": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "role_ids"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "company_id": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "name": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "type": "string"
+                    },
+                    "en": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "id",
+                "key",
+                "name",
+                "company_id",
+                "active"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "version": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "branches",
+          "roles"
+        ],
+        "type": "object"
+      },
       "UserRefSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -48225,6 +48603,80 @@
           "feature_operation": null,
           "handler": "event",
           "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/access/branches": {
+      "get": {
+        "operationId": "webvue_api.AccessBranchesController.policy.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "policy",
+        "tags": [
+          "webvue_api"
+        ],
+        "x-webvue": {
+          "addon": "webvue_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessBranchesController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "policy",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_api.AccessBranchesController.update_policy.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "update_policy",
+        "tags": [
+          "webvue_api"
+        ],
+        "x-webvue": {
+          "addon": "webvue_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessBranchesController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "update_policy",
+          "readonly": false,
           "route_type": "json2"
         }
       }
@@ -49296,6 +49748,106 @@
           "feature_keys": [],
           "feature_operation": null,
           "handler": "access",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/users/{user_id}/branches": {
+      "get": {
+        "operationId": "webvue_api.AccessBranchesController.user_branches.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "user_branches",
+        "tags": [
+          "webvue_api"
+        ],
+        "x-webvue": {
+          "addon": "webvue_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessBranchesController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "user_branches",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_api.AccessBranchesController.update_user_branches.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "update_user_branches",
+        "tags": [
+          "webvue_api"
+        ],
+        "x-webvue": {
+          "addon": "webvue_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessBranchesController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "update_user_branches",
           "readonly": false,
           "route_type": "json2"
         }
@@ -50763,6 +51315,101 @@
           ],
           "feature_operation": "read",
           "handler": "options",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/employee/me": {
+      "get": {
+        "operationId": "webvue_documents_hr.EmployeeDocuments.list_own_documents.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_own_documents",
+        "tags": [
+          "webvue_documents_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "EmployeeDocuments",
+          "feature_keys": [
+            "documents.enabled",
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_own_documents",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/employee/me/{document_id}": {
+      "get": {
+        "operationId": "webvue_documents_hr.EmployeeDocuments.get_own_document.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_own_document",
+        "tags": [
+          "webvue_documents_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "EmployeeDocuments",
+          "feature_keys": [
+            "documents.enabled",
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_own_document",
           "readonly": true,
           "route_type": "json2"
         }
@@ -59022,6 +59669,59 @@
         }
       }
     },
+    "/api/v1/hr/leave/me/{leave_id}": {
+      "get": {
+        "operationId": "webvue_hr.HrLeaveController.get_own_request.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "leave_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_own_request",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrLeaveController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_own_request",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/hr/leave/requests": {
       "get": {
         "operationId": "webvue_hr.HrLeaveController.list_requests.get",
@@ -59347,6 +60047,46 @@
           ],
           "feature_operation": "read",
           "handler": "list_leave_types",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/me": {
+      "get": {
+        "operationId": "webvue_hr.HrEmployeeController.own_profile.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "own_profile",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrEmployeeController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "own_profile",
           "readonly": true,
           "route_type": "json2"
         }
@@ -66574,6 +67314,59 @@
         }
       }
     },
+    "/api/v1/operations/requests/employee/me/{request_id}": {
+      "get": {
+        "operationId": "webvue_operations.OperationsController.get_own_employee_request.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_own_employee_request",
+        "tags": [
+          "webvue_operations"
+        ],
+        "x-webvue": {
+          "addon": "webvue_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_own_employee_request",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/operations/requests/{request_id}": {
       "get": {
         "operationId": "webvue_operations.OperationsController.get_request.get",
@@ -70796,7 +71589,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "The file of one direct task attachment, for a caller who can see the task.",
+        "summary": "download_task_attachment",
         "tags": [
           "webvue_pmo"
         ],
@@ -71270,7 +72063,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "Tasks a comment on this task may reference with `/`: its family, minus itself.",
+        "summary": "thread_tasks",
         "tags": [
           "webvue_pmo"
         ],
@@ -71464,6 +72257,7 @@
     "webvue_chat",
     "webvue_directory",
     "webvue_documents",
+    "webvue_documents_hr",
     "webvue_finance",
     "webvue_hr",
     "webvue_hr_finance",
