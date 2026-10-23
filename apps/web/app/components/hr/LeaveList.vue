@@ -248,7 +248,7 @@ const allocateTo = computed(() => ({ path: '/hr/leave/allocations/new', query: l
             <template #number_of_days-cell="{ row }"><span class="tabular-nums">{{ days(row.original.number_of_days) }}</span></template>
             <template #state-cell="{ row }">
               <SharedStatusBadge size="sm" :tone="hrLeaveBadge(row.original.state).tone" :label="t(hrLeaveBadge(row.original.state).labelKey)" data-testid="hr-leave-state" />
-              <SharedStatusBadge v-if="row.original.cancellation" size="sm" :tone="row.original.cancellation.state === 'refused' ? 'error' : 'warning'" :label="t(`hr.leave.cancellationStates.${row.original.cancellation.state}`)" data-testid="hr-leave-cancellation-state" />
+              <SharedStatusBadge v-if="row.original.cancellation" size="sm" :tone="row.original.cancellation.state === 'refused' ? 'destructive' : row.original.cancellation.state === 'pending' ? 'warning' : 'success'" :label="t(`hr.leave.cancellationStates.${row.original.cancellation.state}`)" data-testid="hr-leave-cancellation-state" />
               <p v-if="row.original.cancellation?.reason" class="mt-1 text-xs text-muted">{{ row.original.cancellation.reason }}</p>
               <p v-if="row.original.cancellation?.review_reason" class="text-xs text-muted">{{ row.original.cancellation.review_reason }}</p>
             </template>
@@ -264,7 +264,7 @@ const allocateTo = computed(() => ({ path: '/hr/leave/allocations/new', query: l
                 <bdi class="text-xs text-muted">#{{ row.id }}</bdi>
                 <SharedStatusBadge size="sm" :tone="hrLeaveBadge(row.state).tone" :label="t(hrLeaveBadge(row.state).labelKey)" />
               </div>
-              <SharedStatusBadge v-if="row.cancellation" size="sm" :tone="row.cancellation.state === 'refused' ? 'error' : 'warning'" :label="t(`hr.leave.cancellationStates.${row.cancellation.state}`)" />
+              <SharedStatusBadge v-if="row.cancellation" size="sm" :tone="row.cancellation.state === 'refused' ? 'destructive' : row.cancellation.state === 'pending' ? 'warning' : 'success'" :label="t(`hr.leave.cancellationStates.${row.cancellation.state}`)" />
               <p v-if="row.cancellation?.reason" class="text-xs text-muted">{{ row.cancellation.reason }}</p>
               <p v-if="row.cancellation?.review_reason" class="text-xs text-muted">{{ row.cancellation.review_reason }}</p>
               <p v-if="scope !== 'mine'" class="mt-1 font-semibold text-highlighted">{{ row.employee.name }}</p>

@@ -125,7 +125,7 @@ async function withdraw() {
     />
     <template v-if="leave">
       <SharedRecordSection v-if="leave.cancellation" :title="t('hr.leave.cancellationTitle')">
-        <SharedStatusBadge :tone="leave.cancellation.state === 'refused' ? 'error' : leave.cancellation.state === 'pending' ? 'warning' : 'success'" :label="t(`hr.leave.cancellationStates.${leave.cancellation.state}`)" />
+        <SharedStatusBadge :tone="leave.cancellation.state === 'refused' ? 'destructive' : leave.cancellation.state === 'pending' ? 'warning' : 'success'" :label="t(`hr.leave.cancellationStates.${leave.cancellation.state}`)" />
         <p class="mt-2 text-sm">{{ t('hr.leave.cancellationInitiator', { name: leave.cancellation.initiator.name }) }}</p>
         <p v-if="leave.cancellation.reason" class="whitespace-pre-line text-sm">{{ leave.cancellation.reason }}</p>
         <p v-if="leave.cancellation.reviewer" class="mt-2 text-sm">{{ t('hr.leave.cancellationReviewer', { name: leave.cancellation.reviewer.name }) }}</p>

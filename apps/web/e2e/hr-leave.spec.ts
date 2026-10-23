@@ -313,3 +313,34 @@ test('company policies support direct employee and manager-only cancellation wit
     expect((await page.request.patch('/api/v1/hr/leave/settings', { data: { cancellation_policy: original.cancellation_policy, revision: latest.revision } })).status()).toBe(200)
   }
 })
+
+
+test('a leave-config-only user saves policy without unrelated HR reads on a phone', async ({ page }) => {
+  const configUser = { login: process.env.E2E_LEAVE_CONFIG ?? 'leaveconfig', password: process.env.E2E_LEAVE_CONFIG_PASSWORD ?? 'leaveconfig_pass_123' }
+  await login(page, configUser)
+  const original = await (await page.request.get('/api/v1/hr/leave/settings')).json()
+  const target = original.cancellation_policy === 'manager_only' ? { policy: 'direct_employee', label: 'الموظف يلغي مباشرة' } : { policy: 'manager_only', label: 'الإلغاء بقرار المدير فقط' }
+  const unrelated: string[] = []
+  page.on('request', request => { if (/\/hr\/(?:payroll|employees|leave\/(?:types|balances|requests))/.test(request.url())) unrelated.push(request.url()) })
+  try {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/settings/apps/hr#leave')
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'سياسة إلغاء الإجازات' })).toBeVisible()
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await expect(page.locator('#payroll')).toHaveCount(0)
+    await expect(page.locator('#shifts')).toHaveCount(0)
+    await page.locator('#leave-cancellation-policy').click()
+    await page.getByRole('option', { name: target.label }).click()
+    const saved = page.waitForResponse(response => response.url().endsWith('/api/v1/hr/leave/settings') && response.request().method() === 'PATCH')
+    await page.locator('#leave').getByRole('button', { name: 'حفظ التغييرات' }).click()
+    expect((await saved).status()).toBe(200)
+    await page.reload()
+    await expect(page.locator('#leave-cancellation-policy')).toContainText(target.label)
+    expect(unrelated).toEqual([])
+  } finally {
+    const latest = await (await page.request.get('/api/v1/hr/leave/settings')).json()
+    expect((await page.request.patch('/api/v1/hr/leave/settings', { data: { cancellation_policy: original.cancellation_policy, revision: latest.revision } })).status()).toBe(200)
+  }
+})
