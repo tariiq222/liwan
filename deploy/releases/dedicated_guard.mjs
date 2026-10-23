@@ -9,6 +9,8 @@ import { isReleaseAssetRequest, readAsset, validateAssetStore } from '../../apps
 
 const privateHeader = /^(x-odoo-|x-openerp-|x-webvue-|forwarded$|x-forwarded-)/i
 const selectors = /^(db|database|session_id|sid)$/i
+// Match the BFF's fixed public auth budgets before this edge buffers JSON.
+const publicAuthBodyLimits = { '/api/auth/totp': 1024, '/api/auth/login': 64 * 1024 }
 const pinNames = ['x-webvue-release-pool', 'x-webvue-release-revision', 'x-webvue-release-fence']
 const internalNames = new Set(['x-webvue-proxy-token', 'x-webvue-tenant-revision', ...pinNames, 'x-webvue-release-admission'])
 const edgeNames = new Set(['x-webvue-client-ip', 'x-webvue-client-host', 'x-webvue-client-proto'])
@@ -46,10 +48,11 @@ function inspectBody(value, binding, internal, auth, path = '') {
     inspectBody(item, binding, internal, auth, path ? `${path}.${key}` : key)
   }
 }
-async function bodyFor(req, binding, internal, path) {
+async function bodyFor(req, binding, internal, path, maxBytes = 16 * 1024 * 1024) {
   if (['GET', 'HEAD'].includes(req.method ?? 'GET')) return null
+  if (Number(req.headers['content-length']) > maxBytes) throw fail(413)
   const parts = []; let length = 0
-  for await (const part of req) { length += part.length; if (length > 16 * 1024 * 1024) throw fail(413); parts.push(part) }
+  for await (const part of req.iterator({ destroyOnReturn: false })) { length += part.length; if (length > maxBytes) throw fail(413); parts.push(part) }
   const body = Buffer.concat(parts)
   const content = String(req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase()
   if (body.length && content === 'application/json') {
@@ -157,10 +160,18 @@ export function createDedicatedGuard({ bindingPath, releaseRoutesDir, proxyToken
       res.writeHead(200, asset.headers); res.end(req.method === 'HEAD' ? undefined : asset.body); return
     }
     let body
+    const publicBodyLimit = !p.internal ? publicAuthBodyLimits[p.path.split('?')[0]] : undefined
     // The public API body belongs to Nuxt's session-first, bounded admission.
     // Inspect it only on the authenticated return hop to Odoo.
-    try { body = !p.internal && p.path.startsWith('/api/v1/') ? null : await bodyFor(req, binding, p.internal, p.path.split('?')[0]) }
-    catch (error) { res.writeHead(error.statusCode ?? 400); res.end('invalid_dedicated_body'); return }
+    try { body = !p.internal && p.path.startsWith('/api/v1/') ? null : await bodyFor(req, binding, p.internal, p.path.split('?')[0], publicBodyLimit) }
+    catch (error) {
+      const status = error.statusCode ?? 400
+      if (publicBodyLimit !== undefined) {
+        res.writeHead(status, { 'content-type': 'application/json', connection: 'close' })
+        res.end(JSON.stringify(status === 413 ? { code: 'payload_too_large', message: 'The request body exceeds the allowed size.' } : status === 403 ? { code: 'forbidden', message: 'The request is not allowed.' } : { code: 'invalid_request', message: 'The request body is invalid.' }))
+      } else { res.writeHead(status); res.end('invalid_dedicated_body') }
+      return
+    }
     const target = new URL(p.odoo ? p.lease.context.odooUrl : p.lease.context.webUrl)
     if (body !== null) p.headers['content-length'] = String(body.length)
     const upstream = http.request({ hostname: target.hostname, port: target.port, method: req.method, path: p.path, headers: p.headers }, reply => {
