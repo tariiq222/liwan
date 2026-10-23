@@ -4,6 +4,7 @@ import { ASSISTANT_SHEET_ID, useAssistantSheet } from '@/composables/useAssistan
 // The header button that opens the assistant sheet: a pill with the assistant mark and the surface's label (icon
 // only below 768px). It is absent for a user who may not use the assistant and on the assistant's own full page.
 const { t } = useI18n()
+const hydrated = useHydrated()
 const sheet = useAssistantSheet()
 const label = computed(() => (sheet.surface.value ? t(sheet.surface.value.labelKey) : ''))
 </script>
@@ -14,6 +15,7 @@ const label = computed(() => (sheet.surface.value ? t(sheet.surface.value.labelK
     type="button"
     class="webvue-assistant-button"
     data-testid="assistant-button"
+    :disabled="!hydrated"
     :aria-label="label"
     :aria-expanded="sheet.shown.value"
     :aria-controls="ASSISTANT_SHEET_ID"
