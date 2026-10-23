@@ -3,7 +3,7 @@
 {$DOMAIN} {
 	encode zstd gzip
 
-	@odoo path /api/v1/* /web/* /report/barcode*
+	@odoo path /web/* /report/barcode*
 
 	route {
 		rate_limit {

@@ -30,7 +30,7 @@ export function readLocalBinding(path) {
 }
 
 function odooPath(path) {
-  return path === '/website/translations' || /^\/(?:api\/v1|web|odoo|base_setup|bus|json|doc|report|mail|discuss)\//.test(path) || /\/static\//.test(path)
+  return path === '/website/translations' || /^\/(?:web|odoo|base_setup|bus|json|doc|report|mail|discuss)\//.test(path) || /\/static\//.test(path)
 }
 function cleanHeaders(headers) {
   const result = { ...headers }
@@ -118,7 +118,8 @@ export function createDedicatedGuard({ bindingPath, releaseRoutesDir, proxyToken
     const websocket = url.pathname.startsWith('/websocket')
     if (websocket && !internal && req.headers.origin !== `${publicProto}://${binding.host}`) throw fail()
     const lease = createReleaseLease(releaseRoutesDir, tenant, pin, websocket ? 'ws' : 'http', internal ? req.headers['x-webvue-release-admission'] : undefined)
-    const odoo = websocket || odooPath(url.pathname)
+    // API admission wins even over legacy paths containing /static/.
+    const odoo = url.pathname.startsWith('/api/v1/') ? internal : websocket || odooPath(url.pathname)
     const headers = cleanHeaders(req.headers)
     headers.host = binding.host
     headers['x-forwarded-for'] = suppliedEdge.length ? req.headers['x-webvue-client-ip'] : req.socket.remoteAddress
@@ -156,7 +157,9 @@ export function createDedicatedGuard({ bindingPath, releaseRoutesDir, proxyToken
       res.writeHead(200, asset.headers); res.end(req.method === 'HEAD' ? undefined : asset.body); return
     }
     let body
-    try { body = await bodyFor(req, binding, p.internal, p.path.split('?')[0]) }
+    // The public API body belongs to Nuxt's session-first, bounded admission.
+    // Inspect it only on the authenticated return hop to Odoo.
+    try { body = !p.internal && p.path.startsWith('/api/v1/') ? null : await bodyFor(req, binding, p.internal, p.path.split('?')[0]) }
     catch (error) { res.writeHead(error.statusCode ?? 400); res.end('invalid_dedicated_body'); return }
     const target = new URL(p.odoo ? p.lease.context.odooUrl : p.lease.context.webUrl)
     if (body !== null) p.headers['content-length'] = String(body.length)

@@ -58,13 +58,20 @@ const internal = { 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '4
 
 test('dedicated edge routes legacy Odoo paths and passes raw session cookie unchanged', async t => {
   const f = await fixture(t)
-  for (const path of ['/api/v1/me', '/web/login', '/odoo/action', '/website/translations', '/base_setup/x', '/bus/x', '/json/x', '/doc/x', '/base/static/a.js', '/report/x', '/mail/x', '/discuss/x']) {
+  for (const path of ['/web/login', '/odoo/action', '/website/translations', '/base_setup/x', '/bus/x', '/json/x', '/doc/x', '/base/static/a.js', '/report/x', '/mail/x', '/discuss/x']) {
     const response = await call(f.url, path, { cookie: 'session_id=existing-raw-cookie; preference=x' })
     assert.equal(response.status, 200); assert.equal(response.body, 'odoo')
     assert.equal(f.observed.at(-1).headers.cookie, 'session_id=existing-raw-cookie; preference=x')
     assert.equal(response.headers['set-cookie'][0], 'session_id=raw-odoo-session; Path=/; HttpOnly')
   }
   assert.equal((await call(f.url, '/projects')).body, 'web')
+  const cookie = 'session_id=existing-raw-cookie; preference=x'
+  assert.equal((await call(f.url, '/api/v1/me', { cookie })).body, 'web')
+  assert.equal(f.observed.at(-1).headers.cookie, cookie)
+  assert.equal(f.observed.at(-1).headers['x-webvue-proxy-token'], token)
+  assert.equal((await call(f.url, '/api/v1/me', { ...internal, cookie })).body, 'odoo')
+  assert.equal(f.observed.at(-1).headers.cookie, cookie)
+  assert.equal(f.observed.at(-1).headers['x-webvue-proxy-token'], undefined)
 })
 
 test('dedicated Nuxt hop preserves browser CSRF while private and Odoo headers stay isolated', async t => {
@@ -77,6 +84,9 @@ test('dedicated Nuxt hop preserves browser CSRF while private and Odoo headers s
   assert.equal(forwarded.headers['x-webvue-csrf'], csrf)
   assert.equal(forwarded.headers.cookie, headers.cookie)
   assert.equal((await call(f.url, '/api/v1/me', headers)).status, 200)
+  assert.equal(f.observed.at(-1).kind, 'web')
+  assert.equal(f.observed.at(-1).headers['x-webvue-csrf'], csrf)
+  assert.equal((await call(f.url, '/api/v1/me', { ...headers, ...internal })).status, 200)
   assert.equal(f.observed.at(-1).kind, 'odoo')
   assert.equal(f.observed.at(-1).headers['x-webvue-csrf'], undefined)
   assert.equal((await call(f.url, '/', { ...headers, 'x-webvue-release-pool': 'green' })).status, 403)

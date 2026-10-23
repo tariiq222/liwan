@@ -68,7 +68,7 @@ export function requestPlan(req, registry, token, codec) {
   // An explicit route allowlist excludes database manager, generic RPC and vendor console.
   // wkhtmltopdf fetches the stateless QR/barcode image through the public host while it renders a report.
   const barcode = ['GET', 'HEAD'].includes(req.method ?? 'GET') && /^\/report\/barcode\/?$/.test(url.pathname)
-  const odoo = favicon || avatar || logo || barcode || url.pathname.startsWith('/api/v1/') || url.pathname === '/websocket' || (internal && ['/web/session/authenticate', '/web/session/destroy'].includes(url.pathname))
+  const odoo = favicon || avatar || logo || barcode || (internal && url.pathname.startsWith('/api/v1/')) || url.pathname === '/websocket' || (internal && ['/web/session/authenticate', '/web/session/destroy'].includes(url.pathname))
   if (!odoo && /^(\/web(?:\/|$)|\/odoo|\/jsonrpc|\/xmlrpc|\/json\/|\/report|\/bus|\/mail|\/discuss|\/website|\/base_setup)/.test(url.pathname)) throw Error('forbidden_route')
   const headers = { ...req.headers }
   for (const key of Object.keys(headers)) if (forbidden.test(key) && (odoo || !browserHeaders.has(key))) delete headers[key]
@@ -193,6 +193,9 @@ export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl
       res.writeHead(reply.statusCode, headers); reply.pipe(res)
     })
     upstream.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end() })
+    // Nuxt can reject an API upload before its body ends. Close that public
+    // bridge on response/disconnect; internal claimed writes retain their owner.
+    if (!p.internal && p.path.startsWith('/api/v1/')) res.once('close', () => upstream.destroy())
     if (body) upstream.end(body); else req.pipe(upstream)
   })
   server.on('upgrade', (req, socket, head) => {
