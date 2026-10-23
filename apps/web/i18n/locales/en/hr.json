@@ -313,6 +313,17 @@
           "submit": "Grant balance",
           "noTypes": "No leave types use a balance"
         }
-      }
+      },
+    "shiftSettings": {
+      "title": "Schedule day reference",
+      "hint": "Choose the timezone used to decide which personal schedule assignments are current or upcoming.",
+      "reference": "Day reference",
+      "company": "Company timezone (default)",
+      "user": "Each user timezone",
+      "defaultHint": "Company timezone: {timezone}. Users without a timezone use the company timezone.",
+      "conflict": "These settings changed while you were editing. Reload to review the latest value before saving.",
+      "reload": "Discard draft and reload",
+      "saveError": "Could not save schedule settings"
+    }
   }
 }

@@ -2248,6 +2248,22 @@
       "handler": "get_schedule",
       "no_capability_reason": null
     },
+    "GET /api/v1/hr/shifts/settings": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read",
+        "hr.shifts.manage"
+      ],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "get_settings",
+      "no_capability_reason": null
+    },
     "GET /api/v1/integrations/connections": {
       "addon": "webvue_integrations_sa",
       "auth": "user",
@@ -3635,6 +3651,21 @@
         "hr.shifts"
       ],
       "handler": "update_schedule",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/shifts/settings": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.shifts.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.shifts"
+      ],
+      "handler": "patch_settings",
       "no_capability_reason": null
     },
     "PATCH /api/v1/me/appearance": {

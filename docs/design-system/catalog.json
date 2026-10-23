@@ -544,6 +544,55 @@
       ]
     },
     {
+      "name": "HrShiftsShiftSettingsForm",
+      "file": "apps/web/app/components/hr/shifts/ShiftSettingsForm.vue",
+      "story": "apps/web/stories/hr/shifts/ShiftSettingsForm.stories.ts",
+      "title": "HR/Shifts/ShiftSettingsForm",
+      "props": [
+        {
+          "name": "settings",
+          "type": "{ day_reference: \"company\" | \"user\"; company_timezone: string; effective_timezone: string; today: string; revision: number; }",
+          "required": true
+        },
+        {
+          "name": "canEdit",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "reloadSettings",
+          "type": "() => Promise<{ day_reference: \"company\" | \"user\"; company_timezone: string; effective_timezone: string; today: string; revision: number; }>",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UForm",
+        "UFormField",
+        "USelect"
+      ],
+      "stories": [
+        {
+          "id": "CompanyDefault",
+          "name": "CompanyDefault",
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:120"
+        },
+        {
+          "id": "UserReference",
+          "name": "UserReference",
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:120"
+        },
+        {
+          "id": "ReadOnly",
+          "name": "ReadOnly",
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:120"
+        }
+      ]
+    },
+    {
       "name": "MeetingsMeetingAttachmentsTab",
       "file": "apps/web/app/components/meetings/MeetingAttachmentsTab.vue",
       "story": "apps/web/stories/meetings/MeetingAttachmentsTab.stories.ts",
@@ -1811,11 +1860,11 @@
       ],
       "events": [
         {
-          "name": "archived",
+          "name": "settings",
           "payload": "[]"
         },
         {
-          "name": "settings",
+          "name": "archived",
           "payload": "[]"
         },
         {

@@ -40,6 +40,13 @@ const shiftAssignments = [
 ]
 const onDate = (row, day) => (!row.date_start || row.date_start <= day) && (!row.date_end || row.date_end >= day)
 function shiftsData(route, url) {
+  // The current mock company's calendar and signed-in user's timezone are Asia/Riyadh.
+  // Match the server's unsaved default policy, including its company-local calendar day.
+  if (route === '/api/v1/hr/shifts/settings') return {
+    day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh',
+    today: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()),
+    revision: 0,
+  }
   if (route === '/api/v1/hr/shifts/schedules') {
     const scope = url.searchParams.get('active') ?? 'true'
     return page(schedules.filter(row => scope === 'all' || row.active === (scope === 'true')), url)
