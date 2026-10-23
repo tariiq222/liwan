@@ -5,7 +5,7 @@ import { createResponseAdmission } from '../bufferAdmission.mjs'
 
 const listen = (server: http.Server) => new Promise<string>(resolve => server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${(server.address() as { port: number }).port}`)))
 it('cleans listeners and returns response credits after real fast finish, failure and already-finished output', async () => {
-  const admission = createResponseAdmission()
+  const admission = createResponseAdmission('session')
   const rows: http.ServerResponse[] = []
   let completed = 0
   const server = http.createServer(async (req, res) => {
@@ -44,7 +44,7 @@ it('cleans listeners and returns response credits after real fast finish, failur
 })
 
 it('holds all four credits after real HTTP finish until the corresponding callbacks settle', async () => {
-  const admission = createResponseAdmission()
+  const admission = createResponseAdmission('session')
   const pending: Array<() => void> = []
   let entered = 0
   const server = http.createServer(async (req, res) => {

@@ -13,6 +13,7 @@ async function fixture() {
   const waiting: Array<() => void> = []
   const probes: string[] = []
   let active = 0
+  let entered = 0
   let maxActive = 0
   let hold = false
   let unavailable = false
@@ -47,6 +48,9 @@ async function fixture() {
   const upstreamUrl = `http://127.0.0.1:${(upstream.address() as { port: number }).port}`
   const h3 = createApp()
   h3.use(defineEventHandler(async event => {
+    // requireApiSession registers its lane waiter synchronously, so once a request has
+    // entered, its probe is either running or already queued.
+    entered++
     await requireApiSession(event, upstreamUrl, {})
     const response = await withUpstreamSlot(signal => fetch(upstreamUrl + '/api/v1/tasks', { signal }), event)
     return response.text()
@@ -56,7 +60,7 @@ async function fixture() {
   const url = `http://127.0.0.1:${(app.address() as { port: number }).port}`
   return {
     probes, held,
-    get active() { return active }, get maxActive() { return maxActive }, get waiting() { return waiting.length },
+    get entered() { return entered }, get active() { return active }, get maxActive() { return maxActive }, get waiting() { return waiting.length },
     hold() { hold = true }, outage() { unavailable = true }, recover() { unavailable = false },
     release() { hold = false; for (const respond of held.splice(0)) respond() },
     call(session?: string) { return fetch(url, { headers: session ? { cookie: `session_id=${session}` } : {} }) },
@@ -151,7 +155,7 @@ it('rejects only the waiter beyond the bounded queue and leaks no lane state', a
     queued.push(wire.call('forged-0'))
     await vi.waitFor(() => expect(wire.held).toHaveLength(1))
     for (let index = 1; index <= 32; index++) queued.push(wire.call(`forged-${index}`))
-    await new Promise(resolve => setTimeout(resolve, 300))
+    await vi.waitFor(() => expect(wire.entered).toBe(33))
     const overflow = await wire.call('forged-overflow')
     expect(overflow.status).toBe(429)
     expect(ApiErrorSchema.parse((await overflow.json()).data)).toEqual(busyBody)
@@ -171,11 +175,11 @@ it('answers 429 to a waiter whose wait expires and removes it from the queue', a
     pending.push(wire.call('forged-a'))
     await vi.waitFor(() => expect(wire.held).toHaveLength(1))
     pending.push(wire.call('forged-b'))
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await vi.waitFor(() => expect(wire.entered).toBe(2))
     const expired = wire.call('forged-c')
     pending.push(expired)
-    // The first probe hits its own 2s deadline and hands the lane to forged-b; forged-c
-    // has waited its full 2s behind that probe and is rejected.
+    // The first probe hits its own 2s deadline, which was armed before forged-b queued, and
+    // hands the lane to forged-b; forged-c then waits its full 2s behind that probe and is rejected.
     const response = await expired
     expect(response.status).toBe(429)
     expect(ApiErrorSchema.parse((await response.json()).data)).toEqual(busyBody)

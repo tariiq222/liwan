@@ -59,14 +59,14 @@ function createAdmission(skipBodyless, pool) {
 }
 
 /** Incoming-body pools do not consume credits for GET/HEAD.
- * @param {AdmissionPool} [pool] */
-export function createBodyAdmission(pool = 'session') { return createAdmission(true, pool) }
+ * @param {AdmissionPool} pool */
+export function createBodyAdmission(pool) { return createAdmission(true, pool) }
 
 /** Response buffers belong to both the operation and its actual HTTP output.
  * H3's native Response sender can settle before ServerResponse drains.
- * @param {AdmissionPool} [pool]
+ * @param {AdmissionPool} pool
  */
-export function createResponseAdmission(pool = 'session') {
+export function createResponseAdmission(pool) {
   const acquire = createAdmission(false, pool)
   /** @template T
    * @param {import('node:http').IncomingMessage} req

@@ -14,8 +14,8 @@ const browserHeaders = new Set(['x-webvue-csrf'])
 const selectors = /^(db|database|session_id|sid)$/i
 // Match the BFF's fixed public auth budgets before this edge buffers JSON.
 // Separate hop pools avoid a public BFF request deadlocking its internal continuation.
-const acquireExternalBody = createBodyAdmission()
-const acquireInternalBody = createBodyAdmission()
+const acquireExternalBody = createBodyAdmission('session')
+const acquireInternalBody = createBodyAdmission('session')
 const publicAuthBodyLimits = { '/api/auth/totp': 1024, '/api/auth/login': 64 * 1024 }
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b))
 export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() / 1000)) {
