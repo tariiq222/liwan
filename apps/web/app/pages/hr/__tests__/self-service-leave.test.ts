@@ -24,7 +24,7 @@ function load(path: string, personal: boolean, capabilities = ['hr.leave.read', 
     useHrLeaveRequests: (params: any) => { requested = params; return response() },
     useHrLeaveBalances: (_id: any, enabled: any) => { balancesEnabled = enabled; return response() },
     useMyHrProfile: () => ({ ...response(), data: Vue.ref(profileData) }),
-    useLeaveDecision: () => ({isPending: Vue.ref(false)}), useWithdrawLeaveRequest: () => ({isPending: Vue.ref(false)}),
+    useCancellationDecision: () => ({isPending: Vue.ref(false)}), useLeaveDecision: () => ({isPending: Vue.ref(false)}), useWithdrawLeaveRequest: () => ({isPending: Vue.ref(false)}),
     returnToQuery: (value: string) => ({returnTo: value}),
   }
   const js = ts.transpileModule(code, { compilerOptions: {target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None} }).outputText
@@ -46,7 +46,7 @@ describe('employee leave ownership', () => {
     const loaded = load('/hr/leave?scope=mine', false, ['hr.leave.read',capability])
     expect(loaded.params.scope).toBe('pending')
     expect(loaded.balances).toBe(false)
-    expect(loaded.state.scopeItems.value.map((item: any) => item.value)).toEqual(['pending','all'])
+    expect(loaded.state.scopeItems.value.map((item: any) => item.value)).toEqual(['pending','cancellations','all'])
   })
   it('does not offer a leave create action without an employee link', () => {
     const loaded = load('/account/leave', true, ['hr.leave.read','hr.leave.request'], null)
@@ -55,11 +55,18 @@ describe('employee leave ownership', () => {
   })
   it('keeps only own withdrawal actions in Self-service, even when backend HR action flags are true', () => {
     const loaded = load('/account/leave', true)
-    const actions = loaded.state.rowActions({id:7,can_approve:true,can_refuse:true,can_cancel:true,can_withdraw:true})
-    expect(actions.map((action:any) => action.label)).toEqual(['hr.leave.withdraw'])
+    const actions = loaded.state.rowActions({id:7,can_approve:true,can_refuse:true,can_cancel:false,can_withdraw:true,can_request_cancellation:true,can_approve_cancellation:true,can_refuse_cancellation:true})
+    expect(actions.map((action:any) => action.label)).toEqual(['hr.leave.withdraw','hr.leave.requestCancellation'])
   })
   it('links personal and management rows to their corresponding own/detail destinations', () => {
     expect(load('/account/leave?offset=25', true).state.leaveTo({id:7}).path).toBe('/account/leave/7')
     expect(load('/hr/leave?scope=all', false).state.leaveTo({id:7}).path).toBe('/hr/leave/7')
   })
+})
+
+
+it('admin cancellation filter round trips URL without narrowing native approval states', () => {
+  const loaded = load('/hr/leave?cancellation_state=pending', false)
+  expect(loaded.params.cancellation_state).toBe('pending')
+  expect(loaded.state.scopeSelection.value).toBe('cancellations')
 })

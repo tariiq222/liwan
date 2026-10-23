@@ -249,7 +249,8 @@
         "label": "نطاق الطلبات",
         "mine": "طلباتي",
         "pending": "بانتظار الاعتماد",
-        "all": "كل الطلبات"
+        "all": "كل الطلبات",
+        "cancellations": "طلبات إلغاء الإجازات"
       },
       "empty": {
         "mine": "لا طلبات إجازة لك",
@@ -311,6 +312,24 @@
         "validToHint": "اتركه فارغًا إذا لم يكن للرصيد تاريخ انتهاء.",
         "submit": "منح الرصيد",
         "noTypes": "لا أنواع إجازات تستخدم الرصيد"
+      },
+      "requestCancellation": "طلب إلغاء الإجازة",
+      "approveCancellation": "اعتماد الإلغاء",
+      "refuseCancellation": "رفض الإلغاء",
+      "managerCancel": "إلغاء بقرار المدير",
+      "requestCancellationConfirm": "طلب إلغاء {type} للموظف {employee} ({period})؟ تبقى الإجازة معتمدة حتى قرار المدير.",
+      "approveCancellationConfirm": "اعتماد إلغاء {type} للموظف {employee} ({period})؟",
+      "refuseCancellationConfirm": "رفض إلغاء {type} للموظف {employee} ({period})؟",
+      "managerCancelConfirm": "إلغاء {type} للموظف {employee} ({period}) بقرار المدير؟",
+      "reasonRequired": "السبب (مطلوب)",
+      "cancellationTitle": "طلب إلغاء الإجازة",
+      "cancellationInitiator": "بدأ الطلب: {name}",
+      "cancellationReviewer": "راجع الطلب: {name}",
+      "cancellationConflict": "تغيّرت الإجازة أو طلب الإلغاء. حُمّلت أحدث البيانات؛ راجعها قبل المحاولة مجددًا.",
+      "cancellationStates": {
+        "pending": "بانتظار اعتماد الإلغاء",
+        "approved": "الإلغاء معتمد",
+        "refused": "طلب الإلغاء مرفوض"
       }
     },
     "shiftSettings": {
@@ -339,6 +358,22 @@
       "noEmployeeHint": "تحتاج إلى ربط حسابك بملف موظف في الشركة الحالية للاستفادة من الخدمات الوظيفية.",
       "balance": "{name}: {days} يوم متبقٍ",
       "approvedPayslips": "قسائم راتب معتمدة"
+    },
+    "leaveSettings": {
+      "title": "سياسة إلغاء الإجازات",
+      "hint": "اختر طريقة إلغاء الإجازة المعتمدة في هذه الشركة. يبقى طلب الإلغاء المعلّق بحاجة لقرار المدير بعد تغيير السياسة.",
+      "reference": "إلغاء الإجازة المعتمدة",
+      "defaultHint": "الافتراضي يتطلب اعتماد المدير. سحب طلب الإجازة غير المعتمد يبقى كما هو.",
+      "managerApproval": "الموظف يطلب والمدير يعتمد (الافتراضي)",
+      "directEmployee": "الموظف يلغي مباشرة",
+      "managerOnly": "الإلغاء بقرار المدير فقط",
+      "managerApprovalHint": "يبقى طلب الإجازة المعتمد والرصيد كما هما حتى يعتمد مدير مخوّل طلب الإلغاء.",
+      "directEmployeeHint": "يمكن للموظف إلغاء إجازته المؤهلة مباشرة. طلب الإلغاء المعلّق يبقى بحاجة لقرار المدير.",
+      "managerOnlyHint": "لا يبدأ الموظف الإلغاء. يمكن لمدير مخوّل إلغاء إجازة معتمدة مؤهلة لموظف آخر.",
+      "conflict": "تغيّرت السياسة. احتُفظ بمسودتك؛ أعد تحميل أحدث سياسة قبل الحفظ.",
+      "saveError": "تعذر حفظ سياسة الإجازات",
+      "reload": "إعادة تحميل السياسة",
+      "reloadError": "تعذر إعادة التحميل. احتُفظ بالمسودة وحالة التعارض."
     }
   }
 }

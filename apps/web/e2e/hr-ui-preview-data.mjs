@@ -46,9 +46,9 @@ const SICK = { id: 2, name: 'إجازة مرضية' }
 const UNPAID = { id: 3, name: 'إجازة بدون راتب' }
 const leaveTypes = [ANNUAL, SICK, UNPAID].map(type => ({ ...type, requires_allocation: type.id === ANNUAL.id, support_document: type.id === SICK.id }))
 const leaves = [
-  { id: 1, employee: SARA, leave_type: ANNUAL, date_from: '2026-11-01', date_to: '2026-11-05', number_of_days: 5, state: 'confirm', notes: 'سفر عائلي مخطط له منذ فترة.', can_approve: true, can_refuse: true, can_cancel: false, can_withdraw: false },
-  { id: 2, employee: KHALID, leave_type: SICK, date_from: '2026-10-12', date_to: '2026-10-12', number_of_days: 1, state: 'validate', notes: '', can_approve: false, can_refuse: false, can_cancel: true, can_withdraw: false },
-  { id: 3, employee: SARA, leave_type: ANNUAL, date_from: '2026-09-01', date_to: '2026-09-03', number_of_days: 3, state: 'refuse', notes: '', can_approve: false, can_refuse: false, can_cancel: false, can_withdraw: false },
+  { id: 1, employee: SARA, leave_type: ANNUAL, date_from: '2026-11-01', date_to: '2026-11-05', number_of_days: 5, state: 'confirm', notes: 'سفر عائلي مخطط له منذ فترة.', can_approve: true, can_refuse: true, can_cancel: false, can_withdraw: false, cancellation_policy: 'manager_approval', cancellation: null, can_request_cancellation: false, can_approve_cancellation: false, can_refuse_cancellation: false },
+  { id: 2, employee: KHALID, leave_type: SICK, date_from: '2026-10-12', date_to: '2026-10-12', number_of_days: 1, state: 'validate', notes: '', can_approve: false, can_refuse: false, can_cancel: true, can_withdraw: false, cancellation_policy: 'manager_approval', cancellation: null, can_request_cancellation: false, can_approve_cancellation: false, can_refuse_cancellation: false },
+  { id: 3, employee: SARA, leave_type: ANNUAL, date_from: '2026-09-01', date_to: '2026-09-03', number_of_days: 3, state: 'refuse', notes: '', can_approve: false, can_refuse: false, can_cancel: false, can_withdraw: false, cancellation_policy: 'manager_approval', cancellation: null, can_request_cancellation: false, can_approve_cancellation: false, can_refuse_cancellation: false },
 ]
 const leaveBalances = [{ leave_type: ANNUAL, allocated: 21, taken: 3, pending: 5, remaining: 13 }]
 

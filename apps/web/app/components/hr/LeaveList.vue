@@ -8,6 +8,7 @@ import {
   useHrLeaveBalances,
   useHrLeaveRequests,
   useLeaveDecision,
+  useCancellationDecision,
   useWithdrawLeaveRequest,
   type HrLeave,
   type HrLeaveDecision,
@@ -37,7 +38,9 @@ function scopeFrom(value: unknown): HrLeaveScope {
 }
 const scope = computed(() => scopeFrom(route.query.scope))
 const offset = computed(() => Math.max(0, Number(route.query.offset ?? 0) || 0))
-const params = computed(() => ({ scope: scope.value, limit: LIMIT, offset: offset.value }))
+const cancellationFilter = computed(() => !props.personal && route.query.cancellation_state === 'pending')
+const params = computed(() => ({ scope: scope.value, limit: LIMIT, offset: offset.value, ...(cancellationFilter.value ? { cancellation_state: 'pending' as const } : {}) }))
+const scopeSelection = computed(() => cancellationFilter.value ? 'cancellations' : scope.value)
 
 const profile = useMyHrProfile(computed(() => !!props.personal && isListRoute.value))
 const ready = computed(() => !props.personal || !!profile.data.value)
@@ -45,6 +48,7 @@ const canRequest = computed(() => props.personal && ready.value && can('hr.leave
 const requests = useHrLeaveRequests(params, computed(() => isListRoute.value && ready.value))
 const balances = useHrLeaveBalances(null, computed(() => !!props.personal && isListRoute.value && ready.value))
 const decision = useLeaveDecision()
+const cancellationDecision = useCancellationDecision()
 const withdrawal = useWithdrawLeaveRequest()
 
 const items = computed(() => requests.data.value?.items ?? [])
@@ -58,6 +62,7 @@ const balanceItems = computed(() => balances.data.value?.items ?? [])
 
 const scopeItems = computed(() => props.personal ? [] : [
   { value: 'pending', label: t('hr.leave.scope.pending'), testId: 'hr-leave-scope-pending' },
+  { value: 'cancellations', label: t('hr.leave.scope.cancellations'), testId: 'hr-leave-scope-cancellations' },
   { value: 'all', label: t('hr.leave.scope.all'), testId: 'hr-leave-scope-all' },
 ])
 
@@ -71,7 +76,7 @@ const columns = computed<TableColumn<HrLeave>[]>(() => [
   { id: 'actions', header: () => h('span', { class: 'sr-only' }, t('app.actions')), meta: { class: { th: 'w-12', td: 'w-12 text-end' } } },
 ])
 
-function writeQuery(next: { scope?: HrLeaveScope; offset?: number }) {
+function writeQuery(next: { scope?: HrLeaveScope; offset?: number; cancellation?: boolean }) {
   const nextScope = next.scope ?? scope.value
   const nextOffset = next.offset ?? 0
   void router.replace({
@@ -79,13 +84,14 @@ function writeQuery(next: { scope?: HrLeaveScope; offset?: number }) {
       ...route.query,
       scope: props.personal || nextScope === 'pending' ? undefined : nextScope,
       offset: nextOffset > 0 ? nextOffset : undefined,
+      cancellation_state: (next.cancellation ?? cancellationFilter.value) ? 'pending' : undefined,
     },
     hash: route.hash,
   })
 }
 function setScope(value: string) {
   if (!hydrated.value) return
-  writeQuery({ scope: scopeFrom(value), offset: 0 })
+  writeQuery({ scope: scopeFrom(value), offset: 0, cancellation: value === 'cancellations' })
 }
 function setPage(next: number) {
   if (!hydrated.value || requests.isFetching.value || next < 1 || next > pages.value) return
@@ -97,7 +103,20 @@ const decisionError = ref('')
 const withdrawing = ref<HrLeave | null>(null)
 const cancelling = ref<HrLeave | null>(null)
 const refusing = ref<HrLeave | null>(null)
-const writing = computed(() => decision.isPending.value || withdrawal.isPending.value)
+const cancellationReview = ref<{leave: HrLeave; kind: 'approveCancellation' | 'refuseCancellation'} | null>(null)
+const writing = computed(() => decision.isPending.value || withdrawal.isPending.value || cancellationDecision.isPending.value)
+async function decideCancellation(reason: string) {
+  const current = cancellationReview.value
+  if (!current?.leave.cancellation || !hydrated.value || writing.value || (current.kind === 'refuseCancellation' && !reason.trim())) return
+  decisionError.value = ''
+  try {
+    await cancellationDecision.mutateAsync({ id: current.leave.id, revision: current.leave.cancellation.revision, decision: current.kind === 'approveCancellation' ? 'approve' : 'refuse', reason })
+    cancellationReview.value = null
+  } catch (cause) {
+    decisionError.value = cause instanceof ApiError && cause.status === 409 ? t('hr.leave.cancellationConflict') : cause instanceof ApiError ? cause.message : t('errors.generic')
+    if (cause instanceof ApiError && cause.status === 409) { cancellationReview.value = null; await requests.refetch() }
+  }
+}
 
 async function decide(leave: HrLeave, kind: HrLeaveDecision, reason?: string) {
   if (!hydrated.value || writing.value) return
@@ -107,7 +126,8 @@ async function decide(leave: HrLeave, kind: HrLeaveDecision, reason?: string) {
     cancelling.value = null
     refusing.value = null
   } catch (cause) {
-    decisionError.value = cause instanceof ApiError ? cause.message : t('errors.generic')
+    decisionError.value = cause instanceof ApiError && cause.status === 409 ? t('hr.leave.cancellationConflict') : cause instanceof ApiError ? cause.message : t('errors.generic')
+    if (cause instanceof ApiError && cause.status === 409) { cancelling.value = null; refusing.value = null; await requests.refetch() }
   }
 }
 
@@ -119,7 +139,8 @@ async function withdraw(leave: HrLeave) {
     await withdrawal.mutateAsync(leave.id)
     withdrawing.value = null
   } catch (cause) {
-    decisionError.value = cause instanceof ApiError ? cause.message : t('errors.generic')
+    decisionError.value = cause instanceof ApiError && cause.status === 409 ? t('hr.leave.cancellationConflict') : cause instanceof ApiError ? cause.message : t('errors.generic')
+    if (cause instanceof ApiError && cause.status === 409) { cancelling.value = null; refusing.value = null; await requests.refetch() }
   }
 }
 function rowActions(leave: HrLeave) {
@@ -129,8 +150,11 @@ function rowActions(leave: HrLeave) {
     ...(leave.can_withdraw
       ? [{ label: t('hr.leave.withdraw'), icon: 'i-lucide-undo-2' as const, destructive: true, onSelect: () => { withdrawing.value = leave } }]
       : []),
-    ...(!props.personal && leave.can_cancel
-      ? [{ label: t('hr.leave.cancel'), icon: 'i-lucide-ban' as const, destructive: true, onSelect: () => { cancelling.value = leave } }]
+    ...(canApprove.value && leave.can_approve_cancellation ? [{ label: t('hr.leave.approveCancellation'), icon: 'i-lucide-check' as const, onSelect: () => { cancellationReview.value = { leave, kind: 'approveCancellation' } } }] : []),
+    ...(canApprove.value && leave.can_refuse_cancellation ? [{ label: t('hr.leave.refuseCancellation'), icon: 'i-lucide-x' as const, onSelect: () => { cancellationReview.value = { leave, kind: 'refuseCancellation' } } }] : []),
+    ...(leave.can_request_cancellation ? [{ label: t('hr.leave.requestCancellation'), icon: 'i-lucide-calendar-x' as const, onSelect: () => { cancelling.value = leave } }] : []),
+    ...(leave.can_cancel
+      ? [{ label: t(props.personal ? 'hr.leave.cancel' : 'hr.leave.managerCancel'), icon: 'i-lucide-ban' as const, destructive: true, onSelect: () => { cancelling.value = leave } }]
       : []),
   ]
 }
@@ -192,12 +216,13 @@ const allocateTo = computed(() => ({ path: '/hr/leave/allocations/new', query: l
 
       <HrLeaveDecisionConfirm v-if="refusing" kind="refuse" :leave="refusing" :pending="writing" @confirm="decide(refusing, 'refuse', $event)" @cancel="refusing = null" />
       <HrLeaveDecisionConfirm v-if="withdrawing" kind="withdraw" :leave="withdrawing" :pending="writing" @confirm="withdraw(withdrawing)" @cancel="withdrawing = null" />
-      <HrLeaveDecisionConfirm v-if="cancelling" kind="cancel" :leave="cancelling" :pending="writing" @confirm="decide(cancelling, 'cancel', $event)" @cancel="cancelling = null" />
+      <HrLeaveDecisionConfirm v-if="cancellationReview" :kind="cancellationReview.kind" :leave="cancellationReview.leave" :pending="writing" @confirm="decideCancellation" @cancel="cancellationReview = null" />
+      <HrLeaveDecisionConfirm v-if="cancelling" :kind="cancelling.can_request_cancellation ? 'requestCancellation' : props.personal ? 'cancel' : 'managerCancel'" :leave="cancelling" :pending="writing" @confirm="decide(cancelling, 'cancel', $event)" @cancel="cancelling = null" />
 
       <SharedListCard v-if="ready">
         <template v-if="scopeItems.length > 1" #filters>
           <SharedSegmentedControl
-            :model-value="scope"
+            :model-value="scopeSelection"
             :items="scopeItems"
             :label="t('hr.leave.scope.label')"
             :disabled="!hydrated"
@@ -223,6 +248,9 @@ const allocateTo = computed(() => ({ path: '/hr/leave/allocations/new', query: l
             <template #number_of_days-cell="{ row }"><span class="tabular-nums">{{ days(row.original.number_of_days) }}</span></template>
             <template #state-cell="{ row }">
               <SharedStatusBadge size="sm" :tone="hrLeaveBadge(row.original.state).tone" :label="t(hrLeaveBadge(row.original.state).labelKey)" data-testid="hr-leave-state" />
+              <SharedStatusBadge v-if="row.original.cancellation" size="sm" :tone="row.original.cancellation.state === 'refused' ? 'error' : 'warning'" :label="t(`hr.leave.cancellationStates.${row.original.cancellation.state}`)" data-testid="hr-leave-cancellation-state" />
+              <p v-if="row.original.cancellation?.reason" class="mt-1 text-xs text-muted">{{ row.original.cancellation.reason }}</p>
+              <p v-if="row.original.cancellation?.review_reason" class="text-xs text-muted">{{ row.original.cancellation.review_reason }}</p>
             </template>
             <template #actions-cell="{ row }">
               <SharedRowActions
@@ -236,6 +264,9 @@ const allocateTo = computed(() => ({ path: '/hr/leave/allocations/new', query: l
                 <bdi class="text-xs text-muted">#{{ row.id }}</bdi>
                 <SharedStatusBadge size="sm" :tone="hrLeaveBadge(row.state).tone" :label="t(hrLeaveBadge(row.state).labelKey)" />
               </div>
+              <SharedStatusBadge v-if="row.cancellation" size="sm" :tone="row.cancellation.state === 'refused' ? 'error' : 'warning'" :label="t(`hr.leave.cancellationStates.${row.cancellation.state}`)" />
+              <p v-if="row.cancellation?.reason" class="text-xs text-muted">{{ row.cancellation.reason }}</p>
+              <p v-if="row.cancellation?.review_reason" class="text-xs text-muted">{{ row.cancellation.review_reason }}</p>
               <p v-if="scope !== 'mine'" class="mt-1 font-semibold text-highlighted">{{ row.employee.name }}</p>
               <p class="mt-1 text-sm"><NuxtLink :to="leaveTo(row)" class="font-semibold text-highlighted hover:underline" @click="!hydrated && $event.preventDefault()">{{ row.leave_type.name }}</NuxtLink> · <span class="tabular-nums">{{ days(row.number_of_days) }}</span></p>
               <bdi class="block text-xs text-muted">{{ period(row) }}</bdi>
