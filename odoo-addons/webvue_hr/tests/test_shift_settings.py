@@ -1,12 +1,20 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import inspect
 from datetime import datetime
+from types import SimpleNamespace
 from unittest.mock import patch
+from uuid import uuid4
 
-from odoo import fields
+from psycopg2.errors import SerializationFailure
+
+from odoo import SUPERUSER_ID, api, fields
 from odoo.exceptions import AccessError
-from odoo.tests import new_test_user, tagged
+from odoo.tests import TransactionCase, new_test_user, tagged
+from odoo.tools import mute_logger
 
 from .common import WebVueHrCase, set_hr_feature
+from odoo.addons.webvue_api.controllers.common import ApiError
+from odoo.addons.webvue_hr.controllers.shifts import settings
 
 
 @tagged('post_install', '-at_install', 'webvue')
@@ -191,3 +199,86 @@ class TestHrShiftSettings(WebVueHrCase):
                 body = self.api('GET', '/api/v1/hr/shifts/settings').json()
             self.assertEqual(body['today'], today)
             self.assertEqual(body['effective_timezone'], company_tz if reference == 'company' else user_tz)
+
+
+@tagged('post_install', '-at_install', 'webvue')
+class TestHrShiftSettingsConcurrency(TransactionCase):
+    """Independent committed snapshots; the ordinary HttpCase cursor serializes requests."""
+
+    def _fixture(self):
+        if not self.env.cr.dbname.startswith('webvue_scratch_'):
+            self.fail('Committed concurrency fixtures require a webvue_scratch_ database.')
+        with self.registry.cursor() as cursor:
+            env = api.Environment(cursor, SUPERUSER_ID, {})
+            company = env.company
+            self.assertFalse(env['webvue.hr.shift.settings'].search([('company_id', '=', company.id)]),
+                             'The committed fixture must not replace an existing policy.')
+            user = new_test_user(env, login='shift_cas_' + uuid4().hex, groups='webvue_core.group_employee',
+                                 context={'no_reset_password': True},
+                                 company_id=company.id, company_ids=[(6, 0, company.ids)])
+            env['webvue.access.service']._webvue_replace_assignments(user, [{
+                'role_id': env.ref('webvue_hr.role_hr_manager').id, 'company_id': company.id,
+            }])
+            cursor.commit()
+            return company.id, user.id, user.partner_id.id
+
+    def _patch(self, cursor, fixture, reference, revision):
+        env = api.Environment(cursor, fixture[1], {'allowed_company_ids': [fixture[0]]})
+        # Exercise the actual controller body and its savepoint/model checks.
+        # HTTP dispatch/retry is covered separately by the normal-server acceptance.
+        with patch.object(settings, 'request', SimpleNamespace(env=env)):
+            return inspect.unwrap(settings.HrShiftSettingsController.patch_settings)(
+                settings.HrShiftSettingsController(), day_reference=reference, revision=revision,
+            )
+
+    def _cleanup(self, fixture):
+        with self.registry.cursor() as cursor:
+            env = api.Environment(cursor, SUPERUSER_ID, {})
+            env['webvue.hr.shift.settings'].search([('company_id', '=', fixture[0])]).unlink()
+            env['res.users'].browse(fixture[1]).unlink()
+            env['res.partner'].browse(fixture[2]).unlink()
+            cursor.commit()
+
+    def test_stale_update_requires_native_retry_then_revision_conflict(self):
+        fixture = self._fixture()
+        try:
+            with self.registry.cursor() as setup:
+                self._patch(setup, fixture, 'company', 0)
+                setup.commit()
+            with self.registry.cursor() as stale:
+                env = api.Environment(stale, fixture[1], {'allowed_company_ids': [fixture[0]]})
+                self.assertEqual(env['webvue.hr.shift.settings']._webvue_current().revision, 1)
+                with self.registry.cursor() as first:
+                    self.assertEqual(self._patch(first, fixture, 'user', 1)['revision'], 2)
+                    first.commit()
+                with self.assertRaises(SerializationFailure), mute_logger('odoo.sql_db'):
+                    self._patch(stale, fixture, 'company', 1)
+                stale.rollback()
+            with self.registry.cursor() as retry:
+                with self.assertRaises(ApiError) as error:
+                    self._patch(retry, fixture, 'company', 1)
+                self.assertEqual(error.exception.status, 409)
+                row = api.Environment(retry, fixture[1], {'allowed_company_ids': [fixture[0]]})['webvue.hr.shift.settings']._webvue_current()
+                self.assertEqual((row.revision, row.day_reference), (2, 'user'))
+                retry.rollback()
+        finally:
+            self._cleanup(fixture)
+
+    def test_stale_first_create_conflicts_without_overwriting_the_winner(self):
+        fixture = self._fixture()
+        try:
+            with self.registry.cursor() as stale:
+                env = api.Environment(stale, fixture[1], {'allowed_company_ids': [fixture[0]]})
+                self.assertFalse(env['webvue.hr.shift.settings']._webvue_current())
+                with self.registry.cursor() as first:
+                    self.assertEqual(self._patch(first, fixture, 'user', 0)['revision'], 1)
+                    first.commit()
+                with self.assertRaises(ApiError) as error, mute_logger('odoo.sql_db'):
+                    self._patch(stale, fixture, 'company', 0)
+                self.assertEqual(error.exception.status, 409)
+                stale.rollback()
+            with self.registry.cursor() as verify:
+                row = api.Environment(verify, fixture[1], {'allowed_company_ids': [fixture[0]]})['webvue.hr.shift.settings']._webvue_current()
+                self.assertEqual((row.revision, row.day_reference), (1, 'user'))
+        finally:
+            self._cleanup(fixture)
