@@ -275,8 +275,9 @@ class HrLeaveController(http.Controller):
             if pending or (leave.state == 'validate' and policy == 'manager_approval'):
                 model.action_request(leave.id, reason)
             else:
-                owned = model._webvue_owner_leave(leave)
-                owned.env['hr.holidays.cancel.leave'].create({'leave_id': owned.id, 'reason': reason}).action_cancel_leave()
+                with model._webvue_owner_authorization(leave) as owned:
+                    model._webvue_owner_leave(leave)
+                    owned.env['hr.holidays.cancel.leave'].create({'leave_id': owned.id, 'reason': reason}).action_cancel_leave()
         else:
             _require('hr.leave.approve')
             model.action_direct_cancel(leave.id, reason, vals.get('revision'))

@@ -1,11 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import date, timedelta
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 from psycopg2.errors import SerializationFailure
 
 from odoo import SUPERUSER_ID, api
-from odoo.exceptions import ConcurrencyError
+from odoo.exceptions import AccessError, ConcurrencyError
 from odoo.service.model import retrying
 from odoo.tests import TransactionCase, new_test_user, tagged
 from odoo.tools import mute_logger
@@ -57,7 +58,7 @@ class TestLeaveCancellationConcurrency(TransactionCase):
             env['hr.work.entry'].with_context(active_test=False).search([('employee_id', '=', fixture['employee'])]).unlink()
             env['hr.employee'].browse(fixture['employee']).unlink()
             env['hr.leave.type'].browse(fixture['kind']).unlink()
-            env['res.users'].browse([fixture['owner'], fixture['manager']]).unlink()
+            env['res.users'].browse([fixture['owner'], fixture['manager']] + ([fixture['replacement']] if fixture.get('replacement') else [])).unlink()
             env['res.partner'].browse(fixture['partners']).unlink()
             cursor.commit()
 
@@ -167,5 +168,62 @@ class TestLeaveCancellationConcurrency(TransactionCase):
                     result = retrying(lambda: model.action_request(fixture['leave'], 'Retried loser'), env)
                 self.assertEqual((result.id, result.state, result.revision), (winner, 'pending', 1))
                 self.assertEqual(result.reason, 'Committed winner')
+        finally:
+            self._cleanup(fixture)
+
+    def test_reassigned_owner_hidden_history_returns_one_private_conflict_without_native_retry(self):
+        fixture = self._fixture()
+        try:
+            request_id = self._request(fixture)
+            with self.registry.cursor() as setup:
+                env = api.Environment(setup, SUPERUSER_ID, {'allowed_company_ids': [fixture['company']]})
+                replacement = new_test_user(env, login='cancel_new_owner_' + uuid4().hex, groups='webvue_core.group_employee', context={'no_reset_password': True}, company_id=fixture['company'], company_ids=[(6, 0, [fixture['company']])])
+                env['webvue.access.service']._webvue_replace_assignments(replacement, [{
+                    'role_id': env.ref('webvue_core.role_employee').id, 'company_id': fixture['company'],
+                }])
+                env['hr.employee'].browse(fixture['employee']).user_id = replacement
+                fixture['replacement'] = replacement.id
+                fixture['partners'].append(replacement.partner_id.id)
+                setup.commit()
+            with self.registry.cursor() as current:
+                env = api.Environment(current, fixture['replacement'], {'allowed_company_ids': [fixture['company']], 'webvue_cancellation_approved': True})
+                model = env['webvue.hr.leave.cancellation']
+                self.assertFalse(model.search([('leave_id', '=', fixture['leave'])]))
+                with self.assertRaises(AccessError):
+                    model.browse(request_id).read(['reason', 'requester_id'])
+                attempts = 0
+                observed = []
+                ordinary_cursor = self.registry.cursor
+
+                def observe_cursor(*args, **kwargs):
+                    cursor = ordinary_cursor(*args, **kwargs)
+                    cursor.commit = Mock(side_effect=AssertionError('The visibility probe must not commit.'))
+                    cursor.rollback = Mock(wraps=cursor.rollback)
+                    cursor.close = Mock(wraps=cursor.close)
+                    observed.append(cursor)
+                    return cursor
+
+                def submit():
+                    nonlocal attempts
+                    attempts += 1
+                    return model.action_request(fixture['leave'], 'New owner request')
+
+                with self.assertRaises(ApiError) as error, patch.object(self.registry, 'cursor', side_effect=observe_cursor), patch('odoo.service.model.time.sleep'), mute_logger('odoo.sql_db'):
+                    retrying(submit, env)
+                self.assertEqual((error.exception.status, error.exception.code, attempts), (409, 'conflict', 1))
+                self.assertIsNone(error.exception.details)
+                self.assertIsNone(error.exception.field)
+                self.assertNotIn('Request', error.exception.message)
+                self.assertEqual(len(observed), 1)
+                for probe in observed:
+                    probe.commit.assert_not_called()
+                    self.assertTrue(probe.rollback.called)
+                    self.assertTrue(probe.close.called)
+                current.rollback()
+            with self.registry.cursor() as check:
+                env = api.Environment(check, SUPERUSER_ID, {'allowed_company_ids': [fixture['company']]})
+                original = env['webvue.hr.leave.cancellation'].browse(request_id)
+                self.assertEqual((original.state, original.revision, original.requester_id.id, original.initiator_id.id), ('pending', 1, fixture['owner'], fixture['owner']))
+                self.assertEqual(original.leave_id.state, 'validate')
         finally:
             self._cleanup(fixture)

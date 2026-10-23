@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Cancellation keeps the parent authorization root and the leave's company."""
+from contextlib import nullcontext
 from datetime import date, timedelta
 from unittest.mock import patch
 
@@ -231,3 +232,102 @@ class TestLeaveCancellationBranch(CompanyIsolationCase):
         with self.assertRaises(AccessError):
             wizard.action_cancel_leave()
         self.assertEqual(row.leave_id.state, 'validate')
+
+    def _inherit_owner(self):
+        owner = self.owners[self.company_p1.id]
+        owner.write({'company_ids': [Command.set((self.company_p | self.company_p1).ids)], 'company_id': self.company_p.id})
+        employee_role = self.env.ref('webvue_core.role_employee')
+        self.env['webvue.access.assignment'].search([('user_id', '=', owner.id)]).unlink()
+        self.env['webvue.access.service']._webvue_replace_assignments(owner, [{
+            'role_id': employee_role.id, 'company_id': self.company_p.id,
+        }])
+        self.company_p.webvue_branch_access_mode = 'inherited'
+        rule = self.env['webvue.access.branch.rule'].create({
+            'company_id': self.company_p.id, 'branch_id': self.company_p1.id,
+            'inherit': True, 'role_ids': [Command.set(employee_role.ids)],
+        })
+        return owner, rule
+
+    def test_parent_approval_supports_owner_inherited_employee(self):
+        owner, _rule = self._inherit_owner()
+        self.env_in(self.company_p)
+        leave = self.leaves[self.company_p1.id]
+        response = self.api('POST', f'/api/v1/hr/leave/requests/{leave.id}/cancellation/approve', {'revision': 1})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['state'], 'cancel')
+        self.assertEqual(self.cancellations[self.company_p1.id].requester_id, owner)
+
+    def test_inherited_owner_capsule_clears_warm_cache_and_cannot_be_replayed(self):
+        owner, _rule = self._inherit_owner()
+        leave = self.leaves[self.company_p1.id]
+        ordinary = leave.with_user(owner).with_context(allowed_company_ids=self.company_p1.ids, webvue_capability_scope=None)
+        service = ordinary.env['webvue.access.service']
+        self.assertFalse(service._webvue_has_capability(owner, 'hr.leave.request'))
+        model = self._model('hr.leave.approve')
+        for fail in (False, True):
+            with self.assertRaises(RuntimeError) if fail else nullcontext():
+                with model._webvue_owner_authorization(leave.with_env(model.env)) as owned:
+                    active = owned.env['webvue.access.service']
+                    self.assertTrue(active._webvue_has_capability(owned.env.user, 'hr.leave.request'))
+                    self.assertFalse(active._webvue_has_capability(owned.env.user, 'hr.departments.read'))
+                    self.assertTrue(owned.env['webvue.hr.leave.cancellation'].search_count([('leave_id', '=', leave.id)]))
+                    if fail:
+                        message = 'Capsule exception'
+                        raise RuntimeError(message)
+            self.assertFalse(service._webvue_has_capability(owner, 'hr.leave.request'))
+            self.assertFalse(ordinary.env['webvue.hr.leave.cancellation'].search_count([('leave_id', '=', leave.id)]))
+        forged = service.with_context(**{'webvue_hr.leave.cancellation.owner_authorization': [(owner.id, self.company_p1.id, leave.id)]})
+        self.assertFalse(forged._webvue_has_capability(owner, 'hr.leave.request'))
+        self.assertNotIn('webvue_hr.leave.cancellation.owner_authorization', self.env.cr.precommit.data)
+
+    def test_inherited_owner_permission_revocation_inside_wizard_fails_closed(self):
+        _owner, rule = self._inherit_owner()
+        row = self.cancellations[self.company_p1.id]
+        wizard_class = type(self.env['hr.holidays.cancel.leave'])
+        original = wizard_class.action_cancel_leave
+        calls = []
+
+        def revoke(wizard):
+            calls.append(wizard.env.uid)
+            self.assertTrue(wizard.env['webvue.access.service']._webvue_has_capability(wizard.env.user, 'hr.leave.request'))
+            rule.inherit = False
+            return original(wizard)
+
+        with patch.object(wizard_class, 'action_cancel_leave', revoke):
+            with self.assertRaises(AccessError):
+                self._model('hr.leave.approve').browse(row.id).action_approve(1)
+        self.assertEqual(calls, [self.owners[self.company_p1.id].id])
+        self.assertEqual((row.state, self.leaves[self.company_p1.id].state), ('pending', 'validate'))
+        self.assertNotIn('webvue_hr.leave.cancellation.owner_authorization', self.env.cr.precommit.data)
+
+    def test_parent_session_inherited_owner_direct_policy_uses_native_owner(self):
+        owner, _rule = self._inherit_owner()
+        self.cancellations[self.company_p1.id]._webvue_write({'state': 'refused'})
+        self.env['webvue.hr.leave.settings'].search([('company_id', '=', self.company_p1.id)]).write({
+            'cancellation_policy': 'direct_employee',
+        })
+        self.authenticate(owner.login, 'branch_owner_pass_123')
+        leave = self.leaves[self.company_p1.id]
+        response = self.api('POST', f'/api/v1/hr/leave/requests/{leave.id}/cancel', {'reason': 'Inherited own branch'})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['state'], 'cancel')
+        self.assertNotIn('webvue_hr.leave.cancellation.owner_authorization', self.env.cr.precommit.data)
+
+    def test_inherited_owner_root_membership_revocation_inside_wizard_fails_closed(self):
+        owner, _rule = self._inherit_owner()
+        row = self.cancellations[self.company_p1.id]
+        wizard_class = type(self.env['hr.holidays.cancel.leave'])
+        original = wizard_class.action_cancel_leave
+        calls = []
+
+        def revoke(wizard):
+            calls.append(wizard.env.uid)
+            owner.write({'company_id': self.company_p1.id, 'company_ids': [Command.set(self.company_p1.ids)]})
+            return original(wizard)
+
+        with patch.object(wizard_class, 'action_cancel_leave', revoke):
+            with self.assertRaises(AccessError):
+                self._model('hr.leave.approve').browse(row.id).action_approve(1)
+        self.assertEqual(calls, [owner.id])
+        self.assertEqual((row.state, self.leaves[self.company_p1.id].state), ('pending', 'validate'))
+        self.assertNotIn('webvue_hr.leave.cancellation.owner_authorization', self.env.cr.precommit.data)
