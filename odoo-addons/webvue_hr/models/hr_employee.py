@@ -94,7 +94,10 @@ class WebVueHrEmployee(models.Model):
         return super().check_access(operation)
 
     def _webvue_has_capability(self, capability):
-        return self.env['webvue.access.service']._webvue_has_capability(self.env.user, capability)
+        service = self.env['webvue.access.service']
+        return service._webvue_has_capability(
+            self.env.user, capability, company=service._webvue_native_hire_company(),
+        )
 
     def _webvue_require_capability(self, capability):
         if not self._webvue_has_capability(capability):
@@ -167,7 +170,8 @@ class WebVueHrEmployee(models.Model):
                     field='user_id',
                 )
             company_id = vals.get('company_id')
-            if company_id and company_id != self.env.company.id:
+            company = self.env['webvue.access.service']._webvue_native_hire_company() or self.env.company
+            if company_id and company_id != company.id:
                 raise AccessError(EMPLOYEE_SCOPE_ERROR)
         return super().create(vals_list)
 
