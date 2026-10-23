@@ -1,5 +1,5 @@
 import http from 'node:http'
-import { createBodyAdmission, readBodyBytes } from '../../apps/web/server/utils/bodyAdmission.mjs'
+import { createBodyAdmission, readBodyBytes } from '../../apps/web/server/utils/bufferAdmission.mjs'
 import { isReleaseAssetRequest, readAsset, validateAssetStore } from '../../apps/web/server/utils/releaseAssets.ts'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { readTenantRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'

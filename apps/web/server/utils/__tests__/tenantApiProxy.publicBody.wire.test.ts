@@ -187,17 +187,19 @@ it.each([['shared', 'overflow'], ['shared', 'timeout'], ['dedicated', 'overflow'
   try {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     await wire.hold()
-    const count = kind === 'overflow' ? 64 : 1
-    for (let i = 0; i < count; i++) waiting.push(wire.call('/api/v1/branding'))
+    // Response admission is now the outer bound: four active +64 queued.
+    const count = kind === 'overflow' ? 68 : 1
+    for (let i = 0; i < count; i++) { const response = wire.call('/api/v1/branding'); void response.catch(() => {}); waiting.push(response) }
     await vi.waitFor(() => expect(vi.getTimerCount()).toBe(count + 1))
     if (kind === 'overflow') {
       const overflow = await wire.call('/api/v1/branding')
       expect(overflow.status).toBe(502)
       expect(ApiErrorSchema.parse((overflow.body as { data: unknown }).data)).toEqual({ code: 'tenant_upstream_unavailable', message: 'The upstream service is temporarily unavailable.' })
-      expect(vi.getTimerCount()).toBe(65)
+      expect(vi.getTimerCount()).toBe(69)
     }
     expect(wire.calls).toHaveLength(0)
-    await vi.advanceTimersByTimeAsync(15_000)
+    // A response waiter can be admitted into the separate work queue after its first15s phase.
+    await vi.advanceTimersByTimeAsync(30_000)
     vi.useRealTimers()
     for (const response of await Promise.all(waiting)) {
       expect(response.status).toBe(502)

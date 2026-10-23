@@ -1,6 +1,5 @@
-import { createError, getProxyRequestHeaders, sendProxy, sendWebResponse, setResponseHeader } from 'h3'
-import { boundedTenantBody, MAX_PUBLIC_MFA_BODY, tenantTransport, withTenantBody, withUpstreamSlot } from '../../../utils/tenantTransport'
-import { joinURL } from 'ufo'
+import { createError, getProxyRequestHeaders, sendWebResponse, setResponseHeader } from 'h3'
+import { boundedTenantBody, MAX_PUBLIC_MFA_BODY, tenantTransport, legacyTenantResponse, withTenantBody, withTenantResponse } from '../../../utils/tenantTransport'
 import { tenantUpstreamHeaders } from '../../../utils/tenantRequest'
 import { requireApiSession } from '../../../utils/apiSessionAdmission'
 
@@ -17,7 +16,6 @@ const PUBLIC_API_METHODS = new Map<string, readonly string[]>([
 export default defineEventHandler(async (event) => {
   const { odooUrl } = useRuntimeConfig(event)
   const headers = tenantUpstreamHeaders(event)
-  const url = joinURL(odooUrl, event.path)
   const apiPath = event.path.split('?')[0] ?? event.path
   const publicMethods = PUBLIC_API_METHODS.get(apiPath)
   if (publicMethods && !publicMethods.includes(event.method)) {
@@ -29,10 +27,8 @@ export default defineEventHandler(async (event) => {
   // Body credits are separate from Odoo work slots and retained through dispatch.
   return withTenantBody(event, async () => {
     const body = await boundedTenantBody(event, apiPath === '/api/v1/auth/totp' ? MAX_PUBLIC_MFA_BODY : undefined)
-    return Object.keys(headers).length
+    return withTenantResponse(event, async () => Object.keys(headers).length
       ? sendWebResponse(event, await tenantTransport(event, odooUrl, event.path, { method: event.method, body }))
-      : withUpstreamSlot(signal => sendProxy(event, url, {
-          fetchOptions: { method: event.method, body: body ? new Uint8Array(body) : undefined, headers: getProxyRequestHeaders(event, { host: false }), signal },
-        }), event)
+      : sendWebResponse(event, await legacyTenantResponse(event, odooUrl, event.path, { method: event.method, body, headers: getProxyRequestHeaders(event, { host: false }) })))
   })
 })
