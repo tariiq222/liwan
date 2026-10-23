@@ -93,7 +93,7 @@ describe('operation request form', () => {
     f.release(); await pending; f.stop()
   })
   it('keeps the accepted revision when refreshed props arrive during a dirty edit', async () => {
-    const original = OperationRequestSchema.parse({ id: 8, name: 'Original', description: '', revision: 4, process: { id: 3, name: 'إجراء' }, process_revision: 2, state: 'draft', cycle: 0, requester: { id: 2, user_id: 2, name: 'Requester' }, created_at: '2026-10-14', execution_count: 0, target: null, steps: [], events: [], attachments: [], allowed_actions: { edit: true, submit: true, approve: false, reject: false, return: false, withdraw: false } })
+    const original = OperationRequestSchema.parse({ purpose: 'work', id: 8, name: 'Original', description: '', revision: 4, process: { id: 3, name: 'إجراء' }, process_revision: 2, state: 'draft', cycle: 0, requester: { id: 2, user_id: 2, name: 'Requester' }, created_at: '2026-10-14', execution_count: 0, target: null, steps: [], events: [], attachments: [], allowed_actions: { edit: true, submit: true, approve: false, reject: false, return: false, withdraw: false } })
     const latest = { ...original, name: 'Server changed', description: 'Latest description', revision: 9 }
     const f = form({ record: original, refreshed: latest, saveError: { status: 409 } })
     f.state.name.value = 'Local draft'

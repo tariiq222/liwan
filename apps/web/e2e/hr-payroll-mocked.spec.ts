@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { HrShiftSettingsSchema } from '@webvue/contracts'
 import { collectBrowserErrors, currentRoute, dialog, heading, MOCK_STACK_ONLY, openPage as open, row, trackRefusedRequests } from './support/mock-pages'
 import { login } from './support/tasmim6'
 
@@ -157,20 +158,20 @@ test.describe('payslip page', () => {
 
 test.describe('my payslips', () => {
   test('lists the own approved payslips and opens one as a document', async ({ page }) => {
-    await open(page, '/hr/payroll/mine', 'قسائمي')
+    await open(page, '/account/pay', 'راتبي وقسائم الرواتب')
     await expect(row(page, /أكتوبر 2026/)).toBeVisible()
     await expect(row(page, /نوفمبر 2026/)).toHaveCount(0)
     await expect(page.getByRole('link', { name: /أكتوبر 2026/ })).toBeVisible()
     await page.getByRole('link', { name: /أكتوبر 2026/ }).click()
-    await expect(page).toHaveURL(/\/hr\/payroll\/mine\/\d+\?returnTo=/)
+    await expect(page).toHaveURL(/\/account\/pay\/\d+\?returnTo=/)
     await expect(page.getByTestId('hr-payslip-document')).toContainText('شركة النماء للتقنية')
     await page.getByTestId('hr-my-payslip-back').click()
     // The return is a client-side navigation: the route settles a moment after the click.
-    await expect.poll(() => currentRoute(page)).toBe('/hr/payroll/mine')
+    await expect.poll(() => currentRoute(page)).toBe('/account/pay')
   })
 
   test('an unknown own payslip shows the not-found state', async ({ page }) => {
-    await page.goto('/hr/payroll/mine/999')
+    await page.goto('/account/pay/999')
     await expect(page.getByText('هذا السجل غير متاح أو لم يعد موجودًا.')).toBeVisible()
   })
 })
@@ -242,6 +243,12 @@ test.describe('payroll posting and payment', () => {
 
 test.describe('payroll finance settings', () => {
   test('shows the accounting mapping and saves the entry detail and a department cost center', async ({ page }) => {
+    // The shared HR settings page also loads its shifts card under the existing mock entitlements.
+    const shiftSettings = await page.request.get('/api/v1/hr/shifts/settings')
+    expect(shiftSettings.status(), 'the shifts settings request on the payroll settings page').toBe(200)
+    expect(HrShiftSettingsSchema.parse(await shiftSettings.json())).toMatchObject({
+      day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', revision: 0,
+    })
     await open(page, '/settings/apps/hr', 'الموارد البشرية')
     await expect(page.getByTestId('hr-payroll-finance-form')).toBeVisible()
     await expect(page.getByTestId('hr-payroll-finance-submit')).toBeDisabled()

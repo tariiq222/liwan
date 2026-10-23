@@ -13,7 +13,7 @@ HR = frozenset({
     'hr.employees.read', 'hr.employees.manage', 'hr.employees.archive',
     'hr.employees.access_status.read', 'hr.departments.read',
     'hr.departments.manage',
-    'hr.leave.read', 'hr.leave.request', 'hr.leave.approve', 'hr.leave.manage',
+    'hr.leave.read', 'hr.leave.request', 'hr.leave.approve', 'hr.leave.manage', 'hr.leave.config',
     'hr.recruitment.read', 'hr.recruitment.manage',
     'hr.shifts.read', 'hr.shifts.manage',
     'hr.onboarding.read', 'hr.onboarding.manage',
@@ -112,10 +112,10 @@ class TestAccessComposition(TransactionCase):
     def _group(self, key):
         return self.env.ref(self.Permission.search([('key', '=', key)]).group_xmlid)
 
-    def test_catalog_is_the_same_46_keys_each_owned_by_one_addon(self):
+    def test_catalog_has_the_approved_47_keys_each_owned_by_one_addon(self):
         catalog = self.service._webvue_capability_map()
         self.assertEqual(self._release(catalog), CATALOG)
-        self.assertEqual(len(self._release(catalog)), 46)
+        self.assertEqual(len(self._release(catalog)), 47)
         permissions = self.Permission.search([])
         self.assertEqual(sorted(permissions.mapped('key')), sorted(catalog))
         installed = set(self.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))
@@ -191,7 +191,7 @@ class TestAccessComposition(TransactionCase):
     def test_legacy_groups_still_map_to_the_same_keys(self):
         cases = (
             ('base.group_user,webvue_core.group_access_admin', SYSTEM | MEETINGS),
-            ('base.group_user,hr.group_hr_manager', HR),
+            ('base.group_user,hr.group_hr_manager', HR - {'hr.leave.config'}),
             ('base.group_user,project.group_project_manager', PMO),
             ('webvue_core.group_employee', EMPLOYEE),
         )

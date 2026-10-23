@@ -135,8 +135,7 @@
       "hiring": "Recruitment",
       "people": "People",
       "time": "Time and leave",
-      "pay": "Payroll and insurance",
-      "mine": "My services"
+      "pay": "Payroll and insurance"
     },
     "tabs": {
       "employees": "Employees",
@@ -235,85 +234,104 @@
         }
       }
     },
-      "leave": {
-        "countTag": "{count} request | {count} requests",
-        "record": "Leave request",
-        "new": "Request leave",
-        "allocate": "Grant balance",
-        "balancesTitle": "Leave balances",
-        "remainingUnit": "days left",
-        "balanceHint": "Granted {allocated} · taken {taken} · awaiting approval {pending}",
-        "noBalances": "No leave balance yet",
-        "noBalancesHint": "An HR officer grants each employee their annual leave balance.",
-        "requestsTitle": "Leave requests",
-        "scope": {
-          "label": "Request scope",
-          "mine": "My requests",
-          "pending": "Awaiting approval",
-          "all": "All requests"
-        },
-        "empty": {
-          "mine": "You have no leave requests",
-          "pending": "No requests awaiting approval",
-          "all": "No leave requests"
-        },
-        "columns": {
-          "employee": "Employee",
-          "type": "Type",
-          "period": "Period",
-          "days": "Duration",
-          "state": "Status"
-        },
-        "state": {
-          "confirm": "Awaiting approval",
-          "validate1": "Awaiting second approval",
-          "validate": "Approved",
-          "refuse": "Refused",
-          "cancel": "Cancelled"
-        },
-        "range": "{from} — {to}",
-        "days": "{count} day | {count} days",
-        "approve": "Approve",
-        "refuse": "Refuse",
-        "cancel": "Cancel leave",
-        "cancelConfirm": "Cancel {type} for {employee} ({period})? The balance returns if the leave was approved.",
-        "withdraw": "Withdraw request",
-        "withdrawConfirm": "Withdraw {type} for {employee} ({period})? The request is deleted and the held balance returns.",
-        "refuseConfirm": "Refuse {type} for {employee} ({period})?",
-        "reasonOptional": "Reason (optional)",
-        "actionsFor": "Actions for {type}",
-        "footer": "{shown} of 1 request | {shown} of {total} requests",
-        "form": {
-          "details": "Request details",
-          "type": "Leave type",
-          "chooseType": "Choose a leave type",
-          "typeRequired": "Leave type is required.",
-          "from": "From",
-          "to": "To",
-          "dateRequired": "The date is required.",
-          "dateOrder": "The end date is before the start date.",
-          "notes": "Notes",
-          "documentHint": "This type needs a supporting document, such as a medical report.",
-          "requiredHint": "Marked fields are required.",
-          "submit": "Send request",
-          "noTypes": "No leave types are available for your company"
-        },
-        "allocation": {
-          "details": "Balance details",
-          "employee": "Employee",
-          "employeeSearch": "Search for an employee…",
-          "chooseEmployee": "Choose the employee",
-          "employeeRequired": "The employee is required.",
-          "employeesError": "Could not load employees.",
-          "days": "Number of days",
-          "daysRequired": "The number of days must be more than zero.",
-          "validFrom": "Valid from",
-          "validTo": "Expires on",
-          "validToHint": "Leave empty when the balance does not expire.",
-          "submit": "Grant balance",
-          "noTypes": "No leave types use a balance"
-        }
+    "leave": {
+      "countTag": "{count} request | {count} requests",
+      "record": "Leave request",
+      "new": "Request leave",
+      "allocate": "Grant balance",
+      "balancesTitle": "Leave balances",
+      "remainingUnit": "days left",
+      "balanceHint": "Granted {allocated} · taken {taken} · awaiting approval {pending}",
+      "noBalances": "No leave balance yet",
+      "noBalancesHint": "An HR officer grants each employee their annual leave balance.",
+      "requestsTitle": "Leave requests",
+      "scope": {
+        "label": "Request scope",
+        "mine": "My requests",
+        "pending": "Awaiting approval",
+        "all": "All requests",
+        "cancellations": "Cancellation requests"
       },
+      "empty": {
+        "mine": "You have no leave requests",
+        "pending": "No requests awaiting approval",
+        "all": "No leave requests"
+      },
+      "columns": {
+        "employee": "Employee",
+        "type": "Type",
+        "period": "Period",
+        "days": "Duration",
+        "state": "Status"
+      },
+      "state": {
+        "confirm": "Awaiting approval",
+        "validate1": "Awaiting second approval",
+        "validate": "Approved",
+        "refuse": "Refused",
+        "cancel": "Cancelled"
+      },
+      "range": "{from} — {to}",
+      "days": "{count} day | {count} days",
+      "approve": "Approve",
+      "refuse": "Refuse",
+      "cancel": "Cancel leave",
+      "cancelConfirm": "Cancel {type} for {employee} ({period})? The balance returns if the leave was approved.",
+      "withdraw": "Withdraw request",
+      "withdrawConfirm": "Withdraw {type} for {employee} ({period})? The request is deleted and the held balance returns.",
+      "refuseConfirm": "Refuse {type} for {employee} ({period})?",
+      "reasonOptional": "Reason (optional)",
+      "actionsFor": "Actions for {type}",
+      "footer": "{shown} of 1 request | {shown} of {total} requests",
+      "form": {
+        "details": "Request details",
+        "type": "Leave type",
+        "chooseType": "Choose a leave type",
+        "typeRequired": "Leave type is required.",
+        "from": "From",
+        "to": "To",
+        "dateRequired": "The date is required.",
+        "dateOrder": "The end date is before the start date.",
+        "notes": "Notes",
+        "documentHint": "This type needs a supporting document, such as a medical report.",
+        "requiredHint": "Marked fields are required.",
+        "submit": "Send request",
+        "noTypes": "No leave types are available for your company"
+      },
+      "allocation": {
+        "details": "Balance details",
+        "employee": "Employee",
+        "employeeSearch": "Search for an employee…",
+        "chooseEmployee": "Choose the employee",
+        "employeeRequired": "The employee is required.",
+        "employeesError": "Could not load employees.",
+        "days": "Number of days",
+        "daysRequired": "The number of days must be more than zero.",
+        "validFrom": "Valid from",
+        "validTo": "Expires on",
+        "validToHint": "Leave empty when the balance does not expire.",
+        "submit": "Grant balance",
+        "noTypes": "No leave types use a balance"
+      },
+      "requestCancellation": "Request cancellation",
+      "approveCancellation": "Approve cancellation",
+      "refuseCancellation": "Refuse cancellation",
+      "managerCancel": "Cancel as manager",
+      "requestCancellationConfirm": "Request cancellation of {type} for {employee} ({period})? The leave stays approved until a manager decides.",
+      "approveCancellationConfirm": "Approve cancellation of {type} for {employee} ({period})?",
+      "refuseCancellationConfirm": "Refuse cancellation of {type} for {employee} ({period})?",
+      "managerCancelConfirm": "Cancel {type} for {employee} ({period}) as manager?",
+      "reasonRequired": "Reason (required)",
+      "cancellationTitle": "Cancellation request",
+      "cancellationInitiator": "Initiated by {name}",
+      "cancellationReviewer": "Reviewed by {name}",
+      "cancellationConflict": "This leave or cancellation changed. The latest details were loaded; review them before trying again.",
+      "cancellationStates": {
+        "pending": "Cancellation pending",
+        "approved": "Cancellation approved",
+        "refused": "Cancellation refused"
+      }
+    },
     "shiftSettings": {
       "title": "Schedule day reference",
       "hint": "Choose the timezone used to decide which personal schedule assignments are current or upcoming.",
@@ -324,6 +342,38 @@
       "conflict": "These settings changed while you were editing. Reload to review the latest value before saving.",
       "reload": "Discard draft and reload",
       "saveError": "Could not save schedule settings"
+    },
+    "self": {
+      "profile": "My employment profile",
+      "profileDesc": "Your employment and contact information",
+      "leave": "My leave",
+      "leaveDesc": "Your leave balances and requests",
+      "pay": "My pay and payslips",
+      "payDesc": "Your approved payslips",
+      "assets": "My assets",
+      "assetsDesc": "Assets assigned to you",
+      "schedule": "My schedule",
+      "scheduleDesc": "Your current and upcoming work assignments",
+      "noEmployee": "No employee profile linked to your account",
+      "noEmployeeHint": "Your account needs an employee profile in the current company to use employment services.",
+      "balance": "{name}: {days} days remaining",
+      "approvedPayslips": "Approved payslips"
+    },
+    "leaveSettings": {
+      "title": "Leave cancellation policy",
+      "hint": "Choose how approved leave is cancelled in this company. Pending requests keep their approval requirement when the policy changes.",
+      "reference": "Approved leave cancellation",
+      "defaultHint": "The default requires manager approval. Pending leave withdrawal is unchanged.",
+      "managerApproval": "Employee requests, manager approves (default)",
+      "directEmployee": "Employee cancels directly",
+      "managerOnly": "Only a manager can cancel",
+      "managerApprovalHint": "A request leaves the approved leave and balance unchanged until an authorized manager approves cancellation.",
+      "directEmployeeHint": "Employees can cancel their own eligible approved leave immediately. A pending request still needs a manager decision.",
+      "managerOnlyHint": "Employees cannot initiate cancellation. An authorized manager can cancel another employee’s eligible approved leave.",
+      "conflict": "The policy changed. Your draft is retained; reload the latest policy before saving.",
+      "saveError": "Unable to save leave policy",
+      "reload": "Reload policy",
+      "reloadError": "Unable to reload. Your draft and conflict were retained."
     }
   }
 }

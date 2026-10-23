@@ -4,7 +4,7 @@ import { storyContext } from '../../support/context'
 
 const meta = {
   title: 'HR/Shifts/ShiftSettingsForm', component: ShiftSettingsForm,
-  parameters: { ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:120', 'مرجع يوم جدول العمل للشركة أو المستخدم.') },
+  parameters: { ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:133', 'مرجع يوم جدول العمل للشركة أو المستخدم.') },
   args: { settings: { day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 0 }, canEdit: true, reloadSettings: async () => ({ day_reference: 'company' as const, company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 1 }) },
 } satisfies Meta<typeof ShiftSettingsForm>
 export default meta

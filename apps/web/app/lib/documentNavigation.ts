@@ -27,3 +27,8 @@ export function documentParentTo(path: string, query: LocationQuery, hash = ''):
   const source = origin(query.listOrigin)
   return { path, query: { ...direct(query), ...(source ? { returnTo: source } : {}) }, hash }
 }
+
+/** Personal records can only return to the own list, never an administrative destination. */
+export function employeeDocumentBack(query: LocationQuery): RouteLocationRaw {
+  return recordListOrigin(query.returnTo, ['/account/documents']) ?? '/account/documents'
+}

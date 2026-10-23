@@ -1,0 +1,1 @@
+The required process/request purpose selections default to `work`, including existing records when Odoo adds the columns. Existing processes and requests are work records; no historical employee classification is inferred. New request purposes are copied from their process at creation and retained across submission cycles. No data transformation is needed.

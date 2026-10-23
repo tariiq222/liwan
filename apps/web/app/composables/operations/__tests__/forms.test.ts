@@ -6,6 +6,7 @@ describe('operation form and route behavior', () => {
     expect(operationListLocation('/operations/pending', { q: 'عقد', state: 'pending', page: '2', returnTo: '//evil' }, '#queue')).toBe('/operations/pending?q=%D8%B9%D9%82%D8%AF&state=pending&page=2#queue')
   })
   it('accepts only operation list return destinations', () => {
+    expect(safeOperationReturnTo('/account/requests?q=letter#row', '/account/requests')).toBe('/account/requests?q=letter#row')
     expect(safeOperationReturnTo('/operations/monitoring?q=budget#row', '/operations')).toBe('/operations/monitoring?q=budget#row')
     for (const destination of ['//evil.test', 'https://evil.test', '/operations/12', '/operations/../settings', '/operations%2f12']) {
       expect(safeOperationReturnTo(destination, '/operations')).toBe('/operations')

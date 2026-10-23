@@ -1,3 +1,4 @@
+import { useHrOwnIdentity } from './useHrOwnIdentity'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
@@ -23,6 +24,7 @@ export interface HrLeaveListParams {
   scope: HrLeaveScope
   limit: number
   offset: number
+  cancellation_state?: 'pending'
 }
 
 export const hrLeaveKeys = {
@@ -30,18 +32,20 @@ export const hrLeaveKeys = {
   types: ['hr', 'leave', 'types'] as const,
   balances: (employeeId: number | null) => ['hr', 'leave', 'balances', employeeId] as const,
   requests: (params: HrLeaveListParams) => ['hr', 'leave', 'requests', params] as const,
+  ownRequest: (id: number) => ['hr', 'leave', 'me', id] as const,
   request: (id: number) => ['hr', 'leave', 'request', id] as const,
 }
 
-// The pending queue is every request still waiting for a decision: first and second approval.
-const PENDING_STATES: readonly HrLeaveState[] = ['confirm', 'validate1']
-const SCOPE_STATE: Record<HrLeaveScope, string | undefined> = { mine: undefined, pending: PENDING_STATES.join(','), all: undefined }
+/** The pending queue is every request still waiting for a decision: first and second approval. */
+export const HR_LEAVE_PENDING_STATES: readonly HrLeaveState[] = ['confirm', 'validate1']
+const SCOPE_STATE: Record<HrLeaveScope, string | undefined> = { mine: undefined, pending: HR_LEAVE_PENDING_STATES.join(','), all: undefined }
 
 /** The query string of one scope: the caller's own list, the queue waiting for a decision, or every request. */
 export function hrLeaveRequestQuery(params: HrLeaveListParams) {
   return {
     mine: params.scope === 'mine' ? '1' : undefined,
-    state: SCOPE_STATE[params.scope],
+    state: params.cancellation_state ? undefined : SCOPE_STATE[params.scope],
+    cancellation_state: params.cancellation_state,
     limit: params.limit,
     offset: params.offset,
   }
@@ -51,19 +55,21 @@ async function refreshLeave(qc: QueryClient) {
   await qc.invalidateQueries({ queryKey: hrLeaveKeys.all })
 }
 
-export function useHrLeaveTypes() {
+export function useHrLeaveTypes(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: hrLeaveKeys.types,
+    enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/hr/leave/types', { schema: HrLeaveTypeListSchema }),
   })
 }
 
 export function useHrLeaveBalances(employeeId: MaybeRefOrGetter<number | null> = null, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
+  const identity = useHrOwnIdentity()
   return useQuery({
-    queryKey: computed(() => hrLeaveKeys.balances(toValue(employeeId))),
-    enabled: computed(() => toValue(enabled)),
+    queryKey: computed(() => toValue(employeeId) === null ? [...hrLeaveKeys.balances(null), identity.scope.value] : hrLeaveKeys.balances(toValue(employeeId))),
+    enabled: computed(() => toValue(enabled) && (toValue(employeeId) !== null || identity.ready.value)),
     queryFn: () => $api('/api/v1/hr/leave/balances', {
       query: { employee_id: toValue(employeeId) ?? undefined },
       schema: HrLeaveBalanceListSchema,
@@ -73,9 +79,10 @@ export function useHrLeaveBalances(employeeId: MaybeRefOrGetter<number | null> =
 
 export function useHrLeaveRequests(params: MaybeRefOrGetter<HrLeaveListParams>, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
+  const identity = useHrOwnIdentity()
   return useQuery({
-    queryKey: computed(() => hrLeaveKeys.requests(toValue(params))),
-    enabled: computed(() => toValue(enabled)),
+    queryKey: computed(() => toValue(params).scope === 'mine' ? [...hrLeaveKeys.requests(toValue(params)), identity.scope.value] : hrLeaveKeys.requests(toValue(params))),
+    enabled: computed(() => toValue(enabled) && (toValue(params).scope !== 'mine' || identity.ready.value)),
     queryFn: () => $api('/api/v1/hr/leave/requests', {
       query: hrLeaveRequestQuery(toValue(params)),
       schema: HrLeaveListSchema,
@@ -89,6 +96,17 @@ export function useHrLeaveRequest(id: MaybeRefOrGetter<number | null>) {
     queryKey: computed(() => hrLeaveKeys.request(toValue(id) ?? 0)),
     enabled: computed(() => !!toValue(id)),
     queryFn: () => $api(`/api/v1/hr/leave/requests/${toValue(id)}`, { schema: HrLeaveSchema }),
+  })
+}
+
+/** Own record reads never fall back to the administrative endpoint, even for approvers. */
+export function useMyHrLeaveRequest(id: MaybeRefOrGetter<number | null>) {
+  const { $api } = useApi()
+  const identity = useHrOwnIdentity()
+  return useQuery({
+    queryKey: computed(() => [...hrLeaveKeys.ownRequest(toValue(id) ?? 0), identity.scope.value]),
+    enabled: computed(() => identity.ready.value && !!toValue(id)),
+    queryFn: () => $api(`/api/v1/hr/leave/me/${toValue(id)}`, { schema: HrLeaveSchema }),
   })
 }
 
@@ -121,8 +139,8 @@ export function useLeaveDecision() {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({
-    mutationFn: ({ id, decision, reason }: { id: number; decision: HrLeaveDecision; reason?: string }) =>
-      $api(`/api/v1/hr/leave/requests/${id}/${decision}`, { method: 'POST', body: reason ? { reason } : {}, schema: HrLeaveSchema }),
+    mutationFn: ({ id, decision, reason, revision }: { id: number; decision: HrLeaveDecision; reason?: string; revision?: number }) =>
+      $api(`/api/v1/hr/leave/requests/${id}/${decision}`, { method: 'POST', body: { ...(reason ? { reason } : {}), ...(revision ? { revision } : {}) }, schema: HrLeaveSchema }),
     onSuccess: () => refreshLeave(qc),
   })
 }
@@ -133,6 +151,18 @@ export function useCreateLeaveAllocation() {
   return useMutation({
     mutationFn: (body: HrLeaveAllocationCreate) =>
       $api('/api/v1/hr/leave/allocations', { method: 'POST', body, schema: HrLeaveAllocationSchema }),
+    onSuccess: () => refreshLeave(qc),
+  })
+}
+
+
+/** Cancellation decisions carry the observed aggregate revision and await native execution. */
+export function useCancellationDecision() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ id, decision, revision, reason }: { id: number; decision: 'approve' | 'refuse'; revision: number; reason?: string }) =>
+      $api(`/api/v1/hr/leave/requests/${id}/cancellation/${decision}`, { method: 'POST', body: { revision, ...(reason ? { reason } : {}) }, schema: HrLeaveSchema }),
     onSuccess: () => refreshLeave(qc),
   })
 }

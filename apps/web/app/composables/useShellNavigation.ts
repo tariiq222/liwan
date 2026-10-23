@@ -12,6 +12,7 @@ import { activeShellModule, contextModuleFor } from './nav/activeRoute'
 import { CONTEXT_SIDEBAR_COOKIE, contextSidebarState, type ContextSidebarCookie } from './nav/contextSidebarState'
 import { effectiveActivePart, anchorOf } from './nav/settingsScroll'
 import { isNavPathActive, type AccessIdentity } from '../utils/accessPolicy'
+import { personalContextLinks } from './nav/personalModel'
 
 export function useContextSidebar() {
   const cookie = useCookie<ContextSidebarCookie | null>(CONTEXT_SIDEBAR_COOKIE, {
@@ -34,6 +35,9 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
   // Inside a project the sidebar keeps the projects module links (2026-09-11);
   // the project's own sections are tabs inside the page.
   const contextLinks = computed<ShellContextLink[]>(() => {
+    if (route.path === '/account' || route.path.startsWith('/account/')) {
+      return personalContextLinks(identityValue.value).map(link => ({ ...link, active: isContextLinkActive(route.path, link) }))
+    }
     const linksModule = contextModuleFor(activeModule.value)
     if (!linksModule) return []
     const links = contextLinksForModule(linksModule, identityValue.value, route.path)

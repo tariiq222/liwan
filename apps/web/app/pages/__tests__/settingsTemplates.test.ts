@@ -31,7 +31,7 @@ describe('the Plan 6d pages stay on their templates', () => {
 
   it.each([
     'pages/settings/company/index.vue', 'pages/settings/system/index.vue', 'pages/settings/team/users/[userId]/access.vue',
-    'pages/settings/team/users/[userId]/security.vue', 'pages/settings/team/roles/[roleId]/edit.vue', 'pages/account.vue',
+    'pages/settings/team/users/[userId]/security.vue', 'pages/settings/team/roles/[roleId]/edit.vue', 'pages/account/settings.vue',
   ])('%s stays on the settings template', (file) => {
     const source = read(file)
     expect(source).toContain('<SharedSettingsPage')
@@ -55,7 +55,7 @@ describe('the Plan 6d pages stay on their templates', () => {
 
   it('no Plan 6d page or component keeps a scoped style or a hand-made card', () => {
     for (const file of [
-      'pages/account.vue', 'pages/login.vue', 'pages/notifications.vue', 'pages/search.vue',
+      'pages/account/settings.vue', 'pages/login.vue', 'pages/notifications.vue', 'pages/search.vue',
       'components/access/users/UserSecurityForm.vue', 'components/access/users/UserTable.vue',
     ]) {
       const source = read(file)

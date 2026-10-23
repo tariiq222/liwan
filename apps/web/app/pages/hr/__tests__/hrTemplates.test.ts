@@ -11,9 +11,9 @@ describe('the HR pages stay on their templates', () => {
   it.each([
     ['pages/hr/index.vue', ['<SharedListPage', 'create-test-id="hr-employee-new"']],
     ['pages/hr/departments/index.vue', ['<SharedListPage', 'create-test-id="hr-department-new"', ':views="views"', 'views-in-filters', '<SharedListCard', '<SharedListFooter', 'embedded']],
-    ['pages/hr/leave.vue', ['<SharedListPage', 'create-test-id="hr-leave-new"', '<SharedListCard', '<SharedDataTable', ' bare', '#mobile-row', '<SharedListFooter', '<SharedSegmentedControl', '<HrLeaveDecisionConfirm', '<SharedRowActions', '<SharedMetricTile']],
+    ['components/hr/LeaveList.vue', ['<SharedListPage', 'create-test-id="hr-leave-new"', '<SharedListCard', '<SharedDataTable', ' bare', '#mobile-row', '<SharedListFooter', '<SharedSegmentedControl', '<HrLeaveDecisionConfirm', '<SharedRowActions', '<SharedMetricTile']],
     ['pages/hr/reports.vue', ['<SharedListPage', '<SharedForbiddenState', '<SharedListCard', '<SharedMetricTile', '<SharedProgress', '<SharedDataTable', ' bare', '#mobile-row', '<SharedSegmentedControl', '<SharedListFooter']],
-    ['pages/hr/leave/[leaveId].vue', ['<SharedRecordPage', '<SharedIdentityCard', '<SharedPropertiesPanel', '<SharedPropertyRow', '#aside', '<HrLeaveDecisionConfirm']],
+    ['components/hr/LeaveRecord.vue', ['<SharedRecordPage', '<SharedIdentityCard', '<SharedPropertiesPanel', '<SharedPropertyRow', '#aside', '<HrLeaveDecisionConfirm']],
     ['components/hr/LeaveDecisionConfirm.vue', ['<SharedInlineConfirm', '<UTextarea']],
     ['components/hr/LeaveRequestForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges', '<SharedDateField']],
     ['components/hr/LeaveAllocationForm.vue', ['<SharedFormSection panel', '<SharedFormActions', '<SharedUnsavedChanges']],
@@ -63,7 +63,7 @@ describe('the HR pages stay on their templates', () => {
   })
 
   it('keeps the create panels route-backed', () => {
-    for (const file of ['pages/hr/employees/new.vue', 'pages/hr/departments/new.vue', 'pages/hr/leave/new.vue', 'pages/hr/leave/allocations/new.vue']) {
+    for (const file of ['pages/hr/employees/new.vue', 'pages/hr/departments/new.vue', 'pages/hr/self/leave/new.vue', 'pages/hr/leave/allocations/new.vue']) {
       expect(read(file), file).toContain('<SharedCreatePanel')
     }
   })

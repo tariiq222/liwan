@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { DocumentSummary } from '@webvue/contracts'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
-const props = defineProps<{ documents: DocumentSummary[]; loading?: boolean; returnTo: string }>()
+const props = defineProps<{ documents: DocumentSummary[]; loading?: boolean; returnTo: string; recordBase?: string }>()
 const { t } = useI18n()
 const columns = computed<TableColumn<DocumentSummary>[]>(() => [
   { accessorKey: 'name', header: t('documents.columns.name') },
@@ -10,7 +10,7 @@ const columns = computed<TableColumn<DocumentSummary>[]>(() => [
   { accessorKey: 'file_count', header: t('documents.files') },
   { accessorKey: 'visibility', header: t('documents.visibility') },
 ])
-const target = (document: DocumentSummary) => ({ path: `/documents/${document.id}`, query: returnToQuery(props.returnTo) })
+const target = (document: DocumentSummary) => ({ path: `${props.recordBase ?? '/documents'}/${document.id}`, query: returnToQuery(props.returnTo) })
 </script>
 <template>
   <SharedDataTable bare :rows="documents" :columns="columns" row-key="id" :row-to="target" :loading="loading" :caption="t('documents.title')">

@@ -81,6 +81,7 @@ LOCALE_ROOTS = ('apps/web/i18n/locales/', 'apps/vendor-admin/i18n/locales/')
 # component starts being reused across pages, together with its story.
 STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'hr/shifts/ShiftSettingsForm.vue',
+    'hr/LeaveSettingsForm.vue',
     'documents/DocumentEditor.vue',
     'hr/payroll/PayslipDocument.vue',
     'documents/DocumentReader.vue',
@@ -91,7 +92,8 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'documents/DocumentContextField.vue',
     'documents/DocumentMetadataFields.vue',
     'operations/RequestList.vue', 'operations/ProcessList.vue', 'operations/RequestForm.vue',
-    'operations/ProcessForm.vue',
+    'operations/ProcessForm.vue', 'operations/RequestCreate.vue', 'operations/RequestRecord.vue', 'operations/RequestEdit.vue',
+    'account/PersonalSummaryCard.vue', 'hr/LeaveList.vue', 'hr/LeaveRecord.vue',
     'shared/layout/PageHeader.vue', 'shared/feedback/PageState.vue', 'shared/layout/PageContainer.vue', 'shared/form/UnsavedChanges.vue',
     'shared/feedback/LoadingSkeleton.vue', 'shared/feedback/ErrorState.vue', 'shared/feedback/ForbiddenState.vue', 'shared/feedback/NotFoundState.vue',
     'shared/layout/RecordPage.vue', 'shared/layout/PropertiesPanel.vue', 'shared/layout/PropertyRow.vue', 'shared/layout/RecordSection.vue',
@@ -591,6 +593,8 @@ def theme_errors(current: dict[str, str]) -> list[str]:
 # vocabulary lives in CSS classes rather than ad-hoc max-width utilities.
 PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage', 'webvue-page-width-form',
                'ChatWorkspace', 'TaskDetailPage',
+               # Application-owned reusable pages compose the approved shared shells.
+               'HrLeaveList', 'HrLeaveRecord', 'RequestCreate', 'RequestRecord', 'RequestEdit',
                # The Plan 4 page templates are shells themselves (each wraps SharedPageContainer).
                'SharedListPage', 'SharedRecordPage', 'SharedDashboardPage', 'SharedTimelineFrame',
                'SharedConversationLayout', 'SharedStandalonePage')

@@ -1,8 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
     'name': 'webvue Documents and HR',
-    'summary': 'Department contexts for the independent document library',
-    'version': '19.0.1.0.0',
+    'summary': 'Employee and department contexts for the independent document library',
+    'version': '19.0.1.1.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
