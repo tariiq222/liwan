@@ -35,8 +35,10 @@ class TestHrRecruitmentBranchConsumers(CompanyIsolationCase):
                 ]).ids)],
             }))
         cls.parent_role, cls.branch_role = roles
-        cls.env['webvue.access.service']._webvue_replace_assignments(cls.iso_user, [
-            {'company_id': company.id, 'role_id': role.id}
+        assignments = cls.env['webvue.access.assignment']
+        assignments.search([('user_id', '=', cls.iso_user.id)]).unlink()
+        assignments.create([
+            {'user_id': cls.iso_user.id, 'company_id': company.id, 'role_id': role.id}
             for company, role in ((cls.company_p, cls.parent_role), (cls.company_p1, cls.branch_role))
         ])
 
@@ -76,9 +78,9 @@ class TestHrRecruitmentBranchConsumers(CompanyIsolationCase):
                 created = self.env['hr.applicant'].browse(response.json()['id'])
                 self.assertEqual(created.company_id, self.company_p1)
 
-    def _hire_grants(self, *, inherited=False):
+    def _hire_grants(self, *, inherited=False, parent=True):
         manager = self.env.ref('webvue_hr.role_hr_manager')
-        assignments = [{'company_id': self.company_p.id, 'role_id': manager.id}]
+        assignments = [{'company_id': self.company_p.id, 'role_id': manager.id}] if parent else []
         if inherited:
             self.company_p.webvue_branch_access_mode = 'inherited'
             self.env['webvue.access.branch.rule'].create({
@@ -87,7 +89,9 @@ class TestHrRecruitmentBranchConsumers(CompanyIsolationCase):
             })
         else:
             assignments.append({'company_id': self.company_p1.id, 'role_id': manager.id})
-        self.env['webvue.access.service']._webvue_replace_assignments(self.iso_user, assignments)
+        Assignment = self.env['webvue.access.assignment']
+        Assignment.search([('user_id', '=', self.iso_user.id)]).unlink()
+        Assignment.create([{'user_id': self.iso_user.id, **assignment} for assignment in assignments])
 
     def _assert_branch_hire(self, *, department):
         job = self.job
@@ -101,6 +105,9 @@ class TestHrRecruitmentBranchConsumers(CompanyIsolationCase):
         })
         self.assertEqual(created.status_code, 201, created.text)
         response = self.api('POST', f'/api/v1/hr/recruitment/applicants/{created.json()["id"]}/hire', json={})
+        self.assertFalse(self.env['hr.employee'].search([
+            ('name', '=', f'Branch hire {department}'), ('company_id', '=', self.company_p.id),
+        ]), response.text)
         self.assertEqual(response.status_code, 200, response.text)
         employee = self.env['hr.employee'].browse(response.json()['employee']['id'])
         self.assertEqual(employee.company_id, self.company_p1)
@@ -120,4 +127,8 @@ class TestHrRecruitmentBranchConsumers(CompanyIsolationCase):
 
     def test_parent_session_hire_preserves_inherited_branch_manager_grants(self):
         self._hire_grants(inherited=True)
+        self._assert_branch_hire(department=False)
+
+    def test_parent_session_hire_uses_branch_only_manager_grants(self):
+        self._hire_grants(parent=False)
         self._assert_branch_hire(department=False)
