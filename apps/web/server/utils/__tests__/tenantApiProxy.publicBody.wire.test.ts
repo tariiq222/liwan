@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
-import { appendResponseHeader, createApp, createError, defineEventHandler, getHeader, getRequestHeader, getRequestProtocol, readBody, toNodeListener } from 'h3'
+import { appendResponseHeader, createApp, createError, createRouter, defineEventHandler, getHeader, getRequestHeader, getRequestProtocol, readBody, toNodeListener } from 'h3'
 import { ApiErrorSchema } from '../../../../../packages/contracts/src/common/error'
 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.resetModules() })
@@ -62,7 +62,10 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
   const totp = (await import('../../api/auth/totp.post')).default
   const app = createApp()
   if (guarded) app.use((await import('../../middleware/tenant-boundary')).default)
-  app.use('/api/auth/login', login); app.use('/api/auth/totp', totp); app.use(handler)
+  // Use Nitro's H3/radix router so accepted trailing-slash aliases exercise the same handlers.
+  const router = createRouter()
+  router.post('/api/auth/login', login); router.post('/api/auth/totp', totp)
+  app.use(router.handler); app.use(handler)
   const webRequests: http.IncomingMessage[] = []
   const listener = toNodeListener(app)
   const web = http.createServer((req, res) => { webRequests.push(req); listener(req, res) })
@@ -131,6 +134,7 @@ it.each([
     expect(result.status).toBe(413)
     expect(ApiErrorSchema.parse((result.body as { data: unknown }).data).code).toBe('payload_too_large')
     expect(wire.calls).toHaveLength(0)
+    if (!upload) throw Error('wire upload was not created')
     upload.destroy()
     await wire.release()
     expect((await wire.call('/api/v1/branding')).status).toBe(200)
@@ -258,17 +262,17 @@ it.each(['shared', 'dedicated'] as const)('%s BFF login preserves missing creden
 })
 
 
-it.each([
+it.each(([
   ['shared', 'totp', 'declared', 1024], ['shared', 'totp', 'chunked', 1024],
   ['dedicated', 'totp', 'declared', 1024], ['dedicated', 'totp', 'chunked', 1024],
   ['shared', 'login', 'declared', 65536], ['shared', 'login', 'chunked', 65536],
   ['dedicated', 'login', 'declared', 65536], ['dedicated', 'login', 'chunked', 65536],
-] as const)('%s guard caps public BFF %s %s body before forwarding or buffering it', async (mode, endpoint, framing, limit) => {
+] as const).flatMap(testCase => ['', '/'].map(suffix => [...testCase, suffix] as const)))('%s guard caps public BFF %s %s body before forwarding or buffering it (limit %i suffix %s)', async (mode, endpoint, framing, limit, suffix) => {
   const wire = await fixture(mode, true)
   let upload: http.ClientRequest | undefined
   try {
     const response = await new Promise<{ status: number; body: unknown }>((resolve, reject) => {
-      upload = http.request(new URL('/api/auth/' + endpoint + '?step=confirm', wire.url), { method: 'POST', headers: { ...wire.headers, 'content-type': 'application/json', ...(framing === 'declared' ? { 'content-length': String(limit + 1) } : {}) } }, reply => {
+      upload = http.request(new URL('/api/auth/' + endpoint + suffix + '?step=confirm', wire.url), { method: 'POST', headers: { ...wire.headers, 'content-type': 'application/json', ...(framing === 'declared' ? { 'content-length': String(limit + 1) } : {}) } }, reply => {
         let text = ''; reply.on('data', chunk => { text += chunk }); reply.on('end', () => resolve({ status: reply.statusCode!, body: JSON.parse(text) }))
       })
       upload.on('error', reject); upload.setTimeout(500, () => upload!.destroy(Error('guard_waited_for_oversized_body')))
@@ -281,17 +285,17 @@ it.each([
   } finally { upload?.destroy(); await wire.close() }
 })
 
-it.each(['shared', 'dedicated'] as const)('%s real guard and BFF retain boundary-sized auth, MFA cookie rotation and selector checks', async mode => {
+it.each((['shared', 'dedicated'] as const).flatMap(mode => ['', '/'].map(suffix => [mode, suffix] as const)))('%s real guard and BFF retain boundary-sized auth, MFA cookie rotation and selector checks (suffix %s)', async (mode, suffix) => {
   const wire = await fixture(mode, true)
   try {
     const login = Buffer.from('{"login":"mfa","password":"synthetic"}')
-    const first = await wire.call('/api/auth/login', Buffer.concat([login, Buffer.alloc(65536 - login.length, 32)]), { 'content-type': 'application/json' })
+    const first = await wire.call('/api/auth/login' + suffix + '?step=confirm', Buffer.concat([login, Buffer.alloc(65536 - login.length, 32)]), { 'content-type': 'application/json' })
     expect(first.status).toBe(200)
     expect(first.body).toEqual({ ok: false, mfa: 'totp' })
     const cookie = first.headers['set-cookie']![0]!.split(';')[0]!
     expect(wire.openCookie(cookie.slice(11))).toBe('pending-wire')
     const code = Buffer.from('{"code":"123456"}')
-    const second = await wire.call('/api/auth/totp', Buffer.concat([code, Buffer.alloc(1024 - code.length, 32)]), { 'content-type': 'application/json', cookie })
+    const second = await wire.call('/api/auth/totp' + suffix + '?step=confirm', Buffer.concat([code, Buffer.alloc(1024 - code.length, 32)]), { 'content-type': 'application/json', cookie })
     expect(second.status).toBe(200)
     expect(second.body).toEqual({ ok: true })
     expect(wire.openCookie(second.headers['set-cookie']![0]!.split(';')[0]!.slice(11))).toBe('verified-wire')
@@ -299,7 +303,7 @@ it.each(['shared', 'dedicated'] as const)('%s real guard and BFF retain boundary
     expect(wire.authCalls[1]!.headers.cookie).toBe('session_id=pending-wire')
     for (const call of wire.authCalls) expect(call.headers['x-webvue-proxy-token']).toBeUndefined()
     const before = wire.calls.length
-    const selected = await wire.call('/api/auth/login', Buffer.from('{"db":"foreign","login":"user","password":"synthetic"}'), { 'content-type': 'application/json' })
+    const selected = await wire.call('/api/auth/login' + suffix + '?step=confirm', Buffer.from('{"db":"foreign","login":"user","password":"synthetic"}'), { 'content-type': 'application/json' })
     expect(selected.status).toBe(mode === 'shared' ? 400 : 403)
     expect(wire.calls).toHaveLength(before)
   } finally { await wire.close() }
@@ -322,6 +326,7 @@ it.each([['shared', '/api/v1/branding', 'POST', 'GET, HEAD'], ['dedicated', '/ap
     expect(wire.webRequests).toHaveLength(1)
     expect(wire.webRequests[0]!.complete).toBe(false)
     await vi.waitFor(() => expect(wire.webRequests[0]!.socket.destroyed).toBe(true))
+    if (!upload) throw Error('wire upload was not created')
     upload.destroy()
     expect((await wire.call('/api/v1/branding')).status).toBe(200)
     expect((await wire.call('/api/v1/branding', undefined, {}, 'HEAD')).status).toBe(200)

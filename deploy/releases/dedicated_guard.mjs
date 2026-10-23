@@ -160,7 +160,8 @@ export function createDedicatedGuard({ bindingPath, releaseRoutesDir, proxyToken
       res.writeHead(200, asset.headers); res.end(req.method === 'HEAD' ? undefined : asset.body); return
     }
     let body
-    const publicBodyLimit = !p.internal ? publicAuthBodyLimits[p.path.split('?')[0]] : undefined
+    // H3/radix accepts one trailing slash on these BFF routes. Bound the same aliases.
+    const publicBodyLimit = !p.internal ? publicAuthBodyLimits[p.path.split('?')[0].replace(/\/$/, '')] : undefined
     // The public API body belongs to Nuxt's session-first, bounded admission.
     // Inspect it only on the authenticated return hop to Odoo.
     try { body = !p.internal && p.path.startsWith('/api/v1/') ? null : await bodyFor(req, binding, p.internal, p.path.split('?')[0], publicBodyLimit) }

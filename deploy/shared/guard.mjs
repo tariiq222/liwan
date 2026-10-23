@@ -162,7 +162,8 @@ export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl
     }
     // Auth DB is injected by our BFF, never accepted from public clients.
     let body
-    const publicBodyLimit = !p.internal ? publicAuthBodyLimits[p.path.split('?')[0]] : undefined
+    // H3/radix accepts one trailing slash on these BFF routes. Bound the same aliases.
+    const publicBodyLimit = !p.internal ? publicAuthBodyLimits[p.path.split('?')[0].replace(/\/$/, '')] : undefined
     if ((p.odoo || p.path.startsWith('/api/auth/')) && !['GET', 'HEAD'].includes(req.method)) {
       try {
         if (publicBodyLimit !== undefined && Number(req.headers['content-length']) > publicBodyLimit) throw Object.assign(Error(), { statusCode: 413 })
