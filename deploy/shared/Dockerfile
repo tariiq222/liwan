@@ -4,7 +4,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 COPY --chown=node:node deploy/shared/guard.mjs deploy/shared/start.mjs deploy/shared/healthcheck.mjs ./deploy/shared/
 COPY --chown=node:node deploy/releases/dedicated_guard.mjs deploy/releases/start_dedicated.mjs ./deploy/releases/
-COPY --chown=node:node apps/web/server/utils/tenantRegistry.ts apps/web/server/utils/tenantHostResolver.ts apps/web/server/utils/releaseRouting.ts apps/web/server/utils/releaseAssets.ts apps/web/server/utils/bodyAdmission.mjs ./apps/web/server/utils/
+COPY --chown=node:node apps/web/server/utils/tenantRegistry.ts apps/web/server/utils/tenantHostResolver.ts apps/web/server/utils/releaseRouting.ts apps/web/server/utils/releaseAssets.ts apps/web/server/utils/bufferAdmission.mjs ./apps/web/server/utils/
 # Native type stripping follows exactly these relative imports; no node_modules required.
 RUN node --input-type=module -e "const m = await import('./deploy/shared/guard.mjs'); const d = await import('./deploy/releases/dedicated_guard.mjs'); if (typeof m.createGuard !== 'function' || typeof d.createDedicatedGuard !== 'function') process.exit(1)"
 USER node

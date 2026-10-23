@@ -1,6 +1,6 @@
 /** Dedicated local release edge. No shared cookie envelope or vendor lookup. */
 import http from 'node:http'
-import { createBodyAdmission, readBodyBytes } from '../../apps/web/server/utils/bodyAdmission.mjs'
+import { createBodyAdmission, readBodyBytes } from '../../apps/web/server/utils/bufferAdmission.mjs'
 import { timingSafeEqual } from 'node:crypto'
 import { isIP } from 'node:net'
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs'

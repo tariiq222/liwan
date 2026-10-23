@@ -1,7 +1,7 @@
 import http from 'node:http'
 import https from 'node:https'
 import { createError, getHeader, type H3Event } from 'h3'
-import { createBodyAdmission, readBodyBytes } from './bodyAdmission.mjs'
+import { createBodyAdmission, createResponseAdmission, readBodyBytes } from './bufferAdmission.mjs'
 import { tenantUpstreamHeaders } from './tenantRequest'
 
 const MAX_REQUEST = 16 * 1024 * 1024
@@ -111,6 +111,40 @@ export async function withUpstreamSlot<T>(run: (signal: AbortSignal) => Promise<
 const failure = () => createError({ statusCode: 502, message: 'tenant_upstream_unavailable', data: { code: 'tenant_upstream_unavailable', message: 'The upstream service is temporarily unavailable.' } })
 const payloadTooLarge = () => createError({ statusCode: 413, message: 'payload_too_large', data: { code: 'payload_too_large', message: 'The request body exceeds the allowed size.' } })
 
+/** Share the same fixed operator destination/path validation in both transport modes. */
+function operatorUpstream(configuredUpstream: string, path: string): URL {
+  let base: URL
+  try { base = new URL(configuredUpstream) } catch { throw failure() }
+  if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password || base.pathname !== '/' || base.search || base.hash ||
+      !/^\/(?:api\/v1\/|web\/session\/(?:authenticate|destroy)(?:$|\?))/.test(path) || path.startsWith('//') || /[\\\r\n#]/.test(path) || new URL(path, base).pathname !== path.split('?')[0]) throw failure()
+  return base
+}
+
+/** Legacy dedicated has no binding envelope. Keep its selected headers but use
+ * the existing admitted Response reader, size cap and native cancellation.
+ */
+export async function legacyTenantResponse(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: Buffer; headers: Record<string, string> }): Promise<Response> {
+  if ((process.env.WEBVUE_TENANCY_MODE ?? 'dedicated') !== 'dedicated' || process.env.WEBVUE_RELEASE_ROUTES_DIR) throw failure()
+  const base = operatorUpstream(configuredUpstream, path)
+  if (options.body && Buffer.byteLength(options.body) > MAX_REQUEST) throw payloadTooLarge()
+  try {
+    return await withUpstreamSlot(async signal => {
+      const headers = new Headers(options.headers)
+      const hop = ['connection', 'keep-alive', 'proxy-connection', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade']
+      const nominated = (value: string | null | undefined) => (value ?? '').toLowerCase().split(',').map(name => name.trim()).filter(Boolean)
+      for (const name of ['host', 'content-length', ...hop, ...nominated(getHeader(event, 'connection'))]) headers.delete(name)
+      const response = await fetch(new URL(path, base), { method: options.method, body: options.body ? new Uint8Array(options.body) : undefined, headers, signal, redirect: 'manual' })
+      if (response.status >= 300 && response.status < 400 && response.status !== 304) { await response.body?.cancel(); throw failure() }
+      const forwarded = new Headers(response.headers)
+      for (const name of [...hop, ...nominated(response.headers.get('connection'))]) forwarded.delete(name)
+      // Fetch decodes payloads but leaves representation headers unchanged.
+      // HEAD/304 have no decoded body, so their representation metadata remains valid.
+      if (response.body) { forwarded.delete('content-encoding'); forwarded.delete('content-length') }
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers: forwarded })
+    }, event)
+  } catch { throw failure() }
+}
+
 /** Server-only, fixed operator configuration. No request-controlled destination or redirects.
  * Bounded buffering deliberately replaces streaming: max16MiB request/32MiB response,
  * 15s total deadline. This supports current JSON attachments, not unbounded exports.
@@ -119,10 +153,7 @@ const payloadTooLarge = () => createError({ statusCode: 413, message: 'payload_t
 export async function tenantTransport(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: string | Buffer; headers?: Record<string, string>; signal?: AbortSignal; ignoreClientClose?: boolean } = {}): Promise<Response> {
   const binding = tenantUpstreamHeaders(event)
   if (!binding.host) throw failure()
-  let base: URL
-  try { base = new URL(configuredUpstream) } catch { throw failure() }
-  if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password || base.pathname !== '/' || base.search || base.hash ||
-      !/^\/(?:api\/v1\/|web\/session\/(?:authenticate|destroy)(?:$|\?))/.test(path) || path.startsWith('//') || /[\\\r\n#]/.test(path) || new URL(path, base).pathname !== path.split('?')[0]) throw failure()
+  const base = operatorUpstream(configuredUpstream, path)
   const body = options.body
   if (body && Buffer.byteLength(body) > MAX_REQUEST) throw payloadTooLarge()
   const headers: Record<string, string> = { ...binding }
@@ -191,6 +222,14 @@ export async function withTenantBody<T>(event: H3Event, run: () => Promise<T>): 
     releaseBody = await acquireBody(event.node.req, event.node.res)
     return await run()
   } catch (error) { throw createError(error as Error) } finally { releaseBody?.() }
+}
+
+const responseAdmission = createResponseAdmission()
+
+/** Own response capacity until native work and the downstream HTTP output settle. */
+export async function withTenantResponse<T>(event: H3Event, run: () => Promise<T>): Promise<T> {
+  try { return await responseAdmission(event.node.req, event.node.res, run) }
+  catch (error) { throw createError(error as Error) }
 }
 
 export async function boundedTenantBody(event: H3Event, maxBytes = MAX_REQUEST): Promise<Buffer | undefined> {
