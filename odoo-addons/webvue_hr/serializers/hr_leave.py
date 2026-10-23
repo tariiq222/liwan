@@ -41,6 +41,8 @@ def dump_leave(leave, cancellation=None):
     if cancellation is None:
         cancellation = model.search([('leave_id', '=', leave.id)], limit=1)
     pending = bool(cancellation and cancellation.state == 'pending')
+    owner_matches = not cancellation or cancellation.requester_id == leave.employee_id.user_id
+    can_review = bool(cancellation and cancellation.requester_id != leave.env.user)
     policy = leave.env['webvue.hr.leave.settings']._webvue_effective_policy(leave.company_id)
     can_request = own and model._webvue_can('hr.leave.request')
     can_manage = not own and model._webvue_can('hr.leave.approve')
@@ -62,12 +64,12 @@ def dump_leave(leave, cancellation=None):
         'notes': leave.notes or '',
         'can_approve': bool(leave.can_approve or leave.can_validate) and not own,
         'can_refuse': bool(leave.can_refuse) and not own,
-        'can_cancel': not pending and ((eligible and ((can_request and policy == 'direct_employee') or can_manage)) or (can_request and leave.state != 'validate' and bool(leave.can_cancel))),
+        'can_cancel': owner_matches and not pending and ((eligible and ((can_request and policy == 'direct_employee') or can_manage)) or (can_request and leave.state != 'validate' and bool(leave.can_cancel))),
         'cancellation_policy': policy,
         'cancellation': dump_cancellation(cancellation),
         'can_request_cancellation': bool(can_request and eligible and not pending and policy == 'manager_approval'),
-        'can_approve_cancellation': bool(can_manage and pending and eligible and cancellation.leave_version == leave.write_date),
-        'can_refuse_cancellation': bool(can_manage and pending),
+        'can_approve_cancellation': bool(can_manage and can_review and pending and owner_matches and eligible and cancellation.leave_version == leave.write_date),
+        'can_refuse_cancellation': bool(can_manage and can_review and pending),
         # A request still waiting for a decision is withdrawn by deleting it; stock only
         # offers cancel once a decision exists.
         'can_withdraw': own and leave.state == 'confirm',

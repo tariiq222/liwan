@@ -120,15 +120,19 @@ class WebVueHrLeaveCancellation(models.Model):
         if leave.employee_id.user_id == self.env.user or leave.employee_id in self.env.user.employee_ids:
             raise AccessError(self.env._('You cannot decide your own cancellation request.'))
 
-    def _webvue_require_actor(self, manager=False):
+    def _webvue_require_actor(self, manager=False, allow_owner_change=False):
         self.ensure_one()
         self.env['webvue.entitlement.service'].require('hr.enabled')
         self.check_access('read')
         leave = self._webvue_leave(self.leave_id.id)
-        if self.requester_id != leave.employee_id.user_id or self.company_id != leave.company_id:
+        if self.company_id != leave.company_id or (
+            self.requester_id != leave.employee_id.user_id and not (manager and allow_owner_change)
+        ):
             raise AccessError(self.env._('The employee account changed; cancellation history cannot be reused.'))
         if manager:
             self._webvue_require_manager(leave)
+            if self.requester_id == self.env.user:
+                raise AccessError(self.env._('You cannot decide your own cancellation request.'))
         elif not self._webvue_can('hr.leave.approve') and not (
             self.requester_id == self.env.user and self._webvue_can('hr.leave.read')
         ):
@@ -164,12 +168,42 @@ class WebVueHrLeaveCancellation(models.Model):
                 with self.env.cr.savepoint():
                     row = super().create(vals)
             except UniqueViolation as error:
-                # Never read from the losing repeatable-read snapshot.
+                # Never read the collision from the losing repeatable-read snapshot.
+                # A visible committed winner is a normal retry; an invisible history
+                # must not be disclosed, rebound to a new owner, or retried forever.
+                if not self._webvue_has_visible_committed_cancellation(leave.id, leave.company_id.id):
+                    message = self.env._(
+                        'This leave cannot accept a new cancellation request. Ask an authorized manager '
+                        'to review the employee account link and pending requests.',
+                    )
+                    raise ApiError(409, 'conflict', message) from error
                 message = 'concurrent cancellation submission; retry transaction'
                 raise ConcurrencyError(message) from error
         label = self.env._('Manager initiated cancellation') if manager else self.env._('Employee cancellation requested')
         row._webvue_event(label, reason)
         return row
+
+    @api.model
+    def _webvue_has_visible_committed_cancellation(self, leave_id, company_id):
+        # Primary cursor, deliberately without a context manager (which commits on
+        # normal exit). The probe only returns a visibility boolean in the same
+        # ordinary actor's fresh snapshot, and always rolls back and closes.
+        cursor = self.env.registry.cursor()
+        try:
+            probe_env = api.Environment(cursor, self.env.uid, {'allowed_company_ids': [company_id]})
+            model = probe_env['webvue.hr.leave.cancellation']
+            if probe_env.is_superuser() or not probe_env.user.active or not (
+                model._webvue_can('hr.leave.request') or model._webvue_can('hr.leave.approve')
+            ):
+                return False
+            return bool(model.search_count([('leave_id', '=', leave_id), ('company_id', '=', company_id)], limit=1))
+        except AccessError:
+            return False
+        finally:
+            try:
+                cursor.rollback()
+            finally:
+                cursor.close()
 
     @api.model
     def action_request(self, leave_id, reason=''):
@@ -210,7 +244,7 @@ class WebVueHrLeaveCancellation(models.Model):
         self.ensure_one()
         reason = self._webvue_reason(reason, required=True)
         with self.env.cr.savepoint():
-            leave = self._webvue_require_actor(manager=True)
+            leave = self._webvue_require_actor(manager=True, allow_owner_change=True)
             self._webvue_lock_leave(leave)
             self._webvue_check_revision(revision)
             self._webvue_write({'state': 'refused', 'revision': revision + 1, 'reviewer_id': self.env.uid,
