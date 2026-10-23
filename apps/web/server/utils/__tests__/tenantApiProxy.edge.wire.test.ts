@@ -81,8 +81,8 @@ async function fixture(mode: 'shared' | 'dedicated') {
   const webUrl = await listen(web)
   writeFileSync(join(root, 'pools.json'), JSON.stringify({ schemaVersion: 1, pools: { blue: { poolId: 'blue', releaseId: 'r1', odooUrl, webUrl, wsUrl: odooUrl } } }))
   const guard = track(mode === 'shared'
-    ? shared.createGuard({ registryPath, proxyToken: token, keys, activeKid: 'test', odooUrl, webUrl, releaseRoutesDir: root })
-    : dedicated.createDedicatedGuard({ bindingPath: join(root, 'binding.json'), releaseRoutesDir: root, proxyToken: token }))
+    ? shared.createGuard({ registryPath, proxyToken: token, keys, activeKid: 'test', odooUrl, webUrl, releaseRoutesDir: root, releaseAssetsDir: undefined })
+    : dedicated.createDedicatedGuard({ bindingPath: join(root, 'binding.json'), releaseRoutesDir: root, proxyToken: token, releaseAssetsDir: undefined }))
   guardUrl = await listen(guard)
   const cookie = (sid: string) => `session_id=${mode === 'shared' ? codec.seal(sid, tenant) : sid}`
   function call(path: string, sid?: string, body?: Buffer, extra: Record<string, string> = {}) {
