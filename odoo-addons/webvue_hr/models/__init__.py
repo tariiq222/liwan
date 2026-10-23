@@ -16,6 +16,7 @@ from . import (
     hr_plan_run,
     hr_report,
     hr_version,
+    ir_rule,
     leave_cancellation,
     leave_settings,
     mail_activity_plan,
