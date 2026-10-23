@@ -77,9 +77,14 @@ def codex_review(reviews: list[dict], head: str, inline: list[dict] | None = Non
     unproven = any(x.get('pull_request_review_id') not in history_ids
                    and head in (x.get('commit_id'), x.get('original_commit_id')) for x in native_inline)
     priority = any(re.search(r'\bP[012]\b', x.get('body', '')) for x in [*found, *findings])
+    if not found and not summaries:
+        # Missing completion evidence cannot erase a known or unproven blocker.
+        # Return only a blocking decision; never manufacture a completed receipt.
+        return {'provider': 'codex', 'blocking': True,
+                'body': 'Codex blocking evidence exists without a completed review receipt'} if unproven or priority else None
     return {'provider': 'codex', 'blocking': unproven or priority
             or any(x['state'] == 'CHANGES_REQUESTED' for x in found) or any(x['blocking'] for x in summaries),
-            'body': 'Codex review: ' + (found or summaries)[-1].get('html_url', '')} if found or summaries else None
+            'body': 'Codex review: ' + (found or summaries)[-1].get('html_url', '')}
 
 
 def stored_claude_review(reviews: list[dict], head: str) -> dict | None:
@@ -251,7 +256,7 @@ def request_codex(repo: str, pr: int, head: str, wait_seconds: int):
         if review is None:
             time.sleep(min(20, max(0, deadline - time.monotonic())))
     output(completed='true' if review is not None else 'false')
-    sys.stdout.write(('Codex review completed' if review is not None else 'Codex unavailable within the bounded wait; use Claude') + '\n')
+    sys.stdout.write(('Codex review decision available' if review is not None else 'Codex unavailable within the bounded wait; use Claude') + '\n')
 
 
 def finalize(repo: str, pr: int, head: str, request_id: int) -> int:
@@ -280,7 +285,8 @@ def finalize(repo: str, pr: int, head: str, request_id: int) -> int:
                     f'<!-- webvue-review-blocking:{str(backup["blocking"]).lower()} -->\n' + backup['body']})
     current(repo, pr, head)
     status(repo, head, 'failure' if blocking else 'success',
-           f"{review['provider']} review complete; " + ('blocking findings require correction' if blocking else 'CI and delivery policy required'))
+           f"{review['provider']} " + ('blocking review evidence requires correction' if blocking
+                                     else 'review complete; CI and delivery policy required'))
     sys.stdout.write(review['body'] + '\n')
     return 1 if blocking else 0
 

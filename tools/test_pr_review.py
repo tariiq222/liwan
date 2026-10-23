@@ -106,6 +106,16 @@ class ReviewSelectionTest(unittest.TestCase):
                   'pull_request_review_id': 18, 'body': '**[P1] Unrepaired finding**'}
         self.assertTrue(pr_review.codex_review([dismissed, self.native()], HEAD, [inline])['blocking'])
 
+    def test_dismissed_current_inline_blockers_survive_without_any_completed_receipt(self):
+        dismissed = self.native('DISMISSED')
+        for priority in ('P0', 'P1', 'P2'):
+            inline = {**dismissed, 'pull_request_review_id': 17, 'body': f'**[{priority}] Unrepaired finding**'}
+            self.assertTrue(pr_review.codex_review([dismissed], HEAD, [inline])['blocking'])
+
+    def test_unknown_current_inline_blocks_without_any_completed_receipt(self):
+        inline = {**self.native(), 'pull_request_review_id': 999, 'body': 'Unproven finding'}
+        self.assertTrue(pr_review.codex_review([], HEAD, [inline])['blocking'])
+
     def test_other_author_review_cannot_prove_native_inline_provenance(self):
         other = self.native(login='other[bot]')
         other['id'] = 18
@@ -200,7 +210,7 @@ class NativeSummaryTest(unittest.TestCase):
 
 
 class FinalizeReviewTest(unittest.TestCase):
-    def run_gate(self, native=None, report=None, moved=False, author="o", head_author="o", comments=None):
+    def run_gate(self, native=None, report=None, moved=False, author="o", head_author="o", comments=None, inline=None):
         self.calls = []
 
         def github(endpoint, payload=None, pages=False):
@@ -214,6 +224,8 @@ class FinalizeReviewTest(unittest.TestCase):
                 return native or []
             if endpoint == 'repos/o/r/issues/1/comments':
                 return comments or []
+            if endpoint == 'repos/o/r/pulls/1/comments':
+                return inline or []
             return {}
 
         with patch.object(pr_review, 'api', side_effect=github), patch.dict(
@@ -260,6 +272,14 @@ class FinalizeReviewTest(unittest.TestCase):
         self.assertEqual(self.run_gate(comments=[NativeSummaryTest().summary(has_any_findings=True)],
                                        report=self.backup()), 1)
         self.assertEqual(self.calls[-1][1]['state'], 'failure')
+
+    def test_missing_receipt_never_allows_clean_backup_to_erase_inline_blockers(self):
+        dismissed = ReviewSelectionTest().native('DISMISSED')
+        for association in (17, 999):
+            inline = {**dismissed, 'pull_request_review_id': association,
+                      'original_commit_id': HEAD, 'body': '**[P1] Current finding**'}
+            self.assertEqual(self.run_gate(native=[dismissed], inline=[inline], report=self.backup()), 1)
+            self.assertEqual(self.calls[-1][1]['state'], 'failure')
 
     def test_blocking_backup_uses_comment_for_bot_authored_pr_but_fails_required_status(self):
         finding = {'priority': 'P1', 'file': 'a.py', 'line': 1, 'message': 'Bug'}
