@@ -37,8 +37,35 @@ def matching_reviews(reviews: list[dict], head: str, login: str, marker: str = '
             and review.get('state') in ('COMMENTED', 'APPROVED', 'CHANGES_REQUESTED')]
 
 
-def codex_review(reviews: list[dict], head: str, inline: list[dict] | None = None) -> dict | None:
+def codex_summaries(comments: list[dict], head: str) -> list[dict]:
+    """Accept the native bot's machine-readable full-SHA receipt, never reactions/text."""
+    found = []
+    for comment in comments:
+        if (comment.get('user', {}).get('login') != CODEX
+                or comment.get('user', {}).get('type') != 'Bot'):
+            continue
+        match = re.match(r'\A<!-- codex-pull-request-review-summary -->\s*'
+                         r'<!-- codex-review-state:v1 (\{[^\n]*\}) -->', comment.get('body', ''))
+        if not match:
+            continue
+        try:
+            state = json.loads(match[1])['code_review']
+        except (ValueError, TypeError, KeyError):
+            continue
+        if (not isinstance(state, dict) or state.get('commit_sha') != head
+                or state.get('status') != 'completed'
+                or type(state.get('has_any_findings')) is not bool
+                or type(state.get('has_unresolved_findings')) is not bool):
+            continue
+        found.append({'blocking': state['has_any_findings'] or state['has_unresolved_findings'],
+                      'html_url': comment.get('html_url', '')})
+    return found
+
+
+def codex_review(reviews: list[dict], head: str, inline: list[dict] | None = None,
+                 comments: list[dict] | None = None) -> dict | None:
     found = matching_reviews(reviews, head, CODEX)
+    summaries = codex_summaries(comments or [], head)
     # Inline anchors are remapped by GitHub; their formal review association is immutable.
     native_inline = [x for x in (inline or []) if x.get('user', {}).get('login') == CODEX
                      and x.get('user', {}).get('type') == 'Bot']
@@ -50,8 +77,9 @@ def codex_review(reviews: list[dict], head: str, inline: list[dict] | None = Non
     unproven = any(x.get('pull_request_review_id') not in history_ids
                    and head in (x.get('commit_id'), x.get('original_commit_id')) for x in native_inline)
     priority = any(re.search(r'\bP[012]\b', x.get('body', '')) for x in [*found, *findings])
-    return {'provider': 'codex', 'blocking': unproven or priority or any(x['state'] == 'CHANGES_REQUESTED' for x in found),
-            'body': 'Codex review: ' + found[-1].get('html_url', '')} if found else None
+    return {'provider': 'codex', 'blocking': unproven or priority
+            or any(x['state'] == 'CHANGES_REQUESTED' for x in found) or any(x['blocking'] for x in summaries),
+            'body': 'Codex review: ' + (found or summaries)[-1].get('html_url', '')} if found or summaries else None
 
 
 def stored_claude_review(reviews: list[dict], head: str) -> dict | None:
@@ -194,8 +222,9 @@ def native_state(repo: str, pr: int, head: str, request_id: int, reviews: list[d
     if reviews is None:
         reviews = api(f'repos/{repo}/pulls/{pr}/reviews', pages=True)
     inline = api(f'repos/{repo}/pulls/{pr}/comments', pages=True)
+    comments = api(f'repos/{repo}/issues/{pr}/comments', pages=True)
     # Reactions acknowledge a request; only a SHA-bound review completes it.
-    return codex_review(reviews, head, inline)
+    return codex_review(reviews, head, inline, comments)
 
 
 def request_codex(repo: str, pr: int, head: str, wait_seconds: int):

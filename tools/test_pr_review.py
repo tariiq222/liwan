@@ -126,7 +126,7 @@ class ReviewSelectionTest(unittest.TestCase):
     def test_confirmation_reaction_alone_never_completes_a_review(self):
         trigger = {'body': f'@codex review\n<!-- webvue-review-head:{HEAD} -->'}
         reaction = {'content': '+1', 'user': {'login': 'chatgpt-codex-connector[bot]', 'type': 'Bot'}}
-        with patch.object(pr_review, 'api', side_effect=[[], trigger, [reaction]]):
+        with patch.object(pr_review, 'api', side_effect=[[], [trigger, reaction]]):
             self.assertIsNone(pr_review.native_state('o/r', 1, HEAD, 23, []))
 
     def test_priority_zero_in_commented_review_body_blocks(self):
@@ -135,8 +135,72 @@ class ReviewSelectionTest(unittest.TestCase):
         self.assertTrue(pr_review.codex_review([review], HEAD)['blocking'])
 
 
+class NativeSummaryTest(unittest.TestCase):
+    def summary(self, **updates):
+        state = {'commit_sha': HEAD, 'status': 'completed',
+                 'has_any_findings': False, 'has_unresolved_findings': False, **updates}
+        return {'user': {'login': pr_review.CODEX, 'type': 'Bot'},
+                'html_url': 'https://github.com/o/r/pull/1#issuecomment-42',
+                'body': '<!-- codex-pull-request-review-summary -->\n'
+                        '<!-- codex-review-state:v1 ' + json.dumps({'code_review': state}) + ' -->\n'}
+
+    def native_state(self, comments, reviews=None, inline=None):
+        def github(endpoint, payload=None, pages=False):
+            return inline or [] if '/pulls/' in endpoint else comments
+        with patch.object(pr_review, 'api', side_effect=github):
+            return pr_review.native_state('o/r', 1, HEAD, 23, reviews or [])
+
+    def test_actual_native_full_sha_completed_summary_is_a_review_receipt(self):
+        self.assertFalse(self.native_state([self.summary()])['blocking'])
+
+    def test_stale_short_incomplete_and_non_boolean_summary_is_unavailable(self):
+        for update in ({'commit_sha': 'b' * 40}, {'commit_sha': HEAD[:10]},
+                       {'status': 'running'}, {'has_any_findings': None},
+                       {'has_any_findings': 'false'}, {'has_unresolved_findings': 0}):
+            with self.subTest(update=update):
+                self.assertIsNone(self.native_state([self.summary(**update)]))
+
+    def test_spoofed_author_or_user_type_cannot_supply_receipt(self):
+        for login, kind in (('other[bot]', 'Bot'), (pr_review.CODEX, 'User')):
+            comment = self.summary()
+            comment['user'] = {'login': login, 'type': kind}
+            self.assertIsNone(self.native_state([comment]))
+
+    def test_free_text_short_receipt_and_malformed_machine_state_are_unavailable(self):
+        for body in ('<!-- codex-review-receipt:v1 -->\nReviewed commit: `' + HEAD[:10] + '`',
+                     '<!-- codex-pull-request-review-summary -->\n<!-- codex-review-state:v1 { -->',
+                     '<!-- codex-review-state:v1 ' + json.dumps({'code_review': {'commit_sha': HEAD}}) + ' -->'):
+            comment = {**self.summary(), 'body': body}
+            self.assertIsNone(self.native_state([comment]))
+
+    def test_summary_findings_never_produce_clean_review(self):
+        for update in ({'has_any_findings': True}, {'has_unresolved_findings': True}):
+            self.assertTrue(self.native_state([self.summary(**update)])['blocking'])
+
+    def test_clean_summary_does_not_erase_formal_change_request_or_inline_blocker(self):
+        review = ReviewSelectionTest().native('CHANGES_REQUESTED')
+        self.assertTrue(self.native_state([self.summary()], [review])['blocking'])
+        review['state'] = 'COMMENTED'
+        inline = {**review, 'pull_request_review_id': 17, 'body': '**[P2] Current finding**'}
+        self.assertTrue(self.native_state([self.summary()], [review], [inline])['blocking'])
+
+    def test_clean_summary_cannot_hide_unknown_current_inline_provenance(self):
+        inline = {**ReviewSelectionTest().native(), 'pull_request_review_id': 999,
+                  'original_commit_id': HEAD, 'body': 'Unproven finding'}
+        self.assertTrue(self.native_state([self.summary()], inline=[inline])['blocking'])
+
+    def test_multiple_current_summaries_retain_any_blocker(self):
+        self.assertTrue(self.native_state([self.summary(has_any_findings=True), self.summary()])['blocking'])
+
+    def test_remapped_old_inline_with_clean_current_summary_does_not_block(self):
+        old = ReviewSelectionTest().native(head='b' * 40)
+        inline = {**old, 'commit_id': HEAD, 'original_commit_id': 'b' * 40,
+                  'pull_request_review_id': 17, 'body': '**[P2] Historical finding**'}
+        self.assertFalse(self.native_state([self.summary()], [old], [inline])['blocking'])
+
+
 class FinalizeReviewTest(unittest.TestCase):
-    def run_gate(self, native=None, report=None, moved=False, author="o", head_author="o"):
+    def run_gate(self, native=None, report=None, moved=False, author="o", head_author="o", comments=None):
         self.calls = []
 
         def github(endpoint, payload=None, pages=False):
@@ -148,6 +212,8 @@ class FinalizeReviewTest(unittest.TestCase):
                 return {'author': {'login': head_author}}
             if endpoint.endswith('/reviews') and payload is None:
                 return native or []
+            if endpoint == 'repos/o/r/issues/1/comments':
+                return comments or []
             return {}
 
         with patch.object(pr_review, 'api', side_effect=github), patch.dict(
@@ -184,6 +250,16 @@ class FinalizeReviewTest(unittest.TestCase):
         self.assertEqual(self.run_gate(), 1)
         self.assertFalse(any(endpoint.endswith('/reviews') and payload for endpoint, payload in self.calls))
         self.assertEqual(self.calls[-1][1]['state'], 'error')
+
+    def test_native_summary_finalizes_without_fabricating_a_formal_review(self):
+        self.assertEqual(self.run_gate(comments=[NativeSummaryTest().summary()]), 0)
+        self.assertEqual(self.calls[-1][1]['state'], 'success')
+        self.assertFalse(any(endpoint.endswith('/reviews') and payload for endpoint, payload in self.calls))
+
+    def test_native_summary_findings_fail_and_cannot_use_a_clean_backup(self):
+        self.assertEqual(self.run_gate(comments=[NativeSummaryTest().summary(has_any_findings=True)],
+                                       report=self.backup()), 1)
+        self.assertEqual(self.calls[-1][1]['state'], 'failure')
 
     def test_blocking_backup_uses_comment_for_bot_authored_pr_but_fails_required_status(self):
         finding = {'priority': 'P1', 'file': 'a.py', 'line': 1, 'message': 'Bug'}
