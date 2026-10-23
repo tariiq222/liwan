@@ -1,6 +1,6 @@
 /** Dedicated local release edge. No shared cookie envelope or vendor lookup. */
 import http from 'node:http'
-import { createBodyAdmission, readBodyBytes } from '../../apps/web/server/utils/bufferAdmission.mjs'
+import { createBodyAdmission, destroyUpstreamWhenCallerCloses, readBodyBytes } from '../../apps/web/server/utils/bufferAdmission.mjs'
 import { timingSafeEqual } from 'node:crypto'
 import { isIP } from 'node:net'
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
@@ -189,7 +189,7 @@ export function createDedicatedGuard({ bindingPath, releaseRoutesDir, proxyToken
     })
     upstream.once('close', releaseBody)
     upstream.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end('dedicated_upstream_unavailable') })
-    res.once('close', () => upstream.destroy())
+    destroyUpstreamWhenCallerCloses(res, upstream, p.internal)
     if (body !== null) upstream.end(body); else req.pipe(upstream)
   })
   server.on('upgrade', (req, socket, head) => {

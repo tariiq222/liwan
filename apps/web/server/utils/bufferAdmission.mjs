@@ -108,6 +108,25 @@ export function createResponseAdmission(pool) {
   }
 }
 
+/** A forwarded hop holds its body credit until `upstream` closes, so a hung target must never
+ * outlive a departed caller. External hops are destroyed at once. An internal claimed write may
+ * already be applying, so it keeps its credit only for one BUFFER_TIMEOUT after the caller closes.
+ * @param {import('node:http').ServerResponse} res
+ * @param {import('node:http').ClientRequest} upstream
+ * @param {boolean} internal
+ */
+export function destroyUpstreamWhenCallerCloses(res, upstream, internal) {
+  let upstreamClosed = false
+  upstream.once('close', () => { upstreamClosed = true })
+  res.once('close', () => {
+    if (upstreamClosed) return
+    if (!internal) { upstream.destroy(); return }
+    const timer = setTimeout(() => upstream.destroy(), BUFFER_TIMEOUT)
+    timer.unref()
+    upstream.once('close', () => clearTimeout(timer))
+  })
+}
+
 /** Read once under a total deadline without destroying the socket before the error
  * response can be serialized. Pausing and removing listeners stops body consumption.
  * @param {import('node:http').IncomingMessage} req

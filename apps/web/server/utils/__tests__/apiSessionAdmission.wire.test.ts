@@ -221,3 +221,40 @@ it('validates a real session queued behind a flood of forged sessions', async ()
     expect((await Promise.all(flood)).map(item => item.status)).toEqual(Array(9).fill(403))
   } finally { await wire.close(); await Promise.allSettled(flood) }
 })
+
+const CONSUMERS_PER_PROBE = 16
+
+// The first request owns the probe; excess consumers of one key are refused before they can
+// retain a socket or buffered upload for the probe window, and a settled probe leaves no count.
+it.each([
+  ['rejects', 403, false],
+  ['is unavailable', 503, true],
+] as const)('caps requests attached to one probe and frees the count when the probe %s', async (_outcome, status, outage) => {
+  const wire = await fixture()
+  const attached: Array<Promise<Response>> = []
+  try {
+    wire.hold()
+    if (outage) wire.outage()
+    attached.push(wire.call('forged-same'))
+    await vi.waitFor(() => expect(wire.held).toHaveLength(1))
+    for (let index = 1; index < CONSUMERS_PER_PROBE; index++) attached.push(wire.call('forged-same'))
+    await vi.waitFor(() => expect(wire.entered).toBe(CONSUMERS_PER_PROBE))
+    for (let extra = 0; extra < 4; extra++) {
+      const response = await wire.call('forged-same')
+      expect(response.status).toBe(429)
+      expect(ApiErrorSchema.parse((await response.json()).data)).toEqual(busyBody)
+    }
+    expect(wire.probes).toEqual(['session_id=forged-same'])
+    wire.release()
+    expect((await Promise.all(attached)).map(response => response.status)).toEqual(Array(CONSUMERS_PER_PROBE).fill(status))
+    if (!outage) return
+    // Unavailable is never cached, so a full burst attaches again: the count returned to zero.
+    wire.hold()
+    const again = Array.from({ length: CONSUMERS_PER_PROBE }, () => wire.call('forged-same'))
+    attached.push(...again)
+    await vi.waitFor(() => expect(wire.entered).toBe(CONSUMERS_PER_PROBE * 2 + 4))
+    wire.release()
+    expect((await Promise.all(again)).map(response => response.status)).toEqual(Array(CONSUMERS_PER_PROBE).fill(503))
+    expect(wire.probes).toEqual(['session_id=forged-same', 'session_id=forged-same'])
+  } finally { await wire.close(); await Promise.allSettled(attached) }
+})

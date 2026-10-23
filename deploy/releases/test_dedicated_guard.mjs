@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { once } from 'node:events'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import test from 'node:test'
+import test, { mock } from 'node:test'
 import { createDedicatedGuard } from './dedicated_guard.mjs'
 import { loadDedicatedConfig } from './start_dedicated.mjs'
 
@@ -26,12 +26,13 @@ function call(url, path = '/', headers = {}, body) {
 async function fixture(t, { listenHost, ...guardOptions } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'webvue-dedicated-guard-')))
   const bindingPath = join(root, 'binding.json'); writeFileSync(bindingPath, JSON.stringify(binding))
-  const observed = [], control = {}
+  const observed = [], control = { hung: [], closed: 0 }
   control.admitted = new Promise(resolve => { control.mark = resolve })
   const target = kind => http.createServer((req, res) => {
     const chunks = []; req.on('data', c => chunks.push(c)); req.on('end', () => {
       observed.push({ kind, headers: req.headers, path: req.url, body: Buffer.concat(chunks).toString() })
       if (kind === 'web' && req.url === '/bff-two-hop' && control.bffHop) { control.bffHop(req, res); return }
+      if (req.url === '/hang') { control.hung.push(res); res.once('close', () => { control.closed++ }); return }
       if (req.url === '/slow') { control.reply = res; control.mark(); return }
       res.setHeader('set-cookie', 'session_id=raw-odoo-session; Path=/; HttpOnly'); res.end(kind)
     })
@@ -267,4 +268,51 @@ test('authenticated BFF hop preserves original edge authority while an untrusted
   }
   assert.equal(f.observed.length, count)
   assert.deepEqual(JSON.parse((await call(f.url, '/_webvue/release-status', internal)).body).leases, [])
+})
+
+// Body credits are four per hop pool: four hung forwards would admit nothing else if a departed caller kept them.
+const BODY_CREDITS = 4
+const settle = async () => { for (let turn = 0; turn < 50; turn++) await new Promise(resolve => setImmediate(resolve)) }
+async function hang(t, f, headers) {
+  t.after(() => mock.timers.reset())
+  const clients = Array.from({ length: BODY_CREDITS }, () => {
+    const client = http.request(new URL('/hang', f.url), { method: 'POST', headers: { host: binding.host, 'content-type': 'application/json', ...headers } })
+    client.on('error', () => {})
+    client.end('{}')
+    return client
+  })
+  while (f.control.hung.length < BODY_CREDITS) await new Promise(resolve => setImmediate(resolve))
+  return clients
+}
+
+test('a departed external caller cannot pin body credits behind a hung target', async t => {
+  const f = await fixture(t)
+  for (const client of await hang(t, f, {})) client.destroy()
+  const next = await call(f.url, '/', {}, '{}')
+  assert.equal(next.status, 200)
+  await settle()
+  assert.equal(f.control.closed, BODY_CREDITS)
+})
+
+test('a departed internal caller keeps its credit for one deadline, then the hung target is cancelled', async t => {
+  const f = await fixture(t)
+  mock.timers.enable({ apis: ['setTimeout'] })
+  for (const client of await hang(t, f, internal)) client.destroy()
+  await settle()
+  assert.equal(f.control.closed, 0)
+  mock.timers.tick(15_000)
+  mock.timers.reset()
+  await settle()
+  assert.equal(f.control.closed, BODY_CREDITS)
+  assert.equal((await call(f.url, '/', internal, '{}')).status, 200)
+})
+
+test('a write whose caller stays connected is not cancelled', async t => {
+  const f = await fixture(t)
+  const clients = await hang(t, f, {})
+  await settle()
+  assert.equal(f.control.closed, 0)
+  const replies = clients.map(client => new Promise(resolve => client.once('response', reply => { reply.resume(); resolve(reply.statusCode) })))
+  for (const res of f.control.hung) res.end('late')
+  assert.deepEqual(await Promise.all(replies), Array(BODY_CREDITS).fill(200))
 })

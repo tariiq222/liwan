@@ -8,7 +8,7 @@ import { createError, getCookie, type H3Event } from 'h3'
 // must never enter the application-work queue. This is admission only: Odoo still
 // authenticates and authorizes every forwarded operation, including cached IDs.
 const verified = new Map<string, number>()
-const pending = new Map<string, Promise<void>>()
+const pending = new Map<string, { check: Promise<void>, consumers: number }>()
 // Sessions the upstream definitively rejected. A forged-cookie flood costs one probe per
 // key per window instead of one per request. Unavailable outcomes are never recorded.
 const rejected = new Map<string, number>()
@@ -23,6 +23,9 @@ const MAX_CHECKS = 1
 // concurrent honest re-validations and a forged-cookie flood cannot starve each other.
 const MAX_WAITERS = 32
 const WAIT_MS = 2_000
+// Requests that may await one shared probe, the first included. Each holds a socket and a
+// partially buffered upload, so the coalesced probe window must not retain an unbounded number.
+const MAX_CONSUMERS_PER_PROBE = 16
 let checking = 0
 const laneQueue: Array<() => void> = []
 const unavailable = () => createError({ statusCode: 503, data: { code: 'session_validation_unavailable', message: 'Session validation is temporarily unavailable.' } })
@@ -63,7 +66,12 @@ export async function requireApiSession(event: H3Event, upstream: string, bindin
   if ((rejected.get(key) ?? 0) > Date.now()) throw required()
   rejected.delete(key)
   const existing = pending.get(key)
-  if (existing) return existing
+  if (existing) {
+    if (existing.consumers >= MAX_CONSUMERS_PER_PROBE) throw busy()
+    existing.consumers++
+    try { await existing.check } finally { existing.consumers-- }
+    return
+  }
   // Registered before waiting for the lane, so identical keys share this one probe and
   // reuse its verified or rejected result instead of probing again.
   const check = (async () => {
@@ -110,6 +118,7 @@ export async function requireApiSession(event: H3Event, upstream: string, bindin
       remember(verified, MAX_VERIFIED, key, TTL_MS)
     } finally { releaseLane() }
   })()
-  pending.set(key, check)
+  const entry = { check, consumers: 1 }
+  pending.set(key, entry)
   try { await check } finally { pending.delete(key) }
 }
