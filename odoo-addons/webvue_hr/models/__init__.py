@@ -7,6 +7,7 @@ from . import (
     eos_settlement,
     feature_registry,
     gosi_rate,
+    hr_applicant,
     hr_compensation,
     hr_department,
     hr_employee,

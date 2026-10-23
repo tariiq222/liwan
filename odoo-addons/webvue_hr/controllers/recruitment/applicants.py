@@ -164,8 +164,7 @@ class HrRecruitmentApplicantController(http.Controller):
         # The stock conversion creates the hr.employee as the caller through the
         # WebVue-guarded model (which needs hr.employees.manage); the returned
         # act_window action is the Odoo web client's, not ours.
-        applicant.create_employee_from_applicant()
-        employee = applicant.employee_id
+        employee = applicant._webvue_hire()
         if not employee:
             raise ApiError(422, 'invalid', 'the applicant was not linked to an employee', field='employee_id')
         return {'applicant': _dump(applicant), 'employee': {'id': employee.id, 'name': employee.name}}
