@@ -8,6 +8,26 @@ This file is the single source of repository instructions for every coding agent
 واجهة العميل: [DESIGN.md](DESIGN.md) هو نقطة البداية وسياسة التصميم الوحيدة، وفيه روابط الفهرس والمرجع التقني.
 هذا الملف يملك المعمارية والعقود والأمن والبيانات. [أرشيف الواجهة](docs/archive/ui/README.md) والتقارير لا يغيّران هذه القواعد.
 
+## Instruction authority and task entry
+
+`CLAUDE.md` is an import adapter, not a second policy. Use one owning reference per subject:
+
+| Subject | Owning reference |
+| --- | --- |
+| Architecture, product contracts, security and authorization boundaries | This file |
+| Presentation and shared design | [DESIGN.md](DESIGN.md) |
+| Layer-specific implementation | [Odoo/API rules](docs/agents/odoo-rules.md), [web rules](docs/agents/web-rules.md) |
+| File ownership, worktree isolation and shared resources | [Parallel work](docs/parallel-work.md) |
+| Integration, publication and protected delivery | [Integration rules](docs/agents/integration-rules.md) |
+| Review findings and reviewer independence | [Review guide](REVIEW.md) |
+| Verification commands and evidence scope | [Testing guide](docs/testing.md) |
+| Approval before updating external source versions | [Update policy](docs/UPDATE_POLICY.md) |
+| Checkout map and evidence entry points, not live runtime state | [Workspace map](docs/WORKSPACE.md) |
+
+Read the current task and the references for its scope before editing. A task-specific owner decision must state its scope; do not turn a bounded exception into a permanent policy change. If active references conflict or the decision source is unclear, report the exact conflict before changing the affected behavior. Plans, archived documents, old worktree instructions and reports do not silently supersede active policy.
+
+Keep three claims separate: an approved requirement, implementation present in a named branch/SHA, and behavior verified by a recorded check. Neither a document update nor green checks authorize publication, production deployment or cleanup. Change the owning reference and update its summaries together; do not copy a policy into another instruction file.
+
 ## تعريف المنتج المعتمد — 2026-09-30
 
 ويب فيو منصة عربية موحّدة لتشغيل الشركات، والأساس المشترك لجميع تطبيقاتها، ببيانات
@@ -47,7 +67,7 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
   filters, permissions and draft protection. Do not stack business dialogs.
   Confirm destructive actions inline. Value-selection menus are controls, not
   screens.
-- Read `docs/WORKSPACE.md` for the checkout map and current delivery records.
+- Read `docs/WORKSPACE.md` for the checkout map and links to acceptance evidence.
   Verify branch and dirty state live. Dated integration/recovery reports and
   older WIP describe their own checkpoints, not the current source state.
 - When reviewing a diff, follow `REVIEW.md` (what to report and what is already automated).
@@ -86,7 +106,7 @@ Accumulation in code or in the database schema is a defect, not technical debt t
   `v2`/`_new`/`_old` copies, no dead branches kept "just in case", no compatibility wrappers,
   no feature flags whose only purpose is to keep an old path alive, no commented-out code.
   Removed code lives in Git history, never in `legacy/`, `.bak` or archived copies inside the
-  source tree (`docs/archive/` holds documents only, never code).
+  source tree. `docs/archive/` is never a code store or an automatic destination for completed documents; document retention follows [WORKSPACE.md](docs/WORKSPACE.md#الأرشفة-والاسترداد).
 - **One schema, no remnants.** A model change edits the field or table directly. No unused
   or renamed-and-kept columns, no "temporary" fields, no compatibility tables, no duplicate
   store of the same fact. Migrations follow [docs/migrations.md](docs/migrations.md) only to

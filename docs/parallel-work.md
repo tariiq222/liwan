@@ -50,7 +50,7 @@ orchestrator edits these shared integration points, or coordinates a single
 one-line addition from the owning team:
 
 - `tools/arch_layers.json` — the addon rank (weakening it needs the owner's approval).
-- `deploy/catalog/solutions/platform_v3.json` — the application in the catalog.
+- The active release catalog under `deploy/catalog/solutions/` — currently `deploy/catalog/solutions/platform_v4.json`, selected by `tools/catalog_check.py::current_release`; follow `docs/agents/odoo-rules.md` for publication and versioning. Older catalogs are not the registration target.
 - `packages/contracts/src/index.ts` — one pillar barrel export.
 - `deploy/provision.sh` — the pillar addon in the install list.
 - `apps/web/i18n/locales/{ar,en}/common.json` — shared navigation labels.
@@ -127,7 +127,8 @@ For example, for a worktree at `/path/to/webvue-worktree`:
 
 ```sh
 cd /Users/tariq/code/odoo
-.venv/bin/python odoo-bin -c /Users/tariq/code/odoo/odoo.conf \
+# Use a scratch-only config; data_dir and logfile stay outside this checkout.
+.venv/bin/python odoo-bin -c /absolute/path/to/scratch-only.conf \
   --addons-path=/Users/tariq/code/odoo/addons,/path/to/webvue-worktree/odoo-addons,$(python3 -B /path/to/webvue-worktree/tools/oca_addons.py path) \
   -d webvue_scratch --http-port=8169
 
@@ -140,7 +141,7 @@ npm -w apps/web run dev -- --port 3200
 
 The ordinary local development topology is Odoo `:8069` and Nuxt `:3000`. Port `3100` is reserved for
 `apps/vendor-admin` (its default, see its README) and `3103` for its live-proof build; give `apps/web` worktrees other ports.
-Use distinct database, Odoo port, Nuxt port, and log paths for concurrent
+Example ports and database names above are not reservations. Check current worktree claims before selecting values. Use distinct database, Odoo port, Nuxt port, and log paths for concurrent
 worktrees. Temporary integration values are disposable and must not be
 presented as production evidence.
 

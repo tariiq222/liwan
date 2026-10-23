@@ -25,7 +25,7 @@ git tag -l 'archive/*'
 
 العمل غير المدمج الذي لم يُحسم يُحفظ في وسم موسوم `archive/<name>` قبل إزالة فرعه (تنظيف الفروع بـ `python3 -B tools/wt.py gc` بإذن المالك فقط). قائمة الوسوم الحية هي ناتج الأمر أعلاه، لا جدول في وثيقة. نسخ الاسترداد الكاملة خارج المستودع (حزم Git ومواد التخزين) تحت `/Users/tariq/Archives/webvue/<تاريخ>/`؛ تحقق من وجود المجلد قبل الاعتماد عليه.
 
-الوثائق المنتهية (تقارير التسليم والدمج والتحقق وخطط التنفيذ المنجزة) تُحذف من `docs/` ويبقى أثرها في تاريخ Git؛ لا تُنقل إلى مجلد أرشيف داخل المصدر. [أرشيف الواجهة](archive/ui/README.md) لم يبقَ فيه سجلات.
+تقارير التقدم والتسليم المؤقتة وخطط التنفيذ المنجزة لا تتحول إلى تعليمات نشطة، ولا تُنقل تلقائيًا إلى أرشيف داخل المصدر؛ عند اعتماد إزالتها يبقى تاريخها في Git. قبل أي حذف، تحقق من ملكية الوثيقة والإحالات واعتماد الأدوات عليها، واحفظ القرارات والأدلة المطلوبة في المرجع المالك. لا تطبق التنظيف على عقد معتمد أو دليل قبول ما زال مرجعيًا للأدوات لمجرد أن عنوانه مؤرخ؛ تاريخ الدليل وحدود SHA والبيئة يبقيانه دليلًا لسياقه، لا شهادة جاهزية حالية. لا تغيير في شرط تفويض الحذف أو حفظ أعمال الآخرين. [أرشيف الواجهة](archive/ui/README.md) ليس وجهة تلقائية لوثائق جديدة.
 
 ## CI — GitHub Actions
 
@@ -33,9 +33,7 @@ CI is the `ci` workflow in [`.github/workflows/ci.yml`](../.github/workflows/ci.
 selected per change by `tools/ci_scope.py`, each runnable through `deploy/ci`.
 Delivery uses a draft PR, then ready requests review and bounded automatic delivery.
 `pr-delivery` requires current CI/review/scope gates, repairs safe failures at most
-three times, and merges normally. Sensitive scope needs exact-head owner approval. GitHub requires current `ci-result`, an up-to-date
-branch and resolved review threads, with no ruleset bypass actors. The target also
-requires `code-review` and `delivery-policy`; successful full main CI produces the
+three times, and merges normally. Sensitive scope needs exact-head owner approval. The required delivery gates are `ci-result`, `code-review` and `delivery-policy`, an up-to-date branch and resolved review threads, with no ruleset bypass actors. Recheck the live GitHub settings before delivery; this document is not a live protection snapshot. Successful full main CI produces the
 next `release/19.0.X.Y.Z` tag without deploying production. The separate
 `pr-review` workflow supplies `code-review`: Codex first, Claude on service
 unavailability; activation prerequisites and bootstrap are in the integration policy.
