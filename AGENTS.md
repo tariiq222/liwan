@@ -381,11 +381,8 @@ worktrees only after their content is preserved and no process is using them.
 
 ## Check commands
 
-Run focused local checks for the changed behavior and affected interfaces. GitHub
-Actions owns the complete required suite and the final merge gate. Do not repeat
-the full local suite for each change; run additional local verification only to
-diagnose a failure or cover a material behavior CI does not exercise. Preserve all
-required GitHub checks and report local and remote evidence separately.
+Follow the focused-local / complete-CI verification policy in
+[`docs/testing.md`](docs/testing.md#fast-local-loop).
 
 The Odoo scratch-database command block is in `docs/agents/odoo-rules.md`. CI is the GitHub Actions `ci` workflow
 (`.github/workflows/ci.yml`, twelve stages, each a `deploy/ci/<stage>.sh` script runnable locally); see
