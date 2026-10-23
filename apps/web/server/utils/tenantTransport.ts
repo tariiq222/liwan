@@ -11,13 +11,17 @@ const MAX_RESPONSE = 32 * 1024 * 1024
  * here instead of opening connections the kernel drops once the listen backlog fills. */
 const configuredConcurrency = Number(process.env.NUXT_ODOO_MAX_CONCURRENCY)
 const UPSTREAM_MAX_CONCURRENCY = Number.isFinite(configuredConcurrency) && configuredConcurrency > 0 ? Math.floor(configuredConcurrency) : 32
-const UPSTREAM_QUEUE_TIMEOUT = 15_000
+const UPSTREAM_TIMEOUT = 15_000
+// Operator-owned memory bound: at most two default-sized batches may wait.
+// Keep this fixed even when the operator raises upstream concurrency.
+const UPSTREAM_MAX_QUEUED = 64
 let inFlight = 0
 const waiters: Array<() => void> = []
 
 function acquire(signal?: AbortSignal): Promise<void> {
   if (signal?.aborted) return Promise.reject(failure())
   if (inFlight < UPSTREAM_MAX_CONCURRENCY) { inFlight++; return Promise.resolve() }
+  if (waiters.length >= UPSTREAM_MAX_QUEUED) return Promise.reject(failure())
   return new Promise((resolve, reject) => {
     const cleanup = () => { clearTimeout(timer); signal?.removeEventListener('abort', cancel) }
     const cancel = () => {
@@ -26,7 +30,7 @@ function acquire(signal?: AbortSignal): Promise<void> {
       cleanup()
       reject(failure())
     }
-    const timer = setTimeout(cancel, UPSTREAM_QUEUE_TIMEOUT)
+    const timer = setTimeout(cancel, UPSTREAM_TIMEOUT)
     const resume = () => { cleanup(); resolve() }
     waiters.push(resume)
     signal?.addEventListener('abort', cancel, { once: true })
@@ -51,6 +55,7 @@ function clientCancellation(event?: H3Event, options: { signal?: AbortSignal; ig
   if (options.signal?.aborted) cancel(); else options.signal?.addEventListener('abort', cancel, { once: true })
   return {
     signal: controller.signal,
+    cancel,
     dispose() {
       event?.node.req.removeListener('aborted', cancel)
       event?.node.res.removeListener('close', disconnected)
@@ -59,16 +64,43 @@ function clientCancellation(event?: H3Event, options: { signal?: AbortSignal; ig
   }
 }
 
-/** Hold one upstream slot, cancelling admission and forwarding with the caller. */
+/** Hold one upstream slot, with caller cancellation and a 15s admitted deadline. */
 export async function withUpstreamSlot<T>(run: (signal: AbortSignal) => Promise<T>, event?: H3Event): Promise<T> {
   const cancellation = clientCancellation(event)
   let admitted = false
+  let timer: ReturnType<typeof setTimeout> | undefined
   try {
     await acquire(cancellation.signal)
     admitted = true
     if (cancellation.signal.aborted) throw failure()
-    return await run(cancellation.signal)
+    timer = setTimeout(cancellation.cancel, UPSTREAM_TIMEOUT)
+    // Await native cancellation before releasing capacity; a Promise.race would
+    // let an upstream operation outlive its slot if it ignored the deadline.
+    const result = await run(cancellation.signal)
+    // Native fetch resolves on headers. Auth handlers consume its body after
+    // this wrapper returns, so finish buffering here while the deadline and
+    // admission slot still own the receiving socket.
+    if (result instanceof Response && result.body) {
+      const reader = result.body.getReader()
+      const chunks: Uint8Array[] = []
+      let bytes = 0
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          bytes += value.byteLength
+          if (bytes > MAX_RESPONSE) {
+            await reader.cancel()
+            throw failure()
+          }
+          chunks.push(value)
+        }
+      } finally { reader.releaseLock() }
+      return new Response(Buffer.concat(chunks), { status: result.status, statusText: result.statusText, headers: result.headers }) as T
+    }
+    return result
   } finally {
+    clearTimeout(timer)
     cancellation.dispose()
     if (admitted) release()
   }
@@ -135,7 +167,7 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
       })
     })
     const abort = () => { request.destroy(); finish(failure()) }
-    const timer = setTimeout(abort, 15000)
+    const timer = setTimeout(abort, UPSTREAM_TIMEOUT)
     cancellation.signal.addEventListener('abort', abort, { once: true })
     request.on('error', () => finish(failure()))
     request.end(body)
@@ -149,7 +181,7 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
 export async function boundedTenantBody(event: H3Event): Promise<Buffer | undefined> {
   if (['GET', 'HEAD'].includes(event.method)) return undefined
   const chunks: Buffer[] = []; let length = 0
-  const timer = setTimeout(() => event.node.req.destroy(), 15000)
+  const timer = setTimeout(() => event.node.req.destroy(), UPSTREAM_TIMEOUT)
   try {
     for await (const chunk of event.node.req) {
       const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
