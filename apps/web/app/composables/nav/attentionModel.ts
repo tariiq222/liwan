@@ -25,7 +25,7 @@ export function visibleProviders(providers: readonly AppAttentionProvider[], can
 /**
  * Urgent rows first, then provider order, then the order the provider returned; cut to `limit`. Row ids are namespaced
  * by their provider, and a later row pointing where an earlier one already does (two providers naming the same
- * record) is dropped.
+ * record) is dropped; providers can also name a shared recordKey across different opening links.
  */
 export function mergeAttentionRows(
   results: ReadonlyArray<{ provider: AppAttentionProvider; rows: readonly AppAttentionRow[] }>,
@@ -34,8 +34,14 @@ export function mergeAttentionRows(
   const flat = results.flatMap(({ provider, rows }) => rows.map(row => ({ ...row, id: `${provider.id}:${row.id}`, module: provider.module, work: provider.work })))
   const urgent = flat.filter(row => row.tone === 'urgent')
   const normal = flat.filter(row => row.tone !== 'urgent')
-  const seen = new Set<string>()
-  const unique = [...urgent, ...normal].filter(row => !seen.has(row.to) && !!seen.add(row.to))
+  const seenTargets = new Set<string>()
+  const seenRecords = new Set<string>()
+  const unique = [...urgent, ...normal].filter(row => {
+    if (seenTargets.has(row.to) || (row.recordKey && seenRecords.has(row.recordKey))) return false
+    seenTargets.add(row.to)
+    if (row.recordKey) seenRecords.add(row.recordKey)
+    return true
+  })
   return unique.slice(0, Math.max(0, limit))
 }
 

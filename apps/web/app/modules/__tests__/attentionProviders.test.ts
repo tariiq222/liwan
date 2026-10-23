@@ -42,8 +42,8 @@ describe('attention providers', () => {
       const rows = await myTasksAttention.load(fetcher, t)
       expect(api).toHaveBeenCalledWith('/api/v1/my-tasks', expect.objectContaining({ query: { closed: 0, assigned: 'me', sort: 'deadline', limit: 50 } }))
       expect(rows).toEqual([
-        { id: 'task-1', label: 'مهمة 1', to: '/my-tasks/1', caption: 'myTasks.attention.overdue', tone: 'urgent', suggestion: 'myTasks.attention.startOverdue' },
-        { id: 'task-2', label: 'مهمة 2', to: '/my-tasks/2', caption: 'myTasks.attention.today', tone: 'normal' },
+        { id: 'task-1', recordKey: 'task:1', label: 'مهمة 1', to: '/my-tasks/1', caption: 'myTasks.attention.overdue', tone: 'urgent', suggestion: 'myTasks.attention.startOverdue' },
+        { id: 'task-2', recordKey: 'task:2', label: 'مهمة 2', to: '/my-tasks/2', caption: 'myTasks.attention.today', tone: 'normal' },
       ])
     })
     it('gives no suggestion when nothing is overdue and returns at most twenty rows', async () => {
@@ -137,10 +137,11 @@ describe('attention providers', () => {
     it('lists my overdue project tasks as urgent with a suggestion on the first', async () => {
       const { api, fetcher } = fakeApi({ items: [task(1), task(2)], total: 2 })
       const rows = await overdueTasksAttention.load(fetcher, t)
+      expect(rows.map(row => row.recordKey)).toEqual(['task:1', 'task:2'])
       expect(api).toHaveBeenCalledWith('/api/v1/tasks', expect.objectContaining({ query: { filter: 'mine', deadline: 'overdue', sort: 'date_deadline', limit: 20 } }))
       expect(rows).toEqual([
-        { id: 'task-1', label: 'مهمة 1', to: '/tasks/1', caption: 'مشروع الرياض', tone: 'urgent', suggestion: 'tasks.attention.startOverdue' },
-        { id: 'task-2', label: 'مهمة 2', to: '/tasks/2', caption: 'مشروع الرياض', tone: 'urgent' },
+        { id: 'task-1', recordKey: 'task:1', label: 'مهمة 1', to: '/tasks/1', caption: 'مشروع الرياض', tone: 'urgent', suggestion: 'tasks.attention.startOverdue' },
+        { id: 'task-2', recordKey: 'task:2', label: 'مهمة 2', to: '/tasks/2', caption: 'مشروع الرياض', tone: 'urgent' },
       ])
     })
     it('is empty without overdue tasks and passes a failure on', async () => {

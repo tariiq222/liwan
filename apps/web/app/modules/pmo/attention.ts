@@ -14,6 +14,7 @@ export const overdueTasksAttention: AppAttentionProvider = {
     const page = await api('/api/v1/tasks', { query: { filter: 'mine', deadline: 'overdue', sort: 'date_deadline', limit: ATTENTION_ROWS_PER_PROVIDER }, schema: TaskListSchema })
     const rows = page.items.slice(0, ATTENTION_ROWS_PER_PROVIDER).map(task => ({
       id: `task-${task.id}`,
+      recordKey: `task:${task.id}`,
       label: task.name,
       to: `/tasks/${task.id}`,
       caption: task.project?.name,

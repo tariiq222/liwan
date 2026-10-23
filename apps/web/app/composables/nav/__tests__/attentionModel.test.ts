@@ -56,6 +56,14 @@ describe('mergeAttentionRows', () => {
     expect(rows.map(item => item.id)).toEqual(['tasks:task-5', 'meetings-a:m1'])
     expect(new Set(rows.map(item => item.id)).size).toBe(rows.length)
   })
+  it('counts one native task through different module links while preserving the first opening route', () => {
+    const linked = { ...row('task-5', 'urgent'), to: '/projects/8/tasks/5', recordKey: 'task:5' }
+    const pmo = { ...row('task-5', 'urgent'), to: '/tasks/5', recordKey: 'task:5' }
+    const personal = { ...row('task-6', 'normal'), to: '/my-tasks/6', recordKey: 'task:6' }
+    const rows = mergeAttentionRows([{ provider: tasks, rows: [linked, personal] }, { provider: meetingsA, rows: [pmo] }], 20)
+    expect(rows.map(item => item.to)).toEqual(['/projects/8/tasks/5', '/my-tasks/6'])
+    expect(groupByWork(rows).execute).toHaveLength(2)
+  })
   it('is empty for no results', () => {
     expect(mergeAttentionRows([], 3)).toEqual([])
   })
