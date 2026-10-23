@@ -25,7 +25,7 @@ const meta = {
   component: PayrollPostingPreview,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:214', 'القيد المقترح داخل صفحة المسير قبل تأكيد الترحيل: التاريخ والدفتر والتنبيهات وأسطر القيد ومجموعه.'),
+    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:229', 'القيد المقترح داخل صفحة المسير قبل تأكيد الترحيل: التاريخ والدفتر والتنبيهات وأسطر القيد ومجموعه.'),
   },
   args: { preview },
   render: args => ({

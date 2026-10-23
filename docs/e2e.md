@@ -1,37 +1,47 @@
 # e2e — TesterArmy AI Testing Framework
 
-Setup of the open-source [e2e](https://e2e.tester.army/docs) framework in this repo (additive; the existing Playwright/Vitest suites are untouched). Tests live in `e2e/tests/*.e2e.ts`, config in `e2e.config.ts`, model construction in `e2e/models.ts`.
+The repository uses [e2e](https://e2e.tester.army/docs) alongside Playwright and Vitest.
+Tests live in `e2e/tests/*.e2e.ts`, configuration in `e2e.config.ts`, and model construction in `e2e/models.ts`.
+The current script and isolation contracts are documented in [testing.md](testing.md#4-agentic-e2e).
 
 ## Run / التشغيل
 
 **English**
 
-- `npm run e2e` — run the whole suite (`E2E_TELEMETRY_DISABLED=1 e2e run`).
-- `npm run e2e:smoke` — run only `e2e/tests/smoke.e2e.ts`.
-- Pick an agent with `--agent <name>`: `E2E_TELEMETRY_DISABLED=1 e2e run --agent fast`.
-- The config starts `npm run dev` (Nuxt on `http://localhost:3000`) when no server is running and reuses one that is already up; override with `E2E_BASE_URL`.
-- Inspect collected tests: `npx e2e list`. Skill for coding agents: `.agents/skills/e2e/`. MCP server: `npx e2e mcp` (register it in the agent's own MCP config; the repository ships no `.mcp.json`).
+- `npm run e2e` runs the suite through `tools/e2e_isolated.mjs` against a private mock API and Nuxt server.
+- `npm run e2e:smoke` runs only `e2e/tests/smoke.e2e.ts` through that wrapper.
+- `npm run e2e -- --agent fast` selects a configured agent while retaining isolation.
+- `npm run e2e:odoo` uses the isolated Odoo stack and the fixed disposable database `webvue_scratch_e2e`.
+- Preferred ports are mock `43388`, Nuxt `43300`, and Odoo `43369`; occupied defaults fall back to free ports.
+- The wrapper rejects `E2E_BASE_URL` on ports `3000` and `8069`. `npm run e2e:dev` deliberately bypasses the wrapper and uses the direct configuration, which defaults to `http://localhost:3000` and can reuse an existing server.
+- Inspect collected tests with `npx e2e list`. The coding-agent skill is in `.agents/skills/e2e/`. `npx e2e mcp` exposes the framework MCP server; the repository ships no `.mcp.json`.
 
 **العربية**
 
-- `npm run e2e` لتشغيل كل الاختبارات، و`npm run e2e:smoke` لاختبار الدخان فقط.
-- اختر الوكيل بـ `--agent <name>` مثل: `E2E_TELEMETRY_DISABLED=1 e2e run --agent fast`.
-- يبدأ الإعداد خادم التطوير تلقائيًا (Nuxt على `http://localhost:3000`) إن لم يكن يعمل، ويعيد استخدام الجاري تشغيله؛ يمكن تغيير العنوان بمتغيّر `E2E_BASE_URL`.
+- يشغّل `npm run e2e` الاختبارات عبر `tools/e2e_isolated.mjs` بخادم Nuxt وواجهة API وهمية معزولين.
+- يشغّل `npm run e2e:smoke` اختبار الدخان فقط، ويحافظ `npm run e2e -- --agent fast` على العزل عند اختيار الوكيل.
+- يستخدم `npm run e2e:odoo` قاعدة الاختبار المؤقتة الثابتة `webvue_scratch_e2e`.
+- المنافذ المفضلة هي `43388` للواجهة الوهمية و`43300` لـNuxt و`43369` لـOdoo؛ يختار الغلاف منافذ حرة إن كانت مشغولة.
+- يرفض الغلاف توجيه الاختبارات إلى `3000` أو `8069`. الأمر `npm run e2e:dev` يتجاوز الغلاف صراحةً ويستخدم الإعداد المباشر، الذي يبدأ افتراضيًا من `http://localhost:3000` ويمكنه إعادة استخدام خادم قائم.
 - استعرض الاختبارات بـ `npx e2e list`، ومهارة وكلاء البرمجة في `.agents/skills/e2e/`.
 
 ## Agents / الوكلاء
 
-| Agent | Model | Key source |
-| - | - | - |
-| `default` | xkiro `moonshotai/kimi-k3` (judge: xkiro `z-ai/glm-5.3`) | `XKIRO_API_KEY` env, else DSH credentials (`E2E_DSH_CREDENTIALS`, `$DSH_HOME/.credentials.yaml`, or fallbacks) → `refs.XKIRO_API_KEY` |
-| `fast` | xkiro `z-ai/glm-5.3-flash` | same as `default` |
-| `deepseek` | commandcode `deepseek/deepseek-v4.1-flash` | `COMMANDCODE_API_KEY` env, else `~/.commandcode/auth.json` → `apiKey` |
-| `codex` | ChatGPT subscription `gpt-6.1-sol` | run `npx e2e login openai` once |
+The table describes `e2e.config.ts`; configuration alone does not establish provider availability.
 
-Keys are resolved lazily per model call (custom `fetch` in `e2e/models.ts`): a missing key never breaks config load — it fails with a clear error only when that agent's model is called. Keys are never written or logged.
+| Agent | Model or executor | Key source |
+| --- | --- | --- |
+| `default` | xkiro `moonshotai/kimi-k3-agent`, overridable with `E2E_DEFAULT_MODEL`; Jev judge with xkiro `google/gemini-3.7-flash` fallback | `XKIRO_API_KEY` or DSH credential resolution in `e2e/models.ts`; Jev resolution in `e2e/jev-judge.ts` |
+| `ultrafast` | Jev executor (`e2e/jev-ultrafast.ts`) and Jev judge; no text-model executor | Jev resolution in `e2e/jev-judge.ts` |
+| `fast` | xkiro `google/gemini-3.7-flash` | Same xkiro resolution as `default` |
+| `deepseek` | commandcode `deepseek/deepseek-v4.1-flash` | `COMMANDCODE_API_KEY`, else `~/.commandcode/auth.json` |
+| `codex` | ChatGPT subscription `gpt-6.1-sol` | `npx e2e login openai` |
 
-**Claude limitation / قيد Claude:** `claude-sonnet-5-5` (available in DeepSeek Harness via Claude subscription OAuth) is excluded because **e2e does not support Claude subscriptions** — only API providers. See https://e2e.tester.army/docs/subscriptions.
+Jev handles supported text judgments; extract and screenshot-only judgments use the configured fallback.
+Provider keys are resolved lazily in `e2e/models.ts`; missing provider keys fail when the selected model is called.
+No Claude agent is configured in this repository.
 
 ## Offline docs
 
-The full documentation ships in `node_modules/e2e/docs` after install (`.mdx` pages, e.g. `docs/reference/cli.mdx`), and `npx e2e guide <topic>` prints a topic.
+After installation, framework documentation is available in `node_modules/e2e/docs` (`.mdx` pages).
+`npx e2e guide <topic>` prints a topic.

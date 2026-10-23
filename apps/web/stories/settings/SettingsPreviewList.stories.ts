@@ -5,7 +5,7 @@ import { previewRows } from './fixtures'
 
 const meta = {
   title: 'Settings/SettingsPreviewList', component: SettingsPreviewList,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/team/index.vue:30', 'أسطر المعاينة مع حالات التحميل والخطأ والفراغ المشتركة.') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/team/index.vue:35', 'أسطر المعاينة مع حالات التحميل والخطأ والفراغ المشتركة.') },
   args: { items: previewRows, emptyText: 'لا توجد سجلات بعد' },
   render: args => ({ components: { SettingsPreviewList }, setup: () => ({ args }), template: '<div class="max-w-md rounded-card bg-default ring ring-default"><SettingsPreviewList v-bind="args" /></div>' }),
 } satisfies Meta<typeof SettingsPreviewList>

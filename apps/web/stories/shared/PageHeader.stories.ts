@@ -34,7 +34,7 @@ export const WithActions: Story = {
 
 export const WithKpiToggle: Story = {
   name: 'مع زر المؤشرات',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:50', '`kpi-toggle` يرسم قبل الإجراءات زر أيقونة دائريًا واحدًا يخفي شريط المؤشرات `SharedKpiStrip` أو يظهره؛ الاختيار عام ويُحفظ في الكوكي `webvue-kpis`.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', '`kpi-toggle` يرسم قبل الإجراءات زر أيقونة دائريًا واحدًا يخفي شريط المؤشرات `SharedKpiStrip` أو يظهره؛ الاختيار عام ويُحفظ في الكوكي `webvue-kpis`.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -46,7 +46,7 @@ export const WithKpiToggle: Story = {
 // page passes nothing; a title alone is the smallest header.
 export const TitleOnly: Story = {
   name: 'عنوان فقط',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:39', 'أصغر ترويسة: بطاقة مدمجة بأيقونة التطبيق من الغلاف وعنوان واحد، بلا وصف ولا وسوم ولا إجراءات.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:38', 'أصغر ترويسة: بطاقة مدمجة بأيقونة التطبيق من الغلاف وعنوان واحد، بلا وصف ولا وسوم ولا إجراءات.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -60,7 +60,7 @@ export const TitleOnly: Story = {
 // Tags are short facts about the page's subject (state, count, owner) drawn inline after the title; a tag with `to` is a link.
 export const WithTags: Story = {
   name: 'وسوم بعد العنوان',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:39', 'الوسوم: حالة السجل وعدد القائمة وصاحبه تظهر بعد العنوان في السطر نفسه كشارات ناعمة، والوسم الذي له `to` رابط.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:38', 'الوسوم: حالة السجل وعدد القائمة وصاحبه تظهر بعد العنوان في السطر نفسه كشارات ناعمة، والوسم الذي له `to` رابط.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -92,7 +92,7 @@ export const WithBack: Story = {
 // above stays quiet and the reader still sees where the page sits.
 export const TrailUnderTitle: Story = {
   name: 'مسار الأسلاف تحت العنوان',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:50', 'المسار من الغلاف: ينشر الغلاف سلسلة الأسلاف ويستقبلها رأس الصفحة ويرسمها تحت العنوان، ويُسقط العنوان الحالي والخطوة التي تشير إلى الصفحة نفسها.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', 'المسار من الغلاف: ينشر الغلاف سلسلة الأسلاف ويستقبلها رأس الصفحة ويرسمها تحت العنوان، ويُسقط العنوان الحالي والخطوة التي تشير إلى الصفحة نفسها.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -122,7 +122,7 @@ export const TitleAndDescription: Story = {
 // on the shell's canvas wash and blur, while the sections pass beneath it.
 export const UnifiedHeaderWithFilters: Story = {
   name: 'الترويسة والفلاتر الموحدة (شامل المكونات)',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:50', 'الترويسة الموحدة لجميع الصفحات: عنوان ووصف مع زر الرجوع، إجراءات الصفحة الأساسية، وشريط الفلاتر المدمج (بحث، منسدلة متعددة، خيارات سريعة، نطاق الحالات، تبديل العرض، وشرائح التصفية النشطة).'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', 'الترويسة الموحدة لجميع الصفحات: عنوان ووصف مع زر الرجوع، إجراءات الصفحة الأساسية، وشريط الفلاتر المدمج (بحث، منسدلة متعددة، خيارات سريعة، نطاق الحالات، تبديل العرض، وشرائح التصفية النشطة).'),
   render: () => ({
     components: { FilterBar, FilterChip, PageContainer, PageHeader, RecordSection, SegmentedControl, ViewSwitch },
     setup: () => {
@@ -224,7 +224,7 @@ export const UnifiedHeaderWithFilters: Story = {
 
 export const StickyHeading: Story = {
   name: 'رأس ثابت مع تمرير',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:50', 'الرأس الملتصق: يبقى عنوان الصفحة وإجراءاتها أسفل الهيدر العائم أثناء التمرير، بخلفية ضبابية على لون اللوحة، ولا يلتصق على الجوال (أقل من 768px) ولا حين تملك البطاقة المرساة خانة الالتصاق.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', 'الرأس الملتصق: يبقى عنوان الصفحة وإجراءاتها أسفل الهيدر العائم أثناء التمرير، بخلفية ضبابية على لون اللوحة، ولا يلتصق على الجوال (أقل من 768px) ولا حين تملك البطاقة المرساة خانة الالتصاق.'),
   render: () => ({
     components: { PageContainer, PageHeader, RecordSection },
     setup: () => ({ t: useI18n().t, rows: [1, 2, 3, 4, 5, 6, 7, 8] }),

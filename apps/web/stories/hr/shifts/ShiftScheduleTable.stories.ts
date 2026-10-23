@@ -33,7 +33,7 @@ const schedules = [
 const meta = {
   title: 'HR/ShiftScheduleTable',
   component: ShiftScheduleTable,
-  parameters: storyContext('apps/web/app/pages/hr/shifts/schedules.vue:114', 'داخل بطاقة قائمة جداول العمل؛ الأرشفة تعود إلى الصفحة لتأكيدها مضمّنًا.'),
+  parameters: storyContext('apps/web/app/pages/hr/shifts/schedules.vue:113', 'داخل بطاقة قائمة جداول العمل؛ الأرشفة تعود إلى الصفحة لتأكيدها مضمّنًا.'),
   args: { schedules, caption: 'جداول العمل', loading: false, error: null, canManage: true },
   render: args => ({
     components: { ShiftScheduleTable },
