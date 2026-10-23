@@ -93,7 +93,7 @@ def _line_values(parsed, budget, line=None):
     account = line.account_id if line else request.env['account.account']
     if 'account_id' in parsed:
         account = company_records(
-            'account.account', [parsed['account_id']], 'account_id', [('company_ids', 'in', [budget.company_id.id])],
+            'account.account', [parsed['account_id']], 'account_id', request.env['account.account']._check_company_domain(budget.company_id),
         )
         values['account_id'] = account.id
     if line is None or 'account_id' in parsed or 'amount' in parsed:

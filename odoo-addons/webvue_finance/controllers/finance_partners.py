@@ -21,7 +21,7 @@ from odoo.addons.webvue_finance.serializers.partner import (
 PARTNER_KINDS = {'customer': 'customer_rank', 'vendor': 'supplier_rank'}
 
 
-def company_partners_domain():
+def company_partners_domain(company=None):
     """The customers and vendors of the pinned companies.
 
     Odoo partners that are system records stay out: users, the company's own partners and
@@ -37,6 +37,8 @@ def company_partners_domain():
         # Not the raw membership list: the company partners themselves stay out.
         ('id', 'not in', request.env.companies.partner_id.ids),
     ]
+    if company is not None:
+        domain += request.env['res.partner']._check_company_domain(company)
     if 'employee' in request.env['res.partner']._fields:
         domain.append(('employee', '=', False))
     return domain
