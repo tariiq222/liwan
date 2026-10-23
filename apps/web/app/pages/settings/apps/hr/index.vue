@@ -27,6 +27,12 @@ async function reloadLeaveSettings() {
 }
 const canConfigLeave = computed(() => can('hr.leave.config'))
 const shiftSettings = useHrShiftSettings(() => shows('shifts'))
+async function reloadShiftSettings() {
+  const result = await shiftSettings.refetch()
+  if (result.isError) throw result.error
+  if (!result.data) throw new Error('Shift settings are unavailable')
+  return result.data
+}
 const canManageShifts = computed(() => can('hr.shifts.manage'))
 const canConfig = computed(() => can('hr.payroll.config'))
 const settings = useHrPayrollSettings()
@@ -123,8 +129,8 @@ function retry() {
       </SharedPageState>
     </section>
     <section v-if="shows('shifts')" id="shifts" class="webvue-settings-anchor">
-      <SharedPageState :loading="shiftSettings.isLoading.value" :error="shiftSettings.error.value" :empty="!shiftSettings.data.value" @retry="shiftSettings.refetch">
-        <ShiftSettingsForm v-if="shiftSettings.data.value" :settings="shiftSettings.data.value" :can-edit="canManageShifts" @reload="shiftSettings.refetch" />
+      <SharedPageState :loading="shiftSettings.isLoading.value" :error="shiftSettings.data.value ? null : shiftSettings.error.value" :empty="!shiftSettings.data.value" @retry="shiftSettings.refetch">
+        <ShiftSettingsForm v-if="shiftSettings.data.value" :settings="shiftSettings.data.value" :can-edit="canManageShifts" :reload-settings="reloadShiftSettings" />
       </SharedPageState>
     </section>
     </template>

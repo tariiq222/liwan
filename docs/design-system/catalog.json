@@ -188,12 +188,12 @@
       ],
       "events": [
         {
-          "name": "reload",
-          "payload": "[]"
-        },
-        {
           "name": "save",
           "payload": "[body: { expected_revision: number; visibility: \"company\" | \"restricted\"; grants: { user_id: number; access: \"reader\" | \"editor\"; }[]; }]"
+        },
+        {
+          "name": "reload",
+          "payload": "[]"
         }
       ],
       "slots": [],
@@ -750,14 +750,14 @@
           "name": "canEdit",
           "type": "boolean",
           "required": true
-        }
-      ],
-      "events": [
+        },
         {
-          "name": "reload",
-          "payload": "[]"
+          "name": "reloadSettings",
+          "type": "() => Promise<{ day_reference: \"company\" | \"user\"; company_timezone: string; effective_timezone: string; today: string; revision: number; }>",
+          "required": true
         }
       ],
+      "events": [],
       "slots": [],
       "nuxtUi": [
         "UAlert",
@@ -770,17 +770,17 @@
         {
           "id": "CompanyDefault",
           "name": "CompanyDefault",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:114"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:120"
         },
         {
           "id": "UserReference",
           "name": "UserReference",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:114"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:120"
         },
         {
           "id": "ReadOnly",
           "name": "ReadOnly",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:114"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:120"
         }
       ]
     },
