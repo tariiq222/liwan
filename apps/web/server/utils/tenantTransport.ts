@@ -1,6 +1,7 @@
 import http from 'node:http'
 import https from 'node:https'
 import { createError, getHeader, type H3Event } from 'h3'
+import { createBodyAdmission, readBodyBytes } from './bodyAdmission.mjs'
 import { tenantUpstreamHeaders } from './tenantRequest'
 
 const MAX_REQUEST = 16 * 1024 * 1024
@@ -181,27 +182,20 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   }
 }
 
+const acquireBody = createBodyAdmission()
+
+/** Keep memory credit while reading, waiting for upstream admission and forwarding. */
+export async function withTenantBody<T>(event: H3Event, run: () => Promise<T>): Promise<T> {
+  let releaseBody: (() => void) | undefined
+  try {
+    releaseBody = await acquireBody(event.node.req, event.node.res)
+    return await run()
+  } catch (error) { throw createError(error as Error) } finally { releaseBody?.() }
+}
+
 export async function boundedTenantBody(event: H3Event, maxBytes = MAX_REQUEST): Promise<Buffer | undefined> {
   if (['GET', 'HEAD'].includes(event.method)) return undefined
-  const oversized = () => {
-    // A rejected unfinished upload must close after its 413 has been written.
-    event.node.res?.setHeader('connection', 'close')
-    return payloadTooLarge()
-  }
-  if (Number(event.node.req.headers?.['content-length']) > maxBytes) throw oversized()
-  const chunks: Buffer[] = []; let length = 0
-  const timer = setTimeout(() => event.node.req.destroy(), UPSTREAM_TIMEOUT)
-  try {
-    // Keep the socket until H3 serializes an error; the default iterator would
-    // destroy it on early return and replace the 413 with a connection reset.
-    for await (const chunk of event.node.req.iterator({ destroyOnReturn: false })) {
-      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
-      length += buffer.length
-      if (length > maxBytes) throw oversized()
-      chunks.push(buffer)
-    }
-    return Buffer.concat(chunks)
-  } finally { clearTimeout(timer) }
+  return readBodyBytes(event.node.req, event.node.res, maxBytes)
 }
 
 /** Read a bounded auth JSON object once, before parsing or upstream admission. */
