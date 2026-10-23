@@ -31,8 +31,8 @@ def scoped_record(model, record_id, *, active_test=True):
     return record
 
 
-def company_relation(model, record_id, field):
-    """A payload relation id of the current company → 422 naming the field.
+def company_relation(model, record_id, field, *, company=None):
+    """A visible payload relation in the operation scope, optionally of one owner.
 
     Mirrors the HR employee and department controllers: ``browse`` + ``check_access``
     instead of a guarded ``search``, so a target the caller cannot read answers a 422 about
@@ -46,6 +46,8 @@ def company_relation(model, record_id, field):
         if record.company_id not in request.env.companies:
             raise ApiError(422, 'invalid', f'{field} is outside the current company', field=field)
         record.check_access('read')
+        if company is not None and record.company_id != company:
+            raise ApiError(422, 'invalid', f'{field} belongs to another company', field=field)
     except AccessError:
         raise ApiError(422, 'invalid', f'{field} is not available', field=field) from None
     return record
