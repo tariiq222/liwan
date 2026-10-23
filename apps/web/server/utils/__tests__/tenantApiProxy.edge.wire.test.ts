@@ -84,7 +84,11 @@ async function fixture(mode: 'shared' | 'dedicated') {
     ? shared.createGuard({ registryPath, proxyToken: token, keys, activeKid: 'test', odooUrl, webUrl, releaseRoutesDir: root })
     : dedicated.createDedicatedGuard({ bindingPath: join(root, 'binding.json'), releaseRoutesDir: root, proxyToken: token }))
   guardUrl = await listen(guard)
-  const cookie = (sid: string) => `session_id=${mode === 'shared' ? codec.seal(sid, tenant) : sid}`
+  const issuedCookies = new Map<string, string>()
+  const cookie = (sid: string) => {
+    if (!issuedCookies.has(sid)) issuedCookies.set(sid, `session_id=${mode === 'shared' ? codec.seal(sid, tenant) : sid}`)
+    return issuedCookies.get(sid)!
+  }
   function call(path: string, sid?: string, body?: Buffer, extra: Record<string, string> = {}) {
     return new Promise<{ status: number; headers: http.IncomingHttpHeaders; body: Buffer }>((resolve, reject) => {
       const request = http.request(new URL(path, guardUrl), { method: body ? 'POST' : 'GET', headers: { host: tenant.host, ...(sid ? { cookie: cookie(sid) } : {}), ...extra } }, response => {

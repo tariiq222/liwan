@@ -4,6 +4,8 @@ import { createError, getHeader, type H3Event } from 'h3'
 import { tenantUpstreamHeaders } from './tenantRequest'
 
 const MAX_REQUEST = 16 * 1024 * 1024
+// Public MFA carries a single code field; both entry points share this wire budget.
+export const MAX_PUBLIC_MFA_BODY = 1024
 const MAX_RESPONSE = 32 * 1024 * 1024
 /** Admission gate to the fixed operator upstreams. Odoo serves one request per worker process,
  * and an idle keep-alive connection would pin a worker, so each request uses its own connection
@@ -105,7 +107,8 @@ export async function withUpstreamSlot<T>(run: (signal: AbortSignal) => Promise<
     if (admitted) release()
   }
 }
-const failure = () => createError({ statusCode: 502, message: 'tenant_upstream_unavailable' })
+const failure = () => createError({ statusCode: 502, message: 'tenant_upstream_unavailable', data: { code: 'tenant_upstream_unavailable', message: 'The upstream service is temporarily unavailable.' } })
+const payloadTooLarge = () => createError({ statusCode: 413, message: 'payload_too_large', data: { code: 'payload_too_large', message: 'The request body exceeds the allowed size.' } })
 
 /** Server-only, fixed operator configuration. No request-controlled destination or redirects.
  * Bounded buffering deliberately replaces streaming: max16MiB request/32MiB response,
@@ -120,7 +123,7 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password || base.pathname !== '/' || base.search || base.hash ||
       !/^\/(?:api\/v1\/|web\/session\/(?:authenticate|destroy)(?:$|\?))/.test(path) || path.startsWith('//') || /[\\\r\n#]/.test(path) || new URL(path, base).pathname !== path.split('?')[0]) throw failure()
   const body = options.body
-  if (body && Buffer.byteLength(body) > MAX_REQUEST) throw createError({ statusCode: 413, message: 'payload_too_large' })
+  if (body && Buffer.byteLength(body) > MAX_REQUEST) throw payloadTooLarge()
   const headers: Record<string, string> = { ...binding }
   // Only explicitly selected application headers, never hop-by-hop or client authority.
   for (const name of ['content-type', 'accept', 'if-none-match', 'if-modified-since', 'range']) {
@@ -178,17 +181,37 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   }
 }
 
-export async function boundedTenantBody(event: H3Event): Promise<Buffer | undefined> {
+export async function boundedTenantBody(event: H3Event, maxBytes = MAX_REQUEST): Promise<Buffer | undefined> {
   if (['GET', 'HEAD'].includes(event.method)) return undefined
+  const oversized = () => {
+    // A rejected unfinished upload must close after its 413 has been written.
+    event.node.res?.setHeader('connection', 'close')
+    return payloadTooLarge()
+  }
+  if (Number(event.node.req.headers?.['content-length']) > maxBytes) throw oversized()
   const chunks: Buffer[] = []; let length = 0
   const timer = setTimeout(() => event.node.req.destroy(), UPSTREAM_TIMEOUT)
   try {
-    for await (const chunk of event.node.req) {
+    // Keep the socket until H3 serializes an error; the default iterator would
+    // destroy it on early return and replace the 413 with a connection reset.
+    for await (const chunk of event.node.req.iterator({ destroyOnReturn: false })) {
       const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
       length += buffer.length
-      if (length > MAX_REQUEST) throw createError({ statusCode: 413, message: 'payload_too_large' })
+      if (length > maxBytes) throw oversized()
       chunks.push(buffer)
     }
     return Buffer.concat(chunks)
   } finally { clearTimeout(timer) }
+}
+
+/** Read a bounded auth JSON object once, before parsing or upstream admission. */
+export async function boundedTenantJson<T extends Record<string, unknown>>(event: H3Event, maxBytes: number): Promise<T> {
+  const body = await boundedTenantBody(event, maxBytes)
+  try {
+    const value = JSON.parse(body?.toString('utf8') ?? '')
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('invalid_json_object')
+    return value as T
+  } catch {
+    throw createError({ statusCode: 400, data: { code: 'invalid_json', message: 'The request body must be a valid JSON object.' } })
+  }
 }

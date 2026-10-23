@@ -1,12 +1,15 @@
-import { tenantTransport, withUpstreamSlot } from '../../utils/tenantTransport'
+import { boundedTenantJson, tenantTransport, withUpstreamSlot } from '../../utils/tenantTransport'
 import { tenantRequest } from '../../utils/tenantRequest'
 import { authUpstreamHeaders } from '../../utils/authUpstreamHeaders'
 
+// Credential JSON is small; 64KiB leaves generous room for long credentials and encoding.
+const MAX_LOGIN_BODY = 64 * 1024
+
 export default defineEventHandler(async (event) => {
   assertSameSiteJson(event)
-  const { login, password } = await readBody<{ login?: string; password?: string }>(event)
+  const { login, password } = await boundedTenantJson<{ login?: string; password?: string }>(event, MAX_LOGIN_BODY)
   if (!login || !password) {
-    throw createError({ statusCode: 400, data: { code: 'missing_credentials' } })
+    throw createError({ statusCode: 400, data: { code: 'missing_credentials', message: 'Login and password are required.' } })
   }
   const { odooUrl, odooDb, authProxyClientIpHeader } = useRuntimeConfig(event)
   const tenant = tenantRequest(event)

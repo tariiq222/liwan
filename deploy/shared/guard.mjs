@@ -11,6 +11,8 @@ const forbidden = /^(x-odoo-|x-openerp-|x-webvue-|forwarded$|x-forwarded-)/i
 // The web's double-submit CSRF token (compared with its cookie, never trusted as identity); Nuxt hop only.
 const browserHeaders = new Set(['x-webvue-csrf'])
 const selectors = /^(db|database|session_id|sid)$/i
+// Match the BFF's fixed public auth budgets before this edge buffers JSON.
+const publicAuthBodyLimits = { '/api/auth/totp': 1024, '/api/auth/login': 64 * 1024 }
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b))
 export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() / 1000)) {
   if (!keys[activeKid] || Object.values(keys).some(k => typeof k !== 'string' || Buffer.byteLength(k) < 32)) throw Error('invalid_session_keyring')
@@ -160,10 +162,16 @@ export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl
     }
     // Auth DB is injected by our BFF, never accepted from public clients.
     let body
+    const publicBodyLimit = !p.internal ? publicAuthBodyLimits[p.path.split('?')[0]] : undefined
     if ((p.odoo || p.path.startsWith('/api/auth/')) && !['GET', 'HEAD'].includes(req.method)) {
       try {
+        if (publicBodyLimit !== undefined && Number(req.headers['content-length']) > publicBodyLimit) throw Object.assign(Error(), { statusCode: 413 })
         const chunks = []; let size = 0
-        for await (const chunk of req) { size += chunk.length; if (size > 16 * 1024 * 1024) throw Error(); chunks.push(chunk) }
+        for await (const chunk of req.iterator({ destroyOnReturn: false })) {
+          size += chunk.length
+          if (size > (publicBodyLimit ?? 16 * 1024 * 1024)) throw Object.assign(Error(), { statusCode: publicBodyLimit !== undefined ? 413 : 400 })
+          chunks.push(chunk)
+        }
         body = Buffer.concat(chunks)
         if (body.length) {
           if (!String(req.headers['content-type']).startsWith('application/json')) throw Error()
@@ -177,7 +185,14 @@ export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl
           }
           inspect(json)
         }
-      } catch { res.writeHead(400); res.end('invalid_upstream_body'); return }
+      } catch (error) {
+        if (publicBodyLimit !== undefined) {
+          const oversized = error.statusCode === 413
+          res.writeHead(oversized ? 413 : 400, { 'content-type': 'application/json', connection: 'close' })
+          res.end(JSON.stringify(oversized ? { code: 'payload_too_large', message: 'The request body exceeds the allowed size.' } : { code: 'invalid_request', message: 'The request body is invalid.' }))
+        } else { res.writeHead(400); res.end('invalid_upstream_body') }
+        return
+      }
     }
     const target = p.release ? new URL(p.odoo ? p.release.odooUrl : p.release.webUrl) : upstreams[p.odoo ? 0 : 1]
     const upstream = http.request({ hostname: target.hostname, port: target.port, path: p.path, method: req.method, headers: p.headers }, reply => {

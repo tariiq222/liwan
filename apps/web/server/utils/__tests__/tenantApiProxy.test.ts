@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 const proxyMock = vi.hoisted(() => vi.fn().mockResolvedValue({ ok: true }))
 const transport = vi.hoisted(() => vi.fn().mockResolvedValue(new Response('{}')))
-vi.mock('../tenantTransport', () => ({ tenantTransport: transport, boundedTenantBody: async () => undefined, withUpstreamSlot: async (run: (signal: AbortSignal) => unknown) => run(new AbortController().signal) }))
+vi.mock('../tenantTransport', () => ({ tenantTransport: transport, MAX_PUBLIC_MFA_BODY: 1024, boundedTenantBody: async () => undefined, withUpstreamSlot: async (run: (signal: AbortSignal) => unknown) => run(new AbortController().signal) }))
 vi.mock('../apiSessionAdmission', () => ({ requireApiSession: async (event: { node: { req: { headers: { cookie?: string } } } }) => { if (!event.node.req.headers.cookie) { const error = Object.assign(new Error('session_required'), { statusCode: 403, data: { code: 'session_required' } }); throw error } } }))
 vi.mock('h3', async importOriginal => ({ ...await importOriginal<typeof import('h3')>(), sendWebResponse: vi.fn(), sendProxy: (...args: unknown[]) => proxyMock(...args), getProxyRequestHeaders: () => ({}) }))
 
@@ -72,8 +72,8 @@ describe('API proxy tenancy mode separation', () => {
   it('still serves the public api paths without a session cookie', async () => {
     vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
     const { proxy, handler } = await setup()
-    const event = { path: '/api/v1/branding', node: { req: { headers: {} } } }
+    const event = { path: '/api/v1/branding', method: 'GET', node: { req: { headers: {} } } }
     await handler(event as never)
-    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080/api/v1/branding', { fetchOptions: { method: undefined, body: undefined, headers: {}, signal: expect.any(AbortSignal) } })
+    expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080/api/v1/branding', { fetchOptions: { method: 'GET', body: undefined, headers: {}, signal: expect.any(AbortSignal) } })
   })
 })

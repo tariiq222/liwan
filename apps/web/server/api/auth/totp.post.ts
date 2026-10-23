@@ -1,10 +1,10 @@
-import { tenantTransport, withUpstreamSlot } from '../../utils/tenantTransport'
+import { boundedTenantJson, MAX_PUBLIC_MFA_BODY, tenantTransport, withUpstreamSlot } from '../../utils/tenantTransport'
 import { tenantRequest } from '../../utils/tenantRequest'
 import { authUpstreamHeaders } from '../../utils/authUpstreamHeaders'
 
 export default defineEventHandler(async (event) => {
   assertSameSiteJson(event)
-  const { code } = await readBody<{ code?: string }>(event)
+  const { code } = await boundedTenantJson<{ code?: string }>(event, MAX_PUBLIC_MFA_BODY)
   const { odooUrl, authProxyClientIpHeader } = useRuntimeConfig(event)
 
   const cookie = getHeader(event, 'cookie') ?? ''
