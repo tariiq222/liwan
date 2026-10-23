@@ -11,9 +11,8 @@
 // docs/verification/shared-isolation-matrix.md.
 //
 // The Nuxt/SSR hop is NOT exercised here (scoped out by explicit user
-// decision): the guard's webUrl points at a minimal stub that only serves
-// /api/auth/login (so the full client->guard->Nuxt BFF->guard->Odoo login
-// chain still runs) and 404s everything else. SSR markup isolation is already
+// decision): the guard's webUrl points at an API relay stub that models the
+// authenticated internal return hop and 404s non-API requests. SSR markup isolation is already
 // covered by the existing synthetic-upstream matrix and is not re-proven here.
 //
 // Boundaries still open after this file: no TLS/Caddy, no physical fenced
@@ -190,9 +189,18 @@ test('real-Odoo ten-tenant isolation matrix: dbfilter-selected live Odoo behind 
   resources.odooProc = odooProc
   resources.odooExited = once(odooProc, 'exit')
 
-  // Minimal web-hop stub: only answers /api/auth/login so the full chain still runs;
+  // Minimal web-hop stub models the authenticated internal API return hop;
   // SSR markup is explicitly out of scope for this drill (see header comment).
-  const webStub = http.createServer((req, res) => { res.writeHead(404); res.end('ssr_not_covered_by_real_odoo_drill') })
+  const webStub = http.createServer((req, res) => {
+    if (!req.url.startsWith('/api/v1/')) { res.writeHead(404); res.end('ssr_not_covered_by_real_odoo_drill'); return }
+    // Preserve the signed cookie and authenticated internal headers for the
+    // return guard hop. This drill does not claim Nuxt session admission.
+    const upstream = http.request({ hostname: '127.0.0.1', port: guardPort, path: req.url, method: req.method, headers: req.headers }, reply => {
+      res.writeHead(reply.statusCode, reply.headers); reply.pipe(res)
+    })
+    upstream.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end() })
+    req.pipe(upstream)
+  })
   await new Promise(r => webStub.listen(0, '127.0.0.1', r))
   const webPort = webStub.address().port
   resources.webStub = webStub

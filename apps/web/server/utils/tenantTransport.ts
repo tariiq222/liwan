@@ -1,11 +1,149 @@
 import http from 'node:http'
 import https from 'node:https'
 import { createError, getHeader, type H3Event } from 'h3'
+import { createBodyAdmission, createResponseAdmission, readBodyBytes } from './bufferAdmission.mjs'
 import { tenantUpstreamHeaders } from './tenantRequest'
 
 const MAX_REQUEST = 16 * 1024 * 1024
+// Public MFA carries a single code field; both entry points share this wire budget.
+export const MAX_PUBLIC_MFA_BODY = 1024
 const MAX_RESPONSE = 32 * 1024 * 1024
-const failure = () => createError({ statusCode: 502, message: 'tenant_upstream_unavailable' })
+/** Admission gate to the fixed operator upstreams. Odoo serves one request per worker process,
+ * and an idle keep-alive connection would pin a worker, so each request uses its own connection
+ * and at most UPSTREAM_MAX_CONCURRENCY requests are in flight at once. Excess requests queue
+ * here instead of opening connections the kernel drops once the listen backlog fills. */
+const configuredConcurrency = Number(process.env.NUXT_ODOO_MAX_CONCURRENCY)
+const UPSTREAM_MAX_CONCURRENCY = Number.isFinite(configuredConcurrency) && configuredConcurrency > 0 ? Math.floor(configuredConcurrency) : 32
+const UPSTREAM_TIMEOUT = 15_000
+// Operator-owned memory bound: at most two default-sized batches may wait.
+// Keep this fixed even when the operator raises upstream concurrency.
+const UPSTREAM_MAX_QUEUED = 64
+let inFlight = 0
+const waiters: Array<() => void> = []
+
+function acquire(signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.reject(failure())
+  if (inFlight < UPSTREAM_MAX_CONCURRENCY) { inFlight++; return Promise.resolve() }
+  if (waiters.length >= UPSTREAM_MAX_QUEUED) return Promise.reject(failure())
+  return new Promise((resolve, reject) => {
+    const cleanup = () => { clearTimeout(timer); signal?.removeEventListener('abort', cancel) }
+    const cancel = () => {
+      const index = waiters.indexOf(resume)
+      if (index >= 0) waiters.splice(index, 1)
+      cleanup()
+      reject(failure())
+    }
+    const timer = setTimeout(cancel, UPSTREAM_TIMEOUT)
+    const resume = () => { cleanup(); resolve() }
+    waiters.push(resume)
+    signal?.addEventListener('abort', cancel, { once: true })
+  })
+}
+
+function release(): void {
+  const next = waiters.shift()
+  if (next) next(); else inFlight--
+}
+
+/** Bind cancellation before admission so a disconnected request never starts later. */
+function clientCancellation(event?: H3Event, options: { signal?: AbortSignal; ignoreClientClose?: boolean } = {}) {
+  const controller = new AbortController()
+  const cancel = () => controller.abort()
+  const disconnected = () => { if (!event?.node.res.writableEnded) cancel() }
+  if (event && !options.ignoreClientClose) {
+    event.node.req.once('aborted', cancel)
+    event.node.res.once('close', disconnected)
+    if (event.node.req.aborted || (event.node.res.destroyed && !event.node.res.writableEnded)) cancel()
+  }
+  if (options.signal?.aborted) cancel(); else options.signal?.addEventListener('abort', cancel, { once: true })
+  return {
+    signal: controller.signal,
+    cancel,
+    dispose() {
+      event?.node.req.removeListener('aborted', cancel)
+      event?.node.res.removeListener('close', disconnected)
+      options.signal?.removeEventListener('abort', cancel)
+    },
+  }
+}
+
+/** Hold one upstream slot, with caller cancellation and a 15s admitted deadline. */
+export async function withUpstreamSlot<T>(run: (signal: AbortSignal) => Promise<T>, event?: H3Event): Promise<T> {
+  const cancellation = clientCancellation(event)
+  let admitted = false
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    await acquire(cancellation.signal)
+    admitted = true
+    if (cancellation.signal.aborted) throw failure()
+    timer = setTimeout(cancellation.cancel, UPSTREAM_TIMEOUT)
+    // Await native cancellation before releasing capacity; a Promise.race would
+    // let an upstream operation outlive its slot if it ignored the deadline.
+    const result = await run(cancellation.signal)
+    // Native fetch resolves on headers. Auth handlers consume its body after
+    // this wrapper returns, so finish buffering here while the deadline and
+    // admission slot still own the receiving socket.
+    if (result instanceof Response && result.body) {
+      const reader = result.body.getReader()
+      const chunks: Uint8Array[] = []
+      let bytes = 0
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          bytes += value.byteLength
+          if (bytes > MAX_RESPONSE) {
+            await reader.cancel()
+            throw failure()
+          }
+          chunks.push(value)
+        }
+      } finally { reader.releaseLock() }
+      return new Response(Buffer.concat(chunks), { status: result.status, statusText: result.statusText, headers: result.headers }) as T
+    }
+    return result
+  } finally {
+    clearTimeout(timer)
+    cancellation.dispose()
+    if (admitted) release()
+  }
+}
+const failure = () => createError({ statusCode: 502, message: 'tenant_upstream_unavailable', data: { code: 'tenant_upstream_unavailable', message: 'The upstream service is temporarily unavailable.' } })
+const payloadTooLarge = () => createError({ statusCode: 413, message: 'payload_too_large', data: { code: 'payload_too_large', message: 'The request body exceeds the allowed size.' } })
+
+/** Share the same fixed operator destination/path validation in both transport modes. */
+function operatorUpstream(configuredUpstream: string, path: string): URL {
+  let base: URL
+  try { base = new URL(configuredUpstream) } catch { throw failure() }
+  if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password || base.pathname !== '/' || base.search || base.hash ||
+      !/^\/(?:api\/v1\/|web\/session\/(?:authenticate|destroy)(?:$|\?))/.test(path) || path.startsWith('//') || /[\\\r\n#]/.test(path) || new URL(path, base).pathname !== path.split('?')[0]) throw failure()
+  return base
+}
+
+/** Legacy dedicated has no binding envelope. Keep its selected headers but use
+ * the existing admitted Response reader, size cap and native cancellation.
+ */
+export async function legacyTenantResponse(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: Buffer; headers: Record<string, string> }): Promise<Response> {
+  if ((process.env.WEBVUE_TENANCY_MODE ?? 'dedicated') !== 'dedicated' || process.env.WEBVUE_RELEASE_ROUTES_DIR) throw failure()
+  const base = operatorUpstream(configuredUpstream, path)
+  if (options.body && Buffer.byteLength(options.body) > MAX_REQUEST) throw payloadTooLarge()
+  try {
+    return await withUpstreamSlot(async signal => {
+      const headers = new Headers(options.headers)
+      const hop = ['connection', 'keep-alive', 'proxy-connection', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade']
+      const nominated = (value: string | null | undefined) => (value ?? '').toLowerCase().split(',').map(name => name.trim()).filter(Boolean)
+      for (const name of ['host', 'content-length', ...hop, ...nominated(getHeader(event, 'connection'))]) headers.delete(name)
+      const response = await fetch(new URL(path, base), { method: options.method, body: options.body ? new Uint8Array(options.body) : undefined, headers, signal, redirect: 'manual' })
+      if (response.status >= 300 && response.status < 400 && response.status !== 304) { await response.body?.cancel(); throw failure() }
+      const forwarded = new Headers(response.headers)
+      for (const name of [...hop, ...nominated(response.headers.get('connection'))]) forwarded.delete(name)
+      // Fetch decodes payloads but leaves representation headers unchanged.
+      // HEAD/304 have no decoded body, so their representation metadata remains valid.
+      if (response.body) { forwarded.delete('content-encoding'); forwarded.delete('content-length') }
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers: forwarded })
+    }, event)
+  } catch { throw failure() }
+}
 
 /** Server-only, fixed operator configuration. No request-controlled destination or redirects.
  * Bounded buffering deliberately replaces streaming: max16MiB request/32MiB response,
@@ -15,12 +153,9 @@ const failure = () => createError({ statusCode: 502, message: 'tenant_upstream_u
 export async function tenantTransport(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: string | Buffer; headers?: Record<string, string>; signal?: AbortSignal; ignoreClientClose?: boolean } = {}): Promise<Response> {
   const binding = tenantUpstreamHeaders(event)
   if (!binding.host) throw failure()
-  let base: URL
-  try { base = new URL(configuredUpstream) } catch { throw failure() }
-  if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password || base.pathname !== '/' || base.search || base.hash ||
-      !/^\/(?:api\/v1\/|web\/session\/(?:authenticate|destroy)(?:$|\?))/.test(path) || path.startsWith('//') || /[\\\r\n#]/.test(path) || new URL(path, base).pathname !== path.split('?')[0]) throw failure()
+  const base = operatorUpstream(configuredUpstream, path)
   const body = options.body
-  if (body && Buffer.byteLength(body) > MAX_REQUEST) throw createError({ statusCode: 413, message: 'payload_too_large' })
+  if (body && Buffer.byteLength(body) > MAX_REQUEST) throw payloadTooLarge()
   const headers: Record<string, string> = { ...binding }
   // Only explicitly selected application headers, never hop-by-hop or client authority.
   for (const name of ['content-type', 'accept', 'if-none-match', 'if-modified-since', 'range']) {
@@ -30,14 +165,19 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   const cookie = options.headers?.cookie ?? getHeader(event, 'cookie')
   if (cookie) headers.cookie = cookie
   if (body) headers['content-length'] = String(Buffer.byteLength(body))
-  return new Promise((resolve, reject) => {
+  const cancellation = clientCancellation(event, options)
+  let admitted = false
+  try {
+    await acquire(cancellation.signal)
+    admitted = true
+    // Cancellation can win after release grants this slot but before this continuation runs.
+    if (cancellation.signal.aborted) throw failure()
+    return await new Promise<Response>((resolve, reject) => {
     let settled = false
     const finish = (error?: Error, result?: Response) => {
       if (settled) return
       settled = true; clearTimeout(timer)
-      event.node.req.removeListener('aborted', abort)
-      event.node.res.removeListener('close', disconnected)
-      options.signal?.removeEventListener('abort', abort)
+      cancellation.signal.removeEventListener('abort', abort)
       if (error) reject(error); else resolve(result!)
     }
     const request = (base.protocol === 'https:' ? https : http).request({ protocol: base.protocol, hostname: base.hostname, port: base.port, method: options.method ?? 'GET', path, headers, agent: false }, reply => {
@@ -62,26 +202,49 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
       })
     })
     const abort = () => { request.destroy(); finish(failure()) }
-    const disconnected = () => { if (!event.node.res.writableEnded) abort() }
-    const timer = setTimeout(abort, 15000)
-    if (!options.ignoreClientClose) { event.node.req.once('aborted', abort); event.node.res.once('close', disconnected) }
-    if (options.signal?.aborted) abort(); else options.signal?.addEventListener('abort', abort, { once: true })
+    const timer = setTimeout(abort, UPSTREAM_TIMEOUT)
+    cancellation.signal.addEventListener('abort', abort, { once: true })
     request.on('error', () => finish(failure()))
     request.end(body)
-  })
+    })
+  } finally {
+    cancellation.dispose()
+    if (admitted) release()
+  }
 }
 
-export async function boundedTenantBody(event: H3Event): Promise<Buffer | undefined> {
-  if (['GET', 'HEAD'].includes(event.method)) return undefined
-  const chunks: Buffer[] = []; let length = 0
-  const timer = setTimeout(() => event.node.req.destroy(), 15000)
+const acquireBody = createBodyAdmission()
+
+/** Keep memory credit while reading, waiting for upstream admission and forwarding. */
+export async function withTenantBody<T>(event: H3Event, run: () => Promise<T>): Promise<T> {
+  let releaseBody: (() => void) | undefined
   try {
-    for await (const chunk of event.node.req) {
-      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
-      length += buffer.length
-      if (length > MAX_REQUEST) throw createError({ statusCode: 413, message: 'payload_too_large' })
-      chunks.push(buffer)
-    }
-    return Buffer.concat(chunks)
-  } finally { clearTimeout(timer) }
+    releaseBody = await acquireBody(event.node.req, event.node.res)
+    return await run()
+  } catch (error) { throw createError(error as Error) } finally { releaseBody?.() }
+}
+
+const responseAdmission = createResponseAdmission()
+
+/** Own response capacity until native work and the downstream HTTP output settle. */
+export async function withTenantResponse<T>(event: H3Event, run: () => Promise<T>): Promise<T> {
+  try { return await responseAdmission(event.node.req, event.node.res, run) }
+  catch (error) { throw createError(error as Error) }
+}
+
+export async function boundedTenantBody(event: H3Event, maxBytes = MAX_REQUEST): Promise<Buffer | undefined> {
+  if (['GET', 'HEAD'].includes(event.method)) return undefined
+  return readBodyBytes(event.node.req, event.node.res, maxBytes)
+}
+
+/** Read a bounded auth JSON object once, before parsing or upstream admission. */
+export async function boundedTenantJson<T extends Record<string, unknown>>(event: H3Event, maxBytes: number): Promise<T> {
+  const body = await boundedTenantBody(event, maxBytes)
+  try {
+    const value = JSON.parse(body?.toString('utf8') ?? '')
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('invalid_json_object')
+    return value as T
+  } catch {
+    throw createError({ statusCode: 400, data: { code: 'invalid_json', message: 'The request body must be a valid JSON object.' } })
+  }
 }
