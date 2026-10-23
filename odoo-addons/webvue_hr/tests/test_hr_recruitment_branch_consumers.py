@@ -1,5 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Recruitment serializers and hiring retain the selected branch's authority."""
+from unittest.mock import patch
+
+from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import tagged
 
 from odoo.addons.webvue_api.tests.common import CompanyIsolationCase
@@ -132,3 +135,88 @@ class TestHrRecruitmentBranchConsumers(CompanyIsolationCase):
     def test_parent_session_hire_uses_branch_only_manager_grants(self):
         self._hire_grants(parent=False)
         self._assert_branch_hire(department=False)
+
+    def _hire_applicant(self, name):
+        applicant = self.env['hr.applicant'].create({
+            'partner_name': name, 'company_id': self.company_p1.id, 'job_id': self.job.id,
+        })
+        return applicant.with_user(self.iso_user).with_context(
+            allowed_company_ids=[self.company_p.id, self.company_p1.id],
+            webvue_capability_scope=((('hr.recruitment.manage', 'hr.employees.manage'), 'all'),),
+        )
+
+    def test_forged_context_cannot_enable_cross_company_employee_create_or_write(self):
+        self._hire_grants(parent=False)
+        applicant = self._hire_applicant('Forged hire context')
+        employees = applicant.env['hr.employee'].with_context(**{
+            'webvue_hr.native_recruitment_hire': [(self.iso_user.id, self.company_p.id, self.company_p1.id, applicant.id)],
+            'webvue_hire_company_id': self.company_p1.id,
+        })
+        with self.assertRaises(AccessError), self.env.cr.savepoint():
+            employees.create({'name': 'Forged branch employee', 'company_id': self.company_p1.id})
+        with self.assertRaises(AccessError), self.env.cr.savepoint():
+            self.linked_employee.with_env(employees.env).write({'job_title': 'Forged branch title'})
+        self.assertFalse(self.env['hr.employee'].search([('name', '=', 'Forged branch employee')]))
+        self.assertFalse(self.linked_employee.job_title)
+
+    def test_native_hire_failure_rolls_back_contacts_employees_and_restores_scope(self):
+        self._hire_grants()
+        applicant = self._hire_applicant('Failed native branch hire')
+        original = type(applicant).create_employee_from_applicant
+
+        def fail_after_native_create(record):
+            original(record)
+            message = 'Reject the completed native hire'
+            raise ValidationError(message)
+
+        with patch.object(type(applicant), 'create_employee_from_applicant', fail_after_native_create):
+            with self.assertRaises(ValidationError):
+                applicant._webvue_hire()
+        self.assertFalse(self.env['hr.employee'].search([('name', '=', 'Failed native branch hire')]))
+        self.assertFalse(self.env['res.partner'].search([('name', '=', 'Failed native branch hire')]))
+        self.assertFalse(applicant.employee_id)
+        service = applicant.env['webvue.access.service']
+        self.assertEqual(set(service._webvue_scoped_company_ids()), {self.company_p.id, self.company_p1.id})
+        with self.assertRaises(AccessError), self.env.cr.savepoint():
+            applicant.env['hr.employee'].create({'name': 'Leaked hire frame', 'company_id': self.company_p1.id})
+
+    def test_native_hire_rechecks_inherited_grant_revocation(self):
+        self._hire_grants(inherited=True)
+        applicant = self._hire_applicant('Revoked native branch hire')
+        original = type(applicant).create_employee_from_applicant
+
+        def revoke_before_native_create(record):
+            rule = self.env['webvue.access.branch.rule'].search([
+                ('company_id', '=', self.company_p.id), ('branch_id', '=', self.company_p1.id),
+            ])
+            rule.inherit = False
+            return original(record)
+
+        with patch.object(type(applicant), 'create_employee_from_applicant', revoke_before_native_create):
+            with self.assertRaises(AccessError):
+                applicant._webvue_hire()
+        self.assertFalse(self.env['hr.employee'].search([('name', '=', 'Revoked native branch hire')]))
+        self.assertFalse(self.env['res.partner'].search([('name', '=', 'Revoked native branch hire')]))
+        self.assertFalse(applicant.employee_id)
+        self.assertEqual(set(applicant.env['webvue.access.service']._webvue_scoped_company_ids()),
+                         {self.company_p.id, self.company_p1.id})
+
+    def test_nested_native_hires_restore_the_outer_operation(self):
+        self._hire_grants(parent=False)
+        outer = self._hire_applicant('Outer native branch hire')
+        inner = self._hire_applicant('Inner native branch hire')
+        original = type(outer).create_employee_from_applicant
+
+        def hire_inner_before_outer(record):
+            if record.id == outer.id:
+                inner._webvue_hire()
+            return original(record)
+
+        with patch.object(type(outer), 'create_employee_from_applicant', hire_inner_before_outer):
+            outer._webvue_hire()
+        for applicant in (outer, inner):
+            self.assertTrue(applicant.employee_id)
+            self.assertEqual(applicant.employee_id.company_id, self.company_p1)
+        self.assertNotEqual(outer.employee_id, inner.employee_id)
+        with self.assertRaises(AccessError), self.env.cr.savepoint():
+            outer.env['hr.employee'].create({'name': 'Leaked nested frame', 'company_id': self.company_p1.id})
