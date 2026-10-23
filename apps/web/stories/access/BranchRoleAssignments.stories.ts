@@ -15,7 +15,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 export const Inherited: Story = {
-  parameters: storyContext('apps/web/app/pages/settings/team/branches.vue:63'),
+  parameters: storyContext('apps/web/app/pages/settings/team/branches.vue:80'),
   render: args => ({ components: { BranchRoleAssignments, PageContainer }, setup: () => ({ args, branches: ref(args.modelValue) }), template: '<main class="webvue-shell-main"><PageContainer width="form"><BranchRoleAssignments v-bind="args" v-model="branches" /></PageContainer></main>' }),
 }
 export const Delegated: Story = { ...Inherited, args: { inherited: false } }
