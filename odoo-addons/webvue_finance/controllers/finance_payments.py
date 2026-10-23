@@ -62,10 +62,13 @@ def _created_payments(action):
 
 
 def _wizard_values(parsed, invoices):
-    journal = company_records(
-        'account.journal', [parsed['journal_id']], 'journal_id',
-        [('company_id', '=', request.env.company.id), ('type', 'in', PAYMENT_JOURNAL_TYPES)],
-    )
+    # Registration mutates existing invoices. The chosen journal must be
+    # natively compatible with every owner; a sibling's journal cannot serve
+    # another branch merely because both are visible in the request.
+    journal_domain = [('type', 'in', PAYMENT_JOURNAL_TYPES)]
+    for company in invoices.company_id:
+        journal_domain += request.env['account.journal']._check_company_domain(company)
+    journal = company_records('account.journal', [parsed['journal_id']], 'journal_id', journal_domain)
     if journal.currency_id and journal.currency_id != invoices.currency_id:
         raise ApiError(
             422, 'journal_currency_mismatch', 'the journal currency differs from the invoices currency', field='journal_id',
@@ -84,8 +87,9 @@ def _wizard_values(parsed, invoices):
     if 'memo' in parsed:
         values['communication'] = parsed['memo']
     # Odoo does not refuse a payment in a closed period: it silently moves the payment date.
-    if is_period_locked(parsed['payment_date'], journal):
-        raise period_locked(field='payment_date')
+    for company in invoices.company_id:
+        if is_period_locked(parsed['payment_date'], journal, company=company):
+            raise period_locked(field='payment_date')
     residual = sum(invoices.mapped('amount_residual'))
     if invoices.currency_id.compare_amounts(parsed['amount'], residual) > 0:
         raise ApiError(422, 'amount_exceeds_residual', 'amount is greater than the open balance', field='amount')
@@ -179,7 +183,10 @@ class FinancePaymentController(http.Controller):
             ).create(values)
             return wizard.action_create_payments()
 
-        payments = _created_payments(attempt(register, day=parsed['payment_date'], journal=journal))
+        payments = _created_payments(attempt(
+            register, day=parsed['payment_date'], journal=journal,
+            company=invoices.company_id if len(invoices.company_id) == 1 else request.env.company,
+        ))
         if len(payments) != 1:
             raise ApiError(422, 'invalid', 'these invoices cannot be paid with a single payment', field='invoice_ids')
         return request.make_json_response(dump_payment(payments), status=201)
@@ -214,7 +221,7 @@ class FinancePaymentController(http.Controller):
         """A receipt or payment voucher that names no invoice: an advance, or money kept to be allocated later."""
         require_capability('finance.payments.manage')
         parsed = parse_payment_standalone(payload)
-        partner = company_records('res.partner', [parsed['partner_id']], 'partner_id', company_partners_domain())
+        partner = company_records('res.partner', [parsed['partner_id']], 'partner_id', company_partners_domain(request.env.company))
         journal = _payment_journal(parsed['journal_id'])
         values = _payment_values(parsed, journal)
         # The partner is a customer for a receipt and a vendor for a payment unless the body says otherwise (a refund of a

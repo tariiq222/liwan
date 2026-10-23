@@ -31,23 +31,23 @@ def _find_journal(journal_id):
     return journal
 
 
-def _require_free_code(code, journal=None):
+def _require_free_code(code, company, journal=None):
     """Odoo enforces the code with a SQL constraint, which would abort the request transaction: check it up front."""
     taken = request.env['account.journal'].with_context(active_test=False).search_count([
-        ('company_id', '=', request.env.company.id), ('code', '=', code), ('id', '!=', journal.id if journal else 0),
+        ('company_id', '=', company.id), ('code', '=', code), ('id', '!=', journal.id if journal else 0),
     ], limit=1)
     if taken:
         raise ApiError(422, 'invalid', 'code is already used by another journal', field='code')
 
 
-def _values(parsed):
+def _values(parsed, company):
     values = {key: parsed[key] for key in ('name', 'code', 'type') if key in parsed}
     if 'currency' in parsed:
         values['currency_id'] = currency_id_of(parsed['currency'])
     if 'default_account_id' in parsed:
         values['default_account_id'] = company_records(
             'account.account', [parsed['default_account_id']], 'default_account_id',
-            [('company_ids', 'in', [request.env.company.id])],
+            request.env['account.account']._check_company_domain(company),
         ).id
     return values
 
@@ -79,8 +79,8 @@ class FinanceJournalController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def create_journal(self, **payload):
         require_capability('finance.journals.manage')
-        values = _values(parse_journal_create(payload, _journal_types()))
-        _require_free_code(values['code'])
+        values = _values(parse_journal_create(payload, _journal_types()), request.env.company)
+        _require_free_code(values['code'], request.env.company)
         journal = attempt(lambda: request.env['account.journal'].create({**values, 'company_id': request.env.company.id}))
         request.env['webvue.finance.audit.event']._webvue_log('journal_created', journal, fields_written=values)
         return request.make_json_response(dump_journal(journal), status=201)
@@ -91,9 +91,9 @@ class FinanceJournalController(http.Controller):
     def patch_journal(self, journal_id, **payload):
         require_capability('finance.journals.manage')
         journal = _find_journal(journal_id)
-        values = _values(parse_journal_patch(payload, _journal_types()))
+        values = _values(parse_journal_patch(payload, _journal_types()), journal.company_id)
         if 'code' in values:
-            _require_free_code(values['code'], journal)
+            _require_free_code(values['code'], journal.company_id, journal)
         attempt(lambda: journal.write(values))
         request.env['webvue.finance.audit.event']._webvue_log('journal_changed', journal, fields_written=values)
         return dump_journal(journal)

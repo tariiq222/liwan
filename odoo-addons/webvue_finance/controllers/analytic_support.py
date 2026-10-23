@@ -17,16 +17,19 @@ def company_analytic_domain():
     return [('company_id', 'in', request.env.companies.ids)]
 
 
-def distribution_values(distribution, field):
+def distribution_values(distribution, field, company=None):
     """ORM ``analytic_distribution`` for ``{account id: percent}``, else 422 ``invalid`` on ``field``.
 
-    Every account must be an active account of the current company. Odoo's own rule applies: the
+    Every account must be active and natively compatible with the document company
+    when supplied; otherwise the existing pinned-company lookup applies. Odoo's own rule applies: the
     percentages of one root plan add up to at most 100 (a part left out is unallocated); a plan its
     applicability marks mandatory must reach exactly 100, which Odoo checks when the document is posted.
     """
     if not distribution:
         return False
-    accounts = company_records('account.analytic.account', list(distribution), field, company_analytic_domain())
+    domain = (request.env['account.analytic.account']._check_company_domain(company)
+              if company is not None else company_analytic_domain())
+    accounts = company_records('account.analytic.account', list(distribution), field, domain)
     precision = request.env['decimal.precision'].precision_get('Percentage Analytic')
     per_plan = {}
     for account in accounts:

@@ -37,7 +37,7 @@ def _asset_values(parsed):
         'account.asset.profile', [parsed['profile_id']], 'profile_id', [('company_id', '=', request.env.company.id)],
     ).id
     if 'partner_id' in parsed:
-        values['partner_id'] = company_records('res.partner', [parsed['partner_id']], 'partner_id', company_partners_domain()).id
+        values['partner_id'] = company_records('res.partner', [parsed['partner_id']], 'partner_id', company_partners_domain(request.env.company)).id
     return values
 
 
@@ -129,7 +129,7 @@ class FinanceAssetController(http.Controller):
         if asset.state not in ('open', 'close'):
             raise ApiError(422, 'invalid_state', f'only a running or fully depreciated asset can be disposed of, it is {asset.state}')
         parsed = parse_asset_dispose(payload)
-        if is_period_locked(parsed['date_remove'], asset.profile_id.journal_id):
+        if is_period_locked(parsed['date_remove'], asset.profile_id.journal_id, company=asset.company_id):
             raise period_locked(field='date_remove')
         accounts = {}
         for field, profile_field, wizard_field in (
@@ -139,7 +139,7 @@ class FinanceAssetController(http.Controller):
         ):
             if field in parsed:
                 accounts[wizard_field] = company_records(
-                    'account.account', [parsed[field]], field, [('company_ids', 'in', [request.env.company.id])],
+                    'account.account', [parsed[field]], field, request.env['account.account']._check_company_domain(asset.company_id),
                 ).id
             elif profile_field and asset.profile_id[profile_field]:
                 accounts[wizard_field] = asset.profile_id[profile_field].id
@@ -158,6 +158,6 @@ class FinanceAssetController(http.Controller):
             removal = asset.depreciation_line_ids.filtered(lambda line: line.type == 'remove').move_id
             removal.filtered(lambda move: move.state == 'draft').action_post()
 
-        attempt(dispose, day=parsed['date_remove'])
+        attempt(dispose, day=parsed['date_remove'], journal=asset.profile_id.journal_id, company=asset.company_id)
         request.env['webvue.finance.audit.event']._webvue_log('asset_disposed', asset, outcome=f'sold for {parsed["sale_value"]}')
         return dump_asset_detail(asset)
