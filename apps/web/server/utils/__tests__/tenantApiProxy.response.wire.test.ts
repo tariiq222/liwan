@@ -118,7 +118,7 @@ async function fixture(mode: 'shared' | 'dedicated' | 'legacy') {
     const row = { path: req.url!, res, written: 0, falseWrites: 0, handlerSettled: false }
     observations.push(row)
     const write = res.write
-    res.write = function (...args: Parameters<typeof res.write>) {
+    res.write = function (this: http.ServerResponse, ...args: Parameters<typeof res.write>) {
       row.written += Buffer.byteLength(args[0])
       const accepted = write.apply(this, args)
       if (!accepted) row.falseWrites++
