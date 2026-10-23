@@ -2,9 +2,7 @@
 from odoo import models
 from odoo.exceptions import AccessError, ValidationError
 
-from odoo.addons.webvue_core.models.protected_write import marked
-
-HIRE_FRAME_MARKER = 'webvue_hr.native_recruitment_hire'
+HIRE_FRAME_ATTRIBUTE = '_webvue_hr_native_recruitment_hire'
 
 
 class WebVueHrApplicant(models.Model):
@@ -31,16 +29,22 @@ class WebVueHrApplicant(models.Model):
         root_id = existing[1] if existing else self.env.company.id
         scopes = self.env.context.get('webvue_capability_scope') or ()
         frame = (self.env.uid, root_id, company.id, self.id, scopes)
-        # Restore an outer frame after savepoint rollback clears cursor callbacks too.
-        with marked(self.env, {HIRE_FRAME_MARKER: {frame}}):
+        # Native savepoints run and clear precommit callbacks on entry/exit. Keep
+        # this lexical frame on the cursor itself until the complete workflow exits.
+        previous = getattr(self.env.cr, HIRE_FRAME_ATTRIBUTE, None)
+        setattr(self.env.cr, HIRE_FRAME_ATTRIBUTE, frame)
+        service._webvue_clear_branch_cache()
+        try:
+            with self.env.cr.savepoint():
+                self.create_employee_from_applicant()
+                employee = self.employee_id
+                if not employee or employee.company_id != company or self.company_id != company:
+                    message = 'the hired employee must belong to the applicant company'
+                    raise ValidationError(message)
+                return employee
+        finally:
+            if previous is None:
+                delattr(self.env.cr, HIRE_FRAME_ATTRIBUTE)
+            else:
+                setattr(self.env.cr, HIRE_FRAME_ATTRIBUTE, previous)
             service._webvue_clear_branch_cache()
-            try:
-                with self.env.cr.savepoint():
-                    self.create_employee_from_applicant()
-                    employee = self.employee_id
-                    if not employee or employee.company_id != company or self.company_id != company:
-                        message = 'the hired employee must belong to the applicant company'
-                        raise ValidationError(message)
-                    return employee
-            finally:
-                service._webvue_clear_branch_cache()
