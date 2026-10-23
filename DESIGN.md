@@ -109,7 +109,7 @@ Nuxt UI هي مكتبة مكونات واجهة العميل، يشكّلها ث
 
 | المكوّن | الوصفة | القصد |
 |---|---|---|
-| `colors` | `primary: 'brand'`، `neutral: 'slate'` | الأزرق الأساسي الثابت لويب فيو يغذّي الأساسي، والمحايد slate |
+| `colors` | `primary: 'brand'`، `neutral: 'slate'` | لوحة ويب فيو الثابتة تغذّي الأساسي، والمحايد slate؛ لون الشركة للمستندات والتقارير فقط |
 | `UButton` | `rounded-full transition-colors duration-150 motion-reduce:transition-none`؛ الحجم `md`: `min-h-(--webvue-control-h)`؛ المربع `md`: `min-w-(--webvue-control-h)` | زر 32px كبسولة وانتقال لطيف، وزر أيقونة مربع بلا ظل |
 | `UInput`/`UInputNumber` | `rounded-control bg-default`؛ الحجم `md`: `min-h-(--webvue-control-h)` | حقل بسطح الصفحة وحد أدنى 32px |
 | `UTextarea` | `rounded-control bg-default` | حقل متعدد الأسطر بنفس شكل الحقول |

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { leaveApprovalAttention } from '../hr/attention'
+import { leaveApprovalAttention, leaveCancellationAttention } from '../hr/attention'
 import { overdueFollowupAttention, todayMeetingsAttention } from '../meetings/attention'
 import { pendingReviewAttention } from '../operations/attention'
 import { overdueTasksAttention, projectsAtRiskAttention } from '../pmo/attention'
@@ -27,11 +27,11 @@ describe('attention providers', () => {
   it('registers every provider once, each under a rail module of its own application', () => {
     const providers = attentionProviders()
     expect(providers.map(provider => provider.id).sort()).toEqual([
-      'hr-leave-approvals', 'meetings-followup-overdue', 'meetings-today', 'operations-pending', 'pmo-projects-at-risk', 'pmo-tasks-overdue', 'tasks-due',
+      'hr-leave-approvals', 'hr-leave-cancellations', 'meetings-followup-overdue', 'meetings-today', 'operations-pending', 'pmo-projects-at-risk', 'pmo-tasks-overdue', 'tasks-due',
     ])
     expect(new Set(providers.map(provider => provider.id)).size).toBe(providers.length)
     expect(new Set(providers.map(provider => JSON.stringify(provider.queryKey))).size).toBe(providers.length)
-    expect(providers.map(provider => provider.module).sort()).toEqual(['hr', 'meetings', 'meetings', 'operations', 'projects', 'projects', 'tasks'])
+    expect(providers.map(provider => provider.module).sort()).toEqual(['hr', 'hr', 'meetings', 'meetings', 'operations', 'projects', 'projects', 'tasks'])
   })
 
   describe('tasks', () => {
@@ -178,6 +178,7 @@ describe('attention providers', () => {
     const leave = (id: number, can_approve: boolean, state = 'confirm') => ({
       id, employee: { id: 10 + id, name: `موظف ${id}` }, leave_type: { id: 1, name: 'إجازة سنوية' }, date_from: '2026-11-01', date_to: '2026-11-03',
       number_of_days: 3, state, notes: '', can_approve, can_refuse: can_approve, can_cancel: false, can_withdraw: false,
+      cancellation_policy: 'manager_approval', cancellation: null, can_request_cancellation: false, can_approve_cancellation: false, can_refuse_cancellation: false,
     })
 
     it('lists only the leave requests I can approve, as urgent', async () => {
@@ -189,6 +190,21 @@ describe('attention providers', () => {
         ['leave-3', 'موظف 3 · إجازة سنوية', '/hr/leave/3', 'urgent'],
       ])
       expect(rows[0]!.caption).toContain('01/11/2026')
+    })
+    const pending = (id: number, canApprove: boolean, canRefuse: boolean) => ({ ...leave(id, false, 'validate'), cancellation: { id: id + 100, state: 'pending', revision: 1, reason: 'Plans changed', requested_at: '2026-10-22 10:00:00', initiator: { id: person.id, name: person.name }, reviewed_at: null, reviewer: null, review_reason: null }, can_approve_cancellation: canApprove, can_refuse_cancellation: canRefuse })
+
+    it('includes only actionable pending cancellations and returns to their own queue', async () => {
+      const { api, fetcher } = fakeApi({ items: [pending(1, true, true), pending(2, false, false), pending(3, false, true)], total: 3 })
+      const rows = await leaveCancellationAttention.load(fetcher, t)
+      expect(api).toHaveBeenCalledWith('/api/v1/hr/leave/requests', expect.objectContaining({ query: { cancellation_state: 'pending', limit: 50 } }))
+      expect(rows.map(row => row.id)).toEqual(['leave-cancellation-1', 'leave-cancellation-3'])
+      expect(rows[0]!.label).toContain('hr.leave.cancellationStates.pending')
+      expect(rows.every(row => row.to.endsWith('?returnTo=%2Fhr%2Fleave%3Fcancellation_state%3Dpending') && row.tone === 'urgent')).toBe(true)
+    })
+    it('keeps cancellation attention bounded and propagates failures', async () => {
+      expect(await leaveCancellationAttention.load(fakeApi({ items: [], total: 0 }).fetcher, t)).toEqual([])
+      expect(await leaveCancellationAttention.load(fakeApi({ items: Array.from({ length: 25 }, (_, i) => pending(i + 1, true, true)), total: 25 }).fetcher, t)).toHaveLength(20)
+      await expect(leaveCancellationAttention.load((async () => { throw new Error('403') }) as unknown as AppSearchApi, t)).rejects.toThrow('403')
     })
     it('is empty when nothing awaits me, returns at most twenty and passes a failure on', async () => {
       expect(await leaveApprovalAttention.load(fakeApi({ items: [leave(1, false)], total: 1 }).fetcher, t)).toEqual([])
@@ -206,6 +222,7 @@ describe('attention providers', () => {
       'meetings-followup-overdue': 'execute',
       'operations-pending': 'decide',
       'hr-leave-approvals': 'decide',
+      'hr-leave-cancellations': 'decide',
       'pmo-projects-at-risk': 'follow',
       'meetings-today': 'follow',
     })

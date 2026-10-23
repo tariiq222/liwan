@@ -25,21 +25,11 @@ See [the hosting contract](docs/superpowers/specs/webvue-shared-saas-and-soverei
 and [WORKSPACE.md](docs/WORKSPACE.md) for implementation and acceptance evidence;
 the product vision does not establish production readiness.
 
-Integration policy and authorization are owned by [AGENTS.md](AGENTS.md) and the
-[testing guide](docs/testing.md#ci-workflow); workflow implementation lives in
-[ci.yml](.github/workflows/ci.yml). Agents do not push without the owner's authorization.
-
-The review, repair and release-numbering update in [PR #32](https://github.com/tariiq222/webvue/pull/32)
-merged on 2026-10-22 at `89b3382622dd490d84763a0a0c78985951b5cdf1`.
-At this documentation check, the [Claude subscription check](https://github.com/tariiq222/webvue/actions/runs/39834619932)
-passed, while the [main CI run](https://github.com/tariiq222/webvue/actions/runs/39834527483)
-was queued. This does not establish complete delivery-flow acceptance, release creation,
-or production deployment; verify the relevant run and release records before relying on them.
+Integration into `main` uses a protected GitHub pull request under the [integration policy](docs/agents/integration-rules.md). Delivery requires current-head `ci-result`, `code-review` and `delivery-policy`, an up-to-date branch and resolved conversations; sensitive changes also require the owner's exact-head approval. CI success alone does not authorize a merge. See the [testing guide](docs/testing.md#ci-workflow) for check scope. Publication and production deployment retain their separate authorization requirements.
 
 ## Current product
 
-This checkout contains the following implemented application and administration
-surfaces; their presence does not by itself establish release readiness:
+The following is a partial overview of implemented surfaces, not a complete release inventory or evidence of readiness:
 
 - Project tasks at `/tasks` and personal tasks at `/my-tasks`, including their
   separate task spaces, board/table views, timelines, comments, and updates.
@@ -54,7 +44,8 @@ surfaces; their presence does not by itself establish release readiness:
   the AI workspace at `/ai`.
 - HR at `/hr`, including the employee directory, leave, recruitment, shifts,
   onboarding/offboarding, assets and payroll; department documents are linked to
-  the separate document library.
+  the separate document library. Payroll belongs to `webvue_hr`, uses dedicated
+  capabilities and retains the [open payroll release gates](docs/WORKSPACE.md#الرواتب-السعودية-بوابات-الإطلاق-المفتوحة).
   HR routes live under `/api/v1/hr/*` and use employee ids. The PMO assignee
   picker at `/api/v1/people` remains a user-id resource.
 - Access administration at `/settings/team/users`, roles and audit with capability
@@ -88,7 +79,9 @@ Run the two services with isolated values for each worktree:
 ```sh
 # Odoo, from the read-only upstream checkout
 cd /Users/tariq/code/odoo
-.venv/bin/python odoo-bin -c /Users/tariq/code/odoo/odoo.conf \
+# Use your scratch-only config and unique allocated database/ports.
+# Keep data_dir and logfile outside the read-only upstream checkout.
+.venv/bin/python odoo-bin -c /absolute/path/to/scratch-only.conf \
   --addons-path=/Users/tariq/code/odoo/addons,/path/to/webvue-worktree/odoo-addons,$(python3 -B /path/to/webvue-worktree/tools/oca_addons.py path) \
   -d webvue_scratch --http-port=8169
 
@@ -102,7 +95,7 @@ npm -w apps/web run dev -- --port 3200
 ```
 
 Use a unique Odoo database and HTTP port, and a matching Nuxt port, for every
-active worktree. Install dependencies independently in each worktree with
+active worktree; the numbers above are examples, not allocations. Ports `3100` and `3103` are reserved for vendor administration and its live-proof build; follow [parallel-work.md](docs/parallel-work.md) and check current claims before choosing others. Install dependencies independently in each worktree with
 `npm ci --ignore-scripts`; use the local cache when working offline. Do not
 share `node_modules` or `.nuxt` through symlinks. Never run tests against the
 production-style `odoo19` database.

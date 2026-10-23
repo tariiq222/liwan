@@ -89,7 +89,7 @@ file the tool does not scan).
    - A raw `read()` result sent to the client instead of a whitelisting serializer.
    - A schema change without its version bump and migration directory in the same commit.
    - Timesheet data added to the customer UI; payroll, employee bank account or compensation data
-     exposed outside the payroll addon or without its dedicated payroll capabilities.
+      exposed outside the payroll section of `webvue_hr` and its approved `webvue_hr_finance` bridge, or without the operation's dedicated capability or documented own-payslip access contract. General HR access never grants payroll administration.
 2. **Contract parity.** Serializer keys, the Zod `.strict()` schema, the test key set and what
    the composable reads must match; every write returns the full detail shape; errors carry a
    real HTTP status with `{code, message, field?}`.
@@ -118,5 +118,4 @@ not run local tests or invoke the advisory Jev service from the review job.
 ## How to report
 
 Findings first, ranked by severity, each with `file:line` and the input or state that breaks it.
-No style commentary unless it hides a bug. If nothing is wrong, say so in one line. Never run
-`git` inside `/Users/tariq/code/odoo`; read framework source there with Read or Grep only.
+No style commentary unless it hides a bug. If nothing is wrong, say so in one line. The Odoo upstream checkout remains read-only, including its source, configuration and Git state. Read framework source with Read or Grep; read-only Git inspection (`status`, `log`, `diff`, `rev-parse`) is allowed by `docs/parallel-work.md`. Never change its index, refs, configuration or worktree.

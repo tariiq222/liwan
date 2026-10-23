@@ -10,7 +10,7 @@ export const employee: HrEmployee = {
 export const leave: HrLeave = {
   id: 12, employee: { id: 4, name: employee.name }, leave_type: { id: 2, name: 'إجازة سنوية' },
   date_from: '2026-11-02', date_to: '2026-11-06', number_of_days: 5, state: 'confirm', notes: 'إجازة عائلية',
-  can_approve: false, can_refuse: false, can_cancel: false, can_withdraw: true,
+  can_approve: false, can_refuse: false, can_cancel: false, can_withdraw: true, cancellation_policy: 'manager_approval', cancellation: null, can_request_cancellation: false, can_approve_cancellation: false, can_refuse_cancellation: false,
 }
 export const hrSelfServiceHandlers = [
   http.get('/api/v1/me', () => HttpResponse.json({ ...me, capabilities: ['hr.employees.read', 'hr.leave.read', 'hr.leave.request', 'hr.leave.manage', 'hr.leave.approve'] })),

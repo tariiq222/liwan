@@ -83,12 +83,12 @@ updating the definition does not implement or authorize them automatically.
 - Documents: document list, creation, editing and access routes.
 - Operations: request, pending-approval, monitoring and process-settings routes.
 - AI: `/ai` workspace backed by the configured WebVue AI service; provider, model and API-key configuration is held by that service.
-- HR: employees, departments/org, department and own-employee document-library contexts through `webvue_documents_hr`, leave, recruitment, shifts, onboarding/offboarding, assets and payroll.
+- HR: employees, departments/org, department and own-employee document-library contexts through `webvue_documents_hr`, leave, recruitment, shifts, onboarding/offboarding, assets and payroll. Payroll belongs to `webvue_hr`, uses dedicated `hr.payroll.*` capabilities and the `hr.payroll` sub-feature, and retains the [open payroll release gates](../../docs/WORKSPACE.md#الرواتب-السعودية-بوابات-الإطلاق-المفتوحة).
 - Self-service: `/account` aggregates permission-filtered personal contributions from applications; profile, leave, employee requests, pay, assets, documents, schedule and personal settings use canonical `/account/*` routes.
 - Settings: users, roles, access log, institution branding (one document colour for invoices, reports and printouts; it never themes the interface, which keeps the fixed WebVue palette; ignore the backend's legacy `secondary_color` field; name and logo require `settings.company.manage` in WebVue).
 - Authorization is capability-based, not role-name-based.
 - Default locale Arabic / RTL-first; English secondary. Business screens are real routes: direct link, refresh, back with list filters. Overlay exceptions: global search dialog, notification popover (latest five, then `/notifications`), unsaved-draft guard, assistant sheet shared with `/ai`, value-selection menus, inline destroy confirm. Do not stack business dialogs.
-- Presentation follows DESIGN.md; contracts and security in `../../CLAUDE.md` are not visual.
+- Presentation follows [DESIGN.md](../../DESIGN.md); architecture, contracts and security belong to [AGENTS.md](../../AGENTS.md). `CLAUDE.md` imports those instructions and does not own a separate policy.
 
 ## Brand Commitments
 
@@ -97,7 +97,7 @@ Name: ويب فيو (WebVue). Binding UI constitution: [DESIGN.md](../../DESIGN.
 ## Evidence on Hand
 
 - Routes and copy: `app/pages/`, `i18n/locales/{ar,en}/`.
-- Product boundaries: `../../CLAUDE.md`, `../../AGENTS.md`.
+- Product boundaries: [AGENTS.md](../../AGENTS.md); [CLAUDE.md](../../CLAUDE.md) is its import adapter.
 - Do not fabricate testimonials, metrics, pricing, or deploy approvals.
 
 ## Product Principles

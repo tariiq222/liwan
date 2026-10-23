@@ -23,9 +23,11 @@ function load(hydrated = true, canEdit = true) {
     ApiError, saveErrorMessage,
   }
   const component = new Function(...Object.keys(bindings), code)(...Object.values(bindings))
-  const props = Vue.reactive({ settings: { ...initial }, canEdit })
+  const reloadSettings = vi.fn(async () => ({ ...initial }))
+  const props = Vue.reactive({ settings: { ...initial }, canEdit, reloadSettings })
+  reloadSettings.mockImplementation(async () => ({ ...props.settings }))
   const state = component.setup(props, { expose: () => {}, emit })
-  return { state, props, save, emit }
+  return { state, props, save, emit, reloadSettings }
 }
 
 describe('shift settings draft', () => {
@@ -55,7 +57,7 @@ describe('shift settings draft', () => {
     expect(state.dirty.value).toBe(false)
   })
   it('preserves a rejected draft, prevents repeat conflict writes and reloads explicitly', async () => {
-    const { state, props, save, emit } = load()
+    const { state, props, save, reloadSettings } = load()
     state.reference.value = 'user'
     save.mockRejectedValueOnce(new ApiError(409, 'conflict', 'changed'))
     await state.submit()
@@ -64,10 +66,46 @@ describe('shift settings draft', () => {
     await state.submit()
     expect(save).toHaveBeenCalledTimes(1)
     props.settings = { ...initial, revision: 4 }
-    state.reload()
+    await state.reload()
     expect(state.baseline.value.revision).toBe(4)
     expect(state.dirty.value).toBe(false)
-    expect(emit).toHaveBeenCalledWith('reload')
+    expect(reloadSettings).toHaveBeenCalledTimes(1)
+  })
+  it('keeps the conflicted draft blocked until a delayed reload succeeds', async () => {
+    const { state, save, reloadSettings } = load()
+    state.reference.value = 'user'
+    save.mockRejectedValueOnce(new ApiError(409, 'conflict', 'changed'))
+    await state.submit()
+    let resolveReload!: (settings: typeof initial) => void
+    reloadSettings.mockImplementationOnce(() => new Promise(resolve => { resolveReload = resolve }))
+    const reloading = state.reload()
+    expect(state.reference.value).toBe('user')
+    expect(state.baseline.value.revision).toBe(0)
+    expect(state.conflict.value).toBe(true)
+    await state.submit()
+    expect(save).toHaveBeenCalledTimes(1)
+    resolveReload({ ...initial, revision: 4 })
+    await reloading
+    expect(state.reference.value).toBe('company')
+    expect(state.baseline.value.revision).toBe(4)
+    expect(state.conflict.value).toBe(false)
+    expect(state.dirty.value).toBe(false)
+  })
+  it('retains draft and conflict when reloading fails and allows another reload', async () => {
+    const { state, save, reloadSettings } = load()
+    state.reference.value = 'user'
+    save.mockRejectedValueOnce(new ApiError(409, 'conflict', 'changed'))
+    await state.submit()
+    reloadSettings.mockRejectedValueOnce(new Error('offline'))
+    await state.reload()
+    expect(state.reference.value).toBe('user')
+    expect(state.baseline.value.revision).toBe(0)
+    expect(state.conflict.value).toBe(true)
+    expect(state.dirty.value).toBe(true)
+    reloadSettings.mockResolvedValueOnce({ ...initial, revision: 5 })
+    await state.reload()
+    expect(state.baseline.value.revision).toBe(5)
+    expect(state.conflict.value).toBe(false)
   })
   it('preserves edits when saving fails and clears dirty only on success', async () => {
     const { state, save } = load()

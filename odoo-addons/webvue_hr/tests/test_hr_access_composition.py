@@ -75,13 +75,13 @@ class TestHrAccessComposition(TransactionCase):
     def _group(self, key):
         return self.env.ref(f'webvue_hr.{HR_AREA_GROUPS[key][0]}')
 
-    def test_hr_owns_its_twenty_capabilities_and_their_groups(self):
+    def test_hr_owns_its_twenty_one_capabilities_and_their_groups(self):
         catalog = self.service._webvue_capability_map()
-        self.assertEqual(len(HR_PERMISSIONS), 20)
+        self.assertEqual(len(HR_PERMISSIONS), 21)
         self.assertLessEqual(HR_AREA_PERMISSIONS, HR_PERMISSIONS)
         self.assertEqual({key for key, item in catalog.items() if item['owner'] == 'webvue_hr'}, set(HR_PERMISSIONS) | PAYROLL_PERMISSIONS)
         permissions = self.Permission.search([('key', 'in', sorted(HR_PERMISSIONS))])
-        self.assertEqual(len(permissions), 20)
+        self.assertEqual(len(permissions), 21)
         xmlids = permissions.get_external_id()
         for permission in permissions:
             self.assertTrue(xmlids[permission.id].startswith('webvue_hr.permission_hr_'), permission.key)
@@ -181,8 +181,10 @@ class TestHrAccessComposition(TransactionCase):
         webvue_group = new_test_user(self.env, login='hr_comp_webvue_group', groups='webvue_hr.group_hr_manager')
         odoo_group = new_test_user(self.env, login='hr_comp_odoo_group', groups='base.group_user,hr.group_hr_manager')
         employee = new_test_user(self.env, login='hr_comp_employee', groups='webvue_core.group_employee')
-        self.assertTrue(self.service._webvue_capability_keys(webvue_group) >= HR_PERMISSIONS)
-        self.assertTrue(self.service._webvue_capability_keys(odoo_group) >= HR_PERMISSIONS)
+        self.assertTrue(self.service._webvue_capability_keys(webvue_group) >= HR_PERMISSIONS - {'hr.leave.config'})
+        self.assertNotIn('hr.leave.config', self.service._webvue_capability_keys(webvue_group))
+        self.assertTrue(self.service._webvue_capability_keys(odoo_group) >= HR_PERMISSIONS - {'hr.leave.config'})
+        self.assertNotIn('hr.leave.config', self.service._webvue_capability_keys(odoo_group))
         self.assertTrue(self.service._webvue_capability_keys(employee) >= EMPLOYEE_HR_PERMISSIONS)
 
     def test_repair_relinks_a_missing_hr_grant(self):
