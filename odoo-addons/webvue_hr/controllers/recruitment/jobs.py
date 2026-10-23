@@ -36,7 +36,7 @@ def _ongoing_applicants(job):
 def _dump_job(job):
     """The job shape with the department reference only for a caller who may read departments."""
     return dump_job(
-        job, _ongoing_applicants(job), include_department=can('hr.departments.read'),
+        job, _ongoing_applicants(job), include_department=can('hr.departments.read', job),
     )
 
 
@@ -94,7 +94,7 @@ class HrRecruitmentJobController(http.Controller):
         vals = parse_job_vals(payload, create=True)
         _validate_job_relations(vals, current_company())
         job = request.env['hr.job'].create(vals)
-        return request.make_json_response(dump_job(job, 0, include_department=can('hr.departments.read')), status=201)
+        return request.make_json_response(dump_job(job, 0, include_department=can('hr.departments.read', job)), status=201)
 
     @http.route('/api/v1/hr/recruitment/jobs/<int:job_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler

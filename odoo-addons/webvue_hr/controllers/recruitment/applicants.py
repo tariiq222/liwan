@@ -26,8 +26,8 @@ def _dump(applicant):
     who may read them: neither capability is implied by recruitment."""
     return dump_applicant(
         applicant,
-        include_department=can('hr.departments.read'),
-        include_employee=can('hr.employees.read'),
+        include_department=can('hr.departments.read', applicant),
+        include_employee=can('hr.employees.read', applicant),
     )
 
 

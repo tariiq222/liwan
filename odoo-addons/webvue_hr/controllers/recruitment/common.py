@@ -9,9 +9,11 @@ def current_company():
     return request.env.company
 
 
-def can(capability):
-    """Whether the caller holds ``capability`` in the current company."""
-    return request.env['webvue.access.service']._webvue_has_capability(request.env.user, capability)
+def can(capability, record):
+    """Whether the caller holds ``capability`` in this recruitment record's company."""
+    return request.env['webvue.access.service']._webvue_has_capability(
+        request.env.user, capability, record=record,
+    )
 
 
 def scoped_record(model, record_id, *, active_test=True):
