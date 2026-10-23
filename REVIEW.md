@@ -15,8 +15,13 @@ reports and blocking findings prevent success. Findings remain visible on GitHub
 
 A stored Claude report is a blocker record only: it cannot turn a later failed or
 missing review into success, and a stored clean report does not skip Codex.
-A Codex reaction alone never completes review. A completed formal review for the
-current head is required; P0/P1/P2 findings in its body or inline comments block.
+A Codex reaction or free-text receipt alone never completes review. Require either
+a completed formal review for the current head, or the native Codex bot's
+machine-readable review summary with that full head SHA, completed status and
+explicit boolean findings fields. Any findings in a summary block; a clean summary
+never clears formal change requests, P0/P1/P2 body or inline findings, or unknown
+current inline provenance. Inline findings belong to their immutable formal review,
+not GitHub's remapped anchor commit.
 Claude cannot approve PRs or current commits authored by Claude or generic GitHub
 Actions automation. Those heads require Codex; unavailability keeps the gate
 blocked rather than letting the repair model review its own changes.
