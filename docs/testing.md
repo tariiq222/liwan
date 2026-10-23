@@ -18,7 +18,12 @@ webvue has four test layers. Pick the cheapest one that proves the change.
 
 ## Fast local loop
 
-Use these while iterating; `npm test` and the `ci` workflow stay binding before a merge.
+Run focused local checks for the changed behavior and affected interfaces.
+GitHub Actions runs the complete required suite and owns the final merge gate;
+do not repeat the full local suite for each change. Additional local checks are
+for diagnosing failures or covering material behavior CI does not exercise.
+Keep every required GitHub check and report local and remote evidence separately.
+The complete `npm test` sequence remains binding in CI before merge.
 
 | Command | What it does |
 | --- | --- |
