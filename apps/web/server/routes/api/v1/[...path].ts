@@ -25,9 +25,11 @@ export default defineEventHandler(async (event) => {
   }
   if (!publicMethods) await requireApiSession(event, odooUrl, headers)
   // Body credits are separate from Odoo work slots and retained through dispatch.
-  return withTenantBody(event, async () => {
+  // Public routes skip session admission, so they draw on the separate public pool.
+  const scope = publicMethods ? 'public' : 'session'
+  return withTenantBody(event, scope, async () => {
     const body = await boundedTenantBody(event, apiPath === '/api/v1/auth/totp' ? MAX_PUBLIC_MFA_BODY : undefined)
-    return withTenantResponse(event, async () => Object.keys(headers).length
+    return withTenantResponse(event, scope, async () => Object.keys(headers).length
       ? sendWebResponse(event, await tenantTransport(event, odooUrl, event.path, { method: event.method, body }))
       : sendWebResponse(event, await legacyTenantResponse(event, odooUrl, event.path, { method: event.method, body, headers: getProxyRequestHeaders(event, { host: false }) })))
   })

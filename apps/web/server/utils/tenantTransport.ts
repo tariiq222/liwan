@@ -213,22 +213,25 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   }
 }
 
-const acquireBody = createBodyAdmission()
+/** `public` is the separate small pool for requests that skip session admission. */
+export type AdmissionScope = 'session' | 'public'
+
+const acquireBody = { session: createBodyAdmission('session'), public: createBodyAdmission('public') }
 
 /** Keep memory credit while reading, waiting for upstream admission and forwarding. */
-export async function withTenantBody<T>(event: H3Event, run: () => Promise<T>): Promise<T> {
+export async function withTenantBody<T>(event: H3Event, scope: AdmissionScope, run: () => Promise<T>): Promise<T> {
   let releaseBody: (() => void) | undefined
   try {
-    releaseBody = await acquireBody(event.node.req, event.node.res)
+    releaseBody = await acquireBody[scope](event.node.req, event.node.res)
     return await run()
   } catch (error) { throw createError(error as Error) } finally { releaseBody?.() }
 }
 
-const responseAdmission = createResponseAdmission()
+const responseAdmission = { session: createResponseAdmission('session'), public: createResponseAdmission('public') }
 
 /** Own response capacity until native work and the downstream HTTP output settle. */
-export async function withTenantResponse<T>(event: H3Event, run: () => Promise<T>): Promise<T> {
-  try { return await responseAdmission(event.node.req, event.node.res, run) }
+export async function withTenantResponse<T>(event: H3Event, scope: AdmissionScope, run: () => Promise<T>): Promise<T> {
+  try { return await responseAdmission[scope](event.node.req, event.node.res, run) }
   catch (error) { throw createError(error as Error) }
 }
 

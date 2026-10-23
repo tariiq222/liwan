@@ -9,14 +9,49 @@ import { createError, getCookie, type H3Event } from 'h3'
 // authenticates and authorizes every forwarded operation, including cached IDs.
 const verified = new Map<string, number>()
 const pending = new Map<string, Promise<void>>()
+// Sessions the upstream definitively rejected. A forged-cookie flood costs one probe per
+// key per window instead of one per request. Unavailable outcomes are never recorded.
+const rejected = new Map<string, number>()
 const MAX_VERIFIED = 512
+const MAX_REJECTED = 128
 const TTL_MS = 15_000
+const REJECTED_TTL_MS = 5_000
 // Both deployed Odoo topologies have two HTTP workers. Keep one available
 // for verified application work even while an unknown session probe stalls.
 const MAX_CHECKS = 1
+// Probes beyond the lane wait in a bounded FIFO queue instead of failing at once, so
+// concurrent honest re-validations and a forged-cookie flood cannot starve each other.
+const MAX_WAITERS = 32
+const WAIT_MS = 2_000
 let checking = 0
+const laneQueue: Array<() => void> = []
 const unavailable = () => createError({ statusCode: 503, data: { code: 'session_validation_unavailable', message: 'Session validation is temporarily unavailable.' } })
 const required = () => createError({ statusCode: 403, data: { code: 'session_required', message: 'A valid session is required.' } })
+const busy = () => createError({ statusCode: 429, data: { code: 'session_admission_busy', message: 'Session validation is busy. Try again shortly.' } })
+
+function remember(cache: Map<string, number>, max: number, key: string, ttl: number) {
+  if (cache.size >= max) cache.delete(cache.keys().next().value!)
+  cache.set(key, Date.now() + ttl)
+}
+
+function acquireLane(): Promise<void> {
+  if (checking < MAX_CHECKS) { checking++; return Promise.resolve() }
+  if (laneQueue.length >= MAX_WAITERS) return Promise.reject(busy())
+  return new Promise((resolve, reject) => {
+    const resume = () => { clearTimeout(timer); resolve() }
+    const timer = setTimeout(() => {
+      laneQueue.splice(laneQueue.indexOf(resume), 1)
+      reject(busy())
+    }, WAIT_MS)
+    laneQueue.push(resume)
+  })
+}
+
+// A released lane passes straight to the next waiter, which keeps `checking` unchanged.
+function releaseLane(): void {
+  const next = laneQueue.shift()
+  if (next) next(); else checking--
+}
 
 export async function requireApiSession(event: H3Event, upstream: string, binding: Record<string, string>): Promise<void> {
   const session = getCookie(event, 'session_id')?.trim()
@@ -25,11 +60,14 @@ export async function requireApiSession(event: H3Event, upstream: string, bindin
   const key = createHash('sha256').update(JSON.stringify([upstream, identityBinding, session])).digest('hex')
   if ((verified.get(key) ?? 0) > Date.now()) return
   verified.delete(key)
+  if ((rejected.get(key) ?? 0) > Date.now()) throw required()
+  rejected.delete(key)
   const existing = pending.get(key)
   if (existing) return existing
-  if (checking >= MAX_CHECKS) throw createError({ statusCode: 429, data: { code: 'session_admission_busy', message: 'Session validation is busy. Try again shortly.' } })
+  // Registered before waiting for the lane, so identical keys share this one probe and
+  // reuse its verified or rejected result instead of probing again.
   const check = (async () => {
-    checking++
+    await acquireLane()
     try {
       const target = new URL('/api/v1/me', upstream)
       if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password) throw required()
@@ -68,10 +106,9 @@ export async function requireApiSession(event: H3Event, upstream: string, bindin
         request.end()
       })
       if (valid === 'unavailable') throw unavailable()
-      if (!valid) throw required()
-      if (verified.size >= MAX_VERIFIED) verified.delete(verified.keys().next().value!)
-      verified.set(key, Date.now() + TTL_MS)
-    } finally { checking-- }
+      if (!valid) { remember(rejected, MAX_REJECTED, key, REJECTED_TTL_MS); throw required() }
+      remember(verified, MAX_VERIFIED, key, TTL_MS)
+    } finally { releaseLane() }
   })()
   pending.set(key, check)
   try { await check } finally { pending.delete(key) }

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 const proxyMock = vi.hoisted(() => vi.fn().mockResolvedValue(new Response('{}')))
 const transport = vi.hoisted(() => vi.fn().mockResolvedValue(new Response('{}')))
-vi.mock('../tenantTransport', () => ({ tenantTransport: transport, legacyTenantResponse: proxyMock, MAX_PUBLIC_MFA_BODY: 1024, boundedTenantBody: async () => undefined, withTenantBody: async (_event: unknown, run: () => unknown) => run(), withTenantResponse: async (_event: unknown, run: () => unknown) => run(), withUpstreamSlot: async (run: (signal: AbortSignal) => unknown) => run(new AbortController().signal) }))
+vi.mock('../tenantTransport', () => ({ tenantTransport: transport, legacyTenantResponse: proxyMock, MAX_PUBLIC_MFA_BODY: 1024, boundedTenantBody: async () => undefined, withTenantBody: async (_event: unknown, _scope: unknown, run: () => unknown) => run(), withTenantResponse: async (_event: unknown, _scope: unknown, run: () => unknown) => run(), withUpstreamSlot: async (run: (signal: AbortSignal) => unknown) => run(new AbortController().signal) }))
 vi.mock('../apiSessionAdmission', () => ({ requireApiSession: async (event: { node: { req: { headers: { cookie?: string } } } }) => { if (!event.node.req.headers.cookie) { const error = Object.assign(new Error('session_required'), { statusCode: 403, data: { code: 'session_required' } }); throw error } } }))
 vi.mock('h3', async importOriginal => ({ ...await importOriginal<typeof import('h3')>(), sendWebResponse: vi.fn(), sendProxy: (...args: unknown[]) => proxyMock(...args), getProxyRequestHeaders: () => ({}) }))
 

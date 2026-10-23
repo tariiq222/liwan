@@ -1,7 +1,11 @@
 /** Fixed operator memory budget, independent of tenant count and Odoo workers. */
 const BUFFER_TIMEOUT = 15_000
-const ACTIVE_BUFFERS = 4
-const QUEUED_BUFFERS = 64
+/** Unauthenticated traffic (login, MFA, branding) has its own small pool so it can never
+ * consume the credits that verified sessions depend on. */
+const POOL_LIMITS = {
+  session: { active: 4, queued: 64 },
+  public: { active: 2, queued: 16 },
+}
 
 const bufferAdmissionFailure = () => Object.assign(Error('tenant_upstream_unavailable'), {
   statusCode: 502,
@@ -13,12 +17,16 @@ function closeAfterError(res) { if (!res.headersSent && !res.destroyed) res.setH
  * @param {import('node:http').ServerResponse} res */
 function disconnected(req, res) { return req.aborted || (res.destroyed && !res.writableEnded) }
 
+/** @typedef {keyof typeof POOL_LIMITS} AdmissionPool */
+
 /** One pool per buffering hop/process, never per tenant. The owner releases only after
  * its callback/forwarder settles, so completed bodies waiting for work retain credit.
  * @param {boolean} skipBodyless
+ * @param {AdmissionPool} pool
  * @returns {(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => Promise<() => void>}
  */
-function createAdmission(skipBodyless) {
+function createAdmission(skipBodyless, pool) {
+  const { active: maxActive, queued: maxQueued } = POOL_LIMITS[pool]
   let active = 0
   /** @type {Array<() => void>} */
   const waiting = []
@@ -27,8 +35,8 @@ function createAdmission(skipBodyless) {
   return (req, res) => {
     if (skipBodyless && ['GET', 'HEAD'].includes(req.method ?? 'GET')) return Promise.resolve(() => {})
     if (disconnected(req, res)) return Promise.reject(bufferAdmissionFailure())
-    if (active < ACTIVE_BUFFERS) { active++; return Promise.resolve(credit()) }
-    if (waiting.length >= QUEUED_BUFFERS) { closeAfterError(res); return Promise.reject(bufferAdmissionFailure()) }
+    if (active < maxActive) { active++; return Promise.resolve(credit()) }
+    if (waiting.length >= maxQueued) { closeAfterError(res); return Promise.reject(bufferAdmissionFailure()) }
     return new Promise((resolve, reject) => {
       const cleanup = () => {
         clearTimeout(timer)
@@ -50,14 +58,16 @@ function createAdmission(skipBodyless) {
   }
 }
 
-/** Incoming-body pools do not consume credits for GET/HEAD. */
-export function createBodyAdmission() { return createAdmission(true) }
+/** Incoming-body pools do not consume credits for GET/HEAD.
+ * @param {AdmissionPool} [pool] */
+export function createBodyAdmission(pool = 'session') { return createAdmission(true, pool) }
 
 /** Response buffers belong to both the operation and its actual HTTP output.
  * H3's native Response sender can settle before ServerResponse drains.
+ * @param {AdmissionPool} [pool]
  */
-export function createResponseAdmission() {
-  const acquire = createAdmission(false)
+export function createResponseAdmission(pool = 'session') {
+  const acquire = createAdmission(false, pool)
   /** @template T
    * @param {import('node:http').IncomingMessage} req
    * @param {import('node:http').ServerResponse} res

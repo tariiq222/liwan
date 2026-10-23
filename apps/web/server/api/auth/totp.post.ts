@@ -4,7 +4,7 @@ import { authUpstreamHeaders } from '../../utils/authUpstreamHeaders'
 
 export default defineEventHandler(async (event) => {
   assertSameSiteJson(event)
-  return withTenantBody(event, async () => {
+  return withTenantBody(event, 'public', async () => {
     const { code } = await boundedTenantJson<{ code?: string }>(event, MAX_PUBLIC_MFA_BODY)
     const { odooUrl, authProxyClientIpHeader } = useRuntimeConfig(event)
 
