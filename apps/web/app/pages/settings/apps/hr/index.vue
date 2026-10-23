@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LeaveSettingsForm from '@/components/hr/LeaveSettingsForm.vue'
 import ShiftSettingsForm from '@/components/hr/shifts/ShiftSettingsForm.vue'
 import EosCaseMapTable from '@/components/hr/payroll/EosCaseMapTable.vue'
 import PayrollCostCenterTable from '@/components/hr/payroll/PayrollCostCenterTable.vue'
@@ -18,14 +19,27 @@ import { saveErrorMessage } from '@/utils/formFeedback'
 const { t } = useI18n()
 const { can } = useAccess()
 const { parts, shows } = useSettingsPage('hr')
+const leaveSettings = useHrLeaveSettings(() => shows('leave'))
+async function reloadLeaveSettings() {
+  const response = await leaveSettings.refetch({ throwOnError: true })
+  if (!response.data) throw new Error(t('errors.generic'))
+  return response.data
+}
+const canConfigLeave = computed(() => can('hr.leave.config'))
 const shiftSettings = useHrShiftSettings(() => shows('shifts'))
+async function reloadShiftSettings() {
+  const result = await shiftSettings.refetch()
+  if (result.isError) throw result.error
+  if (!result.data) throw new Error('Shift settings are unavailable')
+  return result.data
+}
 const canManageShifts = computed(() => can('hr.shifts.manage'))
 const canConfig = computed(() => can('hr.payroll.config'))
 const settings = useHrPayrollSettings()
 const rates = useHrGosiRates()
-const bankProfiles = useHrBankProfiles()
+const bankProfiles = useHrBankProfiles(() => shows('payroll') && can('hr.payroll.read'))
 // The leave pickers need the leave catalog; without leave access they are empty and the rest of the page still works.
-const leaveTypes = useHrLeaveTypes()
+const leaveTypes = useHrLeaveTypes(() => shows('payroll') && can('hr.leave.read'))
 const leaveTypeRefs = computed(() => (leaveTypes.data.value?.items ?? []).map(type => ({ id: type.id, name: type.name })))
 const finance = useHrPayrollFinanceSettings()
 const financeSettings = computed(() => finance.data.value)
@@ -36,9 +50,9 @@ const financeError = computed(() => {
 })
 const canSetup = computed(() => can('finance.setup.manage'))
 const canAnalytic = computed(() => can('finance.analytic.manage'))
-const lookups = useHrPayrollFinanceLookups({ mapping: () => !!financeSettings.value && canSetup.value, analytic: () => !!financeSettings.value && (canSetup.value || canAnalytic.value) })
+const lookups = useHrPayrollFinanceLookups({ mapping: () => shows('payroll') && !!financeSettings.value && canSetup.value, analytic: () => shows('payroll') && !!financeSettings.value && (canSetup.value || canAnalytic.value) })
 const truncated = computed(() => [lookups.accounts, lookups.journals, lookups.analyticAccounts].some(lookup => isTruncated(lookup.data.value)))
-const centers = useHrPayrollCostCenters(() => !!financeSettings.value)
+const centers = useHrPayrollCostCenters(() => shows('payroll') && !!financeSettings.value)
 const setCenter = useSetHrPayrollCostCenter()
 const savingCenters = ref<number[]>([])
 const centerFailure = ref<unknown>(null)
@@ -109,9 +123,14 @@ function retry() {
       </SharedFormSection>
     </SharedPageState>
     </section>
+    <section v-if="shows('leave')" id="leave" class="webvue-settings-anchor">
+      <SharedPageState :loading="leaveSettings.isLoading.value" :error="leaveSettings.error.value" :empty="!leaveSettings.data.value" :keep-content="!!leaveSettings.data.value" @retry="leaveSettings.refetch">
+        <LeaveSettingsForm v-if="leaveSettings.data.value" :settings="leaveSettings.data.value" :can-edit="canConfigLeave" :reload-settings="reloadLeaveSettings" />
+      </SharedPageState>
+    </section>
     <section v-if="shows('shifts')" id="shifts" class="webvue-settings-anchor">
-      <SharedPageState :loading="shiftSettings.isLoading.value" :error="shiftSettings.error.value" :empty="!shiftSettings.data.value" @retry="shiftSettings.refetch">
-        <ShiftSettingsForm v-if="shiftSettings.data.value" :settings="shiftSettings.data.value" :can-edit="canManageShifts" @reload="shiftSettings.refetch" />
+      <SharedPageState :loading="shiftSettings.isLoading.value" :error="shiftSettings.data.value ? null : shiftSettings.error.value" :empty="!shiftSettings.data.value" @retry="shiftSettings.refetch">
+        <ShiftSettingsForm v-if="shiftSettings.data.value" :settings="shiftSettings.data.value" :can-edit="canManageShifts" :reload-settings="reloadShiftSettings" />
       </SharedPageState>
     </section>
     </template>

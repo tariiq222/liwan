@@ -191,8 +191,20 @@ export function useHrShiftSettings(enabled: MaybeRefOrGetter<boolean> = true) {
 export function usePatchHrShiftSettings() {
   const qc = useQueryClient()
   const { $api } = useApi()
+  const identity = useHrOwnIdentity()
   return useMutation({
+    onMutate: () => identity.scope.value,
     mutationFn: (body: HrShiftSettingsPatch) => $api('/api/v1/hr/shifts/settings', { method: 'PATCH', body, schema: HrShiftSettingsSchema }),
-    onSuccess: () => refreshShifts(qc),
+    onSuccess: async (settings, _body, scope) => {
+      if (!identity.ready.value || !scope || scope.companyId !== identity.scope.value.companyId || scope.userId !== identity.scope.value.userId) return
+      const key = [...hrShiftKeys.settings, scope]
+      // An earlier focus/refetch must not overwrite the authoritative write response.
+      await qc.cancelQueries({ queryKey: key, exact: true })
+      if (!identity.ready.value || scope.companyId !== identity.scope.value.companyId || scope.userId !== identity.scope.value.userId) return
+      qc.setQueryData(key, settings)
+      // The complete PATCH response is authoritative. Mark related views stale
+      // without making this successful save depend on another network request.
+      await qc.invalidateQueries({ queryKey: hrShiftKeys.all, refetchType: 'none' })
+    },
   })
 }

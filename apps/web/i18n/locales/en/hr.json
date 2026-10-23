@@ -249,7 +249,8 @@
         "label": "Request scope",
         "mine": "My requests",
         "pending": "Awaiting approval",
-        "all": "All requests"
+        "all": "All requests",
+        "cancellations": "Cancellation requests"
       },
       "empty": {
         "mine": "You have no leave requests",
@@ -311,6 +312,24 @@
         "validToHint": "Leave empty when the balance does not expire.",
         "submit": "Grant balance",
         "noTypes": "No leave types use a balance"
+      },
+      "requestCancellation": "Request cancellation",
+      "approveCancellation": "Approve cancellation",
+      "refuseCancellation": "Refuse cancellation",
+      "managerCancel": "Cancel as manager",
+      "requestCancellationConfirm": "Request cancellation of {type} for {employee} ({period})? The leave stays approved until a manager decides.",
+      "approveCancellationConfirm": "Approve cancellation of {type} for {employee} ({period})?",
+      "refuseCancellationConfirm": "Refuse cancellation of {type} for {employee} ({period})?",
+      "managerCancelConfirm": "Cancel {type} for {employee} ({period}) as manager?",
+      "reasonRequired": "Reason (required)",
+      "cancellationTitle": "Cancellation request",
+      "cancellationInitiator": "Initiated by {name}",
+      "cancellationReviewer": "Reviewed by {name}",
+      "cancellationConflict": "This leave or cancellation changed. The latest details were loaded; review them before trying again.",
+      "cancellationStates": {
+        "pending": "Cancellation pending",
+        "approved": "Cancellation approved",
+        "refused": "Cancellation refused"
       }
     },
     "shiftSettings": {
@@ -339,6 +358,22 @@
       "noEmployeeHint": "Your account needs an employee profile in the current company to use employment services.",
       "balance": "{name}: {days} days remaining",
       "approvedPayslips": "Approved payslips"
+    },
+    "leaveSettings": {
+      "title": "Leave cancellation policy",
+      "hint": "Choose how approved leave is cancelled in this company. Pending requests keep their approval requirement when the policy changes.",
+      "reference": "Approved leave cancellation",
+      "defaultHint": "The default requires manager approval. Pending leave withdrawal is unchanged.",
+      "managerApproval": "Employee requests, manager approves (default)",
+      "directEmployee": "Employee cancels directly",
+      "managerOnly": "Only a manager can cancel",
+      "managerApprovalHint": "A request leaves the approved leave and balance unchanged until an authorized manager approves cancellation.",
+      "directEmployeeHint": "Employees can cancel their own eligible approved leave immediately. A pending request still needs a manager decision.",
+      "managerOnlyHint": "Employees cannot initiate cancellation. An authorized manager can cancel another employee’s eligible approved leave.",
+      "conflict": "The policy changed. Your draft is retained; reload the latest policy before saving.",
+      "saveError": "Unable to save leave policy",
+      "reload": "Reload policy",
+      "reloadError": "Unable to reload. Your draft and conflict were retained."
     }
   }
 }

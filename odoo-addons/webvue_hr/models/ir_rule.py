@@ -2,6 +2,8 @@
 from odoo import api, models
 from odoo.fields import Domain
 
+from .leave_cancellation import PENDING_PROBE_MARKER
+
 
 class WebVueHrIrRule(models.Model):
     _inherit = 'ir.rule'
@@ -34,3 +36,10 @@ class WebVueHrIrRule(models.Model):
                        & (Domain(owner_field, 'in', sorted(staff_ids))
                           | Domain('employee_id.user_id', '=', self.env.uid)))
         return domain
+
+    def _compute_domain_context_values(self):
+        yield from super()._compute_domain_context_values()
+        # Record-rule domains are cached beyond a cursor marker's lifetime.
+        # Keep the private exact-leave boolean probe out of ordinary rule keys;
+        # client context cannot create or reuse this cursor-only marker.
+        yield tuple(sorted(self.env.cr.precommit.data.get(PENDING_PROBE_MARKER, ())))

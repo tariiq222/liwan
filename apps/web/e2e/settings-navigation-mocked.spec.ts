@@ -371,6 +371,7 @@ test('shift settings default to company timezone and save the user reference wit
       await route.fulfill({ json: { day_reference: 'user', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 1 } })
       return
     }
+    if (submitted) { await route.abort('failed'); return }
     await route.fulfill({ json: jsonFor('/api/v1/hr/shifts/settings') })
   })
   const reference = page.locator('#shift-day-reference')
@@ -383,7 +384,64 @@ test('shift settings default to company timezone and save the user reference wit
   await save.click()
   await expect.poll(() => submitted).toEqual({ day_reference: 'user', revision: 0 })
   await expect(save).toBeDisabled()
+  await expect(reference).toBeVisible()
+  await expect(reference).toContainText('المنطقة الزمنية لكل مستخدم')
   await page.setViewportSize({ width: 390, height: 844 })
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: testInfo.outputPath('shift-day-settings-mobile-rtl.png'), fullPage: true })
+})
+
+
+test('shift conflict keeps the draft through a failed and delayed reload, then saves the fetched revision', async ({ page }) => {
+  await openApp(page, '/settings/apps/hr#shifts')
+  const reference = page.locator('#shift-day-reference')
+  await expect(reference).toBeEnabled()
+  let submitted: Record<string, unknown> | null = null
+  let patches = 0
+  let reads = 0
+  let allowReload = false
+  let releaseReload!: () => void
+  const reloadReady = new Promise<void>(resolveReady => { releaseReload = resolveReady })
+  await page.route('**/api/v1/hr/shifts/settings', async route => {
+    if (route.request().method() === 'PATCH') {
+      patches += 1
+      submitted = route.request().postDataJSON()
+      await route.fulfill(patches === 1
+        ? { status: 409, json: { code: 'conflict', message: 'Settings changed' } }
+        : { json: { ...(jsonFor('/api/v1/hr/shifts/settings') as object), day_reference: 'user', revision: 5 } })
+      return
+    }
+    reads += 1
+    if (!allowReload) { await route.fulfill({ status: 503, json: { code: 'unavailable', message: 'Offline' } }); return }
+    await reloadReady
+    await route.fulfill({ json: { ...(jsonFor('/api/v1/hr/shifts/settings') as object), revision: 4 } })
+  })
+  await reference.click()
+  await page.getByRole('option', { name: 'المنطقة الزمنية لكل مستخدم', exact: true }).click()
+  const save = page.getByRole('button', { name: 'حفظ التغييرات', exact: true })
+  await save.click()
+  const reload = page.getByRole('button', { name: 'تجاهل التعديل وأعد التحميل', exact: true })
+  await expect(reload).toBeVisible()
+  await reload.click()
+  await expect.poll(() => reads).toBeGreaterThan(0)
+  await expect(reload).toBeEnabled()
+  await expect(reference).toContainText('المنطقة الزمنية لكل مستخدم')
+  await expect(reference).toBeDisabled()
+  await expect(save).toBeDisabled()
+  const failedReads = reads
+  allowReload = true
+  await reload.click()
+  await expect.poll(() => reads).toBeGreaterThan(failedReads)
+  await expect(reload).toBeDisabled()
+  await expect(reference).toContainText('المنطقة الزمنية لكل مستخدم')
+  await expect(save).toBeDisabled()
+  releaseReload()
+  await expect(reload).toHaveCount(0)
+  await expect(reference).toBeEnabled()
+  await expect(reference).toContainText('المنطقة الزمنية للشركة (الافتراضي)')
+  await reference.click()
+  await page.getByRole('option', { name: 'المنطقة الزمنية لكل مستخدم', exact: true }).click()
+  await save.click()
+  await expect.poll(() => submitted).toEqual({ day_reference: 'user', revision: 4 })
+  await expect(save).toBeDisabled()
 })
