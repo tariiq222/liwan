@@ -2,7 +2,7 @@
 from odoo import http
 from odoo.http import request
 
-from .common import can, company_relation, scoped_record
+from .common import can, company_relation, current_company, scoped_record
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -40,9 +40,9 @@ def _dump_job(job):
     )
 
 
-def _validate_job_relations(vals):
+def _validate_job_relations(vals, company):
     if vals.get('department_id'):
-        company_relation('hr.department', vals['department_id'], 'department_id')
+        company_relation('hr.department', vals['department_id'], 'department_id', company=company)
 
 
 class HrRecruitmentJobController(http.Controller):
@@ -92,7 +92,7 @@ class HrRecruitmentJobController(http.Controller):
     @requires_capability('hr.recruitment.manage')
     def create_job(self, **payload):
         vals = parse_job_vals(payload, create=True)
-        _validate_job_relations(vals)
+        _validate_job_relations(vals, current_company())
         job = request.env['hr.job'].create(vals)
         return request.make_json_response(dump_job(job, 0, include_department=can('hr.departments.read')), status=201)
 
@@ -104,7 +104,7 @@ class HrRecruitmentJobController(http.Controller):
         job = scoped_record('hr.job', job_id, active_test=False)
         payload.pop('job_id', None)
         vals = parse_job_vals(payload, create=False)
-        _validate_job_relations(vals)
+        _validate_job_relations(vals, job.company_id)
         job.write(vals)
         return _dump_job(job)
 

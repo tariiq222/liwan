@@ -2,7 +2,7 @@
 from odoo import http
 from odoo.http import request
 
-from .common import can, company_relation, current_company, scoped_record, stage_of
+from .common import can, company_relation, scoped_record, stage_of
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -92,12 +92,11 @@ class HrRecruitmentApplicantController(http.Controller):
     @requires_capability('hr.recruitment.manage')
     def create_applicant(self, **payload):
         vals = parse_applicant_create(payload)
-        vals['job_id'] = company_relation('hr.job', vals['job_id'], 'job_id').id
-        # The route's company scoping also fixes the applicant's company. The stock compute
-        # would derive it from the job (already validated to be of the current company) by
-        # reading the department, which a caller without hr.departments.read may not read;
-        # writing it here keeps the record company-scoped and its own list complete.
-        vals['company_id'] = current_company().id
+        job = company_relation('hr.job', vals['job_id'], 'job_id')
+        vals['job_id'] = job.id
+        # Preserve the selected job's owner, including an authorized branch. An explicit
+        # value avoids stock's department read for recruiters without department access.
+        vals['company_id'] = job.company_id.id
         applicant = request.env['hr.applicant'].create(vals)
         return request.make_json_response(_dump(applicant), status=201)
 

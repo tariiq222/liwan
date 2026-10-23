@@ -2,8 +2,8 @@
 """/api/v1/hr/leave: the WebVue surface over stock hr_holidays.
 
 Approval rules, balances, state changes and record visibility stay in
-hr_holidays; this controller only checks the WebVue capability, scopes every
-query to the current company and serializes a whitelisted shape.
+hr_holidays; this controller checks the WebVue capability, scopes queries to
+authorized companies and validates relations against their selected owner.
 """
 from odoo import http
 from odoo.exceptions import MissingError
@@ -98,18 +98,18 @@ def _target_employee(employee_id):
     return employee
 
 
-def _leave_types_domain():
+def _leave_types_domain(company=None):
     """The leave types hr_holidays offers this company: its own and shared ones, of its country or global."""
-    company = request.env.company
+    company = company if company is not None else request.env.company
     return [
         ('company_id', 'in', [company.id, False]),
         ('country_id', 'in', [company.country_id.id, False] if company.country_id else [False]),
     ]
 
 
-def _leave_type(leave_type_id):
+def _leave_type(leave_type_id, company):
     leave_type = request.env['hr.leave.type'].search(
-        [('id', '=', leave_type_id), *_leave_types_domain()], limit=1,
+        [('id', '=', leave_type_id), *_leave_types_domain(company)], limit=1,
     )
     if not leave_type:
         raise ApiError(422, 'invalid', 'leave_type_id is not available', field='leave_type_id')
@@ -162,7 +162,7 @@ class HrLeaveController(http.Controller):
         employee_id = parse_positive_int(raw, 'employee_id') if raw not in (None, '') else None
         employee = _target_employee(employee_id)
         types = request.env['hr.leave.type'].search(
-            [*_leave_types_domain(), ('requires_allocation', '=', True)], order='sequence, id',
+            [*_leave_types_domain(employee.company_id), ('requires_allocation', '=', True)], order='sequence, id',
         )
         # Like hr_holidays' own dashboard, only the types the employee holds a balance in.
         data = types.get_allocation_data(employee)[employee]
@@ -206,7 +206,7 @@ class HrLeaveController(http.Controller):
         _require('hr.leave.request')
         vals = parse_leave_request(payload)
         employee = _target_employee(vals['employee_id'])
-        leave_type = _leave_type(vals['leave_type_id'])
+        leave_type = _leave_type(vals['leave_type_id'], employee.company_id)
         leave = request.env['hr.leave'].create({
             'employee_id': employee.id,
             'holiday_status_id': leave_type.id,
@@ -272,7 +272,9 @@ class HrLeaveController(http.Controller):
         _require('hr.leave.manage')
         vals = parse_allocation(payload)
         employee = _company_employee(vals['employee_id'])
-        leave_type = _leave_type(vals['leave_type_id'])
+        if not _can('hr.leave.manage', employee):
+            raise ApiError(403, 'forbidden', 'hr.leave.manage capability is required')
+        leave_type = _leave_type(vals['leave_type_id'], employee.company_id)
         if not leave_type.requires_allocation:
             raise ApiError(422, 'invalid', 'this leave type does not use allocations', field='leave_type_id')
         allocation = request.env['hr.leave.allocation'].create({
