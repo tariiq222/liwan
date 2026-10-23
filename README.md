@@ -25,20 +25,17 @@ See [the hosting contract](docs/superpowers/specs/webvue-shared-saas-and-soverei
 and [WORKSPACE.md](docs/WORKSPACE.md) for implementation and acceptance evidence;
 the product vision does not establish production readiness.
 
-Integration into `main` is a GitHub pull request; the `ci` workflow (`.github/workflows/ci.yml`) is the only gate
-and merges the PR when it passes (until the first server deployment). See the
-[testing guide](docs/testing.md#ci-workflow). Agents do not push without the owner's authorization.
+Integration into `main` uses a protected GitHub pull request under the [integration policy](docs/agents/integration-rules.md). Delivery requires current-head `ci-result`, `code-review` and `delivery-policy`, an up-to-date branch and resolved conversations; sensitive changes also require the owner's exact-head approval. CI success alone does not authorize a merge. See the [testing guide](docs/testing.md#ci-workflow) for check scope. Publication and production deployment retain their separate authorization requirements.
 
 ## Current product
 
-This unified checkout contains the PMO, HR and access administration surfaces:
+The following is a partial overview of implemented surfaces, not a complete release inventory or evidence of readiness:
 
 - Tasks at `/tasks`, including personal stages, board and table views,
   timelines, comments, task updates, and real-time bus updates.
 - Projects at `/projects`, including project tasks, stages, milestones, status
   updates, followers, archive actions, tags, and project settings.
-- The HR directory at `/hr`, including company-wide employee cards, department
-  hierarchy, employee archive controls, and department documents.
+- HR at `/hr`, including employees, departments, leave, recruitment, shifts, onboarding/offboarding, assets and payroll. Payroll is a section of `webvue_hr`, not a separate application addon; its dedicated capabilities and release gates remain binding. See the [payroll gates](docs/WORKSPACE.md#الرواتب-السعودية-بوابات-الإطلاق-المفتوحة).
   HR routes live under `/api/v1/hr/*` and use employee ids. The PMO assignee
   picker at `/api/v1/people` remains a user-id resource.
 - Access administration at `/settings/team/users`, roles and audit with capability
@@ -69,7 +66,9 @@ Run the two services with isolated values for each worktree:
 ```sh
 # Odoo, from the read-only upstream checkout
 cd /Users/tariq/code/odoo
-.venv/bin/python odoo-bin -c /Users/tariq/code/odoo/odoo.conf \
+# Use your scratch-only config and unique allocated database/ports.
+# Keep data_dir and logfile outside the read-only upstream checkout.
+.venv/bin/python odoo-bin -c /absolute/path/to/scratch-only.conf \
   --addons-path=/Users/tariq/code/odoo/addons,/path/to/webvue-worktree/odoo-addons,$(python3 -B /path/to/webvue-worktree/tools/oca_addons.py path) \
   -d webvue_scratch --http-port=8169
 
@@ -78,11 +77,11 @@ cd /path/to/webvue-worktree
 NUXT_ODOO_URL=http://127.0.0.1:8169 \
 NUXT_ODOO_DB=webvue_scratch \
 NUXT_PUBLIC_WS_URL=ws://localhost:8169/websocket \
-npm -w apps/web run dev -- --port 3100
+npm -w apps/web run dev -- --port 3200
 ```
 
 Use a unique Odoo database and HTTP port, and a matching Nuxt port, for every
-active worktree. Install dependencies independently in each worktree with
+active worktree; the numbers above are examples, not allocations. Ports `3100` and `3103` are reserved for vendor administration and its live-proof build; follow [parallel-work.md](docs/parallel-work.md) and check current claims before choosing others. Install dependencies independently in each worktree with
 `npm ci --ignore-scripts`; use the local cache when working offline. Do not
 share `node_modules` or `.nuxt` through symlinks. Never run tests against the
 production-style `odoo19` database.
