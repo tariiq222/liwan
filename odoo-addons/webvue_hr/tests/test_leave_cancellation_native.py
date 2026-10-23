@@ -75,7 +75,7 @@ class TestLeaveCancellationNative(LeaveCancellationCase):
         self.env['webvue.access.service']._webvue_replace_assignments(self.employee, [])
         with self.assertRaises(AccessError):
             request.with_user(self.manager).action_approve(request.revision)
-        self.assertEqual((request.state, leave.state), ('pending', 'validate'))
+        self.assertEqual((request.with_user(self.manager).state, leave.state), ('pending', 'validate'))
 
     def test_direct_employee_policy_uses_native_owner(self):
         self.env['webvue.hr.leave.settings'].with_user(self.manager).action_save('direct_employee', 0)

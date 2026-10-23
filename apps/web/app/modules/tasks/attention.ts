@@ -32,6 +32,7 @@ export const myTasksAttention: AppAttentionProvider = {
       if (!due) continue
       rows.push({
         id: `task-${task.id}`,
+        recordKey: `task:${task.id}`,
         label: task.name,
         to: task.href,
         caption: t(`myTasks.attention.${due}`),
