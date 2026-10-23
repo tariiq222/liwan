@@ -107,7 +107,7 @@ class FinanceAssetController(http.Controller):
         if day > fields.Date.context_today(request.env['account.asset']):
             raise ApiError(422, 'invalid', 'date must not be in the future', field='date')
         assets = request.env['account.asset'].search([('company_id', 'in', request.env.companies.ids), ('state', '=', 'open')])
-        move_ids, error_log = attempt(lambda: assets._compute_entries(day, check_triggers=True), day=day)
+        move_ids, error_log = attempt(lambda: assets._compute_entries(day, check_triggers=True), day=day, company=assets.company_id)
         if error_log:
             raise ApiError(422, 'invalid', error_log.strip())
         moves = request.env['account.move'].browse(move_ids)

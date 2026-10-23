@@ -185,7 +185,7 @@ class FinancePaymentController(http.Controller):
 
         payments = _created_payments(attempt(
             register, day=parsed['payment_date'], journal=journal,
-            company=invoices.company_id if len(invoices.company_id) == 1 else request.env.company,
+            company=invoices.company_id,
         ))
         if len(payments) != 1:
             raise ApiError(422, 'invalid', 'these invoices cannot be paid with a single payment', field='invoice_ids')

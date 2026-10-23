@@ -61,10 +61,14 @@ def _zatca_blocks_posting(move):
 
 
 def is_period_locked(day, journal=None, has_tax=False, company=None):
-    """True when a lock date of the document company (current for creates) covers ``day`` for the user and ``journal``."""
+    """True when an actual document owner (current for creates) locks ``day``.
+
+    A record batch may supply several owners; native lock checks run separately
+    because ``_get_violated_lock_dates`` requires a singleton company.
+    """
     journal = journal or request.env['account.journal']
-    company = company if company is not None else request.env.company
-    return bool(day) and bool(company._get_violated_lock_dates(day, has_tax, journal))
+    companies = company if company is not None else request.env.company
+    return bool(day) and any(owner._get_violated_lock_dates(day, has_tax, journal) for owner in companies)
 
 
 def period_locked(field=None, details=None):
