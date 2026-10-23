@@ -4,6 +4,7 @@ from . import (
     attachments,
     directory,
     feature_registry,
+    ir_rule,
     operation_request,
     process,
 )

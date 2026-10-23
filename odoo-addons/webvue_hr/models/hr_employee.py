@@ -69,8 +69,11 @@ class WebVueHrEmployee(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
             and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
         ):
-            self._webvue_require_capability('hr.employees.read')
-            domain = Domain(domain) & Domain('company_id', '=', self.env.company.id)
+            service = self.env['webvue.access.service']
+            if not service._webvue_has_operation_capability(self.env.user, 'hr.employees.read'):
+                raise AccessError(EMPLOYEE_WRITE_ERROR)
+            pinned = service._webvue_operation_capability_company_ids('hr.employees.read')
+            domain = Domain(domain) & Domain('company_id', 'in', pinned)
         return super()._search(
             domain, offset=offset, limit=limit, order=order,
             active_test=active_test, bypass_access=bypass_access,
@@ -84,25 +87,33 @@ class WebVueHrEmployee(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
             and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
         ):
-            self._webvue_require_capability('hr.employees.read')
-            self._webvue_validate_scope()
+            service = self.env['webvue.access.service']
+            if not service._webvue_has_operation_capability(self.env.user, 'hr.employees.read'):
+                raise AccessError(EMPLOYEE_WRITE_ERROR)
+            self._webvue_validate_scope(read_capability='hr.employees.read')
         return super().check_access(operation)
 
     def _webvue_has_capability(self, capability):
-        return self.env['webvue.access.service']._webvue_has_capability(self.env.user, capability)
+        service = self.env['webvue.access.service']
+        return service._webvue_has_capability(
+            self.env.user, capability, company=service._webvue_native_hire_company(),
+        )
 
     def _webvue_require_capability(self, capability):
         if not self._webvue_has_capability(capability):
             raise AccessError(EMPLOYEE_WRITE_ERROR)
 
-    def _webvue_validate_scope(self):
+    def _webvue_validate_scope(self, read_capability=None):
         if not self.ids:
             return
+        service = self.env['webvue.access.service']
+        pinned = (service._webvue_operation_capability_company_ids(read_capability) if read_capability
+                  else service._webvue_pinned_company_ids())
         self.env.cr.execute(SQL(
             'SELECT company_id FROM %s WHERE id = ANY(%s)',
             SQL.identifier(self._table), self.ids,
         ))
-        if any(company_id != self.env.company.id for company_id, in self.env.cr.fetchall()):
+        if any(company_id not in pinned for company_id, in self.env.cr.fetchall()):
             raise AccessError(EMPLOYEE_SCOPE_ERROR)
 
     def _webvue_validate_mutation(self):
@@ -119,9 +130,9 @@ class WebVueHrEmployee(models.Model):
                   LEFT JOIN hr_version version ON version.id = employee.current_version_id
                   LEFT JOIN hr_department department ON department.id = version.department_id
                   LEFT JOIN hr_employee manager ON manager.id = employee.parent_id
-                 WHERE employee.id = %s AND employee.company_id = %s
+                 WHERE employee.id = %s AND employee.company_id IN %s
             ''',
-            [self.id, self.env.company.id],
+            [self.id, tuple(self.env['webvue.access.service']._webvue_pinned_company_ids())],
         )
         row = self.env.cr.fetchone()
         if not row:
@@ -159,7 +170,8 @@ class WebVueHrEmployee(models.Model):
                     field='user_id',
                 )
             company_id = vals.get('company_id')
-            if company_id and company_id != self.env.company.id:
+            company = self.env['webvue.access.service']._webvue_native_hire_company() or self.env.company
+            if company_id and company_id != company.id:
                 raise AccessError(EMPLOYEE_SCOPE_ERROR)
         return super().create(vals_list)
 
@@ -267,8 +279,11 @@ class WebVueHrEmployeePublic(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
             and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
         ):
-            self.env['webvue.access.service']._webvue_require_capability('hr.employees.read')
-            domain = Domain(domain) & Domain('company_id', '=', self.env.company.id)
+            service = self.env['webvue.access.service']
+            if not service._webvue_has_operation_capability(self.env.user, 'hr.employees.read'):
+                raise AccessError(EMPLOYEE_WRITE_ERROR)
+            pinned = service._webvue_operation_capability_company_ids('hr.employees.read')
+            domain = Domain(domain) & Domain('company_id', 'in', pinned)
         return super()._search(
             domain, offset=offset, limit=limit, order=order,
             active_test=active_test, bypass_access=bypass_access,
@@ -282,16 +297,16 @@ class WebVueHrEmployeePublic(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
             and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
         ):
-            self.env['webvue.access.service']._webvue_require_capability('hr.employees.read')
+            service = self.env['webvue.access.service']
+            if not service._webvue_has_operation_capability(self.env.user, 'hr.employees.read'):
+                raise AccessError(EMPLOYEE_WRITE_ERROR)
+            pinned = service._webvue_operation_capability_company_ids('hr.employees.read')
             if self.ids:
                 self.env.cr.execute(SQL(
                     'SELECT company_id FROM %s WHERE id = ANY(%s)',
                     SQL.identifier(self._table), self.ids,
                 ))
-            if self.ids and any(
-                company_id != self.env.company.id
-                for company_id, in self.env.cr.fetchall()
-            ):
+            if self.ids and any(company_id not in pinned for company_id, in self.env.cr.fetchall()):
                 raise AccessError(EMPLOYEE_SCOPE_ERROR)
         return super().check_access(operation)
 
@@ -304,9 +319,9 @@ class WebVueHrEmployeePublic(models.Model):
                   FROM hr_employee_public employee
                   LEFT JOIN hr_department department ON department.id = employee.department_id
                   LEFT JOIN hr_employee_public manager ON manager.id = employee.parent_id
-                 WHERE employee.id = %s AND employee.company_id = %s
+                 WHERE employee.id = %s AND employee.company_id IN %s
             ''',
-            [self.id, self.env.company.id],
+            [self.id, tuple(self.env['webvue.access.service']._webvue_pinned_company_ids())],
         )
         row = self.env.cr.fetchone()
         if not row:

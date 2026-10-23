@@ -20,7 +20,7 @@ def scoped_equipment(equipment_id, *, active_test=True):
         records = records.with_context(active_test=False)
     equipment = records.search([
         ('id', '=', equipment_id),
-        ('company_id', '=', current_company().id),
+        ('company_id', 'in', request.env.companies.ids),
     ], limit=1)
     if not equipment:
         raise MissingError(request.env._('maintenance.equipment %(id)s does not exist', id=equipment_id))
@@ -28,12 +28,12 @@ def scoped_equipment(equipment_id, *, active_test=True):
     return equipment
 
 
-def company_category(category_id, field='category_id'):
-    """A category of the current company or a shared one → 422 naming the field."""
-    category = request.env['maintenance.equipment.category'].search([
-        ('id', '=', category_id),
-        '|', ('company_id', '=', current_company().id), ('company_id', '=', False),
-    ], limit=1)
+def company_category(category_id, field='category_id', *, company=None):
+    """A visible category, compatible with the equipment's owner on mutations."""
+    Category = request.env['maintenance.equipment.category']
+    domain = (Category._check_company_domain(company) if company is not None else
+              ['|', ('company_id', 'in', request.env.companies.ids), ('company_id', '=', False)])
+    category = Category.search([('id', '=', category_id), *domain], limit=1)
     if not category:
         raise ApiError(422, 'invalid', f'{field} does not reference a category of the current company', field=field)
     category.check_access('read')

@@ -38,7 +38,7 @@ def _list_runs(area):
     limit, offset = parse_page(args)
     state = _parse_state(args.get('state'))
     domain = [
-        ('company_id', '=', request.env.company.id),
+        ('company_id', 'in', request.env.companies.ids),
         ('plan_id.hr_purpose', '=', area),
     ]
     employee_id = args.get('employee_id')

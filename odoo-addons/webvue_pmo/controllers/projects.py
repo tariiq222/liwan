@@ -8,6 +8,7 @@ from odoo.addons.webvue_api.controllers.common import (
     api_handler,
     get_record,
     parse_nonneg_int,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
@@ -38,9 +39,7 @@ class ProjectController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def list_projects(self, **_):
-        request.env['webvue.access.service']._webvue_require_capability(
-            'pmo.projects.read',
-        )
+        require_capabilities('pmo.projects.read')
         args = request.httprequest.args
         unknown = set(args) - LIST_QUERY
         if unknown:
@@ -142,9 +141,7 @@ class ProjectController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def get_project(self, project_id):
-        request.env['webvue.access.service']._webvue_require_capability(
-            'pmo.projects.read',
-        )
+        require_capabilities('pmo.projects.read')
         return dump_project_detail(get_record('project.project', project_id))
 
     @http.route('/api/v1/projects/<int:project_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)

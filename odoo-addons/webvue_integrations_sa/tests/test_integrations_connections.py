@@ -85,6 +85,14 @@ class TestIntegrationConnections(WebVueIntegrationsCase):
         self.assertTrue(row.last_checked)
         other = self.env['res.company'].create({'name': 'Integrations company C'})
         self.admin.company_ids = [(4, other.id)]
+        with self.assertRaises(AccessError), self.env.cr.savepoint():
+            Connection.with_context(allowed_company_ids=[other.id])._webvue_set_connection_state(
+                other, 'zatca', 'ZATCA', 'pending', 'Membership grants no capability',
+            )
+        self.env['webvue.access.assignment'].create({
+            'user_id': self.admin.id, 'role_id': self.env.ref('webvue_core.role_system_admin').id,
+            'company_id': other.id,
+        })
         created = Connection.with_context(allowed_company_ids=[other.id])._webvue_set_connection_state(
             other, 'zatca', 'ZATCA', 'pending', '1 of 2 journals',
         )
@@ -102,7 +110,7 @@ class TestIntegrationConnections(WebVueIntegrationsCase):
         with mute_logger('odoo.sql_db'), self.assertRaises(Exception), self.env.cr.savepoint():  # noqa: B017
             Connection.create({'kind': self.connection.kind, 'provider': self.connection.provider})
 
-    def test_the_record_rule_follows_the_users_allowed_companies(self):
+    def test_plain_orm_stays_current_only_and_other_company_requires_a_grant(self):
         other = self.env['res.company'].create({'name': 'Integrations company B'})
         Connection = self.env['webvue.integration.connection']
         Connection._webvue_ensure_default_connections()
@@ -111,7 +119,14 @@ class TestIntegrationConnections(WebVueIntegrationsCase):
         self.assertEqual(Connection.with_user(self.admin).search([]).company_id, main)
         self.admin.company_ids = [(4, other.id)]
         both = Connection.with_user(self.admin).with_context(allowed_company_ids=[main.id, other.id])
-        self.assertEqual(both.search([]).company_id, main | other)
+        self.assertEqual(both.search([]).company_id, main)
+        self.env['webvue.access.assignment'].create({
+            'user_id': self.admin.id, 'role_id': self.env.ref('webvue_core.role_system_admin').id,
+            'company_id': other.id,
+        })
+        self.assertEqual(both.search([]).company_id, main, 'plain ORM has no aggregate capability scope')
+        only_other = Connection.with_user(self.admin).with_context(allowed_company_ids=[other.id])
+        self.assertEqual(only_other.search([]).company_id, other)
         only_main = Connection.with_user(self.admin).with_context(allowed_company_ids=[main.id])
         self.assertEqual(only_main.search([]).company_id, main)
 

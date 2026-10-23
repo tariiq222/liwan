@@ -148,12 +148,14 @@ class ProjectTaskNotifications(models.Model):
         """
         if not snapshot_ids:
             return self.browse()
+        # The digest follows the request's pinned company subtree: a parent
+        # session sees its branches' digests, a branch session only its own.
         return self.search([
             ('id', 'in', snapshot_ids),
             ('active', '=', True),
             ('is_closed', '=', False),
-            ('company_id', '=', self.env.company.id),
-            ('project_id.company_id', '=', self.env.company.id),
+            ('company_id', 'in', self.env.companies.ids),
+            ('project_id.company_id', 'in', self.env.companies.ids),
             ('project_id.active', '=', True),
         ])
 

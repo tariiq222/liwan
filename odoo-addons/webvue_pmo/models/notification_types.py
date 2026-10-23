@@ -123,7 +123,7 @@ class WebVuePmoNotificationTypes(models.AbstractModel):
             [
                 ('mail_message_id.webvue_notification_kind', '=', DIGEST_KIND),
                 ('mail_message_id.model', '=', 'res.company'),
-                ('mail_message_id.res_id', '=', self.env.company.id),
+                ('mail_message_id.res_id', 'in', self.env.companies.ids),
             ],
             [
                 ('mail_message_id.webvue_notification_kind', 'in', list(TASK_KINDS)),

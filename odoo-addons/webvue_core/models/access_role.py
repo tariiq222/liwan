@@ -142,6 +142,7 @@ class WebVueAccessRole(models.Model):
 
     def _webvue_do_write(self, vals):
         result = super().write(vals)
+        self.env['webvue.access.service']._webvue_clear_branch_cache()
         self.env.cr.execute(
             'UPDATE webvue_access_role SET version = COALESCE(version, 0) + 1 WHERE id = ANY(%s)',
             [self.ids],

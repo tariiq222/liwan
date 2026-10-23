@@ -82,6 +82,7 @@ class WebVueAccessAssignment(models.Model):
             msg = 'role_disabled'
             raise ValidationError(msg)
         assignments = super().create(vals_list)
+        self.env['webvue.access.service']._webvue_clear_branch_cache()
         assignments.mapped('user_id')._webvue_sync_capability_groups()
         self.env['webvue.access.service']._webvue_bump_policy(assignments.mapped('company_id'))
         return assignments
@@ -103,6 +104,7 @@ class WebVueAccessAssignment(models.Model):
                 msg = 'role_disabled'
                 raise ValidationError(msg)
         result = super().write(vals)
+        self.env['webvue.access.service']._webvue_clear_branch_cache()
         (old_users | self.mapped('user_id'))._webvue_sync_capability_groups()
         self.env['webvue.access.service']._webvue_bump_policy(old_companies | self.mapped('company_id'))
         return result
@@ -119,6 +121,7 @@ class WebVueAccessAssignment(models.Model):
         users = self.mapped('user_id')
         companies = self.mapped('company_id')
         result = super().unlink()
+        self.env['webvue.access.service']._webvue_clear_branch_cache()
         users._webvue_sync_capability_groups()
         self.env['webvue.access.service']._webvue_bump_policy(companies)
         return result

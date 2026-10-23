@@ -22,7 +22,7 @@ from odoo.addons.webvue_finance.serializers.tax import (
 
 
 def _company_taxes_domain():
-    return [('company_id', '=', request.env.company.id), ('type_tax_use', 'in', TAX_USES)]
+    return [('company_id', 'in', request.env.companies.ids), ('type_tax_use', 'in', TAX_USES)]
 
 
 def _find_tax(tax_id):
@@ -32,8 +32,8 @@ def _find_tax(tax_id):
     return tax
 
 
-def _tax_account(account_id):
-    return company_records('account.account', [account_id], 'tax_account_id', [('company_ids', 'in', [request.env.company.id])])
+def _tax_account(account_id, company):
+    return company_records('account.account', [account_id], 'tax_account_id', request.env['account.account']._check_company_domain(company))
 
 
 def _set_tax_account(tax, account):
@@ -90,7 +90,7 @@ class FinanceTaxController(http.Controller):
         parsed = parse_tax_create(payload)
         values = _values(parsed)
         values.setdefault('amount_type', 'percent')
-        account = _tax_account(parsed['tax_account_id'])
+        account = _tax_account(parsed['tax_account_id'], request.env.company)
 
         def create():
             tax = request.env['account.tax'].create({**values, 'company_id': request.env.company.id})
@@ -115,7 +115,7 @@ class FinanceTaxController(http.Controller):
         def write():
             tax.write(values)
             if 'tax_account_id' in parsed:
-                _set_tax_account(tax, _tax_account(parsed['tax_account_id']))
+                _set_tax_account(tax, _tax_account(parsed['tax_account_id'], tax.company_id))
 
         attempt(write)
         if 'tax_account_id' in parsed:

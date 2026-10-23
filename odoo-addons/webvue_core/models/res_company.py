@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
+from odoo.tools import reset_cached_properties
 
 from .protected_write import is_marked_write, marked
 from .res_partner import (
@@ -27,6 +28,11 @@ class ResCompany(models.Model):
 
     webvue_access_policy_version = fields.Integer(default=1, required=True)
 
+    webvue_branch_access_mode = fields.Selection(
+        [('isolated', 'Isolated'), ('delegated', 'Delegated'), ('inherited', 'Inherited')],
+        default='delegated', required=True, readonly=True,
+    )
+
     font = fields.Selection(
         selection_add=[('IBM_Plex_Sans_Arabic', 'IBM Plex Sans Arabic')],
         default='IBM_Plex_Sans_Arabic',
@@ -40,6 +46,10 @@ class ResCompany(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
+        if ('webvue_branch_access_mode' in vals and not self.env.is_superuser()
+                and self.env.company.id not in self.env.cr.precommit.data.get('webvue_core.branch_policy', set())):
+            msg = 'use_protected_webvue_access_operation'
+            raise AccessError(msg)
         profile_allowed = is_marked_write(
             self, COMPANY_PROFILE_MARKER, COMPANY_PROFILE_FIELDS | self._webvue_company_profile_extension_fields(), vals,
         )
@@ -56,13 +66,27 @@ class ResCompany(models.Model):
             and (
                 service._webvue_has_capability(self.env.user, 'settings.branding.manage')
                 or service._webvue_has_capability(self.env.user, 'settings.company.manage')
+                or service._webvue_has_capability(self.env.user, 'access.users.assign_roles')
             )
         ):
             branding_allowed = is_marked_write(self, BRANDING_COMPANY_MARKER, BRANDING_COMPANY_FIELDS, vals)
-            if not (branding_allowed or profile_allowed):
+            if not (branding_allowed or profile_allowed or (
+                set(vals) == {'webvue_branch_access_mode'}
+                and self.id in self.env.cr.precommit.data.get('webvue_core.branch_policy', set())
+            )):
                 msg = 'use_protected_webvue_access_operation'
                 raise AccessError(msg)
-        return super().write(vals)
+        result = super().write(vals)
+        if 'user_ids' in vals:
+            # Inverse of res.users.company_ids: invalidate the same native company cache.
+            self.env.registry.clear_cache()
+            # Match native res.users.write(company_ids): cached env.companies must
+            # refresh too when the inverse adds or removes a membership.
+            for environment in list(self.env.transaction.envs):
+                reset_cached_properties(environment)
+        if {'parent_id', 'active', 'webvue_branch_access_mode', 'user_ids'}.intersection(vals):
+            service._webvue_clear_branch_cache()
+        return result
 
     def _webvue_write_branding(self, vals):
         self.ensure_one()

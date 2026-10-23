@@ -264,7 +264,8 @@ class TestProjectFinance(WebVuePmoCase):
         })
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         res = self.api('GET', f'/api/v1/projects/{foreign.id}/finance')
-        self.assertEqual(res.status_code, 403)
+        # Another company's project is not-found, not forbidden.
+        self.assertEqual(res.status_code, 404)
 
     def test_foreign_entry_id_in_url_is_404(self):
         other = self.env['project.project'].create({'company_id': self.env.company.id, 'name': 'Other'})

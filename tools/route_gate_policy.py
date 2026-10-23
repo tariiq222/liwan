@@ -51,7 +51,7 @@ FEATURE_MIN_RANK = 3
 API_PREFIX = '/api/v1'
 CAPABILITY_DECORATOR = 'requires_capability'
 # Primitives that check a capability; credited by name on any receiver.
-CAPABILITY_CALLS = frozenset({'require_capability', 'require_any_capability', '_webvue_require_capability'})
+CAPABILITY_CALLS = frozenset({'require_capability', 'require_capabilities', 'require_any_capability', '_webvue_require_capability'})
 # Stock Odoo names the models override: never a gate by name.
 ORM_METHODS = frozenset({
     'check_access', 'has_access', '_check_access', 'create', 'write', 'unlink', 'read', '_read', 'search',
@@ -266,7 +266,7 @@ class Gates:
             return None
         for call in _unconditional_calls(statement.value):
             if self._call_gates(call, func, local):
-                match = 'any' if call_name(call) == 'require_any_capability' else 'all'
+                match = kw_const(call, 'match') or ('any' if call_name(call) == 'require_any_capability' else 'all')
                 return _literal_keys(call), match
         return None
 

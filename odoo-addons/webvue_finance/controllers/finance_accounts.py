@@ -19,7 +19,7 @@ from odoo.addons.webvue_finance.serializers.account import (
 
 
 def _company_accounts_domain():
-    return [('company_ids', 'in', [request.env.company.id])]
+    return [('company_ids', 'in', request.env.companies.ids)]
 
 
 def _account_types():

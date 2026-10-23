@@ -28,9 +28,14 @@ PAYMENT_JOURNAL_TYPES = ('bank', 'cash', 'credit')
 REVIVABLE_STATES = ('canceled', 'rejected')
 
 
+def _company_payments_domain():
+    """Companies already pinned by this operation's capability gate."""
+    return [('company_id', 'in', request.env.companies.ids)]
+
+
 def _find_payment(payment_id):
     payment = request.env['account.payment'].search(
-        [('id', '=', payment_id), ('company_id', '=', request.env.company.id)], limit=1,
+        [('id', '=', payment_id), *_company_payments_domain()], limit=1,
     )
     if not payment:
         raise MissingError(request.env._('account.payment %(id)s does not exist', id=payment_id))
@@ -62,10 +67,13 @@ def _created_payments(action):
 
 
 def _wizard_values(parsed, invoices):
-    journal = company_records(
-        'account.journal', [parsed['journal_id']], 'journal_id',
-        [('company_id', '=', request.env.company.id), ('type', 'in', PAYMENT_JOURNAL_TYPES)],
-    )
+    # Registration mutates existing invoices. The chosen journal must be
+    # natively compatible with every owner; a sibling's journal cannot serve
+    # another branch merely because both are visible in the request.
+    journal_domain = [('type', 'in', PAYMENT_JOURNAL_TYPES)]
+    for company in invoices.company_id:
+        journal_domain += request.env['account.journal']._check_company_domain(company)
+    journal = company_records('account.journal', [parsed['journal_id']], 'journal_id', journal_domain)
     if journal.currency_id and journal.currency_id != invoices.currency_id:
         raise ApiError(
             422, 'journal_currency_mismatch', 'the journal currency differs from the invoices currency', field='journal_id',
@@ -84,18 +92,23 @@ def _wizard_values(parsed, invoices):
     if 'memo' in parsed:
         values['communication'] = parsed['memo']
     # Odoo does not refuse a payment in a closed period: it silently moves the payment date.
-    if is_period_locked(parsed['payment_date'], journal):
-        raise period_locked(field='payment_date')
+    for company in invoices.company_id:
+        if is_period_locked(parsed['payment_date'], journal, company=company):
+            raise period_locked(field='payment_date')
     residual = sum(invoices.mapped('amount_residual'))
     if invoices.currency_id.compare_amounts(parsed['amount'], residual) > 0:
         raise ApiError(422, 'amount_exceeds_residual', 'amount is greater than the open balance', field='amount')
     return values, journal
 
 
-def _payment_journal(journal_id):
+def _payment_journal(journal_id, company=None):
+    # Standalone creation stays current-company-only. Existing payments use
+    # their owner and stock ancestor compatibility, within native visibility.
+    domain = (request.env['account.journal']._check_company_domain(company)
+              if company is not None else [('company_id', '=', request.env.company.id)])
     return company_records(
         'account.journal', [journal_id], 'journal_id',
-        [('company_id', '=', request.env.company.id), ('type', 'in', PAYMENT_JOURNAL_TYPES)],
+        [*domain, ('type', 'in', PAYMENT_JOURNAL_TYPES)],
     )
 
 
@@ -105,7 +118,7 @@ def _method_line(method_line_id, journal):
     ).id
 
 
-def _payment_values(parsed, journal):
+def _payment_values(parsed, journal, company):
     """The ``account.payment`` values of the keys present in ``parsed``; the journal is already resolved."""
     values = {}
     for key, field in (('amount', 'amount'), ('payment_date', 'date'), ('memo', 'memo'), ('payment_type', 'payment_type')):
@@ -115,7 +128,7 @@ def _payment_values(parsed, journal):
         values['journal_id'] = journal.id
     if 'payment_method_line_id' in parsed:
         values['payment_method_line_id'] = _method_line(parsed['payment_method_line_id'], journal)
-    if 'payment_date' in parsed and is_period_locked(parsed['payment_date'], journal):
+    if 'payment_date' in parsed and is_period_locked(parsed['payment_date'], journal, company=company):
         # Odoo does not refuse a payment in a closed period: it silently moves the payment date.
         raise period_locked(field='payment_date')
     return values
@@ -153,7 +166,7 @@ class FinancePaymentController(http.Controller):
         require_capability('finance.payments.read')
         args = request.httprequest.args
         fields = request.env['account.payment']._fields
-        domain = [('company_id', '=', request.env.company.id), *filter_domain(args, 'date')]
+        domain = [*_company_payments_domain(), *filter_domain(args, 'date')]
         for field in ('payment_type', 'state'):
             value = parse_choice(args.get(field), fields[field].get_values(request.env), field)
             if value:
@@ -179,7 +192,10 @@ class FinancePaymentController(http.Controller):
             ).create(values)
             return wizard.action_create_payments()
 
-        payments = _created_payments(attempt(register, day=parsed['payment_date'], journal=journal))
+        payments = _created_payments(attempt(
+            register, day=parsed['payment_date'], journal=journal,
+            company=invoices.company_id,
+        ))
         if len(payments) != 1:
             raise ApiError(422, 'invalid', 'these invoices cannot be paid with a single payment', field='invoice_ids')
         return request.make_json_response(dump_payment(payments), status=201)
@@ -192,7 +208,7 @@ class FinancePaymentController(http.Controller):
         payment = _find_payment(payment_id)
         if payment.state in REVIVABLE_STATES:
             raise ApiError(422, 'invalid_state', f'the payment is already {payment.state}')
-        attempt(payment.action_cancel, day=payment.date, journal=payment.journal_id)
+        attempt(payment.action_cancel, day=payment.date, journal=payment.journal_id, company=payment.company_id)
         return dump_payment(payment)
 
     @http.route('/api/v1/finance/payments/<int:payment_id>/reset-to-draft', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -203,7 +219,7 @@ class FinancePaymentController(http.Controller):
         payment = _find_payment(payment_id)
         if payment.state not in REVIVABLE_STATES:
             raise ApiError(422, 'invalid_state', 'only a cancelled or rejected payment can be reset to draft')
-        attempt(payment.action_draft, day=payment.date, journal=payment.journal_id)
+        attempt(payment.action_draft, day=payment.date, journal=payment.journal_id, company=payment.company_id)
         return dump_payment(payment)
 
     @http.route('/api/v1/finance/payments/standalone', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -214,9 +230,9 @@ class FinancePaymentController(http.Controller):
         """A receipt or payment voucher that names no invoice: an advance, or money kept to be allocated later."""
         require_capability('finance.payments.manage')
         parsed = parse_payment_standalone(payload)
-        partner = company_records('res.partner', [parsed['partner_id']], 'partner_id', company_partners_domain())
+        partner = company_records('res.partner', [parsed['partner_id']], 'partner_id', company_partners_domain(request.env.company))
         journal = _payment_journal(parsed['journal_id'])
-        values = _payment_values(parsed, journal)
+        values = _payment_values(parsed, journal, request.env.company)
         # The partner is a customer for a receipt and a vendor for a payment unless the body says otherwise (a refund of a
         # customer advance is an outbound payment to a customer).
         values['partner_type'] = parsed.get('partner_type') or ('customer' if parsed['payment_type'] == 'inbound' else 'supplier')
@@ -241,9 +257,9 @@ class FinancePaymentController(http.Controller):
         if payment.state != 'draft':
             raise ApiError(422, 'not_draft', 'only a draft payment can be edited')
         parsed = parse_payment_patch(payload)
-        journal = _payment_journal(parsed['journal_id']) if 'journal_id' in parsed else payment.journal_id
-        values = _payment_values(parsed, journal)
-        attempt(lambda: payment.write(values), day=values.get('date', payment.date), journal=journal)
+        journal = _payment_journal(parsed['journal_id'], payment.company_id) if 'journal_id' in parsed else payment.journal_id
+        values = _payment_values(parsed, journal, payment.company_id)
+        attempt(lambda: payment.write(values), day=values.get('date', payment.date), journal=journal, company=payment.company_id)
         request.env['webvue.finance.audit.event']._webvue_log('payment_changed', payment, fields_written=values)
         return dump_payment(payment)
 
@@ -255,9 +271,9 @@ class FinancePaymentController(http.Controller):
         payment = _find_payment(payment_id)
         if payment.state != 'draft':
             raise ApiError(422, 'not_draft', 'only a draft payment can be posted')
-        if is_period_locked(payment.date, payment.journal_id):
+        if is_period_locked(payment.date, payment.journal_id, company=payment.company_id):
             raise period_locked(field='date')
-        attempt(payment.action_post, day=payment.date, journal=payment.journal_id)
+        attempt(payment.action_post, day=payment.date, journal=payment.journal_id, company=payment.company_id)
         request.env['webvue.finance.audit.event']._webvue_log('payment_posted', payment, outcome=payment.state)
         return dump_payment(payment)
 
@@ -273,14 +289,14 @@ class FinancePaymentController(http.Controller):
         if 'invoice_ids' in parsed:
             targets = _lines_to_settle(own, _payable_invoices(parsed['invoice_ids']), 'invoice_ids')
         else:
-            others = company_records('account.payment', parsed['payment_ids'], 'payment_ids', [('company_id', '=', request.env.company.id)])
+            others = company_records('account.payment', parsed['payment_ids'], 'payment_ids', _company_payments_domain())
             if payment in others:
                 raise ApiError(422, 'invalid', 'a payment cannot be allocated to itself', field='payment_ids')
             open_lines = request.env['account.move.line']
             for other in others:
                 open_lines |= _open_counterpart(other)
             targets = _lines_to_settle(own, open_lines.move_id, 'payment_ids') & open_lines
-        attempt((own | targets).reconcile, day=payment.date, journal=payment.journal_id)
+        attempt((own | targets).reconcile, day=payment.date, journal=payment.journal_id, company=(own | targets).company_id)
         request.env['webvue.finance.audit.event']._webvue_log('payment_allocated', payment)
         return dump_payment(payment)
 
@@ -296,6 +312,6 @@ class FinancePaymentController(http.Controller):
         reconciled = counterpart_lines(payment).filtered('matched_debit_ids') | counterpart_lines(payment).filtered('matched_credit_ids')
         if not reconciled:
             raise ApiError(422, 'invalid_state', 'the payment is not allocated')
-        attempt(reconciled.remove_move_reconcile, day=payment.date, journal=payment.journal_id)
+        attempt(reconciled.remove_move_reconcile, day=payment.date, journal=payment.journal_id, company=payment.company_id)
         request.env['webvue.finance.audit.event']._webvue_log('payment_unallocated', payment)
         return dump_payment(payment)

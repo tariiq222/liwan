@@ -18,7 +18,7 @@ describe('settings pages', () => {
     expect(page('system').parts.map(part => part.id)).toEqual(['integrations', 'maintenance'])
     expect(page('company').parts.every(part => part.to === undefined)).toBe(true)
     expect(page('team').to).toBe('/settings/team')
-    expect(page('team').parts.map(part => part.within)).toEqual(['/settings/team/users', '/settings/team/roles', '/settings/team/access-log'])
+    expect(page('team').parts.map(part => part.within)).toEqual(['/settings/team/users', '/settings/team/roles', '/settings/team/branches', '/settings/team/access-log'])
   })
   it('keep billing as pages of their own', () => {
     expect(page('billing').parts.map(part => part.to)).toEqual(['/subscription', '/subscription/change', '/subscription/status', '/subscription/branches', '/subscription/invoices'])

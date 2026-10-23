@@ -69,7 +69,6 @@
         "webvue_notify/controllers/notifications.py:list_notifications",
         "webvue_notify/controllers/notifications.py:mark_all_read",
         "webvue_notify/controllers/notifications.py:mark_read",
-        "webvue_pmo/controllers/notifications.py:get_digest",
         "webvue_pmo/controllers/personal_stages.py:personal_stages"
       ]
     },
@@ -116,10 +115,9 @@
       ]
     },
     {
-      "reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage).",
+      "reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Known GET readers declare operation scope separately and keep their downstream record checks.",
       "routes": [
         "webvue_pmo/controllers/milestones.py:list_milestones",
-        "webvue_pmo/controllers/project_charter_catalogs.py:get_catalog_item",
         "webvue_pmo/controllers/project_followers.py:list_followers",
         "webvue_pmo/controllers/project_governance.py:get_register",
         "webvue_pmo/controllers/project_governance.py:get_stakeholder",

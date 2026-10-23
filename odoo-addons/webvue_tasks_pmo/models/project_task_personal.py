@@ -126,8 +126,9 @@ class ProjectTaskPersonal(models.Model):
         PMO narrows every search, cold-field fetch and access check of that caller to this
         domain; the personal-task record rules still decide which personal tasks they see.
         """
-        if self.env['webvue.access.service']._webvue_has_capability(self.env.user, 'tasks.tasks.read'):
-            return Domain('webvue_personal', '=', True)
+        companies = self.env['webvue.access.service']._webvue_operation_capability_company_ids('tasks.tasks.read')
+        if companies:
+            return Domain('webvue_personal', '=', True) & Domain('company_id', 'in', companies)
         return super()._webvue_personal_read_domain()
 
     def _webvue_can_write(self):

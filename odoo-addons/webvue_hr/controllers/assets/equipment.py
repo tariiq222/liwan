@@ -32,9 +32,9 @@ ACTIVE_VALUES = ('true', 'false', 'all')
 ASSIGNED_VALUES = ('true', 'false')
 
 
-def _validate_equipment_relations(vals):
+def _validate_equipment_relations(vals, company):
     if vals.get('category_id'):
-        company_category(vals['category_id'])
+        company_category(vals['category_id'], company=company)
 
 
 class HrAssetsEquipmentController(http.Controller):
@@ -52,7 +52,7 @@ class HrAssetsEquipmentController(http.Controller):
         if active not in ACTIVE_VALUES:
             raise ApiError(422, 'invalid', "active must be 'true', 'false' or 'all'", field='active')
         limit, offset = parse_page(args)
-        domain = [('company_id', '=', current_company().id)]
+        domain = [('company_id', 'in', request.env.companies.ids)]
         q = args.get('q')
         if q:
             domain += ['|', ('name', 'ilike', q), ('serial_no', 'ilike', q)]
@@ -89,7 +89,7 @@ class HrAssetsEquipmentController(http.Controller):
     @requires_capability('hr.assets.manage')
     def create_equipment(self, **payload):
         vals = parse_equipment_vals(payload, create=True)
-        _validate_equipment_relations(vals)
+        _validate_equipment_relations(vals, current_company())
         equipment = request.env['maintenance.equipment'].create(vals)
         return request.make_json_response(dump_equipment(equipment), status=201)
 
@@ -102,7 +102,7 @@ class HrAssetsEquipmentController(http.Controller):
         # json2 merges the route's path parameters into the payload; the id is not a field.
         payload.pop('equipment_id', None)
         vals = parse_equipment_vals(payload, create=False)
-        _validate_equipment_relations(vals)
+        _validate_equipment_relations(vals, equipment.company_id)
         equipment.write(vals)
         return dump_equipment(equipment)
 

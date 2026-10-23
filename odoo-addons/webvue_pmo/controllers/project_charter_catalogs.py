@@ -9,6 +9,7 @@ from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
     parse_nonneg_int,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_pmo.serializers.project_charter import dump_currency
@@ -28,6 +29,7 @@ class ProjectCharterCatalogController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def get_defaults(self, **_):
+        require_capabilities('pmo.projects.read', 'pmo.projects.create', 'pmo.settings.manage', match='any')
         Catalog = request.env['webvue.project.type']
         if not Catalog._webvue_can_read_catalog():
             raise AccessError(request.env._("You are not allowed to read project charter defaults."))
@@ -40,6 +42,7 @@ class ProjectCharterCatalogController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def list_catalog(self, resource, **_):
+        require_capabilities('pmo.projects.read', 'pmo.projects.create', 'pmo.settings.manage', match='any')
         Model = _catalog_model(resource)
         args = request.httprequest.args
         unknown = set(args) - {'q', 'active', 'offset', 'limit'}
@@ -52,7 +55,7 @@ class ProjectCharterCatalogController(http.Controller):
             raise AccessError(request.env._("Only a settings manager can list inactive catalog values."))
         limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), MAX_LIMIT)
         offset = parse_nonneg_int(args.get('offset', 0), 'offset')
-        domain = [('company_id', '=', request.env.company.id)]
+        domain = [('company_id', 'in', request.env.companies.ids)]
         q = args.get('q')
         if q:
             domain.append(('name', 'ilike', q))
@@ -85,6 +88,7 @@ class ProjectCharterCatalogController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def get_catalog_item(self, resource, item_id, **_):
+        require_capabilities('pmo.projects.read', 'pmo.projects.create', 'pmo.settings.manage', match='any')
         record = _get_catalog_record(resource, item_id)
         if not record.active and not record._webvue_can_manage_catalog():
             raise MissingError(request.env._("catalog value does not exist"))
@@ -132,10 +136,13 @@ def _catalog_model(resource):
 
 def _get_catalog_record(resource, item_id):
     Model = _catalog_model(resource)
-    record = Model.with_context(active_test=False).browse(int(item_id)).exists()
+    # A guarded search, not a browse: reading company_id on another company's
+    # record raises the rule's 403 before the comparison, so the search filters
+    # it out and the answer is the same not-found as a missing id.
+    record = Model.with_context(active_test=False).search(
+        [('id', '=', int(item_id)), ('company_id', 'in', request.env.companies.ids)], limit=1,
+    )
     if not record:
         raise MissingError(request.env._("catalog value does not exist"))
     record.check_access('read')
-    if record.company_id != request.env.company:
-        raise AccessError(request.env._("Catalog record is outside the current company."))
     return record

@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
+from .hr_applicant import HIRE_FRAME_ATTRIBUTE
+
 HR_PERMISSIONS = frozenset(
     {
         'hr.employees.read',
@@ -83,6 +85,46 @@ PAYROLL_PERMISSION_DEPENDENCIES = {
 
 class WebVueHrAccessService(models.AbstractModel):
     _inherit = 'webvue.access.service'
+
+    @api.model
+    def _webvue_native_hire_frame(self):
+        frame = getattr(self.env.cr, HIRE_FRAME_ATTRIBUTE, None)
+        return frame if frame and frame[0] == self.env.uid and self.env.company.id in frame[1:3] else None
+
+    @api.model
+    def _webvue_native_hire_company(self):
+        frame = self._webvue_native_hire_frame()
+        return self.env['res.company'].browse(frame[2]) if frame else None
+
+    @api.model
+    def _webvue_branch_company_allowed(self, user, company):
+        frame = self._webvue_native_hire_frame()
+        if frame:
+            if company.id != frame[2]:
+                return False
+            if self.env.company.id != frame[1]:
+                return self.with_company(frame[1])._webvue_branch_company_allowed(user, company)
+        return super()._webvue_branch_company_allowed(user, company)
+
+    @api.model
+    def _webvue_capability_keys(self, user=None, company=None):
+        frame = self._webvue_native_hire_frame()
+        if frame and self.env.company.id != frame[1]:
+            return self.with_company(frame[1])._webvue_capability_keys(user, company=company or self.env.company)
+        return super()._webvue_capability_keys(user, company=company)
+
+    @api.model
+    def _webvue_scoped_company_ids(self):
+        frame = self._webvue_native_hire_frame()
+        if frame:
+            current = self.env.context.get('webvue_capability_scope') or ()
+            scopes = (*frame[4], *(gate for gate in current if gate not in frame[4]))
+            if self.env.company.id != frame[1] or current != scopes:
+                return self.with_company(frame[1]).with_context(
+                    webvue_capability_scope=scopes,
+                )._webvue_scoped_company_ids()
+            return [company_id for company_id in super()._webvue_scoped_company_ids() if company_id == frame[2]]
+        return super()._webvue_scoped_company_ids()
 
     @api.model
     def _webvue_capability_definitions(self):

@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 from odoo.tests import HttpCase, new_test_user
+from odoo.tests.common import HOST
 
 from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
 
@@ -127,3 +128,104 @@ class WebVueApiCase(HttpCase):
         response = self.url_open(path, json=json, headers=headers, method=method, **kwargs)
         record_contract_fixture(method, path, response)
         return response
+
+
+class CompanyIsolationCase(WebVueApiCase):
+    """Company matrix for request-scoped isolation: parent P, branches P1/P2,
+    independent C.
+
+    ``iso_user`` holds the built-in employee role in all four companies, so any
+    visibility difference comes from the request's pinned company set, never
+    from a missing assignment. Branches are linked through ``res.company.parent_id``
+    (the same link ``webvue_platform`` creates for tenant branches), which is
+    what ``child_of`` walks.
+    """
+
+    NOT_FOUND_ID = 999999999
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        Company = cls.env['res.company'].sudo()
+        cls.company_p = Company.create({'name': 'Isolation P'})
+        cls.company_p1 = Company.create({'name': 'Isolation P1', 'parent_id': cls.company_p.id})
+        cls.company_p2 = Company.create({'name': 'Isolation P2', 'parent_id': cls.company_p.id})
+        cls.company_c = Company.create({'name': 'Isolation C'})
+        # company_id pins the current company into the new set: base's
+        # _check_user_company requires company_id to stay inside company_ids,
+        # and the default (main) company is not part of the isolation matrix.
+        cls.iso_user = new_test_user(cls.env, login='iso_emp', password='iso_emp_pass_123',
+                                     name='Iso', groups='webvue_core.group_employee',
+                                     company_id=cls.company_p.id)
+        # Membership first: the assignment constraint requires the company to be
+        # in the user's own company_ids.
+        cls.iso_user.company_ids = [(6, 0, [
+            cls.company_p.id, cls.company_p1.id, cls.company_p2.id, cls.company_c.id])]
+        role = cls.env.ref('webvue_core.role_employee')
+        Assignment = cls.env['webvue.access.assignment'].sudo()
+        for company in (cls.company_p, cls.company_p1, cls.company_p2, cls.company_c):
+            Assignment.create({'user_id': cls.iso_user.id, 'role_id': role.id, 'company_id': company.id})
+
+    def env_in(self, company):
+        """Authenticate iso_user with `company` as the server-side current company."""
+        self.iso_user.company_id = company.id
+        self.authenticate('iso_emp', 'iso_emp_pass_123')
+
+    def api_forged(self, method, path, hidden_id, json=None):
+        """One plain call plus the three forgery vectors for `hidden_id`.
+
+        Returns the list of responses: plain, cids cookie, cids query and a
+        body carrying allowed_company_ids naming the hidden company first.
+        """
+        current = self.iso_user.company_id.id
+        forged = f'{hidden_id}-{current}'
+        self.opener.cookies.set('cids', forged, domain=HOST, path='/')
+        try:
+            responses = [self.api(method, path, json=json)]
+            responses.append(self.api(method, f'{path}{"&" if "?" in path else "?"}cids={hidden_id},{current}'))
+            body = dict(json or {})
+            body['context'] = {'allowed_company_ids': [hidden_id, current]}
+            responses.append(self.api(method, path, json=body))
+        finally:
+            self.opener.cookies.clear(domain=HOST, path='/', name='cids')
+        return responses
+
+    def assertVisible(self, path):
+        response = self.api('GET', path)
+        self.assertEqual(response.status_code, 200, f'{path} must be visible: {response.text[:200]}')
+        return response
+
+    def assertHidden(self, path):
+        """404 byte-identical to the route's own not-found response."""
+        response = self.api('GET', path)
+        stem, _, query = path.partition('?')
+        missing = re.sub(r'(\d+)(?!.*\d)', str(self.NOT_FOUND_ID), stem)
+        reference = self.api('GET', f'{missing}?{query}' if query else missing)
+        self.assertEqual(response.status_code, 404, f'{path} must be hidden: {response.text[:200]}')
+        self.assertEqual(response.content, reference.content,
+                         f'{path} 404 must be byte-identical to not-found')
+        return response
+
+    def assertHiddenEveryWay(self, method, path, hidden_id, json=None):
+        for response in self.api_forged(method, path, hidden_id, json=json):
+            self.assertEqual(response.status_code, 404,
+                             f'{path} must stay hidden under forgery: {response.text[:200]}')
+        return self.assertHidden(path)
+
+
+# Route-pattern registries backing the discovery test in
+# test_company_isolation.py: every GET /api/v1 record route must be either
+# covered by an isolation case or exempted with an explicit reason.
+ISOLATION_COVERED_ROUTES: dict[str, str] = {}
+ISOLATION_NOT_APPLICABLE: dict[str, str] = {}
+
+
+def cover_isolation_routes(patterns, source):
+    """Record that `source` exercises the company matrix on these route patterns."""
+    for pattern in patterns:
+        ISOLATION_COVERED_ROUTES.setdefault(pattern, source)
+
+
+def exempt_isolation_route(pattern, reason):
+    """Record that `pattern` has no company scope (with the reason made explicit)."""
+    ISOLATION_NOT_APPLICABLE[pattern] = reason

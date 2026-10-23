@@ -36,9 +36,9 @@ def require_state(record, state, code):
         raise ApiError(422, code, f'the record must be in the {state} state, it is {record.state}')
 
 
-def require_balanced(lines):
+def require_balanced(lines, company=None):
     """The debits equal the credits in the company currency, else 422 ``unbalanced`` before Odoo is called."""
-    currency = request.env.company.currency_id
+    currency = (company if company is not None else request.env.company).currency_id
     debit = sum(line['debit'] for line in lines)
     credit = sum(line['credit'] for line in lines)
     if currency.compare_amounts(debit, credit):
@@ -60,17 +60,22 @@ def _zatca_blocks_posting(move):
     )
 
 
-def is_period_locked(day, journal=None, has_tax=False):
-    """True when a lock date of the current company covers ``day`` for the user and ``journal``."""
+def is_period_locked(day, journal=None, has_tax=False, company=None):
+    """True when an actual document owner (current for creates) locks ``day``.
+
+    A record batch may supply several owners; native lock checks run separately
+    because ``_get_violated_lock_dates`` requires a singleton company.
+    """
     journal = journal or request.env['account.journal']
-    return bool(day) and bool(request.env.company._get_violated_lock_dates(day, has_tax, journal))
+    companies = company if company is not None else request.env.company
+    return bool(day) and any(owner._get_violated_lock_dates(day, has_tax, journal) for owner in companies)
 
 
 def period_locked(field=None, details=None):
     return ApiError(422, 'period_locked', 'the accounting period is locked for this date', field=field, details=details)
 
 
-def refusal(error, *, day=None, journal=None, has_tax=False, move=None):
+def refusal(error, *, day=None, journal=None, has_tax=False, move=None, company=None):
     """The ApiError for an Odoo UserError/ValidationError.
 
     ``period_locked`` when a lock date covers ``day`` for ``journal``, ``zatca_not_onboarded``
@@ -79,7 +84,7 @@ def refusal(error, *, day=None, journal=None, has_tax=False, move=None):
     The original Odoo text is kept in ``details.detail``.
     """
     detail = {'detail': str(error)}
-    if is_period_locked(day, journal, has_tax):
+    if is_period_locked(day, journal, has_tax, company=company):
         return period_locked(details=detail)
     if move and _zatca_blocks_posting(move):
         return ApiError(
