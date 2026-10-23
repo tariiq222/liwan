@@ -457,11 +457,28 @@ class TestFinanceBranchAccess(WebVueFinanceCase):
             'company_id': self.branch.id,
         })
 
+    def _configure_lifecycle_payment_journal(self, journal):
+        # Stock recomputes the payment's outstanding account from its method
+        # line after journal edits; fresh branch journals need this setup too.
+        self.assertTrue(journal.default_account_id)
+        methods = journal.inbound_payment_method_line_ids | journal.outbound_payment_method_line_ids
+        self.assertTrue(methods)
+        methods.write({'payment_account_id': journal.default_account_id.id})
+
     def _payment_lifecycle_fixture(self, company=None, payment_type='inbound', journal=None, amount=1000):
         company = company or self.branch
         journal = journal or self.env['account.journal'].with_company(company).create({
             'name': 'Payment lifecycle bank', 'code': 'PLBK', 'type': 'bank', 'company_id': company.id,
         })
+        self._configure_lifecycle_payment_journal(journal)
+        partner = self.partner.with_company(company)
+        if not partner.property_account_receivable_id:
+            receivable = self.env['account.account'].search([
+                *self.env['account.account']._check_company_domain(company),
+                ('account_type', '=', 'asset_receivable'),
+            ], limit=1)
+            self.assertTrue(receivable)
+            partner.property_account_receivable_id = receivable
         payment = self.env['account.payment'].with_company(company).create({
             'company_id': company.id, 'journal_id': journal.id, 'partner_id': self.partner.id,
             'partner_type': 'customer', 'payment_type': payment_type, 'amount': amount,
@@ -474,6 +491,7 @@ class TestFinanceBranchAccess(WebVueFinanceCase):
         journal = self.env['account.journal'].with_company(self.branch).create({
             'name': 'Registered lifecycle bank', 'code': 'LCRB', 'type': 'bank', 'company_id': self.branch.id,
         })
+        self._configure_lifecycle_payment_journal(journal)
         self.branch_invoice.action_post()
         response = self.api('POST', '/api/v1/finance/payments', json={
             'invoice_ids': self.branch_invoice.ids, 'amount': self.branch_invoice.amount_residual,
