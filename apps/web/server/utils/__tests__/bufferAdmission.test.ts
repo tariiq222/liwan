@@ -1,6 +1,6 @@
 import http from 'node:http'
-import { once } from 'node:events'
-import { expect, it } from 'vitest'
+import { EventEmitter, once } from 'node:events'
+import { afterEach, expect, it, vi } from 'vitest'
 import { createResponseAdmission } from '../bufferAdmission.mjs'
 
 const listen = (server: http.Server) => new Promise<string>(resolve => server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${(server.address() as { port: number }).port}`)))
@@ -73,4 +73,51 @@ it('holds all four credits after real HTTP finish until the corresponding callba
     for (const resolve of pending.splice(0)) resolve()
     server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve()))
   }
+})
+
+afterEach(() => { vi.useRealTimers() })
+
+const session = (res: unknown) => ({ req: Object.assign(new EventEmitter(), { method: 'GET', aborted: false }) as unknown as http.IncomingMessage, res: res as http.ServerResponse })
+/** Shape of the node-mock-http response behind Nitro's in-process `$fetch`: an EventEmitter with no socket. */
+const inProcessResponse = () => Object.assign(new EventEmitter(), { writableFinished: false, closed: false, destroyed: false, writableEnded: false, headersSent: false, socket: null })
+/** An unattached but genuine `http.ServerResponse`: output stays unsettled until it is closed. */
+const stalledRealResponse = () => new http.ServerResponse(new http.IncomingMessage(undefined as never))
+
+it('releases the credit of in-process responses as soon as the operation settles', async () => {
+  vi.useFakeTimers()
+  const admission = createResponseAdmission('session')
+  let completed = 0
+  const operations = Array.from({ length: 5 }, () => {
+    const { req, res } = session(inProcessResponse())
+    return admission(req, res, async () => {}).then(() => { completed++ })
+  })
+  await vi.advanceTimersByTimeAsync(0)
+  expect(completed).toBe(5)
+  await Promise.all(operations)
+  const { req, res } = session(stalledRealResponse())
+  let entered = false
+  void admission(req, res, async () => { entered = true })
+  await vi.advanceTimersByTimeAsync(0)
+  expect(entered).toBe(true)
+})
+
+it('holds a real response credit until its output settles and destroys it after the drain timeout', async () => {
+  vi.useFakeTimers()
+  const admission = createResponseAdmission('session')
+  const stalled = Array.from({ length: 4 }, () => {
+    const res = stalledRealResponse()
+    const destroy = vi.spyOn(res, 'destroy').mockImplementation(() => { res.emit('close'); return res })
+    void admission(session(res).req, res, async () => {})
+    return destroy
+  })
+  await vi.advanceTimersByTimeAsync(0)
+  let entered = false
+  const queued = session(inProcessResponse())
+  void admission(queued.req, queued.res, async () => { entered = true })
+  await vi.advanceTimersByTimeAsync(14_999)
+  expect(entered).toBe(false)
+  for (const destroy of stalled) expect(destroy).not.toHaveBeenCalled()
+  await vi.advanceTimersByTimeAsync(1)
+  for (const destroy of stalled) expect(destroy).toHaveBeenCalledOnce()
+  expect(entered).toBe(true)
 })

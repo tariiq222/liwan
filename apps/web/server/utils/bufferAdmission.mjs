@@ -1,3 +1,5 @@
+import { ServerResponse } from 'node:http'
+
 /** Fixed operator memory budget, independent of tenant count and Odoo workers. */
 const BUFFER_TIMEOUT = 15_000
 /** Unauthenticated traffic (login, MFA, branding) has its own small pool so it can never
@@ -16,6 +18,10 @@ function closeAfterError(res) { if (!res.headersSent && !res.destroyed) res.setH
 /** @param {import('node:http').IncomingMessage} req
  * @param {import('node:http').ServerResponse} res */
 function disconnected(req, res) { return req.aborted || (res.destroyed && !res.writableEnded) }
+
+/** Nitro's in-process fetch answers with a socketless node-mock-http response that never reports settled output, so only a real ServerResponse is awaited.
+ * @param {import('node:http').ServerResponse} res */
+const hasObservableOutput = res => res instanceof ServerResponse
 
 /** @typedef {keyof typeof POOL_LIMITS} AdmissionPool */
 
@@ -77,7 +83,7 @@ export function createResponseAdmission(pool) {
   return async function withResponse(req, res, run) {
     const release = await acquire(req, res)
     let operationSettled = false
-    let outputSettled = res.writableFinished || res.closed
+    let outputSettled = !hasObservableOutput(res) || res.writableFinished || res.closed
     /** @type {ReturnType<typeof setTimeout> | undefined} */
     let drainTimer
     const releaseWhenSettled = () => {
