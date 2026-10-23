@@ -37,13 +37,54 @@ def matching_reviews(reviews: list[dict], head: str, login: str, marker: str = '
             and review.get('state') in ('COMMENTED', 'APPROVED', 'CHANGES_REQUESTED')]
 
 
-def codex_review(reviews: list[dict], head: str, inline: list[dict] | None = None) -> dict | None:
+def codex_summaries(comments: list[dict], head: str) -> list[dict]:
+    """Accept the native bot's machine-readable full-SHA receipt, never reactions/text."""
+    found = []
+    for comment in comments:
+        if (comment.get('user', {}).get('login') != CODEX
+                or comment.get('user', {}).get('type') != 'Bot'):
+            continue
+        match = re.match(r'\A<!-- codex-pull-request-review-summary -->\s*'
+                         r'<!-- codex-review-state:v1 (\{[^\n]*\}) -->', comment.get('body', ''))
+        if not match:
+            continue
+        try:
+            state = json.loads(match[1])['code_review']
+        except (ValueError, TypeError, KeyError):
+            continue
+        if (not isinstance(state, dict) or state.get('commit_sha') != head
+                or state.get('status') != 'completed'
+                or type(state.get('has_any_findings')) is not bool
+                or type(state.get('has_unresolved_findings')) is not bool):
+            continue
+        found.append({'blocking': state['has_any_findings'] or state['has_unresolved_findings'],
+                      'html_url': comment.get('html_url', '')})
+    return found
+
+
+def codex_review(reviews: list[dict], head: str, inline: list[dict] | None = None,
+                 comments: list[dict] | None = None) -> dict | None:
     found = matching_reviews(reviews, head, CODEX)
-    findings = [x for x in (inline or []) if x.get('commit_id') == head
-                and x.get('user', {}).get('login') == CODEX and x.get('user', {}).get('type') == 'Bot']
+    summaries = codex_summaries(comments or [], head)
+    # Inline anchors are remapped by GitHub; their formal review association is immutable.
+    native_inline = [x for x in (inline or []) if x.get('user', {}).get('login') == CODEX
+                     and x.get('user', {}).get('type') == 'Bot']
+    history_ids = {x['id'] for x in reviews if x.get('id')
+                   and x.get('user', {}).get('login') == CODEX and x.get('user', {}).get('type') == 'Bot'}
+    head_review_ids = {x['id'] for x in reviews if x.get('id') and x.get('commit_id') == head
+                       and x.get('user', {}).get('login') == CODEX and x.get('user', {}).get('type') == 'Bot'}
+    findings = [x for x in native_inline if x.get('pull_request_review_id') in head_review_ids]
+    unproven = any(x.get('pull_request_review_id') not in history_ids
+                   and head in (x.get('commit_id'), x.get('original_commit_id')) for x in native_inline)
     priority = any(re.search(r'\bP[012]\b', x.get('body', '')) for x in [*found, *findings])
-    return {'provider': 'codex', 'blocking': priority or any(x['state'] == 'CHANGES_REQUESTED' for x in found),
-            'body': 'Codex review: ' + found[-1].get('html_url', '')} if found else None
+    if not found and not summaries:
+        # Missing completion evidence cannot erase a known or unproven blocker.
+        # Return only a blocking decision; never manufacture a completed receipt.
+        return {'provider': 'codex', 'blocking': True,
+                'body': 'Codex blocking evidence exists without a completed review receipt'} if unproven or priority else None
+    return {'provider': 'codex', 'blocking': unproven or priority
+            or any(x['state'] == 'CHANGES_REQUESTED' for x in found) or any(x['blocking'] for x in summaries),
+            'body': 'Codex review: ' + (found or summaries)[-1].get('html_url', '')}
 
 
 def stored_claude_review(reviews: list[dict], head: str) -> dict | None:
@@ -186,8 +227,9 @@ def native_state(repo: str, pr: int, head: str, request_id: int, reviews: list[d
     if reviews is None:
         reviews = api(f'repos/{repo}/pulls/{pr}/reviews', pages=True)
     inline = api(f'repos/{repo}/pulls/{pr}/comments', pages=True)
+    comments = api(f'repos/{repo}/issues/{pr}/comments', pages=True)
     # Reactions acknowledge a request; only a SHA-bound review completes it.
-    return codex_review(reviews, head, inline)
+    return codex_review(reviews, head, inline, comments)
 
 
 def request_codex(repo: str, pr: int, head: str, wait_seconds: int):
@@ -214,7 +256,7 @@ def request_codex(repo: str, pr: int, head: str, wait_seconds: int):
         if review is None:
             time.sleep(min(20, max(0, deadline - time.monotonic())))
     output(completed='true' if review is not None else 'false')
-    sys.stdout.write(('Codex review completed' if review is not None else 'Codex unavailable within the bounded wait; use Claude') + '\n')
+    sys.stdout.write(('Codex review decision available' if review is not None else 'Codex unavailable within the bounded wait; use Claude') + '\n')
 
 
 def finalize(repo: str, pr: int, head: str, request_id: int) -> int:
@@ -243,7 +285,8 @@ def finalize(repo: str, pr: int, head: str, request_id: int) -> int:
                     f'<!-- webvue-review-blocking:{str(backup["blocking"]).lower()} -->\n' + backup['body']})
     current(repo, pr, head)
     status(repo, head, 'failure' if blocking else 'success',
-           f"{review['provider']} review complete; " + ('blocking findings require correction' if blocking else 'CI and delivery policy required'))
+           f"{review['provider']} " + ('blocking review evidence requires correction' if blocking
+                                     else 'review complete; CI and delivery policy required'))
     sys.stdout.write(review['body'] + '\n')
     return 1 if blocking else 0
 
