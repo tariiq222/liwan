@@ -9,7 +9,7 @@ describe('tasks manifest', () => {
   it('declares the application identity and prefix', () => {
     expect(manifest.id).toBe('tasks')
     expect(manifest.feature).toBe('tasks.enabled')
-    expect(manifest.routePrefixes).toEqual(['/my-tasks'])
+    expect(manifest.routePrefixes).toEqual(['/my-tasks', '/work'])
   })
 
   it('has one rail entry at order 15 that no other manifest uses', () => {
@@ -36,13 +36,21 @@ describe('tasks manifest', () => {
     })
   })
 
-  it('lands on /my-tasks and gates /my-tasks/new on create', () => {
+  it('links the work page «عملي» next to the new-task action, behind the read capability', () => {
+    const links = manifest.contextLinks?.('/my-tasks') ?? []
+    expect(links.find(l => l.id === 'work')).toMatchObject({ to: '/work', labelKey: 'myTasks.work.nav', capability: 'tasks.tasks.read', exact: true })
+    expect(links.map(l => l.id)).toEqual(['new-task', 'work'])
+  })
+
+  it('lands on /my-tasks, gates /my-tasks/new on create and /work on read', () => {
     expect(manifest.landing).toEqual([{ path: '/my-tasks', capability: 'tasks.tasks.read' }])
-    expect(manifest.routeCapabilities).toHaveLength(1)
-    const rule = manifest.routeCapabilities![0]!
-    expect(rule.pattern.test('/my-tasks/new')).toBe(true)
-    expect(rule.pattern.test('/my-tasks/5')).toBe(false)
-    expect(rule.capability).toBe('tasks.tasks.create')
+    expect(manifest.routeCapabilities).toHaveLength(2)
+    const create = manifest.routeCapabilities!.find(r => r.pattern.test('/my-tasks/new'))!
+    expect(create.pattern.test('/my-tasks/5')).toBe(false)
+    expect(create.capability).toBe('tasks.tasks.create')
+    const work = manifest.routeCapabilities!.find(r => r.pattern.test('/work'))!
+    expect(work.pattern.test('/work/other')).toBe(false)
+    expect(work.capability).toBe('tasks.tasks.read')
   })
 
   it('maps the tasks.assigned bell kind to the personal task', () => {

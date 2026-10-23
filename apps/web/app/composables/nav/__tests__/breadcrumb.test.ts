@@ -19,6 +19,8 @@ describe('shell breadcrumb', () => {
     ['/settings/apps/projects', 'nav.projects', [{ label: 'nav.settings', to: '/settings' }]],
     ['/projects', 'nav.projects', []],
     ['/notifications', null, []],
+    ['/apps', 'nav.apps', []],
+    ['/apps/finance', 'المالية', [{ label: 'nav.apps', to: '/apps' }, { label: 'المالية' }]],
   ] as const)('%s (page title %s)', (path, pageTitle, expected) => {
     expect(shellBreadcrumb({ path, pageTitle, t, rail: fullRail })).toEqual(expected)
   })

@@ -15,6 +15,7 @@ export type AppIcon = `i-lucide-${string}`
  */
 export interface AppNavItem {
   to: string; labelKey: string; icon: AppIcon; capability: string
+  anyCapabilities?: string[]
   feature?: string
   /** One-key jump on the /search page only, not a global shortcut; tools/new_app.py picks a free one. An application takes one key (its landing item); its other items pass '' so the single-key space lasts as applications grow. */
   shortcut: string
@@ -38,6 +39,7 @@ export interface AppCommand {
 }
 export interface AppContextLink {
   id: string; labelKey: string; icon: AppIcon; to: string; capability: string; feature?: string; pinned?: boolean
+  anyCapabilities?: string[]
   /** Locale key of the sidebar section heading; consecutive links with the same key form one section. */
   section?: string
   /** Active only on exactly this path (a section's overview page). */
@@ -64,8 +66,11 @@ export interface AppSettingsPage {
   to: string
   parts: AppSettingsPart[]
 }
-/** `shortLabelKey` names the entry under its rail icon when the full label (still the tooltip) needs two lines. */
-export interface AppRailEntry { id: string; labelKey: string; shortLabelKey?: string; icon: AppIcon; to: string; order: number }
+/**
+ * `shortLabelKey` names the entry under its rail icon when the full label (still the tooltip) needs two lines.
+ * `utility` places the entry in the rail's bottom slot above settings (the assistant), in `order` among the utility entries.
+ */
+export interface AppRailEntry { id: string; labelKey: string; shortLabelKey?: string; icon: AppIcon; to: string; order: number; utility?: boolean }
 /** The fetcher a search provider receives: `useApi().$api`, so requests keep its cookies, errors and zod parsing. */
 export type AppSearchApi = <T>(
   url: string,
@@ -120,6 +125,18 @@ export interface AppSidebarPanel {
   width: 'default' | 'wide'
   load: () => Promise<{ default: Component }>
 }
+/**
+ * The assistant's sheet: a panel the shell hosts beside the page, opened from a header button. The body is
+ * the owning application's own component, loaded lazily so the shell imports no application code (R3).
+ */
+export interface AppAssistantSurface {
+  /** Capability that shows the header button and the sheet. */
+  capability: string
+  labelKey: string
+  /** The full page the sheet's "open full page" link goes to. */
+  to: string
+  load: () => Promise<{ default: Component }>
+}
 /** One thing an application says needs the user's attention; `to` opens the record. */
 export interface AppAttentionRow {
   id: string
@@ -131,6 +148,24 @@ export interface AppAttentionRow {
   tone: 'urgent' | 'normal'
   /** What the user could do next, translated; shown as a plain suggestion, never as an action the assistant takes. */
   suggestion?: string
+}
+/** The three kinds of work the user's own page groups rows by. */
+export type AppWorkKind = 'execute' | 'decide' | 'follow'
+/**
+ * What an application tells the assistant surfaces (the sheet's "this page now", the full page's morning summary,
+ * the home suggestions). Built only from the application's own existing endpoints, through the caller's session.
+ */
+export interface AppAttentionProvider {
+  id: string
+  /** Rail module this provider belongs to; the sheet shows the providers of the module the user is in. */
+  module: string
+  /** What the row asks of the user: do it (`execute`), decide on it (`decide`), or keep an eye on it (`follow`). Drives "my work". */
+  work: AppWorkKind
+  capability: string
+  /** Vue-query key; the surfaces append nothing. */
+  queryKey: readonly unknown[]
+  /** Runs through useApi(); `t` is the i18n translate function for `suggestion`. Returns at most a handful of rows. */
+  load: (api: AppSearchApi, t: (key: string, params?: Record<string, unknown>) => string) => Promise<AppAttentionRow[]>
 }
 /** One self-service entry an application offers the signed-in user; `to` opens the page that does it. */
 export type PersonalSection = 'profile' | 'leave' | 'requests' | 'pay' | 'assets' | 'documents' | 'schedule'
@@ -230,6 +265,10 @@ export interface AppManifest {
   /** Palette actions (Actions group of the command palette). */
   commands?: AppCommand[]
   sidebarPanel?: AppSidebarPanel
+  /** The assistant's header button and sheet; only the assistant application declares it. */
+  assistant?: AppAssistantSurface
+  /** What needs the user's attention, for the assistant surfaces and the home suggestions. */
+  attention?: AppAttentionProvider[]
   /** Employee-owned services, separate from work and administrative navigation. */
   personal?: AppPersonalEntry[]
   /** Record kinds other applications may pick or filter by. */

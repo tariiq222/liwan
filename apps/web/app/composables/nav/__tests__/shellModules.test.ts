@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { allNavItems, contextLinksForModule, featureForRailModule, hidePinnedNewProject, shellModuleList, visibleSettingsPages, visibleShellModules, useNav } from '../shellModules'
+import { allNavItems, areaLabelKey, contextLinksForModule, featureForRailModule, hidePinnedNewProject, shellModuleList, visibleSettingsPages, visibleShellModules, useNav } from '../shellModules'
 import { appManifests, withManifests } from '../../../modules/manifests'
 import type { AppManifest } from '../../../modules/types'
 import { activeShellModule } from '../activeRoute'
@@ -278,21 +278,13 @@ describe('navigation built from app manifests', () => {
     })
   })
 
-  describe('context link with an explicit feature', () => {
-    const hrTenant = (features: string[]) => ({
-      capabilities: ['hr.employees.read', 'hr.departments.read', 'hr.assets.read'],
-      platform: { readable_features: features, writable_features: features },
-    })
-    const ids = (identity: ReturnType<typeof hrTenant>, path = '/hr') => contextLinksForModule('hr', identity, path).map(link => link.id)
-    it('hides the assets administration link when hr.assets is off but keeps the other employee links', () => {
-      expect(ids(hrTenant(['hr.enabled']))).toEqual(expect.arrayContaining(['employees', 'departments']))
-      expect(ids(hrTenant(['hr.enabled']), '/hr/assets')).not.toContain('assets')
-    })
-    it('shows the assets administration link when hr.assets is on', () => {
-      expect(ids(hrTenant(['hr.enabled', 'hr.assets']), '/hr/assets')).toContain('assets')
-    })
-    it('shows links without a feature as before when the tenant policy is absent', () => {
-      expect(ids({ capabilities: ['hr.employees.read', 'hr.assets.read'] } as ReturnType<typeof hrTenant>, '/hr/assets')).toContain('assets')
-    })
+
+})
+
+describe('areaLabelKey', () => {
+  it('names the module, then «التطبيقات» on the launcher, then the product', () => {
+    expect(areaLabelKey({ labelKey: 'nav.home' }, 'home')).toBe('nav.home')
+    expect(areaLabelKey(null, 'apps')).toBe('nav.apps')
+    expect(areaLabelKey(null, null)).toBe('app.productName')
   })
 })

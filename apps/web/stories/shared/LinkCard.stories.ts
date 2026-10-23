@@ -5,7 +5,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/LinkCard',
   component: LinkCard,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/index.vue:34', 'بطاقة وجهة: أيقونة في دائرة 40px وعنوان ووصف من سطر واحد، والبطاقة كلها رابط (اسمه العنوان ووصفه الوصف). عند التمرير ترتفع 1px بظل خفيف وحلقة أساسية، ولها حلقة تركيز. للروابط التنقلية لا للإجراءات.') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/apps/AppsStartContent.vue:28', 'بطاقة وجهة: أيقونة في دائرة 40px وعنوان ووصف من سطر واحد، والبطاقة كلها رابط (اسمه العنوان ووصفه الوصف). عند التمرير ترتفع 1px بظل خفيف وحلقة أساسية، ولها حلقة تركيز. للروابط التنقلية لا للإجراءات.') },
 } satisfies Meta<typeof LinkCard>
 export default meta
 type Story = StoryObj<typeof meta>

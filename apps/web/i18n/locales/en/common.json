@@ -12,7 +12,20 @@
     "loadMore": "Load more"
   },
   "home": {
-    "empty": "No workspaces are currently available for your account."
+    "empty": "No workspaces are currently available for your account.",
+    "nothingToday": "Nothing for you today. Browse the applications to get started.",
+    "openApps": "Applications",
+    "greeting": "Hello {name}",
+    "indicators": "My indicators",
+    "indicator": {
+      "execute": "To do",
+      "decide": "To decide",
+      "follow": "To follow"
+    },
+    "quick": "Quick access",
+    "focus": "Start with what matters",
+    "focusEmpty": "Nothing urgent right now.",
+    "viewAll": "View all"
   },
   "nav": {
     "quickViews": "Quick views and actions",
@@ -93,7 +106,8 @@
     "notificationsFilters": "Filter notifications",
     "meetingFollowup": "Follow-up",
     "meetingSeriesShort": "Recurring",
-    "finance": "Finance"
+    "finance": "Finance",
+    "apps": "Applications"
   },
   "auth": {
     "username": "Username",
@@ -190,5 +204,48 @@
     "sidebar": "Collapse or expand the sidebar",
     "escape": "Back or close",
     "help": "Show shortcuts"
+  },
+  "appStart": {
+    "attention": "Needs your attention",
+    "start": "Start here",
+    "open": "Open the app"
+  },
+  "launcher": {
+    "title": "Applications",
+    "description": "Your applications and everyday actions in one place",
+    "search": "Search applications",
+    "open": "Open application",
+    "noResults": "No application has that name.",
+    "empty": "No applications are available for your account yet.",
+    "apps": {
+      "projects": {
+        "description": "One workspace for project status, progress, and the next step."
+      },
+      "tasks": {
+        "description": "Your personal tasks and related project tasks."
+      },
+      "meetings": {
+        "description": "Schedule meetings, keep their minutes and recommendations, and follow up."
+      },
+      "chat": {
+        "description": "Private conversations with people in this organization."
+      },
+      "hr": {
+        "description": "Employee directory and work details."
+      },
+      "finance": {
+        "description": "Accounts, invoices, and the company's financial reports."
+      },
+      "operations": {
+        "description": "Internal requests, processes, and approval flows."
+      },
+      "documents": {
+        "description": "Company documents and private files."
+      },
+      "ai": {
+        "description": "Ask about your tasks and projects, and request what you want prepared."
+      }
+    },
+    "actions": "Quick actions"
   }
 }

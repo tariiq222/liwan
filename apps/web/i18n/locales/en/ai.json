@@ -76,6 +76,12 @@
         "archived": "Conversation archived",
         "unarchived": "Conversation restored from the archive"
       }
-    }
+    },
+    "home": {
+      "title": "Assistant suggestions today",
+      "source": "Suggested from your work",
+      "ask": "Ask the assistant"
+    },
+    "suggestionLabel": "Suggestion"
   }
 }

@@ -26,7 +26,9 @@ export const shellBranding = BrandingSchema.parse({
   font: 'IBM Plex Sans Arabic',
 })
 
-export const shellRail = railModel(visibleShellModules(shellMe))
+const shellModules = visibleShellModules(shellMe)
+/** Every application this workspace user can reach. */
+export const shellRail = railModel(shellModules)
 
 /** The same workspace user without any create or manage capability (palette Actions must be empty). */
 export const readOnlyShellMe = { ...shellMe, capabilities: shellMe.capabilities.filter(key => !/\.(create|manage)$/.test(key)) }
@@ -57,7 +59,7 @@ export const quickActionItems = [
 ]
 
 export const mobileDrawer = {
-  modules: shellRail.all,
+  modules: shellRail.drawer,
   activeId: 'projects',
   createLinks: projectsSidebar.createLinks,
   sections: projectsSidebar.sections,

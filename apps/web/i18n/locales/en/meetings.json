@@ -102,6 +102,9 @@
     },
     "footer": {
       "results": "{shown} of 1 result | {shown} of {total} results"
+    },
+    "attention": {
+      "reviewOverdue": "Review the overdue resolutions before the next meeting."
     }
   },
   "meetingsUx": {

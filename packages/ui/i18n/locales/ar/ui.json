@@ -38,10 +38,10 @@
     "title": "البحث والفلاتر"
   },
   "nav": {
-    "home": "الرئيسية",
+    "home": "يومي",
     "modules": "الموديولات",
     "railApps": "التطبيقات",
-    "railAdmin": "الإدارة",
+    "railTools": "الأدوات",
     "breadcrumb": "مسار الصفحة"
   },
   "states": {
