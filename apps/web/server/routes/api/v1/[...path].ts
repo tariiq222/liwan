@@ -2,6 +2,7 @@ import { createError, getProxyRequestHeaders, sendWebResponse, setResponseHeader
 import { boundedTenantBody, MAX_PUBLIC_MFA_BODY, tenantTransport, legacyTenantResponse, withTenantBody, withTenantResponse } from '../../../utils/tenantTransport'
 import { tenantUpstreamHeaders } from '../../../utils/tenantRequest'
 import { requireApiSession } from '../../../utils/apiSessionAdmission'
+import { HEAVY_TIMEOUT, isHeavyRoute } from '../../../utils/heavyRoutes'
 
 // The only /api/v1 routes Odoo serves with auth='public': login-page branding
 // and the MFA confirmation. Everything else requires a session cookie.
@@ -26,11 +27,13 @@ export default defineEventHandler(async (event) => {
   if (!publicMethods) await requireApiSession(event, odooUrl, headers)
   // Body credits are separate from Odoo work slots and retained through dispatch.
   // Public routes skip session admission, so they draw on the separate public pool.
-  const scope = publicMethods ? 'public' : 'session'
+  // Allowlisted heavy routes (never public) get their own pool, upstream gate and longer deadline.
+  const heavy = !publicMethods && isHeavyRoute(event.method, apiPath) ? { timeoutMs: HEAVY_TIMEOUT } : undefined
+  const scope = publicMethods ? 'public' : heavy ? 'heavy' : 'session'
   return withTenantBody(event, scope, async () => {
     const body = await boundedTenantBody(event, apiPath === '/api/v1/auth/totp' ? MAX_PUBLIC_MFA_BODY : undefined)
     return withTenantResponse(event, scope, async () => Object.keys(headers).length
-      ? sendWebResponse(event, await tenantTransport(event, odooUrl, event.path, { method: event.method, body }))
-      : sendWebResponse(event, await legacyTenantResponse(event, odooUrl, event.path, { method: event.method, body, headers: getProxyRequestHeaders(event, { host: false }) })))
+      ? sendWebResponse(event, await tenantTransport(event, odooUrl, event.path, { method: event.method, body, heavy }))
+      : sendWebResponse(event, await legacyTenantResponse(event, odooUrl, event.path, { method: event.method, body, headers: getProxyRequestHeaders(event, { host: false }), heavy })))
   })
 })

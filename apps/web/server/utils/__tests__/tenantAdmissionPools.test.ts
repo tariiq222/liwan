@@ -49,3 +49,24 @@ it('lets public traffic proceed while the authenticated pool is saturated', asyn
     expect(await settledWithin(publicRequest.inside)).toBe(true)
   }
 })
+
+it('lets session and public traffic proceed while the heavy pool is saturated', async () => {
+  const heavyHolders = Array.from({ length: 2 + 8 }, () => hold('heavy'))
+  await Promise.all(heavyHolders.slice(0, 2).map(holder => holder.inside))
+  // Heavy pool is full (2 active, 8 queued): further heavy work is refused, not queued.
+  await expect(withTenantBody(event(), 'heavy', async () => {})).rejects.toMatchObject({ statusCode: 502 })
+  for (const scope of ['session', 'public'] as const) {
+    for (const kind of ['body', 'response'] as const) {
+      expect(await settledWithin(hold(scope, kind).inside)).toBe(true)
+    }
+  }
+})
+
+it('lets heavy traffic proceed while the session pool is saturated', async () => {
+  const sessionHolders = Array.from({ length: 4 + 64 }, () => hold('session'))
+  await Promise.all(sessionHolders.slice(0, 4).map(holder => holder.inside))
+  await expect(withTenantBody(event(), 'session', async () => {})).rejects.toMatchObject({ statusCode: 502 })
+  for (const kind of ['body', 'response'] as const) {
+    expect(await settledWithin(hold('heavy', kind).inside)).toBe(true)
+  }
+})

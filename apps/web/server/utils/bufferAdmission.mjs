@@ -3,10 +3,12 @@ import { ServerResponse } from 'node:http'
 /** Fixed operator memory budget, independent of tenant count and Odoo workers. */
 const BUFFER_TIMEOUT = 15_000
 /** Unauthenticated traffic (login, MFA, branding) has its own small pool so it can never
- * consume the credits that verified sessions depend on. */
+ * consume the credits that verified sessions depend on. Allowlisted heavy routes (reports,
+ * payroll, PDFs) hold credits far longer, so they get a third small pool for the same reason. */
 const POOL_LIMITS = {
   session: { active: 4, queued: 64 },
   public: { active: 2, queued: 16 },
+  heavy: { active: 2, queued: 8 },
 }
 
 const bufferAdmissionFailure = () => Object.assign(Error('tenant_upstream_unavailable'), {
