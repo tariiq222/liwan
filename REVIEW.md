@@ -4,41 +4,33 @@ For anyone reviewing a diff in this repository: `/code-review`, the `odoo-review
 The rules themselves live in `AGENTS.md`, `docs/agents/odoo-rules.md` and `docs/agents/web-rules.md`;
 this file says what to report and what not to.
 
-## GitHub PR review and failover
+## GitHub PR review
 
-The `pr-review` workflow requests native Codex review for a ready, same-repository
-owner or explicitly trusted automation PR. It waits at most five minutes, then uses Claude Code with the existing
-subscription credential only if Codex did not complete. Never substitute another
-reviewer because the first found defects. The `code-review` status is bound to
-the exact head SHA; new commits require a new review. Both unavailable, incomplete
-reports and blocking findings prevent success. Findings remain visible on GitHub.
+The `pr-review` workflow reviews a ready, same-repository owner or explicitly trusted
+automation PR on a `claude/` branch with Claude Code and the existing subscription
+credential. Drafts, forks, other branches and superseded heads are skipped, not
+failed. The `code-review` status is bound to the exact head SHA; new commits require
+a new review. A missing or incomplete report and any P0/P1/P2 finding prevent
+success. Findings remain visible on GitHub.
 
 A stored Claude report is a blocker record only: it cannot turn a later failed or
-missing review into success, and a stored clean report does not skip Codex.
-A Codex reaction or free-text receipt alone never completes review. Require either
-a completed formal review for the current head, or the native Codex bot's
-machine-readable review summary with that full head SHA, completed status and
-explicit boolean findings fields. Any findings in a summary block; a clean summary
-never clears formal change requests, P0/P1/P2 body or inline findings, or unknown
-current inline provenance. Inline findings belong to their immutable formal review,
-not GitHub's remapped anchor commit.
-Claude cannot approve PRs or current commits authored by Claude or generic GitHub
-Actions automation. Those heads require Codex; unavailability keeps the gate
-blocked rather than letting the repair model review its own changes.
+missing review into success, and a later clean report never erases a blocker
+already recorded for the same head.
+Claude also reviews heads written by Claude or generic GitHub Actions automation
+(or unattributed ones), but such a head never merges on its own review: the
+delivery policy requires the owner's `/webvue approve <head-sha>` for it, as for
+sensitive scope.
 
-The fallback credential belongs to the separate, main-only `review` environment.
+The credential belongs to the separate, main-only `review` environment.
 Adding it does not populate `agent` or `agent-scan`. The review environment has no
-per-run human approval: sensitive changes retain the separate exact-head owner
-approval required by delivery policy. No API-key fallback is permitted.
-If Codex does not complete within five minutes and the review environment has no
-valid Claude credential, `code-review = error` is expected and merge stays blocked.
+per-run human approval: sensitive and automation-authored changes retain the
+separate exact-head owner approval required by delivery policy. No API-key
+fallback is permitted. If the review environment has no valid Claude credential,
+`code-review = error` is expected and merge stays blocked.
 
 ### Not verified
 
-- Whether native Codex responds to `@codex review` requests authored by
-  `github-actions[bot]` in this repository. No live response has been established;
-  the presence of a request or reaction is not proof of a completed review.
-- The new review environment's subscription credential and fallback execution on
+- The review environment's subscription credential and Claude execution on
   GitHub. Local Claude subscription login is not evidence of the CI connection.
 
 The controller prefetches the complete diff and trusted base guidance as data.
@@ -50,10 +42,9 @@ a standard comment review with a deterministic blocking marker. The required
 `code-review` status enforces findings, including bot-authored PRs, without leaving
 stale change-request approvals. The separate deterministic `pr-delivery` controller owns
 bounded automatic repair and protected merge after current CI/review/scope gates;
-sensitive scope requires exact-head owner approval. Models never merge directly. Drafts and forks are not automatically
-reviewed by this privileged workflow; fork support needs its own trusted approval
-flow. Native Codex review must be enabled for the repository and the Claude
-subscription credential must be valid; the presence of a secret is not proof.
+sensitive scope and automation-authored heads require exact-head owner approval.
+Models never merge directly. Fork support needs its own trusted approval flow.
+The Claude subscription credential must be valid; the presence of a secret is not proof.
 
 ## Already automated: do not re-report what is covered
 

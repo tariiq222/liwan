@@ -12,7 +12,7 @@ HEAD = 'a' * 40
 class DeliveryTest(unittest.TestCase):
     def pr(self):
         return {'number': 9, 'state': 'open', 'draft': False, 'user': {'login': 'owner'},
-                'head': {'sha': HEAD, 'ref': 'codex/web-fix', 'repo': {'full_name': 'owner/repo'}},
+                'head': {'sha': HEAD, 'ref': 'claude/web-fix', 'repo': {'full_name': 'owner/repo'}},
                 'base': {'ref': 'main'}, 'changed_files': 1, 'mergeable_state': 'clean'}
 
     def file(self, path='apps/web/app/components/Card.vue', patch_text='+ fix layout'):
@@ -94,7 +94,7 @@ class DeliveryTest(unittest.TestCase):
         self.assertFalse(delivery.protected_source_change('<p>old</p>', '<p>new</p>'))
 
     def test_nonmain_controller_execution_is_refused_before_any_api(self):
-        with patch.dict(os.environ, {'GITHUB_REF': 'refs/heads/codex/candidate'}), patch.object(
+        with patch.dict(os.environ, {'GITHUB_REF': 'refs/heads/claude/candidate'}), patch.object(
                 delivery, 'api') as api:
             with self.assertRaises(RuntimeError):
                 delivery.require_main()
@@ -133,6 +133,7 @@ class DeliveryTest(unittest.TestCase):
                 delivery, 'files_for', return_value=[self.file()]), patch.object(
                 delivery, 'ci_state', return_value='failure'), patch.object(
                 delivery, 'review_state', return_value='success'), patch.object(
+                delivery, 'automation_authored', return_value=False), patch.object(
                 delivery, 'policy_status'), patch.object(delivery, 'output') as out, patch.object(
                 delivery, 'api', side_effect=fake_api):
             delivery.plan('owner/repo', 9)
@@ -163,14 +164,14 @@ class DeliveryTest(unittest.TestCase):
         self.assertFalse(write.call_args.args[2]['force'])
         parent = next(c.args[1]['parents'] for c in api.call_args_list if c.args[0].endswith('/git/commits'))
         self.assertEqual(parent, [HEAD])
-        dispatch.assert_called_once_with('owner/repo', 9, 'newsha', 'codex/web-fix')
+        dispatch.assert_called_once_with('owner/repo', 9, 'newsha', 'claude/web-fix')
 
     def test_green_plan_uses_exact_sha_normal_merge_and_requests_full_main_ci(self):
         with patch.object(delivery, 'checked_pr', return_value=self.pr()), patch.object(
                 delivery, 'files_for', return_value=[self.file()]), patch.object(
                 delivery, 'ci_state', return_value='success'), patch.object(
                 delivery, 'review_state', return_value='success'), patch.object(
-                delivery, 'settle_outdated_bot_threads'), patch.object(delivery, 'policy_status'), patch.object(
+                delivery, 'automation_authored', return_value=False), patch.object(delivery, 'policy_status'), patch.object(
                 delivery, 'output'), patch.object(delivery, 'api', return_value=[]) as api, patch.object(
                 delivery, 'request', return_value={'merged': True}) as merge:
             delivery.plan('owner/repo', 9)
@@ -178,21 +179,44 @@ class DeliveryTest(unittest.TestCase):
                                                {'sha': HEAD, 'merge_method': 'merge'}))
         self.assertEqual(api.call_args.args[1], {'ref': 'main', 'inputs': {'full': True}})
 
-    def test_only_obsolete_bot_only_threads_resolve_after_current_clean_review(self):
-        def thread(name, author='chatgpt-codex-connector', outdated=True):
-            return {'id': name, 'isResolved': False, 'isOutdated': outdated, 'comments': {
-                'pageInfo': {'hasNextPage': False}, 'nodes': [
-                    {'author': {'login': author, '__typename': 'Bot' if author != 'owner' else 'User'},
-                     'originalCommit': {'oid': 'b' * 40}}]}}
+    def test_automation_or_unattributed_heads_are_detected(self):
+        for author, commit in (('owner', {'author': {'login': 'owner'}}),
+                               ('claude[bot]', {'author': {'login': 'owner'}}),
+                               ('owner', {'author': {'login': 'github-actions[bot]'}}),
+                               ('owner', {'author': None})):
+            pr = self.pr()
+            pr['user']['login'] = author
+            with self.subTest(author=author, commit=commit), patch.object(delivery, 'api', return_value=commit):
+                self.assertEqual(delivery.automation_authored('owner/repo', pr, HEAD),
+                                 (author, commit['author']) != ('owner', {'login': 'owner'}))
 
-        threads = [thread('old-bot'), thread('human', author='owner'), thread('current-bot', outdated=False)]
-        result = {'data': {'repository': {'pullRequest': {'headRefOid': HEAD, 'reviewThreads': {
-            'pageInfo': {'hasNextPage': False}, 'nodes': threads}}}}}
-        with patch.object(delivery, 'api', side_effect=[result, {}]) as api, patch.object(delivery, 'checked_pr'):
-            delivery.settle_outdated_bot_threads('owner/repo', 9, HEAD)
-        self.assertEqual(api.call_count, 2)
-        self.assertEqual(api.call_args.args[1]['variables'], {'id': 'old-bot'})
+    def test_automation_head_waits_for_exact_owner_approval_even_in_safe_scope(self):
+        def plan(comments):
+            with patch.object(delivery, 'checked_pr', return_value=self.pr()), patch.object(
+                    delivery, 'files_for', return_value=[self.file()]), patch.object(
+                    delivery, 'automation_authored', return_value=True), patch.object(
+                    delivery, 'ci_state', return_value='pending'), patch.object(
+                    delivery, 'review_state', return_value='pending'), patch.object(
+                    delivery, 'policy_status') as policy, patch.object(delivery, 'output') as out, patch.object(
+                    delivery, 'api', return_value=comments):
+                delivery.plan('owner/repo', 9)
+            return policy.call_args.args[2], out.call_args.kwargs['decision']
+        self.assertEqual(plan([]), ('pending', 'wait'))
+        approval = {'user': {'login': 'owner'}, 'body': f'/webvue approve {HEAD}'}
+        self.assertEqual(plan([approval]), ('success', 'wait'))
 
+    def test_resolve_skips_draft_ineligible_and_superseded_heads_without_failing(self):
+        for mutate in (lambda p: p.update(draft=True), lambda p: p['head'].update(ref='codex/web-fix'),
+                       lambda p: p['head'].update(sha='b' * 40)):
+            pr = self.pr()
+            mutate(pr)
+            with self.subTest(pr=pr), patch.object(delivery, 'api', return_value=pr), patch.object(
+                    delivery, 'output') as out:
+                delivery.resolve('owner/repo', 9, HEAD)
+            out.assert_called_once_with(eligible='false')
+        with patch.object(delivery, 'api', return_value=self.pr()), patch.object(delivery, 'output') as out:
+            delivery.resolve('owner/repo', 9, HEAD)
+        out.assert_called_once_with(pr=9, head=HEAD, eligible='true')
 
 if __name__ == '__main__':
     unittest.main()

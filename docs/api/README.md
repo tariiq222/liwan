@@ -18,7 +18,7 @@ python3 tools/api_surface.py            # regenerate openapi.json and route-capa
 python3 tools/api_surface.py --check    # exit 1 when either committed file is stale
 ```
 
-Both files are generated only at integration, on a `codex/tools-integrate-*` branch or `main`. A task
+Both files are generated only at integration, on a `claude/tools-integrate-*` branch or `main`. A task
 branch never commits them (`tools/git_policy.py` refuses it); its gate is
 `tools/route_gate_policy.py`, part of `npm test`. See `docs/parallel-work.md`.
 
