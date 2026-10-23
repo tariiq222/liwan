@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/vue-query'
 import { describe, expect, it } from 'vitest'
-import { leaveApprovalAttention } from '../hr/attention'
+import { leaveApprovalAttention, leaveCancellationAttention } from '../hr/attention'
 import { todayMeetingsAttention, overdueFollowupAttention } from '../meetings/attention'
 import { pendingReviewAttention } from '../operations/attention'
 import { overdueTasksAttention, projectsAtRiskAttention } from '../pmo/attention'
@@ -11,6 +11,7 @@ import { invalidateProjectCaches } from '../../composables/projectKeys'
 describe('attention follows application cache invalidation', () => {
   it.each([
     [leaveApprovalAttention, ['hr', 'leave']],
+    [leaveCancellationAttention, ['hr', 'leave']],
     [todayMeetingsAttention, ['meetings']],
     [overdueFollowupAttention, ['meetings']],
     [pendingReviewAttention, ['operations', 'requests', 'list']],

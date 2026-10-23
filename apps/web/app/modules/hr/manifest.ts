@@ -1,6 +1,6 @@
 import type { AppContextLink, AppManifest } from '../types'
 import { hrPersonalEntries } from './personal'
-import { leaveApprovalAttention } from './attention'
+import { leaveApprovalAttention, leaveCancellationAttention } from './attention'
 import { hrSectionActive, hrSectionOf, hrSectionTarget, type HrSection } from './routes'
 
 const plus = 'i-lucide-plus'
@@ -99,7 +99,7 @@ const manifest: AppManifest = {
     { path: '/hr/assets', capability: 'hr.assets.read' },
     { path: '/hr/payroll', capability: 'hr.payroll.read' },
   ],
-  attention: [leaveApprovalAttention],
+  attention: [leaveApprovalAttention, leaveCancellationAttention],
   personal: hrPersonalEntries,
   commands: [
     { id: 'hr.new-employee', labelKey: 'hr.directory.newEmployee', icon: 'i-lucide-users', to: '/hr/employees/new', capability: 'hr.employees.manage' },
