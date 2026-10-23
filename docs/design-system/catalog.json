@@ -248,12 +248,12 @@
       ],
       "events": [
         {
-          "name": "reload",
-          "payload": "[]"
-        },
-        {
           "name": "save",
           "payload": "[body: { expected_revision: number; visibility: \"company\" | \"restricted\"; grants: { user_id: number; access: \"reader\" | \"editor\"; }[]; }]"
+        },
+        {
+          "name": "reload",
+          "payload": "[]"
         }
       ],
       "slots": [],
@@ -764,6 +764,85 @@
           "id": "Management",
           "name": "سجل الاعتماد الإداري",
           "context": "apps/web/app/pages/hr/self/leave/[leaveId].vue:6"
+        },
+        {
+          "id": "StaleConflict",
+          "name": "StaleConflict",
+          "context": "apps/web/app/pages/hr/self/leave/[leaveId].vue:6"
+        },
+        {
+          "id": "Forbidden",
+          "name": "Forbidden",
+          "context": "apps/web/app/pages/hr/self/leave/[leaveId].vue:6"
+        }
+      ]
+    },
+    {
+      "name": "LeaveSettingsForm",
+      "file": "apps/web/app/components/hr/LeaveSettingsForm.vue",
+      "story": "apps/web/stories/hr/LeaveSettingsForm.stories.ts",
+      "title": "HR/LeaveSettingsForm",
+      "props": [
+        {
+          "name": "settings",
+          "type": "{ cancellation_policy: \"manager_approval\" | \"direct_employee\" | \"manager_only\"; revision: number; }",
+          "required": true
+        },
+        {
+          "name": "canEdit",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "reloadSettings",
+          "type": "() => Promise<{ cancellation_policy: \"manager_approval\" | \"direct_employee\" | \"manager_only\"; revision: number; }>",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UForm",
+        "UFormField",
+        "USelect"
+      ],
+      "stories": [
+        {
+          "id": "ManagerApprovalDefault",
+          "name": "ManagerApprovalDefault",
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:128"
+        },
+        {
+          "id": "DirectEmployee",
+          "name": "DirectEmployee",
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:128"
+        },
+        {
+          "id": "ManagerOnly",
+          "name": "ManagerOnly",
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:128"
+        },
+        {
+          "id": "ReadOnly",
+          "name": "ReadOnly",
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:128"
+        },
+        {
+          "id": "Saving",
+          "name": "Saving",
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:128"
+        },
+        {
+          "id": "SaveError",
+          "name": "SaveError",
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:128"
+        },
+        {
+          "id": "Conflict",
+          "name": "Conflict",
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:128"
         }
       ]
     },
@@ -810,14 +889,14 @@
           "name": "canEdit",
           "type": "boolean",
           "required": true
-        }
-      ],
-      "events": [
+        },
         {
-          "name": "reload",
-          "payload": "[]"
+          "name": "reloadSettings",
+          "type": "() => Promise<{ day_reference: \"company\" | \"user\"; company_timezone: string; effective_timezone: string; today: string; revision: number; }>",
+          "required": true
         }
       ],
+      "events": [],
       "slots": [],
       "nuxtUi": [
         "UAlert",
@@ -830,17 +909,17 @@
         {
           "id": "CompanyDefault",
           "name": "CompanyDefault",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:114"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:133"
         },
         {
           "id": "UserReference",
           "name": "UserReference",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:114"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:133"
         },
         {
           "id": "ReadOnly",
           "name": "ReadOnly",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:114"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:133"
         }
       ]
     },

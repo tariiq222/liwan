@@ -1,8 +1,10 @@
+import type { HrLeave } from '@webvue/contracts'
+import { http, HttpResponse } from 'msw'
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import LeaveRecord from '../../app/components/hr/LeaveRecord.vue'
 import { __getRouter } from '../../.storybook/nuxt-shims'
 import { storyContext } from '../support/context'
-import { hrSelfServiceHandlers } from './selfServiceFixtures'
+import { leave, hrSelfServiceHandlers } from './selfServiceFixtures'
 
 const meta = {
   title: 'HR/LeaveRecord', component: LeaveRecord,
@@ -20,3 +22,26 @@ export default meta
 type Story = StoryObj<typeof meta>
 export const Personal: Story = { name: 'سجل طلب إجازتي' }
 export const Management: Story = { name: 'سجل الاعتماد الإداري', args: { personal: false } }
+
+const pending = { id: 8, state: 'pending' as const, revision: 1, reason: 'تغيّرت خطة السفر', requested_at: '2026-10-23 12:00:00', initiator: { id: 2, name: 'سارة القحطاني' }, reviewed_at: null, reviewer: null, review_reason: null }
+function cancellationStory(overrides: Partial<HrLeave>, personal = true): Story {
+  const record: HrLeave = { ...leave, state: 'validate', can_withdraw: false, can_request_cancellation: true, ...overrides }
+  return { args: { personal }, parameters: { msw: { handlers: { api: [
+    http.get('/api/v1/hr/leave/me/:id', () => HttpResponse.json(record)),
+    http.get('/api/v1/hr/leave/requests/:id', () => HttpResponse.json(record)),
+    ...hrSelfServiceHandlers,
+  ] } } } }
+}
+export const ApprovedRequestable = cancellationStory({})
+export const CancellationPending = cancellationStory({ cancellation: pending, can_request_cancellation: false })
+export const CancellationRefused = cancellationStory({ cancellation: { ...pending, state: 'refused', revision: 2, reviewer: { id: 3, name: 'نورة العتيبي' }, reviewed_at: '2026-10-23 13:00:00', review_reason: 'احتياج الفريق' } })
+export const ManagerOnly = cancellationStory({ cancellation_policy: 'manager_only', can_request_cancellation: false })
+export const EmployeeDirect = cancellationStory({ cancellation_policy: 'direct_employee', can_request_cancellation: false, can_cancel: true })
+export const ManagerDirect = cancellationStory({ can_request_cancellation: false, can_cancel: true }, false)
+export const CancellationDecision = cancellationStory({ cancellation: pending, can_request_cancellation: false, can_approve_cancellation: true, can_refuse_cancellation: true }, false)
+export const StaleConflict: Story = { ...CancellationDecision, parameters: { msw: { handlers: { api: [
+  http.post('/api/v1/hr/leave/requests/:id/cancellation/approve', () => HttpResponse.json({ code: 'conflict', message: 'تغيّرت الإجازة' }, { status: 409 })),
+  http.get('/api/v1/hr/leave/requests/:id', () => HttpResponse.json({ ...leave, state: 'validate', can_withdraw: false, cancellation: pending, can_approve_cancellation: true, can_refuse_cancellation: true })),
+  ...hrSelfServiceHandlers,
+] } } } }
+export const Forbidden: Story = { parameters: { msw: { handlers: { api: [http.get('/api/v1/hr/leave/me/:id', () => HttpResponse.json({ code: 'forbidden', message: 'ليس لديك صلاحية' }, { status: 403 })), ...hrSelfServiceHandlers] } } } }

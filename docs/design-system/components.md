@@ -362,3 +362,5 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 | `apps/web/app/components/operations/RequestCreate.vue` | إنشاء طلب من كتالوج العمل أو الخدمات الوظيفية حسب المسار؛ القصة `apps/web/stories/operations/RequestCreate.stories.ts` | SharedCreatePanel, SharedListPage, RequestForm |
 | `apps/web/app/components/operations/RequestRecord.vue` | سجل الطلب وإجراءاته مع نقطة قراءة شخصية مستقلة؛ القصة `apps/web/stories/operations/RequestRecord.stories.ts` | SharedRecordPage, SharedRecordSection, SharedPropertiesPanel |
 | `apps/web/app/components/operations/RequestEdit.vue` | تعديل الطلب وإرجاعه إلى سجله مع حفظ مصدر القائمة؛ القصة `apps/web/stories/operations/RequestEdit.stories.ts` | SharedPageContainer, SharedPageHeader, SharedPageState, RequestForm |
+
+| `apps/web/app/components/hr/LeaveSettingsForm.vue` | Company cancellation policy with three choices, revision conflict recovery through awaited reload, preserved drafts; story `apps/web/stories/hr/LeaveSettingsForm.stories.ts` | SharedFormSection panel, SharedFormActions, SharedUnsavedChanges, UForm, UFormField, USelect, UAlert, UButton |
