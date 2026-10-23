@@ -3,7 +3,7 @@
 from unittest.mock import patch
 
 from odoo.exceptions import AccessError, ValidationError
-from odoo.tests import tagged
+from odoo.tests import new_test_user, tagged
 
 from odoo.addons.webvue_api.tests.common import CompanyIsolationCase
 
@@ -220,3 +220,96 @@ class TestHrRecruitmentBranchConsumers(CompanyIsolationCase):
         self.assertNotEqual(outer.employee_id, inner.employee_id)
         with self.assertRaises(AccessError), self.env.cr.savepoint():
             outer.env['hr.employee'].create({'name': 'Leaked nested frame', 'company_id': self.company_p1.id})
+
+    def test_full_parent_manager_keeps_ordinary_current_company_create_contract(self):
+        self._hire_grants()
+        applicant = self._hire_applicant('Ordinary current company creation')
+        employees = applicant.env['hr.employee']
+        current = employees.create({'name': 'Ordinary parent employee'})
+        self.assertEqual(current.company_id, self.company_p)
+        with self.assertRaises(AccessError), self.env.cr.savepoint():
+            employees.create({'name': 'Outside native hire branch employee', 'company_id': self.company_p1.id})
+        self.assertFalse(self.env['hr.employee'].search([('name', '=', 'Outside native hire branch employee')]))
+
+    def test_native_hire_frame_cannot_follow_changed_actor_root_or_owner(self):
+        self._hire_grants()
+        other = new_test_user(
+            self.env, login='other_native_hire_manager', groups='webvue_core.group_employee',
+            company_id=self.company_p.id, company_ids=[self.company_p.id, self.company_p1.id],
+        )
+        self.env['webvue.access.assignment'].create([
+            {'user_id': other.id, 'company_id': company.id,
+             'role_id': self.env.ref('webvue_hr.role_hr_manager').id}
+            for company in (self.company_p, self.company_p1)
+        ])
+        applicant = self._hire_applicant('Bound native branch hire')
+        original = type(applicant).create_employee_from_applicant
+
+        def reject_changed_authority_before_native_create(record):
+            for env, company, label in (
+                (record.with_user(other).env, self.company_p1, 'actor'),
+                (record.with_company(self.company_p2).env, self.company_p1, 'root'),
+                (record.env, self.company_p, 'owner'),
+            ):
+                with self.subTest(authority=label), self.assertRaises(AccessError):
+                    env['hr.employee'].create({'name': f'Changed hire {label}', 'company_id': company.id})
+            return original(record)
+
+        with patch.object(type(applicant), 'create_employee_from_applicant', reject_changed_authority_before_native_create):
+            employee = applicant._webvue_hire()
+        self.assertEqual(employee.company_id, self.company_p1)
+        self.assertFalse(self.env['hr.employee'].search([('name', 'in', [
+            'Changed hire actor', 'Changed hire root', 'Changed hire owner',
+        ])]))
+
+    def test_native_hire_cannot_replace_original_operation_scope_after_revocation(self):
+        self._hire_grants()
+        role = self.env['webvue.access.role'].with_company(self.company_p1).create({
+            'key': 'native_hire_employee_only', 'type': 'custom', 'name_ar': 'Employee management only',
+            'permission_ids': [(6, 0, self.env['webvue.access.permission'].search([
+                ('key', 'in', ['hr.employees.read', 'hr.employees.manage']),
+            ]).ids)],
+        })
+        applicant = self._hire_applicant('Changed native hire scope')
+        original = type(applicant).create_employee_from_applicant
+
+        def revoke_recruitment_and_replace_scope(record):
+            assignments = self.env['webvue.access.assignment']
+            assignments.search([
+                ('user_id', '=', self.iso_user.id), ('company_id', '=', self.company_p1.id),
+            ]).unlink()
+            assignments.create({'user_id': self.iso_user.id, 'company_id': self.company_p1.id, 'role_id': role.id})
+            changed = record.with_context(webvue_capability_scope=((('hr.employees.manage',), 'all'),))
+            self.assertEqual(changed.env['webvue.access.service']._webvue_scoped_company_ids(), [])
+            return original(changed)
+
+        with patch.object(type(applicant), 'create_employee_from_applicant', revoke_recruitment_and_replace_scope):
+            with self.assertRaises(AccessError):
+                applicant._webvue_hire()
+        self.assertFalse(applicant.employee_id)
+        self.assertFalse(self.env['hr.employee'].search([('name', '=', 'Changed native hire scope')]))
+        self.assertFalse(self.env['res.partner'].search([('name', '=', 'Changed native hire scope')]))
+
+    def test_failed_nested_native_hire_restores_outer_authority(self):
+        self._hire_grants(parent=False)
+        outer = self._hire_applicant('Outer hire after inner rollback')
+        inner = self._hire_applicant('Inner rolled back hire')
+        original = type(outer).create_employee_from_applicant
+
+        def fail_inner_and_continue_outer(record):
+            if record.id == inner.id:
+                original(record)
+                message = 'Reject the inner native hire'
+                raise ValidationError(message)
+            with self.assertRaises(ValidationError):
+                inner._webvue_hire()
+            return original(record)
+
+        with patch.object(type(outer), 'create_employee_from_applicant', fail_inner_and_continue_outer):
+            employee = outer._webvue_hire()
+        self.assertEqual(employee.company_id, self.company_p1)
+        self.assertFalse(inner.employee_id)
+        self.assertFalse(self.env['hr.employee'].search([('name', '=', 'Inner rolled back hire')]))
+        self.assertFalse(self.env['res.partner'].search([('name', '=', 'Inner rolled back hire')]))
+        with self.assertRaises(AccessError), self.env.cr.savepoint():
+            outer.env['hr.employee'].create({'name': 'Leaked rollback frame', 'company_id': self.company_p1.id})
