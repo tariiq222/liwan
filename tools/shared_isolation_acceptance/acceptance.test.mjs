@@ -4,6 +4,7 @@ import http from 'node:http'
 import net from 'node:net'
 import { writeFileSync, readFileSync } from 'node:fs'
 import vm from 'node:vm'
+import { fileURLToPath } from 'node:url'
 import { createGuard, sessionCodec, requestPlan } from '../../deploy/shared/guard.mjs'
 import { validateRegistry, readTenantRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'
 import { reconcileSharedJob, bindJob } from '../../apps/control-plane/src/shared/provisioning.ts'
@@ -45,17 +46,21 @@ test('pure registry, forged headers/selectors, session expiry/key rotation and r
   const signed = sessionCodec(keys, 'test', () => 1).seal('sid', a)
   assert.throws(() => sessionCodec(keys, 'test', () => 3601).open(signed, a))
   assert.throws(() => sessionCodec({ new: 'n'.repeat(40) }, 'new').open(cookie(a).slice(11), a))
-  for (const path of ['/api/v1/branding', '/api/v1/reports/projects/summary', '/api/v1/auth/totp']) assert.equal(requestPlan(req(a, path), r, token, codec).odoo, true)
+  for (const path of ['/api/v1/branding', '/api/v1/reports/projects/summary', '/api/v1/auth/totp']) {
+    assert.equal(requestPlan(req(a, path), r, token, codec).odoo, false, 'external API goes through Nuxt')
+    assert.equal(requestPlan(req(a, path, { 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' }), r, token, codec).odoo, true, 'internal API reaches Odoo')
+  }
 })
 
 test('configuration replay: dedicated proxies remain frozen when runtime env changes (finding)', () => {
-  const source = readFileSync(new URL('../../apps/web/nuxt.config.ts', import.meta.url), 'utf8').replace('export default defineNuxtConfig(', 'globalThis.result = defineNuxtConfig(')
-  const context = { process: { env: { WEBVUE_TENANCY_MODE: 'dedicated', NUXT_ODOO_URL: 'http://synthetic-odoo:8069' } }, defineNuxtConfig: x => x }
+  const source = readFileSync(new URL('../../apps/web/nuxt.config.ts', import.meta.url), 'utf8').replace(/^import .*$/gm, '').replaceAll('import.meta.url', JSON.stringify(new URL('../../apps/web/nuxt.config.ts', import.meta.url).href)).replace('export default defineNuxtConfig(', 'globalThis.result = defineNuxtConfig(')
+  const configHelpers = { URL, fileURLToPath, discoverLocaleFiles: () => ({ ar: [], en: [] }) }
+  const context = { ...configHelpers, process: { env: { WEBVUE_TENANCY_MODE: 'dedicated', NUXT_ODOO_URL: 'http://synthetic-odoo:8069' } }, defineNuxtConfig: x => x }
   vm.runInNewContext(source, context)
   context.process.env.WEBVUE_TENANCY_MODE = 'shared'
   assert.equal(context.result.routeRules['/web/**'].proxy.to, 'http://synthetic-odoo:8069/web/**')
-  const shared = { process: { env: { WEBVUE_TENANCY_MODE: 'shared' } }, defineNuxtConfig: x => x }
-  vm.runInNewContext(source, shared); assert.deepEqual(Object.keys(shared.result.routeRules), [])
+  const shared = { ...configHelpers, process: { env: { WEBVUE_TENANCY_MODE: 'shared' } }, defineNuxtConfig: x => x }
+  vm.runInNewContext(source, shared); assert.deepEqual(Object.entries(shared.result.routeRules).filter(([, rule]) => rule.proxy), [])
 })
 
 const listen = server => new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${server.address().port}`)))
@@ -85,14 +90,23 @@ test('HTTP/WS mock matrix: each surface has 10 positives and 90 rejected foreign
     s.setHeader('content-type', 'application/json'); s.end(JSON.stringify({ host: q.headers.host, cookie: q.headers.cookie, body, path: q.url }))
   })
   backend.on('upgrade', (q, socket) => { upstreamHits++; socket.write(`HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nX-Mock-Host: ${q.headers.host}\r\n\r\n`) })
-  const web = http.createServer((q, s) => { s.end(JSON.stringify({ host: q.headers.host, cookie: q.headers.cookie })) })
+  let guardOrigin
+  // This matrix covers guard tenant isolation, not Nuxt authentication. Model
+  // its internal return hop; actual Nuxt admission has separate edge-wire tests.
+  const web = http.createServer((q, s) => {
+    const upstream = http.request(new URL(q.url, guardOrigin), { method: q.method, headers: q.headers }, reply => {
+      s.writeHead(reply.statusCode, reply.headers); reply.pipe(s)
+    })
+    upstream.on('error', () => { if (!s.headersSent) s.writeHead(502); s.end() })
+    q.pipe(upstream)
+  })
   let guard
   const track = s => s.on('connection', socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)) })
   track(backend); track(web)
   try {
     const upstream = await listen(backend), webUrl = await listen(web)
     guard = createGuard({ registryPath, proxyToken: token, keys, activeKid: 'test', odooUrl: upstream, webUrl, wsUrl: upstream }); track(guard)
-    const base = await listen(guard)
+    const base = await listen(guard); guardOrigin = base
     console.log(JSON.stringify({ evidence: 'loopback mock only', upstream, webUrl, guard: base }))
     for (const [surface, path, method, body] of [['read', '/api/v1/tasks/1', 'GET'], ['write', '/api/v1/tasks/1', 'PATCH', '{"name":"synthetic"}'], ['files', '/api/v1/tasks/1/attachments/1/download', 'GET'], ['session', '/api/v1/me', 'GET']]) {
       counts[surface] = { positive: 0, foreign: 0 }
@@ -149,7 +163,7 @@ test('HTTP/WS mock matrix: each surface has 10 positives and 90 rejected foreign
     // Recreate guard on the same registry snapshot: revoked tenant remains denied.
     await new Promise(resolve => guard.close(resolve))
     guard = createGuard({ registryPath, proxyToken: token, keys, activeKid: 'test', odooUrl: upstream, webUrl, wsUrl: upstream }); track(guard)
-    const restarted = await listen(guard)
+    const restarted = await listen(guard); guardOrigin = restarted
     assert.equal((await call(restarted, targets[0], '/api/v1/me')).status, 403)
     assert.equal((await call(restarted, targets[1], '/api/v1/me')).status, 200)
     console.log(JSON.stringify({ restarted, restart: 'new guard instance, same process and registry; not OS/container restart' }))
