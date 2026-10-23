@@ -23,12 +23,16 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
   vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', join(root, 'registry.json'))
   const calls: Array<{ path: string; bytes: number; digest: string }> = []
   const authCalls: Array<{ path: string; body: Record<string, unknown>; headers: http.IncomingHttpHeaders }> = []
+  let holdReplies = false
+  const heldReplies: Array<() => void> = []
+  const releaseReplies = () => { holdReplies = false; for (const reply of heldReplies.splice(0)) reply() }
   const upstream = http.createServer((req, res) => {
     const hash = createHash('sha256'); let bytes = 0; let authText = ''
     req.on('data', chunk => { bytes += chunk.length; hash.update(chunk); if (req.url === '/web/session/authenticate' || req.url === '/api/v1/auth/totp') authText += chunk.toString() })
     req.on('end', () => {
       const received = { path: req.url!, bytes, digest: hash.digest('hex') }
       calls.push(received)
+      const respond = () => {
       res.setHeader('content-type', 'application/json')
       if (authText) authCalls.push({ path: req.url!, body: JSON.parse(authText), headers: req.headers })
       if (req.url === '/web/session/authenticate') {
@@ -38,6 +42,8 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
       }
       if (req.url === '/api/v1/auth/totp') res.setHeader('set-cookie', 'session_id=verified-wire; HttpOnly; Path=/')
       res.end(JSON.stringify(req.url === '/api/v1/me' ? { id: 7, company: { id: 1 } } : received))
+      }
+      if (holdReplies) heldReplies.push(respond); else respond()
     })
   })
   const upstreamUrl = await listen(upstream)
@@ -67,8 +73,19 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
   router.post('/api/auth/login', login); router.post('/api/auth/totp', totp)
   app.use(router.handler); app.use(handler)
   const webRequests: http.IncomingMessage[] = []
+  const guardRequests: http.IncomingMessage[] = []
+  const bodyBytes = new WeakMap<http.IncomingMessage, number>()
+  const observe = (requests: http.IncomingMessage[], req: http.IncomingMessage) => {
+    requests.push(req)
+    // Observe emitted bytes without installing a consumer or changing stream flow.
+    const emit = req.emit.bind(req)
+    req.emit = (name: string | symbol, ...args: unknown[]) => {
+      if (name === 'data' && Buffer.isBuffer(args[0])) bodyBytes.set(req, (bodyBytes.get(req) ?? 0) + args[0].length)
+      return emit(name, ...args)
+    }
+  }
   const listener = toNodeListener(app)
-  const web = http.createServer((req, res) => { webRequests.push(req); listener(req, res) })
+  const web = http.createServer((req, res) => { observe(webRequests, req); listener(req, res) })
   let url = await listen(web)
   let guard: http.Server | undefined
   let openCookie: (value: string) => string = value => value
@@ -80,6 +97,7 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
     guard = mode === 'shared'
       ? createGuard({ registryPath: join(root, 'registry.json'), proxyToken: token, keys, activeKid: 'test', odooUrl: upstreamUrl, webUrl: url, releaseRoutesDir: root, releaseAssetsDir: undefined })
       : createDedicatedGuard({ bindingPath: join(root, 'binding.json'), releaseRoutesDir: root, proxyToken: token, releaseAssetsDir: undefined })
+    guard.prependListener('request', req => observe(guardRequests, req))
     url = await listen(guard)
     configuredUpstream = url
     if (mode === 'shared') openCookie = value => sessionCodec(keys, 'test').open(value, { tenantId: 'a', registryRevision: 1 })
@@ -89,7 +107,11 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
   let release: (() => void) | undefined
   let blocker: Promise<void> | undefined
   return {
-    url, headers, calls, authCalls, webRequests, openCookie,
+    url, headers, calls, authCalls, webRequests, guardRequests, openCookie,
+    internalHeaders: { host: 'a.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' },
+    readBytes: (req: http.IncomingMessage) => bodyBytes.get(req) ?? 0,
+    holdReplies() { holdReplies = true },
+    releaseReplies,
     async hold() {
       blocker = transport.withUpstreamSlot(() => new Promise<void>(resolve => { release = resolve }))
       await Promise.resolve()
@@ -104,6 +126,7 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
       })
     },
     async close() {
+      releaseReplies()
       release?.(); await blocker
       for (const server of [guard, web, upstream]) { if (server) { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())) } }
       if (guarded) await vi.waitFor(() => {
@@ -331,4 +354,155 @@ it.each([['shared', '/api/v1/branding', 'POST', 'GET, HEAD'], ['dedicated', '/ap
     expect((await wire.call('/api/v1/branding')).status).toBe(200)
     expect((await wire.call('/api/v1/branding', undefined, {}, 'HEAD')).status).toBe(200)
   } finally { upload?.destroy(); await wire.close() }
+})
+
+
+function startBody(wire: Awaited<ReturnType<typeof fixture>>, path: string, bytes: Buffer, headers: Record<string, string>, finish = true) {
+  const request = http.request(new URL(path, wire.url), { method: 'POST', headers: { ...wire.headers, 'content-type': 'application/json', 'content-length': String(16 * 1024 * 1024), ...headers } })
+  const response = new Promise<{ status: number; body: unknown }>((resolve, reject) => {
+    request.on('response', reply => {
+      let text = ''; reply.on('data', chunk => { text += chunk }); reply.on('end', () => resolve({ status: reply.statusCode!, body: responseBody(text) }))
+    })
+    request.on('error', reject)
+  })
+  void response.catch(() => {})
+  if (finish) request.end(bytes); else request.write(bytes)
+  return { request, response }
+}
+const uploadBytes = () => Buffer.concat([Buffer.from('{}'), Buffer.alloc(16 * 1024 * 1024 - 2, 32)])
+async function verifiedCookie(wire: Awaited<ReturnType<typeof fixture>>) {
+  const login = await wire.call('/api/auth/login', Buffer.from('{"login":"user","password":"synthetic"}'), { 'content-type': 'application/json' })
+  expect(login.status).toBe(200)
+  const cookie = login.headers['set-cookie']?.[0]?.split(';')[0]
+  if (!cookie) throw Error('verified login did not issue a session cookie')
+  expect((await wire.call('/api/v1/branding', undefined, { cookie })).status).toBe(200)
+  // Warm real session admission before holding the work gate.
+  expect((await wire.call('/api/v1/echo', Buffer.from('{}'), { cookie, 'content-type': 'application/json' })).status).toBe(200)
+  return cookie
+}
+
+it.each(['shared', 'dedicated'] as const)('%s bounds aggregate authenticated 16MiB read/retain before the upstream work queue', async mode => {
+  const wire = await fixture(mode, true)
+  const uploads: ReturnType<typeof startBody>[] = []
+  try {
+    const cookie = await verifiedCookie(wire)
+    await wire.hold()
+    const bytes = uploadBytes()
+    for (let i = 0; i < 5; i++) uploads.push(startBody(wire, '/api/v1/echo?aggregate=' + i, bytes, { cookie }))
+    await vi.waitFor(() => {
+      const requests = wire.webRequests.filter(req => req.url?.includes('aggregate='))
+      expect(requests).toHaveLength(5)
+      for (const req of requests.slice(0, 4)) expect(wire.readBytes(req)).toBe(bytes.length)
+    }, { timeout: 3000 })
+    const fifth = wire.webRequests.find(req => req.url?.endsWith('aggregate=4'))
+    if (!fifth) throw Error('fifth upload did not reach Nuxt')
+    // Four bodies have finished reading and await work; releasing body credits after read fails this oracle.
+    expect(wire.readBytes(fifth)).toBe(0)
+    expect(wire.calls.filter(call => call.path.includes('aggregate='))).toHaveLength(0)
+    await wire.release()
+    const results = await Promise.all(uploads.map(upload => upload.response))
+    for (const result of results) expect(result.status).toBe(200)
+    const calls = wire.calls.filter(call => call.path.includes('aggregate='))
+    expect(calls).toHaveLength(5)
+    for (const call of calls) expect(call).toMatchObject({ bytes: bytes.length, digest: createHash('sha256').update(bytes).digest('hex') })
+  } finally { for (const upload of uploads) upload.request.destroy(); await wire.close() }
+})
+
+it.each((['shared', 'dedicated'] as const).flatMap(mode => ['external', 'internal'].map(hop => [mode, hop] as const)))('%s guard bounds %s buffering and retains credit through real upstream settlement', async (mode, hop) => {
+  const wire = await fixture(mode, true)
+  const uploads: ReturnType<typeof startBody>[] = []
+  try {
+    wire.holdReplies()
+    const prefix = hop === 'external' ? '/api/auth/login?guard-body=' : '/api/v1/echo?guard-body='
+    const bytes = hop === 'external' ? Buffer.from('{"login":"user","password":"synthetic"}') : uploadBytes()
+    const headers: Record<string, string> = hop === 'external' ? { 'content-length': String(bytes.length) } : wire.internalHeaders
+    for (let i = 0; i < 5; i++) uploads.push(startBody(wire, prefix + i, bytes, headers))
+    await vi.waitFor(() => {
+      const requests = wire.guardRequests.filter(req => req.url?.startsWith(prefix))
+      expect(requests).toHaveLength(5)
+      for (const req of requests.slice(0, 4)) expect(wire.readBytes(req)).toBe(bytes.length)
+      expect(wire.calls.length).toBeGreaterThanOrEqual(hop === 'external' ? 1 : 4)
+    }, { timeout: 3000 })
+    const fifth = wire.guardRequests.find(req => req.url === prefix + '4')
+    if (!fifth) throw Error('fifth guarded body did not arrive')
+    expect(wire.readBytes(fifth)).toBe(0)
+    const disconnected = mode === 'shared' && hop === 'internal' ? uploads[0] : undefined
+    if (disconnected) {
+      disconnected.request.destroy()
+      await vi.waitFor(() => expect(wire.guardRequests.find(req => req.url === prefix + '0')?.destroyed).toBe(true))
+      expect(wire.readBytes(fifth)).toBe(0)
+    }
+    wire.releaseReplies()
+    for (const response of await Promise.all(uploads.filter(upload => upload !== disconnected).map(upload => upload.response))) expect(response.status).toBe(200)
+    expect(wire.calls).toHaveLength(5)
+    if (disconnected) {
+      // Refill all four credits: one leaked continuation credit must fail this oracle.
+      wire.holdReplies()
+      const recoveryPrefix = '/api/v1/echo?credit-recovery='
+      const recovery = Array.from({ length: 4 }, (_, index) => startBody(wire, recoveryPrefix + index, bytes, headers))
+      uploads.push(...recovery)
+      await vi.waitFor(() => {
+        const requests = wire.guardRequests.filter(req => req.url?.startsWith(recoveryPrefix))
+        expect(requests).toHaveLength(4)
+        for (const req of requests) expect(wire.readBytes(req)).toBe(bytes.length)
+        expect(wire.calls).toHaveLength(9)
+      }, { timeout: 3000 })
+      wire.releaseReplies()
+      for (const response of await Promise.all(recovery.map(upload => upload.response))) expect(response.status).toBe(200)
+    }
+  } finally { wire.releaseReplies(); for (const upload of uploads) upload.request.destroy(); await wire.close() }
+})
+
+it.each((['shared', 'dedicated'] as const).flatMap(mode => ['nuxt', 'guard-external', 'guard-internal'].map(hop => [mode, hop] as const)))('%s %s body queue is unread and bounded, cancels waiters/readers and serializes timeouts with recovery', async (mode, hop) => {
+  const wire = await fixture(mode, true)
+  const uploads: ReturnType<typeof startBody>[] = []
+  try {
+    const headers: Record<string, string> = hop === 'nuxt' ? { cookie: await verifiedCookie(wire) } : hop === 'guard-internal' ? wire.internalHeaders : { 'content-length': '65536' }
+    const prefix = (hop === 'guard-external' ? '/api/auth/login' : '/api/v1/echo') + '?body-queue='
+    const requests = hop === 'nuxt' ? wire.webRequests : wire.guardRequests
+    const errorData = (body: unknown) => ApiErrorSchema.parse(hop === 'nuxt' ? (body as { data: unknown }).data : body)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    for (let i = 0; i < 68; i++) uploads.push(startBody(wire, prefix + i, Buffer.from('{'), headers, false))
+    await vi.waitFor(() => expect(requests.filter(req => req.url?.startsWith(prefix))).toHaveLength(68), { timeout: 4000 })
+    await vi.waitFor(() => expect(vi.getTimerCount()).toBe(68))
+    const queued = requests.filter(req => req.url?.startsWith(prefix)).slice(4, 68)
+    for (const req of queued) expect(wire.readBytes(req)).toBe(0)
+    const overflow = startBody(wire, prefix + 'overflow', Buffer.from('{'), headers, false)
+    uploads.push(overflow)
+    const rejected = await overflow.response
+    expect(vi.getTimerCount()).toBe(68)
+    expect(rejected.status).toBe(502)
+    expect(errorData(rejected.body)).toEqual({ code: 'tenant_upstream_unavailable', message: 'The upstream service is temporarily unavailable.' })
+    // Slow uploads hold memory credits, never Odoo work slots; GET/HEAD bypass body admission.
+    expect((await wire.call('/api/v1/branding')).status).toBe(200)
+    expect((await wire.call('/api/v1/branding', undefined, {}, 'HEAD')).status).toBe(200)
+    expect(vi.getTimerCount()).toBe(68)
+    const cancelled = uploads[4]
+    if (!cancelled) throw Error('missing queued client')
+    cancelled.request.destroy()
+    await vi.waitFor(() => expect(queued[0]?.destroyed).toBe(true))
+    const replacement = startBody(wire, prefix + 'replacement', Buffer.from('{'), headers, false)
+    uploads.push(replacement)
+    await vi.waitFor(() => expect(requests.some(req => req.url === prefix + 'replacement')).toBe(true))
+    const excess = startBody(wire, prefix + 'excess', Buffer.from('{'), headers, false)
+    uploads.push(excess)
+    expect((await excess.response).status).toBe(502)
+    expect(vi.getTimerCount()).toBe(68)
+    const abortedReader = uploads[0]
+    if (!abortedReader) throw Error('missing active reader')
+    abortedReader.request.destroy()
+    await vi.waitFor(() => expect(wire.readBytes(queued[1]!)).toBe(1))
+    // A waiter admitted when an active reader times out receives its own read deadline.
+    await vi.advanceTimersByTimeAsync(30_000)
+    vi.useRealTimers()
+    for (const upload of uploads.filter(upload => upload !== cancelled && upload !== abortedReader)) {
+      const response = await upload.response
+      expect(response.status).toBe(502)
+      expect(errorData(response.body).code).toBe('tenant_upstream_unavailable')
+    }
+    expect(wire.calls.filter(call => call.path.startsWith(prefix))).toHaveLength(0)
+    const recovery = hop === 'guard-external' ? Buffer.from('{"login":"user","password":"synthetic"}') : uploadBytes()
+    const result = await wire.call(hop === 'guard-external' ? '/api/auth/login' : '/api/v1/echo', recovery, { ...headers, 'content-length': String(recovery.length), 'content-type': 'application/json' })
+    expect(result.status).toBe(200)
+  } finally { vi.useRealTimers(); for (const upload of uploads) upload.request.destroy(); await wire.close() }
 })

@@ -1,5 +1,5 @@
 import { createError, getProxyRequestHeaders, sendProxy, sendWebResponse, setResponseHeader } from 'h3'
-import { boundedTenantBody, MAX_PUBLIC_MFA_BODY, tenantTransport, withUpstreamSlot } from '../../../utils/tenantTransport'
+import { boundedTenantBody, MAX_PUBLIC_MFA_BODY, tenantTransport, withTenantBody, withUpstreamSlot } from '../../../utils/tenantTransport'
 import { joinURL } from 'ufo'
 import { tenantUpstreamHeaders } from '../../../utils/tenantRequest'
 import { requireApiSession } from '../../../utils/apiSessionAdmission'
@@ -26,12 +26,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 405, data: { code: 'method_not_allowed', message: 'This endpoint does not support the request method.' } })
   }
   if (!publicMethods) await requireApiSession(event, odooUrl, headers)
-  // Buffer uploads with a size/deadline bound before taking a work slot. This
-  // also covers public MFA confirmation: a slow anonymous body cannot hold it.
-  const body = await boundedTenantBody(event, apiPath === '/api/v1/auth/totp' ? MAX_PUBLIC_MFA_BODY : undefined)
-  return Object.keys(headers).length
-    ? sendWebResponse(event, await tenantTransport(event, odooUrl, event.path, { method: event.method, body }))
-    : withUpstreamSlot(signal => sendProxy(event, url, {
-        fetchOptions: { method: event.method, body: body ? new Uint8Array(body) : undefined, headers: getProxyRequestHeaders(event, { host: false }), signal },
-      }), event)
+  // Body credits are separate from Odoo work slots and retained through dispatch.
+  return withTenantBody(event, async () => {
+    const body = await boundedTenantBody(event, apiPath === '/api/v1/auth/totp' ? MAX_PUBLIC_MFA_BODY : undefined)
+    return Object.keys(headers).length
+      ? sendWebResponse(event, await tenantTransport(event, odooUrl, event.path, { method: event.method, body }))
+      : withUpstreamSlot(signal => sendProxy(event, url, {
+          fetchOptions: { method: event.method, body: body ? new Uint8Array(body) : undefined, headers: getProxyRequestHeaders(event, { host: false }), signal },
+        }), event)
+  })
 })
