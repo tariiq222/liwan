@@ -29829,6 +29829,68 @@
         ],
         "type": "object"
       },
+      "HrShiftSettingsPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "day_reference": {
+            "enum": [
+              "company",
+              "user"
+            ],
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day_reference",
+          "revision"
+        ],
+        "type": "object"
+      },
+      "HrShiftSettingsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "company_timezone": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "day_reference": {
+            "enum": [
+              "company",
+              "user"
+            ],
+            "type": "string"
+          },
+          "effective_timezone": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "today": {
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day_reference",
+          "company_timezone",
+          "effective_timezone",
+          "today",
+          "revision"
+        ],
+        "type": "object"
+      },
       "HrWritableRoleSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -63369,6 +63431,86 @@
           "feature_operation": "write",
           "handler": "archive_schedule",
           "readonly": null,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/shifts/settings": {
+      "get": {
+        "operationId": "webvue_hr.HrShiftSettingsController.get_settings.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_settings",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrShiftSettingsController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.shifts"
+          ],
+          "feature_operation": "read",
+          "handler": "get_settings",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_hr.HrShiftSettingsController.patch_settings.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_settings",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrShiftSettingsController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.shifts"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_settings",
+          "readonly": false,
           "route_type": "json2"
         }
       }

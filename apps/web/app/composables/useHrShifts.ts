@@ -1,3 +1,4 @@
+import { useHrOwnIdentity } from './useHrOwnIdentity'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
@@ -6,6 +7,8 @@ import {
   HrShiftAssignmentSchema,
   HrShiftScheduleListSchema,
   HrShiftScheduleSchema,
+  HrShiftSettingsSchema,
+  type HrShiftSettingsPatch,
   type HrShiftAssignment,
   type HrShiftAssignmentCreate,
   type HrShiftSchedule,
@@ -41,6 +44,7 @@ export const hrShiftKeys = {
   schedule: (id: number) => ['hr', 'shifts', 'schedule', id] as const,
   assignments: (params: HrShiftAssignmentListParams) => ['hr', 'shifts', 'assignments', params] as const,
   mine: ['hr', 'shifts', 'me'] as const,
+  settings: ['hr', 'shifts', 'settings'] as const,
 }
 
 /** The schedule list query: the default is "active only", so `true` sends no filter. */
@@ -105,9 +109,11 @@ export function useHrShiftAssignments(params: MaybeRefOrGetter<HrShiftAssignment
 /** The caller's own planning rows: the only list an employee without hr.shifts.read may read. */
 export function useMyHrShiftAssignments(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
+  const identity = useHrOwnIdentity()
+  const { can } = useAccess()
   return useQuery({
-    queryKey: hrShiftKeys.mine,
-    enabled: computed(() => toValue(enabled)),
+    queryKey: computed(() => [...hrShiftKeys.mine, identity.scope.value]),
+    enabled: computed(() => identity.ready.value && toValue(enabled) && can('hr.employees.read')),
     queryFn: () => $api('/api/v1/hr/shifts/me', { schema: HrShiftAssignmentListSchema }),
   })
 }
@@ -167,5 +173,38 @@ export function useDeleteHrShiftAssignment() {
   return useMutation({
     mutationFn: (id: number) => $api<{ id: number }>(`/api/v1/hr/shifts/assignments/${id}`, { method: 'DELETE' }),
     onSuccess: () => refreshShifts(qc),
+  })
+}
+
+/** Current-company policy for employee readers and shift-policy managers. */
+export function useHrShiftSettings(enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  const identity = useHrOwnIdentity()
+  const { can } = useAccess()
+  return useQuery({
+    queryKey: computed(() => [...hrShiftKeys.settings, identity.scope.value]),
+    enabled: computed(() => identity.ready.value && toValue(enabled) && (can('hr.employees.read') || can('hr.shifts.manage'))),
+    queryFn: () => $api('/api/v1/hr/shifts/settings', { schema: HrShiftSettingsSchema }),
+  })
+}
+
+export function usePatchHrShiftSettings() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  const identity = useHrOwnIdentity()
+  return useMutation({
+    onMutate: () => identity.scope.value,
+    mutationFn: (body: HrShiftSettingsPatch) => $api('/api/v1/hr/shifts/settings', { method: 'PATCH', body, schema: HrShiftSettingsSchema }),
+    onSuccess: async (settings, _body, scope) => {
+      if (!identity.ready.value || !scope || scope.companyId !== identity.scope.value.companyId || scope.userId !== identity.scope.value.userId) return
+      const key = [...hrShiftKeys.settings, scope]
+      // An earlier focus/refetch must not overwrite the authoritative write response.
+      await qc.cancelQueries({ queryKey: key, exact: true })
+      if (!identity.ready.value || scope.companyId !== identity.scope.value.companyId || scope.userId !== identity.scope.value.userId) return
+      qc.setQueryData(key, settings)
+      // The complete PATCH response is authoritative. Mark related views stale
+      // without making this successful save depend on another network request.
+      await qc.invalidateQueries({ queryKey: hrShiftKeys.all, refetchType: 'none' })
+    },
   })
 }

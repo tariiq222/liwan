@@ -13,7 +13,7 @@ const CAPABILITIES = [
   'access.users.read', 'access.users.grant', 'access.users.assign_roles', 'access.users.disable', 'access.users.reset_password',
   'access.roles.read', 'access.roles.manage', 'access.audit.read',
   'hr.employees.read', 'hr.employees.manage', 'hr.employees.archive', 'hr.employees.access_status.read',
-  'hr.departments.read', 'hr.departments.manage', 'documents.items.read', 'documents.items.manage',
+  'hr.shifts.manage', 'hr.departments.read', 'hr.departments.manage', 'documents.items.read', 'documents.items.manage',
   'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage', 'pmo.settings.manage',
   'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write', 'pmo.tasks.approve',
   'settings.branding.manage',
@@ -25,13 +25,13 @@ const ME = {
   access_policy_version: 1, company: { id: 1, name: 'ويب فيو' },
   modules: ['webvue_chat', 'webvue_hr', 'webvue_pmo'],
   entitlements: {
-    'pmo.enabled': true, 'meetings.enabled': true, 'hr.enabled': true, 'chat.enabled': true,
+    'pmo.enabled': true, 'meetings.enabled': true, 'hr.enabled': true, 'hr.shifts': true, 'chat.enabled': true,
     'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['chat.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
-    writable_features: ['chat.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
+    readable_features: ['chat.enabled', 'hr.enabled', 'hr.shifts', 'meetings.enabled', 'pmo.enabled'],
+    writable_features: ['chat.enabled', 'hr.enabled', 'hr.shifts', 'meetings.enabled', 'pmo.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }
@@ -60,6 +60,7 @@ const USERS = {
 }
 
 function jsonFor(pathname: string): unknown {
+  if (pathname === '/api/v1/hr/shifts/settings') return { day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 0 }
   if (pathname === '/api/v1/me') return ME
   if (pathname === '/api/v1/branding' || pathname === '/api/v1/admin/branding') return BRANDING
   if (pathname === '/api/v1/settings/projects') return PROJECT_SETTINGS
@@ -289,4 +290,88 @@ test('unsaved branding draft is guarded when leaving to project settings', async
   await page.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()
   await expect.poll(() => new URL(page.url()).pathname).toBe('/settings/apps/projects')
   await page.screenshot({ path: testInfo.outputPath('unsaved-desktop-rtl.png'), fullPage: true })
+})
+
+test('shift settings default to company timezone and save the user reference without payroll permission', async ({ page }, testInfo) => {
+  await openApp(page, '/settings/apps/hr#shifts')
+  let submitted: Record<string, unknown> | null = null
+  await page.route('**/api/v1/hr/shifts/settings', async route => {
+    if (route.request().method() === 'PATCH') {
+      submitted = route.request().postDataJSON()
+      await route.fulfill({ json: { day_reference: 'user', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 1 } })
+      return
+    }
+    if (submitted) { await route.abort('failed'); return }
+    await route.fulfill({ json: jsonFor('/api/v1/hr/shifts/settings') })
+  })
+  const reference = page.locator('#shift-day-reference')
+  await expect(reference).toBeEnabled()
+  await expect(reference).toContainText('المنطقة الزمنية للشركة (الافتراضي)')
+  await reference.click()
+  await page.getByRole('option', { name: 'المنطقة الزمنية لكل مستخدم', exact: true }).click()
+  const save = page.getByRole('button', { name: 'حفظ التغييرات', exact: true })
+  await expect(save).toBeEnabled()
+  await save.click()
+  await expect.poll(() => submitted).toEqual({ day_reference: 'user', revision: 0 })
+  await expect(save).toBeDisabled()
+  await expect(reference).toBeVisible()
+  await expect(reference).toContainText('المنطقة الزمنية لكل مستخدم')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: testInfo.outputPath('shift-day-settings-mobile-rtl.png'), fullPage: true })
+})
+
+
+test('shift conflict keeps the draft through a failed and delayed reload, then saves the fetched revision', async ({ page }) => {
+  await openApp(page, '/settings/apps/hr#shifts')
+  const reference = page.locator('#shift-day-reference')
+  await expect(reference).toBeEnabled()
+  let submitted: Record<string, unknown> | null = null
+  let patches = 0
+  let reads = 0
+  let allowReload = false
+  let releaseReload!: () => void
+  const reloadReady = new Promise<void>(resolveReady => { releaseReload = resolveReady })
+  await page.route('**/api/v1/hr/shifts/settings', async route => {
+    if (route.request().method() === 'PATCH') {
+      patches += 1
+      submitted = route.request().postDataJSON()
+      await route.fulfill(patches === 1
+        ? { status: 409, json: { code: 'conflict', message: 'Settings changed' } }
+        : { json: { ...(jsonFor('/api/v1/hr/shifts/settings') as object), day_reference: 'user', revision: 5 } })
+      return
+    }
+    reads += 1
+    if (!allowReload) { await route.fulfill({ status: 503, json: { code: 'unavailable', message: 'Offline' } }); return }
+    await reloadReady
+    await route.fulfill({ json: { ...(jsonFor('/api/v1/hr/shifts/settings') as object), revision: 4 } })
+  })
+  await reference.click()
+  await page.getByRole('option', { name: 'المنطقة الزمنية لكل مستخدم', exact: true }).click()
+  const save = page.getByRole('button', { name: 'حفظ التغييرات', exact: true })
+  await save.click()
+  const reload = page.getByRole('button', { name: 'تجاهل التعديل وأعد التحميل', exact: true })
+  await expect(reload).toBeVisible()
+  await reload.click()
+  await expect.poll(() => reads).toBeGreaterThan(0)
+  await expect(reload).toBeEnabled()
+  await expect(reference).toContainText('المنطقة الزمنية لكل مستخدم')
+  await expect(reference).toBeDisabled()
+  await expect(save).toBeDisabled()
+  const failedReads = reads
+  allowReload = true
+  await reload.click()
+  await expect.poll(() => reads).toBeGreaterThan(failedReads)
+  await expect(reload).toBeDisabled()
+  await expect(reference).toContainText('المنطقة الزمنية لكل مستخدم')
+  await expect(save).toBeDisabled()
+  releaseReload()
+  await expect(reload).toHaveCount(0)
+  await expect(reference).toBeEnabled()
+  await expect(reference).toContainText('المنطقة الزمنية للشركة (الافتراضي)')
+  await reference.click()
+  await page.getByRole('option', { name: 'المنطقة الزمنية لكل مستخدم', exact: true }).click()
+  await save.click()
+  await expect.poll(() => submitted).toEqual({ day_reference: 'user', revision: 4 })
+  await expect(save).toBeDisabled()
 })
