@@ -3737,6 +3737,41 @@
       ]
     },
     {
+      "name": "WorkRow",
+      "file": "apps/web/app/components/work/WorkRow.vue",
+      "story": "apps/web/stories/work/WorkRow.stories.ts",
+      "title": "Work/WorkRow",
+      "props": [
+        {
+          "name": "row",
+          "type": "AttentionRowWithModule",
+          "required": true
+        },
+        {
+          "name": "sourceLabel",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge"
+      ],
+      "stories": [
+        {
+          "id": "Urgent",
+          "name": "عاجل مع اقتراح",
+          "context": "apps/web/app/pages/work.vue:70"
+        },
+        {
+          "id": "Normal",
+          "name": "عادي",
+          "context": "apps/web/app/pages/work.vue:70"
+        }
+      ]
+    },
+    {
       "name": "SharedCommercePriceBreakdown",
       "file": "packages/commercial-ui/app/components/shared/commerce/PriceBreakdown.vue",
       "story": "apps/web/stories/shared/CommercePriceBreakdown.stories.ts",
@@ -4992,8 +5027,8 @@
       ],
       "slots": [],
       "nuxtUi": [
-        "UAlert",
-        "UButton"
+        "UButton",
+        "UIcon"
       ],
       "stories": [
         {
@@ -5933,17 +5968,17 @@
         {
           "id": "Default",
           "name": "وجهة",
-          "context": "apps/web/app/pages/index.vue:34"
+          "context": "apps/web/app/components/apps/AppsStartContent.vue:28"
         },
         {
           "id": "WithoutDescription",
           "name": "بلا وصف",
-          "context": "apps/web/app/pages/index.vue:34"
+          "context": "apps/web/app/components/apps/AppsStartContent.vue:28"
         },
         {
           "id": "Tones",
           "name": "الدرجات",
-          "context": "apps/web/app/pages/index.vue:34"
+          "context": "apps/web/app/components/apps/AppsStartContent.vue:28"
         }
       ]
     },
@@ -6665,13 +6700,8 @@
       "title": "Shell/ModuleRail",
       "props": [
         {
-          "name": "modules",
-          "type": "ShellRailItem[]",
-          "required": true
-        },
-        {
-          "name": "utility",
-          "type": "ShellRailItem[]",
+          "name": "rail",
+          "type": "ShellRailGroups",
           "required": true
         },
         {
@@ -6699,6 +6729,31 @@
         {
           "id": "SettingsActive",
           "name": "الإعدادات نشطة",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+        },
+        {
+          "id": "AssistantUtility",
+          "name": "أداة فوق الإعدادات",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+        },
+        {
+          "id": "LauncherActive",
+          "name": "المشغّل نشط",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+        },
+        {
+          "id": "FewApplications",
+          "name": "تطبيق واحد",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+        },
+        {
+          "id": "NoApplications",
+          "name": "بلا تطبيقات متاحة",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+        },
+        {
+          "id": "Overflow",
+          "name": "تطبيقات كثيرة مع تمويه التمرير",
           "context": "apps/web/app/components/shell/AppSidebar.vue:44"
         }
       ]
@@ -7100,6 +7155,20 @@
         {
           "id": "Scale",
           "name": "الخط والأحجام"
+        }
+      ]
+    },
+    {
+      "title": "Home/Today",
+      "story": "apps/web/stories/home/HomeToday.stories.ts",
+      "stories": [
+        {
+          "id": "Busy",
+          "name": "عمل ينتظر"
+        },
+        {
+          "id": "Quiet",
+          "name": "لا شيء عاجل"
         }
       ]
     },
