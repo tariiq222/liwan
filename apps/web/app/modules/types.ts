@@ -120,6 +120,44 @@ export interface AppSidebarPanel {
   width: 'default' | 'wide'
   load: () => Promise<{ default: Component }>
 }
+/** One thing an application says needs the user's attention; `to` opens the record. */
+export interface AppAttentionRow {
+  id: string
+  label: string
+  to: string
+  /** One short line under the label (a due date, a status). */
+  caption?: string
+  /** `urgent` is overdue or waiting on the user's decision; it leads the list and is drawn warm. */
+  tone: 'urgent' | 'normal'
+  /** What the user could do next, translated; shown as a plain suggestion, never as an action the assistant takes. */
+  suggestion?: string
+}
+/** One self-service entry an application offers the signed-in user; `to` opens the page that does it. */
+export type PersonalSection = 'profile' | 'leave' | 'requests' | 'pay' | 'assets' | 'documents' | 'schedule'
+export interface AppPersonalSummary {
+  value?: string
+  caption?: string
+  rows?: AppSearchRow[]
+  attention?: AppAttentionRow[]
+}
+export interface AppPersonalEntry {
+  id: string
+  labelKey: string
+  descriptionKey: string
+  icon: AppIcon
+  to: string
+  /** Capability that opens the target; the entry is hidden without it (and without the application feature). */
+  capability: string
+
+  section: PersonalSection
+  feature?: string
+  requiredCapabilities?: string[]
+  primaryAction?: AppCommand
+  summary?: {
+    queryKey: readonly unknown[]
+    load: (api: AppSearchApi, t: (key: string, params?: Record<string, unknown>) => string) => Promise<AppPersonalSummary>
+  }
+}
 /** A record one application lets another application pick or filter by. */
 export interface AppRecordOption { id: number; name: string }
 /**
@@ -170,7 +208,7 @@ export interface AppManifest {
   /** The configuration page this application adds to Settings > Applications. */
   settings?: AppSettingsPage
   contextLinks?: (path: string | undefined) => AppContextLink[]  // keyed by rail id via link module in nav
-  routeCapabilities?: Array<{ pattern: RegExp; capability: string; feature?: string }>
+  routeCapabilities?: Array<{ pattern: RegExp; capability: string; feature?: string; anyCapabilities?: string[]; requiredCapabilities?: string[] }>
   /**
    * Dynamic list sources this application owns. A recognized pathname may return a record
    * to that list, after both its normal route access and this additional capability pass.
@@ -192,6 +230,8 @@ export interface AppManifest {
   /** Palette actions (Actions group of the command palette). */
   commands?: AppCommand[]
   sidebarPanel?: AppSidebarPanel
+  /** Employee-owned services, separate from work and administrative navigation. */
+  personal?: AppPersonalEntry[]
   /** Record kinds other applications may pick or filter by. */
   recordPickers?: AppRecordPicker[]
   /** Record kinds other applications may link to. */

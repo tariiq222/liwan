@@ -1,19 +1,16 @@
 <script setup lang="ts">
+definePageMeta({ path: '/account/assets' })
 import type { TableColumn } from '@nuxt/ui'
 import type { HrEquipment } from '@webvue/contracts'
 import { formatDate } from '@webvue/ui/app/utils/formatDate'
-import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
-// The caller's own custody, read-only: the holder sees what they were handed, never cost or
-// vendor. A row opens the asset record only for a caller who may read the assets area.
-const route = useRoute()
+// Own custody remains read-only and never links into administrative asset records.
 const { t } = useI18n()
-const { can } = useAccess()
 
-const mine = useMyHrAssets()
+const profile = useMyHrProfile()
+const mine = useMyHrAssets(computed(() => !!profile.data.value))
 const items = computed(() => mine.data.value?.items ?? [])
 const showEmpty = computed(() => !mine.isLoading.value && !mine.error.value && items.value.length === 0)
-const canOpen = computed(() => can('hr.assets.read'))
 
 const columns = computed<TableColumn<HrEquipment>[]>(() => [
   { accessorKey: 'name', header: t('hrAssets.columns.name') },
@@ -21,14 +18,14 @@ const columns = computed<TableColumn<HrEquipment>[]>(() => [
   { accessorKey: 'assign_date', header: t('hrAssets.columns.assignDate') },
 ])
 
-function equipmentTo(row: HrEquipment) {
-  return { path: `/hr/assets/${row.id}`, query: returnToQuery(route.fullPath) }
-}
 </script>
 
 <template>
   <SharedListPage :title="t('nav.myAssets')">
-    <SharedListCard>
+    <SharedPageState :loading="profile.isLoading.value" :error="profile.error.value" @retry="profile.refetch">
+      <SharedEmptyState v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
+    </SharedPageState>
+    <SharedListCard v-if="profile.data.value">
       <SharedPageState :error="mine.error.value" :keep-content="items.length > 0" @retry="mine.refetch">
         <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t('hrAssets.mine.emptyTitle')" :description="t('hrAssets.mine.emptyHint')" />
         <SharedDataTable
@@ -37,7 +34,6 @@ function equipmentTo(row: HrEquipment) {
           :rows="items"
           :columns="columns"
           row-key="id"
-          :row-to="canOpen ? equipmentTo : undefined"
           :loading="mine.isLoading.value"
           :caption="t('nav.myAssets')"
           data-testid="hr-my-assets-table"

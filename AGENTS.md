@@ -381,6 +381,9 @@ worktrees only after their content is preserved and no process is using them.
 
 ## Check commands
 
+Follow the focused-local / complete-CI verification policy in
+[`docs/testing.md`](docs/testing.md#fast-local-loop).
+
 The Odoo scratch-database command block is in `docs/agents/odoo-rules.md`. CI is the GitHub Actions `ci` workflow
 (`.github/workflows/ci.yml`, twelve stages, each a `deploy/ci/<stage>.sh` script runnable locally); see
 `docs/testing.md`. Fast local loop: `npm run check:fast`, `npm run test:odoo`,

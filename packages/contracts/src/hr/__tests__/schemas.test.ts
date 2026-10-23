@@ -5,6 +5,9 @@ import {
   HrLeaveListSchema,
   HrLeaveRequestCreateSchema,
   HrLeaveSchema,
+  HrLeaveSettingsSchema,
+  HrLeaveCancellationDecisionSchema,
+  HrLeaveCancellationRefusalSchema,
   HrLeaveTypeListSchema,
   HrAccessGrantSchema,
   HrAccessPatchSchema,
@@ -264,6 +267,7 @@ describe('leave', () => {
   const leave = {
     id: 5, employee: ref, leave_type: { id: 2, name: 'Annual leave' },
     date_from: '2026-11-02', date_to: '2026-11-03', number_of_days: 2, state: 'confirm',
+    cancellation_policy: 'manager_approval', cancellation: null, can_request_cancellation: false, can_approve_cancellation: false, can_refuse_cancellation: false,
     notes: '', can_approve: false, can_refuse: false, can_cancel: false, can_withdraw: true,
   }
 
@@ -297,5 +301,20 @@ describe('leave', () => {
     expect(HrLeaveTypeListSchema.parse({ items: [type], total: 1 }).total).toBe(1)
     const allocation = { id: 3, employee: ref, leave_type: ref, number_of_days: 21, date_from: '2026-01-01', date_to: null, state: 'validate' }
     expect(HrLeaveAllocationSchema.parse(allocation).state).toBe('validate')
+  })
+})
+
+
+describe('leave cancellation contracts', () => {
+  it('accepts three company policies and rejects injected fields', () => {
+    for (const cancellation_policy of ['manager_approval', 'direct_employee', 'manager_only']) {
+      expect(HrLeaveSettingsSchema.parse({ cancellation_policy, revision: 0 }).cancellation_policy).toBe(cancellation_policy)
+    }
+    expect(() => HrLeaveSettingsSchema.parse({ cancellation_policy: 'manager_approval', revision: 0, company_id: 1 })).toThrow()
+  })
+  it('requires positive decision revision and a nonempty refusal reason', () => {
+    expect(HrLeaveCancellationDecisionSchema.parse({ revision: 1 })).toEqual({ revision: 1 })
+    for (const body of [{}, { revision: 0 }, { revision: true }, { revision: 1, requester_id: 1 }]) expect(() => HrLeaveCancellationDecisionSchema.parse(body)).toThrow()
+    expect(() => HrLeaveCancellationRefusalSchema.parse({ revision: 1, reason: '  ' })).toThrow()
   })
 })

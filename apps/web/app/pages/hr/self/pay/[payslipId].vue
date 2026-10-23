@@ -1,4 +1,5 @@
 <script setup lang="ts">
+definePageMeta({ path: '/account/pay/:payslipId' })
 import PayslipDocument from '@/components/hr/payroll/PayslipDocument.vue'
 import { ApiError } from '@/composables/useApi'
 import { formatPayrollMonth } from '@/utils/payrollFormat'
@@ -10,7 +11,7 @@ const route = useRoute()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 
-const sourcePaths = useRecordListPaths(['/hr/payroll/mine'])
+const sourcePaths = useRecordListPaths(['/account/pay'])
 const payslipId = computed(() => parsePositiveId(route.params.payslipId))
 const query = useMyHrPayslip(payslipId)
 const payslip = computed(() => query.data.value)

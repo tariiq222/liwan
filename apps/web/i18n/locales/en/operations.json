@@ -145,6 +145,19 @@
         "rejected": "Rejected",
         "done": "Completed"
       }
+    },
+    "purpose": "Process purpose",
+    "purposeHint": "Controls where new requests appear. Existing requests keep their original purpose.",
+    "purposes": {
+      "work": "Work requests",
+      "employee": "Employee affairs"
+    },
+    "personal": {
+      "title": "My requests",
+      "description": "Your employment service requests and their progress.",
+      "new": "Request an employee service",
+      "leaveRequests": "Track leave requests",
+      "returned": "This request was returned for you to complete."
     }
   }
 }

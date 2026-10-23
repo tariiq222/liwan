@@ -216,6 +216,7 @@ export function useAiRun() {
       const response = await fetch(`/api/ai/runs/${encodeURIComponent(id)}`, { signal })
       if (!response.ok) return await refuse(response)
       const run = AiRunStatusSchema.parse(await response.json())
+      if (signal.aborted) return
       runId.value = run.run_id
       let rebuilt: AiThreadItem[] = run.messages.map(m => m.role === 'user' ? { kind: 'user', text: m.content } : { kind: 'assistant', text: m.content, records: [], streaming: false })
       // The status endpoint carries no summary text; the card falls back to the tool name.

@@ -42,7 +42,7 @@
     "searchDescription": "Find a page or project and open it directly.",
     "back": "Back",
     "loading": "Loading…",
-    "account": "Account",
+    "account": "Self-service",
     "logout": "Log out",
     "settings": "Settings",
     "employees": "Employee directory",
@@ -69,7 +69,10 @@
     "myTasks": "My tasks",
     "meetings": "Meetings",
     "ai": "WebVue AI",
-    "rail": { "hr": "People", "ai": "Assistant" },
+    "rail": {
+      "hr": "People",
+      "ai": "Assistant"
+    },
     "meetingCalendar": "Calendar",
     "meetingSeries": "Recurring meetings",
     "projectDashboard": "Project overview",
@@ -128,7 +131,7 @@
     }
   },
   "account": {
-    "title": "Account",
+    "title": "Self-service",
     "company": "Organization",
     "passwordTitle": "Change password",
     "currentPassword": "Current password",
@@ -138,7 +141,22 @@
     "passwordMismatch": "Passwords do not match.",
     "passwordTooShort": "The new password must be at least 8 characters.",
     "submit": "Change password",
-    "success": "Password changed successfully."
+    "success": "Password changed successfully.",
+    "subtitle": "Your details and employee services in one place",
+    "overview": "Overview",
+    "settings": "Account settings",
+    "identity": "My account",
+    "preferences": "My preferences",
+    "viewProfile": "View my employment profile",
+    "attention": "Needs your attention",
+    "openSection": "Open {name}",
+    "noServices": "No employee services are available for your account yet",
+    "noServicesHint": "You can manage your account settings or contact your administrator to link your employee profile and enable services.",
+    "customize": "Arrange cards",
+    "finishCustomize": "Done arranging",
+    "moveUp": "Move {name} earlier",
+    "moveDown": "Move {name} later",
+    "preferenceError": "The card order could not be saved. Your current order will apply to this session only."
   },
   "bus": {
     "connected": "Connected",

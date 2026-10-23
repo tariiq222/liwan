@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
 
 // The own-custody page: its real <script setup> is evaluated against a real router and its
 // real template is rendered from that state.
-const filename = resolve(import.meta.dirname, '../assets/mine.vue')
+const filename = resolve(import.meta.dirname, '../self/assets.vue')
 const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
 
 const ASSET = {
@@ -22,14 +22,14 @@ type Options = { can?: (capability: string) => boolean; items?: unknown[]; error
 
 async function render(options: Options = {}) {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:rest(.*)', component: { template: '<div/>' } }] })
-  await router.push('/hr/assets/mine?x=1')
+  await router.push('/account/assets?x=1')
   await router.isReady()
   const compiled = compileScript(descriptor, { id: 'assets-mine', inlineTemplate: false }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
     .replace('export default', 'return')
   const js = ts.transpileModule(compiled, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
   const bindings: Record<string, unknown> = {
-    _defineComponent: Vue.defineComponent,
+    definePageMeta: () => {}, useMyHrProfile: () => ({data: Vue.ref({id:4}), isLoading:Vue.ref(false), error:Vue.ref(null)}), _defineComponent: Vue.defineComponent,
     computed: Vue.computed,
     useRoute: () => router.currentRoute.value,
     useI18n: () => ({ t: (key: string) => key }),
@@ -106,24 +106,8 @@ describe('the own-custody page', () => {
     expect(html).not.toContain('data-child="table"')
   })
 
-  it('links a row to the asset record only for a reader of the assets area', async () => {
-    expect((await render({ can: capability => capability === 'hr.assets.read' })).html).toContain('data-linked="true"')
+  it('keeps own custody read-only even for an assets administrator', async () => {
+    expect((await render({ can: () => true })).html).toContain('data-linked="false"')
     expect((await render({ can: () => false })).html).toContain('data-linked="false"')
-    const { state } = await render()
-    expect(state.equipmentTo(ASSET)).toEqual({ path: '/hr/assets/7', query: { returnTo: '/hr/assets/mine?x=1' } })
-  })
-})
-
-describe('the own-custody route', () => {
-  it('resolves to its static page, not to the asset record', () => {
-    const router = createRouter({
-      history: createMemoryHistory(),
-      routes: [
-        { path: '/hr/assets/:equipmentId', name: 'record', component: { template: '<div/>' } },
-        { path: '/hr/assets/mine', name: 'mine', component: { template: '<div/>' } },
-      ],
-    })
-    expect(router.resolve('/hr/assets/mine').name).toBe('mine')
-    expect(router.resolve('/hr/assets/7').name).toBe('record')
   })
 })

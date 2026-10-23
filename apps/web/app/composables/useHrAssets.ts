@@ -1,3 +1,4 @@
+import { useHrOwnIdentity } from './useHrOwnIdentity'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
@@ -165,10 +166,11 @@ export function useHrEquipment(id: MaybeRefOrGetter<number | null>) {
 /** The caller's own custody (`/me`): gated by the employee read capability, not by the assets one. */
 export function useMyHrAssets(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
+  const identity = useHrOwnIdentity()
   const { can } = useAccess()
   return useQuery({
-    queryKey: hrAssetKeys.mine,
-    enabled: computed(() => toValue(enabled) && can('hr.employees.read')),
+    queryKey: computed(() => [...hrAssetKeys.mine, identity.scope.value]),
+    enabled: computed(() => identity.ready.value && toValue(enabled) && can('hr.employees.read')),
     queryFn: () => $api('/api/v1/hr/assets/me', { schema: HrEquipmentListSchema }),
   })
 }

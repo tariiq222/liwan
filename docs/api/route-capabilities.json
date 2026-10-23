@@ -608,6 +608,38 @@
       "handler": "options",
       "no_capability_reason": null
     },
+    "GET /api/v1/documents/employee/me": {
+      "addon": "webvue_documents_hr",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.read",
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "documents.enabled",
+        "hr.enabled"
+      ],
+      "handler": "list_own_documents",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/documents/employee/me/{document_id}": {
+      "addon": "webvue_documents_hr",
+      "auth": "user",
+      "capability_keys": [
+        "documents.items.read",
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "documents.enabled",
+        "hr.enabled"
+      ],
+      "handler": "get_own_document",
+      "no_capability_reason": null
+    },
     "GET /api/v1/documents/tags": {
       "addon": "webvue_documents",
       "auth": "user",
@@ -1588,6 +1620,20 @@
       "handler": "list_balances",
       "no_capability_reason": null
     },
+    "GET /api/v1/hr/leave/me/{leave_id}": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "get_own_request",
+      "no_capability_reason": null
+    },
     "GET /api/v1/hr/leave/requests": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -1616,6 +1662,20 @@
       "handler": "get_request",
       "no_capability_reason": null
     },
+    "GET /api/v1/hr/leave/settings": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "get_leave_settings",
+      "no_capability_reason": null
+    },
     "GET /api/v1/hr/leave/types": {
       "addon": "webvue_hr",
       "auth": "user",
@@ -1628,6 +1688,20 @@
         "hr.enabled"
       ],
       "handler": "list_leave_types",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/hr/me": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.employees.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "own_profile",
       "no_capability_reason": null
     },
     "GET /api/v1/hr/offboarding/departures": {
@@ -2655,6 +2729,21 @@
       "handler": "list_requests",
       "no_capability_reason": null
     },
+    "GET /api/v1/operations/requests/employee/me/{request_id}": {
+      "addon": "webvue_operations",
+      "auth": "user",
+      "capability_keys": [
+        "operations.requests.read",
+        "webvue.operation.request"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "operations.enabled"
+      ],
+      "handler": "get_own_employee_request",
+      "no_capability_reason": null
+    },
     "GET /api/v1/operations/requests/{request_id}": {
       "addon": "webvue_operations",
       "auth": "user",
@@ -3474,6 +3563,20 @@
         "hr.enabled"
       ],
       "handler": "patch_employee",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/hr/leave/settings": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.config"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "patch_leave_settings",
       "no_capability_reason": null
     },
     "PATCH /api/v1/hr/offboarding/departures/{employee_id}": {
@@ -5289,14 +5392,43 @@
       "addon": "webvue_hr",
       "auth": "user",
       "capability_keys": [
-        "hr.leave.request"
+        "hr.leave.request",
+        "hr.leave.approve"
       ],
-      "capability_match": "all",
-      "capability_source": "body",
+      "capability_match": "any",
+      "capability_source": "decorator",
       "feature_keys": [
         "hr.enabled"
       ],
       "handler": "cancel_request",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/leave/requests/{leave_id}/cancellation/approve": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.approve"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "approve_cancellation",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/hr/leave/requests/{leave_id}/cancellation/refuse": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.leave.approve"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled"
+      ],
+      "handler": "refuse_cancellation",
       "no_capability_reason": null
     },
     "POST /api/v1/hr/leave/requests/{leave_id}/refuse": {

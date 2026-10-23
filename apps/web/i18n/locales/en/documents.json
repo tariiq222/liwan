@@ -101,6 +101,16 @@
     "noResultsHelp": "Try different words or clear the filters to see available documents.",
     "emptyArchive": "No archived documents",
     "emptyHelp": "Documents you have access to will appear here.",
-    "clearFilters": "Clear filters"
+    "clearFilters": "Clear filters",
+    "personal": {
+      "label": "My employment documents",
+      "description": "Your documents and files for personal employment affairs.",
+      "empty": "No employment documents available",
+      "emptyHelp": "Documents linked to your employee record appear here when you have an explicit read grant. Contact HR if an expected document is missing.",
+      "back": "Back to my employment documents",
+      "noEmployee": "Your account is not linked to an employee record",
+      "noEmployeeHelp": "Contact HR to link your account to your employee record so your employment documents can appear."
+    },
+    "employeeContextHelp": "Linking an employee does not grant read access automatically. Also grant read access through Manage access; this document remains restricted."
   }
 }

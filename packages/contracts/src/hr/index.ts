@@ -169,6 +169,25 @@ export type HrEmployee = z.infer<typeof HrEmployeeSchema>
 // Leave runs on stock hr_holidays; these are the /api/v1/hr/leave shapes.
 export const HrLeaveStateSchema = z.enum(['confirm', 'validate1', 'validate', 'refuse', 'cancel'])
 
+export const HrLeaveCancellationPolicySchema = z.enum(['manager_approval', 'direct_employee', 'manager_only'])
+export const HrLeaveSettingsSchema = z.object({
+  cancellation_policy: HrLeaveCancellationPolicySchema,
+  revision: z.number().int().nonnegative(),
+}).strict()
+export const HrLeaveSettingsPatchSchema = HrLeaveSettingsSchema
+export const HrLeaveCancellationSchema = z.object({
+  id: z.number().int().positive(), state: z.enum(['pending', 'approved', 'refused']),
+  revision: z.number().int().positive(), reason: z.string(), requested_at: z.string(),
+  initiator: HrRefSchema, reviewed_at: z.string().nullable(), reviewer: HrRefSchema.nullable(), review_reason: z.string().nullable(),
+}).strict()
+export const HrLeaveCancellationDecisionSchema = z.object({ revision: z.number().int().positive(), reason: z.string().optional() }).strict()
+export const HrLeaveCancellationRefusalSchema = z.object({ revision: z.number().int().positive(), reason: z.string().trim().min(1) }).strict()
+export const HrLeaveCancelSchema = z.object({ reason: z.string().optional(), revision: z.number().int().positive().optional() }).strict()
+export type HrLeaveCancellationPolicy = z.infer<typeof HrLeaveCancellationPolicySchema>
+export type HrLeaveSettings = z.infer<typeof HrLeaveSettingsSchema>
+export type HrLeaveSettingsPatch = z.infer<typeof HrLeaveSettingsPatchSchema>
+export type HrLeaveCancellation = z.infer<typeof HrLeaveCancellationSchema>
+
 export const HrLeaveTypeSchema = z.object({
   id: z.number().int().positive(),
   name: z.string(),
@@ -189,6 +208,11 @@ export const HrLeaveSchema = z.object({
   can_refuse: z.boolean(),
   can_cancel: z.boolean(),
   can_withdraw: z.boolean(),
+  cancellation_policy: HrLeaveCancellationPolicySchema,
+  cancellation: HrLeaveCancellationSchema.nullable(),
+  can_request_cancellation: z.boolean(),
+  can_approve_cancellation: z.boolean(),
+  can_refuse_cancellation: z.boolean(),
 }).strict()
 
 export const HrLeaveBalanceSchema = z.object({

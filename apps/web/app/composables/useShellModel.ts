@@ -30,11 +30,12 @@ export function useShellModel() {
   const definition = computed(() => shellModuleList().find(item => item.id === contextModule.value) ?? module.value)
   const rail = computed(() => railModel(visibleShellModules(me.value)))
   const homePath = computed(() => postLoginPath(me.value, undefined))
-  const contextTitle = computed(() => definition.value ? t(definition.value.labelKey) : t('app.productName'))
-  const contextLabelKey = computed(() => definition.value?.labelKey ?? null)
+  const personal = computed(() => route.path === '/account' || route.path.startsWith('/account/'))
+  const contextTitle = computed(() => personal.value ? t('nav.account') : definition.value ? t(definition.value.labelKey) : t('app.productName'))
+  const contextLabelKey = computed(() => personal.value ? 'nav.account' : definition.value?.labelKey ?? null)
   const panel = computed(() => sidebarPanelFor(contextModule.value) ?? null)
   const panelComponent = computed(() => panel.value ? panelView(panel.value) : null)
-  const motionKey = computed(() => `module:${contextModule.value ?? 'none'}`)
+  const motionKey = computed(() => `module:${personal.value ? 'account' : contextModule.value ?? 'none'}`)
 
   function createTo(link: Pick<ShellContextLink, 'id' | 'to'>): RouteLocationRaw {
     return createLinkTo(link, { path: route.path, fullPath: route.fullPath, query: route.query, params: route.params })

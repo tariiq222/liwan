@@ -4,7 +4,7 @@ import { storyContext } from '../support/context'
 import { draft, operationHandlers, process } from './fixtures'
 const meta = {
   title: 'Operations/RequestForm', component: RequestForm,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/operations/new.vue:22'), msw: { handlers: { api: operationHandlers } } },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/components/operations/RequestCreate.vue:24'), msw: { handlers: { api: operationHandlers } } },
   args: { backTo: '/operations', processes: [process], save: async body => ({ ...draft, name: body.name, description: body.description }) },
 } satisfies Meta<typeof RequestForm>
 export default meta

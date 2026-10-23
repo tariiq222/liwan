@@ -1,3 +1,4 @@
+import { useHrOwnIdentity } from './useHrOwnIdentity'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
@@ -25,9 +26,10 @@ export function fetchMyHrPayslip($api: Api, payslipId: number) {
 export function useMyHrPayslips() {
   const { $api } = useApi()
   const { can } = useAccess()
+  const identity = useHrOwnIdentity()
   return useQuery({
-    queryKey: hrMyPayslipKeys.list,
-    enabled: computed(() => can('hr.employees.read')),
+    queryKey: computed(() => [...hrMyPayslipKeys.list, identity.scope.value]),
+    enabled: computed(() => identity.ready.value && can('hr.employees.read')),
     queryFn: () => fetchMyHrPayslips($api),
   })
 }
@@ -35,9 +37,10 @@ export function useMyHrPayslips() {
 export function useMyHrPayslip(payslipId: MaybeRefOrGetter<number | null>) {
   const { $api } = useApi()
   const { can } = useAccess()
+  const identity = useHrOwnIdentity()
   return useQuery({
-    queryKey: computed(() => hrMyPayslipKeys.one(toValue(payslipId) ?? 0)),
-    enabled: computed(() => can('hr.employees.read') && !!toValue(payslipId)),
+    queryKey: computed(() => [...hrMyPayslipKeys.one(toValue(payslipId) ?? 0), identity.scope.value]),
+    enabled: computed(() => identity.ready.value && can('hr.employees.read') && !!toValue(payslipId)),
     queryFn: () => fetchMyHrPayslip($api, toValue(payslipId) as number),
   })
 }

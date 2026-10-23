@@ -17,13 +17,14 @@ function moduleWithinApp(manifest: AppManifest, path: string): ShellModule {
 }
 
 export function activeShellModule(path: string): ShellModule | null {
+  // Personal pages may be owned by an application without selecting its administration rail.
+  const foundation = normalizedPath(path).toLowerCase()
+  if (foundation === '/account' || foundation.startsWith('/account/')) return null
   if (normalizedPath(path) === '/') return 'home'
   const owner = manifestForPath(path)
   if (owner) return moduleWithinApp(owner, path)
   if (path === '/settings' || path.startsWith('/settings/')) return 'settings'
   if (path === '/subscription' || path.startsWith('/subscription/')) return 'settings'
-  // The account is reached from the header menu, not from a rail module.
-  if (path === '/account' || path.startsWith('/account/')) return null
   if (path === '/search' || path.startsWith('/search/')) return null
   if (path === '/notifications' || path.startsWith('/notifications/')) return null
   if (path === '/notification-digests' || path.startsWith('/notification-digests/')) return null

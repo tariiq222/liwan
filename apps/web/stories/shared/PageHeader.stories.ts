@@ -110,7 +110,7 @@ export const TrailUnderTitle: Story = {
 
 export const TitleAndDescription: Story = {
   name: 'عنوان ووصف',
-  parameters: storyContext('apps/web/app/pages/account.vue:10'),
+  parameters: storyContext('apps/web/app/pages/account/settings.vue:47'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),

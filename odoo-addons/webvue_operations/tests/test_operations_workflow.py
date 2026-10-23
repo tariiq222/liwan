@@ -38,6 +38,93 @@ class TestOperationsWorkflow(WebVueApiCase):
         self.assertIn('webvue.operation.request', self.env.registry)
         self.assertIn('webvue.operation.process', self.env.registry)
 
+    def test_self_service_purpose_is_server_owned_snapshot_through_reconfiguration(self):
+        self.assertIn('purpose', self.process._fields)
+        record = self._pending()
+        self.assertEqual((self.process.purpose, record.purpose), ('work', 'work'))
+        self.process.with_user(self.manager).action_configure(1, 'Employee service', '', 'approval', [
+            {'name': 'Review', 'reviewer_ids': [self.reviewers[0].id]},
+        ], purpose='employee')
+        self.process.with_user(self.manager).action_publish(2)
+        self.assertEqual((self.process.purpose, record.purpose), ('employee', 'work'))
+        record.with_user(self.reviewers[0]).action_return(1, 'More details')
+        record.action_submit(2)
+        self.assertEqual(record.purpose, 'work')
+        personal = self._request()
+        self.assertEqual(personal.purpose, 'employee')
+        self.assertEqual(dump_request(personal)['purpose'], 'employee')
+        for purpose in ('work', 'employee'):
+            with self.assertRaises(AccessError):
+                self.env['webvue.operation.request'].with_user(self.employee).create({
+                    'name': 'Forged purpose', 'process_id': self.process.id, 'purpose': purpose,
+                })
+        forged = self.env['webvue.operation.request'].with_user(self.employee).with_context(
+            default_purpose='work',
+        ).create({'name': 'Context cannot select purpose', 'process_id': self.process.id})
+        self.assertEqual(forged.purpose, 'employee')
+        with self.assertRaises(AccessError):
+            personal.write({'purpose': 'work'})
+
+    def test_self_service_purpose_filters_do_not_change_own_and_pending_scope(self):
+        self.assertIn('purpose', self.process._fields)
+        work = self._pending()
+        self.process.with_user(self.manager).action_configure(1, 'Personal service', '', 'approval', [
+            {'name': 'Review', 'reviewer_ids': [self.reviewers[0].id]},
+        ], purpose='employee')
+        self.process.with_user(self.manager).action_publish(2)
+        personal = self._pending()
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        result = self.api('GET', '/api/v1/operations/requests?scope=mine&purpose=employee')
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual([item['id'] for item in result.json()['items']], [personal.id])
+        result = self.api('GET', '/api/v1/operations/requests?scope=mine&purpose=work')
+        self.assertEqual([item['id'] for item in result.json()['items']], [work.id])
+        catalog = self.api('GET', '/api/v1/operations/processes?published=1&purpose=work')
+        self.assertEqual(catalog.status_code, 200, catalog.text)
+        self.assertEqual(catalog.json()['total'], 0)
+        catalog = self.api('GET', '/api/v1/operations/processes?published=1&purpose=employee')
+        self.assertEqual([item['id'] for item in catalog.json()['items']], [self.process.id])
+        for endpoint in ('requests', 'processes'):
+            self.assertEqual(self.api('GET', f'/api/v1/operations/{endpoint}?purpose=personal').status_code, 422)
+        self.assertEqual(self.api('POST', '/api/v1/operations/requests', {
+            'name': 'Forged', 'process_id': self.process.id, 'purpose': 'employee',
+        }).status_code, 422)
+        self.authenticate('ops_reviewer_1', 'ops_reviewer_1_test_123')
+        pending = self.api('GET', '/api/v1/operations/requests?scope=pending')
+        self.assertEqual({item['id'] for item in pending.json()['items']}, {work.id, personal.id})
+
+    def test_self_service_process_api_configures_and_validates_purpose(self):
+        self.assertIn('purpose', self.process._fields)
+        self.authenticate('ops_manager', 'ops_manager_test_123')
+        payload = {'name': 'Employee process', 'purpose': 'employee', 'steps': [
+            {'name': 'Review', 'reviewer_ids': [self.reviewers[0].id]},
+        ]}
+        result = self.api('POST', '/api/v1/operations/processes', payload)
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(result.json()['purpose'], 'employee')
+        self.assertEqual(self.api('POST', '/api/v1/operations/processes', {
+            **payload, 'purpose': 'personal',
+        }).status_code, 422)
+
+    def test_self_service_request_detail_requires_own_employee_purpose(self):
+        work = self._pending()
+        self.process.with_user(self.manager).action_configure(1, 'Employee service', '', 'approval', [
+            {'name': 'Review', 'reviewer_ids': [self.reviewers[0].id]},
+        ], purpose='employee')
+        self.process.with_user(self.manager).action_publish(2)
+        personal = self._pending()
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        path = '/api/v1/operations/requests/employee/me'
+        result = self.api('GET', f'{path}/{personal.id}')
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual((result.json()['id'], result.json()['purpose']), (personal.id, 'employee'))
+        result = self.api('GET', f'{path}/{work.id}')
+        self.assertEqual((result.status_code, result.json()['code']), (404, 'not_found'))
+        self.authenticate('ops_reviewer_1', 'ops_reviewer_1_test_123')
+        self.assertEqual(self.api('GET', f'/api/v1/operations/requests/{personal.id}').status_code, 200)
+        result = self.api('GET', f'{path}/{personal.id}')
+        self.assertEqual((result.status_code, result.json()['code']), (404, 'not_found'))
+
     def test_system_admin_and_vendor_support_gain_no_implicit_operation_capabilities(self):
         admin = new_test_user(self.env, login='ops_system_admin', groups='webvue_core.group_employee')
         self.service._webvue_replace_assignments(admin, [{'role_id': self.env.ref('webvue_core.role_system_admin').id, 'company_id': self.env.company.id}])
@@ -170,7 +257,7 @@ class TestOperationsWorkflow(WebVueApiCase):
     def test_serializer_has_only_contract_keys_and_server_actions(self):
         record = self._pending()
         payload = dump_request(record.with_user(self.reviewers[0]))
-        self.assertEqual(set(payload), {'id', 'name', 'process', 'process_revision', 'state', 'revision', 'cycle', 'requester', 'created_at', 'execution_count', 'description', 'target', 'steps', 'events', 'attachments', 'allowed_actions'})
+        self.assertEqual(set(payload), {'id', 'name', 'process', 'process_revision', 'purpose', 'state', 'revision', 'cycle', 'requester', 'created_at', 'execution_count', 'description', 'target', 'steps', 'events', 'attachments', 'allowed_actions'})
         self.assertTrue(payload['allowed_actions']['approve'])
         self.assertFalse(payload['allowed_actions']['edit'])
 

@@ -559,6 +559,11 @@ class StaticGateTest(unittest.TestCase):
             page = self.whole(**{self.PAGES + "probe.vue": f'<{tag} title="x" />'})
             self.assertEqual([e for e in policy.page_shell_errors(page) if "approved shells" in e], [], tag)
 
+    def test_shared_hr_leave_templates_count_as_approved_shells(self):
+        for tag in ('HrLeaveList', 'HrLeaveRecord'):
+            page = self.whole(**{self.PAGES + 'probe.vue': f'<{tag} personal />'})
+            self.assertEqual([e for e in policy.page_shell_errors(page) if 'approved shells' in e], [], tag)
+
     def test_route_parent_exemption_holds(self):
         parent = self.whole(**{self.PAGES + "projects.vue": "<template><NuxtPage /></template>"})
         self.assertEqual([e for e in policy.page_shell_errors(parent) if "approved shells" in e], [])

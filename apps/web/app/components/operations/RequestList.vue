@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { OperationRequestSummary } from '@webvue/contracts'
 import { formatDate } from '@webvue/ui/app/utils/formatDate'
 import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
-import { useOperationRequests, type OperationScope } from '@/composables/operations/useOperations'
+import { useOperationRequests, operationRequestListParams, type OperationScope } from '@/composables/operations/useOperations'
 import { operationListLocation, safeOperationReturnTo, operationStateChoices, operationStateFromSelection } from '@/composables/operations/forms'
 import { operationsStateTone } from '@/composables/operations/state'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
@@ -11,22 +11,22 @@ import { useRouteListFilters } from '@/composables/useRouteListFilters'
 // One of the three request lists (mine, pending my approval, monitoring) on the list template: a card with the search and
 // the state filter in its header row, a bare table and the result count with the pager. `background` is the list behind
 // the create panel: it reads its filters from the panel's returnTo. The page owns the SharedListPage shell.
-const props = defineProps<{ scope: OperationScope; background?: boolean }>()
+const props = defineProps<{ scope: OperationScope; personal?: boolean; background?: boolean }>()
 const PAGE_SIZE = 20
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
-const path = computed(() => props.scope === 'mine' ? '/operations' : `/operations/${props.scope}`)
+const path = computed(() => props.personal ? '/account/requests' : props.scope === 'mine' ? '/operations' : `/operations/${props.scope}`)
 const { hydrated, filterQuery, page, search, committedSearch, update } = useRouteListFilters({ background: () => props.background, fallbackPath: () => path.value, safeReturnTo: safeOperationReturnTo })
 const allowed = computed(() => can(props.scope === 'pending' ? 'operations.requests.review' : props.scope === 'monitoring' ? 'operations.monitoring.read' : 'operations.requests.read'))
 const selectedState = computed(() => operationStateFromSelection(filterQuery.value.state))
-const params = computed(() => ({ scope: props.scope, q: committedSearch.value || undefined, state: selectedState.value || undefined, limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }))
+const params = computed(() => ({ ...operationRequestListParams(props.scope, props.personal), q: committedSearch.value || undefined, state: selectedState.value || undefined, limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }))
 const query = useOperationRequests(params, allowed)
 const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 const backTo = computed(() => operationListLocation(path.value, route.query, route.hash))
-const requestTo = (item: OperationRequestSummary) => ({ path: `/operations/${item.id}`, query: { returnTo: backTo.value } })
+const requestTo = (item: OperationRequestSummary) => ({ path: `${props.personal ? '/account/requests' : '/operations'}/${item.id}`, query: { returnTo: backTo.value } })
 const stateItems = computed(() => operationStateChoices(t))
 const activeCount = computed(() => Number(!!committedSearch.value) + Number(!!selectedState.value))
 const hasFilters = computed(() => activeCount.value > 0)
@@ -51,7 +51,7 @@ const columns = computed<TableColumn<OperationRequestSummary>[]>(() => [
   column('record_number', () => recordNumberHeader(t), WIDTH.number, true),
   column('name', t('operations.name'), WIDTH.title),
   column('process', t('operations.process'), WIDTH.process),
-  column('requester', t('operations.requester'), WIDTH.requester, true),
+  ...(!props.personal ? [column('requester', t('operations.requester'), WIDTH.requester, true)] : []),
   column('state', t('operations.state'), WIDTH.state, true),
   column('created_at', t('operations.createdAt'), WIDTH.date, true),
 ])
@@ -69,7 +69,7 @@ const columns = computed<TableColumn<OperationRequestSummary>[]>(() => [
     <SharedPageState v-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />
     <SharedEmptyState v-else-if="!query.isPending.value && !items.length" class="m-(--webvue-card-pad-dense)" :title="t(hasFilters ? 'app.noResults' : 'operations.emptyRequests')" />
     <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,792px)] [&_table]:table-fixed">
-      <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="requestTo" :loading="query.isPending.value" :caption="t(`operations.nav.${scope}`)">
+      <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="requestTo" :loading="query.isPending.value" :caption="t(personal ? 'operations.personal.title' : `operations.nav.${scope}`)">
         <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>
         <template #name-cell="{ row }">
           <NuxtLink :to="requestTo(row.original)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="row.original.name" @click.stop>{{ row.original.name }}</NuxtLink>

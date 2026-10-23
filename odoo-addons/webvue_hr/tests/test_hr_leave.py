@@ -4,11 +4,12 @@ from datetime import date, timedelta
 from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
-from .common import WebVueHrCase
+from .common import WebVueHrCase, set_hr_feature
 
 LEAVE_KEYS = {
     'id', 'employee', 'leave_type', 'date_from', 'date_to', 'number_of_days',
     'state', 'notes', 'can_approve', 'can_refuse', 'can_cancel', 'can_withdraw',
+    'cancellation_policy', 'cancellation', 'can_request_cancellation', 'can_approve_cancellation', 'can_refuse_cancellation',
 }
 BALANCE_KEYS = {'leave_type', 'allocated', 'taken', 'pending', 'remaining'}
 TYPE_KEYS = {'id', 'name', 'requires_allocation', 'support_document'}
@@ -149,6 +150,36 @@ class TestHrLeave(WebVueHrCase):
         self.assertTrue(items)
         self.assertEqual({item['employee']['id'] for item in items}, {self.staff.id})
 
+    def test_self_service_leave_detail_is_own_even_for_hr_manager(self):
+        own, other = self.env['hr.leave'].create([
+            {'employee_id': employee.id, 'holiday_status_id': self.sick.id,
+             'request_date_from': self.monday, 'request_date_to': self.monday}
+            for employee in (self.manager_employee, self.staff)
+        ])
+        self._as_manager()
+        result = self.api('GET', f'/api/v1/hr/leave/me/{own.id}')
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(result.json()['employee']['id'], self.manager_employee.id)
+        self.assertEqual(set(result.json()), LEAVE_KEYS)
+        result = self.api('GET', f'/api/v1/hr/leave/me/{other.id}')
+        self.assertEqual((result.status_code, result.json()['code']), (404, 'not_found'))
+        self.assertEqual(self.api('GET', f'/api/v1/hr/leave/requests/{other.id}').status_code, 200)
+        self._as_staff()
+        self.assertEqual(self.api('GET', f'/api/v1/hr/leave/me/{other.id}').status_code, 200)
+        self.assertEqual(self.api('GET', f'/api/v1/hr/leave/me/{own.id}').status_code, 404)
+
+    def test_self_service_leave_detail_preserves_feature_and_capability_gates(self):
+        leave = self.env['hr.leave'].create({
+            'employee_id': self.staff.id, 'holiday_status_id': self.sick.id,
+            'request_date_from': self.monday, 'request_date_to': self.monday,
+        })
+        denied = new_test_user(self.env, login='own_leave_denied', groups='base.group_user')
+        self.authenticate(denied.login, denied.login)
+        self.assertEqual(self.api('GET', f'/api/v1/hr/leave/me/{leave.id}').status_code, 403)
+        self._as_staff()
+        set_hr_feature(self, 'hr.enabled', False)
+        self.assertEqual(self.api('GET', f'/api/v1/hr/leave/me/{leave.id}').status_code, 403)
+
     def test_employee_cannot_request_for_someone_else(self):
         self._as_staff()
         res = self.api('POST', '/api/v1/hr/leave/requests', json={
@@ -201,7 +232,8 @@ class TestHrLeave(WebVueHrCase):
         self.env['hr.leave'].browse(leave_id).action_approve()
         res = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/cancel', json={'reason': 'Plans changed'})
         self.assertEqual(res.status_code, 200, res.text)
-        self.assertEqual(res.json()['state'], 'cancel')
+        self.assertEqual(res.json()['state'], 'validate')
+        self.assertEqual(res.json()['cancellation']['state'], 'pending')
 
     def test_manager_allocates_days(self):
         self._as_manager()
@@ -346,7 +378,8 @@ class TestHrLeave(WebVueHrCase):
         self.env['hr.leave'].browse(leave_id).action_approve()
         detail = self.api('GET', f'/api/v1/hr/leave/requests/{leave_id}').json()
         self.assertFalse(detail['can_withdraw'])
-        self.assertTrue(detail['can_cancel'])
+        self.assertFalse(detail['can_cancel'])
+        self.assertTrue(detail['can_request_cancellation'])
 
     def test_another_company_leave_is_not_found(self):
         other_company = self.env['res.company'].create({
@@ -363,6 +396,7 @@ class TestHrLeave(WebVueHrCase):
         })
         self._as_manager()
         self.assertEqual(self.api('GET', f'/api/v1/hr/leave/requests/{other_leave.id}').status_code, 404)
+        self.assertEqual(self.api('GET', f'/api/v1/hr/leave/me/{other_leave.id}').status_code, 404)
         self.assertEqual(self.api('POST', f'/api/v1/hr/leave/requests/{other_leave.id}/approve', json={}).status_code, 404)
 
     def test_a_custom_role_with_only_leave_capabilities_can_request(self):
