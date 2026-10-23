@@ -20,4 +20,5 @@ from . import (
     payroll_export,
     payroll_finance_link,
     payroll_settings,
+    shift_settings,
 )

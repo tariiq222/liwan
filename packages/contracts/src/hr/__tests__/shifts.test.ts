@@ -9,6 +9,8 @@ import {
   HrShiftScheduleListSchema,
   HrShiftSchedulePatchSchema,
   HrShiftScheduleSchema,
+  HrShiftSettingsSchema,
+  HrShiftSettingsPatchSchema,
 } from '..'
 
 const ATTENDANCE = {
@@ -100,5 +102,15 @@ describe('HrShiftAssignmentSchema', () => {
 
   it('rejects an assignment payload that names the employee twice', () => {
     expect(() => HrShiftAssignmentSchema.parse({ ...ASSIGNMENT, employee_id: 10 })).toThrow()
+  })
+})
+
+describe('shift day policy contracts', () => {
+  it('requires a server day and typed reference/revision', () => {
+    const settings = { day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 0 }
+    expect(HrShiftSettingsSchema.parse(settings)).toEqual(settings)
+    for (const invalid of [{ ...settings, today: '2026-02-30' }, { ...settings, day_reference: 'browser' }, { ...settings, revision: -1 }]) expect(HrShiftSettingsSchema.safeParse(invalid).success).toBe(false)
+    expect(HrShiftSettingsPatchSchema.parse({ day_reference: 'user', revision: 0 })).toEqual({ day_reference: 'user', revision: 0 })
+    for (const invalid of [{ day_reference: 'user' }, { day_reference: 'company', revision: true }, { day_reference: 'user', revision: 1, company_id: 2 }]) expect(HrShiftSettingsPatchSchema.safeParse(invalid).success).toBe(false)
   })
 })

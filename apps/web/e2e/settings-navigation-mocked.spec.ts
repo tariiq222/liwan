@@ -13,7 +13,7 @@ const CAPABILITIES = [
   'access.users.read', 'access.users.grant', 'access.users.assign_roles', 'access.users.disable', 'access.users.reset_password',
   'access.roles.read', 'access.roles.manage', 'access.audit.read',
   'hr.employees.read', 'hr.employees.manage', 'hr.employees.archive', 'hr.employees.access_status.read',
-  'hr.departments.read', 'hr.departments.manage', 'documents.items.read', 'documents.items.manage',
+  'hr.shifts.manage', 'hr.departments.read', 'hr.departments.manage', 'documents.items.read', 'documents.items.manage',
   'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage', 'pmo.settings.manage',
   'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write', 'pmo.tasks.approve',
   'settings.branding.manage',
@@ -25,13 +25,13 @@ const ME = {
   access_policy_version: 1, company: { id: 1, name: 'ويب فيو' },
   modules: ['webvue_chat', 'webvue_hr', 'webvue_pmo'],
   entitlements: {
-    'pmo.enabled': true, 'meetings.enabled': true, 'hr.enabled': true, 'chat.enabled': true,
+    'pmo.enabled': true, 'meetings.enabled': true, 'hr.enabled': true, 'hr.shifts': true, 'chat.enabled': true,
     'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['chat.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
-    writable_features: ['chat.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
+    readable_features: ['chat.enabled', 'hr.enabled', 'hr.shifts', 'meetings.enabled', 'pmo.enabled'],
+    writable_features: ['chat.enabled', 'hr.enabled', 'hr.shifts', 'meetings.enabled', 'pmo.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }
@@ -60,6 +60,7 @@ const USERS = {
 }
 
 function jsonFor(pathname: string): unknown {
+  if (pathname === '/api/v1/hr/shifts/settings') return { day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 0 }
   if (pathname === '/api/v1/me') return ME
   if (pathname === '/api/v1/branding' || pathname === '/api/v1/admin/branding') return BRANDING
   if (pathname === '/api/v1/settings/projects') return PROJECT_SETTINGS
@@ -154,6 +155,7 @@ test.afterAll(async () => {
 })
 
 async function openApp(page: Page, path: string) {
+  await page.context().addCookies([{ name: 'session_id', value: 'settings_mock', url: origin, httpOnly: true, sameSite: 'Lax' }])
   await page.route('**/api/v1/**', fulfillApi)
   await page.route('**/api/auth/**', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' })
@@ -168,12 +170,11 @@ test('project settings open as a real page under Settings > Apps', async ({ page
   await openApp(page, '/settings/apps/projects')
   await expect(page.getByTestId('settings-layout')).toBeVisible()
   await expect(page.getByTestId('sidebar-settings')).toHaveCount(0)
-  await expect(page.getByTestId('context-link-settings-projects')).toHaveAttribute('aria-current', 'page')
-  const settingsProjects = page.getByTestId('settings-projects-tab')
+  const settingsProjects = page.getByTestId('context-sidebar').getByRole('link', { name: 'المشاريع', exact: true })
   await expect(settingsProjects).toHaveAttribute('href', '/settings/apps/projects')
   await expect(settingsProjects).toHaveAttribute('aria-current', 'page')
-  await expect(page.locator('#project-creators')).toBeVisible()
-  await expect(page.locator('.webvue-settings-content .webvue-panel')).toHaveCount(1)
+  await expect(page.getByRole('region', { name: 'سياسة إنشاء المشاريع', exact: true }).getByRole('radiogroup')).toBeVisible()
+  await expect(page.locator('.webvue-settings-content [data-slot="record-section"]')).toHaveCount(4)
   expect(new URL(page.url()).pathname).toBe('/settings/apps/projects')
   await page.screenshot({ path: testInfo.outputPath('submenu-projects-desktop-rtl.png'), fullPage: true })
 })
@@ -181,12 +182,13 @@ test('project settings open as a real page under Settings > Apps', async ({ page
 test('in-page anchors scroll, mark location current, and survive hash refresh', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openApp(page, '/settings/apps/projects')
-  const remindersLink = page.locator('.webvue-settings-nav a[href="#project-reminders"]')
-  const catalogsLink = page.locator('.webvue-settings-nav a[href="#catalogs"]')
-  await expect(remindersLink).toHaveCSS('font-weight', '600')
+  const sectionNav = page.getByTestId('context-sub-list')
+  const catalogsLink = sectionNav.getByRole('link', { name: 'القوائم المشتركة', exact: true })
+  await expect(sectionNav.getByRole('link', { name: 'سياسة إنشاء المشاريع', exact: true })).toHaveAttribute('aria-current', 'true')
+  await expect(catalogsLink).toHaveAttribute('href', '/settings/apps/projects#catalogs')
   await catalogsLink.click()
   await expect(page).toHaveURL(/#catalogs/)
-  await expect(catalogsLink).toHaveAttribute('aria-current', 'location')
+  await expect(catalogsLink).toHaveAttribute('aria-current', 'true')
   await expect(catalogsLink).toHaveCSS('font-weight', '600')
   await expect.poll(async () => page.evaluate(() => {
     const el = document.getElementById('catalogs')
@@ -195,39 +197,43 @@ test('in-page anchors scroll, mark location current, and survive hash refresh', 
     return rect.top < innerHeight && rect.bottom > 0
   })).toBe(true)
   await openApp(page, '/settings/apps/projects#catalogs')
-  await expect(page.locator('.webvue-settings-nav a[href="#catalogs"]')).toHaveAttribute('aria-current', 'location')
+  await expect(page.getByTestId('context-sub-list').getByRole('link', { name: 'القوائم المشتركة', exact: true })).toHaveAttribute('aria-current', 'true')
   await page.screenshot({ path: testInfo.outputPath('anchors-desktop-rtl.png'), fullPage: true })
 })
 
-test('users category is one card without nested chrome; mobile toc is static below the header', async ({ page }, testInfo) => {
+test('users list has one card without nested chrome and mobile settings navigation remains usable', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openApp(page, '/settings/team/users')
   await expect(page.getByTestId('settings-layout')).toBeVisible()
-  const nested = page.locator('.webvue-settings-content .webvue-panel .webvue-panel')
-  await expect(nested).toHaveCount(1)
-  await expect(nested).toHaveCSS('border-top-width', '0px')
-  await expect(nested).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  const card = page.locator('[data-testid="settings-layout"] [data-slot="list-card"]')
+  await expect(card).toHaveCount(1)
+  await expect(card.locator('[data-slot="list-card"]')).toHaveCount(0)
+  await expect(card.getByRole('table')).toBeVisible()
 
   await page.setViewportSize({ width: 390, height: 844 })
   await openApp(page, '/settings/team/users')
-  const header = page.locator('.webvue-app-header')
-  const nav = page.locator('.webvue-settings-nav')
-  await expect(nav).toHaveCSS('position', 'static')
-  const headerBox = await header.boundingBox()
-  const navBox = await nav.boundingBox()
-  expect(navBox).toBeTruthy()
-  expect(headerBox).toBeTruthy()
-  expect(navBox!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height - 1)
+  const menu = page.getByTestId('mobile-navigation-trigger')
+  await expect(menu).toBeEnabled()
+  await menu.click()
+  const drawer = page.getByRole('dialog')
+  await expect(drawer).toBeVisible()
+  const users = drawer.getByRole('link', { name: 'المستخدمون', exact: true })
+  await expect(users).toHaveAttribute('href', '/settings/team#users')
+  await expect(users).toHaveAttribute('aria-current', 'true')
+  await users.click()
+  await expect(page).toHaveURL(/\/settings\/team#users$/)
+  await expect(drawer).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'المستخدمون', exact: true })).toBeVisible()
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
   await page.screenshot({ path: testInfo.outputPath('mobile-rtl.png'), fullPage: true })
 })
 
-test('users hash navigation keeps list query on click, refresh and back', async ({ page }) => {
+test('users direct result anchor keeps list query on refresh and back', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await openApp(page, '/settings/team/users?q=sara&status=active&offset=25')
-  const search = page.locator('#filters .webvue-settings-search input')
+  await openApp(page, '/settings/team/users?q=sara&status=active&offset=25#results')
+  const search = page.getByRole('textbox', { name: 'ابحث بالاسم أو اسم الدخول…', exact: true })
   await expect(search).toHaveValue('sara')
-  await page.locator('.webvue-settings-nav a[href="#results"]').click()
   await expect(page).toHaveURL(/q=sara/)
   expect(new URL(page.url()).searchParams.get('status')).toBe('active')
   expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
@@ -239,23 +245,32 @@ test('users hash navigation keeps list query on click, refresh and back', async 
   expect(new URL(page.url()).searchParams.get('status')).toBe('active')
   expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
   expect(new URL(page.url()).hash).toBe('#results')
-  await expect(page.locator('#filters .webvue-settings-search input')).toHaveValue('sara')
+  await expect(page.getByRole('textbox', { name: 'ابحث بالاسم أو اسم الدخول…', exact: true })).toHaveValue('sara')
   await page.goto(`${origin}/settings/company#branding`, { waitUntil: 'domcontentloaded' })
   await page.goBack()
   await page.getByTestId('settings-layout').waitFor({ state: 'visible', timeout: 15_000 })
   expect(new URL(page.url()).searchParams.get('q')).toBe('sara')
   expect(new URL(page.url()).searchParams.get('status')).toBe('active')
   expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
-  await expect(page.locator('#filters .webvue-settings-search input')).toHaveValue('sara')
+  await expect(page.getByRole('textbox', { name: 'ابحث بالاسم أو اسم الدخول…', exact: true })).toHaveValue('sara')
 })
 
-test('section dividers use last-child not last-of-type', async ({ page }) => {
+test('project settings sections are separate bordered cards with clear headers', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  const width = (selector: string) => page.locator(selector).evaluate((el) => getComputedStyle(el).borderBlockEndWidth)
   await openApp(page, '/settings/apps/projects')
-  await page.locator('#project-reminders').waitFor({ state: 'visible', timeout: 15_000 })
-  await expect.poll(() => width('#project-reminders')).toBe('1px')
-  await expect.poll(() => width('#catalogs')).toBe('0px')
+  const reminders = page.getByRole('region', { name: 'تذكير المواعيد', exact: true })
+  const catalogs = page.getByRole('region', { name: 'القوائم المشتركة', exact: true })
+  for (const card of [reminders, catalogs]) {
+    await expect(card).toBeVisible()
+    await expect(card).toHaveAttribute('data-slot', 'record-section')
+    await expect.poll(() => card.evaluate(element => Number.parseFloat(getComputedStyle(element).borderRadius))).toBeCloseTo(18, 2)
+    await expect(card.locator(':scope > header')).toHaveCSS('border-bottom-width', '1px')
+    await expect.poll(() => card.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe('none')
+  }
+  const remindersBox = await reminders.boundingBox()
+  const catalogsBox = await catalogs.boundingBox()
+  expect(catalogsBox!.y).toBeGreaterThan(remindersBox!.y + remindersBox!.height)
+
 })
 
 test('unsaved branding draft is guarded when leaving to project settings', async ({ page }, testInfo) => {
@@ -264,15 +279,41 @@ test('unsaved branding draft is guarded when leaving to project settings', async
   const color = page.getByTestId('branding-color')
   await expect(color).toBeVisible({ timeout: 15_000 })
   await color.fill('#abcdef')
-  await page.getByTestId('context-link-settings-projects').click()
+  await page.getByTestId('context-sidebar').getByRole('link', { name: 'المشاريع', exact: true }).click()
   const dialog = page.getByTestId('unsaved-changes-dialog')
   await expect(dialog).toBeVisible()
   await page.getByRole('button', { name: 'البقاء في الصفحة' }).click()
   await expect(dialog).toHaveCount(0)
   await expect(page).toHaveURL(/\/settings\/company#branding/)
   await expect(color).toHaveValue('#abcdef')
-  await page.getByTestId('context-link-settings-projects').click()
+  await page.getByTestId('context-sidebar').getByRole('link', { name: 'المشاريع', exact: true }).click()
   await page.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()
-  await expect(page).toHaveURL(/\/settings\/apps\/projects$/)
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/settings/apps/projects')
   await page.screenshot({ path: testInfo.outputPath('unsaved-desktop-rtl.png'), fullPage: true })
+})
+
+test('shift settings default to company timezone and save the user reference without payroll permission', async ({ page }, testInfo) => {
+  await openApp(page, '/settings/apps/hr#shifts')
+  let submitted: Record<string, unknown> | null = null
+  await page.route('**/api/v1/hr/shifts/settings', async route => {
+    if (route.request().method() === 'PATCH') {
+      submitted = route.request().postDataJSON()
+      await route.fulfill({ json: { day_reference: 'user', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', today: '2026-10-23', revision: 1 } })
+      return
+    }
+    await route.fulfill({ json: jsonFor('/api/v1/hr/shifts/settings') })
+  })
+  const reference = page.locator('#shift-day-reference')
+  await expect(reference).toBeEnabled()
+  await expect(reference).toContainText('المنطقة الزمنية للشركة (الافتراضي)')
+  await reference.click()
+  await page.getByRole('option', { name: 'المنطقة الزمنية لكل مستخدم', exact: true }).click()
+  const save = page.getByRole('button', { name: 'حفظ التغييرات', exact: true })
+  await expect(save).toBeEnabled()
+  await save.click()
+  await expect.poll(() => submitted).toEqual({ day_reference: 'user', revision: 0 })
+  await expect(save).toBeDisabled()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: testInfo.outputPath('shift-day-settings-mobile-rtl.png'), fullPage: true })
 })

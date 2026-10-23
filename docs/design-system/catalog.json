@@ -98,12 +98,12 @@
       ],
       "events": [
         {
-          "name": "save",
-          "payload": "[body: { expected_revision: number; visibility: \"company\" | \"restricted\"; grants: { user_id: number; access: \"reader\" | \"editor\"; }[]; }]"
-        },
-        {
           "name": "reload",
           "payload": "[]"
+        },
+        {
+          "name": "save",
+          "payload": "[body: { expected_revision: number; visibility: \"company\" | \"restricted\"; grants: { user_id: number; access: \"reader\" | \"editor\"; }[]; }]"
         }
       ],
       "slots": [],
@@ -540,6 +540,55 @@
           "id": "NoDeductions",
           "name": "بلا خصومات",
           "context": "apps/web/app/pages/hr/payroll/[runId]/payslips/[payslipId].vue:35"
+        }
+      ]
+    },
+    {
+      "name": "HrShiftsShiftSettingsForm",
+      "file": "apps/web/app/components/hr/shifts/ShiftSettingsForm.vue",
+      "story": "apps/web/stories/hr/shifts/ShiftSettingsForm.stories.ts",
+      "title": "HR/Shifts/ShiftSettingsForm",
+      "props": [
+        {
+          "name": "settings",
+          "type": "{ day_reference: \"company\" | \"user\"; company_timezone: string; effective_timezone: string; today: string; revision: number; }",
+          "required": true
+        },
+        {
+          "name": "canEdit",
+          "type": "boolean",
+          "required": true
+        }
+      ],
+      "events": [
+        {
+          "name": "reload",
+          "payload": "[]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UForm",
+        "UFormField",
+        "USelect"
+      ],
+      "stories": [
+        {
+          "id": "CompanyDefault",
+          "name": "CompanyDefault",
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:114"
+        },
+        {
+          "id": "UserReference",
+          "name": "UserReference",
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:114"
+        },
+        {
+          "id": "ReadOnly",
+          "name": "ReadOnly",
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:114"
         }
       ]
     },
@@ -1811,11 +1860,11 @@
       ],
       "events": [
         {
-          "name": "archived",
+          "name": "settings",
           "payload": "[]"
         },
         {
-          "name": "settings",
+          "name": "archived",
           "payload": "[]"
         },
         {
