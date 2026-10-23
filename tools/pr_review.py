@@ -39,10 +39,18 @@ def matching_reviews(reviews: list[dict], head: str, login: str, marker: str = '
 
 def codex_review(reviews: list[dict], head: str, inline: list[dict] | None = None) -> dict | None:
     found = matching_reviews(reviews, head, CODEX)
-    findings = [x for x in (inline or []) if x.get('commit_id') == head
-                and x.get('user', {}).get('login') == CODEX and x.get('user', {}).get('type') == 'Bot']
+    # Inline anchors are remapped by GitHub; their formal review association is immutable.
+    native_inline = [x for x in (inline or []) if x.get('user', {}).get('login') == CODEX
+                     and x.get('user', {}).get('type') == 'Bot']
+    history_ids = {x['id'] for x in reviews if x.get('id')
+                   and x.get('user', {}).get('login') == CODEX and x.get('user', {}).get('type') == 'Bot'}
+    head_review_ids = {x['id'] for x in reviews if x.get('id') and x.get('commit_id') == head
+                       and x.get('user', {}).get('login') == CODEX and x.get('user', {}).get('type') == 'Bot'}
+    findings = [x for x in native_inline if x.get('pull_request_review_id') in head_review_ids]
+    unproven = any(x.get('pull_request_review_id') not in history_ids
+                   and head in (x.get('commit_id'), x.get('original_commit_id')) for x in native_inline)
     priority = any(re.search(r'\bP[012]\b', x.get('body', '')) for x in [*found, *findings])
-    return {'provider': 'codex', 'blocking': priority or any(x['state'] == 'CHANGES_REQUESTED' for x in found),
+    return {'provider': 'codex', 'blocking': unproven or priority or any(x['state'] == 'CHANGES_REQUESTED' for x in found),
             'body': 'Codex review: ' + found[-1].get('html_url', '')} if found else None
 
 

@@ -72,7 +72,46 @@ class ReviewSelectionTest(unittest.TestCase):
     def test_codex_inline_priority_one_blocks_even_when_review_is_commented(self):
         inline = self.native()
         inline['body'] = '**[P1] Fix lost data**'
+        inline['pull_request_review_id'] = 17
         self.assertTrue(pr_review.codex_review([self.native()], HEAD, [inline])['blocking'])
+
+    def test_historical_inline_anchor_remapped_to_current_head_does_not_poison_new_review(self):
+        old = self.native(head='b' * 40)
+        old['id'] = 16
+        inline = {**self.native(), 'original_commit_id': 'b' * 40,
+                  'pull_request_review_id': 16, 'body': '**[P2] Historical finding**'}
+        self.assertFalse(pr_review.codex_review([old, self.native()], HEAD, [inline])['blocking'])
+
+    def test_real_current_inline_priority_two_still_blocks(self):
+        inline = {**self.native(), 'original_commit_id': HEAD,
+                  'pull_request_review_id': 17, 'body': '**[P2] Current finding**'}
+        self.assertTrue(pr_review.codex_review([self.native()], HEAD, [inline])['blocking'])
+
+    def test_remapped_inline_without_a_current_review_cannot_complete_the_gate(self):
+        old = self.native(head='b' * 40)
+        old['id'] = 16
+        inline = {**self.native(), 'original_commit_id': 'b' * 40,
+                  'pull_request_review_id': 16, 'body': '**[P2] Historical finding**'}
+        self.assertIsNone(pr_review.codex_review([old], HEAD, [inline]))
+
+    def test_unknown_current_inline_review_association_fails_closed(self):
+        inline = {**self.native(), 'original_commit_id': HEAD,
+                  'pull_request_review_id': 999, 'body': 'Unproven comment'}
+        self.assertTrue(pr_review.codex_review([self.native()], HEAD, [inline])['blocking'])
+
+    def test_dismissed_current_inline_finding_remains_blocking_with_another_receipt(self):
+        dismissed = self.native('DISMISSED')
+        dismissed['id'] = 18
+        inline = {**self.native(), 'original_commit_id': HEAD,
+                  'pull_request_review_id': 18, 'body': '**[P1] Unrepaired finding**'}
+        self.assertTrue(pr_review.codex_review([dismissed, self.native()], HEAD, [inline])['blocking'])
+
+    def test_other_author_review_cannot_prove_native_inline_provenance(self):
+        other = self.native(login='other[bot]')
+        other['id'] = 18
+        inline = {**self.native(), 'original_commit_id': HEAD,
+                  'pull_request_review_id': 18, 'body': '**[P2] Unproven finding**'}
+        self.assertTrue(pr_review.codex_review([other, self.native()], HEAD, [inline])['blocking'])
 
     def test_priority_two_bug_requires_repair_before_automatic_delivery(self):
         report = {'head_sha': HEAD, 'complete': True, 'summary': 'Bug', 'findings': [
