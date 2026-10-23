@@ -101,6 +101,9 @@ class TestHrRecruitmentBranchConsumers(CompanyIsolationCase):
         })
         self.assertEqual(created.status_code, 201, created.text)
         response = self.api('POST', f'/api/v1/hr/recruitment/applicants/{created.json()["id"]}/hire', json={})
+        self.assertFalse(self.env['hr.employee'].search([
+            ('name', '=', f'Branch hire {department}'), ('company_id', '=', self.company_p.id),
+        ]), response.text)
         self.assertEqual(response.status_code, 200, response.text)
         employee = self.env['hr.employee'].browse(response.json()['employee']['id'])
         self.assertEqual(employee.company_id, self.company_p1)
