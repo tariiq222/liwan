@@ -82,3 +82,19 @@ export type HrShiftAssignment = z.infer<typeof HrShiftAssignmentSchema>
 export type HrShiftAssignmentList = z.infer<typeof HrShiftAssignmentListSchema>
 export type HrShiftAssignmentCreate = z.infer<typeof HrShiftAssignmentCreateSchema>
 export type HrShiftAssignmentPatch = z.infer<typeof HrShiftAssignmentPatchSchema>
+
+/** Calendar-day reference of the current company. `today` is resolved by the server. */
+export const HrShiftSettingsSchema = z.object({
+  day_reference: z.enum(['company', 'user']),
+  company_timezone: z.string().min(1),
+  effective_timezone: z.string().min(1),
+  today: isoDate,
+  revision: z.number().int().nonnegative(),
+}).strict()
+
+export const HrShiftSettingsPatchSchema = z.object({
+  day_reference: z.enum(['company', 'user']),
+  revision: z.number().int().nonnegative(),
+}).strict()
+export type HrShiftSettings = z.infer<typeof HrShiftSettingsSchema>
+export type HrShiftSettingsPatch = z.infer<typeof HrShiftSettingsPatchSchema>
