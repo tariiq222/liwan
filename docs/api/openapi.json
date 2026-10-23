@@ -37981,6 +37981,13 @@
                 "name": {
                   "type": "string"
                 },
+                "purpose": {
+                  "enum": [
+                    "work",
+                    "employee"
+                  ],
+                  "type": "string"
+                },
                 "revision": {
                   "maximum": 9007199254740991,
                   "minimum": 0,
@@ -38051,6 +38058,7 @@
                 "id",
                 "name",
                 "description",
+                "purpose",
                 "state",
                 "revision",
                 "execution_kind",
@@ -38089,6 +38097,13 @@
             "type": "integer"
           },
           "name": {
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "work",
+              "employee"
+            ],
             "type": "string"
           },
           "revision": {
@@ -38161,12 +38176,21 @@
           "id",
           "name",
           "description",
+          "purpose",
           "state",
           "revision",
           "execution_kind",
           "steps"
         ],
         "type": "object"
+      },
+      "OperationPurposeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "work",
+          "employee"
+        ],
+        "type": "string"
       },
       "OperationRequestListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -38220,6 +38244,13 @@
                   "minimum": 0,
                   "type": "integer"
                 },
+                "purpose": {
+                  "enum": [
+                    "work",
+                    "employee"
+                  ],
+                  "type": "string"
+                },
                 "requester": {
                   "additionalProperties": false,
                   "properties": {
@@ -38266,6 +38297,7 @@
                 "name",
                 "process",
                 "process_revision",
+                "purpose",
                 "state",
                 "revision",
                 "cycle",
@@ -38461,6 +38493,13 @@
             "minimum": 0,
             "type": "integer"
           },
+          "purpose": {
+            "enum": [
+              "work",
+              "employee"
+            ],
+            "type": "string"
+          },
           "requester": {
             "additionalProperties": false,
             "properties": {
@@ -38596,6 +38635,7 @@
           "name",
           "process",
           "process_revision",
+          "purpose",
           "state",
           "revision",
           "cycle",
@@ -38659,6 +38699,13 @@
             "minimum": 0,
             "type": "integer"
           },
+          "purpose": {
+            "enum": [
+              "work",
+              "employee"
+            ],
+            "type": "string"
+          },
           "requester": {
             "additionalProperties": false,
             "properties": {
@@ -38705,6 +38752,7 @@
           "name",
           "process",
           "process_revision",
+          "purpose",
           "state",
           "revision",
           "cycle",
@@ -50768,6 +50816,101 @@
         }
       }
     },
+    "/api/v1/documents/employee/me": {
+      "get": {
+        "operationId": "webvue_documents_hr.EmployeeDocuments.list_own_documents.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_own_documents",
+        "tags": [
+          "webvue_documents_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "EmployeeDocuments",
+          "feature_keys": [
+            "documents.enabled",
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_own_documents",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/documents/employee/me/{document_id}": {
+      "get": {
+        "operationId": "webvue_documents_hr.EmployeeDocuments.get_own_document.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_own_document",
+        "tags": [
+          "webvue_documents_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_documents_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "documents",
+          "controller": "EmployeeDocuments",
+          "feature_keys": [
+            "documents.enabled",
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_own_document",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/documents/tags": {
       "get": {
         "operationId": "webvue_documents.Tags.tags.get",
@@ -59022,6 +59165,59 @@
         }
       }
     },
+    "/api/v1/hr/leave/me/{leave_id}": {
+      "get": {
+        "operationId": "webvue_hr.HrLeaveController.get_own_request.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "leave_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_own_request",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrLeaveController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_own_request",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/hr/leave/requests": {
       "get": {
         "operationId": "webvue_hr.HrLeaveController.list_requests.get",
@@ -59347,6 +59543,46 @@
           ],
           "feature_operation": "read",
           "handler": "list_leave_types",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/me": {
+      "get": {
+        "operationId": "webvue_hr.HrEmployeeController.own_profile.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "own_profile",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrEmployeeController",
+          "feature_keys": [
+            "hr.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "own_profile",
           "readonly": true,
           "route_type": "json2"
         }
@@ -66574,6 +66810,59 @@
         }
       }
     },
+    "/api/v1/operations/requests/employee/me/{request_id}": {
+      "get": {
+        "operationId": "webvue_operations.OperationsController.get_own_employee_request.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_own_employee_request",
+        "tags": [
+          "webvue_operations"
+        ],
+        "x-webvue": {
+          "addon": "webvue_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_own_employee_request",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/operations/requests/{request_id}": {
       "get": {
         "operationId": "webvue_operations.OperationsController.get_request.get",
@@ -71464,6 +71753,7 @@
     "webvue_chat",
     "webvue_directory",
     "webvue_documents",
+    "webvue_documents_hr",
     "webvue_finance",
     "webvue_hr",
     "webvue_hr_finance",
