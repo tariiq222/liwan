@@ -13,20 +13,27 @@ function provider(id: string, module: string, capability: string, load: AppAtten
 const manifest = (id: string, attention: AppAttentionProvider[]): AppManifest =>
   ({ id, feature: `${id}.enabled`, routePrefixes: [`/${id}`], rail: [{ id, labelKey: id, icon: 'i-lucide-circle', to: `/${id}`, order: 10 }], nav: [], attention })
 
-interface Setup { capabilities?: string[]; hydrated?: boolean; identity?: boolean }
+interface Identity { id: number; company: { id: number }; capabilities: string[] }
+interface Setup { capabilities?: string[]; hydrated?: boolean; identity?: boolean; client?: QueryClient }
+const cleanups: Array<() => void> = []
 
 function mountAttention(manifests: AppManifest[], setup: Setup, scope: string | null, options?: { limit?: number }) {
   const api = vi.fn()
   vi.stubGlobal('useApi', () => ({ $api: api }))
   vi.stubGlobal('useI18n', () => ({ t: (key: string) => key }))
-  vi.stubGlobal('useAccess', () => ({ can: (capability: string) => (setup.capabilities ?? []).includes(capability) }))
-  vi.stubGlobal('useMe', () => ({ me: ref(setup.identity === false ? null : { capabilities: setup.capabilities ?? [] }) }))
-  vi.stubGlobal('useHydrated', () => ref(setup.hydrated ?? true))
+  const me = ref<Identity | null>(setup.identity === false ? null : { id: 7, company: { id: 3 }, capabilities: setup.capabilities ?? [] })
+  const hydrated = ref(setup.hydrated ?? true)
+  vi.stubGlobal('useAccess', () => ({ can: (capability: string) => (me.value?.capabilities ?? setup.capabilities ?? []).includes(capability) }))
+  vi.stubGlobal('useMe', () => ({ me }))
+  vi.stubGlobal('useHydrated', () => hydrated)
   const scopeRef = ref<string | null>(scope)
   const app = createApp({ render: () => null })
-  app.use(VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) })
-  const result = withManifests(manifests, () => app.runWithContext(() => effectScope().run(() => useAttention(scopeRef, options))!))
-  return { ...result, scopeRef, app }
+  const client = setup.client ?? new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  app.use(VueQueryPlugin, { queryClient: client })
+  const effects = effectScope()
+  const result = withManifests(manifests, () => app.runWithContext(() => effects.run(() => useAttention(scopeRef, options))!))
+  cleanups.push(() => { effects.stop(); client.clear() })
+  return { ...result, scopeRef, app, me, hydrated, client }
 }
 
 async function settle() {
@@ -34,9 +41,101 @@ async function settle() {
   await nextTick()
 }
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { for (const cleanup of cleanups.splice(0)) cleanup(); vi.unstubAllGlobals() })
 
 describe('useAttention', () => {
+  it('isolates cached rows immediately through expiry and another user login, including late old responses', async () => {
+    let finishOld!: (rows: AppAttentionRow[]) => void
+    let finishNew!: (rows: AppAttentionRow[]) => void
+    const load = vi.fn()
+      .mockResolvedValueOnce([row('A-private-task')])
+      .mockImplementationOnce(() => new Promise<AppAttentionRow[]>(resolve => { finishOld = resolve }))
+      .mockImplementationOnce(() => new Promise<AppAttentionRow[]>(resolve => { finishNew = resolve }))
+    const mounted = mountAttention([manifest('tasks', [provider('tasks', 'tasks', 'tasks.read', load)])], { capabilities: ['tasks.read'] }, 'tasks')
+    await settle()
+    expect(mounted.rows.value.map(item => item.label)).toEqual(['A-private-task'])
+    const oldKey = mounted.client.getQueryCache().findAll({ queryKey: ['attention', 'tasks'] })[0]!.queryKey
+    const refresh = mounted.refetch()
+    await settle()
+    mounted.me.value = null
+    expect(mounted.rows.value).toEqual([])
+    await settle()
+    await mounted.refetch()
+    expect(load).toHaveBeenCalledTimes(2)
+    mounted.me.value = { id: 8, company: { id: 3 }, capabilities: ['tasks.read'] }
+    expect(mounted.rows.value).toEqual([])
+    expect(mounted.cappedKinds.value).toEqual([])
+    await settle()
+    expect(load).toHaveBeenCalledTimes(3)
+    expect(mounted.rows.value).toEqual([])
+    finishNew([row('B-own-task')])
+    await settle()
+    expect(mounted.rows.value.map(item => [item.label, item.to])).toEqual([['B-own-task', '/B-own-task']])
+    finishOld([row('A-late-private-task')])
+    await refresh
+    await settle()
+    expect(mounted.rows.value.map(item => item.label)).toEqual(['B-own-task'])
+    expect(mounted.client.getQueryData<AppAttentionRow[]>(oldKey)?.map(item => item.label)).toEqual(['A-private-task'])
+  })
+
+  it('isolates the same user across companies while keeping a warm cache for the same company and user', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
+    let finishBranch!: (rows: AppAttentionRow[]) => void
+    const load = vi.fn().mockResolvedValueOnce([row('company-3-private')])
+      .mockImplementationOnce(() => new Promise<AppAttentionRow[]>(resolve => { finishBranch = resolve }))
+    const manifests = [manifest('tasks', [provider('tasks', 'tasks', 'tasks.read', load)])]
+    const first = mountAttention(manifests, { capabilities: ['tasks.read'], client }, 'tasks')
+    await settle()
+    expect(first.rows.value.map(item => item.label)).toEqual(['company-3-private'])
+    const sameOwner = mountAttention(manifests, { capabilities: ['tasks.read'], client }, 'tasks')
+    expect(sameOwner.rows.value.map(item => item.label)).toEqual(['company-3-private'])
+    await settle()
+    expect(load).toHaveBeenCalledTimes(1)
+    first.me.value = { id: 7, company: { id: 4 }, capabilities: ['tasks.read'] }
+    expect(first.rows.value).toEqual([])
+    expect(first.pending.value).toBe(true)
+    expect(first.failed.value).toBe(false)
+    await settle()
+    expect(first.pending.value).toBe(true)
+    expect(load).toHaveBeenCalledTimes(2)
+    finishBranch([row('company-4-own')])
+    await settle()
+    expect(first.rows.value.map(item => item.label)).toEqual(['company-4-own'])
+    expect(sameOwner.rows.value.map(item => item.label)).toEqual(['company-3-private'])
+  })
+
+  it('hides cached rows while disabled and drops unauthorized providers before a new identity can load them', async () => {
+    const taskLoad = vi.fn(async () => [row('private-task')])
+    const meetingLoad = vi.fn(async () => [row('own-meeting')])
+    const manifests = [manifest('tasks', [provider('tasks', 'tasks', 'tasks.read', taskLoad)]), manifest('meetings', [provider('meetings', 'meetings', 'meetings.read', meetingLoad)])]
+    const mounted = mountAttention(manifests, { capabilities: ['tasks.read'] }, 'all')
+    await settle()
+    expect(mounted.rows.value.map(item => item.label)).toEqual(['private-task'])
+    mounted.hydrated.value = false
+    expect(mounted.rows.value).toEqual([])
+    await mounted.refetch()
+    expect(taskLoad).toHaveBeenCalledTimes(1)
+    mounted.me.value = { id: 8, company: { id: 3 }, capabilities: ['meetings.read'] }
+    mounted.hydrated.value = true
+    expect(mounted.rows.value).toEqual([])
+    await settle()
+    expect(taskLoad).toHaveBeenCalledTimes(1)
+    expect(meetingLoad).toHaveBeenCalledTimes(1)
+    expect(mounted.rows.value.map(item => item.label)).toEqual(['own-meeting'])
+  })
+
+  it('keeps collection-prefix invalidation working for an active identity-scoped provider', async () => {
+    const load = vi.fn().mockResolvedValueOnce([row('before-edit')]).mockResolvedValueOnce([row('after-edit')])
+    const tasks = provider('tasks', 'tasks', 'tasks.read', load)
+    const mounted = mountAttention([manifest('tasks', [tasks])], { capabilities: ['tasks.read'] }, 'tasks')
+    await settle()
+    expect(mounted.rows.value.map(item => item.label)).toEqual(['before-edit'])
+    await mounted.client.invalidateQueries({ queryKey: tasks.queryKey })
+    await settle()
+    expect(load).toHaveBeenCalledTimes(2)
+    expect(mounted.rows.value.map(item => item.label)).toEqual(['after-edit'])
+  })
+
   it('reports the work kinds in which a provider returned as many rows as it may', async () => {
     const full = provider('full', 'tasks', 'tasks.read', async () => Array.from({ length: 20 }, (_, index) => row(`f${index}`)))
     const few = { ...provider('few', 'tasks', 'tasks.read', async () => [row('x1')]), work: 'decide' as const }
