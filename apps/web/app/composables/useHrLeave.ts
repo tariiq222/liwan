@@ -24,6 +24,7 @@ export interface HrLeaveListParams {
   scope: HrLeaveScope
   limit: number
   offset: number
+  cancellation_state?: 'pending'
 }
 
 export const hrLeaveKeys = {
@@ -43,7 +44,8 @@ const SCOPE_STATE: Record<HrLeaveScope, string | undefined> = { mine: undefined,
 export function hrLeaveRequestQuery(params: HrLeaveListParams) {
   return {
     mine: params.scope === 'mine' ? '1' : undefined,
-    state: SCOPE_STATE[params.scope],
+    state: params.cancellation_state ? undefined : SCOPE_STATE[params.scope],
+    cancellation_state: params.cancellation_state,
     limit: params.limit,
     offset: params.offset,
   }
@@ -53,10 +55,11 @@ async function refreshLeave(qc: QueryClient) {
   await qc.invalidateQueries({ queryKey: hrLeaveKeys.all })
 }
 
-export function useHrLeaveTypes() {
+export function useHrLeaveTypes(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: hrLeaveKeys.types,
+    enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/hr/leave/types', { schema: HrLeaveTypeListSchema }),
   })
 }
@@ -136,8 +139,8 @@ export function useLeaveDecision() {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({
-    mutationFn: ({ id, decision, reason }: { id: number; decision: HrLeaveDecision; reason?: string }) =>
-      $api(`/api/v1/hr/leave/requests/${id}/${decision}`, { method: 'POST', body: reason ? { reason } : {}, schema: HrLeaveSchema }),
+    mutationFn: ({ id, decision, reason, revision }: { id: number; decision: HrLeaveDecision; reason?: string; revision?: number }) =>
+      $api(`/api/v1/hr/leave/requests/${id}/${decision}`, { method: 'POST', body: { ...(reason ? { reason } : {}), ...(revision ? { revision } : {}) }, schema: HrLeaveSchema }),
     onSuccess: () => refreshLeave(qc),
   })
 }
@@ -148,6 +151,18 @@ export function useCreateLeaveAllocation() {
   return useMutation({
     mutationFn: (body: HrLeaveAllocationCreate) =>
       $api('/api/v1/hr/leave/allocations', { method: 'POST', body, schema: HrLeaveAllocationSchema }),
+    onSuccess: () => refreshLeave(qc),
+  })
+}
+
+
+/** Cancellation decisions carry the observed aggregate revision and await native execution. */
+export function useCancellationDecision() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ id, decision, revision, reason }: { id: number; decision: 'approve' | 'refuse'; revision: number; reason?: string }) =>
+      $api(`/api/v1/hr/leave/requests/${id}/cancellation/${decision}`, { method: 'POST', body: { revision, ...(reason ? { reason } : {}) }, schema: HrLeaveSchema }),
     onSuccess: () => refreshLeave(qc),
   })
 }

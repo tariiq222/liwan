@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import fields
+from odoo.exceptions import AccessError, ValidationError
 
 from odoo.addons.webvue_api.controllers.common import ApiError, parse_positive_int
 from odoo.addons.webvue_hr.serializers.dates import parse_optional_date
@@ -22,9 +23,34 @@ def dump_leave_type(leave_type):
     }
 
 
-def dump_leave(leave):
+def dump_cancellation(row):
+    if not row:
+        return None
+    return {
+        'id': row.id, 'state': row.state, 'revision': row.revision, 'reason': row.reason or '',
+        'requested_at': fields.Datetime.to_string(row.requested_at), 'initiator': _ref(row.initiator_id),
+        'reviewed_at': fields.Datetime.to_string(row.reviewed_at) or None,
+        'reviewer': _ref(row.reviewer_id), 'review_reason': row.review_reason or None,
+    }
+
+
+def dump_leave(leave, cancellation=None):
     """One request. The requester never sees their own request as decidable."""
     own = leave.employee_id in leave.env.user.employee_ids
+    model = leave.env['webvue.hr.leave.cancellation']
+    if cancellation is None:
+        cancellation = model.search([('leave_id', '=', leave.id)], limit=1)
+    pending = bool(cancellation and cancellation.state == 'pending')
+    policy = leave.env['webvue.hr.leave.settings']._webvue_effective_policy(leave.company_id)
+    can_request = own and model._webvue_can('hr.leave.request')
+    can_manage = not own and model._webvue_can('hr.leave.approve')
+    eligible = False
+    if (can_request or can_manage) and leave.state == 'validate':
+        try:
+            model._webvue_owner_leave(leave)
+            eligible = True
+        except (AccessError, ValidationError):
+            pass
     return {
         'id': leave.id,
         'employee': _ref(leave.employee_id),
@@ -36,7 +62,12 @@ def dump_leave(leave):
         'notes': leave.notes or '',
         'can_approve': bool(leave.can_approve or leave.can_validate) and not own,
         'can_refuse': bool(leave.can_refuse) and not own,
-        'can_cancel': bool(leave.can_cancel),
+        'can_cancel': not pending and ((eligible and ((can_request and policy == 'direct_employee') or can_manage)) or (can_request and leave.state != 'validate' and bool(leave.can_cancel))),
+        'cancellation_policy': policy,
+        'cancellation': dump_cancellation(cancellation),
+        'can_request_cancellation': bool(can_request and eligible and not pending and policy == 'manager_approval'),
+        'can_approve_cancellation': bool(can_manage and pending and eligible and cancellation.leave_version == leave.write_date),
+        'can_refuse_cancellation': bool(can_manage and pending),
         # A request still waiting for a decision is withdrawn by deleting it; stock only
         # offers cancel once a decision exists.
         'can_withdraw': own and leave.state == 'confirm',
@@ -144,3 +175,29 @@ def parse_state_filter(value):
         if state not in LEAVE_STATES:
             raise ApiError(422, 'invalid', f"state must be one of {', '.join(LEAVE_STATES)}", field='state')
     return states
+
+
+def dump_settings(row):
+    return {'cancellation_policy': row.cancellation_policy if row else 'manager_approval', 'revision': row.revision if row else 0}
+
+
+def parse_settings(payload):
+    _reject_unknown(payload, {'cancellation_policy', 'revision'})
+    policy, revision = payload.get('cancellation_policy'), payload.get('revision')
+    if policy not in ('manager_approval', 'direct_employee', 'manager_only'):
+        raise ApiError(422, 'invalid', 'unknown cancellation policy', field='cancellation_policy')
+    if isinstance(revision, bool) or not isinstance(revision, int) or revision < 0:
+        raise ApiError(422, 'invalid', 'nonnegative revision is required', field='revision')
+    return {'cancellation_policy': policy, 'revision': revision}
+
+
+def parse_cancellation_action(payload, decision=False, refusal=False):
+    _reject_unknown(payload, {'reason', 'revision'})
+    reason = parse_cancel_reason(payload.get('reason'))
+    if refusal and not reason:
+        raise ApiError(422, 'invalid', 'refusal reason is required', field='reason')
+    revision = payload.get('revision')
+    if decision or 'revision' in payload:
+        if isinstance(revision, bool) or not isinstance(revision, int) or revision < 1:
+            raise ApiError(422, 'invalid', 'positive revision is required', field='revision')
+    return {'reason': reason, 'revision': revision}

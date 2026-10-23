@@ -13,6 +13,7 @@ HR_PERMISSIONS = frozenset(
         'hr.leave.request',
         'hr.leave.approve',
         'hr.leave.manage',
+        'hr.leave.config',
         'hr.recruitment.read',
         'hr.recruitment.manage',
         'hr.shifts.read',
@@ -123,7 +124,7 @@ class WebVueHrAccessService(models.AbstractModel):
         if user.has_group('webvue_hr.group_hr_manager') or user.has_group(
             'hr.group_hr_manager',
         ):
-            keys |= HR_PERMISSIONS
+            keys |= HR_PERMISSIONS - {'hr.leave.config'}
         if user.has_group('webvue_core.group_employee'):
             keys |= EMPLOYEE_HR_PERMISSIONS
         return keys

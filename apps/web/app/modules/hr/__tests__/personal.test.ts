@@ -48,7 +48,7 @@ describe('HR overview privacy and ownership', () => {
     }
   })
   it('queries only own leave and links to the own detail endpoint destination', async () => {
-    const leave = {id:9,employee:{id:4,name:'Sara'},leave_type:{id:2,name:'Annual'},date_from:'2026-11-01',date_to:'2026-11-02',number_of_days:2,state:'confirm',notes:'',can_approve:false,can_refuse:false,can_withdraw:true,can_cancel:false}
+    const leave = {id:9,employee:{id:4,name:'Sara'},leave_type:{id:2,name:'Annual'},date_from:'2026-11-01',date_to:'2026-11-02',number_of_days:2,state:'confirm',notes:'',can_approve:false,can_refuse:false,can_withdraw:true, cancellation_policy: 'manager_approval', cancellation: null, can_request_cancellation: false, can_approve_cancellation: false, can_refuse_cancellation: false,can_cancel:false}
     const calls: Array<{path:string,query:unknown}> = []
     const api = (async (path: string, options: any) => {
       calls.push({path,query:options.query})

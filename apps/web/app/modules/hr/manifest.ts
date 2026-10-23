@@ -79,6 +79,7 @@ const manifest: AppManifest = {
   settings: {
     id: 'hr', labelKey: 'nav.hr', icon: 'i-lucide-users', to: '/settings/apps/hr',
     parts: [
+      { id: 'leave', labelKey: 'hr.leaveSettings.title', icon: 'i-lucide-calendar-x', capability: 'hr.leave.config' },
       { id: 'payroll', labelKey: 'hrPayroll.settings.title', icon: 'i-lucide-settings-2', capability: 'hr.payroll.config' },
       { id: 'shifts', labelKey: 'hr.shiftSettings.title', icon: 'i-lucide-calendar-clock', capability: 'hr.shifts.manage' },
     ],
