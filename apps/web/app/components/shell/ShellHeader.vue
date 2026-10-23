@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 import AppAccountMenu from '@/components/shell/AppAccountMenu.vue'
+import AssistantButton from '@/components/shell/AssistantButton.vue'
 import GlobalSearch from '@/components/shell/GlobalSearch.vue'
 import MobileNavigation from '@/components/shell/MobileNavigation.vue'
 import NotificationCenter from '@/components/notifications/NotificationCenter.vue'
@@ -14,7 +15,7 @@ import { useContextSidebar } from '@/composables/useShellNavigation'
 import { useShellShortcuts } from '@/composables/useShellShortcuts'
 
 // The 56px neutral header (spec §5): tenant mark, the ⌘K command palette,
-// bell, account (which also holds language and appearance).
+// the assistant button, bell, account (which also holds language and appearance).
 // It also hosts the shell's one keyboard listener (useShellShortcuts).
 const { t } = useI18n()
 const route = useRoute()
@@ -82,6 +83,7 @@ useShellShortcuts({
       <GlobalSearch />
     </div>
     <div class="webvue-shell-header-actions">
+      <AssistantButton />
       <NotificationCenter v-if="can('webvue.notifications')" />
       <AppAccountMenu />
     </div>

@@ -10,6 +10,7 @@ import {
 } from './nav/shellModules'
 import { activeShellModule, contextModuleFor } from './nav/activeRoute'
 import { CONTEXT_SIDEBAR_COOKIE, contextSidebarState, type ContextSidebarCookie } from './nav/contextSidebarState'
+import { useAssistantSheet } from './useAssistantSheet'
 import { effectiveActivePart, anchorOf } from './nav/settingsScroll'
 import { isNavPathActive, type AccessIdentity } from '../utils/accessPolicy'
 import { personalContextLinks } from './nav/personalModel'
@@ -21,7 +22,11 @@ export function useContextSidebar() {
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 365,
   })
-  return contextSidebarState(cookie, useHydrated(), useMediaQuery('(min-width: 1100px)', { ssrWidth: 1100 }))
+  // A docked sheet takes the room from 768px up; below it the sheet is a full-screen layer and the sidebar is not shown.
+  const desktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
+  const { shown } = useAssistantSheet()
+  const forced = computed(() => shown.value && desktop.value)
+  return contextSidebarState(cookie, useHydrated(), useMediaQuery('(min-width: 1100px)', { ssrWidth: 1100 }), forced)
 }
 
 export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {

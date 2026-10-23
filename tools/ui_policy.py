@@ -95,6 +95,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'operations/ProcessForm.vue', 'operations/RequestCreate.vue', 'operations/RequestRecord.vue', 'operations/RequestEdit.vue',
     'account/PersonalSummaryCard.vue', 'hr/LeaveList.vue', 'hr/LeaveRecord.vue',
     'work/WorkRow.vue',
+    'ai/AiSheet.vue', 'shell/AssistantButton.vue', 'shell/AssistantSheet.vue',
     'shared/layout/PageHeader.vue', 'shared/feedback/PageState.vue', 'shared/layout/PageContainer.vue', 'shared/form/UnsavedChanges.vue',
     'shared/feedback/LoadingSkeleton.vue', 'shared/feedback/ErrorState.vue', 'shared/feedback/ForbiddenState.vue', 'shared/feedback/NotFoundState.vue',
     'shared/layout/RecordPage.vue', 'shared/layout/PropertiesPanel.vue', 'shared/layout/PropertyRow.vue', 'shared/layout/RecordSection.vue',

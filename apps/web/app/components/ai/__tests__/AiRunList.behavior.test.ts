@@ -7,6 +7,7 @@ import * as Vue from 'vue'
 import { vueBindings } from '../../../../tests/vueBindings'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../../composables/useApi'
+import { filterRunsByTitle, groupRunsByDate } from '../../../utils/aiRunGroups'
 
 interface HostNode { type: string; children: HostNode[]; parent: HostNode | null; props: Record<string, unknown>; text: string }
 const node = (type = 'root', text = ''): HostNode => ({ type, text, children: [], parent: null, props: {} })
@@ -47,6 +48,7 @@ const messages: Record<string, string> = {
   'ai.history.actions.rename': 'تغيير الاسم', 'ai.history.actions.archive': 'أرشفة', 'ai.history.actions.unarchive': 'إلغاء الأرشفة',
   'ai.history.rename.invalid': 'اسم غير صالح', 'ai.history.announce.renamed': 'تم تغيير الاسم', 'ai.history.announce.archived': 'تمت الأرشفة',
   'ai.history.announce.unarchived': 'أُعيدت', 'errors.generic': 'تعذّر', 'ai.history.rename.label': 'اسم المحادثة', 'ai.history.title': 'محادثات أخيرة',
+  'ai.history.noMatch': 'لا مطابقة', 'ai.history.groups.older': 'أقدم',
 }
 const run = (id: string, title: string | null, archived = false): AiRunSummary => ({ run_id: id, title, status: 'done', updated_at: '2026-01-05T08:30:00.000Z', archived })
 const ACTIVE = [run('r_1', 'ما مهامي؟'), run('r_2', null)]
@@ -55,15 +57,15 @@ const ARCHIVED = [run('r_9', 'قديمة', true)]
 const apps: Vue.App[] = []
 afterEach(() => { for (const app of apps.splice(0)) app.unmount() })
 
-function mountList(props: { disclosure?: boolean } = {}) {
+function mountList(props: { disclosure?: boolean } = {}, hydrated = Vue.ref(true)) {
   const actions = { rename: vi.fn(async (_id: string, _title: string) => {}), setArchived: vi.fn(async (_id: string, _archived: boolean) => {}) }
   const toast = { add: vi.fn() }
   const asked: boolean[] = []
   const focus = vi.fn()
   const select = vi.fn()
   const Component = loadComponent({
-    formatDate: () => 'D', formatTime: () => 'T', ApiError, AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema,
-    useRoute: () => ({ query: {} }), useI18n: () => ({ t: (key: string) => messages[key] ?? key }), useHydrated: () => Vue.ref(true),
+    formatDate: () => 'D', formatTime: () => 'T', ApiError, AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema, filterRunsByTitle, groupRunsByDate,
+    useRoute: () => ({ query: {} }), useI18n: () => ({ t: (key: string) => messages[key] ?? key }), useHydrated: () => hydrated,
     useToast: () => toast, useAiRunActions: () => actions,
     useAiRuns: (archived: Vue.Ref<boolean>) => {
       const data = Vue.computed(() => { asked.push(archived.value); const items = archived.value ? ARCHIVED : ACTIVE; return { items, total: items.length } })
@@ -73,6 +75,7 @@ function mountList(props: { disclosure?: boolean } = {}) {
   const app = renderer.createApp(Component, props)
   const passthrough = (tag: string) => Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h(tag, attrs, slots.default?.()) })
   app.component('NuxtLink', passthrough('a'))
+  app.component('AiAvatar', Vue.defineComponent({ setup: () => () => Vue.h('i') }))
   app.component('UButton', Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('button', attrs, String(attrs.label ?? '')) }))
   app.component('SharedSegmentedControl', Vue.defineComponent({
     inheritAttrs: false, props: ['items', 'modelValue', 'label'], emits: ['update:modelValue'],
@@ -111,6 +114,33 @@ function mountList(props: { disclosure?: boolean } = {}) {
 }
 
 describe('AiRunList actions', () => {
+  it('disables search until hydration and enables it when hydration completes', async () => {
+    const hydrated = Vue.ref(false)
+    const list = mountList({}, hydrated)
+    expect(list.control('ai-run-search').props.disabled).toBe(true)
+    hydrated.value = true
+    await Vue.nextTick()
+    expect(list.control('ai-run-search').props.disabled).toBe(false)
+  })
+
+  it('filters the loaded conversations live by title and says so when nothing matches', async () => {
+    const list = mountList()
+    const search = list.control('ai-run-search')
+    ;(search.props['onUpdate:modelValue'] as (v: string) => void)('مهامي')
+    await Vue.nextTick()
+    expect(list.titles()).toHaveLength(1)
+    expect(text(list.host)).toContain('ما مهامي؟')
+    ;(search.props['onUpdate:modelValue'] as (v: string) => void)('لا يوجد')
+    await Vue.nextTick()
+    expect(list.titles()).toHaveLength(0)
+    expect(text(list.host)).toContain('لا مطابقة')
+  })
+
+  it('groups the rows under date headings', () => {
+    const list = mountList()
+    expect(text(list.host)).toContain('أقدم')
+  })
+
   it('shows the active conversations first and the archived ones after the toggle, with the matching empty text', async () => {
     const list = mountList()
     expect(list.titles()).toHaveLength(2)

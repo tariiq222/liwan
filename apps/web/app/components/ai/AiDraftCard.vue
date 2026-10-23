@@ -15,8 +15,8 @@ const hydrated = useHydrated()
     <p class="break-words text-sm text-highlighted">{{ props.summary }}</p>
     <p class="mt-1 text-sm text-muted">{{ t('ai.draft.hint') }}</p>
     <div class="mt-3 flex w-full flex-wrap justify-end gap-2">
-      <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated" :label="t('ai.draft.discard')" data-testid="ai-draft-discard" @click="emit('discard')" />
-      <UButton type="button" :disabled="!hydrated" :label="t('ai.draft.open')" data-testid="ai-draft-open" @click="emit('open')" />
+      <UButton type="button" class="rounded-full" color="neutral" variant="outline" :disabled="!hydrated" :label="t('ai.draft.discard')" data-testid="ai-draft-discard" @click="emit('discard')" />
+      <UButton type="button" class="rounded-full" :disabled="!hydrated" :label="t('ai.draft.open')" data-testid="ai-draft-open" @click="emit('open')" />
     </div>
   </SharedRecordSection>
   <AiResolvedLine v-else :summary="props.summary" :state="props.state" data-testid="ai-draft" />

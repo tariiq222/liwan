@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AiAuditRequestSchema } from '@webvue/contracts'
-import { aiApprovalAudit, charterDraftFromAi, clearAiDraft, clearAiSessionState, forgetCreatedId, mayFinalizeCreate, parseCreatedId, readAiDraft, readCreatedId, rememberCreatedId, withCreatedProject, withoutCreated } from '../aiDraft'
+import { aiApprovalAudit, charterDraftFromAi, clearAiDraft, clearAiSessionState, forgetCreatedId, mayFinalizeCreate, parseCreatedId, prepareDraftHandoff, readAiDraft, readCreatedId, rememberCreatedId, withCreatedProject, withoutCreated } from '../aiDraft'
 import { emptyCharterDraft } from '../projectCharter'
 import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 
@@ -148,5 +148,28 @@ describe('created project memory', () => {
     const store = stubStorage({ 'webvue:ai-draft:r_1:c_2': '{}', 'webvue:ai-created:r_1:c_2': '41', 'webvue:ai-draft:r_3:c_1': '{}', 'webvue-nav:7': 'x' })
     clearAiSessionState()
     expect([...store.keys()]).toEqual(['webvue-nav:7'])
+  })
+})
+
+describe('prepareDraftHandoff', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('keeps the draft for the create page and returns to the assistant for the decision', () => {
+    const store = stubStorage()
+    const target = prepareDraftHandoff('r_1', { callId: 'c_2', tool: 'projects.draft_project', payload: { name: 'بوابة' } })
+    expect(target).toEqual({ path: '/projects/new', query: { aiDraft: 'r_1:c_2', returnTo: '/ai?run=r_1&resume=c_2' } })
+    expect(readAiDraft('r_1:c_2')).toEqual(handoff)
+    expect(store.size).toBe(1)
+  })
+
+  it('still opens the form, empty, when the payload has no usable name', () => {
+    const store = stubStorage()
+    prepareDraftHandoff('r_1', { callId: 'c_2', tool: 'projects.draft_project', payload: {} })
+    expect(JSON.parse(store.get('webvue:ai-draft:r_1:c_2')!).payload).toEqual({})
+  })
+
+  it('opens the form even when storage is blocked', () => {
+    vi.stubGlobal('sessionStorage', { setItem: () => { throw new Error('blocked') } })
+    expect(prepareDraftHandoff('r_1', { callId: 'c_2', tool: 't', payload: {} }).path).toBe('/projects/new')
   })
 })

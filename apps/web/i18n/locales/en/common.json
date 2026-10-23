@@ -39,6 +39,11 @@
     "collapseContext": "Collapse sidebar",
     "expandContext": "Expand sidebar",
     "context": "Context navigation",
+    "assistantSheet": {
+      "region": "Assistant panel",
+      "close": "Close the assistant",
+      "openFullPage": "Open full page"
+    },
     "backToProjects": "Back to projects",
     "projectWorkspace": "Project workspace",
     "archivedTasks": "Archived tasks",
