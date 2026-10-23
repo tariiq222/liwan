@@ -1,9 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from unittest.mock import patch
+
 from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from .leave_cancellation_case import LeaveCancellationCase
 from odoo.addons.webvue_api.controllers.common import ApiError
+from odoo.addons.webvue_hr.models.leave_cancellation import PENDING_PROBE_MARKER
 from odoo.addons.webvue_hr.serializers.hr_leave import dump_leave
 
 
@@ -60,6 +63,72 @@ class TestLeaveCancellationOwnerChange(LeaveCancellationCase):
         data = dump_leave(leave.with_user(self.manager))
         self.assertFalse(data['can_approve_cancellation'])
         self.assertTrue(data['can_refuse_cancellation'])
+
+    def test_changed_owner_cannot_bypass_hidden_pending_request_with_direct_native_wizard(self):
+        leave = self._approved_leave()
+        aggregate = self._model().action_request(leave.id, 'Original private reason')
+        replacement = self._change_owner(leave)
+        self.env['webvue.hr.leave.settings'].with_user(self.manager).action_save('direct_employee', 0)
+        self.assertFalse(self._model(replacement).search([('leave_id', '=', leave.id)]))
+        data = dump_leave(leave.with_user(replacement))
+        self.assertIsNone(data['cancellation'])
+        self.assertFalse(data['can_cancel'])
+        with self.assertRaises(AccessError):
+            self.env['hr.holidays.cancel.leave'].with_user(replacement).create({'leave_id': leave.id}).action_cancel_leave()
+        self.assertEqual((leave.state, aggregate.with_user(self.manager).state), ('validate', 'pending'))
+        self.assertFalse(self._model(replacement).search([('leave_id', '=', leave.id)]))
+        with self.assertRaises(AccessError):
+            aggregate.message_ids.with_user(replacement).read(['body'])
+
+    def test_pending_probe_is_private_exact_and_does_not_leak_cached_visibility(self):
+        leave = self._approved_leave()
+        aggregate = self._model().action_request(leave.id, 'Original private reason')
+        replacement = self._change_owner(leave)
+        model = self._model(replacement)
+        # Warm the ordinary denial domain before the private count, then check it
+        # again after success and after a raised exception inside marked().
+        self.assertFalse(model.search([('leave_id', '=', leave.id)]))
+        self.assertTrue(model._webvue_has_pending_owner_cancellation(leave.with_user(replacement)))
+        self.assertNotIn(PENDING_PROBE_MARKER, self.env.cr.precommit.data)
+        self.assertFalse(model.search([('leave_id', '=', leave.id)]))
+
+        def fail_probe(*args, **kwargs):
+            self.assertEqual(self.env.cr.precommit.data[PENDING_PROBE_MARKER], {leave.id})
+            message = 'Probe failed'
+            raise RuntimeError(message)
+
+        with self.assertRaises(RuntimeError), patch.object(type(model), 'search_count', side_effect=fail_probe):
+            model._webvue_has_pending_owner_cancellation(leave.with_user(replacement))
+        self.assertNotIn(PENDING_PROBE_MARKER, self.env.cr.precommit.data)
+        self.assertFalse(model.search([('leave_id', '=', leave.id)]))
+        forged = model.with_context(**{PENDING_PROBE_MARKER: [leave.id], 'webvue_cancellation_approved': True})
+        self.assertFalse(forged.search([('leave_id', '=', leave.id)]))
+        with self.assertRaises(AccessError):
+            aggregate.with_user(replacement).read(['reason'])
+        other_leave = self._approved_leave(self.manager_employee)
+        with self.assertRaises(AccessError):
+            model._webvue_has_pending_owner_cancellation(other_leave.with_user(replacement))
+        with self.assertRaises(AccessError):
+            self._model(self.manager)._webvue_has_pending_owner_cancellation(leave.with_user(self.manager))
+        foreign = self.env['res.company'].create({'name': 'Pending probe other company'})
+        replacement.company_ids = [(4, foreign.id)]
+        with self.assertRaises(AccessError):
+            model.with_context(allowed_company_ids=foreign.ids)._webvue_has_pending_owner_cancellation(leave.with_user(replacement))
+        self.env['webvue.access.service']._webvue_replace_assignments(replacement, [])
+        with self.assertRaises(AccessError):
+            model._webvue_has_pending_owner_cancellation(leave.with_user(replacement))
+
+    def test_refused_hidden_request_does_not_block_current_owner_direct_cancellation(self):
+        leave = self._approved_leave()
+        aggregate = self._model().action_request(leave.id, 'Original private reason')
+        replacement = self._change_owner(leave)
+        aggregate.with_user(self.manager).action_refuse(1, 'Ownership changed')
+        self.env['webvue.hr.leave.settings'].with_user(self.manager).action_save('direct_employee', 0)
+        self.assertFalse(self._model(replacement)._webvue_has_pending_owner_cancellation(leave.with_user(replacement)))
+        self.env['hr.holidays.cancel.leave'].with_user(replacement).create({'leave_id': leave.id}).action_cancel_leave()
+        self.assertEqual(leave.state, 'cancel')
+        self.assertEqual((aggregate.with_user(self.manager).state, aggregate.requester_id), ('refused', self.employee))
+        self.assertFalse(self._model(replacement).search([('leave_id', '=', leave.id)]))
 
     def test_neither_original_requester_nor_current_owner_may_review_after_reassignment(self):
         leave = self._approved_leave()

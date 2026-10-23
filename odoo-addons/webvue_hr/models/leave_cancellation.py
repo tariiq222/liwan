@@ -8,6 +8,8 @@ from odoo.exceptions import AccessError, ConcurrencyError, LockError, Validation
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_core.models.protected_write import is_marked_write, marked
 
+PENDING_PROBE_MARKER = 'webvue_hr.leave.cancellation.pending_probe'
+
 
 def approval_marker(aggregate_id, revision):
     return ('webvue_hr.leave.cancellation', aggregate_id, revision)
@@ -43,11 +45,31 @@ class WebVueHrLeaveCancellation(models.Model):
     @api.model
     def _webvue_visibility_domain(self):
         # Evaluated by a global rule: a native officer/balance manager cannot see others' requests.
+        pending_probe = self.env.cr.precommit.data.get(PENDING_PROBE_MARKER)
+        if pending_probe and self._webvue_can('hr.leave.request'):
+            return [('leave_id', 'in', sorted(pending_probe)), ('state', '=', 'pending'),
+                    ('leave_id.employee_id.user_id', '=', self.env.uid)]
         if self._webvue_can('hr.leave.approve'):
             return []
         if self._webvue_can('hr.leave.read'):
             return [('requester_id', '=', self.env.uid), ('leave_id.employee_id.user_id', '=', self.env.uid)]
         return [('id', '=', 0)]
+
+    @api.model
+    def _webvue_has_pending_owner_cancellation(self, leave):
+        leave.ensure_one()
+        leave = leave.with_env(self.env)
+        self.env['webvue.entitlement.service'].require('hr.enabled')
+        if (self.env.is_superuser() or not self.env.user.active or leave.company_id != self.env.company
+                or leave.employee_id.user_id != self.env.user or not self._webvue_can('hr.leave.request')):
+            raise AccessError(self.env._('Only the current ordinary employee may check pending cancellation.'))
+        leave.check_access('read')
+        # No record or historical field leaves this block. The ir.rule cache key
+        # isolates the exact cursor marker from every ordinary unmarked query.
+        with marked(self.env, {PENDING_PROBE_MARKER: leave.ids}):
+            return bool(self.search_count([
+                ('leave_id', '=', leave.id), ('company_id', '=', self.env.company.id), ('state', '=', 'pending'),
+            ], limit=1))
 
     def read(self, fields=None, load='_classic_read'):
         if not self.env.is_superuser():

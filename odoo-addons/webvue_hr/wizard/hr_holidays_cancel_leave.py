@@ -20,7 +20,7 @@ class HrHolidaysCancelLeave(models.TransientModel):
         row = model.search([('leave_id', '=', leave.id)], limit=1)
         authorized = bool(row and row._webvue_marker_authorizes(leave))
         if not authorized:
-            if row and row.state == 'pending':
+            if model._webvue_has_pending_owner_cancellation(leave):
                 raise AccessError(self.env._('This cancellation is waiting for a manager decision.'))
             policy = self.env['webvue.hr.leave.settings']._webvue_effective_policy(leave.company_id)
             if leave.state == 'validate' and policy != 'direct_employee':

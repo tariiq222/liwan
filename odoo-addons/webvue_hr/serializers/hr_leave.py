@@ -53,6 +53,9 @@ def dump_leave(leave, cancellation=None):
             eligible = True
         except (AccessError, ValidationError):
             pass
+    pending_owner_request = pending or bool(
+        can_request and eligible and policy == 'direct_employee' and model._webvue_has_pending_owner_cancellation(leave),
+    )
     return {
         'id': leave.id,
         'employee': _ref(leave.employee_id),
@@ -64,7 +67,7 @@ def dump_leave(leave, cancellation=None):
         'notes': leave.notes or '',
         'can_approve': bool(leave.can_approve or leave.can_validate) and not own,
         'can_refuse': bool(leave.can_refuse) and not own,
-        'can_cancel': owner_matches and not pending and ((eligible and ((can_request and policy == 'direct_employee') or can_manage)) or (can_request and leave.state != 'validate' and bool(leave.can_cancel))),
+        'can_cancel': owner_matches and not pending_owner_request and ((eligible and ((can_request and policy == 'direct_employee') or can_manage)) or (can_request and leave.state != 'validate' and bool(leave.can_cancel))),
         'cancellation_policy': policy,
         'cancellation': dump_cancellation(cancellation),
         'can_request_cancellation': bool(can_request and eligible and not pending and policy == 'manager_approval'),
