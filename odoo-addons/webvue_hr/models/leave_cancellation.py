@@ -1,9 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from markupsafe import Markup
-from psycopg2.errors import SerializationFailure, UniqueViolation
+from psycopg2.errors import UniqueViolation
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, LockError, ValidationError
+from odoo.exceptions import AccessError, ConcurrencyError, LockError, ValidationError
 
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_core.models.protected_write import is_marked_write, marked
@@ -96,7 +96,7 @@ class WebVueHrLeaveCancellation(models.Model):
             leave.lock_for_update()
         except LockError as error:
             message = 'concurrent leave cancellation; retry transaction'
-            raise SerializationFailure(message) from error
+            raise ConcurrencyError(message) from error
         leave.invalidate_recordset()
 
     @api.model
@@ -166,7 +166,7 @@ class WebVueHrLeaveCancellation(models.Model):
             except UniqueViolation as error:
                 # Never read from the losing repeatable-read snapshot.
                 message = 'concurrent cancellation submission; retry transaction'
-                raise SerializationFailure(message) from error
+                raise ConcurrencyError(message) from error
         label = self.env._('Manager initiated cancellation') if manager else self.env._('Employee cancellation requested')
         row._webvue_event(label, reason)
         return row
