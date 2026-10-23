@@ -2,6 +2,8 @@ import { test, expect, type Page } from '@playwright/test'
 
 // Needs two users the scratch fixture creates through Odoo: `staff` (employee role, an annual
 // balance of 21 days) and `hrmgr` (HR manager role), both in a Saudi company.
+test.describe.configure({ mode: 'serial' })
+
 const STAFF = { login: process.env.E2E_LEAVE_STAFF ?? 'staff', password: process.env.E2E_LEAVE_STAFF_PASSWORD ?? 'staff_pass_123' }
 const MANAGER = { login: process.env.E2E_LEAVE_MANAGER ?? 'hrmgr', password: process.env.E2E_LEAVE_MANAGER_PASSWORD ?? 'hrmgr_pass_123' }
 
@@ -55,7 +57,10 @@ async function annualRemaining(page: Page, typeId?: number) {
   return (typeId ? items.find(item => item.leave_type.id === typeId) : items[0])?.remaining
 }
 
-test('an employee requests leave and a manager approves and administratively cancels it', async ({ page }) => {
+test('approved leave cancellation requires a manager decision, refusal permits resubmission, and balance changes once', async ({ page }) => {
+  await login(page, MANAGER)
+  const policy = await (await page.request.get('/api/v1/hr/leave/settings')).json()
+  if (policy.cancellation_policy !== 'manager_approval') expect((await page.request.patch('/api/v1/hr/leave/settings', { data: { cancellation_policy: 'manager_approval', revision: policy.revision } })).status()).toBe(200)
   await login(page, STAFF)
   await page.goto('/account/leave')
   await expect(page.getByRole('heading', { level: 1, name: 'إجازاتي' })).toBeVisible()
@@ -144,19 +149,42 @@ test('an employee requests leave and a manager approves and administratively can
   await page.reload()
   await expect(page).toHaveURL(/scope=all/)
 
-  // The employee sees their approved request without administrative cancellation.
+  // The employee submits a cancellation while the leave and balance stay approved.
   await login(page, STAFF)
-  await page.goto('/account/leave')
-  await expect(leaveRow(page, leave.id).getByTestId('hr-leave-state')).toHaveText('معتمدة')
-  await expect(leaveRow(page, leave.id).getByTestId('row-actions-menu')).toHaveCount(0)
+  await page.goto(`/account/leave/${leave.id}`)
+  await page.getByTestId('hr-leave-record-request-cancellation').click()
+  await page.getByTestId('hr-leave-confirm-reason').fill('Plans changed')
+  await page.getByTestId('inline-confirm-action').click()
+  await expect(page.getByText('بانتظار اعتماد الإلغاء', { exact: true })).toBeVisible()
+  expect((await (await page.request.get(`/api/v1/hr/leave/me/${leave.id}`)).json()).state).toBe('validate')
+  expect(await annualRemaining(page, annual.id)).toBe(before - 1)
 
-  // Administrative cancellation stays in HR and asks inline before changing the balance.
+  // The manager's cancellation queue has an independent URL filter, retained on refresh and back.
   await login(page, MANAGER)
-  await page.goto('/hr/leave?scope=all')
-  await leaveRow(page, leave.id).getByTestId('row-actions-menu').click()
-  await page.getByRole('menuitem', { name: 'إلغاء الإجازة' }).click()
-  const cancelled = page.waitForResponse(response => response.url().endsWith(`/api/v1/hr/leave/requests/${leave.id}/cancel`))
-  await page.getByRole('button', { name: 'إلغاء الإجازة' }).last().click()
+  await page.goto('/hr/leave?cancellation_state=pending')
+  await page.reload()
+  await leaveRow(page, leave.id).getByRole('link', { name: annual.name }).click()
+  await expect(page).toHaveURL(/returnTo=.*cancellation_state/)
+  await page.getByTestId('hr-leave-record-refuse-cancellation').click()
+  await expect(page.getByTestId('inline-confirm-action')).toBeDisabled()
+  await page.getByTestId('hr-leave-confirm-reason').fill('Team coverage required')
+  await page.getByTestId('inline-confirm-action').click()
+  await expect(page.getByText('طلب الإلغاء مرفوض', { exact: true })).toBeVisible()
+
+  await login(page, STAFF)
+  await page.goto(`/account/leave/${leave.id}`)
+  await expect(page.getByText('Team coverage required', { exact: true })).toBeVisible()
+  await page.getByTestId('hr-leave-record-request-cancellation').click()
+  await page.getByTestId('hr-leave-confirm-reason').fill('Resubmitted with new plans')
+  await page.getByTestId('inline-confirm-action').click()
+  await expect(page.getByText('بانتظار اعتماد الإلغاء', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('hr-leave-record-approve-cancellation')).toHaveCount(0)
+  await login(page, MANAGER)
+  await page.goto('/hr/leave?cancellation_state=pending')
+  await leaveRow(page, leave.id).getByRole('link', { name: annual.name }).click()
+  const cancelled = page.waitForResponse(response => response.url().endsWith(`/api/v1/hr/leave/requests/${leave.id}/cancellation/approve`))
+  await page.getByTestId('hr-leave-record-approve-cancellation').click()
+  await page.getByTestId('inline-confirm-action').click()
   expect((await cancelled).status()).toBe(200)
   await login(page, STAFF)
   await page.goto('/account/leave')
@@ -225,4 +253,94 @@ test('the grant panel is for leave managers only and grants a balance', async ({
   // Escape closes the panel back to the list.
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(/\/hr\/leave(?:\?|$)/)
+})
+
+
+test('company policies support direct employee and manager-only cancellation with a revision conflict in settings', async ({ page }) => {
+  await login(page, MANAGER)
+  const original = await (await page.request.get('/api/v1/hr/leave/settings')).json()
+  try {
+    for (const policy of ['direct_employee', 'manager_only']) {
+      await login(page, MANAGER)
+      const current = await (await page.request.get('/api/v1/hr/leave/settings')).json()
+      const saved = await page.request.patch('/api/v1/hr/leave/settings', { data: { cancellation_policy: policy, revision: current.revision } })
+      expect(saved.status()).toBe(200)
+      await login(page, STAFF)
+      const balances = (await (await page.request.get('/api/v1/hr/leave/balances')).json()).items
+      const kind = balances[0].leave_type
+      const day = iso(await freeWorkingDay(page))
+      const created = await page.request.post('/api/v1/hr/leave/requests', { data: { leave_type_id: kind.id, date_from: day, date_to: day } })
+      expect(created.status()).toBe(201)
+      const leave = await created.json()
+      await login(page, MANAGER)
+      expect((await page.request.post(`/api/v1/hr/leave/requests/${leave.id}/approve`, { data: {} })).status()).toBe(200)
+      await login(page, STAFF)
+      await page.goto(`/account/leave/${leave.id}`)
+      await expect(page.getByTestId('hr-leave-record-request-cancellation')).toHaveCount(0)
+      if (policy === 'manager_only') {
+        await expect(page.getByTestId('hr-leave-record-cancel')).toHaveCount(0)
+        await login(page, MANAGER)
+        await page.goto(`/hr/leave/${leave.id}`)
+        await expect(page.getByTestId('hr-leave-record-cancel')).toHaveText('إلغاء بقرار المدير')
+      }
+      await page.getByTestId('hr-leave-record-cancel').click()
+      await page.getByTestId('hr-leave-confirm-reason').fill(`Policy ${policy}`)
+      const cancelled = page.waitForResponse(response => response.url().endsWith(`/api/v1/hr/leave/requests/${leave.id}/cancel`))
+      await page.getByTestId('inline-confirm-action').click()
+      const result = await (await cancelled).json()
+      expect(result.state).toBe('cancel')
+      if (policy === 'manager_only') {
+        expect(result.cancellation.initiator.id).toBe(result.cancellation.reviewer.id)
+      }
+    }
+    await login(page, MANAGER)
+    const unrelated: string[] = []
+    page.on('request', request => { if (/\/hr\/(?:payroll|leave\/types|employees|leave\/balances)/.test(request.url())) unrelated.push(request.url()) })
+    await page.goto('/settings/apps/hr#leave')
+    await expect(page.getByRole('heading', { name: 'سياسة إلغاء الإجازات' })).toBeVisible()
+    const current = await (await page.request.get('/api/v1/hr/leave/settings')).json()
+    expect((await page.request.patch('/api/v1/hr/leave/settings', { data: { cancellation_policy: 'direct_employee', revision: current.revision } })).status()).toBe(200)
+    await page.locator('#leave-cancellation-policy').click()
+    await page.getByRole('option', { name: 'الموظف يطلب والمدير يعتمد (الافتراضي)' }).click()
+    await page.locator('#leave').getByRole('button', { name: 'حفظ التغييرات' }).click()
+    await expect(page.getByText('تغيّرت السياسة. احتُفظ بمسودتك؛ أعد تحميل أحدث سياسة قبل الحفظ.', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'إعادة تحميل السياسة' }).click()
+    await expect(page.locator('#leave-cancellation-policy')).toContainText('الموظف يلغي مباشرة')
+    expect(unrelated).toEqual([])
+  } finally {
+    await login(page, MANAGER)
+    const latest = await (await page.request.get('/api/v1/hr/leave/settings')).json()
+    expect((await page.request.patch('/api/v1/hr/leave/settings', { data: { cancellation_policy: original.cancellation_policy, revision: latest.revision } })).status()).toBe(200)
+  }
+})
+
+
+test('a leave-config-only user saves policy without unrelated HR reads on a phone', async ({ page }) => {
+  const configUser = { login: process.env.E2E_LEAVE_CONFIG ?? 'leaveconfig', password: process.env.E2E_LEAVE_CONFIG_PASSWORD ?? 'leaveconfig_pass_123' }
+  await login(page, configUser)
+  const original = await (await page.request.get('/api/v1/hr/leave/settings')).json()
+  const target = original.cancellation_policy === 'manager_only' ? { policy: 'direct_employee', label: 'الموظف يلغي مباشرة' } : { policy: 'manager_only', label: 'الإلغاء بقرار المدير فقط' }
+  const unrelated: string[] = []
+  page.on('request', request => { if (/\/hr\/(?:payroll|employees|leave\/(?:types|balances|requests))/.test(request.url())) unrelated.push(request.url()) })
+  try {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/settings/apps/hr#leave')
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'سياسة إلغاء الإجازات' })).toBeVisible()
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await expect(page.locator('#payroll')).toHaveCount(0)
+    await expect(page.locator('#shifts')).toHaveCount(0)
+    await page.locator('#leave-cancellation-policy').click()
+    await page.getByRole('option', { name: target.label }).click()
+    const saved = page.waitForResponse(response => response.url().endsWith('/api/v1/hr/leave/settings') && response.request().method() === 'PATCH')
+    await page.locator('#leave').getByRole('button', { name: 'حفظ التغييرات' }).click()
+    expect((await saved).status()).toBe(200)
+    await page.reload()
+    await expect(page.locator('#leave-cancellation-policy')).toContainText(target.label)
+    expect(unrelated).toEqual([])
+  } finally {
+    const latest = await (await page.request.get('/api/v1/hr/leave/settings')).json()
+    expect((await page.request.patch('/api/v1/hr/leave/settings', { data: { cancellation_policy: original.cancellation_policy, revision: latest.revision } })).status()).toBe(200)
+  }
 })

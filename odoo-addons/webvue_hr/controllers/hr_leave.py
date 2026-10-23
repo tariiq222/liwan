@@ -16,6 +16,7 @@ from odoo.addons.webvue_api.controllers.common import (
     parse_page,
     parse_positive_int,
     require_capabilities,
+    requires_capability,
     requires_feature,
 )
 from odoo.addons.webvue_hr.serializers.hr_leave import (
@@ -23,9 +24,12 @@ from odoo.addons.webvue_hr.serializers.hr_leave import (
     dump_balance,
     dump_leave,
     dump_leave_type,
+    dump_settings,
     parse_allocation,
     parse_cancel_reason,
+    parse_cancellation_action,
     parse_leave_request,
+    parse_settings,
     parse_state_filter,
 )
 
@@ -183,6 +187,12 @@ class HrLeaveController(http.Controller):
         states = parse_state_filter(args.get('state'))
         if states:
             domain.append(('state', 'in', states))
+        cancellation_state = args.get('cancellation_state')
+        if cancellation_state not in (None, '', 'pending'):
+            raise ApiError(422, 'invalid', 'cancellation_state must be pending', field='cancellation_state')
+        if cancellation_state == 'pending':
+            pending = request.env['webvue.hr.leave.cancellation'].search([('state', '=', 'pending'), ('company_id', '=', request.env.company.id)])
+            domain.append(('id', 'in', pending.mapped('leave_id').ids))
         raw_employee = args.get('employee_id')
         if raw_employee not in (None, ''):
             domain.append(('employee_id', '=', parse_positive_int(raw_employee, 'employee_id')))
@@ -190,7 +200,9 @@ class HrLeaveController(http.Controller):
             domain.append(('employee_id.user_id', '=', request.env.uid))
         Leave = request.env['hr.leave']
         leaves = Leave.search(domain, order='request_date_from desc, id desc', limit=limit, offset=offset)
-        return {'items': [dump_leave(leave) for leave in leaves], 'total': Leave.search_count(domain)}
+        cancellations = request.env['webvue.hr.leave.cancellation'].search([('leave_id', 'in', leaves.ids)])
+        by_leave = {row.leave_id.id: row for row in cancellations}
+        return {'items': [dump_leave(leave, by_leave.get(leave.id, False)) for leave in leaves], 'total': Leave.search_count(domain)}
 
     @http.route('/api/v1/hr/leave/requests/<int:leave_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
@@ -244,26 +256,71 @@ class HrLeaveController(http.Controller):
     @http.route('/api/v1/hr/leave/requests/<int:leave_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('hr.enabled', operation='write')
-    def cancel_request(self, leave_id, reason=None, **payload):
-        _require('hr.leave.request')
-        _require_no_fields(payload)
-        reason = parse_cancel_reason(reason)
+    @requires_capability('hr.leave.request', 'hr.leave.approve', match='any')
+    def cancel_request(self, leave_id, **payload):
+        vals = parse_cancellation_action(payload)
         leave = _current_leave(leave_id)
-        # Stock only offers cancel for a decided or refused request; a request still
-        # waiting for a decision is withdrawn by deleting it, as Odoo's own form does.
+        reason = vals['reason']
         if leave.state == 'confirm':
+            _require('hr.leave.request')
             if not _is_own(leave):
                 raise ApiError(403, 'forbidden', 'only the requester can withdraw a request')
             leave.unlink()
-            # A body, not a bare 204: the shared client does not parse an empty
-            # response, and the caller needs to know the request is gone.
             return {'id': leave_id, 'withdrawn': True}
-        if not leave.can_cancel:
-            raise ApiError(422, 'invalid', 'this leave cannot be cancelled')
-        request.env['hr.holidays.cancel.leave'].create({
-            'leave_id': leave.id, 'reason': reason,
-        }).action_cancel_leave()
+        model = request.env['webvue.hr.leave.cancellation']
+        if _is_own(leave):
+            _require('hr.leave.request')
+            pending = model.search([('leave_id', '=', leave.id), ('state', '=', 'pending')], limit=1)
+            policy = request.env['webvue.hr.leave.settings']._webvue_effective_policy(leave.company_id)
+            if pending or (leave.state == 'validate' and policy == 'manager_approval'):
+                model.action_request(leave.id, reason)
+            else:
+                request.env['hr.holidays.cancel.leave'].create({'leave_id': leave.id, 'reason': reason}).action_cancel_leave()
+        else:
+            _require('hr.leave.approve')
+            model.action_direct_cancel(leave.id, reason, vals.get('revision'))
         return dump_leave(leave)
+
+    @http.route('/api/v1/hr/leave/requests/<int:leave_id>/cancellation/approve', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('hr.enabled', operation='write')
+    @requires_capability('hr.leave.approve')
+    def approve_cancellation(self, leave_id, **payload):
+        vals = parse_cancellation_action(payload, decision=True)
+        leave = _current_leave(leave_id)
+        row = request.env['webvue.hr.leave.cancellation'].search([('leave_id', '=', leave.id)], limit=1)
+        if not row:
+            raise ApiError(404, 'not_found', 'cancellation request does not exist')
+        row.action_approve(vals['revision'], vals['reason'])
+        return dump_leave(leave)
+
+    @http.route('/api/v1/hr/leave/requests/<int:leave_id>/cancellation/refuse', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('hr.enabled', operation='write')
+    @requires_capability('hr.leave.approve')
+    def refuse_cancellation(self, leave_id, **payload):
+        vals = parse_cancellation_action(payload, decision=True, refusal=True)
+        leave = _current_leave(leave_id)
+        row = request.env['webvue.hr.leave.cancellation'].search([('leave_id', '=', leave.id)], limit=1)
+        if not row:
+            raise ApiError(404, 'not_found', 'cancellation request does not exist')
+        row.action_refuse(vals['revision'], vals['reason'])
+        return dump_leave(leave)
+
+    @http.route('/api/v1/hr/leave/settings', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', operation='read')
+    @requires_capability('hr.leave.config')
+    def get_leave_settings(self, **_):
+        return dump_settings(request.env['webvue.hr.leave.settings']._webvue_current())
+
+    @http.route('/api/v1/hr/leave/settings', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    @requires_feature('hr.enabled', operation='write')
+    @requires_capability('hr.leave.config')
+    def patch_leave_settings(self, **payload):
+        vals = parse_settings(payload)
+        return dump_settings(request.env['webvue.hr.leave.settings'].action_save(**vals))
 
     @http.route('/api/v1/hr/leave/allocations', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

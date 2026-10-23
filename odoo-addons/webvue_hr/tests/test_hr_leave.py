@@ -9,6 +9,7 @@ from .common import WebVueHrCase, set_hr_feature
 LEAVE_KEYS = {
     'id', 'employee', 'leave_type', 'date_from', 'date_to', 'number_of_days',
     'state', 'notes', 'can_approve', 'can_refuse', 'can_cancel', 'can_withdraw',
+    'cancellation_policy', 'cancellation', 'can_request_cancellation', 'can_approve_cancellation', 'can_refuse_cancellation',
 }
 BALANCE_KEYS = {'leave_type', 'allocated', 'taken', 'pending', 'remaining'}
 TYPE_KEYS = {'id', 'name', 'requires_allocation', 'support_document'}
@@ -231,7 +232,8 @@ class TestHrLeave(WebVueHrCase):
         self.env['hr.leave'].browse(leave_id).action_approve()
         res = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/cancel', json={'reason': 'Plans changed'})
         self.assertEqual(res.status_code, 200, res.text)
-        self.assertEqual(res.json()['state'], 'cancel')
+        self.assertEqual(res.json()['state'], 'validate')
+        self.assertEqual(res.json()['cancellation']['state'], 'pending')
 
     def test_manager_allocates_days(self):
         self._as_manager()
@@ -376,7 +378,8 @@ class TestHrLeave(WebVueHrCase):
         self.env['hr.leave'].browse(leave_id).action_approve()
         detail = self.api('GET', f'/api/v1/hr/leave/requests/{leave_id}').json()
         self.assertFalse(detail['can_withdraw'])
-        self.assertTrue(detail['can_cancel'])
+        self.assertFalse(detail['can_cancel'])
+        self.assertTrue(detail['can_request_cancellation'])
 
     def test_another_company_leave_is_not_found(self):
         other_company = self.env['res.company'].create({
