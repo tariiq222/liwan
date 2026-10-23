@@ -139,6 +139,8 @@ export interface AppAssistantSurface {
 }
 /** One thing an application says needs the user's attention; `to` opens the record. */
 export interface AppAttentionRow {
+  /** Shared record identity when applications expose the same record through different links. */
+  recordKey?: string
   id: string
   label: string
   to: string

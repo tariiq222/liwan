@@ -42,22 +42,22 @@
         {
           "id": "Inherited",
           "name": "Inherited",
-          "context": "apps/web/app/pages/settings/team/branches.vue:63"
+          "context": "apps/web/app/pages/settings/team/branches.vue:80"
         },
         {
           "id": "Delegated",
           "name": "Delegated",
-          "context": "apps/web/app/pages/settings/team/branches.vue:63"
+          "context": "apps/web/app/pages/settings/team/branches.vue:80"
         },
         {
           "id": "ReadOnly",
           "name": "ReadOnly",
-          "context": "apps/web/app/pages/settings/team/branches.vue:63"
+          "context": "apps/web/app/pages/settings/team/branches.vue:80"
         },
         {
           "id": "Empty",
           "name": "Empty",
-          "context": "apps/web/app/pages/settings/team/branches.vue:63"
+          "context": "apps/web/app/pages/settings/team/branches.vue:80"
         }
       ]
     },

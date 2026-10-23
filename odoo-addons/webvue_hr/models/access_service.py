@@ -2,6 +2,7 @@
 from odoo import api, models
 
 from .hr_applicant import HIRE_FRAME_ATTRIBUTE
+from .leave_cancellation import OWNER_AUTHORIZATION_KEYS, OWNER_AUTHORIZATION_MARKER
 
 HR_PERMISSIONS = frozenset(
     {
@@ -126,6 +127,33 @@ class WebVueHrAccessService(models.AbstractModel):
                 )._webvue_scoped_company_ids()
             return [company_id for company_id in super()._webvue_scoped_company_ids() if company_id == frame[2]]
         return super()._webvue_scoped_company_ids()
+
+    @api.model
+    def _webvue_inherited_capability_keys(self, user, company):
+        keys = super()._webvue_inherited_capability_keys(user, company)
+        capsules = self.env.cr.precommit.data.get(OWNER_AUTHORIZATION_MARKER, set())
+        if len(capsules) != 1:
+            return keys
+        owner_id, company_id, leave_id, authorization = next(iter(capsules))
+        if (self.env.uid != owner_id or user.id != owner_id or company.id != company_id
+                or self.env.company.id != company_id or authorization.cr is not self.env.cr
+                or authorization.uid != owner_id or authorization.company.id == company_id):
+            return keys
+        # Delegate to the same policy calculation at its original root. Never
+        # accept a context root, global native group or unmarked cached grant.
+        original = authorization['webvue.access.service']
+        memberships = original._webvue_membership_company_ids()
+        if (not authorization.user.active or authorization.company.id not in memberships
+                or company_id not in memberships or not original._webvue_has_capability(
+                    authorization.user, 'hr.leave.request', company=company,
+                )):
+            return keys
+        leave = authorization['hr.leave'].browse(leave_id)
+        leave.check_access('read')
+        if leave.company_id.id != company_id or leave.employee_id.user_id.id != owner_id:
+            return keys
+        return keys | (original._webvue_inherited_capability_keys(authorization.user, company)
+                       & OWNER_AUTHORIZATION_KEYS)
 
     @api.model
     def _webvue_capability_definitions(self):
