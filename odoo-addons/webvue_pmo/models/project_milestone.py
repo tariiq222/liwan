@@ -4,20 +4,21 @@ from odoo.exceptions import ValidationError
 
 
 def _validate_deliverables(value, env=None):
-    translate = env._ if env else lambda message: message
+    # `env._()` is called directly: babel only extracts `_` and `_lt`, so a local
+    # alias would keep these messages out of every .pot forever.
     if value in (None, False):
         return []
     if not isinstance(value, list):
-        raise ValidationError(translate("Milestone deliverables must be a list."))
+        raise ValidationError(env._("Milestone deliverables must be a list."))
     normalized = []
     for row in value:
         if not isinstance(row, dict) or set(row) != {'name', 'done'}:
-            raise ValidationError(translate("Milestone deliverables must contain exactly name and done."))
+            raise ValidationError(env._("Milestone deliverables must contain exactly name and done."))
         name = row['name']
         if not isinstance(name, str) or not name.strip():
-            raise ValidationError(translate("Milestone deliverable names must not be empty."))
+            raise ValidationError(env._("Milestone deliverable names must not be empty."))
         if not isinstance(row['done'], bool):
-            raise ValidationError(translate("Milestone deliverable done must be a boolean."))
+            raise ValidationError(env._("Milestone deliverable done must be a boolean."))
         normalized.append({'name': name.strip(), 'done': row['done']})
     return normalized
 
