@@ -52,43 +52,12 @@ jobs:
           python3 -B tools/pr_delivery.py resolve-review --repo "$REVIEW_REPO"
           --pr "$REQUEST_PR" --head "$REQUEST_HEAD"
 
-  codex:
+  claude:
     env:
       REVIEW_PR: ${{ needs.resolve.outputs.pr }}
       REVIEW_HEAD: ${{ needs.resolve.outputs.head }}
     needs: resolve
     if: github.ref == 'refs/heads/main' && needs.resolve.outputs.eligible == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 8
-    permissions:
-      contents: read
-      pull-requests: write
-      statuses: write
-    outputs:
-      completed: ${{ steps.review.outputs.completed }}
-      request_id: ${{ steps.review.outputs.request_id }}
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          ref: main
-          persist-credentials: false
-      - name: Request Codex and wait at most five minutes
-        id: review
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: >-
-          python3 -B tools/pr_review.py codex --repo "$REVIEW_REPO"
-          --pr "$REVIEW_PR" --head "$REVIEW_HEAD" --wait-seconds 300
-
-  claude:
-    env:
-      REVIEW_PR: ${{ needs.resolve.outputs.pr }}
-      REVIEW_HEAD: ${{ needs.resolve.outputs.head }}
-    needs: [resolve, codex]
-    if: >-
-      always() && !cancelled() && github.ref == 'refs/heads/main'
-      && needs.resolve.outputs.eligible == 'true'
-      && needs.codex.outputs.completed != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 18
     environment: review
@@ -105,7 +74,7 @@ jobs:
           ref: main
           persist-credentials: false
       - uses: ./.github/actions/claude-subscription
-      - name: Read-only Claude fallback
+      - name: Read-only Claude review
         id: review
         timeout-minutes: 15
         continue-on-error: true
@@ -120,7 +89,7 @@ jobs:
     env:
       REVIEW_PR: ${{ needs.resolve.outputs.pr }}
       REVIEW_HEAD: ${{ needs.resolve.outputs.head }}
-    needs: [resolve, codex, claude]
+    needs: [resolve, claude]
     if: >-
       always() && !cancelled() && github.ref == 'refs/heads/main'
       && needs.resolve.outputs.eligible == 'true'
@@ -139,7 +108,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CLAUDE_REVIEW: ${{ needs.claude.outputs.review }}
-          CODEX_REQUEST_ID: ${{ needs.codex.outputs.request_id || '0' }}
         run: >-
           python3 -B tools/pr_review.py finalize --repo "$REVIEW_REPO"
-          --pr "$REVIEW_PR" --head "$REVIEW_HEAD" --request-id "$CODEX_REQUEST_ID"
+          --pr "$REVIEW_PR" --head "$REVIEW_HEAD"

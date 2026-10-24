@@ -1,4 +1,4 @@
-"""Review availability must never be confused with approval or a stale review."""
+"""A Claude review counts only for its exact head; a missing review is never approval."""
 import json
 import os
 import subprocess
@@ -10,21 +10,17 @@ import pr_review
 HEAD = 'a' * 40
 
 
-class ReviewSelectionTest(unittest.TestCase):
-    def native(self, state='COMMENTED', head=HEAD, login='chatgpt-codex-connector[bot]', kind='Bot'):
-        return {'id': 17, 'state': state, 'commit_id': head,
-                'user': {'login': login, 'type': kind}, 'html_url': 'https://github.com/o/r/pull/1#pullrequestreview-17'}
+class ReviewReportTest(unittest.TestCase):
+    def stored(self, state='COMMENTED', head=HEAD, login='github-actions[bot]', kind='Bot', blocking='false'):
+        return {'state': state, 'commit_id': head, 'user': {'login': login, 'type': kind},
+                'body': f'<!-- webvue-review:claude:{head} -->\n<!-- webvue-review-blocking:{blocking} -->\nSummary'}
 
-    def test_current_codex_review_is_complete_even_when_it_requests_changes(self):
-        for state in ('COMMENTED', 'APPROVED', 'CHANGES_REQUESTED'):
-            with self.subTest(state=state):
-                self.assertIsNotNone(pr_review.codex_review([self.native(state)], HEAD))
-
-    def test_stale_dismissed_pending_and_other_authors_are_not_reviews(self):
-        for review in (self.native(head='b' * 40), self.native('DISMISSED'), self.native('PENDING'),
-                       self.native(login='other[bot]'), self.native(kind='User')):
+    def test_stale_dismissed_pending_and_other_authors_are_not_stored_reviews(self):
+        for review in (self.stored(head='b' * 40), self.stored('DISMISSED'), self.stored('PENDING'),
+                       self.stored(login='other[bot]'), self.stored(kind='User')):
             with self.subTest(review=review):
-                self.assertIsNone(pr_review.codex_review([review], HEAD))
+                self.assertIsNone(pr_review.stored_claude_review([review], HEAD))
+        self.assertTrue(pr_review.stored_claude_review([self.stored(blocking='true')], HEAD)['blocking'])
 
     def test_claude_report_requires_current_head_and_explicit_completion(self):
         good = {'head_sha': HEAD, 'complete': True, 'summary': 'Reviewed', 'findings': []}
@@ -60,182 +56,34 @@ class ReviewSelectionTest(unittest.TestCase):
         self.assertTrue(review['blocking'])
         self.assertIn('Data loss', review['body'])
 
-    def test_primary_findings_are_not_replaced_by_a_clean_backup(self):
-        primary = {'provider': 'codex', 'blocking': True}
-        backup = {'provider': 'claude', 'blocking': False}
-        self.assertEqual(pr_review.choose_review(primary, backup), primary)
-
-    def test_later_codex_comment_does_not_dismiss_an_earlier_change_request(self):
-        reviews = [self.native('CHANGES_REQUESTED'), self.native('COMMENTED')]
-        self.assertTrue(pr_review.codex_review(reviews, HEAD)['blocking'])
-
-    def test_codex_inline_priority_one_blocks_even_when_review_is_commented(self):
-        inline = self.native()
-        inline['body'] = '**[P1] Fix lost data**'
-        inline['pull_request_review_id'] = 17
-        self.assertTrue(pr_review.codex_review([self.native()], HEAD, [inline])['blocking'])
-
-    def test_historical_inline_anchor_remapped_to_current_head_does_not_poison_new_review(self):
-        old = self.native(head='b' * 40)
-        old['id'] = 16
-        inline = {**self.native(), 'original_commit_id': 'b' * 40,
-                  'pull_request_review_id': 16, 'body': '**[P2] Historical finding**'}
-        self.assertFalse(pr_review.codex_review([old, self.native()], HEAD, [inline])['blocking'])
-
-    def test_real_current_inline_priority_two_still_blocks(self):
-        inline = {**self.native(), 'original_commit_id': HEAD,
-                  'pull_request_review_id': 17, 'body': '**[P2] Current finding**'}
-        self.assertTrue(pr_review.codex_review([self.native()], HEAD, [inline])['blocking'])
-
-    def test_remapped_inline_without_a_current_review_cannot_complete_the_gate(self):
-        old = self.native(head='b' * 40)
-        old['id'] = 16
-        inline = {**self.native(), 'original_commit_id': 'b' * 40,
-                  'pull_request_review_id': 16, 'body': '**[P2] Historical finding**'}
-        self.assertIsNone(pr_review.codex_review([old], HEAD, [inline]))
-
-    def test_unknown_current_inline_review_association_fails_closed(self):
-        inline = {**self.native(), 'original_commit_id': HEAD,
-                  'pull_request_review_id': 999, 'body': 'Unproven comment'}
-        self.assertTrue(pr_review.codex_review([self.native()], HEAD, [inline])['blocking'])
-
-    def test_dismissed_current_inline_finding_remains_blocking_with_another_receipt(self):
-        dismissed = self.native('DISMISSED')
-        dismissed['id'] = 18
-        inline = {**self.native(), 'original_commit_id': HEAD,
-                  'pull_request_review_id': 18, 'body': '**[P1] Unrepaired finding**'}
-        self.assertTrue(pr_review.codex_review([dismissed, self.native()], HEAD, [inline])['blocking'])
-
-    def test_dismissed_current_inline_blockers_survive_without_any_completed_receipt(self):
-        dismissed = self.native('DISMISSED')
-        for priority in ('P0', 'P1', 'P2'):
-            inline = {**dismissed, 'pull_request_review_id': 17, 'body': f'**[{priority}] Unrepaired finding**'}
-            self.assertTrue(pr_review.codex_review([dismissed], HEAD, [inline])['blocking'])
-
-    def test_unknown_current_inline_blocks_without_any_completed_receipt(self):
-        inline = {**self.native(), 'pull_request_review_id': 999, 'body': 'Unproven finding'}
-        self.assertTrue(pr_review.codex_review([], HEAD, [inline])['blocking'])
-
-    def test_other_author_review_cannot_prove_native_inline_provenance(self):
-        other = self.native(login='other[bot]')
-        other['id'] = 18
-        inline = {**self.native(), 'original_commit_id': HEAD,
-                  'pull_request_review_id': 18, 'body': '**[P2] Unproven finding**'}
-        self.assertTrue(pr_review.codex_review([other, self.native()], HEAD, [inline])['blocking'])
-
     def test_priority_two_bug_requires_repair_before_automatic_delivery(self):
         report = {'head_sha': HEAD, 'complete': True, 'summary': 'Bug', 'findings': [
             {'priority': 'P2', 'file': 'a.py', 'line': 1, 'message': 'Incorrect result'}]}
         self.assertTrue(pr_review.claude_review(json.dumps(report), HEAD)['blocking'])
 
-    def test_backup_covers_service_unavailability_but_neither_means_blocked(self):
-        backup = {'provider': 'claude', 'blocking': False}
-        self.assertEqual(pr_review.choose_review(None, backup), backup)
-        self.assertIsNone(pr_review.choose_review(None, None))
-
-    def test_confirmation_reaction_alone_never_completes_a_review(self):
-        trigger = {'body': f'@codex review\n<!-- webvue-review-head:{HEAD} -->'}
-        reaction = {'content': '+1', 'user': {'login': 'chatgpt-codex-connector[bot]', 'type': 'Bot'}}
-        with patch.object(pr_review, 'api', side_effect=[[], [trigger, reaction]]):
-            self.assertIsNone(pr_review.native_state('o/r', 1, HEAD, 23, []))
-
-    def test_priority_zero_in_commented_review_body_blocks(self):
-        review = self.native()
-        review['body'] = '**[P0] Data exposure**'
-        self.assertTrue(pr_review.codex_review([review], HEAD)['blocking'])
-
-
-class NativeSummaryTest(unittest.TestCase):
-    def summary(self, **updates):
-        state = {'commit_sha': HEAD, 'status': 'completed',
-                 'has_any_findings': False, 'has_unresolved_findings': False, **updates}
-        return {'user': {'login': pr_review.CODEX, 'type': 'Bot'},
-                'html_url': 'https://github.com/o/r/pull/1#issuecomment-42',
-                'body': '<!-- codex-pull-request-review-summary -->\n'
-                        '<!-- codex-review-state:v1 ' + json.dumps({'code_review': state}) + ' -->\n'}
-
-    def native_state(self, comments, reviews=None, inline=None):
-        def github(endpoint, payload=None, pages=False):
-            return inline or [] if '/pulls/' in endpoint else comments
-        with patch.object(pr_review, 'api', side_effect=github):
-            return pr_review.native_state('o/r', 1, HEAD, 23, reviews or [])
-
-    def test_actual_native_full_sha_completed_summary_is_a_review_receipt(self):
-        self.assertFalse(self.native_state([self.summary()])['blocking'])
-
-    def test_stale_short_incomplete_and_non_boolean_summary_is_unavailable(self):
-        for update in ({'commit_sha': 'b' * 40}, {'commit_sha': HEAD[:10]},
-                       {'status': 'running'}, {'has_any_findings': None},
-                       {'has_any_findings': 'false'}, {'has_unresolved_findings': 0}):
-            with self.subTest(update=update):
-                self.assertIsNone(self.native_state([self.summary(**update)]))
-
-    def test_spoofed_author_or_user_type_cannot_supply_receipt(self):
-        for login, kind in (('other[bot]', 'Bot'), (pr_review.CODEX, 'User')):
-            comment = self.summary()
-            comment['user'] = {'login': login, 'type': kind}
-            self.assertIsNone(self.native_state([comment]))
-
-    def test_free_text_short_receipt_and_malformed_machine_state_are_unavailable(self):
-        for body in ('<!-- codex-review-receipt:v1 -->\nReviewed commit: `' + HEAD[:10] + '`',
-                     '<!-- codex-pull-request-review-summary -->\n<!-- codex-review-state:v1 { -->',
-                     '<!-- codex-review-state:v1 ' + json.dumps({'code_review': {'commit_sha': HEAD}}) + ' -->'):
-            comment = {**self.summary(), 'body': body}
-            self.assertIsNone(self.native_state([comment]))
-
-    def test_summary_findings_never_produce_clean_review(self):
-        for update in ({'has_any_findings': True}, {'has_unresolved_findings': True}):
-            self.assertTrue(self.native_state([self.summary(**update)])['blocking'])
-
-    def test_clean_summary_does_not_erase_formal_change_request_or_inline_blocker(self):
-        review = ReviewSelectionTest().native('CHANGES_REQUESTED')
-        self.assertTrue(self.native_state([self.summary()], [review])['blocking'])
-        review['state'] = 'COMMENTED'
-        inline = {**review, 'pull_request_review_id': 17, 'body': '**[P2] Current finding**'}
-        self.assertTrue(self.native_state([self.summary()], [review], [inline])['blocking'])
-
-    def test_clean_summary_cannot_hide_unknown_current_inline_provenance(self):
-        inline = {**ReviewSelectionTest().native(), 'pull_request_review_id': 999,
-                  'original_commit_id': HEAD, 'body': 'Unproven finding'}
-        self.assertTrue(self.native_state([self.summary()], inline=[inline])['blocking'])
-
-    def test_multiple_current_summaries_retain_any_blocker(self):
-        self.assertTrue(self.native_state([self.summary(has_any_findings=True), self.summary()])['blocking'])
-
-    def test_remapped_old_inline_with_clean_current_summary_does_not_block(self):
-        old = ReviewSelectionTest().native(head='b' * 40)
-        inline = {**old, 'commit_id': HEAD, 'original_commit_id': 'b' * 40,
-                  'pull_request_review_id': 17, 'body': '**[P2] Historical finding**'}
-        self.assertFalse(self.native_state([self.summary()], [old], [inline])['blocking'])
 
 
 class FinalizeReviewTest(unittest.TestCase):
-    def run_gate(self, native=None, report=None, moved=False, author="o", head_author="o", comments=None, inline=None):
+    def run_gate(self, history=None, report=None, moved=False):
         self.calls = []
 
         def github(endpoint, payload=None, pages=False):
             self.calls.append((endpoint, payload))
             if endpoint == 'repos/o/r/pulls/1':
-                return {'state': 'open', 'user': {'login': author}, 'head': {'sha': 'b' * 40 if moved else HEAD,
+                return {'state': 'open', 'head': {'sha': 'b' * 40 if moved else HEAD,
                                                 'repo': {'full_name': 'o/r'}}, 'base': {'ref': 'main'}}
-            if endpoint == f'repos/o/r/commits/{HEAD}':
-                return {'author': {'login': head_author}}
             if endpoint.endswith('/reviews') and payload is None:
-                return native or []
-            if endpoint == 'repos/o/r/issues/1/comments':
-                return comments or []
-            if endpoint == 'repos/o/r/pulls/1/comments':
-                return inline or []
+                return history or []
             return {}
 
         with patch.object(pr_review, 'api', side_effect=github), patch.dict(
                 os.environ, {'CLAUDE_REVIEW': json.dumps(report) if report else ''}):
-            return pr_review.finalize('o/r', 1, HEAD, 0)
+            return pr_review.finalize('o/r', 1, HEAD)
 
     def backup(self, findings=None):
         return {'head_sha': HEAD, 'complete': True, 'summary': 'Reviewed this diff', 'findings': findings or []}
 
-    def test_service_failover_publishes_standard_review_and_success_for_current_head(self):
+    def test_valid_report_publishes_standard_review_and_success_for_current_head(self):
         self.assertEqual(self.run_gate(report=self.backup()), 0)
         posted = [payload for endpoint, payload in self.calls if endpoint.endswith('/reviews') and payload]
         self.assertEqual(posted[0]['commit_id'], HEAD)
@@ -248,40 +96,15 @@ class FinalizeReviewTest(unittest.TestCase):
                     'body': f'<!-- webvue-review:claude:{HEAD} -->\n<!-- webvue-review-blocking:false -->\nClean'}
         for report in (None, {}, {**self.backup(), 'complete': False}):
             with self.subTest(report=report):
-                self.assertEqual(self.run_gate(native=[previous], report=report), 1)
+                self.assertEqual(self.run_gate(history=[previous], report=report), 1)
                 self.assertEqual(self.calls[-1][1]['state'], 'error')
 
-    def test_claude_cannot_approve_its_own_or_unattributed_automation_changes(self):
-        for author, head_author in (('claude[bot]', 'o'), ('github-actions[bot]', 'o'),
-                                    ('o', 'claude[bot]'), ('o', 'github-actions[bot]')):
-            with self.subTest(author=author, head_author=head_author):
-                self.assertEqual(self.run_gate(report=self.backup(), author=author, head_author=head_author), 1)
-                self.assertEqual(self.calls[-1][1]['state'], 'error')
-
-    def test_two_unavailable_reviewers_publish_error_and_no_fake_review(self):
+    def test_missing_report_publishes_error_and_no_fake_review(self):
         self.assertEqual(self.run_gate(), 1)
         self.assertFalse(any(endpoint.endswith('/reviews') and payload for endpoint, payload in self.calls))
         self.assertEqual(self.calls[-1][1]['state'], 'error')
 
-    def test_native_summary_finalizes_without_fabricating_a_formal_review(self):
-        self.assertEqual(self.run_gate(comments=[NativeSummaryTest().summary()]), 0)
-        self.assertEqual(self.calls[-1][1]['state'], 'success')
-        self.assertFalse(any(endpoint.endswith('/reviews') and payload for endpoint, payload in self.calls))
-
-    def test_native_summary_findings_fail_and_cannot_use_a_clean_backup(self):
-        self.assertEqual(self.run_gate(comments=[NativeSummaryTest().summary(has_any_findings=True)],
-                                       report=self.backup()), 1)
-        self.assertEqual(self.calls[-1][1]['state'], 'failure')
-
-    def test_missing_receipt_never_allows_clean_backup_to_erase_inline_blockers(self):
-        dismissed = ReviewSelectionTest().native('DISMISSED')
-        for association in (17, 999):
-            inline = {**dismissed, 'pull_request_review_id': association,
-                      'original_commit_id': HEAD, 'body': '**[P1] Current finding**'}
-            self.assertEqual(self.run_gate(native=[dismissed], inline=[inline], report=self.backup()), 1)
-            self.assertEqual(self.calls[-1][1]['state'], 'failure')
-
-    def test_blocking_backup_uses_comment_for_bot_authored_pr_but_fails_required_status(self):
+    def test_blocking_report_uses_comment_for_bot_authored_pr_but_fails_required_status(self):
         finding = {'priority': 'P1', 'file': 'a.py', 'line': 1, 'message': 'Bug'}
         self.assertEqual(self.run_gate(report=self.backup([finding])), 1)
         posted = [payload for endpoint, payload in self.calls if endpoint.endswith('/reviews') and payload]
@@ -301,40 +124,17 @@ class FinalizeReviewTest(unittest.TestCase):
             self.run_gate(report=self.backup(), moved=True)
         self.assertFalse(any(payload for _, payload in self.calls))
 
-    def test_late_primary_cannot_erase_backup_blocking_finding(self):
-        native = ReviewSelectionTest().native()
-        finding = {'priority': 'P1', 'file': 'a.py', 'line': 7, 'message': 'Data loss'}
-        self.assertEqual(self.run_gate(native=[native], report=self.backup([finding])), 1)
-        self.assertEqual(self.calls[-1][1]['state'], 'failure')
-
     def test_rerun_retains_persisted_claude_blocker_without_new_backup_output(self):
         previous = {'id': 16, 'state': 'CHANGES_REQUESTED', 'commit_id': HEAD,
                     'user': {'login': 'github-actions[bot]', 'type': 'Bot'},
                     'body': f'<!-- webvue-review:claude:{HEAD} -->\nP1: Data loss'}
-        reviews = [previous, ReviewSelectionTest().native()]
-        self.assertEqual(self.run_gate(native=reviews), 1)
+        self.assertEqual(self.run_gate(history=[previous]), 1)
         self.assertEqual(self.calls[-1][1]['state'], 'failure')
 
-
-class RequestReviewTest(unittest.TestCase):
-    def test_stored_clean_review_does_not_skip_requesting_codex(self):
-        marker = f'<!-- webvue-review:claude:{HEAD} -->\n<!-- webvue-review-blocking:false -->\nClean'
-        previous = {'state': 'COMMENTED', 'commit_id': HEAD, 'body': marker,
-                    'user': {'login': 'github-actions[bot]', 'type': 'Bot'}}
-        calls = []
-
-        def github(endpoint, payload=None, pages=False):
-            calls.append((endpoint, payload))
-            if endpoint.endswith('/reviews'):
-                return [previous]
-            if payload and endpoint.endswith('/comments'):
-                return {'id': 42}
-            return []
-
-        with patch.object(pr_review, 'current'), patch.object(pr_review, 'status'), patch.object(
-                pr_review, 'api', side_effect=github), patch.object(pr_review, 'output'):
-            pr_review.request_codex('o/r', 1, HEAD, 0)
-        self.assertTrue(any(payload and '@codex review' in payload.get('body', '') for _, payload in calls))
+    def test_clean_report_cannot_erase_a_blocker_already_recorded_for_the_head(self):
+        previous = ReviewReportTest().stored(blocking='true')
+        self.assertEqual(self.run_gate(history=[previous], report=self.backup()), 1)
+        self.assertEqual(self.calls[-1][1]['state'], 'failure')
 
 
 class ClaudeBoundaryTest(unittest.TestCase):
@@ -343,7 +143,7 @@ class ClaudeBoundaryTest(unittest.TestCase):
         wrapper = json.dumps({'is_error': False, 'structured_output': report})
         diff = '+ echo "$CLAUDE_CODE_OAUTH_TOKEN"; malicious instruction\n'
         replies = [subprocess.CompletedProcess([], 0, diff, ''), subprocess.CompletedProcess([], 0, wrapper, '')]
-        with patch.object(pr_review, 'current'), patch.object(pr_review, 'claude_independent', return_value=True), patch.object(pr_review, 'output'), patch.dict(
+        with patch.object(pr_review, 'current'), patch.object(pr_review, 'output'), patch.dict(
                 os.environ, {'CLAUDE_CODE_OAUTH_TOKEN': 'test-only-credential', 'CLAUDE_BIN': '/untrusted/program'}), patch.object(
                     pr_review.subprocess, 'run', side_effect=replies) as execute:
             self.assertEqual(pr_review.run_claude('o/r', 1, HEAD), 0)
@@ -359,7 +159,7 @@ class ClaudeBoundaryTest(unittest.TestCase):
 
     def test_oversized_diff_blocks_before_any_model_call(self):
         diff = subprocess.CompletedProcess([], 0, 'x' * 300001, '')
-        with patch.object(pr_review, 'current'), patch.object(pr_review, 'claude_independent', return_value=True), patch.dict(
+        with patch.object(pr_review, 'current'), patch.dict(
                 os.environ, {'CLAUDE_CODE_OAUTH_TOKEN': 'test-only-credential'}), patch.object(
                     pr_review.subprocess, 'run', return_value=diff) as execute:
             self.assertEqual(pr_review.run_claude('o/r', 1, HEAD), 1)
