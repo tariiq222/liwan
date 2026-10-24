@@ -1,8 +1,9 @@
 import http from 'node:http'
 import https from 'node:https'
 import { createError, getHeader, type H3Event } from 'h3'
-import { createBodyAdmission, createResponseAdmission, readBodyBytes } from './bufferAdmission.mjs'
+import { createBodyAdmission, createResponseAdmission, HEAVY_CREDITS, readBodyBytes } from './bufferAdmission.mjs'
 import { tenantUpstreamHeaders } from './tenantRequest'
+import { HEAVY_TIMEOUT, UPSTREAM_TIMEOUT } from './upstreamDeadlines'
 
 const MAX_REQUEST = 16 * 1024 * 1024
 // Public MFA carries a single code field; both entry points share this wire budget.
@@ -14,24 +15,25 @@ const MAX_RESPONSE = 32 * 1024 * 1024
  * here instead of opening connections the kernel drops once the listen backlog fills. */
 const configuredConcurrency = Number(process.env.NUXT_ODOO_MAX_CONCURRENCY)
 const UPSTREAM_MAX_CONCURRENCY = Number.isFinite(configuredConcurrency) && configuredConcurrency > 0 ? Math.floor(configuredConcurrency) : 32
-export const UPSTREAM_TIMEOUT = 15_000
 // Operator-owned memory bound: at most two default-sized batches may wait.
 // Keep this fixed even when the operator raises upstream concurrency.
 const UPSTREAM_MAX_QUEUED = 64
-// Odoo runs 2 workers; a heavy request may hold only one so the other stays free for ordinary work.
-const HEAVY_MAX_CONCURRENCY = 1
-// Small fixed wait queue for the heavy gate; waiters give up after UPSTREAM_TIMEOUT like any other.
-const HEAVY_MAX_QUEUED = 8
+// Heavy writes (bulk posting, payroll compute) run one at a time so Odoo never holds several long transactions.
+const HEAVY_WRITE_CONCURRENCY = 1
+// Heavy credits bound how many heavy writes exist at once (one running, the rest waiting here),
+// so a larger queue could never fill.
+const HEAVY_WRITE_MAX_QUEUED = HEAVY_CREDITS - HEAVY_WRITE_CONCURRENCY
 
-/** Extended admitted deadline for an allowlisted heavy route. Its presence also selects the heavy gate. */
-export type HeavyBudget = { timeoutMs: number }
+/** Budget of an allowlisted heavy route. `timeoutMs` is the admitted deadline and also the longest the
+ * request waits for the write gate; `write` selects that gate (heavy reads run concurrently). */
+export type HeavyBudget = { timeoutMs: number; write: boolean }
 
 /** Bounded FIFO admission gate. A released slot is handed directly to the next waiter, so the
  * in-flight count never drifts; a waiter that times out or is cancelled removes itself first. */
 function createGate(limit: number, maxQueued: number) {
   let inFlight = 0
   const waiters: Array<() => void> = []
-  function acquire(signal?: AbortSignal): Promise<() => void> {
+  function acquire(signal: AbortSignal | undefined, waitMs: number): Promise<() => void> {
     if (signal?.aborted) return Promise.reject(failure())
     if (inFlight < limit) { inFlight++; return Promise.resolve(release) }
     if (waiters.length >= maxQueued) return Promise.reject(failure())
@@ -43,7 +45,7 @@ function createGate(limit: number, maxQueued: number) {
         cleanup()
         reject(failure())
       }
-      const timer = setTimeout(cancel, UPSTREAM_TIMEOUT)
+      const timer = setTimeout(cancel, waitMs)
       const resume = () => { cleanup(); resolve(release) }
       waiters.push(resume)
       signal?.addEventListener('abort', cancel, { once: true })
@@ -57,20 +59,23 @@ function createGate(limit: number, maxQueued: number) {
 }
 
 const upstreamGate = createGate(UPSTREAM_MAX_CONCURRENCY, UPSTREAM_MAX_QUEUED)
-const heavyGate = createGate(HEAVY_MAX_CONCURRENCY, HEAVY_MAX_QUEUED)
+const heavyWriteGate = createGate(HEAVY_WRITE_CONCURRENCY, HEAVY_WRITE_MAX_QUEUED)
 
-/** Admit one upstream request and return the function that gives its capacity back. A heavy request
- * takes the heavy gate first, then an ordinary slot, so the global limit still applies to it. */
+/** Admit one upstream request and return the function that gives its capacity back. A heavy write takes
+ * the write gate first, then an ordinary slot, so the global limit still applies to it.
+ * A heavy read takes only an ordinary slot: concurrent heavy reads may occupy both of Odoo's workers, so
+ * the "keep one worker free" guarantee holds for writes only (owner decision); the heavy credit pool and
+ * the 32-slot gate are what bound them. */
 function acquireUpstream(signal: AbortSignal, heavy: HeavyBudget | undefined): Promise<() => void> {
-  return heavy ? acquireHeavyUpstream(signal) : upstreamGate.acquire(signal)
+  return heavy?.write ? acquireHeavyWrite(signal, heavy.timeoutMs) : upstreamGate.acquire(signal, UPSTREAM_TIMEOUT)
 }
 
-async function acquireHeavyUpstream(signal: AbortSignal): Promise<() => void> {
-  const releaseHeavy = await heavyGate.acquire(signal)
+async function acquireHeavyWrite(signal: AbortSignal, waitMs: number): Promise<() => void> {
+  const releaseWrite = await heavyWriteGate.acquire(signal, waitMs)
   try {
-    const releaseUpstream = await upstreamGate.acquire(signal)
-    return () => { releaseUpstream(); releaseHeavy() }
-  } catch (error) { releaseHeavy(); throw error }
+    const releaseUpstream = await upstreamGate.acquire(signal, UPSTREAM_TIMEOUT)
+    return () => { releaseUpstream(); releaseWrite() }
+  } catch (error) { releaseWrite(); throw error }
 }
 
 /** Bind cancellation before admission so a disconnected request never starts later. */
@@ -96,7 +101,7 @@ function clientCancellation(event?: H3Event, options: { signal?: AbortSignal; ig
 }
 
 /** Hold one upstream slot, with caller cancellation and a 15s admitted deadline
- * (the heavy budget's deadline and gate for an allowlisted heavy route). */
+ * (the heavy budget's deadline, and write gate for a heavy write, on an allowlisted heavy route). */
 export async function withUpstreamSlot<T>(run: (signal: AbortSignal) => Promise<T>, event?: H3Event, heavy?: HeavyBudget): Promise<T> {
   const cancellation = clientCancellation(event)
   let releaseSlots: (() => void) | undefined
@@ -244,7 +249,8 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
  * `heavy` isolates allowlisted long-running routes from ordinary session traffic. */
 export type AdmissionScope = 'session' | 'public' | 'heavy'
 
-const acquireBody = { session: createBodyAdmission('session'), public: createBodyAdmission('public'), heavy: createBodyAdmission('heavy') }
+// Heavy credits are held for the whole heavy run, so a waiter waits as long as that run may take.
+const acquireBody = { session: createBodyAdmission('session'), public: createBodyAdmission('public'), heavy: createBodyAdmission('heavy', HEAVY_TIMEOUT) }
 
 /** Keep memory credit while reading, waiting for upstream admission and forwarding. */
 export async function withTenantBody<T>(event: H3Event, scope: AdmissionScope, run: () => Promise<T>): Promise<T> {
@@ -255,7 +261,7 @@ export async function withTenantBody<T>(event: H3Event, scope: AdmissionScope, r
   } catch (error) { throw createError(error as Error) } finally { releaseBody?.() }
 }
 
-const responseAdmission = { session: createResponseAdmission('session'), public: createResponseAdmission('public'), heavy: createResponseAdmission('heavy') }
+const responseAdmission = { session: createResponseAdmission('session'), public: createResponseAdmission('public'), heavy: createResponseAdmission('heavy', HEAVY_TIMEOUT) }
 
 /** Own response capacity until native work and the downstream HTTP output settle. */
 export async function withTenantResponse<T>(event: H3Event, scope: AdmissionScope, run: () => Promise<T>): Promise<T> {

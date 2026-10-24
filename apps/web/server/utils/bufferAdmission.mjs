@@ -10,6 +10,8 @@ const POOL_LIMITS = {
   public: { active: 2, queued: 16 },
   heavy: { active: 2, queued: 8 },
 }
+/** Credits that can be held at once by heavy work; it bounds how many heavy requests can run or wait for a gate. */
+export const HEAVY_CREDITS = POOL_LIMITS.heavy.active
 
 const bufferAdmissionFailure = () => Object.assign(Error('tenant_upstream_unavailable'), {
   statusCode: 502,
@@ -31,9 +33,10 @@ const hasObservableOutput = res => res instanceof ServerResponse
  * its callback/forwarder settles, so completed bodies waiting for work retain credit.
  * @param {boolean} skipBodyless
  * @param {AdmissionPool} pool
+ * @param {number} waitMs longest a queued caller waits for a credit before it is refused
  * @returns {(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => Promise<() => void>}
  */
-function createAdmission(skipBodyless, pool) {
+function createAdmission(skipBodyless, pool, waitMs) {
   const { active: maxActive, queued: maxQueued } = POOL_LIMITS[pool]
   let active = 0
   /** @type {Array<() => void>} */
@@ -59,23 +62,26 @@ function createAdmission(skipBodyless, pool) {
       }
       const onClose = () => { if (!res.writableEnded) cancel() }
       const resume = () => { cleanup(); resolve(credit()) }
-      const timer = setTimeout(cancel, BUFFER_TIMEOUT)
+      const timer = setTimeout(cancel, waitMs)
       waiting.push(resume)
       req.once('aborted', cancel); req.once('error', cancel); res.once('close', onClose)
     })
   }
 }
 
-/** Incoming-body pools do not consume credits for GET/HEAD.
- * @param {AdmissionPool} pool */
-export function createBodyAdmission(pool) { return createAdmission(true, pool) }
+/** Incoming-body pools do not consume credits for GET/HEAD. Queued callers wait `waitMs`
+ * (default: the ordinary buffer wait); a pool whose holders legitimately run longer passes its own.
+ * @param {AdmissionPool} pool
+ * @param {number} [waitMs] */
+export function createBodyAdmission(pool, waitMs = BUFFER_TIMEOUT) { return createAdmission(true, pool, waitMs) }
 
 /** Response buffers belong to both the operation and its actual HTTP output.
  * H3's native Response sender can settle before ServerResponse drains.
  * @param {AdmissionPool} pool
+ * @param {number} [waitMs] queued callers wait this long for a credit (default: the ordinary buffer wait)
  */
-export function createResponseAdmission(pool) {
-  const acquire = createAdmission(false, pool)
+export function createResponseAdmission(pool, waitMs = BUFFER_TIMEOUT) {
+  const acquire = createAdmission(false, pool, waitMs)
   /** @template T
    * @param {import('node:http').IncomingMessage} req
    * @param {import('node:http').ServerResponse} res

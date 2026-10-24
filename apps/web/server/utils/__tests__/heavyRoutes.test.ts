@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { isHeavyRoute } from '../heavyRoutes'
+import { heavyRouteKind } from '../heavyRoutes'
 
 afterEach(() => { vi.unstubAllEnvs(); vi.resetModules() })
 
@@ -18,12 +18,12 @@ const WRITES = [
   ...['compute', 'post'].map(action => `/api/v1/hr/payroll/runs/12/${action}`),
 ]
 
-describe('isHeavyRoute', () => {
-  it.each(READS.flatMap(path => ['GET', 'HEAD'].map(method => [method, path])))('%s %s is heavy', (method, path) => {
-    expect(isHeavyRoute(method!, path!)).toBe(true)
+describe('heavyRouteKind', () => {
+  it.each(READS.flatMap(path => ['GET', 'HEAD'].map(method => [method, path])))('%s %s is a heavy read', (method, path) => {
+    expect(heavyRouteKind(method!, path!)).toBe('read')
   })
-  it.each(WRITES)('POST %s is heavy', path => {
-    expect(isHeavyRoute('POST', path)).toBe(true)
+  it.each(WRITES)('POST %s is a heavy write', path => {
+    expect(heavyRouteKind('POST', path)).toBe('write')
   })
   it.each([
     ...WRITES.flatMap(path => ['GET', 'PUT', 'PATCH', 'DELETE'].map(method => [method, path])),
@@ -61,7 +61,7 @@ describe('isHeavyRoute', () => {
     ['GET', '/api/v1/branding'],
     ['GET', '/api/v1/tasks'],
   ])('%s %s is not heavy', (method, path) => {
-    expect(isHeavyRoute(method!, path!)).toBe(false)
+    expect(heavyRouteKind(method!, path!)).toBeNull()
   })
 })
 
@@ -70,7 +70,7 @@ describe('NUXT_ODOO_HEAVY_TIMEOUT_MS', () => {
     vi.resetModules()
     if (value === undefined) vi.stubEnv('NUXT_ODOO_HEAVY_TIMEOUT_MS', '')
     else vi.stubEnv('NUXT_ODOO_HEAVY_TIMEOUT_MS', value)
-    return (await import('../heavyRoutes')).HEAVY_TIMEOUT
+    return (await import('../upstreamDeadlines')).HEAVY_TIMEOUT
   }
   it('defaults to 60s when missing or invalid', async () => {
     expect(await heavyTimeout()).toBe(60_000)
