@@ -23,9 +23,11 @@ SCANNED_SUFFIXES = ('.conf', '.yml', '.yaml', '.env.example', '.sh', '.json')
 # A credential that silently falls back to a literal (`NAME = X || 'value'`) uses that
 # literal on any host the script reaches, so the literal is judged by itself. Kept apart
 # from SECRET_LINE_RE, which reads assignments and cannot see past the expression.
+# Each quote style matches its own delimiter: a double-quoted value may contain an
+# apostrophe, and a value never runs past the string that closes it.
 CREDENTIAL_FALLBACK_RE = re.compile(
     r'(?i)[\w$.]*(?:password|passwd|secret|token|api_key)[\w$]*'
-    r'''\s*(?:\|\||\?\?)\s*(?P<quote>['"])(?P<value>[^'\n]*)(?P=quote)''',
+    r'''\s*(?:\|\||\?\?)\s*(?:"(?P<double>[^"\n]*)"|'(?P<single>[^'\n]*)')''',
 )
 SCAN_ROOTS = ('deploy/', '.github/')
 JS_SUFFIXES = ('.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.vue')
@@ -51,7 +53,10 @@ def find_credential_fallbacks(text: str) -> list[int]:
     hits = []
     for number, line in enumerate(text.splitlines(), start=1):
         match = CREDENTIAL_FALLBACK_RE.search(line)
-        value = match.group('value').strip() if match else ''
+        value = ''
+        if match:
+            raw = match.group('double') if match.group('double') is not None else match.group('single')
+            value = raw.strip()
         if value and not is_placeholder(value):
             hits.append(number)
     return hits

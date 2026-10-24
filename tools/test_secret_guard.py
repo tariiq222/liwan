@@ -60,6 +60,14 @@ class TestSecretGuard(unittest.TestCase):
         )
         self.assertEqual(find_credential_fallbacks(text), [])
 
+    def test_double_quoted_fallback_may_contain_an_apostrophe(self):
+        text = 'const PASSWORD = env.PASSWORD || "don\'t-use-this";\n'
+        self.assertEqual(find_credential_fallbacks(text), [1])
+
+    def test_an_empty_default_does_not_consume_a_later_string(self):
+        text = 'const TOKEN = env.TOKEN ?? ""; const label = "not a secret";\n'
+        self.assertEqual(find_credential_fallbacks(text), [])
+
 
 if __name__ == '__main__':
     unittest.main()
