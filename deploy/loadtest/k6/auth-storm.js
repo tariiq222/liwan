@@ -4,8 +4,16 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 const BASE = __ENV.BASE || 'http://[::1]:3100';
-const LOGIN = __ENV.LOGIN || 'admin';
-const PASSWORD = __ENV.PASSWORD || 'LoadTest2026!';
+// Credentials are required: the kit runs against whatever BASE points at, so a
+// literal fallback could sign in with a default account on a shared or live host.
+// Missing either variable aborts the run in the init context instead.
+function requiredEnv(name) {
+  const value = __ENV[name];
+  if (!value) throw new Error(`loadtest: ${name} is required (export ${name}=...)`);
+  return value;
+}
+const LOGIN = requiredEnv('LOGIN');
+const PASSWORD = requiredEnv('PASSWORD');
 
 export const options = {
   scenarios: {
