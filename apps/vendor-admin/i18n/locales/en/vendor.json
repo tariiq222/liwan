@@ -743,7 +743,8 @@
         "withdraw": "Stops new sales; existing customers keep it.",
         "restore": "Available to new customers again.",
         "revisions": "Creates a new draft from it.",
-        "delete": "Permanently deletes the draft."
+        "delete": "Permanently deletes the draft.",
+        "withdrawReferenced": "A published plan references this bundle. Withdrawing it makes that plan unsellable until the plan moves to another bundle revision."
       },
       "blocked": {
         "catalog": "Requires catalog management permission.",
