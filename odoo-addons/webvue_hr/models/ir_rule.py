@@ -30,9 +30,15 @@ class WebVueHrIrRule(models.Model):
             # the declared model/company scope too, including foreign memberships.
             owner_field = 'employee_company_id' if model_name == 'hr.leave.allocation' else 'company_id'
             companies = service._webvue_model_company_ids(model_name, mode)
-            domain &= (Domain(owner_field, 'in', companies)
-                       & (Domain(owner_field, 'in', sorted(staff_ids))
-                          | Domain('employee_id.user_id', '=', self.env.uid)))
+            # A user's own request follows their stored membership, as in stock
+            # hr_holidays: base.group_user grants the read ACL, and the descendant
+            # projection never adds that internal baseline to a branch company, so the
+            # staff gate alone would hide an inherited branch owner's own leave.
+            memberships = service._webvue_membership_company_ids()
+            domain &= ((Domain('employee_id.user_id', '=', self.env.uid)
+                        & Domain(owner_field, 'in', memberships))
+                       | (Domain(owner_field, 'in', companies)
+                          & Domain(owner_field, 'in', sorted(staff_ids))))
         if model_name == 'webvue.hr.leave.settings' and not self.env.su:
             service = self.env['webvue.access.service']
             companies = set()

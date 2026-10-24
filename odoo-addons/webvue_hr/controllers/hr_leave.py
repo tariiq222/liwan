@@ -47,14 +47,21 @@ def _require(capability):
 
 
 def _leave_visibility_domain():
-    """Staff rights belong to each request's company, never another parent."""
+    """Staff rights belong to each request's company, never another parent.
+
+    The caller's own request follows their stored membership, like stock hr_holidays:
+    a branch company is never in the staff projection (base.group_user is not added
+    to a descendant), so an inherited branch owner would otherwise not see it.
+    """
     service = request.env['webvue.access.service']
     staff_ids = set()
     for key in STAFF_CAPABILITIES:
         staff_ids.update(service._webvue_operation_capability_company_ids(key))
-    return (Domain('company_id', 'in', service._webvue_scoped_company_ids())
-            & (Domain('company_id', 'in', sorted(staff_ids))
-               | Domain('employee_id.user_id', '=', request.env.uid)))
+    memberships = service._webvue_membership_company_ids()
+    return ((Domain('employee_id.user_id', '=', request.env.uid)
+             & Domain('company_id', 'in', memberships))
+            | (Domain('company_id', 'in', service._webvue_scoped_company_ids())
+               & Domain('company_id', 'in', sorted(staff_ids))))
 
 
 def _is_own(leave):

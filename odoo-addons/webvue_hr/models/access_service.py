@@ -129,6 +129,19 @@ class WebVueHrAccessService(models.AbstractModel):
         return super()._webvue_scoped_company_ids()
 
     @api.model
+    def _webvue_model_company_ids(self, model_name, operation):
+        companies = super()._webvue_model_company_ids(model_name, operation)
+        if model_name not in {'hr.leave', 'hr.leave.allocation'} or operation != 'read' or self.env.su:
+            return companies
+        # A leave request of the caller's own employee record stays readable in the
+        # company that owns it, like stock hr_holidays. The descendant projection never
+        # adds base.group_user to a branch company, so the generic fence would hide an
+        # inherited branch owner's own request; the rule still limits the row to the
+        # caller's own employee or a staff capability in that company.
+        own_companies = set(self.env.user.employee_ids.company_id.ids)
+        return sorted(set(companies) | (own_companies & set(self._webvue_membership_company_ids())))
+
+    @api.model
     def _webvue_inherited_capability_keys(self, user, company):
         keys = super()._webvue_inherited_capability_keys(user, company)
         capsules = self.env.cr.precommit.data.get(OWNER_AUTHORIZATION_MARKER, set())
