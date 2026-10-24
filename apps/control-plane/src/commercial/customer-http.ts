@@ -9,7 +9,7 @@ import { CommercialHttpError } from './lifecycle.js'
 import { assertNoCustomerIdentity, parseCustomerPrincipal, requireCapability } from './authorization.js'
 import { parseBody } from './http.js'
 import { getSubscription } from './subscriptions.js'
-import { createQuoteForCustomer } from './quotes.js'
+import { buildQuote, createQuoteForCustomer } from './quotes.js'
 import { acceptQuote } from './orders.js'
 import { listInvoices, getInvoice } from './invoices.js'
 import { planWire } from './plans.js'
@@ -74,6 +74,7 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if (m==='GET' && path==='/subscription') {requireCapability(principal,'subscription.read');return {status:200,data:await getSubscription(pool,customerId)}}
   if (m==='GET' && path==='/catalog') {requireCapability(principal,'subscription.read');return {status:200,data:await customerCatalog(pool,customerId)}}
   if (m==='POST' && path==='/quotes') {requireCapability(principal,'subscription.manage');return {status:201,data:await createQuoteForCustomer(pool,{customer_id:customerId,request:{...parseBody(input.raw,quoteRequestSchema),effective_date:undefined}})}}
+  if (m==='POST' && path==='/preview') {requireCapability(principal,'subscription.read');return {status:200,data:await buildQuote(pool,{customer_id:customerId,request:parseBody(input.raw,quoteRequestSchema)})}}
   if (m==='POST' && path==='/orders') {requireCapability(principal,'subscription.manage');const result=await acceptQuote(pool,parseBody(input.raw,acceptQuoteRequestSchema),principal);return {status:result.replay?200:201,data:result}}
   const payment=/^\/orders\/([^/]+)\/payment-attempts$/.exec(path)
   if(m==='POST'&&payment){

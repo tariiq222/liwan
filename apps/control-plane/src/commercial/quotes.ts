@@ -97,7 +97,8 @@ export async function loadQuoteSources(client: PoolClient, customerId: string, i
   return { plan: planRevision(row), bundles, release, terms, policy: policyWire(policyResult.rows[0]) }
 }
 
-export async function createQuoteForCustomer(pool: Pool, value: { customer_id: string; request: unknown; previewTerms?: CustomerTermsRevision }, now = new Date()): Promise<Quote> {
+type QuoteInput = { customer_id: string; request: unknown; previewTerms?: CustomerTermsRevision }
+async function quoteForCustomer(pool: Pool, value: QuoteInput, now: Date, persist: boolean): Promise<Quote> {
   const input = quoteRequestSchema.parse(value.request)
   return transaction(pool, async client => {
     const customer = await client.query('SELECT * FROM customers WHERE id=$1', [value.customer_id])
@@ -138,13 +139,21 @@ export async function createQuoteForCustomer(pool: Pool, value: { customer_id: s
         requested_users: input.requested_users, requested_storage_mb: input.requested_storage_mb,
         current, effective_date: effective, period, ids: { id: randomUUID(), customer_id: value.customer_id, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0 },
         expires_at: new Date(now.getTime() + TTL_MS).toISOString(), entitlement_digest: entitlement.digest })
-      if (!value.previewTerms) await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id, value.customer_id, JSON.stringify(quote), quote.digest, quote.expires_at])
+      if (persist && !value.previewTerms) await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id, value.customer_id, JSON.stringify(quote), quote.digest, quote.expires_at])
       return quoteSchema.parse(quote)
     } catch (e) {
       if (e instanceof CommercialError) { const i = toIssue(e); throw new CommercialHttpError(i.code, 422, i.field, [i]) }
       throw e
     }
   })
+}
+
+/** The in-memory half of a customer quote: same validation and pricing, no `commercial_quotes` row. */
+export function buildQuote(pool: Pool, value: QuoteInput, now = new Date()): Promise<Quote> {
+  return quoteForCustomer(pool, value, now, false)
+}
+export function createQuoteForCustomer(pool: Pool, value: QuoteInput, now = new Date()): Promise<Quote> {
+  return quoteForCustomer(pool, value, now, true)
 }
 
 export function pricingBaseline(quote: Quote, included: { extra_branches: number; users: number; storage_mb: number }) {
