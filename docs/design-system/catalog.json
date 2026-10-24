@@ -2537,17 +2537,17 @@
         {
           "id": "InBoardColumn",
           "name": "داخل عمود اللوحة",
-          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:289"
+          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:292"
         },
         {
           "id": "ProjectBoard",
           "name": "في لوحة المشروع (بلا اسم المشروع)",
-          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:289"
+          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:292"
         },
         {
           "id": "RichCard",
           "name": "بطاقة غنية (فرعية ومرفقات وكومة مسؤولين)",
-          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:289"
+          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:292"
         }
       ]
     },
@@ -6799,26 +6799,49 @@
           "name": "testIdPrefix",
           "type": "string",
           "required": false
+        },
+        {
+          "name": "openPath",
+          "type": "string[]",
+          "required": false
+        },
+        {
+          "name": "hydrated",
+          "type": "boolean",
+          "required": false
         }
       ],
       "events": [
         {
           "name": "navigate",
           "payload": "[item: ShellQuickItem]"
+        },
+        {
+          "name": "disclose",
+          "payload": "[path: string[], open: boolean]"
         }
       ],
       "slots": [],
-      "nuxtUi": [],
+      "nuxtUi": [
+        "UButton",
+        "UCollapsible",
+        "UIcon"
+      ],
       "stories": [
         {
           "id": "Default",
           "name": "أقسام القائمة الفرعية",
-          "context": "packages/ui/app/components/shell/ShellNavigation.vue:70"
+          "context": "packages/ui/app/components/shell/ShellNavigation.vue:87"
         },
         {
           "id": "Collapsed",
           "name": "مطوية (أيقونات)",
-          "context": "packages/ui/app/components/shell/ShellNavigation.vue:70"
+          "context": "packages/ui/app/components/shell/ShellNavigation.vue:87"
+        },
+        {
+          "id": "Nested",
+          "name": "أقسام وفلاتر متداخلة",
+          "context": null
         }
       ]
     },
@@ -7032,17 +7055,17 @@
         {
           "id": "Default",
           "name": "مهام: عروض وإجراءات",
-          "context": "packages/ui/app/components/shell/ShellNavigation.vue:71"
+          "context": "packages/ui/app/components/shell/ShellNavigation.vue:88"
         },
         {
           "id": "ActionsOnly",
           "name": "إجراءات فقط",
-          "context": "packages/ui/app/components/shell/ShellNavigation.vue:71"
+          "context": "packages/ui/app/components/shell/ShellNavigation.vue:88"
         },
         {
           "id": "Collapsed",
           "name": "مطوية (أيقونات)",
-          "context": "packages/ui/app/components/shell/ShellNavigation.vue:71"
+          "context": "packages/ui/app/components/shell/ShellNavigation.vue:88"
         }
       ]
     }

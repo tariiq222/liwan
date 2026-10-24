@@ -4,7 +4,7 @@ import { defineComponent, h, nextTick, reactive, ref } from 'vue'
 import { createReusableTemplate } from '@vueuse/core'
 import { DEFAULT_STUBS, loadShared, renderShared } from './helpers/renderShared'
 import { createHostNode, findNode, hostRenderer } from './helpers/hostRenderer'
-import { useNavigationDisclosure } from '../app/composables/useNavigationDisclosure'
+import { useNavigationDisclosure, useNavigationPathDisclosure } from '../app/composables/useNavigationDisclosure'
 
 const component = resolve(__dirname, '../app/components/shell/ShellNavigation.vue')
 const item = { id: 'meetings', label: 'Meetings', icon: 'i-lucide-calendar', to: '/meetings', active: true, sections: [{ id: 'links', title: '', items: [] }], views: [], actions: [] }
@@ -14,7 +14,7 @@ const options = {
   stubs: { UCollapsible: wrapper, UPopover: wrapper, UTooltip: wrapper },
   modules: {
     '@vueuse/core': { createReusableTemplate },
-    '../../composables/useNavigationDisclosure': { useNavigationDisclosure },
+    '../../composables/useNavigationDisclosure': { useNavigationDisclosure, useNavigationPathDisclosure },
     './ShellContextSubList.vue': { __esModule: true, default: empty },
     './ShellQuickViews.vue': { __esModule: true, default: empty },
     '../shared/layout/BrandWordmark.vue': { __esModule: true, default: empty },
@@ -34,10 +34,10 @@ describe('shared application navigation', () => {
     const html = await renderShared(component, { items: [item], activeId: 'meetings', routeKey: '/meetings', expanded: true, hydrated: false, homeTo: '/' }, {}, options)
     expect(html).toMatch(/<button[^>]*disabled[^>]*data-testid="navigation-app-meetings"/)
   })
-  it('uses the context heading as its trigger instead of adding a duplicate application row', async () => {
+  it('keeps the context heading static without adding an application disclosure row', async () => {
     const html = await renderShared(component, { items: [item], activeId: 'meetings', routeKey: '/meetings', expanded: true, hydrated: true, homeTo: '/', title: 'Meetings', surface: 'context', hideBrand: true }, {}, options)
-    expect(html.match(/<h2>[\s\S]*?<\/h2>/)?.[0]).toContain('data-testid="navigation-app-meetings"')
-    expect(html.match(/data-testid="navigation-app-meetings"/g)).toHaveLength(1)
+    expect(html).toContain('<h2>Meetings</h2>')
+    expect(html).not.toContain('data-testid="navigation-app-meetings"')
   })
   it('preserves an active panel and its local search across closing and collapsing', async () => {
     let mounts = 0

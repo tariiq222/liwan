@@ -19,7 +19,7 @@ const meta = {
   title: 'Task/TaskCard',
   component: TaskCard,
   args: { task: tasks[0]!, stages: boardStages, currentStageId: 11, showProject: true, onOpen: fn(), onMove: fn() },
-  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskBoard.vue:289', 'عمود اللوحة `w-72 p-2 border` من `apps/web/app/components/pmo/tasks/TaskBoard.vue:289`؛ بطاقة لكل مهمة.'),
+  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskBoard.vue:292', 'عمود اللوحة `w-72 p-2 border` من `apps/web/app/components/pmo/tasks/TaskBoard.vue:292`؛ بطاقة لكل مهمة.'),
 } satisfies Meta<typeof TaskCard>
 export default meta
 type Story = StoryObj<typeof meta>

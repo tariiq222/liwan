@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { effectScope, nextTick, ref } from 'vue'
-import { useNavigationDisclosure } from '../app/composables/useNavigationDisclosure'
+import { useNavigationDisclosure, useNavigationPathDisclosure } from '../app/composables/useNavigationDisclosure'
 
 function setup(collapsed = false) {
   const scope = effectScope()
@@ -47,5 +47,39 @@ describe('exclusive application disclosure', () => {
     state.setOpen('operations', true)
     expect(state.openId.value).toBe(null)
     state.scope.stop()
+  })
+})
+
+describe('exclusive nested navigation path', () => {
+  it('keeps ancestors open, replaces siblings and closes a whole descendant branch', async () => {
+    const scope = effectScope()
+    const active = ref(['settings', 'team', 'users'])
+    const routeKey = ref('/settings/team/users')
+    const collapsed = ref(false)
+    const allowed = ref([['settings', 'team'], ['settings', 'team', 'users'], ['settings', 'company'], ['finance', 'sales']])
+    const state = scope.run(() => useNavigationPathDisclosure(active, routeKey, collapsed, allowed))!
+    expect(state.openPath.value).toEqual(['settings', 'team', 'users'])
+    state.setOpen(['settings', 'team', 'users'], false)
+    expect(state.openPath.value).toEqual(['settings', 'team'])
+    state.setOpen(['settings', 'company'], true)
+    expect(state.openPath.value).toEqual(['settings', 'company'])
+    state.setOpen(['settings', 'team', 'users'], true)
+    state.setOpen(['settings', 'team'], false)
+    expect(state.openPath.value).toEqual([])
+    active.value = ['settings', 'team', 'users']
+    await nextTick()
+    expect(state.openPath.value).toEqual([]) // an equivalent model refresh must not undo a manual close
+    routeKey.value = '/settings/team/users?status=active'
+    await nextTick()
+    expect(state.openPath.value).toEqual(['settings', 'team', 'users'])
+    allowed.value = [['settings', 'team']]
+    await nextTick()
+    expect(state.openPath.value).toEqual(['settings', 'team'])
+    collapsed.value = true
+    await nextTick()
+    expect(state.openPath.value).toEqual([])
+    state.setOpen(['finance', 'sales'], true)
+    expect(state.openPath.value).toEqual([])
+    scope.stop()
   })
 })

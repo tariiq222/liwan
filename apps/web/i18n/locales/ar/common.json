@@ -107,7 +107,9 @@
     "meetingFollowup": "المتابعة",
     "meetingSeriesShort": "الدورية",
     "finance": "المالية",
-    "viewAll": "عرض الكل"
+    "viewAll": "عرض الكل",
+    "listOf": "قائمة {name}",
+    "overview": "نظرة عامة"
   },
   "auth": {
     "username": "اسم المستخدم",
