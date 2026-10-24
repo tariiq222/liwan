@@ -1,7 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import unittest
 
-from secret_guard import find_forbidden_paths, find_secret_lines
+from secret_guard import (
+    find_credential_fallbacks,
+    find_forbidden_paths,
+    find_secret_lines,
+)
 
 
 class TestSecretGuard(unittest.TestCase):
@@ -36,6 +40,56 @@ class TestSecretGuard(unittest.TestCase):
     def test_empty_shell_password_default_is_not_a_secret(self):
         text = 'case "${VENDOR_PASSWORD:-}" in\n'
         self.assertEqual(find_secret_lines('provision.sh', text), [])
+
+    def test_credential_fallback_literal_is_a_secret(self):
+        # deploy/loadtest/k6 scripts shipped `PASSWORD = ENV.PASSWORD || 'literal'`;
+        # the literal is what runs on any host BASE points at.
+        text = (
+            "const LOGIN = __ENV.LOGIN || 'admin';\n"
+            "const PASSWORD = __ENV.PASSWORD || 'not-a-real-password';\n"
+            "const secret = cfg.password || 'hunter2';\n"
+        )
+        self.assertEqual(find_credential_fallbacks(text), [2, 3])
+
+    def test_credential_fallback_placeholders_and_empty_defaults_are_allowed(self):
+        text = (
+            "const a = env.API_KEY || '<your-api-key>';\n"
+            "const b = opts.sessionToken ?? '';\n"
+            "const c = requiredEnv('PASSWORD');\n"
+            "const d = env.LOGIN || 'admin';\n"
+        )
+        self.assertEqual(find_credential_fallbacks(text), [])
+
+    def test_double_quoted_fallback_may_contain_an_apostrophe(self):
+        text = 'const PASSWORD = env.PASSWORD || "don\'t-use-this";\n'
+        self.assertEqual(find_credential_fallbacks(text), [1])
+
+    def test_an_empty_default_does_not_consume_a_later_string(self):
+        text = 'const TOKEN = env.TOKEN ?? ""; const label = "not a secret";\n'
+        self.assertEqual(find_credential_fallbacks(text), [])
+
+    def test_every_literal_spelling_of_a_credential_is_reported(self):
+        text = (
+            "const PASSWORD = 'not-a-real-password';\n"          # plain assignment
+            "PASSWORD ||= 'not-a-real-password';\n"              # logical-or assignment
+            "PASSWORD ??= 'secret123';\n"                  # nullish assignment
+            "const TOKEN = env.TOKEN || `lit`;\n"          # template literal
+        )
+        self.assertEqual(find_credential_fallbacks(text), [1, 2, 3, 4])
+
+    def test_a_value_wrapped_to_the_next_line_is_still_reported(self):
+        text = "const PASSWORD = __ENV.PASSWORD ||\n  'not-a-real-password';\n"
+        self.assertEqual(find_credential_fallbacks(text), [1])
+
+    def test_a_placeholder_earlier_on_the_line_does_not_hide_a_real_literal(self):
+        text = "const password = ''; const token = env.TOKEN || 'actual-credential';\n"
+        self.assertEqual(find_credential_fallbacks(text, 'deploy/x.js'), [1])
+
+    def test_a_self_described_fixture_is_only_allowed_in_a_test_file(self):
+        text = "const token = 'synthetic-local-token-'\n"
+        self.assertEqual(find_credential_fallbacks(text, 'deploy/x.test.mjs'), [])
+        self.assertEqual(find_credential_fallbacks(text, 'deploy/releases/test_guard.mjs'), [])
+        self.assertEqual(find_credential_fallbacks(text, 'deploy/x.mjs'), [1])
 
 
 if __name__ == '__main__':

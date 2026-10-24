@@ -5,6 +5,9 @@
 #
 # Runs the selected k6 scenario against BASE_URL, writing the console log
 # and the k6 --summary-export into results/ next to this script.
+#
+# LOGIN and PASSWORD must be exported by the caller; the k6 scripts have no
+# default account and abort without them.
 set -euo pipefail
 
 usage() {
@@ -20,6 +23,11 @@ SCENARIO="${2:-smoke}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESULTS_DIR="$SCRIPT_DIR/results"
 mkdir -p "$RESULTS_DIR"
+
+if [ -z "${LOGIN:-}" ] || [ -z "${PASSWORD:-}" ]; then
+  echo "Error: export LOGIN and PASSWORD for the scratch test account." >&2
+  exit 1
+fi
 
 if ! command -v k6 >/dev/null 2>&1; then
   echo "Error: k6 is not on PATH. Install it first (https://k6.io/docs/getting-started/installation/)." >&2
@@ -46,6 +54,9 @@ echo "Running k6 scenario '$SCENARIO' against $BASE_URL"
 echo "  log:     $LOG_FILE"
 echo "  summary: $SUMMARY_FILE"
 
+# k6 imports the parent environment into __ENV by default, so LOGIN and PASSWORD
+# reach the script without -e. Passing them with -e would publish the password in
+# the process argv for the whole run.
 k6 run \
   -e BASE="$BASE_URL" \
   --summary-export="$SUMMARY_FILE" \

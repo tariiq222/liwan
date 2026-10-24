@@ -4,9 +4,9 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
+import { LOGIN, PASSWORD } from './credentials.js';
+
 const BASE = __ENV.BASE || 'http://[::1]:3100';
-const LOGIN = __ENV.LOGIN || 'admin';
-const PASSWORD = __ENV.PASSWORD || 'LoadTest2026!';
 
 export const options = {
   vus: 5,

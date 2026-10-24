@@ -19,6 +19,8 @@ class GitignoreTests(unittest.TestCase):
             '.claude/skills/vendor-pack/SKILL.md', '.claude/settings.local.json',
             '.claude/agents/local-agent.md', '.claude/scripts/private.sh',
             '.scratch/plan.md', '.worktrees/task/source.ts', '.runtime/odoo.log',
+            '.agent-teams/team/team.json', '.agent-teams-webvue/team/team.json',
+            '.agent-teams-anyproject/inbox/member.jsonl',
             'apps/web/.nuxt/tsconfig.json', 'node_modules/example/index.js',
             'apps/web/test-results/trace.zip', 'apps/web/coverage/index.html',
         ])
