@@ -48,7 +48,7 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     const edited=await api('PATCH',`/plans/${revised.body.id}`,{edit_revision:revised.body.edit_revision,name:revised.body.name,audience:revised.body.audience,term_months:12,currency:'SAR',platform_limits: {},included_bundle_revision_ids:[],optional_bundle_revision_ids:[],included_extra_branches:1,extra_branch_prices:[{cadence:monthly,amount:money(5000)}],extra_branches_limit:null,included_users:1,included_storage_mb:0,user_prices:[{cadence:monthly,amount:money(0)}],storage_prices:[{cadence:monthly,amount:money(0)}],policy_revision_id:revised.body.policy_revision_id,trial_days:0,grace_days:2,auto_suspend:true,auto_renew_allowed:true,reason:'New higher pricing',prices:[{cadence:monthly,amount:money(90000)}]})
     expect(edited.status).toBe(200)
     const valid=await api('POST',`/plans/${revised.body.id}/validate`,{edit_revision:edited.body.edit_revision,reason:'New higher pricing'})
-    await api('POST',`/plans/${revised.body.id}/publish`,{edit_revision:valid.body.edit_revision,reason:'New higher pricing'})
+    suspend=(await api('POST',`/plans/${revised.body.id}/publish`,{edit_revision:valid.body.edit_revision,reason:'New higher pricing'})).body
     const adapter=new SimulatorAdapter()
     await Promise.all([generateRenewals(pool,args(adapter)),generateRenewals(pool,args(adapter))]);await generateRenewals(pool,args(adapter))
     const rows=(await pool.query('SELECT i.total_minor,o.target_revision_id,s.applied_revision_id FROM renewals r JOIN invoices i ON i.id=r.invoice_id JOIN orders o ON o.id=r.order_id JOIN subscriptions s ON s.id=r.subscription_id WHERE r.subscription_id=$1',[s.id])).rows
