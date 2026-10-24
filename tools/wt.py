@@ -243,6 +243,8 @@ def refuse_conflicts(request, others):
 
 
 def create(suffix, base, install, request, resume=False):
+    if '/' in suffix:
+        raise WorktreeError('worktree suffix must be a single directory name')
     branch = 'codex/' + suffix
     problem = check_branch(branch) or check_base(base)
     if problem:

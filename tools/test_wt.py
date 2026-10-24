@@ -91,6 +91,37 @@ class TestWt(unittest.TestCase):
             with self.assertRaises(WorktreeError):
                 create(bad, 'main', False, REQUEST)
 
+    def _create_isolated(self, root, suffix):
+        (root / '.git').mkdir()
+        listing = 'worktree %s\nbranch refs/heads/main\n' % root
+
+        def fake_sh(argv, cwd):
+            if argv[:3] == ['git', 'worktree', 'add']:
+                Path(argv[3]).mkdir(parents=True)
+            return listing
+
+        with mock.patch.object(wt, 'repo_root', return_value=root), \
+                mock.patch.object(wt, 'sh', side_effect=fake_sh), \
+                mock.patch.object(wt, 'inspect_all', return_value=[]), \
+                mock.patch.object(wt, 'git_dir', return_value=root / '.git'), \
+                mock.patch.object(wt, 'port_is_free', return_value=True):
+            return create(suffix, 'main', False, REQUEST)
+
+    def test_new_rejects_a_nested_suffix_even_when_its_branch_is_valid(self):
+        self.assertIsNone(wt.check_branch('codex/feature/example'))
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(WorktreeError, 'single directory name'):
+                self._create_isolated(Path(tmp), 'feature/example')
+
+    def test_new_accepted_suffixes_produce_worktrees_that_pass_the_checker(self):
+        for suffix in ('pmo', 'feature-example', 'pmo-Bad_Slug', 'موضوع+تصحيح', '-suffix'):
+            with self.subTest(suffix=suffix), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                path, branch, *_ = self._create_isolated(root, suffix)
+                self.assertEqual(path, root / '.worktrees' / suffix)
+                entry = worktree(path=path, branch=branch, claim=read_claim(root / '.git'))
+                self.assertEqual(wt.violations([entry]), [])
+
     def test_port_is_busy_when_only_ipv6_loopback_listens(self):
         if not socket.has_ipv6:
             self.skipTest('no IPv6')
