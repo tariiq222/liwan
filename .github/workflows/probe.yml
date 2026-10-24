@@ -1,0 +1,12 @@
+name: probe
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  hello:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Say hello
+        run: echo "runner assigned; CI works"
