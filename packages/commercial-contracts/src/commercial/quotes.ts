@@ -11,7 +11,7 @@ export type QuoteCurrent = {
 export type QuoteIds = { id: string; customer_id: string; subscription_id: string | null; expected_subscription_revision: number }
 export type ComputeQuoteInput = {
   kind: 'new' | 'change'; plan: PlanRevision; bundles: BundleRevision[]; terms: CustomerTermsRevision | null
-  cadence: Cadence; requested_extra_branches: number; current?: QuoteCurrent
+  cadence: Cadence; requested_extra_branches: number; requested_users: number; requested_storage_mb: number; current?: QuoteCurrent
   effective_date: string; period: { start: string; end: string }; policy: PricingPolicy
   ids: QuoteIds; expires_at: string; entitlement_digest?: string
 }
@@ -122,7 +122,8 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
 
   const body = {
     kind, plan_revision_id: plan.id, bundle_revision_ids: bundles.map(b => b.id).sort(), terms_revision_id: terms?.id ?? null,
-    entitlement_digest: input.entitlement_digest ?? '', requested_extra_branches: requested, cadence,
+    entitlement_digest: input.entitlement_digest ?? '', requested_extra_branches: requested,
+    requested_users: input.requested_users, requested_storage_mb: input.requested_storage_mb, cadence,
     effective_date: input.effective_date, policy_revision_id: policy.id, lines, due_now: money(dueNow + dueTax),
     next_renewal: money(renewal + renewTax), next_renewal_at: period.end, expires_at: input.expires_at,
     customer_id: ids.customer_id, subscription_id: ids.subscription_id, expected_subscription_revision: ids.expected_subscription_revision,
