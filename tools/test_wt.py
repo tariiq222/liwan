@@ -390,8 +390,8 @@ class TestStatusAndGc(unittest.TestCase):
         self.assertEqual(text, 'nothing to clean')
         self.assertEqual(calls, [])
 
-    def test_gc_branch_must_be_a_codex_task_branch(self):
-        for name in ('main', 'feature/x', 'codex/Bad Name', 'codex/nope'):
+    def test_gc_branch_must_be_a_local_task_branch(self):
+        for name in ('main', 'bad..name', 'codex/Bad Name'):
             with self.subTest(name=name), self.assertRaises(WorktreeError):
                 self._gc_branch([worktree()], name)
 
@@ -419,8 +419,8 @@ class TestRules(unittest.TestCase):
         agent = worktree(path=Path('/r/.claude/worktrees/agent-a1'), canonical=False, branch='worktree-agent-a1')
         problems = self.problems([agent])
         self.assertIn('outside .worktrees/', problems[0])
-        self.assertIn("branch 'worktree-agent-a1' must be main, codex/<area>-<slug> or spike/<slug>", problems[1])
-        self.assertIn('no ownership claim', problems[2])
+        # Any normal branch name is accepted: only the missing claim is still reported.
+        self.assertIn('no ownership claim', problems[1])
 
     def test_folder_must_match_its_branch(self):
         problems = self.problems([worktree(path=Path('/r/.worktrees/other'), claim=CLAIM)])

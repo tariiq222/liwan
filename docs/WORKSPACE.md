@@ -4,7 +4,7 @@
 
 ## نسخة العمل
 
-نسخة تطوير المنتج المحلية هي `/Users/tariq/code/webvue` على `main`، ومستودع GitHub اسمه `webvue` (الـ remote هو `origin`، `https://github.com/tariiq222/webvue.git`، ويتتبعه `main`). نسخ المهام المؤقتة `codex/<area>-<slug>` تُنشأ من أحدث `main` بمساحات dependencies وتوليد ومنافذ وقواعد اختبار مستقلة، ولا تُحذف نسخة تستخدمها عملية حية.
+نسخة تطوير المنتج المحلية هي `/Users/tariq/code/webvue` على `main`، ومستودع GitHub اسمه `webvue` (الـ remote هو `origin`، `https://github.com/tariiq222/webvue.git`، ويتتبعه `main`). نسخ المهام المؤقتة (بأي اسم فرع عادي، مثل `<area>-<slug>`) تُنشأ من أحدث `main` بمساحات dependencies وتوليد ومنافذ وقواعد اختبار مستقلة، ولا تُحذف نسخة تستخدمها عملية حية.
 
 - صفحات ومكونات التطبيق: `apps/web/app`؛ التطبيق لا يعتمد على معاينة مستقلة.
 - مصدر Odoo وإعداداته في `/Users/tariq/code/odoo` للقراءة فقط.

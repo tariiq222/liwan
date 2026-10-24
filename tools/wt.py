@@ -210,10 +210,10 @@ def install_dependencies(path):
 
 
 def check_base(base):
-    """Problem with a ``new --base``, or ``None``: task worktrees branch from main or a codex/ integration branch."""
-    if base == MAIN or (base.startswith('codex/') and not check_branch(base)):
+    """Problem with a ``new --base``, or ``None``: task worktrees branch from main or an integration branch."""
+    if base == MAIN or not check_branch(base):
         return None
-    return "--base '%s' must be %s or a codex/<area>-<slug> integration branch" % (base, MAIN)
+    return "--base '%s' must be %s or an integration branch" % (base, MAIN)
 
 
 def git_dir(path):
@@ -402,7 +402,7 @@ def inspect_all(root, sizes=True):
 def branch_violation(worktree):
     """Why the worktree's branch or folder name breaks the naming rule, or ``None``."""
     if not worktree.branch:
-        return 'no branch (detached HEAD); task worktrees are on codex/<area>-<slug>'
+        return 'no branch (detached HEAD); task worktrees are on any normal branch'
     problem = check_branch(worktree.branch)
     if problem:
         return problem
@@ -621,8 +621,8 @@ def merged_local_branch(root, branch):
 
 
 def gc(root, apply, current, branch=None):
-    if branch is not None and (not branch.startswith('codex/') or check_branch(branch)):
-        message = '--branch must be a local codex/<area>-<slug> task branch'
+    if branch is not None and (branch in ('main', 'HEAD') or check_branch(branch)):
+        message = '--branch must be a local task branch'
         raise WorktreeError(message)
     worktrees = inspect_all(root)
     busy = busy_paths()

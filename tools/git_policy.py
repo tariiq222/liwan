@@ -31,13 +31,13 @@ AREAS = (*FIXED_AREAS[:3], *app_areas(), *FIXED_AREAS[3:])
 POLICY_START = '7208cf961ecbeb60e988e840fe2ca7cd4c3a3b9d'
 MAX_SUBJECT = 72
 GENERATED = ('docs/api/openapi.json', 'docs/api/route-capabilities.json')
-# Branches that may carry regenerated files: main and the orchestrator's integration branches.
-INTEGRATION_BRANCH = re.compile(r'^codex/tools-integrate-.+$')
+# Branches that may carry regenerated files: main and any orchestrator integration branch.
+INTEGRATION_BRANCH = re.compile(r'^[A-Za-z0-9._-]+/tools-integrate-.+$')
+# Any normal task branch is accepted: the owner chooses the name, so no prefix or area is
+# required. Only a malformed ref (or main/HEAD itself) is reported.
+BRANCH_NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._/-]*$')
 
 SUBJECT = re.compile(rf"^(?:{'|'.join(TYPES)})\((?:{'|'.join(AREAS)})\): \S")
-SLUG = r'[a-z0-9]+(?:-[a-z0-9]+)*'
-TASK_BRANCH = re.compile(rf"^codex/(?:{'|'.join(AREAS)})-{SLUG}$")
-SPIKE_BRANCH = re.compile(rf'^spike/{SLUG}$')
 
 
 def check_subject(subject: str) -> str | None:
@@ -54,18 +54,19 @@ def check_subject(subject: str) -> str | None:
 
 
 def check_branch(name: str) -> str | None:
-    if name in ('main', 'HEAD') or TASK_BRANCH.match(name) or SPIKE_BRANCH.match(name):
-        return None
-    return f"branch '{name}' must be main, codex/<area>-<slug> or spike/<slug>; areas: {AREAS}"
+    """Accept any normal branch name; only a ref Git would reject is a violation."""
+    if not BRANCH_NAME.match(name) or '..' in name or '//' in name or name.endswith(('.', '/')):
+        return f"branch '{name}' is not a valid branch name"
+    return None
 
 
 def check_generated_commits(branch: str, touching: dict[str, list[str]]) -> list[str]:
     """Problems for the commits of ``branch`` (``{generated path: [sha, ...]}``) that modify a generated file."""
-    if not branch.startswith('codex/') or INTEGRATION_BRANCH.match(branch):
+    if branch == 'main' or INTEGRATION_BRANCH.match(branch):
         return []
     return [
         f'{sha}: task branch {branch} must not modify {path}; the orchestrator '
-        f'regenerates it at integration (python3 tools/api_surface.py on codex/tools-integrate-*)'
+        f'regenerates it at integration (python3 tools/api_surface.py on <prefix>/tools-integrate-*)'
         for path, shas in touching.items() for sha in shas
     ]
 

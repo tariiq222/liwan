@@ -36,7 +36,7 @@ def request(method: str, endpoint: str, payload: dict):
 def eligible(pr: dict, repo: str) -> bool:
     return (pr['state'] == 'open' and not pr['draft'] and pr['base']['ref'] == 'main'
             and pr['head']['repo'] is not None and pr['head']['repo']['full_name'] == repo
-            and pr['head']['ref'].startswith('codex/')
+            and pr['head']['ref'] not in ('', 'main')
             and pr['user']['login'] in (repo.split('/', maxsplit=1)[0], *BOTS))
 
 

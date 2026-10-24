@@ -58,7 +58,7 @@ report that state and keep the merge blocked.
 2. **Prepare one candidate.** Work in an isolated, claimed worktree. Bring the
    latest remote `main` into the candidate without rebasing another owner's
    branch. An independent task uses its own PR. A coupled batch uses
-   `codex/tools-integrate-<slug>`, merging only its agreed branches with merge
+   `<prefix>/tools-integrate-<slug>`, merging only its agreed branches with merge
    commits and one PR to `main`. Preserve incoming commits and approved behavior;
    do not replace entire files, use blanket `ours`/`theirs`, reset `main` to an
    incoming tree or treat ancestry as proof behavior survives. Regenerate API

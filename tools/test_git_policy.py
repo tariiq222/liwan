@@ -51,22 +51,17 @@ class TestSubject(unittest.TestCase):
 
 
 class TestBranch(unittest.TestCase):
-    def test_allowed_branches(self):
-        for name in ('main', 'HEAD', 'codex/pmo-milestone-reorder', 'codex/tools-arch-policy', 'codex/meetings-split', 'spike/generic-app-layer'):
+    def test_any_normal_branch_is_allowed(self):
+        for name in (
+            'main', 'HEAD', 'codex/pmo-milestone-reorder', 'claude/ci-revert-44',
+            'feature/pmo-thing', 'customer/acme', 'support/1.0', 'spike/generic-app-layer',
+            'owner/anything-goes', 'codex/saas-admin-fixes',
+        ):
             self.assertIsNone(check_branch(name), name)
 
-    def test_rejected_branches(self):
-        for name in (
-            'codex/saas-admin-fixes',
-            'codex/pmo',
-            'codex/pmo-',
-            'codex/PMO-thing',
-            'feature/pmo-thing',
-            'customer/acme',
-            'support/1.0',
-            'spike/',
-        ):
-            self.assertIn('must be main', check_branch(name), name)
+    def test_malformed_branch_names_are_rejected(self):
+        for name in ('', '-leading-dash', 'bad..dots', 'double//slash', 'trailing/', 'space name'):
+            self.assertIn('not a valid branch name', check_branch(name), name)
 
 
 if __name__ == '__main__':
