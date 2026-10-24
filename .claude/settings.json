@@ -1,4 +1,40 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git fetch:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run check:fast:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm -w apps/web run lint:*)",
+      "Bash(npm -w apps/web run test:*)",
+      "Bash(npm -w apps/vendor-admin run lint:*)",
+      "Bash(npm -w apps/vendor-admin run test:*)",
+      "Bash(npm run wt -- check:*)",
+      "Bash(python3 -B tools/arch_policy.py)",
+      "Bash(python3 -B tools/git_policy.py:*)",
+      "Bash(python3 -B tools/docs_policy.py:*)",
+      "Bash(python3 -B tools/ui_policy.py:*)",
+      "Bash(python3 -B -m unittest:*)",
+      "Bash(ruff check:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git branch -D:*)",
+      "Bash(git worktree remove:*)",
+      "Bash(npm run wt -- gc:*)",
+      "Bash(python3 -B tools/wt.py gc:*)",
+      "Bash(python3 -B tools/arch_policy.py --write-baseline:*)",
+      "Bash(gh pr merge:*)",
+      "mcp__github__merge_pull_request"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -16,7 +52,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/scripts/use-nvmrc-node.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/scripts/session-start.sh"
           }
         ]
       }
