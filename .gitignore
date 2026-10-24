@@ -59,7 +59,7 @@ venv/
 # --- Agent scratch space: ledgers and run artifacts, never part of the product
 .superpowers/
 .impeccable/
-# Planner-skill output stays local.
+# Planner-skill output: local specs and tickets only, never committed or published
 .scratch/
 
 # --- Secrets: only documented, sanitized env templates are shared ------------
