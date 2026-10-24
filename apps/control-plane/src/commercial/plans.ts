@@ -66,6 +66,9 @@ export async function planIssues(client: Pool | PoolClient, row: Row): Promise<I
   if (!prices.length) issues.push({ code: 'price_missing', field: 'prices' })
   issues.push(...priceIssues(prices, 'prices'), ...priceIssues(branchPrices, 'extra_branch_prices'),
     ...priceIssues(userPrices, 'user_prices'), ...priceIssues(storagePrices, 'storage_prices'))
+  // Storage is sold in whole gigabytes above the included minimum (the quote engine enforces the
+  // same unit), so a non-whole-GB minimum would make every quote on this plan fail.
+  if (row.included_storage_mb % 1024 !== 0) issues.push({ code: 'storage_minimum_not_whole_gb', field: 'included_storage_mb' })
   const allPrices = [...prices, ...branchPrices, ...userPrices, ...storagePrices]
   for (const p of allPrices) if (p.amount.currency !== row.currency) { issues.push({ code: 'currency_mismatch', field: 'prices' }); break }
   const exp = isoExponent(row.currency)

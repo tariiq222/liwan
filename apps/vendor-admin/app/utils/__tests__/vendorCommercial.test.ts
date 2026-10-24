@@ -96,6 +96,10 @@ describe('plan form ↔ payload', () => {
   it('refuses a plan whose included user minimum admits no administrator', () => {
     expect(() => planCreatePayload({ ...filled(), included_users: '0' }, rid(9))).toThrow()
   })
+  it('refuses an included storage minimum that is not a whole gigabyte', () => {
+    expect(() => planCreatePayload({ ...filled(), included_storage_mb: '5000' }, rid(9))).toThrow('invalid_storage_minimum')
+    expect(planCreatePayload({ ...filled(), included_storage_mb: '5120' }, rid(9)).included_storage_mb).toBe(5120)
+  })
   it('rejects empty explicit choices instead of defaulting', () => {
     for (const patch of [{ auto_suspend: '' }, { auto_renew_allowed: '' }, { trial_days: '' }, { grace_days: '' }, { included_extra_branches: '' }, { term_months: '' }, { extra_branches_limit: { mode: '', value: '' } }])
       expect(() => planCreatePayload({ ...filled(), ...patch } as never, rid(9))).toThrow()

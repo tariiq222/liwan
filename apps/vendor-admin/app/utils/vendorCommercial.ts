@@ -7,6 +7,7 @@ import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
 
 export const CURRENCY = 'SAR'
+export const MB_PER_GB = 1024
 export const EXPONENT = 2
 export const MAX_LIMIT = Number.MAX_SAFE_INTEGER
 /** Platform limits are owned by the plan, never by a bundle. */
@@ -211,10 +212,12 @@ function requireCount(v: string, max = MAX_LIMIT): number { const n = parseCount
 export function planFields(draft: PlanDraft, policyId: string) {
   const includedUsers = requireCount(draft.included_users)
   if (includedUsers < 1) throw new Error('invalid_count')
+  const includedStorage = requireCount(draft.included_storage_mb)
+  if (includedStorage % MB_PER_GB !== 0) throw new Error('invalid_storage_minimum')
   return {
     name: draft.name.trim(), audience: audienceFromDraft(draft.audience), term_months: requireCount(draft.term_months, 120), currency: CURRENCY,
     prices: pricesFromDrafts(draft.prices), platform_limits: {},
-    included_users: includedUsers, included_storage_mb: requireCount(draft.included_storage_mb),
+    included_users: includedUsers, included_storage_mb: includedStorage,
     user_prices: pricesFromDrafts(draft.user_prices), storage_prices: pricesFromDrafts(draft.storage_prices),
     included_bundle_revision_ids: [...draft.included], optional_bundle_revision_ids: draft.optional.filter(id => !draft.included.includes(id)),
     included_extra_branches: requireCount(draft.included_extra_branches), extra_branch_prices: pricesFromDrafts(draft.extra_branch_prices),
@@ -263,7 +266,7 @@ export function commercialFailure(cause: unknown): CommercialFailure {
   return { status, code, message: body?.message ?? e?.message ?? '', field: body?.field ?? e?.field, conflict: status === 409 || code === 'revision_conflict', forbidden: status === 403 || code === 'forbidden' }
 }
 /** Every code the control-plane commercial routes, the contract compiler and the vendor proxy can emit; each needs vendor.pricing.errors.<code> in ar and en. */
-export const COMMERCIAL_ERROR_CODES = ['revision_conflict', 'invalid', 'forbidden', 'not_found', 'transition_forbidden', 'transition_invalid', 'customers_attached', 'price_missing', 'feature_not_selectable', 'dependency_missing', 'app_conflict', 'dependency_cycle', 'unknown_app', 'app_not_selectable', 'catalog_release_mismatch', 'bundle_not_allowed', 'bundle_missing', 'bundle_unavailable', 'bundle_duplicated', 'bundle_delete_forbidden', 'bundle_audience_mismatch', 'plan_missing', 'plan_unavailable', 'plan_delete_forbidden', 'policy_missing', 'release_missing', 'published_catalog_missing', 'quote_missing', 'quote_kind_unsupported', 'terms_unsupported', 'content_digest_mismatch', 'review_required', 'audience_invalid', 'branch_limit_invalid', 'branch_limit_exceeded', 'branch_price_missing', 'unit_price_missing', 'platform_limit_derived', 'users_limit_admin_required', 'currency_mismatch', 'duplicate_price_cadence', 'term_not_multiple', 'ambiguous_limit', 'limit_not_supported', 'invalid_limit_scope', 'invalid_quantity', 'invalid_billing_period', 'invalid_order_transition', 'invalid_json', 'payload_too_large', 'unauthorized', 'vendor_unavailable', 'method_not_allowed'] as const
+export const COMMERCIAL_ERROR_CODES = ['revision_conflict', 'invalid', 'forbidden', 'not_found', 'transition_forbidden', 'transition_invalid', 'customers_attached', 'price_missing', 'feature_not_selectable', 'dependency_missing', 'app_conflict', 'dependency_cycle', 'unknown_app', 'app_not_selectable', 'catalog_release_mismatch', 'bundle_not_allowed', 'bundle_missing', 'bundle_unavailable', 'bundle_duplicated', 'bundle_delete_forbidden', 'bundle_audience_mismatch', 'plan_missing', 'plan_unavailable', 'plan_delete_forbidden', 'policy_missing', 'release_missing', 'published_catalog_missing', 'quote_missing', 'quote_kind_unsupported', 'terms_unsupported', 'content_digest_mismatch', 'review_required', 'audience_invalid', 'branch_limit_invalid', 'branch_limit_exceeded', 'branch_price_missing', 'unit_price_missing', 'platform_limit_derived', 'users_limit_admin_required', 'storage_minimum_not_whole_gb', 'currency_mismatch', 'duplicate_price_cadence', 'term_not_multiple', 'ambiguous_limit', 'limit_not_supported', 'invalid_limit_scope', 'invalid_quantity', 'invalid_billing_period', 'invalid_order_transition', 'invalid_json', 'payload_too_large', 'unauthorized', 'vendor_unavailable', 'method_not_allowed'] as const
 const KNOWN_ERRORS = new Set<string>(COMMERCIAL_ERROR_CODES)
 export function commercialErrorKey(cause: unknown): string {
   const f = commercialFailure(cause)

@@ -85,6 +85,11 @@ suite('commercial plans', () => {
     expect(row.user_prices).toHaveLength(1)
     expect(row.storage_prices).toHaveLength(1)
   })
+  it('refuses an included storage minimum that is not a whole gigabyte', async () => {
+    const c = await api('POST', '/plans', planBody({ included_storage_mb: 5000 }))
+    expect(c.status).toBe(201)
+    expect(codes(await validate(c.body.id))).toContain('storage_minimum_not_whole_gb')
+  })
   it('refuses a monthly plan with no monthly users unit price', async () => {
     const c = await api('POST', '/plans', planBody({ prices: [{ cadence: monthly, amount: money(299) }], user_prices: [] }))
     expect(c.status).toBe(201)

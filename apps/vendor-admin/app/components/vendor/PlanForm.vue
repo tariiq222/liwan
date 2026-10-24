@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, limitFromDraft, parseCount, planDraftFromView, priceRowErrors, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
+import { commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, limitFromDraft, MB_PER_GB, parseCount, planDraftFromView, priceRowErrors, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
 import type { PricingPolicyView } from '@/composables/useVendorCommercial'
 const props = withDefaults(defineProps<{ bundles: BundleView[]; policy?: PricingPolicyView; initial?: PlanView; busy?: boolean; error?: unknown; resetKey?: number; requireReason?: boolean }>(), { busy: false, resetKey: 0, requireReason: false })
 const emit = defineEmits<{ save: [draft: PlanDraft]; cancel: [] }>()
@@ -38,7 +38,9 @@ const errors = computed(() => {
   if (!draft.included.length && !draft.optional.length) e.bundles = t('vendor.pricing.plan.bundlesRequired')
   if (releaseIds.value.size > 1) e.bundles = t('vendor.pricing.plan.singleRelease')
   if ((parseCount(draft.included_users) ?? 0) < 1) e.includedUsers = t('vendor.pricing.plan.usersRequired')
-  if (parseCount(draft.included_storage_mb) === null) e.includedStorage = req
+  const storage = parseCount(draft.included_storage_mb)
+  if (storage === null) e.includedStorage = req
+  else if (storage % MB_PER_GB !== 0) e.includedStorage = t('vendor.pricing.plan.storageMinimumGb')
   if (priceRowErrors(draft.user_prices).some(Boolean)) e.userPrices = t('vendor.pricing.prices.invalid')
   if (priceRowErrors(draft.storage_prices).some(Boolean)) e.storagePrices = t('vendor.pricing.prices.invalid')
   if (unitPriceMissing.value) e.unitPrices = t('vendor.pricing.prices.cadenceMissing')

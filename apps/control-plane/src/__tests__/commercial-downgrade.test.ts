@@ -28,7 +28,7 @@ suite('downgrade fail-closed usage guards',()=>{
     const bv=await api('POST',`/bundles/${b.body.id}/validate`,{edit_revision:1,reason})
     bundle=(await api('POST',`/bundles/${b.body.id}/publish`,{edit_revision:bv.body.edit_revision,reason})).body
     expect(bundle.status).toBe('published')
-    const p=await api('POST','/plans',{name:`Downgrade ${randomUUID()}`,audience:{kind:'public'},term_months:12,currency:'SAR',prices:[{cadence:monthly,amount:money(10000)}],platform_limits:{},included_bundle_revision_ids:[bundle.id],optional_bundle_revision_ids:[],included_extra_branches:0,extra_branch_prices:[{cadence:monthly,amount:money(5000)}],extra_branches_limit:10,included_users:10,included_storage_mb:10,user_prices:[{cadence:monthly,amount:money(0)}],storage_prices:[{cadence:monthly,amount:money(0)}],policy_revision_id:POLICY,trial_days:0,grace_days:0,auto_suspend:true,auto_renew_allowed:true})
+    const p=await api('POST','/plans',{name:`Downgrade ${randomUUID()}`,audience:{kind:'public'},term_months:12,currency:'SAR',prices:[{cadence:monthly,amount:money(10000)}],platform_limits:{},included_bundle_revision_ids:[bundle.id],optional_bundle_revision_ids:[],included_extra_branches:0,extra_branch_prices:[{cadence:monthly,amount:money(5000)}],extra_branches_limit:10,included_users:10,included_storage_mb:1024,user_prices:[{cadence:monthly,amount:money(0)}],storage_prices:[{cadence:monthly,amount:money(0)}],policy_revision_id:POLICY,trial_days:0,grace_days:0,auto_suspend:true,auto_renew_allowed:true})
     const pv=await api('POST',`/plans/${p.body.id}/validate`,{edit_revision:1,reason})
     plan=(await api('POST',`/plans/${p.body.id}/publish`,{edit_revision:pv.body.edit_revision,reason})).body
     expect(plan.status).toBe('published')
@@ -38,7 +38,7 @@ suite('downgrade fail-closed usage guards',()=>{
     const tenant=randomUUID(),customer=randomUUID()
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Downgrade','saas','managed',$2,true)",[tenant,`inv-${tenant}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)',[customer,'Downgrade',tenant])
-    const request={kind:'new',plan_revision_id:plan.id,bundle_revision_ids:[],cadence:monthly,requested_extra_branches:0,requested_users:10,requested_storage_mb:10}
+    const request={kind:'new',plan_revision_id:plan.id,bundle_revision_ids:[],cadence:monthly,requested_extra_branches:0,requested_users:10,requested_storage_mb:1024}
     const q=await createQuoteForCustomer(pool,{customer_id:customer,request},now)
     const {order}=await orders.acceptQuote(pool,{quote_id:q.id,expected_subscription_revision:0,idempotency_key:randomUUID()},vendor)
     await pool.query("UPDATE orders SET payment_state='paid',fulfillment_state='applied' WHERE id=$1",[order.id])

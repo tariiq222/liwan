@@ -703,6 +703,7 @@
       },
       "plan": {
       "usersRequired": "The included minimum must admit at least one user.",
+        "storageMinimumGb": "Enter the included storage minimum in whole gigabytes (a multiple of 1024 MB).",
       "quantitiesHint": "The minimums are covered by the base price; anything above them is priced per unit.",
       "userPricesHint": "Price per user above the minimum, for each billing cadence.",
       "storagePricesHint": "Price per gigabyte above the minimum, for each billing cadence.",
@@ -800,6 +801,7 @@
         "unit_price_missing": "Add the unit price for every offered billing cadence.",
         "platform_limit_derived": "Users and storage are customer-chosen quantities, not plan limits.",
         "users_limit_admin_required": "The chosen quantity must admit at least one administrator.",
+        "storage_minimum_not_whole_gb": "Storage is sold in whole gigabytes above the minimum; make the minimum a multiple of 1024.",
         "invalid_billing_period": "Invalid billing period.",
         "invalid_order_transition": "Order transition not allowed.",
         "invalid_json": "Invalid request. Try again.",
@@ -1105,7 +1107,9 @@
         "branch": "Branch",
         "discount": "Discount",
         "tax": "Tax",
-        "adjustment": "Adjustment"
+        "adjustment": "Adjustment",
+        "users": "Users",
+        "storage": "Storage"
       },
       "kind": {
         "initial": "New subscription",

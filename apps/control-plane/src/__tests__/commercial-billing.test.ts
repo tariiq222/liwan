@@ -34,6 +34,20 @@ suite('commercial billing invoices + outbox', () => {
   beforeAll(async () => { await migrate(pool) })
   afterAll(async () => { await pool.end() })
 
+  it('keeps metered users and storage lines on the invoice payload', async () => {
+    const a = await seed()
+    const quote = mkQuote(a.rid, 143750, 18750)
+    quote.lines.splice(1, 0,
+      { key: 'users', kind: 'users', timing: 'now', description: 'Users', quantity: 7, amount: m(17500), period_start: '2026-01-01', period_end: '2026-02-01', source_revision_id: a.rid },
+      { key: 'storage', kind: 'storage', timing: 'now', description: 'Storage', quantity: 15, amount: m(7500), period_start: '2026-01-01', period_end: '2026-02-01', source_revision_id: a.rid })
+    const client = await pool.connect()
+    let issued
+    try { await client.query('BEGIN'); issued = await issueInvoiceFromQuote(client, { order: a.order, quote }); await client.query('COMMIT') } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
+    expect(issued!.lines.map(l => l.kind)).toEqual(expect.arrayContaining(['users', 'storage']))
+    const read = await getInvoice(pool, issued!.id, { customer_id: a.order.customer_id })
+    expect(read!.lines.find(l => l.kind === 'users')).toMatchObject({ quantity: 7, unit_amount: m(2500) })
+    expect(read!.lines.find(l => l.kind === 'storage')).toMatchObject({ quantity: 15, unit_amount: m(500) })
+  })
   it('issues invoices with unique numbers and immutable lines', async () => {
     const a = await seed(), b = await seed()
     const c = await pool.connect()
