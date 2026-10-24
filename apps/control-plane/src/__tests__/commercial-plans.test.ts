@@ -53,6 +53,21 @@ suite('commercial plans', () => {
     const v = await validate(c.body.id)
     expect(codes(v)).toContain('platform_limit_derived')
   })
+  it('leaves exactly one sellable revision after publishing a successor', async () => {
+    const c = await api('POST', '/plans', planBody())
+    const v1 = await validate(c.body.id)
+    const p1 = await api('POST', `/plans/${c.body.id}/publish`, { edit_revision: v1.body.edit_revision, reason })
+    const rev = await api('POST', `/plans/${c.body.id}/revisions`, { edit_revision: p1.body.edit_revision, reason })
+    const v2 = await validate(rev.body.id)
+    const p2 = await api('POST', `/plans/${rev.body.id}/publish`, { edit_revision: v2.body.edit_revision, reason })
+    expect(p2.status).toBe(200)
+    const sellable = (await pool.query("SELECT id FROM plan_revisions WHERE plan_id=$1 AND status='published' AND available", [c.body.plan_id])).rows
+    expect(sellable).toHaveLength(1)
+    expect(sellable[0].id).toBe(rev.body.id)
+    const audit = (await pool.query("SELECT metadata FROM audit_events WHERE action='plan.withdrawn_by_publish' AND subject=$1", [rev.body.id])).rows
+    expect(audit).toHaveLength(1)
+    expect(audit[0].metadata.predecessor_id).toBe(c.body.id)
+  })
   it('reads back the new plan columns', async () => {
     const c = await api('POST', '/plans', planBody({ included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: monthly, amount: money(2500) }], storage_prices: [{ cadence: monthly, amount: money(500) }] }))
     expect(c.status).toBe(201)

@@ -186,6 +186,12 @@ export async function mutatePlan(pool: Pool, actor: CommercialActor, id: string,
       if (action === 'validate') { if (!(await client.query("UPDATE plan_revisions SET status='validated',validated_digest=content_digest,edit_revision=edit_revision+1 WHERE id=$1 AND edit_revision=$2", [id, row.edit_revision])).rowCount) throw new CommercialHttpError('revision_conflict', 409) }
       else {
         await client.query("UPDATE plan_revisions SET status='published',available=true,published_at=now(),edit_revision=edit_revision+1 WHERE id=$1", [id])
+        // Publishing withdraws every other sellable revision of the same plan in this transaction,
+        // so the customer catalog never lists the same plan twice. Bundles stay manual: a withdrawn
+        // bundle would strand every published plan that references it.
+        const withdrawn = await client.query("UPDATE plan_revisions SET available=false,edit_revision=edit_revision+1 WHERE plan_id=$1 AND id<>$2 AND status='published' AND available RETURNING id", [row.plan_id, id])
+        for (const predecessor of withdrawn.rows)
+          await audit(client, actor, 'plan.withdrawn_by_publish', id, reason, { predecessor_id: predecessor.id, plan_id: row.plan_id })
         for (const b of new Set<string>([...row.included_bundle_revision_ids, ...row.optional_bundle_revision_ids]))
           await client.query("INSERT INTO revision_references(revision_id,revision_kind,referenced_by_kind,referenced_by_id) VALUES($1,'bundle','plan',$2) ON CONFLICT DO NOTHING", [b, id])
       }
