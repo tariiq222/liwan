@@ -16,7 +16,7 @@ Distinguish focused checks, combined-candidate checks and a full release run.
 
 - [ ] Applicable local checks passed on the combined result.
 - [ ] Current PR `ci-result` and selected stages passed; skipped stages inspected.
-- [ ] Current-head Claude GitHub review completed; automation-authored heads also need the owner approval of that SHA.
+- [ ] Current-head GitHub review completed (Codex, or Claude with availability reason recorded).
 - [ ] Actual diff reviewed against the recorded remote baseline.
 - [ ] Prior approved behavior and regression requirements preserved.
 - [ ] Remaining failures, unverified behavior and release blockers described below.

@@ -27,23 +27,25 @@ The standing delivery policy covers reserved safe repair commits, normal merges 
 below. It does not authorize production deployment, destructive cleanup or changing
 its own gates through an automatic repair.
 
-## One reviewer, one decision
+## Two review providers, one decision
 
-The `pr-review` workflow starts when a same-repository owner/approved-bot PR on a
-`claude/` branch becomes ready, is reopened or receives commits; drafts and other
-heads are skipped. Claude Code reviews it. The controller supplies the complete diff
-as data; Claude has no tools or filesystem access and returns a structured report.
-A separate non-model job publishes it on GitHub. Current-head reviews are required;
-an old head, an incomplete report or an unavailable service cannot yield a green
-`code-review`. P0/P1/P2 findings fail it; unresolved conversations remain binding
-at merge. A head written by Claude, GitHub Actions or an unattributed author is
-reviewed the same way but merges only with the owner's exact-head approval.
+The `pr-review` workflow starts when a same-repository owner/approved-bot PR becomes ready,
+is reopened or receives commits. Codex is primary; Claude Code is a bounded
+fallback if Codex does not complete within five minutes or the request fails.
+An actual review with findings is complete and never triggers a softer reviewer.
+The controller supplies the complete diff as data; Claude has no tools or
+filesystem access and returns a structured report. A separate
+non-model job publishes it on GitHub. Current-head reviews are required; an old
+head, an incomplete report or two unavailable services cannot yield a green
+`code-review`. P0/P1/P2 fallback findings and explicit Codex change requests fail it.
+P0/P1/P2 Codex inline findings also block; unresolved conversations remain binding at merge.
 
-Prerequisites: a valid Claude subscription token in the separate main-only `review`
-environment. Repair uses its own `agent` environment; do not populate it when
-configuring review. No paid API fallback is configured. The workflow uses trusted
-base code, never PR checkout or PR commands with secrets. The service can be
-temporarily unavailable; report that state and keep the merge blocked.
+Prerequisites: Codex code review enabled for this repository and a valid Claude
+subscription token in the separate main-only `review` environment. Repair uses
+its own `agent` environment; do not populate it when configuring review. No paid API
+fallback is configured. The workflow uses trusted base code, never PR checkout
+or PR commands with secrets. Both providers can be temporarily unavailable;
+report that state and keep the merge blocked.
 
 ## Six integration steps
 
@@ -56,7 +58,7 @@ temporarily unavailable; report that state and keep the merge blocked.
 2. **Prepare one candidate.** Work in an isolated, claimed worktree. Bring the
    latest remote `main` into the candidate without rebasing another owner's
    branch. An independent task uses its own PR. A coupled batch uses
-   `claude/tools-integrate-<slug>`, merging only its agreed branches with merge
+   `codex/tools-integrate-<slug>`, merging only its agreed branches with merge
    commits and one PR to `main`. Preserve incoming commits and approved behavior;
    do not replace entire files, use blanket `ours`/`theirs`, reset `main` to an
    incoming tree or treat ancestry as proof behavior survives. Regenerate API
@@ -82,8 +84,8 @@ temporarily unavailable; report that state and keep the merge blocked.
    sensitive approval. CI/review failures can request at most three durable repair
    cycles across the PR, one per head. Pending, cancelled, unavailable services or
    an already-attempted head do not start another repair. Sensitive scope and tests are never
-   rewritten autonomously. A repaired head is automation-authored, so it merges only
-   with the owner's exact-head approval; review threads stay manual. Claude receives bounded evidence as text with zero tools,
+   rewritten autonomously. After a new clean review, only outdated Codex-only
+   threads may be resolved automatically; human discussions stay manual. Claude receives bounded evidence as text with zero tools,
    hooks/settings disabled and a read-only token, then returns structured replacement
    content. A separate model-free publisher validates original modified regular files,
    size/scope, reserved attempt and unchanged head before a non-force API update.
@@ -145,9 +147,9 @@ Versioning never deploys production or changes addon schema versions automatical
 ```mermaid
 flowchart TD
     A[Isolated work and local checks] --> B[Ready PR]
-    B --> C[Claude review]
+    B --> C[Codex; Claude if unavailable]
     B --> D[CI]
-    B --> E{Sensitive scope or automation-authored head?}
+    B --> E{Sensitive scope?}
     E -->|Yes| F[Owner approval of exact SHA]
     E -->|No| G[Delivery eligible]
     F --> G

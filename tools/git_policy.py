@@ -32,11 +32,11 @@ POLICY_START = '7208cf961ecbeb60e988e840fe2ca7cd4c3a3b9d'
 MAX_SUBJECT = 72
 GENERATED = ('docs/api/openapi.json', 'docs/api/route-capabilities.json')
 # Branches that may carry regenerated files: main and the orchestrator's integration branches.
-INTEGRATION_BRANCH = re.compile(r'^claude/tools-integrate-.+$')
+INTEGRATION_BRANCH = re.compile(r'^codex/tools-integrate-.+$')
 
 SUBJECT = re.compile(rf"^(?:{'|'.join(TYPES)})\((?:{'|'.join(AREAS)})\): \S")
 SLUG = r'[a-z0-9]+(?:-[a-z0-9]+)*'
-TASK_BRANCH = re.compile(rf"^claude/(?:{'|'.join(AREAS)})-{SLUG}$")
+TASK_BRANCH = re.compile(rf"^codex/(?:{'|'.join(AREAS)})-{SLUG}$")
 SPIKE_BRANCH = re.compile(rf'^spike/{SLUG}$')
 
 
@@ -56,16 +56,16 @@ def check_subject(subject: str) -> str | None:
 def check_branch(name: str) -> str | None:
     if name in ('main', 'HEAD') or TASK_BRANCH.match(name) or SPIKE_BRANCH.match(name):
         return None
-    return f"branch '{name}' must be main, claude/<area>-<slug> or spike/<slug>; areas: {AREAS}"
+    return f"branch '{name}' must be main, codex/<area>-<slug> or spike/<slug>; areas: {AREAS}"
 
 
 def check_generated_commits(branch: str, touching: dict[str, list[str]]) -> list[str]:
     """Problems for the commits of ``branch`` (``{generated path: [sha, ...]}``) that modify a generated file."""
-    if not branch.startswith('claude/') or INTEGRATION_BRANCH.match(branch):
+    if not branch.startswith('codex/') or INTEGRATION_BRANCH.match(branch):
         return []
     return [
         f'{sha}: task branch {branch} must not modify {path}; the orchestrator '
-        f'regenerates it at integration (python3 tools/api_surface.py on claude/tools-integrate-*)'
+        f'regenerates it at integration (python3 tools/api_surface.py on codex/tools-integrate-*)'
         for path, shas in touching.items() for sha in shas
     ]
 
