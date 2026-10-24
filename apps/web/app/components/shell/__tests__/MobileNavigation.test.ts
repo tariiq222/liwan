@@ -1,51 +1,43 @@
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as Vue from 'vue'
-import { renderShared } from '@webvue/ui/test/helpers/renderShared'
-import { railModel, subListSections } from '../../../composables/nav/sidebarModel'
-import type { ShellModuleDefinition } from '../../../composables/nav/shellModules'
+import { createReusableTemplate } from '@vueuse/core'
+import { renderShared, loadShared } from '@webvue/ui/test/helpers/renderShared'
+import { useNavigationDisclosure } from '@webvue/ui/app/composables/useNavigationDisclosure'
 
 const component = resolve(__dirname, '../MobileNavigation.vue')
-const module = (id: string, extra: Partial<ShellModuleDefinition> = {}): ShellModuleDefinition => ({ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, ...extra })
-const modules = [module('home', { to: '/' }), module('tasks'), module('projects'), module('chat'), module('ai', { utility: true }), module('settings', { utility: true })]
-const stub = (tag: string) => Vue.defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) { return () => Vue.h(tag, attrs, slots.default?.()) } })
-
-function render(activeId: string | null = 'tasks') {
-  const route = { path: '/tasks', fullPath: '/tasks' }
-  const rail = railModel(modules)
-  return renderShared(component, {
-    modules: rail.drawer, activeId, title: 'المهام', createLinks: [], sections: [], subSections: [], quickViews: [], quickActions: [],
-  }, {}, {
-    stubs: {
-      USlideover: Vue.defineComponent({ setup(_, { slots }) { return () => Vue.h('div', [slots.default?.(), slots.body?.()]) } }),
-      USeparator: stub('hr'),
-    },
+const shared = resolve(__dirname, '../../../../../../packages/ui/app/components/shell/ShellNavigation.vue')
+const stub = Vue.defineComponent({ setup(_, { slots }) { return () => Vue.h('div', slots.default?.()) } })
+const disclosure = Vue.defineComponent({ props: { open: Boolean }, setup(props, { slots }) { return () => Vue.h('div', [slots.default?.(), props.open ? slots.content?.() : null]) } })
+const ids = ['apps', 'home', 'tasks', 'projects', 'chat', 'ai', 'settings']
+async function render(activeId = 'tasks') {
+  const items = ids.map(id => ({ id, label: `nav.${id}`, icon: 'i-lucide-circle', to: id === 'home' ? '/' : `/${id}`, active: id === activeId, sections: ['apps', 'home'].includes(id) ? [] : [{ id: 'main', title: '', items: [] }], views: [], actions: [] }))
+  const options = {
+    stubs: { UCollapsible: disclosure, UPopover: disclosure, UTooltip: stub, USlideover: Vue.defineComponent({ setup(_, { slots }) { return () => Vue.h('div', [slots.default?.(), slots.body?.()]) } }) },
     globals: {
       useI18n: () => ({ t: (key: string) => key, te: () => false, localeProperties: Vue.ref({ dir: 'rtl' }) }),
-      useRoute: () => route,
+      useRoute: () => ({ path: '/tasks', fullPath: '/tasks' }),
       useRouter: () => ({ resolve: (to: string) => ({ fullPath: to }) }),
-      watch: Vue.watch,
     },
     modules: {
-      '@vueuse/core': { useMediaQuery: () => Vue.ref(false) },
+      '@vueuse/core': { useMediaQuery: () => Vue.ref(false), createReusableTemplate },
       '@/composables/nav/settingsScroll': { isSamePageAnchor: () => false },
-      '@/composables/nav/sidebarModel': { subListSections },
-      '@webvue/ui/app/components/shell/ShellContextSubList.vue': { __esModule: true, default: stub('div') },
-      '@webvue/ui/app/components/shell/ShellQuickViews.vue': { __esModule: true, default: stub('div') },
-      '@/components/shell/SidebarCreateAction.vue': { __esModule: true, default: stub('div') },
-    },
-  })
+      '../../composables/useNavigationDisclosure': { useNavigationDisclosure },
+      './ShellContextSubList.vue': { __esModule: true, default: stub }, './ShellQuickViews.vue': { __esModule: true, default: stub },
+      '../shared/layout/BrandWordmark.vue': { __esModule: true, default: stub },
+    } as Record<string, unknown>,
+  }
+  options.modules['@webvue/ui/app/components/shell/ShellNavigation.vue'] = { __esModule: true, default: loadShared(shared, options) }
+  return renderShared(component, { items, activeId, homeTo: '/' }, {}, options)
 }
 
-const order = (html: string) => [...html.matchAll(/aria-label="nav\.(\w+)"/g)].map(match => match[1]).filter(id => id !== 'toggleSidebar' && id !== 'modules')
-
 describe('MobileNavigation', () => {
-  it('lists every reachable application in the same order as desktop', async () => {
-    expect(order(await render())).toEqual(['apps', 'home', 'tasks', 'projects', 'chat', 'ai', 'settings'])
+  it('renders the same application menu in manifest order inside the drawer', async () => {
+    expect([... (await render()).matchAll(/data-testid="mobile-navigation-app-([^" ]+)"/g)].map(match => match[1])).toEqual(ids)
   })
-  it('marks only the active application', async () => {
+  it('shows the active app as an expandable button rather than a navigation link', async () => {
     const html = await render('chat')
-    expect(html.match(/aria-current="page"/g)).toHaveLength(1)
-    expect(html).toMatch(/aria-current="page"[^>]*aria-label="nav\.chat"|aria-label="nav\.chat"[^>]*aria-current="page"/)
+    expect(html).toMatch(/<button[^>]*data-testid="mobile-navigation-app-chat"[^>]*data-active="true"/)
+    expect(html).not.toMatch(/<a[^>]*href="\/chat"/)
   })
 })

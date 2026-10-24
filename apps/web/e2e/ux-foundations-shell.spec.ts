@@ -6,7 +6,7 @@ test('foundation home is the personal day page: indicators and the top of my wor
   await expect(page.getByTestId('foundation-home')).toBeVisible()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('يومي')
   await expect(page.getByTestId('module-rail').locator('a[data-active="true"]')).toHaveAttribute('href', '/')
-  await expect(page.getByTestId('context-sidebar')).toHaveCount(0)
+  await expect(page.getByTestId('application-navigation')).toHaveCount(0)
   await expect(page.getByTestId('foundation-home').locator('[data-slot="link-card"]')).toHaveCount(0)
   // The shared mock identity has no Tasks capability, so the indicators (which open `/work`) are hidden here; their links are covered by the home page unit tests.
   await expect(page.getByText('الوصول السريع')).toBeVisible()
@@ -15,7 +15,7 @@ test('foundation home is the personal day page: indicators and the top of my wor
 test('tablet defaults collapse before interaction and only explicit toggles persist across resize and refresh', async ({ page, context }) => {
   await page.setViewportSize({ width: 768, height: 1000 })
   await enterFoundation(page, '/projects')
-  const sidebar = page.getByTestId('context-sidebar')
+  const sidebar = page.getByTestId('application-navigation')
   await expect(sidebar).toHaveAttribute('data-expanded', 'false')
   await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(64)
   expect((await context.cookies()).find(cookie => cookie.name === 'webvue-context-sidebar')).toBeUndefined()
@@ -40,7 +40,7 @@ for (const width of [767, 1100]) {
       const menu = page.getByRole('button', { name: /فتح القائمة|فتح التنقل|التنقل/ }).first()
       await expect(menu).toBeVisible()
     } else {
-      await expect(page.getByTestId('context-sidebar')).toHaveAttribute('data-expanded', 'true')
+      await expect(page.getByTestId('application-navigation')).toHaveAttribute('data-expanded', 'true')
     }
   })
 }
@@ -63,12 +63,12 @@ test('a deliberate shell visit starts at top even for the same list path or an a
   await enterFoundation(page, '/projects?q=مهمة')
   await page.evaluate(() => { document.body.style.minHeight = '4000px'; window.scrollTo(0, 600) })
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600)
-  await page.evaluate(() => (document.querySelector('.webvue-module-rail-link[href="/projects"]') as HTMLElement).click())
+  await page.evaluate(() => (document.querySelector('.webvue-navigation-children a[href="/projects"]') as HTMLElement).click())
   await expect(page).toHaveURL(/\/projects$/)
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
   await page.evaluate(() => window.scrollTo(0, 500))
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(500)
-  await page.evaluate(() => (document.querySelector('.webvue-module-rail-link[href="/projects"]') as HTMLElement).click())
+  await page.evaluate(() => (document.querySelector('.webvue-navigation-children a[href="/projects"]') as HTMLElement).click())
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
 })
 
@@ -80,7 +80,7 @@ test.describe('mobile drawer entry', () => {
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600)
     await page.getByTestId('mobile-navigation-trigger').click()
     const dialog = page.getByRole('dialog')
-    const projects = dialog.getByRole('navigation', { name: 'الموديولات', exact: true }).getByRole('link', { name: 'المشاريع', exact: true })
+    const projects = dialog.getByTestId('mobile-application-navigation').getByRole('link', { name: 'المشاريع', exact: true })
     const box = (await projects.boundingBox())!
     expect(box.height).toBeGreaterThanOrEqual(44)
     await projects.click()

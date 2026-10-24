@@ -205,7 +205,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .webvue-module-rail-icon .webvue-shell-icon { width: 20px; height: 20px; }
 .webvue-module-rail-link:hover .webvue-module-rail-icon { background: var(--webvue-chip); }
 .webvue-module-rail-link[data-active="true"] .webvue-module-rail-icon { background: var(--webvue-rail-active); }
-.webvue-module-rail-link[data-active="true"] .webvue-module-rail-icon::before { content: ""; position: absolute; inset-block-start: 50%; inset-inline-start: -4px; width: 8px; height: 8px; translate: 0 -50%; border-radius: 9999px; background: var(--ui-primary); box-shadow: 0 0 0 2px var(--ui-bg); }
+.webvue-module-rail-link[data-active="true"] .webvue-module-rail-icon::before,
+:is(.webvue-context-link, .webvue-quick-link)[data-active="true"] :is(.webvue-context-chip, .webvue-quick-chip)::before { content: ""; position: absolute; inset-block-start: 50%; inset-inline-start: -4px; width: 8px; height: 8px; translate: 0 -50%; border-radius: 9999px; background: var(--ui-primary); box-shadow: 0 0 0 2px var(--ui-bg); }
 .webvue-module-rail-link:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; border-radius: 14px; }
 .webvue-module-rail-link [data-slot="label"] { max-width: 100%; overflow: hidden; font-size: 12px; font-weight: inherit; line-height: 18px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 @media (forced-colors: active) {
@@ -246,22 +247,13 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   border-radius: var(--radius-card);
   color: var(--ui-text);
 }
-.webvue-context-enter-active, .webvue-context-leave-active { transition: opacity 120ms ease; }
-.webvue-context-enter-from, .webvue-context-leave-to { opacity: 0; }
-.webvue-context-sidebar-inner { display: flex; min-height: 0; flex: 0 1 auto; flex-direction: column; }
 /* The card hugs its list; a sidebar panel (chat) fills the height instead. */
 .webvue-context-sidebar[data-panel="true"][data-expanded="true"] { height: calc(100svh - var(--shell-top) - var(--shell-inset)); }
-.webvue-context-sidebar[data-panel="true"][data-expanded="true"] .webvue-context-sidebar-inner { flex: 1; }
 .webvue-context-heading { display: flex; height: 56px; flex: none; align-items: center; gap: 8px; padding-inline: 16px 12px; }
 .webvue-context-heading h2 { min-width: 0; flex: 1; margin: 0; overflow: hidden; font-size: .875rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.webvue-context-create-actions { display: flex; gap: 2px; }
-.webvue-context-create-icon { color: var(--brand-link); }
 .webvue-context-toggle { display: grid; width: 32px; height: 32px; flex: none; place-items: center; padding: 0; border-radius: 9999px; border: 1px solid var(--ui-border); color: var(--ui-text-muted); }
 .webvue-context-toggle .webvue-shell-icon { width: 16px; height: 16px; }
 .webvue-context-toggle:hover { background: var(--webvue-nav-active); color: var(--webvue-rail-active-ink); }
-.webvue-context-nav { display: flex; min-height: 0; flex: 0 1 auto; flex-direction: column; gap: 12px; overflow-y: auto; padding: 0 8px 8px; }
-.webvue-context-section { display: grid; gap: 2px; }
-.webvue-context-section-title { margin: 0; padding: 4px 12px; color: var(--ui-text-muted); font-size: .75rem; font-weight: 500; }
 .webvue-context-row, .webvue-quick-row { position: relative; display: flex; align-items: center; }
 :is(.webvue-context-link, .webvue-quick-link) {
   position: relative;
@@ -281,9 +273,9 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   transition: background-color var(--shell-duration) ease, color var(--shell-duration) ease;
 }
 :is(.webvue-context-link, .webvue-quick-link):hover { background: var(--ui-bg-elevated); color: var(--ui-text-highlighted); }
-:is(.webvue-context-chip, .webvue-quick-chip) { display: grid; width: 28px; height: 28px; flex: none; place-items: center; border-radius: 9999px; background: var(--webvue-chip); color: var(--webvue-rail-ink); }
-/* The active chip carries the rail's brand ring, so both columns mark the current place the same way. */
-:is(.webvue-context-link, .webvue-quick-link)[data-active="true"] :is(.webvue-context-chip, .webvue-quick-chip) { background: var(--webvue-chip-active); color: var(--webvue-rail-active-ink); box-shadow: inset 0 0 0 1.5px var(--ui-primary); }
+:is(.webvue-context-chip, .webvue-quick-chip) { position: relative; display: grid; width: 28px; height: 28px; flex: none; place-items: center; border-radius: 9999px; background: var(--webvue-chip); color: var(--webvue-rail-ink); }
+/* Active chips share the rail's brand dot, without an outline around the icon. */
+:is(.webvue-context-link, .webvue-quick-link)[data-active="true"] :is(.webvue-context-chip, .webvue-quick-chip) { background: var(--webvue-chip-active); color: var(--webvue-rail-active-ink); }
 :is(.webvue-context-link, .webvue-quick-link)[data-active="true"] { background: var(--webvue-nav-active); color: var(--webvue-rail-active-ink); font-weight: 600; }
 :is(.webvue-context-link, .webvue-quick-link):focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
 @media (forced-colors: active) {
@@ -317,14 +309,14 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .webvue-quick-views[data-surface="drawer"] { overflow: visible; padding: 0; background: none; border: 0; border-radius: 0; }
 /* Collapsed: a 64px icon-only bar. Labels, counts, headings and create actions drop out; the toggle stays. */
 @media (min-width: 768px) {
-  .webvue-context-sidebar[data-expanded="false"] :is(.webvue-context-heading h2, .webvue-context-create-actions, .webvue-context-section-title, .webvue-context-count) { display: none; }
+  .webvue-context-sidebar[data-expanded="false"] :is(.webvue-context-heading h2, .webvue-context-count) { display: none; }
   .webvue-context-sidebar[data-expanded="false"] .webvue-context-heading { justify-content: center; padding-inline: 0; }
   .webvue-context-sidebar[data-expanded="false"] .webvue-context-link { justify-content: center; padding-inline: 0; }
   .webvue-quick-views[data-surface="card"][data-expanded="false"] :is(.webvue-quick-count, .webvue-sub-list-title) { display: none; }
   .webvue-quick-views[data-surface="card"][data-expanded="false"] .webvue-quick-link { justify-content: center; padding-inline: 0; }
   .webvue-quick-views[data-surface="card"][data-expanded="false"] .webvue-quick-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .webvue-context-sidebar[data-expanded="false"] .webvue-context-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  /* Collapsed, the ringed chip alone marks the active link: no pill behind it. */
+  /* Collapsed, the chip and dot mark the active link: no pill behind them. */
   :is(.webvue-context-sidebar[data-expanded="false"] .webvue-context-link, .webvue-quick-views[data-surface="card"][data-expanded="false"] .webvue-quick-link)[data-active="true"] { background: transparent; }
 }
 
@@ -352,6 +344,23 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .webvue-chat-msg-actions { opacity: 0; }
 }
 .webvue-chat-row:hover .webvue-chat-msg-actions, .webvue-chat-row:focus-within .webvue-chat-msg-actions { opacity: 1; }
+
+/* One internal menu sits beside the unchanged application rail. */
+.webvue-navigation { height: 100%; flex: 1; }
+.webvue-navigation-list { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 4px; overflow-y: auto; padding: 0 8px 8px; scrollbar-width: none; }
+.webvue-navigation-list::-webkit-scrollbar { display: none; }
+.webvue-navigation-app { min-height: 36px; }
+.webvue-context-title { width: 100%; justify-content: flex-start; gap: 8px; padding-inline: 0; font-size: inherit; font-weight: inherit; }
+.webvue-navigation-chevron { margin-inline-start: auto; color: var(--ui-text-muted); transition: rotate var(--shell-duration) ease; }
+.webvue-navigation-children { display: grid; gap: 8px; padding-block: 4px 8px; padding-inline-start: 12px; }
+.webvue-navigation-children > .webvue-quick-views + .webvue-quick-views { border-block-start: 1px solid var(--ui-border); padding-block-start: 8px; }
+.webvue-navigation-popup { width: 264px; max-height: min(640px, 80svh); overflow-y: auto; padding: 8px; }
+.webvue-navigation-popup .webvue-navigation-children { padding-inline-start: 0; }
+.webvue-navigation-panel { display: flex; height: min(480px, 55svh); min-height: 220px; flex-direction: column; overflow: hidden; }
+.webvue-navigation[data-surface="drawer"] { height: auto; border: 0; border-radius: 0; background: transparent; overflow: visible; }
+.webvue-navigation[data-surface="drawer"] .webvue-navigation-list { overflow: visible; padding: 0; }
+.webvue-navigation[data-surface="drawer"] .webvue-context-link { min-height: 44px; }
+@media (prefers-reduced-motion: reduce) { .webvue-navigation-chevron { transition: none; } }
 
 /* Workspace: leaves the rail and the context sidebar on the inline start. */
 .webvue-shell-workspace { min-height: 100svh; margin-inline: calc(var(--shell-inset) * 2 + var(--module-rail-width) + var(--context-sidebar-width) + var(--context-sidebar-gap)) var(--shell-inset); padding-block-start: calc(var(--shell-top) - var(--shell-inset)); background: var(--webvue-canvas); transition: margin-inline-start var(--shell-duration) var(--shell-ease); }
@@ -469,7 +478,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 /* Match the automatic narrow-desktop width before hydration without writing a preference. */
 @media (min-width: 768px) and (max-width: 1099px) {
   .webvue-shell:has(.webvue-context-sidebar[data-preference="auto"]) { --context-sidebar-width: 64px; }
-  .webvue-context-sidebar[data-preference="auto"] :is(.webvue-context-heading h2, .webvue-context-create-actions, .webvue-context-section-title, .webvue-context-count) { display: none; }
+  .webvue-navigation[data-preference="auto"] :is(.webvue-navigation-children, .webvue-navigation-chevron) { display: none; }
+  .webvue-context-sidebar[data-preference="auto"] :is(.webvue-context-heading h2, .webvue-context-count) { display: none; }
   .webvue-context-sidebar[data-preference="auto"] .webvue-context-heading { justify-content: center; padding-inline: 0; }
   .webvue-context-sidebar[data-preference="auto"] .webvue-context-link { justify-content: center; padding-inline: 0; }
   .webvue-shell:has(.webvue-context-sidebar[data-preference="auto"]) .webvue-quick-views[data-surface="card"] :is(.webvue-quick-count, .webvue-sub-list-title) { display: none; }

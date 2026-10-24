@@ -33,14 +33,11 @@ export const shellRail = railModel(shellModules)
 /** The same workspace user without any create or manage capability (palette Actions must be empty). */
 export const readOnlyShellMe = { ...shellMe, capabilities: shellMe.capabilities.filter(key => !/\.(create|manage)$/.test(key)) }
 
-const projectLinks: ShellContextLink[] = contextLinksForModule('projects', shellMe, '/tasks').map(link => ({ ...link, active: link.id === 'tasks' }))
-export const projectsSidebar = sidebarModel({ links: projectLinks, moduleLabelKey: 'nav.projects', path: '/tasks', panel: null, surface: 'desktop' })
 
 // Story-only grouping: the first link stays in the fixed card, the others sit under a section heading and go to the sub-list card.
 const settingsLinks: ShellContextLink[] = contextLinksForModule('settings', shellMe, '/settings/team/users')
   .map((link, index) => ({ ...link, active: link.id === 'users', section: index === 0 ? undefined : 'nav.systemAdministration' }))
 const settingsModel = sidebarModel({ links: settingsLinks, moduleLabelKey: 'nav.settings', path: '/settings/team/users', panel: null, surface: 'desktop' })
-export const sectionedSidebar = { createLinks: settingsModel.createLinks, sections: settingsModel.sections, showNav: settingsModel.showNav }
 // The titled sections, rendered in their own card under the context sidebar (labels already translated).
 export const subListFixture = subListSections(settingsModel.subSections, key => ({ 'nav.systemAdministration': 'إدارة النظام' }[key] ?? key.split('.').at(-1)!), contextLinkTestId)
 
@@ -57,13 +54,3 @@ export const quickActionItems = [
   { id: 'new-task-pmo', label: 'مهمة جديدة', icon: 'i-lucide-plus', to: '/tasks/new', primary: true },
   { id: 'archived-tasks', label: 'المهام المؤرشفة', icon: 'i-lucide-archive', to: '/tasks?scope=archived' },
 ]
-
-export const mobileDrawer = {
-  modules: shellRail.drawer,
-  activeId: 'projects',
-  createLinks: projectsSidebar.createLinks,
-  sections: projectsSidebar.sections,
-  subSections: projectsSidebar.subSections,
-  quickViews: quickViewItems,
-  quickActions: quickActionItems,
-}
