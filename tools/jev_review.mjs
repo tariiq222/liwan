@@ -59,12 +59,18 @@ export function addedLines(diff) {
 const GUARD_SCRIPT = `
 import json, sys
 sys.path.insert(0, 'tools')
-from secret_guard import SCAN_ROOTS, SCANNED_SUFFIXES, find_forbidden_paths, find_secret_lines
+from secret_guard import (
+    SCAN_ROOTS, SCANNED_SUFFIXES, JS_SUFFIXES,
+    find_credential_fallbacks, find_forbidden_paths, find_secret_lines,
+)
 data = json.load(sys.stdin)
 problems = [f'secret-bearing path: {p}' for p in find_forbidden_paths(data['paths'])]
 for path, text in data['added'].items():
     if path.startswith(SCAN_ROOTS) and path.endswith(SCANNED_SUFFIXES):
         problems += [f'literal secret in added line {n}: {p}' for p, n in find_secret_lines(path, text)]
+    if path.startswith(SCAN_ROOTS) and path.endswith(JS_SUFFIXES):
+        problems += [f'credential fallback literal in added line {n}: {path}'
+                     for n in find_credential_fallbacks(text, path)]
 print(json.dumps(problems))
 `
 

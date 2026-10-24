@@ -97,8 +97,8 @@ Thumbs.db
 # Storybook static build
 apps/web/storybook-static/
 
-# Local agent tool state
-.agent-teams/
+# Local agent tool state (the plugin may name its state dir .agent-teams-<project>)
+.agent-teams*/
 .dsh-auto/
 /.codex/
 /.agents/

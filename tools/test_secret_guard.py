@@ -46,7 +46,7 @@ class TestSecretGuard(unittest.TestCase):
         # the literal is what runs on any host BASE points at.
         text = (
             "const LOGIN = __ENV.LOGIN || 'admin';\n"
-            "const PASSWORD = __ENV.PASSWORD || 'LoadTest2026!';\n"
+            "const PASSWORD = __ENV.PASSWORD || 'not-a-real-password';\n"
             "const secret = cfg.password || 'hunter2';\n"
         )
         self.assertEqual(find_credential_fallbacks(text), [2, 3])
@@ -67,6 +67,29 @@ class TestSecretGuard(unittest.TestCase):
     def test_an_empty_default_does_not_consume_a_later_string(self):
         text = 'const TOKEN = env.TOKEN ?? ""; const label = "not a secret";\n'
         self.assertEqual(find_credential_fallbacks(text), [])
+
+    def test_every_literal_spelling_of_a_credential_is_reported(self):
+        text = (
+            "const PASSWORD = 'not-a-real-password';\n"          # plain assignment
+            "PASSWORD ||= 'not-a-real-password';\n"              # logical-or assignment
+            "PASSWORD ??= 'secret123';\n"                  # nullish assignment
+            "const TOKEN = env.TOKEN || `lit`;\n"          # template literal
+        )
+        self.assertEqual(find_credential_fallbacks(text), [1, 2, 3, 4])
+
+    def test_a_value_wrapped_to_the_next_line_is_still_reported(self):
+        text = "const PASSWORD = __ENV.PASSWORD ||\n  'not-a-real-password';\n"
+        self.assertEqual(find_credential_fallbacks(text), [1])
+
+    def test_a_placeholder_earlier_on_the_line_does_not_hide_a_real_literal(self):
+        text = "const password = ''; const token = env.TOKEN || 'actual-credential';\n"
+        self.assertEqual(find_credential_fallbacks(text, 'deploy/x.js'), [1])
+
+    def test_a_self_described_fixture_is_only_allowed_in_a_test_file(self):
+        text = "const token = 'synthetic-local-token-'\n"
+        self.assertEqual(find_credential_fallbacks(text, 'deploy/x.test.mjs'), [])
+        self.assertEqual(find_credential_fallbacks(text, 'deploy/releases/test_guard.mjs'), [])
+        self.assertEqual(find_credential_fallbacks(text, 'deploy/x.mjs'), [1])
 
 
 if __name__ == '__main__':
