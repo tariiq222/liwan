@@ -14,7 +14,11 @@ class BrandingController(http.Controller):
 
     @http.route('/api/v1/branding', type='json2', auth='public', methods=['GET'], readonly=True)
     def branding(self):
-        profile = request.env(su=True).ref('webvue_platform.tenant_profile', raise_if_not_found=False)
+        # `auth='public'`: no session, so the tenant singleton and its root company are
+        # read through one narrow elevation instead of a full superuser environment.
+        # The response is the public branding payload only; no other record is reachable
+        # from this route.
+        profile = request.env['webvue.tenant.profile'].sudo().search([], limit=1)
         if not profile:
             msg = 'webvue tenant profile is not configured'
             raise MissingError(msg)

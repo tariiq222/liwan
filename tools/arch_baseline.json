@@ -35,7 +35,6 @@
     "odoo-addons/webvue_platform/models/ir_http.py": 1,
     "odoo-addons/webvue_platform/models/res_users.py": 2,
     "odoo-addons/webvue_pmo/controllers/milestones.py": 1,
-    "odoo-addons/webvue_pmo/controllers/personal_stages.py": 1,
     "odoo-addons/webvue_pmo/controllers/tasks.py": 1,
     "odoo-addons/webvue_pmo/controllers/timeline.py": 2,
     "odoo-addons/webvue_pmo/models/notification_types.py": 1,
