@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <record id="rule_leave_settings_company" model="ir.rule">
-        <field name="name">Leave settings current company</field><field name="model_id" ref="model_webvue_hr_leave_settings"/>
-        <field name="domain_force">[('company_id', '=', company_id)] if user.env['webvue.access.service']._webvue_has_capability(user, 'hr.leave.read') or user.env['webvue.access.service']._webvue_has_capability(user, 'hr.leave.config') else [('id', '=', 0)]</field>
+        <field name="name">Leave settings authorized companies</field><field name="model_id" ref="model_webvue_hr_leave_settings"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_leave_cancellation_company" model="ir.rule">
-        <field name="name">Leave cancellation current company and actor</field><field name="model_id" ref="model_webvue_hr_leave_cancellation"/>
-        <field name="domain_force">[('company_id', '=', company_id)] + user.env['webvue.hr.leave.cancellation']._webvue_visibility_domain()</field>
+        <field name="name">Leave cancellation authorized companies</field><field name="model_id" ref="model_webvue_hr_leave_cancellation"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

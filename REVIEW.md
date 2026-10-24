@@ -4,47 +4,19 @@ For anyone reviewing a diff in this repository: `/code-review`, the `odoo-review
 The rules themselves live in `AGENTS.md`, `docs/agents/odoo-rules.md` and `docs/agents/web-rules.md`;
 this file says what to report and what not to.
 
-## GitHub PR review
+## Review evidence and authorization
 
-The `pr-review` workflow reviews a ready, same-repository owner or explicitly trusted
-automation PR on a `claude/` branch with Claude Code and the existing subscription
-credential. Drafts, forks, other branches and superseded heads are skipped, not
-failed. The `code-review` status is bound to the exact head SHA; new commits require
-a new review. A missing or incomplete report and any P0/P1/P2 finding prevent
-success. Findings remain visible on GitHub.
+Review the actual combined diff against its recorded baseline using the selected
+available agent or a human. Record the reviewed head, actionable findings and
+verification limits. There is no mandatory model provider or automated AI review
+status. Current-head `ci-result` is the required status-check policy; inspect the
+live GitHub rules before remote delivery.
 
-A stored Claude report is a blocker record only: it cannot turn a later failed or
-missing review into success, and a later clean report never erases a blocker
-already recorded for the same head.
-Claude also reviews heads written by Claude or generic GitHub Actions automation
-(or unattributed ones), but such a head never merges on its own review: the
-delivery policy requires the owner's `/webvue approve <head-sha>` for it, as for
-sensitive scope.
-
-The credential belongs to the separate, main-only `review` environment.
-Adding it does not populate `agent` or `agent-scan`. The review environment has no
-per-run human approval: sensitive and automation-authored changes retain the
-separate exact-head owner approval required by delivery policy. No API-key
-fallback is permitted. If the review environment has no valid Claude credential,
-`code-review = error` is expected and merge stays blocked.
-
-### Not verified
-
-- The review environment's subscription credential and Claude execution on
-  GitHub. Local Claude subscription login is not evidence of the CI connection.
-
-The controller prefetches the complete diff and trusted base guidance as data.
-Claude runs with **no tools**, empty settings sources and no MCP servers: it
-cannot read files, run commands or access credentials. Its runtime GitHub token
-is read-only; there is no PR checkout or PR execution. Oversized diffs fail
-closed rather than being silently truncated. A separate deterministic job publishes its structured report as
-a standard comment review with a deterministic blocking marker. The required
-`code-review` status enforces findings, including bot-authored PRs, without leaving
-stale change-request approvals. The separate deterministic `pr-delivery` controller owns
-bounded automatic repair and protected merge after current CI/review/scope gates;
-sensitive scope and automation-authored heads require exact-head owner approval.
-Models never merge directly. Fork support needs its own trusted approval flow.
-The Claude subscription credential must be valid; the presence of a secret is not proof.
+Review findings remain binding until resolved or explicitly decided by the owner.
+A clean report does not replace tests or authorize publication, merging, release
+or deployment. Changes after review need a review of their affected behavior and
+fresh relevant checks. Read-only review must not mutate the candidate or invoke
+paid APIs without explicit authorization.
 
 ## Already automated: do not re-report what is covered
 
@@ -103,8 +75,8 @@ its own `file:line` evidence. The diff leaves the machine, so never send secrets
 `.env` files, key files or deploy data: the script refuses diffs that `tools/secret_guard.py`
 flags, but anything else sensitive is the sender's responsibility.
 
-GitHub AI reviews follow the criteria above and consume CI evidence; they do
-not run local tests or invoke the advisory Jev service from the review job.
+Remote reviews follow the criteria above and consume recorded CI evidence.
+Distinguish checks the reviewer actually ran from evidence supplied by others.
 
 ## How to report
 

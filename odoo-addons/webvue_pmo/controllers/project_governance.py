@@ -6,6 +6,7 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
+    declare_read_capability_scope,
     get_record,
     parse_nonneg_int,
     parse_positive_int,
@@ -59,17 +60,19 @@ def _task_visible(task):
     if not task:
         return False
     try:
-        task._webvue_check_visible_current()
+        task.check_access('read')
         return True
     except AccessError:
         return False
 
 
 def _project(project_id):
+    # get_record answers the uniform not-found for a foreign-company project
+    # and lets the pinned record rules decide the rest; no duplicate company
+    # check here. Governance stays out of scope for archived projects.
     project = get_record('project.project', project_id)
-    if not project.active or project.company_id != request.env.company:
+    if not project.active:
         raise ApiError(404, 'not_found', 'project not found')
-    project._webvue_check_visible_current()
     return project
 
 
@@ -177,6 +180,7 @@ class ProjectGovernanceController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def list_stakeholders(self, project_id):
+        declare_read_capability_scope('pmo.projects.read')
         project = _project(project_id)
         args = request.httprequest.args
         q = (args.get('q') or '').strip()
@@ -190,6 +194,7 @@ class ProjectGovernanceController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def get_stakeholder(self, project_id, item_id):
+        declare_read_capability_scope('pmo.projects.read')
         project = _project(project_id)
         item = _same_project('webvue.project.stakeholder', item_id, project, 'stakeholder_id', missing=True)
         return dump_stakeholder(item)
@@ -234,6 +239,7 @@ class ProjectGovernanceController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def list_raci(self, project_id):
+        declare_read_capability_scope('pmo.projects.read')
         project = _project(project_id)
         args = request.httprequest.args
         domain = [('project_id', '=', project.id)]
@@ -289,6 +295,7 @@ class ProjectGovernanceController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def list_register(self, project_id):
+        declare_read_capability_scope('pmo.projects.read')
         project = _project(project_id)
         args = request.httprequest.args
         domain = [('project_id', '=', project.id)]
@@ -309,6 +316,7 @@ class ProjectGovernanceController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def get_register(self, project_id, item_id):
+        declare_read_capability_scope('pmo.projects.read')
         project = _project(project_id)
         item = _same_project('webvue.project.register', item_id, project, 'register_id', missing=True)
         include_task = _task_visible(item.task_id)

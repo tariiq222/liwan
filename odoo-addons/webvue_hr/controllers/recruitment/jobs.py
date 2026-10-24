@@ -26,7 +26,7 @@ def _ongoing_applicants(job):
     because the stock `application_count` is group-gated and ignores the company."""
     return request.env['hr.applicant'].search_count([
         ('job_id', '=', job.id),
-        ('company_id', '=', current_company().id),
+        ('company_id', 'in', request.env.companies.ids),
         ('active', '=', True),
         ('date_closed', '=', False),
         ('refuse_reason_id', '=', False),
@@ -36,13 +36,13 @@ def _ongoing_applicants(job):
 def _dump_job(job):
     """The job shape with the department reference only for a caller who may read departments."""
     return dump_job(
-        job, _ongoing_applicants(job), include_department=can('hr.departments.read'),
+        job, _ongoing_applicants(job), include_department=can('hr.departments.read', job),
     )
 
 
-def _validate_job_relations(vals):
+def _validate_job_relations(vals, company):
     if vals.get('department_id'):
-        company_relation('hr.department', vals['department_id'], 'department_id')
+        company_relation('hr.department', vals['department_id'], 'department_id', company=company)
 
 
 class HrRecruitmentJobController(http.Controller):
@@ -57,7 +57,7 @@ class HrRecruitmentJobController(http.Controller):
         if active not in ACTIVE_VALUES:
             raise ApiError(422, 'invalid', "active must be 'true', 'false' or 'all'", field='active')
         limit, offset = parse_page(args)
-        domain = [('company_id', '=', current_company().id)]
+        domain = [('company_id', 'in', request.env.companies.ids)]
         q = args.get('q')
         if q:
             domain.append(('name', 'ilike', q))
@@ -92,9 +92,9 @@ class HrRecruitmentJobController(http.Controller):
     @requires_capability('hr.recruitment.manage')
     def create_job(self, **payload):
         vals = parse_job_vals(payload, create=True)
-        _validate_job_relations(vals)
+        _validate_job_relations(vals, current_company())
         job = request.env['hr.job'].create(vals)
-        return request.make_json_response(dump_job(job, 0, include_department=can('hr.departments.read')), status=201)
+        return request.make_json_response(dump_job(job, 0, include_department=can('hr.departments.read', job)), status=201)
 
     @http.route('/api/v1/hr/recruitment/jobs/<int:job_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -104,7 +104,7 @@ class HrRecruitmentJobController(http.Controller):
         job = scoped_record('hr.job', job_id, active_test=False)
         payload.pop('job_id', None)
         vals = parse_job_vals(payload, create=False)
-        _validate_job_relations(vals)
+        _validate_job_relations(vals, job.company_id)
         job.write(vals)
         return _dump_job(job)
 

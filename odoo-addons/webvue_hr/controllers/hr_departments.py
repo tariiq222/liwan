@@ -8,6 +8,7 @@ from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
     parse_nonneg_int,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_hr.serializers.hr_department import (
@@ -24,14 +25,13 @@ def _can(capability):
 
 
 def _require(capability):
-    if not _can(capability):
-        raise ApiError(403, 'forbidden', f'{capability} capability is required')
+    require_capabilities(capability)
 
 
 def _admin_department(department_id):
     department = request.env['hr.department'].with_context(active_test=False).search([
         ('id', '=', int(department_id)),
-        ('company_id', '=', request.env.company.id),
+        ('company_id', 'in', request.env.companies.ids),
     ], limit=1)
     if not department:
         raise MissingError(request.env._('hr.department %(id)s does not exist', id=department_id))
@@ -43,7 +43,7 @@ def _relation(model, record_id, field):
     record = request.env[model].browse(int(record_id))
     if not record.exists():
         raise MissingError(request.env._('%(model)s %(id)s does not exist', model=model, id=record_id))
-    if record.company_id != request.env.company:
+    if record.company_id not in request.env.companies:
         raise AccessError('%s is outside the current company' % field)
     record.check_access('read')
     return record
@@ -67,7 +67,7 @@ class HrDepartmentController(http.Controller):
         limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), MAX_LIMIT)
         offset = parse_nonneg_int(args.get('offset', 0), 'offset')
         Department = request.env['hr.department']
-        domain = [('company_id', '=', request.env.company.id)]
+        domain = [('company_id', 'in', request.env.companies.ids)]
         recs = Department.search(domain, order='name, id', limit=limit, offset=offset)
         return {'items': dump_departments(recs), 'total': Department.search_count(domain)}
 
@@ -78,7 +78,7 @@ class HrDepartmentController(http.Controller):
         _require('hr.departments.read')
         department = request.env['hr.department'].search([
             ('id', '=', int(department_id)),
-            ('company_id', '=', request.env.company.id),
+            ('company_id', 'in', request.env.companies.ids),
         ], limit=1)
         if not department:
             raise MissingError(request.env._('hr.department %(id)s does not exist', id=department_id))

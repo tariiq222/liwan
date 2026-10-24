@@ -55,11 +55,15 @@ class TestFinanceJournalWrite(WebVueFinanceWriteCase):
             ({'name': 'x', 'type': 'sale'}, 'code'),
             ({'name': 'x', 'code': 'X'}, 'type'),
             ({'name': 'x', 'code': 'X', 'type': 'nope'}, 'type'),
-            ({'name': 'x', 'code': 'X', 'type': 'sale', 'company_id': 1}, 'company_id'),
             ({'name': 'x', 'code': 'X', 'type': 'sale', 'currency': 'ZZZ'}, 'currency'),
         ):
             with self.subTest(body=body):
                 self.assertRefused(self.api('POST', JOURNALS, json=body), 422, 'invalid', field)
+        # A payload company_id outside the pinned request set is the uniform not-found.
+        self.assertRefused(
+            self.api('POST', JOURNALS, json={'name': 'x', 'code': 'X', 'type': 'sale', 'company_id': 1}),
+            404, 'not_found',
+        )
         self.assertRefused(self.api('GET', f'{JOURNALS}/999999'), 404, 'not_found')
 
     def test_a_duplicate_code_is_refused(self):

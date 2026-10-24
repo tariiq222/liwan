@@ -63,7 +63,7 @@ shared change must state the contract and the single writer before work starts.
 ## Starting a task
 
 1. Inspect the selected worktree's branch, status, remotes, and changed paths.
-   Preserve unrelated edits. Use `claude/<area>-<slug>` for a task branch.
+   Preserve unrelated edits. Use any normal task branch name (for example `<area>-<slug>`).
 2. Decide file ownership and list collisions before editing. Keep dependent
    work sequential; run independent slices in separate worktrees.
 3. Give each worktree independent `node_modules` and `.nuxt` directories. Use
@@ -78,7 +78,7 @@ ownership claim in one command (`tools/wt.py`).
 
 ### Worktree rules
 
-These rules apply to every worktree created from 2026-10-20 on, by a person or a Claude
+These rules apply to every worktree created from 2026-10-20 on, by a person, a Codex task or a Claude
 session or subagent. A worktree that predates them is reported by `wt check`, never moved, renamed or
 removed by it; its owner records a claim with `wt claim` or finishes and merges it as it is.
 
@@ -86,11 +86,12 @@ removed by it; its owner records a claim with `wt claim` or finishes and merges 
    where `wt new` creates them, also when run from another worktree. Never create one with a bare
    `git worktree add`, under `../webvue-wt/`, or in a tool's own folder (the Claude app's `worktrees` folder under `.claude`); a
    Claude subagent or session that needs isolation runs `wt new` instead of its built-in worktree option.
-2. **One name.** The branch is `claude/<area>-<slug>` (or `spike/<slug>`, never merged) and the folder is its
-   `<area>-<slug>`; `<area>` comes from the list in `AGENTS.md`. Auto-generated names such as
-   `worktree-agent-<id>` or `agent-<id>` break this rule.
-3. **One base.** A task branch starts from `main` (default `--base`) or, for a lane of a multi-lane task,
-   from that task's `claude/<area>-<slug>` integration branch. `wt new` refuses any other base.
+2. **One name.** Any valid Git branch name is accepted; descriptive names are recommended.
+   `wt new <suffix>` creates branch `codex/<suffix>` and folder `.worktrees/<suffix>`.
+   Other valid task branch names may be claimed; `wt check` checks their folder suffix and claim.
+   Throwaway `spike/<slug>` experiments are never merged.
+3. **One base.** `main` is the default `--base`; any valid branch name is accepted.
+   Use the agreed integration branch for a dependent lane.
    Fetch and compare local `main` with `origin/main` first. When local `main` is dirty or stale,
    preserve it; after creation update the clean task candidate to the recorded remote baseline
    before implementation. Do not call the default local base current without checking.
@@ -130,28 +131,29 @@ cd /Users/tariq/code/odoo
 # Use a scratch-only config; data_dir and logfile stay outside this checkout.
 .venv/bin/python odoo-bin -c /absolute/path/to/scratch-only.conf \
   --addons-path=/Users/tariq/code/odoo/addons,/path/to/webvue-worktree/odoo-addons,$(python3 -B /path/to/webvue-worktree/tools/oca_addons.py path) \
-  -d webvue_scratch --http-port=8169
+  -d webvue_scratch_example --http-port=8171
 
+# Match Odoo's database and port above to the allocated .env.worktree profile.
 cd /path/to/webvue-worktree
-NUXT_ODOO_URL=http://127.0.0.1:8169 \
-NUXT_ODOO_DB=webvue_scratch \
-NUXT_PUBLIC_WS_URL=ws://localhost:8169/websocket \
-npm -w apps/web run dev -- --port 3200
+npm run dev
 ```
 
 The ordinary local development topology is Odoo `:8069` and Nuxt `:3000`. Port `3100` is reserved for
-`apps/vendor-admin` (its default, see its README) and `3103` for its live-proof build; give `apps/web` worktrees other ports.
-Example ports and database names above are not reservations. Check current worktree claims before selecting values. Use distinct database, Odoo port, Nuxt port, and log paths for concurrent
+`apps/vendor-admin` (its default, see its README) and `3103` for its live-proof build.
+The allocator excludes both for new `apps/web` worktrees, even when idle; existing `.env.worktree`
+allocations remain unchanged. `npm run dev` loads that worktree file automatically. Install independent
+local dependencies and regenerate Nuxt files first; main uses its private apps/web/.env configuration.
+The Odoo database/port above are placeholders; match the allocated `.env.worktree` values before launch. Worktree dev rejects CLI overrides. Check current worktree claims before selecting values. Use distinct database, Odoo port, Nuxt port, and log paths for concurrent
 worktrees. Temporary integration values are disposable and must not be
 presented as production evidence.
 
 ## Generated files and integration branches
 
 The generated API files (openapi.json and route-capabilities.json in docs/api) are produced by
-`python3 tools/api_surface.py`. A task branch (`claude/<area>-<slug>`) never commits either file:
+`python3 tools/api_surface.py`. A task branch (any name other than an integration branch) never commits either file:
 `tools/git_policy.py` refuses such a commit, because every parallel branch that touched them would
 conflict. The orchestrator regenerates both once, on the integration branch
-`claude/tools-integrate-<slug>` (the only `claude/*` branches allowed to carry them), after merging
+`<prefix>/tools-integrate-<slug>` (the only branches allowed to carry them), after merging
 the task branches, and runs `python3 tools/api_surface.py --check` there. The per-branch route gate is
 `tools/route_gate_policy.py`, run inside `npm test`: it needs no generated file.
 
@@ -159,8 +161,8 @@ the task branches, and runs `python3 tools/api_surface.py --check` there. The pe
 
 Use [integration-rules.md](agents/integration-rules.md) for delivery: one draft PR
 per independent task or agreed integration batch, followed by review, checks and
-bounded automatic delivery: current CI/review/scope gates, at most three safe
-repair cycles, and exact-head owner approval for sensitive changes. `wt status` compares ancestry with **local** `main`; when it is stale, compare
+an explicitly authorized protected merge after current-head `ci-result` and review
+of the actual combined diff. CI does not repair code, merge PRs or create tags. `wt status` compares ancestry with **local** `main`; when it is stale, compare
 with current remote `main` too. A merged head with dirty files still contains
 undelivered work. A child sharing its parent's head is dependent work, not a
 second independent delivery.

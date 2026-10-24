@@ -287,11 +287,14 @@ class TestFinanceBudgets(WebVueFinanceOcaCase):
             ({**base, 'date_to': '2025-12-31'}, 'date_to'),
             ({**base, 'date_from': '01/01/2026'}, 'date_from'),
             ({**base, 'state': 'confirmed'}, 'state'),
-            ({**base, 'company_id': self.other_company.id}, 'company_id'),
         )
         for body, field in cases:
             with self.subTest(body=body):
                 self.assertRefused(self.api('POST', BUDGETS, json=body), 422, 'invalid', field)
+        # A payload company_id outside the pinned request set is the uniform not-found.
+        self.assertRefused(
+            self.api('POST', BUDGETS, json={**base, 'company_id': self.other_company.id}), 404, 'not_found',
+        )
         budget = self.create_budget()
         self.assertRefused(self.api('PATCH', f'{BUDGETS}/{budget["id"]}', json={}), 422, 'invalid')
         self.assertRefused(self.api('PATCH', f'{BUDGETS}/{budget["id"]}', json={'state': 'confirmed'}), 422, 'invalid', 'state')

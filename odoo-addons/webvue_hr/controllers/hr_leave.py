@@ -2,11 +2,12 @@
 """/api/v1/hr/leave: the WebVue surface over stock hr_holidays.
 
 Approval rules, balances, state changes and record visibility stay in
-hr_holidays; this controller only checks the WebVue capability, scopes every
-query to the current company and serializes a whitelisted shape.
+hr_holidays; this controller checks the WebVue capability, scopes queries to
+authorized companies and validates relations against their selected owner.
 """
 from odoo import http
 from odoo.exceptions import MissingError
+from odoo.fields import Domain
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
@@ -14,6 +15,7 @@ from odoo.addons.webvue_api.controllers.common import (
     api_handler,
     parse_page,
     parse_positive_int,
+    require_capabilities,
     requires_capability,
     requires_feature,
 )
@@ -34,18 +36,32 @@ from odoo.addons.webvue_hr.serializers.hr_leave import (
 STAFF_CAPABILITIES = ('hr.leave.approve', 'hr.leave.manage')
 
 
-def _can(capability):
-    return request.env['webvue.access.service']._webvue_has_capability(request.env.user, capability)
+def _can(capability, record=None):
+    return request.env['webvue.access.service']._webvue_has_capability(
+        request.env.user, capability, record=record,
+    )
 
 
 def _require(capability):
-    if not _can(capability):
-        raise ApiError(403, 'forbidden', f'{capability} capability is required')
+    require_capabilities(capability)
 
 
-def _is_staff():
-    """An approver or manager may read and act on other employees' leave."""
-    return any(_can(capability) for capability in STAFF_CAPABILITIES)
+def _leave_visibility_domain():
+    """Staff rights belong to each request's company, never another parent.
+
+    The caller's own request follows their stored membership, like stock hr_holidays:
+    a branch company is never in the staff projection (base.group_user is not added
+    to a descendant), so an inherited branch owner would otherwise not see it.
+    """
+    service = request.env['webvue.access.service']
+    staff_ids = set()
+    for key in STAFF_CAPABILITIES:
+        staff_ids.update(service._webvue_operation_capability_company_ids(key))
+    memberships = service._webvue_membership_company_ids()
+    return ((Domain('employee_id.user_id', '=', request.env.uid)
+             & Domain('company_id', 'in', memberships))
+            | (Domain('company_id', 'in', service._webvue_scoped_company_ids())
+               & Domain('company_id', 'in', sorted(staff_ids))))
 
 
 def _is_own(leave):
@@ -76,7 +92,7 @@ def _own_employee():
 def _company_employee(employee_id):
     employee = request.env['hr.employee'].search([
         ('id', '=', employee_id),
-        ('company_id', '=', request.env.company.id),
+        ('company_id', 'in', request.env.companies.ids),
     ], limit=1)
     if not employee:
         raise ApiError(422, 'invalid', 'employee_id is outside the current company', field='employee_id')
@@ -87,26 +103,24 @@ def _target_employee(employee_id):
     """The caller's own employee, or another one when the caller manages leave."""
     if employee_id is None:
         return _own_employee()
-    if not _can('hr.leave.manage'):
-        own = _own_employee()
-        if own.id != employee_id:
-            raise ApiError(403, 'forbidden', 'hr.leave.manage capability is required')
-        return own
-    return _company_employee(employee_id)
+    employee = _company_employee(employee_id)
+    if not _can('hr.leave.manage', employee) and employee.user_id != request.env.user:
+        raise ApiError(403, 'forbidden', 'hr.leave.manage capability is required')
+    return employee
 
 
-def _leave_types_domain():
+def _leave_types_domain(company=None):
     """The leave types hr_holidays offers this company: its own and shared ones, of its country or global."""
-    company = request.env.company
+    company = company if company is not None else request.env.company
     return [
         ('company_id', 'in', [company.id, False]),
         ('country_id', 'in', [company.country_id.id, False] if company.country_id else [False]),
     ]
 
 
-def _leave_type(leave_type_id):
+def _leave_type(leave_type_id, company):
     leave_type = request.env['hr.leave.type'].search(
-        [('id', '=', leave_type_id), *_leave_types_domain()], limit=1,
+        [('id', '=', leave_type_id), *_leave_types_domain(company)], limit=1,
     )
     if not leave_type:
         raise ApiError(422, 'invalid', 'leave_type_id is not available', field='leave_type_id')
@@ -119,9 +133,7 @@ def _current_leave(leave_id):
     hr_holidays' record rules already hide other people's requests from an employee; the
     explicit employee filter keeps that guarantee in WebVue instead of in stock data.
     """
-    domain = [('id', '=', int(leave_id)), ('company_id', '=', request.env.company.id)]
-    if not _is_staff():
-        domain.append(('employee_id.user_id', '=', request.env.user.id))
+    domain = Domain('id', '=', int(leave_id)) & _leave_visibility_domain()
     leave = request.env['hr.leave'].search(domain, limit=1)
     if not leave:
         raise MissingError(request.env._('hr.leave %(id)s does not exist', id=leave_id))
@@ -161,7 +173,7 @@ class HrLeaveController(http.Controller):
         employee_id = parse_positive_int(raw, 'employee_id') if raw not in (None, '') else None
         employee = _target_employee(employee_id)
         types = request.env['hr.leave.type'].search(
-            [*_leave_types_domain(), ('requires_allocation', '=', True)], order='sequence, id',
+            [*_leave_types_domain(employee.company_id), ('requires_allocation', '=', True)], order='sequence, id',
         )
         # Like hr_holidays' own dashboard, only the types the employee holds a balance in.
         data = types.get_allocation_data(employee)[employee]
@@ -178,7 +190,7 @@ class HrLeaveController(http.Controller):
         _require('hr.leave.read')
         args = request.httprequest.args
         limit, offset = parse_page(args)
-        domain = [('company_id', '=', request.env.company.id)]
+        domain = list(_leave_visibility_domain())
         states = parse_state_filter(args.get('state'))
         if states:
             domain.append(('state', 'in', states))
@@ -186,13 +198,13 @@ class HrLeaveController(http.Controller):
         if cancellation_state not in (None, '', 'pending'):
             raise ApiError(422, 'invalid', 'cancellation_state must be pending', field='cancellation_state')
         if cancellation_state == 'pending':
-            pending = request.env['webvue.hr.leave.cancellation'].search([('state', '=', 'pending'), ('company_id', '=', request.env.company.id)])
+            pending = request.env['webvue.hr.leave.cancellation'].search([('state', '=', 'pending')])
             domain.append(('id', 'in', pending.mapped('leave_id').ids))
         raw_employee = args.get('employee_id')
         if raw_employee not in (None, ''):
             domain.append(('employee_id', '=', parse_positive_int(raw_employee, 'employee_id')))
-        if not _is_staff() or args.get('mine') == '1':
-            domain.append(('employee_id', '=', _own_employee().id))
+        if args.get('mine') == '1':
+            domain.append(('employee_id.user_id', '=', request.env.uid))
         Leave = request.env['hr.leave']
         leaves = Leave.search(domain, order='request_date_from desc, id desc', limit=limit, offset=offset)
         cancellations = request.env['webvue.hr.leave.cancellation'].search([('leave_id', 'in', leaves.ids)])
@@ -213,7 +225,7 @@ class HrLeaveController(http.Controller):
         _require('hr.leave.request')
         vals = parse_leave_request(payload)
         employee = _target_employee(vals['employee_id'])
-        leave_type = _leave_type(vals['leave_type_id'])
+        leave_type = _leave_type(vals['leave_type_id'], employee.company_id)
         leave = request.env['hr.leave'].create({
             'employee_id': employee.id,
             'holiday_status_id': leave_type.id,
@@ -270,7 +282,9 @@ class HrLeaveController(http.Controller):
             if pending or (leave.state == 'validate' and policy == 'manager_approval'):
                 model.action_request(leave.id, reason)
             else:
-                request.env['hr.holidays.cancel.leave'].create({'leave_id': leave.id, 'reason': reason}).action_cancel_leave()
+                with model._webvue_owner_authorization(leave) as owned:
+                    model._webvue_owner_leave(leave)
+                    owned.env['hr.holidays.cancel.leave'].create({'leave_id': owned.id, 'reason': reason}).action_cancel_leave()
         else:
             _require('hr.leave.approve')
             model.action_direct_cancel(leave.id, reason, vals.get('revision'))
@@ -324,7 +338,9 @@ class HrLeaveController(http.Controller):
         _require('hr.leave.manage')
         vals = parse_allocation(payload)
         employee = _company_employee(vals['employee_id'])
-        leave_type = _leave_type(vals['leave_type_id'])
+        if not _can('hr.leave.manage', employee):
+            raise ApiError(403, 'forbidden', 'hr.leave.manage capability is required')
+        leave_type = _leave_type(vals['leave_type_id'], employee.company_id)
         if not leave_type.requires_allocation:
             raise ApiError(422, 'invalid', 'this leave type does not use allocations', field='leave_type_id')
         allocation = request.env['hr.leave.allocation'].create({

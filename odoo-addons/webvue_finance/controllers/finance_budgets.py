@@ -32,7 +32,7 @@ FULL_SHARE = 100
 
 def _find_budget(budget_id):
     budget = request.env[BUDGET_MODEL].search(
-        [('id', '=', budget_id), ('company_id', '=', request.env.company.id)], limit=1,
+        [('id', '=', budget_id), ('company_id', 'in', request.env.companies.ids)], limit=1,
     )
     if not budget:
         raise MissingError(request.env._('%(model)s %(id)s does not exist', model=BUDGET_MODEL, id=budget_id))
@@ -93,7 +93,7 @@ def _line_values(parsed, budget, line=None):
     account = line.account_id if line else request.env['account.account']
     if 'account_id' in parsed:
         account = company_records(
-            'account.account', [parsed['account_id']], 'account_id', [('company_ids', 'in', [budget.company_id.id])],
+            'account.account', [parsed['account_id']], 'account_id', request.env['account.account']._check_company_domain(budget.company_id),
         )
         values['account_id'] = account.id
     if line is None or 'account_id' in parsed or 'amount' in parsed:
@@ -150,7 +150,7 @@ class FinanceBudgetController(http.Controller):
         """Budgets of the current company, filtered by ``state`` and ``q`` (the name)."""
         require_capability('finance.budgets.read')
         args = request.httprequest.args
-        domain = [('company_id', '=', request.env.company.id)]
+        domain = [('company_id', 'in', request.env.companies.ids)]
         state = parse_choice(args.get('state'), request.env[BUDGET_MODEL]._fields['state'].get_values(request.env), 'state')
         if state:
             domain.append(('state', '=', state))

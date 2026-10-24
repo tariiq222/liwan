@@ -52,7 +52,7 @@ export function myTaskListQuery(p: MyTaskListParams) {
 
 // The KPI summary counts the same tasks as the lists, so every write refreshes both.
 const refreshLists = (qc: QueryClient) =>
-  Promise.all([qc.invalidateQueries({ queryKey: myTaskKeys.lists }), qc.invalidateQueries({ queryKey: myTaskKeys.summaries })])
+  Promise.all([qc.invalidateQueries({ queryKey: myTaskKeys.lists }), qc.invalidateQueries({ queryKey: myTaskKeys.summaries }), qc.invalidateQueries({ queryKey: ['my-tasks', 'attention'] })])
 
 // A write answers with the full detail shape: replace the cache entry, then refresh the lists. A
 // sub-task is also listed in its parent's `subtasks`, so the cached parent detail is refreshed too.

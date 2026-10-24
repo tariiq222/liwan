@@ -11,14 +11,14 @@ import unittest
 from deploy.test_edge_rate_limit import CADDYFILE, _adapt_shared_caddyfile, _caddy_container
 
 
-def edge_requests(cases):
+def edge_requests(cases, *, identify_backend=False):
     config = _adapt_shared_caddyfile(CADDYFILE.read_text().replace('{$DOMAIN}', 'http://127.0.0.1:8080'))
     config['admin'] = {'disabled': True}
 
     def redirect_upstreams(value):
         if isinstance(value, dict):
             if value.get('dial') in ('web:3000', 'odoo:8069', 'odoo:8072'):
-                value['dial'] = '127.0.0.1:8081'
+                value['dial'] = '127.0.0.1:8082' if identify_backend and value['dial'].startswith('odoo:') else '127.0.0.1:8081'
             for child in value.values():
                 redirect_upstreams(child)
         elif isinstance(value, list):
@@ -35,6 +35,15 @@ def edge_requests(cases):
             'xff': '{http.request.header.X-Forwarded-For}',
         })}]}],
     }
+    if identify_backend:
+        # Distinct socket peers prove the compiled production route's target,
+        # including API paths that resemble legacy Odoo static paths.
+        for name, port, backend in [('echo', 8081, 'web'), ('echo_odoo', 8082, 'odoo')]:
+            config['apps']['http']['servers'][name] = {
+                'listen': [f'127.0.0.1:{port}'],
+                'routes': [{'handle': [{'handler': 'static_response', 'body': json.dumps({'backend': backend})}]}],
+            }
+
     script = (
         "set -eu\ncat > /tmp/edge.json <<'WEBVUE_AUTH_EDGE'\n" + json.dumps(config)
         + "\nWEBVUE_AUTH_EDGE\ncaddy run --config /tmp/edge.json >/tmp/caddy.log 2>&1 &\n"
@@ -64,6 +73,12 @@ def edge_requests(cases):
 
 
 class TestDedicatedAuthEdge(unittest.TestCase):
+    def test_browser_api_enters_web_admission_before_odoo(self):
+        paths = ['/api/v1/me', '/api/v1/auth/totp', '/api/v1/branding',
+                 '/api/v1/files/1/static/download', '/web/session/get_session_info']
+        rows = edge_requests([{'path': path} for path in paths], identify_backend=True)
+        self.assertEqual(rows, [(200, {'backend': 'web'})] * 4 + [(200, {'backend': 'odoo'})])
+
     def test_edge_overwrites_spoofed_identity_after_connection_stripping(self):
         rows = edge_requests([
             {'path': '/api/auth/login', 'peer': ip, 'headers': {

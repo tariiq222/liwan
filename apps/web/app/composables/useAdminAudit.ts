@@ -13,7 +13,7 @@ export type AdminAuditListParams = {
   from?: string
   to?: string
   actor_id?: number
-  target_type?: 'user' | 'role'
+  target_type?: 'user' | 'role' | 'company'
   target_id?: number
   action?: string
   limit?: number

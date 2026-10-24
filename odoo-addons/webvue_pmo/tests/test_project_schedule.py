@@ -134,7 +134,8 @@ class TestProjectSchedule(WebVuePmoCase):
             'name': 'Foreign company schedule', 'company_id': company_b.id,
         })
         response = self.api('GET', f'/api/v1/projects/{foreign_company.id}/schedule')
-        self.assertEqual(response.status_code, 403, response.text)
+        # Another company's project is not-found, not forbidden.
+        self.assertEqual(response.status_code, 404, response.text)
 
     def test_generic_deadline_write_cannot_invert_existing_schedule(self):
         task = self.task_overdue.with_user(self.manager)

@@ -27,7 +27,7 @@ branch refs/heads/main
 
 worktree /r/main/.worktrees/pmo-a
 HEAD bbbb
-branch refs/heads/claude/pmo-a
+branch refs/heads/codex/pmo-a
 
 worktree /r/detached
 HEAD cccc
@@ -56,6 +56,10 @@ class TestWt(unittest.TestCase):
         with self.assertRaises(WorktreeError):
             pick_port(range(10, 12), {10, 11}, lambda p: True)
 
+    def test_nuxt_allocator_keeps_vendor_ports_free_when_they_are_idle(self):
+        self.assertEqual(pick_port(wt.NUXT_PORTS, set(), lambda port: True), 3101)
+        self.assertEqual(pick_port(wt.NUXT_PORTS, {3101, 3102}, lambda port: True), 3104)
+
     def test_env_content_is_consistent(self):
         text = env_content(3101, 8171, 'webvue_scratch_x')
         self.assertIn('NUXT_ODOO_URL=http://127.0.0.1:8171', text)
@@ -78,14 +82,45 @@ class TestWt(unittest.TestCase):
     def test_parse_worktrees(self):
         self.assertEqual(parse_worktrees(PORCELAIN), [
             ('/r/main', 'refs/heads/main'),
-            ('/r/main/.worktrees/pmo-a', 'refs/heads/claude/pmo-a'),
+            ('/r/main/.worktrees/pmo-a', 'refs/heads/codex/pmo-a'),
             ('/r/detached', None),
         ])
 
     def test_create_rejects_bad_branch_names(self):
-        for bad in ('nonsense-thing', 'pmo', 'pmo-Bad_Slug', ''):
+        for bad in ('../escape', '/absolute', 'bad..name', 'trailing/', 'space name', ''):
             with self.assertRaises(WorktreeError):
                 create(bad, 'main', False, REQUEST)
+
+    def _create_isolated(self, root, suffix):
+        (root / '.git').mkdir()
+        listing = 'worktree %s\nbranch refs/heads/main\n' % root
+
+        def fake_sh(argv, cwd):
+            if argv[:3] == ['git', 'worktree', 'add']:
+                Path(argv[3]).mkdir(parents=True)
+            return listing
+
+        with mock.patch.object(wt, 'repo_root', return_value=root), \
+                mock.patch.object(wt, 'sh', side_effect=fake_sh), \
+                mock.patch.object(wt, 'inspect_all', return_value=[]), \
+                mock.patch.object(wt, 'git_dir', return_value=root / '.git'), \
+                mock.patch.object(wt, 'port_is_free', return_value=True):
+            return create(suffix, 'main', False, REQUEST)
+
+    def test_new_rejects_a_nested_suffix_even_when_its_branch_is_valid(self):
+        self.assertIsNone(wt.check_branch('codex/feature/example'))
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(WorktreeError, 'single directory name'):
+                self._create_isolated(Path(tmp), 'feature/example')
+
+    def test_new_accepted_suffixes_produce_worktrees_that_pass_the_checker(self):
+        for suffix in ('pmo', 'feature-example', 'pmo-Bad_Slug', 'موضوع+تصحيح', '-suffix'):
+            with self.subTest(suffix=suffix), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                path, branch, *_ = self._create_isolated(root, suffix)
+                self.assertEqual(path, root / '.worktrees' / suffix)
+                entry = worktree(path=path, branch=branch, claim=read_claim(root / '.git'))
+                self.assertEqual(wt.violations([entry]), [])
 
     def test_port_is_busy_when_only_ipv6_loopback_listens(self):
         if not socket.has_ipv6:
@@ -152,7 +187,7 @@ class TestWt(unittest.TestCase):
     def test_resume_continues_a_registered_worktree_and_keeps_ports(self):
         with tempfile.TemporaryDirectory() as tmp:
             root, path = self._setup_root(tmp, 'tools-x')
-            listing = 'worktree %s\nbranch refs/heads/claude/tools-x\n' % path.resolve()
+            listing = 'worktree %s\nbranch refs/heads/codex/tools-x\n' % path.resolve()
             installed = []
             with mock.patch.object(wt, 'repo_root', return_value=root), \
                     mock.patch.object(wt, 'sh', return_value=listing), \
@@ -165,14 +200,14 @@ class TestWt(unittest.TestCase):
                 first = create('tools-x', 'main', True, REQUEST, True)
                 again = create('tools-x', 'main', True, REQUEST, True)
             self.assertEqual(first, again)
-            self.assertEqual(first[2:], (3100, 8170))
+            self.assertEqual(first[2:], (3101, 8170))
             self.assertTrue((path / '.env.worktree').is_file())
             self.assertEqual(len(installed), 2)  # node_modules never appeared, so each resume retries
 
     def test_env_is_written_before_the_install_runs(self):
         with tempfile.TemporaryDirectory() as tmp:
             root, path = self._setup_root(tmp, 'tools-x')
-            listing = 'worktree %s\nbranch refs/heads/claude/tools-x\n' % path.resolve()
+            listing = 'worktree %s\nbranch refs/heads/codex/tools-x\n' % path.resolve()
 
             def failing_install(target):
                 self.assertTrue((target / '.env.worktree').is_file())
@@ -194,7 +229,7 @@ CLAIM = wt.Claim('session-a', 'fix the filters', 'main', ('apps/web/app/pages/hr
 
 def worktree(**overrides):
     values = dict(
-        path=Path('/r/.worktrees/pmo-a'), branch='claude/pmo-a', is_main=False, canonical=True, ahead=0, behind=3,
+        path=Path('/r/.worktrees/pmo-a'), branch='codex/pmo-a', is_main=False, canonical=True, ahead=0, behind=3,
         merged=True, dirty=False, age_days=2, size=2048, database='webvue_scratch_pmo_a', ports=[3100, 8170])
     values.update(overrides)
     return wt.Worktree(**values)
@@ -227,7 +262,7 @@ class TestStatusAndGc(unittest.TestCase):
 
     def test_missing_folder_is_reported_not_fatal(self):
         root = Path('/r')
-        entry = wt.inspect_worktree(root, '/r/.worktrees/claude-gone', 'refs/heads/claude/pmo-gone')
+        entry = wt.inspect_worktree(root, '/r/.worktrees/codex-gone', 'refs/heads/codex/pmo-gone')
         self.assertTrue(entry.missing)
         self.assertEqual(entry.database, 'webvue_scratch_pmo_gone')
         text = wt.format_status([worktree(is_main=True, path=root), entry], root)
@@ -303,7 +338,7 @@ class TestStatusAndGc(unittest.TestCase):
         self._gc(True, fake)
         self.assertEqual(calls, [
             ['git', 'branch', '--show-current'], ['git', 'worktree', 'remove', '/r/.worktrees/pmo-a'],
-            ['git', 'branch', '-d', 'claude/pmo-a'], ['dropdb', '--if-exists', 'webvue_scratch_pmo_a']])
+            ['git', 'branch', '-d', 'codex/pmo-a'], ['dropdb', '--if-exists', 'webvue_scratch_pmo_a']])
 
     def test_gc_apply_refuses_when_root_is_not_on_main(self):
         with self.assertRaises(WorktreeError):
@@ -322,7 +357,7 @@ class TestStatusAndGc(unittest.TestCase):
         with self.assertRaises(WorktreeError) as caught:
             self._gc(True, fake)
         self.assertIn('locked', str(caught.exception))
-        self.assertNotIn(['git', 'branch', '-d', 'claude/pmo-a'], calls)  # the worktree is still there
+        self.assertNotIn(['git', 'branch', '-d', 'codex/pmo-a'], calls)  # the worktree is still there
         self.assertNotIn(['dropdb', '--if-exists', 'webvue_scratch_pmo_a'], calls)  # its worktree survived
 
     def test_gc_reports_when_nothing_qualifies(self):
@@ -345,11 +380,11 @@ class TestStatusAndGc(unittest.TestCase):
             return wt.gc(Path('/r'), apply, Path(current), branch), calls
 
     def test_gc_branch_limits_victims_and_databases_to_that_branch(self):
-        other = worktree(path=Path('/r/.worktrees/pmo-b'), branch='claude/pmo-b', database='webvue_scratch_pmo_b')
-        text, calls = self._gc_branch([worktree(), other], 'claude/pmo-a', apply=True)
+        other = worktree(path=Path('/r/.worktrees/pmo-b'), branch='codex/pmo-b', database='webvue_scratch_pmo_b')
+        text, calls = self._gc_branch([worktree(), other], 'codex/pmo-a', apply=True)
         self.assertIn('removing worktree /r/.worktrees/pmo-a', text)
         self.assertNotIn('pmo-b', text)
-        self.assertIn(['git', 'branch', '-d', 'claude/pmo-a'], calls)
+        self.assertIn(['git', 'branch', '-d', 'codex/pmo-a'], calls)
         self.assertIn(['dropdb', '--if-exists', 'webvue_scratch_pmo_a'], calls)
         self.assertNotIn(['dropdb', '--if-exists', 'webvue_scratch_pmo_b'], calls)
 
@@ -366,8 +401,8 @@ class TestStatusAndGc(unittest.TestCase):
                 with self.subTest(reason=reason, apply=apply):
                     calls = []
                     with self.assertRaises(wt.WorktreeKept) as caught:
-                        _, calls = self._gc_branch([entry], 'claude/pmo-a', busy=busy, apply=apply, current=current)
-                    self.assertIn('kept: worktree /r/.worktrees/pmo-a (branch claude/pmo-a): ', str(caught.exception))
+                        _, calls = self._gc_branch([entry], 'codex/pmo-a', busy=busy, apply=apply, current=current)
+                    self.assertIn('kept: worktree /r/.worktrees/pmo-a (branch codex/pmo-a): ', str(caught.exception))
                     self.assertIn(reason, str(caught.exception))
                     self.assertEqual(calls, [])
 
@@ -378,31 +413,31 @@ class TestStatusAndGc(unittest.TestCase):
         self.assertIn('missing', wt.keep_reason(worktree(missing=True), set(), Path('/elsewhere')))
 
     def test_gc_branch_deletes_a_merged_branch_without_a_worktree(self):
-        text, calls = self._gc_branch([worktree(branch='claude/pmo-b')], 'claude/pmo-a', merged_branch=True, apply=True)
-        self.assertIn('deleting branch claude/pmo-a', text)
-        self.assertEqual(calls, [['git', 'branch', '--show-current'], ['git', 'branch', '-d', 'claude/pmo-a']])
-        dry, calls = self._gc_branch([], 'claude/pmo-a', merged_branch=True)
-        self.assertIn('would delete branch claude/pmo-a', dry)
+        text, calls = self._gc_branch([worktree(branch='codex/pmo-b')], 'codex/pmo-a', merged_branch=True, apply=True)
+        self.assertIn('deleting branch codex/pmo-a', text)
+        self.assertEqual(calls, [['git', 'branch', '--show-current'], ['git', 'branch', '-d', 'codex/pmo-a']])
+        dry, calls = self._gc_branch([], 'codex/pmo-a', merged_branch=True)
+        self.assertIn('would delete branch codex/pmo-a', dry)
         self.assertEqual(calls, [])
 
     def test_gc_branch_without_worktree_or_merged_branch_cleans_nothing(self):
-        text, calls = self._gc_branch([worktree()], 'claude/pmo-x', apply=True)
+        text, calls = self._gc_branch([worktree()], 'codex/pmo-x', apply=True)
         self.assertEqual(text, 'nothing to clean')
         self.assertEqual(calls, [])
 
-    def test_gc_branch_must_be_a_claude_task_branch(self):
-        for name in ('main', 'feature/x', 'claude/Bad Name', 'claude/nope'):
+    def test_gc_branch_must_be_a_local_task_branch(self):
+        for name in ('main', 'bad..name', 'codex/Bad Name'):
             with self.subTest(name=name), self.assertRaises(WorktreeError):
                 self._gc_branch([worktree()], name)
 
     def test_merged_local_branch_needs_an_existing_merged_branch(self):
         with mock.patch.object(wt, 'run', side_effect=[(1, ''), (0, '')]) as run:
-            self.assertFalse(wt.merged_local_branch(Path('/r'), 'claude/pmo-a'))
+            self.assertFalse(wt.merged_local_branch(Path('/r'), 'codex/pmo-a'))
             run.assert_called_once()
         with mock.patch.object(wt, 'run', side_effect=[(0, ''), (1, '')]):
-            self.assertFalse(wt.merged_local_branch(Path('/r'), 'claude/pmo-a'))
+            self.assertFalse(wt.merged_local_branch(Path('/r'), 'codex/pmo-a'))
         with mock.patch.object(wt, 'run', side_effect=[(0, ''), (0, '')]):
-            self.assertTrue(wt.merged_local_branch(Path('/r'), 'claude/pmo-a'))
+            self.assertTrue(wt.merged_local_branch(Path('/r'), 'codex/pmo-a'))
 
 
 class TestRules(unittest.TestCase):
@@ -419,12 +454,12 @@ class TestRules(unittest.TestCase):
         agent = worktree(path=Path('/r/.claude/worktrees/agent-a1'), canonical=False, branch='worktree-agent-a1')
         problems = self.problems([agent])
         self.assertIn('outside .worktrees/', problems[0])
-        self.assertIn("branch 'worktree-agent-a1' must be main, claude/<area>-<slug> or spike/<slug>", problems[1])
-        self.assertIn('no ownership claim', problems[2])
+        # Any normal branch name is accepted: only the missing claim is still reported.
+        self.assertIn('no ownership claim', problems[1])
 
     def test_folder_must_match_its_branch(self):
         problems = self.problems([worktree(path=Path('/r/.worktrees/other'), claim=CLAIM)])
-        self.assertEqual(problems, ["folder 'other' does not match its branch claude/pmo-a (expected .worktrees/pmo-a)"])
+        self.assertEqual(problems, ["folder 'other' does not match its branch codex/pmo-a (expected .worktrees/pmo-a)"])
 
     def test_detached_head_is_reported(self):
         self.assertIn('detached HEAD', self.problems([worktree(branch=None, claim=CLAIM)])[0])
@@ -434,7 +469,7 @@ class TestRules(unittest.TestCase):
 
     def test_active_overlapping_claims_are_reported_unless_a_reason_was_given_or_one_expired(self):
         first = worktree(claim=CLAIM)
-        second = worktree(path=Path('/r/.worktrees/pmo-b'), branch='claude/pmo-b', claim=CLAIM._replace(scopes=('apps/web',)))
+        second = worktree(path=Path('/r/.worktrees/pmo-b'), branch='codex/pmo-b', claim=CLAIM._replace(scopes=('apps/web',)))
         self.assertIn('overlaps apps/web of /r/.worktrees/pmo-b without a stated reason', self.problems([first, second])[0])
         agreed = second._replace(claim=second.claim._replace(overlap_reason='shared page header, agreed with session-a'))
         self.assertEqual(self.problems([first, agreed]), [])
@@ -450,7 +485,7 @@ class TestRules(unittest.TestCase):
 
 class TestClaims(unittest.TestCase):
     def test_new_refuses_an_overlap_with_an_active_claim_and_names_its_owner(self):
-        other = worktree(path=Path('/r/.worktrees/hr-b'), branch='claude/hr-b', claim=CLAIM._replace(owner='session-b', scopes=('apps/web',)))
+        other = worktree(path=Path('/r/.worktrees/hr-b'), branch='codex/hr-b', claim=CLAIM._replace(owner='session-b', scopes=('apps/web',)))
         with self.assertRaises(WorktreeError) as caught:
             wt.refuse_conflicts(REQUEST, [other])
         self.assertIn('apps/web/app/pages/hr overlaps apps/web of /r/.worktrees/hr-b (owner session-b', str(caught.exception))
@@ -467,11 +502,13 @@ class TestClaims(unittest.TestCase):
         with self.assertRaises(WorktreeError):
             wt.refuse_conflicts(REQUEST._replace(scopes=('.',)), [worktree(claim=CLAIM._replace(scopes=('docs/a.md',)))])
 
-    def test_new_refuses_a_base_that_is_not_main_or_a_claude_branch(self):
-        for base in ('origin/main', 'HEAD~1', 'feature/x', 'claude/Nope'):
-            with self.subTest(base=base), self.assertRaises(WorktreeError):
-                create('tools-x', base, False, REQUEST)
-        self.assertIsNone(wt.check_base('claude/tools-integrate-x'))
+    def test_new_accepts_any_normal_base_and_rejects_invalid_ref_names(self):
+        for base in ('main', 'origin/main', 'feature/x', 'codex/Nope', 'codex/tools-integrate-x'):
+            with self.subTest(base=base):
+                self.assertIsNone(wt.check_base(base))
+        for base in ('HEAD~1', '-bad', 'bad..name', 'feature/.hidden', ''):
+            with self.subTest(base=base):
+                self.assertIsNotNone(wt.check_base(base))
 
     def test_new_writes_the_claim_and_refuses_before_creating_the_worktree(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -486,7 +523,7 @@ class TestClaims(unittest.TestCase):
                     Path(argv[3]).mkdir(parents=True)
                 return listing
 
-            blocker = worktree(path=root / '.worktrees' / 'hr-b', branch='claude/hr-b', claim=CLAIM._replace(scopes=('apps',)))
+            blocker = worktree(path=root / '.worktrees' / 'hr-b', branch='codex/hr-b', claim=CLAIM._replace(scopes=('apps',)))
             with mock.patch.object(wt, 'repo_root', return_value=root), mock.patch.object(wt, 'sh', side_effect=fake_sh), \
                     mock.patch.object(wt, 'port_is_free', return_value=True), \
                     mock.patch.object(wt, 'git_dir', return_value=root / '.git'):
@@ -538,7 +575,7 @@ class TestClaims(unittest.TestCase):
     def test_claim_refuses_outside_a_task_worktree_and_on_overlap(self):
         with self.assertRaises(WorktreeError):
             self._update(worktree(claim=None), current='/r/apps')
-        other = worktree(path=Path('/r/.worktrees/hr-b'), branch='claude/hr-b', claim=CLAIM._replace(owner='session-b'))
+        other = worktree(path=Path('/r/.worktrees/hr-b'), branch='codex/hr-b', claim=CLAIM._replace(owner='session-b'))
         with self.assertRaises(WorktreeError):
             self._update(worktree(claim=None), others=[other])
 

@@ -29,7 +29,7 @@ def _invoice_types():
 
 def company_invoices_domain():
     return [
-        ('company_id', '=', request.env.company.id),
+        ('company_id', 'in', request.env.companies.ids),
         ('move_type', 'in', _invoice_types()),
     ]
 
@@ -69,43 +69,46 @@ def _require_no_payments(invoice):
         )
 
 
-def _line_command(line, index, tax_use):
+def _line_command(line, index, tax_use, company):
     values = {key: line[key] for key in ('name', 'quantity', 'price_unit', 'discount')}
     if 'tax_ids' in line:
         taxes = company_records(
             'account.tax', line['tax_ids'], f'lines[{index}].tax_ids',
-            [('company_id', '=', request.env.company.id), ('type_tax_use', '=', tax_use)],
+            [*request.env['account.tax']._check_company_domain(company), ('type_tax_use', '=', tax_use)],
         )
         values['tax_ids'] = [Command.set(taxes.ids)]
     if 'account_id' in line:
         account = company_records(
             'account.account', [line['account_id']], f'lines[{index}].account_id',
-            [('company_ids', 'in', [request.env.company.id])],
+            request.env['account.account']._check_company_domain(company),
         )
         values['account_id'] = account.id
     if 'analytic_distribution' in line:
         values['analytic_distribution'] = distribution_values(
-            line['analytic_distribution'], f'lines[{index}].analytic_distribution',
+            line['analytic_distribution'], f'lines[{index}].analytic_distribution', company=company,
         )
     return Command.create(values)
 
 
-def _move_values(parsed, move_type):
-    """ORM values for the parsed keys of a create/patch body; related records are checked in the company.
+def _move_values(parsed, move_type, company):
+    """ORM values for the parsed keys of a create/patch body; related records are checked for the document company.
 
     Line taxes must be of the document's kind: sale taxes on customer documents, purchase taxes on vendor ones.
+    Accounting references follow stock ancestor compatibility; all lookups retain
+    native visibility while checking compatibility with the document owner.
     """
     values = {}
     if 'move_type' in parsed:
         values['move_type'] = move_type
     if 'partner_id' in parsed:
         values['partner_id'] = company_records(
-            'res.partner', [parsed['partner_id']], 'partner_id', company_partners_domain(),
+            'res.partner', [parsed['partner_id']], 'partner_id',
+            company_partners_domain(company),
         ).id
     if 'journal_id' in parsed:
         values['journal_id'] = company_records(
             'account.journal', [parsed['journal_id']], 'journal_id',
-            [('company_id', '=', request.env.company.id), ('type', '=', _tax_use(move_type))],
+            [*request.env['account.journal']._check_company_domain(company), ('type', '=', _tax_use(move_type))],
         ).id
     if 'currency' in parsed:
         currency = request.env['res.currency'].search([('name', '=', parsed['currency'])], limit=1)
@@ -119,7 +122,7 @@ def _move_values(parsed, move_type):
         # A body that carries lines replaces every existing line of the invoice.
         values['invoice_line_ids'] = [
             Command.clear(),
-            *(_line_command(line, index, _tax_use(move_type)) for index, line in enumerate(parsed['lines'])),
+            *(_line_command(line, index, _tax_use(move_type), company) for index, line in enumerate(parsed['lines'])),
         ]
     return values
 
@@ -130,6 +133,7 @@ def _lock_context(invoice):
         'day': invoice.invoice_date or invoice.date,
         'journal': invoice.journal_id,
         'has_tax': bool(invoice.invoice_line_ids.tax_ids),
+        'company': invoice.company_id,
     }
 
 
@@ -168,7 +172,8 @@ class FinanceInvoiceController(http.Controller):
     def create_invoice(self, **payload):
         require_capability('finance.invoices.manage')
         parsed = parse_invoice_create(payload)
-        values = _move_values(parsed, parsed['move_type'])
+        values = _move_values(parsed, parsed['move_type'], request.env.company)
+        values['company_id'] = request.env.company.id
         invoice = attempt(
             lambda: request.env['account.move'].create(values),
             day=values.get('invoice_date'),
@@ -188,10 +193,11 @@ class FinanceInvoiceController(http.Controller):
         parsed = parse_invoice_patch(payload)
         if 'lines' in parsed:
             require_plain_distributions(invoice.invoice_line_ids)
-        values = _move_values(parsed, invoice.move_type)
+        values = _move_values(parsed, invoice.move_type, invoice.company_id)
         attempt(
             lambda: invoice.write(values), day=values.get('invoice_date') or invoice.date,
             journal=invoice.journal_id,
+            company=invoice.company_id,
             has_tax=any(line.get('tax_ids') for line in parsed.get('lines', ())) or bool(invoice.invoice_line_ids.tax_ids),
         )
         return dump_invoice_detail(invoice)
@@ -203,7 +209,7 @@ class FinanceInvoiceController(http.Controller):
         require_capability('finance.invoices.manage')
         invoice = _find_invoice(invoice_id, writable=True)
         require_state(invoice, 'draft', 'not_draft')
-        attempt(invoice.unlink, day=invoice.date, journal=invoice.journal_id)
+        attempt(invoice.unlink, day=invoice.date, journal=invoice.journal_id, company=invoice.company_id)
         return request.make_json_response('', status=204)
 
     @http.route('/api/v1/finance/invoices/<int:invoice_id>/post', type='json2', auth='user', methods=['POST'], readonly=False)

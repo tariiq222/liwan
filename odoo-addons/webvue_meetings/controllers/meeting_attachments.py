@@ -9,6 +9,7 @@ from odoo.addons.webvue_api.controllers.attachment_download import (
 from odoo.addons.webvue_api.controllers.common import (
     api_handler,
     get_record,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_api.serializers.attachment import (
@@ -34,7 +35,7 @@ class MeetingAttachmentController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='read')
     def list_meeting_attachments(self, meeting_id):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         meeting = get_record('webvue.meeting.minute', meeting_id)
         attachments = self._attachments(meeting)
         for attachment in attachments:
@@ -48,7 +49,7 @@ class MeetingAttachmentController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='read')
     def download_meeting_attachment(self, meeting_id, attachment_id, **_):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         meeting = get_record('webvue.meeting.minute', meeting_id)
         return download_linked_attachment(self._attachments(meeting), attachment_id)
 
@@ -56,7 +57,7 @@ class MeetingAttachmentController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
     def upload_meeting_attachment(self, meeting_id, **payload):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         meeting = get_record('webvue.meeting.minute', meeting_id)
         if not meeting.can_edit:
             raise AccessError(request.env._("You are not allowed to change this meeting."))
@@ -81,7 +82,7 @@ class MeetingAttachmentController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
     def delete_meeting_attachment(self, meeting_id, attachment_id):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         meeting = get_record('webvue.meeting.minute', meeting_id)
         if not meeting.can_edit:
             raise AccessError(request.env._("You are not allowed to change this meeting."))

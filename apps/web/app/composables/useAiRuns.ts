@@ -14,7 +14,9 @@ export function useAiRuns(archived: MaybeRefOrGetter<boolean> = false) {
   const userId = computed(() => me.value?.id)
   return useQuery({
     queryKey: computed(() => aiRunKeys.list(userId.value, toValue(archived))),
-    queryFn: () => $api('/api/ai/runs', { query: toValue(archived) ? { archived: 'true' } : undefined, schema: AiRunListSchema }),
+    // The view comes from the key, not from `archived`: observers of one key share a query and the last one's queryFn runs,
+    // so a closure over the ref would fetch the other list into this key after the view switched.
+    queryFn: ({ queryKey }) => $api('/api/ai/runs', { query: queryKey[3] ? { archived: 'true' } : undefined, schema: AiRunListSchema }),
     // The request is the browser's own: the server-side render carries no session for this route.
     enabled: computed(() => import.meta.client && Boolean(userId.value)),
     retry: false,

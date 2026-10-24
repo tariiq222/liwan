@@ -1,5 +1,6 @@
 /** Dedicated local release edge. No shared cookie envelope or vendor lookup. */
 import http from 'node:http'
+import { createBodyAdmission, destroyUpstreamWhenCallerCloses, readBodyBytes } from '../../apps/web/server/utils/bufferAdmission.mjs'
 import { timingSafeEqual } from 'node:crypto'
 import { isIP } from 'node:net'
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
@@ -9,6 +10,11 @@ import { isReleaseAssetRequest, readAsset, validateAssetStore } from '../../apps
 
 const privateHeader = /^(x-odoo-|x-openerp-|x-webvue-|forwarded$|x-forwarded-)/i
 const selectors = /^(db|database|session_id|sid)$/i
+// Match the BFF's fixed public auth budgets before this edge buffers JSON.
+// Separate hop pools avoid a public BFF request deadlocking its internal continuation.
+const acquireExternalBody = createBodyAdmission('session')
+const acquireInternalBody = createBodyAdmission('session')
+const publicAuthBodyLimits = { '/api/auth/totp': 1024, '/api/auth/login': 64 * 1024 }
 const pinNames = ['x-webvue-release-pool', 'x-webvue-release-revision', 'x-webvue-release-fence']
 const internalNames = new Set(['x-webvue-proxy-token', 'x-webvue-tenant-revision', ...pinNames, 'x-webvue-release-admission'])
 const edgeNames = new Set(['x-webvue-client-ip', 'x-webvue-client-host', 'x-webvue-client-proto'])
@@ -30,7 +36,7 @@ export function readLocalBinding(path) {
 }
 
 function odooPath(path) {
-  return path === '/website/translations' || /^\/(?:api\/v1|web|odoo|base_setup|bus|json|doc|report|mail|discuss)\//.test(path) || /\/static\//.test(path)
+  return path === '/website/translations' || /^\/(?:web|odoo|base_setup|bus|json|doc|report|mail|discuss)\//.test(path) || /\/static\//.test(path)
 }
 function cleanHeaders(headers) {
   const result = { ...headers }
@@ -46,11 +52,9 @@ function inspectBody(value, binding, internal, auth, path = '') {
     inspectBody(item, binding, internal, auth, path ? `${path}.${key}` : key)
   }
 }
-async function bodyFor(req, binding, internal, path) {
+async function bodyFor(req, res, binding, internal, path, maxBytes = 16 * 1024 * 1024) {
   if (['GET', 'HEAD'].includes(req.method ?? 'GET')) return null
-  const parts = []; let length = 0
-  for await (const part of req) { length += part.length; if (length > 16 * 1024 * 1024) throw fail(413); parts.push(part) }
-  const body = Buffer.concat(parts)
+  const body = await readBodyBytes(req, res, maxBytes)
   const content = String(req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase()
   if (body.length && content === 'application/json') {
     let value
@@ -118,7 +122,8 @@ export function createDedicatedGuard({ bindingPath, releaseRoutesDir, proxyToken
     const websocket = url.pathname.startsWith('/websocket')
     if (websocket && !internal && req.headers.origin !== `${publicProto}://${binding.host}`) throw fail()
     const lease = createReleaseLease(releaseRoutesDir, tenant, pin, websocket ? 'ws' : 'http', internal ? req.headers['x-webvue-release-admission'] : undefined)
-    const odoo = websocket || odooPath(url.pathname)
+    // API admission wins even over legacy paths containing /static/.
+    const odoo = url.pathname.startsWith('/api/v1/') ? internal : websocket || odooPath(url.pathname)
     const headers = cleanHeaders(req.headers)
     headers.host = binding.host
     headers['x-forwarded-for'] = suppliedEdge.length ? req.headers['x-webvue-client-ip'] : req.socket.remoteAddress
@@ -156,15 +161,35 @@ export function createDedicatedGuard({ bindingPath, releaseRoutesDir, proxyToken
       res.writeHead(200, asset.headers); res.end(req.method === 'HEAD' ? undefined : asset.body); return
     }
     let body
-    try { body = await bodyFor(req, binding, p.internal, p.path.split('?')[0]) }
-    catch (error) { res.writeHead(error.statusCode ?? 400); res.end('invalid_dedicated_body'); return }
+    let releaseBody = () => {}
+    // H3/radix accepts one trailing slash on these BFF routes. Bound the same aliases.
+    const publicBodyLimit = !p.internal ? publicAuthBodyLimits[p.path.split('?')[0].replace(/\/$/, '')] : undefined
+    // The public API body belongs to Nuxt's session-first, bounded admission.
+    // Inspect it only on the authenticated return hop to Odoo.
+    try {
+      const streamedApi = !p.internal && p.path.startsWith('/api/v1/')
+      if (!streamedApi && !['GET', 'HEAD'].includes(req.method)) releaseBody = await (p.internal ? acquireInternalBody : acquireExternalBody)(req, res)
+      body = streamedApi ? null : await bodyFor(req, res, binding, p.internal, p.path.split('?')[0], publicBodyLimit)
+    }
+    catch (error) {
+      releaseBody()
+      const status = error.statusCode ?? 400
+      if (status === 502) {
+        if (!res.destroyed) { res.writeHead(502, { 'content-type': 'application/json', connection: 'close' }); res.end(JSON.stringify(error.data)) }
+      } else if (publicBodyLimit !== undefined) {
+        res.writeHead(status, { 'content-type': 'application/json', connection: 'close' })
+        res.end(JSON.stringify(status === 413 ? { code: 'payload_too_large', message: 'The request body exceeds the allowed size.' } : status === 403 ? { code: 'forbidden', message: 'The request is not allowed.' } : { code: 'invalid_request', message: 'The request body is invalid.' }))
+      } else { res.writeHead(status); res.end('invalid_dedicated_body') }
+      return
+    }
     const target = new URL(p.odoo ? p.lease.context.odooUrl : p.lease.context.webUrl)
     if (body !== null) p.headers['content-length'] = String(body.length)
     const upstream = http.request({ hostname: target.hostname, port: target.port, method: req.method, path: p.path, headers: p.headers }, reply => {
       res.writeHead(reply.statusCode, reply.headers); reply.pipe(res)
     })
+    upstream.once('close', releaseBody)
     upstream.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end('dedicated_upstream_unavailable') })
-    res.once('close', () => upstream.destroy())
+    destroyUpstreamWhenCallerCloses(res, upstream, p.internal)
     if (body !== null) upstream.end(body); else req.pipe(upstream)
   })
   server.on('upgrade', (req, socket, head) => {

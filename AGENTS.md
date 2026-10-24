@@ -1,7 +1,7 @@
 # WebVue agent instructions (single source)
 
 This file is the single source of repository instructions for every coding agent
-(Claude). `CLAUDE.md` imports it. Rules that apply only to one layer live in
+(Codex and Claude). `CLAUDE.md` imports it. Rules that apply only to one layer live in
 `docs/agents/odoo-rules.md` (Odoo addons, API, scratch-database checks) and
 `docs/agents/web-rules.md` (Nuxt UI): read the one that matches the files you change.
 
@@ -20,6 +20,7 @@ This file is the single source of repository instructions for every coding agent
 | File ownership, worktree isolation and shared resources | [Parallel work](docs/parallel-work.md) |
 | Integration, publication and protected delivery | [Integration rules](docs/agents/integration-rules.md) |
 | Review findings and reviewer independence | [Review guide](REVIEW.md) |
+| Where planner-skill output lives (specs, tickets, triage) | [Issue tracker](docs/agents/issue-tracker.md) |
 | Verification commands and evidence scope | [Testing guide](docs/testing.md) |
 | Approval before updating external source versions | [Update policy](docs/UPDATE_POLICY.md) |
 | Checkout map and evidence entry points, not live runtime state | [Workspace map](docs/WORKSPACE.md) |
@@ -52,7 +53,7 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
 
 - Verify the current branch, worktree, and dirty paths before editing. The
   canonical local development checkout is `/Users/tariq/code/webvue` on `main`.
-- Develop bounded tasks in temporary `claude/<area>-<slug>` worktrees based on current
+- Develop bounded tasks in temporary worktrees (any normal branch name) based on current
   `main`. Give each task explicit file ownership and independent dependencies,
   generated files, databases, and ports. One orchestrator owns Git integration,
   shared-file edits, runtime changes, and final checks.
@@ -61,7 +62,7 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
 - The HR page is `/hr`; `/api/v1/people` remains the user-id picker (owned by `webvue_directory`). Preserve
   HR documents and the `{items, total}` list envelopes.
 - Presentation (pages, the one route-backed create panel `SharedCreatePanel`,
-  and the three overlay exceptions: search, notification bell, unsaved draft)
+  and the four overlay exceptions: search, notification bell, unsaved draft, the assistant sheet)
   follows DESIGN.md. `/new` routes open that panel; records and edits are
   pages. Task board view is `?view=board`. Keep direct links, refresh/back,
   filters, permissions and draft protection. Do not stack business dialogs.
@@ -137,6 +138,22 @@ Accumulation in code or in the database schema is a defect, not technical debt t
   artifact, or a schema remnant behind. Reviewers (`REVIEW.md`, `odoo-reviewer`) report
   accumulation as a blocking finding, in the same class as a failing test.
 
+## User-facing decisions and configurable customer policies — 2026-10-22
+
+- Before changing user-visible behavior with materially different valid outcomes,
+  present the owner with the options, user impact and a recommended default.
+- Legitimate policies that vary across customers must have an explicit setting
+  in the owning WebVue settings surface. State its scope (customer, company,
+  branch or user), default, who may change it and how it affects existing data.
+  Reuse the owning configuration model; do not hardcode customer-specific behavior.
+- Configurable authorization policies must enforce the selected policy on the
+  server for reads, writes, exports and attachments, with tests for each supported
+  mode. Membership alone never grants a sensitive capability. No setting may
+  bypass tenant isolation or expose data without an explicit authorized grant.
+- Correctness, broken links, session isolation and error handling are defects to
+  fix, not customer options to preserve faulty behavior. Deployment secrets and
+  infrastructure policies remain in their owning operator/vendor configuration.
+
 ## Architecture rules (R1–R10)
 
 Spec: [reference architecture and Git workflow](docs/superpowers/specs/2026-10-05-webvue-reference-architecture-and-git-workflow-design.md).
@@ -183,8 +200,9 @@ another application) needs the owner's approval, recorded by the owner as an
 
 ### Git workflow
 
-- `main` is the only long-lived branch and is always releasable. Task branches are
-  `claude/<area>-<slug>`; throwaway experiments are `spike/<slug>` and are never merged.
+- `main` is the only long-lived branch and is always releasable. Any normal task branch
+  name is accepted (a descriptive `<area>-<slug>` is recommended, not required);
+  throwaway experiments are `spike/<slug>` and are never merged.
   `<area>` is one of `core platform api pmo meetings hr chat tasks operations web cp deploy tools docs ci`; the
   application areas (`pmo meetings hr chat tasks operations`) are derived from the rank-4 addons in `tools/arch_layers.json`,
   so a new application's id becomes a valid area when it is registered there.
@@ -199,29 +217,28 @@ another application) needs the owner's approval, recorded by the owner as an
   direct-push exception is superseded by this PR workflow.
 - Prepare and check the combined result against the current remote `main`, preserving
   unrelated dirty work and each worker's history. Use a task PR for an independent change;
-  use one `claude/tools-integrate-<slug>` candidate and one PR for a coupled batch.
+  use one `<prefix>/tools-integrate-<slug>` candidate and one PR for a coupled batch.
   Regenerate the API artifacts there when needed. Do not submit both a batch and its
   constituent branches for separate merge.
 - A PR stays **draft** while scope, local checks or prepublication inspection are incomplete.
-  Marking ready requests GitHub review and the owner-approved bounded delivery policy.
-  After current-head CI/review succeed, `pr-delivery` merges eligible low-risk changes.
-  Sensitive changes require the owner's `/webvue approve <head-sha>` comment; a new head
-  invalidates that approval. At most three repair cycles per PR may update safe original
-  files. Missing services, stale checks or protected scope never authorize a bypass.
+  Marking ready requests CI and review of the actual candidate; it does not authorize
+  publication or merging. The required status-check policy is current-head `ci-result`
+  only. Review follows `REVIEW.md` using the selected available agent or a human.
+  Publish and merge only within the owner's explicit authorization. Missing services,
+  stale checks or protected scope never authorize a bypass.
 - The `ci` workflow runs on PRs and pushes to `main`; selected stages must pass before
   integration. `workflow_dispatch` with `full: true` runs all twelve stages. A scoped
   green run is not evidence of a full release run. A `release/19.0.X.Y.Z` tag requires
-  all twelve stages green in a full run on that exact `main` commit. The owner authorizes
-  `release-version` to increment the last release-number component automatically after
-  that evidence; a tag is not deployment authorization.
+  all twelve stages green in a full run on that exact `main` commit and the owner's
+  explicit authorization to publish the release. No workflow creates tags automatically;
+  a tag is not deployment authorization.
 - Check actual GitHub rules before delivery. Branch protection, required reviews, required
   status checks and administrator bypass are separate settings; a protected branch alone
   does not prove CI is enforced. Report gaps instead of assuming a plan limitation.
 - After a branch is merged, removing its worktree, branch and scratch database is `python3 -B tools/wt.py gc`, only with
   the owner's authorization and only after the content is preserved and no process uses it; unmerged work is
   tagged `archive/<name>` before its branch is removed.
-- Only `main`, tags and authorized task branches are pushed, each push with the owner's explicit authorization. The approved bounded delivery
-  policy authorizes reserved safe repair pushes; it grants no unrelated publication permission.
+- Only `main`, tags and authorized task branches are pushed, each push with the owner's explicit authorization.
   `release/19.0.X.Y.Z` tags on `main` are the releases; there is no per-customer branch.
 
 
@@ -240,16 +257,15 @@ These are mandatory agent workflow instructions. They are not a Git hook or
 server-enforced branch protection; do not claim automated merge protection
 exists unless it has actually been installed and verified.
 
-## Agent routing
+## Agent execution
 
-Claude is the only agent model (owner decision 2026-10-23): the coordinator, every
-worker and reviewer, local or cloud, and the GitHub review and bounded zero-tools
-repair jobs in `pr-review` and `pr-delivery`. Effort follows risk and uncertainty.
-Earlier Codex, Sol, Luna and Astra assignments are superseded. If Claude is
-unavailable, report the blocker rather than substituting another model. Delegate
-only when justified by independently owned work, with explicit scopes and isolated
-mutable resources. A routing rule never authorizes commit, push, merge, deployment
-or cleanup. Never retry exhausted quota or use paid API credentials as a hidden fallback.
+Use the model selected for the current session. No exclusive model is required
+for the coordinator, workers or reviewers. Choose available native models and
+supported effort appropriate to the task; a model-name mismatch does not block
+work or require permission. Delegate only when justified by independently owned
+work, with explicit scopes and isolated mutable resources. Model selection does
+not authorize commit, push, merge, deployment or cleanup. Never retry exhausted
+quota or use paid API credentials as a hidden fallback.
 
 ## Repository layout and product state
 
@@ -291,7 +307,10 @@ cross-addon links.
   ZATCA onboarding of a sales journal and the submission of one invoice through stock `l10n_sa_edi`,
   after the `finance.zatca.manage` / `finance.zatca.submit` capability and current-company checks,
   in the sandbox api mode only (ZATCA onboarding is sandbox-only in this phase, so production invoicing for real
-  tenants is a release blocker until the preprod/prod policy is approved). Do not add
+  tenants is a release blocker until the preprod/prod policy is approved).
+  `webvue_api` uses it only in `controllers/common.py`, for the single company-ownership
+  read in `get_record`, before any access check, so another company's record answers the
+  same 404 not-found as a missing one instead of a 403 that leaks its existence. Do not add
   another case without documenting it and fixing ACLs/rules where possible.
   Documented cases are listed per file in `tools/arch_documented_sudo.json`, outside the
   shrink-only baseline. Adding one or raising its count needs the owner's
@@ -315,13 +334,13 @@ cross-addon links.
 ## Safe worktree workflow
 
 Create every task worktree with `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>`:
-it lives only in `<main checkout>/.worktrees/<area>-<slug>`, branches from `main` (or the task's `claude/`
+it lives only in `<main checkout>/.worktrees/<area>-<slug>`, branches from `main` (or the task's
 integration branch) and records its owner and scopes. Never use a bare `git worktree add` or a tool's own
 worktree folder (the Claude app's `worktrees` folder under `.claude`). Overlapping another active claim needs `--allow-overlap
 "<reason>"` agreed with its owner. `npm run wt -- check` reports violations and changes nothing; the full
 rules are in `docs/parallel-work.md` ("Worktree rules").
 
-Use one temporary worktree per bounded task, named `claude/<area>-<slug>`. Worktrees
+Use one temporary worktree per bounded task; its branch may use any normal name. Worktrees
 must have independent `node_modules` and `.nuxt` directories; do not symlink
 either one. One writer owns each file, and one orchestrator owns shared files,
 Git integration, runtime state, and final checks. The ownership and collision

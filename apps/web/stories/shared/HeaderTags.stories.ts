@@ -5,7 +5,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/HeaderTags',
   component: HeaderTags,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('packages/ui/app/components/shared/layout/PageHeader.vue:92', 'وسوم الترويسة: حبّات كاملة الاستدارة بعد العنوان؛ الحالة بلون `tone` والحقيقة العادية بلون نوعها `kind`، ومن لها `to` رابط. تستعملها `SharedPageHeader` وبطاقة مساحة المشروع.') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('packages/ui/app/components/shared/layout/PageHeader.vue:91', 'وسوم الترويسة: حبّات كاملة الاستدارة بعد العنوان؛ الحالة بلون `tone` والحقيقة العادية بلون نوعها `kind`، ومن لها `to` رابط. تستعملها `SharedPageHeader` وبطاقة مساحة المشروع.') },
   args: {
     tags: [
       { label: 'قيد التنفيذ', tone: 'success' },

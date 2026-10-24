@@ -1,5 +1,6 @@
-import { getCurrentScope, onScopeDispose, ref } from 'vue'
+import { computed, getCurrentScope, onScopeDispose, ref, watch } from 'vue'
 import { AiEventSchema, AiRunStatusSchema, type AiEvent, type AiRecordRef, type AiRunStatus, type AiRunStatusValue } from '@webvue/contracts'
+import { useAiStreamingRun } from './useAiConversation'
 
 export type AiThreadItem =
   | { kind: 'user'; text: string }
@@ -76,7 +77,11 @@ export function applyEvent(items: AiThreadItem[], event: LocalEvent): AiThreadIt
   }
 }
 
-export function useAiRun() {
+/**
+ * One surface's open run. `enabled` is false while the surface may not fetch at all (a closed sheet): it then never
+ * reloads a run, so a hidden surface keeps making no request.
+ */
+export function useAiRun(options: { enabled?: () => boolean } = {}) {
   const runId = ref<string | null>(null)
   const status = ref<AiRunState>('idle')
   const items = ref<AiThreadItem[]>([])
@@ -84,6 +89,8 @@ export function useAiRun() {
   const error = ref<string | null>(null)
   // The service or the feature is switched off (503 ai_unavailable): the page shows a state, not an error.
   const unavailable = ref(false)
+  // The run `load()` is reading now: the surface is opening it even before the answer names it.
+  const loadingRunId = ref<string | null>(null)
   const { t } = useI18n()
 
   // One controller owns every request of the open conversation; leaving the page or switching conversation cancels them.
@@ -91,6 +98,43 @@ export function useAiRun() {
   if (getCurrentScope()) onScopeDispose(() => lifecycle.abort())
   let busy = false
   const deciding = new Set<string>()
+  let loadGeneration = 0
+
+  // The conversation is shared, the stream is not: only the surface that started the request receives its events, so
+  // the run it streams is published for the others. This surface keeps the publication its own request created, so it
+  // never clears one it is only following.
+  const sharedStreamingRunId = useAiStreamingRun()
+  const streaming = computed(() => status.value === 'streaming')
+  let publishedRunId: string | null = null
+
+  function clearPublishedStream() {
+    if (publishedRunId !== null && sharedStreamingRunId.value === publishedRunId) sharedStreamingRunId.value = null
+    publishedRunId = null
+  }
+
+  watch([runId, status], ([id, state]) => {
+    if (state !== 'streaming' || id === null) {
+      clearPublishedStream()
+      return
+    }
+    publishedRunId = id
+    if (sharedStreamingRunId.value !== id) sharedStreamingRunId.value = id
+  }, { flush: 'sync' })
+  // A surface that goes away mid-stream (a sheet unmounting) must not leave its run marked as streaming elsewhere.
+  if (getCurrentScope()) onScopeDispose(clearPublishedStream)
+
+  // A run another surface is streaming is only a snapshot here, and the events that settle it never reach this surface.
+  const peerStreamingRunId = computed(() => {
+    const shared = sharedStreamingRunId.value
+    if (shared === null || streaming.value) return null
+    return shared === runId.value || shared === loadingRunId.value ? shared : null
+  })
+  watch(peerStreamingRunId, async (id, before) => {
+    if (id !== null || before === null || streaming.value) return
+    if (runId.value !== before && loadingRunId.value !== before) return
+    if (options.enabled && !options.enabled()) return
+    await load(before)
+  })
 
   function fail(message: string) {
     error.value = message
@@ -212,11 +256,14 @@ export function useAiRun() {
 
   async function load(id: string) {
     const { signal } = lifecycle
+    // The newest load owns the thread: a snapshot answered after a newer one (the settle refresh) must not overwrite it.
+    const generation = ++loadGeneration
+    loadingRunId.value = id
     try {
       const response = await fetch(`/api/ai/runs/${encodeURIComponent(id)}`, { signal })
       if (!response.ok) return await refuse(response)
       const run = AiRunStatusSchema.parse(await response.json())
-      if (signal.aborted) return
+      if (signal.aborted || generation !== loadGeneration) return
       runId.value = run.run_id
       let rebuilt: AiThreadItem[] = run.messages.map(m => m.role === 'user' ? { kind: 'user', text: m.content } : { kind: 'assistant', text: m.content, records: [], streaming: false })
       // The status endpoint carries no summary text; the card falls back to the tool name.
@@ -227,7 +274,9 @@ export function useAiRun() {
       if (run.pending?.kind === 'write_light' && run.status === 'executing') rebuilt = rebuilt.map(item => item.kind === 'confirm' && item.callId === run.pending!.call_id ? { ...item, busy: true } : item)
       items.value = rebuilt
     } catch {
-      if (!signal.aborted) fail(t('errors.generic'))
+      if (!signal.aborted && generation === loadGeneration) fail(t('errors.generic'))
+    } finally {
+      if (generation === loadGeneration) loadingRunId.value = null
     }
   }
 
@@ -237,6 +286,9 @@ export function useAiRun() {
     lifecycle = new AbortController()
     busy = false
     deciding.clear()
+    // An abandoned load is stale from here on: it must not clear the run a new conversation is opening.
+    loadGeneration++
+    loadingRunId.value = null
     runId.value = null
     status.value = 'idle'
     items.value = []

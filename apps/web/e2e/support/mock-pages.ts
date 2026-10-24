@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test'
+import { open as openHydrated } from './tasmim6'
 
 // Shared by the mock-backed page specs of the HR areas and finance phase 3: what a page must not raise, and the
 // locators and navigation both specs use. The session itself comes from `login` in ./tasmim6.
@@ -50,7 +51,7 @@ export const dialog = (page: Page) => page.getByRole('dialog')
 
 /** Opens a page and checks it is right-to-left with its exact h1. */
 export async function openPage(page: Page, path: string, title: string) {
-  await page.goto(path)
+  await openHydrated(page, path)
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
   await expect(heading(page, title)).toBeVisible()
 }

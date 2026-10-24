@@ -144,12 +144,11 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   (`permission_access_users_read`, `webvue_hr_document_company_rule`); qualify
   cross-addon ids. ACLs live in `security/ir.model.access.csv` (PMO also has
   suffixed ACL CSVs), with `access_*` ids and `model_<dots_as_underscores>` refs.
-- Tests live in `tests/test_*.py`. `tests/__init__.py` is
-  `from odoo.addons.webvue_core.testing import import_all_tests` followed by
-  `import_all_tests(__name__)`, so no test file can be left out of the run (`webvue_finance` and `webvue_hr` are converted to it at the next integration; from then
-  on only the helper style is accepted, with the vendored OCA addon `base_tier_validation` as the
-  single documented exception. `tools/test_addon_test_imports.py` enforces this and its
-  `EXPLICIT_IMPORTS_ALLOWED` set shrinks with each conversion).
+- Tests live in `tests/test_*.py`. First-party `tests/__init__.py` files call
+  `import_all_tests(__name__)` from `webvue_core.testing`, so new test files are
+  discovered automatically. The vendored OCA addon `base_tier_validation` is the
+  sole exception allowed to import tests explicitly; `tools/test_addon_test_imports.py`
+  enforces this boundary.
   Model tests use `TransactionCase`; HTTP tests use `WebVueApiCase(HttpCase)` via
   `WebVueHrCase` / `WebVuePmoCase`. Mirror existing `webvue` / `webvue_access` tags and
   `post_install`, `-at_install` selection where appropriate.
@@ -268,3 +267,87 @@ a mismatched revision returns 409 and restarts traversal after refreshing detail
 Mutation responses retain the complete current detail shape and invalidate file
 pages. Metadata context/tag lookups search and page in the provider's normal
 company/ACL environment, retaining selected values outside the current page.
+
+## Company-scoped native ACL fence (branch policy)
+
+`webvue_core.models.ir_rule.IrRule._compute_domain` extends Odoo 19's native
+`ir.rule._compute_domain` (upstream `/Users/tariq/code/odoo/odoo/addons/base/models/ir_rule.py:141`) with
+an uncached company/operation fence. Stock ACL groups are global; WebVue grants
+are company-scoped. The fence uses the native ACL group expression from
+`ir.model.access._get_access_groups` and the groups of the actor's effective
+company grants; it never promotes global group membership into a branch grant.
+It is ANDed after the native cached domain so a revoked delegation or inherited
+role is rechecked for searches, direct reads/writes and exports. Identity/access
+metadata retain their protected service checks to avoid recursive authorization;
+trusted transaction markers are never accepted from client context.
+Regression evidence: `webvue_core/tests/test_branch_access.py`,
+`webvue_api/tests/test_branch_access.py` and
+`webvue_finance/tests/test_finance_branch_access.py` cover membership-only denial,
+read-only delegation, operation gates, inheritance/revocation, ordinary ORM,
+exports/attachment targets and real finance HTTP requests. No stock source or
+ACL is weakened and no new elevated access is introduced.
+
+### Native identity reference reads (branch fence exception)
+
+The branch `ir.rule._compute_domain` extension preserves Odoo 19's native
+`res.partner` **read** exception for `partner_share=False` (internal-user identities).
+Source: `/Users/tariq/code/odoo/odoo/addons/base/security/base_security.xml:12-19`
+explains why these references remain visible across companies; `/Users/tariq/code/odoo/odoo/addons/base/models/res_partner.py:443-448`
+computes the flag from internal users. The exception remains ANDed with the original native
+domain and native ACLs. It does not cover ordinary business contacts, writes, creates or
+unlinks. The supported `ir.attachment._inaccessible_comodel_records` target-check hook
+(upstream `/Users/tariq/code/odoo/odoo/addons/base/models/ir_attachment.py:591-617`) explicitly suppresses this read exception
+while checking files, so visible identity references do not authorize foreign files.
+Focused regressions cover foreign internal authors, ordinary foreign contacts, native
+private identity rules, writes/unlinks and linked attachment denial.
+
+Native `_compute_domain` recursively embeds `_inherits` parent rules inside its ormcache
+(upstream `/Users/tariq/code/odoo/odoo/addons/base/models/ir_rule.py:141-152`). A trusted cursor marker keeps every recursive
+native computation native-only. Fresh company/operation fences for the outer model and its
+stored delegated parents are applied **after** that cache, including parent ACL projections.
+Identity metadata such as `res.users` intentionally keeps only native inherited rules
+for ordinary identity references; attachment target checks retain the fresh user/partner
+fences instead. Protected account creation may reuse a validated current-company employee contact without
+granting general business-contact create rights. Tests retain foreign-contact and ordinary
+contact-create denial. This prevents native child caches from retaining revoked branch grants.
+
+The optimized native attachment search also invokes `comodel._search` directly when the
+`res_model` domain names at most five models (upstream
+`/Users/tariq/code/odoo/odoo/addons/base/models/ir_attachment.py:650-677`). The narrow
+`ir.attachment._search` wrapper forwards the original domain, pagination and native access
+flags under the same target-check context, preserving native search while suppressing the
+identity-reference exception. Regression checks include direct reads, exact-target searches
+and counts for private files linked to both partner and user identities.
+
+
+The HR extension of `_webvue_fresh_company_domain` adds a read-only staff/own-employee
+fence for `hr.leave` and `hr.leave.allocation` after the native rule cache. Approve/manage
+capabilities are checked in each already scoped owning company. The existing read-only
+payroll engine grant (`hr_payroll_rules.xml:162-178`) is preserved only where the actual
+`hr.payroll.read` capability is held. A parent's globally unioned native staff group
+cannot reveal another branch employee's leave; own requests and actual branch staff
+remain readable. The allocation owner is stored `employee_company_id`, related to the
+employee company (upstream `/Users/tariq/code/odoo/addons/hr_holidays/models/hr_leave_allocation.py:74-77`);
+its fresh read fence also intersects the model ACL/company scope so own employee identity
+cannot authorize a foreign allocation. Warm inherited grants are rechecked after opt-out. Employee/version
+readers likewise filter exact capability companies, and API contract/access fields use
+the employee's owning-company capability rather than the parent capability.
+
+Capability-group synchronization reads stored memberships through
+`res.users.with_context(active_test=False).company_ids`, replacing its former stock
+membership-table SELECT. This preserves archived memberships without using the active-only
+`_get_company_ids()` result. Inverse `res.company.user_ids` changes invalidate the native
+registry company cache (matching upstream
+`/Users/tariq/code/odoo/odoo/addons/base/models/res_users.py:638-643`) and the transaction
+branch memo. Focused tests retain archived memberships/reactivation and revoke warmed
+branch/home scopes after inverse removal.
+
+Branch authorization itself uses stored active memberships in the rollback-cleared
+transaction memo, rather than native process-cached `_get_company_ids` (upstream
+`/Users/tariq/code/odoo/odoo/addons/base/models/res_users.py:725-729`). A grant computed
+inside a savepoint must disappear after rollback. The helper intersects actor/target
+memberships for ordinary callers and reads native identity/company metadata in a separate
+empty-company context with only the attachment target marker suppressed; the service's
+policy root and operation scope stay unchanged. Cold users-target file denial is tested.
+Inverse membership changes also reset cached environment properties, matching native
+`res.users.write(company_ids)` at `/Users/tariq/code/odoo/odoo/addons/base/models/res_users.py:625-632`.

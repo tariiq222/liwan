@@ -31,29 +31,28 @@ ACCOUNT_TYPES = {
 
 def _find_profile(profile_id):
     profile = request.env['account.asset.profile'].with_context(active_test=False).search(
-        [('id', '=', profile_id), ('company_id', '=', request.env.company.id)], limit=1,
+        [('id', '=', profile_id), ('company_id', 'in', request.env.companies.ids)], limit=1,
     )
     if not profile:
         raise MissingError(request.env._('account.asset.profile %(id)s does not exist', id=profile_id))
     return profile
 
 
-def _values(parsed):
+def _values(parsed, company):
     values = {key: parsed[key] for key in ('name', 'method', 'method_time', 'method_number', 'method_period', 'prorata') if key in parsed}
-    company = request.env.company
     for field, model_field in PROFILE_ACCOUNT_FIELDS.items():
         if field not in parsed:
             continue
         if parsed[field] is None:
             values[model_field] = False
             continue
-        domain = [('company_ids', 'in', [company.id])]
+        domain = request.env['account.account']._check_company_domain(company)
         if field in ACCOUNT_TYPES:
             domain.append(('account_type', 'in', ACCOUNT_TYPES[field]))
         values[model_field] = company_records('account.account', [parsed[field]], field, domain).id
     if 'journal_id' in parsed:
         values['journal_id'] = company_records(
-            'account.journal', [parsed['journal_id']], 'journal_id', [('company_id', '=', company.id), ('type', '=', 'general')],
+            'account.journal', [parsed['journal_id']], 'journal_id', [*request.env['account.journal']._check_company_domain(company), ('type', '=', 'general')],
         ).id
     return values
 
@@ -80,7 +79,7 @@ class FinanceAssetProfileController(http.Controller):
         """The asset profiles of the current company (``archived=true`` for the archived ones)."""
         require_capability('finance.assets.read')
         archived = parse_choice(request.httprequest.args.get('archived'), {'true', 'false'}, 'archived') == 'true'
-        domain = [('company_id', '=', request.env.company.id), ('active', '=', not archived)]
+        domain = [('company_id', 'in', request.env.companies.ids), ('active', '=', not archived)]
         return list_page('account.asset.profile', domain, dump_asset_profiles)
 
     @http.route('/api/v1/finance/asset-profiles/<int:profile_id>', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -95,7 +94,7 @@ class FinanceAssetProfileController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def create_asset_profile(self, **payload):
         require_capability('finance.assets.manage')
-        values = _values(parse_profile_create(payload))
+        values = _values(parse_profile_create(payload), request.env.company)
         profile = attempt(lambda: request.env['account.asset.profile'].create({**values, 'company_id': request.env.company.id}))
         request.env['webvue.finance.audit.event']._webvue_log('asset_profile_created', profile, fields_written=values)
         return request.make_json_response(dump_asset_profile(profile), status=201)
@@ -108,7 +107,7 @@ class FinanceAssetProfileController(http.Controller):
         profile = _find_profile(profile_id)
         parsed = parse_profile_patch(payload)
         _require_unused_for(profile, parsed)
-        values = _values(parsed)
+        values = _values(parsed, profile.company_id)
         attempt(lambda: profile.write(values))
         request.env['webvue.finance.audit.event']._webvue_log('asset_profile_changed', profile, fields_written=values)
         return dump_asset_profile(profile)

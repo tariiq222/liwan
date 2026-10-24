@@ -23,7 +23,7 @@ watch(() => route.path, () => {
       <AdminHeader :items="items" :active-id="activeId" />
     </template>
     <template #sidebar>
-      <ModuleRail :modules="rail.modules" :utility="rail.utility" :active-id="activeId" home-to="/" />
+      <ModuleRail :rail="rail" :active-id="activeId" home-to="/" />
     </template>
     <main ref="main" tabindex="-1" data-testid="shell-main" class="webvue-shell-main focus:outline-none" :aria-label="t('app.shell.content')">
       <slot />

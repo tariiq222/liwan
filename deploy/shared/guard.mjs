@@ -1,4 +1,5 @@
 import http from 'node:http'
+import { createBodyAdmission, destroyUpstreamWhenCallerCloses, readBodyBytes } from '../../apps/web/server/utils/bufferAdmission.mjs'
 import { isReleaseAssetRequest, readAsset, validateAssetStore } from '../../apps/web/server/utils/releaseAssets.ts'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { readTenantRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'
@@ -11,6 +12,11 @@ const forbidden = /^(x-odoo-|x-openerp-|x-webvue-|forwarded$|x-forwarded-)/i
 // The web's double-submit CSRF token (compared with its cookie, never trusted as identity); Nuxt hop only.
 const browserHeaders = new Set(['x-webvue-csrf'])
 const selectors = /^(db|database|session_id|sid)$/i
+// Match the BFF's fixed public auth budgets before this edge buffers JSON.
+// Separate hop pools avoid a public BFF request deadlocking its internal continuation.
+const acquireExternalBody = createBodyAdmission('session')
+const acquireInternalBody = createBodyAdmission('session')
+const publicAuthBodyLimits = { '/api/auth/totp': 1024, '/api/auth/login': 64 * 1024 }
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b))
 export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() / 1000)) {
   if (!keys[activeKid] || Object.values(keys).some(k => typeof k !== 'string' || Buffer.byteLength(k) < 32)) throw Error('invalid_session_keyring')
@@ -68,7 +74,7 @@ export function requestPlan(req, registry, token, codec) {
   // An explicit route allowlist excludes database manager, generic RPC and vendor console.
   // wkhtmltopdf fetches the stateless QR/barcode image through the public host while it renders a report.
   const barcode = ['GET', 'HEAD'].includes(req.method ?? 'GET') && /^\/report\/barcode\/?$/.test(url.pathname)
-  const odoo = favicon || avatar || logo || barcode || url.pathname.startsWith('/api/v1/') || url.pathname === '/websocket' || (internal && ['/web/session/authenticate', '/web/session/destroy'].includes(url.pathname))
+  const odoo = favicon || avatar || logo || barcode || (internal && url.pathname.startsWith('/api/v1/')) || url.pathname === '/websocket' || (internal && ['/web/session/authenticate', '/web/session/destroy'].includes(url.pathname))
   if (!odoo && /^(\/web(?:\/|$)|\/odoo|\/jsonrpc|\/xmlrpc|\/json\/|\/report|\/bus|\/mail|\/discuss|\/website|\/base_setup)/.test(url.pathname)) throw Error('forbidden_route')
   const headers = { ...req.headers }
   for (const key of Object.keys(headers)) if (forbidden.test(key) && (odoo || !browserHeaders.has(key))) delete headers[key]
@@ -160,11 +166,13 @@ export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl
     }
     // Auth DB is injected by our BFF, never accepted from public clients.
     let body
+    let releaseBody = () => {}
+    // H3/radix accepts one trailing slash on these BFF routes. Bound the same aliases.
+    const publicBodyLimit = !p.internal ? publicAuthBodyLimits[p.path.split('?')[0].replace(/\/$/, '')] : undefined
     if ((p.odoo || p.path.startsWith('/api/auth/')) && !['GET', 'HEAD'].includes(req.method)) {
       try {
-        const chunks = []; let size = 0
-        for await (const chunk of req) { size += chunk.length; if (size > 16 * 1024 * 1024) throw Error(); chunks.push(chunk) }
-        body = Buffer.concat(chunks)
+        releaseBody = await (p.internal ? acquireInternalBody : acquireExternalBody)(req, res)
+        body = await readBodyBytes(req, res, publicBodyLimit ?? 16 * 1024 * 1024)
         if (body.length) {
           if (!String(req.headers['content-type']).startsWith('application/json')) throw Error()
           const json = JSON.parse(body.toString())
@@ -177,7 +185,17 @@ export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl
           }
           inspect(json)
         }
-      } catch { res.writeHead(400); res.end('invalid_upstream_body'); return }
+      } catch (error) {
+        releaseBody()
+        if (error.statusCode === 502) {
+          if (!res.destroyed) { res.writeHead(502, { 'content-type': 'application/json', connection: 'close' }); res.end(JSON.stringify(error.data)) }
+        } else if (publicBodyLimit !== undefined) {
+          const oversized = error.statusCode === 413
+          res.writeHead(oversized ? 413 : 400, { 'content-type': 'application/json', connection: 'close' })
+          res.end(JSON.stringify(oversized ? { code: 'payload_too_large', message: 'The request body exceeds the allowed size.' } : { code: 'invalid_request', message: 'The request body is invalid.' }))
+        } else { res.writeHead(400); res.end('invalid_upstream_body') }
+        return
+      }
     }
     const target = p.release ? new URL(p.odoo ? p.release.odooUrl : p.release.webUrl) : upstreams[p.odoo ? 0 : 1]
     const upstream = http.request({ hostname: target.hostname, port: target.port, path: p.path, method: req.method, headers: p.headers }, reply => {
@@ -192,7 +210,11 @@ export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl
       }
       res.writeHead(reply.statusCode, headers); reply.pipe(res)
     })
+    // Keep credit through actual continuation settlement, even when an internal caller closes.
+    upstream.once('close', releaseBody)
     upstream.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end() })
+    // Nuxt can reject an API upload before its body ends, and a hung target must not pin a body credit.
+    destroyUpstreamWhenCallerCloses(res, upstream, p.internal)
     if (body) upstream.end(body); else req.pipe(upstream)
   })
   server.on('upgrade', (req, socket, head) => {

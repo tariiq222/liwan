@@ -9,6 +9,8 @@ const tenancyMode = process.env.WEBVUE_TENANCY_MODE ?? 'dedicated'
 if (!['dedicated', 'shared'].includes(tenancyMode)) throw new Error('invalid_tenancy_mode')
 const shared = tenancyMode === 'shared'
 const odoo = process.env.NUXT_ODOO_URL ?? (shared ? 'http://guard:8080' : 'http://localhost:8069')
+const odooWebsocket = new URL('/websocket', odoo)
+odooWebsocket.protocol = odooWebsocket.protocol === 'https:' ? 'wss:' : 'ws:'
 
 export default defineNuxtConfig({
   extends: ['@webvue/ui', '@webvue/commercial-ui'],
@@ -79,7 +81,7 @@ export default defineNuxtConfig({
     // Literal bundled into the server plugin, outside runtimeConfig/env overrides.
     replace: { __WEBVUE_BUILD_TENANCY_MODE__: JSON.stringify(tenancyMode) },
     ...(shared ? {} : { devProxy: {
-      '/websocket': { target: 'ws://localhost:8069/websocket', ws: true, changeOrigin: false },
+      '/websocket': { target: odooWebsocket.href, ws: true, changeOrigin: false },
     } }),
   },
   runtimeConfig: {
@@ -103,11 +105,11 @@ export default defineNuxtConfig({
       // Filled at server start from the runtime `aiServiceUrl` (server/plugins/ai-enabled.ts), never from the build environment.
       aiEnabled: false,
       // Dev: the Nitro dev proxy above does not upgrade websockets, so
-      // useBus() connects directly to Odoo's :8069 in dev. Prod: left empty
+      // useBus() connects directly to the configured Odoo in dev. Prod: left empty
       // so useBus() falls back to same-origin (Caddy routes /websocket through).
       // `process.dev` is a runtime (app-code) global, not available while
       // nuxt.config.ts itself is evaluated - NODE_ENV is what `nuxt dev` sets here.
-      wsUrl: shared ? '' : (process.env.NUXT_PUBLIC_WS_URL ?? (process.env.NODE_ENV !== 'production' ? 'ws://localhost:8069/websocket' : '')),
+      wsUrl: shared ? '' : (process.env.NUXT_PUBLIC_WS_URL ?? (process.env.NODE_ENV !== 'production' ? odooWebsocket.href : '')),
     },
   },
   // Browser-only paths, dev convenience: in production Caddy routes them to Odoo. SSR

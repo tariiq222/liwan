@@ -4,11 +4,12 @@
 
 ## نسخة العمل
 
-نسخة تطوير المنتج المحلية هي `/Users/tariq/code/webvue` على `main`، ومستودع GitHub اسمه `webvue` (الـ remote هو `origin`، `https://github.com/tariiq222/webvue.git`، ويتتبعه `main`). نسخ المهام المؤقتة `claude/<area>-<slug>` تُنشأ من أحدث `main` بمساحات dependencies وتوليد ومنافذ وقواعد اختبار مستقلة، ولا تُحذف نسخة تستخدمها عملية حية.
+نسخة تطوير المنتج المحلية هي `/Users/tariq/code/webvue` على `main`، ومستودع GitHub اسمه `webvue` (الـ remote هو `origin`، `https://github.com/tariiq222/webvue.git`، ويتتبعه `main`). نسخ المهام المؤقتة (بأي اسم فرع عادي، مثل `<area>-<slug>`) تُنشأ من أحدث `main` بمساحات dependencies وتوليد ومنافذ وقواعد اختبار مستقلة، ولا تُحذف نسخة تستخدمها عملية حية.
 
 - صفحات ومكونات التطبيق: `apps/web/app`؛ التطبيق لا يعتمد على معاينة مستقلة.
 - مصدر Odoo وإعداداته في `/Users/tariq/code/odoo` للقراءة فقط.
-- التطوير المحلي المعتاد: Nuxt `3000` وOdoo `8069`. لا تختبر على `odoo19`.
+- التطوير المحلي المعتاد: Nuxt `3000` وOdoo `8069`. ملف apps/web/.env الخاص بالنسخة الرئيسية يحدد قاعدة `webvue_dev` صراحةً؛ لا تختبر على `webvue_dev` أو `odoo19`.
+- إصدار Node المعتمد في `.nvmrc` هو `24.15.0`. لكل worktree تثبيت dependencies وملفات Nuxt مولّدة مستقلة. الأمر `npm run dev` يقرأ ملف `.env.worktree` المحلي تلقائيًا ليستخدم قاعدة النسخة ومنافذ Nuxt/Odoo وWebSocket الخاصة بها. المنافذ `3100` و`3103` محجوزة لإدارة البائع؛ المخصّص يستبعدهما للنسخ الجديدة ولا يغيّر حجوزات النسخ الموجودة.
 
 قبل العمل، تحقق من الحالة الحية:
 
@@ -31,11 +32,13 @@ git tag -l 'archive/*'
 
 CI is the `ci` workflow in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): twelve stages,
 selected per change by `tools/ci_scope.py`, each runnable through `deploy/ci`.
-Delivery uses a draft PR, then ready requests review and bounded automatic delivery.
-`pr-delivery` requires current CI/review/scope gates, repairs safe failures at most
-three times, and merges normally. Sensitive scope and automation-authored heads need exact-head owner approval. The required delivery gates are `ci-result`, `code-review` and `delivery-policy`, an up-to-date branch and resolved review threads, with no ruleset bypass actors. Recheck the live GitHub settings before delivery; this document is not a live protection snapshot. Successful full main CI produces the
-next `release/19.0.X.Y.Z` tag without deploying production. The separate
-`pr-review` workflow supplies `code-review` from a Claude review; activation prerequisites and bootstrap are in the integration policy.
+Keep a PR draft during local preparation; ready requests deterministic CI and
+review of the actual diff. The required status-check policy is current-head
+`ci-result` only. Review uses the selected available agent or a human; publication
+and protected merging require the owner's explicit authorization. CI does not
+repair code, merge PRs, create release tags or deploy. A release tag requires a
+full green main run and separate owner authorization. Recheck live GitHub rules
+before remote delivery; source policy is not a live protection snapshot.
 The full procedure and live-protection caveats are in
 [integration-rules.md](agents/integration-rules.md); check commands are in
 [testing.md](testing.md#ci-workflow), migrations in [migrations.md](migrations.md).

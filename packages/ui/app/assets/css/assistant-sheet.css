@@ -1,0 +1,87 @@
+/* The assistant sheet: the header button and the card docked on the inline-end side (components/shell/Assistant*.vue).
+   Geometry reads the shell variables of shell.css (--shell-top, --shell-inset, --module-rail-width, --context-sidebar-*).
+   >= 1100px the workspace gives the sheet its room; 768-1099px the sheet floats over it under a scrim; below 768px it
+   covers the screen. ShellFrame reflects the open state as data-sheet="open". */
+.webvue-shell { --assistant-sheet-width: 380px; }
+
+/* Header button: a white pill, the solid assistant circle, the label; the open state is a 2px primary ring. */
+.webvue-assistant-button {
+  display: inline-flex;
+  height: 38px;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding-inline: 6px 14px;
+  border-radius: 9999px;
+  background: var(--ui-bg);
+  box-shadow: inset 0 0 0 1px var(--ui-border-accented);
+  color: var(--ui-text-highlighted);
+  font-size: .8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.webvue-assistant-button:hover { background: var(--ui-bg-elevated); }
+.webvue-assistant-button[data-open="true"] { box-shadow: inset 0 0 0 2px var(--ui-primary); }
+.webvue-assistant-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+:is(.webvue-assistant-button-mark, .webvue-assistant-mark) { display: grid; flex: none; place-items: center; border-radius: 9999px; background: var(--ui-primary); color: var(--primary-foreground); }
+.webvue-assistant-button-mark { width: 26px; height: 26px; }
+.webvue-assistant-mark { width: 30px; height: 30px; }
+
+/* The sheet: between the header and the bottom inset, a card with the floating-layer shadow. */
+.webvue-assistant-sheet {
+  position: fixed;
+  inset-block: var(--shell-top) var(--shell-inset);
+  inset-inline-end: var(--shell-inset);
+  z-index: 45;
+  display: flex;
+  width: var(--assistant-sheet-width);
+  max-width: calc(100vw - var(--shell-inset) * 2);
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--webvue-shell-shadow);
+  color: var(--ui-text);
+}
+.webvue-assistant-head { display: flex; height: var(--shell-header-height); flex: none; align-items: center; gap: 8px; padding-inline: 8px 12px; border-block-end: 1px solid var(--ui-border); }
+.webvue-assistant-title { margin: 0; flex: none; color: var(--ui-text-highlighted); font-size: .9375rem; font-weight: 700; }
+.webvue-assistant-module { display: inline-flex; height: 24px; min-width: 0; align-items: center; padding-inline: 10px; overflow: hidden; border-radius: 9999px; background: var(--webvue-rail-active); color: var(--webvue-rail-active-ink); font-size: .75rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.webvue-assistant-head-space { flex: 1; }
+.webvue-assistant-action { display: grid; width: 32px; height: 32px; flex: none; place-items: center; padding: 0; border: 0; border-radius: 9999px; background: transparent; color: var(--ui-text-muted); cursor: pointer; }
+.webvue-assistant-action:hover { background: var(--ui-bg-elevated); color: var(--ui-text-highlighted); }
+.webvue-assistant-action:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.webvue-assistant-body { display: flex; min-height: 0; flex: 1; flex-direction: column; overflow-y: auto; }
+
+.webvue-assistant-sheet-enter-active, .webvue-assistant-sheet-leave-active { transition: opacity 150ms ease, translate 150ms ease; }
+.webvue-assistant-sheet-enter-from, .webvue-assistant-sheet-leave-to { opacity: 0; translate: 16px 0; }
+html[dir="rtl"] :is(.webvue-assistant-sheet-enter-from, .webvue-assistant-sheet-leave-to) { translate: -16px 0; }
+
+/* Wide: the workspace reserves the sheet's room so nothing is covered. */
+@media (min-width: 1100px) {
+  .webvue-shell[data-sheet="open"] .webvue-shell-workspace { margin-inline-end: calc(var(--shell-inset) * 2 + var(--assistant-sheet-width)); }
+  .webvue-shell-workspace { transition-property: margin-inline-start, margin-inline-end; }
+}
+
+/* Medium: the sheet floats over the workspace; the scrim leaves the rail and the context strip usable. */
+.webvue-assistant-scrim {
+  position: fixed;
+  inset-block: var(--shell-top) 0;
+  inset-inline: calc(var(--shell-inset) * 2 + var(--module-rail-width) + var(--context-sidebar-width) + var(--context-sidebar-gap)) 0;
+  z-index: 44;
+  background: color-mix(in srgb, var(--ui-text-highlighted) 14%, transparent);
+}
+
+/* Small: the sheet is a full-screen layer above the header, opened from the header button; 44px touch targets. */
+@media (max-width: 767px) {
+  .webvue-assistant-sheet { inset: 0; z-index: 70; width: auto; max-width: none; border: 0; border-radius: 0; box-shadow: none; }
+  .webvue-assistant-head { padding-block-start: env(safe-area-inset-top); height: calc(var(--shell-header-height) + env(safe-area-inset-top)); }
+  .webvue-assistant-action { width: 44px; height: 44px; }
+  .webvue-assistant-button { width: 44px; height: 44px; justify-content: center; padding: 0; }
+  .webvue-assistant-button-label { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .webvue-assistant-sheet-enter-active, .webvue-assistant-sheet-leave-active, .webvue-shell-workspace { transition: none; }
+}

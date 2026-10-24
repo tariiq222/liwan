@@ -1,7 +1,8 @@
 # /api/v1 generated surface
 
-This directory is the machine-generated, always-true-to-the-code documentation
-of every `/api/v1` route in the webvue Odoo addons.
+This directory contains a statically generated inventory of `/api/v1` routes
+in the WebVue Odoo addons. `--check` verifies freshness against source; it does
+not validate runtime authorization or deployment.
 
 - `openapi.json` — OpenAPI 3.1 document. **Generated; never edit by hand.**
 - `route-capabilities.json` — the route to gate matrix: for every operation its feature keys, its
@@ -18,7 +19,7 @@ python3 tools/api_surface.py            # regenerate openapi.json and route-capa
 python3 tools/api_surface.py --check    # exit 1 when either committed file is stale
 ```
 
-Both files are generated only at integration, on a `claude/tools-integrate-*` branch or `main`. A task
+Both files are generated only at integration, on a `codex/tools-integrate-*` branch or `main`. A task
 branch never commits them (`tools/git_policy.py` refuses it); its gate is
 `tools/route_gate_policy.py`, part of `npm test`. See `docs/parallel-work.md`.
 
@@ -41,7 +42,7 @@ No Odoo runtime is involved: routes are extracted statically (AST over
 - The shared error envelope (`WebVueError`: `{code, message, field?, details?}`)
   with 403/404/422 responses on every authenticated JSON route, and the session
   cookie security scheme (browser traffic is same-origin; no bearer tokens).
-- All 237 contract schemas from `@webvue/contracts` under
+- All contract schemas from `@webvue/contracts` under
   `components/schemas`, harvested live from the Zod sources.
 
 List paging is a separate contract: [pagination.md](pagination.md). The edge
@@ -51,8 +52,7 @@ abuse limits are documented in
 ## v1 limitation (known, deliberate)
 
 Per-operation request/response bodies are not yet bound to named schema
-components: each operation carries an `x-webvue.contract_namespace` hint
-(`pmo`, `hr`, `chat`, `access`, `common`) and the full schema catalog is
-browsable in the document's Schemas section. Wiring route → symbol refs
-requires a curated route-to-contract map; it is the next increment, and the
-namespace hints + `--check` make the drift visible meanwhile.
+components. Where route ownership can be inferred, each operation carries an
+`x-webvue.contract_namespace` hint; the full schema catalog is browsable in the
+document's Schemas section. Wiring route → symbol refs requires a curated
+route-to-contract map; namespace hints and `--check` make current drift visible.

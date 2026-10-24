@@ -6,6 +6,7 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_pmo.serializers.task import (
@@ -44,7 +45,7 @@ class TaskArchiveController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def list_archived(self, **_):
-        request.env['webvue.access.service']._webvue_require_capability('pmo.tasks.read')
+        require_capabilities('pmo.tasks.read')
         args = request.httprequest.args
         unknown = set(args) - {'project_id', 'filter', 'q', 'limit', 'offset'}
         if unknown:

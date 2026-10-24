@@ -8,6 +8,7 @@ from odoo.tools.mail import plaintext2html
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
+    declare_read_capability_scope,
     get_record,
     requires_feature,
 )
@@ -85,6 +86,7 @@ class TimelineController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def timeline(self, task_id):
+        declare_read_capability_scope('pmo.tasks.read')
         task = get_record('project.task', task_id)
         return [dump_message(m) for m in self._timeline_messages(task)]
 
@@ -92,6 +94,7 @@ class TimelineController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def thread_tasks(self, task_id):
+        declare_read_capability_scope('pmo.tasks.read')
         """Tasks a comment on this task may reference with `/`: its family, minus itself."""
         task = get_record('project.task', task_id)
         relatives = (self._thread_tasks(task) - task).sorted(key=lambda t: (t.name or '', t.id))

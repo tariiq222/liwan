@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { effectScope } from 'vue'
+import { effectScope, nextTick, ref } from 'vue'
 import { applyEvent, parseSseChunk, useAiRun, type AiThreadItem } from '../useAiRun'
+import { useAiStreamingRun } from '../useAiConversation'
 
 describe('parseSseChunk', () => {
   it('splits complete blocks and keeps the remainder', () => {
@@ -57,10 +58,27 @@ describe('applyEvent', () => {
 const sse = (...blocks: Array<[string, unknown]>) => blocks.map(([event, data]) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`).join('')
 const streamResponse = (body: string) => new Response(new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode(body)); controller.close() } }), { status: 200, headers: { 'content-type': 'text/event-stream' } })
 const jsonResponse = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+/** A response that stays open: the test decides when each event arrives and when the stream ends. */
+function openStream() {
+  const encoder = new TextEncoder()
+  let controller!: ReadableStreamDefaultController<Uint8Array>
+  const body = new ReadableStream<Uint8Array>({ start(current) { controller = current } })
+  return {
+    response: new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } }),
+    send(event: string, data: unknown) { controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)) },
+    end() { controller.close() },
+  }
+}
 
 describe('useAiRun', () => {
   const fetchMock = vi.fn()
   beforeEach(() => {
+    // The shared conversation state Nuxt provides to every surface.
+    const states = new Map<string, ReturnType<typeof ref>>()
+    vi.stubGlobal('useState', (key: string, init: () => unknown) => {
+      if (!states.has(key)) states.set(key, ref(init()))
+      return states.get(key)
+    })
     vi.stubGlobal('useI18n', () => ({ t: (key: string) => key }))
     vi.stubGlobal('fetch', fetchMock)
   })
@@ -407,6 +425,77 @@ describe('useAiRun', () => {
       expect(await ai.decide('c_3', 'approved')).toBe(true)
       expect(ai.items.value[0]).toMatchObject({ state: 'approved' })
       expect(ai.error.value).toBe('errors.generic')
+    })
+  })
+
+  describe('a run another surface is streaming', () => {
+    const running = { run_id: 'r_1', status: 'running', messages: [{ role: 'user', content: 'سؤال' }], pending: null }
+    const settled = { run_id: 'r_1', status: 'done', messages: [{ role: 'user', content: 'سؤال' }, { role: 'assistant', content: 'جواب' }], pending: null }
+    const loads = () => fetchMock.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method !== 'POST').length
+
+    /** One surface is mid-answer on `r_1`; another surface opens the same run, as the page does from the shared id. */
+    async function followerOfStreamingRun(options?: { enabled: () => boolean }) {
+      const stream = openStream()
+      let done = false
+      fetchMock.mockImplementation(async (_url, init) => (init as RequestInit | undefined)?.method === 'POST' ? stream.response : jsonResponse(200, done ? settled : running))
+      const streamer = useAiRun()
+      const sending = streamer.send('سؤال')
+      stream.send('run', { run_id: 'r_1' })
+      await vi.waitFor(() => expect(streamer.runId.value).toBe('r_1'))
+      const follower = useAiRun(options)
+      await follower.load('r_1')
+      return {
+        streamer,
+        follower,
+        async settle() {
+          done = true
+          stream.send('answer', { text: 'جواب', records: [] })
+          stream.send('done', { status: 'done' })
+          stream.end()
+          await sending
+          await nextTick()
+        },
+      }
+    }
+
+    it('publishes the run it streams for the other surface, and clears it when its own stream settles', async () => {
+      const stream = openStream()
+      fetchMock.mockResolvedValue(stream.response)
+      const ai = useAiRun()
+      const sending = ai.send('س')
+      stream.send('run', { run_id: 'r_1' })
+      await vi.waitFor(() => expect(useAiStreamingRun().value).toBe('r_1'))
+      stream.send('answer', { text: 'ج', records: [] })
+      stream.send('done', { status: 'done' })
+      stream.end()
+      await sending
+      expect(ai.status.value).toBe('done')
+      expect(useAiStreamingRun().value).toBeNull()
+      // Its own settle is not a reason to reload the thread it just built.
+      expect(loads()).toBe(0)
+    })
+
+    it('shows its snapshot while the other surface streams, and reloads that run once the stream settles', async () => {
+      const { follower, settle } = await followerOfStreamingRun()
+      // Nothing streams here: the answer belongs to the other surface, so only the question is here for now.
+      expect([follower.status.value, follower.items.value]).toEqual(['idle', [{ kind: 'user', text: 'سؤال' }]])
+      expect(loads()).toBe(1)
+      await settle()
+      // nextTick starts the async watcher; it does not await the refreshed response body.
+      await vi.waitFor(() => {
+        expect(loads()).toBe(2)
+        expect(follower.items.value).toEqual([{ kind: 'user', text: 'سؤال' }, { kind: 'assistant', text: 'جواب', records: [], streaming: false }])
+        expect(follower.status.value).toBe('done')
+      })
+    })
+
+    it('keeps a hidden surface silent when the other stream settles', async () => {
+      const shown = ref(true)
+      const { follower, settle } = await followerOfStreamingRun({ enabled: () => shown.value })
+      shown.value = false
+      await settle()
+      expect(loads()).toBe(1)
+      expect(follower.items.value).toEqual([{ kind: 'user', text: 'سؤال' }])
     })
   })
 })

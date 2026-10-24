@@ -9,7 +9,7 @@ from pathlib import Path
 
 ALLOWED_SUFFIXES = ('.example', '.sample', '.template')
 FORBIDDEN_PATH_RE = re.compile(
-    r'(^|/)\.env(\.[^/]+)?$|^deploy/data/|\.(pem|key|p12|pfx)$',
+    r'(^|/)\.env(\.[^/]+)?$|^deploy/data/|\.(pem|key|p12|pfx|p8|jks|keystore)$',
 )
 SECRET_LINE_RE = re.compile(
     r'(?i)\b(\w*(password|passwd|secret|token|api_key)\w*)\s*[=:]\s*["\']?([^\s"\'#]+)',

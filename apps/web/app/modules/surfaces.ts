@@ -1,5 +1,15 @@
 import { activeManifests } from './manifests'
-import type { AppBellKind, AppCommand, AppRecordLink, AppRecordPicker, AppSearchProvider, AppSidebarPanel } from './types'
+import type { AppAssistantSurface, AppAttentionProvider, AppBellKind, AppCommand, AppRecordLink, AppRecordPicker, AppSearchProvider, AppSidebarPanel } from './types'
+
+/** The assistant's sheet surface, declared by the one application that provides it. */
+export function assistantSurface(): AppAssistantSurface | undefined {
+  return activeManifests().find(manifest => manifest.assistant)?.assistant
+}
+
+/** Attention providers of every application, in rail order. */
+export function attentionProviders(): AppAttentionProvider[] {
+  return activeManifests().flatMap(manifest => manifest.attention ?? [])
+}
 
 /** The same application search providers for the dialog and the page, in rail order. */
 export function searchProviders(): AppSearchProvider[] {

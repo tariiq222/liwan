@@ -53,10 +53,15 @@ describe('employee leave ownership', () => {
     expect(loaded.state.createTo.value).toBeUndefined()
     expect(loaded.balances).toBe(false)
   })
-  it('keeps only own withdrawal actions in Self-service, even when backend HR action flags are true', () => {
+  it('keeps own withdrawal and cancellation request actions in Self-service, even when backend HR decision flags are true', () => {
     const loaded = load('/account/leave', true)
     const actions = loaded.state.rowActions({id:7,can_approve:true,can_refuse:true,can_cancel:false,can_withdraw:true,can_request_cancellation:true,can_approve_cancellation:true,can_refuse_cancellation:true})
     expect(actions.map((action:any) => action.label)).toEqual(['hr.leave.withdraw','hr.leave.requestCancellation'])
+  })
+  it('labels direct employee and administrative cancellation for their owning surfaces', () => {
+    const leave = { id: 7, can_cancel: true }
+    expect(load('/account/leave', true).state.rowActions(leave).map((action:any) => action.label)).toEqual(['hr.leave.cancel'])
+    expect(load('/hr/leave', false).state.rowActions(leave).map((action:any) => action.label)).toEqual(['hr.leave.managerCancel'])
   })
   it('links personal and management rows to their corresponding own/detail destinations', () => {
     expect(load('/account/leave?offset=25', true).state.leaveTo({id:7}).path).toBe('/account/leave/7')

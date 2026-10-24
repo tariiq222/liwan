@@ -101,8 +101,9 @@ class TestMeetingSeriesSettings(WebVueMeetingsCase):
             'location': 'Cross-company edit',
         })
 
-        self.assertEqual(response.status_code, 403, response.text)
-        self.assertEqual(response.json()['code'], 'forbidden')
+        # Another company's series is not-found, never a 403 that marks it real.
+        self.assertEqual(response.status_code, 404, response.text)
+        self.assertEqual(response.json()['code'], 'not_found')
 
     def test_patch_rejects_archived_portal_and_foreign_participants(self):
         archived = new_test_user(

@@ -46,5 +46,5 @@ export const Compact: Story = {
     setup: () => ({ args }),
     template: `<EmptyState v-bind="args" :title="$t('documents.noFiles')" />`,
   }),
-  parameters: storyContext('apps/web/app/components/documents/DocumentFiles.vue:34'),
+  parameters: storyContext('apps/web/app/components/documents/DocumentFiles.vue:35'),
 }

@@ -1,10 +1,10 @@
 import { defineAsyncComponent, type Component } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { useShellNavigation } from './useShellNavigation'
-import { shellModuleList, visibleShellModules, type ShellContextLink } from './nav/shellModules'
+import { areaLabelKey, shellModuleList, visibleShellModules, type ShellContextLink } from './nav/shellModules'
 import { contextModuleFor } from './nav/activeRoute'
 import { createLinkTo } from './nav/createActions'
-import { railModel } from './nav/sidebarModel'
+import { railActiveId, railModel } from './nav/sidebarModel'
 import { sidebarPanelFor } from '../modules/surfaces'
 import type { AppSidebarPanel } from '../modules/types'
 import { postLoginPath } from '../utils/accessPolicy'
@@ -29,9 +29,10 @@ export function useShellModel() {
   const contextModule = computed(() => contextModuleFor(activeModule.value))
   const definition = computed(() => shellModuleList().find(item => item.id === contextModule.value) ?? module.value)
   const rail = computed(() => railModel(visibleShellModules(me.value)))
+  const railActive = computed(() => railActiveId(rail.value, activeModule.value))
   const homePath = computed(() => postLoginPath(me.value, undefined))
   const personal = computed(() => route.path === '/account' || route.path.startsWith('/account/'))
-  const contextTitle = computed(() => personal.value ? t('nav.account') : definition.value ? t(definition.value.labelKey) : t('app.productName'))
+  const contextTitle = computed(() => t(personal.value ? 'nav.account' : areaLabelKey(definition.value, activeModule.value)))
   const contextLabelKey = computed(() => personal.value ? 'nav.account' : definition.value?.labelKey ?? null)
   const panel = computed(() => sidebarPanelFor(contextModule.value) ?? null)
   const panelComponent = computed(() => panel.value ? panelView(panel.value) : null)
@@ -42,7 +43,7 @@ export function useShellModel() {
   }
 
   return {
-    activeModule, contextModule, rail, homePath, contextTitle, contextLabelKey, contextLinks,
+    activeModule, railActive, contextModule, rail, homePath, contextTitle, contextLabelKey, contextLinks,
     panel, panelView: panelComponent, motionKey, identity: me, createTo,
   }
 }

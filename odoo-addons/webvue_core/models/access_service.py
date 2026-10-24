@@ -52,6 +52,16 @@ class WebVueAccessService(models.AbstractModel):
     _webvue_scope = 'global'
 
     @api.model
+    def _webvue_pinned_company_ids(self):
+        """The company set the API request pinned: current company + its own branches.
+
+        Only the pin writes ``webvue_pinned_company_ids``; plain ORM code has no
+        such context and stays on the current company alone, so a user's
+        membership never widens a read by itself.
+        """
+        return self._webvue_scoped_company_ids()
+
+    @api.model
     def _webvue_capability_definitions(self):
         """Pure descriptors composed through super(); each addon adds only the keys it owns."""
         return tuple({'key': key, 'owner': 'webvue_core'} for key in sorted(CAPABILITIES))
@@ -195,6 +205,16 @@ class WebVueAccessService(models.AbstractModel):
         return seen
 
     @api.model
+    def _webvue_branch_cache(self):
+        # Cursor callbacks are cleared on commit and savepoint rollback (BaseCursor.clear).
+        # Never share authorization results between transactions or registry workers.
+        return self.env.cr.precommit.data.setdefault('webvue_core.branch_access_cache', {})
+
+    @api.model
+    def _webvue_clear_branch_cache(self):
+        self.env.cr.precommit.data.pop('webvue_core.branch_access_cache', None)
+
+    @api.model
     def _webvue_identity_management_state(self, user):
         self.env.cr.execute(
             '''
@@ -215,6 +235,14 @@ class WebVueAccessService(models.AbstractModel):
     def _webvue_capability_keys(self, user=None, company=None):
         user = user or self.env.user
         company = company or self.env.company
+        cache = self._webvue_branch_cache()
+        cache_key = ('keys', self.env.uid, self.env.su, self.env.company.id, user.id, company.id)
+        if cache_key not in cache:
+            cache[cache_key] = frozenset(self._webvue_compute_capability_keys(user, company))
+        return set(cache[cache_key])
+
+    @api.model
+    def _webvue_compute_capability_keys(self, user, company):
         if user._is_superuser() or user.has_group('webvue_core.group_vendor_support'):
             return set(self._webvue_capability_map())
         self.env.cr.execute(
@@ -231,6 +259,7 @@ class WebVueAccessService(models.AbstractModel):
         managed, main_company_id = self._webvue_identity_management_state(user)
         if not managed and main_company_id == company.id:
             keys |= self._webvue_legacy_capability_keys(user)
+        keys |= self._webvue_inherited_capability_keys(user, company)
         return keys
 
     @api.model
@@ -238,8 +267,12 @@ class WebVueAccessService(models.AbstractModel):
         company = company or self.env.company
         if record:
             record_company = self._webvue_record_company(record)
-            if record_company and record_company != company:
-                return False
+            if record_company:
+                if company != self.env.company and company != record_company:
+                    return False
+                company = record_company
+        if not self._webvue_branch_company_allowed(user, company):
+            return False
         if key in self._webvue_capability_keys(user, company=company):
             return True
         if not record or key not in self._webvue_contextual_keys():
@@ -315,6 +348,7 @@ class WebVueAccessService(models.AbstractModel):
 
     @api.model
     def _webvue_bump_policy(self, companies):
+        self._webvue_clear_branch_cache()
         company_ids = list(set(companies.ids))
         if not company_ids:
             return
@@ -386,16 +420,18 @@ class WebVueAccessService(models.AbstractModel):
 
     @api.model
     def _webvue_assert_admin_survives(self, company, excluding_user=None):
+        self.env['webvue.access.assignment'].flush_model(['user_id', 'company_id'])
+        self.env.cr.execute('SELECT DISTINCT user_id FROM webvue_access_assignment WHERE company_id = %s', [company.id])
+        assigned_ids = [user_id for user_id, in self.env.cr.fetchall()]
         users = self.env['res.users'].with_context(active_test=False).search([
-            ('active', '=', True), ('company_id', '=', company.id),
+            ('active', '=', True), '|', ('company_id', '=', company.id), ('id', 'in', assigned_ids),
         ])
         users = users.filtered(lambda u: not u.has_group('webvue_core.group_vendor_support'))
         if excluding_user:
             users -= excluding_user
         if not any(
-            self._webvue_has_capability(
-                user, 'access.users.assign_roles', company=company,
-            )
+            company.id in user._get_company_ids()
+            and 'access.users.assign_roles' in self._webvue_capability_keys(user, company=company)
             for user in users
         ):
             msg = 'last_access_admin'

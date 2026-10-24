@@ -35,6 +35,7 @@ class MyTaskCommentsController(http.Controller):
     @api_handler
     @requires_feature('tasks.enabled', operation='read')
     def list_my_task_comments(self, task_id, **_):
+        _require('tasks.tasks.read')
         task = request.env['webvue.my.task.service']._get_personal(task_id)
         messages = request.env['mail.message'].search([
             ('model', '=', 'project.task'), ('res_id', '=', task.id), ('message_type', '=', 'comment'),

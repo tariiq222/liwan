@@ -79,8 +79,8 @@
 **الواجهات:** صفر وراثة لقوالب Odoo (`inherit_id`) في كامل `odoo-addons`، ولا أي `xpath`.
 هذا يعني أن تغييرات شاشات Odoo لا تكسر ويب فيو بنيويًا.
 
-**محور ثانٍ مستقل:** سبعة مستودعات OCA مثبتة على فرع 19.0 بمفاتيح محددة
-([deploy/oca-addons.json](../deploy/oca-addons.json)، والتفاصيل في [oca-addons.md](oca-addons.md))،
+**محور ثانٍ مستقل:** مستودعات OCA المثبتة على فرع 19.0 مدرجة في
+[deploy/oca-addons.json](../deploy/oca-addons.json) (والتفاصيل في [oca-addons.md](oca-addons.md))،
 وإضافة `base_tier_validation` منسوخة داخل المستودع ولها مسار تحديث مستقل. المحرك وOCA
 يتحركان في خطوة واحدة، وإلا ظهر تعارض سلوكي بين الإضافة ورأس الفرع.
 

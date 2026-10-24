@@ -39,8 +39,8 @@ class WebVueProjectActualSource(models.AbstractModel):
         return self.env['webvue.entitlement.service']._webvue_feature_read(FINANCE_FEATURE)
 
     @api.model
-    def _webvue_has_capability(self, key):
-        return self.env['webvue.access.service']._webvue_has_capability(self.env.user, key)
+    def _webvue_has_capability(self, key, project):
+        return self.env['webvue.access.service']._webvue_has_capability(self.env.user, key, record=project)
 
     @api.model
     def _webvue_expense_domain(self, account):
@@ -80,11 +80,11 @@ class WebVueProjectActualSource(models.AbstractModel):
 
     @api.model
     def _webvue_can_read_actual_lines(self, project):
-        return self._webvue_is_external(project) and self._webvue_has_capability(READ_CAPABILITY)
+        return self._webvue_is_external(project) and self._webvue_has_capability(READ_CAPABILITY, project)
 
     @api.model
     def _webvue_actual_lines(self, project, limit, offset):
-        self.env['webvue.access.service']._webvue_require_capability(READ_CAPABILITY)
+        self.env['webvue.access.service']._webvue_require_capability(READ_CAPABILITY, record=project)
         if not self._webvue_is_external(project):
             raise MissingError(self.env._("This project has no external actual cost."))
         account = self._webvue_cost_center(project)
@@ -99,14 +99,14 @@ class WebVueProjectActualSource(models.AbstractModel):
     def _webvue_can_choose_actual_account(self, project):
         return (
             self.env['webvue.entitlement.service']._webvue_feature_write(FINANCE_FEATURE)
-            and self._webvue_has_capability(MANAGE_CAPABILITY)
+            and self._webvue_has_capability(MANAGE_CAPABILITY, project)
         )
 
     @api.model
     def _webvue_set_actual_account(self, project, account_id):
         if not self.env['webvue.entitlement.service']._webvue_feature_write(FINANCE_FEATURE):
             raise MissingError(self.env._("This project has no external actual cost."))
-        self.env['webvue.access.service']._webvue_require_capability(MANAGE_CAPABILITY)
+        self.env['webvue.access.service']._webvue_require_capability(MANAGE_CAPABILITY, record=project)
         current = project.webvue_cost_center_ids
         if account_id is None:
             current.webvue_project_id = False

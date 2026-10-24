@@ -1,4 +1,4 @@
-import { test } from 'node:test'
+import { test, mock } from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
 import { mkdtempSync, writeFileSync } from 'node:fs'
@@ -15,7 +15,14 @@ const req = (i = 0, headers = {}, url = '/api/v1/me') => ({ headers: { host: tar
 test('10 tenants positive plus 90 foreign session pairs reject before dispatch', () => {
   for (let i = 0; i < 10; i++) {
     const cookie = `session_id=${codec.seal(`sid_${i}`, targets[i])}`
-    assert.equal(requestPlan(req(i, { cookie }), registry, token, codec).headers.cookie, `session_id=sid_${i}`)
+    const browser = requestPlan(req(i, { cookie }), registry, token, codec)
+    assert.equal(browser.odoo, false)
+    assert.equal(browser.headers.cookie, cookie)
+    assert.equal(browser.headers.host, targets[i].host)
+    const internal = requestPlan(req(i, { cookie, 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' }), registry, token, codec)
+    assert.equal(internal.odoo, true)
+    assert.equal(internal.headers.cookie, `session_id=sid_${i}`)
+    assert.equal(internal.headers.host, targets[i].database)
     for (let j = 0; j < 10; j++) if (i !== j) assert.throws(() => requestPlan(req(j, { cookie }), registry, token, codec))
   }
 })
@@ -90,6 +97,9 @@ test('actual HTTP guard login/MFA/content/BFF, cookie propagation and fresh disa
   assert.match(result.headers['set-cookie'][0], /HttpOnly; Secure; SameSite=Lax/)
   assert.equal(codec.open(cookie.slice(11), targets[0]), 'odoo_sid')
   result = await call(url, '/api/v1/auth/totp', { host: targets[0].host, cookie })
+  assert.equal(result.status, 200); assert.equal(calls.at(-1).headers.cookie, cookie)
+  assert.equal(calls.at(-1).headers.host, targets[0].host)
+  result = await call(url, '/api/v1/auth/totp', { ...trusted, cookie })
   assert.equal(result.status, 200); assert.equal(calls.at(-1).headers.cookie, 'session_id=odoo_sid')
   // Attachments are served only by the owning /api/v1 routes: stock /web/content never reaches Odoo.
   const beforeContent = calls.length
@@ -162,6 +172,8 @@ test('HTTP recovery clears rejected cookies and preserves a newly issued session
   assert.deepEqual(issued, [freshCookie])
   const me = await call(url, '/api/v1/me', { host: current.host, cookie: issued[0].split(';')[0] })
   assert.equal(me.status, 200)
+  assert.equal(calls.at(-1).cookie, issued[0].split(';')[0])
+  await call(url, '/api/v1/me', { host: current.host, cookie: issued[0].split(';')[0], 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '2' })
   assert.equal(calls.at(-1).cookie, 'session_id=fresh_sid')
   const before = calls.length
   assert.equal((await call(url, '/api/v1/me', headers)).status, 403)
@@ -170,7 +182,7 @@ test('HTTP recovery clears rejected cookies and preserves a newly issued session
 test('the web CSRF header passes to the Nuxt hop only; other x-webvue headers stay forbidden', () => {
   const web = requestPlan(req(0, { 'x-webvue-csrf': 'c'.repeat(48) }, '/api/commercial/v1/branch-quotes'), registry, token, codec)
   assert.equal(web.odoo, false); assert.equal(web.headers['x-webvue-csrf'], 'c'.repeat(48))
-  const odoo = requestPlan(req(0, { 'x-webvue-csrf': 'c'.repeat(48) }), registry, token, codec)
+  const odoo = requestPlan(req(0, { 'x-webvue-csrf': 'c'.repeat(48), 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' }), registry, token, codec)
   assert.equal(odoo.odoo, true); assert.equal(odoo.headers['x-webvue-csrf'], undefined)
   for (const header of ['x-webvue-principal', 'x-webvue-tenant-revision', 'x-webvue-csrf-other']) assert.throws(() => requestPlan(req(0, { [header]: 'forged' }, '/api/commercial/v1/branch-quotes'), registry, token, codec))
 })
@@ -192,4 +204,68 @@ test('guard denies bootstrap hosts and serves the first publication without rest
   const result = await call(url, '/api/v1/me', { host: targets[0].host })
   assert.equal(result.status, 200)
   assert.equal(result.text, 'first tenant')
+})
+
+// Body credits are four per hop pool: four hung forwards would admit nothing else if a departed caller kept them.
+const BODY_CREDITS = 4
+const settle = async () => { for (let turn = 0; turn < 50; turn++) await new Promise(resolve => setImmediate(resolve)) }
+async function hungGuard(t) {
+  const path = join(mkdtempSync(join(tmpdir(), 'webvue-guard-hung-')), 'registry.json')
+  writeFileSync(path, JSON.stringify(registry))
+  const hung = []
+  let closed = 0
+  const backend = http.createServer((req, res) => {
+    req.resume()
+    req.once('end', () => { if (req.headers['x-test-hang']) { hung.push({ res }); res.once('close', () => { closed++ }) } else res.end('ok') })
+  })
+  const backendUrl = await listen(backend)
+  const guard = createGuard({ registryPath: path, proxyToken: token, keys, activeKid: 'test', odooUrl: backendUrl, webUrl: backendUrl })
+  const url = await listen(guard)
+  t.after(() => { mock.timers.reset(); guard.closeAllConnections(); guard.close(); backend.closeAllConnections(); backend.close() })
+  const hang = async (route, headers) => {
+    const clients = Array.from({ length: BODY_CREDITS }, () => {
+      const client = http.request(new URL(route, url), { method: 'POST', headers: { host: targets[0].host, 'content-type': 'application/json', 'x-test-hang': '1', ...headers } })
+      client.on('error', () => {})
+      client.end('{}')
+      return client
+    })
+    while (hung.length < BODY_CREDITS) await new Promise(resolve => setImmediate(resolve))
+    return { clients, upstreamClosed: () => closed, hung }
+  }
+  return { url, hang }
+}
+
+test('a departed external caller cannot pin body credits behind a hung auth target', async t => {
+  const { url, hang } = await hungGuard(t)
+  const { clients, upstreamClosed } = await hang('/api/auth/login', {})
+  for (const client of clients) client.destroy()
+  const next = await call(url, '/api/auth/login', { host: targets[0].host, 'content-type': 'application/json' }, '{}')
+  assert.equal(next.status, 200)
+  await settle()
+  assert.equal(upstreamClosed(), BODY_CREDITS)
+})
+
+test('a departed internal caller keeps its credit for one deadline, then the hung target is cancelled', async t => {
+  const { url, hang } = await hungGuard(t)
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const { clients, upstreamClosed } = await hang('/api/v1/hang', { 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' })
+  for (const client of clients) client.destroy()
+  await settle()
+  assert.equal(upstreamClosed(), 0)
+  mock.timers.tick(15_000)
+  mock.timers.reset()
+  await settle()
+  assert.equal(upstreamClosed(), BODY_CREDITS)
+  const next = await call(url, '/api/v1/me', { host: targets[0].host, 'content-type': 'application/json', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' }, '{}')
+  assert.equal(next.status, 200)
+})
+
+test('a write whose caller stays connected is not cancelled', async t => {
+  const { url, hang } = await hungGuard(t)
+  const { clients, upstreamClosed, hung } = await hang('/api/auth/login', {})
+  await settle()
+  assert.equal(upstreamClosed(), 0)
+  const replies = clients.map(client => new Promise(resolve => client.once('response', reply => { reply.resume(); resolve(reply.statusCode) })))
+  for (const { res } of hung) res.end('late')
+  assert.deepEqual(await Promise.all(replies), Array(BODY_CREDITS).fill(200))
 })

@@ -162,7 +162,7 @@ class TestProjectPhase(WebVuePmoCase):
         body = {'phase': 'planning', 'expected_updated_at': 'v0'}
         missing = self.api('POST', '/api/v1/projects/999999/phase', body)
         self.assertEqual((missing.status_code, missing.json()['code']), (404, 'not_found'))
-        # Like the other project routes, another company's project is refused, not reported missing.
+        # Like the other project routes, another company's project is the same not-found as a missing id.
         hidden = self.api('POST', f'/api/v1/projects/{foreign.id}/phase', body)
-        self.assertEqual((hidden.status_code, hidden.json()['code']), (403, 'forbidden'))
+        self.assertEqual((hidden.status_code, hidden.json()['code']), (404, 'not_found'))
         self.assertEqual(foreign.webvue_phase, 'initiating')

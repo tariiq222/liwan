@@ -1,5 +1,6 @@
 import { MeetingNotificationSchema } from '@webvue/contracts'
 import type { AppManifest } from '../types'
+import { overdueFollowupAttention, todayMeetingsAttention } from './attention'
 
 const manifest: AppManifest = {
   id: 'meetings',
@@ -33,6 +34,7 @@ const manifest: AppManifest = {
     { pattern: /^\/meetings\/series\/new$/, capability: 'meetings.create' },
     { pattern: /^\/meetings\/[^/]+\/(edit|resolutions\/new)$/, capability: 'meetings.read' },
   ],
+  attention: [overdueFollowupAttention, todayMeetingsAttention],
   bell: {
     capabilities: ['meetings.read'],
     kinds: MeetingNotificationSchema.shape.kind.options.map(kind => ({

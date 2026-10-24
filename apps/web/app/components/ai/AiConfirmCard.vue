@@ -17,8 +17,8 @@ const hydrated = useHydrated()
   <SharedRecordSection v-if="props.state === 'pending'" :variant="props.latest ? 'action' : 'tinted'" :title="t('ai.confirm.title')" role="alert" data-testid="ai-confirm">
     <p class="break-words text-sm text-highlighted">{{ props.note ? `${props.summary} — ${props.note}` : props.summary }}</p>
     <div class="mt-3 flex w-full flex-wrap justify-end gap-2">
-      <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || props.disabled" :label="t('ai.confirm.reject')" data-testid="inline-confirm-cancel" @click="emit('reject')" />
-      <UButton type="button" :disabled="!hydrated || props.disabled" :loading="props.disabled" :label="t('ai.confirm.approve')" data-testid="inline-confirm-action" @click="emit('approve')" />
+      <UButton type="button" class="rounded-full" color="neutral" variant="outline" :disabled="!hydrated || props.disabled" :label="t('ai.confirm.reject')" data-testid="inline-confirm-cancel" @click="emit('reject')" />
+      <UButton type="button" class="rounded-full" :disabled="!hydrated || props.disabled" :loading="props.disabled" :label="t('ai.confirm.approve')" data-testid="inline-confirm-action" @click="emit('approve')" />
     </div>
   </SharedRecordSection>
   <AiResolvedLine v-else :summary="props.summary" :state="props.state" data-testid="ai-confirm" />

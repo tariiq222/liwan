@@ -8,6 +8,7 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
+    declare_read_capability_scope,
     get_record,
     requires_feature,
 )
@@ -31,7 +32,7 @@ def _project_tasks(project):
         ('project_id', '=', project.id),
         ('active', '=', True),
         ('project_id.active', '=', True),
-        ('project_id.company_id', '=', request.env.company.id),
+        ('project_id.company_id', 'in', request.env.companies.ids),
     ], order='webvue_planned_start asc, date_deadline asc, id asc')
 
 
@@ -41,10 +42,12 @@ class ProjectScheduleController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def get_schedule(self, project_id):
+        declare_read_capability_scope('pmo.projects.read')
+        # get_record answers the uniform not-found for a foreign-company
+        # project and lets the pinned record rules decide the rest.
         project = get_record('project.project', project_id)
-        if not project.active or not project.company_id or project.company_id != request.env.company:
+        if not project.active:
             raise ApiError(404, 'not_found', 'Project does not exist.')
-        project._webvue_check_visible_current()
         tasks = _project_tasks(project)
         visible_ids = set(tasks.ids)
         milestones = request.env['project.milestone'].search([
@@ -62,8 +65,10 @@ class ProjectScheduleController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='write')
     def patch_schedule_task(self, project_id, task_id, **payload):
+        # get_record answers the uniform not-found for a foreign-company
+        # project and lets the pinned record rules decide the rest.
         project = get_record('project.project', project_id)
-        if not project.active or not project.company_id or project.company_id != request.env.company:
+        if not project.active:
             raise ApiError(404, 'not_found', 'Project does not exist.')
         unknown = set(payload) - {'start', 'end'}
         if unknown:
@@ -78,7 +83,6 @@ class ProjectScheduleController(http.Controller):
         ], limit=1)
         if not task:
             raise ApiError(404, 'not_found', 'Task does not exist in this project.')
-        task._webvue_check_visible_current()
         start = _strict_date(payload['start'], 'start')
         end = _strict_date(payload['end'], 'end')
         try:

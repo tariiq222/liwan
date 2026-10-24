@@ -1,6 +1,6 @@
 // Relative imports: this module is unit-tested directly under plain vitest.
-import type { ShellRailItem, ShellSubListSection } from '@webvue/ui/app/types/shell'
-import { hidePinnedNewProject, type ShellContextLink, type ShellModuleDefinition } from './shellModules'
+import type { ShellRailGroups, ShellRailItem, ShellSubListSection } from '@webvue/ui/app/types/shell'
+import { hidePinnedNewProject, LAUNCHER_MODULE, type ShellContextLink, type ShellModuleDefinition } from './shellModules'
 
 /** A run of context links under one optional section heading (a locale key). */
 export interface ShellContextSection { id: string; titleKey: string | null; links: ShellContextLink[] }
@@ -10,12 +10,31 @@ export interface ShellContextSection { id: string; titleKey: string | null; link
  */
 export interface ShellSidebarModel { createLinks: ShellContextLink[]; sections: ShellContextSection[]; subSections: ShellContextSection[]; showNav: boolean }
 
-const UTILITY_MODULES: ReadonlySet<string> = new Set(['settings'])
+const SETTINGS_MODULE_ID = 'settings'
 
-/** Rail entries in rail order; settings sits in the utility slot at the bottom. */
-export function railModel(modules: readonly ShellModuleDefinition[]): { all: ShellRailItem[]; primary: ShellRailItem[]; utility: ShellRailItem[] } {
-  const all = modules.map(module => ({ id: module.id, labelKey: module.labelKey, shortLabelKey: module.shortLabelKey, icon: module.icon, to: module.to }))
-  return { all, primary: all.filter(item => !UTILITY_MODULES.has(item.id)), utility: all.filter(item => UTILITY_MODULES.has(item.id)) }
+const HOME_MODULE_ID = 'home'
+const toRailItem = (module: ShellModuleDefinition): ShellRailItem =>
+  ({ id: module.id, labelKey: module.labelKey, shortLabelKey: module.shortLabelKey, icon: module.icon, to: module.to, ...(module.utility ? { utility: true } : {}) })
+
+export interface ShellRailModel extends ShellRailGroups {
+  all: ShellRailItem[]
+  drawer: ShellRailItem[]
+}
+
+/** Every reachable application stays in manifest order; the same destinations appear in the mobile drawer. */
+export function railModel(modules: readonly ShellModuleDefinition[]): ShellRailModel {
+  const home = modules.find(module => module.id === HOME_MODULE_ID)
+  const top = [toRailItem(LAUNCHER_MODULE), ...(home ? [toRailItem(home)] : [])]
+  const applications = modules.filter(module => !module.utility && module.id !== HOME_MODULE_ID && module.id !== SETTINGS_MODULE_ID).map(toRailItem)
+  const utilities = modules.filter(module => module.utility).map(toRailItem)
+  const utility = [...utilities.filter(item => item.id !== SETTINGS_MODULE_ID), ...utilities.filter(item => item.id === SETTINGS_MODULE_ID)]
+  const all = [...top, ...applications, ...utility]
+  return { top, applications, utility, all, drawer: all }
+}
+
+export function railActiveId(rail: Pick<ShellRailModel, 'top' | 'applications' | 'utility'>, activeId: string | null): string | null {
+  if (activeId === null) return null
+  return [...rail.top, ...rail.applications, ...rail.utility].some(item => item.id === activeId) ? activeId : LAUNCHER_MODULE.id
 }
 
 /** Consecutive links that share a heading key (`section` by default) form one section, in manifest order. */
