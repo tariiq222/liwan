@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { refDebounced } from '@vueuse/core'
+import { refDebounced, useMediaQuery } from '@vueuse/core'
 import type { CommandPaletteGroup, CommandPaletteItem, CommandPaletteProps } from '@nuxt/ui'
 import { useNav, type NavItem } from '@/composables/nav/shellModules'
 import {
@@ -20,6 +20,7 @@ const { can } = useAccess()
 const { $api } = useApi()
 const route = useRoute()
 const hydrated = useHydrated()
+const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
 const { open, view, term, close, reset } = usePalette()
 const trimmed = computed(() => term.value.trim())
 const debounced = refDebounced(trimmed, 200)
@@ -159,6 +160,7 @@ function onAfterLeave() {
 <template>
   <UModal
     v-model:open="open"
+    :transition="!reduceMotion"
     :title="t('app.search')"
     :description="t('search.description')"
     :content="{ onCloseAutoFocus }"

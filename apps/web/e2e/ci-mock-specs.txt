@@ -6,3 +6,6 @@ hr-areas-mocked.spec.ts
 finance-phase3-mocked.spec.ts
 hr-payroll-mocked.spec.ts
 settings-navigation-mocked.spec.ts
+motion-accessibility.spec.ts
+navigation-disclosure.spec.ts
+navigation-system.spec.ts

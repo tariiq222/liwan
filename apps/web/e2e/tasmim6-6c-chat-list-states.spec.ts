@@ -73,7 +73,7 @@ test.describe('Plan 6c: the conversation list states', () => {
     await open(page, '/chat')
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('المحادثة')
-    await expect(page.getByTestId('chat-list').getByRole('link', { name: 'محادثة جديدة' })).toBeVisible()
+    await expect(page.getByTestId('chat-list').getByRole('button', { name: 'جديد', exact: true })).toBeVisible()
     expect(await fitsWidth(page)).toBe(true)
   })
 })

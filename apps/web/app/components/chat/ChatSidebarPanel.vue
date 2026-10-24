@@ -14,7 +14,8 @@ const selectedId = computed(() => {
 })
 
 function updateRoute(next: ChatListRoute) {
-  void router.replace({ path: route.path, query: serializeChatListRoute(next) })
+  const creating = (route.path.replace(/\/+$/, '') || '/') === '/chat/new'
+  void router.replace({ path: route.path, query: { ...(creating ? route.query : {}), ...serializeChatListRoute(next) } })
 }
 </script>
 

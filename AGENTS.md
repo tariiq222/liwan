@@ -63,7 +63,8 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
   HR documents and the `{items, total}` list envelopes.
 - Presentation (pages, the one route-backed create panel `SharedCreatePanel`,
   and the four overlay exceptions: search, notification bell, unsaved draft, the assistant sheet)
-  follows DESIGN.md. `/new` routes open that panel; records and edits are
+  follows DESIGN.md. `/new` routes open that panel, except the approved inline
+  conversation creation at `/chat/new`; records and edits are
   pages. Task board view is `?view=board`. Keep direct links, refresh/back,
   filters, permissions and draft protection. Do not stack business dialogs.
   Confirm destructive actions inline. Value-selection menus are controls, not
@@ -276,7 +277,7 @@ cross-addon links.
 ## Product contracts
 
 - Presentation follows DESIGN.md (pages, the route-backed `SharedCreatePanel`
-  for `/new`, and the overlay exceptions: search, notification bell, unsaved
+  for `/new` except inline `/chat/new`, and the overlay exceptions: search, notification bell, unsaved
   draft). Keep stable routes, visible headings, direct-link/refresh support,
   and back navigation that preserves list filters. Task board view is
   `?view=board`. Destructive actions use explicit inline confirmation. Do not
