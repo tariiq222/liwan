@@ -28,16 +28,11 @@
     "viewAll": "View all"
   },
   "nav": {
-    "quickViews": "Quick views and actions",
-    "quickViewsList": "Quick views",
-    "quickActionsList": "Page actions",
     "today": "Today",
     "tasks": "Assigned project tasks",
     "projects": "Projects",
     "toggleNavigation": "Toggle navigation",
     "header": "Application header",
-    "collapseContext": "Collapse sidebar",
-    "expandContext": "Expand sidebar",
     "context": "Context navigation",
     "assistantSheet": {
       "region": "Assistant panel",
@@ -112,7 +107,7 @@
     "meetingFollowup": "Follow-up",
     "meetingSeriesShort": "Recurring",
     "finance": "Finance",
-    "apps": "Applications"
+    "viewAll": "View all"
   },
   "auth": {
     "username": "Username",

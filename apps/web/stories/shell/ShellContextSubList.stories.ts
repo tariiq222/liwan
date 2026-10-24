@@ -14,7 +14,7 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   name: 'أقسام القائمة الفرعية',
-  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:62'),
+  parameters: storyContext('packages/ui/app/components/shell/ShellNavigation.vue:70'),
   render: args => ({ components: { ShellContextSubList }, setup: () => ({ args }), template: '<div class="webvue-shell min-h-svh"><div class="webvue-context-column"><ShellContextSubList v-bind="args" /></div></div>' }),
 }
 

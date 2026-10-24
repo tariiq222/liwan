@@ -18,8 +18,8 @@ const emit = defineEmits<{ navigate: [item: ShellQuickItem] }>()
 
 <template>
   <aside v-if="props.sections.length" :data-testid="`${props.testIdPrefix ?? ''}context-sub-list`" class="webvue-quick-views webvue-sub-list" :data-expanded="!props.collapsed" :data-surface="props.surface ?? 'card'" :aria-label="props.label">
-    <nav v-for="section in props.sections" :key="section.id" class="webvue-quick-group" data-fresh-navigation :aria-label="section.title" :data-testid="`${props.testIdPrefix ?? ''}context-sub-list-${section.id}`">
-      <h3 class="webvue-sub-list-title">{{ section.title }}</h3>
+    <nav v-for="section in props.sections" :key="section.id" class="webvue-quick-group" data-fresh-navigation :aria-label="section.title || props.label" :data-testid="`${props.testIdPrefix ?? ''}context-sub-list-${section.id}`">
+      <h3 v-if="section.title" class="webvue-sub-list-title">{{ section.title }}</h3>
       <ShellQuickRow v-for="item in section.items" :key="item.id" :item="item" :test-id="item.testId" :collapsed="props.collapsed" @navigate="emit('navigate', $event)" />
     </nav>
   </aside>
