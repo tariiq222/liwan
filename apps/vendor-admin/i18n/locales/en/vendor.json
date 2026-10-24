@@ -628,7 +628,8 @@
         "cadenceInvalid": "Choose a unit and a count from 1 to 12.",
         "duplicate": "Duplicate cadence.",
         "amountInvalid": "Enter an amount with at most 2 decimals.",
-        "invalid": "Review the prices."
+        "invalid": "Review the prices.",
+        "cadenceMissing": "Add a user and storage unit price for every offered billing cadence."
       },
       "limit": {
         "unset": "Not set",
@@ -659,9 +660,8 @@
         "pricesAndBundles": "Prices and bundles",
         "basePrices": "Billing cadences and base price",
         "bundles": "Bundles",
-        "platformLimits": "Platform limits",
-        "branches": "Branches",
         "lifecycle": "Trial, grace and renewal",
+        "quantities": "Included quantities",
         "included": "What the bundle includes"
       },
       "fields": {
@@ -675,6 +675,10 @@
         "freeBranches": "Free extra branches",
         "branchPrice": "Extra branch price",
         "branchLimit": "Extra branch limit",
+        "includedUsers": "Included users minimum",
+        "includedStorage": "Included storage minimum (MB)",
+        "userPrice": "Extra user price",
+        "storagePrice": "Extra storage price (GB)",
         "trialDays": "Trial days",
         "graceDays": "Grace days",
         "autoSuspend": "Auto-suspend when overdue",
@@ -691,13 +695,17 @@
         "dependencyBlock": "Resolve the dependency notices before saving.",
         "releaseHint": "A bundle is built on a fixed catalog release.",
         "appsHint": "Core apps are always included. Locked features come with the app.",
+        "grantedFeatures": "Selecting this application grants all of its selectable features:",
         "requires": "{app} requires {other}.",
         "conflicts": "{app} conflicts with {other}.",
         "limitsHint": "Choose explicitly: unlimited, none (0) or a number. A field is never left blank.",
         "pricesHint": "Amounts in SAR with two decimals."
       },
       "plan": {
-        "storageHint": "Counts attachments only, not database size.",
+      "usersRequired": "The included minimum must admit at least one user.",
+      "quantitiesHint": "The minimums are covered by the base price; anything above them is priced per unit.",
+      "userPricesHint": "Price per user above the minimum, for each billing cadence.",
+      "storagePricesHint": "Price per gigabyte above the minimum, for each billing cadence.",
         "bundlesRequired": "Select at least one bundle.",
         "singleRelease": "All bundles must come from one catalog release.",
         "policyMissing": "Pricing policy unavailable.",
@@ -707,14 +715,11 @@
         "optional": "Optional",
         "noBundles": "No published bundles available.",
         "bundlesHint": "Pick from published available bundles. A bundle is included or optional, not both.",
-        "platformHint": "Platform limits for the whole plan.",
         "hq": "Headquarters is always included in every plan.",
-        "branchesHint": "Extra branches beyond headquarters.",
         "lifecycleHint": "Explicit values, no defaults.",
         "autoRenewHint": "Controlled by the administrator.",
         "reviewHint": "The approved policy governs calculation.",
-        "basePricesHint": "Base plan price for each cadence.",
-        "platformNoneWarning": "0 users or 0 storage blocks usage entirely; it does not mean unlimited."
+        "basePricesHint": "Base plan price for each cadence."
       },
       "policy": {
         "timezone": "Time zone",
@@ -791,6 +796,9 @@
         "limit_not_supported": "This limit is not supported by the selected apps.",
         "invalid_limit_scope": "Limit in the wrong scope: platform limits belong to the plan, app limits to the bundle.",
         "invalid_quantity": "Invalid quantity.",
+        "unit_price_missing": "Add the unit price for every offered billing cadence.",
+        "platform_limit_derived": "Users and storage are customer-chosen quantities, not plan limits.",
+        "users_limit_admin_required": "The chosen quantity must admit at least one administrator.",
         "invalid_billing_period": "Invalid billing period.",
         "invalid_order_transition": "Order transition not allowed.",
         "invalid_json": "Invalid request. Try again.",

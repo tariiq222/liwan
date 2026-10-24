@@ -9,7 +9,7 @@ import { sar } from '../vendorCommercial'
 
 const now = new Date('2026-10-10T00:00:00Z')
 const order = (o: Partial<Order> = {}) => ({ id: 'o', payment_state: 'paid', fulfillment_state: 'applying', created_at: '2026-10-10T00:00:00Z', ...o }) as Order
-const sub = (o: Partial<SubscriptionView> = {}) => ({ id: 's', state: 'active', applied: { id: 'r1', cadence: { unit: 'month', count: 1 }, plan_revision_id: 'p', bundle_revision_ids: [], extra_branch_count: 1 }, target: null, pending_order: null, revision: 2, renewal_at: '2026-10-20', ...o }) as unknown as SubscriptionView
+const sub = (o: Partial<SubscriptionView> = {}) => ({ id: 's', state: 'active', applied: { id: 'r1', cadence: { unit: 'month', count: 1 }, plan_revision_id: 'p', bundle_revision_ids: [], extra_branch_count: 1, entitlement: { features: { 'users.limit': 10, 'storage.limit_mb': 10240 } } }, target: null, pending_order: null, revision: 2, renewal_at: '2026-10-20', ...o }) as unknown as SubscriptionView
 const cust = (s: SubscriptionView | null, setup = false): VendorCustomer => ({ id: 'c', name: 'n', tenant_id: null, commercial_setup_required: setup, subscription: s })
 
 describe('queries', () => {
@@ -57,7 +57,7 @@ describe('terms payload', () => {
   })
   it('builds a customer quote preview from the target revision with terms', () => {
     const body = customerQuoteBody('c', sub(), { terms: { included_extra_branches: 4 } })
-    expect(body).toMatchObject({ customer_id: 'c', kind: 'change', subscription_id: 's', expected_subscription_revision: 2, requested_extra_branches: 1, terms: { included_extra_branches: 4 } })
+    expect(body).toMatchObject({ customer_id: 'c', kind: 'change', subscription_id: 's', expected_subscription_revision: 2, requested_extra_branches: 1, requested_users: 10, requested_storage_mb: 10240, terms: { included_extra_branches: 4 } })
     expect(() => customerQuoteBody('c', sub({ applied: null }))).toThrow('no_subscription')
   })
 })

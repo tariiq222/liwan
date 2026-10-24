@@ -166,7 +166,7 @@ export function hasTermsOverride(d: TermsDraft): boolean {
   try { termsPayload('x', { ...d, reason: d.reason.trim().length >= 3 ? d.reason : 'xxx' }); return true } catch { return false }
 }
 /** Preview body for POST commercial/customer-quotes: the server computes both sides; `terms` is an unsaved draft, nothing is persisted. */
-export function customerQuoteBody(customerId: string, view: SubscriptionView, extra: { terms?: Omit<TermsPayload, 'customer_id' | 'reason'>; planRevisionId?: string; bundleIds?: string[]; cadence?: Cadence; extraBranches?: number } = {}) {
+export function customerQuoteBody(customerId: string, view: SubscriptionView, extra: { terms?: Omit<TermsPayload, 'customer_id' | 'reason'>; planRevisionId?: string; bundleIds?: string[]; cadence?: Cadence; extraBranches?: number; users?: number; storageMb?: number } = {}) {
   const base = view.target ?? view.applied
   if (!base) {
     if (!extra.planRevisionId || !extra.cadence || !extra.bundleIds) throw new Error('no_subscription')
@@ -174,12 +174,15 @@ export function customerQuoteBody(customerId: string, view: SubscriptionView, ex
       customer_id: customerId, kind: 'new' as const, subscription_id: view.id, expected_subscription_revision: view.revision,
       plan_revision_id: extra.planRevisionId, bundle_revision_ids: extra.bundleIds,
       cadence: extra.cadence, requested_extra_branches: extra.extraBranches ?? 0,
+      requested_users: extra.users ?? 0, requested_storage_mb: extra.storageMb ?? 0,
     }
   }
   return {
     customer_id: customerId, kind: 'change' as const, subscription_id: view.id, expected_subscription_revision: view.revision,
     plan_revision_id: extra.planRevisionId ?? base.plan_revision_id, bundle_revision_ids: extra.bundleIds ?? base.bundle_revision_ids,
     cadence: extra.cadence ?? base.cadence, requested_extra_branches: extra.extraBranches ?? base.extra_branch_count,
+    requested_users: extra.users ?? Number(base.entitlement.features['users.limit'] ?? 0),
+    requested_storage_mb: extra.storageMb ?? Number(base.entitlement.features['storage.limit_mb'] ?? 0),
     ...(extra.terms ? { terms: extra.terms } : {}),
   }
 }
