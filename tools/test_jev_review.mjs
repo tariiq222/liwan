@@ -31,6 +31,12 @@ test('secretProblems refuses secret paths and literal deploy secrets', () => {
   assert.match(secretProblems(diffOf('deploy/.env', 'A=1')).join(), /secret-bearing path: deploy\/\.env/)
   assert.match(secretProblems(diffOf('deploy/app.yml', 'password: hunter2real')).join(), /literal secret/)
   assert.deepEqual(secretProblems(diffOf('deploy/.env.example', 'password: change-me')), [])
+  // The fallback rule must also gate what leaves the machine for the advisory review.
+  assert.match(
+    secretProblems(diffOf('deploy/k6/probe.js', "const PASSWORD = __ENV.PASSWORD || 'hunter2real'")).join(),
+    /credential fallback literal/,
+  )
+  assert.deepEqual(secretProblems(diffOf('deploy/k6/probe.js', "const PASSWORD = requiredEnv('PASSWORD')")), [])
 })
 
 test('formatTable shows scores, deltas and priorities', () => {

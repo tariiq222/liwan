@@ -17,7 +17,8 @@
 > على أي حساب حقيقي — staging أو إنتاج.
 
 ```bash
-export LOGIN=<scratch-account-login> PASSWORD=<scratch-account-password>
+export LOGIN='scratch-account-login'
+export PASSWORD='scratch-account-password'
 
 # دخان سريع: التحقق من أن الخدمة تستجيب
 k6 run k6/smoke.js
@@ -45,7 +46,7 @@ COOKIE="session_id=..." PATH_=/api/v1/... node probe.cjs
 ./run-ramp.sh http://[::1]:3100 ramp    # smoke | ramp | storm
 ```
 
-`run-ramp.sh` يمرر `BASE` و`LOGIN` و`PASSWORD` من البيئة، ويرفض التشغيل إذا لم تصدّرهما.
+`run-ramp.sh` يقرأ `LOGIN` و`PASSWORD` من البيئة ويرفض التشغيل إذا لم تصدّرهما، ويمرر `BASE` وحده بـ`-e`. متغيرات البيئة تصل إلى k6 تلقائيًا، فلا تُمرَّر بيانات الاعتماد بـ`-e` كي لا تظهر في سطر أوامر العملية.
 
 ### قالب إعداد Odoo
 

@@ -19,6 +19,10 @@ OIDC_PERMISSION_RE = re.compile(r'\s*id-token:\s*(read|write|none)\s*')
 # `odoo` is the throwaway password of the ephemeral CI postgres service.
 # `-` is the empty-default marker in shell `${VAR:-}` expansions.
 PLACEHOLDERS = frozenset({'-', 'change-me', 'changeme', 'x', 'validation-only', 'none', 'false', 'true', 'odoo'})
+# Fixture values that announce themselves. They are only accepted when the file is a
+# test, so a real default cannot hide behind a test-sounding word.
+SELF_DESCRIBED_FIXTURE_RE = re.compile(r'(?i)^(?:synthetic|test-only|not-secret|fixture|dummy|example|release-proxy)[\w-]*')
+TEST_PATH_RE = re.compile(r'(^|/)(?:tests?|__tests__|e2e)(/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$|(^|/)test_[^/]+$')
 SCANNED_SUFFIXES = ('.conf', '.yml', '.yaml', '.env.example', '.sh', '.json')
 # A credential that silently falls back to a literal (`NAME = X || 'value'`) uses that
 # literal on any host the script reaches, so the literal is judged by itself. Kept apart
@@ -27,7 +31,8 @@ SCANNED_SUFFIXES = ('.conf', '.yml', '.yaml', '.env.example', '.sh', '.json')
 # apostrophe, and a value never runs past the string that closes it.
 CREDENTIAL_FALLBACK_RE = re.compile(
     r'(?i)[\w$.]*(?:password|passwd|secret|token|api_key)[\w$]*'
-    r'''\s*(?:\|\||\?\?)\s*(?:"(?P<double>[^"\n]*)"|'(?P<single>[^'\n]*)')''',
+    r'''\s*(?:=|\|\|=|\?\?=|\|\||\?\?)\s*\(?\s*'''
+    r'''(?:"(?P<double>[^"\n]*)"|'(?P<single>[^'\n]*)'|`(?P<template>[^`$\n]*)`)''',
 )
 SCAN_ROOTS = ('deploy/', '.github/')
 JS_SUFFIXES = ('.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.vue')
@@ -44,19 +49,25 @@ def is_placeholder(value: str) -> bool:
     return value.startswith(('${', '$', '<', 'REPLACE_WITH_')) or value.lower() in PLACEHOLDERS
 
 
-def find_credential_fallbacks(text: str) -> list[int]:
+def find_credential_fallbacks(text: str, path: str = '') -> list[int]:
     """Line numbers where a credential falls back to a real literal.
 
     An empty fallback (`?? ''`) is the no-default idiom: it keeps the check on the
     value, so only a non-empty, non-placeholder literal counts as a secret.
     """
+    lines = text.splitlines()
     hits = []
-    for number, line in enumerate(text.splitlines(), start=1):
-        match = CREDENTIAL_FALLBACK_RE.search(line)
+    for number, line in enumerate(lines, start=1):
+        logical = line
+        if logical.rstrip().endswith(('||', '??', '=', '?', ':')) and number < len(lines):
+            logical = f'{logical.rstrip()} {lines[number].strip()}'
+        match = CREDENTIAL_FALLBACK_RE.search(logical)
         value = ''
         if match:
-            raw = match.group('double') if match.group('double') is not None else match.group('single')
+            raw = next((group for group in match.groups() if group is not None), '')
             value = raw.strip()
+            if TEST_PATH_RE.search(path) and SELF_DESCRIBED_FIXTURE_RE.match(value):
+                continue
         if value and not is_placeholder(value):
             hits.append(number)
     return hits
@@ -89,7 +100,7 @@ def main() -> int:
         f'credential fallback literal: {path}:{n}'
         for path in tracked
         if path.startswith(SCAN_ROOTS) and path.endswith(JS_SUFFIXES)
-        for n in find_credential_fallbacks(Path(path).read_text(encoding='utf-8', errors='replace'))
+        for n in find_credential_fallbacks(Path(path).read_text(encoding='utf-8', errors='replace'), path)
     ]
     for path in tracked:
         if path.startswith(SCAN_ROOTS) and path.endswith(SCANNED_SUFFIXES):

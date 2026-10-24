@@ -54,10 +54,11 @@ echo "Running k6 scenario '$SCENARIO' against $BASE_URL"
 echo "  log:     $LOG_FILE"
 echo "  summary: $SUMMARY_FILE"
 
+# k6 imports the parent environment into __ENV by default, so LOGIN and PASSWORD
+# reach the script without -e. Passing them with -e would publish the password in
+# the process argv for the whole run.
 k6 run \
   -e BASE="$BASE_URL" \
-  -e LOGIN="$LOGIN" \
-  -e PASSWORD="$PASSWORD" \
   --summary-export="$SUMMARY_FILE" \
   "$K6_SCRIPT" \
   2>&1 | tee "$LOG_FILE"
