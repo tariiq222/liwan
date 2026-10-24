@@ -481,9 +481,12 @@ describe('useAiRun', () => {
       expect([follower.status.value, follower.items.value]).toEqual(['idle', [{ kind: 'user', text: 'سؤال' }]])
       expect(loads()).toBe(1)
       await settle()
-      expect(loads()).toBe(2)
-      expect(follower.items.value).toEqual([{ kind: 'user', text: 'سؤال' }, { kind: 'assistant', text: 'جواب', records: [], streaming: false }])
-      expect(follower.status.value).toBe('done')
+      // nextTick starts the async watcher; it does not await the refreshed response body.
+      await vi.waitFor(() => {
+        expect(loads()).toBe(2)
+        expect(follower.items.value).toEqual([{ kind: 'user', text: 'سؤال' }, { kind: 'assistant', text: 'جواب', records: [], streaming: false }])
+        expect(follower.status.value).toBe('done')
+      })
     })
 
     it('keeps a hidden surface silent when the other stream settles', async () => {
