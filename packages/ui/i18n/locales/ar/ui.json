@@ -42,7 +42,13 @@
     "modules": "الموديولات",
     "railApps": "التطبيقات",
     "railTools": "الأدوات",
-    "breadcrumb": "مسار الصفحة"
+    "breadcrumb": "مسار الصفحة",
+    "apps": "التطبيقات",
+    "collapseContext": "طي القائمة الجانبية",
+    "expandContext": "توسيع القائمة الجانبية",
+    "quickActionsList": "إجراءات الصفحة",
+    "quickViews": "عروض وإجراءات سريعة",
+    "quickViewsList": "العروض السريعة"
   },
   "states": {
     "bulkActions": "إجراءات على الصفوف المحددة",

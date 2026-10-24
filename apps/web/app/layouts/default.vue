@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { pageArea } from '@/utils/workspacePresentation'
 import { hasNoContextSidebar } from '@/components/shell/noContextRoutes'
+import { pageArea } from '@/utils/workspacePresentation'
 import { shellBreadcrumb } from '@/composables/nav/breadcrumb'
 import { useShellModel } from '@/composables/useShellModel'
 import { useAssistantSheet } from '@/composables/useAssistantSheet'
@@ -28,8 +28,8 @@ providePageApp(() => {
   if (!owner) return { icon: 'i-lucide-layout-grid' }
   return { icon: owner.icon, label: t(owner.labelKey), to: owner.to }
 })
-const workspaceTheme = computed(() => !pageArea(route.path).plain)
 const noSidebar = computed(() => hasNoContextSidebar(route.path))
+const workspaceTheme = computed(() => !pageArea(route.path).plain)
 // The deleted route sheet restored focus when it closed; an ordinary page has
 // no such moment, so a keyboard or screen-reader user pressing Escape on a
 // record used to land on the list with focus on <body>. Moving focus to the

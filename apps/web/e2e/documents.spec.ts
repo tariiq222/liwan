@@ -132,7 +132,7 @@ for (const locale of ['ar', 'en']) for (const mode of ['light', 'dark']) for (co
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     if (width >= 768) await expect.poll(() => page.evaluate(() => {
       const main = document.querySelector('[data-testid="shell-main"]')!.getBoundingClientRect()
-      const sidebar = document.querySelector('[data-testid="context-sidebar"]')!.getBoundingClientRect()
+      const sidebar = document.querySelector('[data-testid="application-navigation"]')!.getBoundingClientRect()
       return document.documentElement.dir === 'rtl' ? main.right <= sidebar.left : main.left >= sidebar.right
     })).toBe(true)
     await page.screenshot({ path: testInfo.outputPath(`documents-library-${locale}-${mode}-${width}.png`), fullPage: true, animations: 'disabled' })

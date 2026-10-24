@@ -52,7 +52,7 @@ LAYER_COMPONENTS = frozenset(
         'ChartPanel', 'DataTable', 'FilterBar', 'FilterChip', 'FilterChoice', 'FilterField', 'MetricTile', 'Pagination',
         'PersonAvatar', 'Progress', 'RecordNumber', 'RowActions', 'SegmentedControl', 'StatusBadge', 'ViewSwitch', 'ListFooter')]
     + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'FormActions', 'InlineConfirm', 'RichText', 'UnsavedChanges')]
-    + ['shell/' + name + '.vue' for name in ('ModuleRail', 'ShellBreadcrumb', 'ShellContextSubList', 'ShellFrame', 'ShellQuickRow', 'ShellQuickViews')]
+    + ['shell/' + name + '.vue' for name in ('ModuleRail', 'ShellBreadcrumb', 'ShellContextSubList', 'ShellFrame', 'ShellNavigation', 'ShellQuickRow', 'ShellQuickViews')]
 )
 # Billing presentation shared by the customer subscription pages and the vendor console (@webvue/commercial-ui).
 COMMERCIAL_LAYER_COMPONENTS = frozenset(('shared/commerce/PriceBreakdown.vue', 'shared/data/InvoiceLines.vue'))
@@ -113,7 +113,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'meetings/MeetingResolutionsTab.vue', 'meetings/MeetingAttachmentsTab.vue', 'meetings/MeetingRecordTabs.vue',
     'shared/form/FileField.vue', 'pmo/projects/ProjectFieldHelp.vue',
     'pmo/tasks/PrioritySelect.vue', 'pmo/tasks/StateMenu.vue', 'shared/form/TagPicker.vue',
-    'pmo/projects/ProjectMenu.vue', 'shell/SidebarCreateAction.vue', 'shell/ShellFrame.vue', 'shell/ModuleRail.vue', 'shell/ShellQuickViews.vue', 'shell/ShellContextSubList.vue', 'shell/AppSidebar.vue', 'shell/ContextSidebar.vue', 'shell/ShellHeader.vue', 'shell/ShellBreadcrumb.vue', 'shell/MobileNavigation.vue', 'shell/AppAccountMenu.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'pmo/tasks/TaskCard.vue',
+    'pmo/projects/ProjectMenu.vue', 'shell/ShellFrame.vue', 'shell/ShellNavigation.vue', 'shell/ModuleRail.vue', 'shell/ShellQuickViews.vue', 'shell/ShellContextSubList.vue', 'shell/AppSidebar.vue', 'shell/ShellHeader.vue', 'shell/ShellBreadcrumb.vue', 'shell/MobileNavigation.vue', 'shell/AppAccountMenu.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'pmo/tasks/TaskCard.vue',
     'pmo/projects/dashboard/DashboardChartPanel.vue', 'shared/data/DashboardChart.client.vue', 'charts/ChartContainer.vue',
     'pmo/projects/workspace/ProjectWorkspaceTabs.vue', 'pmo/projects/governance/RaciMatrix.vue',
     'shared/form/RichText.vue', 'shared/data/Pagination.vue', 'shared/data/MetricTile.vue', 'shared/form/InlineConfirm.vue',

@@ -58,7 +58,7 @@ test.describe('Tasmim standalone page and print sheet', () => {
       if (appearance === 'dark') await expect(sheet).not.toHaveCSS('color', 'rgb(0, 0, 0)')
 
       await page.emulateMedia({ media: 'print' })
-      for (const id of ['shell-header', 'module-rail', 'context-sidebar']) await expect(page.getByTestId(id)).toBeHidden()
+      for (const id of ['shell-header', 'module-rail', 'application-navigation']) await expect(page.getByTestId(id)).toBeHidden()
       await expect(sheet.locator('.webvue-print-hide')).toBeHidden()
       await expect(sheet).toHaveCSS('color', 'rgb(0, 0, 0)')
       await expect(sheet).toHaveCSS('background-color', 'rgb(255, 255, 255)')

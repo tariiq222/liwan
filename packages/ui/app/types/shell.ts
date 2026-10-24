@@ -14,3 +14,16 @@ export interface ShellQuickItem { id: string; label: string; icon: string; to: R
 
 /** A titled run of links in the sub-list card; `testId` is the full Playwright hook of each row. */
 export interface ShellSubListSection { id: string; title: string; items: Array<ShellQuickItem & { testId: string }> }
+
+/** One application's destinations and actions inside the unified customer menu. */
+export interface ShellNavigationItem {
+  id: string
+  label: string
+  icon: string
+  to: RouteLocationRaw
+  active: boolean
+  sections: ShellSubListSection[]
+  views: ShellQuickItem[]
+  actions: ShellQuickItem[]
+  panel?: boolean
+}
