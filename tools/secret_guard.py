@@ -61,14 +61,23 @@ def find_credential_fallbacks(text: str, path: str = '') -> list[int]:
         logical = line
         if logical.rstrip().endswith(('||', '??', '=', '?', ':')) and number < len(lines):
             logical = f'{logical.rstrip()} {lines[number].strip()}'
-        match = CREDENTIAL_FALLBACK_RE.search(logical)
-        value = ''
-        if match:
+        # Every match is judged: an empty or placeholder credential earlier on the line
+        # must not hide a real literal later on it.
+        found = False
+        start = 0
+        while not found:
+            match = CREDENTIAL_FALLBACK_RE.search(logical, start)
+            if not match:
+                break
             raw = next((group for group in match.groups() if group is not None), '')
             value = raw.strip()
+            start = match.start() + 1
+            if not value or is_placeholder(value):
+                continue
             if TEST_PATH_RE.search(path) and SELF_DESCRIBED_FIXTURE_RE.match(value):
                 continue
-        if value and not is_placeholder(value):
+            found = True
+        if found:
             hits.append(number)
     return hits
 

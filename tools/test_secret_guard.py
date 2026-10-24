@@ -81,6 +81,10 @@ class TestSecretGuard(unittest.TestCase):
         text = "const PASSWORD = __ENV.PASSWORD ||\n  'not-a-real-password';\n"
         self.assertEqual(find_credential_fallbacks(text), [1])
 
+    def test_a_placeholder_earlier_on_the_line_does_not_hide_a_real_literal(self):
+        text = "const password = ''; const token = env.TOKEN || 'actual-credential';\n"
+        self.assertEqual(find_credential_fallbacks(text, 'deploy/x.js'), [1])
+
     def test_a_self_described_fixture_is_only_allowed_in_a_test_file(self):
         text = "const token = 'synthetic-local-token-'\n"
         self.assertEqual(find_credential_fallbacks(text, 'deploy/x.test.mjs'), [])
