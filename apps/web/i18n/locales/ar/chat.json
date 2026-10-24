@@ -2,13 +2,11 @@
   "chat": {
   "title": "المحادثة",
   "description": "محادثات خاصة مع زملائك في هذه الجهة.",
-  "new": "محادثة جديدة",
   "start": "بدء محادثة",
   "emptyDescription": "ابدأ محادثة مع زميل أو أنشئ مجموعة لتظهر هنا.",
-  "newGroup": "إنشاء مجموعة",
   "newTitle": "محادثة جديدة",
   "newGroupTitle": "مجموعة جديدة",
-  "newDescription": "ابدأ محادثة مباشرة مع شخص واحد أو مجموعة مع شخصين فأكثر.",
+  "newDescription": "اختر شخصًا واحدًا لبدء محادثة مباشرة.",
   "newGroupDescription": "اختر شخصين فأكثر لبدء مجموعة.",
   "search": "بحث في المحادثات",
   "filters": "الفلاتر",
@@ -39,7 +37,6 @@
   "groupName": "اسم المجموعة",
   "groupNamePlaceholder": "اسم المجموعة اختياري",
   "create": "بدء المحادثة",
-  "needRecipient": "اختر شخصاً واحداً لمحادثة مباشرة، أو اثنين على الأقل لمجموعة.",
   "sendFailed": "لم تُرسل الرسالة. المسودة ما زالت هنا.",
   "loadError": "تعذر تحميل المحادثة.",
   "unread": "غير مقروء",
@@ -80,6 +77,17 @@
   "replyingTo": "رد على {name}",
   "online": "متصل",
   "offline": "غير متصل",
-  "actionFailed": "تعذر إكمال الإجراء."
+  "actionFailed": "تعذر إكمال الإجراء.",
+  "newAction": "جديد",
+  "newDirect": "محادثة",
+  "newChannelTitle": "قناة جديدة",
+  "newChannelDescription": "سمِّ القناة التي تريد إنشاءها.",
+  "channelName": "اسم القناة",
+  "channelNamePlaceholder": "أدخل اسم القناة",
+  "createGroup": "إنشاء المجموعة",
+  "createChannel": "إنشاء القناة",
+  "needDirectRecipient": "اختر شخصًا واحدًا لبدء المحادثة.",
+  "needGroupRecipients": "اختر شخصين على الأقل لإنشاء مجموعة.",
+  "needChannelName": "أدخل اسم القناة."
   }
 }

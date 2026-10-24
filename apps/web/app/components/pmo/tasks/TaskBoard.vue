@@ -220,7 +220,7 @@ function dropGroup(lane: Lane) {
       The board fills the list card (SharedListCard `fill`, screen-sized): it scrolls horizontally, and each column
       scrolls vertically inside itself, so a column's header and drop target stay reachable whatever its card count.
     -->
-    <div v-else class="webvue-thin-scroll flex min-h-105 flex-1 items-stretch gap-3 overflow-x-auto pb-2">
+    <div v-else class="webvue-board-scroll webvue-thin-scroll flex min-h-105 flex-1 items-stretch gap-3 overflow-x-auto pb-2">
       <template v-for="lane in lanes" :key="lane.key">
         <!-- Collapsed folded column: name + count, expands on click. -->
         <UButton
@@ -277,11 +277,14 @@ function dropGroup(lane: Lane) {
               :title="t('tasks.kanban.addToColumn')"
             />
           </div>
+          <!-- Sortable refuses to grab an item while its reorder timer is active. Keep reordering immediate so a
+               card can be grabbed again at once, including with reduced motion; pointer tracking stays native. -->
           <VueDraggable
             v-model="columns[lane.key]!"
             class="webvue-thin-scroll flex min-h-16 flex-1 flex-col gap-2.5 overflow-y-auto max-md:max-h-[70svh]"
             :group="dropGroup(lane)"
-            :animation="150"
+            :animation="0"
+            chosen-class="webvue-card-chosen"
             ghost-class="webvue-card-ghost"
             filter="[data-readonly=true]"
             @add="(e: any) => onColumnAdd(e, lane)"

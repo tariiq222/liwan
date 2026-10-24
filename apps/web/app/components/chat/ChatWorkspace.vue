@@ -82,7 +82,7 @@ function onDenied() {
 }
 
 function updateRoute(next: ChatListRoute) {
-  if ((route.path.replace(/\/+$/, '') || '/') === '/chat/new') return
+  // Keep the selected conversation while updating its list filters.
   void router.replace({ path: route.path, query: serializeChatListRoute(next) })
 }
 </script>

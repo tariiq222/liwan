@@ -24,6 +24,11 @@ const quietEmpty = computed(() => noConversations.value && isDesktop.value)
 const q = ref(props.routeState.q)
 const timeFmt = { format: (value: Date) => formatTime(value) }
 const listQuery = computed(() => serializeChatListRoute(props.routeState))
+const createItems = computed(() => [
+  { label: t('chat.newDirect'), icon: 'i-lucide-message-circle', to: { path: '/chat/new', query: { ...listQuery.value, kind: 'direct' } } },
+  { label: t('chat.group'), icon: 'i-lucide-users-round', to: { path: '/chat/new', query: { ...listQuery.value, kind: 'group' } } },
+  { label: t('chat.channel'), icon: 'i-lucide-hash', to: { path: '/chat/new', query: { ...listQuery.value, kind: 'channel' } } },
+])
 watch(() => props.routeState.q, value => { q.value = value })
 watch(error, (value) => {
   if (value instanceof ApiError && isFatalChatStatus(value.status)) emit('denied')
@@ -62,34 +67,19 @@ function conversationTo(id: number) {
           id="chat-list-search"
           v-model="q"
           class="w-full"
+          :ui="{ base: 'rounded-full px-9 text-center' }"
           icon="i-lucide-search"
           :placeholder="t('chat.search')"
           :disabled="!hydrated"
         />
       </form>
-      <div class="flex shrink-0 items-center gap-1">
-        <UTooltip :text="t('chat.new')">
-          <UButton
-            color="neutral" variant="ghost" square
-            :to="{ path: '/chat/new', query: listQuery }"
-            :aria-label="t('chat.new')"
-          >
-            <UIcon name="i-lucide-message-square-plus" class="size-5" aria-hidden="true" />
-          </UButton>
-        </UTooltip>
-        <UTooltip :text="t('chat.newGroup')">
-          <UButton
-            color="neutral" variant="ghost" square
-            :to="{ path: '/chat/new', query: { ...listQuery, kind: 'group' } }"
-            :aria-label="t('chat.newGroup')"
-          >
-            <UIcon name="i-lucide-users-round" class="size-5" aria-hidden="true" />
-          </UButton>
-        </UTooltip>
-      </div>
+      <UDropdownMenu :items="createItems" :content="{ align: 'end' }">
+        <UButton type="button" color="neutral" variant="soft" icon="i-lucide-plus" :label="t('chat.newAction')" :disabled="!hydrated" class="shrink-0" />
+      </UDropdownMenu>
     </header>
     <div class="webvue-chat-list-filters">
       <SharedSegmentedControl
+        class="w-full"
         :model-value="props.routeState.filter"
         :items="filterItems"
         :label="t('chat.filters')"

@@ -13,7 +13,16 @@ export interface ShellRailGroups { top: ShellRailItem[]; applications: ShellRail
 export interface ShellQuickItem { id: string; label: string; icon: string; to: RouteLocationRaw; active?: boolean; count?: number; primary?: boolean }
 
 /** A titled run of links in the sub-list card; `testId` is the full Playwright hook of each row. */
-export interface ShellSubListSection { id: string; title: string; items: Array<ShellQuickItem & { testId: string }> }
+export interface ShellNavigationLink extends ShellQuickItem {
+  testId: string
+  children?: ShellNavigationLink[]
+}
+
+export interface ShellSubListSection {
+  id: string
+  title: string
+  items: ShellNavigationLink[]
+}
 
 /** One application's destinations and actions inside the unified customer menu. */
 export interface ShellNavigationItem {

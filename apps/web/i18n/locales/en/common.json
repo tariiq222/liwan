@@ -107,7 +107,9 @@
     "meetingFollowup": "Follow-up",
     "meetingSeriesShort": "Recurring",
     "finance": "Finance",
-    "viewAll": "View all"
+    "viewAll": "View all",
+    "listOf": "{name} list",
+    "overview": "Overview"
   },
   "auth": {
     "username": "Username",
