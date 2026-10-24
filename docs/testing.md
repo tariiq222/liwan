@@ -11,10 +11,19 @@ webvue has four test layers. Pick the cheapest one that proves the change.
 
 ## Node version
 
-`.nvmrc` pins Node 22, but Homebrew's default `node` may be newer. For Claude Code sessions the
-`SessionStart` hook in `.claude/settings.json` runs `.claude/scripts/use-nvmrc-node.sh`, which puts
+`.nvmrc` pins Node 22, but Homebrew's default `node` may be newer. For local Claude Code sessions the
+`SessionStart` hook in `.claude/settings.json` runs `.claude/scripts/session-start.sh`, which puts
 `$(brew --prefix node@<.nvmrc major>)/bin` first on `PATH` (one stderr line if that Node is not installed) for every Bash command, so no manual
 `export PATH=...` is needed. Outside Claude Code, run `export PATH=/opt/homebrew/opt/node@22/bin:$PATH` once per shell.
+
+In a Claude Code cloud session (`CLAUDE_CODE_REMOTE=true`) the same hook fetches the full Git history (the clone is
+shallow, and `tools/ui_policy.py` reads its baseline commit), runs `npm ci --ignore-scripts` when
+`package-lock.json` changed and `nuxt prepare` in `apps/web` and `apps/vendor-admin`, so `npm test` and
+`npm -w apps/web run lint` work at once; it also sets `NODE_OPTIONS=--max-old-space-size=6144`, because `vue-tsc`
+runs out of Node's default heap there. The container's network policy blocks the Playwright browser download, so the
+hook points `PLAYWRIGHT_BROWSERS_PATH` at `~/.cache/ms-playwright`, where the Chromium revisions the repo's
+`playwright-core` expects are linked to the container's own `/opt/pw-browsers` builds. Odoo tests are not set up there: they run in the `ci` workflow or locally.
+The Bash guard reads the upstream Odoo checkout from `WEBVUE_ODOO_SRC` (default `~/code/odoo`).
 
 ## Fast local loop
 
