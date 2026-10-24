@@ -13,7 +13,11 @@ const quote = ref<Quote | null>(null); const previewPending = ref(false); const 
 const notice = ref<'expired' | 'conflict' | 'changed' | 'failed' | null>(null); const busy = ref(false); const redirecting = ref(false)
 const plan = computed(() => plans.value.find((p: Record<string, any>) => p.id === planId.value) ?? null)
 const includedIds = computed(() => new Set(plan.value?.included_bundle_revision_ids ?? []))
-const selectableBundles = computed(() => bundles.value.filter(b => !includedIds.value.has(b.id)))
+// The plan's optional revisions are the application menu; an existing subscription keeps the
+// bundles it already bought even if the current plan revision narrowed the menu.
+const appliedBundleIds = computed(() => new Set(data.value?.sub.applied?.bundle_revision_ids ?? []))
+const allowedBundleIds = computed(() => new Set([...(plan.value?.optional_bundle_revision_ids ?? []), ...(plan.value?.included_bundle_revision_ids ?? []), ...appliedBundleIds.value]))
+const selectableBundles = computed(() => bundles.value.filter(b => allowedBundleIds.value.has(b.id) && !includedIds.value.has(b.id)))
 const keyOf = (c: { unit: string; count: number }) => `${c.unit}:${c.count}`
 const cadence = computed(() => { const [unit, count] = cadenceKey.value.split(':'); return { unit: unit as 'month' | 'year', count: Number(count) } })
 const fullyPriced = computed(() => new Set((plan.value?.prices ?? []).filter((p: { cadence: { unit: string; count: number } }) => priceFor(plan.value?.user_prices, keyOf(p.cadence)) && priceFor(plan.value?.storage_prices, keyOf(p.cadence))).map((p: { cadence: { unit: string; count: number } }) => keyOf(p.cadence))))
@@ -41,26 +45,30 @@ const body = computed(() => {
   }
 })
 const baseline = ref('')
-watch(body, value => { if (!baseline.value && value) baseline.value = JSON.stringify(value) }, { immediate: true })
 const dirty = computed(() => !redirecting.value && Boolean(baseline.value) && JSON.stringify(body.value) !== baseline.value)
 watch(data, d => {
   if (!d || planId.value) return
   const applied = d.sub.applied
-  planId.value = applied?.plan_revision_id ?? d.catalog.plans[0]?.id ?? ''
+  // A withdrawn revision stays pinned for the customer but cannot be re-quoted: start from the sellable catalog.
+  planId.value = applied && d.catalog.plans.some((p: Record<string, any>) => p.id === applied.plan_revision_id) ? applied.plan_revision_id : d.catalog.plans[0]?.id ?? ''
   if (applied) {
-    cadenceKey.value = keyOf(applied.cadence); bundleIds.value = [...applied.bundle_revision_ids]
+    cadenceKey.value = keyOf(applied.cadence)
     users.value = Number(applied.entitlement.features['users.limit'] ?? 1)
-    storageGb.value = Number(applied.entitlement.features['storage.limit_mb'] ?? 0) / 1024
+    storageGb.value = Math.ceil(Number(applied.entitlement.features['storage.limit_mb'] ?? 0) / 1024)
     extra.value = applied.extra_branch_count
-  } else if (d.catalog.plans[0]?.prices[0]) cadenceKey.value = keyOf(d.catalog.plans[0].prices[0].cadence)
+    nextTick(() => { bundleIds.value = applied.bundle_revision_ids.filter(id => allowedBundleIds.value.has(id) && !includedIds.value.has(id)) })
+  }
+  nextTick(() => { baseline.value = body.value ? JSON.stringify(body.value) : '' })
 }, { immediate: true })
 watch(planId, () => {
   const p = plan.value
   if (!p) return
-  if (!p.prices.some((x: { cadence: { unit: string; count: number } }) => keyOf(x.cadence) === cadenceKey.value) && p.prices[0]) cadenceKey.value = keyOf(p.prices[0].cadence)
+  // Only cadences with complete unit prices are offered; a missing one is unavailable, never zero.
+  if (!cadenceOptions.value.some((o: { value: string }) => o.value === cadenceKey.value)) cadenceKey.value = cadenceOptions.value[0]?.value ?? ''
   users.value = Math.max(users.value, minUsers.value)
   storageGb.value = Math.max(storageGb.value, minStorageGb.value)
   extra.value = Math.max(extra.value, minBranches.value)
+  bundleIds.value = bundleIds.value.filter(id => allowedBundleIds.value.has(id) && !includedIds.value.has(id))
 })
 // Live server quote: only ids and quantities are sent; every amount comes back from the control plane.
 let timer: ReturnType<typeof setTimeout> | undefined; let seq = 0

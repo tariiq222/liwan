@@ -87,7 +87,8 @@ export function subscriptionInvoiceView(invoice: Invoice, t: (key: string) => st
     const q = invoiceLineQuantities(line)
     return {
       id: line.key,
-      description: line.description,
+      // Metered quantities are UI labels, not stored descriptions; the priced revision names the rest.
+      description: line.kind === 'users' ? t('subscription.invoices.users') : line.kind === 'storage' ? t('subscription.invoices.storage') : line.description,
       cells: [
         { key: 'quantity', label: '', value: `× ${line.quantity}` },
         ...(q.free === null ? [] : [
