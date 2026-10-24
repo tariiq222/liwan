@@ -60,6 +60,16 @@ suite('customer quote preview without persistence', () => {
     expect(await response.json()).toMatchObject({ customer_id: customer, requested_users: 10, due_now: { minor: 37375 } })
     expect(await quoteRows()).toBe(before)
   })
+  it('never accepts a subscription id from the caller', async () => {
+    const response = await call({ ...request(), subscription_id: randomUUID() })
+    expect(response.status).toBe(422)
+    expect(await response.json()).toMatchObject({ code: 'invalid' })
+  })
+  it('requires the caller to own a subscription before previewing a change', async () => {
+    const response = await call({ ...request(), kind: 'change' })
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ code: 'subscription_required' })
+  })
   it('refuses to choose another customer from the body', async () => {
     const response = await call({ ...request(), customer_id: randomUUID() })
     expect(response.status).toBe(400)

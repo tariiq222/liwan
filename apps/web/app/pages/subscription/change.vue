@@ -16,8 +16,9 @@ const includedIds = computed(() => new Set(plan.value?.included_bundle_revision_
 const selectableBundles = computed(() => bundles.value.filter(b => !includedIds.value.has(b.id)))
 const keyOf = (c: { unit: string; count: number }) => `${c.unit}:${c.count}`
 const cadence = computed(() => { const [unit, count] = cadenceKey.value.split(':'); return { unit: unit as 'month' | 'year', count: Number(count) } })
-const cadenceOptions = computed(() => (plan.value?.prices ?? []).map((p: { cadence: { unit: 'month' | 'year'; count: number }; amount: Quote['due_now'] }) => ({ value: keyOf(p.cadence), label: `${cadenceLabel(p.cadence, t)} · ${formatCommercialMoney(p.amount, locale.value)}` })))
-const priceFor = (rows: Array<{ cadence: { unit: string; count: number; }; amount: Quote['due_now'] }> | undefined) => rows?.find(p => keyOf(p.cadence) === cadenceKey.value)
+const fullyPriced = computed(() => new Set((plan.value?.prices ?? []).filter((p: { cadence: { unit: string; count: number } }) => priceFor(plan.value?.user_prices, keyOf(p.cadence)) && priceFor(plan.value?.storage_prices, keyOf(p.cadence))).map((p: { cadence: { unit: string; count: number } }) => keyOf(p.cadence))))
+const cadenceOptions = computed(() => (plan.value?.prices ?? []).filter((p: { cadence: { unit: string; count: number } }) => fullyPriced.value.has(keyOf(p.cadence))).map((p: { cadence: { unit: 'month' | 'year'; count: number }; amount: Quote['due_now'] }) => ({ value: keyOf(p.cadence), label: `${cadenceLabel(p.cadence, t)} · ${formatCommercialMoney(p.amount, locale.value)}` })))
+const priceFor = (rows: Array<{ cadence: { unit: string; count: number; }; amount: Quote['due_now'] }> | undefined, key = cadenceKey.value) => rows?.find(p => keyOf(p.cadence) === key)
 const money = (m: Quote['due_now']) => formatCommercialMoney(m, locale.value)
 const userUnit = computed(() => priceFor(plan.value?.user_prices))
 const storageUnit = computed(() => priceFor(plan.value?.storage_prices))
@@ -25,6 +26,7 @@ const minUsers = computed(() => Math.max(1, plan.value?.included_users ?? 1))
 const minStorageGb = computed(() => Math.ceil((plan.value?.included_storage_mb ?? 0) / 1024))
 const minBranches = computed(() => plan.value?.included_extra_branches ?? 0)
 const bundlePrice = (b: (typeof bundles.value)[number]) => priceFor(b.prices)
+const bundleSelectable = (b: (typeof bundles.value)[number]) => Boolean(bundlePrice(b))
 const bundleLabel = (b: (typeof bundles.value)[number]) => {
   const price = bundlePrice(b)
   return price ? `${b.name} · ${money(price.amount)}` : `${b.name} · ${t('subscription.change.unavailable')}`
@@ -65,9 +67,10 @@ let timer: ReturnType<typeof setTimeout> | undefined; let seq = 0
 async function runPreview() {
   const value = body.value
   if (!value || !hydrated.value) return
+  const { subscription_id: _subscription, ...previewBody } = value
   const mine = ++seq
   previewPending.value = true; previewError.value = ''
-  try { const result = await api.preview(value); if (mine === seq) quote.value = result }
+  try { const result = await api.preview(previewBody); if (mine === seq) quote.value = result }
   catch { if (mine === seq) { quote.value = null; previewError.value = t('subscription.change.previewFailed') } }
   finally { if (mine === seq) previewPending.value = false }
 }
@@ -76,6 +79,7 @@ function schedule() {
   if (timer) clearTimeout(timer)
   timer = setTimeout(() => void runPreview(), 350)
 }
+watch(cadenceKey, () => { bundleIds.value = bundleIds.value.filter(id => { const b = bundles.value.find(x => x.id === id); return Boolean(b && bundlePrice(b)) }) })
 watch([planId, bundleIds, cadenceKey, users, storageGb, extra], schedule, { deep: true })
 onMounted(() => void runPreview()); onBeforeUnmount(() => { if (timer) clearTimeout(timer) })
 function retryPreview() { notice.value = null; void runPreview() }
@@ -124,7 +128,7 @@ definePageMeta({ middleware: 'customer-commercial' })
           <SharedFormSection panel :title="t('subscription.change.applications')">
             <p v-if="!selectableBundles.length" class="text-sm text-muted">{{ t('subscription.change.empty') }}</p>
             <div v-else class="space-y-3">
-              <UCheckbox v-for="b in selectableBundles" :key="b.id" :model-value="bundleIds.includes(b.id)" :label="bundleLabel(b)" :disabled="!hydrated" @update:model-value="v => bundleIds = v ? [...bundleIds, b.id] : bundleIds.filter(x => x !== b.id)" />
+              <UCheckbox v-for="b in selectableBundles" :key="b.id" :model-value="bundleIds.includes(b.id)" :label="bundleLabel(b)" :disabled="!hydrated || !bundleSelectable(b)" @update:model-value="v => bundleIds = v ? [...bundleIds, b.id] : bundleIds.filter(x => x !== b.id)" />
             </div>
           </SharedFormSection>
           <SharedFormSection panel :title="t('subscription.change.quantities')">
