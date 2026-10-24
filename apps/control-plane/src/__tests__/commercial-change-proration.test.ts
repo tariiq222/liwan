@@ -44,8 +44,9 @@ describe.skipIf(!url)('commercial server change quote proration', () => {
     })
     plan = await publish('plans', {
       name: `Proration plan ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
-      prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: { 'users.limit': null, 'storage.limit_mb': null }, included_bundle_revision_ids: [], optional_bundle_revision_ids: [bundle.id],
+      prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [bundle.id],
       included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
+      included_users: 3, included_storage_mb: 0, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
       policy_revision_id: POLICY, trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true,
     })
   })
@@ -60,14 +61,14 @@ describe.skipIf(!url)('commercial server change quote proration', () => {
     const limits = releaseApps.flatMap(a => a.features.filter((f: any) => f.kind === 'limit').map((f: any) => [f.key, a.selectable ? a.features.filter((g: any) => g.kind === 'boolean').map((g: any) => g.key) : []] as const))
     await recordUsage(pool, { tenant_id: tenant, observed_at: new Date(), metrics: Object.fromEntries(limits.map(([k]) => [k, 0])), limit_gates: Object.fromEntries(limits), source: 'proration' })
     const quote = await createQuoteForCustomer(pool, { customer_id: customer, request: {
-      kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: withBundle ? [bundle.id] : [], cadence: monthly, requested_extra_branches: 0,
+      kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: withBundle ? [bundle.id] : [], cadence: monthly, requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 0,
     } }, START)
     await pool.query('INSERT INTO subscriptions(id,customer_id) VALUES($1,$2)', [subscription, customer])
     // Seed only the applied revision: no payment, physical fulfillment or clock
     // change is needed to test the server's subscription-baseline quote path.
     await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [revision, subscription, {
       cadence: monthly, period_start: '2026-10-01', period_end: '2026-11-01', quote_id: quote.id,
-      included_extra_branches: 0, pricing: pricingBaseline(quote, { extra_branches: 0, users: 0, storage_mb: 0 }),
+      included_extra_branches: 0, pricing: pricingBaseline(quote, { extra_branches: 0, users: 3, storage_mb: 0 }),
     }, quote.id])
     await pool.query("UPDATE subscriptions SET applied_revision_id=$2,state='active',renewal_at='2026-11-01',revision=revision+1 WHERE id=$1", [subscription, revision])
     return { customer, subscription, revision }
@@ -75,7 +76,7 @@ describe.skipIf(!url)('commercial server change quote proration', () => {
   async function change(fromBundle: boolean, toBundle: boolean) {
     const s = await appliedSubscription(fromBundle)
     const quote = await createQuoteForCustomer(pool, { customer_id: s.customer, request: {
-      kind: 'change', subscription_id: s.subscription, expected_subscription_revision: 1,
+      kind: 'change', subscription_id: s.subscription, expected_subscription_revision: 1, requested_users: 3, requested_storage_mb: 0,
       plan_revision_id: plan.id, bundle_revision_ids: toBundle ? [bundle.id] : [], cadence: monthly, requested_extra_branches: 0,
     } }, EFFECTIVE)
     expect(quote).toMatchObject({ effective_date: '2026-10-17', next_renewal_at: '2026-11-01', subscription_id: s.subscription, expected_subscription_revision: 1 })

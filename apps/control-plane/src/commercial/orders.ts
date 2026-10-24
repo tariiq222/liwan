@@ -101,7 +101,7 @@ export async function acceptQuote(pool: Pool, value: unknown, principal: Princip
       const sources = await loadQuoteSources(client, customer.id, quote, kind === 'new')
       // Null terms in a persisted quote means no terms, not the newest later revision.
       if (!quote.terms_revision_id) sources.terms = null
-      const entitlement = compileEntitlements(sources)
+      const entitlement = compileEntitlements({ ...sources, quantities: { users: quote.requested_users, storage_mb: quote.requested_storage_mb } })
       if (entitlement.digest !== quote.entitlement_digest) throw new CommercialHttpError('revision_conflict', 409)
       const revisionId = randomUUID()
       const previous = subscription.applied_revision_id ? (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [subscription.applied_revision_id])).rows[0]?.snapshot : null

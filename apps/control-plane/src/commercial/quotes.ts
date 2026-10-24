@@ -51,7 +51,7 @@ export async function previewQuote(pool: Pool, value: unknown, now: Date = new D
     const policy = await getPolicy(pool, planRow.policy_revision_id).catch(() => { throw bad('policy_missing', 'policy_revision_id') })
     const plan = planRevision(planRow), bundles = bundleRows.map(r => bundleRevision(r))
     try {
-      const snapshot = compileEntitlements({ release, plan, bundles, terms: null })
+      const snapshot = compileEntitlements({ release, plan, bundles, terms: null, quantities: { users: input.requested_users, storage_mb: input.requested_storage_mb } })
       const effective = input.effective_date ?? riyadhDate(now)
       const id = randomUUID()
       const quote = computeQuote({
@@ -128,7 +128,7 @@ export async function createQuoteForCustomer(pool: Pool, value: { customer_id: s
       if (value.previewTerms.customer_id !== value.customer_id) throw bad('not_found', 'customer_id', 404)
       sources.terms = value.previewTerms
     }
-    const entitlement = compileEntitlements(sources)
+    const entitlement = compileEntitlements({ ...sources, quantities: { users: input.requested_users, storage_mb: input.requested_storage_mb } })
     if (input.kind === 'change') await assertDowngradeFitsUsage(client, {
       tenant_id: customer.rows[0].tenant_id, subscription_id: s.id,
       previous: applied.entitlement?.features ?? {}, target: entitlement.features, now,

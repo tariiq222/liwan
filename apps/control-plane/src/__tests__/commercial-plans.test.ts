@@ -13,8 +13,9 @@ suite('commercial plans', () => {
   const bundleBody = (over: any = {}) => ({ name: `B ${randomUUID()}`, description: 'd', audience: { kind: 'public' }, catalog_release_id: release.id,
     selections: [{ app_id: sel.app, feature_keys: [sel.feature] }], domain_limits: {}, prices: [{ cadence: monthly, amount: money(0) }], ...over })
   const planBody = (over: any = {}) => ({ name: `P ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
-    prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: { 'users.limit': null, 'storage.limit_mb': null }, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
-    included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(50000) }], extra_branches_limit: 5, policy_revision_id: POLICY,
+    prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
+    included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(50000) }], extra_branches_limit: 5,
+    included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: monthly, amount: money(2500) }], storage_prices: [{ cadence: monthly, amount: money(500) }], policy_revision_id: POLICY,
     trial_days: 0, grace_days: 7, auto_suspend: true, auto_renew_allowed: true, ...over })
   async function publishedBundle(over: any = {}) {
     const c = await api('POST', '/bundles', bundleBody(over))
@@ -46,11 +47,25 @@ suite('commercial plans', () => {
     expect(rev.status).toBe(201); expect(rev.body.version).toBe(2)
     expect((await api('DELETE', `/bundles/${b.id}`, { edit_revision: b.edit_revision, reason })).status).toBe(409)
   })
-  it('refuses a plan that leaves a platform limit unset', async () => {
+  it('refuses a plan that still carries a metered limit', async () => {
     const c = await api('POST', '/plans', planBody({ platform_limits: { 'users.limit': 5 } }))
     expect(c.status).toBe(201)
     const v = await validate(c.body.id)
-    expect(codes(v)).toContain('platform_limit_missing')
+    expect(codes(v)).toContain('platform_limit_derived')
+  })
+  it('reads back the new plan columns', async () => {
+    const c = await api('POST', '/plans', planBody({ included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: monthly, amount: money(2500) }], storage_prices: [{ cadence: monthly, amount: money(500) }] }))
+    expect(c.status).toBe(201)
+    const row = (await api('GET', `/plans/${c.body.id}`)).body
+    expect(row.included_users).toBe(3)
+    expect(row.included_storage_mb).toBe(5120)
+    expect(row.user_prices).toHaveLength(1)
+    expect(row.storage_prices).toHaveLength(1)
+  })
+  it('refuses a monthly plan with no monthly users unit price', async () => {
+    const c = await api('POST', '/plans', planBody({ prices: [{ cadence: monthly, amount: money(299) }], user_prices: [] }))
+    expect(c.status).toBe(201)
+    expect(codes(await validate(c.body.id))).toContain('unit_price_missing')
   })
   it('accepts a zero price', async () => {
     const c = await api('POST', '/plans', planBody({ prices: [{ cadence: monthly, amount: money(0) }] }))
@@ -78,13 +93,12 @@ suite('commercial plans', () => {
     expect(codes(await mk({ platform_limits: { 'nope.limit': 1 } }))).toContain('limit_not_supported')
     expect(codes(await mk({ platform_limits: { 'branches.extra_limit': 3 } }))).toContain('platform_limit_derived')
     expect(codes(await mk({ platform_limits: { 'projects.max_projects': 3 } }))).toContain('limit_not_supported')
-    expect((await mk({ platform_limits: { 'users.limit': 10, 'storage.limit_mb': 100 } })).status).toBe(200)
-    // The required customer administrator counts against users.limit; http.ts maps this ZodError to 422 invalid.
-    await expect(api('POST', '/plans', planBody({ platform_limits: { 'users.limit': 0, 'storage.limit_mb': null } })))
-      .rejects.toMatchObject({ issues: [expect.objectContaining({ path: ['platform_limits', 'users.limit'] })] })
-    expect((await mk({ platform_limits: { 'users.limit': 1, 'storage.limit_mb': null } })).status).toBe(200)
+    expect(codes(await mk({ platform_limits: { 'users.limit': 10, 'storage.limit_mb': 100 } }))).toContain('platform_limit_derived')
+    // The chosen quantity must admit the required customer administrator.
+    expect(codes(await mk({ included_users: 0 }))).toContain('users_limit_admin_required')
+    expect((await mk({ included_users: 1 })).status).toBe(200)
     // schema_023 holds the same floor in the database, so no stored plan or terms can carry a 0.
-    const old = (await api('POST', '/plans', planBody({ platform_limits: { 'users.limit': 1, 'storage.limit_mb': null } }))).body
+    const old = (await api('POST', '/plans', planBody({ included_users: 1 }))).body
     await expect(pool.query(`UPDATE plan_revisions SET platform_limits=jsonb_set(platform_limits,'{users.limit}','0'),edit_revision=edit_revision+1 WHERE id=$1`, [old.id]))
       .rejects.toThrow('plan_revisions_users_limit_admits_admin')
     const floor = async (limits: unknown) => (await pool.query('SELECT commercial_users_limit_admits_admin($1::jsonb) AS ok', [JSON.stringify(limits)])).rows[0].ok

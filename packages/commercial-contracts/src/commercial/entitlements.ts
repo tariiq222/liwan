@@ -11,8 +11,11 @@ export const COMPILER_VERSION = 'commercial-compiler/3'
 
 export function compileEntitlements(input: {
   release: CatalogRelease; plan: PlanRevision; bundles: BundleRevision[]; terms: CustomerTermsRevision | null
+  quantities: { users: number; storage_mb: number }
 }): EntitlementSnapshot {
-  const { release, plan, bundles, terms } = input
+  const { release, plan, bundles, terms, quantities } = input
+  if (![quantities.users, quantities.storage_mb].every(v => Number.isSafeInteger(v) && v >= 0))
+    throw new CommercialError('invalid_quantity', 'quantities')
   const apps = new Map(release.applications.map(a => [a.id, a]))
   const coreApps = release.applications.filter(a => !a.selectable)
 
@@ -79,18 +82,23 @@ export function compileEntitlements(input: {
     if (k in domain && domain[k] !== v) throw new CommercialError('ambiguous_limit', 'domain_limits')
     domain[k] = v
   }
-  const platform: CapacityMap = { ...plan.platform_limits }
-  for (const k of Object.keys(platform)) if (!platformKeys.has(k)) throw new CommercialError('limit_not_supported', 'platform_limits')
-  // Code never invents a commercial value: every platform limit the plan does not derive is set by it
+  // Users and storage are customer-chosen quantities, never plan limits: one source of truth.
+  const derived = new Set([USERS_LIMIT_KEY, 'storage.limit_mb', 'branches.extra_limit'])
+  for (const k of Object.keys(plan.platform_limits)) {
+    if (derived.has(k)) throw new CommercialError('platform_limit_derived', 'platform_limits')
+    if (!platformKeys.has(k)) throw new CommercialError('limit_not_supported', 'platform_limits')
+  }
+  // Code never invents a commercial value: every other platform limit the plan does not derive is set by it
   // (an explicit null means unlimited).
-  for (const k of platformKeys) if (k !== 'branches.extra_limit' && !Object.hasOwn(platform, k)) throw new CommercialError('platform_limit_missing', 'platform_limits')
+  for (const k of platformKeys) if (!derived.has(k) && !Object.hasOwn(plan.platform_limits, k)) throw new CommercialError('platform_limit_missing', 'platform_limits')
+  const platform: CapacityMap = { ...plan.platform_limits, [USERS_LIMIT_KEY]: quantities.users, 'storage.limit_mb': quantities.storage_mb }
   Object.assign(features, domain, platform)
   for (const [k, v] of Object.entries(terms?.limits ?? {})) {
     if (!platformKeys.has(k) && !domainKeys.has(k)) throw new CommercialError('limit_not_supported', 'limits')
     features[k] = v
   }
-  if (Object.hasOwn(features, USERS_LIMIT_KEY) && !admitsRequiredAdmin(features[USERS_LIMIT_KEY]))
-    throw new CommercialError('users_limit_admin_required', Object.hasOwn(terms?.limits ?? {}, USERS_LIMIT_KEY) ? 'limits' : 'platform_limits')
+  if (!admitsRequiredAdmin(features[USERS_LIMIT_KEY]))
+    throw new CommercialError('users_limit_admin_required', Object.hasOwn(terms?.limits ?? {}, USERS_LIMIT_KEY) ? 'limits' : 'quantities')
   const branches = terms?.extra_branches_limit !== undefined ? terms.extra_branches_limit : plan.extra_branches_limit
   features['branches.extra_limit'] = branches
 
