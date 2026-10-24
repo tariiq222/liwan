@@ -63,7 +63,7 @@ shared change must state the contract and the single writer before work starts.
 ## Starting a task
 
 1. Inspect the selected worktree's branch, status, remotes, and changed paths.
-   Preserve unrelated edits. Use `codex/<area>-<slug>` for a task branch.
+   Preserve unrelated edits. Use `claude/<area>-<slug>` for a task branch.
 2. Decide file ownership and list collisions before editing. Keep dependent
    work sequential; run independent slices in separate worktrees.
 3. Give each worktree independent `node_modules` and `.nuxt` directories. Use
@@ -78,7 +78,7 @@ ownership claim in one command (`tools/wt.py`).
 
 ### Worktree rules
 
-These rules apply to every worktree created from 2026-10-20 on, by a person, a Codex task or a Claude
+These rules apply to every worktree created from 2026-10-20 on, by a person or a Claude
 session or subagent. A worktree that predates them is reported by `wt check`, never moved, renamed or
 removed by it; its owner records a claim with `wt claim` or finishes and merges it as it is.
 
@@ -86,11 +86,11 @@ removed by it; its owner records a claim with `wt claim` or finishes and merges 
    where `wt new` creates them, also when run from another worktree. Never create one with a bare
    `git worktree add`, under `../webvue-wt/`, or in a tool's own folder (the Claude app's `worktrees` folder under `.claude`); a
    Claude subagent or session that needs isolation runs `wt new` instead of its built-in worktree option.
-2. **One name.** The branch is `codex/<area>-<slug>` (or `spike/<slug>`, never merged) and the folder is its
+2. **One name.** The branch is `claude/<area>-<slug>` (or `spike/<slug>`, never merged) and the folder is its
    `<area>-<slug>`; `<area>` comes from the list in `AGENTS.md`. Auto-generated names such as
    `worktree-agent-<id>` or `agent-<id>` break this rule.
 3. **One base.** A task branch starts from `main` (default `--base`) or, for a lane of a multi-lane task,
-   from that task's `codex/<area>-<slug>` integration branch. `wt new` refuses any other base.
+   from that task's `claude/<area>-<slug>` integration branch. `wt new` refuses any other base.
    Fetch and compare local `main` with `origin/main` first. When local `main` is dirty or stale,
    preserve it; after creation update the clean task candidate to the recorded remote baseline
    before implementation. Do not call the default local base current without checking.
@@ -148,10 +148,10 @@ presented as production evidence.
 ## Generated files and integration branches
 
 The generated API files (openapi.json and route-capabilities.json in docs/api) are produced by
-`python3 tools/api_surface.py`. A task branch (`codex/<area>-<slug>`) never commits either file:
+`python3 tools/api_surface.py`. A task branch (`claude/<area>-<slug>`) never commits either file:
 `tools/git_policy.py` refuses such a commit, because every parallel branch that touched them would
 conflict. The orchestrator regenerates both once, on the integration branch
-`codex/tools-integrate-<slug>` (the only `codex/*` branches allowed to carry them), after merging
+`claude/tools-integrate-<slug>` (the only `claude/*` branches allowed to carry them), after merging
 the task branches, and runs `python3 tools/api_surface.py --check` there. The per-branch route gate is
 `tools/route_gate_policy.py`, run inside `npm test`: it needs no generated file.
 

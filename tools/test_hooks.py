@@ -33,7 +33,7 @@ class TestHooks(unittest.TestCase):
     def test_message_rules(self):
         self.assertIsNone(check_message('feat(tools): add a thing\n\nbody'))
         self.assertIsNone(check_message('# comment\nfix(docs): correct a link\n'))
-        self.assertIsNone(check_message("Merge branch 'codex/x'\n"))
+        self.assertIsNone(check_message("Merge branch 'claude/x'\n"))
         self.assertIsNotNone(check_message('wip stuff\n'))
         self.assertIsNotNone(check_message('feat(unknown): nope\n'))
         self.assertIsNotNone(check_message('\n'))

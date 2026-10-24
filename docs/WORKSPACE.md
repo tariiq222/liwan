@@ -4,7 +4,7 @@
 
 ## نسخة العمل
 
-نسخة تطوير المنتج المحلية هي `/Users/tariq/code/webvue` على `main`، ومستودع GitHub اسمه `webvue` (الـ remote هو `origin`، `https://github.com/tariiq222/webvue.git`، ويتتبعه `main`). نسخ المهام المؤقتة `codex/<area>-<slug>` تُنشأ من أحدث `main` بمساحات dependencies وتوليد ومنافذ وقواعد اختبار مستقلة، ولا تُحذف نسخة تستخدمها عملية حية.
+نسخة تطوير المنتج المحلية هي `/Users/tariq/code/webvue` على `main`، ومستودع GitHub اسمه `webvue` (الـ remote هو `origin`، `https://github.com/tariiq222/webvue.git`، ويتتبعه `main`). نسخ المهام المؤقتة `claude/<area>-<slug>` تُنشأ من أحدث `main` بمساحات dependencies وتوليد ومنافذ وقواعد اختبار مستقلة، ولا تُحذف نسخة تستخدمها عملية حية.
 
 - صفحات ومكونات التطبيق: `apps/web/app`؛ التطبيق لا يعتمد على معاينة مستقلة.
 - مصدر Odoo وإعداداته في `/Users/tariq/code/odoo` للقراءة فقط.
@@ -33,10 +33,9 @@ CI is the `ci` workflow in [`.github/workflows/ci.yml`](../.github/workflows/ci.
 selected per change by `tools/ci_scope.py`, each runnable through `deploy/ci`.
 Delivery uses a draft PR, then ready requests review and bounded automatic delivery.
 `pr-delivery` requires current CI/review/scope gates, repairs safe failures at most
-three times, and merges normally. Sensitive scope needs exact-head owner approval. The required delivery gates are `ci-result`, `code-review` and `delivery-policy`, an up-to-date branch and resolved review threads, with no ruleset bypass actors. Recheck the live GitHub settings before delivery; this document is not a live protection snapshot. Successful full main CI produces the
+three times, and merges normally. Sensitive scope and automation-authored heads need exact-head owner approval. The required delivery gates are `ci-result`, `code-review` and `delivery-policy`, an up-to-date branch and resolved review threads, with no ruleset bypass actors. Recheck the live GitHub settings before delivery; this document is not a live protection snapshot. Successful full main CI produces the
 next `release/19.0.X.Y.Z` tag without deploying production. The separate
-`pr-review` workflow supplies `code-review`: Codex first, Claude on service
-unavailability; activation prerequisites and bootstrap are in the integration policy.
+`pr-review` workflow supplies `code-review` from a Claude review; activation prerequisites and bootstrap are in the integration policy.
 The full procedure and live-protection caveats are in
 [integration-rules.md](agents/integration-rules.md); check commands are in
 [testing.md](testing.md#ci-workflow), migrations in [migrations.md](migrations.md).
