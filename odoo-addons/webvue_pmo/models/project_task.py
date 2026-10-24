@@ -40,20 +40,21 @@ TASK_CREATE_FIELDS = TASK_WRITABLE_FIELDS | {'parent_id', 'project_id'}
 
 def _validate_task_deliverables(value, env=None):
     """Validate and normalize the task's optional output checklist."""
-    translate = env._ if env else lambda message: message
+    # `env._()` is called directly: babel only extracts `_` and `_lt`, so a local
+    # alias would keep these messages out of every .pot forever.
     if value is None or value is False:
         return []
     if not isinstance(value, list):
-        raise ValidationError(translate("Task deliverables must be a list."))
+        raise ValidationError(env._("Task deliverables must be a list."))
     normalized = []
     for row in value:
         if not isinstance(row, dict) or set(row) != {'name', 'done'}:
-            raise ValidationError(translate("Task deliverables must contain exactly name and done."))
+            raise ValidationError(env._("Task deliverables must contain exactly name and done."))
         name = row['name']
         if not isinstance(name, str) or not name.strip():
-            raise ValidationError(translate("Task deliverable names must not be empty."))
+            raise ValidationError(env._("Task deliverable names must not be empty."))
         if not isinstance(row['done'], bool):
-            raise ValidationError(translate("Task deliverable done must be a boolean."))
+            raise ValidationError(env._("Task deliverable done must be a boolean."))
         normalized.append({'name': name.strip(), 'done': row['done']})
     return normalized
 
