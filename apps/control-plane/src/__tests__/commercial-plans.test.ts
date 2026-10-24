@@ -68,6 +68,14 @@ suite('commercial plans', () => {
     expect(audit).toHaveLength(1)
     expect(audit[0].metadata.predecessor_id).toBe(c.body.id)
   })
+  it('seeds exactly one sellable WebVue plan with no included applications', async () => {
+    const rows = (await pool.query("SELECT * FROM plan_revisions WHERE status='published' AND available AND name='WebVue'")).rows
+    expect(rows).toHaveLength(1)
+    expect(rows[0].included_bundle_revision_ids).toEqual([])
+    expect(rows[0].trial_days).toBe(14)
+    expect(rows[0].included_users).toBe(3)
+    expect(rows[0].included_storage_mb).toBe(5120)
+  })
   it('reads back the new plan columns', async () => {
     const c = await api('POST', '/plans', planBody({ included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: monthly, amount: money(2500) }], storage_prices: [{ cadence: monthly, amount: money(500) }] }))
     expect(c.status).toBe(201)
