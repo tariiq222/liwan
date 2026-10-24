@@ -20,6 +20,7 @@ This file is the single source of repository instructions for every coding agent
 | File ownership, worktree isolation and shared resources | [Parallel work](docs/parallel-work.md) |
 | Integration, publication and protected delivery | [Integration rules](docs/agents/integration-rules.md) |
 | Review findings and reviewer independence | [Review guide](REVIEW.md) |
+| Where planner-skill output lives (specs, tickets, triage) | [Issue tracker](docs/agents/issue-tracker.md) |
 | Verification commands and evidence scope | [Testing guide](docs/testing.md) |
 | Approval before updating external source versions | [Update policy](docs/UPDATE_POLICY.md) |
 | Checkout map and evidence entry points, not live runtime state | [Workspace map](docs/WORKSPACE.md) |
@@ -256,16 +257,15 @@ These are mandatory agent workflow instructions. They are not a Git hook or
 server-enforced branch protection; do not claim automated merge protection
 exists unless it has actually been installed and verified.
 
-## Agent routing
+## Agent execution
 
-Claude is the only agent model (owner decision 2026-10-23): the coordinator, every
-worker and reviewer, local or cloud, and the GitHub review and bounded zero-tools
-repair jobs in `pr-review` and `pr-delivery`. Effort follows risk and uncertainty.
-Earlier Codex, Sol, Luna and Astra assignments are superseded. If Claude is
-unavailable, report the blocker rather than substituting another model. Delegate
-only when justified by independently owned work, with explicit scopes and isolated
-mutable resources. A routing rule never authorizes commit, push, merge, deployment
-or cleanup. Never retry exhausted quota or use paid API credentials as a hidden fallback.
+Use the model selected for the current session. No exclusive model is required
+for the coordinator, workers or reviewers. Choose available native models and
+supported effort appropriate to the task; a model-name mismatch does not block
+work or require permission. Delegate only when justified by independently owned
+work, with explicit scopes and isolated mutable resources. Model selection does
+not authorize commit, push, merge, deployment or cleanup. Never retry exhausted
+quota or use paid API credentials as a hidden fallback.
 
 ## Repository layout and product state
 

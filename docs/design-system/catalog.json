@@ -6373,7 +6373,7 @@
         {
           "id": "WithActions",
           "name": "مع إجراءات الصفحة",
-          "context": "apps/web/app/pages/projects/[id]/settings.vue:22"
+          "context": "packages/ui/app/components/shared/layout/ListPage.vue:49"
         },
         {
           "id": "WithKpiToggle",
@@ -6393,7 +6393,7 @@
         {
           "id": "WithBack",
           "name": "مسار تحت العنوان",
-          "context": "apps/web/app/pages/projects/[id]/finance/[entryId]/edit.vue:67"
+          "context": "packages/ui/app/components/shared/layout/RecordPage.vue:38"
         },
         {
           "id": "TrailUnderTitle",
@@ -6418,7 +6418,7 @@
         {
           "id": "HiddenTitle",
           "name": "عنوان يملكه الإطار",
-          "context": "unused"
+          "context": "packages/ui/app/components/shared/layout/RecordPage.vue:38"
         }
       ]
     },

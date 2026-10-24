@@ -24,7 +24,7 @@ type Story = StoryObj<typeof meta>
 
 export const WithActions: Story = {
   name: 'مع إجراءات الصفحة',
-  parameters: storyContext('apps/web/app/pages/projects/[id]/settings.vue:22'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -80,7 +80,7 @@ export const WithTags: Story = {
 // shell's published ancestors come before it. A step that only links back to this same page is dropped.
 export const WithBack: Story = {
   name: 'مسار تحت العنوان',
-  parameters: storyContext('apps/web/app/pages/projects/[id]/finance/[entryId]/edit.vue:67'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:38'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -234,7 +234,7 @@ export const StickyHeading: Story = {
 
 export const HiddenTitle: Story = {
   name: 'عنوان يملكه الإطار',
-  parameters: storyContext('unused', 'داخل إطار مشروع يملك العنوان: `hideTitle` يرسم الإجراءات وحدها ويبقى اسم الصفحة مسجلًا للغلاف.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:38', 'داخل إطار مشروع يملك العنوان: `hideTitle` يرسم الإجراءات وحدها ويبقى اسم الصفحة مسجلًا للغلاف.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
