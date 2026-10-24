@@ -25,6 +25,22 @@ and cleanup remain distinct. Local consolidation authority does not authorize a
 remote push or production deployment. Missing services, stale checks and failed
 checks never justify bypassing branch protection.
 
+### Review-approval constraint on `protect-main` (recorded 2026-10-24)
+
+The active `protect-main` ruleset requires `ci-result` on the current head, blocks
+force-pushes and deletions, and requires every review conversation resolved, but
+sets `required_approving_review_count` to `0`. The repository has a single human
+account, and GitHub does not let an author approve their own pull request, so any
+higher count or `require_last_push_approval` would block every merge, including
+the owner's own. The owner therefore keeps the count at `0` and accepts that a
+PR author can merge their own PR once current-head `ci-result` is green.
+
+This is a recorded gap, not an approval of self-merge quality. Raising the count
+becomes possible as soon as a second collaborator exists; until then, review of
+the actual diff follows `REVIEW.md` on a best-effort basis and does not gate the
+merge mechanically. Do not describe the repository as review-protected while the
+count stays at `0`.
+
 ## Six integration steps
 
 1. **Record the live baseline.** Read the canonical checkout's current policy
