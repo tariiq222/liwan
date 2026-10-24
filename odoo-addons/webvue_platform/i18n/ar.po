@@ -2,17 +2,28 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: WebVue 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-24 20:47+0000\n"
+"PO-Revision-Date: 2026-10-24 20:47+0000\n"
+"Last-Translator: WebVue\n"
+"Language-Team: Arabic\n"
 "Language: ar\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/maintenance.py:0
 msgid "A complete maintenance window is required."
 msgstr "يلزم تحديد نافذة صيانة مكتملة."
+
+#. module: webvue_platform
+#: model:ir.model.constraint,message:webvue_platform.constraint_webvue_maintenance_event_one_target
+msgid "A maintenance event must have exactly one target."
+msgstr "يجب أن يرتبط حدث الصيانة بسجل واحد فقط."
 
 #. module: webvue_platform
 #. odoo-python
@@ -25,6 +36,11 @@ msgstr "يلزم رقم نسخة غير سالب."
 #: code:addons/webvue_platform/models/maintenance.py:0
 msgid "A release id, measured estimate and operator policy are required."
 msgstr "يلزم معرّف إصدار وتقدير مقاس وسياسة يحددها المشغل."
+
+#. module: webvue_platform
+#: model:ir.model.constraint,message:webvue_platform.constraint_webvue_maintenance_release_release_unique
+msgid "A release notice already exists for this tenant."
+msgstr "يوجد إشعار بهذا الإصدار لهذا العميل بالفعل."
 
 #. module: webvue_platform
 #. odoo-python
@@ -46,10 +62,61 @@ msgid "A valid IANA timezone is required."
 msgstr "يلزم تحديد منطقة زمنية صالحة بصيغة IANA."
 
 #. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_release__scope__ai_service
+msgid "AI service"
+msgstr "خدمة الذكاء الاصطناعي"
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__action
+msgid "Action"
+msgstr "الإجراء"
+
+#. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_branch__state__active
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_profile__status__active
+msgid "Active"
+msgstr ""
+
+#. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/maintenance.py:0
 msgid "An active maintenance booking conflicts with this window or release."
 msgstr "يوجد حجز صيانة سابق لهذا الإصدار أو تتعارض النافذة مع حجز نشط."
+
+#. module: webvue_platform
+#: model:ir.model.constraint,message:webvue_platform.constraint_webvue_maintenance_event_positive_revision
+msgid "An event revision must be positive."
+msgstr "يجب أن يكون رقم مراجعة الحدث موجبًا."
+
+#. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_branch__state__archived
+msgid "Archived"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model,name:webvue_platform.model_ir_attachment
+msgid "Attachment"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__booking_id
+msgid "Booking"
+msgstr "الحجز"
+
+#. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__action__booking_cancelled
+msgid "Booking cancelled"
+msgstr "أُلغي الحجز"
+
+#. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__action__booking_complete
+msgid "Booking complete"
+msgstr "اكتمل الحجز"
+
+#. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__action__booking_failed
+msgid "Booking failed"
+msgstr "فشل الحجز"
 
 #. module: webvue_platform
 #. odoo-python
@@ -58,16 +125,236 @@ msgid "Booking is outside this tenant."
 msgstr "الحجز لا يخص هذا المستأجر."
 
 #. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__action__booking_rescheduled
+msgid "Booking rescheduled"
+msgstr "أُعيدت جدولة الحجز"
+
+#. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__action__booking_running
+msgid "Booking running"
+msgstr "بدأ تنفيذ الحجز"
+
+#. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__action__booking_scheduled
+msgid "Booking scheduled"
+msgstr "جُدول الحجز"
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__branch_uid
+msgid "Branch Uid"
+msgstr ""
+
+#. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/maintenance.py:0
 msgid "Cancel maintenance bookings instead of deleting them."
 msgstr "ألغِ حجوزات الصيانة بدلًا من حذفها."
 
 #. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_booking__status__cancelled
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__new_status__cancelled
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__old_status__cancelled
+msgid "Cancelled"
+msgstr "ملغى"
+
+#. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/maintenance_messages.py:0
 msgid "Choose a future maintenance window."
 msgstr "اختر نافذة صيانة مستقبلية."
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid "Classification differs from the local operator input."
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__commercial_applied_at
+msgid "Commercial Applied At"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__commercial_digest
+msgid "Commercial Digest"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__commercial_mode
+msgid "Commercial Mode"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__commercial_revision_id
+msgid "Commercial Revision"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid ""
+"Commercial classification is immutable; conversion requires a separate "
+"procedure."
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid "Commercial mode and policy source must match."
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model,name:webvue_platform.model_res_company
+msgid "Companies"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__company_id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__company_id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__company_id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__company_id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__company_id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__company_id
+msgid "Company"
+msgstr "الشركة"
+
+#. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_booking__status__complete
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__new_status__complete
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__old_status__complete
+msgid "Complete"
+msgstr "مكتمل"
+
+#. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_profile__entitlement_source__control_plane
+msgid "Control plane"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__create_uid
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__create_uid
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__create_uid
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__create_uid
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__create_uid
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__create_uid
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__create_uid
+msgid "Created by"
+msgstr "أنشأه"
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__create_date
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__create_date
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__create_date
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__create_date
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__create_date
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__create_date
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__create_date
+msgid "Created on"
+msgstr "تاريخ الإنشاء"
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__deadline_at
+msgid "Deadline At"
+msgstr "آخر موعد"
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_ir_attachment__display_name
+#: model:ir.model.fields,field_description:webvue_platform.field_ir_binary__display_name
+#: model:ir.model.fields,field_description:webvue_platform.field_ir_http__display_name
+#: model:ir.model.fields,field_description:webvue_platform.field_res_company__display_name
+#: model:ir.model.fields,field_description:webvue_platform.field_res_users__display_name
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_access_service__display_name
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_entitlement_service__display_name
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_feature_registry__display_name
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__display_name
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__display_name
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__display_name
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__display_name
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__display_name
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_module_load_guard__display_name
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__display_name
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__display_name
+msgid "Display Name"
+msgstr "اسم العرض"
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__duration_minutes
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__duration_minutes
+msgid "Duration Minutes"
+msgstr "المدة بالدقائق"
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__entitlement_source
+msgid "Entitlement Source"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__estimated_seconds
+msgid "Estimated Seconds"
+msgstr "المدة المقدّرة بالثواني"
+
+#. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_booking__status__failed
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__new_status__failed
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__old_status__failed
+msgid "Failed"
+msgstr "فشل"
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__features
+msgid "Features"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model,name:webvue_platform.model_ir_binary
+msgid "File streaming helper model for controllers"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model,name:webvue_platform.model_ir_http
+msgid "HTTP Routing"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_ir_attachment__id
+#: model:ir.model.fields,field_description:webvue_platform.field_ir_binary__id
+#: model:ir.model.fields,field_description:webvue_platform.field_ir_http__id
+#: model:ir.model.fields,field_description:webvue_platform.field_res_company__id
+#: model:ir.model.fields,field_description:webvue_platform.field_res_users__id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_access_service__id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_entitlement_service__id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_feature_registry__id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_module_load_guard__id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__id
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__id
+msgid "ID"
+msgstr "المعرّف"
+
+#. module: webvue_platform
+#: model:ir.model,name:webvue_platform.model_webvue_maintenance_event
+msgid "Immutable maintenance event"
+msgstr "حدث صيانة محفوظ للتدقيق"
+
+#. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_profile__commercial_mode__non_saas
+msgid "Independent"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid "Independent installations cannot have a subscription expiry."
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_release__scope__infrastructure
+msgid "Infrastructure"
+msgstr "البنية التحتية"
 
 #. module: webvue_platform
 #. odoo-python
@@ -92,6 +379,47 @@ msgstr "نافذة الصيانة المفضلة غير صالحة."
 #: code:addons/webvue_platform/models/maintenance.py:0
 msgid "Invalid maintenance status transition."
 msgstr "الانتقال بين حالتي الصيانة غير صالح."
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__write_uid
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__write_uid
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__write_uid
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__write_uid
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__write_uid
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__write_uid
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__write_uid
+msgid "Last Updated by"
+msgstr "آخر تعديل بواسطة"
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__write_date
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__write_date
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__write_date
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__write_date
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__write_date
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__write_date
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__write_date
+msgid "Last Updated on"
+msgstr "تاريخ آخر تعديل"
+
+#. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_profile__entitlement_source__local_policy
+msgid "Local policy"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance_authority.py:0
+msgid ""
+"Maintenance authority can only be changed by an authorized maintenance "
+"operation."
+msgstr "لا يمكن تغيير سجل تنسيق الصيانة إلا من خلال عملية صيانة مصرح بها."
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance_authority.py:0
+msgid "Maintenance authority cannot be deleted."
+msgstr "لا يمكن حذف سجل تنسيق الصيانة."
 
 #. module: webvue_platform
 #. odoo-python
@@ -132,334 +460,6 @@ msgid "Maintenance is managed from the tenant root company."
 msgstr "تُدار الصيانة من الشركة الرئيسية للمستأجر."
 
 #. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance.py:0
-msgid "Maintenance preferences cannot be deleted."
-msgstr "لا يمكن حذف تفضيلات الصيانة."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance.py:0
-msgid "Only scheduled maintenance can be changed or cancelled."
-msgstr "يمكن تعديل الصيانة المجدولة أو إلغاؤها قبل بدء التنفيذ فقط."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance.py:0
-msgid "Release is outside this tenant."
-msgstr "الإصدار لا يخص هذا المستأجر."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance.py:0
-msgid "Release notice not found."
-msgstr "لم يُعثر على إشعار الإصدار."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance.py:0
-msgid "Release notice tenant cannot change."
-msgstr "لا يمكن تغيير مستأجر إشعار الإصدار."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance.py:0
-msgid "Release notices belong to this database tenant."
-msgstr "تخص إشعارات الإصدارات مستأجر قاعدة البيانات هذه."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance.py:0
-msgid "Release timing and scope cannot change while bookings are active."
-msgstr "لا يمكن تغيير موعد الإصدار أو نطاقه أثناء وجود حجوزات نشطة."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance.py:0
-msgid "Save a preferred maintenance window first."
-msgstr "احفظ نافذة الصيانة المفضلة أولًا."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance_messages.py:0
-msgid "The maintenance window is shorter than the measured estimate."
-msgstr "نافذة الصيانة أقصر من التقدير المقاس."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance_messages.py:0
-msgid "The maintenance window must finish before the release deadline."
-msgstr "يجب أن تنتهي نافذة الصيانة قبل الموعد النهائي للإصدار."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance.py:0
-msgid "The release is no longer supported for this booking."
-msgstr "لم يعد الإصدار مدعومًا لهذا الحجز."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance.py:0
-msgid "This booking is outside its approved execution window."
-msgstr "الحجز خارج نافذة التنفيذ المعتمدة."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance_messages.py:0
-msgid ""
-"This local time is missing or ambiguous because of daylight saving time."
-msgstr "هذا الوقت المحلي مفقود أو ملتبس بسبب التوقيت الصيفي. اختر وقتًا آخر."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance.py:0
-msgid "This release is not available for an individual tenant booking."
-msgstr "هذا الإصدار غير متاح لحجز مستقل لعميل واحد."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance_messages.py:0
-msgid "Use a valid local date and time without an offset."
-msgstr "أدخل تاريخًا ووقتًا محليين صالحين دون إزاحة زمنية."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance.py:0
-msgid "Use the maintenance booking operation."
-msgstr "استخدم عملية حجز الصيانة."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance.py:0
-msgid "Use the maintenance preference operation."
-msgstr "استخدم عملية حفظ تفضيل الصيانة."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance_messages.py:0
-msgid "Window duration must be between 1 and 1440 minutes."
-msgstr "يجب أن تكون مدة النافذة بين دقيقة واحدة و١٤٤٠ دقيقة."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance.py:0
-msgid "Withdraw release notices instead of deleting them."
-msgstr "اسحب إشعارات الإصدارات بدلًا من حذفها."
-
-#. module: webvue_platform
-#: model:ir.model.constraint,message:webvue_platform.constraint_webvue_maintenance_event_one_target
-msgid "A maintenance event must have exactly one target."
-msgstr "يجب أن يرتبط حدث الصيانة بسجل واحد فقط."
-
-#. module: webvue_platform
-#: model:ir.model.constraint,message:webvue_platform.constraint_webvue_maintenance_release_release_unique
-msgid "A release notice already exists for this tenant."
-msgstr "يوجد إشعار بهذا الإصدار لهذا العميل بالفعل."
-
-#. module: webvue_platform
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_release__scope__ai_service
-msgid "AI service"
-msgstr "خدمة الذكاء الاصطناعي"
-
-#. module: webvue_platform
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__action
-msgid "Action"
-msgstr "الإجراء"
-
-#. module: webvue_platform
-#: model:ir.model.constraint,message:webvue_platform.constraint_webvue_maintenance_event_positive_revision
-msgid "An event revision must be positive."
-msgstr "يجب أن يكون رقم مراجعة الحدث موجبًا."
-
-#. module: webvue_platform
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__booking_id
-msgid "Booking"
-msgstr "الحجز"
-
-#. module: webvue_platform
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__action__booking_cancelled
-msgid "Booking cancelled"
-msgstr "أُلغي الحجز"
-
-#. module: webvue_platform
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__action__booking_complete
-msgid "Booking complete"
-msgstr "اكتمل الحجز"
-
-#. module: webvue_platform
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__action__booking_failed
-msgid "Booking failed"
-msgstr "فشل الحجز"
-
-#. module: webvue_platform
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__action__booking_rescheduled
-msgid "Booking rescheduled"
-msgstr "أُعيدت جدولة الحجز"
-
-#. module: webvue_platform
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__action__booking_running
-msgid "Booking running"
-msgstr "بدأ تنفيذ الحجز"
-
-#. module: webvue_platform
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__action__booking_scheduled
-msgid "Booking scheduled"
-msgstr "جُدول الحجز"
-
-#. module: webvue_platform
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_booking__status__cancelled
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__new_status__cancelled
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__old_status__cancelled
-msgid "Cancelled"
-msgstr "ملغى"
-
-#. module: webvue_platform
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__company_id
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__company_id
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__company_id
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__company_id
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__company_id
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__company_id
-msgid "Company"
-msgstr "الشركة"
-
-#. module: webvue_platform
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_booking__status__complete
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__new_status__complete
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__old_status__complete
-msgid "Complete"
-msgstr "مكتمل"
-
-#. module: webvue_platform
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__create_uid
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__create_uid
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__create_uid
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__create_uid
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__create_uid
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__create_uid
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__create_uid
-msgid "Created by"
-msgstr "أنشأه"
-
-#. module: webvue_platform
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__create_date
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__create_date
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__create_date
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__create_date
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__create_date
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__create_date
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__create_date
-msgid "Created on"
-msgstr "تاريخ الإنشاء"
-
-#. module: webvue_platform
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__deadline_at
-msgid "Deadline At"
-msgstr "آخر موعد"
-
-#. module: webvue_platform
-#: model:ir.model.fields,field_description:webvue_platform.field_ir_attachment__display_name
-#: model:ir.model.fields,field_description:webvue_platform.field_ir_binary__display_name
-#: model:ir.model.fields,field_description:webvue_platform.field_ir_http__display_name
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_access_service__display_name
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_entitlement_service__display_name
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_feature_registry__display_name
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__display_name
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__display_name
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__display_name
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__display_name
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__display_name
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__display_name
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__display_name
-#: model:ir.model.fields,field_description:webvue_platform.field_res_company__display_name
-#: model:ir.model.fields,field_description:webvue_platform.field_res_users__display_name
-msgid "Display Name"
-msgstr "اسم العرض"
-
-#. module: webvue_platform
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__duration_minutes
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__duration_minutes
-msgid "Duration Minutes"
-msgstr "المدة بالدقائق"
-
-#. module: webvue_platform
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__estimated_seconds
-msgid "Estimated Seconds"
-msgstr "المدة المقدّرة بالثواني"
-
-#. module: webvue_platform
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_booking__status__failed
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__new_status__failed
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__old_status__failed
-msgid "Failed"
-msgstr "فشل"
-
-#. module: webvue_platform
-#: model:ir.model.fields,field_description:webvue_platform.field_ir_attachment__id
-#: model:ir.model.fields,field_description:webvue_platform.field_ir_binary__id
-#: model:ir.model.fields,field_description:webvue_platform.field_ir_http__id
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_access_service__id
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_entitlement_service__id
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_feature_registry__id
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__id
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__id
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__id
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__id
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__id
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__id
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__id
-#: model:ir.model.fields,field_description:webvue_platform.field_res_company__id
-#: model:ir.model.fields,field_description:webvue_platform.field_res_users__id
-msgid "ID"
-msgstr "المعرّف"
-
-#. module: webvue_platform
-#: model:ir.model,name:webvue_platform.model_webvue_maintenance_event
-msgid "Immutable maintenance event"
-msgstr "حدث صيانة محفوظ للتدقيق"
-
-#. module: webvue_platform
-#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_release__scope__infrastructure
-msgid "Infrastructure"
-msgstr "البنية التحتية"
-
-#. module: webvue_platform
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__write_uid
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__write_uid
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__write_uid
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__write_uid
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__write_uid
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__write_uid
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__write_uid
-msgid "Last Updated by"
-msgstr "آخر تعديل بواسطة"
-
-#. module: webvue_platform
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__write_date
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__write_date
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__write_date
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__write_date
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__write_date
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__write_date
-#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__write_date
-msgid "Last Updated on"
-msgstr "تاريخ آخر تعديل"
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance_authority.py:0
-msgid ""
-"Maintenance authority can only be changed by an authorized maintenance "
-"operation."
-msgstr "لا يمكن تغيير سجل تنسيق الصيانة إلا من خلال عملية صيانة مصرح بها."
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/maintenance_authority.py:0
-msgid "Maintenance authority cannot be deleted."
-msgstr "لا يمكن حذف سجل تنسيق الصيانة."
-
-#. module: webvue_platform
 #: model:res.groups,name:webvue_platform.group_maintenance_manager
 msgid "Maintenance manager"
 msgstr "مسؤول الصيانة"
@@ -468,6 +468,12 @@ msgstr "مسؤول الصيانة"
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_maintenance_authority_positive_generation
 msgid "Maintenance operation generation must be positive."
 msgstr "يجب أن يكون رقم جيل عملية الصيانة موجبًا."
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance.py:0
+msgid "Maintenance preferences cannot be deleted."
+msgstr "لا يمكن حذف تفضيلات الصيانة."
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__new_duration_minutes
@@ -545,6 +551,17 @@ msgid "One maintenance preference per tenant."
 msgstr "تفضيل صيانة واحد لكل عميل."
 
 #. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance.py:0
+msgid "Only scheduled maintenance can be changed or cancelled."
+msgstr "يمكن تعديل الصيانة المجدولة أو إلغاؤها قبل بدء التنفيذ فقط."
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__operation_id
+msgid "Operation"
+msgstr ""
+
+#. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__operation_generation
 msgid "Operation Generation"
 msgstr "جيل العملية"
@@ -560,6 +577,17 @@ msgid "Policy"
 msgstr "السياسة"
 
 #. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__policy_revision
+msgid "Policy Revision"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid "Policy source is not permitted for this installation."
+msgstr ""
+
+#. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__preference_id
 msgid "Preference"
 msgstr "التفضيل"
@@ -570,10 +598,50 @@ msgid "Preference saved"
 msgstr "حُفظ التفضيل"
 
 #. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__quota_revision
+msgid "Quota Revision"
+msgstr ""
+
+#. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__release_id
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__release_id
 msgid "Release"
 msgstr "الإصدار"
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance.py:0
+msgid "Release is outside this tenant."
+msgstr "الإصدار لا يخص هذا المستأجر."
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance.py:0
+msgid "Release notice not found."
+msgstr "لم يُعثر على إشعار الإصدار."
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance.py:0
+msgid "Release notice tenant cannot change."
+msgstr "لا يمكن تغيير مستأجر إشعار الإصدار."
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance.py:0
+msgid "Release notices belong to this database tenant."
+msgstr "تخص إشعارات الإصدارات مستأجر قاعدة البيانات هذه."
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance.py:0
+msgid "Release timing and scope cannot change while bookings are active."
+msgstr "لا يمكن تغيير موعد الإصدار أو نطاقه أثناء وجود حجوزات نشطة."
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__retained_read_features
+msgid "Retained Read Features"
+msgstr ""
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__revision
@@ -583,11 +651,27 @@ msgid "Revision"
 msgstr "المراجعة"
 
 #. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__root_company_id
+msgid "Root Company"
+msgstr ""
+
+#. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_booking__status__running
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__new_status__running
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__old_status__running
 msgid "Running"
 msgstr "قيد التنفيذ"
+
+#. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_profile__commercial_mode__saas
+msgid "SaaS"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance.py:0
+msgid "Save a preferred maintenance window first."
+msgstr "احفظ نافذة الصيانة المفضلة أولًا."
 
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_booking__status__scheduled
@@ -612,9 +696,24 @@ msgid "Security"
 msgstr "أمني"
 
 #. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__singleton_key
+msgid "Singleton Key"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__solution
+msgid "Solution"
+msgstr ""
+
+#. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__start_minute
 msgid "Start Minute"
 msgstr "دقيقة البدء"
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__state
+msgid "State"
+msgstr ""
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__status
@@ -624,9 +723,24 @@ msgid "Status"
 msgstr "الحالة"
 
 #. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__support_access_enabled
+msgid "Support Access Enabled"
+msgstr ""
+
+#. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_release__status__supported
 msgid "Supported"
 msgstr "مدعوم"
+
+#. module: webvue_platform
+#: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_profile__status__suspended
+msgid "Suspended"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__target_revision_id
+msgid "Target Revision"
+msgstr ""
 
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_release__scope__tenant
@@ -649,6 +763,53 @@ msgid "Tenant maintenance serialization authority"
 msgstr "سجل تنسيق عمليات صيانة العميل"
 
 #. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__terminology
+msgid "Terminology"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance_messages.py:0
+msgid "The maintenance window is shorter than the measured estimate."
+msgstr "نافذة الصيانة أقصر من التقدير المقاس."
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance_messages.py:0
+msgid "The maintenance window must finish before the release deadline."
+msgstr "يجب أن تنتهي نافذة الصيانة قبل الموعد النهائي للإصدار."
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance.py:0
+msgid "The release is no longer supported for this booking."
+msgstr "لم يعد الإصدار مدعومًا لهذا الحجز."
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance.py:0
+msgid "This booking is outside its approved execution window."
+msgstr "الحجز خارج نافذة التنفيذ المعتمدة."
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance_messages.py:0
+msgid ""
+"This local time is missing or ambiguous because of daylight saving time."
+msgstr "هذا الوقت المحلي مفقود أو ملتبس بسبب التوقيت الصيفي. اختر وقتًا آخر."
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance.py:0
+msgid "This release is not available for an individual tenant booking."
+msgstr "هذا الإصدار غير متاح لحجز مستقل لعميل واحد."
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__tier
+msgid "Tier"
+msgstr ""
+
+#. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__timezone
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__timezone
 msgid "Timezone"
@@ -660,11 +821,338 @@ msgid "Urgency"
 msgstr "الأولوية"
 
 #. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance_messages.py:0
+msgid "Use a valid local date and time without an offset."
+msgstr "أدخل تاريخًا ووقتًا محليين صالحين دون إزاحة زمنية."
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance.py:0
+msgid "Use the maintenance booking operation."
+msgstr "استخدم عملية حجز الصيانة."
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance.py:0
+msgid "Use the maintenance preference operation."
+msgstr "استخدم عملية حفظ تفضيل الصيانة."
+
+#. module: webvue_platform
+#: model:ir.model,name:webvue_platform.model_res_users
+msgid "User"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__valid_until
+msgid "Valid Until"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model,name:webvue_platform.model_webvue_access_service
+msgid "WebVue Access Service"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model,name:webvue_platform.model_webvue_entitlement_service
+msgid "WebVue entitlement service"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model,name:webvue_platform.model_webvue_feature_registry
+msgid "WebVue feature and module registry"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model,name:webvue_platform.model_webvue_module_load_guard
+msgid "WebVue installed-module load guard"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model,name:webvue_platform.model_webvue_tenant_branch
+msgid "WebVue tenant commercial branch"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model,name:webvue_platform.model_webvue_tenant_profile
+msgid "WebVue tenant profile"
+msgstr ""
+
+#. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__weekday
 msgid "Weekday"
 msgstr "يوم الأسبوع"
 
 #. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance_messages.py:0
+msgid "Window duration must be between 1 and 1440 minutes."
+msgstr "يجب أن تكون مدة النافذة بين دقيقة واحدة و١٤٤٠ دقيقة."
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/maintenance.py:0
+msgid "Withdraw release notices instead of deleting them."
+msgstr "اسحب إشعارات الإصدارات بدلًا من حذفها."
+
+#. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_release__status__withdrawn
 msgid "Withdrawn"
 msgstr "مسحوب"
+
+#. module: webvue_platform
+#: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_branch_company_unique
+msgid "a company can be bound to one webvue branch"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid "branch_binding_conflict"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid "branch_binding_invalid"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid "branch_not_found"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/res_company.py:0
+msgid "branch_requires_subscription"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_profile_independent_cutoff
+msgid "independent installations cannot have a subscription expiry"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_branch_branch_uid_unique
+msgid "webvue branch uid must be unique"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_profile_commercial_pair
+msgid "webvue commercial mode and entitlement source must match"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid "webvue tenant policy can only be changed by a trusted operator."
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_profile_policy_revision_positive
+msgid "webvue tenant policy revision cannot be negative"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid "webvue tenant profile cannot be deleted."
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_profile_singleton
+msgid "webvue tenant profile is a singleton"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid "webvue tenant profile is a singleton."
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_profile_singleton_key
+msgid "webvue tenant profile only accepts the 'tenant' key"
+msgstr ""
+
+#. module: webvue_platform
+#: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_profile_quota_revision_positive
+msgid "webvue tenant quota revision cannot be negative"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/feature_registry.py:0
+msgid "webvue_platform: %(kind)s definition is missing an id"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid ""
+"webvue_platform: cannot guess root company; found %(count)s roots (%"
+"(names)s). Set webvue.tenant.profile.root_company_id explicitly."
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/feature_registry.py:0
+msgid "webvue_platform: duplicate %(kind)s key %(key)s"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/feature_registry.py:0
+msgid "webvue_platform: feature %(key)s has invalid type"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/feature_registry.py:0
+msgid "webvue_platform: feature %(key)s is missing owner or module"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: feature %(key)s must be a boolean"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: features must be a flat object"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: features payload is missing required keys: %(keys)s"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/module_load_guard.py:0
+msgid ""
+"webvue_platform: installed modules were not loaded: %(modules)s. A "
+"dependency is missing from the addons path; build it with \"python3 -B tools/"
+"oca_addons.py path --check\" and read the module_graph warnings above."
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: limit %(key)s must be a non-negative integer or null"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid "webvue_platform: multiple tenant profiles exist; refuse to guess."
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: retained_read_features contains invalid key %(key)s"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: retained_read_features must be a list"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid "webvue_platform: revisions cannot be negative"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid "webvue_platform: status must be active or suspended"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: tenant profile is missing or not a singleton."
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid "webvue_platform: tenant_profile xmlid points at a different record."
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: terminology key %(key)s is not allowed"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: terminology must be an object"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid ""
+"webvue_platform: terminology value for %(key)s contains forbidden markup"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: terminology value for %(key)s is too long"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: terminology value for %(key)s must be text"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: terminology.%(locale)s exceeds %(limit)s keys"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: terminology.%(locale)s must be an object"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: unknown feature %(key)s"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/tenant_profile.py:0
+msgid "webvue_platform: unknown selected modules %(modules)s"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: unknown terminology key %(key)s"
+msgstr ""
+
+#. module: webvue_platform
+#. odoo-python
+#: code:addons/webvue_platform/models/entitlement_service.py:0
+msgid "webvue_platform: unknown terminology locale %(locale)s"
+msgstr ""
