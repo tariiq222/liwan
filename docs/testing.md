@@ -38,11 +38,11 @@ The complete `npm test` sequence remains binding in CI before merge.
 | --- | --- |
 | `npm run check:fast` | Policy checks always, plus ruff, tools tests, contracts/web tests and the web type check only for the layers that changed against `main` (`tools/check_fast.py`). |
 | `npm run test:odoo` | Odoo tests of the changed addons and their dependents on a scratch database cloned from a cached template (`tools/odoo_test.py`). Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. |
-| `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree`, and its ownership claim; refuses a base other than `main` or a `claude/` integration branch and scopes that overlap another active claim unless `--allow-overlap "<reason>"` (`tools/wt.py`, rules in `docs/parallel-work.md`). |
+| `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree`, and its ownership claim; refuses a base other than `main` or a `codex/` integration branch and scopes that overlap another active claim unless `--allow-overlap "<reason>"` (`tools/wt.py`, rules in `docs/parallel-work.md`). |
 | `npm run wt -- claim --owner <who> [--task ...] [--scope ...]` | Inside a task worktree: record its claim, change or refresh your own, or take over an expired one (`tools/wt.py`). |
 | `npm run wt -- check` | Read-only report of worktrees that break the location, naming or claim rules; exit 1 when there is one (`tools/wt.py`). |
 | `npm run wt -- status` | One table of every worktree wherever it lives (`*` = outside `.worktrees/`): branch, owner and claim state, ahead/behind `main`, merged, dirty, last commit age, `node_modules` size, recorded scratch DB and ports, a summary line and the rule report (`tools/wt.py`). |
-| `npm run wt -- gc [--apply] [--branch claude/<area>-<slug>]` | Dry run by default: lists worktrees+branches merged into `main` with commits of their own, clean, and held by no process, plus the scratch databases of those worktrees that nobody is connected to (`webvue_scratch_e2e`, hand-named and `odoo_test.py` databases are never touched). Removing a worktree also deletes its ignored files (`.env.worktree`, `.nuxt`, `node_modules`). `--apply` runs `git worktree remove`, `git branch -d` and `dropdb`, reports each failure and continues; unmerged, dirty, current, in-use and missing-folder worktrees are skipped. `--apply` needs the owner's authorization. `--branch` limits it to that branch's worktree and scratch database, says why a worktree is kept, and deletes the local branch when it has no worktree and is merged. |
+| `npm run wt -- gc [--apply] [--branch codex/<area>-<slug>]` | Dry run by default: lists worktrees+branches merged into `main` with commits of their own, clean, and held by no process, plus the scratch databases of those worktrees that nobody is connected to (`webvue_scratch_e2e`, hand-named and `odoo_test.py` databases are never touched). Removing a worktree also deletes its ignored files (`.env.worktree`, `.nuxt`, `node_modules`). `--apply` runs `git worktree remove`, `git branch -d` and `dropdb`, reports each failure and continues; unmerged, dirty, current, in-use and missing-folder worktrees are skipped. `--apply` needs the owner's authorization. `--branch` limits it to that branch's worktree and scratch database, says why a worktree is kept, and deletes the local branch when it has no worktree and is merged. |
 | `npm run check:semgrep` | Semgrep (`p/python`, `p/typescript`, `p/secrets`) on the source files changed against `main`, tests and generated files excluded (`tools/semgrep_gate.py`). ERROR and secrets findings fail; WARNING is listed only. Needs network for the rulesets, sends no usage data, exits 3 when semgrep or the registry is unavailable. Also runs in the CI `static` stage. |
 | `npm run review:jev -- --task "<what the change does>"` | Advisory Jev quality scores (score and confidence per dimension, plus priorities) for the diff against `main` (`tools/jev_review.mjs`; `--base <ref>`, `--diff <file>`, `--json`, `--previous <file>` for a before/after delta). Needs the local `~/code/jev-review` server and a key in `JEV_API_KEY` or `~/.config/jev-review/api-key`; refuses diffs that touch secret-bearing paths; always exits 0. Never a gate: see `REVIEW.md`. |
 | `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` stage. |
@@ -84,14 +84,14 @@ The twelve stages are `static`, `ai-service`, `control-plane`, `vendor-admin`, `
 ### GitHub AI review gate
 
 `pr-review` is separate from the twelve CI stages. It uses trusted base code on
-`pull_request_target` for a ready same-repository owner/approved-bot PR on a `claude/`
-branch, reviewed by Claude Code with the subscription credential; drafts are skipped. No PR checkout or
+`pull_request_target` for a ready same-repository owner/approved-bot PR: native Codex first,
+Claude Code subscription fallback after a five-minute wait. No PR checkout or
 execution occurs in the credential-bearing job. The controller fetches the diff deterministically, then Claude has no tools,
 settings or MCP servers; its runtime GitHub token is read-only. A deterministic
 job publishes its report and current-head `code-review` status.
-If Claude does not complete a valid review, or a blocking finding remains, the
-status cannot be green. Validate
-controller behavior with `python3 -B -m unittest discover -s tools -p 'test_pr_*.py'`.
+A primary finding is not a reason to invoke the fallback. If neither provider
+completes, or a blocking finding remains, the status cannot be green. Validate
+controller behavior with `python3 -B -m unittest discover -s tools -p test_pr_review.py`.
 The integration policy records the first-activation order and live-provider prerequisites.
 
 ### Change-scoped stages
@@ -102,7 +102,7 @@ always runs, and **a path with no rule runs all twelve stages** (that includes a
 listed in `STATIC_ONLY_TOOLS`). Preview a selection, with the rule behind each changed path:
 
 ```sh
-python3 -B tools/ci_scope.py --base main [--commit claude/<area>-<slug>]
+python3 -B tools/ci_scope.py --base main [--commit codex/<area>-<slug>]
 ```
 
 A manual `workflow_dispatch` run with `full: true` runs all twelve stages whatever the change. A

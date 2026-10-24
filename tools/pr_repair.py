@@ -76,7 +76,8 @@ def context(repo: str, number: int, head: str) -> tuple[str, list[dict]]:
     reviews = api(f'repos/{repo}/pulls/{number}/reviews', pages=True)
     inline = api(f'repos/{repo}/pulls/{number}/comments', pages=True)
     findings = [{'path': r.get('path'), 'body': r.get('body', '')} for r in [*reviews, *inline]
-                if r.get('commit_id') == head and r['user']['login'] == 'github-actions[bot]']
+                if r.get('commit_id') == head and r['user']['login'] in (
+                    'chatgpt-codex-connector[bot]', 'github-actions[bot]')]
     failures = []
     run = ci_run(repo, head)
     if run:

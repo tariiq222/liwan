@@ -6,11 +6,11 @@
     python3 -B tools/wt.py claim --owner <who> [--task <what>] [--scope <path> ...] [--allow-overlap <reason>]
     python3 -B tools/wt.py check
     python3 -B tools/wt.py status
-    python3 -B tools/wt.py gc [--apply] [--branch claude/<area>-<slug>]
+    python3 -B tools/wt.py gc [--apply] [--branch codex/<area>-<slug>]
 
 ``new`` creates ``.worktrees/<area>-<slug>``, the only location for task worktrees, under the main
-checkout (also when run from a worktree) on branch ``claude/<area>-<slug>`` from ``--base`` (``main``, or a
-``claude/`` integration branch), installs independent ``node_modules`` and ``.nuxt`` (never symlinked), and writes the
+checkout (also when run from a worktree) on branch ``codex/<area>-<slug>`` from ``--base`` (``main``, or a
+``codex/`` integration branch), installs independent ``node_modules`` and ``.nuxt`` (never symlinked), and writes the
 git-ignored ``.env.worktree`` with free Nuxt and Odoo ports and a scratch
 database name (written before the install, so a failed install keeps its ports;
 ``--resume`` continues it). It also records the worktree's ownership claim (``tools/worktree_claims.py``):
@@ -22,7 +22,7 @@ refresh it, or takes over a claim that has expired (no commit, edited file or re
 ``CLAIM_TTL_HOURS``); an expired claim stays listed but no longer blocks other claims.
 
 ``check`` reports every worktree that breaks a rule: outside ``.worktrees``, a branch that is not
-``claude/<area>-<slug>`` or ``spike/<slug>``, a folder name that is not its branch's ``<area>-<slug>``, no claim,
+``codex/<area>-<slug>`` or ``spike/<slug>``, a folder name that is not its branch's ``<area>-<slug>``, no claim,
 and active claims that overlap without a stated reason; it exits 1 when there is one. It only reads: it never
 moves, renames or removes a worktree, so a worktree that predates these rules is reported, never changed.
 ``status`` prints one table of every worktree, wherever it lives (``*`` marks one outside
@@ -210,10 +210,10 @@ def install_dependencies(path):
 
 
 def check_base(base):
-    """Problem with a ``new --base``, or ``None``: task worktrees branch from main or a claude/ integration branch."""
-    if base == MAIN or (base.startswith('claude/') and not check_branch(base)):
+    """Problem with a ``new --base``, or ``None``: task worktrees branch from main or an integration branch."""
+    if base == MAIN or not check_branch(base):
         return None
-    return "--base '%s' must be %s or a claude/<area>-<slug> integration branch" % (base, MAIN)
+    return "--base '%s' must be %s or an integration branch" % (base, MAIN)
 
 
 def git_dir(path):
@@ -242,7 +242,7 @@ def refuse_conflicts(request, others):
 
 
 def create(suffix, base, install, request, resume=False):
-    branch = 'claude/' + suffix
+    branch = 'codex/' + suffix
     problem = check_branch(branch) or check_base(base)
     if problem:
         raise WorktreeError(problem)
@@ -327,7 +327,7 @@ def dir_size_kb(path):
 def missing_worktree(root, path, ref):
     """A registered worktree whose folder is gone; its scratch database name follows from the branch."""
     branch = ref[len('refs/heads/'):] if ref else None
-    suffix = branch[len('claude/'):] if branch and branch.startswith('claude/') else None
+    suffix = branch[len('codex/'):] if branch and branch.startswith('codex/') else None
     return Worktree(
         path=path, branch=branch, is_main=False, canonical=(root / WORKTREES_DIR) in path.parents, ahead=0, behind=0,
         merged=False, dirty=False, age_days=0, size=None, database=database_name(suffix) if suffix else None,
@@ -402,7 +402,7 @@ def inspect_all(root, sizes=True):
 def branch_violation(worktree):
     """Why the worktree's branch or folder name breaks the naming rule, or ``None``."""
     if not worktree.branch:
-        return 'no branch (detached HEAD); task worktrees are on claude/<area>-<slug>'
+        return 'no branch (detached HEAD); task worktrees are on any normal branch'
     problem = check_branch(worktree.branch)
     if problem:
         return problem
@@ -621,8 +621,8 @@ def merged_local_branch(root, branch):
 
 
 def gc(root, apply, current, branch=None):
-    if branch is not None and (not branch.startswith('claude/') or check_branch(branch)):
-        message = '--branch must be a local claude/<area>-<slug> task branch'
+    if branch is not None and (branch in ('main', 'HEAD') or check_branch(branch)):
+        message = '--branch must be a local task branch'
         raise WorktreeError(message)
     worktrees = inspect_all(root)
     busy = busy_paths()
@@ -673,7 +673,7 @@ def main(argv=None):
     sub = parser.add_subparsers(dest='command', required=True)
     new = sub.add_parser('new')
     new.add_argument('name', help='<area>-<slug>, e.g. pmo-task-filters')
-    new.add_argument('--base', default=MAIN, help='main, or a claude/<area>-<slug> integration branch')
+    new.add_argument('--base', default=MAIN, help='main, or a codex/<area>-<slug> integration branch')
     new.add_argument('--no-install', action='store_true')
     new.add_argument('--resume', action='store_true', help='continue a worktree whose creation failed part way')
     add_claim_arguments(new, required=True)
@@ -683,7 +683,7 @@ def main(argv=None):
     sub.add_parser('status')
     collect = sub.add_parser('gc')
     collect.add_argument('--apply', action='store_true', help='remove what is listed (needs the owner\'s authorization)')
-    collect.add_argument('--branch', help='only this branch\'s worktree and scratch database (claude/<area>-<slug>)')
+    collect.add_argument('--branch', help='only this branch\'s worktree and scratch database (codex/<area>-<slug>)')
     args = parser.parse_args(argv)
     if args.command == 'status':
         root = repo_root()

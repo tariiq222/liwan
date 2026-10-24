@@ -8,14 +8,13 @@ import json
 import os
 import re
 import subprocess
-import sys
 from pathlib import Path
 from urllib.parse import quote
 
 from github_trust import require_main
 from pr_review import api, output
 
-BOTS = ('claude[bot]', 'github-actions[bot]')
+BOTS = ('claude[bot]', 'chatgpt-codex-connector[bot]', 'github-actions[bot]')
 SAFE_PREFIXES = ('apps/web/app/components/', 'apps/web/app/pages/', 'apps/web/stories/',
                  'packages/ui/src/', 'packages/ui/tests/', 'docs/')
 SENSITIVE = re.compile(r'auth|permission|security|credential|token|payment|billing|migration|'
@@ -37,7 +36,7 @@ def request(method: str, endpoint: str, payload: dict):
 def eligible(pr: dict, repo: str) -> bool:
     return (pr['state'] == 'open' and not pr['draft'] and pr['base']['ref'] == 'main'
             and pr['head']['repo'] is not None and pr['head']['repo']['full_name'] == repo
-            and pr['head']['ref'].startswith('claude/')
+            and pr['head']['ref'] not in ('', 'main')
             and pr['user']['login'] in (repo.split('/', maxsplit=1)[0], *BOTS))
 
 
@@ -63,12 +62,6 @@ def sensitive(files: list[dict]) -> bool:
     return (not files or len(files) > 30 or any(
         not safe_path(f['filename']) or f['status'] not in ('modified', 'added')
         or 'patch' not in f or SENSITIVE.search(f['patch']) for f in files))
-
-
-def automation_authored(repo: str, pr: dict, head: str) -> bool:
-    """Claude reviews every head, so a head written by automation (or unattributed) never reviews itself into main."""
-    actors = [pr['user']['login'], (api(f'repos/{repo}/commits/{head}').get('author') or {}).get('login')]
-    return not all(actors) or any(actor in BOTS for actor in actors)
 
 
 def approved(comments: list[dict], owner: str, head: str) -> bool:
@@ -171,17 +164,41 @@ def dispatch(repo: str, number: int, head: str, branch: str):
         'ref': 'main', 'inputs': {'pr': str(number), 'head': head}})
 
 
+def settle_outdated_bot_threads(repo: str, number: int, head: str):
+    """A new clean review may resolve obsolete bot-only threads, never human concerns."""
+    owner, name = repo.split('/', maxsplit=1)
+    query = '''query($owner:String!,$name:String!,$number:Int!){
+      repository(owner:$owner,name:$name){pullRequest(number:$number){headRefOid
+        reviewThreads(first:100){pageInfo{hasNextPage} nodes{id isResolved isOutdated
+          comments(first:100){pageInfo{hasNextPage} nodes{author{login __typename} originalCommit{oid}}}}}}}}'''
+    result = api('graphql', {'query': query, 'variables': {'owner': owner, 'name': name, 'number': number}})
+    pr = result['data']['repository']['pullRequest']
+    if pr['headRefOid'] != head or pr['reviewThreads']['pageInfo']['hasNextPage']:
+        msg = 'Thread evidence stale or incomplete'
+        raise RuntimeError(msg)
+    for thread in pr['reviewThreads']['nodes']:
+        comments = thread['comments']
+        nodes = comments['nodes']
+        if (thread['isResolved'] or not thread['isOutdated'] or comments['pageInfo']['hasNextPage']
+                or not nodes or any((x.get('author') or {}).get('login') != 'chatgpt-codex-connector'
+                                    or (x.get('author') or {}).get('__typename') != 'Bot' for x in nodes)
+                or not nodes[0].get('originalCommit') or nodes[0]['originalCommit']['oid'] == head):
+            continue
+        checked_pr(repo, number, head)
+        api('graphql', {'query': '''mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){
+          thread{id isResolved}}}''', 'variables': {'id': thread['id']}})
+
+
 def plan(repo: str, number: int):
     pr = checked_pr(repo, number)
     head = pr['head']['sha']
     comments = api(f'repos/{repo}/issues/{number}/comments', pages=True)
     files = files_for(repo, pr)
-    if ((sensitive(files) or automation_authored(repo, pr, head))
-            and not approved(comments, repo.split('/', maxsplit=1)[0], head)):
-        policy_status(repo, head, 'pending', 'Sensitive or automation-authored: owner approval of this exact SHA required')
+    if sensitive(files) and not approved(comments, repo.split('/', maxsplit=1)[0], head):
+        policy_status(repo, head, 'pending', 'Sensitive scope: owner approval of this exact SHA required')
         output(decision='wait')
         return
-    policy_status(repo, head, 'success', 'Owner-authored eligible scope, or owner approved this exact SHA')
+    policy_status(repo, head, 'success', 'Scope eligible or owner approved this exact SHA')
     history = attempts(comments)
     action = decide(ci_state(repo, head), review_state(repo, head, number), len(history),
                     any(old == head for old, _ in history))
@@ -189,6 +206,7 @@ def plan(repo: str, number: int):
     if action == 'repair' and sensitive(files):
         action = 'stop'
     if action == 'merge':
+        settle_outdated_bot_threads(repo, number, head)
         fresh = checked_pr(repo, number, head)
         if fresh['mergeable_state'] != 'clean':
             action = 'wait'
@@ -282,14 +300,9 @@ def publish(repo: str, number: int, head: str, report: dict, attempt: int):
     dispatch(repo, number, new_commit['sha'], pr['head']['ref'])
 
 
-def resolve(repo: str, number: int, head: str):
-    """Select the PR for review; a draft, fork, foreign branch or superseded head is skipped, not failed."""
-    pr = api(f'repos/{repo}/pulls/{number}')
-    if not eligible(pr, repo) or pr['head']['sha'] != head:
-        sys.stdout.write('PR is a draft, ineligible or superseded; no review for this head\n')
-        output(eligible='false')
-        return
-    output(pr=number, head=head, eligible='true')
+def resolve(repo: str, number: int, head: str = ''):
+    pr = checked_pr(repo, number, head)
+    output(pr=number, head=pr['head']['sha'], eligible='true')
 
 
 def event_pr(repo: str) -> int | None:

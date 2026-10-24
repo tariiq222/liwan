@@ -15,7 +15,7 @@ class TestSubject(unittest.TestCase):
 
     def test_merge_subjects_are_no_longer_exempt(self):
         self.assertIn("expected 'type(scope): subject'", check_subject('Merge stuff'))
-        self.assertIn("expected 'type(scope): subject'", check_subject("Merge branch 'claude/pmo-reorder'"))
+        self.assertIn("expected 'type(scope): subject'", check_subject("Merge branch 'codex/pmo-reorder'"))
 
     def test_revert_passes_only_when_the_inner_subject_passes(self):
         self.assertIsNone(check_subject('Revert "feat(pmo): add x"'))
@@ -51,22 +51,17 @@ class TestSubject(unittest.TestCase):
 
 
 class TestBranch(unittest.TestCase):
-    def test_allowed_branches(self):
-        for name in ('main', 'HEAD', 'claude/pmo-milestone-reorder', 'claude/tools-arch-policy', 'claude/meetings-split', 'spike/generic-app-layer'):
+    def test_any_normal_branch_is_allowed(self):
+        for name in (
+            'main', 'HEAD', 'codex/pmo-milestone-reorder', 'claude/ci-revert-44',
+            'feature/pmo-thing', 'customer/acme', 'support/1.0', 'spike/generic-app-layer',
+            'owner/anything-goes', 'codex/saas-admin-fixes',
+        ):
             self.assertIsNone(check_branch(name), name)
 
-    def test_rejected_branches(self):
-        for name in (
-            'claude/saas-admin-fixes',
-            'claude/pmo',
-            'claude/pmo-',
-            'claude/PMO-thing',
-            'feature/pmo-thing',
-            'customer/acme',
-            'support/1.0',
-            'spike/',
-        ):
-            self.assertIn('must be main', check_branch(name), name)
+    def test_malformed_branch_names_are_rejected(self):
+        for name in ('', '-leading-dash', 'bad..dots', 'double//slash', 'trailing/', 'space name'):
+            self.assertIn('not a valid branch name', check_branch(name), name)
 
 
 if __name__ == '__main__':
@@ -75,7 +70,7 @@ if __name__ == '__main__':
 
 class TestGeneratedFiles(unittest.TestCase):
     def test_task_branch_commit_touching_a_generated_file_is_refused_with_a_clear_message(self):
-        problems = check_generated_commits('claude/pmo-reorder', {'docs/api/openapi.json': ['abc1234'], 'docs/api/route-capabilities.json': ['def5678']})
+        problems = check_generated_commits('codex/pmo-reorder', {'docs/api/openapi.json': ['abc1234'], 'docs/api/route-capabilities.json': ['def5678']})
         self.assertEqual(len(problems), 2)
         self.assertIn('abc1234', problems[0])
         self.assertIn('docs/api/openapi.json', problems[0])
@@ -84,14 +79,14 @@ class TestGeneratedFiles(unittest.TestCase):
 
     def test_integration_and_main_branches_may_change_them(self):
         touching = {'docs/api/openapi.json': ['abc1234']}
-        self.assertEqual(check_generated_commits('claude/tools-integrate-finance', touching), [])
+        self.assertEqual(check_generated_commits('codex/tools-integrate-finance', touching), [])
         self.assertEqual(check_generated_commits('main', touching), [])
 
     def test_other_tools_task_branch_is_still_a_task_branch(self):
-        self.assertEqual(len(check_generated_commits('claude/tools-capability-gate', {'docs/api/openapi.json': ['abc1234']})), 1)
+        self.assertEqual(len(check_generated_commits('codex/tools-capability-gate', {'docs/api/openapi.json': ['abc1234']})), 1)
 
     def test_no_touching_commit_is_fine(self):
-        self.assertEqual(check_generated_commits('claude/pmo-reorder', {'docs/api/openapi.json': []}), [])
+        self.assertEqual(check_generated_commits('codex/pmo-reorder', {'docs/api/openapi.json': []}), [])
 
     def test_commits_come_from_a_path_limited_git_log_per_generated_file(self):
         with mock.patch.object(git_policy, '_git', return_value='abc1234\ndef5678\n') as git:

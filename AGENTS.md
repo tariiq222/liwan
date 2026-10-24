@@ -1,7 +1,7 @@
 # WebVue agent instructions (single source)
 
 This file is the single source of repository instructions for every coding agent
-(Claude). `CLAUDE.md` imports it. Rules that apply only to one layer live in
+(Codex and Claude). `CLAUDE.md` imports it. Rules that apply only to one layer live in
 `docs/agents/odoo-rules.md` (Odoo addons, API, scratch-database checks) and
 `docs/agents/web-rules.md` (Nuxt UI): read the one that matches the files you change.
 
@@ -53,7 +53,7 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
 
 - Verify the current branch, worktree, and dirty paths before editing. The
   canonical local development checkout is `/Users/tariq/code/webvue` on `main`.
-- Develop bounded tasks in temporary `claude/<area>-<slug>` worktrees based on current
+- Develop bounded tasks in temporary worktrees (any normal branch name) based on current
   `main`. Give each task explicit file ownership and independent dependencies,
   generated files, databases, and ports. One orchestrator owns Git integration,
   shared-file edits, runtime changes, and final checks.
@@ -200,8 +200,9 @@ another application) needs the owner's approval, recorded by the owner as an
 
 ### Git workflow
 
-- `main` is the only long-lived branch and is always releasable. Task branches are
-  `claude/<area>-<slug>`; throwaway experiments are `spike/<slug>` and are never merged.
+- `main` is the only long-lived branch and is always releasable. Any normal task branch
+  name is accepted (a descriptive `<area>-<slug>` is recommended, not required);
+  throwaway experiments are `spike/<slug>` and are never merged.
   `<area>` is one of `core platform api pmo meetings hr chat tasks operations web cp deploy tools docs ci`; the
   application areas (`pmo meetings hr chat tasks operations`) are derived from the rank-4 addons in `tools/arch_layers.json`,
   so a new application's id becomes a valid area when it is registered there.
@@ -216,7 +217,7 @@ another application) needs the owner's approval, recorded by the owner as an
   direct-push exception is superseded by this PR workflow.
 - Prepare and check the combined result against the current remote `main`, preserving
   unrelated dirty work and each worker's history. Use a task PR for an independent change;
-  use one `claude/tools-integrate-<slug>` candidate and one PR for a coupled batch.
+  use one `<prefix>/tools-integrate-<slug>` candidate and one PR for a coupled batch.
   Regenerate the API artifacts there when needed. Do not submit both a batch and its
   constituent branches for separate merge.
 - A PR stays **draft** while scope, local checks or prepublication inspection are incomplete.
@@ -334,13 +335,13 @@ cross-addon links.
 ## Safe worktree workflow
 
 Create every task worktree with `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>`:
-it lives only in `<main checkout>/.worktrees/<area>-<slug>`, branches from `main` (or the task's `claude/`
+it lives only in `<main checkout>/.worktrees/<area>-<slug>`, branches from `main` (or the task's
 integration branch) and records its owner and scopes. Never use a bare `git worktree add` or a tool's own
 worktree folder (the Claude app's `worktrees` folder under `.claude`). Overlapping another active claim needs `--allow-overlap
 "<reason>"` agreed with its owner. `npm run wt -- check` reports violations and changes nothing; the full
 rules are in `docs/parallel-work.md` ("Worktree rules").
 
-Use one temporary worktree per bounded task, named `claude/<area>-<slug>`. Worktrees
+Use one temporary worktree per bounded task; its branch may use any normal name. Worktrees
 must have independent `node_modules` and `.nuxt` directories; do not symlink
 either one. One writer owns each file, and one orchestrator owns shared files,
 Git integration, runtime state, and final checks. The ownership and collision
