@@ -7,7 +7,7 @@ import type { BundleRevision, CapacityMap, CatalogApplication, CatalogRelease, C
 export { CommercialError }
 /** /2: modules are the whole release (every application is installed in every tenant) and
  * features carry every key of every release application (spec 3.6, rulings E2/E3/E6). */
-export const COMPILER_VERSION = 'commercial-compiler/2'
+export const COMPILER_VERSION = 'commercial-compiler/3'
 
 export function compileEntitlements(input: {
   release: CatalogRelease; plan: PlanRevision; bundles: BundleRevision[]; terms: CustomerTermsRevision | null
@@ -30,12 +30,17 @@ export function compileEntitlements(input: {
     if (!app) throw new CommercialError('unknown_app', 'selections')
     if (!app.selectable) throw new CommercialError('app_not_selectable', 'selections')
     selectedApps.add(app.id)
+    // The list is validated for shape so existing rows parse, but it is no longer the grant unit.
     for (const key of sel.feature_keys) {
       const f = app.features.find(x => x.key === key)
       if (!f || !f.selectable || f.kind !== 'boolean') throw new CommercialError('feature_not_selectable', 'selections')
-      booleanFeatures.add(key)
     }
   }
+  // Selecting an application grants every selectable boolean it owns (spec §4.2.7): the
+  // customer buys the application whole, so its internal feature keys must not be a second
+  // purchasing decision stored beside it.
+  for (const id of selectedApps) for (const f of (apps.get(id) as CatalogApplication).features)
+    if (f.kind === 'boolean' && f.selectable) booleanFeatures.add(f.key)
 
   // Dependency cycles across selected apps' requires graph
   const state = new Map<string, number>()
