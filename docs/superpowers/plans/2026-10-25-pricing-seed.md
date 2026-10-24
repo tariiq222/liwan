@@ -13,13 +13,15 @@
    revision in the same transaction. A published revision is immutable, so this is the
    only legal way to price it. Plans that referenced the old bundle revisions are withdrawn
    by step 1 and are not restored by this seed.
-3. Inserts one published plan named `WebVue`:
+3. Inserts one published plan named `WebVue` (the SQL seed writes a fixed placeholder
+   `content_digest`; the application only recomputes it when a revision moves through
+   validate/publish, and a seeded row is already published):
    - base prices: monthly and yearly (placeholder);
    - `included_users: 3`, `included_storage_mb: 5120`, `included_extra_branches: 0`;
    - `user_prices`, `storage_prices` and `extra_branch_prices` for both cadences;
    - `included_bundle_revision_ids: []` — applications are optional and priced separately;
-   - `optional_bundle_revision_ids`: every bundle that is published and available at
-     migration time;
+   - `optional_bundle_revision_ids`: every bundle that is published and available in the
+     release of the newest published bundle (a plan must not mix catalog releases);
    - `trial_days: 14`, `grace_days: 7`, `auto_suspend: true`, `auto_renew_allowed: true`.
 4. Records a `revision_references` row for every optional bundle, so deleting a bundle that
    the plan sells is refused.
@@ -34,7 +36,10 @@ npm -w apps/control-plane run migrate
 
 Do not run it against `webvue_control_dev` while a console or worker is using that database.
 On a fresh database there are no bundles yet, so only step 3 runs; bundle prices are then
-entered from the console after the catalogs are published.
+entered from the console after the catalogs are published. On a database that already has
+applications from more than one catalog release, the plan is seeded against the newest
+release only; bundles from older releases stay out of its menu and the owner can add them
+from the console after moving them to the current release.
 
 ## Verify
 

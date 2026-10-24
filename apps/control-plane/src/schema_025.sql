@@ -15,8 +15,9 @@ UPDATE plan_revisions SET available=false, edit_revision=edit_revision+1 WHERE s
 -- Application prices live on a new revision: a published revision is immutable. The old
 -- revision is withdrawn in the same migration, so the catalog never lists one application twice.
 CREATE TEMP TABLE webvue_seeded_bundle_revisions AS
-  SELECT id AS old_id, bundle_id FROM bundle_revisions
-  WHERE status='published' AND available AND prices='[]'::jsonb;
+  SELECT DISTINCT ON (bundle_id) id AS old_id, bundle_id FROM bundle_revisions
+  WHERE status='published' AND available AND prices='[]'::jsonb
+  ORDER BY bundle_id, created_at DESC, id DESC;
 
 INSERT INTO bundle_revisions(id,bundle_id,version,edit_revision,name,description,audience,audience_customer_id,catalog_release_id,selections,domain_limits,prices,status,available,content_digest,validated_digest,published_at)
 SELECT gen_random_uuid(), s.bundle_id,
@@ -30,7 +31,8 @@ SELECT gen_random_uuid(), s.bundle_id,
 FROM webvue_seeded_bundle_revisions s JOIN bundle_revisions b ON b.id=s.old_id;
 
 UPDATE bundle_revisions SET available=false, edit_revision=edit_revision+1
-WHERE id IN (SELECT old_id FROM webvue_seeded_bundle_revisions);
+WHERE status='published' AND available AND prices='[]'::jsonb
+  AND bundle_id IN (SELECT bundle_id FROM webvue_seeded_bundle_revisions);
 UPDATE commercial_bundles c SET next_version = GREATEST(c.next_version,
   (SELECT max(r.version)+1 FROM bundle_revisions r WHERE r.bundle_id=c.id))
 WHERE EXISTS (SELECT 1 FROM webvue_seeded_bundle_revisions s WHERE s.bundle_id=c.id);
@@ -48,7 +50,14 @@ VALUES(
   '{"kind":"public"}', NULL, 'published', true, 12, 'SAR',
   '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":29900}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":299000}}]'::jsonb,
   '{}'::jsonb, '[]'::jsonb,
-  COALESCE((SELECT jsonb_agg(id ORDER BY created_at,id) FROM bundle_revisions WHERE status='published' AND available), '[]'::jsonb),
+  COALESCE((
+    SELECT jsonb_agg(id ORDER BY created_at,id) FROM bundle_revisions
+    WHERE status='published' AND available
+      AND catalog_release_id = (
+        SELECT catalog_release_id FROM bundle_revisions
+        WHERE status='published' AND available
+        ORDER BY created_at DESC, id DESC LIMIT 1)
+  ), '[]'::jsonb),
   0,
   '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":5000}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":50000}}]'::jsonb,
   NULL,
