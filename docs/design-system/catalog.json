@@ -6955,12 +6955,17 @@
       "stories": [
         {
           "id": "Expanded",
-          "name": "قائمة التطبيقات الموحّدة",
+          "name": "قائمة التطبيق الداخلية",
           "context": "apps/web/app/components/shell/AppSidebar.vue:27"
         },
         {
           "id": "Collapsed",
           "name": "مطوية",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:27"
+        },
+        {
+          "id": "Drawer",
+          "name": "قائمة التطبيقات في الجوال",
           "context": "apps/web/app/components/shell/AppSidebar.vue:27"
         }
       ]

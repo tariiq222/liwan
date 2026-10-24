@@ -359,7 +359,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .webvue-navigation-panel { display: flex; height: min(480px, 55svh); min-height: 220px; flex-direction: column; overflow: hidden; }
 .webvue-navigation[data-surface="drawer"] { height: auto; border: 0; border-radius: 0; background: transparent; overflow: visible; }
 .webvue-navigation[data-surface="drawer"] .webvue-navigation-list { overflow: visible; padding: 0; }
-.webvue-navigation[data-surface="drawer"] .webvue-context-link { min-height: 44px; }
+.webvue-navigation[data-surface="drawer"] :is(.webvue-context-link, .webvue-quick-link) { min-height: 44px; }
 @media (prefers-reduced-motion: reduce) { .webvue-navigation-chevron { transition: none; } }
 
 /* Workspace: leaves the rail and the context sidebar on the inline start. */

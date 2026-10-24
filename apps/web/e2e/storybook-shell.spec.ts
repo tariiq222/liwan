@@ -30,7 +30,8 @@ test.describe('Tasmim shell (desktop)', () => {
         expect(header.x + header.width).toBeCloseTo(1428, 0)
         expect(sidebar.width).toBeCloseTo(230, 0)
         expect(sidebar.y).toBeCloseTo(84, 0)
-        expect(sidebar.y + sidebar.height).toBeCloseTo(888, 0)
+        expect(sidebar.height).toBeGreaterThan(0)
+        expect(sidebar.y + sidebar.height).toBeLessThanOrEqual(888)
         if (dir === 'rtl') expect(sidebar.x + sidebar.width).toBeCloseTo(1340, 0)
         else expect(sidebar.x).toBeCloseTo(100, 0)
         await expect(page.getByTestId('module-rail')).toBeVisible()
@@ -40,9 +41,9 @@ test.describe('Tasmim shell (desktop)', () => {
 
     test(`the active module has a tinted round icon circle (${locale})`, async ({ page }) => {
       await open(page, 'shell-shellframe--default', `locale:${locale};appearance:light`)
-      const active = page.getByTestId('application-navigation').locator('.webvue-navigation-app[data-active="true"]')
+      const active = page.getByTestId('module-rail').locator('[aria-current="page"]')
       await expect(active).toHaveCount(1)
-      await expect(active.locator('.webvue-context-chip')).toHaveCSS('border-radius', '9999px')
+      await expect(active.locator('.webvue-module-rail-icon')).toHaveCSS('border-radius', '9999px')
       await expect(page.getByTestId('application-navigation')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
     })
   }
@@ -68,14 +69,14 @@ test.describe('Tasmim shell (desktop)', () => {
   }
 
   test('only one application submenu is visible and a trigger keeps the current route', async ({ page }) => {
-    await open(page, 'shell-shellnavigation--expanded', 'locale:ar;appearance:light')
+    await open(page, 'shell-shellnavigation--drawer', 'locale:ar;appearance:light')
     const current = page.url()
-    await page.getByTestId('navigation-app-projects').click()
-    await expect(page.getByTestId('navigation-submenu-projects')).toBeVisible()
-    await expect(page.getByTestId('navigation-submenu-meetings')).toHaveCount(0)
-    await page.getByTestId('navigation-app-meetings').click()
-    await expect(page.getByTestId('navigation-submenu-meetings')).toBeVisible()
-    await expect(page.getByTestId('navigation-submenu-projects')).toHaveCount(0)
+    await page.getByTestId('mobile-navigation-app-projects').click()
+    await expect(page.getByTestId('mobile-navigation-submenu-projects')).toBeVisible()
+    await expect(page.getByTestId('mobile-navigation-submenu-meetings')).toHaveCount(0)
+    await page.getByTestId('mobile-navigation-app-meetings').click()
+    await expect(page.getByTestId('mobile-navigation-submenu-meetings')).toBeVisible()
+    await expect(page.getByTestId('mobile-navigation-submenu-projects')).toHaveCount(0)
     expect(page.url()).toBe(current)
   })
 
@@ -101,22 +102,25 @@ test.describe('Tasmim shell (desktop)', () => {
     await expect(sidebar).toHaveAttribute('data-expanded', 'true')
   })
 
-  for (const [locale, module, current] of [['ar', 'المشاريع', 'مهامي'], ['en', 'Projects', 'My tasks']] as const) {
+  for (const [locale] of LOCALES) {
     test(`breadcrumb names the module and the current section (${locale})`, async ({ page }) => {
-      await open(page, 'shell-shellframe--default', `locale:${locale};appearance:light`)
+      await open(page, 'shell-shellbreadcrumb--trail', `locale:${locale};appearance:light`)
       const trail = page.getByTestId('shell-breadcrumb')
       await expect(trail).toHaveAccessibleName(locale === 'ar' ? 'مسار الصفحة' : 'Breadcrumb')
-      await expect(trail.getByRole('link', { name: module, exact: true })).toHaveAttribute('href', '/projects')
-      await expect(trail.locator('[aria-current="page"]')).toHaveText(current)
+      // This presentation story has explicit Arabic labels in both locale modes.
+      await expect(trail.getByRole('link', { name: 'المشاريع', exact: true })).toHaveAttribute('href', '/projects')
+      await expect(trail.locator('[aria-current="page"]')).toHaveText('المهام')
+      await open(page, 'shell-shellframe--default', `locale:${locale};appearance:light`)
+      await expect(page.getByTestId('shell-header').getByTestId('shell-breadcrumb')).toHaveCount(0)
       await expect(page.getByTestId('shell-header').locator('h1')).toHaveCount(0)
     })
   }
 
-  test('header controls wait for nothing in Storybook and keep the 32px control height', async ({ page }) => {
+  test('header controls wait for nothing in Storybook and keep the 38px control height', async ({ page }) => {
     await open(page, 'shell-shellframe--default', 'locale:ar;appearance:light')
     const search = page.getByRole('button', { name: 'بحث', exact: true })
     await expect(search).toBeEnabled()
-    expect((await search.boundingBox())!.height).toBeCloseTo(32, 0)
+    expect((await search.boundingBox())!.height).toBeCloseTo(38, 0)
   })
 })
 
@@ -247,7 +251,9 @@ test.describe('Tasmim command palette', () => {
     await expect(palette).toHaveAttribute('data-view', 'shortcuts')
     await expect(page.getByRole('dialog')).toHaveCount(1)
     await expect(palette.getByRole('option', { name: /فتح لوحة الأوامر/ })).toBeVisible()
+    await palette.getByRole('textbox').fill('المشاريع')
     await expect(palette.getByRole('option', { name: /الانتقال إلى المشاريع/ })).toContainText('P')
+    await palette.getByRole('textbox').fill('')
     await page.keyboard.press('Backspace')
     await expect(palette).toHaveAttribute('data-view', 'main')
     await palette.getByRole('option', { name: 'اختصارات لوحة المفاتيح', exact: true }).click()

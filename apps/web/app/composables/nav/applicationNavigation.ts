@@ -45,6 +45,7 @@ export function applicationNavigation(input: ApplicationNavigationInput): ShellN
     const quick = quickViewsModel({ path: route.path, query: route.query, can: capability => canReach(input.identity, capability), createTo })
     const quickItem = (link: { id: string; labelKey: string; icon: string; to: ShellQuickItem['to']; active?: boolean; primary?: boolean }): ShellQuickItem =>
       ({ id: link.id, label: t(link.labelKey), icon: link.icon, to: link.to, active: active && !!link.active, primary: link.primary })
+    const presetActive = active && [...quick.views, ...quick.actions].some(link => link.active)
     item.views = quick.views.map(quickItem)
     item.sections = groupSections(navigation, link => link.section ?? link.group ?? null).map(section => ({
       id: section.id,
@@ -54,12 +55,15 @@ export function applicationNavigation(input: ApplicationNavigationInput): ShellN
         return {
           id: link.id, label: t(landing ? 'nav.viewAll' : link.labelKey), icon: link.icon,
           to: landing ? landingTarget(link.to, entry.to) : link.to,
-          active: active && !!link.active && !(landing && item.views.some(view => view.active)),
+          active: active && !!link.active && !(landing && presetActive),
           testId: contextLinkTestId(link.id),
         }
       }),
     }))
-    if (!item.sections.length) item.sections.push({ id: 'main', title: '', items: [{ id: entry.id, label: t('nav.viewAll'), icon: entry.icon, to: entry.to, active, testId: contextLinkTestId(entry.id) }] })
+    if (!item.sections.some(section => section.items.some(link => targetPath(link.to) === entry.to))) {
+      const view = route.path === entry.to && typeof route.query.view === 'string' ? route.query.view : undefined
+      item.sections.unshift({ id: 'main', title: '', items: [{ id: entry.id, label: t('nav.viewAll'), icon: entry.icon, to: landingTarget({ path: entry.to, query: { view } }, entry.to), active: active && input.route.path === entry.to && !presetActive, testId: contextLinkTestId(entry.id) }] })
+    }
     const pinned = links.filter(link => link.pinned).map(link => quickItem({ ...link, to: createTo(link), primary: true }))
     const seen = new Set<string>()
     item.actions = [...pinned, ...quick.actions.map(quickItem)].filter(action => {

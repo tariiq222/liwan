@@ -43,7 +43,7 @@ test.describe('Tasmim context sidebar', () => {
     await expect(toggle).toBeEnabled()
     await toggle.click()
     await expect(sidebar).toHaveAttribute('data-expanded', 'true')
-    await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(264)
+    await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(230)
   })
 
   test('[ toggles the sidebar by physical key, also on an Arabic layout, but not while typing', async ({ page }) => {
@@ -107,8 +107,7 @@ test.describe('Tasmim mobile drawer', () => {
     await expect(drawer).toBeVisible()
     const area = (await drawer.boundingBox())!
     expect(Math.abs(area.x + area.width - 390)).toBeLessThanOrEqual(1)
-    await drawer.getByTestId('mobile-navigation-app-projects').click()
-    await drawer.getByRole('link', { name: 'المشاريع', exact: true }).click()
+    await drawer.getByRole('link', { name: 'عرض الكل', exact: true }).click()
     await expect(page).toHaveURL(/\/projects$/)
     await expect(drawer).toBeHidden()
     await expect(trigger).toHaveAttribute('aria-expanded', 'false')

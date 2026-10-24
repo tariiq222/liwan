@@ -61,4 +61,22 @@ describe('unified application navigation', () => {
     const item = applicationNavigation({ identity: actor, route: current, activeId: 'projects', contextLinks: links, translate: key => key }).find(item => item.id === 'projects')!
     expect(item.sections.flatMap(section => section.items).find(link => link.id === 'projects')?.to).toEqual({ path: '/projects', query: { view: 'board' } })
   })
+  it('keeps the Tasks landing page reachable alongside its work destination', () => {
+    const actor = { capabilities: ['webvue.internal', 'tasks.tasks.read'] }
+    const item = applicationNavigation({ identity: actor, route: route('/work'), activeId: 'tasks', contextLinks: contextLinksForModule('tasks', actor, '/work'), translate: key => key }).find(item => item.id === 'tasks')!
+    const links = item.sections.flatMap(section => section.items)
+    expect(links.find(link => link.to === '/my-tasks')).toMatchObject({ label: 'nav.viewAll', active: false })
+    expect(links.map(link => link.to)).toContain('/work')
+  })
+  it('marks only Archive selected on the archived project list', () => {
+    const actor = { capabilities: ['webvue.internal', 'pmo.projects.read', 'pmo.projects.manage'] }
+    const item = applicationNavigation({ identity: actor, route: route('/projects', { archived: '1' }), activeId: 'projects', contextLinks: contextLinksForModule('projects', actor, '/projects').map(link => ({ ...link, active: link.to === '/projects' })), translate: key => key }).find(item => item.id === 'projects')!
+    expect(item.actions.find(action => action.id === 'archived-projects')?.active).toBe(true)
+    expect(item.sections.flatMap(section => section.items).find(link => link.to === '/projects')?.active).toBe(false)
+  })
+  it('preserves the Tasks cards layout on its fallback landing link', () => {
+    const actor = { capabilities: ['webvue.internal', 'tasks.tasks.read'] }
+    const item = applicationNavigation({ identity: actor, route: route('/my-tasks', { view: 'cards', q: 'test' }), activeId: 'tasks', contextLinks: contextLinksForModule('tasks', actor, '/my-tasks'), translate: key => key }).find(item => item.id === 'tasks')!
+    expect(item.sections.flatMap(section => section.items).find(link => link.label === 'nav.viewAll')?.to).toEqual({ path: '/my-tasks', query: { view: 'cards' } })
+  })
 })

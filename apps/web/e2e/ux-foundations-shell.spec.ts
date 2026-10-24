@@ -80,7 +80,7 @@ test.describe('mobile drawer entry', () => {
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600)
     await page.getByTestId('mobile-navigation-trigger').click()
     const dialog = page.getByRole('dialog')
-    const projects = dialog.getByTestId('mobile-application-navigation').getByRole('link', { name: 'المشاريع', exact: true })
+    const projects = dialog.getByTestId('mobile-application-navigation').getByRole('link', { name: 'عرض الكل', exact: true })
     const box = (await projects.boundingBox())!
     expect(box.height).toBeGreaterThanOrEqual(44)
     await projects.click()

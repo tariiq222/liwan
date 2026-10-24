@@ -69,7 +69,7 @@ test.describe('Storybook visual snapshots', () => {
         await visit(page, locale, appearance, true)
         const result = await new AxeBuilder({ page }).include('[role="dialog"]').analyze()
         const serious = result.violations.filter(v => v.impact === 'serious' || v.impact === 'critical')
-        expect(serious.map(v => `${locale}-${appearance} ${v.id}: ${v.nodes.length}`)).toEqual([])
+        expect(serious.map(v => ({ mode: `${locale}-${appearance}`, rule: v.id, nodes: v.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))).toEqual([])
       }
     })
   }
@@ -82,7 +82,7 @@ test.describe('Storybook visual snapshots', () => {
         await page.locator('#storybook-root').waitFor()
         const result = await new AxeBuilder({ page }).include('#storybook-root').analyze()
         const serious = result.violations.filter(v => v.impact === 'serious' || v.impact === 'critical')
-        expect(serious.map(v => `${locale}-${appearance} ${v.id}: ${v.nodes.length}`)).toEqual([])
+        expect(serious.map(v => ({ mode: `${locale}-${appearance}`, rule: v.id, nodes: v.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))).toEqual([])
       }
     })
   }

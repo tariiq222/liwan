@@ -44,7 +44,7 @@ export const Default: Story = {
 
 export const Collapsed: Story = {
   name: 'القائمة السياقية مطويّة',
-  parameters: storyContext('apps/web/app/layouts/default.vue:72', 'القائمة السياقية بعرض 48px: يبقى زر الطي والأيقونات فقط.'),
+  parameters: storyContext('apps/web/app/layouts/default.vue:72', 'القائمة السياقية بعرض 64px: يبقى زر الطي والأيقونات فقط.'),
   loaders: [at('/tasks')],
   render: () => frame('closed'),
 }
