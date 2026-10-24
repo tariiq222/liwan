@@ -137,6 +137,36 @@ class FinalizeReviewTest(unittest.TestCase):
         self.assertEqual(self.calls[-1][1]['state'], 'failure')
 
 
+class ResolveTest(unittest.TestCase):
+    def pr(self):
+        return {'state': 'open', 'draft': False, 'user': {'login': 'owner'},
+                'head': {'sha': HEAD, 'ref': 'claude/web-fix', 'repo': {'full_name': 'owner/repo'}},
+                'base': {'ref': 'main'}}
+
+    def test_draft_fork_other_author_branch_and_base_are_ineligible(self):
+        self.assertTrue(pr_review.eligible(self.pr(), 'owner/repo'))
+        for mutate in (lambda p: p.update(draft=True),
+                       lambda p: p['head']['repo'].update(full_name='fork/repo'),
+                       lambda p: p['user'].update(login='stranger'),
+                       lambda p: p['head'].update(ref='codex/web-fix'),
+                       lambda p: p['base'].update(ref='other')):
+            pr = self.pr()
+            mutate(pr)
+            self.assertFalse(pr_review.eligible(pr, 'owner/repo'))
+
+    def test_resolve_skips_ineligible_and_superseded_heads_without_failing(self):
+        for mutate in (lambda p: p.update(draft=True), lambda p: p['head'].update(sha='b' * 40)):
+            pr = self.pr()
+            mutate(pr)
+            with self.subTest(pr=pr), patch.object(pr_review, 'api', return_value=pr), patch.object(
+                    pr_review, 'output') as out:
+                pr_review.resolve('owner/repo', 9, HEAD)
+            out.assert_called_once_with(eligible='false')
+        with patch.object(pr_review, 'api', return_value=self.pr()), patch.object(pr_review, 'output') as out:
+            pr_review.resolve('owner/repo', 9, HEAD)
+        out.assert_called_once_with(pr=9, head=HEAD, eligible='true')
+
+
 class ClaudeBoundaryTest(unittest.TestCase):
     def test_untrusted_diff_is_stdin_data_and_model_has_no_command_or_file_tools(self):
         report = {'head_sha': HEAD, 'complete': True, 'summary': 'Reviewed', 'findings': []}

@@ -1,4 +1,4 @@
-"""Bind the Claude PR review to a head SHA; a missing or invalid review keeps the merge blocked.
+"""Advisory Claude PR review bound to a head SHA; only `ci-result` gates the merge.
 
 This controller never checks out PR code, runs PR commands, pushes or merges.
 """
@@ -13,6 +13,8 @@ import sys
 from pathlib import Path
 
 from github_trust import require_main
+
+BOTS = ('claude[bot]', 'github-actions[bot]')
 
 REPORT_SCHEMA = {
     'type': 'object', 'required': ['head_sha', 'complete', 'summary', 'findings'],
@@ -131,6 +133,23 @@ def api(endpoint: str, payload: dict | None = None, pages: bool = False):
     return [item for page in value for item in page] if pages else value
 
 
+def eligible(pr: dict, repo: str) -> bool:
+    return (pr['state'] == 'open' and not pr['draft'] and pr['base']['ref'] == 'main'
+            and pr['head']['repo'] is not None and pr['head']['repo']['full_name'] == repo
+            and pr['head']['ref'].startswith('claude/')
+            and pr['user']['login'] in (repo.split('/', maxsplit=1)[0], *BOTS))
+
+
+def resolve(repo: str, pr: int, head: str):
+    """Select the PR for review; a draft, fork, foreign branch or superseded head is skipped, not failed."""
+    value = api(f'repos/{repo}/pulls/{pr}')
+    if not eligible(value, repo) or value['head']['sha'] != head:
+        sys.stdout.write('PR is a draft, ineligible or superseded; no review for this head\n')
+        output(eligible='false')
+        return
+    output(pr=pr, head=head, eligible='true')
+
+
 def current(repo: str, pr: int, head: str) -> dict:
     value = api(f'repos/{repo}/pulls/{pr}')
     if (value['state'] != 'open' or value['head']['sha'] != head
@@ -185,7 +204,7 @@ def finalize(repo: str, pr: int, head: str) -> int:
 def main() -> int:
     require_main()
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('claude', 'finalize'))
+    parser.add_argument('command', choices=('resolve', 'claude', 'finalize'))
     parser.add_argument('--repo', required=True)
     parser.add_argument('--pr', required=True, type=int)
     parser.add_argument('--head', required=True)
@@ -193,6 +212,9 @@ def main() -> int:
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', args.repo) or not re.fullmatch(r'[0-9a-f]{40}', args.head):
         parser.error('invalid repository or head SHA')
     try:
+        if args.command == 'resolve':
+            resolve(args.repo, args.pr, args.head)
+            return 0
         if args.command == 'claude':
             return run_claude(args.repo, args.pr, args.head)
         return finalize(args.repo, args.pr, args.head)

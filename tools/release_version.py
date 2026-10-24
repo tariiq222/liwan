@@ -9,7 +9,6 @@ from pathlib import Path
 
 from ci_scope import STAGES
 from github_trust import require_main
-from pr_delivery import run_jobs
 from pr_review import api
 
 TAG = re.compile(r'release/(19\.0\.\d+\.\d+\.\d+)\Z')
@@ -22,6 +21,17 @@ def next_tag(tags: list[str]) -> str:
         raise ValueError(msg)
     current = max(versions)
     return 'release/' + '.'.join(map(str, (*current[:-1], current[-1] + 1)))
+
+
+def run_jobs(repo: str, run_id: int) -> list[dict]:
+    result = api(f'repos/{repo}/actions/runs/{run_id}/jobs?per_page=100&page=1')
+    jobs = result['jobs']
+    for page in range(2, (result['total_count'] + 99) // 100 + 1):
+        jobs += api(f'repos/{repo}/actions/runs/{run_id}/jobs?per_page=100&page={page}')['jobs']
+    if len(jobs) != result['total_count']:
+        msg = 'Incomplete job inventory'
+        raise RuntimeError(msg)
+    return jobs
 
 
 def full_success(jobs: list[dict]) -> bool:

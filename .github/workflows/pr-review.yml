@@ -49,7 +49,7 @@ jobs:
           REQUEST_PR: ${{ github.event.pull_request.number || inputs.pr }}
           REQUEST_HEAD: ${{ github.event.pull_request.head.sha || inputs.head }}
         run: >-
-          python3 -B tools/pr_delivery.py resolve-review --repo "$REVIEW_REPO"
+          python3 -B tools/pr_review.py resolve --repo "$REVIEW_REPO"
           --pr "$REQUEST_PR" --head "$REQUEST_HEAD"
 
   claude:

@@ -10,7 +10,7 @@ name: agent-fix
 #   - the CLAUDE_CODE_OAUTH_TOKEN secret (from `claude setup-token`) exists as an environment secret in both the
 #     `agent` environment (fix, mention) and the `agent-scan` environment (scan), not as a repository secret;
 #   - `main` is protected (pull request required, no force push, no deletion).
-# Fixes stay drafts until local preparation; pr-delivery owns reviewed, gated automatic delivery.
+# Fixes stay drafts; the owner reviews and merges them once `ci-result` passes.
 
 on:
   schedule:

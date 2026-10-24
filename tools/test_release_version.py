@@ -68,5 +68,13 @@ class ReleaseVersionTest(unittest.TestCase):
             self.assertFalse(self.writes)
 
 
+    def test_job_inventory_includes_second_page_and_rejects_missing_results(self):
+        first = {'total_count': 101, 'jobs': [{'id': n} for n in range(100)]}
+        with patch.object(release, 'api', side_effect=[first, {'jobs': [{'id': 100}]}]):
+            self.assertEqual(len(release.run_jobs('owner/repo', 1)), 101)
+        with patch.object(release, 'api', return_value={'total_count': 2, 'jobs': []}):
+            with self.assertRaises(RuntimeError):
+                release.run_jobs('owner/repo', 1)
+
 if __name__ == '__main__':
     unittest.main()
