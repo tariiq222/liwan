@@ -33,7 +33,7 @@ env:
 
 jobs:
   scope:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       stages: ${{ steps.select.outputs.stages }}
@@ -72,7 +72,7 @@ jobs:
   static:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'static')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
       CI_BASE_REF: ${{ needs.scope.outputs.base }}
@@ -91,7 +91,7 @@ jobs:
   ai-service:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'ai-service')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       ODOO_PYTHON: python
@@ -119,7 +119,7 @@ jobs:
   control-plane:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'control-plane')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
       postgres:
@@ -142,7 +142,7 @@ jobs:
   vendor-admin:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'vendor-admin')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -157,7 +157,7 @@ jobs:
     name: odoo (shard ${{ matrix.shard }})
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'odoo')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
       fail-fast: false
@@ -191,7 +191,7 @@ jobs:
     name: odoo-app-standalone (${{ matrix.app }})
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'odoo-app-standalone')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -222,7 +222,7 @@ jobs:
     name: odoo-bridge (${{ matrix.bridge }})
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'odoo-bridge')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -252,7 +252,7 @@ jobs:
   upgrade:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'upgrade')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     services:
       postgres:
@@ -280,7 +280,7 @@ jobs:
   restore-drill:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'restore-drill')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     services:
       postgres:
@@ -308,7 +308,7 @@ jobs:
   image:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'image')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 40
     services:
       postgres:
@@ -330,7 +330,7 @@ jobs:
   e2e-mock:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'e2e-mock')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -342,7 +342,7 @@ jobs:
   rtl-stories:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'rtl-stories')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -354,7 +354,7 @@ jobs:
   ci-result:
     if: always()
     needs: [scope, static, ai-service, control-plane, vendor-admin, odoo, odoo-app-standalone, odoo-bridge, upgrade, restore-drill, image, e2e-mock, rtl-stories]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Require every selected stage to pass
