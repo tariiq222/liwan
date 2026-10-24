@@ -158,3 +158,92 @@ describe('actual full AI page and sheet identity lifecycle', () => {
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('actual full AI page and sheet while one of them streams', () => {
+  const questionItem = { kind: 'user', text: 'سؤال' }
+  const answerItem = { kind: 'assistant', text: 'الجواب', records: [], streaming: false }
+
+  /** A service the test streams by hand: its stored run is final only after `settled` is set. */
+  function streamedService() {
+    const encoder = new TextEncoder()
+    let controller!: ReadableStreamDefaultController<Uint8Array>
+    const body = new ReadableStream<Uint8Array>({ start(current) { controller = current } })
+    const state = { settled: false }
+    const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(async (url, init) => {
+      if (init?.method === 'POST') return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } })
+      // Only the surface that owns the stream sees its events; the other one reads what the server has stored so far.
+      return new Response(JSON.stringify({
+        run_id: String(url).split('/').at(-1),
+        status: state.settled ? 'done' : 'running',
+        messages: state.settled ? [{ role: 'user', content: 'سؤال' }, { role: 'assistant', content: 'الجواب' }] : [{ role: 'user', content: 'سؤال' }],
+        pending: null,
+      }))
+    })
+    return {
+      fetch,
+      state,
+      push: (event: string, data: unknown) => controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)),
+      end: () => controller.close(),
+      loads: (id: string) => fetch.mock.calls.filter(([url, init]) => init?.method !== 'POST' && String(url).endsWith(id)).length,
+    }
+  }
+
+  it('shows the sheet\'s answer on the full page once that stream settles', async () => {
+    const service = streamedService()
+    const view = mountActualPage(service.fetch)
+    await settle()
+    const [pageRun, sheetRun] = [view.runs[0]!, view.runs[1]!]
+    // The sheet starts a run and keeps streaming it while the full page opens on it.
+    view.route.query = {}
+    await settle()
+    const sending = sheetRun.send('سؤال')
+    service.push('run', { run_id: 'sheet-run' })
+    service.push('token', { text: 'الجو' })
+    await vi.waitFor(() => expect(view.shared.value).toBe('sheet-run'))
+    // The shell closes the sheet when its full page is the surface; the sheet stays mounted and finishes its request.
+    view.shown.value = false
+    view.route.query = { run: 'sheet-run' }
+    await settle()
+    expect(pageRun.items.value).toEqual([questionItem])
+    expect(pageRun.status.value).toBe('idle')
+    expect(service.loads('sheet-run')).toBe(1)
+    service.state.settled = true
+    service.push('answer', { text: 'الجواب', records: [] })
+    service.push('done', { status: 'done' })
+    service.end()
+    await sending
+    await vi.waitFor(() => expect(pageRun.items.value.at(-1)).toMatchObject({ kind: 'assistant', text: 'الجواب' }))
+    expect(pageRun.items.value).toEqual([questionItem, answerItem])
+    // One snapshot while the stream ran, one reload at its settle: the streaming sheet itself reloaded nothing.
+    expect(service.loads('sheet-run')).toBe(2)
+  })
+
+  it('refreshes the opened sheet when the full page streams the same run', async () => {
+    const service = streamedService()
+    const view = mountActualPage(service.fetch)
+    await settle()
+    const [pageRun, sheetRun] = [view.runs[0]!, view.runs[1]!]
+    // The full page starts a run while the sheet is closed; opening it later must not leave it on the snapshot.
+    view.route.query = {}
+    view.shown.value = false
+    await settle()
+    const sending = pageRun.send('سؤال')
+    service.push('run', { run_id: 'page-run' })
+    await vi.waitFor(() => expect(view.shared.value).toBe('page-run'))
+    await settle()
+    view.shown.value = true
+    await settle()
+    expect(sheetRun.items.value).toEqual([questionItem])
+    expect(sheetRun.status.value).toBe('idle')
+    expect(service.loads('page-run')).toBe(1)
+    service.state.settled = true
+    service.push('answer', { text: 'الجواب', records: [] })
+    service.push('done', { status: 'done' })
+    service.end()
+    await sending
+    await vi.waitFor(() => expect(sheetRun.items.value.at(-1)).toMatchObject({ kind: 'assistant', text: 'الجواب' }))
+    expect(sheetRun.items.value).toEqual([questionItem, answerItem])
+    // The page owns the stream: it reloads nothing, and the sheet reloads exactly once at the settle.
+    expect(service.loads('page-run')).toBe(2)
+  })
+})

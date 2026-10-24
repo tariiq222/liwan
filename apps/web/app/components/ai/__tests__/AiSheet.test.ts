@@ -35,6 +35,7 @@ async function render({ rows = [], pending = false, failed = false, hidden = fal
   const activeModule = Vue.ref(module)
   const run = { runId: Vue.ref(runId), status: Vue.ref('idle'), items: Vue.ref(items), limit: Vue.ref(limit), error: Vue.ref(null), unavailable: Vue.ref(unavailable), send: vi.fn(), decide: vi.fn(), load: vi.fn(), reset: vi.fn() }
   const follow = vi.fn(() => ({ startNew: vi.fn() }))
+  const useAiRun = vi.fn(() => run)
   const html = await renderShared(file, {}, {}, {
     messages, stubs,
     globals: {
@@ -56,7 +57,7 @@ async function render({ rows = [], pending = false, failed = false, hidden = fal
       '@/components/ai/AiToolTrace.vue': { __esModule: true, default: marker('div', 'data-trace') },
       '@/composables/useAiConversation': { followSharedConversation: follow },
       '@/composables/useAiNowSection': { useAiNowSection: () => ({ hidden: Vue.ref(hidden), toggle: () => undefined }) },
-      '@/composables/useAiRun': { useAiRun: () => run },
+      '@/composables/useAiRun': { useAiRun },
       '@/composables/useAssistantSheet': { assistantContext: (_path: string, id: string | null) => id, useAssistantSheet: () => ({ shown: Vue.ref(shown) }) },
       '@/composables/useAttention': { useAttention },
       '@/composables/useShellModel': { useShellModel: () => ({ activeModule }) },
@@ -65,7 +66,7 @@ async function render({ rows = [], pending = false, failed = false, hidden = fal
       '@/utils/aiMarkdown': aiMarkdown, '@/utils/aiMarkdownRender': aiMarkdownRender,
     },
   })
-  return { html, useAttention, run, follow }
+  return { html, useAttention, run, follow, useAiRun }
 }
 
 describe('AiSheet "in this page now"', () => {
@@ -186,11 +187,16 @@ describe('AiSheet conversation', () => {
     expect(html).toContain('data-compact="true"')
   })
 
-  it('follows the shared conversation only while shown and the assistant is on', async () => {
+  it('follows the shared conversation, and reloads a peer-settled run, only while shown and the assistant is on', async () => {
     const enabledOf = async (options: Options) => (((await render(options)).follow.mock.calls[0] as unknown as [unknown, () => boolean])[1])()
     expect(await enabledOf({})).toBe(true)
     expect(await enabledOf({ shown: false })).toBe(false)
     expect(await enabledOf({ aiEnabled: false })).toBe(false)
+    // The run's own settle refresh takes the same gate, so a closed sheet stays silent.
+    const runEnabledOf = async (options: Options) => ((await render(options)).useAiRun.mock.calls[0] as unknown as [{ enabled: () => boolean }])[0].enabled()
+    expect(await runEnabledOf({})).toBe(true)
+    expect(await runEnabledOf({ shown: false })).toBe(false)
+    expect(await runEnabledOf({ aiEnabled: false })).toBe(false)
   })
 
   it('shows the unavailable state instead of the body when the assistant is off', async () => {

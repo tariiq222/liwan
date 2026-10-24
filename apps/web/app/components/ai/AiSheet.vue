@@ -35,7 +35,9 @@ const { activeModule } = useShellModel()
 const nowScope = computed(() => (activeModule.value === 'home' ? 'all' : activeModule.value === 'settings' ? null : activeModule.value))
 const { rows, pending, failed } = useAttention(nowScope, { limit: NOW_ROWS })
 const sheet = useAssistantSheet()
-const { runId, status, items, limit, error, unavailable, send, decide, load, reset } = useAiRun()
+// The run and the shared conversation both fetch only while this surface may: a closed sheet stays silent.
+function canFetch() { return sheet.shown.value && !disabled.value }
+const { runId, status, items, limit, error, unavailable, send, decide, load, reset } = useAiRun({ enabled: canFetch })
 const { hidden, toggle: toggleSection } = useAiNowSection()
 
 const disabled = computed(() => !config.public.aiEnabled || unavailable.value)
@@ -52,7 +54,7 @@ const summary = (item: { summaryAr: string; summaryEn: string }) => (locale.valu
 
 // Follows the conversation the full page (or an earlier visit) has open; its own new run is written back.
 // It is kept mounted while closed, so it follows only while shown: reopening it brings the run up to date.
-const { startNew } = followSharedConversation({ runId, streaming, load, reset }, () => !disabled.value && sheet.shown.value)
+const { startNew } = followSharedConversation({ runId, streaming, load, reset }, canFetch)
 
 async function onSend(text: string) {
   await send(text, context.value)

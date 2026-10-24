@@ -2,7 +2,8 @@ import { watch, type Ref } from 'vue'
 
 /**
  * The one conversation the assistant's full page and its sheet share: both write the id of the run they have open here
- * and follow it when the other changes it. The thread itself stays in each surface's own `useAiRun`, loaded from the id.
+ * and follow it when the other changes it. The thread itself stays in each surface's own `useAiRun`, loaded from the id,
+ * and so does the stream: `useAiStreamingRun` tells the surface that is not streaming whether it holds only a snapshot.
  */
 export function useAiConversation() {
   const currentRunId = useState<string | null>('ai-current-run', () => null)
@@ -14,6 +15,14 @@ export function useAiConversation() {
   }, { immediate: true, flush: 'sync' })
   const clear = () => { currentRunId.value = null }
   return { currentRunId, clear }
+}
+
+/**
+ * The run one surface is streaming right now. The conversation is shared, the stream is not: the surface that started
+ * the request receives its events, and every other surface holding that run has only a snapshot until it clears.
+ */
+export function useAiStreamingRun() {
+  return useState<string | null>('ai-streaming-run', () => null)
 }
 
 /**
