@@ -86,7 +86,7 @@ export const pricingPolicySchema = z.strictObject({
   ]),
 })
 export const quoteLineSchema = z.strictObject({
-  key: z.string(), kind: z.enum(['base', 'bundle', 'branch', 'discount', 'tax', 'adjustment']),
+  key: z.string(), kind: z.enum(['base', 'bundle', 'branch', 'users', 'storage', 'discount', 'tax', 'adjustment']),
   timing: z.enum(['now', 'renewal']), description: z.string(), quantity: z.number().int().min(0).max(MAX),
   amount: moneySchema, period_start: isoDate, period_end: isoDate, source_revision_id: revisionIdSchema,
 })

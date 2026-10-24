@@ -67,7 +67,7 @@ describe.skipIf(!url)('commercial server change quote proration', () => {
     // change is needed to test the server's subscription-baseline quote path.
     await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [revision, subscription, {
       cadence: monthly, period_start: '2026-10-01', period_end: '2026-11-01', quote_id: quote.id,
-      included_extra_branches: 0, pricing: pricingBaseline(quote, 0),
+      included_extra_branches: 0, pricing: pricingBaseline(quote, { extra_branches: 0, users: 0, storage_mb: 0 }),
     }, quote.id])
     await pool.query("UPDATE subscriptions SET applied_revision_id=$2,state='active',renewal_at='2026-11-01',revision=revision+1 WHERE id=$1", [subscription, revision])
     return { customer, subscription, revision }

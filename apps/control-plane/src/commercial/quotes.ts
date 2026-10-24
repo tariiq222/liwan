@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
 import { CommercialError, compileEntitlements, computeQuote } from '@webvue/commercial-contracts/server'
+import { paidStorageGb, paidUnits } from '@webvue/commercial-contracts'
 import { addCadence, riyadhDate, quotePreviewRequestSchema, quoteRequestSchema, quoteSchema, type CustomerTermsRevision, type Quote } from '@webvue/commercial-contracts'
 import { loadCustomerTerms } from './customer-terms.js'
 import type { PoolClient } from 'pg'
@@ -55,6 +56,7 @@ export async function previewQuote(pool: Pool, value: unknown, now: Date = new D
       const id = randomUUID()
       const quote = computeQuote({
         kind: 'new', plan, bundles, terms: null, cadence: input.cadence, requested_extra_branches: input.requested_extra_branches,
+        requested_users: input.requested_users, requested_storage_mb: input.requested_storage_mb,
         effective_date: effective, period: { start: effective, end: addCadence(effective, input.cadence, 1) }, policy,
         ids: { id, customer_id: customer, subscription_id: null, expected_subscription_revision: 0 },
         expires_at: new Date(now.getTime() + TTL_MS).toISOString(), entitlement_digest: snapshot.digest,
@@ -117,7 +119,8 @@ export async function createQuoteForCustomer(pool: Pool, value: { customer_id: s
       if (!current) {
         const old = (await client.query('SELECT payload FROM commercial_quotes WHERE id=$1', [applied.quote_id])).rows[0]?.payload
         if (!old) throw bad('baseline_missing', 'subscription_id', 409)
-        current = pricingBaseline(old, applied.included_extra_branches)
+        const pinned = (await client.query('SELECT included_users, included_storage_mb FROM plan_revisions WHERE id=$1', [applied.plan_revision_id])).rows[0]
+        current = pricingBaseline(old, { extra_branches: applied.included_extra_branches, users: pinned?.included_users ?? 0, storage_mb: pinned?.included_storage_mb ?? 0 })
       }
     }
     const sources = await loadQuoteSources(client, value.customer_id, input)
@@ -132,6 +135,7 @@ export async function createQuoteForCustomer(pool: Pool, value: { customer_id: s
     })
     try {
       const quote = computeQuote({ ...sources, kind: input.kind, cadence: input.cadence, requested_extra_branches: input.requested_extra_branches,
+        requested_users: input.requested_users, requested_storage_mb: input.requested_storage_mb,
         current, effective_date: effective, period, ids: { id: randomUUID(), customer_id: value.customer_id, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0 },
         expires_at: new Date(now.getTime() + TTL_MS).toISOString(), entitlement_digest: entitlement.digest })
       if (!value.previewTerms) await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id, value.customer_id, JSON.stringify(quote), quote.digest, quote.expires_at])
@@ -143,14 +147,19 @@ export async function createQuoteForCustomer(pool: Pool, value: { customer_id: s
   })
 }
 
-export function pricingBaseline(quote: Quote, included: number) {
+export function pricingBaseline(quote: Quote, included: { extra_branches: number; users: number; storage_mb: number }) {
   // Persisted quotes do not include request kind. The full base line identifies
   // the target cycle: initial (including reselection) uses now; changes use renewal.
   const timing = quote.lines.find(l => l.key === 'base' && l.kind === 'base')?.timing
   const lines = quote.lines.filter(l => l.timing === timing && !l.key.endsWith(':delta'))
   const branch = lines.find(l => l.kind === 'branch')
+  const users = lines.find(l => l.kind === 'users')
+  const storage = lines.find(l => l.kind === 'storage')
   return { plan_revision_id: quote.plan_revision_id, bundle_revision_ids: quote.bundle_revision_ids,
-    paid_extra_branches: Math.max(0, quote.requested_extra_branches - included), base_minor: lines.find(l => l.kind === 'base')?.amount.minor ?? 0,
+    paid_extra_branches: paidUnits(quote.requested_extra_branches, included.extra_branches), base_minor: lines.find(l => l.kind === 'base')?.amount.minor ?? 0,
+    paid_users: paidUnits(quote.requested_users, included.users), paid_storage_gb: paidStorageGb(quote.requested_storage_mb, included.storage_mb),
     bundle_minor: Object.fromEntries(lines.filter(l => l.kind === 'bundle').map(l => [l.source_revision_id, l.amount.minor])),
-    branch_unit_minor: branch && branch.quantity ? branch.amount.minor / branch.quantity : 0 }
+    branch_unit_minor: branch && branch.quantity ? branch.amount.minor / branch.quantity : 0,
+    user_unit_minor: users && users.quantity ? users.amount.minor / users.quantity : 0,
+    storage_unit_minor: storage && storage.quantity ? storage.amount.minor / storage.quantity : 0 }
 }

@@ -119,7 +119,7 @@ export async function acceptQuote(pool: Pool, value: unknown, principal: Princip
         term_start: previous?.term_start ?? periodStart,
         term_end: previous?.term_end ?? addCadence(periodStart, { unit: 'month', count: sources.terms?.term_months ?? sources.plan.term_months }, 1),
         period_start: periodStart, period_end: periodEnd, included_extra_branches: included, extra_branch_count: quote.requested_extra_branches,
-        entitlement, quote_id: quote.id, pricing: pricingBaseline(quote, included),
+        entitlement, quote_id: quote.id, pricing: pricingBaseline(quote, { extra_branches: included, users: sources.plan.included_users, storage_mb: sources.plan.included_storage_mb }),
         ...(branchRequest ? { branch_archive_ids: branchRequest.archive } : {}),
       }
       await client.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,$3,$4,$5)', [revisionId, subscription.id, subscription.revision + 1, JSON.stringify(snapshot), quote.id])

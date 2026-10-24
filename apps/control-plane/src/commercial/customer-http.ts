@@ -40,7 +40,8 @@ export async function createBranchQuote(pool: Pool, customerId: string, raw: str
   if (!view.applied) throw new CommercialHttpError('subscription_required',409)
   const current = view.applied
   const count = await requestedExtraBranches(pool,{subscription_id:view.id,add:input.add.length,archive:input.archive})
-  const quote = await createQuoteForCustomer(pool,{customer_id:customerId,request:{kind:'change',plan_revision_id:current.plan_revision_id,bundle_revision_ids:current.bundle_revision_ids,terms_revision_id:current.terms_revision_id,cadence:current.cadence,requested_extra_branches:count,expected_subscription_revision:view.revision}})
+  const limits = current.entitlement.features
+  const quote = await createQuoteForCustomer(pool,{customer_id:customerId,request:{kind:'change',plan_revision_id:current.plan_revision_id,bundle_revision_ids:current.bundle_revision_ids,terms_revision_id:current.terms_revision_id,cadence:current.cadence,requested_extra_branches:count,requested_users:Number(limits['users.limit'] ?? 0),requested_storage_mb:Number(limits['storage.limit_mb'] ?? 0),expected_subscription_revision:view.revision}})
   await pool.query('INSERT INTO branch_quote_requests(quote_id,subscription_id,adds,archive,quoted_paid) VALUES($1,$2,$3,$4,$5)',[quote.id,view.id,JSON.stringify(input.add),JSON.stringify(input.archive),Math.max(0,count-current.included_extra_branches)])
   return quote
 }

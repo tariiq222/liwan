@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addCadence, daysBetween, periodBounds, remainingDays, vat, paidExtraBranches, prorateMinor, riyadhDate, CommercialError, planRevisionSchema, quoteRequestSchema } from '../commercial/index.js'
+import { addCadence, daysBetween, periodBounds, remainingDays, vat, paidExtraBranches, paidUnits, prorateMinor, riyadhDate, CommercialError, planRevisionSchema, quoteRequestSchema } from '../commercial/index.js'
 import { M, plan, sar } from './fixtures.js'
 
 describe('commercial calendar and pricing math', () => {
@@ -56,6 +56,16 @@ describe('commercial calendar and pricing math', () => {
   it('maps instants to the Asia/Riyadh calendar day', () => {
     expect(riyadhDate('2027-10-16T21:00:00Z')).toBe('2027-10-17')
     expect(riyadhDate('2027-10-16T20:59:59Z')).toBe('2027-10-16')
+  })
+})
+
+describe('commercial metered pricing', () => {
+  it('prices paid units above the included minimum', () => {
+    expect(paidUnits(10, 3)).toBe(7)
+    expect(paidUnits(3, 3)).toBe(0)
+    expect(paidUnits(1, 3)).toBe(0)
+    expect(() => paidUnits(-1, 3)).toThrow('invalid_quantity')
+    expect(() => paidUnits(1.5, 3)).toThrow('invalid_quantity')
   })
 })
 

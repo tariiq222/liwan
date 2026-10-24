@@ -1,12 +1,14 @@
 import { createHash } from 'node:crypto'
 import { addCadence, canonicalJson, daysBetween, remainingDays } from './calendar.js'
-import { paidExtraBranches, prorateMinor, vat } from './pricing.js'
+import { paidExtraBranches, paidStorageGb, paidUnits, prorateMinor, vat } from './pricing.js'
 import { CommercialError } from './types.js'
 import type { BundleRevision, Cadence, CustomerTermsRevision, Money, PlanRevision, Price, PricingPolicy, Quote, QuoteLine } from './types.js'
 
 export type QuoteCurrent = {
   plan_revision_id: string; bundle_revision_ids: string[]; paid_extra_branches: number
+  paid_users: number; paid_storage_gb: number
   base_minor: number; bundle_minor: Record<string, number>; branch_unit_minor: number
+  user_unit_minor: number; storage_unit_minor: number
 }
 export type QuoteIds = { id: string; customer_id: string; subscription_id: string | null; expected_subscription_revision: number }
 export type ComputeQuoteInput = {
@@ -37,6 +39,8 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
   const limit = terms?.extra_branches_limit !== undefined ? terms.extra_branches_limit : plan.extra_branches_limit
   const requested = input.requested_extra_branches
   const paid = paidExtraBranches(requested, included)
+  const paidUsers = paidUnits(input.requested_users, plan.included_users)
+  const paidStorage = paidStorageGb(input.requested_storage_mb, plan.included_storage_mb)
   if (limit !== null && requested > limit) throw new CommercialError('branch_limit_exceeded', 'requested_extra_branches')
   if (kind === 'change' && !input.current) throw new CommercialError('invalid_quantity', 'current')
 
@@ -54,6 +58,10 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
   const bundleAmounts = bundles.map(b => ({ b, included: isIncluded(b.id), amount: isIncluded(b.id) ? { currency, exponent: base.exponent, minor: 0 } : price(`bundle:${b.id}`, pick(cadence, currency, terms?.bundle_prices?.[b.id], b.prices)) }))
   const branchAmount = pick(cadence, currency, terms?.extra_branch_price, plan.extra_branch_prices)
   if (paid > 0) price('branch', branchAmount)
+  const userAmount = pick(cadence, currency, plan.user_prices)
+  const storageAmount = pick(cadence, currency, plan.storage_prices)
+  if (paidUsers > 0) price('users', userAmount)
+  if (paidStorage > 0) price('storage', storageAmount)
   const exponent = base.exponent
   if ([...exponents].some(e => e !== exponent)) throw new CommercialError('currency_mismatch')
   const money = (minor: number): Money => ({ currency, exponent, minor })
@@ -71,6 +79,8 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
     lines.push({ key, kind: kind_, timing, description, quantity, amount: money(minor), period_start: start, period_end: end, source_revision_id: sourceId(src) })
   }
   const unit = branchAmount?.amount.minor ?? 0
+  const userUnit = userAmount?.amount.minor ?? 0
+  const storageUnit = storageAmount?.amount.minor ?? 0
 
   // next renewal: full target cycle
   const renewalLines: [string, QuoteLine['kind'], string, number, number, string][] = [
@@ -78,7 +88,10 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
     ...bundleAmounts.map(({ b, amount, included }) => [included ? `bundle:${b.id}:included` : `bundle:${b.id}`, 'bundle', included ? `${b.name} (included)` : b.name, 1, amount.minor, b.id] as [string, QuoteLine['kind'], string, number, number, string]),
   ]
   if (paid > 0) renewalLines.push(['branch', 'branch', 'Extra branches', paid, unit * paid, plan.id])
-  if (!Number.isSafeInteger(unit * paid)) throw new CommercialError('invalid_quantity')
+  if (paidUsers > 0) renewalLines.push(['users', 'users', 'Users', paidUsers, userUnit * paidUsers, plan.id])
+  if (paidStorage > 0) renewalLines.push(['storage', 'storage', 'Storage', paidStorage, storageUnit * paidStorage, plan.id])
+  for (const amount of [unit * paid, userUnit * paidUsers, storageUnit * paidStorage])
+    if (!Number.isSafeInteger(amount)) throw new CommercialError('invalid_quantity')
   for (const [k, kd, d, q, m, s] of renewalLines) {
     renewal += m
     if (kind === 'new') add(k, kd, d, q, m, 'now', s, period.start, period.end)
@@ -110,6 +123,12 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
     const branchDelta = paid - cur.paid_extra_branches
     if (branchDelta > 0) pushDelta('branch', 'branch', 'Extra branches', branchDelta, unit * branchDelta, plan.id, unit)
     else if (branchDelta < 0) pushDelta('branch', 'branch', 'Extra branches', -branchDelta, -(cur.branch_unit_minor * -branchDelta), plan.id, 0)
+    const userDelta = paidUsers - cur.paid_users
+    if (userDelta > 0) pushDelta('users', 'users', 'Users', userDelta, userUnit * userDelta, plan.id, userUnit)
+    else if (userDelta < 0) pushDelta('users', 'users', 'Users', -userDelta, -(cur.user_unit_minor * -userDelta), plan.id, 0)
+    const storageDelta = paidStorage - cur.paid_storage_gb
+    if (storageDelta > 0) pushDelta('storage', 'storage', 'Storage', storageDelta, storageUnit * storageDelta, plan.id, storageUnit)
+    else if (storageDelta < 0) pushDelta('storage', 'storage', 'Storage', -storageDelta, -(cur.storage_unit_minor * -storageDelta), plan.id, 0)
   }
 
   const tax = (base_: number, key: string, timing: 'now' | 'renewal', start: string, end: string) => {
