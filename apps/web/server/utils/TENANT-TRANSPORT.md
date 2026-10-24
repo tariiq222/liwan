@@ -8,7 +8,11 @@ No guard trust contract changed, no upstream authority registered as a tenant.
 Request headers are allowlisted; response hop-by-hop headers are removed including
 Connection-nominated headers. Multi Set-Cookie is preserved with Headers.append.
 Status, binary bytes and HEAD/204/205/304 null bodies are preserved. Total outbound
-deadline15s, request16MiB, response32MiB. Bounded buffering is intentional, not an
+deadline15s, request16MiB, response32MiB. The allowlisted heavy routes (heavyRoutes.ts:
+reports, payroll compute/post and files, PDFs) get 60s instead (NUXT_ODOO_HEAVY_TIMEOUT_MS,
+clamped 15-120s, upstreamDeadlines.ts), their own small credit pool, and one-at-a-time
+writes; the request path is canonicalized first (apiPath.ts) so what is classified is what
+Odoo receives. Bounded buffering is intentional, not an
 unbounded streaming implementation: larger exports fail; memory scales with active
 requests so ingress concurrency/rate limits remain important. Request upload has
 15s deadline; client abort/response disconnect destroys upstream; no secret logs.

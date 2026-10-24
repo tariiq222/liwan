@@ -1,5 +1,5 @@
 import http from 'node:http'
-import { createBodyAdmission, readBodyBytes } from '../../apps/web/server/utils/bufferAdmission.mjs'
+import { createBodyAdmission, destroyUpstreamWhenCallerCloses, readBodyBytes } from '../../apps/web/server/utils/bufferAdmission.mjs'
 import { isReleaseAssetRequest, readAsset, validateAssetStore } from '../../apps/web/server/utils/releaseAssets.ts'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { readTenantRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'
@@ -14,8 +14,8 @@ const browserHeaders = new Set(['x-webvue-csrf'])
 const selectors = /^(db|database|session_id|sid)$/i
 // Match the BFF's fixed public auth budgets before this edge buffers JSON.
 // Separate hop pools avoid a public BFF request deadlocking its internal continuation.
-const acquireExternalBody = createBodyAdmission()
-const acquireInternalBody = createBodyAdmission()
+const acquireExternalBody = createBodyAdmission('session')
+const acquireInternalBody = createBodyAdmission('session')
 const publicAuthBodyLimits = { '/api/auth/totp': 1024, '/api/auth/login': 64 * 1024 }
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b))
 export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() / 1000)) {
@@ -213,9 +213,8 @@ export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl
     // Keep credit through actual continuation settlement, even when an internal caller closes.
     upstream.once('close', releaseBody)
     upstream.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end() })
-    // Nuxt can reject an API upload before its body ends. Close that public
-    // bridge on response/disconnect; internal claimed writes retain their owner.
-    if (!p.internal && p.path.startsWith('/api/v1/')) res.once('close', () => upstream.destroy())
+    // Nuxt can reject an API upload before its body ends, and a hung target must not pin a body credit.
+    destroyUpstreamWhenCallerCloses(res, upstream, p.internal)
     if (body) upstream.end(body); else req.pipe(upstream)
   })
   server.on('upgrade', (req, socket, head) => {

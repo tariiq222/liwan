@@ -133,12 +133,15 @@ describe('API session preadmission on the wire', () => {
     const pending = ['a'].map(id => fetch(`${url}/api/v1/tasks`, { method: 'POST', headers: { cookie: `session_id=forged-${id}` }, body: '{}' }))
     try {
       await vi.waitFor(() => expect(releaseChecks).toHaveLength(1))
-      expect((await fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'session_id=forged-c' } })).status).toBe(429)
+      // A second cold identity waits in the lane queue instead of being rejected.
+      pending.push(fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'session_id=forged-c' } }))
       expect((await fetch(`${url}/api/v1/tasks`, { headers: { cookie: 'session_id=valid-wire-session' } })).status).toBe(200)
       expect(workCalls).toBe(1)
     } finally {
-      for (const release of releaseChecks) release()
-      expect((await Promise.all(pending)).map(response => response.status)).toEqual([403])
+      releaseChecks[0]!()
+      await vi.waitFor(() => expect(releaseChecks).toHaveLength(2))
+      releaseChecks[1]!()
+      expect((await Promise.all(pending)).map(response => response.status)).toEqual([403, 403])
     }
   })
   it('preserves public branding without a session', async () => {

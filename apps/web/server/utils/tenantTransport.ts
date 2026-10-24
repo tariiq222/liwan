@@ -1,8 +1,9 @@
 import http from 'node:http'
 import https from 'node:https'
 import { createError, getHeader, type H3Event } from 'h3'
-import { createBodyAdmission, createResponseAdmission, readBodyBytes } from './bufferAdmission.mjs'
+import { createBodyAdmission, createResponseAdmission, HEAVY_CREDITS, readBodyBytes } from './bufferAdmission.mjs'
 import { tenantUpstreamHeaders } from './tenantRequest'
+import { HEAVY_TIMEOUT, UPSTREAM_TIMEOUT } from './upstreamDeadlines'
 
 const MAX_REQUEST = 16 * 1024 * 1024
 // Public MFA carries a single code field; both entry points share this wire budget.
@@ -14,35 +15,67 @@ const MAX_RESPONSE = 32 * 1024 * 1024
  * here instead of opening connections the kernel drops once the listen backlog fills. */
 const configuredConcurrency = Number(process.env.NUXT_ODOO_MAX_CONCURRENCY)
 const UPSTREAM_MAX_CONCURRENCY = Number.isFinite(configuredConcurrency) && configuredConcurrency > 0 ? Math.floor(configuredConcurrency) : 32
-const UPSTREAM_TIMEOUT = 15_000
 // Operator-owned memory bound: at most two default-sized batches may wait.
 // Keep this fixed even when the operator raises upstream concurrency.
 const UPSTREAM_MAX_QUEUED = 64
-let inFlight = 0
-const waiters: Array<() => void> = []
+// Heavy writes (bulk posting, payroll compute) run one at a time so Odoo never holds several long transactions.
+const HEAVY_WRITE_CONCURRENCY = 1
+// Heavy credits bound how many heavy writes exist at once (one running, the rest waiting here),
+// so a larger queue could never fill.
+const HEAVY_WRITE_MAX_QUEUED = HEAVY_CREDITS - HEAVY_WRITE_CONCURRENCY
 
-function acquire(signal?: AbortSignal): Promise<void> {
-  if (signal?.aborted) return Promise.reject(failure())
-  if (inFlight < UPSTREAM_MAX_CONCURRENCY) { inFlight++; return Promise.resolve() }
-  if (waiters.length >= UPSTREAM_MAX_QUEUED) return Promise.reject(failure())
-  return new Promise((resolve, reject) => {
-    const cleanup = () => { clearTimeout(timer); signal?.removeEventListener('abort', cancel) }
-    const cancel = () => {
-      const index = waiters.indexOf(resume)
-      if (index >= 0) waiters.splice(index, 1)
-      cleanup()
-      reject(failure())
-    }
-    const timer = setTimeout(cancel, UPSTREAM_TIMEOUT)
-    const resume = () => { cleanup(); resolve() }
-    waiters.push(resume)
-    signal?.addEventListener('abort', cancel, { once: true })
-  })
+/** Budget of an allowlisted heavy route. `timeoutMs` is the admitted deadline and also the longest the
+ * request waits for the write gate; `write` selects that gate (heavy reads run concurrently). */
+export type HeavyBudget = { timeoutMs: number; write: boolean }
+
+/** Bounded FIFO admission gate. A released slot is handed directly to the next waiter, so the
+ * in-flight count never drifts; a waiter that times out or is cancelled removes itself first. */
+function createGate(limit: number, maxQueued: number) {
+  let inFlight = 0
+  const waiters: Array<() => void> = []
+  function acquire(signal: AbortSignal | undefined, waitMs: number): Promise<() => void> {
+    if (signal?.aborted) return Promise.reject(failure())
+    if (inFlight < limit) { inFlight++; return Promise.resolve(release) }
+    if (waiters.length >= maxQueued) return Promise.reject(failure())
+    return new Promise<() => void>((resolve, reject) => {
+      const cleanup = () => { clearTimeout(timer); signal?.removeEventListener('abort', cancel) }
+      const cancel = () => {
+        const index = waiters.indexOf(resume)
+        if (index >= 0) waiters.splice(index, 1)
+        cleanup()
+        reject(failure())
+      }
+      const timer = setTimeout(cancel, waitMs)
+      const resume = () => { cleanup(); resolve(release) }
+      waiters.push(resume)
+      signal?.addEventListener('abort', cancel, { once: true })
+    })
+  }
+  function release(): void {
+    const next = waiters.shift()
+    if (next) next(); else inFlight--
+  }
+  return { acquire, release }
 }
 
-function release(): void {
-  const next = waiters.shift()
-  if (next) next(); else inFlight--
+const upstreamGate = createGate(UPSTREAM_MAX_CONCURRENCY, UPSTREAM_MAX_QUEUED)
+const heavyWriteGate = createGate(HEAVY_WRITE_CONCURRENCY, HEAVY_WRITE_MAX_QUEUED)
+
+/** Admit one upstream request and return the function that gives its capacity back. A heavy write takes
+ * the write gate first, then an ordinary slot, so the global limit still applies to it.
+ * A heavy read takes only an ordinary slot: concurrent heavy reads may occupy both of Odoo's workers, so
+ * the "keep one worker free" guarantee holds for writes only (owner decision); the heavy credit pool and
+ * the 32-slot gate are what bound them. */
+function acquireUpstream(signal: AbortSignal, heavy: HeavyBudget | undefined): Promise<() => void> {
+  return heavy?.write ? acquireHeavyWrite(signal, heavy.timeoutMs) : upstreamGate.acquire(signal, UPSTREAM_TIMEOUT)
+}
+
+async function acquireHeavyWrite(signal: AbortSignal, waitMs: number): Promise<() => void> {
+  const releaseWrite = await heavyWriteGate.acquire(signal, waitMs)
+  try {
+    const releaseUpstream = await upstreamGate.acquire(signal, UPSTREAM_TIMEOUT)
+    return () => { releaseUpstream(); releaseWrite() }
+  } catch (error) { releaseWrite(); throw error }
 }
 
 /** Bind cancellation before admission so a disconnected request never starts later. */
@@ -67,16 +100,16 @@ function clientCancellation(event?: H3Event, options: { signal?: AbortSignal; ig
   }
 }
 
-/** Hold one upstream slot, with caller cancellation and a 15s admitted deadline. */
-export async function withUpstreamSlot<T>(run: (signal: AbortSignal) => Promise<T>, event?: H3Event): Promise<T> {
+/** Hold one upstream slot, with caller cancellation and a 15s admitted deadline
+ * (the heavy budget's deadline, and write gate for a heavy write, on an allowlisted heavy route). */
+export async function withUpstreamSlot<T>(run: (signal: AbortSignal) => Promise<T>, event?: H3Event, heavy?: HeavyBudget): Promise<T> {
   const cancellation = clientCancellation(event)
-  let admitted = false
+  let releaseSlots: (() => void) | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    await acquire(cancellation.signal)
-    admitted = true
+    releaseSlots = await acquireUpstream(cancellation.signal, heavy)
     if (cancellation.signal.aborted) throw failure()
-    timer = setTimeout(cancellation.cancel, UPSTREAM_TIMEOUT)
+    timer = setTimeout(cancellation.cancel, heavy?.timeoutMs ?? UPSTREAM_TIMEOUT)
     // Await native cancellation before releasing capacity; a Promise.race would
     // let an upstream operation outlive its slot if it ignored the deadline.
     const result = await run(cancellation.signal)
@@ -105,7 +138,7 @@ export async function withUpstreamSlot<T>(run: (signal: AbortSignal) => Promise<
   } finally {
     clearTimeout(timer)
     cancellation.dispose()
-    if (admitted) release()
+    releaseSlots?.()
   }
 }
 const failure = () => createError({ statusCode: 502, message: 'tenant_upstream_unavailable', data: { code: 'tenant_upstream_unavailable', message: 'The upstream service is temporarily unavailable.' } })
@@ -123,7 +156,7 @@ function operatorUpstream(configuredUpstream: string, path: string): URL {
 /** Legacy dedicated has no binding envelope. Keep its selected headers but use
  * the existing admitted Response reader, size cap and native cancellation.
  */
-export async function legacyTenantResponse(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: Buffer; headers: Record<string, string> }): Promise<Response> {
+export async function legacyTenantResponse(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: Buffer; headers: Record<string, string>; heavy?: HeavyBudget }): Promise<Response> {
   if ((process.env.WEBVUE_TENANCY_MODE ?? 'dedicated') !== 'dedicated' || process.env.WEBVUE_RELEASE_ROUTES_DIR) throw failure()
   const base = operatorUpstream(configuredUpstream, path)
   if (options.body && Buffer.byteLength(options.body) > MAX_REQUEST) throw payloadTooLarge()
@@ -141,16 +174,16 @@ export async function legacyTenantResponse(event: H3Event, configuredUpstream: s
       // HEAD/304 have no decoded body, so their representation metadata remains valid.
       if (response.body) { forwarded.delete('content-encoding'); forwarded.delete('content-length') }
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers: forwarded })
-    }, event)
+    }, event, options.heavy)
   } catch { throw failure() }
 }
 
 /** Server-only, fixed operator configuration. No request-controlled destination or redirects.
  * Bounded buffering deliberately replaces streaming: max16MiB request/32MiB response,
- * 15s total deadline. This supports current JSON attachments, not unbounded exports.
+ * 15s total deadline (the heavy budget's deadline for an allowlisted heavy route). This supports current JSON attachments, not unbounded exports.
  * By default the call is destroyed when the browser disconnects; `ignoreClientClose` is only for a step that must finish
  * once begun (a claimed AI write) and keeps just the deadline and the optional `signal`. */
-export async function tenantTransport(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: string | Buffer; headers?: Record<string, string>; signal?: AbortSignal; ignoreClientClose?: boolean } = {}): Promise<Response> {
+export async function tenantTransport(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: string | Buffer; headers?: Record<string, string>; signal?: AbortSignal; ignoreClientClose?: boolean; heavy?: HeavyBudget } = {}): Promise<Response> {
   const binding = tenantUpstreamHeaders(event)
   if (!binding.host) throw failure()
   const base = operatorUpstream(configuredUpstream, path)
@@ -166,10 +199,9 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   if (cookie) headers.cookie = cookie
   if (body) headers['content-length'] = String(Buffer.byteLength(body))
   const cancellation = clientCancellation(event, options)
-  let admitted = false
+  let releaseSlots: (() => void) | undefined
   try {
-    await acquire(cancellation.signal)
-    admitted = true
+    releaseSlots = await acquireUpstream(cancellation.signal, options.heavy)
     // Cancellation can win after release grants this slot but before this continuation runs.
     if (cancellation.signal.aborted) throw failure()
     return await new Promise<Response>((resolve, reject) => {
@@ -202,33 +234,38 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
       })
     })
     const abort = () => { request.destroy(); finish(failure()) }
-    const timer = setTimeout(abort, UPSTREAM_TIMEOUT)
+    const timer = setTimeout(abort, options.heavy?.timeoutMs ?? UPSTREAM_TIMEOUT)
     cancellation.signal.addEventListener('abort', abort, { once: true })
     request.on('error', () => finish(failure()))
     request.end(body)
     })
   } finally {
     cancellation.dispose()
-    if (admitted) release()
+    releaseSlots?.()
   }
 }
 
-const acquireBody = createBodyAdmission()
+/** `public` is the separate small pool for requests that skip session admission;
+ * `heavy` isolates allowlisted long-running routes from ordinary session traffic. */
+export type AdmissionScope = 'session' | 'public' | 'heavy'
+
+// Heavy credits are held for the whole heavy run, so a waiter waits as long as that run may take.
+const acquireBody = { session: createBodyAdmission('session'), public: createBodyAdmission('public'), heavy: createBodyAdmission('heavy', HEAVY_TIMEOUT) }
 
 /** Keep memory credit while reading, waiting for upstream admission and forwarding. */
-export async function withTenantBody<T>(event: H3Event, run: () => Promise<T>): Promise<T> {
+export async function withTenantBody<T>(event: H3Event, scope: AdmissionScope, run: () => Promise<T>): Promise<T> {
   let releaseBody: (() => void) | undefined
   try {
-    releaseBody = await acquireBody(event.node.req, event.node.res)
+    releaseBody = await acquireBody[scope](event.node.req, event.node.res)
     return await run()
   } catch (error) { throw createError(error as Error) } finally { releaseBody?.() }
 }
 
-const responseAdmission = createResponseAdmission()
+const responseAdmission = { session: createResponseAdmission('session'), public: createResponseAdmission('public'), heavy: createResponseAdmission('heavy', HEAVY_TIMEOUT) }
 
 /** Own response capacity until native work and the downstream HTTP output settle. */
-export async function withTenantResponse<T>(event: H3Event, run: () => Promise<T>): Promise<T> {
-  try { return await responseAdmission(event.node.req, event.node.res, run) }
+export async function withTenantResponse<T>(event: H3Event, scope: AdmissionScope, run: () => Promise<T>): Promise<T> {
+  try { return await responseAdmission[scope](event.node.req, event.node.res, run) }
   catch (error) { throw createError(error as Error) }
 }
 

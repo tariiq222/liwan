@@ -187,7 +187,7 @@ it.each(['shared', 'dedicated'] as const)('%s rejects a forged slow API upload b
   } finally { upload?.destroy(); await wire.close() }
 })
 
-it.each(['shared', 'dedicated'] as const)('%s edge keeps verified work on the second worker while rejecting another cold identity', async mode => {
+it.each(['shared', 'dedicated'] as const)('%s edge keeps verified work on the second worker while queueing another cold identity', async mode => {
   const wire = await fixture(mode)
   const pending: Array<Promise<unknown>> = []
   try {
@@ -195,9 +195,8 @@ it.each(['shared', 'dedicated'] as const)('%s edge keeps verified work on the se
     wire.holdChecks()
     const first = wire.call('/api/v1/tasks', 'forged-a'); pending.push(first)
     await vi.waitFor(() => expect(wire.held).toHaveLength(1))
-    const second = await wire.call('/api/v1/tasks', 'forged-b')
-    expect(second.status).toBe(429)
-    expect(ApiErrorSchema.parse(JSON.parse(second.body.toString()).data).code).toBe('session_admission_busy')
+    // The excess cold identity waits in the bounded lane queue; it never takes a second worker.
+    const second = wire.call('/api/v1/tasks', 'forged-b'); pending.push(second)
     expect((await wire.call('/api/v1/tasks', 'verified')).status).toBe(200)
     expect(wire.observed.map(item => item.path)).toEqual(['/api/v1/me', '/api/v1/tasks', '/api/v1/me', '/api/v1/tasks'])
     expect(wire.active).toBe(1)
@@ -205,6 +204,9 @@ it.each(['shared', 'dedicated'] as const)('%s edge keeps verified work on the se
     expect(wire.waiting).toBe(0)
     wire.held[0]!()
     expect((await first).status).toBe(403)
+    await vi.waitFor(() => expect(wire.held).toHaveLength(2))
+    wire.held[1]!()
+    expect((await second).status).toBe(403)
   } finally { await wire.close(); await Promise.allSettled(pending) }
 })
 

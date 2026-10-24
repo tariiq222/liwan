@@ -1,6 +1,6 @@
 /** Dedicated local release edge. No shared cookie envelope or vendor lookup. */
 import http from 'node:http'
-import { createBodyAdmission, readBodyBytes } from '../../apps/web/server/utils/bufferAdmission.mjs'
+import { createBodyAdmission, destroyUpstreamWhenCallerCloses, readBodyBytes } from '../../apps/web/server/utils/bufferAdmission.mjs'
 import { timingSafeEqual } from 'node:crypto'
 import { isIP } from 'node:net'
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
@@ -12,8 +12,8 @@ const privateHeader = /^(x-odoo-|x-openerp-|x-webvue-|forwarded$|x-forwarded-)/i
 const selectors = /^(db|database|session_id|sid)$/i
 // Match the BFF's fixed public auth budgets before this edge buffers JSON.
 // Separate hop pools avoid a public BFF request deadlocking its internal continuation.
-const acquireExternalBody = createBodyAdmission()
-const acquireInternalBody = createBodyAdmission()
+const acquireExternalBody = createBodyAdmission('session')
+const acquireInternalBody = createBodyAdmission('session')
 const publicAuthBodyLimits = { '/api/auth/totp': 1024, '/api/auth/login': 64 * 1024 }
 const pinNames = ['x-webvue-release-pool', 'x-webvue-release-revision', 'x-webvue-release-fence']
 const internalNames = new Set(['x-webvue-proxy-token', 'x-webvue-tenant-revision', ...pinNames, 'x-webvue-release-admission'])
@@ -189,7 +189,7 @@ export function createDedicatedGuard({ bindingPath, releaseRoutesDir, proxyToken
     })
     upstream.once('close', releaseBody)
     upstream.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end('dedicated_upstream_unavailable') })
-    res.once('close', () => upstream.destroy())
+    destroyUpstreamWhenCallerCloses(res, upstream, p.internal)
     if (body !== null) upstream.end(body); else req.pipe(upstream)
   })
   server.on('upgrade', (req, socket, head) => {

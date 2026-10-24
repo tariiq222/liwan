@@ -103,7 +103,7 @@ async function fixture(mode: 'shared' | 'dedicated' | 'legacy') {
     try {
       if (event.path.startsWith('/api/v1/held-output') || event.path.startsWith('/api/v1/claimed')) {
         await requireApiSession(event, guardUrl, tenantUpstreamHeaders(event))
-        return await transport.withTenantResponse(event, async () => {
+        return await transport.withTenantResponse(event, 'session', async () => {
           const claimed = event.path.startsWith('/api/v1/claimed')
           const response = await originalTransport(event, guardUrl, claimed ? event.path : '/api/v1/health', claimed ? { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' }, ignoreClientClose: true } : {})
           if (!claimed) await new Promise<void>(resolve => completions.push(resolve))

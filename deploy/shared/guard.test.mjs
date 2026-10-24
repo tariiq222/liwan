@@ -1,4 +1,4 @@
-import { test } from 'node:test'
+import { test, mock } from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
 import { mkdtempSync, writeFileSync } from 'node:fs'
@@ -204,4 +204,68 @@ test('guard denies bootstrap hosts and serves the first publication without rest
   const result = await call(url, '/api/v1/me', { host: targets[0].host })
   assert.equal(result.status, 200)
   assert.equal(result.text, 'first tenant')
+})
+
+// Body credits are four per hop pool: four hung forwards would admit nothing else if a departed caller kept them.
+const BODY_CREDITS = 4
+const settle = async () => { for (let turn = 0; turn < 50; turn++) await new Promise(resolve => setImmediate(resolve)) }
+async function hungGuard(t) {
+  const path = join(mkdtempSync(join(tmpdir(), 'webvue-guard-hung-')), 'registry.json')
+  writeFileSync(path, JSON.stringify(registry))
+  const hung = []
+  let closed = 0
+  const backend = http.createServer((req, res) => {
+    req.resume()
+    req.once('end', () => { if (req.headers['x-test-hang']) { hung.push({ res }); res.once('close', () => { closed++ }) } else res.end('ok') })
+  })
+  const backendUrl = await listen(backend)
+  const guard = createGuard({ registryPath: path, proxyToken: token, keys, activeKid: 'test', odooUrl: backendUrl, webUrl: backendUrl })
+  const url = await listen(guard)
+  t.after(() => { mock.timers.reset(); guard.closeAllConnections(); guard.close(); backend.closeAllConnections(); backend.close() })
+  const hang = async (route, headers) => {
+    const clients = Array.from({ length: BODY_CREDITS }, () => {
+      const client = http.request(new URL(route, url), { method: 'POST', headers: { host: targets[0].host, 'content-type': 'application/json', 'x-test-hang': '1', ...headers } })
+      client.on('error', () => {})
+      client.end('{}')
+      return client
+    })
+    while (hung.length < BODY_CREDITS) await new Promise(resolve => setImmediate(resolve))
+    return { clients, upstreamClosed: () => closed, hung }
+  }
+  return { url, hang }
+}
+
+test('a departed external caller cannot pin body credits behind a hung auth target', async t => {
+  const { url, hang } = await hungGuard(t)
+  const { clients, upstreamClosed } = await hang('/api/auth/login', {})
+  for (const client of clients) client.destroy()
+  const next = await call(url, '/api/auth/login', { host: targets[0].host, 'content-type': 'application/json' }, '{}')
+  assert.equal(next.status, 200)
+  await settle()
+  assert.equal(upstreamClosed(), BODY_CREDITS)
+})
+
+test('a departed internal caller keeps its credit for one deadline, then the hung target is cancelled', async t => {
+  const { url, hang } = await hungGuard(t)
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const { clients, upstreamClosed } = await hang('/api/v1/hang', { 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' })
+  for (const client of clients) client.destroy()
+  await settle()
+  assert.equal(upstreamClosed(), 0)
+  mock.timers.tick(15_000)
+  mock.timers.reset()
+  await settle()
+  assert.equal(upstreamClosed(), BODY_CREDITS)
+  const next = await call(url, '/api/v1/me', { host: targets[0].host, 'content-type': 'application/json', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' }, '{}')
+  assert.equal(next.status, 200)
+})
+
+test('a write whose caller stays connected is not cancelled', async t => {
+  const { url, hang } = await hungGuard(t)
+  const { clients, upstreamClosed, hung } = await hang('/api/auth/login', {})
+  await settle()
+  assert.equal(upstreamClosed(), 0)
+  const replies = clients.map(client => new Promise(resolve => client.once('response', reply => { reply.resume(); resolve(reply.statusCode) })))
+  for (const { res } of hung) res.end('late')
+  assert.deepEqual(await Promise.all(replies), Array(BODY_CREDITS).fill(200))
 })

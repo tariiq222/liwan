@@ -2,6 +2,9 @@ import { createError, getProxyRequestHeaders, sendWebResponse, setResponseHeader
 import { boundedTenantBody, MAX_PUBLIC_MFA_BODY, tenantTransport, legacyTenantResponse, withTenantBody, withTenantResponse } from '../../../utils/tenantTransport'
 import { tenantUpstreamHeaders } from '../../../utils/tenantRequest'
 import { requireApiSession } from '../../../utils/apiSessionAdmission'
+import { canonicalApiPath } from '../../../utils/apiPath'
+import { heavyRouteKind } from '../../../utils/heavyRoutes'
+import { HEAVY_TIMEOUT } from '../../../utils/upstreamDeadlines'
 
 // The only /api/v1 routes Odoo serves with auth='public': login-page branding
 // and the MFA confirmation. Everything else requires a session cookie.
@@ -16,7 +19,9 @@ const PUBLIC_API_METHODS = new Map<string, readonly string[]>([
 export default defineEventHandler(async (event) => {
   const { odooUrl } = useRuntimeConfig(event)
   const headers = tenantUpstreamHeaders(event)
-  const apiPath = event.path.split('?')[0] ?? event.path
+  // What is classified is exactly what Odoo receives: Odoo decodes escapes and ignores one trailing slash.
+  const path = canonicalApiPath(event.path)
+  const apiPath = path.split('?')[0] ?? path
   const publicMethods = PUBLIC_API_METHODS.get(apiPath)
   if (publicMethods && !publicMethods.includes(event.method)) {
     setResponseHeader(event, 'allow', publicMethods.join(', '))
@@ -25,10 +30,15 @@ export default defineEventHandler(async (event) => {
   }
   if (!publicMethods) await requireApiSession(event, odooUrl, headers)
   // Body credits are separate from Odoo work slots and retained through dispatch.
-  return withTenantBody(event, async () => {
+  // Public routes skip session admission, so they draw on the separate public pool.
+  // Allowlisted heavy routes (never public) get their own pool, a longer deadline and, for writes, a write gate.
+  const heavyKind = publicMethods ? null : heavyRouteKind(event.method, apiPath)
+  const heavy = heavyKind ? { timeoutMs: HEAVY_TIMEOUT, write: heavyKind === 'write' } : undefined
+  const scope = publicMethods ? 'public' : heavy ? 'heavy' : 'session'
+  return withTenantBody(event, scope, async () => {
     const body = await boundedTenantBody(event, apiPath === '/api/v1/auth/totp' ? MAX_PUBLIC_MFA_BODY : undefined)
-    return withTenantResponse(event, async () => Object.keys(headers).length
-      ? sendWebResponse(event, await tenantTransport(event, odooUrl, event.path, { method: event.method, body }))
-      : sendWebResponse(event, await legacyTenantResponse(event, odooUrl, event.path, { method: event.method, body, headers: getProxyRequestHeaders(event, { host: false }) })))
+    return withTenantResponse(event, scope, async () => Object.keys(headers).length
+      ? sendWebResponse(event, await tenantTransport(event, odooUrl, path, { method: event.method, body, heavy }))
+      : sendWebResponse(event, await legacyTenantResponse(event, odooUrl, path, { method: event.method, body, headers: getProxyRequestHeaders(event, { host: false }), heavy })))
   })
 })

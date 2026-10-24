@@ -1,7 +1,17 @@
+import { ServerResponse } from 'node:http'
+
 /** Fixed operator memory budget, independent of tenant count and Odoo workers. */
 const BUFFER_TIMEOUT = 15_000
-const ACTIVE_BUFFERS = 4
-const QUEUED_BUFFERS = 64
+/** Unauthenticated traffic (login, MFA, branding) has its own small pool so it can never
+ * consume the credits that verified sessions depend on. Allowlisted heavy routes (reports,
+ * payroll, PDFs) hold credits far longer, so they get a third small pool for the same reason. */
+const POOL_LIMITS = {
+  session: { active: 4, queued: 64 },
+  public: { active: 2, queued: 16 },
+  heavy: { active: 2, queued: 8 },
+}
+/** Credits that can be held at once by heavy work; it bounds how many heavy requests can run or wait for a gate. */
+export const HEAVY_CREDITS = POOL_LIMITS.heavy.active
 
 const bufferAdmissionFailure = () => Object.assign(Error('tenant_upstream_unavailable'), {
   statusCode: 502,
@@ -13,12 +23,21 @@ function closeAfterError(res) { if (!res.headersSent && !res.destroyed) res.setH
  * @param {import('node:http').ServerResponse} res */
 function disconnected(req, res) { return req.aborted || (res.destroyed && !res.writableEnded) }
 
+/** Nitro's in-process fetch answers with a socketless node-mock-http response that never reports settled output, so only a real ServerResponse is awaited.
+ * @param {import('node:http').ServerResponse} res */
+const hasObservableOutput = res => res instanceof ServerResponse
+
+/** @typedef {keyof typeof POOL_LIMITS} AdmissionPool */
+
 /** One pool per buffering hop/process, never per tenant. The owner releases only after
  * its callback/forwarder settles, so completed bodies waiting for work retain credit.
  * @param {boolean} skipBodyless
+ * @param {AdmissionPool} pool
+ * @param {number} waitMs longest a queued caller waits for a credit before it is refused
  * @returns {(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => Promise<() => void>}
  */
-function createAdmission(skipBodyless) {
+function createAdmission(skipBodyless, pool, waitMs) {
+  const { active: maxActive, queued: maxQueued } = POOL_LIMITS[pool]
   let active = 0
   /** @type {Array<() => void>} */
   const waiting = []
@@ -27,8 +46,8 @@ function createAdmission(skipBodyless) {
   return (req, res) => {
     if (skipBodyless && ['GET', 'HEAD'].includes(req.method ?? 'GET')) return Promise.resolve(() => {})
     if (disconnected(req, res)) return Promise.reject(bufferAdmissionFailure())
-    if (active < ACTIVE_BUFFERS) { active++; return Promise.resolve(credit()) }
-    if (waiting.length >= QUEUED_BUFFERS) { closeAfterError(res); return Promise.reject(bufferAdmissionFailure()) }
+    if (active < maxActive) { active++; return Promise.resolve(credit()) }
+    if (waiting.length >= maxQueued) { closeAfterError(res); return Promise.reject(bufferAdmissionFailure()) }
     return new Promise((resolve, reject) => {
       const cleanup = () => {
         clearTimeout(timer)
@@ -43,21 +62,26 @@ function createAdmission(skipBodyless) {
       }
       const onClose = () => { if (!res.writableEnded) cancel() }
       const resume = () => { cleanup(); resolve(credit()) }
-      const timer = setTimeout(cancel, BUFFER_TIMEOUT)
+      const timer = setTimeout(cancel, waitMs)
       waiting.push(resume)
       req.once('aborted', cancel); req.once('error', cancel); res.once('close', onClose)
     })
   }
 }
 
-/** Incoming-body pools do not consume credits for GET/HEAD. */
-export function createBodyAdmission() { return createAdmission(true) }
+/** Incoming-body pools do not consume credits for GET/HEAD. Queued callers wait `waitMs`
+ * (default: the ordinary buffer wait); a pool whose holders legitimately run longer passes its own.
+ * @param {AdmissionPool} pool
+ * @param {number} [waitMs] */
+export function createBodyAdmission(pool, waitMs = BUFFER_TIMEOUT) { return createAdmission(true, pool, waitMs) }
 
 /** Response buffers belong to both the operation and its actual HTTP output.
  * H3's native Response sender can settle before ServerResponse drains.
+ * @param {AdmissionPool} pool
+ * @param {number} [waitMs] queued callers wait this long for a credit (default: the ordinary buffer wait)
  */
-export function createResponseAdmission() {
-  const acquire = createAdmission(false)
+export function createResponseAdmission(pool, waitMs = BUFFER_TIMEOUT) {
+  const acquire = createAdmission(false, pool, waitMs)
   /** @template T
    * @param {import('node:http').IncomingMessage} req
    * @param {import('node:http').ServerResponse} res
@@ -67,7 +91,7 @@ export function createResponseAdmission() {
   return async function withResponse(req, res, run) {
     const release = await acquire(req, res)
     let operationSettled = false
-    let outputSettled = res.writableFinished || res.closed
+    let outputSettled = !hasObservableOutput(res) || res.writableFinished || res.closed
     /** @type {ReturnType<typeof setTimeout> | undefined} */
     let drainTimer
     const releaseWhenSettled = () => {
@@ -90,6 +114,25 @@ export function createResponseAdmission() {
       releaseWhenSettled()
     }
   }
+}
+
+/** A forwarded hop holds its body credit until `upstream` closes, so a hung target must never
+ * outlive a departed caller. External hops are destroyed at once. An internal claimed write may
+ * already be applying, so it keeps its credit only for one BUFFER_TIMEOUT after the caller closes.
+ * @param {import('node:http').ServerResponse} res
+ * @param {import('node:http').ClientRequest} upstream
+ * @param {boolean} internal
+ */
+export function destroyUpstreamWhenCallerCloses(res, upstream, internal) {
+  let upstreamClosed = false
+  upstream.once('close', () => { upstreamClosed = true })
+  res.once('close', () => {
+    if (upstreamClosed) return
+    if (!internal) { upstream.destroy(); return }
+    const timer = setTimeout(() => upstream.destroy(), BUFFER_TIMEOUT)
+    timer.unref()
+    upstream.once('close', () => clearTimeout(timer))
+  })
 }
 
 /** Read once under a total deadline without destroying the socket before the error

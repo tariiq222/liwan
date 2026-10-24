@@ -7,7 +7,7 @@ const MAX_LOGIN_BODY = 64 * 1024
 
 export default defineEventHandler(async (event) => {
   assertSameSiteJson(event)
-  return withTenantBody(event, async () => {
+  return withTenantBody(event, 'public', async () => {
     const { login, password } = await boundedTenantJson<{ login?: string; password?: string }>(event, MAX_LOGIN_BODY)
     if (!login || !password) {
       throw createError({ statusCode: 400, data: { code: 'missing_credentials', message: 'Login and password are required.' } })
