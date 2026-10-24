@@ -16,6 +16,11 @@ class TestSecretGuard(unittest.TestCase):
     def test_example_files_are_allowed(self):
         self.assertEqual(find_forbidden_paths(['deploy/.env.example', 'a/.env.sample']), [])
 
+    def test_private_key_containers_are_rejected_even_if_force_added(self):
+        paths = ['certs/server.p8', 'keys/store.jks', 'keys/store.keystore',
+                 'apps/web/public/private.key', 'certs/client.p12', 'certs/client.pfx']
+        self.assertEqual(find_forbidden_paths(paths), sorted(paths))
+
     def test_literal_secret_lines(self):
         text = 'DB_PASSWORD=${DB_PASSWORD}\nadmin_passwd = hunter2hunter2\nVENDOR_PASSWORD=change-me\n'
         self.assertEqual(find_secret_lines('x.conf', text), [('x.conf', 2)])

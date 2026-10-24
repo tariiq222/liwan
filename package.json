@@ -6,9 +6,9 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm -w apps/web run dev",
+    "dev": "npm -w apps/web run dev --",
     "build": "npm -w packages/contracts run build && npm -w apps/web run build",
-    "test": "python3 -B -m unittest discover -s tools -p 'test_*.py' && python3 -B tools/secret_guard.py && python3 -B tools/docs_policy.py && python3 -B tools/no_external_refs.py && python3 -B tools/ui_policy.py && python3 -B tools/ui_inventory.py --check && node --test tools/test_e2e_isolated.mjs tools/test_jev_review.mjs tools/test_e2e_jev_judge.mjs tools/test_e2e_jev_ultrafast.mjs tools/foundation_acceptance/lib.test.mjs && node tools/ui_templates.mjs && node tools/ui_catalog.mjs --check && npm -w packages/contracts run test && npm -w packages/ui run test && npm -w packages/commercial-ui run test && npm -w packages/commercial-contracts run test && npm -w apps/web run test && npm -w apps/vendor-admin run test",
+    "test": "python3 -B -m unittest discover -s tools -p 'test_*.py' && python3 -B tools/secret_guard.py && python3 -B tools/docs_policy.py && python3 -B tools/no_external_refs.py && python3 -B tools/ui_policy.py && python3 -B tools/ui_inventory.py --check && node --test tools/test_dev_web.mjs tools/test_e2e_isolated.mjs tools/test_jev_review.mjs tools/test_e2e_jev_judge.mjs tools/test_e2e_jev_ultrafast.mjs tools/foundation_acceptance/lib.test.mjs && node tools/ui_templates.mjs && node tools/ui_catalog.mjs --check && npm -w packages/contracts run test && npm -w packages/ui run test && npm -w packages/commercial-ui run test && npm -w packages/commercial-contracts run test && npm -w apps/web run test && npm -w apps/vendor-admin run test",
     "lint": "npm -w apps/web run lint && ruff check odoo-addons",
     "test:odoo": "python3 -B tools/odoo_test.py",
     "check:fast": "python3 -B tools/check_fast.py",

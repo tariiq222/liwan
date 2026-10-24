@@ -56,6 +56,10 @@ class TestWt(unittest.TestCase):
         with self.assertRaises(WorktreeError):
             pick_port(range(10, 12), {10, 11}, lambda p: True)
 
+    def test_nuxt_allocator_keeps_vendor_ports_free_when_they_are_idle(self):
+        self.assertEqual(pick_port(wt.NUXT_PORTS, set(), lambda port: True), 3101)
+        self.assertEqual(pick_port(wt.NUXT_PORTS, {3101, 3102}, lambda port: True), 3104)
+
     def test_env_content_is_consistent(self):
         text = env_content(3101, 8171, 'webvue_scratch_x')
         self.assertIn('NUXT_ODOO_URL=http://127.0.0.1:8171', text)
@@ -83,7 +87,7 @@ class TestWt(unittest.TestCase):
         ])
 
     def test_create_rejects_bad_branch_names(self):
-        for bad in ('nonsense-thing', 'pmo', 'pmo-Bad_Slug', ''):
+        for bad in ('../escape', '/absolute', 'bad..name', 'trailing/', 'space name', ''):
             with self.assertRaises(WorktreeError):
                 create(bad, 'main', False, REQUEST)
 
@@ -165,7 +169,7 @@ class TestWt(unittest.TestCase):
                 first = create('tools-x', 'main', True, REQUEST, True)
                 again = create('tools-x', 'main', True, REQUEST, True)
             self.assertEqual(first, again)
-            self.assertEqual(first[2:], (3100, 8170))
+            self.assertEqual(first[2:], (3101, 8170))
             self.assertTrue((path / '.env.worktree').is_file())
             self.assertEqual(len(installed), 2)  # node_modules never appeared, so each resume retries
 
@@ -467,11 +471,13 @@ class TestClaims(unittest.TestCase):
         with self.assertRaises(WorktreeError):
             wt.refuse_conflicts(REQUEST._replace(scopes=('.',)), [worktree(claim=CLAIM._replace(scopes=('docs/a.md',)))])
 
-    def test_new_refuses_a_base_that_is_not_main_or_a_codex_branch(self):
-        for base in ('origin/main', 'HEAD~1', 'feature/x', 'codex/Nope'):
-            with self.subTest(base=base), self.assertRaises(WorktreeError):
-                create('tools-x', base, False, REQUEST)
-        self.assertIsNone(wt.check_base('codex/tools-integrate-x'))
+    def test_new_accepts_any_normal_base_and_rejects_invalid_ref_names(self):
+        for base in ('main', 'origin/main', 'feature/x', 'codex/Nope', 'codex/tools-integrate-x'):
+            with self.subTest(base=base):
+                self.assertIsNone(wt.check_base(base))
+        for base in ('HEAD~1', '-bad', 'bad..name', 'feature/.hidden', ''):
+            with self.subTest(base=base):
+                self.assertIsNotNone(wt.check_base(base))
 
     def test_new_writes_the_claim_and_refuses_before_creating_the_worktree(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -11,10 +11,20 @@ webvue has four test layers. Pick the cheapest one that proves the change.
 
 ## Node version
 
-`.nvmrc` pins Node 22, but Homebrew's default `node` may be newer. For local Claude Code sessions the
-`SessionStart` hook in `.claude/settings.json` runs `.claude/scripts/session-start.sh`, which puts
-`$(brew --prefix node@<.nvmrc major>)/bin` first on `PATH` (one stderr line if that Node is not installed) for every Bash command, so no manual
-`export PATH=...` is needed. Outside Claude Code, run `export PATH=/opt/homebrew/opt/node@22/bin:$PATH` once per shell.
+`.nvmrc` pins Node **24.15.0**, matching the workspace lockfile. Select that
+version with your Node version manager before installing dependencies or running
+checks; confirm `node --version`. Local Claude Code's `SessionStart` hook reads
+the major from `.nvmrc` and prepends the installed Homebrew major to `PATH` for
+its Bash commands. It reports a missing installation; this hook alone does not
+prove the exact active patch version.
+
+Install dependencies independently in each worktree with `npm ci --ignore-scripts`
+and regenerate both apps' Nuxt files with their `postinstall` scripts before
+root tests/type checks. Do not share `node_modules` or `.nuxt` by symlink.
+`npm run dev` loads the selected worktree's git-ignored `.env.worktree` automatically,
+including its Nuxt/Odoo ports, scratch database and WebSocket URL. Main uses its
+private apps/web/.env with the explicitly configured `webvue_dev` development
+database. Neither `webvue_dev` nor `odoo19` is a test target; use scratch resources.
 
 In a Claude Code cloud session (`CLAUDE_CODE_REMOTE=true`) the same hook fetches the full Git history (the clone is
 shallow, and `tools/ui_policy.py` reads its baseline commit), runs `npm ci --ignore-scripts` when
@@ -38,7 +48,7 @@ The complete `npm test` sequence remains binding in CI before merge.
 | --- | --- |
 | `npm run check:fast` | Policy checks always, plus ruff, tools tests, contracts/web tests and the web type check only for the layers that changed against `main` (`tools/check_fast.py`). |
 | `npm run test:odoo` | Odoo tests of the changed addons and their dependents on a scratch database cloned from a cached template (`tools/odoo_test.py`). Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. |
-| `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree`, and its ownership claim; refuses a base other than `main` or a `codex/` integration branch and scopes that overlap another active claim unless `--allow-overlap "<reason>"` (`tools/wt.py`, rules in `docs/parallel-work.md`). |
+| `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree`, and its ownership claim; accepts any valid branch name as a base and refuses scopes that overlap another active claim unless `--allow-overlap "<reason>"` (`tools/wt.py`, rules in `docs/parallel-work.md`). |
 | `npm run wt -- claim --owner <who> [--task ...] [--scope ...]` | Inside a task worktree: record its claim, change or refresh your own, or take over an expired one (`tools/wt.py`). |
 | `npm run wt -- check` | Read-only report of worktrees that break the location, naming or claim rules; exit 1 when there is one (`tools/wt.py`). |
 | `npm run wt -- status` | One table of every worktree wherever it lives (`*` = outside `.worktrees/`): branch, owner and claim state, ahead/behind `main`, merged, dirty, last commit age, `node_modules` size, recorded scratch DB and ports, a summary line and the rule report (`tools/wt.py`). |
@@ -67,32 +77,26 @@ stages). Each job runs its `deploy/ci` script and can be reproduced locally with
 isolated resources. `ci-result` aggregates selected stages; its success is needed
 before merge, but does not prove a full run or owner authorization.
 
-`ci` remains read-only. Keep the PR draft during local preparation; ready requests
-review and bounded `pr-delivery`. It merges only after current CI/review/scope gates
-and repairs safe code failures at most three cycles per PR. Sensitive scope needs
-owner approval of the exact head. `ci-result` fails if a
-selected stage was skipped or missing, or any stage failed/cancelled. Only
-unselected stages may be skipped. The GitHub ruleset requires `ci-result` from
-GitHub Actions on an up-to-date branch, resolves review threads and offers no
-bypass actors. Recheck live settings; formal second-account approval is not
-required while the repository has only one writer.
+`ci` remains read-only and deterministic. Keep a PR draft during local
+preparation; ready requests CI and review of the actual candidate. The required
+status-check policy is current-head `ci-result` only. It fails if a selected stage
+was skipped or missing, or any stage failed/cancelled. Only unselected stages may
+be skipped. Use an up-to-date branch and resolve review findings/conversations
+before an explicitly authorized protected merge. Recheck live GitHub rules;
+source policy alone does not establish remote protection settings. CI does not
+repair code, merge PRs, create tags or deploy.
 
 The twelve stages are `static`, `ai-service`, `control-plane`, `vendor-admin`, `odoo`,
 `odoo-app-standalone`, `odoo-bridge`, `upgrade`, `restore-drill`, `image`, `e2e-mock` and
 `rtl-stories`.
 
-### GitHub AI review gate
+### Review evidence
 
-`pr-review` is separate from the twelve CI stages. It uses trusted base code on
-`pull_request_target` for a ready same-repository owner/approved-bot PR: native Codex first,
-Claude Code subscription fallback after a five-minute wait. No PR checkout or
-execution occurs in the credential-bearing job. The controller fetches the diff deterministically, then Claude has no tools,
-settings or MCP servers; its runtime GitHub token is read-only. A deterministic
-job publishes its report and current-head `code-review` status.
-A primary finding is not a reason to invoke the fallback. If neither provider
-completes, or a blocking finding remains, the status cannot be green. Validate
-controller behavior with `python3 -B -m unittest discover -s tools -p test_pr_review.py`.
-The integration policy records the first-activation order and live-provider prerequisites.
+Review follows `REVIEW.md` using the selected available agent or a human.
+Record the reviewed head, findings and evidence limits. There is no mandatory
+model provider or automated AI review status. Recheck the actual combined diff
+and affected tests when the base/head changes; CI evidence and owner authorization
+remain separate from a review report.
 
 ### Change-scoped stages
 
@@ -107,8 +111,9 @@ python3 -B tools/ci_scope.py --base main [--commit codex/<area>-<slug>]
 
 A manual `workflow_dispatch` run with `full: true` runs all twelve stages whatever the change. A
 `release/19.0.X.Y.Z` tag is cut only from a `main` commit whose `ci` run was such a full run with all
-twelve stages green. `release-version` enforces all twelve groups including every
-matrix job and aggregate on the exact main commit, and creates the next immutable tag.
+twelve stages green, including every matrix job and aggregate on the exact main
+commit. Publishing that immutable tag requires explicit owner authorization; no
+workflow creates it automatically.
 
 ### After the merge
 

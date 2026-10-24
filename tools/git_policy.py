@@ -33,9 +33,6 @@ MAX_SUBJECT = 72
 GENERATED = ('docs/api/openapi.json', 'docs/api/route-capabilities.json')
 # Branches that may carry regenerated files: main and any orchestrator integration branch.
 INTEGRATION_BRANCH = re.compile(r'^[A-Za-z0-9._-]+/tools-integrate-.+$')
-# Any normal task branch is accepted: the owner chooses the name, so no prefix or area is
-# required. Only a malformed ref (or main/HEAD itself) is reported.
-BRANCH_NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._/-]*$')
 
 SUBJECT = re.compile(rf"^(?:{'|'.join(TYPES)})\((?:{'|'.join(AREAS)})\): \S")
 
@@ -55,14 +52,19 @@ def check_subject(subject: str) -> str | None:
 
 def check_branch(name: str) -> str | None:
     """Accept any normal branch name; only a ref Git would reject is a violation."""
-    if not BRANCH_NAME.match(name) or '..' in name or '//' in name or name.endswith(('.', '/')):
+    if name == 'HEAD':  # rev-parse --abbrev-ref uses this for detached CI checkouts.
+        return None
+    # Check a literal full ref, so @{-1} cannot expand to a previous branch.
+    valid = subprocess.run(['git', 'check-ref-format', 'refs/heads/' + name],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False).returncode == 0
+    if name.startswith('-') or not valid:
         return f"branch '{name}' is not a valid branch name"
     return None
 
 
 def check_generated_commits(branch: str, touching: dict[str, list[str]]) -> list[str]:
     """Problems for the commits of ``branch`` (``{generated path: [sha, ...]}``) that modify a generated file."""
-    if branch == 'main' or INTEGRATION_BRANCH.match(branch):
+    if branch in ('main', 'HEAD') or INTEGRATION_BRANCH.match(branch):
         return []
     return [
         f'{sha}: task branch {branch} must not modify {path}; the orchestrator '

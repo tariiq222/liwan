@@ -221,25 +221,24 @@ another application) needs the owner's approval, recorded by the owner as an
   Regenerate the API artifacts there when needed. Do not submit both a batch and its
   constituent branches for separate merge.
 - A PR stays **draft** while scope, local checks or prepublication inspection are incomplete.
-  Marking ready requests GitHub review and the owner-approved bounded delivery policy.
-  After current-head CI/review succeed, `pr-delivery` merges eligible low-risk changes.
-  Sensitive changes require the owner's `/webvue approve <head-sha>` comment; a new head
-  invalidates that approval. At most three repair cycles per PR may update safe original
-  files. Missing services, stale checks or protected scope never authorize a bypass.
+  Marking ready requests CI and review of the actual candidate; it does not authorize
+  publication or merging. The required status-check policy is current-head `ci-result`
+  only. Review follows `REVIEW.md` using the selected available agent or a human.
+  Publish and merge only within the owner's explicit authorization. Missing services,
+  stale checks or protected scope never authorize a bypass.
 - The `ci` workflow runs on PRs and pushes to `main`; selected stages must pass before
   integration. `workflow_dispatch` with `full: true` runs all twelve stages. A scoped
   green run is not evidence of a full release run. A `release/19.0.X.Y.Z` tag requires
-  all twelve stages green in a full run on that exact `main` commit. The owner authorizes
-  `release-version` to increment the last release-number component automatically after
-  that evidence; a tag is not deployment authorization.
+  all twelve stages green in a full run on that exact `main` commit and the owner's
+  explicit authorization to publish the release. No workflow creates tags automatically;
+  a tag is not deployment authorization.
 - Check actual GitHub rules before delivery. Branch protection, required reviews, required
   status checks and administrator bypass are separate settings; a protected branch alone
   does not prove CI is enforced. Report gaps instead of assuming a plan limitation.
 - After a branch is merged, removing its worktree, branch and scratch database is `python3 -B tools/wt.py gc`, only with
   the owner's authorization and only after the content is preserved and no process uses it; unmerged work is
   tagged `archive/<name>` before its branch is removed.
-- Only `main`, tags and authorized task branches are pushed, each push with the owner's explicit authorization. The approved bounded delivery
-  policy authorizes reserved safe repair pushes; it grants no unrelated publication permission.
+- Only `main`, tags and authorized task branches are pushed, each push with the owner's explicit authorization.
   `release/19.0.X.Y.Z` tags on `main` are the releases; there is no per-customer branch.
 
 

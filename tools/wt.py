@@ -9,8 +9,8 @@
     python3 -B tools/wt.py gc [--apply] [--branch codex/<area>-<slug>]
 
 ``new`` creates ``.worktrees/<area>-<slug>``, the only location for task worktrees, under the main
-checkout (also when run from a worktree) on branch ``codex/<area>-<slug>`` from ``--base`` (``main``, or a
-``codex/`` integration branch), installs independent ``node_modules`` and ``.nuxt`` (never symlinked), and writes the
+checkout (also when run from a worktree) on branch ``codex/<area>-<slug>`` from ``--base`` (``main`` or
+any valid branch), installs independent ``node_modules`` and ``.nuxt`` (never symlinked), and writes the
 git-ignored ``.env.worktree`` with free Nuxt and Odoo ports and a scratch
 database name (written before the install, so a failed install keeps its ports;
 ``--resume`` continues it). It also records the worktree's ownership claim (``tools/worktree_claims.py``):
@@ -21,8 +21,8 @@ active claim of another worktree unless ``--allow-overlap`` states the reason, w
 refresh it, or takes over a claim that has expired (no commit, edited file or refresh for
 ``CLAIM_TTL_HOURS``); an expired claim stays listed but no longer blocks other claims.
 
-``check`` reports every worktree that breaks a rule: outside ``.worktrees``, a branch that is not
-``codex/<area>-<slug>`` or ``spike/<slug>``, a folder name that is not its branch's ``<area>-<slug>``, no claim,
+``check`` reports every worktree that breaks a rule: outside ``.worktrees``, an invalid Git branch name,
+a folder name that does not match its branch suffix, no claim,
 and active claims that overlap without a stated reason; it exits 1 when there is one. It only reads: it never
 moves, renames or removes a worktree, so a worktree that predates these rules is reported, never changed.
 ``status`` prints one table of every worktree, wherever it lives (``*`` marks one outside
@@ -61,7 +61,8 @@ from worktree_claims import (
     write_claim,
 )
 
-NUXT_PORTS = range(3100, 3200)
+# Vendor administration owns 3100 and its live-proof build owns 3103, even while idle.
+NUXT_PORTS = tuple(port for port in range(3100, 3200) if port not in {3100, 3103})
 ODOO_PORTS = range(8170, 8270)
 DB_SLUG_MAX = 42
 TAIL = 400
@@ -210,10 +211,10 @@ def install_dependencies(path):
 
 
 def check_base(base):
-    """Problem with a ``new --base``, or ``None``: task worktrees branch from main or an integration branch."""
+    """Problem with a ``new --base``, or ``None``: main or any valid branch may be a base."""
     if base == MAIN or not check_branch(base):
         return None
-    return "--base '%s' must be %s or an integration branch" % (base, MAIN)
+    return "--base '%s' must be %s or a valid branch name" % (base, MAIN)
 
 
 def git_dir(path):

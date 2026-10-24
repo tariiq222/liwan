@@ -63,6 +63,19 @@ class TestBranch(unittest.TestCase):
         for name in ('', '-leading-dash', 'bad..dots', 'double//slash', 'trailing/', 'space name'):
             self.assertIn('not a valid branch name', check_branch(name), name)
 
+    def test_git_invalid_components_are_rejected(self):
+        for name in ('feature/.hidden', 'feature/topic.lock', 'topic.lock/child',
+                     'feature/trailing.', '@{-1}', 'feature/name\n'):
+            with self.subTest(name=name):
+                problem = check_branch(name)
+                self.assertIsNotNone(problem, name)
+                self.assertIn('not a valid branch name', problem, name)
+
+    def test_git_valid_names_do_not_need_an_agent_prefix(self):
+        for name in ('release/v1+qa', 'feature/a@b', 'موضوع/تصحيح', '_owner/task'):
+            with self.subTest(name=name):
+                self.assertIsNone(check_branch(name), name)
+
 
 if __name__ == '__main__':
     unittest.main()
@@ -81,6 +94,9 @@ class TestGeneratedFiles(unittest.TestCase):
         touching = {'docs/api/openapi.json': ['abc1234']}
         self.assertEqual(check_generated_commits('codex/tools-integrate-finance', touching), [])
         self.assertEqual(check_generated_commits('main', touching), [])
+
+    def test_detached_ci_checkout_can_verify_regenerated_api_files(self):
+        self.assertEqual(check_generated_commits('HEAD', {'docs/api/openapi.json': ['abc1234']}), [])
 
     def test_other_tools_task_branch_is_still_a_task_branch(self):
         self.assertEqual(len(check_generated_commits('codex/tools-capability-gate', {'docs/api/openapi.json': ['abc1234']})), 1)

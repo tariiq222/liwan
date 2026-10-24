@@ -25,7 +25,7 @@ See [the hosting contract](docs/superpowers/specs/webvue-shared-saas-and-soverei
 and [WORKSPACE.md](docs/WORKSPACE.md) for implementation and acceptance evidence;
 the product vision does not establish production readiness.
 
-Integration into `main` uses a protected GitHub pull request under the [integration policy](docs/agents/integration-rules.md). Delivery requires current-head `ci-result`, `code-review` and `delivery-policy`, an up-to-date branch and resolved conversations; sensitive changes also require the owner's exact-head approval. CI success alone does not authorize a merge. See the [testing guide](docs/testing.md#ci-workflow) for check scope. Publication and production deployment retain their separate authorization requirements.
+Remote integration into `main` uses a protected GitHub pull request under the [integration policy](docs/agents/integration-rules.md). The required status-check policy is current-head `ci-result` only, alongside review of the actual diff, an up-to-date branch and resolved conversations. CI success does not authorize publication or merging; the owner's explicit authorization remains required. Review uses the selected available agent or a human. See the [testing guide](docs/testing.md#ci-workflow) for check scope. Release, production deployment and cleanup retain separate authorization requirements.
 
 ## Current product
 
@@ -83,19 +83,17 @@ cd /Users/tariq/code/odoo
 # Keep data_dir and logfile outside the read-only upstream checkout.
 .venv/bin/python odoo-bin -c /absolute/path/to/scratch-only.conf \
   --addons-path=/Users/tariq/code/odoo/addons,/path/to/webvue-worktree/odoo-addons,$(python3 -B /path/to/webvue-worktree/tools/oca_addons.py path) \
-  -d webvue_scratch --http-port=8169
+  -d webvue_scratch_example --http-port=8171
 
-# Nuxt, from the selected WebVue worktree
+# Nuxt loads the selected worktree's allocated .env.worktree profile.
+# Match the Odoo database/port above to that profile's actual values first.
 cd /path/to/webvue-worktree
-# 3100 is reserved for vendor-admin; this example uses 3200 for apps/web.
-NUXT_ODOO_URL=http://127.0.0.1:8169 \
-NUXT_ODOO_DB=webvue_scratch \
-NUXT_PUBLIC_WS_URL=ws://localhost:8169/websocket \
-npm -w apps/web run dev -- --port 3200
+npm run dev
 ```
 
 Use a unique Odoo database and HTTP port, and a matching Nuxt port, for every
-active worktree; the numbers above are examples, not allocations. Ports `3100` and `3103` are reserved for vendor administration and its live-proof build; follow [parallel-work.md](docs/parallel-work.md) and check current claims before choosing others. Install dependencies independently in each worktree with
+active worktree; the Odoo values above are placeholders and must match `.env.worktree`.
+Worktree dev rejects CLI overrides; its saved profile owns the ports and endpoints. Ports `3100` and `3103` are reserved for vendor administration and its live-proof build; follow [parallel-work.md](docs/parallel-work.md) and check current claims before choosing others. Install dependencies independently in each worktree with
 `npm ci --ignore-scripts`; use the local cache when working offline. Do not
 share `node_modules` or `.nuxt` through symlinks. Never run tests against the
 production-style `odoo19` database.
@@ -109,6 +107,12 @@ npm -w apps/vendor-admin run postinstall
 ```
 
 The ordinary local development topology is Odoo `:8069` and Nuxt `:3000`.
+Use Node 24.15.0 from `.nvmrc`. Main's private apps/web/.env selects the explicitly
+configured `webvue_dev` database; it is a development target, never a test target.
+In a task worktree, `npm run dev` loads that worktree's git-ignored `.env.worktree`
+for its allocated Nuxt/Odoo ports, database and WebSocket endpoint. Install local
+dependencies and run Nuxt postinstall in each worktree first; a shared parent
+installation does not provide an independent worktree environment.
 
 The deployment templates are in [`deploy/`](deploy/). They describe a
 customer deployment and are not proof that a deployment has been performed.

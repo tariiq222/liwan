@@ -31,6 +31,8 @@ apps/web/127.0.0.1/
 /.claude/agents/*
 !/.claude/agents/frontend-theme.md
 !/.claude/skills/
+/.claude/skills/*
+!/.claude/skills/e2e/
 !/.claude/scripts/
 /.claude/scripts/*
 !/.claude/scripts/guard-bash.sh
@@ -60,13 +62,32 @@ venv/
 # Planner-skill output stays local.
 .scratch/
 
-# --- Secrets: every real env file stays local; only the example is tracked ---
+# --- Secrets: only documented, sanitized env templates are shared ------------
 .env.*
 !.env.example
-!deploy/.env.example
+!.env.sample
+!.env.template
 *.pem
 *.key
-!**/public/**/*.key
+*.p12
+*.pfx
+*.p8
+*.jks
+*.keystore
+
+# --- Local databases, backups and captured customer/run artifacts ------------
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*.dump
+/backups/
+/dumps/
+/artifacts/
+/screenshots/
 
 # --- Editor and OS ----------------------------------------------------------
 Thumbs.db
@@ -79,6 +100,9 @@ apps/web/storybook-static/
 # Local agent tool state
 .agent-teams/
 .dsh-auto/
+/.codex/
+/.agents/
+/.dsh/
 
 # --- e2e (TesterArmy) run output and replay cache --------------------------
 # Docs default: ignore .e2e/ artifacts; commit .e2e/cache/ only if you want

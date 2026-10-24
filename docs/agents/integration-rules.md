@@ -5,47 +5,25 @@ product contracts; `REVIEW.md` owns review criteria; `docs/testing.md` owns chec
 commands. Historical plans and an incoming worktree's older instructions do not
 replace the current policy. The former direct-push exception is superseded.
 
-## Authorization and the current automation
+## Authorization and deterministic CI
 
-The owner approved automatic delivery on 2026-10-22: ready, bounded PRs can merge
-when `ci-result`, `code-review` and `delivery-policy` succeed for the current head.
-Drafts remain preparation; ready requests review and evaluation against this policy.
-The deterministic `pr-delivery` controller merges normally through GitHub; it never
-pushes main or bypasses protection. Native repository auto-merge obeys the same gates.
+The owner's 2026-10-24 reset keeps normal deterministic CI and removes the
+model-driven review, repair, merge and release controllers. The required
+status-check policy is **`ci-result` only**, on the current PR head. Review of the
+actual diff still follows `REVIEW.md`; any selected available agent or a human
+may perform it, without an exclusive model requirement or paid API fallback.
 
-Low-risk eligibility is deliberately conservative in `tools/pr_delivery.py`:
-selected frontend component/page, Storybook/shared UI and non-policy documentation
-paths, with sensitive path/content exclusions, no deletions/renames and complete
-file evidence. Any uncertain or broader change needs an owner-authored exact comment:
-`/webvue approve <40-character-current-head-sha>`. Permission/security/data migrations,
-dependency/build/CI/controller/policy changes and breaking API work need that explicit
-approval. Approval never waives review, checks, thread resolution or current-base
-requirements. New commits invalidate it. Do not have automation impersonate the owner.
+Keep a PR draft while local preparation is incomplete. Marking ready requests
+CI and review; it does not authorize publication, merging or release. Those
+operations require the owner's explicit authorization for their scope. Prior
+approved product, access and data decisions remain binding. New changes require
+updated evidence and any authorization their scope needs.
 
-Task authorization, publication, production deployment and cleanup remain distinct.
-The standing delivery policy covers reserved safe repair commits, normal merges and the version tags described
-below. It does not authorize production deployment, destructive cleanup or changing
-its own gates through an automatic repair.
-
-## Two review providers, one decision
-
-The `pr-review` workflow starts when a same-repository owner/approved-bot PR becomes ready,
-is reopened or receives commits. Codex is primary; Claude Code is a bounded
-fallback if Codex does not complete within five minutes or the request fails.
-An actual review with findings is complete and never triggers a softer reviewer.
-The controller supplies the complete diff as data; Claude has no tools or
-filesystem access and returns a structured report. A separate
-non-model job publishes it on GitHub. Current-head reviews are required; an old
-head, an incomplete report or two unavailable services cannot yield a green
-`code-review`. P0/P1/P2 fallback findings and explicit Codex change requests fail it.
-P0/P1/P2 Codex inline findings also block; unresolved conversations remain binding at merge.
-
-Prerequisites: Codex code review enabled for this repository and a valid Claude
-subscription token in the separate main-only `review` environment. Repair uses
-its own `agent` environment; do not populate it when configuring review. No paid API
-fallback is configured. The workflow uses trusted base code, never PR checkout
-or PR commands with secrets. Both providers can be temporarily unavailable;
-report that state and keep the merge blocked.
+CI reports checks; it does not repair code, merge PRs, create tags or deploy.
+Task authorization, remote publication, merge, release, production deployment
+and cleanup remain distinct. Local consolidation authority does not authorize a
+remote push or production deployment. Missing services, stale checks and failed
+checks never justify bypassing branch protection.
 
 ## Six integration steps
 
@@ -53,7 +31,7 @@ report that state and keep the merge blocked.
    and compare it with the latest committed remote policy. Inspect both
    worktrees' dirty paths and owners. Fetch `origin` without resetting a checkout
    or pruning refs; record local `main`, remote `main`, incoming branch/head,
-   PR state and active claims. Remote `main` is the delivery baseline; local
+   PR state and active claims. Remote `main` is the publication baseline; local
    `main` can be stale. Resolve policy conflicts with the current owner decision.
 2. **Prepare one candidate.** Work in an isolated, claimed worktree. Bring the
    latest remote `main` into the candidate without rebasing another owner's
@@ -72,41 +50,41 @@ report that state and keep the merge blocked.
 4. **Verify the combined result.** Run focused checks, `npm test`, Git and
    architecture policies against the recorded baseline, and the affected
    layers' checks from `docs/testing.md`. Odoo checks use isolated scratch
-   databases, never `odoo19`. Record commands, commit, environment, pass/fail and
-   gaps in the PR. Retain baseline regression requirements. Diagnose failures;
-   a reproduced baseline failure is still disclosed, not silently waived.
-   After local preparation, mark the PR ready to request GitHub review. Require
-   successful `ci-result`, current-head `code-review` and every selected stage on the current PR
-   candidate; inspect skipped stages and scope. A prior green head, local test
-   run or merge conflict check alone does not establish readiness.
-5. **Evaluate and merge the reviewed candidate.** `pr-delivery` rereads the current
-   head, latest CI run, current-head review status, complete file inventory and
-   sensitive approval. CI/review failures can request at most three durable repair
-   cycles across the PR, one per head. Pending, cancelled, unavailable services or
-   an already-attempted head do not start another repair. Sensitive scope and tests are never
-   rewritten autonomously. After a new clean review, only outdated Codex-only
-   threads may be resolved automatically; human discussions stay manual. Claude receives bounded evidence as text with zero tools,
-   hooks/settings disabled and a read-only token, then returns structured replacement
-   content. A separate model-free publisher validates original modified regular files,
-   size/scope, reserved attempt and unchanged head before a non-force API update.
-   It explicitly dispatches full CI and trusted-main review for the new head because
-   GitHub token mutations do not reliably trigger those events. Failed generation
-   consumes its reservation and stops; no quota retry or budget reset. At three
-   unsuccessful cycles, stop and report owner action needed. Successful current gates
-   merge with exact head through the normal merge API. Conflicts or a behind branch
-   wait for integration; do not rewrite history or weaken protection to proceed.
+   databases, never development databases. Record commands, commit, environment,
+   pass/fail and gaps in the PR. Retain baseline regression requirements.
+   Diagnose failures; a reproduced baseline failure is disclosed, not silently
+   waived. After local preparation and authorized publication, mark the PR ready.
+   Require successful current-head `ci-result` and every selected stage; inspect
+   skipped stages and scope. An old green head, local checks or a conflict check
+   alone does not establish readiness for protected remote integration.
+5. **Merge the authorized candidate.** Recheck the current base/head, current-head
+   CI, resolved review findings and conversations, and the owner's authorization.
+   Fix failures in the owned scope and repeat affected checks after a change.
+   When the head or base moves, update the candidate and its evidence before
+   merging. Use the normal protected PR merge; do not force-push, bypass
+   protection, relax a test or assume a green check grants permission. Quota or
+   service exhaustion is a blocker to report, never a reason for a paid fallback.
 6. **Verify and synchronize.** Confirm the PR is merged and record its actual
    merge SHA and post-merge CI result. Fetch and compare local/remote `main`.
    Fast-forward local `main` only when behind without divergence and clean,
    or after proving every dirty/untracked path is disjoint from the incoming
    changes (including directory collisions), saving a byte-level snapshot of
    those paths, and verifying it unchanged afterward. If that cannot be proved,
-   leave the checkout intact and report it. Never auto-stash,
-   reset, force-push or discard edits to synchronize. Release and deployment
-   need their own authorization and evidence. Cleanup is a separate action:
-   ancestry alone does not preserve uncommitted, untracked or ignored files,
-   scratch data or runtime state. Inspect ownership, preservation and process
-   use, then use the authorized `tools/wt.py gc` path.
+   leave the checkout intact and report it. Never auto-stash, reset, force-push
+   or discard edits to synchronize. Release and deployment need their own
+   authorization and evidence. Cleanup is a separate action: ancestry alone
+   does not preserve uncommitted, untracked or ignored files, scratch data or
+   runtime state. Inspect ownership, preservation and process use, then use the
+   authorized `tools/wt.py gc` path.
+
+## Local-only integration
+
+An explicit request to consolidate into local `main` may authorize local commits
+and merges without authorizing publication. Preserve all source work and dirty
+paths, prepare the combined result in an isolated candidate, and run the
+applicable combined checks and review before updating local `main`. Record that
+there is no remote PR/CI evidence for this local-only action. The protected PR
+procedure above remains required for subsequent remote publication.
 
 ## PR handoff
 
@@ -117,51 +95,41 @@ until tested against the intended combined result. When the parent merges,
 update and retest the child against current `main`; do not deliver inherited
 changes twice. A clean merge simulation proves textual compatibility only.
 
-## Enforced GitHub rules and activation
+## GitHub protection policy and live settings
 
-`protect-main` requires a PR, `ci-result`, `code-review` and `delivery-policy` from
-GitHub Actions, an up-to-date branch, resolved conversations and merge commits.
-No bypass actors, force updates or branch deletion. No formal second-account
-approval is required while only the owner has write access. The exact-head owner
-comment provides the sensitive-scope decision. Recheck actual settings before delivery.
+Publish through a PR with current-head `ci-result` from GitHub Actions, an
+up-to-date branch, resolved conversations and normal merge commits. No protection
+bypass, force updates or branch deletion is permitted. A mandatory second-account
+or model-provider approval is not part of the owner's reset.
 
-The owner explicitly authorized activation of PR32, including its sensitive governance
-scope. Bootstrap it with current CI and a recorded independent review, through a normal
-explicit merge. Add the new required contexts once their trusted-main producers exist,
-before enabling native auto-merge or allowing subsequent delivery. Do not require a
-context before its producer exists, bypass protection or expose credentials to PR code.
-Verify providers live; a configured secret is not proof of working authentication.
+Inspect actual rulesets and required checks before remote delivery. A source
+change does not modify GitHub settings or prove the live rules match this policy.
+Report mismatches and obtain any required settings authorization; do not add a
+required context whose producer no longer exists or bypass a stale gate.
 
 ## Release numbers
 
-`release-version` runs after successful CI on main. It verifies the CI workflow identity,
-repository, event, exact main SHA and all twelve stage groups, including every matrix
-job and `ci-result`, with no skipped stages. It then creates the next immutable
-`release/19.0.X.Y.Z` tag by incrementing the final numeric component. Repeated events
-reuse the same commit's existing tag. From `19.0.1.0.1`, next is `19.0.1.0.2`.
-Scoped PR CI cannot create a release number; bot merges explicitly request full main CI.
-Versioning never deploys production or changes addon schema versions automatically.
+Publishing a `release/19.0.X.Y.Z` tag requires explicit owner authorization and
+all twelve `ci` stage groups, every matrix job and `ci-result`, green in a full
+run on that exact `main` commit, with no skipped groups. Inspect the existing
+immutable tags before choosing the next final numeric component. Scoped PR CI
+does not prove a full release run. Release tags do not alter addon schema
+versions or authorize production deployment; those retain their own checks and
+authorization.
 
 ## Delivery flow
 
 ```mermaid
 flowchart TD
-    A[Isolated work and local checks] --> B[Ready PR]
-    B --> C[Codex; Claude if unavailable]
-    B --> D[CI]
-    B --> E{Sensitive scope?}
-    E -->|Yes| F[Owner approval of exact SHA]
-    E -->|No| G[Delivery eligible]
-    F --> G
-    C --> H{Current checks and review green?}
-    D --> H
-    G --> H
-    H -->|Code failure and safe scope| I[Repair same branch: at most 3 cycles]
-    I --> C
-    I --> D
-    H -->|Unavailable, conflict or exhausted| J[Stop and report]
-    H -->|Yes| K[Automatic protected merge]
-    K --> L[Full main CI: all 12 groups]
-    L -->|Success| M[Next immutable release number]
-    M -. Separate approval .-> N[Production deployment]
+    A[Isolated candidate and local checks] --> B[Actual diff review]
+    B --> C[Authorized PR publication]
+    C --> D[Current-head deterministic CI]
+    D --> E{Checks pass and merge authorized?}
+    E -->|Failure or missing evidence| F[Fix owned scope or report blocker]
+    F --> B
+    E -->|Yes| G[Normal protected PR merge]
+    G --> H[Verify main and post-merge CI]
+    H --> I[Full main CI for release]
+    I --> J[Explicitly authorized immutable release tag]
+    J --> K[Separately authorized production deployment]
 ```
