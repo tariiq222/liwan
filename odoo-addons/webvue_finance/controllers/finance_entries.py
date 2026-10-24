@@ -38,7 +38,7 @@ def manual_entries_domain():
     ``entry`` moves at all.
     """
     return [
-        ('company_id', '=', request.env.company.id),
+        ('company_id', 'in', request.env.companies.ids),
         ('move_type', '=', 'entry'),
         ('origin_payment_id', '=', False),
         ('statement_line_id', '=', False),
@@ -57,24 +57,24 @@ def _find_entry(entry_id):
     return entry
 
 
-def _line_command(line, index):
+def _line_command(line, index, company):
     values = {key: line[key] for key in ('name', 'debit', 'credit')}
     values['account_id'] = company_records(
         'account.account', [line['account_id']], f'lines[{index}].account_id',
-        [('company_ids', 'in', [request.env.company.id])],
+        request.env['account.account']._check_company_domain(company),
     ).id
     if 'partner_id' in line:
         values['partner_id'] = company_records(
-            'res.partner', [line['partner_id']], f'lines[{index}].partner_id', company_partners_domain(),
+            'res.partner', [line['partner_id']], f'lines[{index}].partner_id', company_partners_domain(company),
         ).id
     if 'analytic_distribution' in line:
         values['analytic_distribution'] = distribution_values(
-            line['analytic_distribution'], f'lines[{index}].analytic_distribution',
+            line['analytic_distribution'], f'lines[{index}].analytic_distribution', company=company,
         )
     return Command.create(values)
 
 
-def _entry_values(parsed):
+def _entry_values(parsed, company):
     """ORM values for the parsed keys of a create/patch body; related records are checked in the company."""
     values = {key: parsed[key] for key in ('date',) if key in parsed}
     if 'ref' in parsed:
@@ -82,21 +82,21 @@ def _entry_values(parsed):
     if 'journal_id' in parsed:
         values['journal_id'] = company_records(
             'account.journal', [parsed['journal_id']], 'journal_id',
-            [('company_id', '=', request.env.company.id), ('type', '=', 'general')],
+            [*request.env['account.journal']._check_company_domain(company), ('type', '=', 'general')],
         ).id
     if 'lines' in parsed:
-        require_balanced(parsed['lines'])
+        require_balanced(parsed['lines'], company=company)
         # A body that carries lines replaces every existing line of the entry.
         values['line_ids'] = [
             Command.clear(),
-            *(_line_command(line, index) for index, line in enumerate(parsed['lines'])),
+            *(_line_command(line, index, company) for index, line in enumerate(parsed['lines'])),
         ]
     return values
 
 
-def _require_open_period(day, journal):
+def _require_open_period(day, journal, company):
     """Odoo would silently move the date of an entry in a closed period when it posts, so refuse it up front."""
-    if is_period_locked(day, journal):
+    if is_period_locked(day, journal, company=company):
         raise period_locked(field='date')
 
 
@@ -147,10 +147,10 @@ class FinanceEntryController(http.Controller):
     def create_entry(self, **payload):
         require_capability('finance.entries.manage')
         parsed = parse_entry_create(payload)
-        values = _entry_values(parsed)
-        values['move_type'] = 'entry'
+        values = _entry_values(parsed, request.env.company)
+        values.update({'move_type': 'entry', 'company_id': request.env.company.id})
         journal = request.env['account.journal'].browse(values['journal_id'])
-        _require_open_period(values['date'], journal)
+        _require_open_period(values['date'], journal, request.env.company)
         entry = attempt(lambda: request.env['account.move'].create(values), day=values['date'], journal=journal)
         return request.make_json_response(dump_entry_detail(entry), status=201)
 
@@ -165,11 +165,11 @@ class FinanceEntryController(http.Controller):
         parsed = parse_entry_patch(payload)
         if 'lines' in parsed:
             require_plain_distributions(entry.line_ids)
-        values = _entry_values(parsed)
+        values = _entry_values(parsed, entry.company_id)
         day = values.get('date') or entry.date
         journal = request.env['account.journal'].browse(values.get('journal_id') or entry.journal_id.id)
-        _require_open_period(day, journal)
-        attempt(lambda: entry.write(values), day=day, journal=journal)
+        _require_open_period(day, journal, entry.company_id)
+        attempt(lambda: entry.write(values), day=day, journal=journal, company=entry.company_id)
         return dump_entry_detail(entry)
 
     @http.route('/api/v1/finance/entries/<int:entry_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
@@ -179,7 +179,7 @@ class FinanceEntryController(http.Controller):
         require_capability('finance.entries.manage')
         entry = _find_entry(entry_id)
         require_state(entry, 'draft', 'not_draft')
-        attempt(entry.unlink, day=entry.date, journal=entry.journal_id)
+        attempt(entry.unlink, day=entry.date, journal=entry.journal_id, company=entry.company_id)
         return request.make_json_response('', status=204)
 
     @http.route('/api/v1/finance/entries/<int:entry_id>/post', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -189,8 +189,8 @@ class FinanceEntryController(http.Controller):
         require_capability('finance.entries.post')
         entry = _find_entry(entry_id)
         require_state(entry, 'draft', 'not_draft')
-        _require_open_period(entry.date, entry.journal_id)
-        attempt(entry.action_post, day=entry.date, journal=entry.journal_id)
+        _require_open_period(entry.date, entry.journal_id, entry.company_id)
+        attempt(entry.action_post, day=entry.date, journal=entry.journal_id, company=entry.company_id)
         return dump_entry_detail(entry)
 
     @http.route('/api/v1/finance/entries/<int:entry_id>/reset-to-draft', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -202,7 +202,7 @@ class FinanceEntryController(http.Controller):
         if entry.state == 'draft':
             raise ApiError(422, 'invalid_state', 'the entry is already a draft')
         _require_no_reconciliations(entry)
-        attempt(entry.button_draft, day=entry.date, journal=entry.journal_id)
+        attempt(entry.button_draft, day=entry.date, journal=entry.journal_id, company=entry.company_id)
         return dump_entry_detail(entry)
 
     @http.route('/api/v1/finance/entries/<int:entry_id>/unreconcile', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -217,6 +217,6 @@ class FinanceEntryController(http.Controller):
             raise ApiError(422, 'invalid_state', 'the entry has no reconciled lines')
         counterparts = (lines.matched_debit_ids.debit_move_id | lines.matched_credit_ids.credit_move_id).move_id
         for move in entry | counterparts:
-            _require_open_period(move.date, move.journal_id)
-        attempt(lines.remove_move_reconcile, day=entry.date, journal=entry.journal_id)
+            _require_open_period(move.date, move.journal_id, move.company_id)
+        attempt(lines.remove_move_reconcile, day=entry.date, journal=entry.journal_id, company=entry.company_id)
         return dump_entry_detail(entry)

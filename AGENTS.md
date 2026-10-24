@@ -61,7 +61,7 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
 - The HR page is `/hr`; `/api/v1/people` remains the user-id picker (owned by `webvue_directory`). Preserve
   HR documents and the `{items, total}` list envelopes.
 - Presentation (pages, the one route-backed create panel `SharedCreatePanel`,
-  and the three overlay exceptions: search, notification bell, unsaved draft)
+  and the four overlay exceptions: search, notification bell, unsaved draft, the assistant sheet)
   follows DESIGN.md. `/new` routes open that panel; records and edits are
   pages. Task board view is `?view=board`. Keep direct links, refresh/back,
   filters, permissions and draft protection. Do not stack business dialogs.
@@ -136,6 +136,22 @@ Accumulation in code or in the database schema is a defect, not technical debt t
 - **Done means clean.** Work is not complete while it leaves a parallel path, an unused
   artifact, or a schema remnant behind. Reviewers (`REVIEW.md`, `odoo-reviewer`) report
   accumulation as a blocking finding, in the same class as a failing test.
+
+## User-facing decisions and configurable customer policies — 2026-10-22
+
+- Before changing user-visible behavior with materially different valid outcomes,
+  present the owner with the options, user impact and a recommended default.
+- Legitimate policies that vary across customers must have an explicit setting
+  in the owning WebVue settings surface. State its scope (customer, company,
+  branch or user), default, who may change it and how it affects existing data.
+  Reuse the owning configuration model; do not hardcode customer-specific behavior.
+- Configurable authorization policies must enforce the selected policy on the
+  server for reads, writes, exports and attachments, with tests for each supported
+  mode. Membership alone never grants a sensitive capability. No setting may
+  bypass tenant isolation or expose data without an explicit authorized grant.
+- Correctness, broken links, session isolation and error handling are defects to
+  fix, not customer options to preserve faulty behavior. Deployment secrets and
+  infrastructure policies remain in their owning operator/vendor configuration.
 
 ## Architecture rules (R1–R10)
 
@@ -297,7 +313,10 @@ cross-addon links.
   ZATCA onboarding of a sales journal and the submission of one invoice through stock `l10n_sa_edi`,
   after the `finance.zatca.manage` / `finance.zatca.submit` capability and current-company checks,
   in the sandbox api mode only (ZATCA onboarding is sandbox-only in this phase, so production invoicing for real
-  tenants is a release blocker until the preprod/prod policy is approved). Do not add
+  tenants is a release blocker until the preprod/prod policy is approved).
+  `webvue_api` uses it only in `controllers/common.py`, for the single company-ownership
+  read in `get_record`, before any access check, so another company's record answers the
+  same 404 not-found as a missing one instead of a 403 that leaks its existence. Do not add
   another case without documenting it and fixing ACLs/rules where possible.
   Documented cases are listed per file in `tools/arch_documented_sudo.json`, outside the
   shrink-only baseline. Adding one or raising its count needs the owner's

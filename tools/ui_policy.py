@@ -80,6 +80,7 @@ LOCALE_ROOTS = ('apps/web/i18n/locales/', 'apps/vendor-admin/i18n/locales/')
 # Reused building blocks that must each have a story (spec §1). Add a path here when a
 # component starts being reused across pages, together with its story.
 STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
+    'access/branches/BranchRoleAssignments.vue',
     'hr/shifts/ShiftSettingsForm.vue',
     'hr/LeaveSettingsForm.vue',
     'documents/DocumentEditor.vue',
@@ -94,6 +95,8 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'operations/RequestList.vue', 'operations/ProcessList.vue', 'operations/RequestForm.vue',
     'operations/ProcessForm.vue', 'operations/RequestCreate.vue', 'operations/RequestRecord.vue', 'operations/RequestEdit.vue',
     'account/PersonalSummaryCard.vue', 'hr/LeaveList.vue', 'hr/LeaveRecord.vue',
+    'work/WorkRow.vue',
+    'ai/AiSheet.vue', 'shell/AssistantButton.vue', 'shell/AssistantSheet.vue',
     'shared/layout/PageHeader.vue', 'shared/feedback/PageState.vue', 'shared/layout/PageContainer.vue', 'shared/form/UnsavedChanges.vue',
     'shared/feedback/LoadingSkeleton.vue', 'shared/feedback/ErrorState.vue', 'shared/feedback/ForbiddenState.vue', 'shared/feedback/NotFoundState.vue',
     'shared/layout/RecordPage.vue', 'shared/layout/PropertiesPanel.vue', 'shared/layout/PropertyRow.vue', 'shared/layout/RecordSection.vue',

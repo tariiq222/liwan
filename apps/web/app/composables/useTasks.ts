@@ -100,6 +100,7 @@ export function applyPatchToTask<T extends Task>(task: T, patch: TaskPatch, reso
 export function invalidateTaskLists(qc: { invalidateQueries: (filters: { queryKey: readonly unknown[] }) => unknown }) {
   qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
   qc.invalidateQueries({ queryKey: ['tasks', 'summary'] })
+  qc.invalidateQueries({ queryKey: ['tasks', 'attention'] })
 }
 
 export function useTasks(params: Ref<TaskListParams>) {

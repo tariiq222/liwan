@@ -4,6 +4,7 @@ from . import (
     calendar_event,
     entitlement_service,
     feature_registry,
+    ir_rule,
     meeting_access,
     meeting_access_service,
     meeting_directory,

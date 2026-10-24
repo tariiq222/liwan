@@ -159,9 +159,9 @@ def requires_capability(*keys, match='all'):
     (tools/route_gate_policy.py enforces the order). The keys are read statically by
     tools/route_gate_policy.py and tools/api_surface.py.
 
-    It checks capabilities the caller holds in the current company only. It cannot grant a
-    contextual (record) capability of a registered scope kind, which needs the record: a handler
-    that depends on one checks it itself with ``_webvue_has_capability(user, key, record=...)``.
+    It selects only companies holding the declared operation capabilities, intersecting earlier
+    gates. It cannot grant contextual (record) capabilities, which still require the record's
+    own permission and native access checks.
     """
     if not keys or not all(isinstance(key, str) and key for key in keys):
         msg = 'requires_capability keys are required'
@@ -173,14 +173,90 @@ def requires_capability(*keys, match='all'):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            error = _capability_error(keys, match)
-            if error:
-                raise error
+            require_capabilities(*keys, match=match)
             return func(*args, **kwargs)
         wrapper._webvue_capability_keys = keys
         wrapper._webvue_capability_match = match
         return wrapper
     return decorator
+
+
+def declare_read_capability_scope(*keys, match='all'):
+    """Scope a known contextual GET reader without replacing its record authorization.
+
+    Keep the current company's native/contextual baseline and add only branches holding this
+    operation's capabilities. Earlier gates still intersect. The native fence permits branch
+    reads only under this marker, even if another role would supply a native write ACL.
+    """
+    if (not keys or not all(isinstance(key, str) and key for key in keys)
+            or match not in ('all', 'any') or request.httprequest.method != 'GET'):
+        msg = 'read capability scope requires a GET and capability keys with all/any match'
+        raise ValueError(msg)
+    catalog = request.env['webvue.access.service']._webvue_capability_map()
+    if any(key not in catalog for key in keys):
+        msg = 'read capability scope requires known capability keys'
+        raise ValueError(msg)
+    previous = request.env.context.get('webvue_capability_scope') or ()
+    gate = (tuple(keys), match, 'contextual_read')
+    _pin_current_company(previous if gate in previous else (*previous, gate))
+
+
+def require_capabilities(*keys, match='all'):
+    """Declare an imperative capability gate with the decorator's exact company scope.
+
+    Multiple gates intersect, so a later operation can only narrow earlier grants.
+    Capability predicates themselves have no scope-changing side effects.
+    """
+    if not keys or not all(isinstance(key, str) and key for key in keys) or match not in ('all', 'any'):
+        msg = 'capability keys and all/any match are required'
+        raise ValueError(msg)
+    error = _capability_error(keys, match)
+    if request.env.uid and not request.env.user._is_public():
+        previous = request.env.context.get('webvue_capability_scope') or ()
+        gate = (tuple(keys), match)
+        scopes = previous if gate in previous else (*previous, gate)
+        _pin_current_company(scopes)
+        if request.env['webvue.access.service']._webvue_scoped_company_ids():
+            return
+    elif not error:
+        return
+    if error:
+        raise error
+    raise ApiError(403, 'forbidden', 'capabilities are not granted in the same company')
+
+
+def _pin_current_company(scope=None):
+    """Overwrite all client company context with the server session's operation scope.
+
+    A declared gate admits only descendant memberships authorized for its exact keys.
+    Routes without one remain current-only. Native per-model/per-operation fences
+    independently restrict stock ACLs, so an any gate cannot lend one app another's grant.
+    """
+    env = request.env
+    if env.uid and not env.user._is_public():
+        current = env.user.company_id
+        request.update_context(allowed_company_ids=[current.id], webvue_capability_scope=None,
+                               webvue_pinned_company_ids=[current.id])
+        if scope:
+            request.update_context(webvue_capability_scope=scope)
+            pinned = request.env['webvue.access.service']._webvue_scoped_company_ids()
+            # env.company must remain the session company even when it has no matching grant.
+            allowed = [current.id, *[company_id for company_id in pinned if company_id != current.id]]
+            request.update_context(allowed_company_ids=allowed, webvue_capability_scope=scope,
+                                   webvue_pinned_company_ids=pinned)
+
+
+def _reject_foreign_company_payload(kwargs):
+    """Not-found when a write payload pins a company outside the request set.
+
+    Runs before any write on every non-GET /api/v1 route: a payload company_id
+    outside the pinned companies is answered exactly like a missing record and
+    writes nothing.
+    """
+    company_id = kwargs.get('company_id')
+    if isinstance(company_id, int) and not isinstance(company_id, bool) \
+            and company_id not in request.env.companies.ids:
+        raise MissingError(request.env._("Record does not exist"))
 
 
 def api_handler(func):
@@ -192,6 +268,10 @@ def api_handler(func):
             # so Odoo would otherwise commit mutations performed before the error.
             # Catch outside the savepoint to guarantee an atomic request operation.
             with request.env.cr.savepoint():
+                keys = getattr(func, '_webvue_capability_keys', None)
+                scope = ((keys, getattr(func, '_webvue_capability_match', 'all')),) if keys else None
+                _pin_current_company(scope)
+                _reject_foreign_company_payload(kwargs)
                 request.env['webvue.entitlement.service'].sudo()._webvue_guard_api()
                 return func(*args, **kwargs)
         except ApiError as e:
@@ -222,7 +302,16 @@ def get_record(model, rec_id):
     """
     record = request.env[model].browse(int(rec_id))
     if not record.exists():
-        raise MissingError(request.env._("%(model)s %(id)s does not exist", model=model, id=rec_id))
+        raise MissingError(request.env._("Record does not exist"))
+    if 'company_id' in record._fields:
+        # Another company's record is not-found, before any access check, with
+        # the exact not-found wording so the answer leaks nothing. Reading
+        # company_id through sudo is the documented exception: the pinned rule
+        # would otherwise raise AccessError before the comparison and leak
+        # existence through a 403.
+        owner_company = record.sudo().company_id
+        if owner_company and owner_company not in request.env.companies:
+            raise MissingError(request.env._("Record does not exist"))
     record.check_access('read')
     return record
 

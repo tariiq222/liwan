@@ -74,7 +74,9 @@ class TestProjectGovernance(WebVuePmoCase):
         other = self.env['project.project'].create({'name': 'Foreign', 'company_id': other_company.id})
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         response = self.api('GET', f'/api/v1/projects/{other.id}/stakeholders')
-        self.assertEqual(response.status_code, 403)
+        # Another company's project is not-found, not forbidden: the answer
+        # must not reveal that the record exists.
+        self.assertEqual(response.status_code, 404)
 
     def test_direct_orm_reader_cannot_unlink_batch(self):
         stakeholder = self.env['webvue.project.stakeholder'].with_user(self.manager).create({'project_id': self.project.id, 'name': 'Sponsor'})
@@ -230,7 +232,8 @@ class TestProjectGovernance(WebVuePmoCase):
         self.authenticate('api_emp', 'api_emp_pass_123')
         for resource in ('stakeholders', 'raci', 'register'):
             self.assertEqual(self.api('POST', f'{self.governance_url}/{resource}', {}).status_code, 403)
-            self.assertEqual(self.api('GET', f'/api/v1/projects/{other.id}/{resource}').status_code, 403)
+            # Another company's project is not-found, never a 403 that marks it real.
+            self.assertEqual(self.api('GET', f'/api/v1/projects/{other.id}/{resource}').status_code, 404)
 
     def test_sql_uniqueness_rejects_second_a_and_duplicate_pair(self):
         model = self.env['webvue.project.raci'].with_user(self.manager)

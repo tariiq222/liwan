@@ -27,7 +27,7 @@ const meta = {
   component: EquipmentTable,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/assets.vue:221', 'جدول الأصول داخل بطاقة القائمة: الاسم والرقم التسلسلي، والتصنيف، والمُسلَّم إليه، وتاريخ التسليم، وحالة الأصل.'),
+    ...storyContext('apps/web/app/pages/hr/assets.vue:220', 'جدول الأصول داخل بطاقة القائمة: الاسم والرقم التسلسلي، والتصنيف، والمُسلَّم إليه، وتاريخ التسليم، وحالة الأصل.'),
   },
   args: { equipment, rowTo: () => '/hr/assets/5', caption: 'العهد والأصول' },
   render: args => ({

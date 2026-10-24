@@ -200,15 +200,15 @@ class TestCharterApproval(WebVuePmoCase):
     def test_submit_rejects_sponsor_who_cannot_see_the_project(self):
         self._policy(True)
         service = self.env['webvue.access.service']
-        # The sponsor keeps pmo.projects.read in this company but loses access to it,
-        # so only the visibility check (not the capability check) can refuse them.
+        # Removing company membership also revokes the company's effective capability.
+        # Neither a legacy native group nor a saved role can bypass that membership fence.
         self.env.cr.execute(
             'DELETE FROM res_company_users_rel WHERE user_id = %s AND cid = %s',
             [self.sponsor.id, self.project.company_id.id],
         )
         self.env.invalidate_all()
         self.env.registry.clear_cache()
-        self.assertTrue(service._webvue_has_capability(self.sponsor, 'pmo.projects.read', company=self.project.company_id))
+        self.assertFalse(service._webvue_has_capability(self.sponsor, 'pmo.projects.read', company=self.project.company_id))
         with self.assertRaises(ValidationError):
             self._as(self.manager)._webvue_charter_submit()
         self.assertEqual(self.project.webvue_charter_state, 'draft')

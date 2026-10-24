@@ -3,10 +3,12 @@ import { formatDate, formatTime } from '@webvue/ui/app/utils/formatDate'
 import { AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema, type AiRunSummary } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useAiRunActions, useAiRuns } from '@/composables/useAiRuns'
+import { filterRunsByTitle, groupRunsByDate } from '@/utils/aiRunGroups'
 
 // The AI manifest's context-sidebar panel (AppManifest.sidebarPanel): the user's own conversations beside the open thread; below 768px
 // the /ai page mounts this same component with `disclosure`: a toggle that opens the list inline (never an overlay) and closes
-// again when a conversation or "new" is chosen.
+// again when a conversation or "new" is chosen. The runs are grouped by date and filtered live by the search field (client side,
+// over the loaded titles).
 // The selected one is the `?run=` of the route; the page reacts to the route, so the rows only link. A row can be renamed in
 // place or archived (both reversible); the archived ones are one toggle away and an open conversation stays open when archived.
 const props = defineProps<{ disclosure?: boolean }>()
@@ -34,6 +36,9 @@ const isToday = (value: string) => new Date(value).toDateString() === new Date()
 const shortDate = (run: AiRunSummary) => (isToday(run.updated_at) ? formatTime(run.updated_at) : formatDate(run.updated_at))
 const hint = (run: AiRunSummary) => (run.status === 'waiting_user' ? t('ai.history.waiting') : run.status === 'failed' ? t('ai.history.failed') : null)
 const titleOf = (run: AiRunSummary) => run.title ?? t('ai.history.untitled')
+const query = ref('')
+const groups = computed(() => groupRunsByDate(filterRunsByTitle(items.value, query.value, titleOf)))
+const emptyText = computed(() => (query.value.trim() ? t('ai.history.noMatch') : showArchived.value ? t('ai.history.emptyArchived') : t('ai.history.empty')))
 
 const announcement = ref('')
 const views = computed(() => [
@@ -124,7 +129,10 @@ const actionsOf = (run: AiRunSummary) => [
       data-testid="ai-history-toggle"
       @click="open = !open"
     />
-    <h2 v-else class="px-4 pt-3 text-sm font-semibold text-highlighted">{{ t('ai.history.title') }}</h2>
+    <div v-else class="flex items-center gap-2.5 px-4 pt-4">
+      <AiAvatar size="md" />
+      <h2 class="text-base font-semibold text-highlighted">{{ t('ai.name') }}</h2>
+    </div>
     <div
       v-if="expanded"
       id="ai-run-list-body"
@@ -133,7 +141,8 @@ const actionsOf = (run: AiRunSummary) => [
       @click="closeOnNavigate"
     >
       <div class="flex flex-col gap-2 p-3">
-        <UButton to="/ai" block color="neutral" variant="soft" :class="TOUCH_TARGET" icon="i-lucide-plus" :label="t('ai.history.new')" data-testid="ai-new-run" />
+        <UButton to="/ai" block class="rounded-full" :class="TOUCH_TARGET" icon="i-lucide-plus" :label="t('ai.history.new')" data-testid="ai-new-run" />
+        <UInput v-model="query" :disabled="!hydrated" type="search" size="sm" class="w-full" :ui="{ base: 'rounded-full' }" icon="i-lucide-search" :placeholder="t('ai.history.search')" :aria-label="t('ai.history.search')" data-testid="ai-run-search" />
         <SharedSegmentedControl
           block
           :class="TOUCH_TARGET_BUTTONS"
@@ -147,50 +156,56 @@ const actionsOf = (run: AiRunSummary) => [
       <SharedPageState
         :loading="!hydrated || isLoading"
         :error="isError ? error : undefined"
-        :empty="!items.length"
-        :empty-text="showArchived ? t('ai.history.emptyArchived') : t('ai.history.empty')"
+        :empty="!groups.length"
+        :empty-text="emptyText"
         @retry="refetch()"
       >
-        <ul class="min-h-0 flex-1 overflow-y-auto">
-          <li v-for="run in items" :key="run.run_id" class="flex items-start">
-            <form v-if="editingId === run.run_id" class="flex min-w-0 flex-1 flex-col gap-1 px-4 py-2.5" data-testid="ai-run-rename" @submit.prevent="commitRename(run)">
-              <UInput
-                :ref="bindEditor"
-                v-model="draft"
-                size="sm"
-                dir="auto"
-                :maxlength="AI_RUN_TITLE_MAX_CHARS"
-                :readonly="saving"
-                :aria-label="t('ai.history.rename.label')"
-                :aria-invalid="Boolean(renameError)"
-                :aria-describedby="renameError ? `ai-rename-error-${run.run_id}` : undefined"
-                data-testid="ai-run-rename-input"
-                @keydown.esc.prevent="cancelRename"
-                @blur="commitRename(run)"
-              />
-              <p v-if="renameError" :id="`ai-rename-error-${run.run_id}`" role="alert" class="text-xs text-error" data-testid="ai-run-rename-error">{{ renameError }}</p>
-            </form>
-            <template v-else>
-              <NuxtLink
-                :to="{ path: '/ai', query: { run: run.run_id } }"
-                class="flex min-w-0 flex-1 flex-col gap-0.5 px-4 py-2.5 text-start hover:bg-elevated focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary data-[selected=true]:bg-elevated"
-                :data-selected="run.run_id === selectedId"
-                :aria-current="run.run_id === selectedId ? 'page' : undefined"
-                data-testid="ai-run-item"
-              >
-                <span dir="auto" class="truncate text-sm font-medium text-highlighted">{{ titleOf(run) }}</span>
-                <span class="flex items-center justify-between gap-2 text-xs text-muted">
-                  <time :datetime="run.updated_at">{{ shortDate(run) }}</time>
-                  <span v-if="hint(run)" :class="run.status === 'failed' ? 'text-error' : 'text-warning'">{{ hint(run) }}</span>
-                </span>
-              </NuxtLink>
-              <div :class="['shrink-0 pe-2 pt-1.5 max-md:self-center max-md:pt-0', TOUCH_TARGET_ROW_ACTION]">
-                <SharedRowActions :actions="actionsOf(run)" :label="t('ai.history.actions.menu', { title: titleOf(run) })" />
-              </div>
-            </template>
-          </li>
-        </ul>
+        <div class="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+          <section v-for="group in groups" :key="group.key" :aria-label="t(`ai.history.groups.${group.key}`)" class="flex flex-col gap-0.5 pb-2">
+            <h3 class="px-2 py-1 text-xs text-muted">{{ t(`ai.history.groups.${group.key}`) }}</h3>
+            <ul class="flex flex-col gap-0.5">
+              <li v-for="run in group.runs" :key="run.run_id" class="flex items-start">
+                <form v-if="editingId === run.run_id" class="flex min-w-0 flex-1 flex-col gap-1 px-2 py-2" data-testid="ai-run-rename" @submit.prevent="commitRename(run)">
+                  <UInput
+                    :ref="bindEditor"
+                    v-model="draft"
+                    size="sm"
+                    dir="auto"
+                    :maxlength="AI_RUN_TITLE_MAX_CHARS"
+                    :readonly="saving"
+                    :aria-label="t('ai.history.rename.label')"
+                    :aria-invalid="Boolean(renameError)"
+                    :aria-describedby="renameError ? `ai-rename-error-${run.run_id}` : undefined"
+                    data-testid="ai-run-rename-input"
+                    @keydown.esc.prevent="cancelRename"
+                    @blur="commitRename(run)"
+                  />
+                  <p v-if="renameError" :id="`ai-rename-error-${run.run_id}`" role="alert" class="text-xs text-error" data-testid="ai-run-rename-error">{{ renameError }}</p>
+                </form>
+                <template v-else>
+                  <NuxtLink
+                    :to="{ path: '/ai', query: { run: run.run_id } }"
+                    class="flex min-w-0 flex-1 flex-col gap-0.5 rounded-control px-3 py-2 text-start hover:bg-elevated focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary data-[selected=true]:bg-(--webvue-nav-active) data-[selected=true]:text-(--webvue-rail-active-ink)"
+                    :data-selected="run.run_id === selectedId"
+                    :aria-current="run.run_id === selectedId ? 'page' : undefined"
+                    data-testid="ai-run-item"
+                  >
+                    <span dir="auto" :class="['truncate text-sm font-medium', run.run_id === selectedId ? 'text-(--webvue-rail-active-ink)' : 'text-highlighted']">{{ titleOf(run) }}</span>
+                    <span class="flex items-center justify-between gap-2 text-xs text-muted">
+                      <time :datetime="run.updated_at">{{ shortDate(run) }}</time>
+                      <span v-if="hint(run)" :class="run.status === 'failed' ? 'text-error' : 'text-warning'">{{ hint(run) }}</span>
+                    </span>
+                  </NuxtLink>
+                  <div :class="['shrink-0 pt-1 max-md:self-center max-md:pt-0', TOUCH_TARGET_ROW_ACTION]">
+                    <SharedRowActions :actions="actionsOf(run)" :label="t('ai.history.actions.menu', { title: titleOf(run) })" />
+                  </div>
+                </template>
+              </li>
+            </ul>
+          </section>
+        </div>
       </SharedPageState>
+      <p class="m-3 mt-auto rounded-control bg-elevated p-3 text-xs leading-6 text-muted" data-testid="ai-privacy-note">{{ t('ai.history.privacy') }}</p>
     </div>
   </section>
 </template>

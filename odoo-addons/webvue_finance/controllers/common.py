@@ -8,21 +8,18 @@ from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     parse_page,
     parse_positive_int,
+    require_capabilities,
 )
 
 ISO_DAY = re.compile(r'\d{4}-\d{2}-\d{2}', re.ASCII)
 
 
 def require_capability(capability):
-    service = request.env['webvue.access.service']
-    if not service._webvue_has_capability(request.env.user, capability):
-        raise ApiError(403, 'forbidden', f'{capability} capability is required')
+    require_capabilities(capability)
 
 
 def require_any_capability(capabilities):
-    service = request.env['webvue.access.service']
-    if not any(service._webvue_has_capability(request.env.user, capability) for capability in capabilities):
-        raise ApiError(403, 'forbidden', f'one of {", ".join(capabilities)} capability is required')
+    require_capabilities(*capabilities, match='any')
 
 
 def parse_choice(value, allowed, field):

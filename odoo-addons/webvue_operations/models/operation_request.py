@@ -253,9 +253,9 @@ class OperationRequest(models.Model):
     def _operations_allowed_actions(self):
         self.ensure_one()
         service = self.env['webvue.access.service']
-        writable = self.env['webvue.entitlement.service']._webvue_feature_write('operations.enabled') and self.env.user.active
-        creator = writable and self.requester_id == self.env.user and service._webvue_has_capability(self.env.user, 'operations.requests.create')
-        reviewer = writable and self.state == 'pending' and self.requester_id != self.env.user and service._webvue_has_capability(self.env.user, 'operations.requests.review') and bool(self._tier_eligible_reviews(self.review_ids))
+        writable = self.company_id == self.env.company and self.env['webvue.entitlement.service']._webvue_feature_write('operations.enabled') and self.env.user.active
+        creator = writable and self.requester_id == self.env.user and service._webvue_has_capability(self.env.user, 'operations.requests.create', record=self)
+        reviewer = writable and self.state == 'pending' and self.requester_id != self.env.user and service._webvue_has_capability(self.env.user, 'operations.requests.review', record=self) and bool(self._tier_eligible_reviews(self.review_ids))
         editable = creator and self.state in ('draft', 'returned')
         return {'edit': bool(editable), 'submit': bool(editable), 'approve': bool(reviewer), 'reject': bool(reviewer), 'return': bool(reviewer), 'withdraw': bool(creator and self.state in ('draft', 'returned', 'pending'))}
 
@@ -286,17 +286,3 @@ class OperationEvent(models.Model):
 
     def unlink(self):
         raise AccessError(self.env._('Audit evidence must be preserved.'))
-
-
-class OperationsUsers(models.Model):
-    _inherit = 'res.users'
-
-    def _operations_can_monitor(self, company_id):
-        self.ensure_one()
-        env = self.with_user(self.id).with_context(allowed_company_ids=[company_id]).env
-        return env['webvue.access.service']._webvue_has_capability(env.user, 'operations.monitoring.read', company=env.company)
-
-    def _operations_can_manage(self, company_id):
-        self.ensure_one()
-        env = self.with_user(self.id).with_context(allowed_company_ids=[company_id]).env
-        return env['webvue.access.service']._webvue_has_capability(env.user, 'operations.processes.manage', company=env.company)

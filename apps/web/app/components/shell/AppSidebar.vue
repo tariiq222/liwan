@@ -17,8 +17,8 @@ const route = useRoute()
 const showContext = computed(() => !hasNoContextSidebar(route.path))
 const { t } = useI18n()
 const quick = useQuickViews()
-const { activeModule, rail, homePath, contextTitle, contextLabelKey, contextLinks, panel, panelView, motionKey, createTo } = useShellModel()
-const { expanded, hydrated, toggle, preference } = useContextSidebar()
+const { railActive, rail, homePath, contextTitle, contextLabelKey, contextLinks, panel, panelView, motionKey, createTo } = useShellModel()
+const { expanded, hydrated, forced, toggle, preference } = useContextSidebar()
 const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 const model = computed(() => sidebarModel({
   links: contextLinks.value,
@@ -41,7 +41,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 </script>
 
 <template>
-  <ModuleRail :modules="rail.primary" :utility="rail.utility" :active-id="activeModule" :home-to="homePath" />
+  <ModuleRail :rail="rail" :active-id="railActive" :home-to="homePath" />
   <div v-if="showContext" class="webvue-context-column">
     <ContextSidebar
       :title="contextTitle"
@@ -52,6 +52,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
       :expanded="expanded"
       :preference="preference"
       :hydrated="hydrated"
+      :locked="forced"
       :panel="panelView"
       :render-panel="isDesktop"
       :panel-width="panel?.width ?? 'default'"

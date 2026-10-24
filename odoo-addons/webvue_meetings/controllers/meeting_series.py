@@ -11,6 +11,7 @@ from odoo.addons.webvue_api.controllers.common import (
     get_record,
     parse_nonneg_int,
     parse_positive_int,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_meetings.serializers.meeting import (
@@ -51,7 +52,7 @@ class MeetingSeriesController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='read')
     def list_series(self, **_):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         args = request.httprequest.args
         limit = min(parse_nonneg_int(args.get('limit', 50), 'limit') or 50, MAX_SERIES)
         offset = parse_nonneg_int(args.get('offset', 0), 'offset')
@@ -75,14 +76,14 @@ class MeetingSeriesController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='read')
     def get_series(self, series_id, **_):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         return dump_series(get_record('webvue.meeting.series', series_id), detail=True)
 
     @http.route('/api/v1/meeting-series/<int:series_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
     def patch_series(self, series_id, **payload):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         series = get_record('webvue.meeting.series', series_id)
         if not series._webvue_is_editor():
             raise ApiError(403, 'forbidden', 'Only the organizer, secretary or a meetings manager may edit this series.')
@@ -119,7 +120,7 @@ class MeetingSeriesController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
     def create_series(self, name=None, project_id=None, secretary_id=None, attendee_ids=None, recurrence='none', until_date=None, until_count=None, location=None, meeting_url=None, start_datetime=None, end_datetime=None, **_):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.create')
+        require_capabilities('meetings.create')
         if not isinstance(name, str) or not name.strip():
             raise ApiError(422, 'invalid', 'name must not be empty', field='name')
         if recurrence not in RECURRENCE:
@@ -160,7 +161,7 @@ class MeetingSeriesController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
     def add_occurrence(self, series_id, start_datetime=None, end_datetime=None, name=None, **_):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.create')
+        require_capabilities('meetings.create')
         series = get_record('webvue.meeting.series', series_id)
         start = _parse_series_datetime(start_datetime, 'start_datetime') if start_datetime is not None else None
         stop = _parse_series_datetime(end_datetime, 'end_datetime') if end_datetime is not None else None

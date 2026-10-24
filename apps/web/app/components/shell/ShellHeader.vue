@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 import AppAccountMenu from '@/components/shell/AppAccountMenu.vue'
+import AssistantButton from '@/components/shell/AssistantButton.vue'
 import GlobalSearch from '@/components/shell/GlobalSearch.vue'
 import MobileNavigation from '@/components/shell/MobileNavigation.vue'
 import NotificationCenter from '@/components/notifications/NotificationCenter.vue'
@@ -14,13 +15,13 @@ import { useContextSidebar } from '@/composables/useShellNavigation'
 import { useShellShortcuts } from '@/composables/useShellShortcuts'
 
 // The 56px neutral header (spec §5): tenant mark, the ⌘K command palette,
-// bell, account (which also holds language and appearance).
+// the assistant button, bell, account (which also holds language and appearance).
 // It also hosts the shell's one keyboard listener (useShellShortcuts).
 const { t } = useI18n()
 const route = useRoute()
 const { branding } = useBranding()
 const { can } = useAccess()
-const { activeModule, rail, homePath, contextTitle, contextLabelKey, contextLinks, panel, createTo } = useShellModel()
+const { railActive, rail, homePath, contextTitle, contextLabelKey, contextLinks, panel, createTo } = useShellModel()
 const { expanded } = useContextSidebar()
 const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 // The tenant's own mark: its logo, else its initials on the primary colour. A tenant without a
@@ -63,8 +64,8 @@ useShellShortcuts({
     <div class="webvue-shell-header-start">
       <MobileNavigation
         v-model:open="mobileOpen"
-        :modules="rail.all"
-        :active-id="activeModule"
+        :modules="rail.drawer"
+        :active-id="railActive"
         :title="contextTitle"
         :create-links="mobileCreateLinks"
         :sections="mobile.sections"
@@ -82,6 +83,7 @@ useShellShortcuts({
       <GlobalSearch />
     </div>
     <div class="webvue-shell-header-actions">
+      <AssistantButton />
       <NotificationCenter v-if="can('webvue.notifications')" />
       <AppAccountMenu />
     </div>

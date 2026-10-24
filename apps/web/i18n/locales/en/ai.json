@@ -2,6 +2,52 @@
   "ai": {
     "title": "WebVue AI",
     "description": "Ask about your tasks and projects, and request what you want prepared. WebVue AI prepares, you approve.",
+    "name": "Assistant",
+    "greeting": "Hello {name}",
+    "greetingAnonymous": "Hello",
+    "prompt": "How can I help with your work today?",
+    "note": "It only suggests and explains. It never approves or sends anything for you.",
+    "glance": {
+      "title": "Your morning at a glance",
+      "urgent": "Urgent"
+    },
+    "starters": {
+      "label": "Questions to start with",
+      "overdue": "Which of my tasks are overdue?",
+      "projects": "How are my active projects doing?",
+      "week": "What do I have this week?",
+      "meetings": "What are my upcoming meetings?"
+    },
+    "followUps": {
+      "label": "Follow-up questions",
+      "summary": "Summarise that briefly",
+      "next": "What is the next step?",
+      "risks": "Is there anything that needs attention?",
+      "projectRisks": "What are this project's risks?",
+      "projectTasks": "Which of its tasks are overdue?",
+      "projectNext": "What is the next step in this project?",
+      "taskBlockers": "What is blocking this task?",
+      "taskNext": "What is the next step for it?",
+      "taskRelated": "Which tasks are related to it?",
+      "financeOverdue": "Which invoices are overdue?",
+      "financeCash": "How is cash looking?",
+      "financeNext": "What in finance needs my follow-up?"
+    },
+    "context": {
+      "chip": "From page: {page}",
+      "pages": {
+        "project": "project",
+        "task": "task",
+        "finance": "finance",
+        "hr": "HR",
+        "meetings": "meetings",
+        "chat": "chat",
+        "documents": "documents",
+        "operations": "operations",
+        "projects": "projects",
+        "tasks": "my tasks"
+      }
+    },
     "composer": {
       "placeholder": "Type your question or request…",
       "send": "Send",
@@ -11,8 +57,10 @@
       "you": "You",
       "assistant": "WebVue AI",
       "thinking": "Thinking…",
-      "empty": "Start with a question like: \"Which of my tasks are overdue?\"",
-      "records": "Records mentioned"
+      "records": "Sources",
+      "copy": "Copy",
+      "copied": "Reply copied",
+      "copyFailed": "Could not copy the reply"
     },
     "tool": {
       "reading": "Read: {summary}",
@@ -75,7 +123,30 @@
         "renamed": "Conversation renamed",
         "archived": "Conversation archived",
         "unarchived": "Conversation restored from the archive"
+      },
+      "search": "Search conversations",
+      "noMatch": "No matching conversations",
+      "privacy": "Your conversations are private. The assistant only sees what you may see.",
+      "groups": {
+        "today": "Today",
+        "week": "Last 7 days",
+        "older": "Older"
       }
+    },
+    "suggestionLabel": "Suggestion",
+    "sheet": {
+      "conversation": "Conversation",
+      "now": {
+        "title": "In this page now",
+        "hide": "Hide",
+        "show": "Show",
+        "empty": "Nothing needs your attention on this page."
+      }
+    },
+    "home": {
+      "title": "Assistant suggestions today",
+      "source": "Suggested from your work",
+      "ask": "Ask the assistant"
     }
   }
 }

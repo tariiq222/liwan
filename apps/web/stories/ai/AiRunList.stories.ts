@@ -51,6 +51,15 @@ export const Failed: Story = {
   name: 'تعذّر التحميل',
   parameters: { msw: { handlers: { api: [http.get('/api/v1/me', () => HttpResponse.json(me)), http.get('/api/ai/runs', () => HttpResponse.json({ data: { code: 'ai_upstream', message: 'down' } }, { status: 502 }))] } } },
 }
+export const Searching: Story = {
+  ...History,
+  name: 'بحث في المحادثات',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.type(await canvas.findByTestId('ai-run-search'), 'مهامي')
+    await waitFor(() => expect(canvas.getAllByTestId('ai-run-item')).toHaveLength(1))
+  },
+}
 export const Archived: Story = {
   ...History,
   name: 'المحادثات المؤرشفة',

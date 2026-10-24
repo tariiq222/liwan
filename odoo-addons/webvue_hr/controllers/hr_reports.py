@@ -3,8 +3,8 @@ from odoo import http
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
-    ApiError,
     api_handler,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_hr.serializers.hr_report import dump_expiring, parse_within_days
@@ -15,8 +15,7 @@ def _can(capability):
 
 
 def _require(capability):
-    if not _can(capability):
-        raise ApiError(403, 'forbidden', f'{capability} capability is required')
+    require_capabilities(capability)
 
 
 class HrReportController(http.Controller):

@@ -63,7 +63,7 @@ class FinanceDocumentController(http.Controller):
             raise MissingError(request.env._('account.move %(id)s does not exist', id=invoice_id))
         require_state(invoice, 'posted', 'not_posted')
         service = request.env['webvue.access.service']
-        with_payments = service._webvue_has_capability(request.env.user, 'finance.payments.read')
+        with_payments = service._webvue_has_capability(request.env.user, 'finance.payments.read', record=invoice)
         content = _render(INVOICE_REPORT if with_payments else INVOICE_REPORT_WITHOUT_PAYMENTS, invoice)
         return request.make_response(content, headers=[
             ('Content-Type', 'application/pdf'),

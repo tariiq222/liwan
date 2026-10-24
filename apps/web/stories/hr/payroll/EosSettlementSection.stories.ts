@@ -39,7 +39,7 @@ const meta = {
   component: EosSettlementSection,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/offboarding/[employeeId].vue:121', 'قسم تسوية نهاية الخدمة في سجل مغادرة الموظف: تقدير المكافأة وبدل الإجازة، وحفظ المسودة بحالتها وخصوماتها، واعتماد التسوية بتأكيد مضمّن يبقى معلّقًا حتى يردّ الخادم.'),
+    ...storyContext('apps/web/app/pages/hr/offboarding/[employeeId].vue:122', 'قسم تسوية نهاية الخدمة في سجل مغادرة الموظف: تقدير المكافأة وبدل الإجازة، وحفظ المسودة بحالتها وخصوماتها، واعتماد التسوية بتأكيد مضمّن يبقى معلّقًا حتى يردّ الخادم.'),
   },
   args: {
     settlement: null,

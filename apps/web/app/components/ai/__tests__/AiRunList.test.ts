@@ -8,6 +8,7 @@ import { vueBindings } from '../../../../tests/vueBindings'
 import { AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema } from '@webvue/contracts'
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../../composables/useApi'
+import { filterRunsByTitle, groupRunsByDate } from '../../../utils/aiRunGroups'
 
 const filename = resolve(import.meta.dirname, '../AiRunList.vue')
 const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
@@ -22,6 +23,7 @@ const messages: Record<string, string> = {
   'ai.history.title': 'محادثات أخيرة', 'ai.history.new': 'محادثة جديدة', 'ai.history.empty': 'لا محادثات بعد',
   'ai.history.waiting': 'بانتظار قرارك', 'ai.history.failed': 'تعذّر إكمالها', 'ai.history.untitled': 'بلا عنوان',
   'ai.history.emptyArchived': 'لا مؤرشفة', 'ai.history.views.label': 'عرض', 'ai.history.views.active': 'المحادثات', 'ai.history.views.archived': 'المؤرشفة',
+  'ai.history.groups.today': 'اليوم', 'ai.history.groups.older': 'أقدم', 'ai.history.privacy': 'محادثاتك خاصة', 'ai.name': 'المساعد',
   'ai.history.actions.menu': 'خيارات', 'ai.history.actions.rename': 'تغيير الاسم', 'ai.history.actions.archive': 'أرشفة', 'ai.history.actions.unarchive': 'إلغاء الأرشفة',
 }
 const runs = [
@@ -33,7 +35,7 @@ const runs = [
 
 async function renderList(options: { runs?: typeof runs; run?: string; loading?: boolean; error?: unknown; hydrated?: boolean } = {}) {
   const bindings = {
-    ...vueBindings, exports: {}, _defineComponent: Vue.defineComponent, ApiError, AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema,
+    ...vueBindings, exports: {}, _defineComponent: Vue.defineComponent, ApiError, AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema, filterRunsByTitle, groupRunsByDate,
     useToast: () => ({ add: () => {} }), useAiRunActions: () => ({ rename: async () => {}, setArchived: async () => {} }),
     formatDate: (value: string) => `D:${value.slice(0, 10)}`, formatTime: (value: string) => `T:${new Date(value).getHours()}`,
     useAiRuns: () => ({ data: Vue.ref(options.error || options.loading ? undefined : { items: options.runs ?? runs, total: (options.runs ?? runs).length }), isLoading: Vue.ref(options.loading ?? false), isError: Vue.ref(Boolean(options.error)), error: Vue.ref(options.error), refetch: () => {} }),
@@ -44,6 +46,8 @@ async function renderList(options: { runs?: typeof runs; run?: string; loading?:
   const component = new Function(...Object.keys(bindings), js(script))(...Object.values(bindings))
   const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => ({ ...component.setup({}, { expose: () => {}, emit: () => {} }) }), render }))
   app.component('NuxtLink', Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h('a', { ...attrs, to: undefined, href: `${(attrs.to as any).path}?run=${(attrs.to as any).query.run}` }, slots.default?.()) }))
+  app.component('AiAvatar', Vue.defineComponent({ setup: () => () => Vue.h('i', { 'data-testid': 'ai-avatar' }) }))
+  app.component('UInput', Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('input', { type: 'search', 'data-testid': attrs['data-testid'] as string }) }))
   app.component('UButton', Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('a', { href: attrs.to as string, 'data-testid': attrs['data-testid'] as string }, String(attrs.label)) }))
   app.component('SharedSegmentedControl', Vue.defineComponent({
     inheritAttrs: false, props: ['items', 'label'],
@@ -81,6 +85,12 @@ describe('AiRunList', () => {
     expect(html.match(/تعذّر إكمالها/g)).toHaveLength(1)
     expect(html.match(/aria-current="page"/g)).toHaveLength(1)
     expect(html).toMatch(/href="\/ai\?run=r_2"[^>]*aria-current="page"|aria-current="page"[^>]*href="\/ai\?run=r_2"/)
+  })
+
+  it('groups runs under date headings and ends with the privacy note', async () => {
+    const html = await renderList()
+    expect(html).toMatch(/<h3[^>]*>اليوم<\/h3>[\s\S]*<h3[^>]*>أقدم<\/h3>/)
+    expect(html).toMatch(/data-testid="ai-privacy-note">محادثاتك خاصة<\/p>/)
   })
 
   it('offers the two views as a labelled group', async () => {

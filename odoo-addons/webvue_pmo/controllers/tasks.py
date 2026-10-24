@@ -12,6 +12,7 @@ from odoo.addons.webvue_api.controllers.common import (
     get_record,
     parse_nonneg_int,
     parse_positive_int,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_pmo.models.project_task import _validate_task_deliverables
@@ -179,9 +180,7 @@ class TaskController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def list_tasks(self, **_):
-        request.env['webvue.access.service']._webvue_require_capability(
-            'pmo.tasks.read',
-        )
+        require_capabilities('pmo.tasks.read')
         # type='json2' routes only merge the JSON body with path args — the query string
         # is not passed as kwargs (see odoo/http.py Json2Dispatcher). Read it ourselves.
         args = request.httprequest.args
@@ -211,9 +210,7 @@ class TaskController(http.Controller):
         `open` is unfinished tasks, `overdue` the open ones past their deadline, and `done` completed tasks only;
         a cancelled task counts in `total` but in neither `open` nor `done`. `closed` and paging keys are ignored.
         """
-        request.env['webvue.access.service']._webvue_require_capability(
-            'pmo.tasks.read',
-        )
+        require_capabilities('pmo.tasks.read')
         domain = _filtered_task_domain(request.httprequest.args)
         if domain is None:
             return {'total': 0, 'open': 0, 'overdue': 0, 'done': 0}
@@ -233,9 +230,7 @@ class TaskController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def get_task(self, task_id):
-        request.env['webvue.access.service']._webvue_require_capability(
-            'pmo.tasks.read',
-        )
+        require_capabilities('pmo.tasks.read')
         task = get_record('project.task', task_id)
         return dump_task_detail(task)
 

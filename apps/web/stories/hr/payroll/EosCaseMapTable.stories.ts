@@ -15,7 +15,7 @@ const meta = {
   component: EosCaseMapTable,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:83', 'جدول حالات نهاية الخدمة في إعدادات الرواتب: الحالة التي يُحسب بها استحقاق كل سبب مغادرة.'),
+    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:87', 'جدول حالات نهاية الخدمة في إعدادات الرواتب: الحالة التي يُحسب بها استحقاق كل سبب مغادرة.'),
   },
   args: { mappings: [...mappings], canEdit: true, saving: [] },
   render: args => ({

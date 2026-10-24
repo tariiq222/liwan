@@ -258,6 +258,9 @@
     "card": {
       "subtasks": "Subtasks",
       "attachments": "Attachments"
+    },
+    "attention": {
+      "startOverdue": "Start with the longest overdue task."
     }
   }
 }

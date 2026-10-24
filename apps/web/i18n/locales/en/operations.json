@@ -158,6 +158,9 @@
       "new": "Request an employee service",
       "leaveRequests": "Track leave requests",
       "returned": "This request was returned for you to complete."
+    },
+    "attention": {
+      "from": "From {name}"
     }
   }
 }

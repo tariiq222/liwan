@@ -155,11 +155,9 @@ class TestHrShiftSettings(WebVueHrCase):
         result = self.api('PATCH', '/api/v1/hr/shifts/settings', {
             'day_reference': 'user', 'revision': 0, 'company_id': self.other_company.id,
         })
-        # Without the later global branch-selector guard, the settings schema
-        # rejects company_id as unwritable before creating any company record.
-        self.assertEqual(result.status_code, 422, result.text)
-        self.assertEqual(result.json()['code'], 'invalid')
-        self.assertEqual(result.json()['field'], 'company_id')
+        # The company fence now rejects foreign selectors before route parsing.
+        self.assertEqual(result.status_code, 404, result.text)
+        self.assertEqual(result.json()['code'], 'not_found')
         self.assertFalse(self.env['webvue.hr.shift.settings'].search([]))
 
     def test_raw_search_and_read_reject_revoked_employee_capability(self):

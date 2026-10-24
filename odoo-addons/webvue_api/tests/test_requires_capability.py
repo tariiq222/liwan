@@ -12,6 +12,7 @@ class _Env:
     """A request.env stand-in whose access service holds exactly ``held`` and records the keys it was asked."""
 
     user = object()
+    uid = None
 
     def __init__(self, held):
         self.asked = []

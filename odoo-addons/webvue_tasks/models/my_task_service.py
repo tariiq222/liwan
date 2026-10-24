@@ -86,7 +86,9 @@ class WebVueMyTaskService(models.AbstractModel):
 
     @api.model
     def _require(self, key):
-        if not self._has_capability(key):
+        allowed = (self.env['webvue.access.service']._webvue_has_operation_capability(self.env.user, key)
+                   if key == 'tasks.tasks.read' else self._has_capability(key))
+        if not allowed:
             raise ApiError(403, 'forbidden', 'forbidden')
 
     @api.model
@@ -120,7 +122,11 @@ class WebVueMyTaskService(models.AbstractModel):
     @api.model
     def _get_personal(self, task_id):
         self._require('tasks.tasks.read')
-        return self._personal(task_id)
+        task = self._personal(task_id)
+        companies = self.env['webvue.access.service']._webvue_operation_capability_company_ids('tasks.tasks.read')
+        if task.company_id.id not in companies:
+            raise ApiError(404, 'not_found', 'not_found')
+        return task
 
     # list
 
@@ -150,7 +156,8 @@ class WebVueMyTaskService(models.AbstractModel):
             # Odoo's ilike keeps % and _ as wildcards; search the text literally.
             literal = q.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
             domain &= Domain('name', '=ilike', f'%{literal}%')
-        return domain
+        companies = self.env['webvue.access.service']._webvue_operation_capability_company_ids('tasks.tasks.read')
+        return domain & Domain('company_id', 'in', companies)
 
     @api.model
     def _search_list(self, *, closed, q, assigned, created, sort, limit, offset):

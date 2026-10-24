@@ -9,9 +9,11 @@ def current_company():
     return request.env.company
 
 
-def can(capability):
-    """Whether the caller holds ``capability`` in the current company."""
-    return request.env['webvue.access.service']._webvue_has_capability(request.env.user, capability)
+def can(capability, record):
+    """Whether the caller holds ``capability`` in this recruitment record's company."""
+    return request.env['webvue.access.service']._webvue_has_capability(
+        request.env.user, capability, record=record,
+    )
 
 
 def scoped_record(model, record_id, *, active_test=True):
@@ -23,7 +25,7 @@ def scoped_record(model, record_id, *, active_test=True):
     records = request.env[model] if active_test else request.env[model].with_context(active_test=False)
     record = records.search([
         ('id', '=', record_id),
-        ('company_id', '=', current_company().id),
+        ('company_id', 'in', request.env.companies.ids),
     ], limit=1)
     if not record:
         raise MissingError(request.env._('%(model)s %(id)s does not exist', model=model, id=record_id))
@@ -31,8 +33,8 @@ def scoped_record(model, record_id, *, active_test=True):
     return record
 
 
-def company_relation(model, record_id, field):
-    """A payload relation id of the current company → 422 naming the field.
+def company_relation(model, record_id, field, *, company=None):
+    """A visible payload relation in the operation scope, optionally of one owner.
 
     Mirrors the HR employee and department controllers: ``browse`` + ``check_access``
     instead of a guarded ``search``, so a target the caller cannot read answers a 422 about
@@ -43,9 +45,11 @@ def company_relation(model, record_id, field):
     try:
         if not record.exists():
             raise ApiError(422, 'invalid', f'{field} does not reference an existing record', field=field)
-        if record.company_id != current_company():
+        if record.company_id not in request.env.companies:
             raise ApiError(422, 'invalid', f'{field} is outside the current company', field=field)
         record.check_access('read')
+        if company is not None and record.company_id != company:
+            raise ApiError(422, 'invalid', f'{field} belongs to another company', field=field)
     except AccessError:
         raise ApiError(422, 'invalid', f'{field} is not available', field=field) from None
     return record

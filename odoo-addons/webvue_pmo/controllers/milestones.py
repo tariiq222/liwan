@@ -6,6 +6,7 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
+    declare_read_capability_scope,
     get_record,
     requires_feature,
 )
@@ -50,6 +51,7 @@ class MilestoneController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def list_milestones(self, project_id):
+        declare_read_capability_scope('pmo.projects.read')
         project = get_record('project.project', project_id)
         return [dump_milestone(project, m) for m in _sorted(project.milestone_ids)]
 

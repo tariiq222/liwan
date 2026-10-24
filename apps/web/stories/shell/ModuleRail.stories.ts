@@ -7,7 +7,7 @@ const meta = {
   title: 'Shell/ModuleRail',
   component: ModuleRail,
   parameters: { layout: 'fullscreen' },
-  args: { modules: shellRail.primary, utility: shellRail.utility, activeId: 'projects', homeTo: '/projects/dashboard' },
+  args: { rail: shellRail, activeId: 'projects', homeTo: '/' },
 } satisfies Meta<typeof ModuleRail>
 export default meta
 type Story = StoryObj<typeof meta>
@@ -19,3 +19,14 @@ export const Default: Story = {
 }
 
 export const SettingsActive: Story = { ...Default, name: 'الإعدادات نشطة', args: { activeId: 'settings' } }
+
+const assistantItem = { id: 'assistant', labelKey: 'nav.ai', shortLabelKey: 'nav.rail.ai', icon: 'i-lucide-sparkles', to: '/ai', utility: true }
+const utilityWithAssistant = [assistantItem, ...shellRail.utility]
+
+export const AssistantUtility: Story = { ...Default, name: 'أداة فوق الإعدادات', args: { rail: { ...shellRail, utility: utilityWithAssistant }, activeId: 'assistant' } }
+
+export const LauncherActive: Story = { ...Default, name: 'المشغّل نشط', args: { activeId: 'apps' } }
+
+export const FewApplications: Story = { ...Default, name: 'تطبيق واحد', args: { rail: { ...shellRail, applications: shellRail.applications.slice(0, 1) }, activeId: 'apps' } }
+export const NoApplications: Story = { ...Default, name: 'بلا تطبيقات متاحة', args: { rail: { ...shellRail, applications: [] }, activeId: 'apps' } }
+export const Overflow: Story = { ...Default, name: 'تطبيقات كثيرة مع تمويه التمرير', args: { rail: { ...shellRail, applications: Array.from({ length: 16 }, (_, index) => ({ ...shellRail.applications[index % shellRail.applications.length]!, id: `app-${index}` })) }, activeId: 'apps' } }

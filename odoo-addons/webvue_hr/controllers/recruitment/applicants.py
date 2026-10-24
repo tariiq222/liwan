@@ -2,7 +2,7 @@
 from odoo import http
 from odoo.http import request
 
-from .common import can, company_relation, current_company, scoped_record, stage_of
+from .common import can, company_relation, scoped_record, stage_of
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
@@ -26,8 +26,8 @@ def _dump(applicant):
     who may read them: neither capability is implied by recruitment."""
     return dump_applicant(
         applicant,
-        include_department=can('hr.departments.read'),
-        include_employee=can('hr.employees.read'),
+        include_department=can('hr.departments.read', applicant),
+        include_employee=can('hr.employees.read', applicant),
     )
 
 
@@ -58,7 +58,7 @@ class HrRecruitmentApplicantController(http.Controller):
     @requires_capability('hr.recruitment.read')
     def list_applicants(self, **_):
         args = request.httprequest.args
-        domain = [('company_id', '=', current_company().id)]
+        domain = [('company_id', 'in', request.env.companies.ids)]
         q = args.get('q')
         if q:
             domain.append(('partner_name', 'ilike', q))
@@ -92,12 +92,11 @@ class HrRecruitmentApplicantController(http.Controller):
     @requires_capability('hr.recruitment.manage')
     def create_applicant(self, **payload):
         vals = parse_applicant_create(payload)
-        vals['job_id'] = company_relation('hr.job', vals['job_id'], 'job_id').id
-        # The route's company scoping also fixes the applicant's company. The stock compute
-        # would derive it from the job (already validated to be of the current company) by
-        # reading the department, which a caller without hr.departments.read may not read;
-        # writing it here keeps the record company-scoped and its own list complete.
-        vals['company_id'] = current_company().id
+        job = company_relation('hr.job', vals['job_id'], 'job_id')
+        vals['job_id'] = job.id
+        # Preserve the selected job's owner, including an authorized branch. An explicit
+        # value avoids stock's department read for recruiters without department access.
+        vals['company_id'] = job.company_id.id
         applicant = request.env['hr.applicant'].create(vals)
         return request.make_json_response(_dump(applicant), status=201)
 
@@ -165,8 +164,7 @@ class HrRecruitmentApplicantController(http.Controller):
         # The stock conversion creates the hr.employee as the caller through the
         # WebVue-guarded model (which needs hr.employees.manage); the returned
         # act_window action is the Odoo web client's, not ours.
-        applicant.create_employee_from_applicant()
-        employee = applicant.employee_id
+        employee = applicant._webvue_hire()
         if not employee:
             raise ApiError(422, 'invalid', 'the applicant was not linked to an employee', field='employee_id')
         return {'applicant': _dump(applicant), 'employee': {'id': employee.id, 'name': employee.name}}

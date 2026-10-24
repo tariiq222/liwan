@@ -36,7 +36,7 @@ MAX_PROPOSAL_CANDIDATES = 1000
 
 def _find_statement(statement_id):
     statement = request.env['account.bank.statement'].search(
-        [('id', '=', statement_id), ('company_id', '=', request.env.company.id)], limit=1,
+        [('id', '=', statement_id), ('company_id', 'in', request.env.companies.ids)], limit=1,
     )
     if not statement:
         raise MissingError(request.env._('account.bank.statement %(id)s does not exist', id=statement_id))
@@ -45,7 +45,7 @@ def _find_statement(statement_id):
 
 def _find_statement_line(line_id):
     line = request.env['account.bank.statement.line'].search(
-        [('id', '=', line_id), ('company_id', '=', request.env.company.id)], limit=1,
+        [('id', '=', line_id), ('company_id', 'in', request.env.companies.ids)], limit=1,
     )
     if not line:
         raise MissingError(request.env._('account.bank.statement.line %(id)s does not exist', id=line_id))
@@ -75,7 +75,7 @@ def _statement_values(parsed):
         values = {'journal_id': journal.id, 'date': item['date'], 'payment_ref': item['payment_ref'], 'amount': item['amount']}
         if 'partner_id' in item:
             values['partner_id'] = company_records(
-                'res.partner', [item['partner_id']], f'lines[{index}].partner_id', company_partners_domain(),
+                'res.partner', [item['partner_id']], f'lines[{index}].partner_id', company_partners_domain(request.env.company),
             ).id
         lines.append(Command.create(values))
     values = {key: parsed[key] for key in ('date', 'name', 'balance_start', 'balance_end_real') if key in parsed}
@@ -140,7 +140,7 @@ class FinanceBankController(http.Controller):
         """Bank statements, filtered by ``journal_id`` and ``date_from``/``date_to``."""
         require_capability('finance.bank.read')
         args = request.httprequest.args
-        domain = [('company_id', '=', request.env.company.id), *filter_domain(args, 'date')]
+        domain = [('company_id', 'in', request.env.companies.ids), *filter_domain(args, 'date')]
         if args.get('journal_id'):
             domain.append(('journal_id', '=', parse_positive_int(args['journal_id'], 'journal_id')))
         return list_page('account.bank.statement', domain, dump_bank_statements)
@@ -206,10 +206,10 @@ class FinanceBankController(http.Controller):
         if 'account_id' in parsed:
             account = company_records(
                 'account.account', [parsed['account_id']], 'account_id',
-                [('company_ids', 'in', [line.company_id.id]), ('account_type', 'not in', LEFTOVER_EXCLUDED_TYPES)],
+                [*request.env['account.account']._check_company_domain(line.company_id), ('account_type', 'not in', LEFTOVER_EXCLUDED_TYPES)],
             )
 
-        attempt(lambda: _reconcile_line(line, items, account, parsed.get('label')), day=line.date)
+        attempt(lambda: _reconcile_line(line, items, account, parsed.get('label')), day=line.date, journal=line.journal_id, company=line.company_id)
         return dump_bank_line(line)
 
     @http.route('/api/v1/finance/bank-statements/<int:statement_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -220,7 +220,7 @@ class FinanceBankController(http.Controller):
         require_capability('finance.bank.manage')
         statement = _find_statement(statement_id)
         values = parse_statement_patch(payload)
-        attempt(lambda: statement.write(values), day=statement.date, journal=statement.journal_id)
+        attempt(lambda: statement.write(values), day=statement.date, journal=statement.journal_id, company=statement.company_id)
         request.env['webvue.finance.audit.event']._webvue_log('bank_statement_changed', statement, fields_written=values)
         return dump_bank_statement_detail(statement)
 
@@ -235,7 +235,7 @@ class FinanceBankController(http.Controller):
         if reconciled:
             raise ApiError(422, 'has_reconciliations', 'undo the reconciliation of its lines first', details={'line_ids': reconciled.ids})
         journal, day = statement.journal_id, statement.date
-        attempt(statement.unlink, day=day, journal=journal)
+        attempt(statement.unlink, day=day, journal=journal, company=statement.company_id)
         # The statement is gone, so the event names its journal.
         request.env['webvue.finance.audit.event']._webvue_log('bank_statement_deleted', journal, outcome=f'statement {statement_id}')
         return request.make_json_response('', status=204)
@@ -253,7 +253,7 @@ class FinanceBankController(http.Controller):
         line = _find_statement_line(line_id)
         if not line.is_reconciled:
             raise ApiError(422, 'invalid_state', 'the statement line is not reconciled')
-        attempt(line.unreconcile_bank_line, day=line.date, journal=line.journal_id)
+        attempt(line.unreconcile_bank_line, day=line.date, journal=line.journal_id, company=line.company_id)
         request.env['webvue.finance.audit.event']._webvue_log('bank_line_unreconciled', line)
         return dump_bank_line(line)
 

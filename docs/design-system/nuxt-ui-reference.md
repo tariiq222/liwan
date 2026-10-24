@@ -1,8 +1,9 @@
 # مرجع واجهة Nuxt UI
 
 المرجع الملزم هو [DESIGN.md](../../DESIGN.md)، أما هذا الملف فيصف مصدر
-التنفيذ وحدود المكتبة. مكونات العميل الفعلية في `apps/web/app` هي مصدر التشغيل
-الوحيد. مصدر Vue/CSS في `/Users/tariq/Downloads/nasq-ui` للمقارنة فقط.
+التنفيذ وحدود المكتبة. مكونات العميل الفعلية في `apps/web/app` والطبقتين
+المشتركتين `packages/ui/app` و`packages/commercial-ui/app` هي مصادر التشغيل.
+مصدر Vue/CSS في `/Users/tariq/Downloads/nasq-ui` للمقارنة فقط.
 
 ## المصدر والملكية
 
@@ -15,7 +16,7 @@
 | لون الهوية | `primary_color` يُحفظ للمستندات والتقارير (الفواتير والمطبوعات) فقط؛ ألوان الواجهة ثابتة من `tokens.css` ولا تتبعه |
 | حالة المظهر والخط | `apps/web/app/composables/useAppearance.ts` و`apps/web/app/utils/appearance.ts`؛ الحالة وcookie هنا |
 | الرسوم | `apps/web/app/components/shared/data/DashboardChart.client.vue` ومحولات `apps/web/app/components/charts/` باستخدام Unovis |
-| ملكية المكونات | [فهرس المكونات](components.md)؛ كل مسار فيه يبدأ بـ `apps/web/app/components/` |
+| ملكية المكونات | [فهرس المكونات](components.md)؛ المسارات تشمل `apps/web/app/components/` و`packages/ui/app/components/` و`packages/commercial-ui/app/` |
 
 مدخلات الثيم (كما في DESIGN.md §1): لوحة ويب فيو الثابتة (أزرق ويب فيو
 `#007ff8` للتعبئات والأيقونات والحلقات بلا نص، و`#0066cc` لكل تعبئة ممتلئة بنص أبيض) تغذّي `primary`، والمحايد `slate`، وهوية ويب فيو: الأزرق الليلي
@@ -24,8 +25,8 @@
 `--webvue-control-h` (32px) و`--webvue-row-h` (44px)، والزوايا من
 `--radius-card` (18px) و`--radius-control` (12px)، والظلال للطبقات العائمة فقط. الريل ثابت
 بـ `--webvue-rail`. هندسة الغلاف في قسم «الغلاف» أدناه.
-اللون الافتراضي للشركة (`primary_color` و`WEBVUE_BLUE`) هو `#0066cc`. الواجهة لا تتبع لون الشركة: عائلة `--primary*` و`--chart-*` وتوكنات النجاح
-والتحذير والخطأ والمعلومة ثابتة في `tokens.css` لكل مظهر. الشعار المؤقت في
+اللون الافتراضي للشركة (`primary_color`) هو `#0066cc`. الواجهة لا تتبع لون الشركة: عائلة `--primary*` و`--chart-*` وتوكنات النجاح
+والتحذير والخطأ والمعلومة ثابتة في `tokens.css` لكل مظهر. الشعار المعتمد في
 `packages/ui/app/components/shared/layout/BrandWordmark.vue`. ولا تُنقل ملفات المصدر المقارن
 أو بياناته أو مساراته التجريبية إلى التشغيل.
 

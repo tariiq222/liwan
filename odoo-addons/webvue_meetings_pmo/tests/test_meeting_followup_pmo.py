@@ -61,8 +61,7 @@ class TestMeetingFollowupProjects(TestMeetingWorkspaceProjects):
             total = records.search_count(domain)
             readable = links._webvue_readable_links(page)
             linked = links._webvue_linked_resolution_ids(page)
-            manager = page._webvue_is_manager()
-            rows = [dump_resolution(row, readable.get(row.id), linked_ids=linked, manager=manager) for row in page]
+            rows = [dump_resolution(row, readable.get(row.id), linked_ids=linked) for row in page]
             return self.env.cr.sql_log_count - before, total, rows
         small, count, rows = page_cost()
         self.assertEqual((count, len(rows)), (250, 25))

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AuditAction } from '@webvue/contracts'
+import { AUDIT_ACTION_LABELS } from '@/components/access/audit/auditActionLabels'
 import { auditDiffLines } from '@/components/access/auditDiff'
 import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 const route = useRoute()
@@ -14,9 +14,7 @@ const forbidden = computed(() => !can('access.audit.read'))
 const event = useAdminAuditEvent(computed(() => validId.value ? id.value : null), computed(() => !forbidden.value))
 const pageError = computed(() => event.error.value ?? (validId.value || forbidden.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const diff = computed(() => auditDiffLines(event.data.value?.before, event.data.value?.after))
-const actionLabels: Record<AuditAction, string> = {
-  'user.granted': 'access.audit.actions.userGranted', 'user.employee_linked': 'access.audit.actions.userEmployeeLinked', 'user.roles_changed': 'access.audit.actions.userRolesChanged', 'user.disabled': 'access.audit.actions.userDisabled', 'user.reactivated': 'access.audit.actions.userReactivated', 'user.password_reset': 'access.audit.actions.userPasswordReset', 'employee.archived_access_disabled': 'access.audit.actions.employeeArchived', 'role.created': 'access.audit.actions.roleCreated', 'role.updated': 'access.audit.actions.roleUpdated', 'role.disabled': 'access.audit.actions.roleDisabled', 'role.enabled': 'access.audit.actions.roleEnabled', 'role.deleted': 'access.audit.actions.roleDeleted', 'migration.legacy_admin_preserved': 'access.audit.actions.legacyAdminPreserved',
-}
+const actionLabels = AUDIT_ACTION_LABELS
 </script>
 
 <template>

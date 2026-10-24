@@ -31,13 +31,19 @@ class WebVueHrLeaveSettings(models.Model):
 
     @api.model
     def _webvue_current(self):
+        self._webvue_require_config()
         return self.search([('company_id', '=', self.env.company.id)], limit=1)
 
     @api.model
     def _webvue_effective_policy(self, company):
-        if company != self.env.company:
-            raise AccessError(self.env._('Leave policy belongs to the current company.'))
-        row = self._webvue_current()
+        service = self.env['webvue.access.service']
+        if not self.env.is_superuser() and (
+            company.id not in service._webvue_scoped_company_ids()
+            or not any(service._webvue_has_capability(self.env.user, key, company=company)
+                       for key in ('hr.leave.read', 'hr.leave.config'))
+        ):
+            raise AccessError(self.env._('Leave policy read permission in the owning company is required.'))
+        row = self.search([('company_id', '=', company.id)], limit=1)
         return row.cancellation_policy if row else 'manager_approval'
 
     @api.model_create_multi

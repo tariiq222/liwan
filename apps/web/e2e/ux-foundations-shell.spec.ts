@@ -1,15 +1,15 @@
 import { expect, test } from '@playwright/test'
 import { enterFoundation } from './support/uxFoundations'
 
-test('foundation home presents gated destinations and keeps the project overview inside Projects', async ({ page }) => {
+test('foundation home is the personal day page: indicators and the top of my work, no grid of destinations', async ({ page }) => {
   await enterFoundation(page, '/')
   await expect(page.getByTestId('foundation-home')).toBeVisible()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('الرئيسية')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('يومي')
   await expect(page.getByTestId('module-rail').locator('a[data-active="true"]')).toHaveAttribute('href', '/')
   await expect(page.getByTestId('context-sidebar')).toHaveCount(0)
-  await page.getByTestId('foundation-home').getByRole('link', { name: 'نظرة عامة على المشاريع', exact: true }).click()
-  await expect(page).toHaveURL(/\/projects\/dashboard$/)
-  await expect(page.getByTestId('module-rail').locator('a[data-active="true"]')).toHaveAttribute('href', '/projects')
+  await expect(page.getByTestId('foundation-home').locator('[data-slot="link-card"]')).toHaveCount(0)
+  // The shared mock identity has no Tasks capability, so the indicators (which open `/work`) are hidden here; their links are covered by the home page unit tests.
+  await expect(page.getByText('الوصول السريع')).toBeVisible()
 })
 
 test('tablet defaults collapse before interaction and only explicit toggles persist across resize and refresh', async ({ page, context }) => {
@@ -54,7 +54,8 @@ test('an internal account without application features can use Home without prot
   await enterFoundation(page, '/account')
   await page.getByTestId('module-rail').locator('.webvue-module-rail-brand').click()
   await expect(page.getByTestId('foundation-home')).toContainText('لا توجد مساحات عمل')
-  await expect(page.getByTestId('module-rail').locator('.webvue-module-rail-link')).toHaveCount(1)
+  // Only Launcher and Today remain when the user cannot reach any applications.
+  await expect(page.getByTestId('module-rail').locator('.webvue-module-rail-link')).toHaveCount(2)
   await expect(page.getByTestId('foundation-home').locator('a[href^="/projects"]')).toHaveCount(0)
 })
 
@@ -79,7 +80,7 @@ test.describe('mobile drawer entry', () => {
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600)
     await page.getByTestId('mobile-navigation-trigger').click()
     const dialog = page.getByRole('dialog')
-    const projects = dialog.getByRole('link', { name: 'المشاريع', exact: true })
+    const projects = dialog.getByRole('navigation', { name: 'الموديولات', exact: true }).getByRole('link', { name: 'المشاريع', exact: true })
     const box = (await projects.boundingBox())!
     expect(box.height).toBeGreaterThanOrEqual(44)
     await projects.click()

@@ -8,10 +8,12 @@ from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
+    _pin_current_company,
     api_handler,
     get_record,
     parse_nonneg_int,
     parse_positive_int,
+    require_capabilities,
     requires_feature,
 )
 from odoo.addons.webvue_meetings.serializers.meeting import (
@@ -157,7 +159,7 @@ class MeetingController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='read')
     def list_meetings(self, **_):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         args = request.httprequest.args
         date_from = (args.get('date_from') or '').strip()
         date_to = (args.get('date_to') or '').strip()
@@ -208,7 +210,7 @@ class MeetingController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='read')
     def get_meeting(self, meeting_id, **_):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         meeting = get_record('webvue.meeting.minute', meeting_id)
         return dump_meeting(meeting, detail=True)
 
@@ -216,7 +218,7 @@ class MeetingController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
     def create_meeting(self, name=None, meeting_date=None, location=None, start_datetime=None, end_datetime=None, meeting_url=None, attendee_ids=None, secretary_id=None, agenda=None, series_id=None, project_id=None, minutes_form=None, **extra):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.create')
+        require_capabilities('meetings.create')
         if extra:
             raise ApiError(422, 'invalid', 'unsupported meeting fields: %s' % ', '.join(sorted(extra)))
         body = request.get_json_data() if request.httprequest.content_length else {}
@@ -276,7 +278,7 @@ class MeetingController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
     def patch_meeting(self, meeting_id, **payload):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         meeting = get_record('webvue.meeting.minute', meeting_id)
         _require_editor(meeting)
         payload.pop('meeting_id', None)
@@ -359,7 +361,7 @@ class MeetingController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
     def cancel_meeting(self, meeting_id, scope='this', **_):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         meeting = get_record('webvue.meeting.minute', meeting_id)
         _require_manager(meeting)
         if scope not in {'this', 'this_and_following'}:
@@ -374,7 +376,7 @@ class MeetingController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
     def create_resolution(self, meeting_id, name=None, responsible_id=None, deadline=None, priority=None, execution_period=None, project_id=None, **extra):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         if extra:
             raise ApiError(422, 'invalid', 'unsupported resolution fields: %s' % ', '.join(sorted(extra)))
         meeting = get_record('webvue.meeting.minute', meeting_id)
@@ -424,7 +426,7 @@ class MeetingController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
     def confirm_meeting(self, meeting_id, **_):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         meeting = get_record('webvue.meeting.minute', meeting_id)
         meeting.action_confirm()
         return dump_meeting(meeting, detail=True)
@@ -433,7 +435,7 @@ class MeetingController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
     def complete_meeting(self, meeting_id, **_):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         meeting = get_record('webvue.meeting.minute', meeting_id)
         _require_manager(meeting)
         gap = meeting._webvue_completion_gap()
@@ -447,7 +449,7 @@ class MeetingController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
     def reopen_meeting(self, meeting_id, **_):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         meeting = get_record('webvue.meeting.minute', meeting_id)
         _require_manager(meeting)
         meeting.action_reset_draft()
@@ -460,7 +462,7 @@ class MeetingController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
     def patch_resolution(self, meeting_id, resolution_id, **payload):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         _meeting, resolution = self._resolution(meeting_id, resolution_id)
         payload.pop('meeting_id', None)
         allowed = {'name', 'deadline', 'responsible_id', 'priority', 'result', 'execution_period', 'project_id'}
@@ -512,7 +514,7 @@ class MeetingController(http.Controller):
     @api_handler
     @requires_feature('meetings.enabled', operation='write')
     def resolution_action(self, meeting_id, resolution_id, action, **_):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        require_capabilities('meetings.read')
         _meeting, resolution = self._resolution(meeting_id, resolution_id)
         methods = {'start': 'action_start', 'complete': 'action_done', 'cancel': 'action_cancel', 'reopen': 'action_reopen'}
         if action not in methods:
@@ -523,7 +525,9 @@ class MeetingController(http.Controller):
     @http.route('/api/v1/meetings/<int:meeting_id>/minutes.pdf', type='http', auth='user', methods=['GET'], csrf=False)
     @requires_feature('meetings.enabled', operation='read')
     def minutes_pdf(self, meeting_id, **_):
-        request.env['webvue.access.service']._webvue_require_capability('meetings.read')
+        # type='http' without api_handler: the pin still runs before any read.
+        _pin_current_company()
+        require_capabilities('meetings.read')
         meeting = get_record('webvue.meeting.minute', meeting_id)
         pdf, _type = request.env['ir.actions.report']._render_qweb_pdf(
             'webvue_meetings.action_report_meeting_minutes', meeting.ids,

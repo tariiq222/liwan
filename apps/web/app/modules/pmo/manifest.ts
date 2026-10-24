@@ -2,6 +2,7 @@ import { ProjectNotificationKindSchema, TaskNotificationKindSchema } from '@webv
 import type { AppManifest } from '../types'
 import { projectIdFromPath } from './projectRoutes'
 import { projectPicker } from './recordPicker'
+import { overdueTasksAttention, projectsAtRiskAttention } from './attention'
 import { projectsSearch, tasksSearch } from './search'
 
 const manifest: AppManifest = {
@@ -58,6 +59,7 @@ const manifest: AppManifest = {
       },
     ],
   },
+  attention: [overdueTasksAttention, projectsAtRiskAttention],
   search: [projectsSearch, tasksSearch],
   recordPickers: [projectPicker],
   routeScopes: [{ kind: 'project', idFromPath: projectIdFromPath }],

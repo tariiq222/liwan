@@ -8,7 +8,7 @@ from odoo import Command, fields
 from odoo.exceptions import MissingError
 from odoo.http import request
 
-from odoo.addons.webvue_api.controllers.common import ApiError
+from odoo.addons.webvue_api.controllers.common import ApiError, require_capabilities
 from odoo.addons.webvue_hr.serializers.lifecycle.run import run_activities
 
 ONBOARDING = 'onboarding'
@@ -22,8 +22,7 @@ def _can(capability):
 
 
 def _require(capability):
-    if not _can(capability):
-        raise ApiError(403, 'forbidden', f'{capability} capability is required')
+    require_capabilities(capability)
 
 
 def _missing(model, record_id):
@@ -36,7 +35,7 @@ def _employee(employee_id):
     """The employee of the current company; another company's employee is a 404."""
     employee = request.env[EMPLOYEE_MODEL].with_context(active_test=False).search([
         ('id', '=', employee_id),
-        ('company_id', '=', request.env.company.id),
+        ('company_id', 'in', request.env.companies.ids),
     ], limit=1)
     if not employee:
         _missing(EMPLOYEE_MODEL, employee_id)
@@ -59,7 +58,7 @@ def _purpose_plan(area, plan_id):
         ('id', '=', plan_id),
         ('res_model', '=', EMPLOYEE_MODEL),
         ('hr_purpose', '=', area),
-        ('company_id', 'in', [request.env.company.id, False]),
+        ('company_id', 'in', [*request.env.companies.ids, False]),
     ], limit=1)
     if not plan:
         _missing('mail.activity.plan', plan_id)
@@ -70,7 +69,7 @@ def _run(area, run_id):
     """The run of AREA in the current company; another purpose or company is a 404."""
     run = request.env['webvue.hr.plan.run'].search([
         ('id', '=', run_id),
-        ('company_id', '=', request.env.company.id),
+        ('company_id', 'in', request.env.companies.ids),
         ('plan_id.hr_purpose', '=', area),
     ], limit=1)
     if not run:
@@ -108,7 +107,7 @@ def _launch_run(area, employee, plan, plan_date=None):
     domain = [('res_model', '=', EMPLOYEE_MODEL), ('res_id', '=', employee.id)]
     before = set(Activity.search(domain).ids)
     schedule = request.env['mail.activity.schedule'].with_context(
-        allowed_company_ids=[request.env.company.id],
+        # active_ids drives the wizard; the company is already pinned by api_handler.
         active_ids=[employee.id],
     ).create({
         'res_model': EMPLOYEE_MODEL,
@@ -131,7 +130,7 @@ def _launch_run(area, employee, plan, plan_date=None):
 def _clearance_runs():
     """{employee id: latest offboarding run} of the current company."""
     runs = request.env['webvue.hr.plan.run'].search([
-        ('company_id', '=', request.env.company.id),
+        ('company_id', 'in', request.env.companies.ids),
         ('plan_id.hr_purpose', '=', OFFBOARDING),
     ], order='plan_date desc, id desc')
     latest = {}

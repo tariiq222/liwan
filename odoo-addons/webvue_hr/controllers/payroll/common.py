@@ -12,7 +12,7 @@ def payroll_employee(employee_id):
     """
     employee = request.env['hr.employee'].with_context(active_test=False).search([
         ('id', '=', employee_id),
-        ('company_id', '=', current_company().id),
+        ('company_id', 'in', request.env.companies.ids),
     ], limit=1)
     if not employee:
         raise MissingError(request.env._('hr.employee %(id)s does not exist', id=employee_id))
