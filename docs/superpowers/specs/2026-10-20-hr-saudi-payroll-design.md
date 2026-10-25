@@ -120,7 +120,7 @@ table can hold them. Seed values must be checked against gosi.gov.sa before rele
 ### 6.3 End of service (Articles 84, 85, 87)
 - Award: half a month's EOS wage per year for the first 5 years, one month per later year,
   pro-rated for part years.
-- Resignation: <2 years 0; 2–<5 years ⅓; 5–<10 years ⅔; ≥10 years full.
+- Resignation: <2 years 0; 2–5 years inclusive ⅓; >5–<10 years ⅔; ≥10 years full.
 - Full award regardless of length: termination by employer, fixed-term expiry, force majeure,
   female worker ending the contract within 6 months of marriage or 3 months of childbirth.
 - The departure reason (existing offboarding `departure_reason_id`) maps to one of these
