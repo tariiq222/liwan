@@ -15,7 +15,7 @@ function saved() {
 
 <template>
   <SharedCreatePanel :title="t(`${NAMESPACE}.departures.new`)" :back-to="backTo">
-    <SharedPageState v-if="!can('hr.offboarding.manage')" :empty="true" :empty-text="t(`${NAMESPACE}.errors.forbidden`)" />
+    <SharedForbiddenState v-if="!can('hr.offboarding.manage')" :description="t(`${NAMESPACE}.errors.forbidden`)" />
     <DepartureForm v-else :namespace="NAMESPACE" :back-to="backTo" @saved="saved" />
   </SharedCreatePanel>
 </template>
