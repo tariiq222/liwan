@@ -13,13 +13,16 @@ def _header(company, only_posted):
     return {'target_move': 'posted' if only_posted else 'all', 'currency': company.currency_id.name}
 
 
+# The income statement and the balance sheet are unreviewed management figures, never a statutory report.
+_MANAGEMENT_INFORMATION = {'statutory': False, 'status': 'management_information'}
+
+
 def dump_profit_loss(company, date_from, date_to, only_posted, amounts):
     return {
         'date_from': dump_day(date_from),
         'date_to': dump_day(date_to),
         **_header(company, only_posted),
-        'statutory': False,
-        'status': 'management_information',
+        **_MANAGEMENT_INFORMATION,
         'lines': dump_report_lines(amounts),
     }
 
@@ -28,8 +31,7 @@ def dump_balance_sheet(company, date_to, only_posted, amounts):
     return {
         'date_to': dump_day(date_to),
         **_header(company, only_posted),
-        'statutory': False,
-        'status': 'management_information',
+        **_MANAGEMENT_INFORMATION,
         'lines': dump_report_lines(amounts),
     }
 
