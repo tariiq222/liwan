@@ -77,7 +77,7 @@ class HrPayrollFinanceSettingsController(http.Controller):
     @http.route('/api/v1/hr/payroll/finance-settings', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
     @requires_feature(*FEATURES, operation='write')
-    @requires_capability('finance.setup.manage')
+    @requires_capability('hr.payroll.finance.manage', 'finance.setup.manage', match='any')
     def patch_finance_settings(self, **payload):
         parsed = parse_settings(payload)
         require_nonempty(parsed)
