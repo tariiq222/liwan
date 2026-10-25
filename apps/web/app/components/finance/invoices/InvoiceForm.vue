@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import { ApiError } from '@/composables/useApi'
 import { INVOICE_KINDS, type FinanceMoveType } from './invoiceKinds'
 import {
   buildInvoiceCreate,
@@ -15,6 +14,8 @@ import {
 } from './invoiceLines'
 import { formatAmount } from './formatAmount'
 import PartnerPicker from './PartnerPicker.vue'
+import { financeErrorMessage } from '../financeErrors'
+import { financeErrorKey } from './invoiceErrors'
 import { useCreateFinanceInvoice, usePatchFinanceInvoice } from '@/composables/finance/useFinanceInvoices'
 
 // The editor of a document: the create panel (a new draft) and the record page's edit mode (the draft's header and
@@ -62,7 +63,7 @@ async function submit() {
     await nextTick()
     emit('saved', record.id)
   } catch (cause) {
-    error.value = cause instanceof ApiError ? cause.message : t('errors.generic')
+    error.value = financeErrorMessage(cause, financeErrorKey, t)
   }
 }
 </script>
