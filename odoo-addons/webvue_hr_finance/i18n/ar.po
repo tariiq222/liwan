@@ -26,7 +26,7 @@ msgstr ""
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__advance_account_id
 msgid "Advance Account"
-msgstr ""
+msgstr "حساب السلف"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields.selection,name:webvue_hr_finance.selection__webvue_hr_payroll_finance_settings__entry_detail__aggregated
@@ -36,22 +36,22 @@ msgstr "مجمّع"
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__allowance_expense_account_id
 msgid "Allowance Expense Account"
-msgstr ""
+msgstr "حساب مصروف البدلات"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_eos_accrual__amount
 msgid "Amount"
-msgstr ""
+msgstr "المبلغ"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_cost_center__analytic_account_id
 msgid "Analytic Account"
-msgstr ""
+msgstr "الحساب التحليلي"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__basic_expense_account_id
 msgid "Basic Expense Account"
-msgstr ""
+msgstr "حساب مصروف الراتب الأساسي"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_cost_center__company_id
@@ -59,7 +59,7 @@ msgstr ""
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_eos_provision__company_id
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__company_id
 msgid "Company"
-msgstr ""
+msgstr "الشركة"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_cost_center__create_uid
@@ -67,7 +67,7 @@ msgstr ""
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_eos_provision__create_uid
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__create_uid
 msgid "Created by"
-msgstr ""
+msgstr "أنشأه"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_cost_center__create_date
@@ -75,27 +75,27 @@ msgstr ""
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_eos_provision__create_date
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__create_date
 msgid "Created on"
-msgstr ""
+msgstr "تاريخ الإنشاء"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_eos_accrual__currency_id
 msgid "Currency"
-msgstr ""
+msgstr "العملة"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__deduction_account_id
 msgid "Deduction Account"
-msgstr ""
+msgstr "حساب الاستقطاعات"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__default_analytic_account_id
 msgid "Default Analytic Account"
-msgstr ""
+msgstr "الحساب التحليلي الافتراضي"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_cost_center__department_id
 msgid "Department"
-msgstr ""
+msgstr "القسم"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_account_move__display_name
@@ -108,32 +108,32 @@ msgstr ""
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__display_name
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_posting__display_name
 msgid "Display Name"
-msgstr ""
+msgstr "الاسم المعروض"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_eos_accrual__employee_id
 msgid "Employee"
-msgstr ""
+msgstr "الموظف"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields.selection,name:webvue_hr_finance.selection__account_move__webvue_payroll_origin__eos_provision
 msgid "End of service provision"
-msgstr ""
+msgstr "مخصص نهاية الخدمة"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__entry_detail
 msgid "Entry Detail"
-msgstr ""
+msgstr "تفاصيل القيد"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__eos_expense_account_id
 msgid "Eos Expense Account"
-msgstr ""
+msgstr "حساب مصروف نهاية الخدمة"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__eos_provision_account_id
 msgid "Eos Provision Account"
-msgstr ""
+msgstr "حساب مخصص نهاية الخدمة"
 
 #. module: webvue_hr_finance
 #. odoo-python
@@ -144,12 +144,12 @@ msgstr "يجب أن ينتمي كل حساب إلى الشركة."
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__gosi_expense_account_id
 msgid "Gosi Expense Account"
-msgstr ""
+msgstr "حساب مصروف التأمينات الاجتماعية"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__gosi_payable_account_id
 msgid "Gosi Payable Account"
-msgstr ""
+msgstr "حساب التأمينات الاجتماعية المستحقة"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_account_move__id
@@ -162,22 +162,22 @@ msgstr ""
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__id
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_posting__id
 msgid "ID"
-msgstr ""
+msgstr "المعرّف"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__journal_id
 msgid "Journal"
-msgstr ""
+msgstr "اليومية"
 
 #. module: webvue_hr_finance
 #: model:ir.model,name:webvue_hr_finance.model_account_move
 msgid "Journal Entry"
-msgstr ""
+msgstr "قيد اليومية"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_hr_payslip_run__webvue_move_id
 msgid "Journal entry"
-msgstr ""
+msgstr "قيد اليومية"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_cost_center__write_uid
@@ -185,7 +185,7 @@ msgstr ""
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_eos_provision__write_uid
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__write_uid
 msgid "Last Updated by"
-msgstr ""
+msgstr "حدّثه"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_cost_center__write_date
@@ -193,36 +193,36 @@ msgstr ""
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_eos_provision__write_date
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__write_date
 msgid "Last Updated on"
-msgstr ""
+msgstr "تاريخ آخر تحديث"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_eos_accrual__month
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_eos_provision__month
 msgid "Month"
-msgstr ""
+msgstr "الشهر"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_eos_provision__move_id
 msgid "Move"
-msgstr ""
+msgstr "القيد المحاسبي"
 
 #. module: webvue_hr_finance
 #. odoo-python
 #: code:addons/webvue_hr_finance/models/payroll_posting.py:0
 msgid "Only a posted run can be paid."
-msgstr ""
+msgstr "لا يمكن الدفع إلا لمسيّر مرحّل."
 
 #. module: webvue_hr_finance
 #. odoo-python
 #: code:addons/webvue_hr_finance/models/payroll_posting.py:0
 msgid "Only an approved run can be posted."
-msgstr ""
+msgstr "لا يمكن الترحيل إلا لمسيّر معتمد."
 
 #. module: webvue_hr_finance
 #. odoo-python
 #: code:addons/webvue_hr_finance/controllers/posting.py:0
 msgid "Only an approved run has a posting preview."
-msgstr ""
+msgstr "معاينة الترحيل متاحة للمسيّر المعتمد فقط."
 
 #. module: webvue_hr_finance
 #. odoo-python
@@ -235,38 +235,38 @@ msgstr ""
 #. module: webvue_hr_finance
 #: model:ir.model.fields.selection,name:webvue_hr_finance.selection__hr_payslip_run__webvue_state__paid
 msgid "Paid"
-msgstr ""
+msgstr "مدفوع"
 
 #. module: webvue_hr_finance
 #: model:ir.model,name:webvue_hr_finance.model_account_partial_reconcile
 msgid "Partial Reconcile"
-msgstr ""
+msgstr "مطابقة جزئية"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_account_bank_statement_line__webvue_payroll_origin
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_account_move__webvue_payroll_origin
 msgid "Payroll origin"
-msgstr ""
+msgstr "مصدر مسيّر الرواتب"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields.selection,name:webvue_hr_finance.selection__account_move__webvue_payroll_origin__payment
 msgid "Payroll payment"
-msgstr ""
+msgstr "دفعة الرواتب"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields.selection,name:webvue_hr_finance.selection__account_move__webvue_payroll_origin__run
 msgid "Payroll run"
-msgstr ""
+msgstr "مسيّر الرواتب"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_hr_payslip_run__webvue_state
 msgid "Payroll status"
-msgstr ""
+msgstr "حالة مسيّر الرواتب"
 
 #. module: webvue_hr_finance
 #: model:ir.model,name:webvue_hr_finance.model_hr_payslip_run
 msgid "Payslip Batches"
-msgstr ""
+msgstr "دفعات قسائم الرواتب"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields.selection,name:webvue_hr_finance.selection__webvue_hr_payroll_finance_settings__entry_detail__per_employee
@@ -276,17 +276,17 @@ msgstr "لكل موظف"
 #. module: webvue_hr_finance
 #: model:ir.model.fields.selection,name:webvue_hr_finance.selection__hr_payslip_run__webvue_state__posted
 msgid "Posted"
-msgstr ""
+msgstr "مرحّل"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__salaries_payable_account_id
 msgid "Salaries Payable Account"
-msgstr ""
+msgstr "حساب الرواتب المستحقة"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_hr_payslip_run__webvue_payment_id
 msgid "Salary payment"
-msgstr ""
+msgstr "دفعة الرواتب"
 
 #. module: webvue_hr_finance
 #. odoo-python
@@ -309,7 +309,7 @@ msgstr "يجب أن ينتمي القسم إلى الشركة."
 #. module: webvue_hr_finance
 #: model:ir.model.fields,help:webvue_hr_finance.field_webvue_hr_payroll_eos_accrual__month
 msgid "The first day of the month the amount was posted for."
-msgstr ""
+msgstr "أول يوم من الشهر الذي رُحّل له المبلغ."
 
 #. module: webvue_hr_finance
 #. odoo-python
@@ -327,28 +327,28 @@ msgstr "يجب أن يقبل حسابا الرواتب المستحقة والس
 #. odoo-python
 #: code:addons/webvue_hr_finance/models/payroll_finance_settings.py:0
 msgid "The payroll journal must be in the company currency."
-msgstr ""
+msgstr "يجب أن تكون يومية الرواتب بعملة الشركة."
 
 #. module: webvue_hr_finance
 #. odoo-python
 #: code:addons/webvue_hr_finance/models/account_move.py:0
 msgid "The salary payment of a payroll run cannot be unreconciled."
-msgstr ""
+msgstr "لا يمكن إلغاء مطابقة دفعة رواتب مسيّر."
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,field_description:webvue_hr_finance.field_webvue_hr_payroll_finance_settings__variable_expense_account_id
 msgid "Variable Expense Account"
-msgstr ""
+msgstr "حساب المصروف المتغير"
 
 #. module: webvue_hr_finance
 #: model:ir.model,name:webvue_hr_finance.model_webvue_hr_payroll_eos_accrual
 msgid "WebVue HR end-of-service accrual"
-msgstr ""
+msgstr "استحقاق نهاية الخدمة — ويب فيو"
 
 #. module: webvue_hr_finance
 #: model:ir.model,name:webvue_hr_finance.model_webvue_hr_payroll_eos_provision
 msgid "WebVue HR end-of-service provision"
-msgstr ""
+msgstr "مخصص نهاية الخدمة — ويب فيو"
 
 #. module: webvue_hr_finance
 #: model:ir.model,name:webvue_hr_finance.model_webvue_hr_payroll_cost_center
@@ -358,7 +358,7 @@ msgstr "مركز تكلفة رواتب القسم"
 #. module: webvue_hr_finance
 #: model:ir.model,name:webvue_hr_finance.model_webvue_hr_payroll_finance_link
 msgid "WebVue HR payroll finance link"
-msgstr ""
+msgstr "ربط رواتب ويب فيو بالمالية"
 
 #. module: webvue_hr_finance
 #: model:ir.model,name:webvue_hr_finance.model_webvue_hr_payroll_finance_settings
@@ -368,13 +368,13 @@ msgstr "إعدادات محاسبة الرواتب"
 #. module: webvue_hr_finance
 #: model:ir.model,name:webvue_hr_finance.model_webvue_hr_payroll_posting
 msgid "WebVue HR payroll posting"
-msgstr ""
+msgstr "ترحيل رواتب ويب فيو"
 
 #. module: webvue_hr_finance
 #: model:ir.model.fields,help:webvue_hr_finance.field_account_bank_statement_line__webvue_payroll_origin
 #: model:ir.model.fields,help:webvue_hr_finance.field_account_move__webvue_payroll_origin
 msgid "What generated the entry, like origin_payment_id for a payment entry."
-msgstr ""
+msgstr "ما أنشأ القيد، مثل origin_payment_id لقيد دفعة."
 
 #. module: webvue_hr_finance
 #: model:ir.model.constraint,message:webvue_hr_finance.constraint_webvue_hr_payroll_finance_settings_company_unique
@@ -389,7 +389,7 @@ msgstr "للقسم مركز تكلفة رواتب واحد فقط."
 #. module: webvue_hr_finance
 #: model:ir.model.constraint,message:webvue_hr_finance.constraint_webvue_hr_payroll_eos_accrual_employee_unique
 msgid "an employee has one end-of-service accrual"
-msgstr ""
+msgstr "لكل موظف استحقاق نهاية خدمة واحد"
 
 #. module: webvue_hr_finance
 #. odoo-python
@@ -400,4 +400,4 @@ msgstr "القسم %(id)s غير موجود"
 #. module: webvue_hr_finance
 #: model:ir.model.constraint,message:webvue_hr_finance.constraint_webvue_hr_payroll_eos_provision_month_unique
 msgid "the provision of a month is posted once"
-msgstr ""
+msgstr "يُرحّل مخصص الشهر مرة واحدة"
