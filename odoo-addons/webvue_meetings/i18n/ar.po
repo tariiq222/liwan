@@ -31,7 +31,7 @@ msgstr "يمكن ربط حدث التقويم بمحضر اجتماع واحد �
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_resolution.py:0
 msgid "A deadline or execution period is required."
-msgstr ""
+msgstr "المطلوب موعد نهائي أو مدة تنفيذ."
 
 #. module: webvue_meetings
 #. odoo-python
@@ -43,13 +43,13 @@ msgstr "الاجتماع مطلوب."
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_form.py:0
 msgid "A recommendation may only be assigned to one topic."
-msgstr ""
+msgstr "لا يمكن إسناد التوصية إلا لمحور واحد."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_series.py:0
 msgid "A recurrence may contain at most %s meetings."
-msgstr ""
+msgstr "يمكن أن يحتوي التكرار على %s اجتماعات كحد أقصى."
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__message_needaction
@@ -66,7 +66,7 @@ msgstr "نشط"
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_event__actor_id
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minutes_version__actor_id
 msgid "Actor"
-msgstr ""
+msgstr "الفاعل"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__agenda
@@ -77,7 +77,7 @@ msgstr "جدول الأعمال"
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Approved by"
-msgstr ""
+msgstr "اعتمده"
 
 #. module: webvue_meetings
 #. odoo-python
@@ -101,12 +101,12 @@ msgstr "عدد المرفقات"
 #. odoo-python
 #: code:addons/webvue_meetings/controllers/meeting_attachments.py:0
 msgid "Attachment is not linked to this meeting."
-msgstr ""
+msgstr "المرفق غير مرتبط بهذا الاجتماع."
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_series__attendee_ids
 msgid "Attendee"
-msgstr ""
+msgstr "الحاضر"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__attendee_ids
@@ -163,33 +163,33 @@ msgstr "لا يمكن نسخ توصية من اجتماع مكتمل أو ملغ
 #. module: webvue_meetings
 #: model:res.groups,name:webvue_meetings.group_cap_meetings_create
 msgid "Capability: create meetings"
-msgstr ""
+msgstr "صلاحية: إنشاء الاجتماعات"
 
 #. module: webvue_meetings
 #: model:res.groups,name:webvue_meetings.group_cap_meetings_manage
 msgid "Capability: manage meetings"
-msgstr ""
+msgstr "صلاحية: إدارة الاجتماعات"
 
 #. module: webvue_meetings
 #: model:res.groups,name:webvue_meetings.group_cap_meetings_read
 msgid "Capability: read meetings"
-msgstr ""
+msgstr "صلاحية: قراءة الاجتماعات"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minutes_version__captured_at
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Captured At"
-msgstr ""
+msgstr "وقت الحفظ"
 
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Chairperson"
-msgstr ""
+msgstr "رئيس الاجتماع"
 
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Closing:"
-msgstr ""
+msgstr "الختام:"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_event__company_id
@@ -266,7 +266,7 @@ msgstr "الوصف"
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Discussion"
-msgstr ""
+msgstr "المناقشة"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_calendar_event__display_name
@@ -299,13 +299,13 @@ msgstr "مسودة"
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Draft / live content"
-msgstr ""
+msgstr "مسودة أو محتوى حي"
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_form.py:0
 msgid "Each minutes topic must have the supported fields."
-msgstr ""
+msgstr "يجب أن يحتوي كل محور على الحقول المدعومة."
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__end_datetime
@@ -316,23 +316,23 @@ msgstr "النهاية"
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__webvue_meeting_series__recurrence__biweekly
 msgid "Every two weeks"
-msgstr ""
+msgstr "كل أسبوعين"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_resolution__execution_period
 msgid "Execution Period"
-msgstr ""
+msgstr "مدة التنفيذ"
 
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Execution period"
-msgstr ""
+msgstr "مدة التنفيذ"
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_resolution.py:0
 msgid "Follow this recommendation on its task."
-msgstr ""
+msgstr "تابع هذه التوصية في مهمتها."
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__message_follower_ids
@@ -356,17 +356,17 @@ msgstr "يحتوي رسالة"
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute.py:0
 msgid "Historical meeting snapshots are server generated."
-msgstr ""
+msgstr "اللقطات التاريخية للاجتماع تُنشأ من الخادم."
 
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Historical snapshot captured when the minutes were completed"
-msgstr ""
+msgstr "لقطة تاريخية حُفظت عند إكمال المحضر"
 
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Historical snapshot unavailable for this legacy completed meeting"
-msgstr ""
+msgstr "اللقطة التاريخية غير متاحة لهذا الاجتماع المكتمل القديم"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_calendar_event__id
@@ -403,7 +403,7 @@ msgstr "إذا حُدد، فبعض الرسائل فيها خطأ تسليم."
 #. module: webvue_meetings
 #: model:ir.model,name:webvue_meetings.model_webvue_meeting_minutes_version
 msgid "Immutable meeting minutes version"
-msgstr ""
+msgstr "نسخة محضر اجتماع غير قابلة للتغيير"
 
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__webvue_meeting_resolution__priority__1
@@ -425,7 +425,7 @@ msgstr "محضر اجتماع داخلي"
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_form.py:0
 msgid "Invalid minutes form field: %s"
-msgstr ""
+msgstr "حقل نموذج محضر غير صالح: %s"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__message_is_follower
@@ -436,7 +436,7 @@ msgstr "متابع"
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_event__kind
 msgid "Kind"
-msgstr ""
+msgstr "النوع"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_event__write_uid
@@ -504,84 +504,84 @@ msgstr "عنوان الاجتماع"
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__meeting_url
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_series__meeting_url
 msgid "Meeting Url"
-msgstr ""
+msgstr "رابط الاجتماع"
 
 #. module: webvue_meetings
 #: model:ir.model,name:webvue_meetings.model_webvue_meeting_event
 msgid "Meeting activity event"
-msgstr ""
+msgstr "حدث نشاط الاجتماع"
 
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__mail_message__webvue_notification_kind__meeting_cancelled
 msgid "Meeting cancelled"
-msgstr ""
+msgstr "أُلغي الاجتماع"
 
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__mail_message__webvue_notification_kind__meeting_changed
 msgid "Meeting changed"
-msgstr ""
+msgstr "تغيّر الاجتماع"
 
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__mail_message__webvue_notification_kind__meeting_converted
 msgid "Meeting converted"
-msgstr ""
+msgstr "تم تحويل الاجتماع"
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute.py:0
 msgid "Meeting created."
-msgstr ""
+msgstr "أُنشئ الاجتماع."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_activity.py:0
 msgid "Meeting details updated."
-msgstr ""
+msgstr "حُدّثت تفاصيل الاجتماع."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_workspace.py:0
 msgid "Meeting events are immutable."
-msgstr ""
+msgstr "أحداث الاجتماع غير قابلة للتغيير."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_workspace.py:0
 msgid "Meeting events are server generated."
-msgstr ""
+msgstr "أحداث الاجتماع تُنشأ من الخادم."
 
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__mail_message__webvue_notification_kind__meeting_invite
 msgid "Meeting invite"
-msgstr ""
+msgstr "دعوة الاجتماع"
 
 #. module: webvue_meetings
 #: model:ir.model,name:webvue_meetings.model_webvue_meeting_links
 msgid "Meeting links to other applications"
-msgstr ""
+msgstr "روابط الاجتماع بتطبيقات أخرى"
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_form.py:0
 msgid "Meeting minutes updated."
-msgstr ""
+msgstr "حُدّث محضر الاجتماع."
 
 #. module: webvue_meetings
 #: model:ir.model.constraint,message:webvue_meetings.constraint_webvue_meeting_minutes_version_number_unique
 msgid "Meeting minutes version numbers must be unique."
-msgstr ""
+msgstr "يجب أن تكون أرقام نسخ محضر الاجتماع فريدة."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_workspace.py:0
 msgid "Meeting minutes versions are immutable."
-msgstr ""
+msgstr "نسخ محضر الاجتماع غير قابلة للتغيير."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_workspace.py:0
 msgid "Meeting minutes versions are server generated."
-msgstr ""
+msgstr "نسخ محضر الاجتماع تُنشأ من الخادم."
 
 #. module: webvue_meetings
 #. odoo-python
@@ -597,44 +597,44 @@ msgstr "يجب أن يكون مرجع الاجتماع فريداً."
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__mail_message__webvue_notification_kind__meeting_reminder
 msgid "Meeting reminder"
-msgstr ""
+msgstr "تذكير الاجتماع"
 
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__mail_message__webvue_notification_kind__meeting_resolution
 msgid "Meeting resolution"
-msgstr ""
+msgstr "قرار الاجتماع"
 
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__mail_message__webvue_notification_kind__meeting_resolution_overdue
 msgid "Meeting resolution overdue"
-msgstr ""
+msgstr "قرار الاجتماع متجاوز موعده"
 
 #. module: webvue_meetings
 #: model:ir.model,name:webvue_meetings.model_webvue_meeting_series
 msgid "Meeting series"
-msgstr ""
+msgstr "سلسلة الاجتماعات"
 
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__mail_message__webvue_notification_kind__meeting_series_invite
 msgid "Meeting series invite"
-msgstr ""
+msgstr "دعوة سلسلة الاجتماعات"
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_activity.py:0
 msgid "Meeting state changed to %s."
-msgstr ""
+msgstr "تغيّرت حالة الاجتماع إلى %s."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute.py:0
 msgid "Meetings with finalized minutes versions cannot be deleted."
-msgstr ""
+msgstr "لا يمكن حذف اجتماعات لها نسخ محضر نهائية."
 
 #. module: webvue_meetings
 #: model:ir.model,name:webvue_meetings.model_mail_message
 msgid "Message"
-msgstr ""
+msgstr "الرسالة"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__message_has_error
@@ -651,80 +651,80 @@ msgstr "الرسائل"
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__minutes_form
 msgid "Minutes Form"
-msgstr ""
+msgstr "نموذج المحضر"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__minutes_form_data
 msgid "Minutes Form Data"
-msgstr ""
+msgstr "بيانات نموذج المحضر"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__minutes_snapshot
 msgid "Minutes Snapshot"
-msgstr ""
+msgstr "لقطة المحضر"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__minutes_snapshot_data
 msgid "Minutes Snapshot Data"
-msgstr ""
+msgstr "بيانات لقطة المحضر"
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_form.py:0
 msgid "Minutes form contains a recommendation from another meeting."
-msgstr ""
+msgstr "نموذج المحضر يحتوي توصية من اجتماع آخر."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute.py:0
 msgid "Minutes form is server controlled."
-msgstr ""
+msgstr "نموذج المحضر يديره الخادم."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_form.py:0
 msgid "Minutes topic discussion is too long."
-msgstr ""
+msgstr "مناقشة المحور طويلة جدًا."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_form.py:0
 msgid "Minutes topic keys must be unique."
-msgstr ""
+msgstr "يجب أن تكون مفاتيح المحاور فريدة."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_form.py:0
 msgid "Minutes topic project is invalid."
-msgstr ""
+msgstr "مشروع المحور غير صالح."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_links.py:0
 msgid "Minutes topic projects need the projects application."
-msgstr ""
+msgstr "مشاريع المحاور تحتاج تطبيق المشاريع."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_form.py:0
 msgid "Minutes topic recommendations are invalid."
-msgstr ""
+msgstr "توصيات المحور غير صالحة."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_form.py:0
 msgid "Minutes topic titles must be at most 500 characters."
-msgstr ""
+msgstr "يجب ألا تتجاوز عناوين المحاور 500 حرفًا."
 
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__webvue_meeting_series__recurrence__monthly
 msgid "Monthly"
-msgstr ""
+msgstr "شهريًا"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_series__name
 msgid "Name"
-msgstr ""
+msgstr "الاسم"
 
 #. module: webvue_meetings
 #. odoo-python
@@ -752,7 +752,7 @@ msgstr "عادية"
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minutes_version__number
 msgid "Number"
-msgstr ""
+msgstr "الرقم"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__message_needaction_counter
@@ -781,24 +781,24 @@ msgstr "عدد الرسائل ذات خطأ التسليم"
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_event__occurred_at
 msgid "Occurred At"
-msgstr ""
+msgstr "وقت الحدوث"
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_series.py:0
 msgid "Occurrence count must be between 1 and %s."
-msgstr ""
+msgstr "يجب أن يكون عدد التكرارات بين 1 و%s."
 
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__webvue_meeting_series__recurrence__none
 msgid "On demand"
-msgstr ""
+msgstr "عند الطلب"
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_series.py:0
 msgid "On-demand series do not generate recurrences."
-msgstr ""
+msgstr "السلسلة عند الطلب لا تولّد تكرارات."
 
 #. module: webvue_meetings
 #. odoo-python
@@ -902,7 +902,7 @@ msgstr ""
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_series.py:0
 msgid "Only the organizer, secretary or a meetings manager may add meetings."
-msgstr ""
+msgstr "المنظّم أو أمين السر أو مدير الاجتماعات فقط قد يضيف اجتماعات."
 
 #. module: webvue_meetings
 #. odoo-python
@@ -939,7 +939,7 @@ msgstr "توصيات مفتوحة"
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Opening:"
-msgstr ""
+msgstr "الافتتاح:"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__organizer_id
@@ -969,7 +969,7 @@ msgstr "الأولوية"
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__rating_ids
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_resolution__rating_ids
 msgid "Ratings"
-msgstr ""
+msgstr "التقييمات"
 
 #. module: webvue_meetings
 #. odoo-python
@@ -981,23 +981,23 @@ msgstr "أعد تعيين المسؤول قبل إزالته من الاجتما
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_resolution.py:0
 msgid "Recommendation created."
-msgstr ""
+msgstr "أُنشئت التوصية."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_resolution.py:0
 msgid "Recommendation updated."
-msgstr ""
+msgstr "حُدّثت التوصية."
 
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Recommendations"
-msgstr ""
+msgstr "التوصيات"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_series__recurrence
 msgid "Recurrence"
-msgstr ""
+msgstr "التكرار"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__reference
@@ -1021,19 +1021,19 @@ msgstr "أعد فتح الاجتماع الملغى قبل تحديث توصيا
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_schedule_scope.py:0
 msgid "Reopen the completed meeting before cancelling it."
-msgstr ""
+msgstr "أعد فتح الاجتماع المكتمل قبل إلغائه."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_schedule_scope.py:0
 msgid "Reopen the meeting before changing its content."
-msgstr ""
+msgstr "أعد فتح الاجتماع قبل تغيير محتواه."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_schedule_scope.py:0
 msgid "Reopen the meeting before changing its schedule."
-msgstr ""
+msgstr "أعد فتح الاجتماع قبل تغيير موعده."
 
 #. module: webvue_meetings
 #. odoo-python
@@ -1087,13 +1087,13 @@ msgstr "المسؤول"
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Result"
-msgstr ""
+msgstr "النتيجة"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__message_has_sms_error
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_resolution__message_has_sms_error
 msgid "SMS Delivery error"
-msgstr ""
+msgstr "خطأ تسليم رسالة نصية"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__secretary_id
@@ -1110,7 +1110,7 @@ msgstr "التسلسل"
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__series_id
 msgid "Series"
-msgstr ""
+msgstr "السلسلة"
 
 #. module: webvue_meetings
 #. odoo-python
@@ -1122,24 +1122,24 @@ msgstr "عيّن البداية والنهاية قبل جدولة هذا الا
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_series.py:0
 msgid "Set either an end date or a number of meetings, not both."
-msgstr ""
+msgstr "حدّد تاريخ انتهاء أو عدد اجتماعات، لا الاثنين."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_series.py:0
 msgid "Set start and end before generating the series."
-msgstr ""
+msgstr "حدّد البداية والنهاية قبل توليد السلسلة."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_snapshot.py:0
 msgid "Set the meeting start and end before completing it."
-msgstr ""
+msgstr "حدّد بداية الاجتماع ونهايته قبل إكماله."
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minutes_version__snapshot
 msgid "Snapshot"
-msgstr ""
+msgstr "اللقطة"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__start_datetime
@@ -1156,18 +1156,18 @@ msgstr "الحالة"
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Status"
-msgstr ""
+msgstr "الحالة"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_event__summary
 msgid "Summary"
-msgstr ""
+msgstr "الملخص"
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/calendar_event.py:0
 msgid "The Calendar organizer must have access to the Meeting Minutes company."
-msgstr ""
+msgstr "يجب أن يملك منظّم التقويم وصولًا لشركة محضر الاجتماع."
 
 #. module: webvue_meetings
 #. odoo-python
@@ -1179,32 +1179,32 @@ msgstr "لا يمكن أن يكون وقت نهاية الاجتماع قبل ب
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_series.py:0
 msgid "The meeting end time must be after its start time."
-msgstr ""
+msgstr "يجب أن يكون وقت انتهاء الاجتماع بعد بدايته."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute.py:0
 msgid "The meeting series does not exist."
-msgstr ""
+msgstr "سلسلة الاجتماعات غير موجودة."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute.py:0
 #: code:addons/webvue_meetings/models/meeting_series.py:0
 msgid "The meeting series is outside the current company."
-msgstr ""
+msgstr "سلسلة الاجتماعات خارج الشركة الحالية."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_form.py:0
 msgid "The minutes form text is too long."
-msgstr ""
+msgstr "نص نموذج المحضر طويل جدًا."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_series.py:0
 msgid "The recurrence end date must be on or after the first meeting."
-msgstr ""
+msgstr "يجب أن يكون تاريخ انتهاء التكرار في أول اجتماع أو بعده."
 
 #. module: webvue_meetings
 #. odoo-python
@@ -1246,28 +1246,28 @@ msgstr "تغيير حالة التوصية هذا غير مسموح."
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_series.py:0
 msgid "This series already has meetings."
-msgstr ""
+msgstr "هذه السلسلة فيها اجتماعات بالفعل."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute.py:0
 msgid "This time overlaps another meeting for the organizer."
-msgstr ""
+msgstr "هذا الموعد يتقاطع مع اجتماع آخر للمنظّم."
 
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Title"
-msgstr ""
+msgstr "العنوان"
 
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Topic"
-msgstr ""
+msgstr "المحور"
 
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
 msgid "Topic summary"
-msgstr ""
+msgstr "ملخص المحور"
 
 #. module: webvue_meetings
 #. odoo-python
@@ -1278,12 +1278,12 @@ msgstr "فك ارتباط المحضر قبل حذف حدث التقويم."
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_series__until_count
 msgid "Until Count"
-msgstr ""
+msgstr "حتى عدد"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_series__until_date
 msgid "Until Date"
-msgstr ""
+msgstr "حتى تاريخ"
 
 #. module: webvue_meetings
 #. odoo-python
@@ -1300,7 +1300,7 @@ msgstr "عاجلة"
 #. module: webvue_meetings
 #: model:ir.model,name:webvue_meetings.model_res_users
 msgid "User"
-msgstr ""
+msgstr "المستخدم"
 
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__webvue_meeting_resolution__priority__2
@@ -1310,50 +1310,50 @@ msgstr "مهمة جداً"
 #. module: webvue_meetings
 #: model:ir.model,name:webvue_meetings.model_webvue_access_service
 msgid "WebVue Access Service"
-msgstr ""
+msgstr "خدمة الوصول في ويب فيو"
 
 #. module: webvue_meetings
 #: model:ir.model,name:webvue_meetings.model_webvue_entitlement_service
 msgid "WebVue entitlement service"
-msgstr ""
+msgstr "خدمة الاستحقاقات في ويب فيو"
 
 #. module: webvue_meetings
 #: model:ir.model,name:webvue_meetings.model_webvue_feature_registry
 msgid "WebVue feature and module registry"
-msgstr ""
+msgstr "سجل الميزات والوحدات في ويب فيو"
 
 #. module: webvue_meetings
 #: model:ir.model,name:webvue_meetings.model_webvue_notify_registry
 msgid "WebVue notification type registry"
-msgstr ""
+msgstr "سجل أنواع الإشعارات في ويب فيو"
 
 #. module: webvue_meetings
 #: model:ir.model,name:webvue_meetings.model_webvue_directory
 msgid "WebVue people directory"
-msgstr ""
+msgstr "دليل الأشخاص في ويب فيو"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__website_message_ids
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_resolution__website_message_ids
 msgid "Website Messages"
-msgstr ""
+msgstr "رسائل الموقع"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,help:webvue_meetings.field_webvue_meeting_minute__website_message_ids
 #: model:ir.model.fields,help:webvue_meetings.field_webvue_meeting_resolution__website_message_ids
 msgid "Website communication history"
-msgstr ""
+msgstr "سجل التواصل عبر الموقع"
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_mail_mail__webvue_meeting_id
 #: model:ir.model.fields,field_description:webvue_meetings.field_mail_message__webvue_meeting_id
 msgid "Webvue Meeting"
-msgstr ""
+msgstr "اجتماع ويب فيو"
 
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__webvue_meeting_series__recurrence__weekly
 msgid "Weekly"
-msgstr ""
+msgstr "أسبوعيًا"
 
 #. module: webvue_meetings
 #. odoo-python
@@ -1366,7 +1366,7 @@ msgstr ""
 #. odoo-python
 #: code:addons/webvue_meetings/controllers/meeting_attachments.py:0
 msgid "You are not allowed to change this meeting."
-msgstr ""
+msgstr "لا يحق لك تغيير هذا الاجتماع."
 
 #. module: webvue_meetings
 #. odoo-python
@@ -1412,30 +1412,30 @@ msgstr "لا يمكن تعيين حقول التوصية الداخلية."
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_form.py:0
 msgid "minutes_form contains unsupported fields."
-msgstr ""
+msgstr "نموذج المحضر يحتوي حقولًا غير مدعومة."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_form.py:0
 msgid "minutes_form must be an object."
-msgstr ""
+msgstr "يجب أن يكون نموذج المحضر كائنًا."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_form.py:0
 msgid "minutes_form topics must contain at most 100 items."
-msgstr ""
+msgstr "يجب ألا يتجاوز نموذج المحضر 100 محور."
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_mail_mail__webvue_notification_kind
 #: model:ir.model.fields,field_description:webvue_meetings.field_mail_message__webvue_notification_kind
 msgid "webvue Notification Kind"
-msgstr ""
+msgstr "نوع إشعار ويب فيو"
 
 #. module: webvue_meetings
 #: model:ir.actions.server,name:webvue_meetings.ir_cron_webvue_meeting_reminders_ir_actions_server
 msgid "webvue: meeting reminders"
-msgstr ""
+msgstr "ويب فيو: تذكيرات الاجتماعات"
 
 #. module: webvue_meetings
 #: model_terms:ir.ui.view,arch_db:webvue_meetings.report_meeting_minutes_document
