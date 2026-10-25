@@ -26,7 +26,7 @@ def readable_active_meeting_ids(env):
     Meeting = env['webvue.meeting.minute']
     if not env['webvue.access.service']._webvue_has_capability(env.user, 'meetings.read') or not Meeting.has_access('read'):
         return []
-    rows = env['mail.notification'].sudo().search([
+    rows = env['mail.notification'].search([
         ('res_partner_id', '=', env.user.partner_id.id),
         ('mail_message_id.webvue_notification', '=', True),
         ('mail_message_id.model', '=', 'webvue.meeting.minute'),

@@ -11,7 +11,7 @@ class WebVueMeetingMinuteFollowers(models.Model):
         self.ensure_one()
         service = self.env['webvue.access.service']
         # sudo READ: meeting-manager group members, narrowed by actual company grants; no meeting fields.
-        candidates = self.env.ref('webvue_meetings.group_cap_meetings_manage').sudo().user_ids
+        candidates = self.env.ref('webvue_meetings.group_cap_meetings_manage').user_ids
         managers = candidates.filtered(lambda user: user.active and not user.share
             and self.company_id in user.company_ids
             and service._webvue_has_capability(user, 'meetings.manage', company=self.company_id))

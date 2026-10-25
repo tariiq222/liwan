@@ -388,15 +388,18 @@ class WebVueTenantProfile(models.Model):
         """
         self._webvue_require_operator()
         if not operation_id or not isinstance(branches, (list, tuple)):
-            raise ValidationError(self.env._('branch_binding_invalid'))
+            msg = 'branch_binding_invalid'
+            raise ValidationError(msg)
         requested = {}
         for item in branches:
             uid = item.get('branch_id') if isinstance(item, dict) else None
             name = item.get('name') if isinstance(item, dict) else None
             if not uid or not isinstance(uid, str) or not name or not isinstance(name, str):
-                raise ValidationError(self.env._('branch_binding_invalid'))
+                msg = 'branch_binding_invalid'
+                raise ValidationError(msg)
             if uid in requested and requested[uid] != name:
-                raise ValidationError(self.env._('branch_binding_conflict'))
+                msg = 'branch_binding_conflict'
+                raise ValidationError(msg)
             requested[uid] = name
         profile = self._webvue_lock()
         Branch = self.env['webvue.tenant.branch']
@@ -407,7 +410,8 @@ class WebVueTenantProfile(models.Model):
                 branch.state != 'active'
                 or branch.company_id.parent_id != profile.root_company_id
             ):
-                raise ValidationError(self.env._('branch_binding_conflict'))
+                msg = 'branch_binding_conflict'
+                raise ValidationError(msg)
         new_uids = [uid for uid in requested if uid not in by_uid]
         if new_uids:
             active_count = Branch.search_count([('state', '=', 'active')])
@@ -437,7 +441,8 @@ class WebVueTenantProfile(models.Model):
         self._webvue_lock()
         branch = self.env['webvue.tenant.branch'].search([('branch_uid', '=', branch_uid)])
         if not branch:
-            raise ValidationError(self.env._('branch_not_found'))
+            msg = 'branch_not_found'
+            raise ValidationError(msg)
         branch.write({'state': 'archived', 'operation_id': operation_id})
         branch.company_id.write({'active': False})
         return branch.company_id
@@ -448,7 +453,8 @@ class WebVueTenantProfile(models.Model):
             ('branch_uid', '=', branch_uid), ('state', '=', 'active'),
         ])
         if not branch or branch.company_id.root_id != self.root_company_id:
-            raise ValidationError(self.env._('branch_binding_conflict'))
+            msg = 'branch_binding_conflict'
+            raise ValidationError(msg)
         user.write({
             'company_ids': [(6, 0, branch.company_id.ids)],
             'company_id': branch.company_id.id,

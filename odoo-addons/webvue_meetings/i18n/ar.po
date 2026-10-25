@@ -854,49 +854,49 @@ msgstr "يمكن للمسؤول أو محرر الاجتماع فقط تحديث
 msgid ""
 "Only the organizer, secretary or a Meeting Manager may change resolution "
 "contents."
-msgstr ""
+msgstr "لا يمكن إلا للمنظّم أو أمين السر أو مدير الاجتماعات تغيير محتوى القرارات."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute.py:0
 msgid ""
 "Only the organizer, secretary or a Meeting Manager may confirm this meeting."
-msgstr ""
+msgstr "لا يمكن إلا للمنظّم أو أمين السر أو مدير الاجتماعات تأكيد هذا الاجتماع."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_resolution.py:0
 msgid ""
 "Only the organizer, secretary or a Meeting Manager may create resolutions."
-msgstr ""
+msgstr "لا يمكن إلا للمنظّم أو أمين السر أو مدير الاجتماعات إنشاء القرارات."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute.py:0
 msgid ""
 "Only the organizer, secretary or a Meeting Manager may edit this meeting."
-msgstr ""
+msgstr "لا يمكن إلا للمنظّم أو أمين السر أو مدير الاجتماعات تعديل هذا الاجتماع."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_calendar.py:0
 msgid ""
 "Only the organizer, secretary or a Meeting Manager may link a calendar event."
-msgstr ""
+msgstr "لا يمكن إلا للمنظّم أو أمين السر أو مدير الاجتماعات ربط حدث تقويم."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_resolution.py:0
 msgid ""
 "Only the organizer, secretary or a Meeting Manager may move a resolution."
-msgstr ""
+msgstr "لا يمكن إلا للمنظّم أو أمين السر أو مدير الاجتماعات نقل قرار."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_minute_calendar.py:0
 msgid ""
 "Only the organizer, secretary or a Meeting Manager may schedule this meeting."
-msgstr ""
+msgstr "لا يمكن إلا للمنظّم أو أمين السر أو مدير الاجتماعات جدولة هذا الاجتماع."
 
 #. module: webvue_meetings
 #. odoo-python
@@ -909,14 +909,14 @@ msgstr "المنظّم أو أمين السر أو مدير الاجتماعات
 #: code:addons/webvue_meetings/models/meeting_series.py:0
 msgid ""
 "Only the organizer, secretary or a meetings manager may edit this series."
-msgstr ""
+msgstr "لا يمكن إلا للمنظّم أو أمين السر أو مدير الاجتماعات تعديل هذه السلسلة."
 
 #. module: webvue_meetings
 #. odoo-python
 #: code:addons/webvue_meetings/models/meeting_series.py:0
 msgid ""
 "Only the organizer, secretary or a meetings manager may generate meetings."
-msgstr ""
+msgstr "لا يمكن إلا للمنظّم أو أمين السر أو مدير الاجتماعات توليد الاجتماعات."
 
 #. module: webvue_meetings
 #. odoo-python
@@ -924,7 +924,7 @@ msgstr ""
 msgid ""
 "Only the organizer, secretary or a meetings manager may link a meeting to "
 "this series."
-msgstr ""
+msgstr "لا يمكن إلا للمنظّم أو أمين السر أو مدير الاجتماعات ربط اجتماع بهذه السلسلة."
 
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__webvue_meeting_resolution__state__open
@@ -953,7 +953,7 @@ msgstr "المنظم"
 #: code:addons/webvue_meetings/models/meeting_minute.py:0
 msgid ""
 "Organizer, secretary and attendees must have access to the meeting company."
-msgstr ""
+msgstr "يجب أن يملك المنظّم وأمين السر والحاضرون وصولًا إلى شركة الاجتماع."
 
 #. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__overdue_resolution_count
@@ -1070,7 +1070,7 @@ msgstr "التوصيات"
 #: code:addons/webvue_meetings/models/meeting_resolution.py:0
 msgid ""
 "Resolutions cannot be moved to or from a completed or cancelled meeting."
-msgstr ""
+msgstr "لا يمكن نقل القرارات من اجتماع مكتمل أو ملغى أو إليه."
 
 #. module: webvue_meetings
 #. odoo-python
@@ -1290,7 +1290,7 @@ msgstr "حتى تاريخ"
 #: code:addons/webvue_meetings/models/meeting_minute_calendar.py:0
 msgid ""
 "Updating the calendar event cannot change meeting minutes you cannot edit."
-msgstr ""
+msgstr "تحديث حدث التقويم لا يغيّر محضر اجتماع لا يمكنك تعديله."
 
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__webvue_meeting_resolution__priority__3
@@ -1360,7 +1360,7 @@ msgstr "أسبوعيًا"
 #: code:addons/webvue_meetings/models/meeting_minute_snapshot.py:0
 msgid ""
 "Write the minutes or fill in the minutes form before completing the meeting."
-msgstr ""
+msgstr "اكتب المحضر أو املأ نموذج المحضر قبل إكمال الاجتماع."
 
 #. module: webvue_meetings
 #. odoo-python
