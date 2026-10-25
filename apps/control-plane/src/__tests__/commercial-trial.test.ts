@@ -61,6 +61,9 @@ suite('commercial trial', () => {
     await expect(startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now }))
       .rejects.toMatchObject({ code: 'trial_already_used' })
   })
+  async function onlyTrial(customerId: string) {
+    await pool.query("UPDATE subscriptions SET state='past_due',revision=revision+1 WHERE state='trialing' AND customer_id<>$1", [customerId])
+  }
   async function trialAt(at: Date, daysLeft: number) {
     const c = await newCustomer()
     const start = new Date(at.getTime() - (plan.trial_days - daysLeft) * 86_400_000)
@@ -92,6 +95,7 @@ suite('commercial trial', () => {
   })
   it('writes each notice threshold exactly once', async () => {
     const c = await trialAt(now, 3)
+    await onlyTrial(c.id)
     const sent: unknown[] = []
     const mail = { send: async (message: unknown) => { sent.push(message); return { accepted: true, provider_message_id: 'p1' } } }
     expect(await sendTrialNotices(pool, { now, mail })).toBe(1)
@@ -147,6 +151,28 @@ suite('commercial trial', () => {
     expect((await getSubscription(pool, c.id)).state).toBe('past_due')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
     expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='trial.converted' AND subject=(SELECT id::text FROM subscriptions WHERE customer_id=$1)", [c.id])).rows[0].n).toBe(1)
+  })
+  it('catches up a notice when the scheduler missed the exact day', async () => {
+    const c = await trialAt(now, 2)
+    await onlyTrial(c.id)
+    const sent: unknown[] = []
+    const mail = { send: async (message: unknown) => { sent.push(message); return { accepted: true, provider_message_id: 'p2' } } }
+    expect(await sendTrialNotices(pool, { now, mail })).toBe(1)
+    expect(await sendTrialNotices(pool, { now, mail })).toBe(0)
+    const subscriptionId = (await getSubscription(pool, c.id)).id
+    const notice = (await pool.query("SELECT payload FROM commercial_outbox WHERE kind='trial.notice' AND aggregate_id=$1", [subscriptionId])).rows[0]
+    expect(notice.payload).toMatchObject({ days_left: 2 })
+  })
+  it('retries a failed notice send on the next run', async () => {
+    const c = await trialAt(now, 3)
+    await onlyTrial(c.id)
+    let attempts = 0
+    const mail = { send: async () => { attempts++; if (attempts === 1) throw new Error('smtp_down'); return { accepted: true, provider_message_id: 'p3' } } }
+    expect(await sendTrialNotices(pool, { now, mail })).toBe(1)
+    expect((await pool.query("SELECT status FROM commercial_outbox WHERE kind='trial.notice' AND status='failed'")).rowCount).toBe(1)
+    expect(await sendTrialNotices(pool, { now, mail })).toBe(1)
+    expect(await sendTrialNotices(pool, { now, mail })).toBe(0)
+    expect((await pool.query("SELECT status FROM commercial_outbox WHERE kind='trial.notice' AND status='failed'")).rowCount).toBe(0)
   })
   it('does not grant a trial for an application the customer did not choose', async () => {
     const c = await newCustomer()
