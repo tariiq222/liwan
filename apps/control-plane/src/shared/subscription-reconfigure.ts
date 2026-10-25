@@ -68,6 +68,9 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
     await assertOwned()
     if(receipt.order_id!==claim.job.authority.order_id || receipt.database!==claim.job.binding.database || receipt.target_revision_id!==claim.job.authority.target_revision_id || receipt.observed_entitlement_digest!==claim.job.authority.entitlement.digest)throw Error('observed_mismatch')
     if(!claim.job.restore)await applyReceipt(pool,{order_id:claim.job.authority.order_id,receipt})
+    if((receipt as {commercial_expiry_supported?:boolean}).commercial_expiry_supported===true){
+      await pool.query('UPDATE tenants SET commercial_expiry_supported=true WHERE id=$1 AND commercial_expiry_supported IS DISTINCT FROM true',[claim.job.controlTenantId])
+    }
     // applyReceipt clears the target; completion checks ownership separately.
     await transaction(pool,async client=>{
       const done=await client.query("UPDATE shared_jobs SET state='verified',receipt=$4,lease_until=NULL,journal=$5 WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running' AND lease_until>clock_timestamp() RETURNING id",[id,claim.attemptId,claim.fence,receipt,{stage:'verified',operation_id:claim.job.authority.operation_id}])
@@ -78,7 +81,10 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
     const code=error instanceof Error?error.message:'shared_effect_unverified'
     if(code!=='shared_lease_lost'){
       if(!claim.job.restore)await failFulfillment(pool,{order_id:claim.job.authority.order_id,code})
-      await pool.query("UPDATE shared_jobs SET state='needs_intervention',lease_until=NULL WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running'",[id,claim.attemptId,claim.fence])
+      await pool.query("UPDATE shared_jobs SET state='needs_intervention',lease_until=NULL,journal=$4 WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running'",[id,claim.attemptId,claim.fence,{stage:'needs_intervention',operation_id:claim.job.authority.operation_id,error_code:code}])
+      if(code==='tenant_upgrade_required'){
+        await pool.query('UPDATE tenants SET commercial_expiry_supported=false WHERE id=$1',[claim.job.controlTenantId])
+      }
     }
     throw error
   }

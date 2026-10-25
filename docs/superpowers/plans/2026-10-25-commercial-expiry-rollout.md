@@ -13,7 +13,12 @@
 3. **Control plane** that sends `commercial_valid_until` in the reconfigure authority.
 
 Deploying 3 before 1–2 is refused visibly by the effect (`tenant_upgrade_required`); it is
-never a silent success. A `null` clear on an unupgraded tenant is a no-op.
+never a silent success. A `null` clear on an unupgraded tenant is a no-op. The control
+plane records the answer on `tenants.commercial_expiry_supported`: the effect's receipt
+carries `commercial_expiry_supported`, a verified job sets the flag `true`, a
+`tenant_upgrade_required` failure sets it `false` and stores the code in the job journal,
+and `startTrial` refuses a tenant whose flag is explicitly `false`. `NULL` (never observed)
+still allows the first trial, which then fails visibly on an old tenant.
 
 ## Preconditions
 
@@ -59,6 +64,7 @@ keeps access until that date; afterwards Odoo answers `403` on every route excep
 | --- | --- | --- |
 | Job fails `tenant_upgrade_required` | tenant not on 19.0.1.6.0 | upgrade the tenant, then re-drive the date (extend/end from the console or retry the job) |
 | Job `needs_intervention` | binding drift, stale target, worker failure | inspect the job; fix the registry binding; re-push by extending/ending, or clear explicitly |
+| `tenant_binding_unavailable` / `trial_order_unavailable` on extend/end | no enabled binding, or no applied order to attach the job to | fix the registry binding or let fulfilment apply the order, then repeat the action; the mutation is refused rather than silently unpushed |
 | Console says extended, Odoo date is old | push never applied | same as above; do not tell the customer it is extended until the profile matches |
 | Paid customer locked at the old date | clear job failed | re-push the clear (end/convert or operator policy with `commercial_valid_until: null`) |
 | Date re-set after a clear | two pushes at the same revision applied out of order | re-push the latest state; opening a revision is the only ordered fix |
@@ -68,7 +74,10 @@ An unupgraded tenant that is not in a trial is unaffected: it receives no date.
 ## Monitoring
 
 - `shared_jobs` with `payload->'authority' ? 'commercial_valid_until'` and
-  `state IN ('needs_intervention','running')` for more than one scheduler interval.
+  `state IN ('needs_intervention','running')` for more than one scheduler interval; read
+  `journal->>'error_code'`.
+- `tenants` with `commercial_expiry_supported IS FALSE` that have active customers: they
+  were observed as old; upgrade before their next trial, and re-drive any refused push.
 - Subscriptions in `trialing` whose tenant profile date is earlier than
   `trial_ends_at + grace_days` (drift).
 - The scheduler log line `commercial_scheduler_tick` for failing `trial-notices`/`renewals`.

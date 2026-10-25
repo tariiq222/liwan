@@ -439,7 +439,8 @@ class SubscriptionEffect:
     def receipt(self, request, observed, installed, not_granted=None):
         by_id = {b['branch_id']: b for b in observed['branches']}
         extra = {'roles_not_granted': True, 'roles_not_granted_reason': not_granted} if not_granted else {}
-        return {**extra, 'order_id': request['order_id'], 'database': observed['database'],
+        return {**extra, 'commercial_expiry_supported': observed.get('commercial_expiry_supported', False),
+                'order_id': request['order_id'], 'database': observed['database'],
                 'tenant_id': observed['database'], 'root_company_id': observed['root_company_id'],
                 'target_revision_id': request['target_revision_id'],
                 'observed_entitlement_digest': observed['commercial_digest'],

@@ -154,6 +154,7 @@ class ReconfigureTests(Base):
         self.assertEqual(receipt['order_id'], 'order-1')
         self.assertEqual(receipt['target_revision_id'], TARGET)
         self.assertEqual(receipt['root_company_id'], 1)
+        self.assertIs(receipt['commercial_expiry_supported'], True)
 
     def test_writes_the_commercial_expiry(self):
         request = make_request(commercial_valid_until='2026-11-08', commercial_valid_until_revision=1)
