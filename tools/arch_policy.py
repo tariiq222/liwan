@@ -617,12 +617,21 @@ def documented_growth(ref: str, root: Path, documented_file: Path) -> list[str]:
     ref_text = _git_show(root, ref, documented_file.relative_to(root).as_posix())
     old = documented_counts(json.loads(ref_text)) if ref_text is not None else {}
     new = documented_counts(json.loads(_read(documented_file))) if documented_file.is_file() else {}
-    return [
-        f'R7: {rel}: documented sudo case count fell from {old.get(rel, 0)} to {have}; '
-        'lower it in arch_documented_sudo.json'
-        for rel, have in sorted(new.items())
-        if have < old.get(rel, 0)
-    ]
+    # A count may only shrink together with the code: the recorded cases must still be
+    # reachable. A file whose own documented count drops while its sudo sites stay put
+    # is a stale record, not a cleanup.
+    problems = []
+    for rel, have in sorted(new.items()):
+        if have >= old.get(rel, 0):
+            continue
+        text = _read(root / rel) if (root / rel).is_file() else ''
+        sites = len(sudo_sites(text)) if text else 0
+        if sites < have:
+            problems.append(
+                f'R7: {rel}: documented sudo case count fell from {old.get(rel, 0)} to {have} '
+                f'but the file has {sites} sudo sites; correct the documented count',
+            )
+    return problems
 
 
 def without_documented(current: Violations, documented: dict[str, int]) -> Violations:

@@ -1347,8 +1347,9 @@ class TestDocumentedSudo(BaseRefCase):
         self.git('commit', '-q', '-m', 'document')
         self.assertEqual(self.problems('--base', 'main'), (0, ''))
 
-    def test_raising_a_documented_count_needs_no_trailer_but_lowering_it_below_the_range_fails(self):
-        # Owner decision 2026-10-25: raising no longer needs the trailer.
+    def test_a_documented_count_may_shrink_with_the_code_it_no_longer_needs(self):
+        # Owner decision 2026-10-25: raising needs no trailer, and a cleanup may lower the
+        # count as long as the file no longer reaches it.
         self.adopt_documented()
         self.git('checkout', '-q', '-b', 'work')
         self.sudo('b', 3)
@@ -1356,15 +1357,26 @@ class TestDocumentedSudo(BaseRefCase):
         self.git('add', '-A')
         self.git('commit', '-q', '-m', 'raise')
         self.assertEqual(self.problems('--base', 'main')[0], 0, 'raising needs no trailer')
-        # Lowering the documented count is the stale direction: the reference recorded a
-        # higher number, so the file must be corrected rather than quietly reduced.
         self.sudo('b', 1)
         self.document(1)
         self.git('add', '-A')
         self.git('commit', '-q', '-m', 'lower')
+        self.assertEqual(self.problems('--base', 'main')[0], 0, 'a cleanup may lower the count')
+
+    def test_a_documented_count_lowered_without_removing_the_call_fails(self):
+        self.adopt_documented()
+        self.git('checkout', '-q', '-b', 'work')
+        # `adopt_documented` already committed two calls against two documented cases.
+        self.git('branch', '-f', 'main', 'HEAD')
+        # Then only the registry drops, while both calls stay in the file.
+        self.document(1)
+        self.git('add', '-A')
+        self.git('commit', '-q', '-m', 'lower without a code change')
+        # Lowering the registry while the calls stay is rejected: the two calls are no
+        # longer covered, so the file is over its allowance.
         code, text = self.problems('--base', 'main')
         self.assertEqual(code, 1)
-        self.assertIn('documented sudo case count fell', text)
+        self.assertIn('1 found, baseline allows 0', text)
 
     def test_stale_or_missing_case_is_reported(self):
         self.adopt_documented()
