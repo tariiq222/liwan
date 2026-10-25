@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Unit tests (no Odoo, no Docker): fake runner replaces script execution."""
+import ast
 import inspect
 import io
 import json
@@ -39,7 +40,7 @@ def make_request(**over):
 
 def observation(**over):
     value = {'database': DB, 'root_company_id': 1, 'commercial_revision_id': PREV, 'commercial_digest': 'c' * 64,
-             'commercial_applied_at': None, 'features': {'users.limit': 3},
+             'commercial_applied_at': None, 'commercial_valid_until': None, 'features': {'users.limit': 3},
              'modules': ['webvue_api', 'webvue_core', 'webvue_platform'], 'branches': [],
              'usage': {'users.limit': 1, 'projects.max_projects': 0, 'storage.limit_mb': 0, 'branches.extra_limit': 0},
              'limit_gates': {'users.limit': [], 'projects.max_projects': ['pmo.enabled'],
@@ -49,6 +50,12 @@ def observation(**over):
 
 
 LOWERABLE = {'users.limit': 20, 'projects.max_projects': 20, 'storage.limit_mb': 200}
+
+
+def _script_values(script):
+    line = next(item for item in script.splitlines() if item.startswith('values = json.loads('))
+    payload = line.split('values = json.loads(', 1)[1].rstrip(')')
+    return json.loads(ast.literal_eval(payload))
 
 
 def wrap(value):
@@ -120,6 +127,12 @@ class ValidationTests(unittest.TestCase):
         self.bad(entitlement={**ent, 'features': {'users.limit': -1}})
         self.bad(entitlement={**ent, 'features': {'x': 'yes'}})
 
+    def test_commercial_expiry_validation(self):
+        se.validate_reconfigure(make_request(commercial_valid_until='2026-11-08'))
+        se.validate_reconfigure(make_request(commercial_valid_until=None))
+        self.bad(commercial_valid_until='08/11/2026')
+        self.bad(commercial_valid_until=20261108)
+
     def test_branch_validation(self):
         self.bad(branches={'apply': [{'branch_id': B1, 'name': 'a'}, {'branch_id': B1, 'name': 'b'}], 'archive': []})
         self.bad(branches={'apply': [{'branch_id': B1, 'name': 'a'}], 'archive': [B1]})
@@ -141,6 +154,33 @@ class ReconfigureTests(Base):
         self.assertEqual(receipt['order_id'], 'order-1')
         self.assertEqual(receipt['target_revision_id'], TARGET)
         self.assertEqual(receipt['root_company_id'], 1)
+
+    def test_writes_the_commercial_expiry(self):
+        request = make_request(commercial_valid_until='2026-11-08')
+        runner = FakeRunner(observation(), apply_state=applied_state(request, commercial_valid_until='2026-11-08'))
+        self.effect(runner).reconfigure(request)
+        script = [item for item in runner.scripts if item[0] == 'apply'][-1][2]
+        values = _script_values(script)
+        self.assertEqual(values['commercial_valid_until'], '2026-11-08')
+        self.assertIn("if 'commercial_valid_until' in values:", script)
+        self.assertIn("operator.write({'commercial_valid_until': wanted})", script)
+
+    def test_clears_the_commercial_expiry_when_requested(self):
+        request = make_request(commercial_valid_until=None)
+        state = applied_state(request)
+        state['commercial_valid_until'] = None
+        runner = FakeRunner(observation(commercial_valid_until='2026-11-08'), apply_state=state)
+        self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 1)
+        script = [item for item in runner.scripts if item[0] == 'apply'][-1][2]
+        self.assertIsNone(_script_values(script)['commercial_valid_until'])
+
+    def test_unrelated_revision_change_keeps_the_expiry(self):
+        request = make_request()
+        state = applied_state(request, commercial_valid_until='2026-11-08')
+        runner = FakeRunner(observation(commercial_valid_until='2026-11-08'), apply_state=state)
+        self.effect(runner).reconfigure(request)
+        self.assertNotIn('commercial_valid_until', _script_values([item for item in runner.scripts if item[0] == 'apply'][-1][2]))
 
     def test_idempotent_when_already_applied(self):
         request = make_request()
