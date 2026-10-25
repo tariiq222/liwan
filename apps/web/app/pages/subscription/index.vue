@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { subscriptionStateBadge } from '@/utils/subscription'
-import { subscriptionDisplayState } from '@webvue/commercial-contracts'
+import { daysBetween, riyadhDate, subscriptionDisplayState } from '@webvue/commercial-contracts'
 import { formatSubscriptionMoney } from '@/utils/subscription'
 import { entitledFeaturePrefixes } from '@webvue/commercial-ui/app/utils/entitlementApps'
 import { humanizeId } from '@webvue/ui/app/utils/humanizeId'
@@ -18,6 +18,8 @@ const display = computed(() => (data.value ? subscriptionDisplayState(data.value
 // The one action block: only when the customer must act on an order (payment due or activation failed).
 const needsAction = computed(() => display.value === 'awaiting_payment' || display.value === 'failed')
 const entitlement = computed(() => data.value?.sub.applied?.entitlement ?? null)
+const trialEndsAt = computed(() => data.value?.sub.trial_ends_at ?? null)
+const trialDaysLeft = computed(() => trialEndsAt.value ? daysBetween(riyadhDate(new Date()), riyadhDate(new Date(trialEndsAt.value))) : null)
 const entitledApps = computed(() => entitledFeaturePrefixes(entitlement.value?.features))
 const appLabel = (app: string) => (te(`subscription.apps.${app}`) ? t(`subscription.apps.${app}`) : humanizeId(app))
 const arBusy = ref(false); const arError = ref<unknown>(null)
@@ -36,6 +38,9 @@ definePageMeta({ middleware: 'customer-commercial' })
     <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" @retry="refresh">
       <div v-if="data" class="grid gap-(--webvue-gap-card)">
+        <UAlert v-if="data.sub.state === 'trialing' && trialDaysLeft !== null" :color="trialDaysLeft <= 3 ? 'warning' : 'info'" variant="subtle" icon="i-lucide-hourglass"
+          :title="t('subscription.trial.daysLeft', { count: trialDaysLeft })"
+          :description="`${t('subscription.trial.endsOn', { date: trialEndsAt?.slice(0, 10) })}${trialDaysLeft <= 3 ? ' — ' + t('subscription.trial.expiring') : ''}`" />
         <SharedRecordSection
           v-if="data.sub.pending_order || data.sub.target" :variant="needsAction ? 'action' : 'tinted'" data-testid="pending-change"
           :title="t('subscription.summary.pending')" :description="t('subscription.summary.pendingHint')"

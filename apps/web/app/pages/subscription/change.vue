@@ -10,7 +10,7 @@ const plans = computed<Array<Record<string, any>>>(() => data.value?.catalog.pla
 const bundles = computed(() => data.value?.catalog.bundles ?? [])
 const planId = ref(''); const bundleIds = ref<string[]>([]); const cadenceKey = ref(''); const users = ref(1); const storageGb = ref(0); const extra = ref(0)
 const quote = ref<Quote | null>(null); const previewPending = ref(false); const previewError = ref('')
-const notice = ref<'expired' | 'conflict' | 'changed' | 'failed' | null>(null); const busy = ref(false); const redirecting = ref(false)
+const notice = ref<'expired' | 'conflict' | 'changed' | 'failed' | 'start' | null>(null); const busy = ref(false); const redirecting = ref(false)
 const plan = computed(() => plans.value.find((p: Record<string, any>) => p.id === planId.value) ?? null)
 const includedIds = computed(() => new Set(plan.value?.included_bundle_revision_ids ?? []))
 // The plan's optional revisions are the application menu; an existing subscription keeps the
@@ -35,6 +35,8 @@ const bundleLabel = (b: (typeof bundles.value)[number]) => {
   const price = bundlePrice(b)
   return price ? `${b.name} · ${money(price.amount)}` : `${b.name} · ${t('subscription.change.unavailable')}`
 }
+const planTrialDays = computed(() => Number(plan.value?.trial_days ?? 0))
+const trialAvailable = computed(() => Boolean(data.value?.sub && !data.value.sub.applied && planTrialDays.value > 0))
 const body = computed(() => {
   const s = data.value?.sub; const p = plan.value
   if (!s || !p || !cadenceKey.value) return null
@@ -91,6 +93,17 @@ watch(cadenceKey, () => { bundleIds.value = bundleIds.value.filter(id => { const
 watch([planId, bundleIds, cadenceKey, users, storageGb, extra], schedule, { deep: true })
 onMounted(() => void runPreview()); onBeforeUnmount(() => { if (timer) clearTimeout(timer) })
 function retryPreview() { notice.value = null; void runPreview() }
+async function startTrial() {
+  const value = body.value
+  if (!hydrated.value || busy.value || !value || !data.value) return
+  busy.value = true; notice.value = null
+  try {
+    const { subscription_id: _subscription, ...trialBody } = value
+    const result = await api.startTrial(trialBody)
+    api.done(safeIdemAction('change', data.value.sub.id, data.value.sub.revision, JSON.stringify(value)))
+    await navigateTo({ path: '/subscription/status', query: { order: result.order.id } })
+  } catch { notice.value = 'start' } finally { busy.value = false }
+}
 async function accept() {
   const value = body.value; const sub = data.value?.sub
   if (!hydrated.value || busy.value || !value || !sub) return
@@ -117,7 +130,7 @@ async function accept() {
     if (cause?.statusCode === 409) { notice.value = 'conflict'; void runPreview() } else notice.value = 'failed'
   } finally { busy.value = false }
 }
-const noticeKey = computed(() => (notice.value ? `subscription.change.${notice.value}` : ''))
+const noticeKey = computed(() => notice.value === 'start' ? 'subscription.trial.startFailed' : notice.value ? `subscription.change.${notice.value}` : '')
 definePageMeta({ middleware: 'customer-commercial' })
 </script>
 <template>
@@ -163,6 +176,7 @@ definePageMeta({ middleware: 'customer-commercial' })
           <p v-if="redirecting" role="status" class="text-sm text-muted">{{ t('subscription.change.redirecting') }}</p>
           <SharedFormActions>
             <UButton type="submit" :disabled="!hydrated || busy || redirecting || !quote || previewPending" :loading="busy">{{ t('subscription.change.continue') }}</UButton>
+            <UButton v-if="trialAvailable" type="button" color="neutral" variant="outline" :disabled="!hydrated || busy || redirecting || !quote || previewPending" @click="startTrial">{{ t('subscription.trial.start', { count: planTrialDays }) }}</UButton>
           </SharedFormActions>
         </aside>
       </form>
