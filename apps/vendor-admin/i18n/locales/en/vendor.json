@@ -822,6 +822,7 @@
       }
     },
     "customers": {
+      "trial": {"title": "Trial", "ends": "Ends on", "remaining": "Days remaining", "state": "State", "extend": "Extend trial", "end": "End trial now", "extendHint": "Add days to the trial end. The action is audited.", "endHint": "Ends the trial now and issues the first invoice with a payment link. The action is audited.", "days": "Days", "reason": "Reason", "readOnly": "Changing a trial requires the subscription management capability.", "states": {"trialing": "Trial", "active": "Active", "past_due": "Past due", "suspended": "Suspended", "pending": "Provisioning", "cancelled": "Cancelled"}},
       "title": "Customers",
       "search": "Search by client name",
       "empty": "No commercial customers yet.",
