@@ -31,6 +31,13 @@ export function usageFigure(metric: UsageMetric, freshness: UsageSnapshot['fresh
   return { value: known ? metric.used : null, limit: metric.limit, known, stale: known && freshness === 'stale' }
 }
 
+/** Refusal codes that need a specific explanation; everything else falls back to the generic message. */
+export function refusalKey(code: unknown): string | null {
+  return code === 'tenant_upgrade_required' || code === 'tenant_binding_unavailable' || code === 'trial_order_unavailable'
+    ? `subscription.trial.${code === 'tenant_upgrade_required' ? 'upgradeRequired' : 'notConfigured'}`
+    : null
+}
+
 export const QUOTE_IS_EXPIRED = (quote: Pick<Quote, 'expires_at'>, now = Date.now()): boolean => Date.parse(quote.expires_at) <= now
 
 /** Body for POST /quotes and /branch-quotes never carries tenant/customer identity (the BFF rejects those keys). */

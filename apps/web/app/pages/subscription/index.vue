@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { subscriptionStateBadge } from '@/utils/subscription'
 import { daysBetween, riyadhDate, subscriptionDisplayState } from '@webvue/commercial-contracts'
-import { formatSubscriptionMoney, safePaymentRedirect } from '@/utils/subscription'
+import { formatSubscriptionMoney, refusalKey, safePaymentRedirect } from '@/utils/subscription'
 import { entitledFeaturePrefixes } from '@webvue/commercial-ui/app/utils/entitlementApps'
 import { humanizeId } from '@webvue/ui/app/utils/humanizeId'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
@@ -32,7 +32,7 @@ async function convertTrial() {
     if (url) { window.location.assign(url); return }
     if (result.order) { await navigateTo({ path: '/subscription/status', query: { order: result.order.id } }); return }
     convertError.value = t('subscription.trial.activationPending')
-  } catch { convertError.value = t('subscription.trial.convertFailed') } finally { converting.value = false }
+  } catch (cause: any) { convertError.value = t(refusalKey(cause?.data?.code) ?? 'subscription.trial.convertFailed') } finally { converting.value = false }
 }
 const entitledApps = computed(() => entitledFeaturePrefixes(entitlement.value?.features))
 const appLabel = (app: string) => (te(`subscription.apps.${app}`) ? t(`subscription.apps.${app}`) : humanizeId(app))

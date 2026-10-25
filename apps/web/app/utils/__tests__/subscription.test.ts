@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Invoice } from '@webvue/commercial-contracts'
-import { formatSubscriptionMoney, subscriptionInvoiceView } from '../subscription'
+import { formatSubscriptionMoney, refusalKey, subscriptionInvoiceView } from '../subscription'
 
 const money = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
 const t = (key: string) => `t:${key}`
@@ -36,5 +36,13 @@ describe('subscriptionInvoiceView', () => {
     expect(subscriptionInvoiceView(invoice, t, 'ar').totals.map(row => row.label)).toEqual([
       't:subscription.invoices.subtotal', 't:subscription.invoices.tax', 't:subscription.invoices.total',
     ])
+  })
+})
+
+describe('refusalKey', () => {
+  it('explains an unupgraded tenant and an unbound push, and ignores unrelated codes', () => {
+    expect(refusalKey('tenant_upgrade_required')).toBe('subscription.trial.upgradeRequired')
+    expect(refusalKey('tenant_binding_unavailable')).toBe('subscription.trial.notConfigured')
+    expect(refusalKey('revision_conflict')).toBeNull()
   })
 })

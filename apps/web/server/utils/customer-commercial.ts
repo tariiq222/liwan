@@ -205,7 +205,12 @@ export async function forwardCustomerRequest(event: H3Event): Promise<unknown> {
     return response._data
   } catch (cause: any) {
     const status = Number(cause?.statusCode ?? cause?.response?.status)
-    if (status >= 400 && status < 500) throw createError({ statusCode: status, data: cause.data ?? { code: 'commercial_request_failed', message: 'Request failed' } })
+    if (status >= 400 && status < 500) {
+      // Preserve the control plane's refusal code: the customer UI must explain an
+      // unavailable tenant upgrade instead of calling every 409 a subscription conflict.
+      const data = cause?.data ?? cause?.response?._data
+      throw createError({ statusCode: status, data: data ?? { code: 'commercial_request_failed', message: 'Request failed' } })
+    }
     fail(503, 'commercial_unavailable', 'Subscription service is temporarily unavailable')
   }
 }

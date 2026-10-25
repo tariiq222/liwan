@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Quote } from '@webvue/commercial-contracts'
 import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
-import { QUOTE_IS_EXPIRED, safeIdemAction, safePaymentRedirect } from '@/utils/subscription'
+import { QUOTE_IS_EXPIRED, refusalKey, safeIdemAction, safePaymentRedirect } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.manage'))
@@ -16,7 +16,7 @@ const plans = computed<Array<Record<string, any>>>(() => data.value?.catalog.pla
 const bundles = computed(() => data.value?.catalog.bundles ?? [])
 const planId = ref(''); const bundleIds = ref<string[]>([]); const cadenceKey = ref(''); const users = ref(1); const storageGb = ref(0); const extra = ref(0)
 const quote = ref<Quote | null>(null); const previewPending = ref(false); const previewError = ref('')
-const notice = ref<'expired' | 'conflict' | 'changed' | 'failed' | 'start' | null>(null); const busy = ref(false); const redirecting = ref(false)
+const notice = ref<'expired' | 'conflict' | 'changed' | 'failed' | 'start' | 'refused' | null>(null); const refusal = ref<string | null>(null); const busy = ref(false); const redirecting = ref(false)
 const plan = computed(() => plans.value.find((p: Record<string, any>) => p.id === planId.value) ?? null)
 const includedIds = computed(() => new Set(plan.value?.included_bundle_revision_ids ?? []))
 // The plan's optional revisions are the application menu; an existing subscription keeps the
@@ -108,7 +108,10 @@ async function startTrial() {
     const result = await api.startTrial(trialBody)
     api.done(safeIdemAction('change', data.value?.sub?.id ?? '', data.value?.sub?.revision ?? 0, JSON.stringify(value)))
     await navigateTo({ path: '/subscription/status', query: { order: result.order.id } })
-  } catch { notice.value = 'start' } finally { busy.value = false }
+  } catch (cause: any) {
+    notice.value = refusalKey(cause?.data?.code) ? 'refused' : 'start'
+    refusal.value = refusalKey(cause?.data?.code)
+  } finally { busy.value = false }
 }
 async function accept() {
   const value = body.value; const sub = data.value?.sub
@@ -136,7 +139,7 @@ async function accept() {
     if (cause?.statusCode === 409) { notice.value = 'conflict'; void runPreview() } else notice.value = 'failed'
   } finally { busy.value = false }
 }
-const noticeKey = computed(() => notice.value === 'start' ? 'subscription.trial.startFailed' : notice.value ? `subscription.change.${notice.value}` : '')
+const noticeKey = computed(() => notice.value === 'start' ? 'subscription.trial.startFailed' : notice.value === 'refused' ? (refusal.value ?? 'subscription.trial.startFailed') : notice.value ? `subscription.change.${notice.value}` : '')
 definePageMeta({ middleware: 'customer-commercial' })
 </script>
 <template>

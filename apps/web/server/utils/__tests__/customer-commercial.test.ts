@@ -66,6 +66,11 @@ describe('customer commercial BFF', () => {
     const forged = Buffer.from(JSON.stringify({ ...principal, tenant_id: 'tenant-other' })).toString('base64')
     expect(verifyServiceRequest({ method: 'GET', path: '/v1/customer/subscription', body: signedBodyFor(forged, undefined), key: KEY, headers: h })).toBeNull()
   })
+  it('keeps the control-plane refusal code on a 409', async () => {
+    const raw = setup({ url: 'https://acme.example/api/commercial/v1/trial', method: 'POST', body: '{"plan_id":"p"}' })
+    raw.mockRejectedValueOnce(Object.assign(new Error('refused'), { statusCode: 409, data: { code: 'tenant_upgrade_required', message: 'tenant needs an upgrade' } }))
+    await expect(forwardCustomerRequest({} as never)).rejects.toMatchObject({ statusCode: 409, data: { code: 'tenant_upgrade_required' } })
+  })
   it('rejects forged tenant/customer/capability fields in query and body with 400', async () => {
     const raw = setup({ url: 'https://acme.example/api/commercial/v1/usage?tenant_id=other' })
     await expect(forwardCustomerRequest({} as never)).rejects.toMatchObject({ statusCode: 400, data: { code: 'forbidden_field' } })
