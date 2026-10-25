@@ -15,7 +15,6 @@
     "odoo-addons/webvue_meetings/models/meeting_minute_followers.py": 1,
     "odoo-addons/webvue_meetings/models/meeting_notification_types.py": 1,
     "odoo-addons/webvue_platform/models/feature_registry.py": 1,
-    "odoo-addons/webvue_pmo/models/notification_types.py": 1,
     "odoo-addons/webvue_pmo/models/project_milestone.py": 1,
     "odoo-addons/webvue_pmo/models/project_project.py": 1,
     "odoo-addons/webvue_pmo/models/project_task.py": 1

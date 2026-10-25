@@ -143,6 +143,10 @@
     "odoo-addons/webvue_finance/models/zatca_service.py": {
       "count": 2,
       "reason": "finance ZATCA e-invoicing: onboarding (stock wizard) and one-invoice submission, after the finance.zatca.manage/submit and current-company checks; sandbox api mode only until a production policy is approved (owner approved 2026-10-19)"
+    },
+    "odoo-addons/webvue_pmo/models/notification_types.py": {
+      "count": 1,
+      "reason": "webvue_pmo inbox bell candidates: `readable_active_task_ids` searches `mail.notification` with the recipient in the domain before the read (notification_types.py:27). The recipient owns the row but cannot read the bell rows of the tasks they were notified about: `mail.notification` grants `base.group_user` read (access_mail_notification_user), while the task rows the candidate ids point at are narrowed by the project task record rules, so the caller's own environment answers empty. Proven by test_notifications.py::test_readable_task_lookup_is_narrowed_to_recipient_candidates, which fails with the elevation removed."
     }
   }
 }
