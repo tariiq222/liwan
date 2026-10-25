@@ -7,6 +7,7 @@ const CODE_KEYS = {
   has_payments: 'hasPayments',
   invalid_state: 'invalidState',
   period_locked: 'periodLocked',
+  missing_exchange_rate: 'missingExchangeRate',
   pdf_unavailable: 'pdfUnavailable',
   zatca_not_onboarded: 'zatcaNotOnboarded',
   zatca_not_applicable: 'zatcaNotApplicable',
