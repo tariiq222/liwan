@@ -314,23 +314,29 @@ cross-addon links.
   `webvue_platform` uses it only for the entitlement service's tenant-profile read, the user quota delta, the pre-login
   suspension gates, the attachment storage-quota accounting, the binary image route and the pre-session request
   authentication guard — all blocked by the system-only `access_webvue_tenant_profile_system` row, which no ordinary user
-  or public route may hold.
+  or public route may hold. The installed-module probe no longer elevates: `base_install_request` (auto-installed,
+  depends `mail`) grants `base.group_user` read on `ir.module.module`, so the ACL never blocked it.
   `webvue_core` uses it only for the company-partner existence check, which Odoo's `res_company_rule_employee` hides and
   `active_test=False` must still see.
   `webvue_chat` uses it for the two `mail.message.reaction` paths — the toggle after `_webvue_member_channel`
   proved the caller's membership, and the reaction aggregation of an already-authorized message — both blocked
   by `mail.message.reaction` being system-only in Odoo (owner decision 2026-10-25: authorized).
   `webvue_notify` uses it for bell delivery and recipient-owned bell reads: the idempotency-key count, the
-  bell-message create and key replacement, and the three reader helpers, all of which put
-  `res_partner_id = current partner` in the domain first and refuse to run under `env.su`; removing them makes
-  a row whose source the caller may no longer read vanish instead of being filtered, which fails the
-  `webvue_tasks` bell-visibility tests.
+  bell-message create and key replacement, and the three reader helpers. Their blocker is a **Python-level
+  visibility filter**, not an ACL or an `ir.rule`: `mail.notification` is ACL-open to `base.group_user` and its
+  only group_user rule is write-only, while `mail.message._search`/`_check_access` silently drop messages whose
+  `partner_ids` exclude the caller. Removing the elevations makes a row whose source the caller may no longer
+  read vanish instead of being filtered, which fails the `webvue_tasks` bell-visibility tests. The elevated
+  reads apply `res_partner_id = current partner` in the domain and `_webvue_domain` refuses to run under
+  `env.su`.
   `webvue_meetings` uses it only for its server-controlled minutes, snapshot,
   version and event records, the company-wide organizer-overlap check, the
-  meeting-manager group lookup, the existence check of the minutes linked to a
-  calendar event (read only, access is rechecked by the caller) and the
-  recipient-owned bell candidates, and the meeting-manager capability-group member
-  list it needs to build the follower allow-list;
+  existence check of the minutes linked to a calendar event (read only, access is
+  rechecked by the caller) and the recipient-owned bell candidates. It does not
+  elevate the meeting-manager group lookup or the follower allow-list: tests
+  `webvue_meetings/tests/test_follower_access.py` and `webvue_meetings/tests/test_bell_access.py` call both as an ordinary
+  participant who is not a meeting manager and pass unelevated, so the group's
+  `user_ids` and the recipient's bell rows are readable through the ordinary ACLs;
   `webvue_meetings_pmo` only for the id-only lookup of converted tasks;
   `webvue_finance` only in `models/setup_service.py`, for loading the Saudi chart of accounts and
   writing the fiscal settings of the current company, after the

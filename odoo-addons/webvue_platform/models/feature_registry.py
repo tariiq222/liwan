@@ -82,7 +82,7 @@ class WebVueFeatureRegistry(models.AbstractModel):
         declared = tuple(self._webvue_module_map())
         if not declared:
             return ()
-        installed = set(self.env['ir.module.module'].sudo().search([
+        installed = set(self.env['ir.module.module'].search([
             ('name', 'in', list(declared)),
             ('state', '=', 'installed'),
         ]).mapped('name'))
