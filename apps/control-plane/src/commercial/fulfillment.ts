@@ -153,7 +153,7 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         const pending=await client.query("SELECT id FROM commercial_outbox WHERE id=$1 AND status='pending' FOR UPDATE",[row.id])
         if(!pending.rowCount)return null
         const found=await client.query(`SELECT o.*,s.tenant_id,s.applied_revision_id,s.target_revision_id AS subscription_target,
-          s.trial_ends_at,s.grace_ends_at,r.snapshot
+          s.trial_ends_at,r.snapshot
           FROM orders o JOIN subscriptions s ON s.id=o.subscription_id JOIN subscription_revisions r ON r.id=o.target_revision_id
           WHERE o.id=$1 FOR UPDATE OF o,s`,[row.aggregate_id])
         const order=found.rows[0]

@@ -25,6 +25,8 @@ suite('commercial trial', () => {
     const ownTenant = randomUUID()
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Trial customer','saas','managed',$2,true)", [ownTenant, `trial-${ownTenant}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_login) VALUES($1,$2,$3,$4)', [customer, 'Trial customer', ownTenant, `${customer}@example.test`])
+    const slug = `t${ownTenant.replaceAll('-', '')}`
+    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [ownTenant, slug, `${slug}.trial.test`, `webvue_scratch_${slug.slice(1)}`])
     return { id: customer, principal: { ...principal, customer_id: customer, tenant_id: ownTenant } as Principal }
   }
   beforeAll(async () => {
@@ -71,6 +73,7 @@ suite('commercial trial', () => {
     await startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now: start })
     // Fulfillment is exercised by its own suite; here the trial is applied so expiry and renewals can see it.
     await pool.query('UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,revision=revision+1 WHERE customer_id=$1', [c.id])
+    await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE subscription_id=(SELECT id FROM subscriptions WHERE customer_id=$1)", [c.id])
     return c
   }
   it('ends a trial by issuing the first renewal invoice', async () => {
@@ -118,6 +121,8 @@ suite('commercial trial', () => {
     const after = await getSubscription(pool, c.id)
     expect(daysBetween(riyadhDate(now), riyadhDate(new Date(after.trial_ends_at!)))).toBe(12)
     expect((await pool.query("SELECT action FROM audit_events WHERE action='trial.extended' AND subject=$1", [sub.id])).rowCount).toBe(1)
+    const job = (await pool.query("SELECT payload FROM shared_jobs WHERE payload->'authority'->>'target_revision_id'=$1 AND payload->'authority' ? 'commercial_valid_until'", [sub.applied!.id])).rows[0]
+    expect(job?.payload.authority.commercial_valid_until).toBe('2026-11-13')
   })
   it('refuses an extension without a reason', async () => {
     const c = await trialAt(now, 5)
@@ -132,6 +137,8 @@ suite('commercial trial', () => {
     expect((await getSubscription(pool, c.id)).state).toBe('past_due')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
     expect((await pool.query("SELECT action FROM audit_events WHERE action='trial.ended' AND subject=$1", [sub.id])).rowCount).toBe(1)
+    const job = (await pool.query("SELECT payload FROM shared_jobs WHERE payload->'authority'->>'target_revision_id'=$1 AND payload->'authority'->>'commercial_valid_until' IS NULL", [sub.applied!.id])).rows[0]
+    expect(job).toBeTruthy()
   })
   it('converts a trial on demand and issues the first invoice with a hosted attempt', async () => {
     // A different, lexicographically lower subscription is due in the same renewal pass. Its order
