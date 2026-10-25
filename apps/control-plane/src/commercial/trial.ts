@@ -52,7 +52,10 @@ async function pushCommercialExpiry(client: PoolClient, subscription_id: string,
   if (!binding) throw new CommercialHttpError('tenant_binding_unavailable', 409)
   const revision = Number(row.commercial_expiry_revision) + 1
   await client.query('UPDATE subscriptions SET commercial_expiry_revision=$2,revision=revision+1 WHERE id=$1', [subscription_id, revision])
-  const order = (await client.query("SELECT id FROM orders WHERE subscription_id=$1 AND fulfillment_state='applied' ORDER BY created_at DESC,id DESC LIMIT 1", [subscription_id])).rows[0]
+  const order = (await client.query("SELECT id,fulfillment_state FROM orders WHERE subscription_id=$1 AND target_revision_id=$2 ORDER BY created_at DESC,id DESC LIMIT 1", [subscription_id, row.applied_revision_id])).rows[0]
+  // A queued/applying order will push the current trial date itself when it applies; refusing here
+  // would break an extension issued during enrolment.
+  if (order && order.fulfillment_state !== 'applied') return
   if (!order) throw new CommercialHttpError('trial_order_unavailable', 409)
   const operation_id = randomUUID()
   await enqueueReconfigureJob(client, { schemaVersion: 1, operation: 'reconfigure', requestId: operation_id,
