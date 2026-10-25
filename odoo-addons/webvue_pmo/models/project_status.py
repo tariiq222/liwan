@@ -92,7 +92,7 @@ class ProjectProject(models.Model):
         if not self.env.is_superuser():
             msg = 'completion status backfill requires superuser'
             raise AccessError(msg)
-        params = self.env['ir.config_parameter'].sudo()
+        params = self.env['ir.config_parameter']
         if params.get_param(COMPLETION_BACKFILL_PARAM) == '1':
             return True
         for project in self.search([]):
