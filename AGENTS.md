@@ -304,25 +304,33 @@ cross-addon links.
   task counts, the `res.company` scan and the project/task scans of the deadline and overdue crons, the settings and legacy
   `ir.config_parameter` policy writes, the project-type provisioning seed, the task serializers' project, milestone and
   stage display and id lookups, the timeline tracking-value reads, and the charter and completion reviewer-eligibility
-  company reads. Its constraint reads that no category names yet (the milestone-bounds validators in
-  `webvue_pmo/models/project_task.py` and `webvue_pmo/models/project_milestone.py`) are not documented and await an owner decision.
+  company reads. **Constraint-invariant read** is its eighth named category: a validator that runs after the
+  caller's own create/write passed ACL and record rules may elevate the related hidden record it compares
+  against, because an unelevated read would raise AccessError and turn a legitimate write into a 403 while
+  disclosing whether the hidden record exists. It covers the milestone-bounds validators in
+  `webvue_pmo/models/project_task.py:395`, `webvue_pmo/models/project_milestone.py:68` and
+  `webvue_pmo/models/project_project.py:576`; the validator must return a comparison result only and its
+  message must not carry hidden-record content.
   `webvue_platform` uses it only for the entitlement service's tenant-profile read, the user quota delta, the pre-login
   suspension gates, the attachment storage-quota accounting, the binary image route and the pre-session request
   authentication guard — all blocked by the system-only `access_webvue_tenant_profile_system` row, which no ordinary user
   or public route may hold.
   `webvue_core` uses it only for the company-partner existence check, which Odoo's `res_company_rule_employee` hides and
   `active_test=False` must still see.
-  `webvue_chat`'s two `mail.message.reaction` elevations are deliberately **not** documented: they await an owner decision,
-  because `webvue_chat/README.md` declines to authorize them.
-  `webvue_notify` uses it only for bell delivery and recipient-owned bell reads; the five other sites in that service have
-  no verifiable blocking ACL or record rule and await an owner decision, so they stay in the baseline undocumented.
+  `webvue_chat` uses it for the two `mail.message.reaction` paths — the toggle after `_webvue_member_channel`
+  proved the caller's membership, and the reaction aggregation of an already-authorized message — both blocked
+  by `mail.message.reaction` being system-only in Odoo (owner decision 2026-10-25: authorized).
+  `webvue_notify` uses it for bell delivery and recipient-owned bell reads: the idempotency-key count, the
+  bell-message create and key replacement, and the three reader helpers, all of which put
+  `res_partner_id = current partner` in the domain first and refuse to run under `env.su`; removing them makes
+  a row whose source the caller may no longer read vanish instead of being filtered, which fails the
+  `webvue_tasks` bell-visibility tests.
   `webvue_meetings` uses it only for its server-controlled minutes, snapshot,
   version and event records, the company-wide organizer-overlap check, the
   meeting-manager group lookup, the existence check of the minutes linked to a
   calendar event (read only, access is rechecked by the caller) and the
-  recipient-owned bell candidates; its meeting-manager group lookup and its bell
-  candidate read have no verifiable blocker in Odoo 19 and await an owner decision, so
-  they are not documented either;
+  recipient-owned bell candidates, and the meeting-manager capability-group member
+  list it needs to build the follower allow-list;
   `webvue_meetings_pmo` only for the id-only lookup of converted tasks;
   `webvue_finance` only in `models/setup_service.py`, for loading the Saudi chart of accounts and
   writing the fiscal settings of the current company, after the

@@ -9,17 +9,7 @@
     "commercial import apps/web/app/utils/subscription.ts": 1
   },
   "R6": {},
-  "R7": {
-    "odoo-addons/webvue_chat/controllers/chat.py": 1,
-    "odoo-addons/webvue_chat/serializers/chat.py": 1,
-    "odoo-addons/webvue_meetings/models/meeting_minute_followers.py": 1,
-    "odoo-addons/webvue_meetings/models/meeting_notification_types.py": 1,
-    "odoo-addons/webvue_platform/models/feature_registry.py": 1,
-    "odoo-addons/webvue_pmo/models/project_milestone.py": 1,
-    "odoo-addons/webvue_pmo/models/project_project.py": 1,
-    "odoo-addons/webvue_pmo/models/project_task.py": 1,
-    "odoo-addons/webvue_notify/models/notify_service.py": 5
-  },
+  "R7": {},
   "R8": {
     "apps/web/app/pages/invite/accept.vue lacks customer-commercial middleware": 1
   },
