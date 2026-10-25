@@ -5,7 +5,13 @@ import { QUOTE_IS_EXPIRED, safeIdemAction, safePaymentRedirect } from '@/utils/s
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.manage'))
-const { data, error, pending, refresh } = await useAsyncData('subscription:change', async () => ({ sub: await api.subscription(), catalog: await api.catalog() }), { immediate: allowed.value })
+const isMissing = (cause: any) => (cause?.statusCode ?? cause?.status ?? cause?.response?.status) === 404
+const { data, error, pending, refresh } = await useAsyncData('subscription:change', async () => {
+  const catalog = await api.catalog()
+  // A customer without a subscription yet is exactly the trial candidate: absence is a state, not a page error.
+  const sub = await api.subscription().catch((cause: any) => { if (isMissing(cause)) return null; throw cause })
+  return { sub, catalog }
+}, { immediate: allowed.value })
 const plans = computed<Array<Record<string, any>>>(() => data.value?.catalog.plans ?? [])
 const bundles = computed(() => data.value?.catalog.bundles ?? [])
 const planId = ref(''); const bundleIds = ref<string[]>([]); const cadenceKey = ref(''); const users = ref(1); const storageGb = ref(0); const extra = ref(0)
@@ -15,7 +21,7 @@ const plan = computed(() => plans.value.find((p: Record<string, any>) => p.id ==
 const includedIds = computed(() => new Set(plan.value?.included_bundle_revision_ids ?? []))
 // The plan's optional revisions are the application menu; an existing subscription keeps the
 // bundles it already bought even if the current plan revision narrowed the menu.
-const appliedBundleIds = computed(() => new Set(data.value?.sub.applied?.bundle_revision_ids ?? []))
+const appliedBundleIds = computed(() => new Set(data.value?.sub?.applied?.bundle_revision_ids ?? []))
 const allowedBundleIds = computed(() => new Set([...(plan.value?.optional_bundle_revision_ids ?? []), ...(plan.value?.included_bundle_revision_ids ?? []), ...appliedBundleIds.value]))
 const selectableBundles = computed(() => bundles.value.filter(b => allowedBundleIds.value.has(b.id) && !includedIds.value.has(b.id)))
 const keyOf = (c: { unit: string; count: number }) => `${c.unit}:${c.count}`
@@ -36,21 +42,21 @@ const bundleLabel = (b: (typeof bundles.value)[number]) => {
   return price ? `${b.name} · ${money(price.amount)}` : `${b.name} · ${t('subscription.change.unavailable')}`
 }
 const planTrialDays = computed(() => Number(plan.value?.trial_days ?? 0))
-const trialAvailable = computed(() => Boolean(data.value?.sub && !data.value.sub.applied && planTrialDays.value > 0))
+const trialAvailable = computed(() => Boolean(!data.value?.sub?.applied && planTrialDays.value > 0))
 const body = computed(() => {
   const s = data.value?.sub; const p = plan.value
-  if (!s || !p || !cadenceKey.value) return null
+  if (!p || !cadenceKey.value) return null
   return {
-    kind: s.applied ? 'change' as const : 'new' as const, plan_revision_id: p.id, bundle_revision_ids: bundleIds.value,
+    kind: s?.applied ? 'change' as const : 'new' as const, plan_revision_id: p.id, bundle_revision_ids: bundleIds.value,
     cadence: cadence.value, requested_extra_branches: extra.value, requested_users: users.value,
-    requested_storage_mb: storageGb.value * 1024, subscription_id: s.id, expected_subscription_revision: s.revision,
+    requested_storage_mb: storageGb.value * 1024, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0,
   }
 })
 const baseline = ref('')
 const dirty = computed(() => !redirecting.value && Boolean(baseline.value) && JSON.stringify(body.value) !== baseline.value)
 watch(data, d => {
   if (!d || planId.value) return
-  const applied = d.sub.applied
+  const applied = d.sub?.applied
   // A withdrawn revision stays pinned for the customer but cannot be re-quoted: start from the sellable catalog.
   planId.value = applied && d.catalog.plans.some((p: Record<string, any>) => p.id === applied.plan_revision_id) ? applied.plan_revision_id : d.catalog.plans[0]?.id ?? ''
   if (applied) {
@@ -100,13 +106,13 @@ async function startTrial() {
   try {
     const { subscription_id: _subscription, ...trialBody } = value
     const result = await api.startTrial(trialBody)
-    api.done(safeIdemAction('change', data.value.sub.id, data.value.sub.revision, JSON.stringify(value)))
+    api.done(safeIdemAction('change', data.value?.sub?.id ?? '', data.value?.sub?.revision ?? 0, JSON.stringify(value)))
     await navigateTo({ path: '/subscription/status', query: { order: result.order.id } })
   } catch { notice.value = 'start' } finally { busy.value = false }
 }
 async function accept() {
   const value = body.value; const sub = data.value?.sub
-  if (!hydrated.value || busy.value || !value || !sub) return
+  if (!hydrated.value || busy.value || !value) return
   if (quote.value && QUOTE_IS_EXPIRED(quote.value)) { notice.value = 'expired'; void runPreview(); return }
   busy.value = true; notice.value = null
   try {
@@ -115,8 +121,8 @@ async function accept() {
     if (quote.value && (fresh.due_now.minor !== quote.value.due_now.minor || fresh.digest !== quote.value.digest)) {
       quote.value = fresh; notice.value = 'changed'; return
     }
-    const action = safeIdemAction('change', sub.id, sub.revision, JSON.stringify(value))
-    const { order } = await api.accept(action, { quote_id: fresh.id, expected_subscription_revision: sub.revision })
+    const action = safeIdemAction('change', sub?.id ?? '', sub?.revision ?? 0, JSON.stringify(value))
+    const { order } = await api.accept(action, { quote_id: fresh.id, expected_subscription_revision: sub?.revision ?? 0 })
     redirecting.value = true
     if (order.payment_state === 'awaiting_payment') {
       const attempt = await api.payment(order.id, action)

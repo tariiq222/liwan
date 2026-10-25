@@ -1,25 +1,38 @@
 <script setup lang="ts">
 import { subscriptionStateBadge } from '@/utils/subscription'
 import { daysBetween, riyadhDate, subscriptionDisplayState } from '@webvue/commercial-contracts'
-import { formatSubscriptionMoney } from '@/utils/subscription'
+import { formatSubscriptionMoney, safePaymentRedirect } from '@/utils/subscription'
 import { entitledFeaturePrefixes } from '@webvue/commercial-ui/app/utils/entitlementApps'
 import { humanizeId } from '@webvue/ui/app/utils/humanizeId'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, te, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.read'))
+const isMissing = (cause: any) => (cause?.statusCode ?? cause?.status ?? cause?.response?.status) === 404
 const { data, error, pending, refresh } = await useAsyncData('subscription:overview', async () => {
   const [sub, usage, branches, invoices] = await Promise.all([
-    api.subscription(), api.usage().catch(() => null), api.branches().catch(() => null),
+    api.subscription().catch((cause: any) => { if (isMissing(cause)) return null; throw cause }),
+    api.usage().catch(() => null), api.branches().catch(() => null),
     can('billing.read') ? api.invoices().catch(() => null) : Promise.resolve(null),
   ])
   return { sub, usage, branches, invoices }
 }, { immediate: allowed.value })
-const display = computed(() => (data.value ? subscriptionDisplayState(data.value.sub) : null))
+const display = computed(() => (data.value?.sub ? subscriptionDisplayState(data.value.sub) : null))
 // The one action block: only when the customer must act on an order (payment due or activation failed).
 const needsAction = computed(() => display.value === 'awaiting_payment' || display.value === 'failed')
 const entitlement = computed(() => data.value?.sub.applied?.entitlement ?? null)
 const trialEndsAt = computed(() => data.value?.sub.trial_ends_at ?? null)
 const trialDaysLeft = computed(() => trialEndsAt.value ? daysBetween(riyadhDate(new Date()), riyadhDate(new Date(trialEndsAt.value))) : null)
+const converting = ref(false); const convertError = ref<string | undefined>()
+async function convertTrial() {
+  if (converting.value || !can('subscription.manage')) return
+  converting.value = true; convertError.value = undefined
+  try {
+    const result = await api.convertTrial()
+    const url = result.attempt?.redirect_url ? safePaymentRedirect(result.attempt.redirect_url, window.location.origin) : null
+    if (url) { window.location.assign(url); return }
+    if (result.order) await navigateTo({ path: '/subscription/status', query: { order: result.order.id } })
+  } catch { convertError.value = t('subscription.trial.convertFailed') } finally { converting.value = false }
+}
 const entitledApps = computed(() => entitledFeaturePrefixes(entitlement.value?.features))
 const appLabel = (app: string) => (te(`subscription.apps.${app}`) ? t(`subscription.apps.${app}`) : humanizeId(app))
 const arBusy = ref(false); const arError = ref<unknown>(null)
@@ -37,10 +50,19 @@ definePageMeta({ middleware: 'customer-commercial' })
     </SharedPageHeader>
     <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" @retry="refresh">
-      <div v-if="data" class="grid gap-(--webvue-gap-card)">
+      <div v-if="data && !data.sub" class="grid gap-(--webvue-gap-card)">
+        <SharedRecordSection variant="panel" :title="t('subscription.summary.plan')">
+          <p class="text-sm text-muted">{{ t('subscription.summary.none') }}</p>
+          <UButton v-if="can('subscription.manage')" class="mt-3" to="/subscription/change" :disabled="!hydrated">{{ t('subscription.trial.startSetup') }}</UButton>
+        </SharedRecordSection>
+      </div>
+      <div v-else-if="data" class="grid gap-(--webvue-gap-card)">
         <UAlert v-if="data.sub.state === 'trialing' && trialDaysLeft !== null" :color="trialDaysLeft <= 3 ? 'warning' : 'info'" variant="subtle" icon="i-lucide-hourglass"
           :title="t('subscription.trial.daysLeft', { count: trialDaysLeft })"
-          :description="`${t('subscription.trial.endsOn', { date: trialEndsAt?.slice(0, 10) })}${trialDaysLeft <= 3 ? ' — ' + t('subscription.trial.expiring') : ''}`" />
+          :description="`${t('subscription.trial.endsOn', { date: trialEndsAt?.slice(0, 10) })}${trialDaysLeft <= 3 ? ' — ' + t('subscription.trial.expiring') : ''}`">
+          <template #actions><UButton size="sm" color="neutral" variant="outline" :disabled="!hydrated || converting" :loading="converting" @click="convertTrial">{{ t('subscription.trial.convert') }}</UButton></template>
+        </UAlert>
+        <UAlert v-if="convertError" color="error" variant="subtle" :title="convertError" />
         <SharedRecordSection
           v-if="data.sub.pending_order || data.sub.target" :variant="needsAction ? 'action' : 'tinted'" data-testid="pending-change"
           :title="t('subscription.summary.pending')" :description="t('subscription.summary.pendingHint')"
