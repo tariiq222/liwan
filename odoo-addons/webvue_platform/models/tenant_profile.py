@@ -52,6 +52,8 @@ class WebVueTenantProfile(models.Model):
     # Commercial subscription expiry, written by the control plane; separate from the
     # classification cutoff `valid_until`, which stays the operator/migration record.
     commercial_valid_until = fields.Date()
+    # Monotonic writer revision: a late job may not overwrite a newer expiry.
+    commercial_valid_until_revision = fields.Integer(default=0, required=True)
     features = fields.Json()
     retained_read_features = fields.Json()
     terminology = fields.Json()
@@ -73,6 +75,10 @@ class WebVueTenantProfile(models.Model):
     _policy_revision_positive = models.Constraint(
         'CHECK(policy_revision >= 0)',
         'webvue tenant policy revision cannot be negative',
+    )
+    _commercial_expiry_revision_positive = models.Constraint(
+        'CHECK(commercial_valid_until_revision >= 0)',
+        'commercial expiry revision cannot be negative',
     )
     _quota_revision_positive = models.Constraint(
         'CHECK(quota_revision >= 0)',

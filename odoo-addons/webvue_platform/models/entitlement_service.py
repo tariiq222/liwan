@@ -8,7 +8,7 @@ from odoo.http import request
 from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 
 POLICY_FIELDS = frozenset({
-    'solution', 'tier', 'status', 'valid_until', 'commercial_valid_until', 'features',
+    'solution', 'tier', 'status', 'valid_until', 'commercial_valid_until', 'commercial_valid_until_revision', 'features',
     'retained_read_features', 'terminology', 'policy_revision',
     'quota_revision', 'support_access_enabled', 'commercial_mode', 'entitlement_source',
     'commercial_revision_id', 'commercial_digest', 'commercial_applied_at',
