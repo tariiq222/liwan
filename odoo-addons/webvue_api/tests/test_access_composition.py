@@ -23,6 +23,7 @@ HR = frozenset({
 # Payroll is a section of webvue_hr behind its own keys: no HR role or group grants them.
 PAYROLL = frozenset({
     'hr.payroll.read', 'hr.payroll.manage', 'hr.payroll.approve', 'hr.payroll.config',
+    'hr.payroll.audit.read',
 })
 PMO = frozenset({
     'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage',
@@ -70,6 +71,7 @@ DEPENDENCIES = {
     'hr.payroll.manage': {'hr.payroll.read'},
     'hr.payroll.approve': {'hr.payroll.read'},
     'hr.payroll.config': {'hr.payroll.read'},
+    'hr.payroll.audit.read': {'hr.payroll.read'},
     'pmo.projects.create': {'pmo.projects.read'},
     'pmo.projects.manage': {'pmo.projects.read'},
     'pmo.settings.manage': {'pmo.projects.read'},
@@ -112,10 +114,10 @@ class TestAccessComposition(TransactionCase):
     def _group(self, key):
         return self.env.ref(self.Permission.search([('key', '=', key)]).group_xmlid)
 
-    def test_catalog_has_the_approved_47_keys_each_owned_by_one_addon(self):
+    def test_catalog_has_the_approved_48_keys_each_owned_by_one_addon(self):
         catalog = self.service._webvue_capability_map()
         self.assertEqual(self._release(catalog), CATALOG)
-        self.assertEqual(len(self._release(catalog)), 47)
+        self.assertEqual(len(self._release(catalog)), 48)
         permissions = self.Permission.search([])
         self.assertEqual(sorted(permissions.mapped('key')), sorted(catalog))
         installed = set(self.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))

@@ -192,6 +192,14 @@
         <field name="group_xmlid">webvue_hr.group_cap_hr_payroll_config</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
+    <record id="permission_hr_payroll_audit_read" model="webvue.access.permission">
+        <field name="key">hr.payroll.audit.read</field><field name="domain">hr</field>
+        <field name="resource">payroll</field><field name="action">audit_read</field>
+        <field name="name_ar">قراءة سجل تدقيق الرواتب</field><field name="name_en">Read the payroll audit trail</field>
+        <field name="description_ar">قراءة من غيّر إعدادات الرواتب وسجلاتها ومتى</field><field name="description_en">Read who changed payroll settings and records, and when</field>
+        <field name="group_xmlid">webvue_hr.group_cap_hr_payroll_audit_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
     <record id="permission_hr_leave_config" model="webvue.access.permission">
         <field name="key">hr.leave.config</field><field name="domain">hr</field>
         <field name="resource">leave</field><field name="action">config</field>
@@ -209,7 +217,7 @@
         <record id="role_payroll_manager" model="webvue.access.role">
             <field name="key">payroll_manager</field><field name="name_ar">مسؤول الرواتب</field><field name="name_en">Payroll manager</field>
             <field name="description">Payroll manager</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
-            <field name="permission_ids" eval="[Command.set([ref('permission_hr_payroll_read'),ref('permission_hr_payroll_manage'),ref('permission_hr_payroll_approve'),ref('permission_hr_payroll_config')])]"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_hr_payroll_read'),ref('permission_hr_payroll_manage'),ref('permission_hr_payroll_approve'),ref('permission_hr_payroll_config'),ref('permission_hr_payroll_audit_read')])]"/>
         </record>
     </data>
     <!-- Built-in roles are noupdate records: these hooks link this addon's grants and

@@ -11,6 +11,7 @@ PAYROLL_GROUPS = (
     'webvue_hr.group_cap_hr_payroll_manage',
     'webvue_hr.group_cap_hr_payroll_approve',
     'webvue_hr.group_cap_hr_payroll_config',
+    'webvue_hr.group_cap_hr_payroll_audit_read',
 )
 FORBIDDEN_IMPLIED = (
     'hr.group_hr_user',
@@ -74,11 +75,23 @@ class TestPayrollAccess(TransactionCase):
             group = self.env.ref(xmlid)
             self.assertFalse(group.all_implied_ids & forbidden, xmlid)
 
-    def test_payroll_role_grants_exactly_the_four_keys(self):
+    def test_payroll_role_grants_exactly_the_payroll_keys(self):
         role = self.env.ref('webvue_hr.role_payroll_manager')
         self.assertEqual(role.key, 'payroll_manager')
         self.assertEqual(set(role.permission_ids.mapped('key')), PAYROLL_PERMISSIONS)
         self.assertEqual(self._role_grants('webvue_hr.role_payroll_manager'), PAYROLL_PERMISSIONS)
+
+    def test_audit_read_is_a_separate_payroll_key_only_the_payroll_role_holds(self):
+        self.assertEqual(self._closure('hr.payroll.audit.read'), {'hr.payroll.read', 'hr.employees.read'})
+        for key in PAYROLL_PERMISSIONS - {'hr.payroll.audit.read'}:
+            self.assertNotIn('hr.payroll.audit.read', self._closure(key), key)
+        hr_manager = self.env.ref('webvue_hr.role_hr_manager')
+        self.assertNotIn('hr.payroll.audit.read', hr_manager.permission_ids.mapped('key'))
+        self.assertNotIn('hr.payroll.audit.read', self._role_grants('webvue_hr.role_hr_manager'))
+        self.assertIn('hr.payroll.audit.read', self.env.ref('webvue_hr.role_payroll_manager').permission_ids.mapped('key'))
+        group = self.env.ref('webvue_hr.group_cap_hr_payroll_audit_read')
+        self.assertNotIn(group, self.env.ref('webvue_hr.group_hr_manager').all_implied_ids)
+        self.assertNotIn(group, self.env.ref('hr.group_hr_manager').all_implied_ids)
 
     def test_hr_payroll_feature_is_registered(self):
         definitions = {
