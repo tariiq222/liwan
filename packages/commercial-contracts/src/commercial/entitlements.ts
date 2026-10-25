@@ -101,7 +101,7 @@ export function compileEntitlements(input: {
     features[k] = v
   }
   if (!admitsRequiredAdmin(features[USERS_LIMIT_KEY]))
-    throw new CommercialError('users_limit_admin_required', Object.hasOwn(terms?.limits ?? {}, USERS_LIMIT_KEY) ? 'limits' : 'quantities')
+    throw new CommercialError('users_limit_admin_required', 'quantities')
   const branches = terms?.extra_branches_limit !== undefined ? terms.extra_branches_limit : plan.extra_branches_limit
   features['branches.extra_limit'] = branches
 

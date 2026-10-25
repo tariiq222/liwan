@@ -68,8 +68,9 @@ export const planRevisionSchema = z.strictObject({
 })
 const METERED_LIMIT_KEYS = [USERS_LIMIT_KEY, 'storage.limit_mb']
 /** Terms negotiate prices and non-capacity limits; users and storage stay the customer's chosen quantities. */
-const termsLimitsSchema = sellableLimitsSchema.refine(m => !METERED_LIMIT_KEYS.some(k => Object.hasOwn(m, k)), {
-  message: 'users and storage are chosen quantities, not terms limits', path: [USERS_LIMIT_KEY],
+const termsLimitsSchema = sellableLimitsSchema.superRefine((m, ctx) => {
+  for (const k of METERED_LIMIT_KEYS) if (Object.hasOwn(m, k))
+    ctx.addIssue({ code: 'custom', message: 'users and storage are chosen quantities, not terms limits', path: [k] })
 })
 export const customerTermsRevisionSchema = z.strictObject({
   id: revisionIdSchema, customer_id: z.string(), reason,
