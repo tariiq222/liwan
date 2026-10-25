@@ -18,12 +18,20 @@ def dump_profit_loss(company, date_from, date_to, only_posted, amounts):
         'date_from': dump_day(date_from),
         'date_to': dump_day(date_to),
         **_header(company, only_posted),
+        'statutory': False,
+        'status': 'management_information',
         'lines': dump_report_lines(amounts),
     }
 
 
 def dump_balance_sheet(company, date_to, only_posted, amounts):
-    return {'date_to': dump_day(date_to), **_header(company, only_posted), 'lines': dump_report_lines(amounts)}
+    return {
+        'date_to': dump_day(date_to),
+        **_header(company, only_posted),
+        'statutory': False,
+        'status': 'management_information',
+        'lines': dump_report_lines(amounts),
+    }
 
 
 def dump_zakat_adjustment(item):

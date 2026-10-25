@@ -131,16 +131,23 @@ export const FinanceReportLineSchema = z.object({
   value: amount,
 }).strict()
 
+const ManagementInformationSchema = {
+  statutory: z.literal(false),
+  status: z.literal('management_information'),
+}
+
 export const FinanceProfitLossSchema = z.object({
   date_from: day,
   date_to: day,
   ...header,
+  ...ManagementInformationSchema,
   lines: z.array(FinanceReportLineSchema),
 }).strict()
 
 export const FinanceBalanceSheetSchema = z.object({
   date_to: day,
   ...header,
+  ...ManagementInformationSchema,
   lines: z.array(FinanceReportLineSchema),
 }).strict()
 

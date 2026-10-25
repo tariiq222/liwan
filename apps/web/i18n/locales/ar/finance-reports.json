@@ -1,5 +1,6 @@
 {
   "financeReports": {
+    "managementInformation": "معلومات إدارية غير مراجعة؛ لا تمثل تقريرًا نظاميًا ولا تؤكد الجاهزية للإيداع.",
     "reports": {
       "trialBalance": {
         "title": "ميزان المراجعة"

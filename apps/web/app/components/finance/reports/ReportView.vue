@@ -80,6 +80,15 @@ function clearFilters() {
         <SharedEmptyState v-if="!ready" class="m-(--webvue-card-pad-dense)" :title="pickPrompt.title" :description="pickPrompt.description" />
         <SharedPageState v-else :loading="loading" :error="query.error.value" :keep-content="!!loaded" @retry="query.refetch">
           <template v-if="loaded">
+            <UAlert
+              v-if="loaded.slug === 'profit-loss' || loaded.slug === 'balance-sheet'"
+              role="note"
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-info"
+              :title="t('financeReports.managementInformation')"
+              data-testid="finance-report-management-information"
+            />
             <TrialBalanceTable v-if="loaded.slug === 'trial-balance'" :report="loaded.data" />
             <GeneralLedgerTable v-else-if="loaded.slug === 'general-ledger'" :report="loaded.data" :selected-id="filters.accountId" />
             <AgedBalanceTable v-else-if="loaded.slug === 'aged-partner-balance'" :report="loaded.data" />
