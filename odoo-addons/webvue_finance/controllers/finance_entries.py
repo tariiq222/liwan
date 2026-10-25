@@ -152,6 +152,9 @@ class FinanceEntryController(http.Controller):
         journal = request.env['account.journal'].browse(values['journal_id'])
         _require_open_period(values['date'], journal, request.env.company)
         entry = attempt(lambda: request.env['account.move'].create(values), day=values['date'], journal=journal)
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'entry_created', entry, fields_written=values.keys(), outcome=entry.state,
+        )
         return request.make_json_response(dump_entry_detail(entry), status=201)
 
     @http.route('/api/v1/finance/entries/<int:entry_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -170,6 +173,9 @@ class FinanceEntryController(http.Controller):
         journal = request.env['account.journal'].browse(values.get('journal_id') or entry.journal_id.id)
         _require_open_period(day, journal, entry.company_id)
         attempt(lambda: entry.write(values), day=day, journal=journal, company=entry.company_id)
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'entry_changed', entry, fields_written=values.keys(), outcome=entry.state,
+        )
         return dump_entry_detail(entry)
 
     @http.route('/api/v1/finance/entries/<int:entry_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
@@ -179,7 +185,11 @@ class FinanceEntryController(http.Controller):
         require_capability('finance.entries.manage')
         entry = _find_entry(entry_id)
         require_state(entry, 'draft', 'not_draft')
-        attempt(entry.unlink, day=entry.date, journal=entry.journal_id, company=entry.company_id)
+        company = entry.company_id
+        attempt(entry.unlink, day=entry.date, journal=entry.journal_id, company=company)
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'entry_deleted', entry, fields_written=('unlink',), outcome='deleted', company=company,
+        )
         return request.make_json_response('', status=204)
 
     @http.route('/api/v1/finance/entries/<int:entry_id>/post', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -191,6 +201,9 @@ class FinanceEntryController(http.Controller):
         require_state(entry, 'draft', 'not_draft')
         _require_open_period(entry.date, entry.journal_id, entry.company_id)
         attempt(entry.action_post, day=entry.date, journal=entry.journal_id, company=entry.company_id)
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'entry_posted', entry, fields_written=('state',), outcome=entry.state,
+        )
         return dump_entry_detail(entry)
 
     @http.route('/api/v1/finance/entries/<int:entry_id>/reset-to-draft', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -203,6 +216,9 @@ class FinanceEntryController(http.Controller):
             raise ApiError(422, 'invalid_state', 'the entry is already a draft')
         _require_no_reconciliations(entry)
         attempt(entry.button_draft, day=entry.date, journal=entry.journal_id, company=entry.company_id)
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'entry_reset_to_draft', entry, fields_written=('state',), outcome=entry.state,
+        )
         return dump_entry_detail(entry)
 
     @http.route('/api/v1/finance/entries/<int:entry_id>/unreconcile', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -219,4 +235,7 @@ class FinanceEntryController(http.Controller):
         for move in entry | counterparts:
             _require_open_period(move.date, move.journal_id, move.company_id)
         attempt(lines.remove_move_reconcile, day=entry.date, journal=entry.journal_id, company=entry.company_id)
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'entry_unreconciled', entry, fields_written=('reconciled',), outcome='posted',
+        )
         return dump_entry_detail(entry)

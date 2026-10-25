@@ -49,4 +49,8 @@ class FinanceDebitNoteController(http.Controller):
             return request.env['account.move'].browse(wizard.create_debit()['res_id'])
 
         debit_note = attempt(create, **{**_lock_context(invoice), 'day': parsed.get('date') or invoice.date})
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'invoice_debit_note_created', debit_note,
+            fields_written=('move_type', 'debit_origin_id', 'date', 'invoice_line_ids'), outcome=debit_note.state,
+        )
         return request.make_json_response(dump_invoice_detail(debit_note), status=201)

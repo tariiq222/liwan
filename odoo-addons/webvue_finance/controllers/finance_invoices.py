@@ -180,6 +180,9 @@ class FinanceInvoiceController(http.Controller):
             journal=request.env['account.journal'].browse(values['journal_id']) if 'journal_id' in values else _default_journal(parsed['move_type']),
             has_tax=any(line.get('tax_ids') for line in parsed['lines']),
         )
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'invoice_created', invoice, fields_written=parsed.keys(), outcome='draft',
+        )
         return request.make_json_response(dump_invoice_detail(invoice), status=201)
 
     @http.route('/api/v1/finance/invoices/<int:invoice_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -200,6 +203,9 @@ class FinanceInvoiceController(http.Controller):
             company=invoice.company_id,
             has_tax=any(line.get('tax_ids') for line in parsed.get('lines', ())) or bool(invoice.invoice_line_ids.tax_ids),
         )
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'invoice_changed', invoice, fields_written=values.keys(), outcome=invoice.state,
+        )
         return dump_invoice_detail(invoice)
 
     @http.route('/api/v1/finance/invoices/<int:invoice_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
@@ -209,7 +215,11 @@ class FinanceInvoiceController(http.Controller):
         require_capability('finance.invoices.manage')
         invoice = _find_invoice(invoice_id, writable=True)
         require_state(invoice, 'draft', 'not_draft')
-        attempt(invoice.unlink, day=invoice.date, journal=invoice.journal_id, company=invoice.company_id)
+        company = invoice.company_id
+        attempt(invoice.unlink, day=invoice.date, journal=invoice.journal_id, company=company)
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'invoice_deleted', invoice, fields_written=('unlink',), outcome='deleted', company=company,
+        )
         return request.make_json_response('', status=204)
 
     @http.route('/api/v1/finance/invoices/<int:invoice_id>/post', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -222,6 +232,9 @@ class FinanceInvoiceController(http.Controller):
         # 422 zatca_not_onboarded means the sales journal is not ZATCA-onboarded; Odoo may list further
         # configuration errors in the same refusal, all of them in details.detail.
         attempt(invoice.action_post, move=invoice, **_lock_context(invoice))
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'invoice_posted', invoice, fields_written=('state',), outcome=invoice.state,
+        )
         return dump_invoice_detail(invoice)
 
     @http.route('/api/v1/finance/invoices/<int:invoice_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -234,6 +247,9 @@ class FinanceInvoiceController(http.Controller):
             raise ApiError(422, 'invalid_state', 'the invoice is already cancelled')
         _require_no_payments(invoice)
         attempt(invoice.button_cancel, **_lock_context(invoice))
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'invoice_cancelled', invoice, fields_written=('state',), outcome=invoice.state,
+        )
         return dump_invoice_detail(invoice)
 
     @http.route('/api/v1/finance/invoices/<int:invoice_id>/reset-to-draft', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -246,4 +262,7 @@ class FinanceInvoiceController(http.Controller):
             raise ApiError(422, 'invalid_state', 'the invoice is already a draft')
         _require_no_payments(invoice)
         attempt(invoice.button_draft, **_lock_context(invoice))
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'invoice_reset_to_draft', invoice, fields_written=('state',), outcome=invoice.state,
+        )
         return dump_invoice_detail(invoice)
