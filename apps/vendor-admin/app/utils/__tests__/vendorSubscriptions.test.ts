@@ -49,10 +49,11 @@ describe('terms payload', () => {
     expect(() => termsPayload('c1', { ...emptyTermsDraft(), reason: 'سبب' })).toThrow()
     expect(() => termsPayload('c1', { ...d, reason: '' })).toThrow()
   })
-  it('blank limits mean inherit, explicit modes map to values, blank price is not zero', () => {
-    const d = { ...emptyTermsDraft(), reason: 'سبب', users: { mode: 'unlimited' as const, value: '' }, storage: { mode: 'number' as const, value: '500' }, extraBranchesLimit: { mode: 'none' as const, value: '' } }
+  it('maps the branch limit and never sends metered capacity overrides', () => {
+    const d = { ...emptyTermsDraft(), reason: 'سبب', extraBranchesLimit: { mode: 'none' as const, value: '' } }
     const p = termsPayload('c', d)
-    expect(p.limits).toEqual({ 'users.limit': null, 'storage.limit_mb': 500 }); expect(p.extra_branches_limit).toBe(0); expect(p.base_price).toBeUndefined()
+    expect(p.extra_branches_limit).toBe(0); expect(p.base_price).toBeUndefined()
+    expect(p).not.toHaveProperty('limits')
     expect(() => termsPayload('c', { ...emptyTermsDraft(), reason: 'سبب', basePrice: '10' })).toThrow()
   })
   it('builds a customer quote preview from the target revision with terms', () => {

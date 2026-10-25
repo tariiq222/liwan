@@ -25,11 +25,11 @@ describe('commercial catalog and entitlement compiler', () => {
     expect(apps.flatMap(a => a.features).every(f => f.enforcement_refs.length > 0)).toBe(true)
     expect(apps[0].features.every(f => !f.selectable)).toBe(true)
   })
-  it('installs the whole release, keeps 0/null, and overrides only explicit limits', () => {
+  it('installs the whole release, keeps 0/null, and overrides only explicit domain limits', () => {
     const input = fixture()
-    const result = compileEntitlements({ ...input, terms: { id: id(9), customer_id: id(10), reason: 'Special terms', limits: { 'users.limit': 1 } } })
+    const result = compileEntitlements({ ...input, terms: { id: id(9), customer_id: id(10), reason: 'Special terms', limits: { 'projects.max_projects': 1 } } })
     expect(result.modules).toEqual(['webvue_api', 'webvue_chat', 'webvue_core', 'webvue_hr', 'webvue_meetings', 'webvue_platform', 'webvue_pmo'])
-    expect(result.features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': 0, 'users.limit': 1 })
+    expect(result.features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 1, 'storage.limit_mb': 0, 'users.limit': 20 })
     expect(result.compiler_version).toBe('commercial-compiler/3')
     expect(input.quantities.users).toBe(20)
   })
@@ -112,12 +112,15 @@ describe('commercial catalog and entitlement compiler', () => {
   it('refuses a chosen quantity that cannot admit the required customer administrator', () => {
     expect(() => compileEntitlements({ ...fixture(), quantities: { users: 0, storage_mb: 0 } }))
       .toThrowError(expect.objectContaining({ code: 'users_limit_admin_required', field: 'quantities' }))
-    const terms = (limit: number | null) => ({ id: id(9), customer_id: id(10), reason: 'Special terms', limits: { 'users.limit': limit } })
-    expect(() => compileEntitlements({ ...fixture(), terms: terms(0) })).toThrowError(expect.objectContaining({ code: 'users_limit_admin_required', field: 'limits' }))
-    expect(compileEntitlements({ ...fixture(), terms: terms(1) }).features['users.limit']).toBe(1)
-    expect(compileEntitlements({ ...fixture(), terms: terms(null) }).features['users.limit']).toBeNull()
   })
-  it('shares one users.limit floor across plan and terms inputs', () => {
+  it('refuses a terms revision that overrides the chosen metered capacity', () => {
+    const terms = (limits: Record<string, number | null>) => ({ id: id(9), customer_id: id(10), reason: 'Special terms', limits })
+    expect(() => compileEntitlements({ ...fixture(), terms: terms({ 'users.limit': 1 }) }))
+      .toThrowError(expect.objectContaining({ code: 'platform_limit_derived', field: 'limits' }))
+    expect(() => compileEntitlements({ ...fixture(), terms: terms({ 'storage.limit_mb': 1024 }) }))
+      .toThrowError(expect.objectContaining({ code: 'platform_limit_derived', field: 'limits' }))
+  })
+  it('shares one users.limit floor across the plan input', () => {
     expect([null, 1, 25].map(admitsRequiredAdmin)).toEqual([true, true, true])
     expect([0, -1, 1.5, undefined, '1'].map(admitsRequiredAdmin)).toEqual([false, false, false, false, false])
     const { plan } = fixture()
@@ -128,10 +131,10 @@ describe('commercial catalog and entitlement compiler', () => {
     const refused = planCreateSchema.safeParse(planInput(0))
     expect(refused.success).toBe(false)
     expect(refused.error?.issues[0]?.path).toEqual(['platform_limits', 'users.limit'])
-    const terms = (limit: number | null) => ({ id: id(9), customer_id: 'cust', reason: 'Special terms', limits: { 'users.limit': limit } })
-    expect(customerTermsRevisionSchema.safeParse(terms(1)).success).toBe(true)
-    expect(customerTermsRevisionSchema.safeParse(terms(0)).success).toBe(false)
-    expect(customerTermsRevisionSchema.safeParse({ ...terms(1), limits: { 'storage.limit_mb': 0 } }).success).toBe(true)
+    const terms = (limits: Record<string, number | null>) => ({ id: id(9), customer_id: 'cust', reason: 'Special terms', limits })
+    expect(customerTermsRevisionSchema.safeParse(terms({ 'users.limit': 1 })).success).toBe(false)
+    expect(customerTermsRevisionSchema.safeParse(terms({ 'storage.limit_mb': 1024 })).success).toBe(false)
+    expect(customerTermsRevisionSchema.safeParse(terms({ 'projects.max_projects': 1 })).success).toBe(true)
     expect(planRevisionSchema.safeParse({ ...plan, platform_limits: { 'users.limit': 0, 'storage.limit_mb': null } }).success).toBe(false)
   })
   it('opens a non-selectable boolean of a core or included application', () => {

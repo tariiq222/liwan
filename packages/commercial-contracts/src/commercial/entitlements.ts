@@ -94,6 +94,9 @@ export function compileEntitlements(input: {
   const platform: CapacityMap = { ...plan.platform_limits, [USERS_LIMIT_KEY]: quantities.users, 'storage.limit_mb': quantities.storage_mb }
   Object.assign(features, domain, platform)
   for (const [k, v] of Object.entries(terms?.limits ?? {})) {
+    // Capacity is the customer's chosen quantity, changed only by a new subscription quote;
+    // a terms revision may not grant or remove users/storage outside that agreement.
+    if (derived.has(k)) throw new CommercialError('platform_limit_derived', 'limits')
     if (!platformKeys.has(k) && !domainKeys.has(k)) throw new CommercialError('limit_not_supported', 'limits')
     features[k] = v
   }

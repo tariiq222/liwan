@@ -94,7 +94,10 @@ bundles, and the base price covers only the platform.
 4. Mid-period increases are prorated (`prorateMinor`); decreases take effect at renewal.
    This is the existing `change` behaviour and must extend to users and storage.
 5. Entitlement = base keys + every key of every chosen application, with metered limits set
-   to the chosen quantities.
+   to the chosen quantities. **Customer terms may not override `users.limit` or
+   `storage.limit_mb`** (owner decision 2026-10-25): capacity changes only through a new
+   subscription quote the customer accepts, so the invoice, the enforced limit and the
+   renewal all carry one number. Terms remain for prices, branch limits and term length.
 6. A trial produces the same entitlements as the paid subscription for the same choices.
 7. **Selecting an application grants every selectable boolean feature it owns.** Today a
    bundle must list each key explicitly in `selections.feature_keys`, so `People (HR)` selects

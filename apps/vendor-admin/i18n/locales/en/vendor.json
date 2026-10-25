@@ -951,6 +951,7 @@
         "includedBranches": "Included extra branches",
         "termMonths": "Term (months)",
         "extraBranchesLimit": "Extra branches limit",
+      "meteredHint": "Users and storage change through the customer subscription itself (raise or lower), not through custom terms. Only the branch limit remains here.",
         "inherit": "As in the plan",
         "invalidValue": "Invalid value.",
         "nothing": "Change at least one value.",

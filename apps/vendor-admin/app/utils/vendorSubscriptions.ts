@@ -130,16 +130,16 @@ export function isNotAvailable(cause: unknown): boolean {
 export type TermsDraft = {
   basePrice: string; baseUnit: '' | 'month' | 'year'; baseCount: string
   includedExtraBranches: string; extraBranchPrice: string; extraBranchUnit: '' | 'month' | 'year'; extraBranchCount: string
-  extraBranchesLimit: LimitDraft; users: LimitDraft; storage: LimitDraft; termMonths: string; reason: string
+  extraBranchesLimit: LimitDraft; termMonths: string; reason: string
 }
 export const emptyTermsDraft = (): TermsDraft => ({
   basePrice: '', baseUnit: '', baseCount: '1', includedExtraBranches: '', extraBranchPrice: '', extraBranchUnit: '', extraBranchCount: '1',
-  extraBranchesLimit: emptyLimit(), users: emptyLimit(), storage: emptyLimit(), termMonths: '', reason: '',
+  extraBranchesLimit: emptyLimit(), termMonths: '', reason: '',
 })
 export type TermsPayload = {
   customer_id: string; reason: string; base_price?: { cadence: Cadence; amount: ReturnType<typeof sar> }
   included_extra_branches?: number; extra_branch_price?: { cadence: Cadence; amount: ReturnType<typeof sar> }
-  extra_branches_limit?: number | null; limits?: Record<string, number | null>; term_months?: number
+  extra_branches_limit?: number | null; term_months?: number
 }
 function price(amount: string, unit: string, count: string) {
   const minor = parseVendorMoneyInput(amount); const n = parseCount(count, 12)
@@ -154,10 +154,6 @@ export function termsPayload(customerId: string, d: TermsDraft): TermsPayload {
   if (d.includedExtraBranches.trim()) { const n = parseCount(d.includedExtraBranches); if (n === null) throw new Error('invalid_count'); out.included_extra_branches = n }
   if (d.extraBranchPrice.trim()) out.extra_branch_price = price(d.extraBranchPrice, d.extraBranchUnit, d.extraBranchCount)
   if (touched(d.extraBranchesLimit)) out.extra_branches_limit = limitFromDraft(d.extraBranchesLimit)
-  const limits: Record<string, number | null> = {}
-  if (touched(d.users)) limits['users.limit'] = limitFromDraft(d.users)
-  if (touched(d.storage)) limits['storage.limit_mb'] = limitFromDraft(d.storage)
-  if (Object.keys(limits).length) out.limits = limits
   if (d.termMonths.trim()) { const n = parseCount(d.termMonths, 120); if (n === null || n < 1) throw new Error('invalid_count'); out.term_months = n }
   if (Object.keys(out).length <= 2 || out.reason.length < 3) throw new Error('invalid_terms')
   return out

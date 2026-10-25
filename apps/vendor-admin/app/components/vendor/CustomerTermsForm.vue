@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { commercialErrorKey, commercialFailure, fieldIssue, keyLabel, limitFromDraft, parseCount, parseVendorMoneyInput } from '@/utils/vendorCommercial'
+import { commercialErrorKey, commercialFailure, fieldIssue, limitFromDraft, parseCount, parseVendorMoneyInput } from '@/utils/vendorCommercial'
 import { emptyTermsDraft, hasTermsOverride, type TermsDraft } from '@/utils/vendorSubscriptions'
 const props = withDefaults(defineProps<{ busy?: boolean; previewing?: boolean; error?: unknown; resetKey?: number; canSave?: boolean; canPreview?: boolean }>(), { busy: false, previewing: false, resetKey: 0, canSave: true, canPreview: true })
 const emit = defineEmits<{ preview: [draft: TermsDraft]; save: [draft: TermsDraft]; cancel: [] }>()
-const { t, te } = useI18n(); const hydrated = useHydrated()
+const { t } = useI18n(); const hydrated = useHydrated()
 const draft = reactive<TermsDraft>(emptyTermsDraft())
 const serialized = () => JSON.stringify(draft)
 const baseline = ref(serialized()); const attempted = ref(false)
@@ -14,14 +14,14 @@ const serverIssue = (field: string) => { const code = fieldIssue(failure.value, 
 const dis = computed(() => !hydrated.value || props.busy)
 const unitItems = computed(() => [{ label: t('commercial.pricing.cadence.month.one'), value: 'month' }, { label: t('commercial.pricing.cadence.year.one'), value: 'year' }])
 const limitItems = computed(() => [{ label: t('vendor.pricing.limit.unlimited'), value: 'unlimited' }, { label: t('vendor.pricing.limit.none'), value: 'none' }, { label: t('vendor.pricing.limit.number'), value: 'number' }])
-const limitError = (l: TermsDraft['users']) => { if (!l.mode) return undefined; try { limitFromDraft(l); return undefined } catch { return t('vendor.pricing.limit.invalid') } }
+const limitError = (l: TermsDraft['extraBranchesLimit']) => { if (!l.mode) return undefined; try { limitFromDraft(l); return undefined } catch { return t('vendor.pricing.limit.invalid') } }
 const errors = computed(() => {
   const e: Record<string, string> = {}
   const bad = t('vendor.customers.terms.invalidValue')
   if (draft.basePrice.trim() && (parseVendorMoneyInput(draft.basePrice) === null || !draft.baseUnit || (parseCount(draft.baseCount, 12) ?? 0) < 1)) e.base = bad
   if (draft.includedExtraBranches.trim() && parseCount(draft.includedExtraBranches) === null) e.free = bad
   if (draft.extraBranchPrice.trim() && (parseVendorMoneyInput(draft.extraBranchPrice) === null || !draft.extraBranchUnit || (parseCount(draft.extraBranchCount, 12) ?? 0) < 1)) e.branchPrice = bad
-  for (const [k, l] of [['branchLimit', draft.extraBranchesLimit], ['users', draft.users], ['storage', draft.storage]] as const) { const x = limitError(l); if (x) e[k] = x }
+  const branchLimitError = limitError(draft.extraBranchesLimit); if (branchLimitError) e.branchLimit = branchLimitError
   if (draft.termMonths.trim() && (parseCount(draft.termMonths, 120) ?? 0) < 1) e.term = bad
   if (draft.reason.trim().length < 3) e.reason = t('vendor.pricing.reasonRequired')
   return e
@@ -61,9 +61,10 @@ defineExpose({ draft })
       <UFormField :label="t('vendor.customers.terms.termMonths')" :error="show('term') || serverIssue('term_months')"><UInput v-model="draft.termMonths" dir="ltr" inputmode="numeric" class="w-full sm:w-48" :disabled="dis" /></UFormField>
     </SharedFormSection>
     <SharedFormSection :title="t('vendor.customers.terms.limits')">
-      <div v-for="row in [{ k: 'users', label: keyLabel('users.limit', t, te), l: draft.users }, { k: 'storage', label: keyLabel('storage.limit_mb', t, te), l: draft.storage }, { k: 'branchLimit', label: t('vendor.customers.terms.extraBranchesLimit'), l: draft.extraBranchesLimit }]" :key="row.k" class="grid gap-4 sm:grid-cols-2">
-        <UFormField :label="row.label" :error="show(row.k)"><USelect v-model="row.l.mode" :items="limitItems" :placeholder="t('vendor.customers.terms.inherit')" class="w-full" :disabled="dis" /></UFormField>
-        <UFormField v-if="row.l.mode === 'number'" :label="t('vendor.pricing.limit.number')"><UInput v-model="row.l.value" dir="ltr" inputmode="numeric" class="w-full" :disabled="dis" /></UFormField>
+      <p class="text-sm text-muted">{{ t('vendor.customers.terms.meteredHint') }}</p>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <UFormField :label="t('vendor.customers.terms.extraBranchesLimit')" :error="show('branchLimit')"><USelect v-model="draft.extraBranchesLimit.mode" :items="limitItems" :placeholder="t('vendor.customers.terms.inherit')" class="w-full" :disabled="dis" /></UFormField>
+        <UFormField v-if="draft.extraBranchesLimit.mode === 'number'" :label="t('vendor.pricing.limit.number')"><UInput v-model="draft.extraBranchesLimit.value" dir="ltr" inputmode="numeric" class="w-full" :disabled="dis" /></UFormField>
       </div>
     </SharedFormSection>
     <UFormField :label="t('vendor.pricing.fields.reason')" required :error="show('reason') || serverIssue('reason')"><UTextarea v-model="draft.reason" maxlength="1000" class="w-full" :disabled="dis" /></UFormField>

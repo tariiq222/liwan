@@ -49,6 +49,10 @@ suite('downgrade fail-closed usage guards',()=>{
   const gates:Record<string,string[]>={'users.limit':[],'projects.max_projects':['pmo.enabled'],'storage.limit_mb':[],'branches.extra_limit':[]}
   async function usage(f:any,over:any={},at=now){await recordUsage(pool,{tenant_id:f.tenant,observed_at:at,metrics:{...metrics,...over},limit_gates:gates,source:'regression'})}
   async function target(f:any,field:string,limit:number|null){
+    // Metered capacity changes only through a new subscription quantity; terms may still negotiate
+    // a domain limit (projects) or the branch limit.
+    if(field==='users.limit') return {...f.request,requested_users:limit ?? f.request.requested_users}
+    if(field==='storage.limit_mb') return {...f.request,requested_storage_mb:limit ?? f.request.requested_storage_mb}
     const terms=await createCustomerTerms(pool,{customer_id:f.customer,reason,...(field==='branches.extra_limit'?{extra_branches_limit:limit}:{limits:{[field]:limit}})},vendor)
     return {...f.request,terms_revision_id:terms.id}
   }
@@ -83,9 +87,9 @@ suite('downgrade fail-closed usage guards',()=>{
     if(fault==='source_unavailable') await pool.query("UPDATE usage_snapshots SET freshness='unavailable' WHERE tenant_id=$1",[f.tenant])
     await expect(createQuoteForCustomer(pool,{customer_id:f.customer,request},now)).rejects.toMatchObject({status:409,code:'usage_unavailable',field:'users.limit'})
   })
-  it('raising/unlimited limits does not require usage; equal usage is allowed',async()=>{
+  it('raising quantities does not require usage; equal usage is allowed',async()=>{
     const f=await fixture()
-    for(const limit of [20,null]) expect(await createQuoteForCustomer(pool,{customer_id:f.customer,request:await target(f,'users.limit',limit)},now)).toHaveProperty('id')
+    expect(await createQuoteForCustomer(pool,{customer_id:f.customer,request:await target(f,'users.limit',20)},now)).toHaveProperty('id')
     await usage(f,{'users.limit':2})
     expect(await createQuoteForCustomer(pool,{customer_id:f.customer,request:await target(f,'users.limit',2)},now)).toHaveProperty('id')
   })

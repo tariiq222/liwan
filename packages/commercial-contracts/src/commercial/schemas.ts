@@ -66,11 +66,16 @@ export const planRevisionSchema = z.strictObject({
   trial_days: z.number().int().min(0).max(3650), grace_days: z.number().int().min(0).max(3650),
   auto_suspend: z.boolean(), auto_renew_allowed: z.boolean(),
 })
+const METERED_LIMIT_KEYS = [USERS_LIMIT_KEY, 'storage.limit_mb']
+/** Terms negotiate prices and non-capacity limits; users and storage stay the customer's chosen quantities. */
+const termsLimitsSchema = sellableLimitsSchema.refine(m => !METERED_LIMIT_KEYS.some(k => Object.hasOwn(m, k)), {
+  message: 'users and storage are chosen quantities, not terms limits', path: [USERS_LIMIT_KEY],
+})
 export const customerTermsRevisionSchema = z.strictObject({
   id: revisionIdSchema, customer_id: z.string(), reason,
   base_price: priceSchema.optional(), bundle_prices: z.record(revisionIdSchema, priceSchema).optional(),
   included_extra_branches: z.number().int().min(0).max(MAX).optional(), extra_branch_price: priceSchema.optional(),
-  extra_branches_limit: z.number().int().min(0).max(MAX).nullable().optional(), limits: sellableLimitsSchema.optional(),
+  extra_branches_limit: z.number().int().min(0).max(MAX).nullable().optional(), limits: termsLimitsSchema.optional(),
   term_months: z.number().int().positive().max(120).optional(), cadence: cadenceSchema.optional(),
 })
 export const entitlementSnapshotSchema = z.strictObject({
