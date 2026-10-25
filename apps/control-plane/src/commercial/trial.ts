@@ -7,6 +7,7 @@ import { acceptQuoteOn } from './orders.js'
 import { buildQuote } from './quotes.js'
 import { trialEndsAt } from './renewals.js'
 import { expireTrials } from './trial-expiry.js'
+import { paymentAttemptView } from './payments.js'
 
 /** A trial is an ordinary zero-due order: same snapshot, fulfillment and entitlement as a paid purchase. */
 export async function startTrial(pool: Pool, input: { customer_id: string; request: unknown; principal: Principal; now?: Date }) {
@@ -35,6 +36,21 @@ export async function startTrial(pool: Pool, input: { customer_id: string; reque
   })
   const subscription = await pool.query('SELECT * FROM subscriptions WHERE customer_id=$1', [input.customer_id])
   return { order: result.order, subscription: subscription.rows[0], replay: result.replay }
+}
+
+/** Customer conversion: end the trial now and return the first invoice's hosted attempt. */
+export async function convertTrial(pool: Pool, input: { customer_id: string; now: Date; adapter: Parameters<typeof expireTrials>[1]['adapter']; allowedOrigin: string }) {
+  const sub = (await pool.query('SELECT * FROM subscriptions WHERE customer_id=$1', [input.customer_id])).rows[0]
+  if (!sub || sub.state !== 'trialing') throw new CommercialHttpError('trial_not_active', 409)
+  await transaction(pool, async client => {
+    await client.query('UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1 AND state=\'trialing\'', [sub.id, input.now])
+    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+      [randomUUID(), `customer:${input.customer_id}`, 'trial.converted', sub.id, 'Customer converted the trial', JSON.stringify({ converted_at: input.now.toISOString() })])
+  })
+  const result = await expireTrials(pool, { now: input.now, adapter: input.adapter, allowedOrigin: input.allowedOrigin, return_path: '/subscription', subscription_id: sub.id })
+  const order = result.orders[0]
+  const attempt = order ? (await pool.query('SELECT * FROM payment_attempts WHERE order_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1', [order.id])).rows[0] : null
+  return { order: order ?? null, attempt: attempt ? paymentAttemptView(attempt) : null }
 }
 
 /** Vendor-only trial controls; each write is audited and only applies to a trialing subscription. */

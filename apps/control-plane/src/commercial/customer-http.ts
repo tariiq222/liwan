@@ -10,7 +10,7 @@ import { assertNoCustomerIdentity, parseCustomerPrincipal, requireCapability } f
 import { parseBody } from './http.js'
 import { getSubscription } from './subscriptions.js'
 import { buildQuote, createQuoteForCustomer } from './quotes.js'
-import { startTrial } from './trial.js'
+import { convertTrial, startTrial } from './trial.js'
 import { acceptQuote } from './orders.js'
 import { listInvoices, getInvoice } from './invoices.js'
 import { planWire } from './plans.js'
@@ -74,6 +74,7 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   const path=url.pathname.slice('/v1/customer'.length),m=input.method,customerId=principal.customer_id!
   if (m==='GET' && path==='/subscription') {requireCapability(principal,'subscription.read');return {status:200,data:await getSubscription(pool,customerId)}}
   if (m==='GET' && path==='/catalog') {requireCapability(principal,'subscription.read');return {status:200,data:await customerCatalog(pool,customerId)}}
+  if (m==='POST' && path==='/trial/convert') {requireCapability(principal,'subscription.manage');const payment=needPayment(runtime);return {status:201,data:await convertTrial(pool,{customer_id:customerId,now:new Date(),adapter:payment.adapter,allowedOrigin:payment.allowedOrigin})}}
   if (m==='POST' && path==='/trial') {requireCapability(principal,'subscription.manage');return {status:201,data:await startTrial(pool,{customer_id:customerId,request:parseBody(input.raw,quoteRequestSchema.omit({subscription_id:true})),principal})}}
   if (m==='POST' && path==='/quotes') {requireCapability(principal,'subscription.manage');return {status:201,data:await createQuoteForCustomer(pool,{customer_id:customerId,request:{...parseBody(input.raw,quoteRequestSchema),effective_date:undefined}})}}
   if (m==='POST' && path==='/preview') {

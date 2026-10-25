@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { daysBetween, riyadhDate, type Principal } from '@webvue/commercial-contracts'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
-import { startTrial } from '../commercial/trial.js'
+import { convertTrial, startTrial } from '../commercial/trial.js'
 import { routesB } from '../commercial/routes-b.js'
 import { getSubscription } from '../commercial/subscriptions.js'
 import { expireTrials } from '../commercial/trial-expiry.js'
@@ -127,6 +127,15 @@ suite('commercial trial', () => {
     expect((await getSubscription(pool, c.id)).state).toBe('past_due')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
     expect((await pool.query("SELECT action FROM audit_events WHERE action='trial.ended' AND subject=$1", [sub.id])).rowCount).toBe(1)
+  })
+  it('converts a trial on demand and issues the first invoice with a hosted attempt', async () => {
+    const c = await trialAt(now, 5)
+    const result = await convertTrial(pool, { customer_id: c.id, now, adapter: new SimulatorAdapter(), allowedOrigin: 'https://webvue.test' })
+    expect(result.order).toBeTruthy()
+    expect(result.attempt?.redirect_url).toBeTruthy()
+    expect((await getSubscription(pool, c.id)).state).toBe('past_due')
+    expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
+    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='trial.converted' AND subject=(SELECT id::text FROM subscriptions WHERE customer_id=$1)", [c.id])).rows[0].n).toBe(1)
   })
   it('does not grant a trial for an application the customer did not choose', async () => {
     const c = await newCustomer()

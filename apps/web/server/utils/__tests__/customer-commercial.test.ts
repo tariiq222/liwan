@@ -105,6 +105,7 @@ describe('customer commercial BFF', () => {
     expect(customerRoute('GET', 'subscription')?.upstream).toBe('/v1/customer/subscription')
     expect(customerRoute('POST', 'preview')).toEqual({ upstream: '/v1/customer/preview', needs: 'subscription.read' })
     expect(customerRoute('POST', 'trial')).toEqual({ upstream: '/v1/customer/trial', needs: 'subscription.manage' })
+    expect(customerRoute('POST', 'trial/convert')).toEqual({ upstream: '/v1/customer/trial/convert', needs: 'subscription.manage' })
     expect(customerRoute('POST', 'orders/abc/payment-attempts')?.needs).toBe('subscription.manage')
     expect(customerRoute('GET', 'invoices/inv-1')?.needs).toBe('billing.read')
     expect(customerRoute('POST', 'branch-quotes')?.needs).toBe('branches.manage')

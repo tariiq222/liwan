@@ -21,6 +21,6 @@ export async function expireTrials(pool: Pool, input: { now: Date; adapter: Paym
       expired.push(row.id)
     }
   })
-  if (expired.length) await generateRenewals(pool, { now: input.now, adapter: input.adapter, allowedOrigin: input.allowedOrigin, return_path: input.return_path })
-  return { expired }
+  const orders = expired.length ? await generateRenewals(pool, { now: input.now, adapter: input.adapter, allowedOrigin: input.allowedOrigin, return_path: input.return_path }) : []
+  return { expired, orders }
 }
