@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import * as Vue from 'vue'
 import { createReusableTemplate } from '@vueuse/core'
 import { renderShared, loadShared } from '@webvue/ui/test/helpers/renderShared'
-import { useNavigationDisclosure } from '@webvue/ui/app/composables/useNavigationDisclosure'
+import { useNavigationDisclosure, useNavigationPathDisclosure } from '@webvue/ui/app/composables/useNavigationDisclosure'
 
 const component = resolve(__dirname, '../MobileNavigation.vue')
 const shared = resolve(__dirname, '../../../../../../packages/ui/app/components/shell/ShellNavigation.vue')
@@ -22,7 +22,7 @@ async function render(activeId = 'tasks') {
     modules: {
       '@vueuse/core': { useMediaQuery: () => Vue.ref(false), createReusableTemplate },
       '@/composables/nav/settingsScroll': { isSamePageAnchor: () => false },
-      '../../composables/useNavigationDisclosure': { useNavigationDisclosure },
+      '../../composables/useNavigationDisclosure': { useNavigationDisclosure, useNavigationPathDisclosure },
       './ShellContextSubList.vue': { __esModule: true, default: stub }, './ShellQuickViews.vue': { __esModule: true, default: stub },
       '../shared/layout/BrandWordmark.vue': { __esModule: true, default: stub },
     } as Record<string, unknown>,

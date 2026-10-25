@@ -1336,7 +1336,8 @@ class TestDocumentedSudo(BaseRefCase):
         self.assertEqual(self.run_main('--write-baseline'), 0)
         self.assertEqual(rule_totals(json.loads(self.baseline_file.read_text()))['R7'], 2)
 
-    def test_new_case_without_the_trailer_fails_and_with_it_passes(self):
+    def test_a_new_case_passes_without_a_trailer(self):
+        # Owner decision 2026-10-25: documenting a sudo case no longer needs a trailer.
         self.sudo('b', 0)
         self.adopt()
         self.git('checkout', '-q', '-b', 'work')
@@ -1344,25 +1345,38 @@ class TestDocumentedSudo(BaseRefCase):
         self.document(2)
         self.git('add', '-A')
         self.git('commit', '-q', '-m', 'document')
-        code, text = self.problems('--base', 'main')
-        self.assertEqual(code, 1)
-        self.assertIn('documented sudo case added without Architecture-approved-by', text)
-        self.git('commit', '-q', '--amend', '-m', 'document', '-m', TRAILER)
         self.assertEqual(self.problems('--base', 'main'), (0, ''))
 
-    def test_raised_count_needs_the_trailer_and_a_net_lower_one_does_not(self):
+    def test_a_documented_count_may_shrink_with_the_code_it_no_longer_needs(self):
+        # Owner decision 2026-10-25: raising needs no trailer, and a cleanup may lower the
+        # count as long as the file no longer reaches it.
         self.adopt_documented()
         self.git('checkout', '-q', '-b', 'work')
         self.sudo('b', 3)
         self.document(3)
         self.git('add', '-A')
         self.git('commit', '-q', '-m', 'raise')
-        self.assertEqual(self.problems('--base', 'main')[0], 1)
+        self.assertEqual(self.problems('--base', 'main')[0], 0, 'raising needs no trailer')
         self.sudo('b', 1)
         self.document(1)
         self.git('add', '-A')
         self.git('commit', '-q', '-m', 'lower')
-        self.assertEqual(self.problems('--base', 'main')[0], 0, 'net lower than REF')
+        self.assertEqual(self.problems('--base', 'main')[0], 0, 'a cleanup may lower the count')
+
+    def test_a_documented_count_lowered_without_removing_the_call_fails(self):
+        self.adopt_documented()
+        self.git('checkout', '-q', '-b', 'work')
+        # `adopt_documented` already committed two calls against two documented cases.
+        self.git('branch', '-f', 'main', 'HEAD')
+        # Then only the registry drops, while both calls stay in the file.
+        self.document(1)
+        self.git('add', '-A')
+        self.git('commit', '-q', '-m', 'lower without a code change')
+        # Lowering the registry while the calls stay is rejected: the two calls are no
+        # longer covered, so the file is over its allowance.
+        code, text = self.problems('--base', 'main')
+        self.assertEqual(code, 1)
+        self.assertIn('1 found, baseline allows 0', text)
 
     def test_stale_or_missing_case_is_reported(self):
         self.adopt_documented()

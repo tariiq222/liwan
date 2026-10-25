@@ -30,7 +30,7 @@ STATIC_ONLY_TOOLS = (
     'tools/docs_policy.py', 'tools/e2e_isolated.mjs', 'tools/git_policy.py', 'tools/hooks.py',
     'tools/jev_review.mjs', 'tools/migration_guard.py', 'tools/new_app.py',
     'tools/new_app_templates/*', 'tools/no_external_refs.py', 'tools/odoo_test.py',
-    'tools/secret_guard.py', 'tools/semgrep_gate.py', 'tools/ts_loader.mjs',
+    'tools/secret_guard.py', 'tools/semgrep_gate.py', 'tools/sudo_gate.py', 'tools/ts_loader.mjs',
     'tools/ui_catalog.mjs', 'tools/ui_inventory.py', 'tools/ui_layer_baseline.mjs',
     'tools/ui_policy.py', 'tools/ui_templates.mjs', 'tools/worktree_claims.py', 'tools/wt.py',
 )

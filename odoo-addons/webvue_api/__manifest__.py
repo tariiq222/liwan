@@ -2,7 +2,7 @@
 {
     'name': 'webvue API',
     'summary': 'webvue platform: shared /api/v1 plumbing — auth, branding, me',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.1.1',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

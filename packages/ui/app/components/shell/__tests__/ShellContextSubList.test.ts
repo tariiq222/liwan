@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as Vue from 'vue'
+import { createReusableTemplate } from '@vueuse/core'
 import { loadShared, renderShared } from '../../../../test/helpers/renderShared'
 
 const component = resolve(__dirname, '../ShellContextSubList.vue')
@@ -9,7 +10,8 @@ const TooltipStub = Vue.defineComponent({
   props: { text: String, disabled: Boolean },
   setup(props, { slots }) { return () => Vue.h('span', { 'data-tooltip': props.disabled ? undefined : props.text }, slots.default?.()) },
 })
-const render = (props: Record<string, unknown>) => renderShared(component, { label: 'Settings', collapsed: false, sections: [], ...props }, {}, { stubs: { UTooltip: TooltipStub }, modules: { './ShellQuickRow.vue': { __esModule: true, default: loadShared(resolve(__dirname, '../ShellQuickRow.vue')) } } })
+const CollapsibleStub = Vue.defineComponent({ props: { open: Boolean }, setup(props, { slots }) { return () => Vue.h('div', [slots.default?.(), props.open ? slots.content?.() : null]) } })
+const render = (props: Record<string, unknown>) => renderShared(component, { label: 'Settings', collapsed: false, sections: [], ...props }, {}, { stubs: { UTooltip: TooltipStub, UCollapsible: CollapsibleStub }, modules: { '@vueuse/core': { createReusableTemplate }, './ShellQuickRow.vue': { __esModule: true, default: loadShared(resolve(__dirname, '../ShellQuickRow.vue')) } } })
 
 const sections = [
   { id: 'apps-1', title: 'Applications', items: [
@@ -46,5 +48,15 @@ describe('ShellContextSubList', () => {
     const drawer = await render({ sections, surface: 'drawer', testIdPrefix: 'mobile-' })
     expect(drawer).toContain('data-surface="drawer"')
     expect(drawer).toContain('data-testid="mobile-context-sub-list"')
+  })
+
+  it('renders the routed nested branch while keeping sibling leaves out of the closed subtree', async () => {
+    const link = (id: string) => ({ id, label: id, icon: 'i-lucide-folder', to: `/${id}`, testId: id })
+    const tree = [{ id: 'team', title: '', items: [{ ...link('team'), children: [{ ...link('users'), children: [link('active-users')] }, { ...link('roles'), children: [link('role-records')] }] }] }]
+    const html = await render({ sections: tree, openPath: ['team', 'users'], hydrated: true })
+    expect(html).toContain('href="/active-users"')
+    expect(html).not.toContain('href="/role-records"')
+    expect(html.match(/aria-expanded="true"/g)).toHaveLength(2)
+    expect(html).toContain('aria-expanded="false"')
   })
 })

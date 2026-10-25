@@ -14,7 +14,7 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   name: 'مهام: عروض وإجراءات',
-  parameters: storyContext('packages/ui/app/components/shell/ShellNavigation.vue:71'),
+  parameters: storyContext('packages/ui/app/components/shell/ShellNavigation.vue:88'),
   render: args => ({ components: { ShellQuickViews }, setup: () => ({ args }), template: '<div class="webvue-shell min-h-svh"><div class="webvue-context-column"><ShellQuickViews v-bind="args" /></div></div>' }),
 }
 
