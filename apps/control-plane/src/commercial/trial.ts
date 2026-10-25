@@ -8,6 +8,7 @@ import { buildQuote } from './quotes.js'
 import { trialEndsAt } from './renewals.js'
 import { expireTrials } from './trial-expiry.js'
 import { enqueueReconfigureJob } from '../shared/job-store.js'
+import { commercialExpiryDate } from './fulfillment.js'
 import { paymentAttemptView } from './payments.js'
 
 /** A trial is an ordinary zero-due order: same snapshot, fulfillment and entitlement as a paid purchase. */
@@ -58,12 +59,6 @@ async function pushCommercialExpiry(client: PoolClient, subscription_id: string,
       branches: { apply: [], archive: [] }, commercial_valid_until: value } })
 }
 
-function trialExpiry(date: Date, graceDays: number): string {
-  const end = new Date(date)
-  end.setUTCDate(end.getUTCDate() + graceDays)
-  return end.toISOString().slice(0, 10)
-}
-
 /** Customer conversion: end the trial now and return the first invoice's hosted attempt. */
 export async function convertTrial(pool: Pool, input: { customer_id: string; now: Date; adapter: Parameters<typeof expireTrials>[1]['adapter']; allowedOrigin: string }) {
   const sub = (await pool.query('SELECT * FROM subscriptions WHERE customer_id=$1', [input.customer_id])).rows[0]
@@ -94,7 +89,7 @@ export async function extendTrial(pool: Pool, input: { subscription_id: string; 
       [randomUUID(), input.actor, 'trial.extended', input.subscription_id, input.reason, JSON.stringify({ days: input.days })])
     const plan = (await client.query(`SELECT p.grace_days FROM plan_revisions p JOIN subscriptions s ON s.id=$1
       WHERE p.id=((SELECT snapshot FROM subscription_revisions WHERE id=s.applied_revision_id)->>'plan_revision_id')::uuid`, [input.subscription_id])).rows[0]
-    await pushCommercialExpiry(client, input.subscription_id, trialExpiry(new Date(updated.rows[0].trial_ends_at), Number(plan?.grace_days ?? 0)))
+    await pushCommercialExpiry(client, input.subscription_id, commercialExpiryDate(updated.rows[0].trial_ends_at, Number(plan?.grace_days ?? 0)))
     return { customer_id: updated.rows[0].customer_id as string, trial_ends_at: updated.rows[0].trial_ends_at }
   })
 }

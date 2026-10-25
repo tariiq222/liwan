@@ -137,7 +137,7 @@ suite('commercial trial', () => {
     expect((await getSubscription(pool, c.id)).state).toBe('past_due')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
     expect((await pool.query("SELECT action FROM audit_events WHERE action='trial.ended' AND subject=$1", [sub.id])).rowCount).toBe(1)
-    const job = (await pool.query("SELECT payload FROM shared_jobs WHERE payload->'authority'->>'target_revision_id'=$1 AND payload->'authority'->>'commercial_valid_until' IS NULL", [sub.applied!.id])).rows[0]
+    const job = (await pool.query("SELECT payload FROM shared_jobs WHERE payload->'authority'->>'target_revision_id'=$1 AND payload->'authority' ? 'commercial_valid_until' AND payload->'authority'->>'commercial_valid_until' IS NULL", [sub.applied!.id])).rows[0]
     expect(job).toBeTruthy()
   })
   it('converts a trial on demand and issues the first invoice with a hosted attempt', async () => {

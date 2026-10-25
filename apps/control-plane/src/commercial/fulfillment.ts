@@ -12,14 +12,17 @@ import { onboardSharedTenant } from '../shared/onboarding.js'
 import { commercialEnrollmentActor } from '../shared/commercial-enrollment-authority.js'
 import { enqueueOutbox } from './outbox.js'
 
-/** Trial orders carry an Odoo-side expiry (trial end + grace); paid orders clear it. */
+/** The Odoo hard expiry: trial end plus the plan's grace, on the UTC calendar Odoo compares. */
+export function commercialExpiryDate(trialEndsAt: string | Date, graceDays: number): string {
+  const end = new Date(trialEndsAt)
+  end.setUTCDate(end.getUTCDate() + graceDays)
+  return end.toISOString().slice(0, 10)
+}
+
 export async function commercialValidUntil(client: Pool | PoolClient, order: Record<string, any>): Promise<string | null> {
   if (order.kind !== 'new' || order.payment_state !== 'not_required' || !order.trial_ends_at) return null
   const plan = await client.query('SELECT grace_days FROM plan_revisions WHERE id=$1', [order.snapshot.plan_revision_id])
-  const graceDays = Number(plan.rows[0]?.grace_days ?? 0)
-  const end = new Date(order.trial_ends_at)
-  end.setUTCDate(end.getUTCDate() + graceDays)
-  return end.toISOString().slice(0, 10)
+  return commercialExpiryDate(order.trial_ends_at, Number(plan.rows[0]?.grace_days ?? 0))
 }
 
 /** The immutable authority sent to Odoo; operation_id survives worker retries. */

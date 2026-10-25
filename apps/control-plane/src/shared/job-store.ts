@@ -49,7 +49,7 @@ export async function enqueueReconfigureJob(client: PoolClient, value: unknown) 
   const { sharedReconfigureJobSchema } = await import('@webvue/commercial-contracts/shared')
   const { createHash } = await import('node:crypto')
   const job = sharedReconfigureJobSchema.parse(value)
-  const expiry = Object.hasOwn(job.authority, 'commercial_valid_until') ? `:commercial:${job.authority.commercial_valid_until ?? 'none'}` : ''
+  const expiry = Object.hasOwn(job.authority, 'commercial_valid_until') ? `:commercial:${job.authority.commercial_valid_until ?? 'none'}:order:${job.authority.order_id}` : ''
   const key = `${job.controlTenantId}:${job.authority.target_revision_id}${job.restore ? ':restore:'+job.restoreId : ''}${expiry}`
   const digest = createHash('sha256').update(JSON.stringify(job)).digest('hex')
   await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [job.controlTenantId])
