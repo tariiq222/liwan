@@ -190,11 +190,14 @@ class ReconfigureTests(Base):
         self.assertEqual(str(ctx.exception), 'tenant_upgrade_required')
         self.assertEqual(runner.applies, 0)
 
-    def test_a_request_without_expiry_still_works_on_an_old_tenant(self):
-        request = make_request()
-        runner = FakeRunner(observation(commercial_expiry_supported=False), apply_state=applied_state(request))
+    def test_clearing_an_expiry_on_an_old_tenant_is_a_noop(self):
+        request = make_request(commercial_valid_until=None)
+        state = applied_state(request)
+        state['commercial_valid_until'] = None
+        runner = FakeRunner(observation(commercial_expiry_supported=False), apply_state=state)
         self.effect(runner).reconfigure(request)
         self.assertEqual(runner.applies, 1)
+        self.assertNotIn('commercial_valid_until', _script_values([item for item in runner.scripts if item[0] == 'apply'][-1][2]))
 
     def test_idempotent_when_already_applied(self):
         request = make_request()

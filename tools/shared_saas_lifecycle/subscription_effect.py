@@ -443,8 +443,11 @@ class SubscriptionEffect:
         validate_reconfigure(request)
         database, target = request['tenant']['database'], request['target_revision_id']
         observed = self._observe(database)
-        if 'commercial_valid_until' in request and not observed.get('commercial_expiry_supported'):
-            raise EffectError('tenant_upgrade_required')
+        if not observed.get('commercial_expiry_supported'):
+            if request.get('commercial_valid_until') is not None:
+                raise EffectError('tenant_upgrade_required')
+            # Clearing an expiry that cannot exist on an old tenant is a no-op, not a failed order.
+            request = {key: value for key, value in request.items() if key != 'commercial_valid_until'}
         current = observed['commercial_revision_id']
         if current not in (None, request['previous_revision_id'], target):
             raise EffectError('stale_target')
