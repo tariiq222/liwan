@@ -207,6 +207,8 @@ suite('commercial trial', () => {
     const sub = (await pool.query('SELECT id FROM subscriptions WHERE customer_id=$1', [c.id])).rows[0]
     const extended = await extendTrial(pool, { subscription_id: sub.id, days: 3, reason: 'pending', actor: 'vendor' })
     expect(extended.trial_ends_at).toBeTruthy()
+    // Nothing was pushed, so the monotonic revision must not advance without a job.
+    expect((await pool.query('SELECT commercial_expiry_revision FROM subscriptions WHERE id=$1', [sub.id])).rows[0].commercial_expiry_revision).toBe(0)
   })
   it('refuses a trial on a tenant known to lack the expiry field', async () => {
     const c = await newCustomer()

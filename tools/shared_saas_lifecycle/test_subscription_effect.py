@@ -196,6 +196,18 @@ class ReconfigureTests(Base):
         self.assertEqual(runner.applies, 0)
 
     def test_reports_unsupported_when_only_the_date_field_exists(self):
+        # A 19.0.1.6.0 profile has the date field but not the revision field.
+        class DateOnly:
+            commercial_valid_until = None
+            database = DB
+            root_company_id = 1
+            commercial_revision_id = PREV
+            commercial_digest = 'c' * 64
+            commercial_applied_at = None
+            features = {'users.limit': 3}
+        supported = {'date': hasattr(DateOnly(), 'commercial_valid_until'),
+                     'revision': hasattr(DateOnly(), 'commercial_valid_until_revision')}
+        self.assertEqual(supported, {'date': True, 'revision': False})
         request = make_request(commercial_valid_until='2026-11-08', commercial_valid_until_revision=1)
         runner = FakeRunner(observation(commercial_expiry_supported=False))
         with self.assertRaises(EffectError) as ctx:
