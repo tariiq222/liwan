@@ -201,6 +201,13 @@ suite('commercial trial', () => {
     await expect(extendTrial(pool, { subscription_id: sub.id, days: 5, reason: 'more', actor: 'vendor' }))
       .rejects.toMatchObject({ code: 'tenant_binding_unavailable' })
   })
+  it('leaves the date to a fulfilment that is still pending', async () => {
+    const c = await newCustomer()
+    await startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now })
+    const sub = (await pool.query('SELECT id FROM subscriptions WHERE customer_id=$1', [c.id])).rows[0]
+    const extended = await extendTrial(pool, { subscription_id: sub.id, days: 3, reason: 'pending', actor: 'vendor' })
+    expect(extended.trial_ends_at).toBeTruthy()
+  })
   it('refuses a trial on a tenant known to lack the expiry field', async () => {
     const c = await newCustomer()
     const tenant = (await pool.query('SELECT tenant_id FROM customers WHERE id=$1', [c.id])).rows[0].tenant_id
