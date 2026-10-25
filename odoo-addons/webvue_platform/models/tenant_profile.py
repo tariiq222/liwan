@@ -37,6 +37,10 @@ class WebVueTenantProfile(models.Model):
         "CHECK (commercial_mode != 'non_saas' OR valid_until IS NULL)",
         'independent installations cannot have a subscription expiry',
     )
+    _independent_commercial_cutoff = models.Constraint(
+        "CHECK (commercial_mode != 'non_saas' OR commercial_valid_until IS NULL)",
+        'independent installations cannot have a commercial subscription expiry',
+    )
 
     solution = fields.Char()
     tier = fields.Char()
@@ -45,6 +49,9 @@ class WebVueTenantProfile(models.Model):
         default='active', required=True,
     )
     valid_until = fields.Date()
+    # Commercial subscription expiry, written by the control plane; separate from the
+    # classification cutoff `valid_until`, which stays the operator/migration record.
+    commercial_valid_until = fields.Date()
     features = fields.Json()
     retained_read_features = fields.Json()
     terminology = fields.Json()
@@ -240,12 +247,12 @@ class WebVueTenantProfile(models.Model):
             raise AccessError(self.env._('Policy source is not permitted for this installation.'))
         return True
 
-    @api.constrains('commercial_mode', 'entitlement_source', 'valid_until')
+    @api.constrains('commercial_mode', 'entitlement_source', 'valid_until', 'commercial_valid_until')
     def _webvue_check_commercial_mode(self):
         for record in self:
             if SOURCES.get(record.commercial_mode) != record.entitlement_source:
                 raise ValidationError(self.env._('Commercial mode and policy source must match.'))
-            if record.commercial_mode == 'non_saas' and record.valid_until:
+            if record.commercial_mode == 'non_saas' and (record.valid_until or record.commercial_valid_until):
                 raise ValidationError(self.env._('Independent installations cannot have a subscription expiry.'))
 
     @api.model_create_multi
@@ -274,7 +281,7 @@ class WebVueTenantProfile(models.Model):
     def write(self, vals):
         if {'commercial_mode', 'entitlement_source'}.intersection(vals):
             raise AccessError(self.env._('Commercial classification is immutable; conversion requires a separate procedure.'))
-        if vals.get('valid_until') and any(record.commercial_mode == 'non_saas' for record in self):
+        if (vals.get('valid_until') or vals.get('commercial_valid_until')) and any(record.commercial_mode == 'non_saas' for record in self):
             raise ValidationError(self.env._('Independent installations cannot have a subscription expiry.'))
         policy_keys = POLICY_FIELDS.intersection(vals)
         trusted = self.env.su and self.env.context.get(OPERATOR_CONTEXT)
