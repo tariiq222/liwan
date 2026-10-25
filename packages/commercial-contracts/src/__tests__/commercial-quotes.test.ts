@@ -39,7 +39,7 @@ describe('computeQuote', () => {
     expect(computeQuote(base({ requested_extra_branches: 4 })).digest).not.toBe(a.digest)
   })
   it('change: added bundle prorated now; downgrade shown at renewal with 0 now', () => {
-    const current = { plan_revision_id: id(4), bundle_revision_ids: [id(3)], paid_extra_branches: 0, base_minor: 50000, bundle_minor: { [id(3)]: 10000 }, branch_unit_minor: 50000 }
+    const current = { plan_revision_id: id(4), bundle_revision_ids: [id(3)], paid_extra_branches: 0, base_minor: 50000, bundle_minor: { [id(3)]: 10000 }, branch_unit_minor: 50000, paid_users: 0, paid_storage_gb: 0, user_unit_minor: 0, storage_unit_minor: 0 }
     const q = computeQuote(base({ kind: 'change', requested_extra_branches: 1, bundles: [bundle(2, 50000)], current, effective_date: '2027-10-17' }))
     const added = q.lines.find(l => l.key === `bundle:${id(2)}:delta`)!
     expect(added.timing).toBe('now'); expect(added.amount.minor).toBe(24194)
@@ -49,7 +49,7 @@ describe('computeQuote', () => {
     expect(q.next_renewal.minor).toBe(Math.round(100000 * 1.15))
   })
   it('change: removing paid branches charges nothing now', () => {
-    const current = { plan_revision_id: id(4), bundle_revision_ids: [], paid_extra_branches: 3, base_minor: 50000, bundle_minor: {}, branch_unit_minor: 50000 }
+    const current = { plan_revision_id: id(4), bundle_revision_ids: [], paid_extra_branches: 3, base_minor: 50000, bundle_minor: {}, branch_unit_minor: 50000, paid_users: 0, paid_storage_gb: 0, user_unit_minor: 0, storage_unit_minor: 0 }
     const q = computeQuote(base({ kind: 'change', requested_extra_branches: 1, current, effective_date: '2027-10-17' }))
     expect(q.due_now.minor).toBe(0); expect(q.next_renewal.minor).toBe(57500)
   })
@@ -70,7 +70,7 @@ describe('computeQuote', () => {
   })
   it('change: adding/removing an included bundle is free', () => {
     const p = plan({ included_bundle_revision_ids: [id(2)], optional_bundle_revision_ids: [] })
-    const cur = { plan_revision_id: id(4), bundle_revision_ids: [] as string[], paid_extra_branches: 0, base_minor: 50000, bundle_minor: {}, branch_unit_minor: 50000 }
+    const cur = { plan_revision_id: id(4), bundle_revision_ids: [] as string[], paid_extra_branches: 0, base_minor: 50000, bundle_minor: {}, branch_unit_minor: 50000, paid_users: 0, paid_storage_gb: 0, user_unit_minor: 0, storage_unit_minor: 0 }
     const add = computeQuote(base({ kind: 'change', plan: p, requested_extra_branches: 1, bundles: [bundle(2, 30000)], current: cur, effective_date: '2027-10-17' }))
     expect(add.due_now.minor).toBe(0); expect(add.lines.some(l => l.key.startsWith(`bundle:${id(2)}`) && l.timing === 'now')).toBe(false)
     const rem = computeQuote(base({ kind: 'change', plan: p, requested_extra_branches: 1, bundles: [], current: { ...cur, bundle_revision_ids: [id(2)] }, effective_date: '2027-10-17' }))
