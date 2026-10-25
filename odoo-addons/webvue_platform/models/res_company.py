@@ -9,5 +9,6 @@ class WebVuePlatformResCompany(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         if not self.env.su and any(vals.get('parent_id') for vals in vals_list):
-            raise AccessError(self.env._('branch_requires_subscription'))
+            msg = 'branch_requires_subscription'
+            raise AccessError(msg)
         return super().create(vals_list)

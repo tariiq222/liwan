@@ -65,7 +65,7 @@ class ProjectMilestone(models.Model):
                 if project_end and deadline and deadline > project_end:
                     raise ValidationError(self.env._("Milestone deadline must be on or before the project end date."))
 
-            tasks = self.env['project.task'].sudo().with_context(active_test=False).search([
+            tasks = self.env['project.task'].with_context(active_test=False).search([
                 ('milestone_id', '=', milestone.id),
             ])
             for task in tasks:

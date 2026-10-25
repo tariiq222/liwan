@@ -195,7 +195,7 @@ msgstr "مراجعة الترخيص التجاري"
 msgid ""
 "Commercial classification is immutable; conversion requires a separate "
 "procedure."
-msgstr ""
+msgstr "التصنيف التجاري غير قابل للتغيير؛ التحويل يتطلب إجراءً مستقلًا."
 
 #. module: webvue_platform
 #. odoo-python
@@ -906,30 +906,6 @@ msgid "a company can be bound to one webvue branch"
 msgstr "لا يمكن ربط الشركة إلا بفرع ويب فيو واحد"
 
 #. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/tenant_profile.py:0
-msgid "branch_binding_conflict"
-msgstr "تعارض_ربط_الفرع"
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/tenant_profile.py:0
-msgid "branch_binding_invalid"
-msgstr "ربط_فرع_غير_صالح"
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/tenant_profile.py:0
-msgid "branch_not_found"
-msgstr "الفرع_غير_موجود"
-
-#. module: webvue_platform
-#. odoo-python
-#: code:addons/webvue_platform/models/res_company.py:0
-msgid "branch_requires_subscription"
-msgstr "الفرع_يتطلب_اشتراكًا"
-
-#. module: webvue_platform
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_profile_independent_cutoff
 msgid "independent installations cannot have a subscription expiry"
 msgstr "التثبيتات المستقلة لا يكون لها تاريخ انتهاء اشتراك"
@@ -995,7 +971,7 @@ msgstr "تعريف %(kind)s في webvue_platform بلا مُعرّف"
 msgid ""
 "webvue_platform: cannot guess root company; found %(count)s roots (%"
 "(names)s). Set webvue.tenant.profile.root_company_id explicitly."
-msgstr ""
+msgstr "webvue_platform: تعذّر تحديد الشركة الرئيسية؛ وُجد %(count)s جذور (%(names)s). اضبط webvue.tenant.profile.root_company_id."
 
 #. module: webvue_platform
 #. odoo-python
@@ -1040,7 +1016,7 @@ msgid ""
 "webvue_platform: installed modules were not loaded: %(modules)s. A "
 "dependency is missing from the addons path; build it with \"python3 -B tools/"
 "oca_addons.py path --check\" and read the module_graph warnings above."
-msgstr ""
+msgstr "webvue_platform: لم تُحمّل وحدات مثبّتة: %(modules)s. ينقص اعتماد من مسار الإضافات."
 
 #. module: webvue_platform
 #. odoo-python
@@ -1107,7 +1083,7 @@ msgstr "يجب أن تكون المصطلحات كائنًا"
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid ""
 "webvue_platform: terminology value for %(key)s contains forbidden markup"
-msgstr ""
+msgstr "webvue_platform: قيمة المصطلح %(key)s تحتوي وسومًا محظورة"
 
 #. module: webvue_platform
 #. odoo-python

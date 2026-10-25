@@ -573,7 +573,7 @@ class ProjectProject(models.Model):
 
     @api.constrains('date_start', 'date')
     def _check_webvue_milestone_bounds(self):
-        milestones = self.env['project.milestone'].sudo().search([
+        milestones = self.env['project.milestone'].search([
             ('project_id', 'in', self.ids),
         ])
         milestones._webvue_validate_schedule_bounds()
