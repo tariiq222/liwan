@@ -129,9 +129,20 @@ suite('commercial trial', () => {
     expect((await pool.query("SELECT action FROM audit_events WHERE action='trial.ended' AND subject=$1", [sub.id])).rowCount).toBe(1)
   })
   it('converts a trial on demand and issues the first invoice with a hosted attempt', async () => {
+    // A different, lexicographically lower subscription is due in the same renewal pass. Its order
+    // must never be returned to this customer.
+    const other = await trialAt(now, -1)
+    const otherSub = await getSubscription(pool, other.id)
+    const thirdTenant = randomUUID(), third = randomUUID()
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Another','saas','managed',$2,true)", [thirdTenant, `trial-${thirdTenant}`])
+    await pool.query('INSERT INTO customers(id,name,tenant_id,admin_login) VALUES($1,$2,$3,$4)', [third, 'Another customer', thirdTenant, `${third}@example.test`])
+    await pool.query(`INSERT INTO subscriptions(id,customer_id,tenant_id,state,renewal_at,applied_revision_id)
+      VALUES('00000000-0000-4000-8000-000000000001',$1,$2,'past_due','2026-10-20',$3)`, [third, thirdTenant, otherSub.applied!.id])
     const c = await trialAt(now, 5)
     const result = await convertTrial(pool, { customer_id: c.id, now, adapter: new SimulatorAdapter(), allowedOrigin: 'https://webvue.test' })
     expect(result.order).toBeTruthy()
+    expect(result.order!.customer_id).toBe(c.id)
+    expect(result.attempt?.order_id).toBe(result.order!.id)
     expect(result.attempt?.redirect_url).toBeTruthy()
     expect((await getSubscription(pool, c.id)).state).toBe('past_due')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)

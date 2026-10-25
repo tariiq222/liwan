@@ -19,8 +19,8 @@ const { data, error, pending, refresh } = await useAsyncData('subscription:overv
 const display = computed(() => (data.value?.sub ? subscriptionDisplayState(data.value.sub) : null))
 // The one action block: only when the customer must act on an order (payment due or activation failed).
 const needsAction = computed(() => display.value === 'awaiting_payment' || display.value === 'failed')
-const entitlement = computed(() => data.value?.sub.applied?.entitlement ?? null)
-const trialEndsAt = computed(() => data.value?.sub.trial_ends_at ?? null)
+const entitlement = computed(() => data.value?.sub?.applied?.entitlement ?? null)
+const trialEndsAt = computed(() => data.value?.sub?.trial_ends_at ?? null)
 const trialDaysLeft = computed(() => trialEndsAt.value ? daysBetween(riyadhDate(new Date()), riyadhDate(new Date(trialEndsAt.value))) : null)
 const converting = ref(false); const convertError = ref<string | undefined>()
 async function convertTrial() {
@@ -30,7 +30,8 @@ async function convertTrial() {
     const result = await api.convertTrial()
     const url = result.attempt?.redirect_url ? safePaymentRedirect(result.attempt.redirect_url, window.location.origin) : null
     if (url) { window.location.assign(url); return }
-    if (result.order) await navigateTo({ path: '/subscription/status', query: { order: result.order.id } })
+    if (result.order) { await navigateTo({ path: '/subscription/status', query: { order: result.order.id } }); return }
+    convertError.value = t('subscription.trial.activationPending')
   } catch { convertError.value = t('subscription.trial.convertFailed') } finally { converting.value = false }
 }
 const entitledApps = computed(() => entitledFeaturePrefixes(entitlement.value?.features))
@@ -56,11 +57,11 @@ definePageMeta({ middleware: 'customer-commercial' })
           <UButton v-if="can('subscription.manage')" class="mt-3" to="/subscription/change" :disabled="!hydrated">{{ t('subscription.trial.startSetup') }}</UButton>
         </SharedRecordSection>
       </div>
-      <div v-else-if="data" class="grid gap-(--webvue-gap-card)">
+      <div v-else-if="data && data.sub" class="grid gap-(--webvue-gap-card)">
         <UAlert v-if="data.sub.state === 'trialing' && trialDaysLeft !== null" :color="trialDaysLeft <= 3 ? 'warning' : 'info'" variant="subtle" icon="i-lucide-hourglass"
           :title="t('subscription.trial.daysLeft', { count: trialDaysLeft })"
           :description="`${t('subscription.trial.endsOn', { date: trialEndsAt?.slice(0, 10) })}${trialDaysLeft <= 3 ? ' — ' + t('subscription.trial.expiring') : ''}`">
-          <template #actions><UButton size="sm" color="neutral" variant="outline" :disabled="!hydrated || converting" :loading="converting" @click="convertTrial">{{ t('subscription.trial.convert') }}</UButton></template>
+          <template #actions><UButton v-if="can('subscription.manage')" size="sm" color="neutral" variant="outline" :disabled="!hydrated || converting" :loading="converting" @click="convertTrial">{{ t('subscription.trial.convert') }}</UButton></template>
         </UAlert>
         <UAlert v-if="convertError" color="error" variant="subtle" :title="convertError" />
         <SharedRecordSection

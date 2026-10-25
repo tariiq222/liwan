@@ -3,7 +3,7 @@ import type { Pool } from 'pg'
 import { acceptQuoteRequestSchema, canonicalJson, quoteRequestSchema, quoteSchema, riyadhDate, type Principal, type Quote } from '@webvue/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError, digestOf } from './lifecycle.js'
-import { acceptQuoteOn } from './orders.js'
+import { acceptQuoteOn, orderView } from './orders.js'
 import { buildQuote } from './quotes.js'
 import { trialEndsAt } from './renewals.js'
 import { expireTrials } from './trial-expiry.js'
@@ -43,14 +43,18 @@ export async function convertTrial(pool: Pool, input: { customer_id: string; now
   const sub = (await pool.query('SELECT * FROM subscriptions WHERE customer_id=$1', [input.customer_id])).rows[0]
   if (!sub || sub.state !== 'trialing') throw new CommercialHttpError('trial_not_active', 409)
   await transaction(pool, async client => {
-    await client.query('UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1 AND state=\'trialing\'', [sub.id, input.now])
+    const updated = await client.query("UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1 AND state='trialing' RETURNING id", [sub.id, input.now])
+    if (!updated.rowCount) throw new CommercialHttpError('trial_not_active', 409)
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
       [randomUUID(), `customer:${input.customer_id}`, 'trial.converted', sub.id, 'Customer converted the trial', JSON.stringify({ converted_at: input.now.toISOString() })])
   })
-  const result = await expireTrials(pool, { now: input.now, adapter: input.adapter, allowedOrigin: input.allowedOrigin, return_path: '/subscription', subscription_id: sub.id })
-  const order = result.orders[0]
+  await expireTrials(pool, { now: input.now, adapter: input.adapter, allowedOrigin: input.allowedOrigin, return_path: '/subscription', subscription_id: sub.id })
+  // The expiry run may also create other due renewals: read this subscription's own first order, never index 0.
+  const row = (await pool.query(`SELECT o.* FROM orders o JOIN renewals r ON r.order_id=o.id
+    WHERE r.subscription_id=$1 ORDER BY r.created_at DESC,o.id DESC LIMIT 1`, [sub.id])).rows[0]
+  const order = row ? orderView(row) : null
   const attempt = order ? (await pool.query('SELECT * FROM payment_attempts WHERE order_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1', [order.id])).rows[0] : null
-  return { order: order ?? null, attempt: attempt ? paymentAttemptView(attempt) : null }
+  return { order, attempt: attempt ? paymentAttemptView(attempt) : null, pending: !order }
 }
 
 /** Vendor-only trial controls; each write is audited and only applies to a trialing subscription. */
