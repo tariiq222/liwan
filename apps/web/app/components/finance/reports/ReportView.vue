@@ -81,7 +81,7 @@ function clearFilters() {
         <SharedPageState v-else :loading="loading" :error="query.error.value" :keep-content="!!loaded" @retry="query.refetch">
           <template v-if="loaded">
             <UAlert
-              v-if="loaded.slug === 'profit-loss' || loaded.slug === 'balance-sheet'"
+              v-if="config.managementInformation"
               role="note"
               color="neutral"
               variant="subtle"

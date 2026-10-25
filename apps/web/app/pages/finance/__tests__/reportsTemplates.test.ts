@@ -76,8 +76,6 @@ describe('the finance report pages stay on their templates', () => {
   it('takes every report from the one config table', () => {
     const view = read('components/finance/reports/ReportView.vue')
     expect(view).toContain('REPORTS[props.slug]')
-    expect(view).toContain("loaded.slug === 'profit-loss' || loaded.slug === 'balance-sheet'")
-    expect(view).toContain('financeReports.managementInformation')
     for (const table of TABLES) expect(view).toContain(`<${table}`)
   })
 
