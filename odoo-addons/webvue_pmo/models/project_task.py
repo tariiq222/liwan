@@ -392,7 +392,7 @@ class ProjectTask(models.Model):
         # project while the milestone itself is hidden by project rules. This
         # internal scalar validation must not turn that legitimate write into
         # an access error or expose the milestone's private content.
-        for task in self.sudo():
+        for task in self:
             milestone = task.milestone_id
             if not milestone:
                 continue
