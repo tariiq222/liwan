@@ -18,27 +18,27 @@ msgstr ""
 #. odoo-python
 #: code:addons/webvue_api/controllers/attachment_download.py:0
 msgid "Attachment %(id)s is not linked to this record"
-msgstr ""
+msgstr "المرفق %(id)s غير مرتبط بهذا السجل"
 
 #. module: webvue_api
 #: model:ir.model.fields.selection,name:webvue_api.selection__res_users__webvue_appearance_mode__cream
 msgid "Cream"
-msgstr ""
+msgstr "كريمي"
 
 #. module: webvue_api
 #: model:ir.model.fields.selection,name:webvue_api.selection__res_users__webvue_appearance_mode__dark
 msgid "Dark"
-msgstr ""
+msgstr "داكن"
 
 #. module: webvue_api
 #: model:ir.model.fields,field_description:webvue_api.field_res_users__display_name
 msgid "Display Name"
-msgstr ""
+msgstr "الاسم المعروض"
 
 #. module: webvue_api
 #: model:ir.model.fields,field_description:webvue_api.field_res_users__id
 msgid "ID"
-msgstr ""
+msgstr "المعرّف"
 
 #. module: webvue_api
 #. odoo-python
@@ -49,12 +49,12 @@ msgstr "القيمة العددية الصحيحة غير صالحة."
 #. module: webvue_api
 #: model:ir.model.fields.selection,name:webvue_api.selection__res_users__webvue_font_size__large
 msgid "Large"
-msgstr ""
+msgstr "كبير"
 
 #. module: webvue_api
 #: model:ir.model.fields.selection,name:webvue_api.selection__res_users__webvue_appearance_mode__light
 msgid "Light"
-msgstr ""
+msgstr "فاتح"
 
 #. module: webvue_api
 #. odoo-python
@@ -65,36 +65,36 @@ msgstr "توجد حقول صيانة مفقودة أو غير معروفة."
 #. module: webvue_api
 #: model:ir.model.fields.selection,name:webvue_api.selection__res_users__webvue_font_size__medium
 msgid "Medium"
-msgstr ""
+msgstr "وسط"
 
 #. module: webvue_api
 #. odoo-python
 #: code:addons/webvue_api/controllers/common.py:0
 msgid "Record does not exist"
-msgstr ""
+msgstr "السجل غير موجود"
 
 #. module: webvue_api
 #: model:ir.model.fields.selection,name:webvue_api.selection__res_users__webvue_font_size__small
 msgid "Small"
-msgstr ""
+msgstr "صغير"
 
 #. module: webvue_api
 #: model:ir.model,name:webvue_api.model_res_users
 msgid "User"
-msgstr ""
+msgstr "المستخدم"
 
 #. module: webvue_api
 #: model:ir.model.fields,field_description:webvue_api.field_res_users__webvue_appearance_mode
 msgid "Webvue Appearance Mode"
-msgstr ""
+msgstr "وضع مظهر ويب فيو"
 
 #. module: webvue_api
 #: model:ir.model.fields,field_description:webvue_api.field_res_users__webvue_font_size
 msgid "Webvue Font Size"
-msgstr ""
+msgstr "حجم خط ويب فيو"
 
 #. module: webvue_api
 #. odoo-python
 #: code:addons/webvue_api/controllers/lookups.py:0
 msgid "res.country %(id)s does not exist"
-msgstr ""
+msgstr "الدولة %(id)s غير موجودة"
