@@ -21,48 +21,48 @@ msgstr ""
 #: code:addons/webvue_finance/controllers/finance_budgets.py:0
 #: code:addons/webvue_finance/models/zatca_service.py:0
 msgid "%(model)s %(id)s does not exist"
-msgstr ""
+msgstr "%(model)s %(id)s غير موجود"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/models/budget_guard.py:0
 msgid "A %(state)s budget cannot be changed this way."
-msgstr ""
+msgstr "لا يمكن تغيير ميزانية بحالة %(state)s بهذه الطريقة."
 
 #. module: webvue_finance
 #: model:ir.model.constraint,message:webvue_finance.constraint_account_move_closing_year_unique
 msgid "A company has one year-end closing entry per fiscal year."
-msgstr ""
+msgstr "لكل شركة قيد إقفال سنة مالية واحد لكل سنة."
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__account_archived
 msgid "Account archived"
-msgstr ""
+msgstr "أُرشف الحساب"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__account_changed
 msgid "Account changed"
-msgstr ""
+msgstr "تغيّر الحساب"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__account_created
 msgid "Account created"
-msgstr ""
+msgstr "أُنشئ الحساب"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__account_unarchived
 msgid "Account unarchived"
-msgstr ""
+msgstr "أُلغي أرشفة الحساب"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_audit_event__action
 msgid "Action"
-msgstr ""
+msgstr "الإجراء"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_zakat_adjustment__kind__add
 msgid "Added to the base"
-msgstr ""
+msgstr "أُضيف إلى الأساس"
 
 #. module: webvue_finance
 #. odoo-python
@@ -85,87 +85,87 @@ msgstr "الرقم الإضافي"
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_adjusted_net_profit
 msgid "Adjusted net profit"
-msgstr ""
+msgstr "صافي الربح المعدّل"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_adjustment__amount
 msgid "Amount"
-msgstr ""
+msgstr "المبلغ"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__asset_disposed
 msgid "Asset disposed of"
-msgstr ""
+msgstr "تمت إبراء الأصل"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__asset_profile_archived
 msgid "Asset profile archived"
-msgstr ""
+msgstr "أُرشف ملف الأصل"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__asset_profile_changed
 msgid "Asset profile changed"
-msgstr ""
+msgstr "تغيّر ملف الأصل"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__asset_profile_created
 msgid "Asset profile created"
-msgstr ""
+msgstr "أُنشئ ملف الأصل"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__asset_profile_unarchived
 msgid "Asset profile unarchived"
-msgstr ""
+msgstr "أُلغي أرشفة ملف الأصل"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_difference
 msgid "Assets less liabilities and equity (zero when balanced)"
-msgstr ""
+msgstr "الأصول ناقص الخصوم وحقوق الملكية (صفر عند التوازن)"
 
 #. module: webvue_finance
 #: model:mis.report,name:webvue_finance.mis_report_balance_sheet
 msgid "Balance sheet"
-msgstr ""
+msgstr "الميزانية العمومية"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_cash
 msgid "Bank and cash"
-msgstr ""
+msgstr "البنوك والنقدية"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__bank_line_unreconciled
 msgid "Bank line unreconciled"
-msgstr ""
+msgstr "أُلغيت مطابقة سطر البنك"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__bank_statement_auto_reconciled
 msgid "Bank statement auto-reconciled"
-msgstr ""
+msgstr "رُوبط كشف البنك آليًا"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__bank_statement_changed
 msgid "Bank statement changed"
-msgstr ""
+msgstr "تغيّر كشف البنك"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__bank_statement_deleted
 msgid "Bank statement deleted"
-msgstr ""
+msgstr "حُذف كشف البنك"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__bank_statement_imported
 msgid "Bank statement imported"
-msgstr ""
+msgstr "استُورد كشف البنك"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_review__base
 msgid "Base"
-msgstr ""
+msgstr "الأساس"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_idempotency__body
 msgid "Body"
-msgstr ""
+msgstr "المتن"
 
 #. module: webvue_finance
 #. odoo-python
@@ -176,207 +176,207 @@ msgstr "رقم المبنى"
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_closing_manage
 msgid "Capability: close finance fiscal years"
-msgstr ""
+msgstr "صلاحية: إقفال السنوات المالية"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_accounts_manage
 msgid "Capability: manage finance accounts"
-msgstr ""
+msgstr "صلاحية: إدارة الحسابات"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_bank_manage
 msgid "Capability: manage finance bank statements"
-msgstr ""
+msgstr "صلاحية: إدارة كشوف البنك"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_budgets_manage
 msgid "Capability: manage finance budgets"
-msgstr ""
+msgstr "صلاحية: إدارة الميزانيات"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_analytic_manage
 msgid "Capability: manage finance cost centers"
-msgstr ""
+msgstr "صلاحية: إدارة مراكز التكلفة"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_assets_manage
 msgid "Capability: manage finance fixed assets"
-msgstr ""
+msgstr "صلاحية: إدارة الأصول الثابتة"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_invoices_manage
 msgid "Capability: manage finance invoices"
-msgstr ""
+msgstr "صلاحية: إدارة الفواتير"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_entries_manage
 msgid "Capability: manage finance journal entries"
-msgstr ""
+msgstr "صلاحية: إدارة قيود اليومية"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_journals_manage
 msgid "Capability: manage finance journals"
-msgstr ""
+msgstr "صلاحية: إدارة اليوميات"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_zakat_manage
 msgid "Capability: manage finance manage zakat adjustments"
-msgstr ""
+msgstr "صلاحية: إدارة تسويات الزكاة"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_partners_manage
 msgid "Capability: manage finance partners"
-msgstr ""
+msgstr "صلاحية: إدارة الشركاء"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_payment_terms_manage
 msgid "Capability: manage finance payment terms"
-msgstr ""
+msgstr "صلاحية: إدارة شروط الدفع"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_payments_manage
 msgid "Capability: manage finance payments"
-msgstr ""
+msgstr "صلاحية: إدارة الدفعات"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_setup_manage
 msgid "Capability: manage finance setup"
-msgstr ""
+msgstr "صلاحية: إدارة الإعداد"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_taxes_manage
 msgid "Capability: manage finance taxes"
-msgstr ""
+msgstr "صلاحية: إدارة الضرائب"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_zatca_manage
 msgid "Capability: onboard finance ZATCA journals"
-msgstr ""
+msgstr "صلاحية: ربط يوميات زاتكا"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_invoices_post
 msgid "Capability: post finance invoices"
-msgstr ""
+msgstr "صلاحية: ترحيل الفواتير"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_entries_post
 msgid "Capability: post finance journal entries"
-msgstr ""
+msgstr "صلاحية: ترحيل قيود اليومية"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_zatca_read
 msgid "Capability: read finance ZATCA status"
-msgstr ""
+msgstr "صلاحية: قراءة حالة زاتكا"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_accounts_read
 msgid "Capability: read finance accounts"
-msgstr ""
+msgstr "صلاحية: قراءة الحسابات"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_bank_read
 msgid "Capability: read finance bank statements"
-msgstr ""
+msgstr "صلاحية: قراءة كشوف البنك"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_budgets_read
 msgid "Capability: read finance budgets"
-msgstr ""
+msgstr "صلاحية: قراءة الميزانيات"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_analytic_read
 msgid "Capability: read finance cost centers"
-msgstr ""
+msgstr "صلاحية: قراءة مراكز التكلفة"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_assets_read
 msgid "Capability: read finance fixed assets"
-msgstr ""
+msgstr "صلاحية: قراءة الأصول الثابتة"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_invoices_read
 msgid "Capability: read finance invoices"
-msgstr ""
+msgstr "صلاحية: قراءة الفواتير"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_entries_read
 msgid "Capability: read finance journal entries"
-msgstr ""
+msgstr "صلاحية: قراءة قيود اليومية"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_journals_read
 msgid "Capability: read finance journals"
-msgstr ""
+msgstr "صلاحية: قراءة اليوميات"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_partners_read
 msgid "Capability: read finance partners"
-msgstr ""
+msgstr "صلاحية: قراءة الشركاء"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_payment_terms_read
 msgid "Capability: read finance payment terms"
-msgstr ""
+msgstr "صلاحية: قراءة شروط الدفع"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_payments_read
 msgid "Capability: read finance payments"
-msgstr ""
+msgstr "صلاحية: قراءة الدفعات"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_reports_read
 msgid "Capability: read finance reports"
-msgstr ""
+msgstr "صلاحية: قراءة التقارير"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_setup_read
 msgid "Capability: read finance setup"
-msgstr ""
+msgstr "صلاحية: قراءة الإعداد"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_statements_read
 msgid "Capability: read finance statements"
-msgstr ""
+msgstr "صلاحية: قراءة القوائم"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_taxes_read
 msgid "Capability: read finance taxes"
-msgstr ""
+msgstr "صلاحية: قراءة الضرائب"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_closing_read
 msgid "Capability: read finance year-end closing"
-msgstr ""
+msgstr "صلاحية: قراءة year-end closing"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_zakat_read
 msgid "Capability: read the Zakat base"
-msgstr ""
+msgstr "صلاحية: قراءة أساس الزكاة"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_audit_read
 msgid "Capability: read the finance audit trail"
-msgstr ""
+msgstr "صلاحية: قراءة سجل التدقيق المالي"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_zakat_review
 msgid "Capability: review finance review the zakat computation"
-msgstr ""
+msgstr "صلاحية: مراجعة حسبة الزكاة"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_zatca_submit
 msgid "Capability: submit finance invoices to ZATCA"
-msgstr ""
+msgstr "صلاحية: إرسال الفواتير إلى زاتكا"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__chart_loaded
 msgid "Chart of accounts loaded"
-msgstr ""
+msgstr "حُمّلت شجرة الحسابات"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_res_company
 msgid "Companies"
-msgstr ""
+msgstr "الشركات"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_audit_event__company_id
@@ -384,17 +384,17 @@ msgstr ""
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_adjustment__company_id
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_review__company_id
 msgid "Company"
-msgstr ""
+msgstr "الشركة"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__company_written
 msgid "Company setup changed"
-msgstr ""
+msgstr "تغيّر إعداد الشركة"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_pl_kpi_cost_of_revenue
 msgid "Cost of revenue"
-msgstr ""
+msgstr "تكلفة الإيرادات"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_audit_event__create_uid
@@ -402,7 +402,7 @@ msgstr ""
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_adjustment__create_uid
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_review__create_uid
 msgid "Created by"
-msgstr ""
+msgstr "أنشأه"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_audit_event__create_date
@@ -410,48 +410,48 @@ msgstr ""
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_adjustment__create_date
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_review__create_date
 msgid "Created on"
-msgstr ""
+msgstr "تاريخ الإنشاء"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_review__credential
 msgid "Credential"
-msgstr ""
+msgstr "بيانات الاعتماد"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_credit_cards
 msgid "Credit cards"
-msgstr ""
+msgstr "البطاقات الائتمانية"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_current_assets
 msgid "Current assets"
-msgstr ""
+msgstr "الأصول المتداولة"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_current_liabilities
 msgid "Current liabilities"
-msgstr ""
+msgstr "الخصوم المتداولة"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_current_year_earnings
 msgid "Current year earnings"
-msgstr ""
+msgstr "أرباح السنة الحالية"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_adjustment__date_to
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_review__date_to
 msgid "Date To"
-msgstr ""
+msgstr "حتى تاريخ"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_zakat_adjustment__kind__deduct
 msgid "Deducted from the base"
-msgstr ""
+msgstr "خُصم من الأساس"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_pl_kpi_depreciation
 msgid "Depreciation"
-msgstr ""
+msgstr "الإهلاك"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_account_move__display_name
@@ -477,59 +477,59 @@ msgstr ""
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_review__display_name
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zatca__display_name
 msgid "Display Name"
-msgstr ""
+msgstr "الاسم المعروض"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_equity
 msgid "Equity"
-msgstr ""
+msgstr "حقوق الملكية"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_equity
 msgid "Equity (capital, reserves and other equity accounts)"
-msgstr ""
+msgstr "حقوق الملكية (رأس المال والاحتياطيات وحسابات الملكية الأخرى)"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_audit_event__fields_written
 msgid "Fields Written"
-msgstr ""
+msgstr "الحقول المكتوبة"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_finance_manager
 msgid "Finance Manager"
-msgstr ""
+msgstr "مدير المالية"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/models/setup_service.py:0
 msgid "Finance setup cannot write the field %s."
-msgstr ""
+msgstr "إعداد المالية لا يمكنه الكتابة على الحقل %s."
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/models/setup_service.py:0
 msgid "Finance setup only acts on the current company."
-msgstr ""
+msgstr "إعداد المالية يعمل على الشركة الحالية فقط."
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_review__fingerprint
 msgid "Fingerprint"
-msgstr ""
+msgstr "البصمة"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__fiscal_year_closed
 msgid "Fiscal year closed"
-msgstr ""
+msgstr "أُقفلت السنة المالية"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_fixed_assets
 msgid "Fixed assets, net of depreciation"
-msgstr ""
+msgstr "الأصول الثابتة صافي الإهلاك"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_pl_kpi_gross_profit
 msgid "Gross profit"
-msgstr ""
+msgstr "الربح الإجمالي"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_account_move__id
@@ -555,47 +555,47 @@ msgstr ""
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_review__id
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zatca__id
 msgid "ID"
-msgstr ""
+msgstr "المعرّف"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_account_move
 msgid "Journal Entry"
-msgstr ""
+msgstr "قيد اليومية"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__journal_archived
 msgid "Journal archived"
-msgstr ""
+msgstr "أُرشفت اليومية"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__journal_changed
 msgid "Journal changed"
-msgstr ""
+msgstr "تغيّرت اليومية"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__journal_created
 msgid "Journal created"
-msgstr ""
+msgstr "أُنشئت اليومية"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__journal_unarchived
 msgid "Journal unarchived"
-msgstr ""
+msgstr "أُلغي أرشفة اليومية"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_idempotency__key
 msgid "Key"
-msgstr ""
+msgstr "المفتاح"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_adjustment__kind
 msgid "Kind"
-msgstr ""
+msgstr "النوع"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_adjustment__label
 msgid "Label"
-msgstr ""
+msgstr "التسمية"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_audit_event__write_uid
@@ -603,7 +603,7 @@ msgstr ""
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_adjustment__write_uid
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_review__write_uid
 msgid "Last Updated by"
-msgstr ""
+msgstr "حدّثه"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_audit_event__write_date
@@ -611,68 +611,68 @@ msgstr ""
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_adjustment__write_date
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_review__write_date
 msgid "Last Updated on"
-msgstr ""
+msgstr "تاريخ آخر تحديث"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_long_term_investments
 msgid "Long-term investments and non-current assets"
-msgstr ""
+msgstr "الاستثمارات طويلة الأجل والأصول غير المتداولة"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_long_term_liabilities
 msgid "Long-term liabilities"
-msgstr ""
+msgstr "الخصوم غير المتداولة"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_mis_budget_by_account_item
 msgid "MIS Budget Item (by Account)"
-msgstr ""
+msgstr "بند ميزانية MIS (بحساب)"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_mis_budget_by_account
 msgid "MIS Budget by Account"
-msgstr ""
+msgstr "ميزانية MIS بحساب"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_idempotency__method
 msgid "Method"
-msgstr ""
+msgstr "الطريقة"
 
 #. module: webvue_finance
 #: model:ir.model.fields,help:webvue_finance.field_webvue_finance_audit_event__fields_written
 msgid "Names of the fields written, comma separated; never their values."
-msgstr ""
+msgstr "أسماء الحقول المكتوبة مفصولة بفواصل؛ لا قيمها أبدًا."
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_net_fixed_assets
 msgid "Net fixed assets"
-msgstr ""
+msgstr "صافي الأصول الثابتة"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_pl_kpi_net_profit
 msgid "Net profit"
-msgstr ""
+msgstr "صافي الربح"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_net_profit
 msgid "Net profit of the fiscal year to date"
-msgstr ""
+msgstr "صافي ربح السنة المالية حتى التاريخ"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_non_current_assets
 msgid "Non-current assets"
-msgstr ""
+msgstr "الأصول غير المتداولة"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_non_current_liabilities
 msgid "Non-current liabilities"
-msgstr ""
+msgstr "الخصوم غير المتداولة"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_adjustment__note
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_review__note
 msgid "Note"
-msgstr ""
+msgstr "الملاحظة"
 
 #. module: webvue_finance
 #. odoo-python
@@ -685,128 +685,128 @@ msgstr ""
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_pl_kpi_operating_expenses
 msgid "Operating expenses"
-msgstr ""
+msgstr "مصروفات التشغيل"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_pl_kpi_operating_profit
 msgid "Operating profit"
-msgstr ""
+msgstr "الربح التشغيلي"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_pl_kpi_other_expenses
 msgid "Other expenses"
-msgstr ""
+msgstr "مصروفات أخرى"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_pl_kpi_other_income
 msgid "Other income"
-msgstr ""
+msgstr "إيرادات أخرى"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_audit_event__outcome
 msgid "Outcome"
-msgstr ""
+msgstr "النتيجة"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_idempotency__path
 msgid "Path"
-msgstr ""
+msgstr "المسار"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_payables
 msgid "Payables"
-msgstr ""
+msgstr "الدائنون"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__payment_allocated
 msgid "Payment allocated"
-msgstr ""
+msgstr "وُزّعت الدفعة"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__payment_changed
 msgid "Payment changed"
-msgstr ""
+msgstr "تغيّرت الدفعة"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__payment_created
 msgid "Payment created"
-msgstr ""
+msgstr "أُنشئت الدفعة"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__payment_posted
 msgid "Payment posted"
-msgstr ""
+msgstr "رُحّلت الدفعة"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__payment_term_archived
 msgid "Payment term archived"
-msgstr ""
+msgstr "أُرشف شرط الدفع"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__payment_term_changed
 msgid "Payment term changed"
-msgstr ""
+msgstr "تغيّر شرط الدفع"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__payment_term_created
 msgid "Payment term created"
-msgstr ""
+msgstr "أُنشئ شرط الدفع"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__payment_term_unarchived
 msgid "Payment term unarchived"
-msgstr ""
+msgstr "أُلغي أرشفة شرط الدفع"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__payment_unallocated
 msgid "Payment unallocated"
-msgstr ""
+msgstr "أُلغيت توزيع الدفعة"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_prepayments
 msgid "Prepayments"
-msgstr ""
+msgstr "الدفعات المقدمة"
 
 #. module: webvue_finance
 #: model:mis.report,name:webvue_finance.mis_report_profit_loss
 msgid "Profit and loss"
-msgstr ""
+msgstr "الأرباح والخسائر"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_provisions
 msgid "Provisions (leave days and leave tickets)"
-msgstr ""
+msgstr "المخصصات (أرصدة الإجازات وتذاكرها)"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_receivables
 msgid "Receivables"
-msgstr ""
+msgstr "المدينون"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_idempotency__request_hash
 msgid "Request Hash"
-msgstr ""
+msgstr "بصمة الطلب"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_audit_event__res_id
 msgid "Res"
-msgstr ""
+msgstr "السجل"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_audit_event__res_model
 msgid "Res Model"
-msgstr ""
+msgstr "نموذج السجل"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_retained_earnings
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_retained_earnings
 msgid "Retained earnings of previous years"
-msgstr ""
+msgstr "أرباح موجّهة للسنوات السابقة"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_pl_kpi_revenue
 msgid "Revenue"
-msgstr ""
+msgstr "الإيرادات"
 
 #. module: webvue_finance
 #: model:mis.report,description:webvue_finance.mis_report_zakat_base
@@ -820,66 +820,66 @@ msgstr ""
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_idempotency__status
 msgid "Status"
-msgstr ""
+msgstr "الحالة"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__tax_archived
 msgid "Tax archived"
-msgstr ""
+msgstr "أُرشف الضريبة"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__tax_changed
 msgid "Tax changed"
-msgstr ""
+msgstr "تغيّرت الضريبة"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__tax_created
 msgid "Tax created"
-msgstr ""
+msgstr "أُنشئت الضريبة"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__tax_unarchived
 msgid "Tax unarchived"
-msgstr ""
+msgstr "أُلغي أرشفة الضريبة"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/models/vat_return.py:0
 msgid "The Saudi VAT return definition is not installed."
-msgstr ""
+msgstr "تعريف إقرار ضريبة القيمة المضافة السعودي غير مثبّت."
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/models/zakat.py:0
 msgid "The amount of an adjustment must be above zero."
-msgstr ""
+msgstr "يجب أن يكون مبلغ التسوية أكبر من صفر."
 
 #. module: webvue_finance
 #: model:ir.model.fields,help:webvue_finance.field_webvue_finance_zakat_adjustment__date_to
 msgid "The end of the fiscal year the adjustment is for."
-msgstr ""
+msgstr "نهاية السنة المالية التي تخصها التسوية."
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/models/mis_report.py:0
 msgid "The figure %(kpi)s cannot be computed: %(error)r"
-msgstr ""
+msgstr "تعذّر حساب المؤشر %(kpi)s: %(error)r"
 
 #. module: webvue_finance
 #: model:ir.model.constraint,message:webvue_finance.constraint_webvue_finance_idempotency_key_unique
 msgid "The idempotency key is already used."
-msgstr ""
+msgstr "مفتاح منع التكرار مستخدم بالفعل."
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/models/budget_guard.py:0
 msgid "The lines of a budget can only be changed while it is a draft."
-msgstr ""
+msgstr "لا يمكن تغيير بنود الميزانية إلا في حالة المسودة."
 
 #. module: webvue_finance
 #: model:ir.model.fields,help:webvue_finance.field_webvue_finance_audit_event__outcome
 msgid "The resulting state, for example the ZATCA submission state."
-msgstr ""
+msgstr "الحالة الناتجة، مثل حالة الإرسال إلى زاتكا."
 
 #. module: webvue_finance
 #: model:ir.model.fields,help:webvue_finance.field_webvue_finance_zakat_review__credential
@@ -891,189 +891,189 @@ msgstr ""
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_total_additions
 msgid "Total additions"
-msgstr ""
+msgstr "مجموع الإضافات"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_total_assets
 msgid "Total assets"
-msgstr ""
+msgstr "مجموع الأصول"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_total_deductions
 msgid "Total deductions"
-msgstr ""
+msgstr "مجموع الاستقطاعات"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_total_equity
 msgid "Total equity"
-msgstr ""
+msgstr "مجموع حقوق الملكية"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_total_liabilities
 msgid "Total liabilities"
-msgstr ""
+msgstr "مجموع الخصوم"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_total_liabilities_and_equity
 msgid "Total liabilities and equity"
-msgstr ""
+msgstr "مجموع الخصوم وحقوق الملكية"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_idempotency__user_id
 msgid "User"
-msgstr ""
+msgstr "المستخدم"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_access_service
 msgid "WebVue Access Service"
-msgstr ""
+msgstr "خدمة الوصول في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_feature_registry
 msgid "WebVue feature and module registry"
-msgstr ""
+msgstr "سجل الميزات والوحدات في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_mis_report
 msgid "WebVue finance MIS report evaluation"
-msgstr ""
+msgstr "تقييم تقرير MIS المالي في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_vat_return
 msgid "WebVue finance VAT return"
-msgstr ""
+msgstr "إقرار ضريبة القيمة المضافة في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_vat_report
 msgid "WebVue finance VAT summary"
-msgstr ""
+msgstr "ملخص ضريبة القيمة المضافة في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_zatca
 msgid "WebVue finance ZATCA e-invoicing"
-msgstr ""
+msgstr "الفاتورة الإلكترونية (زاتكا) في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_zakat_adjustment
 msgid "WebVue finance Zakat base adjustment"
-msgstr ""
+msgstr "تسوية أساس الزكاة في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_zakat_review
 msgid "WebVue finance Zakat computation review"
-msgstr ""
+msgstr "مراجعة حساب الزكاة في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_zakat
 msgid "WebVue finance Zakat workpaper"
-msgstr ""
+msgstr "مذكرة عمل الزكاة في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_analytic_report
 msgid "WebVue finance analytic (cost center) report"
-msgstr ""
+msgstr "تقرير التحليلية (مراكز التكلفة) في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_audit_event
 msgid "WebVue finance audit event"
-msgstr ""
+msgstr "حدث تدقيق مالي في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_budget
 msgid "WebVue finance budget evaluation"
-msgstr ""
+msgstr "تقييم الميزانية في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_cash_flow
 msgid "WebVue finance cash flow statement"
-msgstr ""
+msgstr "قائمة التدفقات النقدية في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_closing
 msgid "WebVue finance fiscal year closing"
-msgstr ""
+msgstr "إقفال السنة المالية في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_setup
 msgid "WebVue finance guided setup"
-msgstr ""
+msgstr "الإعداد الموجّه للمالية في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_idempotency
 msgid "WebVue finance idempotency key"
-msgstr ""
+msgstr "مفتاح منع التكرار المالي في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_statement_report
 msgid "WebVue finance statements over the OCA reports"
-msgstr ""
+msgstr "القوائم المالية فوق تقارير OCA في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_withholding_report
 msgid "WebVue finance withholding summary"
-msgstr ""
+msgstr "ملخص الاستقطاع في ويب فيو"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/controllers/finance_closing.py:0
 msgid "Year-end closing %(year)s"
-msgstr ""
+msgstr "إقفال السنة المالية %(year)s"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_account_bank_statement_line__webvue_closing_year
 #: model:ir.model.fields,field_description:webvue_finance.field_account_move__webvue_closing_year
 msgid "Year-end closing of fiscal year"
-msgstr ""
+msgstr "إقفال السنة المالية"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__zatca_onboarded
 msgid "ZATCA journal onboarded"
-msgstr ""
+msgstr "رُوبطت يومية زاتكا"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__zatca_submitted
 msgid "ZATCA submission"
-msgstr ""
+msgstr "إرسال زاتكا"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_review__zakat_due
 msgid "Zakat Due"
-msgstr ""
+msgstr "الزكاة المستحقة"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__zakat_adjustment_added
 msgid "Zakat adjustment added"
-msgstr ""
+msgstr "أُضيفت تسوية زكاة"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__zakat_adjustment_removed
 msgid "Zakat adjustment removed"
-msgstr ""
+msgstr "أُزيلت تسوية زكاة"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_profit_addbacks
 msgid "Zakat and income tax expense added back"
-msgstr ""
+msgstr "أُضيف ترجيحًا مصروف الزكاة وضريبة الدخل"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_zakat_base
 msgid "Zakat base"
-msgstr ""
+msgstr "أساس الزكاة"
 
 #. module: webvue_finance
 #: model:mis.report,name:webvue_finance.mis_report_zakat_base
 msgid "Zakat base (simplified)"
-msgstr ""
+msgstr "أساس الزكاة (مبسّط)"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__zakat_reviewed
 msgid "Zakat computation reviewed"
-msgstr ""
+msgstr "رُوجعت حسبة الزكاة"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_zakat_due
 msgid "Zakat due on the positive base"
-msgstr ""
+msgstr "الزكاة المستحقة على الأساس الموجب"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_zakat_rate
@@ -1085,49 +1085,49 @@ msgstr ""
 #. odoo-python
 #: code:addons/webvue_finance/controllers/finance_accounts.py:0
 msgid "account.account %(id)s does not exist"
-msgstr ""
+msgstr "الحساب %(id)s غير موجود"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/controllers/finance_analytic.py:0
 msgid "account.analytic.account %(id)s does not exist"
-msgstr ""
+msgstr "الحساب التحليلي %(id)s غير موجود"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/controllers/finance_analytic.py:0
 msgid "account.analytic.plan %(id)s does not exist"
-msgstr ""
+msgstr "خطة التحليلية %(id)s غير موجود"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/controllers/finance_assets.py:0
 msgid "account.asset %(id)s does not exist"
-msgstr ""
+msgstr "الأصل %(id)s غير موجود"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/controllers/finance_asset_profiles.py:0
 msgid "account.asset.profile %(id)s does not exist"
-msgstr ""
+msgstr "ملف الأصل %(id)s غير موجود"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/controllers/finance_bank.py:0
 msgid "account.bank.statement %(id)s does not exist"
-msgstr ""
+msgstr "كشف البنك %(id)s غير موجود"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/controllers/finance_bank.py:0
 msgid "account.bank.statement.line %(id)s does not exist"
-msgstr ""
+msgstr "سطر كشف البنك %(id)s غير موجود"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/controllers/finance_journals.py:0
 msgid "account.journal %(id)s does not exist"
-msgstr ""
+msgstr "اليومية %(id)s غير موجود"
 
 #. module: webvue_finance
 #. odoo-python
@@ -1135,34 +1135,34 @@ msgstr ""
 #: code:addons/webvue_finance/controllers/finance_entries.py:0
 #: code:addons/webvue_finance/controllers/finance_invoices.py:0
 msgid "account.move %(id)s does not exist"
-msgstr ""
+msgstr "القيد %(id)s غير موجود"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/controllers/finance_payments.py:0
 msgid "account.payment %(id)s does not exist"
-msgstr ""
+msgstr "الدفعة %(id)s غير موجود"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/controllers/finance_payment_terms.py:0
 msgid "account.payment.term %(id)s does not exist"
-msgstr ""
+msgstr "شرط الدفع %(id)s غير موجود"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/controllers/finance_taxes.py:0
 msgid "account.tax %(id)s does not exist"
-msgstr ""
+msgstr "الضريبة %(id)s غير موجود"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/controllers/finance_partners.py:0
 msgid "res.partner %(id)s does not exist"
-msgstr ""
+msgstr "الشريك %(id)s غير موجود"
 
 #. module: webvue_finance
 #. odoo-python
 #: code:addons/webvue_finance/controllers/finance_zakat.py:0
 msgid "webvue.finance.zakat.adjustment %(id)s does not exist"
-msgstr ""
+msgstr "تسوية الزكاة %(id)s غير موجود"
