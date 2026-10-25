@@ -182,20 +182,29 @@ def _decorator_name(node: ast.expr) -> str:
     return target.attr if isinstance(target, ast.Attribute) else getattr(target, 'id', '')
 
 
-def sudo_calls(text: str, superuser_id: bool = True) -> int:
-    """R7: .sudo() calls, su=True keywords and used SUPERUSER_ID names; comments and strings are not counted."""
+def sudo_sites(text: str, superuser_id: bool = True) -> list[tuple[int, str]]:
+    """R7: the (line, kind) of every sudo site: `.sudo()` calls, `su=True` keywords and used SUPERUSER_ID names.
+
+    `sudo_calls` is its length, so the count and the per-line report can never drift apart. Comments and
+    strings are not counted; a call that both chains `.sudo()` and passes `su=True` is two sites.
+    """
     tree = ast.parse(text)
-    found = 0
+    sites = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
-            found += isinstance(node.func, ast.Attribute) and node.func.attr == 'sudo'
-            found += sum(
-                1 for kw in node.keywords
-                if kw.arg == 'su' and isinstance(kw.value, ast.Constant) and kw.value.value is True
-            )
+            if isinstance(node.func, ast.Attribute) and node.func.attr == 'sudo':
+                sites.append((node.lineno, 'sudo'))
+            for kw in node.keywords:
+                if kw.arg == 'su' and isinstance(kw.value, ast.Constant) and kw.value.value is True:
+                    sites.append((node.lineno, 'su'))
         elif superuser_id and isinstance(node, ast.Name) and node.id == 'SUPERUSER_ID':
-            found += 1
-    return found
+            sites.append((node.lineno, 'SUPERUSER_ID'))
+    return sorted(sites)
+
+
+def sudo_calls(text: str, superuser_id: bool = True) -> int:
+    """R7: the number of sudo sites of one file."""
+    return len(sudo_sites(text, superuser_id))
 
 
 def routes_without_feature(text: str) -> list[str]:

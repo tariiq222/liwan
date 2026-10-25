@@ -35,7 +35,7 @@ class WebVueNotifyService(models.AbstractModel):
 
     @api.model
     def _webvue_key_taken(self, key):
-        return bool(self.env['mail.message'].sudo().search_count(
+        return bool(self.env['mail.message'].search_count(
             [('webvue_notification_key', '=', key)], limit=1,
         ))
 
@@ -86,7 +86,7 @@ class WebVueNotifyService(models.AbstractModel):
                         'body': plaintext2html(body),
                         'partner_ids': [(4, partner.id)],
                     })
-                    self.env['mail.notification'].sudo().create({
+                    self.env['mail.notification'].create({
                         'author_id': message.author_id.id,
                         'mail_message_id': message.id,
                         'notification_status': 'sent',
@@ -133,7 +133,7 @@ class WebVueNotifyService(models.AbstractModel):
     def _webvue_visible_rows(self, domain, limit=None, offset=0):
         """``(row, extra)`` pairs, newest first, after the owners' row checks."""
         registry = self.env['webvue.notify.registry']
-        Notification = self.env['mail.notification'].sudo()
+        Notification = self.env['mail.notification']
         domain = Domain(domain) & self._webvue_recipient_domain()
         last_id = None
         collected = []
@@ -160,7 +160,7 @@ class WebVueNotifyService(models.AbstractModel):
     def _webvue_visible_count(self, domain):
         """Counted in SQL, except the rows of ``live`` kinds, which are re-checked one by one."""
         registry = self.env['webvue.notify.registry']
-        Notification = self.env['mail.notification'].sudo()
+        Notification = self.env['mail.notification']
         domain = Domain(domain) & self._webvue_recipient_domain()
         live_kinds = list(registry._webvue_notify_live_kinds())
         if not live_kinds:
@@ -195,7 +195,7 @@ class WebVueNotifyService(models.AbstractModel):
     @api.model
     def _webvue_find(self, notification_id):
         """The caller's visible row and its row-check extra; MissingError otherwise."""
-        rows = self.env['mail.notification'].sudo().search(
+        rows = self.env['mail.notification'].search(
             self._webvue_domain() & Domain('id', '=', notification_id), limit=1,
         )
         if not rows:
