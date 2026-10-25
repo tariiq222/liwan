@@ -278,9 +278,9 @@ class TestAccessAdminRoles(WebVueApiCase):
         }
         # 11 core capabilities; HR's two document permissions moved to Documents,
         # leaving 21 for HR (departments, employees, leave, recruitment, shifts,
-        # onboarding, offboarding and assets) and 4 for payroll.
+        # onboarding, offboarding and assets) and 5 for payroll.
         total = (
-            11 + 25 * ('webvue_hr' in installed) + 5 * ('webvue_documents' in installed)
+            11 + 26 * ('webvue_hr' in installed) + 5 * ('webvue_documents' in installed)
             + 8 * ('webvue_pmo' in installed) + 3 * ('webvue_meetings' in installed)
         )
         # An application added later adds capabilities; today's are exact.
