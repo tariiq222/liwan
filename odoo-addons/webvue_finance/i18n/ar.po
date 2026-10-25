@@ -680,7 +680,7 @@ msgstr "الملاحظة"
 msgid ""
 "Only the ZATCA sandbox api mode is allowed until the simulation and "
 "production policy is approved."
-msgstr ""
+msgstr "لا يُسمح إلا بوضع واجهة زاتكا التجريبي حتى تُعتمد سياسة المحاكاة والإنتاج."
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_pl_kpi_operating_expenses
@@ -815,7 +815,7 @@ msgid ""
 "ZATCA filing computation and must be reviewed by a Saudi certified public "
 "accountant (CPA) before it is relied on. The rate is 2.5% scaled by 365/354 "
 "for a Gregorian fiscal year."
-msgstr ""
+msgstr "أساس زكاة مبسّط لأغراض معلومات الإدارة فقط. الصيغة ليست احتساب إقرار لدى زاتكا ويلزم مراجعتها من محاسب قانوني سعودي معتمد."
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_idempotency__status
@@ -886,7 +886,7 @@ msgstr "الحالة الناتجة، مثل حالة الإرسال إلى زا
 msgid ""
 "The reviewer's professional credential, as they state it (for example the "
 "SOCPA licence)."
-msgstr ""
+msgstr "الاعتماد المهني للمراجع كما يذكره (مثل ترخيص SOCPA)."
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_total_additions
@@ -1079,7 +1079,7 @@ msgstr "الزكاة المستحقة على الأساس الموجب"
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_zakat_rate
 msgid ""
 "Zakat rate: 2.5% of the lunar year scaled to the Gregorian year (x 365/354)"
-msgstr ""
+msgstr "معدل الزكاة: 2.5% من السنة الهجرية مقيسة على السنة الميلادية (× 365/354)"
 
 #. module: webvue_finance
 #. odoo-python

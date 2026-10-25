@@ -575,7 +575,7 @@ msgstr "لا يمكن تغيير حقول هوية القيد المالي."
 msgid ""
 "Finance entry requires pmo.projects.read and a readable active current-"
 "company project."
-msgstr ""
+msgstr "يتطلب القيد المالي صلاحية pmo.projects.read ومشروعًا نشطًا مقروءًا في الشركة الحالية."
 
 #. module: webvue_pmo
 #: model:ir.model.fields.selection,name:webvue_pmo.selection__project_project__webvue_priority__high
@@ -586,7 +586,7 @@ msgstr "مرتفع"
 #. module: webvue_pmo
 #: model:ir.model.fields.selection,name:webvue_pmo.selection__webvue_project_raci__role__i
 msgid "I"
-msgstr "أ"
+msgstr "م"
 
 #. module: webvue_pmo
 #: model:ir.model.fields,field_description:webvue_pmo.field_mail_message__id
@@ -1059,7 +1059,7 @@ msgstr "يجب أن يكون %(field)s في الجدولة تاريخًا أو �
 msgid ""
 "Schedule start and end must be set together, with start on or before the end "
 "date."
-msgstr ""
+msgstr "يجب تحديد بداية الجدولة ونهايتها معًا، وأن تكون البداية في تاريخ الانتهاء أو قبله."
 
 #. module: webvue_pmo
 #. odoo-python
@@ -1292,7 +1292,7 @@ msgstr "يجب أن يكون المعتمد المختار مستخدمًا دا
 msgid ""
 "The sponsor is reviewing the charter; withdraw it before removing the "
 "sponsor."
-msgstr ""
+msgstr "الراعي يراجع الميثاق؛ اسحبه قبل إزالة الراعي."
 
 #. module: webvue_pmo
 #. odoo-python
@@ -1411,7 +1411,7 @@ msgid ""
 "\n"
 "            Make sure to use the right format and order e.g. Improve the "
 "configuration screen #feature #v16 @Mitchell !"
-msgstr ""
+msgstr "استخدم هذه الكلمات المفتاحية في العنوان لضبط مهام جديدة:\n\n            #tags ضع وسومًا على المهمة\n            @user أسند المهمة إلى مستخدم\n            ! اضبط أولوية المهمة إلى متوسطة\n            !! اضبط أولوية المهمة إلى مرتفعة\n            !!! اضبط أولوية المهمة إلى عاجلة\n\n            تأكد من استخدام الصيغة والترتيب الصحيحين، مثل: Improve the configuration screen #feature #v16 @Mitchell !"
 
 #. module: webvue_pmo
 #: model:ir.model.fields,field_description:webvue_pmo.field_webvue_project_stakeholder__user_id

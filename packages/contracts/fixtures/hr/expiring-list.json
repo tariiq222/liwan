@@ -1,0 +1,65 @@
+{
+  "items": [
+    {
+      "days_left": -5,
+      "document": null,
+      "due_date": "2026-10-20",
+      "employee": {
+        "id": 1,
+        "name": "Past Employee"
+      },
+      "kind": "probation_end"
+    },
+    {
+      "days_left": -3,
+      "document": null,
+      "due_date": "2026-10-22",
+      "employee": {
+        "id": 2,
+        "name": "Ended Contract"
+      },
+      "kind": "contract_end"
+    },
+    {
+      "days_left": -1,
+      "document": null,
+      "due_date": "2026-10-24",
+      "employee": {
+        "id": 1,
+        "name": "Past Employee"
+      },
+      "kind": "identity"
+    },
+    {
+      "days_left": 10,
+      "document": null,
+      "due_date": "2026-11-04",
+      "employee": {
+        "id": 3,
+        "name": "Soon Employee"
+      },
+      "kind": "probation_end"
+    },
+    {
+      "days_left": 30,
+      "document": null,
+      "due_date": "2026-11-24",
+      "employee": {
+        "id": 3,
+        "name": "Soon Employee"
+      },
+      "kind": "contract_end"
+    },
+    {
+      "days_left": 45,
+      "document": null,
+      "due_date": "2026-12-09",
+      "employee": {
+        "id": 3,
+        "name": "Soon Employee"
+      },
+      "kind": "identity"
+    }
+  ],
+  "total": 6
+}

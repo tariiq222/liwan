@@ -11,55 +11,61 @@
     {
       "account": {
         "id": 3,
-        "name": "500901 Budgeted income"
+        "name": "600901 Budgeted expense"
       },
-      "actual": 1200.0,
-      "analytic_account": null,
-      "budget": 1000.0,
+      "actual": 1500.0,
+      "analytic_account": {
+        "id": 4,
+        "name": "Riyadh branch"
+      },
+      "budget": 6000.0,
       "date_from": "2026-01-01",
       "date_to": "2026-12-31",
       "favorable": true,
       "id": 2,
       "label": "",
-      "nature": "credit",
-      "variance": -200.0,
-      "variance_percent": -20.0
+      "nature": "debit",
+      "variance": 4500.0,
+      "variance_percent": 75.0
     },
     {
       "account": {
-        "id": 5,
+        "id": 3,
         "name": "600901 Budgeted expense"
       },
-      "actual": 400.0,
-      "analytic_account": null,
-      "budget": 1000.0,
+      "actual": 500.0,
+      "analytic_account": {
+        "id": 6,
+        "name": "Jeddah branch"
+      },
+      "budget": 4000.0,
       "date_from": "2026-01-01",
       "date_to": "2026-12-31",
       "favorable": true,
-      "id": 4,
+      "id": 5,
       "label": "",
       "nature": "debit",
-      "variance": 600.0,
-      "variance_percent": 60.0
+      "variance": 3500.0,
+      "variance_percent": 87.5
     }
   ],
   "target_move": "posted",
   "totals": {
     "credit": {
-      "actual": 1200.0,
-      "budget": 1000.0,
-      "variance": -200.0,
-      "variance_percent": -20.0
+      "actual": 0.0,
+      "budget": 0.0,
+      "variance": 0.0,
+      "variance_percent": null
     },
     "debit": {
-      "actual": 400.0,
-      "budget": 1000.0,
-      "variance": 600.0,
-      "variance_percent": 60.0
+      "actual": 2000.0,
+      "budget": 10000.0,
+      "variance": 8000.0,
+      "variance_percent": 80.0
     },
     "net": {
-      "actual": 800.0,
-      "budget": 0.0
+      "actual": -2000.0,
+      "budget": -10000.0
     }
   }
 }

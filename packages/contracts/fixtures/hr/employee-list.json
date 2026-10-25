@@ -1,37 +1,34 @@
 {
   "items": [
     {
-      "access": {
-        "active": true,
-        "login": "admin",
-        "role": "vendor",
-        "user_id": 2
-      },
-      "active": true,
-      "contract": null,
-      "department": {
-        "id": 1,
-        "name": "Administration"
-      },
-      "id": 1,
-      "job_title": "",
-      "manager": null,
-      "name": "Administrator",
-      "user_id": 2,
-      "work_email": "",
-      "work_phone": ""
-    },
-    {
       "access": null,
       "active": true,
       "contract": null,
       "department": null,
-      "id": 2,
-      "job_title": "",
+      "id": 1,
+      "job_title": "Staff",
       "manager": null,
-      "name": "Contract Subject",
+      "name": "Isolation Employee P",
       "user_id": null,
       "work_email": "",
+      "work_phone": ""
+    },
+    {
+      "access": {
+        "active": true,
+        "login": "branch_status_employee",
+        "role": "employee",
+        "user_id": 21
+      },
+      "active": true,
+      "contract": null,
+      "department": null,
+      "id": 2,
+      "job_title": "Staff",
+      "manager": null,
+      "name": "Isolation Employee P1",
+      "user_id": 21,
+      "work_email": "b.b@example.com",
       "work_phone": ""
     },
     {
@@ -40,9 +37,9 @@
       "contract": null,
       "department": null,
       "id": 3,
-      "job_title": "",
+      "job_title": "Staff",
       "manager": null,
-      "name": "No Contract",
+      "name": "Isolation Employee P2",
       "user_id": null,
       "work_email": "",
       "work_phone": ""
