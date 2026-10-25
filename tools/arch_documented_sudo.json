@@ -54,7 +54,7 @@
     },
     "odoo-addons/webvue_notify/models/notify_service.py": {
       "count": 1,
-      "reason": "webvue_notify bell delivery: `Message.create(...)` and the replace path's `Message.search(...).unlink()` in `_webvue_deliver` (notify_service.py:63). The author of a bell row is the delivering service, while the row names the recipient in `message_partner_ids`, so the author cannot write the recipient's row in their own environment: `base.group_user` may create `mail.message` (access_mail_message_user, +odoo/addons/mail/security/ir.model.access.csv:5) but the stock `mail_message` record rules resolve the visible set from the message partners, which the delivering service identity is not part of. Elevation is bounded to creating the bell row and replacing the row of one idempotency key; reads and recipient scoping stay unelevated in this service."
+      "reason": "webvue_notify bell delivery: `Message.create(...)` and the replace path's `Message.search(...).unlink()` in `_webvue_deliver` (notify_service.py:63). `base.group_user` may create `mail.message` (access_mail_message_user), but the delivering service is not a partner of the row it writes, so the stock mail record rules hide it from the delivering identity; elevation is bounded to creating that bell row and replacing the row of one idempotency key."
     },
     "odoo-addons/webvue_platform/models/entitlement_service.py": {
       "count": 1,
