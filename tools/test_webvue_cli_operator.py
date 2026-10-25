@@ -764,6 +764,24 @@ class EntitleScriptCompatibilityCase(unittest.TestCase):
         self.assertEqual(result, {'status': 'ok', 'changed': False, 'policy_revision': 3})
         self.assertFalse(any(event[0] in ('write', 'commit') for event in env.events))
 
+    def test_explicit_null_clears_the_commercial_expiry(self):
+        from datetime import date
+        from unittest.mock import mock_open, patch
+        from test_managed_verify import Environment, execute_script
+        desired = {'users.limit': 3, 'storage.limit_mb': None}
+        env = Environment()
+        env.profile.features = dict(desired)
+        env.profile.policy_revision = 3
+        env.profile.commercial_valid_until = date(2026, 11, 8)
+        policy = {'schema_version': 1, 'channel': 'control_plane', 'features': desired,
+                  'commercial_valid_until': None}
+        raw = json.dumps(policy)
+        with patch.dict(os.environ, {'WEBVUE_OPERATOR_POLICY_FILE': '/synthetic/policy.json', 'WEBVUE_EXPECTED_REVISION': '3'}), patch('builtins.open', mock_open(read_data=raw)):
+            stdout = execute_script(operator.ENTITLE_SCRIPT, env)
+        result = json.loads(stdout.split('WEBVUE_OPERATOR_RESULT:', 1)[1])
+        self.assertTrue(result['changed'])
+        self.assertFalse(env.profile.commercial_valid_until)
+
     def test_stale_revision_still_refuses_legacy_noop(self):
         desired = {'users.limit': 3, 'storage.limit_mb': None}
         result, env = self.run_entitle(desired, {**desired, 'branches.extra_limit': None}, revision=2)

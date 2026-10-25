@@ -97,14 +97,15 @@ try:
         elif int(profile.policy_revision) != expected_revision:
             result = {'status': 'conflict', 'changed': False, 'error_code': 'revision_conflict'}
         elif (_features_match(profile.features, policy['features'])
-              and (policy.get('commercial_valid_until') is None
-                   or profile.commercial_valid_until == date.fromisoformat(policy['commercial_valid_until']))):
+              and ('commercial_valid_until' not in policy
+                   or profile.commercial_valid_until == (date.fromisoformat(policy['commercial_valid_until']) if policy['commercial_valid_until'] else False))):
             result = {'status': 'ok', 'changed': False,
                       'policy_revision': int(profile.policy_revision)}
         else:
             write_vals = {'features': policy['features']}
-            if policy.get('commercial_valid_until') is not None:
-                write_vals['commercial_valid_until'] = date.fromisoformat(policy['commercial_valid_until'])
+            if 'commercial_valid_until' in policy:
+                write_vals['commercial_valid_until'] = (
+                    date.fromisoformat(policy['commercial_valid_until']) if policy['commercial_valid_until'] else False)
             profile.with_context(**{OPERATOR_CONTEXT: True}).write(write_vals)
             result = {'status': 'ok', 'changed': True,
                       'policy_revision': int(profile.policy_revision)}
