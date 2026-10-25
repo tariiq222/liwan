@@ -40,7 +40,7 @@ def make_request(**over):
 
 def observation(**over):
     value = {'database': DB, 'root_company_id': 1, 'commercial_revision_id': PREV, 'commercial_digest': 'c' * 64,
-             'commercial_applied_at': None, 'commercial_valid_until': None, 'features': {'users.limit': 3},
+             'commercial_applied_at': None, 'commercial_valid_until': None, 'commercial_expiry_supported': True, 'features': {'users.limit': 3},
              'modules': ['webvue_api', 'webvue_core', 'webvue_platform'], 'branches': [],
              'usage': {'users.limit': 1, 'projects.max_projects': 0, 'storage.limit_mb': 0, 'branches.extra_limit': 0},
              'limit_gates': {'users.limit': [], 'projects.max_projects': ['pmo.enabled'],
@@ -181,6 +181,20 @@ class ReconfigureTests(Base):
         runner = FakeRunner(observation(commercial_valid_until='2026-11-08'), apply_state=state)
         self.effect(runner).reconfigure(request)
         self.assertNotIn('commercial_valid_until', _script_values([item for item in runner.scripts if item[0] == 'apply'][-1][2]))
+
+    def test_refuses_to_write_the_expiry_on_an_unupgraded_tenant(self):
+        request = make_request(commercial_valid_until='2026-11-08')
+        runner = FakeRunner(observation(commercial_expiry_supported=False))
+        with self.assertRaises(EffectError) as ctx:
+            self.effect(runner).reconfigure(request)
+        self.assertEqual(str(ctx.exception), 'tenant_upgrade_required')
+        self.assertEqual(runner.applies, 0)
+
+    def test_a_request_without_expiry_still_works_on_an_old_tenant(self):
+        request = make_request()
+        runner = FakeRunner(observation(commercial_expiry_supported=False), apply_state=applied_state(request))
+        self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 1)
 
     def test_idempotent_when_already_applied(self):
         request = make_request()

@@ -27,6 +27,7 @@ HOST_RE = re.compile(r'[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?')
 SENTINEL = 'WEBVUE_SUBSCRIPTION:'
 SCRIPT_ERRORS = frozenset({
     'stale_target', 'observed_mismatch', 'profile_invalid', 'target_mismatch',
+    'tenant_upgrade_required',
     'branch_binding_invalid', 'branch_binding_conflict', 'branch_not_found',
     'feature_not_included', 'subscription_script_failed',
 })
@@ -140,7 +141,8 @@ def collect(profile):
     return {'database': env.cr.dbname, 'root_company_id': root.id, 'commercial_revision_id': profile.commercial_revision_id or None,
             'commercial_digest': profile.commercial_digest or None,
             'commercial_applied_at': str(profile.commercial_applied_at) if profile.commercial_applied_at else None,
-            'commercial_valid_until': str(profile.commercial_valid_until) if profile.commercial_valid_until else None,
+            'commercial_valid_until': str(profile.commercial_valid_until) if getattr(profile, 'commercial_valid_until', None) else None,
+            'commercial_expiry_supported': hasattr(profile, 'commercial_valid_until'),
             'features': feats, 'modules': modules, 'branches': branches, 'usage': usage, 'limit_gates': gates}
 
 def read_profile():
@@ -272,7 +274,7 @@ def parse_output(stdout):
 
 def validate_observation(value):
     keys = {'database', 'root_company_id', 'commercial_revision_id', 'commercial_digest', 'commercial_applied_at',
-            'commercial_valid_until', 'features', 'modules', 'branches', 'usage', 'limit_gates'}
+            'commercial_valid_until', 'commercial_expiry_supported', 'features', 'modules', 'branches', 'usage', 'limit_gates'}
     if set(value) != keys:
         raise EffectError('observation_invalid')
     odoo_effect.validate_database(value['database'])
@@ -284,6 +286,8 @@ def validate_observation(value):
             raise EffectError('observation_invalid')
     if value['commercial_valid_until'] is not None and (not isinstance(value['commercial_valid_until'], str)
                                                        or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', value['commercial_valid_until'])):
+        raise EffectError('observation_invalid')
+    if type(value['commercial_expiry_supported']) is not bool:
         raise EffectError('observation_invalid')
     if not isinstance(value['modules'], list) or not all(isinstance(m, str) for m in value['modules']):
         raise EffectError('observation_invalid')
@@ -439,6 +443,8 @@ class SubscriptionEffect:
         validate_reconfigure(request)
         database, target = request['tenant']['database'], request['target_revision_id']
         observed = self._observe(database)
+        if 'commercial_valid_until' in request and not observed.get('commercial_expiry_supported'):
+            raise EffectError('tenant_upgrade_required')
         current = observed['commercial_revision_id']
         if current not in (None, request['previous_revision_id'], target):
             raise EffectError('stale_target')
