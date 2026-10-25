@@ -51,7 +51,7 @@ class WebVueEntitlementService(models.AbstractModel):
         valid_until = profile.valid_until
         if valid_until and valid_until < self._webvue_utc_today():
             return 'expired'
-        commercial_until = profile.commercial_valid_until
+        commercial_until = getattr(profile, 'commercial_valid_until', None)
         if commercial_until and commercial_until < self._webvue_utc_today():
             return 'expired'
         return 'active'
