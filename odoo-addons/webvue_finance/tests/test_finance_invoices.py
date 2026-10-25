@@ -129,6 +129,125 @@ class TestFinanceInvoices(WebVueFinanceCase):
         self.assertEqual(len(body['items']), 1)
         self.assertEqual(body['total'], 2)
 
+    def test_missing_foreign_rate_rejects_create_and_patch_without_mutation(self):
+        usd = self.env.ref('base.USD')
+        self.env['res.currency.rate'].search([('currency_id', '=', usd.id)]).unlink()
+        before = self.env['account.move'].search_count([('company_id', '=', self.company.id)])
+        audit_before = self.env['webvue.finance.audit.event'].search_count([('company_id', '=', self.company.id)])
+        body = {
+            'move_type': 'out_invoice', 'partner_id': self.partner.id, 'currency': 'USD',
+            'invoice_date': '2026-10-18', 'lines': [{'name': 'Consulting', 'quantity': 1, 'price_unit': 100}],
+        }
+        created = self.api('POST', INVOICES, json=body)
+        self.assertEqual((created.status_code, created.json()['code']), (422, 'missing_exchange_rate'))
+        self.assertIn('message', created.json())
+        self.assertEqual(created.json()['field'], 'currency')
+        self.assertEqual(self.env['account.move'].search_count([('company_id', '=', self.company.id)]), before)
+        self.assertEqual(
+            self.env['webvue.finance.audit.event'].search_count([('company_id', '=', self.company.id)]), audit_before,
+        )
+
+        old = (self.bill.currency_id, self.bill.invoice_date, [(line.quantity, line.price_unit) for line in self.bill.invoice_line_ids])
+        patched = self.api('PATCH', f'{INVOICES}/{self.bill.id}', json={'currency': 'USD'})
+        self.assertEqual((patched.status_code, patched.json()['code']), (422, 'missing_exchange_rate'))
+        self.assertEqual(
+            (self.bill.currency_id, self.bill.invoice_date, [(line.quantity, line.price_unit) for line in self.bill.invoice_line_ids]),
+            old,
+        )
+        self.assertEqual(
+            self.env['webvue.finance.audit.event'].search_count([('company_id', '=', self.company.id)]), audit_before,
+        )
+
+    def test_clearing_foreign_invoice_date_without_rate_rejects_without_mutation(self):
+        usd = self.env.ref('base.USD')
+        invoice = self.env['account.move'].with_company(self.company).create({
+            'move_type': 'out_invoice', 'partner_id': self.partner.id, 'currency_id': usd.id,
+            'invoice_date': '2026-10-18',
+            'invoice_line_ids': [(0, 0, {'name': 'Consulting', 'quantity': 1, 'price_unit': 100})],
+        })
+        self.env['res.currency.rate'].search([('currency_id', '=', usd.id)]).unlink()
+        before = (invoice.invoice_date, invoice.date, invoice.currency_id, [
+            (line.name, line.quantity, line.price_unit, line.discount) for line in invoice.invoice_line_ids
+        ])
+
+        result = self.api('PATCH', f'{INVOICES}/{invoice.id}', json={'invoice_date': None})
+
+        self.assertEqual((result.status_code, result.json()['code']), (422, 'missing_exchange_rate'))
+        self.assertEqual((invoice.invoice_date, invoice.date, invoice.currency_id, [
+            (line.name, line.quantity, line.price_unit, line.discount) for line in invoice.invoice_line_ids
+        ]), before)
+
+    def test_currency_and_date_change_without_rate_rejects_without_mutation(self):
+        usd = self.env.ref('base.USD')
+        self.env['res.currency.rate'].search([('currency_id', '=', usd.id)]).unlink()
+        before = (self.bill.invoice_date, self.bill.date, self.bill.currency_id, [
+            (line.name, line.quantity, line.price_unit, line.discount) for line in self.bill.invoice_line_ids
+        ])
+
+        result = self.api('PATCH', f'{INVOICES}/{self.bill.id}', json={
+            'currency': 'USD', 'invoice_date': '2026-10-18',
+        })
+
+        self.assertEqual((result.status_code, result.json()['code']), (422, 'missing_exchange_rate'))
+        self.assertEqual((self.bill.invoice_date, self.bill.date, self.bill.currency_id, [
+            (line.name, line.quantity, line.price_unit, line.discount) for line in self.bill.invoice_line_ids
+        ]), before)
+
+    def test_rate_in_another_company_is_not_used_or_disclosed(self):
+        usd = self.env.ref('base.USD')
+        self.env['res.currency.rate'].search([('currency_id', '=', usd.id)]).unlink()
+        secret_rate = 0.123456
+        self.env['res.currency.rate'].with_company(self.other_company).create({
+            'currency_id': usd.id, 'company_id': self.other_company.id,
+            'name': '2026-01-01', 'rate': secret_rate,
+        })
+        result = self.api('POST', INVOICES, json={
+            'move_type': 'out_invoice', 'partner_id': self.partner.id, 'currency': 'USD',
+            'invoice_date': '2026-10-18', 'lines': [{'name': 'Consulting', 'quantity': 1, 'price_unit': 100}],
+        })
+        self.assertEqual((result.status_code, result.json()['code']), (422, 'missing_exchange_rate'))
+        self.assertNotIn(str(secret_rate), result.text)
+        self.assertNotIn(str(self.other_company.id), result.text)
+
+    def test_explicit_exchange_rate_one_and_non_one_allow_foreign_invoice(self):
+        usd = self.env.ref('base.USD')
+        rate_model = self.env['res.currency.rate'].with_company(self.company)
+        rate_model.create({'currency_id': usd.id, 'company_id': self.company.id, 'name': '2026-01-01', 'rate': 1.0})
+        body = {
+            'move_type': 'out_invoice', 'partner_id': self.partner.id, 'currency': 'USD',
+            'invoice_date': '2026-10-18', 'lines': [{'name': 'Consulting', 'quantity': 1, 'price_unit': 100}],
+        }
+        created = self.api('POST', INVOICES, json=body)
+        self.assertEqual(created.status_code, 201, created.text)
+        self.assertEqual(created.json()['currency'], 'USD')
+        one_rate_invoice = self.env['account.move'].browse(created.json()['id'])
+        self.assertEqual(one_rate_invoice.currency_id, usd)
+        receivable = one_rate_invoice.line_ids.filtered(lambda line: line.account_id.account_type == 'asset_receivable')
+        self.assertEqual(receivable.mapped('amount_currency'), [100])
+        self.assertEqual(receivable.mapped('balance'), [100])
+
+        rate_model.search([('currency_id', '=', usd.id)]).write({'rate': 0.5})
+        another = self.api('POST', INVOICES, json=body)
+        self.assertEqual(another.status_code, 201, another.text)
+        self.assertEqual(another.json()['amount_untaxed'], 100)
+        non_one_rate_invoice = self.env['account.move'].browse(another.json()['id'])
+        receivable = non_one_rate_invoice.line_ids.filtered(lambda line: line.account_id.account_type == 'asset_receivable')
+        self.assertEqual(receivable.mapped('amount_currency'), [100])
+        self.assertEqual(receivable.mapped('balance'), [200])
+
+    def test_same_currency_and_zero_line_do_not_require_rate(self):
+        usd = self.env.ref('base.USD')
+        self.env['res.currency.rate'].search([('currency_id', '=', usd.id)]).unlink()
+        for currency, price in (('SAR', 100), ('USD', 0)):
+            with self.subTest(currency=currency, price=price):
+                body = {
+                    'move_type': 'out_invoice', 'partner_id': self.partner.id, 'currency': currency,
+                    'invoice_date': '2026-10-18',
+                    'lines': [{'name': 'Consulting', 'quantity': 1, 'price_unit': price}],
+                }
+                result = self.api('POST', INVOICES, json=body)
+                self.assertEqual(result.status_code, 201, result.text)
+
     def test_bad_filters_are_a_422_invalid(self):
         for query in (
             '?move_type=entry', '?state=open', '?partner_id=abc', '?date_from=18-10-2026', '?date_from=20261018',

@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import Command, http
+from odoo import Command, fields, http
 from odoo.exceptions import MissingError
 from odoo.http import request
 
@@ -90,6 +90,53 @@ def _line_command(line, index, tax_use, company):
     return Command.create(values)
 
 
+def _invoice_amount_is_nonzero(lines):
+    return any(
+        line_values['quantity'] * line_values['price_unit'] * (1 - line_values['discount'] / 100)
+        for line_values in map(_line_values, lines)
+    )
+
+
+def _require_exchange_rate(currency, company, invoice_date):
+    # Match account.move's currency conversion inputs while retaining the caller's record rules.
+    rate_model = request.env['res.currency.rate']
+    scope = [
+        ('currency_id', '=', currency.id),
+        ('company_id', 'in', (False, company.root_id.id)),
+    ]
+    # Odoo picks the latest rate on/before the date, or the earliest rate if none qualify.
+    if not rate_model.search(scope + [('name', '<=', invoice_date)], limit=1) and not rate_model.search(scope, limit=1):
+        raise ApiError(
+            422, 'missing_exchange_rate', 'No exchange rate is available for this currency and invoice date.',
+            field='currency',
+        )
+
+
+def _require_invoice_conversion(currency, company, invoice_date, lines):
+    if currency != company.currency_id and _invoice_amount_is_nonzero(lines):
+        _require_exchange_rate(currency, company, invoice_date)
+
+
+def _line_values(line):
+    return {
+        'quantity': line['quantity'] if isinstance(line, dict) else line.quantity,
+        'price_unit': line['price_unit'] if isinstance(line, dict) else line.price_unit,
+        'discount': line.get('discount', 0) if isinstance(line, dict) else line.discount,
+    }
+
+
+def _effective_invoice_conversion(invoice, parsed, company):
+    currency = invoice.currency_id
+    if 'currency' in parsed:
+        currency = request.env['res.currency'].search([('name', '=', parsed['currency'])], limit=1)
+        if not currency:
+            raise ApiError(422, 'invalid', 'currency is not an active currency code', field='currency')
+    invoice_date = parsed.get('invoice_date', invoice.invoice_date)
+    invoice_date = invoice_date or fields.Date.context_today(invoice)
+    lines = parsed.get('lines', invoice.invoice_line_ids)
+    _require_invoice_conversion(currency, company, invoice_date, lines)
+
+
 def _move_values(parsed, move_type, company):
     """ORM values for the parsed keys of a create/patch body; related records are checked for the document company.
 
@@ -173,6 +220,12 @@ class FinanceInvoiceController(http.Controller):
         require_capability('finance.invoices.manage')
         parsed = parse_invoice_create(payload)
         values = _move_values(parsed, parsed['move_type'], request.env.company)
+        effective_currency = request.env['res.currency'].browse(
+            values.get('currency_id', request.env.company.currency_id.id),
+        )
+        _require_invoice_conversion(
+            effective_currency, request.env.company, parsed.get('invoice_date'), parsed['lines'],
+        )
         values['company_id'] = request.env.company.id
         invoice = attempt(
             lambda: request.env['account.move'].create(values),
@@ -193,6 +246,7 @@ class FinanceInvoiceController(http.Controller):
         parsed = parse_invoice_patch(payload)
         if 'lines' in parsed:
             require_plain_distributions(invoice.invoice_line_ids)
+        _effective_invoice_conversion(invoice, parsed, invoice.company_id)
         values = _move_values(parsed, invoice.move_type, invoice.company_id)
         attempt(
             lambda: invoice.write(values), day=values.get('invoice_date') or invoice.date,
