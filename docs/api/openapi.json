@@ -2794,6 +2794,48 @@
         ],
         "type": "string"
       },
+      "AssignedTaskNotificationSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "is_read": {
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "tasks.assigned",
+            "type": "string"
+          },
+          "task_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "task_name": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "task_id",
+          "title",
+          "task_name",
+          "created_at",
+          "is_read"
+        ],
+        "type": "object"
+      },
       "AssignmentListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "items": {
@@ -3118,6 +3160,47 @@
                   "task_id",
                   "task_name",
                   "body",
+                  "created_at",
+                  "is_read"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "is_read": {
+                    "type": "boolean"
+                  },
+                  "kind": {
+                    "const": "tasks.assigned",
+                    "type": "string"
+                  },
+                  "task_id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "task_name": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "kind",
+                  "task_id",
+                  "title",
+                  "task_name",
                   "created_at",
                   "is_read"
                 ],
@@ -37830,7 +37913,8 @@
           "meeting_changed",
           "meeting_cancelled",
           "meeting_reminder",
-          "meeting_resolution_overdue"
+          "meeting_resolution_overdue",
+          "tasks.assigned"
         ],
         "type": "string"
       },
@@ -38002,6 +38086,47 @@
                         "task_id",
                         "task_name",
                         "body",
+                        "created_at",
+                        "is_read"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "is_read": {
+                          "type": "boolean"
+                        },
+                        "kind": {
+                          "const": "tasks.assigned",
+                          "type": "string"
+                        },
+                        "task_id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "task_name": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "task_id",
+                        "title",
+                        "task_name",
                         "created_at",
                         "is_read"
                       ],
@@ -38392,6 +38517,47 @@
               "task_id",
               "task_name",
               "body",
+              "created_at",
+              "is_read"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "created_at": {
+                "type": "string"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "is_read": {
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "tasks.assigned",
+                "type": "string"
+              },
+              "task_id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "task_name": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "task_id",
+              "title",
+              "task_name",
               "created_at",
               "is_read"
             ],
@@ -47896,7 +48062,8 @@
           "assignment",
           "comment",
           "mention",
-          "deadline"
+          "deadline",
+          "tasks.assigned"
         ],
         "type": "string"
       },
@@ -48724,7 +48891,7 @@
   "info": {
     "description": "Generated surface of every /api/v1 route across the webvue Odoo addons, with contract schemas harvested from @webvue/contracts. Regenerate with `python3 tools/api_surface.py`; never edit by hand.",
     "title": "webvue /api/v1",
-    "version": "19.0.1.1.0"
+    "version": "19.0.1.1.1"
   },
   "openapi": "3.1.0",
   "paths": {
