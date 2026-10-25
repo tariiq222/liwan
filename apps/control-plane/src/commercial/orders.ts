@@ -69,7 +69,7 @@ async function findReplay(client: Pick<Pool, 'query'> | PoolClient, quote: Quote
 }
 
 /** The transaction half of acceptance, shared with a trial order so both paths build one snapshot shape. */
-export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteRequest, digest: string, quote: Quote, principal: Principal) {
+export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteRequest, digest: string, quote: Quote, principal: Principal, now = new Date()) {
   // Lock the existing customer first: it serializes first-subscription creation too.
   const customerResult = await client.query('SELECT * FROM customers WHERE id=$1 FOR UPDATE', [quote.customer_id])
   if (!customerResult.rowCount) throw new CommercialHttpError('not_found', 404)
@@ -87,7 +87,7 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   // until the prior order is applied or explicitly cancelled.
   const pending = await client.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND NOT cancelled AND fulfillment_state<>'applied' LIMIT 1", [subscription.id])
   if (subscription.target_revision_id || pending.rowCount) throw new CommercialHttpError('subscription_change_pending', 409)
-  if (new Date(quote.expires_at).getTime() <= Date.now()) throw new CommercialHttpError('quote_expired', 422)
+  if (new Date(quote.expires_at).getTime() <= now.getTime()) throw new CommercialHttpError('quote_expired', 422)
   const branchRequest = (await client.query('SELECT * FROM branch_quote_requests WHERE quote_id=$1', [quote.id])).rows[0]
   const kind = branchRequest ? (branchRequest.adds.length ? 'branch_add' : 'branch_archive') : quote.subscription_id && subscription.applied_revision_id ? 'change' : 'new'
   const sources = await loadQuoteSources(client, customer.id, quote, kind === 'new')

@@ -18,6 +18,7 @@ import { analyticsFromQuery } from './analytics.js'
 import { listBranches } from './branches.js'
 import { getUsage } from './usage.js'
 import { createBranchQuote, needPayment, type PaymentRuntime } from './customer-http.js'
+import { endTrial, extendTrial } from './trial.js'
 import { createPaymentAttempt, handleProviderEvent, paymentAttemptView } from './payments.js'
 import { generateRenewals, applyDunning } from './renewals.js'
 import { SimulatorAdapter } from './payment-simulator.js'
@@ -67,6 +68,19 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     if(subscription[2]==='branches')return {status:200,data:await listBranches(pool,view.id)}
     if(subscription[2]==='usage')return {status:200,data:await getUsage(pool,{tenant_id:view.tenant_id!,limits:Object.fromEntries(Object.entries(view.applied?.entitlement.features??{}).filter(([,v])=>v===null||typeof v==='number')) as Record<string,number|null>})}
     return {status:200,data:view}
+  }
+  const trial=/^\/trials\/([^/]+)\/(extend|end)$/.exec(path)
+  if(m==='POST'&&trial){
+    need(input,'vendor.subscriptions.manage')
+    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    if(!z.uuid().safeParse(trial[1]).success)throw new CommercialHttpError('not_found',404)
+    if(trial[2]==='extend'){
+      const body=parseBody(input.raw,z.strictObject({days:z.number().int().min(1).max(365),reason:z.string().trim().min(3).max(1000)}))
+      return {status:200,data:await extendTrial(pool,{subscription_id:trial[1],days:body.days,reason:body.reason,actor:principal.actor_id})}
+    }
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
+    const payment=needPayment(runtime)
+    return {status:200,data:await endTrial(pool,{subscription_id:trial[1],reason:body.reason,actor:principal.actor_id,now:new Date(),adapter:payment.adapter,allowedOrigin:payment.allowedOrigin})}
   }
   if(m==='POST'&&path==='/customer-terms'){need(input,'vendor.pricing.manage','vendor.subscriptions.manage');return {status:201,data:await createCustomerTerms(pool,parseBody(input.raw,z.unknown()),principal)}}
   if(m==='POST'&&path==='/customer-quotes'){

@@ -6,6 +6,7 @@ import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { acceptQuoteOn } from './orders.js'
 import { buildQuote } from './quotes.js'
 import { trialEndsAt } from './renewals.js'
+import { expireTrials } from './trial-expiry.js'
 
 /** A trial is an ordinary zero-due order: same snapshot, fulfillment and entitlement as a paid purchase. */
 export async function startTrial(pool: Pool, input: { customer_id: string; request: unknown; principal: Principal; now?: Date }) {
@@ -28,12 +29,36 @@ export async function startTrial(pool: Pool, input: { customer_id: string; reque
     if (existing?.applied_revision_id) throw new CommercialHttpError('trial_not_available', 409)
     await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [trialQuote.id, input.customer_id, JSON.stringify(quoteSchema.parse(trialQuote)), trialQuote.digest, trialQuote.expires_at])
     await client.query('UPDATE customers SET trial_used_at=now() WHERE id=$1', [input.customer_id])
-    const accepted = await acceptQuoteOn(client, acceptInput, digest, trialQuote, input.principal)
+    const accepted = await acceptQuoteOn(client, acceptInput, digest, trialQuote, input.principal, now)
     await client.query("UPDATE subscriptions SET state='trialing',trial_ends_at=$2,revision=revision+1 WHERE customer_id=$1", [input.customer_id, endsAt])
     return accepted
   })
   const subscription = await pool.query('SELECT * FROM subscriptions WHERE customer_id=$1', [input.customer_id])
   return { order: result.order, subscription: subscription.rows[0], replay: result.replay }
+}
+
+/** Vendor-only trial controls; each write is audited and only applies to a trialing subscription. */
+export async function extendTrial(pool: Pool, input: { subscription_id: string; days: number; reason: string; actor: string }) {
+  return transaction(pool, async client => {
+    const updated = await client.query(`UPDATE subscriptions SET trial_ends_at=trial_ends_at+($2||' days')::interval,revision=revision+1
+      WHERE id=$1 AND state='trialing' AND trial_ends_at IS NOT NULL RETURNING customer_id,trial_ends_at`, [input.subscription_id, String(input.days)])
+    if (!updated.rowCount) throw new CommercialHttpError('trial_not_active', 409)
+    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+      [randomUUID(), input.actor, 'trial.extended', input.subscription_id, input.reason, JSON.stringify({ days: input.days })])
+    return { customer_id: updated.rows[0].customer_id as string, trial_ends_at: updated.rows[0].trial_ends_at }
+  })
+}
+
+export async function endTrial(pool: Pool, input: { subscription_id: string; reason: string; actor: string; now: Date; adapter: Parameters<typeof expireTrials>[1]['adapter']; allowedOrigin: string }) {
+  const ended = await transaction(pool, async client => {
+    const updated = await client.query("UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1 AND state='trialing' RETURNING customer_id", [input.subscription_id, input.now])
+    if (!updated.rowCount) throw new CommercialHttpError('trial_not_active', 409)
+    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+      [randomUUID(), input.actor, 'trial.ended', input.subscription_id, input.reason, JSON.stringify({ ended_at: input.now.toISOString() })])
+    return updated.rows[0].customer_id as string
+  })
+  await expireTrials(pool, { now: input.now, adapter: input.adapter, allowedOrigin: input.allowedOrigin, return_path: '/subscription', subscription_id: input.subscription_id })
+  return { customer_id: ended }
 }
 
 /** Recompute the digest after changing only the trial amount and the first renewal date. */

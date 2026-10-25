@@ -4,7 +4,11 @@ import { Pool } from 'pg'
 import { daysBetween, riyadhDate, type Principal } from '@webvue/commercial-contracts'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
 import { startTrial } from '../commercial/trial.js'
+import { routesB } from '../commercial/routes-b.js'
 import { getSubscription } from '../commercial/subscriptions.js'
+import { expireTrials } from '../commercial/trial-expiry.js'
+import { SimulatorAdapter } from '../commercial/payment-simulator.js'
+import { sendTrialNotices } from '../commercial/trial-notices.js'
 
 const suite = url ? describe : describe.skip
 suite('commercial trial', () => {
@@ -19,7 +23,7 @@ suite('commercial trial', () => {
     customer = randomUUID()
     const ownTenant = randomUUID()
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Trial customer','saas','managed',$2,true)", [ownTenant, `trial-${ownTenant}`])
-    await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [customer, 'Trial customer', ownTenant])
+    await pool.query('INSERT INTO customers(id,name,tenant_id,admin_login) VALUES($1,$2,$3,$4)', [customer, 'Trial customer', ownTenant, `${customer}@example.test`])
     return { id: customer, principal: { ...principal, customer_id: customer, tenant_id: ownTenant } as Principal }
   }
   beforeAll(async () => {
@@ -57,7 +61,74 @@ suite('commercial trial', () => {
     await expect(startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now }))
       .rejects.toMatchObject({ code: 'trial_already_used' })
   })
-  it('grants only the applications the customer chose', async () => {
+  async function trialAt(at: Date, daysLeft: number) {
+    const c = await newCustomer()
+    const start = new Date(at.getTime() - (plan.trial_days - daysLeft) * 86_400_000)
+    await startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now: start })
+    // Fulfillment is exercised by its own suite; here the trial is applied so expiry and renewals can see it.
+    await pool.query('UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,revision=revision+1 WHERE customer_id=$1', [c.id])
+    return c
+  }
+  it('ends a trial by issuing the first renewal invoice', async () => {
+    const c = await trialAt(now, -1)
+    const adapter = new SimulatorAdapter()
+    await expireTrials(pool, { now, adapter, allowedOrigin: 'https://webvue.test', return_path: '/subscription/status' })
+    const after = await getSubscription(pool, c.id)
+    expect(after.state).toBe('past_due')
+    expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
+  })
+  it('is idempotent across a repeated run', async () => {
+    const c = await trialAt(now, -1)
+    const adapter = new SimulatorAdapter()
+    const args = { now, adapter, allowedOrigin: 'https://webvue.test', return_path: '/x' }
+    await expireTrials(pool, args)
+    await expireTrials(pool, args)
+    expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
+  })
+  it('does not end a trial before its end date', async () => {
+    const c = await trialAt(now, 2)
+    await expireTrials(pool, { now, adapter: new SimulatorAdapter(), allowedOrigin: 'https://webvue.test', return_path: '/x' })
+    expect((await getSubscription(pool, c.id)).state).toBe('trialing')
+  })
+  it('writes each notice threshold exactly once', async () => {
+    const c = await trialAt(now, 3)
+    const sent: unknown[] = []
+    const mail = { send: async (message: unknown) => { sent.push(message); return { accepted: true, provider_message_id: 'p1' } } }
+    expect(await sendTrialNotices(pool, { now, mail })).toBe(1)
+    expect(await sendTrialNotices(pool, { now, mail })).toBe(0)
+    expect(sent).toHaveLength(1)
+    const subscriptionId = (await getSubscription(pool, c.id)).id
+    const notice = (await pool.query("SELECT payload FROM commercial_outbox WHERE kind='trial.notice' AND aggregate_id=$1", [subscriptionId])).rows[0]
+    expect(notice.payload).toMatchObject({ subscription_id: subscriptionId, days_left: 3 })
+  })
+  async function vendorPost(path: string, body: Record<string, unknown>, runtime?: { adapter: SimulatorAdapter; allowedOrigin: string }) {
+    return routesB(pool, { method: 'POST', pathname: `/v1/commercial${path}`, raw: JSON.stringify(body), issuer: 'trial-test', actor: 1,
+      capabilities: ['vendor.subscriptions.manage'], stepUpFresh: true }, new URL(`http://localhost/v1/commercial${path}`), runtime)
+  }
+  it('extends a trial and audits it', async () => {
+    const c = await trialAt(now, 5)
+    const sub = await getSubscription(pool, c.id)
+    const response = await vendorPost(`/trials/${sub.id}/extend`, { days: 7, reason: 'promised more time' })
+    expect(response!.status).toBe(200)
+    const after = await getSubscription(pool, c.id)
+    expect(daysBetween(riyadhDate(now), riyadhDate(new Date(after.trial_ends_at!)))).toBe(12)
+    expect((await pool.query("SELECT action FROM audit_events WHERE action='trial.extended' AND subject=$1", [sub.id])).rowCount).toBe(1)
+  })
+  it('refuses an extension without a reason', async () => {
+    const c = await trialAt(now, 5)
+    const sub = await getSubscription(pool, c.id)
+    await expect(vendorPost(`/trials/${sub.id}/extend`, { days: 7 })).rejects.toMatchObject({ status: 422 })
+  })
+  it('ends a trial from the console and issues the first invoice', async () => {
+    const c = await trialAt(now, 5)
+    const sub = await getSubscription(pool, c.id)
+    const response = await vendorPost(`/trials/${sub.id}/end`, { reason: 'customer asked to start now' }, { adapter: new SimulatorAdapter(), allowedOrigin: 'https://webvue.test' })
+    expect(response!.status).toBe(200)
+    expect((await getSubscription(pool, c.id)).state).toBe('past_due')
+    expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
+    expect((await pool.query("SELECT action FROM audit_events WHERE action='trial.ended' AND subject=$1", [sub.id])).rowCount).toBe(1)
+  })
+  it('does not grant a trial for an application the customer did not choose', async () => {
     const c = await newCustomer()
     await startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now })
     const sub = await getSubscription(pool, c.id)
