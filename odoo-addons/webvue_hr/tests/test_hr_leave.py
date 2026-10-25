@@ -428,7 +428,7 @@ class TestHrLeave(WebVueHrCase):
             'employee_id': self.manager_employee.id, 'leave_type_id': self.annual.id,
             'number_of_days': 5, 'date_from': date.today().isoformat(),
         })
-        self.assertEqual(own.status_code, 422)
+        self.assertEqual(own.status_code, 403, own.text)
 
     def test_action_bodies_reject_unknown_fields(self):
         self._as_staff()
