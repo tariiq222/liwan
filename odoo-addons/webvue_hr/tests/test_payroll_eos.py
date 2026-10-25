@@ -82,7 +82,7 @@ class TestPayrollEos(PayrollCase):
             ('1.99', 'termination', '9950.00'),
             ('2', 'resignation', '3333.33'),
             ('4.99', 'resignation', '8316.67'),
-            ('5', 'resignation', '16666.67'),
+            ('5', 'resignation', '8333.33'),
             ('9.99', 'resignation', '49933.33'),
             ('10', 'resignation', '75000.00'),
             ('10', 'termination', '75000.00'),
@@ -91,6 +91,19 @@ class TestPayrollEos(PayrollCase):
         ):
             with self.subTest(years=years, case=case):
                 self.assertEqual(eos_award(wage, Decimal(years), case), Decimal(expected))
+
+    def test_resignation_award_at_service_anniversaries(self):
+        start = date(2021, 11, 1)
+        for end, expected_years, expected_award in (
+            (date(2023, 10, 31), Decimal(2), '3333.33'),
+            (date(2026, 10, 31), Decimal(5), '8333.33'),
+            (date(2026, 11, 1), Decimal(5) + Decimal(1) / Decimal(365), '16684.93'),
+            (date(2031, 10, 31), Decimal(10), '75000.00'),
+        ):
+            with self.subTest(end=end):
+                years = service_years(start, end)
+                self.assertEqual(years, expected_years)
+                self.assertEqual(eos_award(Decimal(10000), years, 'resignation'), Decimal(expected_award))
 
     def test_service_years_is_anniversary_based(self):
         self.assertEqual(service_years(date(2024, 11, 1), date(2026, 10, 31)), Decimal(2))
