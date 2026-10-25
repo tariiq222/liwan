@@ -30,6 +30,7 @@ export function useSubscriptionApi() {
     quote: (body: unknown) => request<Quote>('quotes', { method: 'POST', body }),
     /** Prices the same request in memory; the control plane never writes a quote row for it. */
     preview: (body: unknown) => request<Quote>('preview', { method: 'POST', body }),
+    startTrial: (body: unknown) => request<{ order: NonNullable<SubscriptionView['pending_order']>; subscription: SubscriptionView }>('trial', { method: 'POST', body }),
     branchQuote: (body: unknown) => request<Quote & { branches?: Branch[] }>('branch-quotes', { method: 'POST', body }),
     /** Accepting reuses the stored key for `action` until `done()` so refresh/retry cannot create a second order. */
     accept: (action: string, body: { quote_id: string; expected_subscription_revision: number }) =>

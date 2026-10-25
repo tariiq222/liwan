@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import type { Pool } from 'pg'
-import { acceptQuoteRequestSchema, orderSchema, initialOrderStates, quoteSchema, addCadence, type Principal } from '@webvue/commercial-contracts'
+import type { Pool, PoolClient } from 'pg'
+import { acceptQuoteRequestSchema, orderSchema, initialOrderStates, quoteSchema, addCadence, type AcceptQuoteRequest, type Principal, type Quote } from '@webvue/commercial-contracts'
 import { compileEntitlements } from '@webvue/commercial-contracts/server'
 import { transaction } from '../db.js'
 import { CommercialHttpError, digestOf, iso } from './lifecycle.js'
@@ -61,6 +61,83 @@ export function orderView(row: Record<string, any>) {
     due_now: { minor: Number(row.due_now_minor), currency: row.currency, exponent: row.exponent }, created_at: iso(row.created_at) })
 }
 
+async function findReplay(client: Pick<Pool, 'query'> | PoolClient, quote: Quote, input: AcceptQuoteRequest, digest: string) {
+  const r = await client.query('SELECT * FROM orders WHERE customer_id=$1 AND idempotency_key=$2', [quote.customer_id, input.idempotency_key])
+  if (!r.rowCount) return null
+  if (r.rows[0].request_digest !== digest) throw new CommercialHttpError('idempotency_conflict', 409)
+  return { order: orderView(r.rows[0]), replay: true }
+}
+
+/** The transaction half of acceptance, shared with a trial order so both paths build one snapshot shape. */
+export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteRequest, digest: string, quote: Quote, principal: Principal) {
+  // Lock the existing customer first: it serializes first-subscription creation too.
+  const customerResult = await client.query('SELECT * FROM customers WHERE id=$1 FOR UPDATE', [quote.customer_id])
+  if (!customerResult.rowCount) throw new CommercialHttpError('not_found', 404)
+  const customer = customerResult.rows[0]
+  if (principal.kind === 'customer' && customer.tenant_id !== principal.tenant_id) throw new CommercialHttpError('not_found', 404)
+  const existing = await findReplay(client, quote, input, digest)
+  if (existing) return existing
+  let subscription = (await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE', [quote.customer_id])).rows[0]
+  if (!subscription) {
+    if (quote.subscription_id || input.expected_subscription_revision !== 0) throw new CommercialHttpError('revision_conflict', 409)
+    subscription = (await client.query('INSERT INTO subscriptions(id,customer_id,tenant_id) VALUES($1,$2,$3) RETURNING *', [randomUUID(), customer.id, customer.tenant_id])).rows[0]
+  }
+  if (subscription.revision !== input.expected_subscription_revision || quote.expected_subscription_revision !== subscription.revision || (quote.subscription_id && quote.subscription_id !== subscription.id)) throw new CommercialHttpError('revision_conflict', 409)
+  // A hosted attempt may settle later. Keep its accepted target authoritative
+  // until the prior order is applied or explicitly cancelled.
+  const pending = await client.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND NOT cancelled AND fulfillment_state<>'applied' LIMIT 1", [subscription.id])
+  if (subscription.target_revision_id || pending.rowCount) throw new CommercialHttpError('subscription_change_pending', 409)
+  if (new Date(quote.expires_at).getTime() <= Date.now()) throw new CommercialHttpError('quote_expired', 422)
+  const branchRequest = (await client.query('SELECT * FROM branch_quote_requests WHERE quote_id=$1', [quote.id])).rows[0]
+  const kind = branchRequest ? (branchRequest.adds.length ? 'branch_add' : 'branch_archive') : quote.subscription_id && subscription.applied_revision_id ? 'change' : 'new'
+  const sources = await loadQuoteSources(client, customer.id, quote, kind === 'new')
+  // Null terms in a persisted quote means no terms, not the newest later revision.
+  if (!quote.terms_revision_id) sources.terms = null
+  const entitlement = compileEntitlements({ ...sources, quantities: { users: quote.requested_users, storage_mb: quote.requested_storage_mb } })
+  if (entitlement.digest !== quote.entitlement_digest) throw new CommercialHttpError('revision_conflict', 409)
+  const revisionId = randomUUID()
+  const previous = subscription.applied_revision_id ? (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [subscription.applied_revision_id])).rows[0]?.snapshot : null
+  if (previous) await assertDowngradeFitsUsage(client, {
+    tenant_id: customer.tenant_id, subscription_id: subscription.id,
+    previous: previous.entitlement?.features ?? {}, target: entitlement.features,
+  })
+  const periodStart = previous ? previous.period_start : quote.effective_date
+  const periodEnd = previous ? previous.period_end : quote.next_renewal_at
+  const included = sources.terms?.included_extra_branches ?? sources.plan.included_extra_branches
+  const snapshot = {
+    customer_id: customer.id, tenant_id: customer.tenant_id ?? customer.id,
+    plan_revision_id: quote.plan_revision_id, bundle_revision_ids: quote.bundle_revision_ids, terms_revision_id: quote.terms_revision_id,
+    policy_revision_id: quote.policy_revision_id, cadence: quote.cadence,
+    term_start: previous?.term_start ?? periodStart,
+    term_end: previous?.term_end ?? addCadence(periodStart, { unit: 'month', count: sources.terms?.term_months ?? sources.plan.term_months }, 1),
+    period_start: periodStart, period_end: periodEnd, included_extra_branches: included, extra_branch_count: quote.requested_extra_branches,
+    entitlement, quote_id: quote.id, pricing: pricingBaseline(quote, { extra_branches: included, users: sources.plan.included_users, storage_mb: sources.plan.included_storage_mb }),
+    ...(branchRequest ? { branch_archive_ids: branchRequest.archive } : {}),
+  }
+  await client.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,$3,$4,$5)', [revisionId, subscription.id, subscription.revision + 1, JSON.stringify(snapshot), quote.id])
+  const updated = await client.query('UPDATE subscriptions SET target_revision_id=$1,revision=revision+1 WHERE id=$2 RETURNING *', [revisionId, subscription.id])
+  subscription = updated.rows[0]
+  const states = initialOrderStates(quote.due_now)
+  const inserted = await client.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,expected_applied_revision_id,payment_state,fulfillment_state,effective_at,idempotency_key,request_digest,due_now_minor,currency,exponent)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`, [randomUUID(), customer.id, subscription.id, kind, quote.id, revisionId, subscription.applied_revision_id, states.payment_state, states.fulfillment_state, `${quote.effective_date}T00:00:00+03:00`, input.idempotency_key, digest, quote.due_now.minor, quote.due_now.currency, quote.due_now.exponent])
+  const order = orderView(inserted.rows[0])
+  await issueInvoiceFromQuote(client, { order, quote })
+  if (kind === 'new' && !branchRequest && quote.requested_extra_branches > 0) {
+    await reserveBranchesForOrder(client, { order_id: order.id, subscription_id: subscription.id, tenant_id: subscription.tenant_id,
+      adds: Array.from({length:quote.requested_extra_branches}, (_, i) => ({name:`Branch ${i+1}`})),
+      quoted_paid: Math.max(0,quote.requested_extra_branches-included), operation_id: order.id })
+  }
+  if (branchRequest?.adds.length) {
+    if (!subscription.tenant_id) throw new CommercialHttpError('tenant_required', 409)
+    if (branchRequest.archive.length) throw new CommercialHttpError('mixed_branch_change_unsupported', 422)
+    await reserveBranchesForOrder(client, { order_id: order.id, subscription_id: subscription.id, tenant_id: subscription.tenant_id,
+      adds: branchRequest.adds, quoted_paid: branchRequest.quoted_paid, operation_id: order.id })
+  }
+  if (states.payment_state === 'not_required') await enqueueOutbox(client, {kind:'fulfillment.enqueue',aggregate_id:order.id,dedupe_key:revisionId,payload:{ order_id: order.id, subscription_id: subscription.id, target_revision_id: revisionId }})
+  await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)', [randomUUID(), principal.actor_id, 'order.accepted', order.id, 'Customer accepted immutable quote', JSON.stringify({ quote_id: quote.id, customer_id: customer.id, target_revision_id: revisionId })])
+  return { order, replay: false }
+}
+
 export async function acceptQuote(pool: Pool, value: unknown, principal: Principal) {
   requireCapability(principal, principal.kind === 'vendor' ? 'vendor.subscriptions.manage' : 'subscription.manage')
   const input = acceptQuoteRequestSchema.parse(value)
@@ -70,84 +147,11 @@ export async function acceptQuote(pool: Pool, value: unknown, principal: Princip
   const quote = quoteSchema.parse(quoteResult.rows[0].payload)
   if (principal.kind === 'customer' && quote.customer_id !== principal.customer_id) throw new CommercialHttpError('not_found', 404)
   if (principal.kind === 'vendor' && principal.customer_id && quote.customer_id !== principal.customer_id) throw new CommercialHttpError('not_found', 404)
-  const replay = async (client: Pick<Pool, 'query'>) => {
-    const r = await client.query('SELECT * FROM orders WHERE customer_id=$1 AND idempotency_key=$2', [quote.customer_id, input.idempotency_key])
-    if (!r.rowCount) return null
-    if (r.rows[0].request_digest !== digest) throw new CommercialHttpError('idempotency_conflict', 409)
-    return { order: orderView(r.rows[0]), replay: true }
-  }
   try {
-    return await transaction(pool, async client => {
-      // Lock the existing customer first: it serializes first-subscription creation too.
-      const customerResult = await client.query('SELECT * FROM customers WHERE id=$1 FOR UPDATE', [quote.customer_id])
-      if (!customerResult.rowCount) throw new CommercialHttpError('not_found', 404)
-      const customer = customerResult.rows[0]
-      if (principal.kind === 'customer' && customer.tenant_id !== principal.tenant_id) throw new CommercialHttpError('not_found', 404)
-      const existing = await replay(client)
-      if (existing) return existing
-      let subscription = (await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE', [quote.customer_id])).rows[0]
-      if (!subscription) {
-        if (quote.subscription_id || input.expected_subscription_revision !== 0) throw new CommercialHttpError('revision_conflict', 409)
-        subscription = (await client.query('INSERT INTO subscriptions(id,customer_id,tenant_id) VALUES($1,$2,$3) RETURNING *', [randomUUID(), customer.id, customer.tenant_id])).rows[0]
-      }
-      if (subscription.revision !== input.expected_subscription_revision || quote.expected_subscription_revision !== subscription.revision || (quote.subscription_id && quote.subscription_id !== subscription.id)) throw new CommercialHttpError('revision_conflict', 409)
-      // A hosted attempt may settle later. Keep its accepted target authoritative
-      // until the prior order is applied or explicitly cancelled.
-      const pending = await client.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND NOT cancelled AND fulfillment_state<>'applied' LIMIT 1", [subscription.id])
-      if (subscription.target_revision_id || pending.rowCount) throw new CommercialHttpError('subscription_change_pending', 409)
-      if (new Date(quote.expires_at).getTime() <= Date.now()) throw new CommercialHttpError('quote_expired', 422)
-      const branchRequest = (await client.query('SELECT * FROM branch_quote_requests WHERE quote_id=$1', [quote.id])).rows[0]
-      const kind = branchRequest ? (branchRequest.adds.length ? 'branch_add' : 'branch_archive') : quote.subscription_id && subscription.applied_revision_id ? 'change' : 'new'
-      const sources = await loadQuoteSources(client, customer.id, quote, kind === 'new')
-      // Null terms in a persisted quote means no terms, not the newest later revision.
-      if (!quote.terms_revision_id) sources.terms = null
-      const entitlement = compileEntitlements({ ...sources, quantities: { users: quote.requested_users, storage_mb: quote.requested_storage_mb } })
-      if (entitlement.digest !== quote.entitlement_digest) throw new CommercialHttpError('revision_conflict', 409)
-      const revisionId = randomUUID()
-      const previous = subscription.applied_revision_id ? (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [subscription.applied_revision_id])).rows[0]?.snapshot : null
-      if (previous) await assertDowngradeFitsUsage(client, {
-        tenant_id: customer.tenant_id, subscription_id: subscription.id,
-        previous: previous.entitlement?.features ?? {}, target: entitlement.features,
-      })
-      const periodStart = previous ? previous.period_start : quote.effective_date
-      const periodEnd = previous ? previous.period_end : quote.next_renewal_at
-      const included = sources.terms?.included_extra_branches ?? sources.plan.included_extra_branches
-      const snapshot = {
-        customer_id: customer.id, tenant_id: customer.tenant_id ?? customer.id,
-        plan_revision_id: quote.plan_revision_id, bundle_revision_ids: quote.bundle_revision_ids, terms_revision_id: quote.terms_revision_id,
-        policy_revision_id: quote.policy_revision_id, cadence: quote.cadence,
-        term_start: previous?.term_start ?? periodStart,
-        term_end: previous?.term_end ?? addCadence(periodStart, { unit: 'month', count: sources.terms?.term_months ?? sources.plan.term_months }, 1),
-        period_start: periodStart, period_end: periodEnd, included_extra_branches: included, extra_branch_count: quote.requested_extra_branches,
-        entitlement, quote_id: quote.id, pricing: pricingBaseline(quote, { extra_branches: included, users: sources.plan.included_users, storage_mb: sources.plan.included_storage_mb }),
-        ...(branchRequest ? { branch_archive_ids: branchRequest.archive } : {}),
-      }
-      await client.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,$3,$4,$5)', [revisionId, subscription.id, subscription.revision + 1, JSON.stringify(snapshot), quote.id])
-      const updated = await client.query('UPDATE subscriptions SET target_revision_id=$1,revision=revision+1 WHERE id=$2 RETURNING *', [revisionId, subscription.id])
-      subscription = updated.rows[0]
-      const states = initialOrderStates(quote.due_now)
-      const inserted = await client.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,expected_applied_revision_id,payment_state,fulfillment_state,effective_at,idempotency_key,request_digest,due_now_minor,currency,exponent)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`, [randomUUID(), customer.id, subscription.id, kind, quote.id, revisionId, subscription.applied_revision_id, states.payment_state, states.fulfillment_state, `${quote.effective_date}T00:00:00+03:00`, input.idempotency_key, digest, quote.due_now.minor, quote.due_now.currency, quote.due_now.exponent])
-      const order = orderView(inserted.rows[0])
-      await issueInvoiceFromQuote(client, { order, quote })
-      if (kind === 'new' && !branchRequest && quote.requested_extra_branches > 0) {
-        await reserveBranchesForOrder(client, { order_id: order.id, subscription_id: subscription.id, tenant_id: subscription.tenant_id,
-          adds: Array.from({length:quote.requested_extra_branches}, (_, i) => ({name:`Branch ${i+1}`})),
-          quoted_paid: Math.max(0,quote.requested_extra_branches-included), operation_id: order.id })
-      }
-      if (branchRequest?.adds.length) {
-        if (!subscription.tenant_id) throw new CommercialHttpError('tenant_required', 409)
-        if (branchRequest.archive.length) throw new CommercialHttpError('mixed_branch_change_unsupported', 422)
-        await reserveBranchesForOrder(client, { order_id: order.id, subscription_id: subscription.id, tenant_id: subscription.tenant_id,
-          adds: branchRequest.adds, quoted_paid: branchRequest.quoted_paid, operation_id: order.id })
-      }
-      if (states.payment_state === 'not_required') await enqueueOutbox(client, {kind:'fulfillment.enqueue',aggregate_id:order.id,dedupe_key:revisionId,payload:{ order_id: order.id, subscription_id: subscription.id, target_revision_id: revisionId }})
-      await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)', [randomUUID(), principal.actor_id, 'order.accepted', order.id, 'Customer accepted immutable quote', JSON.stringify({ quote_id: quote.id, customer_id: customer.id, target_revision_id: revisionId })])
-      return { order, replay: false }
-    })
+    return await transaction(pool, client => acceptQuoteOn(client, input, digest, quote, principal))
   } catch (e) {
     if ((e as { code?: string }).code !== '23505') throw e
-    const existing = await replay(pool)
+    const existing = await findReplay(pool, quote, input, digest)
     if (existing) return existing
     throw new CommercialHttpError('revision_conflict', 409)
   }
