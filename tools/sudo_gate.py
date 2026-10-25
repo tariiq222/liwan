@@ -53,13 +53,21 @@ from arch_policy import (
 CALL_TOKEN = re.compile(
     r'`[^`\n]+`|\b[a-z][a-z0-9_]*_[a-z0-9_]+\b|\b[a-z][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*){2,}\b|\b[a-z_][a-z0-9_]*\(\)',
 )
-# ... and names what blocks the caller: an ACL or record rule (named or as an id), a group, model or
-# visibility domain of an addon, an Odoo access file, or a WebVue capability or feature key.
+# ... and names what blocks the caller. Three blocker classes count, because Odoo enforces access at
+# three layers and a real reason must name the one that actually applies:
+#   1. an ACL row or record rule (named, or as an id) or an Odoo access file;
+#   2. a group, model or visibility domain of an addon, or a WebVue capability or feature key;
+#   3. a **Python-level access filter** — the identity-, partner- or parent-based narrowing a model
+#      applies inside `_search`/`_check_access`/`check_access`. It is not an ir.rule and cannot be
+#      cited as one, so without this class `mail.message` (whose visibility is decided in Python) has
+#      no honest way to be documented at all; the alternative was a false ACL citation.
 ACCESS_TOKEN = re.compile(
     r'\b[a-z0-9_]*(?:rule|access)s?[a-z0-9_]*\b'
     r'|\b[a-z0-9_]*_(?:group|model|domain)[a-z0-9_]*\b|\b(?:group|model|domain)_[a-z0-9_]+\b'
     r'|\b[a-z0-9_]*_security\.(?:csv|xml)\b|security/|\.csv\b|\bACL\b'
-    r'|\b[a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*){2,}\b',
+    r'|\b[a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*){2,}\b'
+    r'|\b_search\b|\b_check_access\b|\bcheck_access\b|\bvisibility filter\b'
+    r'|\bPython-level\b|\bpartner_ids\b|\bmessage_partner_ids\b',
 )
 REASON_MIN_WORDS = 8
 REASON_MIN_CHARS = 40

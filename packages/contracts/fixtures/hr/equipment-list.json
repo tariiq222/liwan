@@ -1,0 +1,62 @@
+{
+  "items": [
+    {
+      "active": true,
+      "assign_date": null,
+      "category": {
+        "id": 2,
+        "name": "Laptops"
+      },
+      "employee": null,
+      "id": 1,
+      "model": "",
+      "name": "Laptop Air",
+      "scrap_date": null,
+      "serial_no": "",
+      "warranty_date": null
+    },
+    {
+      "active": true,
+      "assign_date": "2026-10-25",
+      "category": {
+        "id": 2,
+        "name": "Laptops"
+      },
+      "employee": {
+        "id": 4,
+        "name": "Noura"
+      },
+      "id": 3,
+      "model": "M4",
+      "name": "MacBook Pro",
+      "scrap_date": null,
+      "serial_no": "SN-001",
+      "warranty_date": null
+    },
+    {
+      "active": true,
+      "assign_date": null,
+      "category": null,
+      "employee": null,
+      "id": 5,
+      "model": "",
+      "name": "Phone",
+      "scrap_date": null,
+      "serial_no": "",
+      "warranty_date": null
+    },
+    {
+      "active": false,
+      "assign_date": null,
+      "category": null,
+      "employee": null,
+      "id": 6,
+      "model": "",
+      "name": "Retired Router",
+      "scrap_date": null,
+      "serial_no": "",
+      "warranty_date": null
+    }
+  ],
+  "total": 4
+}
