@@ -16,6 +16,9 @@ test.afterEach(() => {
   expect(errors, 'no page error and no console error').toEqual([])
 })
 
+// The unreviewed-statement notice of the income statement and the balance sheet.
+const managementNotice = (page: Page) => page.getByTestId('finance-report-management-information')
+
 // The amounts are formatted for the Arabic locale with the currency code after them; only the digits are asserted.
 const amount = (digits: string) => new RegExp(digits.replace(/[.,]/g, '\\$&'))
 
@@ -101,6 +104,7 @@ test.describe('fixed assets', () => {
 test.describe('reports', () => {
   test('the income statement renders its server totals and lines', async ({ page }) => {
     await open(page, '/finance/reports/profit-loss', 'قائمة الدخل')
+    await expect(managementNotice(page)).toContainText('معلومات إدارية غير مراجعة')
     const kpis = page.getByTestId('finance-report-kpis')
     await expect(kpis).toContainText('الإيرادات')
     await expect(kpis).toContainText(amount('480,000.00'))
@@ -115,6 +119,7 @@ test.describe('reports', () => {
 
   test('the balance sheet renders its totals and balances to zero', async ({ page }) => {
     await open(page, '/finance/reports/balance-sheet?date_to=2026-06-30', 'الميزانية العمومية')
+    await expect(managementNotice(page)).toContainText('معلومات إدارية غير مراجعة')
     await expect(page.getByText(/2026-06-30/).first()).toBeVisible()
     const kpis = page.getByTestId('finance-report-kpis')
     await expect(kpis).toContainText(amount('455,000.00'))
@@ -135,6 +140,7 @@ test.describe('reports', () => {
     await expect(row(page, /^إجمالي الإضافات.*497,000\.00/)).toBeVisible()
     await expect(row(page, /^إجمالي الحسومات.*170,000\.00/)).toBeVisible()
     await expect(page.getByText('الحساب مبسّط ولا يغني عن مراجعة محاسب قانوني سعودي قبل الاعتماد عليه.')).toBeVisible()
+    await expect(managementNotice(page)).toHaveCount(0)
   })
 
   test('the budget report asks for a budget, then renders its totals and variance lines', async ({ page }) => {

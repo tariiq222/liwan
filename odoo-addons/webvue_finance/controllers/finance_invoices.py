@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import Command, http
+from odoo import Command, fields, http
 from odoo.exceptions import MissingError
 from odoo.http import request
 
@@ -90,6 +90,53 @@ def _line_command(line, index, tax_use, company):
     return Command.create(values)
 
 
+def _invoice_amount_is_nonzero(lines):
+    return any(
+        line_values['quantity'] * line_values['price_unit'] * (1 - line_values['discount'] / 100)
+        for line_values in map(_line_values, lines)
+    )
+
+
+def _require_exchange_rate(currency, company, invoice_date):
+    # Match account.move's currency conversion inputs while retaining the caller's record rules.
+    rate_model = request.env['res.currency.rate']
+    scope = [
+        ('currency_id', '=', currency.id),
+        ('company_id', 'in', (False, company.root_id.id)),
+    ]
+    # Odoo picks the latest rate on/before the date, or the earliest rate if none qualify.
+    if not rate_model.search(scope + [('name', '<=', invoice_date)], limit=1) and not rate_model.search(scope, limit=1):
+        raise ApiError(
+            422, 'missing_exchange_rate', 'No exchange rate is available for this currency and invoice date.',
+            field='currency',
+        )
+
+
+def _require_invoice_conversion(currency, company, invoice_date, lines):
+    if currency != company.currency_id and _invoice_amount_is_nonzero(lines):
+        _require_exchange_rate(currency, company, invoice_date)
+
+
+def _line_values(line):
+    return {
+        'quantity': line['quantity'] if isinstance(line, dict) else line.quantity,
+        'price_unit': line['price_unit'] if isinstance(line, dict) else line.price_unit,
+        'discount': line.get('discount', 0) if isinstance(line, dict) else line.discount,
+    }
+
+
+def _effective_invoice_conversion(invoice, parsed, company):
+    currency = invoice.currency_id
+    if 'currency' in parsed:
+        currency = request.env['res.currency'].search([('name', '=', parsed['currency'])], limit=1)
+        if not currency:
+            raise ApiError(422, 'invalid', 'currency is not an active currency code', field='currency')
+    invoice_date = parsed.get('invoice_date', invoice.invoice_date)
+    invoice_date = invoice_date or fields.Date.context_today(invoice)
+    lines = parsed.get('lines', invoice.invoice_line_ids)
+    _require_invoice_conversion(currency, company, invoice_date, lines)
+
+
 def _move_values(parsed, move_type, company):
     """ORM values for the parsed keys of a create/patch body; related records are checked for the document company.
 
@@ -173,12 +220,22 @@ class FinanceInvoiceController(http.Controller):
         require_capability('finance.invoices.manage')
         parsed = parse_invoice_create(payload)
         values = _move_values(parsed, parsed['move_type'], request.env.company)
+        effective_currency = request.env['res.currency'].browse(
+            values.get('currency_id', request.env.company.currency_id.id),
+        )
+        _require_invoice_conversion(
+            effective_currency, request.env.company, parsed.get('invoice_date'), parsed['lines'],
+        )
         values['company_id'] = request.env.company.id
+        written = tuple(values)  # account.move.create renames and adds keys in place
         invoice = attempt(
             lambda: request.env['account.move'].create(values),
             day=values.get('invoice_date'),
             journal=request.env['account.journal'].browse(values['journal_id']) if 'journal_id' in values else _default_journal(parsed['move_type']),
             has_tax=any(line.get('tax_ids') for line in parsed['lines']),
+        )
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'invoice_created', invoice, fields_written=written, outcome=invoice.state,
         )
         return request.make_json_response(dump_invoice_detail(invoice), status=201)
 
@@ -193,12 +250,17 @@ class FinanceInvoiceController(http.Controller):
         parsed = parse_invoice_patch(payload)
         if 'lines' in parsed:
             require_plain_distributions(invoice.invoice_line_ids)
+        _effective_invoice_conversion(invoice, parsed, invoice.company_id)
         values = _move_values(parsed, invoice.move_type, invoice.company_id)
+        written = tuple(values)  # account.move.write adds is_manually_modified in place
         attempt(
             lambda: invoice.write(values), day=values.get('invoice_date') or invoice.date,
             journal=invoice.journal_id,
             company=invoice.company_id,
             has_tax=any(line.get('tax_ids') for line in parsed.get('lines', ())) or bool(invoice.invoice_line_ids.tax_ids),
+        )
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'invoice_changed', invoice, fields_written=written, outcome=invoice.state,
         )
         return dump_invoice_detail(invoice)
 
@@ -209,7 +271,11 @@ class FinanceInvoiceController(http.Controller):
         require_capability('finance.invoices.manage')
         invoice = _find_invoice(invoice_id, writable=True)
         require_state(invoice, 'draft', 'not_draft')
-        attempt(invoice.unlink, day=invoice.date, journal=invoice.journal_id, company=invoice.company_id)
+        company = invoice.company_id
+        attempt(invoice.unlink, day=invoice.date, journal=invoice.journal_id, company=company)
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'invoice_deleted', invoice, fields_written=('unlink',), outcome='deleted', company=company,
+        )
         return request.make_json_response('', status=204)
 
     @http.route('/api/v1/finance/invoices/<int:invoice_id>/post', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -222,6 +288,9 @@ class FinanceInvoiceController(http.Controller):
         # 422 zatca_not_onboarded means the sales journal is not ZATCA-onboarded; Odoo may list further
         # configuration errors in the same refusal, all of them in details.detail.
         attempt(invoice.action_post, move=invoice, **_lock_context(invoice))
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'invoice_posted', invoice, fields_written=('state',), outcome=invoice.state,
+        )
         return dump_invoice_detail(invoice)
 
     @http.route('/api/v1/finance/invoices/<int:invoice_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -234,6 +303,9 @@ class FinanceInvoiceController(http.Controller):
             raise ApiError(422, 'invalid_state', 'the invoice is already cancelled')
         _require_no_payments(invoice)
         attempt(invoice.button_cancel, **_lock_context(invoice))
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'invoice_cancelled', invoice, fields_written=('state',), outcome=invoice.state,
+        )
         return dump_invoice_detail(invoice)
 
     @http.route('/api/v1/finance/invoices/<int:invoice_id>/reset-to-draft', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -246,4 +318,7 @@ class FinanceInvoiceController(http.Controller):
             raise ApiError(422, 'invalid_state', 'the invoice is already a draft')
         _require_no_payments(invoice)
         attempt(invoice.button_draft, **_lock_context(invoice))
+        request.env['webvue.finance.audit.event']._webvue_log(
+            'invoice_reset_to_draft', invoice, fields_written=('state',), outcome=invoice.state,
+        )
         return dump_invoice_detail(invoice)

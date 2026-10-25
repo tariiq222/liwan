@@ -46,11 +46,16 @@ describe('the report config', () => {
 
   it('tags the MIS and budget reports with their slug and company currency', () => {
     const lines = [{ code: 'revenue', label: 'Revenue', value: 5 }]
-    const profit = { date_from: '2026-10-01', date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', lines }
+    const statement = { target_move: 'posted', currency: 'SAR', statutory: false, status: 'management_information', lines }
+    const profit = { date_from: '2026-10-01', date_to: '2026-10-20', ...statement }
     expect(REPORTS['profit-loss'].schema.parse(profit)).toEqual({ slug: 'profit-loss', data: profit })
     expect(() => REPORTS['balance-sheet'].schema.parse({ ...profit, extra: 1 })).toThrow()
-    const loaded = REPORTS['balance-sheet'].schema.parse({ date_to: '2026-10-20', target_move: 'all', currency: 'SAR', lines })
+    const loaded = REPORTS['balance-sheet'].schema.parse({ date_to: '2026-10-20', ...statement, target_move: 'all' })
     expect(reportCurrency(loaded)).toBe('SAR')
+  })
+
+  it('marks only the income statement and the balance sheet as management information', () => {
+    expect(REPORT_SLUGS.filter(slug => REPORTS[slug].managementInformation)).toEqual(['profit-loss', 'balance-sheet'])
   })
 
   it('has no single currency for a partner statement', () => {

@@ -96,13 +96,19 @@ describe('finance statement schemas', () => {
 
   it('parse the MIS reports: lines with stable codes, and the Zakat base with its disclaimer', () => {
     const lines = [{ code: 'revenue', label: 'Revenue', value: 1300 }]
-    const loss = { date_from: '2026-01-01', date_to: '2026-12-31', ...HEADER, lines }
-    const sheet = { date_to: '2026-12-31', ...HEADER, lines }
+    const managementInformation = { statutory: false, status: 'management_information' as const }
+    const loss = { date_from: '2026-01-01', date_to: '2026-12-31', ...HEADER, ...managementInformation, lines }
+    const sheet = { date_to: '2026-12-31', ...HEADER, ...managementInformation, lines }
     expect(FinanceProfitLossSchema.parse(loss)).toEqual(loss)
     expect(FinanceBalanceSheetSchema.parse(sheet)).toEqual(sheet)
+    for (const schema of [FinanceProfitLossSchema, FinanceBalanceSheetSchema]) {
+      expect(() => schema.parse({ ...sheet, statutory: undefined })).toThrow()
+      expect(() => schema.parse({ ...sheet, statutory: true })).toThrow()
+      expect(() => schema.parse({ ...sheet, status: 'reviewed' })).toThrow()
+    }
     expect(() => FinanceBalanceSheetSchema.parse({ ...sheet, lines: [{ code: '', label: 'x', value: 1 }] })).toThrow()
     const zakat = {
-      ...sheet, template_base: 103900, adjustments: [], adjustments_total: 0, base: 103900, rate: 0.0257768, zakat_due: 2678.1,
+      date_to: '2026-12-31', ...HEADER, lines, template_base: 103900, adjustments: [], adjustments_total: 0, base: 103900, rate: 0.0257768, zakat_due: 2678.1,
       status: 'management_information', filed: false, review: null, disclaimer: 'Review by a Saudi CPA.',
     }
     expect(FinanceZakatBaseSchema.parse(zakat)).toEqual(zakat)

@@ -25,8 +25,9 @@ class TestFinanceMisReports(WebVueFinanceOcaCase):
 
     def test_the_profit_and_loss_of_the_year(self):
         report = self._get('profit-loss', YEAR)
-        self.assertEqual(set(report), {'date_from', 'date_to', 'target_move', 'currency', 'lines'})
+        self.assertEqual(set(report), {'date_from', 'date_to', 'target_move', 'currency', 'statutory', 'status', 'lines'})
         self.assertEqual((report['currency'], report['target_move']), ('SAR', 'posted'))
+        self.assertEqual((report['statutory'], report['status']), (False, 'management_information'))
         figures = self._figures(report)
         self.assertEqual(figures['revenue'], 1300)
         # The bill's expense lands on the journal's default account, the cost of goods sold.
@@ -59,7 +60,8 @@ class TestFinanceMisReports(WebVueFinanceOcaCase):
 
     def test_the_balance_sheet_balances_with_the_earnings_of_every_year(self):
         report = self._get('balance-sheet', END)
-        self.assertEqual(set(report), {'date_to', 'target_move', 'currency', 'lines'})
+        self.assertEqual(set(report), {'date_to', 'target_move', 'currency', 'statutory', 'status', 'lines'})
+        self.assertEqual((report['statutory'], report['status']), (False, 'management_information'))
         figures = self._figures(report)
         self.assertEqual(
             (figures['cash'], figures['receivables'], figures['current_assets'], figures['fixed_assets']),

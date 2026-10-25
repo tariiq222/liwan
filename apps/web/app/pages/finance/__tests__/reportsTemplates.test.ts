@@ -113,7 +113,7 @@ describe('the MIS report preview data', () => {
 
   it('balances the profit and loss and echoes the period and the posting filter', () => {
     const report = FinanceProfitLossSchema.parse(serve('profit-loss', '?date_from=2026-01-01&date_to=2026-03-31&target_move=all'))
-    expect(report).toMatchObject({ date_from: '2026-01-01', date_to: '2026-03-31', target_move: 'all', currency: 'SAR' })
+    expect(report).toMatchObject({ date_from: '2026-01-01', date_to: '2026-03-31', target_move: 'all', currency: 'SAR', statutory: false, status: 'management_information' })
     expect(valueOf(report.lines, 'gross_profit')).toBe(valueOf(report.lines, 'revenue') - valueOf(report.lines, 'cost_of_revenue'))
     const operating = valueOf(report.lines, 'gross_profit') - valueOf(report.lines, 'operating_expenses') - valueOf(report.lines, 'depreciation')
     expect(valueOf(report.lines, 'operating_profit')).toBe(operating)
@@ -122,7 +122,7 @@ describe('the MIS report preview data', () => {
 
   it('serves a balanced balance sheet as of the requested day', () => {
     const report = FinanceBalanceSheetSchema.parse(serve('balance-sheet', '?date_to=2026-06-30'))
-    expect(report).toMatchObject({ date_to: '2026-06-30', target_move: 'posted' })
+    expect(report).toMatchObject({ date_to: '2026-06-30', target_move: 'posted', statutory: false, status: 'management_information' })
     expect(valueOf(report.lines, 'total_assets')).toBe(valueOf(report.lines, 'total_liabilities') + valueOf(report.lines, 'total_equity'))
     expect(valueOf(report.lines, 'total_liabilities_and_equity')).toBe(valueOf(report.lines, 'total_assets'))
     expect(valueOf(report.lines, 'difference')).toBe(0)
