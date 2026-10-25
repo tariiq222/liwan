@@ -10333,6 +10333,14 @@
             },
             "type": "array"
           },
+          "status": {
+            "const": "management_information",
+            "type": "string"
+          },
+          "statutory": {
+            "const": false,
+            "type": "boolean"
+          },
           "target_move": {
             "enum": [
               "posted",
@@ -10345,6 +10353,8 @@
           "date_to",
           "target_move",
           "currency",
+          "statutory",
+          "status",
           "lines"
         ],
         "type": "object"
@@ -17056,6 +17066,14 @@
             },
             "type": "array"
           },
+          "status": {
+            "const": "management_information",
+            "type": "string"
+          },
+          "statutory": {
+            "const": false,
+            "type": "boolean"
+          },
           "target_move": {
             "enum": [
               "posted",
@@ -17069,6 +17087,8 @@
           "date_to",
           "target_move",
           "currency",
+          "statutory",
+          "status",
           "lines"
         ],
         "type": "object"
