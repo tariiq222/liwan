@@ -2,7 +2,7 @@
 {
     'name': 'webvue Payroll and Finance',
     'summary': 'webvue platform: payroll runs meet accounting through settings and department cost centers',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.0.1',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
