@@ -53,6 +53,10 @@ def _reject_inverted_wages(rate, vals):
         raise ApiError(422, 'invalid', 'wage_max must not be below wage_min', field='wage_max')
 
 
+def _audit():
+    return request.env['webvue.hr.audit.event']
+
+
 def _writable_profile(profile_id):
     """A profile of the caller's company; the shared seed profiles are read-only → 403."""
     profile = scoped_profile(profile_id)
@@ -78,7 +82,11 @@ class HrPayrollSettingsController(http.Controller):
         vals = parse_settings(payload, request.env)
         if not vals:
             raise ApiError(422, 'invalid', 'no fields to update')
-        return dump_settings(request.env['webvue.hr.payroll.settings']._webvue_save(current_company(), vals))
+        Settings = request.env['webvue.hr.payroll.settings']
+        before = _audit()._webvue_policy_snapshot(Settings._webvue_for_company(current_company()))
+        settings = Settings._webvue_save(current_company(), vals)
+        _audit()._webvue_log('payroll_settings_changed', settings, before)
+        return dump_settings(settings)
 
     @http.route('/api/v1/hr/payroll/gosi-rates', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
@@ -97,6 +105,7 @@ class HrPayrollSettingsController(http.Controller):
         _reject_inverted_wages(None, vals)
         _reject_duplicate(None, vals)
         rate = request.env['webvue.hr.gosi.rate'].create({**vals, 'company_id': current_company().id})
+        _audit()._webvue_log('gosi_rate_created', rate)
         return request.make_json_response(dump_rate(rate), status=201)
 
     @http.route('/api/v1/hr/payroll/gosi-rates/<int:rate_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -110,7 +119,9 @@ class HrPayrollSettingsController(http.Controller):
             raise ApiError(422, 'invalid', 'no fields to update')
         _reject_inverted_wages(rate, vals)
         _reject_duplicate(rate, vals)
+        before = _audit()._webvue_policy_snapshot(rate)
         rate.write(vals)
+        _audit()._webvue_log('gosi_rate_changed', rate, before)
         return dump_rate(rate)
 
     @http.route('/api/v1/hr/payroll/gosi-rates/<int:rate_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
@@ -118,7 +129,10 @@ class HrPayrollSettingsController(http.Controller):
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.config')
     def delete_gosi_rate(self, rate_id, **_):
-        _writable_rate(rate_id).unlink()
+        rate = _writable_rate(rate_id)
+        with request.env.cr.savepoint():
+            _audit()._webvue_log('gosi_rate_deleted', rate)
+            rate.unlink()
         return request.make_json_response('', status=204)
 
     @http.route('/api/v1/hr/payroll/bank-profiles', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -136,6 +150,7 @@ class HrPayrollSettingsController(http.Controller):
     def create_bank_profile(self, **payload):
         model = request.env['webvue.hr.payroll.bank.profile']
         profile = model.create({**parse_profile(payload, model, partial=False), 'company_id': current_company().id})
+        _audit()._webvue_log('bank_profile_created', profile)
         return request.make_json_response(dump_profile(profile), status=201)
 
     @http.route('/api/v1/hr/payroll/bank-profiles/<int:profile_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -147,7 +162,9 @@ class HrPayrollSettingsController(http.Controller):
         vals = parse_profile(payload, request.env['webvue.hr.payroll.bank.profile'], partial=True)
         if not vals:
             raise ApiError(422, 'invalid', 'no fields to update')
+        before = _audit()._webvue_policy_snapshot(profile)
         profile.write(vals)
+        _audit()._webvue_log('bank_profile_changed', profile, before)
         return dump_profile(profile)
 
     @http.route('/api/v1/hr/payroll/bank-profiles/<int:profile_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
@@ -155,5 +172,8 @@ class HrPayrollSettingsController(http.Controller):
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.config')
     def delete_bank_profile(self, profile_id, **_):
-        _writable_profile(profile_id).unlink()
+        profile = _writable_profile(profile_id)
+        with request.env.cr.savepoint():
+            _audit()._webvue_log('bank_profile_deleted', profile)
+            profile.unlink()
         return request.make_json_response('', status=204)

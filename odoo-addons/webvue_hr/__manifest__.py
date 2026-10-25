@@ -2,7 +2,7 @@
 {
     'name': 'webvue HR',
     'summary': 'webvue platform: the HR pillar — /api/v1/hr departments, employees, leave, recruitment, shifts, onboarding, offboarding, assets',
-    'version': '19.0.1.9.0',
+    'version': '19.0.1.10.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

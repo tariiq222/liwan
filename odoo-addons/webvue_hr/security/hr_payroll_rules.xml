@@ -177,4 +177,17 @@
         <field name="perm_write" eval="False"/>
         <field name="perm_unlink" eval="False"/>
     </record>
+    <!-- Payroll audit trail: the rows of the caller's companies only. -->
+    <record id="rule_webvue_hr_audit_event_company" model="ir.rule">
+        <field name="name">webvue payroll audit event: multi company</field>
+        <field name="model_id" ref="model_webvue_hr_audit_event"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_webvue_hr_audit_change_company" model="ir.rule">
+        <field name="name">webvue payroll audit change: multi company</field>
+        <field name="model_id" ref="model_webvue_hr_audit_change"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>
