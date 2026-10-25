@@ -57,6 +57,20 @@ def parse_fiscal_vals(payload, company):
         else:
             vals[field] = _parse_lock_date(value, field)
             _require_not_loosened(field, vals[field], company[field])
+
+    fiscal_fields = ('fiscalyear_last_day', 'fiscalyear_last_month')
+    fiscal_year_changes = any(
+        field in vals and vals[field] != company[field]
+        for field in fiscal_fields
+    )
+    if fiscal_year_changes and request.env['account.move'].search_count([
+        ('company_id', '=', company.id), ('state', '=', 'posted'),
+    ]):
+        # Corrections after posted entries require an operator maintenance window, not an API path.
+        raise ApiError(
+            422, 'fiscal_year_has_posted_entries',
+            'the fiscal year end cannot be changed after journal entries have been posted',
+        )
     return vals
 
 
