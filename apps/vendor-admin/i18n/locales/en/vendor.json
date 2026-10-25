@@ -702,11 +702,11 @@
         "pricesHint": "Amounts in SAR with two decimals."
       },
       "plan": {
-        "usersRequired": "The included minimum must admit at least one user.",
+      "usersRequired": "The included minimum must admit at least one user.",
         "storageMinimumGb": "Enter the included storage minimum in whole gigabytes (a multiple of 1024 MB).",
-        "quantitiesHint": "The minimums are covered by the base price; anything above them is priced per unit.",
-        "userPricesHint": "Price per user above the minimum, for each billing cadence.",
-        "storagePricesHint": "Price per gigabyte above the minimum, for each billing cadence.",
+      "quantitiesHint": "The minimums are covered by the base price; anything above them is priced per unit.",
+      "userPricesHint": "Price per user above the minimum, for each billing cadence.",
+      "storagePricesHint": "Price per gigabyte above the minimum, for each billing cadence.",
         "bundlesRequired": "Select at least one bundle.",
         "singleRelease": "All bundles must come from one catalog release.",
         "policyMissing": "Pricing policy unavailable.",
@@ -808,10 +808,7 @@
         "payload_too_large": "The request is too large.",
         "unauthorized": "Session expired. Sign in again.",
         "vendor_unavailable": "Vendor service is temporarily unavailable. Try later.",
-        "method_not_allowed": "Method not allowed.",
-        "tenant_upgrade_required": "This tenant has not been upgraded and cannot store the commercial expiry. Upgrade the Odoo image, then repeat the action.",
-        "tenant_binding_unavailable": "No enabled tenant binding exists for this subscription, so the trial date cannot be pushed. Fix the binding and repeat.",
-        "trial_order_unavailable": "No applied order is available to attach the date change to. Wait for fulfilment, then repeat."
+        "method_not_allowed": "Method not allowed.", "tenant_upgrade_required": "This tenant has not been upgraded and cannot store the commercial expiry. Upgrade the Odoo image, then repeat the action.", "tenant_binding_unavailable": "No enabled tenant binding exists for this subscription, so the trial date cannot be pushed. Fix the binding and repeat.", "trial_order_unavailable": "No applied order is available to attach the date change to. Wait for fulfilment, then repeat."
       },
       "keys": {
         "users_limit": "Users",
@@ -825,27 +822,7 @@
       }
     },
     "customers": {
-      "trial": {
-        "title": "Trial",
-        "ends": "Ends on",
-        "remaining": "Days remaining",
-        "state": "State",
-        "extend": "Extend trial",
-        "end": "End trial now",
-        "extendHint": "Add days to the trial end. The action is audited.",
-        "endHint": "Ends the trial now and issues the first invoice with a payment link. The action is audited.",
-        "days": "Days",
-        "reason": "Reason",
-        "readOnly": "Changing a trial requires the subscription management capability.",
-        "states": {
-          "trialing": "Trial",
-          "active": "Active",
-          "past_due": "Past due",
-          "suspended": "Suspended",
-          "pending": "Provisioning",
-          "cancelled": "Cancelled"
-        }
-      },
+      "trial": {"title": "Trial", "ends": "Ends on", "remaining": "Days remaining", "state": "State", "extend": "Extend trial", "end": "End trial now", "extendHint": "Add days to the trial end. The action is audited.", "endHint": "Ends the trial now and issues the first invoice with a payment link. The action is audited.", "days": "Days", "reason": "Reason", "readOnly": "Changing a trial requires the subscription management capability.", "states": {"trialing": "Trial", "active": "Active", "past_due": "Past due", "suspended": "Suspended", "pending": "Provisioning", "cancelled": "Cancelled"}},
       "title": "Customers",
       "search": "Search by client name",
       "empty": "No commercial customers yet.",
@@ -975,7 +952,7 @@
         "includedBranches": "Included extra branches",
         "termMonths": "Term (months)",
         "extraBranchesLimit": "Extra branches limit",
-        "meteredHint": "Users and storage change through the customer subscription itself (raise or lower), not through custom terms. Only the branch limit remains here.",
+      "meteredHint": "Users and storage change through the customer subscription itself (raise or lower), not through custom terms. Only the branch limit remains here.",
         "inherit": "As in the plan",
         "invalidValue": "Invalid value.",
         "nothing": "Change at least one value.",
