@@ -151,9 +151,10 @@ class FinanceEntryController(http.Controller):
         values.update({'move_type': 'entry', 'company_id': request.env.company.id})
         journal = request.env['account.journal'].browse(values['journal_id'])
         _require_open_period(values['date'], journal, request.env.company)
+        written = tuple(values)  # account.move.create renames and adds keys in place
         entry = attempt(lambda: request.env['account.move'].create(values), day=values['date'], journal=journal)
         request.env['webvue.finance.audit.event']._webvue_log(
-            'entry_created', entry, fields_written=values.keys(), outcome=entry.state,
+            'entry_created', entry, fields_written=written, outcome=entry.state,
         )
         return request.make_json_response(dump_entry_detail(entry), status=201)
 
@@ -172,9 +173,10 @@ class FinanceEntryController(http.Controller):
         day = values.get('date') or entry.date
         journal = request.env['account.journal'].browse(values.get('journal_id') or entry.journal_id.id)
         _require_open_period(day, journal, entry.company_id)
+        written = tuple(values)  # account.move.write adds is_manually_modified in place
         attempt(lambda: entry.write(values), day=day, journal=journal, company=entry.company_id)
         request.env['webvue.finance.audit.event']._webvue_log(
-            'entry_changed', entry, fields_written=values.keys(), outcome=entry.state,
+            'entry_changed', entry, fields_written=written, outcome=entry.state,
         )
         return dump_entry_detail(entry)
 
@@ -236,6 +238,6 @@ class FinanceEntryController(http.Controller):
             _require_open_period(move.date, move.journal_id, move.company_id)
         attempt(lines.remove_move_reconcile, day=entry.date, journal=entry.journal_id, company=entry.company_id)
         request.env['webvue.finance.audit.event']._webvue_log(
-            'entry_unreconciled', entry, fields_written=('reconciled',), outcome='posted',
+            'entry_unreconciled', entry, fields_written=('reconciled',), outcome=entry.state,
         )
         return dump_entry_detail(entry)

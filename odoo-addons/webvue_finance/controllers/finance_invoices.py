@@ -174,6 +174,7 @@ class FinanceInvoiceController(http.Controller):
         parsed = parse_invoice_create(payload)
         values = _move_values(parsed, parsed['move_type'], request.env.company)
         values['company_id'] = request.env.company.id
+        written = tuple(values)  # account.move.create renames and adds keys in place
         invoice = attempt(
             lambda: request.env['account.move'].create(values),
             day=values.get('invoice_date'),
@@ -181,7 +182,7 @@ class FinanceInvoiceController(http.Controller):
             has_tax=any(line.get('tax_ids') for line in parsed['lines']),
         )
         request.env['webvue.finance.audit.event']._webvue_log(
-            'invoice_created', invoice, fields_written=parsed.keys(), outcome='draft',
+            'invoice_created', invoice, fields_written=written, outcome=invoice.state,
         )
         return request.make_json_response(dump_invoice_detail(invoice), status=201)
 
@@ -197,6 +198,7 @@ class FinanceInvoiceController(http.Controller):
         if 'lines' in parsed:
             require_plain_distributions(invoice.invoice_line_ids)
         values = _move_values(parsed, invoice.move_type, invoice.company_id)
+        written = tuple(values)  # account.move.write adds is_manually_modified in place
         attempt(
             lambda: invoice.write(values), day=values.get('invoice_date') or invoice.date,
             journal=invoice.journal_id,
@@ -204,7 +206,7 @@ class FinanceInvoiceController(http.Controller):
             has_tax=any(line.get('tax_ids') for line in parsed.get('lines', ())) or bool(invoice.invoice_line_ids.tax_ids),
         )
         request.env['webvue.finance.audit.event']._webvue_log(
-            'invoice_changed', invoice, fields_written=values.keys(), outcome=invoice.state,
+            'invoice_changed', invoice, fields_written=written, outcome=invoice.state,
         )
         return dump_invoice_detail(invoice)
 

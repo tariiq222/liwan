@@ -65,12 +65,12 @@ class TestFinanceMutationAudit(WebVueFinanceWriteCase):
         invoice_id = result.json()['id']
         invoice = self.env['account.move'].browse(invoice_id)
         self._assert_single_event(before, 'invoice_created', invoice,
-                                  ('move_type', 'partner_id', 'invoice_date', 'lines', 'ref'), 'draft')
+                                  ('move_type', 'partner_id', 'invoice_date', 'invoice_line_ids', 'ref', 'company_id'), 'draft')
 
         before = len(self._audit_events())
         result = self.api('PATCH', self._invoice_route(invoice_id), json={'ref': 'CHANGED'})
         self.assertEqual(result.status_code, 200, result.text)
-        self._assert_single_event(before, 'invoice_changed', invoice, ('is_manually_modified', 'ref'), 'draft')
+        self._assert_single_event(before, 'invoice_changed', invoice, ('ref',), 'draft')
 
         before = len(self._audit_events())
         result = self.api('POST', self._invoice_route(invoice_id, '/post'), json={})
@@ -105,7 +105,7 @@ class TestFinanceMutationAudit(WebVueFinanceWriteCase):
         before = len(self._audit_events())
         result = self.api('PATCH', f'{ENTRIES}/{entry_id}', json={'ref': 'ENTRY-CHANGED'})
         self.assertEqual(result.status_code, 200, result.text)
-        self._assert_single_event(before, 'entry_changed', entry, ('is_manually_modified', 'ref'), 'draft')
+        self._assert_single_event(before, 'entry_changed', entry, ('ref',), 'draft')
 
         before = len(self._audit_events())
         result = self.api('POST', f'{ENTRIES}/{entry_id}/post', json={})
@@ -137,7 +137,15 @@ class TestFinanceMutationAudit(WebVueFinanceWriteCase):
         debit = self.env['account.move'].browse(debit_id)
         self.assertEqual((debit.debit_origin_id, debit.company_id, debit.state), (original, self.company, 'draft'))
         self._assert_single_event(before_events, 'invoice_debit_note_created', debit,
-                                  ('move_type', 'debit_origin_id', 'date', 'invoice_line_ids'), 'draft')
+                                  ('move_type', 'debit_origin_id', 'date', 'ref', 'invoice_line_ids'), 'draft')
+
+        before_events = len(self._audit_events())
+        empty = self.api('POST', self._invoice_route(original.id, '/debit-note'), json={})
+        self.assertEqual(empty.status_code, 201, empty.text)
+        empty_debit = self.env['account.move'].browse(empty.json()['id'])
+        self.assertFalse(empty_debit.invoice_line_ids)
+        self._assert_single_event(before_events, 'invoice_debit_note_created', empty_debit,
+                                  ('move_type', 'debit_origin_id', 'date', 'ref'), 'draft')
 
         before_moves = self.env['account.move'].search_count([('company_id', '=', self.company.id)])
         before_events = len(self._audit_events())
@@ -223,7 +231,7 @@ class TestFinanceMutationAudit(WebVueFinanceWriteCase):
         event = events[0]
         self.assertEqual(event.company_id, branch)
         self.assertEqual((event.res_model, event.res_id), ('account.move', branch_invoice.id))
-        self.assertEqual(event.fields_written, 'is_manually_modified, ref')
+        self.assertEqual(event.fields_written, 'ref')
         self.assertNotRegex(event.fields_written, r'\d')
         self.assertTrue(self.env['webvue.access.service'].with_company(branch)._webvue_has_capability(
             self.manager, 'finance.invoices.manage', company=branch,
