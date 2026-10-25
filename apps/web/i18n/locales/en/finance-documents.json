@@ -175,6 +175,7 @@
       "hasPayments": "The document has payments: cancel them or reset them to draft first.",
       "invalidState": "This action is not available in the current status.",
       "periodLocked": "The accounting period is locked for this date.",
+      "missingExchangeRate": "No exchange rate is available for this currency on the invoice date. Add a valid rate or use the company currency.",
       "pdfUnavailable": "The PDF could not be produced now. Try again later.",
       "zatcaNotOnboarded": "The sales journal is not onboarded with ZATCA yet.",
       "zatcaNotApplicable": "This document is not a posted e-invoice.",
