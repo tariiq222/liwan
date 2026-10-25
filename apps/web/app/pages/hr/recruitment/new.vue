@@ -61,7 +61,7 @@ async function submit() {
 <template>
   <SharedCreatePanel :title="t('hrRecruitment.newApplicant')" :back-to="backTo">
     <SharedUnsavedChanges :dirty="dirty" />
-    <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
+    <SharedForbiddenState v-if="!canManage" />
     <SharedPageState v-else :loading="jobs.isLoading.value" :error="jobs.error.value" :empty="!jobs.isLoading.value && !jobOptions.length" :empty-text="t('hrRecruitment.form.noJobs')" @retry="jobs.refetch">
       <UForm novalidate :state="{ partnerName, jobId, emailFrom, partnerPhone, availability }" class="webvue-form" method="post" data-testid="hr-recruitment-applicant-form" @submit="submit">
         <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" />

@@ -19,7 +19,7 @@ function saved() { void navigateTo(backTo.value) }
 <template>
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('hrPayroll.compensation.editTitle')" :back-to="backTo" />
-    <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('hrPayroll.compensation.forbidden')" />
+    <SharedForbiddenState v-if="!canManage" :description="t('hrPayroll.compensation.forbidden')" />
     <SharedPageState v-else :loading="loading" :error="error" :empty="!employee.data.value || compensation.data.value === undefined" @retry="retry">
       <CompensationForm :employee-id="id" :compensation="compensation.data.value ?? null" :back-to="backTo" @saved="saved" />
     </SharedPageState>

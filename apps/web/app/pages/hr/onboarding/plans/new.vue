@@ -12,7 +12,7 @@ function saved() {
 
 <template>
   <SharedCreatePanel :title="t(`hrOnboarding.plans.new`)" :back-to="backTo">
-    <SharedPageState v-if="!can('hr.onboarding.manage')" :empty="true" :empty-text="t(`hrOnboarding.errors.forbidden`)" />
+    <SharedForbiddenState v-if="!can('hr.onboarding.manage')" :description="t(`hrOnboarding.errors.forbidden`)" />
     <PlanForm v-else area="onboarding" :namespace="NAMESPACE" :back-to="backTo" @saved="saved" />
   </SharedCreatePanel>
 </template>

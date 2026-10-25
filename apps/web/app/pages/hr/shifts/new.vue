@@ -23,7 +23,7 @@ function saved() {
 
 <template>
   <SharedCreatePanel :title="t('hrShifts.new')" :back-to="backTo">
-    <SharedPageState v-if="!can('hr.shifts.manage')" :empty="true" :empty-text="t('errors.forbidden')" />
+    <SharedForbiddenState v-if="!can('hr.shifts.manage')" />
     <SharedPageState v-else :loading="loading" :error="error" @retry="employees.refetch(); schedules.refetch()">
       <ShiftAssignmentForm :back-to="backTo" :employees="employeeOptions" :schedules="scheduleOptions" @saved="saved" />
     </SharedPageState>
