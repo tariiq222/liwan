@@ -69,6 +69,8 @@ export interface ReportConfig {
   capability: 'finance.statements.read' | 'finance.reports.read' | 'finance.analytic.read' | 'finance.zakat.read' | 'finance.budgets.read'
   schema: ZodType<LoadedReport>
   filters: ReportFilterSet
+  /** An unreviewed management statement: the page says it is not a statutory report. */
+  managementInformation?: true
 }
 
 const NONE: ReportFilterSet = { period: 'range', targetMove: false, kind: false, partner: false, type: false, account: false, plan: false, budget: false }
@@ -121,12 +123,14 @@ export const REPORTS: Record<ReportSlug, ReportConfig> = {
     capability: 'finance.statements.read',
     schema: FinanceProfitLossSchema.transform(data => ({ slug: 'profit-loss' as const, data })),
     filters: { ...NONE, targetMove: true },
+    managementInformation: true,
   },
   'balance-sheet': {
     key: 'balanceSheet',
     capability: 'finance.statements.read',
     schema: FinanceBalanceSheetSchema.transform(data => ({ slug: 'balance-sheet' as const, data })),
     filters: { ...NONE, period: 'end', targetMove: true },
+    managementInformation: true,
   },
   'zakat-base': {
     key: 'zakatBase',

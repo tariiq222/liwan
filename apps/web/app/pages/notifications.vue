@@ -10,7 +10,7 @@ import {
   useNotificationsPage,
   type BellNotification,
 } from '@/composables/useNotifications'
-import { formatNotificationTimestamp, genericNotificationText, isUserWrittenNotificationKind } from '@/utils/notificationPresentation'
+import { formatNotificationTimestamp, genericNotificationText, isUserWrittenNotificationKind, notificationBody } from '@/utils/notificationPresentation'
 
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -65,6 +65,7 @@ const queryErrorMessage = computed(() => (
 function kindLabel(item: BellNotification) {
   if (!isKnownNotification(item)) return t('notifications.preview.other')
   if (isDigestNotification(item)) return t('tasks.digest.kind')
+  if (item.kind === 'tasks.assigned') return t('notifications.assignment', { task: item.task_name })
   if (isMeetingNotification(item)) return t(`meetingsUi.notify.${item.kind}`)
   if (isProjectNotification(item)) return t(`notifications.preview.${item.kind}`)
   if (isUserWrittenNotificationKind(item.kind)) return t(`notifications.${item.kind}`)
@@ -175,7 +176,7 @@ async function retryNextPage() {
                 </span>
               </span>
               <span v-if="itemTitle(item)" :class="item.is_read ? 'font-medium' : 'font-semibold text-highlighted'">{{ itemTitle(item) }}</span>
-              <span v-if="isUserWrittenNotificationKind(item.kind)" class="line-clamp-3 text-sm text-muted">{{ item.body }}</span>
+              <span v-if="isUserWrittenNotificationKind(item.kind)" class="line-clamp-3 text-sm text-muted">{{ notificationBody(item) }}</span>
               <span v-else-if="itemSecondary(item)" class="line-clamp-3 text-sm text-muted">{{ itemSecondary(item) }}</span>
               <time v-if="notificationTimestamp(item)" class="text-xs text-muted" :datetime="notificationTimestamp(item)?.datetime">{{ notificationTimestamp(item)?.label }}</time>
             </UButton>

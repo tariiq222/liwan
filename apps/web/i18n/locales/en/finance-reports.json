@@ -1,5 +1,6 @@
 {
   "financeReports": {
+    "managementInformation": "Unreviewed management information; this is not a statutory report and does not indicate filing readiness.",
     "reports": {
       "trialBalance": {
         "title": "Trial balance"

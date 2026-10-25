@@ -131,6 +131,8 @@ function profitLoss(url) {
     ...periodOf(url),
     target_move: targetMoveOf(url),
     currency: CURRENCY,
+    statutory: false,
+    status: 'management_information',
     lines: [
       line('revenue', 'Revenue', revenue),
       line('cost_of_revenue', 'Cost of revenue', costOfRevenue),
@@ -156,6 +158,8 @@ function balanceSheet(url) {
     date_to: dateToOf(url),
     target_move: targetMoveOf(url),
     currency: CURRENCY,
+    statutory: false,
+    status: 'management_information',
     lines: [
       line('cash', 'Bank and cash', cash),
       line('receivables', 'Receivables', receivables),

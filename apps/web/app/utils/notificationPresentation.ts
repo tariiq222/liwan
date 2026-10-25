@@ -22,6 +22,12 @@ export function isUserWrittenNotificationKind(kind: string): boolean {
   return kind === 'comment' || kind === 'mention'
 }
 
+/** Some known kinds (for example `tasks.assigned`) carry no server body; read it without narrowing the union. */
+export function notificationBody(item: object): string {
+  const body = (item as { body?: unknown }).body
+  return typeof body === 'string' ? body : ''
+}
+
 export function isMeetingNotificationKind(kind: string): boolean {
   return MEETING_KINDS.has(kind)
 }
@@ -65,6 +71,7 @@ export function formatNotificationTimestamp(
 
 export function notificationPreviewCaptionKey(kind: NotificationPreviewKind): string {
   if (kind === 'overdue_digest') return 'tasks.digest.kind'
+  if (kind === 'tasks.assigned') return 'notifications.preview.assignment'
   if (MEETING_KINDS.has(kind)) return `meetingsUi.notify.${kind}`
   if (TASK_KINDS.has(kind) || PROJECT_KINDS.has(kind)) return `notifications.preview.${kind}`
   return 'notifications.preview.other'

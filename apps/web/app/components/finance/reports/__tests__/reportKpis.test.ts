@@ -51,19 +51,19 @@ describe('report KPI tiles', () => {
   const lines = (...pairs: [string, number][]) => pairs.map(([code, value]) => ({ code, label: code, value }))
 
   it('shows revenue, gross profit and net profit, a loss in the danger tone', () => {
-    const report = (net: number): LoadedReport => ({ slug: 'profit-loss', data: { date_from: '2026-10-01', date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', lines: lines(['revenue', 500], ['gross_profit', 300], ['net_profit', net]) } })
+    const report = (net: number): LoadedReport => ({ slug: 'profit-loss', data: { date_from: '2026-10-01', date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', statutory: false, status: 'management_information', lines: lines(['revenue', 500], ['gross_profit', 300], ['net_profit', net]) } })
     expect(values(report(-20))).toEqual({ revenue: '500', grossProfit: '300', netProfit: '-20' })
     expect(reportKpiTiles(report(-20), t, n).find(tile => tile.id === 'netProfit')?.tone).toBe('danger')
     expect(reportKpiTiles(report(20), t, n).find(tile => tile.id === 'netProfit')?.tone).toBe('neutral')
   })
 
   it('leaves out a tile whose line the server did not send', () => {
-    const report: LoadedReport = { slug: 'profit-loss', data: { date_from: '2026-10-01', date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', lines: lines(['revenue', 500]) } }
+    const report: LoadedReport = { slug: 'profit-loss', data: { date_from: '2026-10-01', date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', statutory: false, status: 'management_information', lines: lines(['revenue', 500]) } }
     expect(values(report)).toEqual({ revenue: '500' })
   })
 
   it('shows the balance sheet totals', () => {
-    const report: LoadedReport = { slug: 'balance-sheet', data: { date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', lines: lines(['total_assets', 455], ['total_liabilities', 142], ['total_equity', 313]) } }
+    const report: LoadedReport = { slug: 'balance-sheet', data: { date_to: '2026-10-20', target_move: 'posted', currency: 'SAR', statutory: false, status: 'management_information', lines: lines(['total_assets', 455], ['total_liabilities', 142], ['total_equity', 313]) } }
     expect(values(report)).toEqual({ totalAssets: '455', totalLiabilities: '142', equity: '313' })
   })
 

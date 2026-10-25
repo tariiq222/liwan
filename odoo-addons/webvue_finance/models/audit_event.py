@@ -36,6 +36,19 @@ class WebVueFinanceAuditEvent(models.Model):
         ('asset_profile_unarchived', 'Asset profile unarchived'),
         ('asset_disposed', 'Asset disposed of'),
         ('bank_statement_imported', 'Bank statement imported'),
+        ('invoice_created', 'Invoice created'),
+        ('invoice_changed', 'Invoice changed'),
+        ('invoice_deleted', 'Invoice deleted'),
+        ('invoice_debit_note_created', 'Invoice debit note created'),
+        ('invoice_posted', 'Invoice posted'),
+        ('invoice_cancelled', 'Invoice cancelled'),
+        ('invoice_reset_to_draft', 'Invoice reset to draft'),
+        ('entry_created', 'Journal entry created'),
+        ('entry_changed', 'Journal entry changed'),
+        ('entry_deleted', 'Journal entry deleted'),
+        ('entry_posted', 'Journal entry posted'),
+        ('entry_reset_to_draft', 'Journal entry reset to draft'),
+        ('entry_unreconciled', 'Journal entry unreconciled'),
         ('payment_created', 'Payment created'),
         ('payment_changed', 'Payment changed'),
         ('payment_posted', 'Payment posted'),
@@ -77,10 +90,13 @@ class WebVueFinanceAuditEvent(models.Model):
         raise AccessError(msg)
 
     @api.model
-    def _webvue_log(self, action, record, fields_written=(), outcome=False):
+    def _webvue_log(self, action, record, fields_written=(), outcome=False, company=None):
         """Record ``action`` on ``record`` (the only way a row is created)."""
+        company = company or (
+            record.company_id if 'company_id' in record._fields and record.company_id else self.env.company
+        )
         return super().create([{
-            'company_id': self.env.company.id,
+            'company_id': company.id,
             'action': action,
             'res_model': record._name,
             'res_id': record.id,
