@@ -16,7 +16,7 @@ from odoo.addons.webvue_api.tests.common import (
 
 @tagged('post_install', '-at_install', 'webvue')
 class TestHrFinanceCompanyIsolation(CompanyIsolationCase):
-    """The bridge's GET routes answer for the current company only."""
+    """The bridge's GET routes and PATCH settings remain company-scoped."""
 
     @classmethod
     def setUpClass(cls):
@@ -28,7 +28,7 @@ class TestHrFinanceCompanyIsolation(CompanyIsolationCase):
         # visibility difference can only come from the pinned request company.
         Assignment = cls.env['webvue.access.assignment'].sudo()
         for company in cls.by_tag.values():
-            for xmlid in ('webvue_hr.role_hr_manager', 'webvue_finance.role_finance_manager'):
+            for xmlid in ('webvue_hr.role_payroll_manager', 'webvue_finance.role_finance_manager'):
                 Assignment.create({
                     'user_id': cls.iso_user.id, 'role_id': cls.env.ref(xmlid).id, 'company_id': company.id,
                 })
@@ -67,6 +67,12 @@ class TestHrFinanceCompanyIsolation(CompanyIsolationCase):
         self.assertIsNone(body['items'][0]['analytic_account'])
         settings = self.assertVisible('/api/v1/hr/payroll/finance-settings').json()
         self.assertIsNone(settings['default_analytic_account'])
+        saved = self.api('PATCH', '/api/v1/hr/payroll/finance-settings',
+                         json={'default_analytic_account_id': self.analytic['p1'].id})
+        self.assertEqual(saved.status_code, 422, saved.text[:200])
+        self.env_in(self.company_p1)
+        settings = self.assertVisible('/api/v1/hr/payroll/finance-settings').json()
+        self.assertEqual(settings['default_analytic_account']['id'], self.analytic['p1'].id)
 
 
 exempt_isolation_route(
