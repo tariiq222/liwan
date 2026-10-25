@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Invoice } from '@webvue/commercial-contracts'
-import { formatSubscriptionMoney, refusalKey, subscriptionInvoiceView } from '../subscription'
+import { formatSubscriptionMoney, refusalCode, refusalKey, subscriptionInvoiceView } from '../subscription'
 
 const money = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
 const t = (key: string) => `t:${key}`
@@ -36,6 +36,15 @@ describe('subscriptionInvoiceView', () => {
     expect(subscriptionInvoiceView(invoice, t, 'ar').totals.map(row => row.label)).toEqual([
       't:subscription.invoices.subtotal', 't:subscription.invoices.tax', 't:subscription.invoices.total',
     ])
+  })
+})
+
+describe('refusalCode', () => {
+  it('reads the body the BFF createError produces, at either nesting level', () => {
+    expect(refusalCode({ data: { data: { code: 'tenant_upgrade_required' } } })).toBe('tenant_upgrade_required')
+    expect(refusalCode({ data: { code: 'tenant_binding_unavailable' } })).toBe('tenant_binding_unavailable')
+    expect(refusalCode(new Error('x'))).toBeNull()
+    expect(refusalKey(refusalCode({ data: { data: { code: 'tenant_upgrade_required' } } }))).toBe('subscription.trial.upgradeRequired')
   })
 })
 

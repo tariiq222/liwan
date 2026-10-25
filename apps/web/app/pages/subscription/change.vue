@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Quote } from '@webvue/commercial-contracts'
 import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
-import { QUOTE_IS_EXPIRED, refusalKey, safeIdemAction, safePaymentRedirect } from '@/utils/subscription'
+import { QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.manage'))
@@ -109,8 +109,9 @@ async function startTrial() {
     api.done(safeIdemAction('change', data.value?.sub?.id ?? '', data.value?.sub?.revision ?? 0, JSON.stringify(value)))
     await navigateTo({ path: '/subscription/status', query: { order: result.order.id } })
   } catch (cause: any) {
-    notice.value = refusalKey(cause?.data?.code) ? 'refused' : 'start'
-    refusal.value = refusalKey(cause?.data?.code)
+    const key = refusalKey(refusalCode(cause))
+    notice.value = key ? 'refused' : 'start'
+    refusal.value = key
   } finally { busy.value = false }
 }
 async function accept() {

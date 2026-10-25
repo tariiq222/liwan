@@ -89,12 +89,16 @@ class FakeRunner:
 
 
 def applied_state(request, **over):
+    """Mirror what the real apply writes, so post-apply verify is exercised honestly."""
     ent = request['entitlement']
     branches = [{'branch_id': b['branch_id'], 'state': 'active', 'odoo_company_id': 7 + i,
                  'active': True, 'parent_is_root': True} for i, b in enumerate(request['branches']['apply'])]
+    base = dict(commercial_valid_until=request.get('commercial_valid_until'),
+                commercial_valid_until_revision=request.get('commercial_valid_until_revision', 0))
+    base.update(over)
     return observation(commercial_revision_id=TARGET, commercial_digest=ent['digest'],
                        features=dict(ent['features']), branches=branches,
-                       modules=sorted(ent['modules']), **over)
+                       modules=sorted(ent['modules']), **base)
 
 
 class Base(unittest.TestCase):
@@ -158,18 +162,18 @@ class ReconfigureTests(Base):
 
     def test_writes_the_commercial_expiry(self):
         request = make_request(commercial_valid_until='2026-11-08', commercial_valid_until_revision=1)
-        runner = FakeRunner(observation(), apply_state=applied_state(request, commercial_valid_until='2026-11-08', commercial_valid_until_revision=1))
+        runner = FakeRunner(observation(), apply_state=applied_state(request))
         self.effect(runner).reconfigure(request)
         script = [item for item in runner.scripts if item[0] == 'apply'][-1][2]
         values = _script_values(script)
         self.assertEqual(values['commercial_valid_until'], '2026-11-08')
+        self.assertEqual(values['commercial_valid_until_revision'], 1)
         self.assertIn("if 'commercial_valid_until' in values:", script)
         self.assertIn("'commercial_valid_until_revision': wanted_revision", script)
 
     def test_clears_the_commercial_expiry_when_requested(self):
         request = make_request(commercial_valid_until=None, commercial_valid_until_revision=2)
-        state = applied_state(request, commercial_valid_until_revision=2)
-        state['commercial_valid_until'] = None
+        state = applied_state(request)
         runner = FakeRunner(observation(commercial_valid_until='2026-11-08', commercial_valid_until_revision=1), apply_state=state)
         self.effect(runner).reconfigure(request)
         self.assertEqual(runner.applies, 1)
@@ -190,6 +194,13 @@ class ReconfigureTests(Base):
             self.effect(runner).reconfigure(request)
         self.assertEqual(str(ctx.exception), 'commercial_expiry_revision_stale')
         self.assertEqual(runner.applies, 0)
+
+    def test_reports_unsupported_when_only_the_date_field_exists(self):
+        request = make_request(commercial_valid_until='2026-11-08', commercial_valid_until_revision=1)
+        runner = FakeRunner(observation(commercial_expiry_supported=False))
+        with self.assertRaises(EffectError) as ctx:
+            self.effect(runner).reconfigure(request)
+        self.assertEqual(str(ctx.exception), 'tenant_upgrade_required')
 
     def test_refuses_to_write_the_expiry_on_an_unupgraded_tenant(self):
         request = make_request(commercial_valid_until='2026-11-08')

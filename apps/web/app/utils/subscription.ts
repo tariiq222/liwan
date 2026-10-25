@@ -31,6 +31,13 @@ export function usageFigure(metric: UsageMetric, freshness: UsageSnapshot['fresh
   return { value: known ? metric.used : null, limit: metric.limit, known, stale: known && freshness === 'stale' }
 }
 
+/** The refusal code `createError({statusCode,data})` produces on the client: the body is nested one level. */
+export function refusalCode(cause: unknown): string | null {
+  const e = cause as { data?: { code?: string; data?: { code?: string } } } | null
+  const code = e?.data?.data?.code ?? e?.data?.code
+  return typeof code === 'string' ? code : null
+}
+
 /** Refusal codes that need a specific explanation; everything else falls back to the generic message. */
 export function refusalKey(code: unknown): string | null {
   return code === 'tenant_upgrade_required' || code === 'tenant_binding_unavailable' || code === 'trial_order_unavailable'

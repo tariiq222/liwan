@@ -7,7 +7,7 @@
 
 ## What must be deployed, in this order
 
-1. **Odoo image** carrying `webvue_platform 19.0.1.6.0` **and** the matching `tools/` tree
+1. **Odoo image** carrying `webvue_platform 19.0.1.7.0` **and** the matching `tools/` tree
    (`tools/shared_saas_lifecycle/subscription_effect.py`, `tools/webvue_cli/operator.py`).
 2. **Each tenant database** upgraded (`-u webvue_platform`) so the column exists.
 3. **Control plane** that sends `commercial_valid_until` in the reconfigure authority.
@@ -38,7 +38,9 @@ WHERE table_name = 'webvue_tenant_profile' AND column_name = 'commercial_valid_u
 SELECT id, valid_until, commercial_valid_until FROM webvue_tenant_profile;
 ```
 
-Expected: one row, the column exists and is nullable, `valid_until` unchanged. Do not write
+Expected: one row, both `commercial_valid_until` and `commercial_valid_until_revision` exist and are
+nullable/defaulted, `valid_until` unchanged. A tenant upgraded only to 19.0.1.6.0 reports the
+feature unsupported and refuses a dated push instead of failing later. Do not write
 either column by hand; the only writers are the effect and the entitlement operator with
 their contexts.
 
@@ -62,7 +64,7 @@ keeps access until that date; afterwards Odoo answers `403` on every route excep
 
 | Symptom | Cause | Action |
 | --- | --- | --- |
-| Job fails `tenant_upgrade_required` | tenant not on 19.0.1.6.0 | upgrade the tenant, then re-drive the date (extend/end from the console or retry the job) |
+| Job fails `tenant_upgrade_required` | tenant not on 19.0.1.7.0 (the write needs `commercial_valid_until_revision`, added there) | upgrade the tenant, then re-drive the date (extend/end from the console or retry the job) |
 | Job `needs_intervention` | binding drift, stale target, worker failure | inspect the job; fix the registry binding; re-push by extending/ending, or clear explicitly |
 | `tenant_binding_unavailable` / `trial_order_unavailable` on extend/end | no enabled binding, or no applied order to attach the job to | fix the registry binding or let fulfilment apply the order, then repeat the action; the mutation is refused rather than silently unpushed |
 | Console says extended, Odoo date is old | push never applied | same as above; do not tell the customer it is extended until the profile matches |

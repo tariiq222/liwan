@@ -146,7 +146,8 @@ def collect(profile):
             'commercial_applied_at': str(profile.commercial_applied_at) if profile.commercial_applied_at else None,
             'commercial_valid_until': str(profile.commercial_valid_until) if getattr(profile, 'commercial_valid_until', None) else None,
             'commercial_valid_until_revision': int(getattr(profile, 'commercial_valid_until_revision', 0) or 0),
-            'commercial_expiry_supported': hasattr(profile, 'commercial_valid_until'),
+            'commercial_expiry_supported': (hasattr(profile, 'commercial_valid_until')
+                                            and hasattr(profile, 'commercial_valid_until_revision')),
             'features': feats, 'modules': modules, 'branches': branches, 'usage': usage, 'limit_gates': gates}
 
 def read_profile():
@@ -260,8 +261,8 @@ def build_apply_script(request):
               'admin_login': request.get('admin_login')}
     if 'commercial_valid_until' in request:
         values['commercial_valid_until'] = request['commercial_valid_until']
-    request_values = dict(request)
-    request_values['admin_login'] = request.get('admin_login')
+    if 'commercial_valid_until_revision' in request:
+        values['commercial_valid_until_revision'] = request['commercial_valid_until_revision']
     return _prefix(values) + _COMMON + _APPLY_BODY + _TAIL
 
 
@@ -464,7 +465,8 @@ class SubscriptionEffect:
             if request.get('commercial_valid_until') is not None:
                 raise EffectError('tenant_upgrade_required')
             # Clearing an expiry that cannot exist on an old tenant is a no-op, not a failed order.
-            request = {key: value for key, value in request.items() if key != 'commercial_valid_until'}
+            request = {key: value for key, value in request.items()
+                       if key not in ('commercial_valid_until', 'commercial_valid_until_revision')}
         current = observed['commercial_revision_id']
         if current not in (None, request['previous_revision_id'], target):
             raise EffectError('stale_target')
