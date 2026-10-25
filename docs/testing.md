@@ -9,6 +9,47 @@ webvue has four test layers. Pick the cheapest one that proves the change.
 | 3. Playwright mock specs | Page behaviour against the mock API, no model needed | `cd apps/web && npm run test:e2e` (CI step `e2e-mock`) |
 | 4. Agentic e2e | Whole user journeys through the real UI | `npm run e2e` / `npm run e2e:smoke` |
 
+## Finance close race drill
+
+The CLI `--timeout` is a total wall-clock budget for both authentications, the barrier, close requests and bounded body reads; it is not a per-socket timeout.
+
+This is a **manual scratch-only drill**, not a CI test or release gate. Never run it against a live/customer database. Use a disposable clone of the Odoo test template and bind the server only to loopback. Seed one company with the Saudi chart, an open fiscal year containing balanced posted activity, and a manager assigned `finance.closing.manage` (plus `finance.setup.manage`, as required by the close route).
+
+1. From the Odoo environment, clone the local test template (substitute the actual template database name):
+
+   ```sh
+   createdb --template=webvue_test_template webvue_scratch_finance_race
+   ```
+
+2. Seed and commit the fixture through `odoo-bin shell` with the selected worktree addon path. Use a local seed script which creates the company, loads the chart, posts balanced entries dated within the open year, creates the manager, assigns the finance manager role, and confirms the year remains open:
+
+   ```sh
+   "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" shell --no-http \\
+     --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons,$OCA_PATH" \\
+     -d webvue_scratch_finance_race < /path/to/scratch-seed.py
+   ```
+
+3. Start Odoo on an available loopback port, with only the scratch DB and isolated data/log paths:
+
+   ```sh
+   "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" \\
+     --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons,$OCA_PATH" \\
+     -d webvue_scratch_finance_race --db-filter='^webvue_scratch_finance_race$' \\
+     --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \\
+     --http-interface=127.0.0.1 --http-port=8178 --workers=0 --max-cron-threads=0
+   ```
+
+4. Run the tool with the manager credentials; do not put them in scripts or logs:
+
+   ```sh
+   python3 tools/finance_close_race.py \\
+     --base-url http://127.0.0.1:8178 --db webvue_scratch_finance_race \\
+     --login finance_race_manager --password "$RACE_PASSWORD" --year 2025 \\
+     --timeout 30 --json-out "$SCRATCH_ROOT/race-result.json"
+   ```
+
+   It authenticates two independent cookie sessions, synchronizes the close calls, and exits 0 only for one success plus one structured 422 `already_closed` refusal. Preserve result/logs as scratch evidence, stop the harness server afterward, and never point it at a live database.
+
 ## Node version
 
 `.nvmrc` pins Node **24.15.0**, matching the workspace lockfile. Select that
