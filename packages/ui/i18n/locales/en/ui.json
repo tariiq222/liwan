@@ -42,7 +42,13 @@
     "modules": "Modules",
     "railApps": "Applications",
     "railTools": "Tools",
-    "breadcrumb": "Breadcrumb"
+    "breadcrumb": "Breadcrumb",
+    "apps": "Applications",
+    "collapseContext": "Collapse sidebar",
+    "expandContext": "Expand sidebar",
+    "quickActionsList": "Page actions",
+    "quickViews": "Quick views and actions",
+    "quickViewsList": "Quick views"
   },
   "states": {
     "bulkActions": "Actions on selected rows",

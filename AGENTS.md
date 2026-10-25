@@ -63,7 +63,8 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
   HR documents and the `{items, total}` list envelopes.
 - Presentation (pages, the one route-backed create panel `SharedCreatePanel`,
   and the four overlay exceptions: search, notification bell, unsaved draft, the assistant sheet)
-  follows DESIGN.md. `/new` routes open that panel; records and edits are
+  follows DESIGN.md. `/new` routes open that panel, except the approved inline
+  conversation creation at `/chat/new`; records and edits are
   pages. Task board view is `?view=board`. Keep direct links, refresh/back,
   filters, permissions and draft protection. Do not stack business dialogs.
   Confirm destructive actions inline. Value-selection menus are controls, not
@@ -276,7 +277,7 @@ cross-addon links.
 ## Product contracts
 
 - Presentation follows DESIGN.md (pages, the route-backed `SharedCreatePanel`
-  for `/new`, and the overlay exceptions: search, notification bell, unsaved
+  for `/new` except inline `/chat/new`, and the overlay exceptions: search, notification bell, unsaved
   draft). Keep stable routes, visible headings, direct-link/refresh support,
   and back navigation that preserves list filters. Task board view is
   `?view=board`. Destructive actions use explicit inline confirmation. Do not
@@ -308,14 +309,22 @@ cross-addon links.
   after the `finance.zatca.manage` / `finance.zatca.submit` capability and current-company checks,
   in the sandbox api mode only (ZATCA onboarding is sandbox-only in this phase, so production invoicing for real
   tenants is a release blocker until the preprod/prod policy is approved).
-  `webvue_api` uses it only in `controllers/common.py`, for the single company-ownership
+  `webvue_api` uses it in `controllers/common.py`, for the single company-ownership
   read in `get_record`, before any access check, so another company's record answers the
-  same 404 not-found as a missing one instead of a 403 that leaks its existence. Do not add
+  same 404 not-found as a missing one instead of a 403 that leaks its existence; in
+  `controllers/branding.py`, for the one tenant-profile read behind the public
+  `/api/v1/branding` route, which has no session to authorize it; in
+  `controllers/auth.py` and `serializers/user.py`, for the entitlement service's
+  suspension and self-service checks; and in `controllers/commercial.py`, for the
+  tenant-profile mode read that answers the commercial routes. Each of those reads a
+  platform service or singleton, never an application record.
+  Do not add
   another case without documenting it and fixing ACLs/rules where possible.
   Documented cases are listed per file in `tools/arch_documented_sudo.json`, outside the
   shrink-only baseline. Adding one or raising its count needs the owner's
   `Architecture-approved-by:` trailer on the commit that changes that file, like
-  `tools/arch_layers.json`; agents never add that trailer.
+  `tools/arch_layers.json`; agents never add that trailer. Removing a case lowers the
+  baseline and needs no trailer.
 - The current delivery scope has no time logging product surface: do not add `hr_timesheet`
   or timesheet fields/endpoints to the customer UI; adding them requires a separately scoped
   implementation request. Payroll is approved (owner decision 2026-10-19) as the Saudi payroll

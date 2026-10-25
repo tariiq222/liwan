@@ -28,16 +28,11 @@
     "viewAll": "عرض الكل"
   },
   "nav": {
-    "quickViews": "عروض وإجراءات سريعة",
-    "quickViewsList": "العروض السريعة",
-    "quickActionsList": "إجراءات الصفحة",
     "today": "اليوم",
     "tasks": "مهام المشاريع المسندة إليّ",
     "projects": "المشاريع",
     "toggleNavigation": "فتح أو إغلاق التنقل",
     "header": "رأس التطبيق",
-    "collapseContext": "طي القائمة الجانبية",
-    "expandContext": "توسيع القائمة الجانبية",
     "context": "التنقل السياقي",
     "assistantSheet": {
       "region": "لوحة المساعد",
@@ -112,7 +107,9 @@
     "meetingFollowup": "المتابعة",
     "meetingSeriesShort": "الدورية",
     "finance": "المالية",
-    "apps": "التطبيقات"
+    "viewAll": "عرض الكل",
+    "listOf": "قائمة {name}",
+    "overview": "نظرة عامة"
   },
   "auth": {
     "username": "اسم المستخدم",

@@ -22,5 +22,5 @@ test('admin logs in and lands on the app shell', async ({ page }) => {
   // Login lands on the first section the user may open (accessPolicy.firstAllowedPath).
   await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
   await expect(page.getByTestId('module-rail').getByRole('link', { name: 'المشاريع', exact: true })).toHaveAttribute('href', '/projects')
-  await expect(page.getByTestId('context-sidebar').getByRole('link', { name: 'مهامي', exact: true })).toHaveAttribute('href', '/tasks')
+  await expect(page.getByTestId('application-navigation').getByRole('link', { name: 'مهامي', exact: true })).toHaveAttribute('href', '/tasks')
 })

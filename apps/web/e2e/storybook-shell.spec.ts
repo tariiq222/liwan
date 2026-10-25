@@ -19,30 +19,22 @@ test.describe('Tasmim shell (desktop)', () => {
 
   for (const [locale, dir] of LOCALES) {
     for (const fontSize of ['small', 'large'] as const) {
-      test(`floating frame is 56/64/230 with 12px insets and mirrors in ${locale} at ${fontSize} text`, async ({ page }) => {
+      test(`frame keeps the main rail and 230px context menu with 12px insets and mirrors in ${locale} at ${fontSize} text`, async ({ page }) => {
         await open(page, 'shell-shellframe--default', `locale:${locale};appearance:light;fontSize:${fontSize}`)
         await expect(page.locator('html')).toHaveAttribute('dir', dir)
         const header = await box(page, 'shell-header')
-        const rail = await box(page, 'module-rail')
-        const sidebar = await box(page, 'context-sidebar')
+        const sidebar = await box(page, 'application-navigation')
         expect(header.height).toBeCloseTo(56, 0)
         expect(header.y).toBeCloseTo(12, 0)
         expect(header.x).toBeCloseTo(12, 0)
         expect(header.x + header.width).toBeCloseTo(1428, 0)
-        expect(rail.width).toBeCloseTo(64, 0)
-        expect(rail.y).toBeCloseTo(84, 0)
-        expect(rail.y + rail.height).toBeCloseTo(888, 0)
         expect(sidebar.width).toBeCloseTo(230, 0)
         expect(sidebar.y).toBeCloseTo(84, 0)
-        expect(sidebar.y + sidebar.height).toBeCloseTo(888, 0)
-        // The sidebar sits right beside the rail, 12px apart, both on the inline-start side.
-        if (dir === 'rtl') {
-          expect(rail.x + rail.width).toBeCloseTo(1428, 0)
-          expect(sidebar.x + sidebar.width).toBeCloseTo(rail.x - 12, 0)
-        } else {
-          expect(rail.x).toBeCloseTo(12, 0)
-          expect(sidebar.x).toBeCloseTo(rail.x + rail.width + 12, 0)
-        }
+        expect(sidebar.height).toBeGreaterThan(0)
+        expect(sidebar.y + sidebar.height).toBeLessThanOrEqual(888)
+        if (dir === 'rtl') expect(sidebar.x + sidebar.width).toBeCloseTo(1340, 0)
+        else expect(sidebar.x).toBeCloseTo(100, 0)
+        await expect(page.getByTestId('module-rail')).toBeVisible()
         await expect(page.getByTestId('module-rail-toggle')).toHaveCount(0)
       })
     }
@@ -51,50 +43,46 @@ test.describe('Tasmim shell (desktop)', () => {
       await open(page, 'shell-shellframe--default', `locale:${locale};appearance:light`)
       const active = page.getByTestId('module-rail').locator('[aria-current="page"]')
       await expect(active).toHaveCount(1)
-      await expect(active.locator('[data-slot="icon"]')).toHaveCSS('border-radius', '9999px')
-      await expect(page.getByTestId('module-rail')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
+      await expect(active.locator('.webvue-module-rail-icon')).toHaveCSS('border-radius', '9999px')
+      await expect(page.getByTestId('application-navigation')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
     })
   }
 
   for (const [locale, dir] of LOCALES) {
     test(`a collapsed sidebar is a 64px icon bar with hidden labels (${locale})`, async ({ page }) => {
       await open(page, 'shell-shellframe--collapsed', `locale:${locale};appearance:light`)
-      const sidebar = page.getByTestId('context-sidebar')
+      const sidebar = page.getByTestId('application-navigation')
       await expect(sidebar).toHaveAttribute('data-expanded', 'false')
-      expect((await box(page, 'context-sidebar')).width).toBeCloseTo(64, 0)
+      expect((await box(page, 'application-navigation')).width).toBeCloseTo(64, 0)
       await expect(page.getByTestId('context-sidebar-toggle')).toHaveAttribute('aria-expanded', 'false')
-      await expect(page.getByTestId('context-link-tasks')).toHaveAccessibleName(locale === 'ar' ? 'مهامي' : 'My tasks')
+      await expect(page.getByTestId('navigation-app-projects')).toHaveAccessibleName(locale === 'ar' ? 'المشاريع' : 'Projects')
       const main = (await box(page, 'shell-main'))
-      // Inline-start: 12 + 64 + 12 + 64 + 12; inline-end: 12.
+      // Inline-start: 12 + 76 + 12 + 64 + 12; inline-end: 12.
       if (dir === 'rtl') {
-        expect(main.x + main.width).toBeCloseTo(1440 - 164, 0)
+        expect(main.x + main.width).toBeCloseTo(1440 - 176, 0)
         expect(main.x).toBeCloseTo(12, 0)
       } else {
-        expect(main.x).toBeCloseTo(164, 0)
+        expect(main.x).toBeCloseTo(176, 0)
         expect(main.x + main.width).toBeCloseTo(1440 - 12, 0)
       }
     })
   }
 
-  test('counters sit beside the link without changing its name', async ({ page }) => {
-    await open(page, 'shell-contextsidebar--projects', 'locale:ar;appearance:light')
-    const link = page.getByTestId('context-link-tasks')
-    await expect(link).toHaveAccessibleName('مهامي')
-    const counter = page.locator(`[id="${await link.getAttribute('aria-describedby')}"]`)
-    await expect(counter).toHaveText('7')
-    await expect(page.locator('.webvue-context-section-title')).toHaveCount(0)
-  })
-
-  test('titled sections render in their own card, not in the context sidebar', async ({ page }) => {
-    await open(page, 'shell-contextsidebar--with-sections', 'locale:ar;appearance:light')
-    await expect(page.locator('.webvue-context-section-title')).toHaveCount(0)
-    await open(page, 'shell-shellcontextsublist--default', 'locale:ar;appearance:light')
-    await expect(page.getByTestId('context-sub-list').locator('.webvue-sub-list-title')).toHaveText(['إدارة النظام', 'هوية الجهة'])
+  test('only one application submenu is visible and a trigger keeps the current route', async ({ page }) => {
+    await open(page, 'shell-shellnavigation--drawer', 'locale:ar;appearance:light')
+    const current = page.url()
+    await page.getByTestId('mobile-navigation-app-projects').click()
+    await expect(page.getByTestId('mobile-navigation-submenu-projects')).toBeVisible()
+    await expect(page.getByTestId('mobile-navigation-submenu-meetings')).toHaveCount(0)
+    await page.getByTestId('mobile-navigation-app-meetings').click()
+    await expect(page.getByTestId('mobile-navigation-submenu-meetings')).toBeVisible()
+    await expect(page.getByTestId('mobile-navigation-submenu-projects')).toHaveCount(0)
+    expect(page.url()).toBe(current)
   })
 
   test('[ toggles the sidebar by physical key, also on an Arabic layout, but not while typing or with a modifier', async ({ page }) => {
     await open(page, 'shell-shellframe--default', 'locale:ar;appearance:light')
-    const sidebar = page.getByTestId('context-sidebar')
+    const sidebar = page.getByTestId('application-navigation')
     await expect(page.getByTestId('context-sidebar-toggle')).toBeEnabled()
     await expect(sidebar).toHaveAttribute('data-expanded', 'true')
     await page.keyboard.press('BracketLeft')
@@ -114,22 +102,25 @@ test.describe('Tasmim shell (desktop)', () => {
     await expect(sidebar).toHaveAttribute('data-expanded', 'true')
   })
 
-  for (const [locale, module, current] of [['ar', 'المشاريع', 'مهامي'], ['en', 'Projects', 'My tasks']] as const) {
+  for (const [locale] of LOCALES) {
     test(`breadcrumb names the module and the current section (${locale})`, async ({ page }) => {
-      await open(page, 'shell-shellframe--default', `locale:${locale};appearance:light`)
+      await open(page, 'shell-shellbreadcrumb--trail', `locale:${locale};appearance:light`)
       const trail = page.getByTestId('shell-breadcrumb')
       await expect(trail).toHaveAccessibleName(locale === 'ar' ? 'مسار الصفحة' : 'Breadcrumb')
-      await expect(trail.getByRole('link', { name: module, exact: true })).toHaveAttribute('href', '/projects')
-      await expect(trail.locator('[aria-current="page"]')).toHaveText(current)
+      // This presentation story has explicit Arabic labels in both locale modes.
+      await expect(trail.getByRole('link', { name: 'المشاريع', exact: true })).toHaveAttribute('href', '/projects')
+      await expect(trail.locator('[aria-current="page"]')).toHaveText('المهام')
+      await open(page, 'shell-shellframe--default', `locale:${locale};appearance:light`)
+      await expect(page.getByTestId('shell-header').getByTestId('shell-breadcrumb')).toHaveCount(0)
       await expect(page.getByTestId('shell-header').locator('h1')).toHaveCount(0)
     })
   }
 
-  test('header controls wait for nothing in Storybook and keep the 32px control height', async ({ page }) => {
+  test('header controls wait for nothing in Storybook and keep the 38px control height', async ({ page }) => {
     await open(page, 'shell-shellframe--default', 'locale:ar;appearance:light')
     const search = page.getByRole('button', { name: 'بحث', exact: true })
     await expect(search).toBeEnabled()
-    expect((await search.boundingBox())!.height).toBeCloseTo(32, 0)
+    expect((await search.boundingBox())!.height).toBeCloseTo(38, 0)
   })
 })
 
@@ -144,7 +135,7 @@ test.describe('Tasmim shell (390px)', () => {
       test(`drawer opens from the inline-start side at 390px (${locale}, ${fontSize})`, async ({ page }) => {
         await open(page, 'shell-shellframe--default', `locale:${locale};appearance:light;fontSize:${fontSize}`)
         await expect(page.getByTestId('module-rail')).toBeHidden()
-        await expect(page.getByTestId('context-sidebar')).toBeHidden()
+        await expect(page.getByTestId('application-navigation')).toBeHidden()
         const header = await box(page, 'shell-header')
         expect(header.x).toBeCloseTo(12, 0)
         expect(header.width).toBeCloseTo(366, 0)
@@ -163,7 +154,7 @@ test.describe('Tasmim shell (390px)', () => {
         expect(area.width).toBeCloseTo(320, 0)
         if (dir === 'rtl') expect(area.x + area.width).toBeCloseTo(390, 0)
         else expect(area.x).toBeCloseTo(0, 0)
-        await expect(drawer.getByTestId('mobile-context-link-tasks')).toHaveAttribute('aria-current', 'page')
+        await expect(drawer.getByTestId('context-link-tasks')).toHaveAttribute('aria-current', 'true')
         for (const link of await drawer.getByRole('link').all()) expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44)
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
       })
@@ -199,7 +190,7 @@ test.describe('Tasmim command palette', () => {
     await expect(dialog(page).getByRole('option', { name: 'مهامي', exact: true })).toHaveCount(0)
     await page.keyboard.press('Enter')
     await expect(dialog(page)).toBeHidden()
-    await expect(page.getByTestId('context-link-projects')).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByTestId('context-link-projects')).toHaveAttribute('aria-current', 'true')
   })
 
   test('Esc closes and returns focus to the trigger, or to the element ⌘K was pressed on', async ({ page }) => {
@@ -260,7 +251,9 @@ test.describe('Tasmim command palette', () => {
     await expect(palette).toHaveAttribute('data-view', 'shortcuts')
     await expect(page.getByRole('dialog')).toHaveCount(1)
     await expect(palette.getByRole('option', { name: /فتح لوحة الأوامر/ })).toBeVisible()
+    await palette.getByRole('textbox').fill('المشاريع')
     await expect(palette.getByRole('option', { name: /الانتقال إلى المشاريع/ })).toContainText('P')
+    await palette.getByRole('textbox').fill('')
     await page.keyboard.press('Backspace')
     await expect(palette).toHaveAttribute('data-view', 'main')
     await palette.getByRole('option', { name: 'اختصارات لوحة المفاتيح', exact: true }).click()

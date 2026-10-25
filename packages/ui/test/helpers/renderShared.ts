@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { dirname, isAbsolute, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { compileScript, parse } from '@vue/compiler-sfc'
@@ -68,14 +68,27 @@ export const DEFAULT_STUBS: Record<string, Vue.Component> = {
   NuxtLink: passthrough('a'),
 }
 
-/** Compiles packages/ui/app/components/shared/<group>/<name>.vue with Nuxt's auto-imports stubbed, as the sibling tests do. */
-export function loadShared(name: string, options: SharedRenderOptions = {}): Vue.Component {
-  const filename = sharedFile(name)
+/** Compile output depends only on the file bytes, so one compile per file per process is enough. */
+const compiledByFile = new Map<string, { stamp: string, code: string }>()
+
+/** Compiles one .vue file and remembers the result under its current file stamp. */
+function compileSfc(filename: string, name: string, stamp: string): string {
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const compiled = compileScript(descriptor, { id: `shared-${name}`, inlineTemplate: true }).content
   const code = ts.transpileModule(compiled, {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
   }).outputText
+  compiledByFile.set(filename, { stamp, code })
+  return code
+}
+
+/** Compiles packages/ui/app/components/shared/<group>/<name>.vue with Nuxt's auto-imports stubbed, as the sibling tests do. */
+export function loadShared(name: string, options: SharedRenderOptions = {}): Vue.Component {
+  const filename = sharedFile(name)
+  const { mtimeMs, size } = statSync(filename)
+  const stamp = `${mtimeMs}:${size}`
+  const cached = compiledByFile.get(filename)
+  const code = cached?.stamp === stamp ? cached.code : compileSfc(filename, name, stamp)
   const exports: { default?: Vue.Component } = {}
   const require = (specifier: string): unknown => {
     if (specifier === 'vue') return Vue

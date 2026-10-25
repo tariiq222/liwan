@@ -13,7 +13,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
-  name: 'الشريط والقائمة السياقية',
+  name: 'قائمة التطبيقات الموحّدة',
   parameters: storyContext('apps/web/app/layouts/default.vue:74'),
   loaders: [async () => { await __getRouter()!.replace('/projects'); return {} }],
   render: () => ({ components: { AppSidebar }, template: '<div class="webvue-shell min-h-svh"><AppSidebar /></div>' }),

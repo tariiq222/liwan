@@ -27,7 +27,7 @@ test.describe('Tasmim context sidebar', () => {
   test('collapse survives a reload and is server-rendered before hydration', async ({ page, context }) => {
     await context.clearCookies({ name: 'webvue-context-sidebar' })
     await page.goto('/tasks')
-    const sidebar = page.getByTestId('context-sidebar')
+    const sidebar = page.getByTestId('application-navigation')
     const toggle = page.getByTestId('context-sidebar-toggle')
     await expect(toggle).toBeEnabled()
     await expect(sidebar).toHaveAttribute('data-expanded', 'true')
@@ -48,7 +48,7 @@ test.describe('Tasmim context sidebar', () => {
 
   test('[ toggles the sidebar by physical key, also on an Arabic layout, but not while typing', async ({ page }) => {
     await page.goto('/tasks')
-    const sidebar = page.getByTestId('context-sidebar')
+    const sidebar = page.getByTestId('application-navigation')
     await expect(page.getByTestId('context-sidebar-toggle')).toBeEnabled()
     const start = (await sidebar.getAttribute('data-expanded'))!
     const flipped = start === 'true' ? 'false' : 'true'
@@ -107,7 +107,7 @@ test.describe('Tasmim mobile drawer', () => {
     await expect(drawer).toBeVisible()
     const area = (await drawer.boundingBox())!
     expect(Math.abs(area.x + area.width - 390)).toBeLessThanOrEqual(1)
-    await drawer.getByRole('link', { name: 'المشاريع', exact: true }).click()
+    await drawer.getByRole('link', { name: 'عرض الكل', exact: true }).click()
     await expect(page).toHaveURL(/\/projects$/)
     await expect(drawer).toBeHidden()
     await expect(trigger).toHaveAttribute('aria-expanded', 'false')

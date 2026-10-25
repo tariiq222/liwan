@@ -21,6 +21,17 @@
 :root {
   color-scheme: light;
   font-size: 14px;
+  /* Shared motion also reaches portaled controls outside the shell. */
+  --webvue-motion-feedback: 150ms;
+  --webvue-motion-panel: 200ms;
+  --webvue-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --webvue-motion-color-ease: ease;
+  --webvue-motion-inline-distance: 16px;
+  /* Shared navigation geometry keeps the submenu guide on the parent icon centre in either direction. */
+  --webvue-nav-row-inset: 8px;
+  --webvue-nav-chip-size: 28px;
+  --webvue-nav-submenu-chip-size: 20px;
+  --webvue-nav-submenu-indent: 20px;
   /* Official Nuxt UI radius token: 6px base (Apple-style soft corners), so rounded-md = 9px, rounded-lg = 12px and rounded-xl = 18px. */
   --ui-radius: 0.428571rem;
   /* Fixed WebVue primary family; nothing overwrites it at runtime. */
@@ -168,6 +179,14 @@
   --webvue-ui-z-sheet: 60;
   --webvue-ui-z-menu: 130;
 }
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --webvue-motion-feedback: 0ms;
+    --webvue-motion-panel: 0ms;
+    --webvue-motion-inline-distance: 0px;
+  }
+}
+
 :root[data-font-size="medium"] { font-size: 16px; }
 :root[data-font-size="large"] { font-size: 18px; }
 :root:lang(en) { font-size: 13px; }

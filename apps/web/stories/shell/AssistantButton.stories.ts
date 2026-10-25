@@ -21,5 +21,5 @@ const render = (open: boolean) => () => ({
   template: '<div class="webvue-shell" style="padding: 24px"><AssistantButton /></div>',
 })
 
-export const Closed: Story = { name: 'مغلق', parameters: storyContext('apps/web/app/components/shell/ShellHeader.vue:86'), loaders: [at('/tasks')], render: render(false) }
-export const Open: Story = { name: 'مفتوح', parameters: storyContext('apps/web/app/components/shell/ShellHeader.vue:86', 'حلقة أولية بسماكة 2px وaria-expanded.'), loaders: [at('/tasks')], render: render(true) }
+export const Closed: Story = { name: 'مغلق', parameters: storyContext('apps/web/app/components/shell/ShellHeader.vue:79'), loaders: [at('/tasks')], render: render(false) }
+export const Open: Story = { name: 'مفتوح', parameters: storyContext('apps/web/app/components/shell/ShellHeader.vue:79', 'حلقة أولية بسماكة 2px وaria-expanded.'), loaders: [at('/tasks')], render: render(true) }

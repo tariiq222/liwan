@@ -71,8 +71,8 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
    (64px when collapsed, collapsing by itself below 1100px); one drawer below 768px. Geometry is px so
    the frame does not grow with the user's font size; text inside it uses rem. */
 .webvue-shell {
-  --shell-duration: 200ms;
-  --shell-ease: ease;
+  --shell-duration: var(--webvue-motion-panel);
+  --shell-ease: var(--webvue-motion-ease);
   --shell-inset: 12px;
   --shell-header-height: 56px;
   --shell-gap: 16px;
@@ -196,16 +196,17 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   padding: 2px;
   color: var(--webvue-rail-ink);
   text-decoration: none;
-  transition: color var(--shell-duration) ease;
+  transition: color var(--webvue-motion-feedback) var(--webvue-motion-color-ease);
 }
 .webvue-module-rail-link:hover { color: var(--webvue-rail-active-ink); }
 .webvue-module-rail-link[data-active="true"] { color: var(--webvue-rail-active-ink); font-weight: 600; }
 /* Icons live in 32px round circles; the active one is tinted and carries an 8px brand dot on its inline-start edge, ringed in the rail surface colour. */
-.webvue-module-rail-icon { position: relative; display: grid; width: 32px; height: 32px; place-items: center; border-radius: 9999px; transition: background-color var(--shell-duration) ease; }
+.webvue-module-rail-icon { position: relative; display: grid; width: 32px; height: 32px; place-items: center; border-radius: 9999px; transition: background-color var(--webvue-motion-feedback) var(--webvue-motion-color-ease); }
 .webvue-module-rail-icon .webvue-shell-icon { width: 20px; height: 20px; }
 .webvue-module-rail-link:hover .webvue-module-rail-icon { background: var(--webvue-chip); }
 .webvue-module-rail-link[data-active="true"] .webvue-module-rail-icon { background: var(--webvue-rail-active); }
-.webvue-module-rail-link[data-active="true"] .webvue-module-rail-icon::before { content: ""; position: absolute; inset-block-start: 50%; inset-inline-start: -4px; width: 8px; height: 8px; translate: 0 -50%; border-radius: 9999px; background: var(--ui-primary); box-shadow: 0 0 0 2px var(--ui-bg); }
+.webvue-module-rail-link[data-active="true"] .webvue-module-rail-icon::before,
+:is(.webvue-context-link, .webvue-quick-link)[data-active="true"] :is(.webvue-context-chip, .webvue-quick-chip)::before { content: ""; position: absolute; inset-block-start: 50%; inset-inline-start: -4px; width: 8px; height: 8px; translate: 0 -50%; border-radius: 9999px; background: var(--ui-primary); box-shadow: 0 0 0 2px var(--ui-bg); }
 .webvue-module-rail-link:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; border-radius: 14px; }
 .webvue-module-rail-link [data-slot="label"] { max-width: 100%; overflow: hidden; font-size: 12px; font-weight: inherit; line-height: 18px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 @media (forced-colors: active) {
@@ -246,22 +247,13 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   border-radius: var(--radius-card);
   color: var(--ui-text);
 }
-.webvue-context-enter-active, .webvue-context-leave-active { transition: opacity 120ms ease; }
-.webvue-context-enter-from, .webvue-context-leave-to { opacity: 0; }
-.webvue-context-sidebar-inner { display: flex; min-height: 0; flex: 0 1 auto; flex-direction: column; }
 /* The card hugs its list; a sidebar panel (chat) fills the height instead. */
 .webvue-context-sidebar[data-panel="true"][data-expanded="true"] { height: calc(100svh - var(--shell-top) - var(--shell-inset)); }
-.webvue-context-sidebar[data-panel="true"][data-expanded="true"] .webvue-context-sidebar-inner { flex: 1; }
 .webvue-context-heading { display: flex; height: 56px; flex: none; align-items: center; gap: 8px; padding-inline: 16px 12px; }
 .webvue-context-heading h2 { min-width: 0; flex: 1; margin: 0; overflow: hidden; font-size: .875rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.webvue-context-create-actions { display: flex; gap: 2px; }
-.webvue-context-create-icon { color: var(--brand-link); }
 .webvue-context-toggle { display: grid; width: 32px; height: 32px; flex: none; place-items: center; padding: 0; border-radius: 9999px; border: 1px solid var(--ui-border); color: var(--ui-text-muted); }
 .webvue-context-toggle .webvue-shell-icon { width: 16px; height: 16px; }
 .webvue-context-toggle:hover { background: var(--webvue-nav-active); color: var(--webvue-rail-active-ink); }
-.webvue-context-nav { display: flex; min-height: 0; flex: 0 1 auto; flex-direction: column; gap: 12px; overflow-y: auto; padding: 0 8px 8px; }
-.webvue-context-section { display: grid; gap: 2px; }
-.webvue-context-section-title { margin: 0; padding: 4px 12px; color: var(--ui-text-muted); font-size: .75rem; font-weight: 500; }
 .webvue-context-row, .webvue-quick-row { position: relative; display: flex; align-items: center; }
 :is(.webvue-context-link, .webvue-quick-link) {
   position: relative;
@@ -273,17 +265,17 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   gap: 10px;
   border-radius: 9999px;
   padding-block: 0;
-  padding-inline: 8px;
+  padding-inline: var(--webvue-nav-row-inset);
   color: var(--ui-text-muted);
   font-size: .875rem;
   text-align: start;
   text-decoration: none;
-  transition: background-color var(--shell-duration) ease, color var(--shell-duration) ease;
+  transition: background-color var(--webvue-motion-feedback) var(--webvue-motion-color-ease), color var(--webvue-motion-feedback) var(--webvue-motion-color-ease);
 }
 :is(.webvue-context-link, .webvue-quick-link):hover { background: var(--ui-bg-elevated); color: var(--ui-text-highlighted); }
-:is(.webvue-context-chip, .webvue-quick-chip) { display: grid; width: 28px; height: 28px; flex: none; place-items: center; border-radius: 9999px; background: var(--webvue-chip); color: var(--webvue-rail-ink); }
-/* The active chip carries the rail's brand ring, so both columns mark the current place the same way. */
-:is(.webvue-context-link, .webvue-quick-link)[data-active="true"] :is(.webvue-context-chip, .webvue-quick-chip) { background: var(--webvue-chip-active); color: var(--webvue-rail-active-ink); box-shadow: inset 0 0 0 1.5px var(--ui-primary); }
+:is(.webvue-context-chip, .webvue-quick-chip) { position: relative; display: grid; width: var(--webvue-nav-chip-size); height: var(--webvue-nav-chip-size); flex: none; place-items: center; border-radius: 9999px; background: var(--webvue-chip); color: var(--webvue-rail-ink); }
+/* Active chips share the rail's brand dot, without an outline around the icon. */
+:is(.webvue-context-link, .webvue-quick-link)[data-active="true"] :is(.webvue-context-chip, .webvue-quick-chip) { background: var(--webvue-chip-active); color: var(--webvue-rail-active-ink); }
 :is(.webvue-context-link, .webvue-quick-link)[data-active="true"] { background: var(--webvue-nav-active); color: var(--webvue-rail-active-ink); font-weight: 600; }
 :is(.webvue-context-link, .webvue-quick-link):focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
 @media (forced-colors: active) {
@@ -317,21 +309,26 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .webvue-quick-views[data-surface="drawer"] { overflow: visible; padding: 0; background: none; border: 0; border-radius: 0; }
 /* Collapsed: a 64px icon-only bar. Labels, counts, headings and create actions drop out; the toggle stays. */
 @media (min-width: 768px) {
-  .webvue-context-sidebar[data-expanded="false"] :is(.webvue-context-heading h2, .webvue-context-create-actions, .webvue-context-section-title, .webvue-context-count) { display: none; }
+  .webvue-context-sidebar[data-expanded="false"] :is(.webvue-context-heading h2, .webvue-context-count) { display: none; }
   .webvue-context-sidebar[data-expanded="false"] .webvue-context-heading { justify-content: center; padding-inline: 0; }
   .webvue-context-sidebar[data-expanded="false"] .webvue-context-link { justify-content: center; padding-inline: 0; }
   .webvue-quick-views[data-surface="card"][data-expanded="false"] :is(.webvue-quick-count, .webvue-sub-list-title) { display: none; }
   .webvue-quick-views[data-surface="card"][data-expanded="false"] .webvue-quick-link { justify-content: center; padding-inline: 0; }
   .webvue-quick-views[data-surface="card"][data-expanded="false"] .webvue-quick-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .webvue-context-sidebar[data-expanded="false"] .webvue-context-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  /* Collapsed, the ringed chip alone marks the active link: no pill behind it. */
+  /* Collapsed, the chip and dot mark the active link: no pill behind them. */
   :is(.webvue-context-sidebar[data-expanded="false"] .webvue-context-link, .webvue-quick-views[data-surface="card"][data-expanded="false"] .webvue-quick-link)[data-active="true"] { background: transparent; }
 }
 
 /* Chat pages keep their conversation layout beside the wide sidebar panel. */
-.webvue-chat-list-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px 4px; }
+.webvue-shell-main:has(.webvue-chat-create-layout) { --webvue-pad-x: 0px; --webvue-pad-top: 0px; padding: 0; }
+.webvue-chat-create-layout { height: calc(100svh - var(--shell-top)); }
+.webvue-chat-create-layout .webvue-form-footer { justify-content: flex-end; padding-block-start: 0; border-block-start: 0; }
+.webvue-chat-list-toolbar { display: flex; flex: none; align-items: center; gap: 8px; padding: 8px 12px 4px; }
 .webvue-chat-list-search { display: flex; min-width: 0; flex: 1; }
-.webvue-chat-list-filters { overflow-x: auto; padding: 0 12px 8px; scrollbar-width: thin; }
+.webvue-chat-list-filters { flex: none; min-width: 0; padding: 2px 12px 8px; }
+.webvue-chat-list-filters [data-slot="segmented-control"] { display: flex; }
+.webvue-chat-list-filters [data-slot="segmented-control"] > button { min-width: 0; min-height: var(--webvue-control-h); flex: 1 1 auto; justify-content: center; padding-inline: 4px; }
 /* One header recipe for the thread and the info aside. */
 .webvue-chat-thread-header { display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: 8px; border-block-end: 1px solid var(--ui-border); background: var(--ui-bg); padding: 8px 12px; }
 .webvue-chat-thread-search { flex: 1 1 100%; width: 100%; }
@@ -352,6 +349,74 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .webvue-chat-msg-actions { opacity: 0; }
 }
 .webvue-chat-row:hover .webvue-chat-msg-actions, .webvue-chat-row:focus-within .webvue-chat-msg-actions { opacity: 1; }
+
+/* One internal menu sits beside the unchanged application rail. */
+.webvue-navigation { height: 100%; flex: 1; }
+.webvue-navigation-list { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 4px; overflow-y: auto; padding: 0 8px 8px; scrollbar-width: none; }
+.webvue-navigation-list::-webkit-scrollbar { display: none; }
+.webvue-navigation-app { min-height: 36px; }
+.webvue-navigation-chevron { margin-inline-start: auto; color: var(--ui-text-muted); transition: rotate var(--shell-duration) var(--shell-ease); }
+.webvue-submenu-trigger { color: var(--ui-text-highlighted); font-weight: 600; }
+.webvue-submenu-trigger .webvue-quick-chip { z-index: 1; }
+/* Anchor the connector to the actual row centre, including taller touch targets and enlarged text. */
+.webvue-submenu-trigger[aria-expanded="true"]::after {
+  content: '';
+  position: absolute;
+  width: 1px;
+  inset-inline-start: calc(var(--webvue-nav-row-inset) + var(--webvue-nav-chip-size) / 2 - 0.5px);
+  inset-block-start: 50%;
+  inset-block-end: 0;
+  background: var(--ui-border);
+  pointer-events: none;
+}
+.webvue-navigation-submenu {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding-block: 4px;
+  /* Indent icon centres by 20px even though child icons have a smaller container. */
+  padding-inline-start: calc(var(--webvue-nav-submenu-indent) + (var(--webvue-nav-chip-size) - var(--webvue-nav-submenu-chip-size)) / 2);
+}
+.webvue-navigation-submenu::before {
+  content: '';
+  position: absolute;
+  width: 1px;
+  inset-inline-start: calc(var(--webvue-nav-row-inset) + var(--webvue-nav-chip-size) / 2 - 0.5px);
+  inset-block-start: 0;
+  inset-block-end: 0;
+  background: var(--ui-border);
+  pointer-events: none;
+}
+.webvue-navigation-submenu .webvue-quick-chip { width: var(--webvue-nav-submenu-chip-size); height: var(--webvue-nav-submenu-chip-size); border-radius: 0; }
+.webvue-navigation-submenu .webvue-quick-link .webvue-quick-chip { background: transparent; }
+.webvue-navigation-submenu .webvue-submenu-branch { --webvue-nav-chip-size: var(--webvue-nav-submenu-chip-size); }
+/* Nested branch icons stay plain; a surface-coloured mask keeps their guide below the glyph. */
+.webvue-navigation-submenu .webvue-submenu-trigger .webvue-quick-chip { background: var(--context-surface); }
+.webvue-navigation-submenu .webvue-submenu-trigger:hover .webvue-quick-chip { background: var(--ui-bg-elevated); }
+/* Keep the existing 8px selection dot centred on the guide, rather than attached to the child icon. */
+.webvue-navigation-submenu .webvue-quick-link[data-active="true"] .webvue-quick-chip::before { inset-inline-start: calc((var(--webvue-nav-submenu-chip-size) - 8px) / 2 - var(--webvue-nav-submenu-indent)); }
+.webvue-navigation-children { display: grid; gap: 8px; padding-block: 4px 8px; padding-inline-start: 12px; }
+.webvue-navigation-children > .webvue-quick-views + .webvue-quick-views { border-block-start: 1px solid var(--ui-border); padding-block-start: 8px; }
+.webvue-navigation-popup { width: 264px; max-height: min(640px, 80svh); overflow-y: auto; padding: 8px; }
+.webvue-navigation-popup .webvue-navigation-children { padding-inline-start: 0; }
+.webvue-navigation-panel { display: flex; height: min(480px, 55svh); min-height: 220px; flex-direction: column; overflow: hidden; }
+.webvue-navigation[data-panel-width="wide"] .webvue-navigation-children { padding-inline-start: 0; }
+/* The wide conversation panel fills the available desktop height; ordinary navigation and AI history hug their content. */
+@media (min-width: 768px) {
+  .webvue-navigation[data-surface="context"][data-panel-width="wide"][data-expanded="true"] { flex: none; }
+  .webvue-navigation[data-surface="context"][data-panel-width="wide"][data-expanded="true"] :is(
+    .webvue-navigation-list > [data-slot="root"][data-state="open"],
+    .webvue-navigation-list > [data-slot="root"][data-state="open"] > [data-slot="content"],
+    .webvue-navigation-children
+  ) { display: flex; min-height: 0; flex: 1; flex-direction: column; overflow: hidden; }
+  .webvue-navigation[data-surface="context"][data-panel-width="wide"][data-expanded="true"] .webvue-navigation-panel { height: auto; min-height: 0; flex: 1; }
+}
+.webvue-navigation[data-surface="drawer"] { height: auto; border: 0; border-radius: 0; background: transparent; overflow: visible; }
+.webvue-navigation[data-surface="drawer"] .webvue-navigation-list { overflow: visible; padding: 0; }
+.webvue-navigation[data-surface="drawer"] :is(.webvue-context-link, .webvue-quick-link) { min-height: 44px; }
+@media (prefers-reduced-motion: reduce) {
+  .webvue-navigation, .webvue-navigation *, .webvue-navigation-popup, .webvue-navigation-popup * { animation: none !important; transition: none !important; }
+}
 
 /* Workspace: leaves the rail and the context sidebar on the inline start. */
 .webvue-shell-workspace { min-height: 100svh; margin-inline: calc(var(--shell-inset) * 2 + var(--module-rail-width) + var(--context-sidebar-width) + var(--context-sidebar-gap)) var(--shell-inset); padding-block-start: calc(var(--shell-top) - var(--shell-inset)); background: var(--webvue-canvas); transition: margin-inline-start var(--shell-duration) var(--shell-ease); }
@@ -391,7 +456,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .webvue-project-workspace:has(.webvue-workspace-head) :is(.webvue-page-width-detail, .webvue-page-width-form) { margin-inline: 0; }
 /* Full-bleed only for a WIDE panel (chat owns its own scrolling layout); a default-width panel (AI history) keeps the page padding and scroll. */
 .webvue-shell:has(.webvue-context-sidebar[data-panel="true"][data-panel-width="wide"]) .webvue-shell-main { --webvue-pad-x: 0px; --webvue-pad-top: 0px; padding: 0; overflow: hidden; }
-.webvue-page-content-motion { animation: webvue-page-content-enter 150ms ease both; }
+.webvue-page-content-motion { animation: webvue-page-content-enter var(--webvue-motion-feedback) var(--webvue-motion-ease) both; }
 @keyframes webvue-page-content-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 [data-slot="table-head"] { background: color-mix(in srgb, var(--background) 80%, var(--card)); font-weight: 400; }
 [data-slot="table-row"]:last-child { border-block-end: 0; }
@@ -422,6 +487,11 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .webvue-shell-header .header-account { justify-content: center; padding-inline: 0; width: 44px; }
   .webvue-shell-workspace { margin-inline: 0; }
   .webvue-shell-main { --webvue-pad-x: 12px; --webvue-pad-top: 16px; padding: var(--webvue-pad-top) var(--webvue-pad-x) max(16px, env(safe-area-inset-bottom)); }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .webvue-shell::before { background: var(--webvue-canvas); backdrop-filter: none; }
+  .webvue-module-rail-fade { backdrop-filter: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -469,7 +539,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 /* Match the automatic narrow-desktop width before hydration without writing a preference. */
 @media (min-width: 768px) and (max-width: 1099px) {
   .webvue-shell:has(.webvue-context-sidebar[data-preference="auto"]) { --context-sidebar-width: 64px; }
-  .webvue-context-sidebar[data-preference="auto"] :is(.webvue-context-heading h2, .webvue-context-create-actions, .webvue-context-section-title, .webvue-context-count) { display: none; }
+  .webvue-navigation[data-preference="auto"] :is(.webvue-navigation-children, .webvue-navigation-chevron) { display: none; }
+  .webvue-context-sidebar[data-preference="auto"] :is(.webvue-context-heading h2, .webvue-context-count) { display: none; }
   .webvue-context-sidebar[data-preference="auto"] .webvue-context-heading { justify-content: center; padding-inline: 0; }
   .webvue-context-sidebar[data-preference="auto"] .webvue-context-link { justify-content: center; padding-inline: 0; }
   .webvue-shell:has(.webvue-context-sidebar[data-preference="auto"]) .webvue-quick-views[data-surface="card"] :is(.webvue-quick-count, .webvue-sub-list-title) { display: none; }

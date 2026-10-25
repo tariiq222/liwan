@@ -18,5 +18,7 @@ class PersonalStageController(http.Controller):
             if not service._webvue_feature_write('pmo.enabled'):
                 return []
             vals = request.env['project.task']._get_default_personal_stage_create_vals(request.env.uid)
-            stages = Stage.sudo().with_context(default_project_ids=False).create(vals).with_user(request.env.uid)
+            # `webvue_core.group_employee` implies `project.group_project_user`, whose ACL
+            # owns create on `project.task.type`, so the caller's own environment is enough.
+            stages = Stage.with_context(default_project_ids=False).create(vals)
         return [{'id': s.id, 'name': s.name, 'sequence': s.sequence, 'fold': s.fold} for s in stages]
