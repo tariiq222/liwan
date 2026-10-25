@@ -8,6 +8,7 @@ from decimal import Decimal
 from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
+from .common import set_hr_feature
 from .payroll_common import PayrollCase
 from odoo.addons.webvue_hr.models.payroll_export import FORMULA_STARTS
 from odoo.addons.webvue_hr.rules import WebVueHrRule
@@ -164,6 +165,21 @@ class TestPayrollFiles(PayrollCase):
         names = [row[1] for row in self._rows(res)[1:]]
         self.assertIn('\'=HYPERLINK("http://x")', names)
         self.assertFalse([name for name in names if name[:1] in '=+-@'])
+
+    def test_salary_files_are_never_cached_or_sniffed(self):
+        run_id = self._run()
+        for route, profile in (('bank-file', self.generic), ('wps-file', self.wps)):
+            res = self.api('GET', f'{RUNS}/{run_id}/{route}?profile_id={profile.id}')
+            self.assertEqual(res.status_code, 200, res.text)
+            self.assertEqual(res.headers['Cache-Control'], 'private, no-store', route)
+            self.assertEqual(res.headers['X-Content-Type-Options'], 'nosniff', route)
+
+    def test_salary_files_closed_with_payroll_feature_off(self):
+        run_id = self._run()
+        set_hr_feature(self, 'hr.payroll', False)
+        for route, profile in (('bank-file', self.generic), ('wps-file', self.wps)):
+            res = self.api('GET', f'{RUNS}/{run_id}/{route}?profile_id={profile.id}')
+            self.assertEqual((res.status_code, res.json()['code']), (403, 'feature_not_included'), route)
 
     def test_files_need_an_approved_run(self):
         run_id = self._run(approve=False)
