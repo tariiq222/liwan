@@ -14,10 +14,15 @@ UPDATE plan_revisions SET available=false, edit_revision=edit_revision+1 WHERE s
 
 -- Application prices live on a new revision: a published revision is immutable. The old
 -- revision is withdrawn in the same migration, so the catalog never lists one application twice.
+-- Seed a new priced revision only where the application has no sellable price at all;
+-- an application that already has one keeps it, and the unpriced duplicates are withdrawn below.
 CREATE TEMP TABLE webvue_seeded_bundle_revisions AS
-  SELECT DISTINCT ON (bundle_id) id AS old_id, bundle_id FROM bundle_revisions
-  WHERE status='published' AND available AND prices='[]'::jsonb
-  ORDER BY bundle_id, created_at DESC, id DESC;
+  SELECT DISTINCT ON (b.bundle_id) b.id AS old_id, b.bundle_id FROM bundle_revisions b
+  WHERE b.status='published' AND b.available AND b.prices='[]'::jsonb
+    AND NOT EXISTS (
+      SELECT 1 FROM bundle_revisions p
+      WHERE p.bundle_id=b.bundle_id AND p.status='published' AND p.available AND p.prices<>'[]'::jsonb)
+  ORDER BY b.bundle_id, b.created_at DESC, b.id DESC;
 
 INSERT INTO bundle_revisions(id,bundle_id,version,edit_revision,name,description,audience,audience_customer_id,catalog_release_id,selections,domain_limits,prices,status,available,content_digest,validated_digest,published_at)
 SELECT gen_random_uuid(), s.bundle_id,
@@ -31,8 +36,7 @@ SELECT gen_random_uuid(), s.bundle_id,
 FROM webvue_seeded_bundle_revisions s JOIN bundle_revisions b ON b.id=s.old_id;
 
 UPDATE bundle_revisions SET available=false, edit_revision=edit_revision+1
-WHERE status='published' AND available AND prices='[]'::jsonb
-  AND bundle_id IN (SELECT bundle_id FROM webvue_seeded_bundle_revisions);
+WHERE status='published' AND available AND prices='[]'::jsonb;
 UPDATE commercial_bundles c SET next_version = GREATEST(c.next_version,
   (SELECT max(r.version)+1 FROM bundle_revisions r WHERE r.bundle_id=c.id))
 WHERE EXISTS (SELECT 1 FROM webvue_seeded_bundle_revisions s WHERE s.bundle_id=c.id);

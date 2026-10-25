@@ -8,11 +8,13 @@
 
 1. Withdraws every published, available plan revision (`available=false`), so the catalog
    cannot list an old Starter/Business/Enterprise plan next to the new one.
-2. For every published, available bundle whose `prices` are still empty, creates a new
-   published revision with monthly and yearly placeholder prices and withdraws the old
-   revision in the same transaction. A published revision is immutable, so this is the
-   only legal way to price it. Plans that referenced the old bundle revisions are withdrawn
-   by step 1 and are not restored by this seed.
+2. Withdraws every published, available bundle whose `prices` are still empty (an
+   application with no price cannot be sold). Where the application has no sellable priced
+   revision at all, it creates a new published revision with monthly and yearly placeholder
+   prices; an application that already has a priced revision keeps it, so one application is
+   never listed twice. A published revision is immutable, so a new revision is the only legal
+   way to price one. Plans that referenced the withdrawn bundle revisions are withdrawn by
+   step 1 and are not restored by this seed.
 3. Inserts one published plan named `WebVue` (the SQL seed writes a fixed placeholder
    `content_digest`; the application only recomputes it when a revision moves through
    validate/publish, and a seeded row is already published):
