@@ -2,13 +2,14 @@ import { z } from 'zod'
 import { IDENTIFIER_PATTERN } from '../access'
 import { TaskSchema } from './task'
 
-export const TaskNotificationKindSchema = z.enum(['assignment', 'comment', 'mention', 'deadline'])
+export const TaskNotificationKindSchema = z.enum(['assignment', 'comment', 'mention', 'deadline', 'tasks.assigned'])
 export const ProjectNotificationKindSchema = z.enum(['charter_review', 'charter_approved', 'charter_returned'])
 export const NotificationKindSchema = z.enum([
   'assignment', 'comment', 'mention', 'deadline', 'overdue_digest',
   'charter_review', 'charter_approved', 'charter_returned',
   'meeting_invite', 'meeting_series_invite', 'meeting_resolution', 'meeting_converted',
   'meeting_changed', 'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue',
+  'tasks.assigned',
 ])
 
 const TaskNotificationBase = {
@@ -38,6 +39,16 @@ export const MentionNotificationSchema = z.object({
 export const DeadlineNotificationSchema = z.object({
   kind: z.literal('deadline'),
   ...TaskNotificationBase,
+}).strict()
+
+export const AssignedTaskNotificationSchema = z.object({
+  id: z.number().int().positive(),
+  kind: z.literal('tasks.assigned'),
+  task_id: z.number().int().positive(),
+  title: z.string(),
+  task_name: z.string(),
+  created_at: z.string(),
+  is_read: z.boolean(),
 }).strict()
 
 export const MeetingNotificationSchema = z.object({
@@ -79,6 +90,7 @@ export const NotificationSchema = z.discriminatedUnion('kind', [
   CommentNotificationSchema,
   MentionNotificationSchema,
   DeadlineNotificationSchema,
+  AssignedTaskNotificationSchema,
   DigestNotificationSchema,
   ProjectCharterNotificationSchema,
   MeetingNotificationSchema,

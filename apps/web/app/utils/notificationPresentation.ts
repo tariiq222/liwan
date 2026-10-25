@@ -22,6 +22,12 @@ export function isUserWrittenNotificationKind(kind: string): boolean {
   return kind === 'comment' || kind === 'mention'
 }
 
+/** Some known kinds (for example `tasks.assigned`) carry no server body; read it without narrowing the union. */
+export function notificationBody(item: object): string {
+  const body = (item as { body?: unknown }).body
+  return typeof body === 'string' ? body : ''
+}
+
 export function isMeetingNotificationKind(kind: string): boolean {
   return MEETING_KINDS.has(kind)
 }

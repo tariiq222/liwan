@@ -10,7 +10,7 @@ import {
   useNotificationsPage,
   type BellNotification,
 } from '@/composables/useNotifications'
-import { formatNotificationTimestamp, genericNotificationText, isUserWrittenNotificationKind } from '@/utils/notificationPresentation'
+import { formatNotificationTimestamp, genericNotificationText, isUserWrittenNotificationKind, notificationBody } from '@/utils/notificationPresentation'
 
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -175,7 +175,7 @@ async function retryNextPage() {
                 </span>
               </span>
               <span v-if="itemTitle(item)" :class="item.is_read ? 'font-medium' : 'font-semibold text-highlighted'">{{ itemTitle(item) }}</span>
-              <span v-if="isUserWrittenNotificationKind(item.kind)" class="line-clamp-3 text-sm text-muted">{{ item.body }}</span>
+              <span v-if="isUserWrittenNotificationKind(item.kind)" class="line-clamp-3 text-sm text-muted">{{ notificationBody(item) }}</span>
               <span v-else-if="itemSecondary(item)" class="line-clamp-3 text-sm text-muted">{{ itemSecondary(item) }}</span>
               <time v-if="notificationTimestamp(item)" class="text-xs text-muted" :datetime="notificationTimestamp(item)?.datetime">{{ notificationTimestamp(item)?.label }}</time>
             </UButton>
