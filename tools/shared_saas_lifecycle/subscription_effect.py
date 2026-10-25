@@ -120,6 +120,18 @@ class Refusal(Exception):
 def refuse(code):
     raise Refusal(code)
 
+def _commercial_expiry_vals(values, profile, refuse):
+    if 'commercial_valid_until' not in values:
+        return {}
+    current_revision = int(getattr(profile, 'commercial_valid_until_revision', 0) or 0)
+    wanted_revision = int(values.get('commercial_valid_until_revision', current_revision))
+    if wanted_revision < current_revision:
+        refuse('commercial_expiry_revision_stale')
+    expiry = values['commercial_valid_until']
+    return {'commercial_valid_until': fields.Date.to_date(expiry) if expiry else False,
+            'commercial_valid_until_revision': wanted_revision}
+
+
 def collect(profile):
     root = profile.root_company_id
     feats = profile.features
@@ -193,10 +205,10 @@ try:
         # Every application stays installed; keys the target omits close (booleans
         # false, limits 0). Odoo still refuses a target without its platform keys.
         features = env['webvue.entitlement.service']._webvue_close_unlisted_features(values['features'])
-        write_vals = {'features': features, 'commercial_revision_id': values['target_revision_id'],
-                      'commercial_digest': values['digest'],
-                      'commercial_applied_at': fields.Datetime.now()}
-        operator.write(write_vals)
+        expiry_vals = _commercial_expiry_vals(values, profile, refuse)
+        operator.write({'features': features, 'commercial_revision_id': values['target_revision_id'],
+                        'commercial_digest': values['digest'],
+                        'commercial_applied_at': fields.Datetime.now(), **expiry_vals})
         # Roles the policy newly opened go to the enrolment administrator only.
         granted = operator._webvue_grant_opened_admin_roles(values['admin_login'], roles_before)
         opened = [k for k in env['webvue.entitlement.service']._webvue_entitled_admin_roles() if k not in set(roles_before or ())]
@@ -209,16 +221,6 @@ try:
                 not_granted = 'admin_not_found'
             else:
                 not_granted = 'roles_missing'
-    if 'commercial_valid_until' in values:
-        wanted = (fields.Date.to_date(values['commercial_valid_until'])
-                  if values['commercial_valid_until'] else False)
-        current_revision = int(getattr(profile, 'commercial_valid_until_revision', 0) or 0)
-        wanted_revision = int(values.get('commercial_valid_until_revision', current_revision))
-        if wanted_revision < current_revision:
-            refuse('commercial_expiry_revision_stale')
-        if (profile.commercial_valid_until or False) != wanted or wanted_revision != current_revision:
-            operator.write({'commercial_valid_until': wanted,
-                            'commercial_valid_until_revision': wanted_revision})
     # Archive first so a swap never trips branches.extra_limit; data is kept.
     for uid in values['archive']:
         branch = env['webvue.tenant.branch'].search([('branch_uid', '=', uid)])
