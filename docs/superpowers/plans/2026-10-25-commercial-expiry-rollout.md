@@ -18,7 +18,14 @@ plane records the answer on `tenants.commercial_expiry_supported`: the effect's 
 carries `commercial_expiry_supported`, a verified job sets the flag `true`, a
 `tenant_upgrade_required` failure sets it `false` and stores the code in the job journal,
 and `startTrial` refuses a tenant whose flag is explicitly `false`. `NULL` (never observed)
-still allows the first trial, which then fails visibly on an old tenant.
+still allows the first trial.
+
+That `NULL` window is not reachable in the current topology: a tenant is provisioned from the
+same release that ships the control plane, so a tenant created after this change always carries
+`19.0.1.7.0` and its first fulfilment sets the flag `true`. The window reopens only if a tenant
+is provisioned from an image older than `19.0.1.7.0`; such a tenant burns its one trial before
+the visible `tenant_upgrade_required` failure, so provision from the current image or set
+`tenants.commercial_expiry_supported = true` after verifying the column exists.
 
 ## Preconditions
 
