@@ -34,6 +34,7 @@ export type FulfillmentAuthority = {
   entitlement: { modules: string[]; features: Record<string, unknown>; digest: string; compiler_version: string }
   branches: { apply: { branch_id: string; name: string }[]; archive: string[] }
   commercial_valid_until: string | null
+  commercial_valid_until_revision: number
 }
 export type SubscriptionReceipt = EffectReceipt & { database?: string; modules_installed?: string[]; root_company_id?: number; archived_branch_ids?: string[]; roles_not_granted?: boolean; roles_not_granted_reason?: 'no_admin_login' | 'admin_not_found' | 'roles_missing' }
 
@@ -156,7 +157,7 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         const pending=await client.query("SELECT id FROM commercial_outbox WHERE id=$1 AND status='pending' FOR UPDATE",[row.id])
         if(!pending.rowCount)return null
         const found=await client.query(`SELECT o.*,s.tenant_id,s.applied_revision_id,s.target_revision_id AS subscription_target,
-          s.trial_ends_at,r.snapshot
+          s.trial_ends_at,s.commercial_expiry_revision,r.snapshot
           FROM orders o JOIN subscriptions s ON s.id=o.subscription_id JOIN subscription_revisions r ON r.id=o.target_revision_id
           WHERE o.id=$1 FOR UPDATE OF o,s`,[row.aggregate_id])
         const order=found.rows[0]
@@ -196,11 +197,14 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         const effect=await client.query(`INSERT INTO fulfillment_effects(id,order_id,operation_id) VALUES($1,$2,$3)
           ON CONFLICT(order_id) DO UPDATE SET order_id=EXCLUDED.order_id RETURNING operation_id`,[randomUUID(),order.id,operation])
         const branches=await listBranches(client,order.subscription_id)
+        const expiryRevision = Number(order.commercial_expiry_revision) + 1
+        await client.query('UPDATE subscriptions SET commercial_expiry_revision=$2,revision=revision+1 WHERE id=$1', [order.subscription_id, expiryRevision])
         const authority:FulfillmentAuthority={order_id:order.id,operation_id:effect.rows[0].operation_id,previous_revision_id:order.applied_revision_id,
           target_revision_id:order.target_revision_id,entitlement:{modules:order.snapshot.entitlement.modules,features:order.snapshot.entitlement.features,
             digest:order.snapshot.entitlement.digest,compiler_version:order.snapshot.entitlement.compiler_version},
           branches:{apply:branches.items.filter(x=>x.order_id===order.id && x.state==='pending').map(x=>({branch_id:x.id,name:x.name})),archive:order.snapshot.branch_archive_ids??order.snapshot.branches?.archive??[]},
-          commercial_valid_until: await commercialValidUntil(client, order)}
+          commercial_valid_until: await commercialValidUntil(client, order),
+          commercial_valid_until_revision: expiryRevision}
         const job=await enqueueReconfigureJob(client,{schemaVersion:1,operation:'reconfigure',requestId:authority.operation_id,controlTenantId:order.tenant_id,
           host:b.host,binding:{tenantId:b.tenant_id,database:b.database_name,filestore:b.filestore,registryRevision:Number(b.registry_revision)},authority})
         await client.query('UPDATE fulfillment_effects SET job_id=$2 WHERE order_id=$1',[order.id,job.id])

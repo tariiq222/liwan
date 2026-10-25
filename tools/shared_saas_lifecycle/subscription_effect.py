@@ -27,7 +27,7 @@ HOST_RE = re.compile(r'[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?')
 SENTINEL = 'WEBVUE_SUBSCRIPTION:'
 SCRIPT_ERRORS = frozenset({
     'stale_target', 'observed_mismatch', 'profile_invalid', 'target_mismatch',
-    'tenant_upgrade_required',
+    'tenant_upgrade_required', 'commercial_expiry_revision_stale',
     'branch_binding_invalid', 'branch_binding_conflict', 'branch_not_found',
     'feature_not_included', 'subscription_script_failed',
 })
@@ -84,6 +84,9 @@ def validate_reconfigure(request):
     commercial = request.get('commercial_valid_until')
     if commercial is not None and (not isinstance(commercial, str)
                                    or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', commercial)):
+        raise EffectError('commercial_valid_until_invalid')
+    revision = request.get('commercial_valid_until_revision')
+    if revision is not None and (type(revision) is not int or revision < 0):
         raise EffectError('commercial_valid_until_invalid')
     branches = request['branches']
     if not isinstance(branches, dict) or set(branches) != {'apply', 'archive'}:
@@ -142,6 +145,7 @@ def collect(profile):
             'commercial_digest': profile.commercial_digest or None,
             'commercial_applied_at': str(profile.commercial_applied_at) if profile.commercial_applied_at else None,
             'commercial_valid_until': str(profile.commercial_valid_until) if getattr(profile, 'commercial_valid_until', None) else None,
+            'commercial_valid_until_revision': int(getattr(profile, 'commercial_valid_until_revision', 0) or 0),
             'commercial_expiry_supported': hasattr(profile, 'commercial_valid_until'),
             'features': feats, 'modules': modules, 'branches': branches, 'usage': usage, 'limit_gates': gates}
 
@@ -207,8 +211,13 @@ try:
     if 'commercial_valid_until' in values:
         wanted = (fields.Date.to_date(values['commercial_valid_until'])
                   if values['commercial_valid_until'] else False)
-        if (profile.commercial_valid_until or False) != wanted:
-            operator.write({'commercial_valid_until': wanted})
+        current_revision = int(getattr(profile, 'commercial_valid_until_revision', 0) or 0)
+        wanted_revision = int(values.get('commercial_valid_until_revision', current_revision))
+        if wanted_revision < current_revision:
+            refuse('commercial_expiry_revision_stale')
+        if (profile.commercial_valid_until or False) != wanted or wanted_revision != current_revision:
+            operator.write({'commercial_valid_until': wanted,
+                            'commercial_valid_until_revision': wanted_revision})
     # Archive first so a swap never trips branches.extra_limit; data is kept.
     for uid in values['archive']:
         branch = env['webvue.tenant.branch'].search([('branch_uid', '=', uid)])
@@ -274,7 +283,7 @@ def parse_output(stdout):
 
 def validate_observation(value):
     keys = {'database', 'root_company_id', 'commercial_revision_id', 'commercial_digest', 'commercial_applied_at',
-            'commercial_valid_until', 'commercial_expiry_supported', 'features', 'modules', 'branches', 'usage', 'limit_gates'}
+            'commercial_valid_until', 'commercial_valid_until_revision', 'commercial_expiry_supported', 'features', 'modules', 'branches', 'usage', 'limit_gates'}
     if set(value) != keys:
         raise EffectError('observation_invalid')
     odoo_effect.validate_database(value['database'])
@@ -288,6 +297,8 @@ def validate_observation(value):
                                                        or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', value['commercial_valid_until'])):
         raise EffectError('observation_invalid')
     if type(value['commercial_expiry_supported']) is not bool:
+        raise EffectError('observation_invalid')
+    if type(value['commercial_valid_until_revision']) is not int or value['commercial_valid_until_revision'] < 0:
         raise EffectError('observation_invalid')
     if not isinstance(value['modules'], list) or not all(isinstance(m, str) for m in value['modules']):
         raise EffectError('observation_invalid')
@@ -361,6 +372,8 @@ def verify(request, observed):
     if observed['commercial_revision_id'] != request['target_revision_id'] or observed['commercial_digest'] != ent['digest']:
         return False
     if 'commercial_valid_until' in request and observed.get('commercial_valid_until') != request['commercial_valid_until']:
+        return False
+    if 'commercial_valid_until_revision' in request and observed.get('commercial_valid_until_revision') != request['commercial_valid_until_revision']:
         return False
     if not all(k in observed['features'] and type(observed['features'][k]) is type(v)
                and observed['features'][k] == v for k, v in ent['features'].items()):
@@ -443,6 +456,9 @@ class SubscriptionEffect:
         validate_reconfigure(request)
         database, target = request['tenant']['database'], request['target_revision_id']
         observed = self._observe(database)
+        if ('commercial_valid_until_revision' in request
+                and request['commercial_valid_until_revision'] < observed['commercial_valid_until_revision']):
+            raise EffectError('commercial_expiry_revision_stale')
         if not observed.get('commercial_expiry_supported'):
             if request.get('commercial_valid_until') is not None:
                 raise EffectError('tenant_upgrade_required')

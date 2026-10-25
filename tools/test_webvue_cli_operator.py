@@ -707,7 +707,7 @@ class OperatorCase(unittest.TestCase):
 
 
 class EntitleScriptCompatibilityCase(unittest.TestCase):
-    def run_entitle(self, desired, actual, revision=3, commercial=None):
+    def run_entitle(self, desired, actual, revision=3, commercial=None, commercial_revision=None):
         from unittest.mock import mock_open, patch
         from test_managed_verify import Environment, execute_script
         env = Environment()
@@ -716,6 +716,8 @@ class EntitleScriptCompatibilityCase(unittest.TestCase):
         policy = {'schema_version': 1, 'channel': 'control_plane', 'features': desired}
         if commercial is not None:
             policy['commercial_valid_until'] = commercial
+        if commercial_revision is not None:
+            policy['commercial_valid_until_revision'] = commercial_revision
         raw = json.dumps(policy)
         with patch.dict(os.environ, {'WEBVUE_OPERATOR_POLICY_FILE': '/synthetic/policy.json', 'WEBVUE_EXPECTED_REVISION': str(revision)}), patch('builtins.open', mock_open(read_data=raw)):
             stdout = execute_script(operator.ENTITLE_SCRIPT, env)
@@ -763,6 +765,29 @@ class EntitleScriptCompatibilityCase(unittest.TestCase):
         result = json.loads(stdout.split('WEBVUE_OPERATOR_RESULT:', 1)[1])
         self.assertEqual(result, {'status': 'ok', 'changed': False, 'policy_revision': 3})
         self.assertFalse(any(event[0] in ('write', 'commit') for event in env.events))
+
+    def test_tracks_the_commercial_expiry_revision(self):
+        desired = {'users.limit': 3, 'storage.limit_mb': None}
+        result, env = self.run_entitle(desired, desired, commercial='2026-11-08', commercial_revision=2)
+        self.assertTrue(result['changed'])
+        self.assertEqual(env.profile.commercial_valid_until_revision, 2)
+
+    def test_stale_expiry_revision_is_refused(self):
+        from datetime import date
+        from unittest.mock import mock_open, patch
+        from test_managed_verify import Environment, execute_script
+        desired = {'users.limit': 3, 'storage.limit_mb': None}
+        env = Environment()
+        env.profile.features = dict(desired)
+        env.profile.policy_revision = 3
+        env.profile.commercial_valid_until = date(2026, 11, 8)
+        env.profile.commercial_valid_until_revision = 3
+        policy = {'schema_version': 1, 'channel': 'control_plane', 'features': desired,
+                  'commercial_valid_until': '2026-11-01', 'commercial_valid_until_revision': 2}
+        raw = json.dumps(policy)
+        with patch.dict(os.environ, {'WEBVUE_OPERATOR_POLICY_FILE': '/synthetic/policy.json', 'WEBVUE_EXPECTED_REVISION': '3'}), patch('builtins.open', mock_open(read_data=raw)):
+            stdout = execute_script(operator.ENTITLE_SCRIPT, env)
+        self.assertIn('operator_script_failed', stdout)
 
     def test_explicit_null_clears_the_commercial_expiry(self):
         from datetime import date

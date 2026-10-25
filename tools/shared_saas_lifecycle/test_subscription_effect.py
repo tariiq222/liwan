@@ -40,7 +40,7 @@ def make_request(**over):
 
 def observation(**over):
     value = {'database': DB, 'root_company_id': 1, 'commercial_revision_id': PREV, 'commercial_digest': 'c' * 64,
-             'commercial_applied_at': None, 'commercial_valid_until': None, 'commercial_expiry_supported': True, 'features': {'users.limit': 3},
+             'commercial_applied_at': None, 'commercial_valid_until': None, 'commercial_expiry_supported': True, 'commercial_valid_until_revision': 0, 'features': {'users.limit': 3},
              'modules': ['webvue_api', 'webvue_core', 'webvue_platform'], 'branches': [],
              'usage': {'users.limit': 1, 'projects.max_projects': 0, 'storage.limit_mb': 0, 'branches.extra_limit': 0},
              'limit_gates': {'users.limit': [], 'projects.max_projects': ['pmo.enabled'],
@@ -156,20 +156,20 @@ class ReconfigureTests(Base):
         self.assertEqual(receipt['root_company_id'], 1)
 
     def test_writes_the_commercial_expiry(self):
-        request = make_request(commercial_valid_until='2026-11-08')
-        runner = FakeRunner(observation(), apply_state=applied_state(request, commercial_valid_until='2026-11-08'))
+        request = make_request(commercial_valid_until='2026-11-08', commercial_valid_until_revision=1)
+        runner = FakeRunner(observation(), apply_state=applied_state(request, commercial_valid_until='2026-11-08', commercial_valid_until_revision=1))
         self.effect(runner).reconfigure(request)
         script = [item for item in runner.scripts if item[0] == 'apply'][-1][2]
         values = _script_values(script)
         self.assertEqual(values['commercial_valid_until'], '2026-11-08')
         self.assertIn("if 'commercial_valid_until' in values:", script)
-        self.assertIn("operator.write({'commercial_valid_until': wanted})", script)
+        self.assertIn("'commercial_valid_until_revision': wanted_revision", script)
 
     def test_clears_the_commercial_expiry_when_requested(self):
-        request = make_request(commercial_valid_until=None)
-        state = applied_state(request)
+        request = make_request(commercial_valid_until=None, commercial_valid_until_revision=2)
+        state = applied_state(request, commercial_valid_until_revision=2)
         state['commercial_valid_until'] = None
-        runner = FakeRunner(observation(commercial_valid_until='2026-11-08'), apply_state=state)
+        runner = FakeRunner(observation(commercial_valid_until='2026-11-08', commercial_valid_until_revision=1), apply_state=state)
         self.effect(runner).reconfigure(request)
         self.assertEqual(runner.applies, 1)
         script = [item for item in runner.scripts if item[0] == 'apply'][-1][2]
@@ -181,6 +181,14 @@ class ReconfigureTests(Base):
         runner = FakeRunner(observation(commercial_valid_until='2026-11-08'), apply_state=state)
         self.effect(runner).reconfigure(request)
         self.assertNotIn('commercial_valid_until', _script_values([item for item in runner.scripts if item[0] == 'apply'][-1][2]))
+
+    def test_refuses_a_stale_expiry_revision(self):
+        request = make_request(commercial_valid_until='2026-11-01', commercial_valid_until_revision=1)
+        runner = FakeRunner(observation(commercial_valid_until='2026-11-08', commercial_valid_until_revision=2))
+        with self.assertRaises(EffectError) as ctx:
+            self.effect(runner).reconfigure(request)
+        self.assertEqual(str(ctx.exception), 'commercial_expiry_revision_stale')
+        self.assertEqual(runner.applies, 0)
 
     def test_refuses_to_write_the_expiry_on_an_unupgraded_tenant(self):
         request = make_request(commercial_valid_until='2026-11-08')

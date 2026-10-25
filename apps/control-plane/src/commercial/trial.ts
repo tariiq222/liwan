@@ -30,6 +30,8 @@ export async function startTrial(pool: Pool, input: { customer_id: string; reque
     if (customer.trial_used_at) throw new CommercialHttpError('trial_already_used', 409)
     const existing = (await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE', [input.customer_id])).rows[0]
     if (existing?.applied_revision_id) throw new CommercialHttpError('trial_not_available', 409)
+    const capability = (await client.query('SELECT commercial_expiry_supported FROM tenants WHERE id=$1', [customer.tenant_id])).rows[0]
+    if (capability?.commercial_expiry_supported === false) throw new CommercialHttpError('tenant_upgrade_required', 409)
     await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [trialQuote.id, input.customer_id, JSON.stringify(quoteSchema.parse(trialQuote)), trialQuote.digest, trialQuote.expires_at])
     await client.query('UPDATE customers SET trial_used_at=now() WHERE id=$1', [input.customer_id])
     const accepted = await acceptQuoteOn(client, acceptInput, digest, trialQuote, input.principal, now)
@@ -47,6 +49,8 @@ async function pushCommercialExpiry(client: PoolClient, subscription_id: string,
     LEFT JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id AND b.enabled=true
     WHERE s.id=$1`, [subscription_id])).rows[0]
   if (!row?.applied_revision_id || !row.binding_id) return
+  const revision = Number(row.commercial_expiry_revision) + 1
+  await client.query('UPDATE subscriptions SET commercial_expiry_revision=$2,revision=revision+1 WHERE id=$1', [subscription_id, revision])
   const order = (await client.query("SELECT id FROM orders WHERE subscription_id=$1 AND fulfillment_state='applied' ORDER BY created_at DESC,id DESC LIMIT 1", [subscription_id])).rows[0]
   if (!order) return
   const operation_id = randomUUID()
@@ -56,7 +60,7 @@ async function pushCommercialExpiry(client: PoolClient, subscription_id: string,
     authority: { order_id: order.id, operation_id, previous_revision_id: row.applied_revision_id, target_revision_id: row.applied_revision_id,
       entitlement: { modules: row.snapshot.entitlement.modules, features: row.snapshot.entitlement.features,
         digest: row.snapshot.entitlement.digest, compiler_version: row.snapshot.entitlement.compiler_version },
-      branches: { apply: [], archive: [] }, commercial_valid_until: value } })
+      branches: { apply: [], archive: [] }, commercial_valid_until: value, commercial_valid_until_revision: revision } })
 }
 
 /** Customer conversion: end the trial now and return the first invoice's hosted attempt. */

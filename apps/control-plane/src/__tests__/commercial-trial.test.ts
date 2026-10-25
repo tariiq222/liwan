@@ -123,6 +123,7 @@ suite('commercial trial', () => {
     expect((await pool.query("SELECT action FROM audit_events WHERE action='trial.extended' AND subject=$1", [sub.id])).rowCount).toBe(1)
     const job = (await pool.query("SELECT payload FROM shared_jobs WHERE payload->'authority'->>'target_revision_id'=$1 AND payload->'authority' ? 'commercial_valid_until'", [sub.applied!.id])).rows[0]
     expect(job?.payload.authority.commercial_valid_until).toBe('2026-11-13')
+    expect(job?.payload.authority.commercial_valid_until_revision).toBe(1)
   })
   it('refuses an extension without a reason', async () => {
     const c = await trialAt(now, 5)
@@ -139,6 +140,7 @@ suite('commercial trial', () => {
     expect((await pool.query("SELECT action FROM audit_events WHERE action='trial.ended' AND subject=$1", [sub.id])).rowCount).toBe(1)
     const job = (await pool.query("SELECT payload FROM shared_jobs WHERE payload->'authority'->>'target_revision_id'=$1 AND payload->'authority' ? 'commercial_valid_until' AND payload->'authority'->>'commercial_valid_until' IS NULL", [sub.applied!.id])).rows[0]
     expect(job).toBeTruthy()
+    expect(job.payload.authority.commercial_valid_until_revision).toBe(1)
   })
   it('converts a trial on demand and issues the first invoice with a hosted attempt', async () => {
     // A different, lexicographically lower subscription is due in the same renewal pass. Its order
@@ -187,6 +189,13 @@ suite('commercial trial', () => {
     const trial = { kind: 'new', payment_state: 'not_required', trial_ends_at: '2026-11-01T09:00:00Z', snapshot: { plan_revision_id: 'p' } }
     expect(await commercialValidUntil(client, trial)).toBe('2026-11-08')
     expect(await commercialValidUntil(client, { ...trial, payment_state: 'paid' })).toBeNull()
+  })
+  it('refuses a trial on a tenant known to lack the expiry field', async () => {
+    const c = await newCustomer()
+    const tenant = (await pool.query('SELECT tenant_id FROM customers WHERE id=$1', [c.id])).rows[0].tenant_id
+    await pool.query('UPDATE tenants SET commercial_expiry_supported=false WHERE id=$1', [tenant])
+    await expect(startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now }))
+      .rejects.toMatchObject({ code: 'tenant_upgrade_required' })
   })
   it('does not grant a trial for an application the customer did not choose', async () => {
     const c = await newCustomer()
