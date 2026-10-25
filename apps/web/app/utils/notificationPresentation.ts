@@ -71,6 +71,7 @@ export function formatNotificationTimestamp(
 
 export function notificationPreviewCaptionKey(kind: NotificationPreviewKind): string {
   if (kind === 'overdue_digest') return 'tasks.digest.kind'
+  if (kind === 'tasks.assigned') return 'notifications.preview.assignment'
   if (MEETING_KINDS.has(kind)) return `meetingsUi.notify.${kind}`
   if (TASK_KINDS.has(kind) || PROJECT_KINDS.has(kind)) return `notifications.preview.${kind}`
   return 'notifications.preview.other'

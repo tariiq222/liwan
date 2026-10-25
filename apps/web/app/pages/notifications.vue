@@ -65,6 +65,7 @@ const queryErrorMessage = computed(() => (
 function kindLabel(item: BellNotification) {
   if (!isKnownNotification(item)) return t('notifications.preview.other')
   if (isDigestNotification(item)) return t('tasks.digest.kind')
+  if (item.kind === 'tasks.assigned') return t('notifications.assignment', { task: item.task_name })
   if (isMeetingNotification(item)) return t(`meetingsUi.notify.${item.kind}`)
   if (isProjectNotification(item)) return t(`notifications.preview.${item.kind}`)
   if (isUserWrittenNotificationKind(item.kind)) return t(`notifications.${item.kind}`)
