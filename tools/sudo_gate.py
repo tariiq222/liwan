@@ -11,13 +11,16 @@ together. This tool closes that hole and runs inside `npm test`:
    count of `tools/arch_documented_sudo.json`) fails by `file:line`, so a call that nobody
    justified is reported where it is written;
 2. a documented case must still exist in the code and be named in the AGENTS.md sudo paragraph
-   (`arch_policy.documented_problems`), and a new or raised documented case needs the owner's
-   `Architecture-approved-by:` trailer on the commit that changes the documented file
-   (`arch_policy.documented_growth`, run when `--base` is given; the command line defaults it to
-   `$CI_BASE_REF`, the ref CI already exports for `npm test`);
+   (`arch_policy.documented_problems`);
 3. every documented reason must name the elevating call and the blocking ACL, record rule, group
-   or capability, and no two cases may share one reason (`arch_policy.documented_weakenings` then
-   sees a raised count as a weakening, which is what triggers the trailer rule).
+   or capability, and no two cases may share one reason (`arch_policy.documented_weakenings`);
+4. a documented count that the code no longer reaches fails, and a documented count must not fall
+   below what the reference allows (`arch_policy.documented_growth`, run when `--base` is given).
+
+Owner decision 2026-10-25: adding a documented case no longer needs an
+`Architecture-approved-by:` trailer. A reason is still mandatory and is still judged for
+shape by this gate; the owner accepted that a weak reason can now be written without a
+signature, and that the review of the actual diff is what catches it.
 
 The allowance of rule 1 is per file, because the baseline records how many sites a file may keep,
 not which lines they are. A file over its allowance therefore reports its last unaccounted sites:
@@ -158,7 +161,7 @@ def main(
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         '--base', metavar='REF', default=default_base() if argv is None else None,
-        help='also require the Architecture-approved-by trailer on a new or raised documented case (default: $CI_BASE_REF)',
+        help='also fail a documented count that the code no longer reaches (default: $CI_BASE_REF)',
     )
     args = parser.parse_args(argv)
     documented_file = documented_file or baseline_file.with_name(DOCUMENTED_SUDO_FILE.name)

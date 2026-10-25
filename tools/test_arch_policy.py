@@ -1336,7 +1336,8 @@ class TestDocumentedSudo(BaseRefCase):
         self.assertEqual(self.run_main('--write-baseline'), 0)
         self.assertEqual(rule_totals(json.loads(self.baseline_file.read_text()))['R7'], 2)
 
-    def test_new_case_without_the_trailer_fails_and_with_it_passes(self):
+    def test_a_new_case_passes_without_a_trailer(self):
+        # Owner decision 2026-10-25: documenting a sudo case no longer needs a trailer.
         self.sudo('b', 0)
         self.adopt()
         self.git('checkout', '-q', '-b', 'work')
@@ -1344,25 +1345,26 @@ class TestDocumentedSudo(BaseRefCase):
         self.document(2)
         self.git('add', '-A')
         self.git('commit', '-q', '-m', 'document')
-        code, text = self.problems('--base', 'main')
-        self.assertEqual(code, 1)
-        self.assertIn('documented sudo case added without Architecture-approved-by', text)
-        self.git('commit', '-q', '--amend', '-m', 'document', '-m', TRAILER)
         self.assertEqual(self.problems('--base', 'main'), (0, ''))
 
-    def test_raised_count_needs_the_trailer_and_a_net_lower_one_does_not(self):
+    def test_raising_a_documented_count_needs_no_trailer_but_lowering_it_below_the_range_fails(self):
+        # Owner decision 2026-10-25: raising no longer needs the trailer.
         self.adopt_documented()
         self.git('checkout', '-q', '-b', 'work')
         self.sudo('b', 3)
         self.document(3)
         self.git('add', '-A')
         self.git('commit', '-q', '-m', 'raise')
-        self.assertEqual(self.problems('--base', 'main')[0], 1)
+        self.assertEqual(self.problems('--base', 'main')[0], 0, 'raising needs no trailer')
+        # Lowering the documented count is the stale direction: the reference recorded a
+        # higher number, so the file must be corrected rather than quietly reduced.
         self.sudo('b', 1)
         self.document(1)
         self.git('add', '-A')
         self.git('commit', '-q', '-m', 'lower')
-        self.assertEqual(self.problems('--base', 'main')[0], 0, 'net lower than REF')
+        code, text = self.problems('--base', 'main')
+        self.assertEqual(code, 1)
+        self.assertIn('documented sudo case count fell', text)
 
     def test_stale_or_missing_case_is_reported(self):
         self.adopt_documented()

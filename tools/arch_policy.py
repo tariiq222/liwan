@@ -606,16 +606,22 @@ def documented_counts(documented: dict) -> dict[str, int]:
 
 
 def documented_growth(ref: str, root: Path, documented_file: Path) -> list[str]:
-    """R7: a new documented sudo case or a higher count needs the owner trailer on the commit that changes the file."""
+    """R7: a documented case that no longer exists in the code, or a count below it.
+
+    The owner removed the `Architecture-approved-by:` requirement for documenting a
+    sudo case (decision 2026-10-25): a written reason is still mandatory and still has to
+    name the elevating call and the blocking ACL or rule (tools/sudo_gate.py), but adding
+    one no longer needs a trailer. What remains here is the stale direction: a documented
+    count that the code no longer reaches is a defect, not a licence.
+    """
     ref_text = _git_show(root, ref, documented_file.relative_to(root).as_posix())
     old = documented_counts(json.loads(ref_text)) if ref_text is not None else {}
     new = documented_counts(json.loads(_read(documented_file))) if documented_file.is_file() else {}
-    grown = [rel for rel, have in sorted(new.items()) if have > old.get(rel, 0)]
-    if not grown or change_approved(ref, root, documented_file, documented_weakenings):
-        return []
     return [
-        f'R7: {rel}: documented sudo case added without {APPROVAL_TRAILER}: {new[rel]} documented, {ref} allows {old.get(rel, 0)}'
-        for rel in grown
+        f'R7: {rel}: documented sudo case count fell from {old.get(rel, 0)} to {have}; '
+        'lower it in arch_documented_sudo.json'
+        for rel, have in sorted(new.items())
+        if have < old.get(rel, 0)
     ]
 
 

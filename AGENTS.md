@@ -178,8 +178,9 @@ never add an entry or raise a count to make a check pass.
 - **R7** No new `sudo()` outside the documented cases. `tools/sudo_gate.py` (inside `npm test`) fails
   a `sudo()` site beyond its file's documented cases and `tools/arch_baseline.json` count, naming `file:line`,
   and requires every documented case to carry a non-boilerplate reason that names the elevating call and
-  the blocking ACL or rule (empty and duplicated reasons are rejected); a new or raised documented case
-  still needs the owner's `Architecture-approved-by:` trailer (`--base`, default `$CI_BASE_REF`).
+  the blocking ACL or rule (empty and duplicated reasons are rejected). A documented count that the code
+  no longer reaches fails as stale. Adding a case needs no approval trailer (owner decision 2026-10-25);
+  the reason itself is the record, and review of the actual diff is what judges it.
 - **R8** Every feature works in `saas` and `non_saas`, or is explicitly commercial and hidden in `non_saas`.
 - **R9** Customise Odoo through its public extension points only: no edits to Odoo source, no new direct
   SQL on Odoo tables, no new override of a private access method on an Odoo model without a documented
@@ -343,10 +344,11 @@ cross-addon links.
   Do not add
   another case without documenting it and fixing ACLs/rules where possible.
   Documented cases are listed per file in `tools/arch_documented_sudo.json`, outside the
-  shrink-only baseline. Adding one or raising its count needs the owner's
-  `Architecture-approved-by:` trailer on the commit that changes that file, like
-  `tools/arch_layers.json`; agents never add that trailer. Removing a case lowers the
-  baseline and needs no trailer.
+  shrink-only baseline. Adding or raising one needs no approval trailer (owner decision
+  2026-10-25): the reason in the registry is the record, `tools/sudo_gate.py` judges its
+  shape, and review of the actual diff is the human gate. A documented count the code no
+  longer reaches is stale and fails. Weakening `tools/arch_layers.json` still needs the
+  owner's `Architecture-approved-by:` trailer; agents never add that trailer.
 - The current delivery scope has no time logging product surface: do not add `hr_timesheet`
   or timesheet fields/endpoints to the customer UI; adding them requires a separately scoped
   implementation request. Payroll is approved (owner decision 2026-10-19) as the Saudi payroll

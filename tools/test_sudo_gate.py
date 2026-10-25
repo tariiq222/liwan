@@ -230,14 +230,18 @@ class TestDocumentedTrailer(BaseRefCase):
         self.sudo(2)
         self.document({self.ADDON: {'count': 2, 'reason': REASON}})
 
-    def test_a_new_case_without_the_trailer_fails_and_with_it_passes(self):
+    def test_a_new_case_passes_without_a_trailer(self):
+        # Owner decision 2026-10-25: documenting a sudo case no longer needs a trailer.
         self.document_a_new_case()
         self.commit('document')
-        code, text = self.problems('--base', 'main')
-        self.assertEqual(code, 1)
-        self.assertIn('documented sudo case added without Architecture-approved-by', text)
-        self.git('commit', '-q', '--amend', '-m', 'document', '-m', TRAILER)
         self.assertEqual(self.problems('--base', 'main'), (0, ''))
+
+    def test_a_documented_count_the_code_no_longer_reaches_fails(self):
+        # The reason is still mandatory; only the trailer requirement was removed.
+        self.document({self.ADDON: {'count': 2, 'reason': REASON}})
+        code, text = self.problems()
+        self.assertEqual(code, 1)
+        self.assertIn('documented', text)
 
     def test_unchanged_tree_passes_with_a_base(self):
         self.assertEqual(self.problems('--base', 'main'), (0, ''))
