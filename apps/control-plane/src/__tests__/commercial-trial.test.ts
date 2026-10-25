@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { daysBetween, riyadhDate, type Principal } from '@webvue/commercial-contracts'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
-import { convertTrial, startTrial } from '../commercial/trial.js'
+import { convertTrial, extendTrial, startTrial } from '../commercial/trial.js'
 import { routesB } from '../commercial/routes-b.js'
 import { getSubscription } from '../commercial/subscriptions.js'
 import { expireTrials } from '../commercial/trial-expiry.js'
@@ -20,13 +20,15 @@ suite('commercial trial', () => {
   const now = new Date('2026-10-25T09:00:00Z')
   const request = () => ({ kind: 'new' as const, plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly,
     requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 5120 })
-  async function newCustomer() {
+  async function newCustomer(bind = true) {
     customer = randomUUID()
     const ownTenant = randomUUID()
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Trial customer','saas','managed',$2,true)", [ownTenant, `trial-${ownTenant}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_login) VALUES($1,$2,$3,$4)', [customer, 'Trial customer', ownTenant, `${customer}@example.test`])
-    const slug = `t${ownTenant.replaceAll('-', '')}`
-    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [ownTenant, slug, `${slug}.trial.test`, `webvue_scratch_${slug.slice(1)}`])
+    if (bind) {
+      const slug = `t${ownTenant.replaceAll('-', '')}`
+      await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [ownTenant, slug, `${slug}.trial.test`, `webvue_scratch_${slug.slice(1)}`])
+    }
     return { id: customer, principal: { ...principal, customer_id: customer, tenant_id: ownTenant } as Principal }
   }
   beforeAll(async () => {
@@ -189,6 +191,15 @@ suite('commercial trial', () => {
     const trial = { kind: 'new', payment_state: 'not_required', trial_ends_at: '2026-11-01T09:00:00Z', snapshot: { plan_revision_id: 'p' } }
     expect(await commercialValidUntil(client, trial)).toBe('2026-11-08')
     expect(await commercialValidUntil(client, { ...trial, payment_state: 'paid' })).toBeNull()
+  })
+  it('refuses to push a trial date without a tenant binding', async () => {
+    const c = await newCustomer(false)
+    await startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now })
+    await pool.query('UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,revision=revision+1 WHERE customer_id=$1', [c.id])
+    await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE subscription_id=(SELECT id FROM subscriptions WHERE customer_id=$1)", [c.id])
+    const sub = (await pool.query('SELECT id FROM subscriptions WHERE customer_id=$1', [c.id])).rows[0]
+    await expect(extendTrial(pool, { subscription_id: sub.id, days: 5, reason: 'more', actor: 'vendor' }))
+      .rejects.toMatchObject({ code: 'tenant_binding_unavailable' })
   })
   it('refuses a trial on a tenant known to lack the expiry field', async () => {
     const c = await newCustomer()

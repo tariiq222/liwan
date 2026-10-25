@@ -44,19 +44,20 @@ export async function startTrial(pool: Pool, input: { customer_id: string; reque
 
 /** Push the trial's Odoo hard expiry on every trial-date mutation, not only at fulfilment. */
 async function pushCommercialExpiry(client: PoolClient, subscription_id: string, value: string | null) {
-  const row = (await client.query(`SELECT s.*,r.snapshot,b.control_tenant_id AS binding_id,b.tenant_id AS binding_tenant,b.database_name,b.filestore,b.host,b.registry_revision
+  const row = (await client.query(`SELECT s.*,r.snapshot
     FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id
-    LEFT JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id AND b.enabled=true
     WHERE s.id=$1`, [subscription_id])).rows[0]
-  if (!row?.applied_revision_id || !row.binding_id) return
+  if (!row?.applied_revision_id) return
+  const binding = (await client.query('SELECT * FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled=true', [row.tenant_id])).rows[0]
+  if (!binding) throw new CommercialHttpError('tenant_binding_unavailable', 409)
   const revision = Number(row.commercial_expiry_revision) + 1
   await client.query('UPDATE subscriptions SET commercial_expiry_revision=$2,revision=revision+1 WHERE id=$1', [subscription_id, revision])
   const order = (await client.query("SELECT id FROM orders WHERE subscription_id=$1 AND fulfillment_state='applied' ORDER BY created_at DESC,id DESC LIMIT 1", [subscription_id])).rows[0]
-  if (!order) return
+  if (!order) throw new CommercialHttpError('trial_order_unavailable', 409)
   const operation_id = randomUUID()
   await enqueueReconfigureJob(client, { schemaVersion: 1, operation: 'reconfigure', requestId: operation_id,
-    controlTenantId: row.tenant_id, host: row.host,
-    binding: { tenantId: row.binding_tenant, database: row.database_name, filestore: row.filestore, registryRevision: Number(row.registry_revision) },
+    controlTenantId: row.tenant_id, host: binding.host,
+    binding: { tenantId: binding.tenant_id, database: binding.database_name, filestore: binding.filestore, registryRevision: Number(binding.registry_revision) },
     authority: { order_id: order.id, operation_id, previous_revision_id: row.applied_revision_id, target_revision_id: row.applied_revision_id,
       entitlement: { modules: row.snapshot.entitlement.modules, features: row.snapshot.entitlement.features,
         digest: row.snapshot.entitlement.digest, compiler_version: row.snapshot.entitlement.compiler_version },
