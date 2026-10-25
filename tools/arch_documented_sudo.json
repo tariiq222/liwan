@@ -1,8 +1,140 @@
 {
   "cases": {
-    "odoo-addons/webvue_api/controllers/common.py": {
+    "odoo-addons/webvue_api/controllers/auth.py": {
       "count": 1,
-      "reason": "api get_record: company ownership of an existing record, read through sudo before the access check so a foreign record answers the identical 404 not-found instead of a 403 that would leak its existence (owner approved 2026-10-22)"
+      "reason": "webvue_api login/session gate: `request.env['webvue.entitlement.service'].sudo()` in the pre-login suspension check; blocked by odoo-addons/webvue_platform/security/ir.model.access.csv:2 `access_webvue_tenant_profile_system` (base.group_system only) on `webvue.tenant.profile`; the route is auth='public' and runs before a session exists, so no caller environment can authorize the tenant-profile read."
+    },
+    "odoo-addons/webvue_api/controllers/branding.py": {
+      "count": 1,
+      "reason": "webvue_api public branding: `request.env['webvue.tenant.profile'].sudo().search([], limit=1)`; blocked by the same system-only `access_webvue_tenant_profile_system` row; the `/api/v1/branding` route is auth='public' with no session to authorize it."
+    },
+    "odoo-addons/webvue_api/controllers/commercial.py": {
+      "count": 1,
+      "reason": "webvue_api commercial surface: `request.env['webvue.tenant.profile'].sudo().search([], limit=1)`; blocked by the system-only tenant-profile ACL; the commercial routes answer the tenant's commercial mode for anonymous and self-service callers, which hold no grant on the profile."
+    },
+    "odoo-addons/webvue_api/controllers/common.py": {
+      "count": 2,
+      "reason": "webvue_api shared plumbing. (1) `request.env['webvue.entitlement.service'].sudo()._webvue_guard_api()` runs for every `/api/v1` request; blocked by the system-only `access_webvue_tenant_profile_system` row on `webvue.tenant.profile`, which no API caller may hold. (2) `record.sudo().company_id` in `get_record`: the pinned current-company rules (for example odoo-addons/webvue_pmo/security/webvue_pmo_rules.xml:8 `rule_project_current_company`) raise AccessError before the comparison, so the company-ownership read is elevated to answer another company's record with the identical 404 not-found instead of a 403 that leaks its existence, before any access check (owner approved 2026-10-22)."
+    },
+    "odoo-addons/webvue_api/serializers/user.py": {
+      "count": 1,
+      "reason": "webvue_api profile serialization: `user.env['webvue.entitlement.service'].sudo()` in `dump_platform`; blocked by the system-only `access_webvue_tenant_profile_system` row on `webvue.tenant.profile`; the serializer builds the caller's own /me payload, which must not read the tenant's commercial policy through an unelevated environment."
+    },
+    "odoo-addons/webvue_core/models/res_company.py": {
+      "count": 1,
+      "reason": "webvue_core company-partner existence check: `self.sudo().with_context(active_test=False).search_count([('partner_id','in',partner_ids)], limit=1)` in `_webvue_has_company_partner`; blocked by Odoo base `res_company_rule_employee` (/Users/tariq/code/odoo/odoo/addons/base/security/base_security.xml:113-120, `[('id','in',company_ids)]`) — the ACL grants read but the record rule hides every other company, and `active_test=False` must additionally see archived companies; loosening the rule would break multi-company isolation, which is the larger exposure."
+    },
+    "odoo-addons/webvue_meetings/models/calendar_event.py": {
+      "count": 1,
+      "reason": "webvue_meetings calendar-link existence check: `self.env['webvue.meeting.minute'].sudo().search([('calendar_event_id','in',self.ids)])` in the event write-sync and the unlink invariant; blocked by the fresh visibility domain odoo-addons/webvue_meetings/models/ir_rule.py:10-41 `_webvue_fresh_company_domain` on `webvue.meeting.minute` plus security/meeting_access.xml:5-9 `rule_meeting_capability_scope`; the caller must learn whether *any* meeting links the event, including meetings they cannot read, otherwise an unelevated search would let them delete a linked event. Read only; access is rechecked by the caller."
+    },
+    "odoo-addons/webvue_meetings/models/meeting_minute.py": {
+      "count": 2,
+      "reason": "webvue_meetings minutes invariants. (1) `self.env['webvue.meeting.minutes.version'].sudo().search_count([('meeting_id','in',self.ids)])` in `unlink`: the read ACL (security/ir.model.access-meetings.csv:6) is granted, but `_webvue_fresh_company_domain` (ir_rule.py:18) and security/meeting_series_rules.xml:13-17 `rule_meeting_minutes_version_current_company` narrow the rows below the caller's visibility, so the deletion invariant would silently miss versions. (2) `self.sudo().search_count([...organizer/overlap...], limit=1)` in `_webvue_check_organizer_overlap`: the company-wide overlap constraint must see the organizer's other meetings, which the same domain hides. Both are invariants over rows the caller may not read, not access to data they may act on."
+    },
+    "odoo-addons/webvue_meetings/models/meeting_minute_activity.py": {
+      "count": 1,
+      "reason": "webvue_meetings server-controlled minutes feed: `self.env['webvue.meeting.event'].sudo().create({...})`; blocked because security/ir.model.access-meetings.csv:5 and :7 grant read only (`1,0,0,0`) to every group and no create ACL exists for any group; the feed row is written by the server after the caller's own meeting authorization, and granting create would let any reader forge feed rows."
+    },
+    "odoo-addons/webvue_meetings/models/meeting_minute_form.py": {
+      "count": 2,
+      "reason": "webvue_meetings server-controlled minutes form: `meeting_sudo = self.sudo()` (read at :69, write at :80 `write({'minutes_form_data': form})`) and `meeting.sudo().minutes_form_data` in `_compute_minutes_form`. The blocker is a field-level group rather than an ACL: odoo-addons/webvue_meetings/models/meeting_minute.py:77 `minutes_form_data = fields.Json(..., groups='base.group_system')`. An ACL cannot scope a field, and dropping `groups=` would expose the raw stored JSON to every reader, so the server-mediated form is read and written elevated after the caller's check."
+    },
+    "odoo-addons/webvue_meetings/models/meeting_minute_snapshot.py": {
+      "count": 4,
+      "reason": "webvue_meetings server-controlled snapshot and version records: `meeting.sudo().minutes_snapshot_data` (:34), `self.sudo().write({'minutes_snapshot_data': snapshot})` (:73), `self.sudo().minutes_form_data` (:126) and `self.env['webvue.meeting.minutes.version'].sudo()` (:146, create at :150). Blockers: the field-level group `groups='base.group_system'` on meeting_minute.py:77-80 and meeting_workspace.py:22, plus the read-only ACL rows security/ir.model.access-meetings.csv:6 and :8 (`1,0,0,0`) with no create row for any group. History must be immutable and unforgeable, so the server writes it elevated after the caller's completion authorization."
+    },
+    "odoo-addons/webvue_meetings/serializers/meeting.py": {
+      "count": 2,
+      "reason": "webvue_meetings serialization of protected fields: `version.sudo().snapshot` in `dump_version` (:129) and `meeting.sudo().minutes_form_data` (:252); blocked by the same field-level `groups='base.group_system'` on the stored JSON fields (meeting_workspace.py:22, meeting_minute.py:77). The serializer is reached only after the caller's own meeting-capability and current-company checks, and those fields cannot be read unelevated without exposing raw stored JSON."
+    },
+    "odoo-addons/webvue_meetings_pmo/models/meeting_links_pmo.py": {
+      "count": 1,
+      "reason": "webvue_meetings_pmo converted-task id lookup: `self.env['project.task'].with_context(active_test=False).sudo().search_fetch([...], ['resolution_id'])` in `_webvue_linked_resolution_ids`; blocked by odoo-addons/webvue_pmo/security/webvue_pmo_rules.xml:12 `rule_task_current_company` plus the PMO task visibility narrowing, with `active_test=False` to include archived tasks. Only ids are returned, so a converted recommendation stays frozen for a meeting-only reader who has no project access."
+    },
+    "odoo-addons/webvue_notify/models/notify_service.py": {
+      "count": 1,
+      "reason": "webvue_notify bell delivery: `Message.create(...)` and the replace path's `Message.search(...).unlink()` in `_webvue_deliver` (notify_service.py:63). `base.group_user` may create `mail.message` (access_mail_message_user), but the delivering service is not a partner of the row it writes, so the stock mail record rules hide it from the delivering identity; elevation is bounded to creating that bell row and replacing the row of one idempotency key."
+    },
+    "odoo-addons/webvue_platform/models/entitlement_service.py": {
+      "count": 1,
+      "reason": "webvue_platform tenant-profile lookup: `self.env['webvue.tenant.profile'].sudo().search([], limit=2)`; blocked by odoo-addons/webvue_platform/security/ir.model.access.csv:2 `access_webvue_tenant_profile_system` (base.group_system only), with no group_user or public row; the service answers every caller including the public routes, and a read grant would expose the tenant's commercial policy and terminology to all users."
+    },
+    "odoo-addons/webvue_platform/models/ir_attachment.py": {
+      "count": 3,
+      "reason": "webvue_platform attachment storage-quota accounting: `self.env['webvue.entitlement.service'].sudo()._webvue_claim_storage(extra)` in create (:30), write (:39) and unlink (:46); blocked by the same system-only `access_webvue_tenant_profile_system` row on the tenant profile the service writes; an attachment may be uploaded or removed by a user who holds no grant on the commercial quota record, so the counter moves elevated after the caller's own attachment access check."
+    },
+    "odoo-addons/webvue_platform/models/ir_binary.py": {
+      "count": 1,
+      "reason": "webvue_platform binary/image route: `self.env['webvue.entitlement.service'].sudo()` in `_find_record`; blocked by the system-only `access_webvue_tenant_profile_system` row on `webvue.tenant.profile`, and the caller may be the public user on an image route; the entitlement lifecycle read cannot be authorized from the request environment."
+    },
+    "odoo-addons/webvue_platform/models/ir_http.py": {
+      "count": 1,
+      "reason": "webvue_platform request authentication guard: `request.env['webvue.entitlement.service'].sudo()` in `_authenticate_explicit`; blocked by the system-only tenant-profile ACL; it runs before session establishment to decide whether a suspended tenant may keep a session, so there is no caller environment that could authorize reading the tenant profile."
+    },
+    "odoo-addons/webvue_platform/models/res_users.py": {
+      "count": 2,
+      "reason": "webvue_platform user quota and login gate: `self.env['webvue.entitlement.service'].sudo()` in `_webvue_user_quota_delta` (:9) and `self.env['webvue.entitlement.service'].sudo()._webvue_assert_login_allowed(user)` in `_login` (:49); blocked by the system-only `access_webvue_tenant_profile_system` row on `webvue.tenant.profile`, with the login path running pre-login; the quota counter and the suspension decision concern the tenant's commercial record, which no user may read."
+    },
+    "odoo-addons/webvue_pmo/controllers/milestones.py": {
+      "count": 1,
+      "reason": "webvue_pmo milestone id validation: `request.env['project.milestone'].sudo().browse(int(mid)).exists()` in `_milestone_of`; blocked by /Users/tariq/code/odoo/odoo/addons/project/security/project_security.xml:319-330 `milestone_visibility_rule`, so reading `m.project_id` unelevated raises AccessError and turns the contracted 422 into a 403 existence oracle; the route is reached after the caller's own project check, and the id must be validated uniformly."
+    },
+    "odoo-addons/webvue_pmo/controllers/tasks.py": {
+      "count": 1,
+      "reason": "webvue_pmo task route milestone id validation: `request.env['project.milestone'].sudo().browse(milestone_id).exists()`; blocked by the same stock `milestone_visibility_rule` (project_security.xml:319-330); the caller may read the task but not every milestone, and a foreign id must answer the contracted 422 rather than a rule-induced 403."
+    },
+    "odoo-addons/webvue_pmo/controllers/timeline.py": {
+      "count": 2,
+      "reason": "webvue_pmo timeline tracking-value visibility: `m.sudo().tracking_value_ids` (:49) and `task.message_ids.filtered(lambda m: m.sudo().tracking_value_ids)` (:51); blocked by a field-level group, not an ACL — Odoo mail declares `tracking_value_ids` with `groups='base.group_system'` (/Users/tariq/code/odoo/odoo/addons/mail/models/mail_message.py:180-184); the timeline must decide whether a message carries tracking without exposing the tracking payload, and stock Odoo elevates it the same way (mail_message.py:782)."
+    },
+    "odoo-addons/webvue_pmo/models/project_charter.py": {
+      "count": 1,
+      "reason": "webvue_pmo charter reviewer eligibility: `user.sudo().company_ids.ids` in `_webvue_eligible_user`; blocked by Odoo base `res_company_rule_employee` (base/security/base_security.xml:113-120, `[('id','in',company_ids)]`); reading the target user's companies unelevated turns the intended 422 into a 403 that leaks the authorization boundary, and widening the rule would expose every `res.company` row."
+    },
+    "odoo-addons/webvue_pmo/models/project_charter_reference.py": {
+      "count": 1,
+      "reason": "webvue_pmo catalog usage count: `self.env['project.project'].sudo().with_context(active_test=False).search_count([...])` in `_webvue_usage_count`; blocked by the record rule odoo-addons/webvue_pmo/security/webvue_pmo_rules.xml:7 `rule_project_current_company` (`[('company_id','in',company_ids)]`, the pinned current-company subtree) together with the stock followers-only `project_public_members_rule`, plus `active_test` hiding archived rows; a catalog value still used by a hidden or archived project must keep counting, otherwise a value in use could be deleted, and the caller cannot see those projects in their own environment."
+    },
+    "odoo-addons/webvue_pmo/models/project_copy.py": {
+      "count": 1,
+      "reason": "webvue_pmo project copy creation policy: `env = self.env if self._webvue_is_manager() else self.sudo().env` in `_webvue_create`; blocked by /Users/tariq/code/odoo/odoo/addons/project/security/ir.model.access.csv:2 `access_project_project` (project.group_project_user has create=0; write is granted only to project.group_project_manager at :3); the admin-set create policy lets a plain employee create, and `create_uid`/`user_id` still record the real employee rather than the elevation."
+    },
+    "odoo-addons/webvue_pmo/models/project_project.py": {
+      "count": 5,
+      "reason": "webvue_pmo project lifecycle elevations. (1) `self.env['webvue.entitlement.service'].sudo()._webvue_claim_projects(...)` in create (:272), restore (:335) and archive (:339) — blocked by the system-only `access_webvue_tenant_profile_system` row on `webvue.tenant.profile`, which a project manager never holds. (2) `self.env['project.task'].sudo().search([... webvue_completion_pending ...])` in `write` (:321) — blocked by odoo-addons/webvue_pmo/security/webvue_pmo_rules.xml:12 `rule_task_current_company` plus the WebVue task visibility narrowing, and the manager must lock every pending task of the project, including tasks they cannot read. (3) `self.sudo().write(vals)` in `_webvue_write_sudo` (:424) — blocked by /Users/tariq/code/odoo/odoo/addons/project/security/ir.model.access.csv:2-3, where only Odoo's `project.group_project_manager` group may write a project, so a WebVue project manager outside that group cannot; every call runs its manager/sponsor check first and the values pass a per-caller whitelist (MANAGER_WRITABLE, CHARTER_APPROVAL_FIELDS, PHASE_FIELDS) that raises on any other field. The milestone-bounds constraint site at line 576 is not covered by this case: it is a pending owner decision and stays in the baseline."
+    },
+    "odoo-addons/webvue_pmo/models/project_status.py": {
+      "count": 5,
+      "reason": "webvue_pmo automatic completion status: `self.sudo().write({'webvue_status_auto_done': ...})` (:49), `Task = self.env['project.task'].sudo()` (:64), `for project in self.sudo().filtered(lambda p: p.active)` (:65), `self.env['project.update'].sudo().create({...})` (:108) and `self.env['project.task'].sudo().search([... webvue_completion_pending ...])` (:144). Blockers: /Users/tariq/code/odoo/odoo/addons/project/security/ir.model.access.csv:2 `access_project_project` (write only for project.group_project_manager at :3), :35 `access_project_update_project_user` (the caller may not have project.group_project_user), and odoo-addons/webvue_pmo/security/webvue_pmo_rules.xml:12 `rule_task_current_company` with the task visibility narrowing. A WebVue manager outside Odoo's stock groups must still complete or reopen a project, count its tasks, and record the `project.update` the caller cannot create."
+    },
+    "odoo-addons/webvue_pmo/models/project_structure.py": {
+      "count": 4,
+      "reason": "webvue_pmo project structure administration. `self.env['project.task'].sudo().with_context(active_test=False).search_count([...])` in `_webvue_stage_task_count` (:18) and `Task = self.env['project.task'].sudo()` in `_webvue_milestone_task_counts` (:89) — blocked by webvue_pmo_rules.xml:12 `rule_task_current_company` plus the stock followers-only task visibility rule, because a stage or milestone must count tasks the caller cannot read or a non-empty one could be deleted. `self.sudo().message_subscribe(...)` (:70) and `self.sudo().message_unsubscribe(...)` (:81) — blocked by /Users/tariq/code/odoo/odoo/addons/project/security/ir.model.access.csv:2, where subscribing checks `write` and only project.group_project_manager has it, while WebVue's assigned-user-as-manager is unknown to Odoo's ACL; the caller's manager check runs first."
+    },
+    "odoo-addons/webvue_pmo/models/res_company.py": {
+      "count": 1,
+      "reason": "webvue_pmo project-type provisioning seed: `Type = self.env['webvue.project.type'].sudo().with_context(active_test=False)` in `_webvue_seed_project_types`; no ACL row is missing — the elevation is needed for `active_test=False` visibility of archived seed rows on the provisioning-only path, which must stay idempotent when a seed has been archived."
+    },
+    "odoo-addons/webvue_pmo/models/task_completion.py": {
+      "count": 1,
+      "reason": "webvue_pmo completion reviewer eligibility: `if self.env.company.id not in user.sudo().company_ids.ids` in `_webvue_reviewer_eligible`; blocked by Odoo base `res_company_rule_employee` (/Users/tariq/code/odoo/odoo/addons/base/security/base_security.xml:113-120); the eligibility boolean cannot be computed unelevated without turning the intended 422 into a 403, and widening the rule so any internal user could read another user's companies would expose every `res.company` row — a far larger exposure than the boolean."
+    },
+    "odoo-addons/webvue_pmo/models/task_notifications.py": {
+      "count": 4,
+      "reason": "webvue_pmo deadline and overdue crons: `self.env['res.company'].sudo().search([], order='id')` (:165), `for batch in _webvue_iter_records(self.sudo(), domain)` (:188), `self.env['project.project'].sudo()` (:229) and `Task = self.env['project.task'].sudo()` (:238). Blockers: Odoo base `res_company_rule_employee` (base_security.xml:113-120) and the project/task visibility narrowing; a cron runs without a user company context and must scan every company's overdue projects and tasks, while delivery re-checks `check_access` per recipient."
+    },
+    "odoo-addons/webvue_pmo/models/webvue_settings.py": {
+      "count": 2,
+      "reason": "webvue_pmo settings policy: `self.sudo().write(vals)` in `set_values` (:90) — blocked by /Users/tariq/code/odoo/odoo/addons/base/security/ir.model.access.csv:45 `access_res_company_employee` (write=0) plus `res_company_rule_employee`, because the caller is gated on the WebVue `pmo.settings.manage` capability, not on Odoo's system or erp-manager groups; and `self.env['ir.config_parameter'].sudo()` in `_params` (:114) — blocked by ir.model.access.csv:118 `access_ir_config_parameter_system` (group_system only) for the legacy global fallback."
+    },
+    "odoo-addons/webvue_pmo/serializers/task.py": {
+      "count": 5,
+      "reason": "webvue_pmo task payload lookups. `project.sudo().display_name` in `_project_ref` (:90) and `milestone.sudo().display_name` in `_milestone_ref` (:103) — blocked by stock `project_public_members_rule` (followers-only projects) and /Users/tariq/code/odoo/odoo/addons/project/security/project_security.xml:319-330 `milestone_visibility_rule`, where the caller may read the task but not its project's or milestone's name; this mirrors the Odoo web client's many2one display resolution. `request.env['project.task.type'].sudo().browse(stage_id).exists()` in `_parse_personal_stage` (:261) and `_parse_stage` (:281) — blocked by project_security.xml:118-122 `task_type_visibility_rule` `[('user_id','in',(False, user.id))]`, so a foreign personal stage answers the contracted 422 instead of an AccessError. `request.env['project.milestone'].sudo().browse(milestone_id).exists()` in `_parse_milestone` (:304) — blocked by `milestone_visibility_rule` for the same 422-not-403 contract."
+    },
+    "odoo-addons/webvue_pmo/serializers/timeline.py": {
+      "count": 1,
+      "reason": "webvue_pmo timeline tracking exposure: `message.sudo().tracking_value_ids._filter_has_field_access(message.env)`; blocked by the field-level group on `mail.message.tracking_value_ids` (/Users/tariq/code/odoo/odoo/addons/mail/models/mail_message.py:180-184) — an ACL cannot scope a field; the elevation only selects the candidate rows, which are then filtered by the caller's real field access."
     },
     "odoo-addons/webvue_finance/models/setup_service.py": {
       "count": 2,
@@ -11,6 +143,10 @@
     "odoo-addons/webvue_finance/models/zatca_service.py": {
       "count": 2,
       "reason": "finance ZATCA e-invoicing: onboarding (stock wizard) and one-invoice submission, after the finance.zatca.manage/submit and current-company checks; sandbox api mode only until a production policy is approved (owner approved 2026-10-19)"
+    },
+    "odoo-addons/webvue_pmo/models/notification_types.py": {
+      "count": 1,
+      "reason": "webvue_pmo inbox bell candidates: `readable_active_task_ids` searches `mail.notification` with the recipient in the domain before the read (notification_types.py:27). The recipient owns the row but cannot read the bell rows of the tasks they were notified about: `mail.notification` grants `base.group_user` read (access_mail_notification_user), while the task rows the candidate ids point at are narrowed by the project task record rules, so the caller's own environment answers empty. Proven by test_notifications.py::test_readable_task_lookup_is_narrowed_to_recipient_candidates, which fails with the elevation removed."
     }
   }
 }

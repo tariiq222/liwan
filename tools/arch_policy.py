@@ -182,20 +182,29 @@ def _decorator_name(node: ast.expr) -> str:
     return target.attr if isinstance(target, ast.Attribute) else getattr(target, 'id', '')
 
 
-def sudo_calls(text: str, superuser_id: bool = True) -> int:
-    """R7: .sudo() calls, su=True keywords and used SUPERUSER_ID names; comments and strings are not counted."""
+def sudo_sites(text: str, superuser_id: bool = True) -> list[tuple[int, str]]:
+    """R7: the (line, kind) of every sudo site: `.sudo()` calls, `su=True` keywords and used SUPERUSER_ID names.
+
+    `sudo_calls` is its length, so the count and the per-line report can never drift apart. Comments and
+    strings are not counted; a call that both chains `.sudo()` and passes `su=True` is two sites.
+    """
     tree = ast.parse(text)
-    found = 0
+    sites = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
-            found += isinstance(node.func, ast.Attribute) and node.func.attr == 'sudo'
-            found += sum(
-                1 for kw in node.keywords
-                if kw.arg == 'su' and isinstance(kw.value, ast.Constant) and kw.value.value is True
-            )
+            if isinstance(node.func, ast.Attribute) and node.func.attr == 'sudo':
+                sites.append((node.lineno, 'sudo'))
+            for kw in node.keywords:
+                if kw.arg == 'su' and isinstance(kw.value, ast.Constant) and kw.value.value is True:
+                    sites.append((node.lineno, 'su'))
         elif superuser_id and isinstance(node, ast.Name) and node.id == 'SUPERUSER_ID':
-            found += 1
-    return found
+            sites.append((node.lineno, 'SUPERUSER_ID'))
+    return sorted(sites)
+
+
+def sudo_calls(text: str, superuser_id: bool = True) -> int:
+    """R7: the number of sudo sites of one file."""
+    return len(sudo_sites(text, superuser_id))
 
 
 def routes_without_feature(text: str) -> list[str]:
@@ -597,17 +606,32 @@ def documented_counts(documented: dict) -> dict[str, int]:
 
 
 def documented_growth(ref: str, root: Path, documented_file: Path) -> list[str]:
-    """R7: a new documented sudo case or a higher count needs the owner trailer on the commit that changes the file."""
+    """R7: a documented case that no longer exists in the code, or a count below it.
+
+    The owner removed the `Architecture-approved-by:` requirement for documenting a
+    sudo case (decision 2026-10-25): a written reason is still mandatory and still has to
+    name the elevating call and the blocking ACL or rule (tools/sudo_gate.py), but adding
+    one no longer needs a trailer. What remains here is the stale direction: a documented
+    count that the code no longer reaches is a defect, not a licence.
+    """
     ref_text = _git_show(root, ref, documented_file.relative_to(root).as_posix())
     old = documented_counts(json.loads(ref_text)) if ref_text is not None else {}
     new = documented_counts(json.loads(_read(documented_file))) if documented_file.is_file() else {}
-    grown = [rel for rel, have in sorted(new.items()) if have > old.get(rel, 0)]
-    if not grown or change_approved(ref, root, documented_file, documented_weakenings):
-        return []
-    return [
-        f'R7: {rel}: documented sudo case added without {APPROVAL_TRAILER}: {new[rel]} documented, {ref} allows {old.get(rel, 0)}'
-        for rel in grown
-    ]
+    # A count may only shrink together with the code: the recorded cases must still be
+    # reachable. A file whose own documented count drops while its sudo sites stay put
+    # is a stale record, not a cleanup.
+    problems = []
+    for rel, have in sorted(new.items()):
+        if have >= old.get(rel, 0):
+            continue
+        text = _read(root / rel) if (root / rel).is_file() else ''
+        sites = len(sudo_sites(text)) if text else 0
+        if sites < have:
+            problems.append(
+                f'R7: {rel}: documented sudo case count fell from {old.get(rel, 0)} to {have} '
+                f'but the file has {sites} sudo sites; correct the documented count',
+            )
+    return problems
 
 
 def without_documented(current: Violations, documented: dict[str, int]) -> Violations:

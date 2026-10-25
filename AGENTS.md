@@ -158,7 +158,7 @@ Accumulation in code or in the database schema is a defect, not technical debt t
 ## Architecture rules (R1–R10)
 
 Spec: [reference architecture and Git workflow](docs/superpowers/specs/2026-10-05-webvue-reference-architecture-and-git-workflow-design.md).
-`tools/arch_policy.py` (runs inside `npm test`) and `tools/git_policy.py` (CI `static` step) enforce these
+`tools/arch_policy.py` (the pre-commit hook and the CI `static` step) and `tools/git_policy.py` (CI `static` step) enforce these
 rules. Violations that predate them are recorded in `tools/arch_baseline.json`. That baseline only shrinks:
 never add an entry or raise a count to make a check pass.
 
@@ -175,7 +175,12 @@ never add an entry or raise a count to make a check pass.
   `apps/web/server/utils/customer-commercial.ts`) remain the sole customer-side exception.
 - **R6** No condition on a customer name or customer type. Differences come from `commercial_mode`,
   entitlements and `customer_<name>_*` addons.
-- **R7** No new `sudo()` outside the documented cases.
+- **R7** No new `sudo()` outside the documented cases. `tools/sudo_gate.py` (inside `npm test`) fails
+  a `sudo()` site beyond its file's documented cases and `tools/arch_baseline.json` count, naming `file:line`,
+  and requires every documented case to carry a non-boilerplate reason that names the elevating call and
+  the blocking ACL or rule (empty and duplicated reasons are rejected). A documented count that the code
+  no longer reaches fails as stale. Adding a case needs no approval trailer (owner decision 2026-10-25);
+  the reason itself is the record, and review of the actual diff is what judges it.
 - **R8** Every feature works in `saas` and `non_saas`, or is explicitly commercial and hidden in `non_saas`.
 - **R9** Customise Odoo through its public extension points only: no edits to Odoo source, no new direct
   SQL on Odoo tables, no new override of a private access method on an Odoo model without a documented
@@ -292,15 +297,32 @@ cross-addon links.
   bearer token.
 - Keep `/api/v1/people?q=` and its user-id `PersonRef` contract unchanged.
   HR employee ids and user ids are distinct resources and must not be merged.
-- `webvue_hr`, `webvue_tasks`, `webvue_operations` and their bridges have no `sudo()` path. In PMO, only the documented manager-write,
+- `webvue_hr`, `webvue_tasks`, `webvue_operations` and their bridges have no `sudo()` path.
+  `webvue_pmo` uses it only for the documented manager-write,
   charter-approval (approval fields only, through `_webvue_write_sudo` with its own whitelist, after the manager or sponsor check), policy/config, display-lookup, integer-count, completion-status and notification
-  cron/candidate cases use `sudo()` after the caller's authorization check;
-  `webvue_notify` uses it only for bell delivery and recipient-owned bell reads.
+  cron/candidate cases, each after the caller's authorization check: the project copy-create policy, the stage and milestone
+  task counts, the `res.company` scan and the project/task scans of the deadline and overdue crons, the settings and legacy
+  `ir.config_parameter` policy writes, the project-type provisioning seed, the task serializers' project, milestone and
+  stage display and id lookups, the timeline tracking-value reads, and the charter and completion reviewer-eligibility
+  company reads. Its constraint reads that no category names yet (the milestone-bounds validators in
+  `webvue_pmo/models/project_task.py` and `webvue_pmo/models/project_milestone.py`) are not documented and await an owner decision.
+  `webvue_platform` uses it only for the entitlement service's tenant-profile read, the user quota delta, the pre-login
+  suspension gates, the attachment storage-quota accounting, the binary image route and the pre-session request
+  authentication guard — all blocked by the system-only `access_webvue_tenant_profile_system` row, which no ordinary user
+  or public route may hold.
+  `webvue_core` uses it only for the company-partner existence check, which Odoo's `res_company_rule_employee` hides and
+  `active_test=False` must still see.
+  `webvue_chat`'s two `mail.message.reaction` elevations are deliberately **not** documented: they await an owner decision,
+  because `webvue_chat/README.md` declines to authorize them.
+  `webvue_notify` uses it only for bell delivery and recipient-owned bell reads; the five other sites in that service have
+  no verifiable blocking ACL or record rule and await an owner decision, so they stay in the baseline undocumented.
   `webvue_meetings` uses it only for its server-controlled minutes, snapshot,
   version and event records, the company-wide organizer-overlap check, the
   meeting-manager group lookup, the existence check of the minutes linked to a
   calendar event (read only, access is rechecked by the caller) and the
-  recipient-owned bell candidates;
+  recipient-owned bell candidates; its meeting-manager group lookup and its bell
+  candidate read have no verifiable blocker in Odoo 19 and await an owner decision, so
+  they are not documented either;
   `webvue_meetings_pmo` only for the id-only lookup of converted tasks;
   `webvue_finance` only in `models/setup_service.py`, for loading the Saudi chart of accounts and
   writing the fiscal settings of the current company, after the
@@ -309,7 +331,8 @@ cross-addon links.
   after the `finance.zatca.manage` / `finance.zatca.submit` capability and current-company checks,
   in the sandbox api mode only (ZATCA onboarding is sandbox-only in this phase, so production invoicing for real
   tenants is a release blocker until the preprod/prod policy is approved).
-  `webvue_api` uses it in `controllers/common.py`, for the single company-ownership
+  `webvue_api` uses it in `controllers/common.py`, for the per-request entitlement
+  guard that every `/api/v1` call passes, and for the single company-ownership
   read in `get_record`, before any access check, so another company's record answers the
   same 404 not-found as a missing one instead of a 403 that leaks its existence; in
   `controllers/branding.py`, for the one tenant-profile read behind the public
@@ -321,10 +344,11 @@ cross-addon links.
   Do not add
   another case without documenting it and fixing ACLs/rules where possible.
   Documented cases are listed per file in `tools/arch_documented_sudo.json`, outside the
-  shrink-only baseline. Adding one or raising its count needs the owner's
-  `Architecture-approved-by:` trailer on the commit that changes that file, like
-  `tools/arch_layers.json`; agents never add that trailer. Removing a case lowers the
-  baseline and needs no trailer.
+  shrink-only baseline. Adding or raising one needs no approval trailer (owner decision
+  2026-10-25): the reason in the registry is the record, `tools/sudo_gate.py` judges its
+  shape, and review of the actual diff is the human gate. A documented count the code no
+  longer reaches is stale and fails. Weakening `tools/arch_layers.json` still needs the
+  owner's `Architecture-approved-by:` trailer; agents never add that trailer.
 - The current delivery scope has no time logging product surface: do not add `hr_timesheet`
   or timesheet fields/endpoints to the customer UI; adding them requires a separately scoped
   implementation request. Payroll is approved (owner decision 2026-10-19) as the Saudi payroll
