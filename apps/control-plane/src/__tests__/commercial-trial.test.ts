@@ -7,6 +7,7 @@ import { convertTrial, startTrial } from '../commercial/trial.js'
 import { routesB } from '../commercial/routes-b.js'
 import { getSubscription } from '../commercial/subscriptions.js'
 import { expireTrials } from '../commercial/trial-expiry.js'
+import { commercialValidUntil } from '../commercial/fulfillment.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { sendTrialNotices } from '../commercial/trial-notices.js'
 
@@ -173,6 +174,12 @@ suite('commercial trial', () => {
     expect(await sendTrialNotices(pool, { now, mail })).toBe(1)
     expect(await sendTrialNotices(pool, { now, mail })).toBe(0)
     expect((await pool.query("SELECT status FROM commercial_outbox WHERE kind='trial.notice' AND status='failed'")).rowCount).toBe(0)
+  })
+  it('sends the trial end plus grace to Odoo and clears it for a paid order', async () => {
+    const client = { query: async () => ({ rows: [{ grace_days: 7 }] }) } as never
+    const trial = { kind: 'new', payment_state: 'not_required', trial_ends_at: '2026-11-01T09:00:00Z', snapshot: { plan_revision_id: 'p' } }
+    expect(await commercialValidUntil(client, trial)).toBe('2026-11-08')
+    expect(await commercialValidUntil(client, { ...trial, payment_state: 'paid' })).toBeNull()
   })
   it('does not grant a trial for an application the customer did not choose', async () => {
     const c = await newCustomer()
