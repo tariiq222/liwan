@@ -75,7 +75,7 @@ msgstr "الإجراء"
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_branch__state__active
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_profile__status__active
 msgid "Active"
-msgstr ""
+msgstr "نشط"
 
 #. module: webvue_platform
 #. odoo-python
@@ -91,12 +91,12 @@ msgstr "يجب أن يكون رقم مراجعة الحدث موجبًا."
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_branch__state__archived
 msgid "Archived"
-msgstr ""
+msgstr "مؤرشف"
 
 #. module: webvue_platform
 #: model:ir.model,name:webvue_platform.model_ir_attachment
 msgid "Attachment"
-msgstr ""
+msgstr "المرفق"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__booking_id
@@ -142,7 +142,7 @@ msgstr "جُدول الحجز"
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__branch_uid
 msgid "Branch Uid"
-msgstr ""
+msgstr "مُعرّف الفرع"
 
 #. module: webvue_platform
 #. odoo-python
@@ -167,27 +167,27 @@ msgstr "اختر نافذة صيانة مستقبلية."
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "Classification differs from the local operator input."
-msgstr ""
+msgstr "التصنيف يخالف مدخل المشغّل المحلي."
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__commercial_applied_at
 msgid "Commercial Applied At"
-msgstr ""
+msgstr "تاريخ تطبيق الترخيص التجاري"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__commercial_digest
 msgid "Commercial Digest"
-msgstr ""
+msgstr "بصمة الترخيص التجاري"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__commercial_mode
 msgid "Commercial Mode"
-msgstr ""
+msgstr "النمط التجاري"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__commercial_revision_id
 msgid "Commercial Revision"
-msgstr ""
+msgstr "مراجعة الترخيص التجاري"
 
 #. module: webvue_platform
 #. odoo-python
@@ -201,12 +201,12 @@ msgstr ""
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "Commercial mode and policy source must match."
-msgstr ""
+msgstr "يجب أن يتطابق النمط التجاري مع مصدر السياسة."
 
 #. module: webvue_platform
 #: model:ir.model,name:webvue_platform.model_res_company
 msgid "Companies"
-msgstr ""
+msgstr "الشركات"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__company_id
@@ -228,7 +228,7 @@ msgstr "مكتمل"
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_profile__entitlement_source__control_plane
 msgid "Control plane"
-msgstr ""
+msgstr "مستوى التحكم"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__create_uid
@@ -286,7 +286,7 @@ msgstr "المدة بالدقائق"
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__entitlement_source
 msgid "Entitlement Source"
-msgstr ""
+msgstr "مصدر الاستحقاقات"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__estimated_seconds
@@ -303,17 +303,17 @@ msgstr "فشل"
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__features
 msgid "Features"
-msgstr ""
+msgstr "الميزات"
 
 #. module: webvue_platform
 #: model:ir.model,name:webvue_platform.model_ir_binary
 msgid "File streaming helper model for controllers"
-msgstr ""
+msgstr "نموذج مساعد لبث الملفات لوحدات التحكم"
 
 #. module: webvue_platform
 #: model:ir.model,name:webvue_platform.model_ir_http
 msgid "HTTP Routing"
-msgstr ""
+msgstr "توجيه HTTP"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_ir_attachment__id
@@ -343,13 +343,13 @@ msgstr "حدث صيانة محفوظ للتدقيق"
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_profile__commercial_mode__non_saas
 msgid "Independent"
-msgstr ""
+msgstr "مستقل"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "Independent installations cannot have a subscription expiry."
-msgstr ""
+msgstr "التثبيتات المستقلة لا يكون لها تاريخ انتهاء اشتراك."
 
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_release__scope__infrastructure
@@ -405,7 +405,7 @@ msgstr "تاريخ آخر تعديل"
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_profile__entitlement_source__local_policy
 msgid "Local policy"
-msgstr ""
+msgstr "سياسة محلية"
 
 #. module: webvue_platform
 #. odoo-python
@@ -559,7 +559,7 @@ msgstr "يمكن تعديل الصيانة المجدولة أو إلغاؤها 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__operation_id
 msgid "Operation"
-msgstr ""
+msgstr "العملية"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_authority__operation_generation
@@ -579,13 +579,13 @@ msgstr "السياسة"
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__policy_revision
 msgid "Policy Revision"
-msgstr ""
+msgstr "مراجعة السياسة"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "Policy source is not permitted for this installation."
-msgstr ""
+msgstr "مصدر السياسة غير مسموح لهذا التثبيت."
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__preference_id
@@ -600,7 +600,7 @@ msgstr "حُفظ التفضيل"
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__quota_revision
 msgid "Quota Revision"
-msgstr ""
+msgstr "مراجعة الحصة"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__release_id
@@ -641,7 +641,7 @@ msgstr "لا يمكن تغيير موعد الإصدار أو نطاقه أثن�
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__retained_read_features
 msgid "Retained Read Features"
-msgstr ""
+msgstr "الميزات المحتفظ بقراءتها"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__revision
@@ -653,7 +653,7 @@ msgstr "المراجعة"
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__root_company_id
 msgid "Root Company"
-msgstr ""
+msgstr "الشركة الرئيسية"
 
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_booking__status__running
@@ -665,7 +665,7 @@ msgstr "قيد التنفيذ"
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_profile__commercial_mode__saas
 msgid "SaaS"
-msgstr ""
+msgstr "ساس"
 
 #. module: webvue_platform
 #. odoo-python
@@ -698,12 +698,12 @@ msgstr "أمني"
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__singleton_key
 msgid "Singleton Key"
-msgstr ""
+msgstr "مفتاح السجل المفرد"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__solution
 msgid "Solution"
-msgstr ""
+msgstr "الحل"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__start_minute
@@ -713,7 +713,7 @@ msgstr "دقيقة البدء"
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__state
 msgid "State"
-msgstr ""
+msgstr "الحالة"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__status
@@ -725,7 +725,7 @@ msgstr "الحالة"
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__support_access_enabled
 msgid "Support Access Enabled"
-msgstr ""
+msgstr "وصول الدعم مفعّل"
 
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_release__status__supported
@@ -735,12 +735,12 @@ msgstr "مدعوم"
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_profile__status__suspended
 msgid "Suspended"
-msgstr ""
+msgstr "موقوف"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_branch__target_revision_id
 msgid "Target Revision"
-msgstr ""
+msgstr "المراجعة المستهدفة"
 
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_release__scope__tenant
@@ -765,7 +765,7 @@ msgstr "سجل تنسيق عمليات صيانة العميل"
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__terminology
 msgid "Terminology"
-msgstr ""
+msgstr "المصطلحات"
 
 #. module: webvue_platform
 #. odoo-python
@@ -807,7 +807,7 @@ msgstr "هذا الإصدار غير متاح لحجز مستقل لعميل و�
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__tier
 msgid "Tier"
-msgstr ""
+msgstr "الفئة"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__timezone
@@ -841,42 +841,42 @@ msgstr "استخدم عملية حفظ تفضيل الصيانة."
 #. module: webvue_platform
 #: model:ir.model,name:webvue_platform.model_res_users
 msgid "User"
-msgstr ""
+msgstr "المستخدم"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__valid_until
 msgid "Valid Until"
-msgstr ""
+msgstr "صالح حتى"
 
 #. module: webvue_platform
 #: model:ir.model,name:webvue_platform.model_webvue_access_service
 msgid "WebVue Access Service"
-msgstr ""
+msgstr "خدمة الوصول في ويب فيو"
 
 #. module: webvue_platform
 #: model:ir.model,name:webvue_platform.model_webvue_entitlement_service
 msgid "WebVue entitlement service"
-msgstr ""
+msgstr "خدمة الاستحقاقات في ويب فيو"
 
 #. module: webvue_platform
 #: model:ir.model,name:webvue_platform.model_webvue_feature_registry
 msgid "WebVue feature and module registry"
-msgstr ""
+msgstr "سجل الميزات والوحدات في ويب فيو"
 
 #. module: webvue_platform
 #: model:ir.model,name:webvue_platform.model_webvue_module_load_guard
 msgid "WebVue installed-module load guard"
-msgstr ""
+msgstr "حارس تحميل الوحدات المثبّتة في ويب فيو"
 
 #. module: webvue_platform
 #: model:ir.model,name:webvue_platform.model_webvue_tenant_branch
 msgid "WebVue tenant commercial branch"
-msgstr ""
+msgstr "الفرع التجاري لشركة ويب فيو"
 
 #. module: webvue_platform
 #: model:ir.model,name:webvue_platform.model_webvue_tenant_profile
 msgid "WebVue tenant profile"
-msgstr ""
+msgstr "ملف شركة ويب فيو"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_preference__weekday
@@ -903,91 +903,91 @@ msgstr "مسحوب"
 #. module: webvue_platform
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_branch_company_unique
 msgid "a company can be bound to one webvue branch"
-msgstr ""
+msgstr "لا يمكن ربط الشركة إلا بفرع ويب فيو واحد"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "branch_binding_conflict"
-msgstr ""
+msgstr "تعارض_ربط_الفرع"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "branch_binding_invalid"
-msgstr ""
+msgstr "ربط_فرع_غير_صالح"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "branch_not_found"
-msgstr ""
+msgstr "الفرع_غير_موجود"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/res_company.py:0
 msgid "branch_requires_subscription"
-msgstr ""
+msgstr "الفرع_يتطلب_اشتراكًا"
 
 #. module: webvue_platform
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_profile_independent_cutoff
 msgid "independent installations cannot have a subscription expiry"
-msgstr ""
+msgstr "التثبيتات المستقلة لا يكون لها تاريخ انتهاء اشتراك"
 
 #. module: webvue_platform
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_branch_branch_uid_unique
 msgid "webvue branch uid must be unique"
-msgstr ""
+msgstr "يجب أن يكون مُعرّف فرع ويب فيو فريدًا"
 
 #. module: webvue_platform
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_profile_commercial_pair
 msgid "webvue commercial mode and entitlement source must match"
-msgstr ""
+msgstr "يجب أن يتطابق النمط التجاري مع مصدر الاستحقاقات"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "webvue tenant policy can only be changed by a trusted operator."
-msgstr ""
+msgstr "لا يمكن تغيير سياسة شركة ويب فيو إلا بمشغّل موثوق."
 
 #. module: webvue_platform
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_profile_policy_revision_positive
 msgid "webvue tenant policy revision cannot be negative"
-msgstr ""
+msgstr "لا يمكن أن تكون مراجعة سياسة الشركة سالبة"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "webvue tenant profile cannot be deleted."
-msgstr ""
+msgstr "لا يمكن حذف ملف الشركة."
 
 #. module: webvue_platform
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_profile_singleton
 msgid "webvue tenant profile is a singleton"
-msgstr ""
+msgstr "ملف الشركة سجل مفرد"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "webvue tenant profile is a singleton."
-msgstr ""
+msgstr "ملف الشركة سجل مفرد."
 
 #. module: webvue_platform
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_profile_singleton_key
 msgid "webvue tenant profile only accepts the 'tenant' key"
-msgstr ""
+msgstr "ملف الشركة يقبل المفتاح 'tenant' فقط"
 
 #. module: webvue_platform
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_profile_quota_revision_positive
 msgid "webvue tenant quota revision cannot be negative"
-msgstr ""
+msgstr "لا يمكن أن تكون مراجعة حصة الشركة سالبة"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/feature_registry.py:0
 msgid "webvue_platform: %(kind)s definition is missing an id"
-msgstr ""
+msgstr "تعريف %(kind)s في webvue_platform بلا مُعرّف"
 
 #. module: webvue_platform
 #. odoo-python
@@ -1001,37 +1001,37 @@ msgstr ""
 #. odoo-python
 #: code:addons/webvue_platform/models/feature_registry.py:0
 msgid "webvue_platform: duplicate %(kind)s key %(key)s"
-msgstr ""
+msgstr "مفتاح %(kind)s مكرر: %(key)s"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/feature_registry.py:0
 msgid "webvue_platform: feature %(key)s has invalid type"
-msgstr ""
+msgstr "الميزة %(key)s نوعها غير صالح"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/feature_registry.py:0
 msgid "webvue_platform: feature %(key)s is missing owner or module"
-msgstr ""
+msgstr "الميزة %(key)s بلا مالك أو وحدة"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: feature %(key)s must be a boolean"
-msgstr ""
+msgstr "يجب أن تكون الميزة %(key)s قيمة منطقية"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: features must be a flat object"
-msgstr ""
+msgstr "يجب أن تكون الميزات كائنًا مسطحًا"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: features payload is missing required keys: %(keys)s"
-msgstr ""
+msgstr "حمولة الميزات تنقصها مفاتيح مطلوبة: %(keys)s"
 
 #. module: webvue_platform
 #. odoo-python
@@ -1046,61 +1046,61 @@ msgstr ""
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: limit %(key)s must be a non-negative integer or null"
-msgstr ""
+msgstr "يجب أن يكون الحد %(key)s عددًا صحيحًا غير سالب أو فارغًا"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "webvue_platform: multiple tenant profiles exist; refuse to guess."
-msgstr ""
+msgstr "عدة ملفات شركة موجودة؛ لن نخمّن."
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: retained_read_features contains invalid key %(key)s"
-msgstr ""
+msgstr "تحوي الميزات المحتفظ بقراءتها مفتاحًا غير صالح: %(key)s"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: retained_read_features must be a list"
-msgstr ""
+msgstr "يجب أن تكون الميزات المحتفظ بقراءتها قائمة"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "webvue_platform: revisions cannot be negative"
-msgstr ""
+msgstr "لا يمكن أن تكون المراجعات سالبة"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "webvue_platform: status must be active or suspended"
-msgstr ""
+msgstr "يجب أن تكون الحالة نشط أو موقوف"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: tenant profile is missing or not a singleton."
-msgstr ""
+msgstr "ملف الشركة مفقود أو ليس سجلًا مفردًا."
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "webvue_platform: tenant_profile xmlid points at a different record."
-msgstr ""
+msgstr "مُعرّف ملف الشركة يشير إلى سجل مختلف."
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: terminology key %(key)s is not allowed"
-msgstr ""
+msgstr "مفتاح المصطلحات %(key)s غير مسموح"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: terminology must be an object"
-msgstr ""
+msgstr "يجب أن تكون المصطلحات كائنًا"
 
 #. module: webvue_platform
 #. odoo-python
@@ -1113,46 +1113,46 @@ msgstr ""
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: terminology value for %(key)s is too long"
-msgstr ""
+msgstr "قيمة المصطلح %(key)s طويلة جدًا"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: terminology value for %(key)s must be text"
-msgstr ""
+msgstr "يجب أن تكون قيمة المصطلح %(key)s نصًا"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: terminology.%(locale)s exceeds %(limit)s keys"
-msgstr ""
+msgstr "مصطلحات %(locale)s تتجاوز %(limit)s مفتاحًا"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: terminology.%(locale)s must be an object"
-msgstr ""
+msgstr "يجب أن تكون مصطلحات %(locale)s كائنًا"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: unknown feature %(key)s"
-msgstr ""
+msgstr "ميزة غير معروفة: %(key)s"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "webvue_platform: unknown selected modules %(modules)s"
-msgstr ""
+msgstr "وحدات مختارة غير معروفة: %(modules)s"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: unknown terminology key %(key)s"
-msgstr ""
+msgstr "مفتاح مصطلحات غير معروف: %(key)s"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: unknown terminology locale %(locale)s"
-msgstr ""
+msgstr "لغة مصطلحات غير معروفة: %(locale)s"
