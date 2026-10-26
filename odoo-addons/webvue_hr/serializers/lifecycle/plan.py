@@ -40,11 +40,27 @@ def dump_step(template):
     }
 
 
-def dump_plan(plan):
+def department_refs(plans):
+    """``{plan id: {id, name} | None}`` for the plans' departments, in one batched read.
+
+    A plan reader needs no department capability to see which department a plan targets,
+    so the reference follows the plan's own visibility: ``Many2one.convert_to_read``
+    (stock ``read()``) names the related record regardless of the caller's access to it,
+    which ``ref(plan.department_id)`` cannot (it reads the guarded department itself).
+    ``hierarchical_naming=False`` makes the stock display name the plain department name.
+    """
+    refs = {}
+    for row in plans.with_context(hierarchical_naming=False).read(['department_id']):
+        department = row['department_id']
+        refs[row['id']] = {'id': department[0], 'name': department[1]} if department else None
+    return refs
+
+
+def dump_plan(plan, department):
     return {
         'id': plan.id,
         'name': plan.name,
-        'department': ref(plan.department_id),
+        'department': department,
         'active': bool(plan.active),
         'steps': [
             dump_step(template)
