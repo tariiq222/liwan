@@ -41,6 +41,8 @@ access_webvue_hr_payroll_salary_rule_category_employee,hr.salary.rule.category,p
 access_webvue_hr_payroll_version_reader,hr.version.payroll_reader,hr.model_hr_version,group_cap_hr_payroll_read,1,0,0,0
 access_webvue_hr_compensation_reader,webvue.hr.compensation.reader,model_webvue_hr_compensation,group_cap_hr_payroll_read,1,0,0,0
 access_webvue_hr_compensation_manager,webvue.hr.compensation.manager,model_webvue_hr_compensation,group_cap_hr_payroll_manage,1,1,1,0
+access_webvue_hr_payslip_payment_reader,webvue.hr.payslip.payment.reader,model_webvue_hr_payslip_payment,group_cap_hr_payroll_read,1,0,0,0
+access_webvue_hr_payslip_payment_approver,webvue.hr.payslip.payment.approver,model_webvue_hr_payslip_payment,group_cap_hr_payroll_approve,1,0,1,0
 access_webvue_hr_gosi_rate_reader,webvue.hr.gosi.rate.reader,model_webvue_hr_gosi_rate,group_cap_hr_payroll_read,1,0,0,0
 access_webvue_hr_gosi_rate_config,webvue.hr.gosi.rate.config,model_webvue_hr_gosi_rate,group_cap_hr_payroll_config,1,1,1,1
 access_webvue_hr_payroll_settings_reader,webvue.hr.payroll.settings.reader,model_webvue_hr_payroll_settings,group_cap_hr_payroll_read,1,0,0,0
@@ -74,3 +76,6 @@ access_webvue_hr_audit_change_audit_read,webvue.hr.audit.change.audit_read,model
 access_webvue_hr_audit_change_config,webvue.hr.audit.change.config,model_webvue_hr_audit_change,group_cap_hr_payroll_config,0,0,1,0
 access_webvue_hr_audit_change_manage,webvue.hr.audit.change.manage,model_webvue_hr_audit_change,group_cap_hr_payroll_manage,0,0,1,0
 access_webvue_hr_audit_change_approve,webvue.hr.audit.change.approve,model_webvue_hr_audit_change,group_cap_hr_payroll_approve,0,0,1,0
+access_webvue_hr_audit_event_log,webvue.hr.audit.event.log,model_webvue_hr_audit_event,group_cap_hr_payroll_read,0,0,1,0
+access_webvue_hr_audit_change_log,webvue.hr.audit.change.log,model_webvue_hr_audit_change,group_cap_hr_payroll_read,0,0,1,0
+access_webvue_hr_payroll_file_read,webvue.hr.payroll.file.read,model_webvue_hr_payroll_file,group_cap_hr_payroll_read,1,0,1,0

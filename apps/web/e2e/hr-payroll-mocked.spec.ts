@@ -60,7 +60,8 @@ test.describe('payroll run page', () => {
     await expect(page.getByTestId('hr-payroll-run-state')).toHaveText('محسوب')
     await expect(page.getByTestId('hr-payroll-totals')).toContainText('صافي الرواتب')
     await expect(row(page, /ليلى الحربي/)).toBeVisible()
-    await expect(page.getByTestId('hr-payroll-warnings')).toContainText('خالد الشمري')
+    // Before the approval the IBAN can still be completed in the compensation.
+    await expect(page.getByTestId('hr-payroll-warnings')).toContainText('خالد الشمري: لا آيبان مسجّل، ويلزم آيبان لكل صافٍ موجب. أكمل الآيبان في التعويضات قبل الاعتماد.')
     const net = await page.getByTestId('hr-payroll-totals').innerText()
 
     // An input is edited in place with Arabic digits; the server's row and totals replace the cached ones.
@@ -76,6 +77,18 @@ test.describe('payroll run page', () => {
     await expect(page.getByTestId('inline-confirm')).toContainText('اعتماد هذا المسير؟')
     await page.getByTestId('inline-confirm-cancel').click()
     await expect(page.getByTestId('hr-payroll-run-state')).toHaveText('محسوب')
+
+    // Owner decision D-10: a net to pay without an IBAN refuses the approval and names the employee.
+    const withoutRefusals = trackRefusedRequests(page, '/api/v1/hr/payroll/runs/2/approve')
+    await page.getByTestId('hr-payroll-approve').click()
+    await page.getByTestId('inline-confirm-action').click()
+    await expect(page.getByTestId('hr-payroll-run-failure')).toHaveText('لا آيبان مسجّل لـ 1 موظف (خالد الشمري). أكمل الآيبان في التعويضات قبل الاعتماد.')
+    await expect(page.getByTestId('hr-payroll-run-state')).toHaveText('محسوب')
+    errors = withoutRefusals(errors)
+
+    // With an IBAN on every employee the same approval goes through.
+    expect((await page.request.post('/api/v1/__mock/reset-payroll', { data: { ibansComplete: true } })).status()).toBe(200)
+    await open(page, '/hr/payroll/2', 'مسير رواتب نوفمبر 2026')
     await page.getByTestId('hr-payroll-approve').click()
     await page.getByTestId('inline-confirm-action').click()
     await expect(page.getByTestId('hr-payroll-run-state')).toHaveText('معتمد')
@@ -338,13 +351,17 @@ test.describe('payroll settings', () => {
 })
 
 test.describe('payroll salary files', () => {
-  test('missing IBAN shows the employee names', async ({ page }) => {
+  test('an approved run with an empty payment snapshot names the employee and does not send them to the compensation', async ({ page }) => {
+    // Run 1 is approved while Khalid has no IBAN: its approval snapshot is empty, as only the 19.0.1.12.0 migration leaves it.
     await open(page, '/hr/payroll/1', 'مسير رواتب أكتوبر 2026')
+    const warnings = page.getByTestId('hr-payroll-warnings')
+    await expect(warnings).toContainText('خالد الشمري: لقطة بيانات الدفع عند اعتماد هذا المسيّر ناقصة')
+    await expect(warnings).not.toContainText('قبل الاعتماد')
     // The refused request is logged by the browser; it is the behaviour under test.
     const withoutRefusals = trackRefusedRequests(page, '/api/v1/hr/payroll/runs/1/bank-file')
     await page.getByTestId('hr-payroll-download-bank').click()
-    await expect(page.getByTestId('hr-payroll-run-failure')).toContainText('خالد الشمري')
-    await expect(page.getByTestId('hr-payroll-run-failure')).toContainText('لا آيبان مسجّل')
+    const failure = page.getByTestId('hr-payroll-run-failure')
+    await expect(failure).toHaveText('تعذّر إنشاء الملف لأن لقطة بيانات الدفع عند اعتماد هذا المسيّر ناقصة لـخالد الشمري. تعديل الآيبان في التعويضات الآن لن يغيّر هذا المسيّر. تواصل مع مسؤول الرواتب أو الدعم لمعالجة موثّقة.')
     errors = withoutRefusals(errors)
   })
 

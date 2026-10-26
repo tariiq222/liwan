@@ -9,7 +9,7 @@ import { ApiError } from '../../../composables/useApi'
 import { usePayrollConflict } from '../../../composables/usePayrollConflict'
 import { saveErrorMessage } from '../../../utils/formFeedback'
 import { gosiRatePatch } from '../../../utils/payrollSettings'
-import { payrollFieldError } from '../../../utils/payrollErrors'
+import { payrollErrorMessage, payrollFieldError } from '../../../utils/payrollErrors'
 import { parseMoneyInput } from '../../../utils/moneyInput'
 
 // The GOSI rate and salary file profile editors send the revision of the row they opened; a 409 keeps the draft, blocks
@@ -22,7 +22,7 @@ const MODULES: Record<string, unknown> = {
   '@/composables/useApi': { ApiError },
   '@/utils/formFeedback': { saveErrorMessage },
   '@/utils/payrollSettings': { gosiRatePatch },
-  '@/utils/payrollErrors': { payrollFieldError },
+  '@/utils/payrollErrors': { payrollErrorMessage, payrollFieldError },
   '@/utils/moneyInput': { parseMoneyInput },
   '@/utils/payrollFormat': { formatPayrollAmount: String, formatPayrollPercent: String },
 }
@@ -131,5 +131,17 @@ describe('BankProfileForm revision conflicts', () => {
     expect(remove).toHaveBeenCalledWith({ id: 4, revision: 5 })
     await state.reload()
     expect([state.conflict.value, Boolean(state.reloadFailure.value)]).toEqual([true, true])
+  })
+
+  it('a refused delete of a profile a kept file names shows the payroll text, not the server English', async () => {
+    const remove = vi.fn().mockRejectedValue(
+      new ApiError(409, 'profile_in_use', 'This salary file profile is kept by a generated salary file.'),
+    )
+    const state = profiles(vi.fn(), remove)
+    state.askDelete(PROFILE)
+    await state.confirmDelete()
+    expect(state.deleting.value).toEqual(PROFILE)
+    // The test's t() echoes the key: the page text is the code's own locale key, never the server message.
+    expect(state.deleteAlert.value).toBe('hrPayroll.errors.profile_in_use')
   })
 })

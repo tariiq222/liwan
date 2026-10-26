@@ -1,19 +1,40 @@
+import type { HrPayrollRunState, HrPayrollWarning } from '@webvue/contracts'
 import { ApiError } from '../composables/useApi'
 
 type Translate = (key: string, params?: Record<string, unknown>) => string
+type HasTranslation = (key: string) => boolean
 
 // The refusals of the payroll routes that have their own text on the page; the server's message is English.
-const OWN_TEXT = new Set(['duplicate', 'transition_forbidden', 'structure_missing', 'contract_missing', 'gosi_rate_missing', 'payroll_structure_mismatch', 'compensation_missing', 'settlement_missing', 'settlement_changed', 'annual_leave_type_missing', 'departure_missing', 'eos_case_missing', 'period_locked', 'missing_cost_center', 'settings_incomplete', 'wps_totals_mismatch', 'run_empty', 'nationality_missing', 'gosi_registration_missing', 'provision_after_run'])
+const OWN_TEXT = new Set(['duplicate', 'transition_forbidden', 'structure_missing', 'contract_missing', 'gosi_rate_missing', 'payroll_structure_mismatch', 'compensation_missing', 'settlement_missing', 'settlement_changed', 'annual_leave_type_missing', 'departure_missing', 'eos_case_missing', 'period_locked', 'missing_cost_center', 'settings_incomplete', 'wps_totals_mismatch', 'run_empty', 'nationality_missing', 'gosi_registration_missing', 'provision_after_run', 'profile_in_use', 'profile_unavailable'])
 // The refusals that list the employees they name.
 const NAMING = new Set(['negative_net', 'missing_iban', 'run_stale'])
+// The run states whose payment data was fixed at approval: the salary files read that snapshot, never the live compensation.
+const FIXED_RUN_STATES: ReadonlySet<HrPayrollRunState> = new Set(['approved', 'posted', 'paid'])
 
 function employeeIds(error: ApiError): number[] {
   const ids = error.details?.employee_ids
   return Array.isArray(ids) ? ids.filter((id): id is number => typeof id === 'number') : []
 }
 
-/** The text a refused payroll write shows: its own message for the known codes, otherwise the generic one. */
-export function payrollErrorMessage(error: unknown, t: Translate, employeeNames: ReadonlyMap<number, string>): string {
+/**
+ * The locale key of a payroll code on a run in ``runState``. A missing IBAN on a fixed run is an incomplete snapshot:
+ * recording the IBAN in the compensation cannot repair it, so it has its own text.
+ */
+function runCodeKey(code: string, runState: HrPayrollRunState | undefined): string {
+  return code === 'missing_iban' && runState && FIXED_RUN_STATES.has(runState) ? 'missing_iban_snapshot' : code
+}
+
+/** The text of a run warning, in the words that fit the run's state; the raw code and name when it has no text. */
+export function payrollWarningText(warning: HrPayrollWarning, runState: HrPayrollRunState, t: Translate, te: HasTranslation): string {
+  const key = `hrPayroll.warnings.${runCodeKey(warning.code, runState)}`
+  return te(key) ? t(key, { name: warning.employee.name }) : `${warning.code}: ${warning.employee.name}`
+}
+
+/**
+ * The text a refused payroll write shows: its own message for the known codes, otherwise the generic one.
+ * ``runState`` is the state of the run the refusal is about, when there is one.
+ */
+export function payrollErrorMessage(error: unknown, t: Translate, employeeNames: ReadonlyMap<number, string>, runState?: HrPayrollRunState): string {
   if (!(error instanceof ApiError)) return t('errors.generic')
   if (error.status === 0) return t('errors.saveUncertain')
   // The one `transition_forbidden` that is about the caller, not the run's state: approving your own payslip.
@@ -24,7 +45,7 @@ export function payrollErrorMessage(error: unknown, t: Translate, employeeNames:
   if (NAMING.has(error.code)) {
     const ids = employeeIds(error)
     const names = ids.flatMap(id => employeeNames.get(id) ?? [])
-    return t(`hrPayroll.errors.${error.code}${names.length ? '' : '_count'}`, { names: names.join('، '), count: ids.length })
+    return t(`hrPayroll.errors.${runCodeKey(error.code, runState)}${names.length ? '' : '_count'}`, { names: names.join('، '), count: ids.length })
   }
   // The GOSI rate form: a second row for a branch and class on the same date, or a maximum below the minimum.
   if (error.code === 'invalid' && error.field === 'date_from') return t('hrPayroll.errors.rateDuplicate')

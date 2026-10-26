@@ -154,9 +154,34 @@ class HrPayslip(models.Model):
                 compensation = calculator._webvue_compensation(payslip.employee_id)
                 payslip.webvue_gosi_class = calculator._webvue_gosi_class(payslip.employee_id, compensation)
 
+    def _webvue_paid_iban(self):
+        """``{payslip_id: IBAN}``: the live compensation IBAN of an editable run, the approval snapshot of a fixed one.
+
+        One helper decides where the IBAN of a payslip comes from, so the approval blocker, the run warnings and
+        the payslip rows never disagree with each other. A payslip outside a run, or in a run whose state can still
+        change, reads the compensation; a fixed run reads the ``webvue.hr.payslip.payment`` row stored at approval
+        (owner decisions D-4 and D-10). The salary files do not call it: they read that row directly, which for the
+        fixed runs they serve is the same value.
+        """
+        fixed = self.filtered(lambda slip: slip.payslip_run_id and not slip.payslip_run_id._webvue_is_editable())
+        live = self - fixed
+        compensations = self.env['webvue.hr.compensation'].search([('employee_id', 'in', live.employee_id.ids)])
+        by_employee = {record.employee_id.id: record.iban for record in compensations}
+        snapshots = self.env['webvue.hr.payslip.payment']._webvue_by_payslip(fixed)
+        paid = {slip.id: snapshots[slip.id].iban if slip.id in snapshots else '' for slip in fixed}
+        paid.update({slip.id: by_employee.get(slip.employee_id.id) for slip in live})
+        return {slip.id: paid[slip.id] or '' for slip in self}
+
     def _webvue_iban_missing(self):
-        """Ids of the payslips whose employee has no IBAN on the compensation record."""
-        with_iban = self.env['webvue.hr.compensation'].search([
-            ('employee_id', 'in', self.employee_id.ids), ('iban', '!=', False),
-        ]).employee_id
-        return {slip.id for slip in self if slip.employee_id not in with_iban}
+        """Ids of the payslips to be paid to an employee who has no IBAN recorded.
+
+        A payslip is to be paid while it is not computed yet (its net is unknown) or when its net is positive; a
+        computed zero net pays nothing and needs no IBAN (owner decision D-10). The IBAN is the live one while the
+        run can still change and the snapshot stored at approval once it is fixed (owner decision D-4).
+        """
+        with_iban = self._webvue_paid_iban()
+        amounts = self._webvue_amounts()
+        return {
+            slip.id for slip in self
+            if not with_iban[slip.id] and (slip.state == 'draft' or amounts[slip.id]['net'] > 0)
+        }
