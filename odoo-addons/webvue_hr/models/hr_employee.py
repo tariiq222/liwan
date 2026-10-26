@@ -19,14 +19,17 @@ ACCESS_USER_CREATE_MARKER = 'webvue_core.access_user_create_depth'
 ACCESS_USER_WRITE_MARKER = 'webvue_core.access_user_write'
 # Every model that records what an employee did or was paid; an employee with a row in any of them
 # is archived, never deleted. A version beyond the one every employee is created with counts too.
+# A shift assignment counts once it has a date: the open-ended row without dates is the one the
+# planning engine seeds for every employee (its overlap constraint allows only one such row).
 EMPLOYEE_HISTORY_MODELS = (
-    'hr.leave',
-    'hr.leave.allocation',
-    'hr.work.entry',
-    'hr.payslip',
-    'webvue.hr.payroll.eos.settlement',
-    'webvue.hr.compensation',
-    'webvue.hr.plan.run',
+    ('hr.leave', []),
+    ('hr.leave.allocation', []),
+    ('hr.work.entry', []),
+    ('hr.payslip', []),
+    ('webvue.hr.payroll.eos.settlement', []),
+    ('webvue.hr.compensation', []),
+    ('webvue.hr.plan.run', []),
+    ('hr.employee.calendar', ['|', ('date_start', '!=', False), ('date_end', '!=', False)]),
 )
 
 
@@ -113,21 +116,32 @@ class WebVueHrEmployee(models.Model):
     @api.ondelete(at_uninstall=False)
     def _unlink_except_employee_history(self):
         """Only an employee with no history at all, such as a record made by mistake, can be deleted."""
+        # ondelete runs before the ORM flushes, and the queries below are built by the ORM but run on
+        # the cursor: flush first so a pending change (a reassigned row) is seen.
+        self.env.flush_all()
         employee_ids = tuple(self.ids)
-        # bypass_access: the caller may lack read access to payroll or leave rows, which must not
-        # let the delete through; the query only tells whether a row exists.
-        history = SQL(' UNION ALL ').join(
+        # bypass_access: the caller may lack read access to payroll, leave, planning or version rows,
+        # which must not let the delete through; the queries only tell whether a row exists.
+        searches = [
             self.env[model]._search(
-                [('employee_id', 'in', employee_ids)], active_test=False, bypass_access=True,
+                Domain('employee_id', 'in', employee_ids) & Domain(extra),
+                active_test=False, bypass_access=True,
             ).subselect('employee_id')
-            for model in EMPLOYEE_HISTORY_MODELS
-        )
-        versions = self.env['hr.version'].with_context(active_test=False)._read_group(
-            [('employee_id', 'in', employee_ids)], groupby=['employee_id'],
-            aggregates=['__count'], having=[('__count', '>', 1)],
-        )
-        self.env.cr.execute(SQL('SELECT 1 FROM (%s) AS history LIMIT 1', history))
-        if self.env.cr.rowcount or versions:
+            for model, extra in EMPLOYEE_HISTORY_MODELS
+            if model in self.env  # the planning bridge is an optional addon
+        ]
+        # A version beyond the one every employee is created with.
+        extra_versions = self.env['hr.version']._search(
+            [('employee_id', 'in', employee_ids)], active_test=False, bypass_access=True,
+        ).subselect('employee_id')
+        history = SQL(' UNION ALL ').join(searches)
+        self.env.cr.execute(SQL(
+            'SELECT 1 FROM (%s) AS history UNION ALL '
+            'SELECT 1 FROM (SELECT employee_id FROM (%s) AS versions GROUP BY employee_id '
+            'HAVING COUNT(*) > 1) AS many_versions LIMIT 1',
+            history, extra_versions,
+        ))
+        if self.env.cr.rowcount:
             raise UserError(self.env._(
                 'An employee with history cannot be deleted. Archive the employee instead.',
             ))
