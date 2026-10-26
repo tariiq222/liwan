@@ -2,16 +2,17 @@
 import csv
 import io
 from dataclasses import replace
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import tagged
 
 from .common import set_hr_feature
 from .payroll_common import PayrollCase
 from odoo.addons.webvue_hr.models.payroll_export import FORMULA_STARTS
 from odoo.addons.webvue_hr.rules import WebVueHrRule
+from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 RUNS = '/api/v1/hr/payroll/runs'
 PROFILES = '/api/v1/hr/payroll/bank-profiles'
@@ -183,6 +184,103 @@ class TestPayrollFiles(PayrollCase):
         for route, profile in (('bank-file', self.generic), ('wps-file', self.wps)):
             res = self.api('GET', f'{RUNS}/{run_id}/{route}?profile_id={profile.id}')
             self.assertEqual((res.status_code, res.json()['code']), (403, 'feature_not_included'), route)
+
+    # --- owner decision 2026-10-26: no salary file is generated while the tenant is read-only -------------
+
+    def _file_routes(self):
+        return (('bank-file', self.generic), ('wps-file', self.wps))
+
+    def _kept_and_logged(self, run_id):
+        files = self.env['webvue.hr.payroll.file'].search_count([('run_id', '=', run_id)])
+        events = self.env['webvue.hr.audit.event'].search_count([('action', '=', 'payment_file_generated')])
+        return files, events
+
+    def _tenant(self, **values):
+        profile = self.env.ref('webvue_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write(values)
+
+    def _assert_read_only_refusal(self, run_id, kept):
+        """Both files answer 403 ``tenant_read_only`` at the gateway: no file is built, kept or logged."""
+        export = type(self.env['webvue.hr.payroll.export'])
+        built = []
+        original = export._webvue_salary_lines
+
+        def spy(records, run):
+            built.append(run.id)
+            return original(records, run)
+        self.patch(export, '_webvue_salary_lines', spy)
+        for route, profile in self._file_routes():
+            res = self.api('GET', f'{RUNS}/{run_id}/{route}?profile_id={profile.id}')
+            self.assertEqual((res.status_code, res.json()['code']), (403, 'tenant_read_only'), route)
+            self.assertNotIn(IBAN_ONE, res.text, route)
+        self.assertEqual(built, [])
+        self.assertEqual(self._kept_and_logged(run_id), kept)
+
+    def _expire(self):
+        """Expire the tenant; an independent (non-SaaS) tenant has no expiry and refuses the date instead."""
+        expiry = {'valid_until': datetime.now(timezone.utc).date() - timedelta(days=1)}
+        if self.env.ref('webvue_platform.tenant_profile').commercial_mode == 'non_saas':
+            with self.assertRaises(ValidationError):
+                self._tenant(**expiry)
+            return False
+        self._tenant(**expiry)
+        return True
+
+    def test_an_expired_tenant_refuses_both_salary_files_before_keeping_anything(self):
+        run_id = self._run()
+        if not self._expire():
+            return
+        self._login(self.officer)
+        self._assert_read_only_refusal(run_id, (0, 0))
+        # The rest of payroll stays readable: the GOSI statement and the run itself are reads.
+        self.assertEqual(self.api('GET', f'{RUNS}/{run_id}/gosi-statement').status_code, 200)
+        self.assertEqual(self.api('GET', f'{RUNS}/{run_id}').status_code, 200)
+
+    def test_a_file_kept_before_the_expiry_is_refused_as_well(self):
+        """The same bytes were kept while active: the expired tenant still gets no copy, kept or regenerated."""
+        run_id = self._run()
+        for route, profile in self._file_routes():
+            self.assertEqual(self.api('GET', f'{RUNS}/{run_id}/{route}?profile_id={profile.id}').status_code, 200)
+        self.assertEqual(self._kept_and_logged(run_id), (2, 2))
+        if not self._expire():
+            return
+        self._assert_read_only_refusal(run_id, (2, 2))
+
+    def test_a_suspended_tenant_refuses_the_support_login_both_salary_files(self):
+        """Support may sign in to a suspended tenant read-only; it generates no salary file either."""
+        run_id = self._run()
+        support = self.env.ref('base.user_admin')
+        self.assertTrue(support.has_group('webvue_core.group_vendor_support'))
+        self.env['webvue.access.assignment'].create({
+            'user_id': support.id, 'role_id': self.env.ref('webvue_hr.role_payroll_manager').id,
+            'company_id': self.env.company.id,
+        })
+        self._tenant(status='suspended', support_access_enabled=True)
+        self.authenticate('admin', 'admin')
+        self.assertEqual(self.api('GET', f'{RUNS}/{run_id}').status_code, 200)
+        self._assert_read_only_refusal(run_id, (0, 0))
+
+    def test_a_full_storage_quota_refuses_the_file_and_keeps_no_partial_row(self):
+        run_id = self._run()
+        profile = self.env.ref('webvue_platform.tenant_profile')
+        self._tenant(features={**profile.features, 'storage.limit_mb': 0})
+        for route, file_profile in self._file_routes():
+            res = self.api('GET', f'{RUNS}/{run_id}/{route}?profile_id={file_profile.id}')
+            self.assertEqual(res.status_code, 403, res.text)
+            self.assertEqual(
+                (res.json()['code'], res.json()['details']),
+                ('feature_not_included', {'reason': 'limit', 'limit_key': 'storage.limit_mb'}), route,
+            )
+        self.assertEqual(self._kept_and_logged(run_id), (0, 0))
+        attachments = self.env['ir.attachment'].search_count([('res_model', '=', 'webvue.hr.payroll.file')])
+        self.assertEqual(attachments, 0)
+
+    def test_an_active_tenant_generates_and_keeps_each_distinct_file_once(self):
+        run_id = self._run()
+        for _attempt in range(2):
+            for route, profile in self._file_routes():
+                self.assertEqual(self.api('GET', f'{RUNS}/{run_id}/{route}?profile_id={profile.id}').status_code, 200)
+        self.assertEqual(self._kept_and_logged(run_id), (2, 4))
 
     def test_files_need_an_approved_run(self):
         run_id = self._run(approve=False)

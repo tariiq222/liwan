@@ -67,11 +67,13 @@ def _csv_response(content, filename):
 
 class HrPayrollFilesController(http.Controller):
 
-    # Not read-only: every download keeps the file it hands out and logs it (owner decision D-4).
+    # A write, though a GET: every download keeps the file it hands out and logs it (owner decision D-4), so a
+    # read-only tenant (expired, or suspended with support signed in) is refused 403 ``tenant_read_only`` before
+    # any file is generated, kept or logged, a file kept earlier included (owner decision 2026-10-26).
     @http.route(f'{RUN}/bank-file', type='http', auth='user', methods=['GET'], readonly=False)
     @api_handler
     @hr_rule_handler
-    @requires_feature('hr.enabled', 'hr.payroll', operation='read')
+    @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.read')
     def bank_file(self, run_id, **_):
         """The bank salary file of a fixed run: employees with a net to pay, each of them with an IBAN."""
@@ -85,10 +87,11 @@ class HrPayrollFilesController(http.Controller):
         content = export._webvue_render(profile, lines, value_date)
         return _kept_response(run, 'bank', profile, value_date, content, f'salaries-{_month(run)}.csv')
 
+    # A write, like the bank file: see above.
     @http.route(f'{RUN}/wps-file', type='http', auth='user', methods=['GET'], readonly=False)
     @api_handler
     @hr_rule_handler
-    @requires_feature('hr.enabled', 'hr.payroll', operation='read')
+    @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.read')
     def wps_file(self, run_id, **_):
         """The WPS file of a fixed run: every payslip, zero net included, once its totals add up."""
