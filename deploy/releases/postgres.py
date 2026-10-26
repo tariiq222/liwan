@@ -38,59 +38,6 @@ def validate_runtime_role(connection, role, database):
     return {'valid': not reasons, 'reasons': reasons}
 
 
-def _fence_binding(binding):
-    database = binding.get('database')
-    if (type(binding.get('fence')) is not int or binding['fence'] < 1
-            or binding.get('gateClosed') is not True or type(binding.get('admittedWriters')) is not int
-            or binding['admittedWriters'] != 0):
-        raise ValueError('fence_binding_rejected')
-    return database
-
-
-def _await_zero_work(connection, database, roles, deadline, tenant_scope):
-    """Wait until no named writer works and no transaction is in flight on the DB."""
-    # A single role keeps the historical single-value comparison; the closed
-    # writer set of a backup window compares against every declared role.
-    plural = len(roles) != 1
-    role_value = list(roles) if plural else roles[0]
-    compare = 'usename = ANY(%s)' if plural else 'usename = %s'
-    owner_compare = 'owner = ANY(%s)' if plural else 'owner = %s'
-    while True:
-        with connection.cursor() as cursor:
-            cursor.execute(f"SELECT (SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND pid<>pg_backend_pid() AND backend_type='client backend' AND (%s OR {compare}) AND (state<>'idle' OR xact_start IS NOT NULL)) + (SELECT count(*) FROM pg_prepared_xacts WHERE database=%s AND (%s OR {owner_compare}))",
-                (database, tenant_scope, role_value, database, tenant_scope, role_value))
-            active = cursor.fetchone()[0]
-        connection.commit()
-        if active == 0: return None
-        if time.monotonic() >= deadline: return 'active_transactions'
-        time.sleep(min(0.05, max(0, deadline - time.monotonic())))
-
-
-def _retire_idle_writers(connection, database, roles, deadline, *, remaining_reason):
-    """Terminate idle sessions of the named roles, then wait until none remain."""
-    plural = len(roles) != 1
-    role_value = list(roles) if plural else roles[0]
-    compare = 'usename = ANY(%s)' if plural else 'usename = %s'
-    with connection.cursor() as cursor:
-        cursor.execute(f"SELECT pid FROM pg_stat_activity WHERE datname=%s AND {compare} AND pid<>pg_backend_pid() AND state='idle' AND xact_start IS NULL", (database, role_value))
-        idle = cursor.fetchall()
-        for (pid,) in idle:
-            cursor.execute(f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid=%s AND datname=%s AND {compare} AND state='idle' AND xact_start IS NULL", (pid, database, role_value))
-            result = cursor.fetchone()
-            if not result or result[0] is not True: return 'idle_backend_changed'
-    connection.commit()
-    # pg_terminate_backend acknowledges the signal before the backend exits.
-    # Observe fresh catalog snapshots until the same bounded drain deadline.
-    while True:
-        with connection.cursor() as cursor:
-            cursor.execute(f'SELECT pid FROM pg_stat_activity WHERE datname=%s AND {compare} AND pid<>pg_backend_pid()', (database, role_value))
-            remaining = cursor.fetchall()
-        connection.commit()
-        if not remaining: return None
-        if time.monotonic() >= deadline: return remaining_reason
-        time.sleep(min(0.05, max(0, deadline - time.monotonic())))
-
-
 def fence_runtime(binding, old_role, new_role, admin_connector, deadline_seconds=30):
     """Revoke old admission, drain transactions, terminate idle old sessions.
 
@@ -98,9 +45,12 @@ def fence_runtime(binding, old_role, new_role, admin_connector, deadline_seconds
     application work. PostgreSQL alone cannot distinguish a paused application
     writer from an idle session; this primitive is not that barrier.
     """
-    database = _fence_binding(binding)
-    if old_role == new_role: raise ValueError('fence_binding_rejected')
+    database = binding.get('database')
     quoted_db, quoted_old, quoted_new = identifier(database), identifier(old_role), identifier(new_role)
+    if (old_role == new_role or type(binding.get('fence')) is not int or binding['fence'] < 1
+            or binding.get('gateClosed') is not True or type(binding.get('admittedWriters')) is not int
+            or binding['admittedWriters'] != 0):
+        raise ValueError('fence_binding_rejected')
     scope=binding.get('transactionScope','tenant')
     if scope not in {'tenant','old_role'}:raise ValueError('transaction_scope_rejected')
     if not isinstance(deadline_seconds, (int, float)) or not 0 <= deadline_seconds <= 600:
@@ -116,10 +66,35 @@ def fence_runtime(binding, old_role, new_role, admin_connector, deadline_seconds
             cursor.execute(f'REVOKE CONNECT ON DATABASE {quoted_db} FROM {quoted_old}')
         connection.commit()
         deadline = time.monotonic() + deadline_seconds
-        active = _await_zero_work(connection, database, (old_role,), deadline, scope == 'tenant')
-        if active: return {'fenced': False, 'reason': active, 'fence': binding['fence']}
-        retired = _retire_idle_writers(connection, database, (old_role,), deadline, remaining_reason='old_connections_remain')
-        if retired: return {'fenced': False, 'reason': retired, 'fence': binding['fence']}
+        while True:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT (SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND pid<>pg_backend_pid() AND backend_type='client backend' AND (%s OR usename=%s) AND (state<>'idle' OR xact_start IS NOT NULL)) + (SELECT count(*) FROM pg_prepared_xacts WHERE database=%s AND (%s OR owner=%s))", (database, scope=='tenant', old_role, database, scope=='tenant', old_role))
+                active = cursor.fetchone()[0]
+            connection.commit()
+            if active == 0: break
+            if time.monotonic() >= deadline:
+                return {'fenced': False, 'reason': 'active_transactions', 'fence': binding['fence']}
+            time.sleep(min(0.05, max(0, deadline - time.monotonic())))
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pid FROM pg_stat_activity WHERE datname=%s AND usename=%s AND pid<>pg_backend_pid() AND state='idle' AND xact_start IS NULL", (database, old_role))
+            idle = cursor.fetchall()
+            for (pid,) in idle:
+                cursor.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid=%s AND datname=%s AND usename=%s AND state='idle' AND xact_start IS NULL", (pid, database, old_role))
+                result = cursor.fetchone()
+                if not result or result[0] is not True:
+                    return {'fenced': False, 'reason': 'idle_backend_changed', 'fence': binding['fence']}
+        connection.commit()
+        # pg_terminate_backend acknowledges the signal before the backend exits.
+        # Observe fresh catalog snapshots until the same bounded drain deadline.
+        while True:
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT pid FROM pg_stat_activity WHERE datname=%s AND usename=%s AND pid<>pg_backend_pid()', (database, old_role))
+                remaining = cursor.fetchall()
+            connection.commit()
+            if not remaining: break
+            if time.monotonic() >= deadline:
+                return {'fenced': False, 'reason': 'old_connections_remain', 'fence': binding['fence']}
+            time.sleep(min(0.05,max(0,deadline-time.monotonic())))
         with connection.cursor() as cursor:
             cursor.execute(f'GRANT CONNECT ON DATABASE {quoted_db} TO {quoted_new}')
         connection.commit()
@@ -135,16 +110,60 @@ def fence_runtime(binding, old_role, new_role, admin_connector, deadline_seconds
             except Exception: pass  # Never replace sanitized fence evidence with driver diagnostics.
 
 
-def writer_grants(connection, roles, database):
-    """Report which declared writer roles hold durable CONNECT admission."""
-    identifier(database)
-    grants = {}
+def _backup_fence_binding(binding):
+    if (type(binding.get('fence')) is not int or binding['fence'] < 1
+            or binding.get('gateClosed') is not True or type(binding.get('admittedWriters')) is not int
+            or binding['admittedWriters'] != 0):
+        raise ValueError('fence_binding_rejected')
+    return binding.get('database')
+
+
+def _await_no_writer_work(connection, database, deadline):
+    """Wait until no transaction or prepared transaction remains on the database."""
+    while True:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT (SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND pid<>pg_backend_pid() AND backend_type='client backend' AND (state<>'idle' OR xact_start IS NOT NULL)) + (SELECT count(*) FROM pg_prepared_xacts WHERE database=%s)",
+                (database, database))
+            active = cursor.fetchone()[0]
+        connection.commit()
+        if active == 0: return None
+        if time.monotonic() >= deadline: return 'active_transactions'
+        time.sleep(min(0.05, max(0, deadline - time.monotonic())))
+
+
+def _retire_idle_writers(connection, database, roles, deadline):
+    """Terminate idle sessions of every declared writer, then wait until none remain."""
     with connection.cursor() as cursor:
-        for role in roles:
-            cursor.execute('SELECT has_database_privilege(%s,%s,%s)', (role, database, 'CONNECT'))
-            row = cursor.fetchone()
-            if not row or row[0] is None: raise ValueError('writer_grant_unverifiable')
-            grants[role] = row[0] is True
+        cursor.execute("SELECT pid FROM pg_stat_activity WHERE datname=%s AND usename = ANY(%s) AND pid<>pg_backend_pid() AND state='idle' AND xact_start IS NULL", (database, roles))
+        idle = cursor.fetchall()
+        for (pid,) in idle:
+            cursor.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid=%s AND datname=%s AND usename = ANY(%s) AND state='idle' AND xact_start IS NULL", (pid, database, roles))
+            result = cursor.fetchone()
+            if not result or result[0] is not True: return 'idle_backend_changed'
+    connection.commit()
+    # pg_terminate_backend acknowledges the signal before the backend exits.
+    while True:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT pid FROM pg_stat_activity WHERE datname=%s AND usename = ANY(%s) AND pid<>pg_backend_pid()', (database, roles))
+            remaining = cursor.fetchall()
+        connection.commit()
+        if not remaining: return None
+        if time.monotonic() >= deadline: return 'writer_connections_remain'
+        time.sleep(min(0.05, max(0, deadline - time.monotonic())))
+
+
+def writer_grants(connection, roles, database):
+    """Report which declared writer roles hold durable CONNECT admission, in one statement."""
+    identifier(database)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT r.name, has_database_privilege(r.name, %s, 'CONNECT') FROM unnest(%s::text[]) AS r(name)",
+                           (database, list(roles)))
+            grants = dict(cursor.fetchall())
+    except Exception:
+        raise ValueError('writer_grant_unverifiable') from None
+    if set(grants) != set(roles) or any(type(value) is not bool for value in grants.values()):
+        raise ValueError('writer_grant_unverifiable')
     return grants
 
 
@@ -178,7 +197,7 @@ def fence_writers(binding, roles, admin_connector, *, allowed_principals=(), dea
     explicit operator allowance refuses the window instead of promising an
     isolation the operator cannot prove.
     """
-    database = _fence_binding(binding)
+    database = _backup_fence_binding(binding)
     if not isinstance(roles, (tuple, list)) or not roles or len(set(roles)) != len(roles):
         raise ValueError('writer_roles_rejected')
     role_names = tuple(roles)
@@ -209,9 +228,9 @@ def fence_writers(binding, roles, admin_connector, *, allowed_principals=(), dea
                 cursor.execute(f'REVOKE CONNECT ON DATABASE {quoted_db} FROM {identifier(role)}')
         connection.commit()
         deadline = time.monotonic() + deadline_seconds
-        active = _await_zero_work(connection, database, role_names, deadline, True)
+        active = _await_no_writer_work(connection, database, deadline)
         if active: return {'fenced': False, 'reason': active, 'fence': binding['fence']}
-        retired = _retire_idle_writers(connection, database, role_names, deadline, remaining_reason='writer_connections_remain')
+        retired = _retire_idle_writers(connection, database, list(role_names), deadline)
         if retired: return {'fenced': False, 'reason': retired, 'fence': binding['fence']}
         with connection.cursor() as cursor:
             cursor.execute('SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND usename = ANY(%s) AND pid<>pg_backend_pid()', (database, list(role_names)))

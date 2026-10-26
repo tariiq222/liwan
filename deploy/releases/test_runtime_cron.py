@@ -27,6 +27,8 @@ runtime_module = importlib.import_module(PACKAGE + '.runtime')
 state_module = importlib.import_module(PACKAGE + '.state')
 engine_module = importlib.import_module(PACKAGE + '.engine')
 manifest_module = importlib.import_module(PACKAGE + '.manifest')
+backup_module = importlib.import_module(PACKAGE + '.backup')
+operation_module = importlib.import_module(PACKAGE + '.backup_operation')
 
 
 class BackupCursor:
@@ -35,16 +37,22 @@ class BackupCursor:
     def __exit__(self, *args): pass
     def execute(self, sql, args=()):
         self.connection.statements.append((sql, args)); self.sql, self.args = sql, args
+        self.connection.tick()
+        if sql.startswith('GRANT CONNECT ON DATABASE'): self.connection.grants[sql.rsplit('"', 2)[1]] = True
     def fetchone(self):
-        if 'has_database_privilege' in self.sql: return (self.connection.grants.get(self.args[0]),)
         if 'count(*)' in self.sql: return (self.connection.active,)
         return (0,)
+    def fetchall(self):
+        if 'has_database_privilege' in self.sql:
+            return [(role, self.connection.grants[role]) for role in self.args[1] if role in self.connection.grants]
+        return []
 
 
 class BackupConnection:
     """Fake PostgreSQL seam: reports durable CONNECT grants and records statements."""
     def __init__(self, grants):
         self.grants, self.active, self.statements = dict(grants), 0, []
+        self.tick = lambda: None
     def cursor(self): return BackupCursor(self)
     def __enter__(self): return self
     def __exit__(self, *args): pass
@@ -214,7 +222,8 @@ class RuntimeCronTests(unittest.TestCase):
         self.config['pools']['blue']['odooRuntime']['image'] = 'img-blue'
         self.config['pools']['green']['odooRuntime']['image'] = 'img-green'
         self.connection = BackupConnection(grants if grants is not None else {'role_blue': True, 'role_green': False})
-        self.runtime.connector = lambda _: self.connection
+        self.connects = []
+        self.runtime.connector = lambda _database, **options: self.connects.append(options) or self.connection
         return self.old
 
     def backup_previous(self, grants=None, cron=None, **patch):
@@ -233,9 +242,9 @@ class RuntimeCronTests(unittest.TestCase):
         self.state.maintenance('tenant_a', 1)
         route = self.backup_config(grants={'role_blue': True, 'role_green': False})
         with self.assertRaisesRegex(state_module.ReleaseConflict, 'writer_admission_open'):
-            self.runtime._recheck_window(self.binding, 5)
+            self.runtime._recheck_window(self.binding, backup_module.Deadline(5))
         self.connection.grants = {'role_blue': False, 'role_green': False}
-        proof = self.runtime._recheck_window(self.binding, 5)
+        proof = self.runtime._recheck_window(self.binding, backup_module.Deadline(5))
         self.assertEqual(proof['deniedWriters'], ['role_blue', 'role_green'])
         self.assertEqual(proof['writerConnections'], 0)
         self.assertEqual(proof['fence'], route['fence'])
@@ -255,14 +264,14 @@ class RuntimeCronTests(unittest.TestCase):
         self.assertEqual(self.runtime.proofs['tenant_a'], proof)
         self.assertEqual(self.runtime._recheck(self.binding), proof)
         with self.assertRaisesRegex(state_module.ReleaseConflict, 'writer_admission_open'):
-            self.runtime._recheck_window(self.binding, 5)
+            self.runtime._recheck_window(self.binding, backup_module.Deadline(5))
 
     def test_recheck_refuses_a_writer_session_of_any_declared_role(self):
         self.state.maintenance('tenant_a', 1)
         self.backup_config(grants={'role_blue': False, 'role_green': False})
         self.connection.active = 1
         with self.assertRaisesRegex(state_module.ReleaseConflict, 'writer_reconnect_observed'):
-            self.runtime._recheck_window(self.binding, 5)
+            self.runtime._recheck_window(self.binding, backup_module.Deadline(5))
 
     def test_backup_previous_state_records_grants_and_owned_cron(self):
         route = self.backup_config()
@@ -329,13 +338,73 @@ class RuntimeCronTests(unittest.TestCase):
             with self.subTest(patch=patch_state), self.assertRaisesRegex(state_module.ReleaseConflict, 'backup_previous_state_mismatch'):
                 self.runtime.resume_backup(self.binding, route, self.backup_previous(**patch_state))
 
-    def test_partial_resume_failure_denies_writers_and_stops_owned_cron(self):
-        route = self.backup_config(); self.running['blue-cron'] = True
-        with patch.object(runtime_module, 'fence_writers', self.window), \
-                patch.object(runtime_module.subprocess, 'run', self.docker):
-            result = self.runtime.fail_closed_backup(self.binding, route)
-        self.assertEqual(result['deniedWriters'], ['role_blue', 'role_green'])
-        self.assertFalse(self.running['blue-cron'])
+    def cronless_backup(self, tmp):
+        self.config['jobsRequired'] = False
+        for pool in ('blue', 'green'): self.config['pools'][pool]['cronRuntimes'] = []
+        route = self.backup_config()
+        store = tmp / self.binding['database']; store.mkdir()
+        (store / 'attachment').write_bytes(b'cronless-attachment')
+        def runner(argv, **kwargs):
+            Path(argv[argv.index('--file') + 1]).write_bytes(b'dump')
+            return SimpleNamespace(returncode=0, stdout='', stderr='')
+        image = 'webvue/odoo@sha256:' + 'c' * 64
+        self.config['backup'].update(image=image, pgDump='/usr/bin/true', runner=runner)
+        self.config['pools']['blue']['odooRuntime']['image'] = image
+        self.config['tenants']['tenant_a']['filestorePath'] = str(store)
+        marker = self.state.routes / 'tenant_a.maintenance'
+        self.runtime.acknowledge = lambda binding, route, maintenance=False: {'ready': marker.is_file() is maintenance}
+        def window(binding, roles, connector, **kwargs):
+            self.connection.grants = dict.fromkeys(roles, False)
+            return self.window(binding, roles, connector, **kwargs)
+        return route, window
+
+    def test_cronless_topology_backs_up_resumes_and_reconciles(self):
+        # jobsRequired=False with no owned cron is a supported topology: its empty
+        # previous cron state must restore, on success and on a retried request.
+        with tempfile.TemporaryDirectory() as temporary:
+            tmp = Path(temporary).resolve()
+            route, window = self.cronless_backup(tmp)
+            with patch.object(runtime_module, 'fence_writers', window), \
+                    patch.object(runtime_module.subprocess, 'run', self.docker):
+                receipt = operation_module.backup_current(self.state, self.runtime, self.binding, 'cronless_ok',
+                                                          tmp / 'ok', lambda result: None)
+                self.assertEqual(receipt['stage'], 'verified')
+                self.assertEqual(self.connection.grants, {'role_blue': True, 'role_green': False})
+                def interrupted(result): raise OSError('finalize interrupted')
+                with self.assertRaises(OSError):
+                    operation_module.backup_current(self.state, self.runtime, self.binding, 'cronless_retry',
+                                                    tmp / 'retry', interrupted)
+                self.assertEqual(self.state.receipt('cronless_retry')['stage'], 'needs_intervention')
+                self.assertEqual(self.connection.grants, {'role_blue': False, 'role_green': False})
+                receipt = operation_module.backup_current(self.state, self.runtime, self.binding, 'cronless_retry',
+                                                          tmp / 'retry', interrupted)
+        self.assertEqual(receipt['stage'], 'reconciled')
+        self.assertEqual(self.connection.grants, {'role_blue': True, 'role_green': False})
+        self.assertFalse((self.state.routes / 'tenant_a.maintenance').exists())
+        self.assertFalse([event for event in self.events if event[0] == 'docker'])
+
+    def test_required_or_changed_cron_still_refuses_an_empty_previous_state(self):
+        self.state.maintenance('tenant_a', 1)
+        route = self.backup_config(grants={'role_blue': False, 'role_green': False})
+        with self.assertRaisesRegex(state_module.ReleaseConflict, 'cron_identity_changed'):
+            self.runtime.resume_backup(self.binding, route, self.backup_previous(cron={}))
+
+    def test_every_window_query_gets_only_the_time_left_on_one_budget(self):
+        # Each statement costs 2 s on a fake clock: four sequential rechecks overrun
+        # one 30 s budget, and every connection/statement sees only what is left.
+        self.state.maintenance('tenant_a', 1)
+        self.backup_config(grants={'role_blue': False, 'role_green': False})
+        now = [0.0]
+        def tick(): now[0] += 2
+        self.connection.tick = tick
+        deadline = backup_module.Deadline(30, lambda: now[0])
+        for _ in range(3): self.runtime._recheck_window(self.binding, deadline)
+        with self.assertRaisesRegex(ValueError, 'backup_deadline_exceeded'):
+            self.runtime._recheck_window(self.binding, deadline)
+        timeouts = [int(statement.rsplit(' ', 1)[1]) for statement, _ in self.connection.statements
+                    if statement.startswith('SET LOCAL statement_timeout')]
+        self.assertEqual(timeouts, [30000, 26000, 22000, 18000, 14000, 10000, 6000, 2000])
+        self.assertEqual([options['connect_timeout'] for options in self.connects], [30, 22, 14, 6])
 
     def test_reconcile_refuses_when_a_previously_denied_writer_was_reopened(self):
         self.state.maintenance('tenant_a', 1)

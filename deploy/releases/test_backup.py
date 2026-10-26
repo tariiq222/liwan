@@ -1,13 +1,12 @@
 """Backup tests use real temporary dump/archive files and external-command seams."""
+import os
 from pathlib import Path
-import shutil
 import subprocess
 import tempfile
-import time
 import unittest
 from unittest.mock import patch
 from . import backup
-from .backup import capture_tenant, validate_backup, restore_tenant
+from .backup import Deadline, capture_tenant, capture_window, validate_backup, restore_tenant
 
 
 class BackupTests(unittest.TestCase):
@@ -17,8 +16,7 @@ class BackupTests(unittest.TestCase):
         self.store = self.root / 'filestore' / 'tenant_a'; self.store.mkdir(parents=True)
         (self.store / 'attachment').write_bytes(b'attachment-data')
         self.binding = {'tenantId': 'tenant_a', 'database': 'tenant_a', 'filestore': 'shared_store', 'fence': 2}
-        self.proof = {**self.binding, 'gateClosed': True, 'admittedWriters': 0, 'activeTransactions': 0,
-                      'oldConnections': 0, 'writerConnections': 0, 'deniedWriters': ['role_blue', 'role_green']}
+        self.proof = {**self.binding, 'gateClosed': True, 'admittedWriters': 0, 'activeTransactions': 0, 'oldConnections': 0}
         self.commands = []
         def runner(argv, **kwargs):
             self.commands.append(argv)
@@ -26,8 +24,7 @@ class BackupTests(unittest.TestCase):
             return subprocess.CompletedProcess(argv, 0, '', '')
         self.config = {'mode': 'local', 'outputDir': str(self.root / 'backup'), 'filestorePath': str(self.store),
                        'pgDump': '/usr/bin/true', 'createdb': '/usr/bin/true', 'pgRestore': '/usr/bin/true',
-                       'image': 'webvue/odoo@sha256:' + 'a' * 64, 'runner': runner, 'writerWindow': True,
-                       'recheck': lambda binding, timeout: self.proof, 'totalDeadlineSeconds': 60,
+                       'image': 'webvue/odoo@sha256:' + 'a' * 64, 'runner': runner,
                        'pgEnv': {}, 'timeoutSeconds': 30}
 
     def test_capture_records_hashes_and_never_stops_shared_services(self):
@@ -45,83 +42,6 @@ class BackupTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(ValueError):
                 capture_tenant(self.binding, proof, self.config)
         self.assertFalse(self.commands)
-
-    def test_verified_window_requires_recheck_and_denied_writer_evidence(self):
-        config = {**self.config}; config.pop('recheck')
-        with self.assertRaises(ValueError): capture_tenant(self.binding, self.proof, config)
-        without = {key: value for key, value in self.proof.items() if key != 'deniedWriters'}
-        with self.assertRaises(ValueError): capture_tenant(self.binding, without, self.config)
-        empty = {**self.proof, 'deniedWriters': []}
-        with self.assertRaises(ValueError): capture_tenant(self.binding, empty, self.config)
-        stale = {**self.proof, 'writerConnections': 1}
-        with self.assertRaises(ValueError): capture_tenant(self.binding, stale, self.config)
-        self.assertFalse(self.commands)
-        self.assertFalse((self.root / 'backup').exists())
-
-    def test_window_evidence_is_rechecked_after_the_filestore_archive(self):
-        observed = []
-        def recheck(binding, timeout):
-            observed.append(binding['tenantId'])
-            if len(observed) > 1: raise ValueError('writer reconnected during the window')
-            return self.proof
-        with self.assertRaises(ValueError):
-            capture_tenant(self.binding, self.proof, {**self.config, 'recheck': recheck})
-        self.assertEqual(observed, ['tenant_a', 'tenant_a'])
-        self.assertEqual(len(self.commands), 1)
-        self.assertFalse((self.root / 'backup' / 'receipt.json').exists())
-
-    def test_total_deadline_stops_the_window_and_keeps_partial_artifacts(self):
-        def slow(argv, **kwargs):
-            self.commands.append(argv)
-            time.sleep(0.05)
-            if '--file' in argv: Path(argv[argv.index('--file') + 1]).write_bytes(b'dump-data')
-            return subprocess.CompletedProcess(argv, 0, '', '')
-        config = {**self.config, 'runner': slow, 'totalDeadlineSeconds': 0.01}
-        with self.assertRaises(ValueError): capture_tenant(self.binding, self.proof, config)
-        self.assertTrue((self.root / 'backup' / 'database.dump').is_file())
-        self.assertFalse((self.root / 'backup' / 'receipt.json').exists())
-        with self.assertRaises(ValueError):
-            capture_tenant(self.binding, self.proof, {**self.config, 'totalDeadlineSeconds': 0})
-
-    def test_deadline_bounds_the_archive_and_the_hashing_not_only_the_dump(self):
-        clock = [0.0]
-        def after_dump(argv, **kwargs):
-            Path(argv[argv.index('--file') + 1]).write_bytes(b'dump-data')
-            clock[0] = 1000.0  # time runs out after the dump, before the archive
-            return subprocess.CompletedProcess(argv, 0, '', '')
-        with patch.object(backup.time, 'monotonic', lambda: clock[0]), self.assertRaisesRegex(ValueError, 'backup_deadline_exceeded'):
-            capture_tenant(self.binding, self.proof, {**self.config, 'runner': after_dump})
-        self.assertFalse((self.root / 'backup' / 'receipt.json').exists())
-        clock[0] = 0.0
-        shutil.rmtree(self.root / 'backup')
-        calls = []
-        def late_recheck(binding, timeout):
-            calls.append(timeout)
-            if len(calls) == 2: clock[0] = 1000.0  # budget exhausted right before hashing
-            return self.proof
-        with patch.object(backup.time, 'monotonic', lambda: clock[0]), self.assertRaisesRegex(ValueError, 'backup_deadline_exceeded'):
-            capture_tenant(self.binding, self.proof, {**self.config, 'recheck': late_recheck})
-        self.assertFalse((self.root / 'backup' / 'receipt.json').exists())
-
-    def test_deadline_is_passed_to_every_recheck_as_its_remaining_time(self):
-        seen = []
-        def recheck(binding, timeout):
-            seen.append(timeout); return self.proof
-        capture_tenant(self.binding, self.proof, {**self.config, 'recheck': recheck, 'totalDeadlineSeconds': 30})
-        self.assertEqual(len(seen), 2)
-        self.assertTrue(all(0 < value <= 30 for value in seen))
-
-    def test_fixture_capture_without_a_writer_window_keeps_its_contract(self):
-        # The isolated infrastructure fixture does not own a tenant writer window;
-        # it must keep working while producing the same receipt shape.
-        config = {key: value for key, value in self.config.items() if key != 'writerWindow'}
-        config['outputDir'] = str(self.root / 'fixture')
-        proof = {key: value for key, value in self.proof.items()
-                 if key not in ('writerConnections', 'deniedWriters')}
-        receipt = capture_tenant(self.binding, proof, config)
-        self.assertTrue(validate_backup(self.root / 'fixture')['valid'])
-        self.assertEqual(receipt['consistency'], 'quiescent_gate')
-        self.assertFalse(receipt['restoreVerified'])
 
     def test_symlink_store_is_rejected_and_corruption_blocks_restore(self):
         (self.store / 'escape').symlink_to('/etc/passwd')
@@ -157,6 +77,138 @@ class BackupTests(unittest.TestCase):
         for patch, db in [({'writesResumed': True}, 'webvue_scratch_again'), ({}, 'odoo19')]:
             with self.subTest(db=db), self.assertRaises(ValueError):
                 restore_tenant(self.root / 'backup', {'database': db}, {**config, **patch})
+
+
+class FakeClock:
+    """Monotonic clock advanced only by the test's explicit cost model."""
+    def __init__(self): self.now = 0.0
+    def __call__(self): return self.now
+
+
+class CaptureWindowTests(unittest.TestCase):
+    """Backup-current window: one absolute budget across every step."""
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name).resolve()
+        self.store = self.root / 'filestore' / 'tenant_a'; self.store.mkdir(parents=True)
+        (self.store / 'attachment').write_bytes(b'attachment-data')
+        self.binding = {'tenantId': 'tenant_a', 'database': 'tenant_a', 'filestore': 'shared_store', 'fence': 2}
+        self.proof = {**self.binding, 'gateClosed': True, 'admittedWriters': 0, 'activeTransactions': 0,
+                      'oldConnections': 0, 'writerConnections': 0, 'deniedWriters': ['role_blue', 'role_green']}
+        self.commands, self.rechecks = [], []
+        self.clock = FakeClock()
+        def runner(argv, **kwargs):
+            self.commands.append((argv, kwargs['timeout']))
+            if '--file' in argv: Path(argv[argv.index('--file') + 1]).write_bytes(b'dump-data')
+            return subprocess.CompletedProcess(argv, 0, '', '')
+        def recheck(binding, deadline):
+            self.rechecks.append(deadline.remaining())
+            return self.proof
+        self.config = {'mode': 'local', 'outputDir': str(self.root / 'backup'), 'filestorePath': str(self.store),
+                       'pgDump': '/usr/bin/true', 'createdb': '/usr/bin/true', 'pgRestore': '/usr/bin/true',
+                       'image': 'webvue/odoo@sha256:' + 'a' * 64, 'runner': runner, 'recheck': recheck,
+                       'pgEnv': {}, 'timeoutSeconds': 30}
+
+    def capture(self, seconds=60, **config):
+        return capture_window(self.binding, self.proof, {**self.config, **config}, Deadline(seconds, self.clock))
+
+    def test_window_capture_rechecks_before_dump_and_after_archive(self):
+        receipt = self.capture()
+        self.assertTrue(validate_backup(self.root / 'backup')['valid'])
+        self.assertEqual(len(self.rechecks), 2)
+        self.assertEqual(receipt['consistency'], 'quiescent_gate')
+        self.assertFalse(receipt['restoreVerified'])
+        self.assertEqual(sorted(path.name for path in (self.root / 'backup').iterdir()),
+                         ['database.dump', 'filestore.tar', 'receipt.json'])
+
+    def test_window_requires_recheck_and_denied_writer_evidence(self):
+        for proof in ({k: v for k, v in self.proof.items() if k != 'deniedWriters'},
+                      {**self.proof, 'deniedWriters': []}, {**self.proof, 'writerConnections': 1}):
+            with self.subTest(proof=proof), self.assertRaises(ValueError):
+                capture_window(self.binding, proof, self.config, Deadline(60, self.clock))
+        config = {**self.config}; config.pop('recheck')
+        with self.assertRaises(ValueError): capture_window(self.binding, self.proof, config, Deadline(60, self.clock))
+        with self.assertRaises(ValueError): capture_window(self.binding, self.proof, self.config, 60)
+        self.assertFalse(self.commands)
+        self.assertFalse((self.root / 'backup').exists())
+
+    def test_hardlinked_attachments_validate_and_restore_identical_bytes(self):
+        (self.store / 'ab').mkdir()
+        (self.store / 'ab' / 'first').write_bytes(b'shared-attachment-bytes')
+        os.link(self.store / 'ab' / 'first', self.store / 'ab' / 'second')
+        self.capture()
+        self.assertTrue(validate_backup(self.root / 'backup')['valid'])
+        target = self.root / 'webvue_scratch_restore'
+        restore_tenant(self.root / 'backup', {'tenantId': 'tenant_a', 'database': target.name, 'filestore': target.name},
+                       {**self.config, 'restoreAllowed': True, 'writesResumed': False,
+                        'targetFilestore': str(target), 'recoverySource': self.binding})
+        for name in ('first', 'second'):
+            self.assertEqual((target / 'ab' / name).read_bytes(), b'shared-attachment-bytes')
+
+    def test_budget_starts_before_the_filestore_walk(self):
+        walk = backup.os.walk
+        def slow_walk(*args, **kwargs):
+            for item in walk(*args, **kwargs):
+                self.clock.now += 40
+                yield item
+        (self.store / 'more').mkdir()
+        with patch.object(backup.os, 'walk', slow_walk), self.assertRaisesRegex(ValueError, 'backup_deadline_exceeded'):
+            self.capture()
+        self.assertFalse(self.commands)
+        self.assertFalse((self.root / 'backup').exists())
+
+    def test_cumulative_overrun_across_scan_fsync_and_rechecks_fails(self):
+        # Each step alone fits the 60 s budget; only their sum exceeds it.
+        walk, fsync = backup.os.walk, backup.os.fsync
+        def slow_walk(*args, **kwargs):
+            for item in walk(*args, **kwargs):
+                self.clock.now += 15
+                yield item
+        def slow_fsync(descriptor):
+            self.clock.now += 15
+            return fsync(descriptor)
+        def slow_recheck(binding, deadline):
+            self.clock.now += 15
+            self.rechecks.append(deadline.remaining())
+            return self.proof
+        with patch.object(backup.os, 'walk', slow_walk), patch.object(backup.os, 'fsync', slow_fsync), \
+                self.assertRaisesRegex(ValueError, 'backup_deadline_exceeded'):
+            self.capture(recheck=slow_recheck)
+        self.assertFalse((self.root / 'backup' / 'receipt.json').exists())
+
+    def test_sequential_rechecks_share_one_budget(self):
+        seen = []
+        def recheck(binding, deadline):
+            seen.append(deadline.remaining())
+            self.clock.now += 35
+            return self.proof
+        with self.assertRaisesRegex(ValueError, 'backup_deadline_exceeded'):
+            self.capture(recheck=recheck)
+        self.assertEqual(seen, [60, 25])
+        self.assertEqual(self.commands[0][1], 25)
+        self.assertFalse((self.root / 'backup' / 'receipt.json').exists())
+
+    def test_final_fsync_past_the_budget_leaves_no_receipt(self):
+        fsync = backup.os.fsync
+        calls = []
+        def fsync_then_expire(descriptor):
+            calls.append(descriptor)
+            result = fsync(descriptor)
+            if len(calls) == 4: self.clock.now = 1000  # the output directory fsync overruns
+            return result
+        with patch.object(backup.os, 'fsync', fsync_then_expire), self.assertRaisesRegex(ValueError, 'backup_deadline_exceeded'):
+            self.capture()
+        self.assertEqual(len(calls), 4)
+        self.assertFalse((self.root / 'backup' / 'receipt.json').exists())
+        self.assertTrue((self.root / 'backup' / 'receipt.pending').is_file())
+        self.assertFalse(validate_backup(self.root / 'backup')['valid'])
+
+    def test_dump_child_gets_only_the_remaining_budget(self):
+        def recheck(binding, deadline):
+            self.clock.now += 50
+            return self.proof
+        with self.assertRaises(ValueError): self.capture(recheck=recheck)
+        self.assertEqual(self.commands[0][1], 10)
 
 
 if __name__ == '__main__': unittest.main()

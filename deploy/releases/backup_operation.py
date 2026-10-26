@@ -27,16 +27,19 @@ def read_intent(state, tenant, request_id):
 
 
 def _fail_closed(state, runtime, binding, route, request_id, error):
-    """Deny every writer again, stop owned cron, then keep the tenant in maintenance.
+    """Close the tenant again in barrier order, then record the intervention.
 
-    A failed resume or reconciliation may already have re-admitted writers or
-    restarted cron, so the HTTP barrier alone is never the last line.
+    A failed resume or reconciliation may already have removed the maintenance
+    marker, re-admitted writers or restarted cron. The durable marker comes back
+    first, then the same window entry as a capture (guard ACK, lease drain, writer
+    fence, owned cron stop). If any step fails the marker stays and the error says
+    the fence is unverified; nothing here ever reopens admission.
     """
     try:
-        runtime.fail_closed_backup(binding, route)
+        state.maintenance(binding['tenantId'], route['fence'])
+        runtime.fence_backup(binding, route)
     except BaseException:
         error = 'backup_fail_closed_unverified'
-    state.maintenance(binding['tenantId'], route['fence'])
     state.stage(request_id, binding['tenantId'], 'needs_intervention', route['fence'], error=error)
 
 
@@ -84,7 +87,7 @@ def backup_current(state, runtime, binding, request_id, output_dir, finalize):
             if (proof.get('fence')!=route['fence'] or proof.get('gateClosed') is not True
                     or any(type(proof.get(k)) is not int or proof[k]!=0 for k in ('admittedWriters','activeTransactions','oldConnections'))):
                 raise ReleaseConflict('backup_quiescence_unverified')
-            result=runtime.capture_into(binding,proof,output_dir)
+            result=runtime.capture_backup(binding,proof,output_dir)
             if result.get('fence')!=route['fence'] or not result.get('digest'):raise ReleaseConflict('backup_unverified')
             finalize(result)
             state.stage(request_id,tenant,'backed_up',route['fence'],backup_digest=result['digest'])

@@ -24,30 +24,32 @@ class BackupOperationTests(unittest.TestCase):
         self.events = []
         self.failure = None
 
-    def runtime(self, *, capture_fail=False, reconcile_fail=False, fail_closed_fail=False):
+    def runtime(self, *, capture_fail=False, reconcile_fail=False, fail_closed_fail=False, resume_ack_fail=False):
         events, previous, state = self.events, self.previous, self.state
+        marker = state.routes/'tenant_a.maintenance'
         class Runtime:
             def prepare_backup(self,b,r):
                 events.append('prepare'); return previous
-            def acknowledge(self,b,r,maintenance=False): return {'ready':True}
+            def acknowledge(self,b,r,maintenance=False):
+                if resume_ack_fail and maintenance is False:
+                    events.append('fail'); return {'ready': False}
+                return {'ready': True}
             def fence_backup(self,b,r):
-                assert (state.routes/'tenant_a.maintenance').exists()
+                # Barrier order: the durable marker exists whenever the writer fence runs.
+                events.append(('fence_backup', marker.is_file()))
                 assert Path(backup_operation.intent_path(state,'tenant_a','backup_one')).is_file()
-                events.append('fence_backup')
+                if fail_closed_fail and 'fail' in events: raise RuntimeError('fence unavailable')
                 return {**b,'fence':1,'gateClosed':True,'admittedWriters':0,'activeTransactions':0,
                         'oldConnections':0,'writerConnections':0,'deniedWriters':['role_blue','role_green']}
-            def capture_into(self,b,p,out):
+            def capture_backup(self,b,p,out):
                 events.append('capture')
-                if capture_fail: raise RuntimeError('capture failed')
+                if capture_fail: events.append('fail'); raise RuntimeError('capture failed')
                 return {'fence':1,'digest':'a'*64,'path':str(out)}
             def resume_backup(self,b,r,observed):
                 events.append('resume'); assert observed == previous
-            def fail_closed_backup(self,b,r):
-                events.append('fail_closed')
-                if fail_closed_fail: raise RuntimeError('fence unavailable')
             def reconcile_backup(self,b,r,observed):
                 events.append('reconcile'); assert observed == previous
-                if reconcile_fail: raise ReleaseConflict('backup_fence_lost')
+                if reconcile_fail: events.append('fail'); raise ReleaseConflict('backup_fence_lost')
         return Runtime()
 
     def call(self, runtime):
@@ -57,19 +59,19 @@ class BackupOperationTests(unittest.TestCase):
     def test_success_resumes_the_persisted_previous_state_only_after_capture(self):
         result = self.call(self.runtime())
         self.assertEqual(result['stage'], 'verified')
-        self.assertEqual(self.events, ['prepare','fence_backup','capture','finalize','resume'])
+        self.assertEqual(self.events, ['prepare',('fence_backup',True),'capture','finalize','resume'])
         self.assertFalse((self.state.routes/'tenant_a.maintenance').exists())
         intent = json.loads(backup_operation.intent_path(self.state,'tenant_a','backup_one').read_text())
         self.assertEqual(intent, self.previous)
         self.assertEqual(self.call(self.runtime())['stage'], 'verified')
-        self.assertEqual(self.events, ['prepare','fence_backup','capture','finalize','resume'])
+        self.assertEqual(self.events, ['prepare',('fence_backup',True),'capture','finalize','resume'])
 
     def test_capture_failure_denies_writers_and_keeps_only_the_target_closed(self):
         with self.assertRaises(RuntimeError): self.call(self.runtime(capture_fail=True))
         self.assertTrue((self.state.routes/'tenant_a.maintenance').exists())
         self.assertEqual(self.state.receipt('backup_one')['errorCode'], 'backup_unverified')
         self.assertEqual(self.state.receipt('backup_one')['stage'], 'needs_intervention')
-        self.assertIn('fail_closed', self.events)
+        self.assertEqual(self.events[-1], ('fence_backup', True))
         self.assertNotIn('resume', self.events)
         self.assertFalse((self.state.routes/'tenant_b.maintenance').exists())
         self.assertEqual(self.state.route('tenant_b')['poolId'], 'blue')
@@ -124,7 +126,7 @@ class BackupOperationTests(unittest.TestCase):
     def test_reconcile_failure_reapplies_fail_closed(self):
         self.crash_in('backed_up')
         with self.assertRaises(ReleaseConflict): self.call(self.runtime(reconcile_fail=True))
-        self.assertEqual(self.events, ['reconcile', 'fail_closed'])
+        self.assertEqual(self.events, ['reconcile', 'fail', ('fence_backup', True)])
         receipt = self.state.receipt('backup_one')
         self.assertEqual((receipt['stage'], receipt['errorCode']), ('needs_intervention', 'backup_reconciliation_failed'))
         self.assertTrue((self.state.routes/'tenant_a.maintenance').exists())
@@ -132,6 +134,19 @@ class BackupOperationTests(unittest.TestCase):
     def test_reconcile_failure_with_failed_fence_reports_it_and_stays_closed(self):
         self.crash_in('prepared')
         with self.assertRaises(ReleaseConflict): self.call(self.runtime(reconcile_fail=True, fail_closed_fail=True))
+        self.assertEqual(self.state.receipt('backup_one')['errorCode'], 'backup_fail_closed_unverified')
+        self.assertTrue((self.state.routes/'tenant_a.maintenance').exists())
+
+    def test_final_ack_failure_recreates_the_barrier_before_fencing(self):
+        # state.resume already removed the marker; the fence must never run without it.
+        with self.assertRaises(ReleaseConflict): self.call(self.runtime(resume_ack_fail=True))
+        self.assertEqual(self.events, ['prepare',('fence_backup',True),'capture','finalize','resume','fail',('fence_backup',True)])
+        receipt = self.state.receipt('backup_one')
+        self.assertEqual((receipt['stage'], receipt['errorCode']), ('needs_intervention', 'backup_unverified'))
+        self.assertTrue((self.state.routes/'tenant_a.maintenance').exists())
+
+    def test_final_ack_failure_with_failing_fence_keeps_the_marker(self):
+        with self.assertRaises(ReleaseConflict): self.call(self.runtime(resume_ack_fail=True, fail_closed_fail=True))
         self.assertEqual(self.state.receipt('backup_one')['errorCode'], 'backup_fail_closed_unverified')
         self.assertTrue((self.state.routes/'tenant_a.maintenance').exists())
 

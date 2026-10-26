@@ -12,7 +12,6 @@ class Cursor:
         self.sql, self.args = sql, args
         if 'pg_terminate_backend' in sql: self.connection.idle = []
     def fetchone(self):
-        if 'has_database_privilege' in self.sql: return (self.connection.grants.get(self.args[0]),)
         if 'SELECT EXISTS (SELECT 1 FROM pg_database WHERE' in self.sql: return (self.connection.database_exists,)
         if 'FROM pg_roles WHERE' in self.sql: return self.connection.flags
         if 'aclexplode' in self.sql: return (self.connection.public,)
@@ -21,6 +20,8 @@ class Cursor:
         if 'count(*)' in self.sql: return (self.connection.active,)
         return (True,)
     def fetchall(self):
+        if 'has_database_privilege' in self.sql:
+            return [(role, self.connection.grants[role]) for role in self.args[1] if role in self.connection.grants]
         if 'pg_stat_activity' in self.sql: return list(self.connection.idle)
         if 'aclexplode' in self.sql and 'pg_database' in self.sql:
             return [(role, 'connect') for role in self.connection.connect_principals]

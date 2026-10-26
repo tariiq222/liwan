@@ -5,6 +5,7 @@ source subprocess migrations are reported as local-source evidence, never image 
 """
 import hashlib
 import json
+import math
 from pathlib import Path
 import subprocess
 import time
@@ -12,7 +13,7 @@ import re
 from urllib.request import Request, HTTPRedirectHandler, build_opener
 from urllib.parse import urlsplit
 
-from .backup import capture_tenant, _path
+from .backup import Deadline, capture_tenant, capture_window, _path
 from .manifest import load_manifest, manifest_digest
 from .migrate import migrate_tenant, verify_tenant
 from .runtime_identity import inspect_odoo_runtime
@@ -45,11 +46,11 @@ class LocalRuntime:
         self.proofs = {}
         self.classifications = {}
 
-    def _connect(self, database):
+    def _connect(self, database, **options):
         import psycopg2
         pg = self.config['postgres']
         return psycopg2.connect(dbname=database, host=pg['host'], port=pg['port'], user=pg['adminUser'],
-                               **({'passfile': pg['passfile']} if pg.get('passfile') else {}))
+                               **({'passfile': pg['passfile']} if pg.get('passfile') else {}), **options)
 
     def _tenant(self, binding):
         if not binding['database'].startswith('webvue_scratch_'):
@@ -159,7 +160,7 @@ class LocalRuntime:
         if len(set(names)) != len(names): raise ReleaseConflict('runtime_writer_roles_duplicate')
         return tuple(sorted(roles.values()))
 
-    def _allowed_principals(self, binding):
+    def _allowed_principals(self):
         """Closed operator allowance: only the isolation admin and configured principals."""
         allowed = [*(self.config.get('backup', {}).get('allowedPrincipals') or [])]
         admin = self.config.get('postgres', {}).get('adminUser')
@@ -176,7 +177,7 @@ class LocalRuntime:
         if self._role(binding, route['poolId']) not in roles:
             raise ReleaseConflict('runtime_writer_roles_incomplete')
         result = fence_writers({**binding,'fence':route['fence'],'gateClosed':True,'admittedWriters':0,'transactionScope':'tenant'},
-            roles, self.connector, allowed_principals=self._allowed_principals(binding),
+            roles, self.connector, allowed_principals=self._allowed_principals(),
             deadline_seconds=self.config.get('drainSeconds',30))
         if result.get('fenced') is not True: raise ReleaseConflict(result.get('reason','fence_failed'))
         self._stop_old_jobs(binding,route['poolId'])
@@ -237,25 +238,40 @@ class LocalRuntime:
                 if cursor.fetchone()[0]: raise ReleaseConflict('old_connections_remain')
         return self.proofs[binding['tenantId']]
 
-    def _recheck_window(self, binding, timeout):
+    def _window_connection(self, database, deadline):
+        """Admin connection whose connect wait is bounded by what is left of the window budget."""
+        # libpq rounds connect_timeout below 2 s up to 2 s; the check after
+        # connecting still refuses any result obtained past the budget.
+        connection = self.connector(database, connect_timeout=max(2, math.ceil(deadline.remaining())))
+        deadline.remaining()
+        return connection
+
+    @staticmethod
+    def _statement_budget(cursor, deadline):
+        # Recomputed before every statement: sequential queries share one budget.
+        cursor.execute(f'SET LOCAL statement_timeout = {max(1, int(deadline.remaining() * 1000))}')
+
+    def _recheck_window(self, binding, deadline):
         """Window evidence: gate closed, every declared writer denied, nothing running.
 
-        ``timeout`` (seconds) bounds each query so a stalled database cannot outlive the budget.
+        Each connection and statement gets only the time left on ``deadline``.
         """
         route = self.state.route(binding['tenantId'])
         if not self.state.routes.joinpath(binding['tenantId'] + '.maintenance').is_file() or self._leases(binding):
             raise ReleaseConflict('maintenance_gate_changed')
         roles = self._writer_roles(binding)
-        with self.connector(binding['database']) as connection:
+        with self._window_connection(binding['database'], deadline) as connection:
             with connection.cursor() as cursor:
-                cursor.execute(f'SET LOCAL statement_timeout = {max(1, int(timeout * 1000))}')
+                self._statement_budget(cursor, deadline)
                 cursor.execute("SELECT (SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND pid<>pg_backend_pid() AND (usename = ANY(%s) OR state<>'idle' OR xact_start IS NOT NULL)) + (SELECT count(*) FROM pg_prepared_xacts WHERE database=%s)",
                     (binding['database'],list(roles),binding['database']))
                 if cursor.fetchone()[0]: raise ReleaseConflict('writer_reconnect_observed')
+                self._statement_budget(cursor, deadline)
             try:
                 grants = writer_grants(connection, roles, binding['database'])
             except ValueError:
                 raise ReleaseConflict('writer_admission_unverified') from None
+        deadline.remaining()
         if any(grants[role] is not False for role in roles):
             raise ReleaseConflict('writer_admission_open')
         return {**binding,'fence':route['fence'],'gateClosed':True,'admittedWriters':0,
@@ -304,22 +320,29 @@ class LocalRuntime:
         if self.state.route(binding['tenantId']) != route:
             raise ReleaseConflict('backup_route_changed')
         previous = self._previous_state(binding, route, previous)
-        self._recheck_window(binding, self.config['backup'].get('timeoutSeconds', 120))
-        return self._restore_previous(binding, route, previous)
+        deadline = self._resume_deadline()
+        self._recheck_window(binding, deadline)
+        return self._restore_previous(binding, route, previous, deadline)
 
-    def _restore_previous(self, binding, route, previous):
+    def _resume_deadline(self):
+        return Deadline(self.config['backup'].get('timeoutSeconds', 120))
+
+    def _restore_previous(self, binding, route, previous, deadline):
         restored = [role for role in previous['roles'] if previous['grants'][role] is True]
-        with self.connector(binding['database']) as connection:
+        with self._window_connection(binding['database'], deadline) as connection:
             with connection.cursor() as cursor:
                 for role in restored:
+                    self._statement_budget(cursor, deadline)
                     cursor.execute(f'GRANT CONNECT ON DATABASE {identifier(binding["database"])} TO {identifier(role)}')
             connection.commit()
-        jobs = self._restore_previous_cron(binding, route['poolId'], previous['cron'])
+        jobs = self._restore_previous_cron(binding, route['poolId'], previous['cron'], deadline)
         return {'ready':True,'restoredWriters':restored,'cron':jobs}
 
-    def _restore_previous_cron(self, binding, pool, previous):
+    def _restore_previous_cron(self, binding, pool, previous, deadline):
         jobs = {job['container']: job for job in self._owned_cron_jobs(binding, pool)}
-        if not previous or set(jobs) != set(previous): raise ReleaseConflict('cron_identity_changed')
+        # An empty owned set is valid only when the operator topology owns no cron
+        # (jobsRequired=False); _owned_cron_jobs already refuses a missing required one.
+        if not isinstance(previous, dict) or set(jobs) != set(previous): raise ReleaseConflict('cron_identity_changed')
         for container, job in jobs.items():
             expected = self._cron_expected(binding, pool, job)
             current = self.role_inspector(container, expected, cron_databases=job['databases'], allow_stopped=True)
@@ -327,24 +350,15 @@ class LocalRuntime:
                 raise ReleaseConflict('cron_role_binding_unverified')
             if previous[container] is True:
                 if current.get('running') is not True:
-                    subprocess.run(['docker','start',name(container)],capture_output=True,check=True,timeout=30)
+                    subprocess.run(['docker','start',name(container)],capture_output=True,check=True,timeout=deadline.remaining(30))
                 after = self.role_inspector(container, expected, cron_databases=job['databases'])
                 if after.get('running') is not True or after.get('dbUser') != expected['dbUser']:
                     raise ReleaseConflict('tenant_cron_start_unverified')
             elif current.get('running') is not False:
                 # A cron the operator had stopped stays stopped; a backup never starts one.
                 raise ReleaseConflict('previous_cron_state_unverified')
+        deadline.remaining()
         return previous
-
-    def fail_closed_backup(self, binding, route):
-        """Re-deny every declared writer and stop owned cron after a partial resume."""
-        roles = self._writer_roles(binding)
-        result = fence_writers({**binding,'fence':route['fence'],'gateClosed':True,'admittedWriters':0},
-            roles, self.connector, allowed_principals=self._allowed_principals(binding),
-            deadline_seconds=self.config.get('drainSeconds',30))
-        if result.get('fenced') is not True: raise ReleaseConflict(result.get('reason','backup_fail_closed_unverified'))
-        self._stop_old_jobs(binding, route['poolId'])
-        return {'ready':True,'deniedWriters':result['deniedWriters']}
 
     def reconcile_backup(self, binding, route, previous):
         """Finish an interrupted backup by restoring the previous state only.
@@ -357,21 +371,32 @@ class LocalRuntime:
         if self.state.route(binding['tenantId']) != route:
             raise ReleaseConflict('backup_route_changed')
         previous = self._previous_state(binding, route, previous)
+        deadline = self._resume_deadline()
         try:
-            with self.connector(binding['database']) as connection:
+            with self._window_connection(binding['database'], deadline) as connection:
+                with connection.cursor() as cursor: self._statement_budget(cursor, deadline)
                 grants = writer_grants(connection, previous['roles'], binding['database'])
-        except ValueError:
+        except ValueError as error:
+            if str(error) == 'backup_deadline_exceeded': raise
             raise ReleaseConflict('backup_fence_unverified') from None
         if any(grants[role] is True for role in previous['roles'] if previous['grants'][role] is not True):
             raise ReleaseConflict('backup_fence_lost')
-        return self._restore_previous(binding, route, previous)
+        return self._restore_previous(binding, route, previous, deadline)
 
     def capture_into(self, binding, proof, output):
         tenant = self._tenant(binding)
         config = {**self.config['backup'], 'mode':'local','outputDir':str(output),
-                  'filestorePath':tenant['filestorePath'],'recheck':self._recheck_window,'writerWindow':True,
-                  'totalDeadlineSeconds':self.config['backup'].get('totalDeadlineSeconds',600)}
+                  'filestorePath':tenant['filestorePath'],'recheck':self._recheck}
         receipt = capture_tenant({**binding,'fence':proof['fence']},proof,config)
+        return {**receipt,'digest':digest(receipt),'path':str(output)}
+
+    def capture_backup(self, binding, proof, output):
+        """Backup-current capture inside the writer window under one absolute budget."""
+        deadline = Deadline(self.config['backup'].get('totalDeadlineSeconds', 600))
+        tenant = self._tenant(binding)
+        config = {**self.config['backup'], 'mode':'local','outputDir':str(output),
+                  'filestorePath':tenant['filestorePath'],'recheck':self._recheck_window}
+        receipt = capture_window({**binding,'fence':proof['fence']},proof,config,deadline)
         return {**receipt,'digest':digest(receipt),'path':str(output)}
 
     def capture(self, binding, proof):
