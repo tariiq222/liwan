@@ -300,6 +300,44 @@ class TestHrOffboardingPlans(WebVueHrCase):
         self.assertEqual(self._plans(), before)
         self.assertEqual((self.plan.name, self.plan.template_ids.ids, self.plan.active), snapshot)
 
+    def test_reader_without_department_access_sees_the_plan_department_reference(self):
+        parent = self.env['hr.department'].create({'name': 'Plan Parent', 'company_id': self.company.id})
+        child = self.env['hr.department'].create({
+            'name': 'Plan Child', 'company_id': self.company.id, 'parent_id': parent.id,
+        })
+        bound = self._make_plan('Dept bound plan', 'offboarding', self.company, 'Bound step')
+        bound.department_id = self.department
+        nested = self._make_plan('Sub dept plan', 'offboarding', self.company, 'Nested step')
+        nested.department_id = child
+        self._as_reader()
+        listing = self.api('GET', PLANS)
+        self.assertEqual(listing.status_code, 200, listing.text)
+        by_id = {item['id']: item for item in listing.json()['items']}
+        self.assertEqual(by_id[bound.id]['department'], {'id': self.department.id, 'name': 'Plan Dept'})
+        self.assertEqual(by_id[nested.id]['department'], {'id': child.id, 'name': 'Plan Child'})
+        self.assertIsNone(by_id[self.plan.id]['department'])
+        self.assertNotIn(self.foreign_plan.id, by_id)
+        one = self.api('GET', f'{PLANS}/{bound.id}')
+        self.assertEqual(one.status_code, 200, one.text)
+        self.assertEqual(one.json()['department'], {'id': self.department.id, 'name': 'Plan Dept'})
+        self.assertIsNone(self.api('GET', f'{PLANS}/{self.plan.id}').json()['department'])
+        foreign = self.api('GET', f'{PLANS}/{self.foreign_plan.id}')
+        self.assertEqual((foreign.status_code, foreign.json()['code']), (404, 'not_found'))
+        # The plan read does not widen the department routes.
+        for path in ('/api/v1/hr/departments', f'/api/v1/hr/departments/{self.department.id}'):
+            denied = self.api('GET', path)
+            self.assertEqual((denied.status_code, denied.json()['code']), (403, 'forbidden'), path)
+
+    def test_a_department_of_another_company_cannot_be_linked_to_a_plan(self):
+        self._as_manager()
+        created = self.api('POST', PLANS, json={
+            'name': 'خطة', 'steps': [_step('خطوة')], 'department_id': self.foreign_department.id,
+        })
+        self.assertEqual((created.status_code, created.json()['field']), (422, 'department_id'))
+        patched = self.api('PATCH', f'{PLANS}/{self.plan.id}', json={'department_id': self.foreign_department.id})
+        self.assertEqual((patched.status_code, patched.json()['field']), (422, 'department_id'))
+        self.assertFalse(self.plan.department_id)
+
     def test_a_caller_without_the_offboarding_capabilities_is_forbidden(self):
         before = self._plans()
         for login in ('hr_ofbplan_none', 'hr_ofbplan_onb'):

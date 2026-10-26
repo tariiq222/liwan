@@ -13,6 +13,7 @@ from odoo.addons.webvue_api.controllers.common import (
 )
 from odoo.addons.webvue_hr.serializers.lifecycle.plan import (
     TODO_ACTIVITY_XMLID,
+    department_refs,
     dump_plan,
     parse_plan_create,
     parse_plan_patch,
@@ -36,7 +37,15 @@ def _list_plans(area):
         domain.append(('active', '=', active))
     Plan = request.env['mail.activity.plan'].with_context(active_test=False)
     plans = Plan.search(domain, order='name, id', limit=limit, offset=offset)
-    return {'items': [dump_plan(plan) for plan in plans], 'total': Plan.search_count(domain)}
+    departments = department_refs(plans)
+    return {
+        'items': [dump_plan(plan, departments[plan.id]) for plan in plans],
+        'total': Plan.search_count(domain),
+    }
+
+
+def _dump_one(plan):
+    return dump_plan(plan, department_refs(plan)[plan.id])
 
 
 def _create_plan(area, payload):
@@ -46,7 +55,7 @@ def _create_plan(area, payload):
     _validate_plan_relations(vals, steps)
     plan = request.env['mail.activity.plan'].create(vals)
     _set_plan_steps(plan, steps)
-    return dump_plan(plan)
+    return _dump_one(plan)
 
 
 def _patch_plan(area, plan_id, payload):
@@ -58,7 +67,7 @@ def _patch_plan(area, plan_id, payload):
         plan.write(vals)
     if steps is not None:
         _set_plan_steps(plan, steps)
-    return dump_plan(plan)
+    return _dump_one(plan)
 
 
 def _visible(model, domain):
@@ -133,7 +142,7 @@ class HrLifecyclePlanController(http.Controller):
     @requires_feature('hr.enabled', 'hr.onboarding', operation='read')
     def get_onboarding_plan(self, plan_id):
         _require('hr.onboarding.read')
-        return dump_plan(_purpose_plan(ONBOARDING, plan_id))
+        return _dump_one(_purpose_plan(ONBOARDING, plan_id))
 
     @http.route('/api/v1/hr/onboarding/plans/<int:plan_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -161,7 +170,7 @@ class HrLifecyclePlanController(http.Controller):
     @requires_feature('hr.enabled', 'hr.offboarding', operation='read')
     def get_offboarding_plan(self, plan_id):
         _require('hr.offboarding.read')
-        return dump_plan(_purpose_plan(OFFBOARDING, plan_id))
+        return _dump_one(_purpose_plan(OFFBOARDING, plan_id))
 
     @http.route('/api/v1/hr/offboarding/plans/<int:plan_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler

@@ -279,3 +279,40 @@ class TestHrOnboarding(WebVueHrCase):
         ):
             response = self.api(method, path, json=payload)
             self.assertEqual((response.status_code, response.json()['code']), (404, 'not_found'), (method, path))
+
+    def test_reader_without_department_access_sees_the_plan_department_reference(self):
+        department = self.env['hr.department'].create({'name': 'Onb Parent', 'company_id': self.company.id})
+        child = self.env['hr.department'].create({
+            'name': 'Onb Child', 'company_id': self.company.id, 'parent_id': department.id,
+        })
+        bound = self.plan.copy({'name': 'Onboarding dept plan'})
+        bound.department_id = department
+        nested = self.plan.copy({'name': 'Onboarding sub dept plan'})
+        nested.department_id = child
+        other_company = self.env['res.company'].create({'name': 'Onboarding Dept Other Co'})
+        foreign_department = self.env['hr.department'].create({
+            'name': 'Foreign Onb Dept', 'company_id': other_company.id,
+        })
+        foreign_plan = self.plan.copy({'name': 'Foreign onboarding plan', 'company_id': other_company.id})
+        self._as_reader()
+        listing = self.api('GET', '/api/v1/hr/onboarding/plans')
+        self.assertEqual(listing.status_code, 200, listing.text)
+        by_id = {item['id']: item for item in listing.json()['items']}
+        self.assertEqual(by_id[bound.id]['department'], {'id': department.id, 'name': 'Onb Parent'})
+        self.assertEqual(by_id[nested.id]['department'], {'id': child.id, 'name': 'Onb Child'})
+        self.assertIsNone(by_id[self.plan.id]['department'])
+        self.assertNotIn(foreign_plan.id, by_id)
+        one = self.api('GET', f'/api/v1/hr/onboarding/plans/{bound.id}')
+        self.assertEqual(one.status_code, 200, one.text)
+        self.assertEqual(one.json()['department'], {'id': department.id, 'name': 'Onb Parent'})
+        foreign = self.api('GET', f'/api/v1/hr/onboarding/plans/{foreign_plan.id}')
+        self.assertEqual((foreign.status_code, foreign.json()['code']), (404, 'not_found'))
+        for path in ('/api/v1/hr/departments', f'/api/v1/hr/departments/{department.id}'):
+            denied = self.api('GET', path)
+            self.assertEqual((denied.status_code, denied.json()['code']), (403, 'forbidden'), path)
+        # Linking another company's department is refused (needs the department read to resolve it).
+        self._as_manager()
+        refused = self.api('POST', '/api/v1/hr/onboarding/plans', json={
+            'name': 'خطة', 'steps': [_step('خطوة')], 'department_id': foreign_department.id,
+        })
+        self.assertEqual((refused.status_code, refused.json()['field']), (422, 'department_id'))
