@@ -28,6 +28,10 @@ class PayrollCase(WebVueHrCase):
         }])
         return user
 
+    def payroll_settings_revision(self):
+        """The revision a settings PATCH sends: the stored row's, 0 before the company's first save."""
+        return self.env['webvue.hr.payroll.settings'].search([('company_id', '=', self.env.company.id)]).revision or 0
+
     def make_employee(self, name, *, country='SA', start=date(2024, 1, 1), department=None, user=None):
         vals = {'name': name, 'company_id': self.env.company.id}
         if department:

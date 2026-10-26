@@ -4,6 +4,7 @@ import math
 from odoo.addons.webvue_api.controllers.common import ApiError, parse_positive_int
 from odoo.addons.webvue_hr.serializers.assets.common import ref, reject_unknown
 from odoo.addons.webvue_hr.serializers.dates import parse_optional_date
+from odoo.addons.webvue_hr.serializers.payroll.revision import stored_revision
 
 SETTINGS_FIELDS = ('day_divisor', 'structure_id', 'unpaid_leave_type_ids', 'annual_leave_type_id')
 RATE_FIELDS = (
@@ -19,6 +20,7 @@ def dump_settings(settings):
         'structure': ref(settings.structure_id),
         'unpaid_leave_types': [ref(leave_type) for leave_type in settings.unpaid_leave_type_ids._origin],
         'annual_leave_type': ref(settings.annual_leave_type_id),
+        'revision': stored_revision(settings),
     }
 
 
@@ -64,6 +66,7 @@ def dump_rate(rate):
         'wage_min': rate.wage_min,
         'wage_max': rate.wage_max,
         'shared': not rate.company_id,
+        'revision': rate.revision,
     }
 
 

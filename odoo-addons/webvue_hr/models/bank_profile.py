@@ -22,6 +22,9 @@ class WebVueHrPayrollBankProfile(models.Model):
     include_header = fields.Boolean(default=True)
     footer = fields.Selection([('none', 'None'), ('totals', 'Totals')], required=True, default='none')
     column_ids = fields.One2many('webvue.hr.payroll.bank.profile.column', 'profile_id', copy=True)
+    revision = fields.Integer(required=True, default=1)
+
+    _revision_positive = models.Constraint('CHECK(revision > 0)', 'a saved revision must be positive')
 
 
 class WebVueHrPayrollBankProfileColumn(models.Model):

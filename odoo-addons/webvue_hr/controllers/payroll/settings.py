@@ -10,7 +10,13 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.webvue_hr.controllers.common import unique_conflict
 from odoo.addons.webvue_hr.serializers.payroll.files import dump_profile, parse_profile
+from odoo.addons.webvue_hr.serializers.payroll.revision import (
+    parse_delete_revision,
+    require_revision,
+    split_revision,
+)
 from odoo.addons.webvue_hr.serializers.payroll.settings import (
     dump_rate,
     dump_settings,
@@ -53,6 +59,11 @@ def _reject_inverted_wages(rate, vals):
         raise ApiError(422, 'invalid', 'wage_max must not be below wage_min', field='wage_max')
 
 
+SETTINGS_CONFLICT = 'payroll settings changed; reload before saving'
+RATE_CONFLICT = 'the GOSI rate changed; reload before saving'
+PROFILE_CONFLICT = 'the salary file profile changed; reload before saving'
+
+
 def _audit():
     return request.env['webvue.hr.audit.event']
 
@@ -79,13 +90,17 @@ class HrPayrollSettingsController(http.Controller):
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.config')
     def patch_settings(self, **payload):
+        revision, payload = split_revision(payload, minimum=0)
         vals = parse_settings(payload, request.env)
         if not vals:
             raise ApiError(422, 'invalid', 'no fields to update')
         Settings = request.env['webvue.hr.payroll.settings']
-        before = _audit()._webvue_policy_snapshot(Settings._webvue_for_company(current_company()))
-        settings = Settings._webvue_save(current_company(), vals)
-        _audit()._webvue_log('payroll_settings_changed', settings, before)
+        current = Settings._webvue_for_company(current_company())
+        require_revision(current, revision, SETTINGS_CONFLICT)
+        before = _audit()._webvue_policy_snapshot(current)
+        with unique_conflict(SETTINGS_CONFLICT):
+            settings = Settings._webvue_save(current_company(), vals)
+            _audit()._webvue_log('payroll_settings_changed', settings, before)
         return dump_settings(settings)
 
     @http.route('/api/v1/hr/payroll/gosi-rates', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -114,13 +129,15 @@ class HrPayrollSettingsController(http.Controller):
     @requires_capability('hr.payroll.config')
     def patch_gosi_rate(self, rate_id, **payload):
         rate = _writable_rate(rate_id)
+        revision, payload = split_revision(payload)
         vals = parse_rate(payload, request.env['webvue.hr.gosi.rate'], partial=True)
         if not vals:
             raise ApiError(422, 'invalid', 'no fields to update')
+        require_revision(rate, revision, RATE_CONFLICT)
         _reject_inverted_wages(rate, vals)
         _reject_duplicate(rate, vals)
         before = _audit()._webvue_policy_snapshot(rate)
-        rate.write(vals)
+        rate.write({**vals, 'revision': revision + 1})
         _audit()._webvue_log('gosi_rate_changed', rate, before)
         return dump_rate(rate)
 
@@ -128,8 +145,10 @@ class HrPayrollSettingsController(http.Controller):
     @api_handler
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.config')
-    def delete_gosi_rate(self, rate_id, **_):
+    def delete_gosi_rate(self, rate_id, **payload):
         rate = _writable_rate(rate_id)
+        revision = parse_delete_revision(payload)
+        require_revision(rate, revision, RATE_CONFLICT)
         with request.env.cr.savepoint():
             _audit()._webvue_log('gosi_rate_deleted', rate)
             rate.unlink()
@@ -159,11 +178,13 @@ class HrPayrollSettingsController(http.Controller):
     @requires_capability('hr.payroll.config')
     def patch_bank_profile(self, profile_id, **payload):
         profile = _writable_profile(profile_id)
+        revision, payload = split_revision(payload)
         vals = parse_profile(payload, request.env['webvue.hr.payroll.bank.profile'], partial=True)
         if not vals:
             raise ApiError(422, 'invalid', 'no fields to update')
+        require_revision(profile, revision, PROFILE_CONFLICT)
         before = _audit()._webvue_policy_snapshot(profile)
-        profile.write(vals)
+        profile.write({**vals, 'revision': revision + 1})
         _audit()._webvue_log('bank_profile_changed', profile, before)
         return dump_profile(profile)
 
@@ -171,8 +192,10 @@ class HrPayrollSettingsController(http.Controller):
     @api_handler
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.config')
-    def delete_bank_profile(self, profile_id, **_):
+    def delete_bank_profile(self, profile_id, **payload):
         profile = _writable_profile(profile_id)
+        revision = parse_delete_revision(payload)
+        require_revision(profile, revision, PROFILE_CONFLICT)
         with request.env.cr.savepoint():
             _audit()._webvue_log('bank_profile_deleted', profile)
             profile.unlink()

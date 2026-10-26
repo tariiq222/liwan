@@ -85,14 +85,14 @@ class TestPayrollAudit(PayrollCase):
 
     def test_settings_patch_records_old_and_new_policy_values(self):
         self.env['webvue.hr.payroll.settings']._webvue_save(self.env.company, {'day_divisor': 30})
-        self._call(self.config, 'PATCH', '/api/v1/hr/payroll/settings', {'day_divisor': 28})
+        self._call(self.config, 'PATCH', '/api/v1/hr/payroll/settings', {'day_divisor': 28, 'revision': self.payroll_settings_revision()})
         event = self._only_event('payroll_settings_changed', self.config)
         self.assertEqual(self._changes(event), {'day_divisor': ('30', '28')})
         self.assertEqual(event.res_model, 'webvue.hr.payroll.settings')
 
     def test_first_settings_save_records_the_defaults_as_old_values(self):
         self.env['webvue.hr.payroll.settings'].search([]).unlink()
-        self._call(self.config, 'PATCH', '/api/v1/hr/payroll/settings', {'day_divisor': 29})
+        self._call(self.config, 'PATCH', '/api/v1/hr/payroll/settings', {'day_divisor': 29, 'revision': 0})
         event = self._only_event('payroll_settings_changed', self.config)
         self.assertEqual(self._changes(event), {'day_divisor': ('30', '29')})
 
@@ -100,10 +100,10 @@ class TestPayrollAudit(PayrollCase):
         created = self._call(self.config, 'POST', RATES, GCC_RATE).json()
         event = self._only_event('gosi_rate_created', self.config)
         self.assertEqual((event.res_id, self._changes(event)['employer_rate']), (created['id'], (False, '9.0')))
-        self._call(self.config, 'PATCH', f'{RATES}/{created["id"]}', {'employer_rate': 10})
+        self._call(self.config, 'PATCH', f'{RATES}/{created["id"]}', {'employer_rate': 10, 'revision': 1})
         event = self._only_event('gosi_rate_changed', self.config)
         self.assertEqual(self._changes(event), {'employer_rate': ('9.0', '10.0')})
-        self._call(self.config, 'DELETE', f'{RATES}/{created["id"]}')
+        self._call(self.config, 'DELETE', f'{RATES}/{created["id"]}', {'revision': 2})
         event = self._only_event('gosi_rate_deleted', self.config)
         self.assertEqual(self._changes(event)['employer_rate'], ('10.0', False))
         self.assertEqual(self._changes(event)['date_from'], ('2026-01-01', False))
@@ -113,19 +113,19 @@ class TestPayrollAudit(PayrollCase):
         event = self._only_event('bank_profile_created', self.config)
         self.assertEqual(self._changes(event)['name'], (False, 'Audit bank'))
         self.assertEqual(self._changes(event)['column_ids'], (False, '10/iban/IBAN; 20/constant/Account'))
-        self._call(self.config, 'PATCH', f'{PROFILES}/{created["id"]}', {'footer': 'totals'})
+        self._call(self.config, 'PATCH', f'{PROFILES}/{created["id"]}', {'footer': 'totals', 'revision': 1})
         event = self._only_event('bank_profile_changed', self.config)
         self.assertEqual(self._changes(event), {'footer': ('none', 'totals')})
-        self._call(self.config, 'DELETE', f'{PROFILES}/{created["id"]}')
+        self._call(self.config, 'DELETE', f'{PROFILES}/{created["id"]}', {'revision': 2})
         self._only_event('bank_profile_deleted', self.config)
         self.assertFalse(any(SECRET_CONSTANT in value for value in self._all_values()))
 
     def test_eos_case_map_records_the_case(self):
         reason = self.env['hr.departure.reason'].create({'name': 'Audit retired'})
-        self._call(self.config, 'PUT', CASES, {'departure_reason_id': reason.id, 'case': 'termination'})
+        self._call(self.config, 'PUT', CASES, {'departure_reason_id': reason.id, 'case': 'termination', 'revision': 0})
         event = self._only_event('eos_case_changed', self.config)
         self.assertEqual(self._changes(event)['case'], (False, 'termination'))
-        self._call(self.config, 'PUT', CASES, {'departure_reason_id': reason.id, 'case': 'no_award'})
+        self._call(self.config, 'PUT', CASES, {'departure_reason_id': reason.id, 'case': 'no_award', 'revision': 1})
         events = self.Event.search([('action', '=', 'eos_case_changed')])
         self.assertEqual(len(events), 2)
         self.assertEqual(self._changes(events[0]), {'case': ('termination', 'no_award')})
@@ -152,7 +152,7 @@ class TestPayrollAudit(PayrollCase):
         self._login(self.officer)
         self.assertEqual(self.api('POST', RATES, json=GCC_RATE).status_code, 403)
         self._login(self.config)
-        self.assertEqual(self.api('PATCH', '/api/v1/hr/payroll/settings', json={'day_divisor': 27}).status_code, 422)
+        self.assertEqual(self.api('PATCH', '/api/v1/hr/payroll/settings', json={'day_divisor': 27, 'revision': self.payroll_settings_revision()}).status_code, 422)
         self.assertFalse(self.Event.search_count([]))
 
     def test_a_refused_delete_leaves_no_delete_event(self):
@@ -168,7 +168,7 @@ class TestPayrollAudit(PayrollCase):
             self.patch(type(self.env[model]), 'unlink', refuse)
             record_id = rate['id'] if path == RATES else profile['id']
             self._login(self.config)
-            res = self.api('DELETE', f'{path}/{record_id}')
+            res = self.api('DELETE', f'{path}/{record_id}', json={'revision': 1})
             self.assertEqual(res.status_code, 403, res.text)
             self.assertTrue(self.env[model].browse(record_id).exists(), model)
         self.assertEqual(self.Event.search([]).ids, logged)
@@ -179,14 +179,15 @@ class TestPayrollAudit(PayrollCase):
         other = self.env['res.company'].create({'name': 'Audit Forged Co'})
         self._login(self.config)
         path = '/api/v1/hr/payroll/settings'
-        res = self.api('PATCH', path, json={'day_divisor': 28, 'create_uid': self.officer.id})
+        revision = self.payroll_settings_revision()
+        res = self.api('PATCH', path, json={'day_divisor': 28, 'revision': revision, 'create_uid': self.officer.id})
         self.assertEqual((res.status_code, res.json()['field']), (422, 'create_uid'))
-        res = self.api('PATCH', path, json={'day_divisor': 28, 'company_id': other.id})
+        res = self.api('PATCH', path, json={'day_divisor': 28, 'revision': revision, 'company_id': other.id})
         self.assertEqual((res.status_code, res.json()['code']), (404, 'not_found'))
-        res = self.api('PATCH', path, json={'day_divisor': 28, 'company_id': self.env.company.id})
+        res = self.api('PATCH', path, json={'day_divisor': 28, 'revision': revision, 'company_id': self.env.company.id})
         self.assertEqual((res.status_code, res.json()['field']), (422, 'company_id'))
         self.assertFalse(self.Event.search_count([]))
-        self._call(self.config, 'PATCH', path, {'day_divisor': 28})
+        self._call(self.config, 'PATCH', path, {'day_divisor': 28, 'revision': revision})
         event = self._only_event('payroll_settings_changed', self.config)
         self.assertNotEqual(event.company_id, other)
 
@@ -260,7 +261,7 @@ class TestPayrollAudit(PayrollCase):
 
     def test_audit_route_lists_events_with_filters(self):
         self._call(self.config, 'POST', RATES, GCC_RATE)
-        self._call(self.config, 'PATCH', '/api/v1/hr/payroll/settings', {'day_divisor': 29})
+        self._call(self.config, 'PATCH', '/api/v1/hr/payroll/settings', {'day_divisor': 29, 'revision': self.payroll_settings_revision()})
         self.auditor.tz = 'UTC'
         self._login(self.auditor)
         body = self.api('GET', AUDIT).json()
