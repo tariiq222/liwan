@@ -191,7 +191,10 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   if (body && Buffer.byteLength(body) > MAX_REQUEST) throw payloadTooLarge()
   const headers: Record<string, string> = { ...binding }
   // Only explicitly selected application headers, never hop-by-hop or client authority.
-  for (const name of ['content-type', 'accept', 'if-none-match', 'if-modified-since', 'range']) {
+  // The two expected-context headers state the identity a finance setup screen was read for; Odoo compares
+  // them with the authenticated session, so they never select a company and never grant access.
+  for (const name of ['content-type', 'accept', 'if-none-match', 'if-modified-since', 'range',
+    'x-webvue-expected-user-id', 'x-webvue-expected-company-id']) {
     const value = options.headers?.[name] ?? getHeader(event, name)
     if (value) headers[name] = value
   }
