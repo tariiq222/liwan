@@ -8,9 +8,15 @@ from .common import (
     MANAGER_PASSWORD,
     OUTSIDER_LOGIN,
     OUTSIDER_PASSWORD,
+    SETUP_EXPECTED_COMPANY_HEADER,
+    SETUP_EXPECTED_USER_HEADER,
     WebVueFinanceCase,
 )
 from odoo.addons.webvue_api.tests.common import set_probe_feature
+from odoo.addons.webvue_finance.controllers.finance_setup import (
+    EXPECTED_ID_PATTERN,
+    MAX_EXPECTED_ID,
+)
 
 SETUP_KEYS = {'chart', 'company', 'fiscal', 'journals', 'taxes', 'zatca', 'ready', 'blockers'}
 COMPANY_KEYS = {
@@ -60,13 +66,27 @@ class TestFinanceSetup(WebVueFinanceCase):
         cls._user(READER_LOGIN, cls.fresh, 'webvue_core.group_employee', ['finance.setup.read'])
         cls._user(REPORTER_LOGIN, cls.fresh, 'webvue_core.group_employee', ['finance.reports.read'])
 
+    def authenticate(self, login, password):
+        """Sign in, and remember which user the session belongs to so the precondition headers can state it."""
+        self.signed_in = self.env['res.users'].sudo().search([('login', '=', login)], limit=1)
+        return super().authenticate(login, password)
+
+    def _api(self, method, path, json=None, *, user=None, company=None, headers=None):
+        """A setup call as the signed-in user; `headers` states a missing or malformed context on purpose."""
+        identity = self.signed_in
+        return self.setup_api(
+            method, path, json=json, headers=headers,
+            user=identity if user is None else user,
+            company=identity.company_id if company is None else company,
+        )
+
     def _get(self):
-        result = self.api('GET', '/api/v1/finance/setup')
+        result = self._api('GET', '/api/v1/finance/setup')
         self.assertEqual(result.status_code, 200, result.text)
         return result.json()
 
-    def _write(self, method, route, body):
-        return self.api(method, f'/api/v1/finance/setup/{route}', json=body)
+    def _write(self, method, route, body, **kwargs):
+        return self._api(method, f'/api/v1/finance/setup/{route}', body, **kwargs)
 
     def _identity(self, **overrides):
         return {
@@ -105,7 +125,7 @@ class TestFinanceSetup(WebVueFinanceCase):
 
     def test_the_guided_steps_clear_the_blockers_one_by_one(self):
         self.authenticate(ADMIN_LOGIN, PASSWORD)
-        result = self.api('POST', '/api/v1/finance/setup/chart', json={})
+        result = self._api('POST', '/api/v1/finance/setup/chart', {})
         self.assertEqual(result.status_code, 200, result.text)
         body = result.json()
         self.assertEqual(body['chart']['template'], 'sa')
@@ -126,9 +146,9 @@ class TestFinanceSetup(WebVueFinanceCase):
 
     def test_loading_the_chart_twice_is_refused(self):
         self.authenticate(ADMIN_LOGIN, PASSWORD)
-        self.assertEqual(self.api('POST', '/api/v1/finance/setup/chart', json={}).status_code, 200)
+        self.assertEqual(self._api('POST', '/api/v1/finance/setup/chart', {}).status_code, 200)
         accounts = self._get()['chart']['accounts_count']
-        result = self.api('POST', '/api/v1/finance/setup/chart', json={})
+        result = self._api('POST', '/api/v1/finance/setup/chart', {})
         self.assertEqual((result.status_code, result.json()['code']), (422, 'chart_already_loaded'))
         self.assertEqual(self._get()['chart']['accounts_count'], accounts)
 
@@ -169,7 +189,7 @@ class TestFinanceSetup(WebVueFinanceCase):
     def test_the_chart_load_is_refused_when_it_would_replace_or_recurse(self):
         self.authenticate(ADMIN_LOGIN, PASSWORD)
         self.env['res.company'].create({'name': 'Fresh Branch', 'parent_id': self.fresh.id})
-        result = self.api('POST', '/api/v1/finance/setup/chart', json={})
+        result = self._api('POST', '/api/v1/finance/setup/chart', {})
         self.assertEqual(result.status_code, 422, result.text[:800])
         self.assertEqual((result.status_code, result.json()['code']), (422, 'company_has_branches'), result.text[:600])
         self.assertFalse(self.fresh.chart_template)
@@ -182,7 +202,7 @@ class TestFinanceSetup(WebVueFinanceCase):
         self.env['account.move'].with_company(self.fresh).create({
             'journal_id': journal.id, 'move_type': 'entry', 'date': '2026-10-01', 'company_id': self.fresh.id,
         })
-        result = self.api('POST', '/api/v1/finance/setup/chart', json={})
+        result = self._api('POST', '/api/v1/finance/setup/chart', {})
         self.assertEqual((result.status_code, result.json()['code']), (422, 'invalid'), result.text)
         self.assertFalse(self.fresh.chart_template)
 
@@ -209,7 +229,7 @@ class TestFinanceSetup(WebVueFinanceCase):
                              ['finance.setup.read', 'finance.setup.manage'])
         self.assertFalse(manager.has_group('base.group_system'))
         self.authenticate(MANAGER_NO_ADMIN_LOGIN, PASSWORD)
-        result = self.api('POST', '/api/v1/finance/setup/chart', json={})
+        result = self._api('POST', '/api/v1/finance/setup/chart', {})
         self.assertEqual(result.status_code, 200, result.text)
         body = result.json()
         self.assertEqual(set(body), SETUP_KEYS)
@@ -244,7 +264,7 @@ class TestFinanceSetup(WebVueFinanceCase):
         })
         before = sibling.read(['vat', 'city', 'chart_template', 'fiscalyear_last_day', 'tax_lock_date'])
         self.authenticate(MANAGER_NO_ADMIN_LOGIN, PASSWORD)
-        self.assertEqual(self.api('POST', '/api/v1/finance/setup/chart', json={}).status_code, 200)
+        self.assertEqual(self._api('POST', '/api/v1/finance/setup/chart', {}).status_code, 200)
         self.assertEqual(self._write('PATCH', 'fiscal', {'tax_lock_date': '2026-06-30'}).status_code, 200)
         self.env.invalidate_all()
         self.assertEqual(sibling.read(['vat', 'city', 'chart_template', 'fiscalyear_last_day', 'tax_lock_date']), before)
@@ -306,7 +326,7 @@ class TestFinanceSetup(WebVueFinanceCase):
             self.authenticate(login, password)
             for method, route in routes:
                 with self.subTest(login=login, route=route):
-                    result = self.api(method, route, json={'fiscalyear_last_day': 30} if method == 'PATCH' else {})
+                    result = self._api(method, route, {'fiscalyear_last_day': 30} if method == 'PATCH' else {})
                     if (method, route) in allowed[login]:
                         self.assertEqual(result.status_code, 200, result.text)
                     else:
@@ -317,6 +337,109 @@ class TestFinanceSetup(WebVueFinanceCase):
         self.assertEqual(self._write('PATCH', 'fiscal', {'fiscalyear_last_day': 30}).status_code, 200)
         self.assertEqual(self.fresh.fiscalyear_last_day, 30)
         self.assertEqual((self.company.fiscalyear_last_day, self.other_company.fiscalyear_last_day), (31, 31))
+
+    def _expected_ids(self):
+        """The header pair that states the identity this test's session was read for."""
+        return {SETUP_EXPECTED_USER_HEADER: str(self.signed_in.id), SETUP_EXPECTED_COMPANY_HEADER: str(self.fresh.id)}
+
+    def _audit_events(self):
+        return self.env['webvue.finance.audit.event'].search_count([])
+
+    def test_only_positive_canonical_ascii_ids_are_accepted(self):
+        accepted = ('1', '31', '9007199254740991')
+        refused = ('', '0', '01', '007', '+1', '-1', '1.0', '1e3', ' 1', '1 ', '1 2', '١', '1٢', '1' * 17, '9007199254740992')
+        for value in accepted:
+            with self.subTest(value=value):
+                self.assertTrue(EXPECTED_ID_PATTERN.match(value), value)
+                self.assertLessEqual(int(value), MAX_EXPECTED_ID)
+        for value in refused:
+            with self.subTest(value=value):
+                within_contract = bool(EXPECTED_ID_PATTERN.match(value)) and len(value) <= 16 and int(value) <= MAX_EXPECTED_ID
+                self.assertFalse(within_contract, value)
+
+    def test_a_missing_or_malformed_expected_context_is_refused_before_any_effect(self):
+        self.authenticate(ADMIN_LOGIN, PASSWORD)
+        fields = ['fiscalyear_last_day', 'fiscalyear_last_month', 'tax_lock_date', 'chart_template']
+        before = self.fresh.read(fields)
+        events_before = self._audit_events()
+        valid = self._expected_ids()
+        payload = {'fiscalyear_last_day': 30, 'tax_lock_date': '2026-06-30'}
+        for headers in (
+            {},
+            {SETUP_EXPECTED_COMPANY_HEADER: valid[SETUP_EXPECTED_COMPANY_HEADER]},
+            {SETUP_EXPECTED_USER_HEADER: valid[SETUP_EXPECTED_USER_HEADER]},
+            {**valid, SETUP_EXPECTED_USER_HEADER: ''},
+            {**valid, SETUP_EXPECTED_COMPANY_HEADER: ''},
+            {**valid, SETUP_EXPECTED_USER_HEADER: '0'},
+            {**valid, SETUP_EXPECTED_COMPANY_HEADER: '0'},
+            {**valid, SETUP_EXPECTED_USER_HEADER: '01'},
+            {**valid, SETUP_EXPECTED_USER_HEADER: '+1'},
+            {**valid, SETUP_EXPECTED_USER_HEADER: '1.0'},
+            {**valid, SETUP_EXPECTED_USER_HEADER: '9007199254740992'},
+            {**valid, SETUP_EXPECTED_COMPANY_HEADER: '9' * 17},
+        ):
+            with self.subTest(headers=headers):
+                result = self._write('PATCH', 'fiscal', payload, headers=headers)
+                self.assertEqual((result.status_code, result.json()['code']), (422, 'invalid_request_context'), result.text)
+        self.env.invalidate_all()
+        self.assertEqual(self.fresh.read(fields), before)
+        self.assertEqual(self._audit_events(), events_before)
+
+    def test_a_stale_expected_context_is_refused_before_any_effect_in_either_company(self):
+        self.authenticate(ADMIN_LOGIN, PASSWORD)
+        reader = self.env['res.users'].sudo().search([('login', '=', READER_LOGIN)], limit=1)
+        fields = ['fiscalyear_last_day', 'fiscalyear_last_month', 'tax_lock_date']
+        companies = (self.fresh, self.company, self.other_company)
+        before = {company.id: company.read(fields) for company in companies}
+        events_before = self._audit_events()
+        payload = {'fiscalyear_last_day': 30, 'tax_lock_date': '2026-06-30'}
+        for headers in (
+            {SETUP_EXPECTED_USER_HEADER: str(self.signed_in.id), SETUP_EXPECTED_COMPANY_HEADER: str(self.company.id)},
+            {SETUP_EXPECTED_USER_HEADER: str(reader.id), SETUP_EXPECTED_COMPANY_HEADER: str(self.fresh.id)},
+            {SETUP_EXPECTED_USER_HEADER: str(self.signed_in.id), SETUP_EXPECTED_COMPANY_HEADER: str(self.other_company.id)},
+        ):
+            with self.subTest(headers=headers):
+                result = self._write('PATCH', 'fiscal', payload, headers=headers)
+                self.assertEqual((result.status_code, result.json()['code']), (409, 'request_context_changed'), result.text)
+                body = result.json()
+                # The refusal names no identity: neither the stated one nor the authenticated one.
+                self.assertNotIn('field', body)
+                for stated in (str(self.signed_in.id), str(self.company.id), str(reader.id), str(self.fresh.id)):
+                    self.assertNotIn(stated, body['message'])
+        self.env.invalidate_all()
+        for company in companies:
+            self.assertEqual(company.read(fields), before[company.id])
+        self.assertEqual(self._audit_events(), events_before)
+
+    def test_the_correct_expected_context_is_accepted_and_audited_once(self):
+        self.authenticate(ADMIN_LOGIN, PASSWORD)
+        events_before = self._audit_events()
+        result = self._write('PATCH', 'fiscal', {'fiscalyear_last_day': 30, 'fiscalyear_last_month': 6})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual((self.fresh.fiscalyear_last_day, self.fresh.fiscalyear_last_month), (30, '6'))
+        self.assertEqual(self._audit_events(), events_before + 1)
+
+    def test_the_chart_load_states_the_same_expected_context(self):
+        self.authenticate(ADMIN_LOGIN, PASSWORD)
+        valid = self._expected_ids()
+        missing = self._write('POST', 'chart', {}, headers={})
+        self.assertEqual((missing.status_code, missing.json()['code']), (422, 'invalid_request_context'), missing.text)
+        stale = self._write('POST', 'chart', {}, headers={**valid, SETUP_EXPECTED_COMPANY_HEADER: str(self.company.id)})
+        self.assertEqual((stale.status_code, stale.json()['code']), (409, 'request_context_changed'), stale.text)
+        self.assertFalse(self.fresh.chart_template)
+        self.assertEqual(self._write('POST', 'chart', {}).status_code, 200)
+        self.assertEqual(self.fresh.chart_template, 'sa')
+
+    def test_the_capability_is_checked_before_the_expected_context(self):
+        # A caller without the capability is refused by authorization even with a malformed context,
+        # so a 422 never stands in for a missing grant.
+        self.authenticate(READER_LOGIN, PASSWORD)
+        for headers in (None, {}, {SETUP_EXPECTED_USER_HEADER: '0'}):
+            with self.subTest(headers=headers):
+                result = self._write('PATCH', 'fiscal', {'fiscalyear_last_day': 30}, headers=headers)
+                self.assertEqual((result.status_code, result.json()['code']), (403, 'forbidden'), result.text)
+        self.env.invalidate_all()
+        self.assertEqual(self.fresh.fiscalyear_last_day, 31)
 
     def _setup_manager(self):
         self._user(MANAGER_NO_ADMIN_LOGIN, self.fresh, 'webvue_core.group_employee',
@@ -387,4 +510,4 @@ class TestFinanceSetup(WebVueFinanceCase):
             ('PATCH', '/api/v1/finance/setup/fiscal'),
         ):
             with self.subTest(route=route):
-                self.assertEqual(self.api(method, route, json={'fiscalyear_last_day': 30}).status_code, 403)
+                self.assertEqual(self._api(method, route, {'fiscalyear_last_day': 30}).status_code, 403)

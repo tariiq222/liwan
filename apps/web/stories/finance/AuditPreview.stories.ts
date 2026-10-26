@@ -21,7 +21,7 @@ const serve = (body: unknown) => ({ msw: { handlers: { audit: [http.get('/api/v1
 
 const meta = {
   title: 'Finance/AuditPreview', component: AuditPreview,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/apps/finance/index.vue:139', 'آخر أحداث تدقيق المالية صفوفًا مدمجة داخل بطاقة المعاينة؛ الفلاتر والترقيم في صفحة السجل الكاملة.') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/apps/finance/index.vue:316', 'آخر أحداث تدقيق المالية صفوفًا مدمجة داخل بطاقة المعاينة؛ الفلاتر والترقيم في صفحة السجل الكاملة.') },
   render: () => ({ components: { AuditPreview }, template: '<div class="max-w-lg rounded-card bg-default ring ring-default"><AuditPreview /></div>' }),
 } satisfies Meta<typeof AuditPreview>
 export default meta
