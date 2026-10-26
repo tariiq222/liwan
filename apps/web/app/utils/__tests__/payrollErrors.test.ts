@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../composables/useApi'
-import { eosProvisionErrorMessage, payrollErrorMessage, payrollFieldError } from '../payrollErrors'
+import { eosProvisionErrorMessage, payrollErrorMessage, payrollFieldError, payrollWarningText } from '../payrollErrors'
 
 // The real locale files the UI ships, so a code without a text fails instead of hiding behind the key itself:
 // the payroll namespace, the shared `errors.saveUncertain`, and `errors.generic` from the @webvue/ui layer that
@@ -21,7 +21,7 @@ const OWN_CODES = [
   'duplicate', 'transition_forbidden', 'structure_missing', 'contract_missing', 'gosi_rate_missing', 'payroll_structure_mismatch',
   'compensation_missing', 'settlement_missing', 'settlement_changed', 'annual_leave_type_missing', 'departure_missing', 'eos_case_missing',
   'period_locked', 'missing_cost_center', 'settings_incomplete', 'wps_totals_mismatch', 'run_empty', 'nationality_missing',
-  'gosi_registration_missing', 'provision_after_run',
+  'gosi_registration_missing', 'provision_after_run', 'profile_in_use', 'profile_unavailable',
 ]
 const NAMING_CODES = ['negative_net', 'missing_iban', 'run_stale']
 
@@ -31,13 +31,17 @@ function interpolate(template: string, params?: Record<string, unknown>): string
 }
 
 // The real translator: an unknown key throws, so a refusal code without a locale text cannot pass unnoticed.
+function lookup(key: string): unknown {
+  if (key.startsWith('hrPayroll.errors.')) return arPayroll.errors[key.slice('hrPayroll.errors.'.length)]
+  if (key.startsWith('hrPayroll.warnings.')) return arPayroll.warnings[key.slice('hrPayroll.warnings.'.length)]
+  return { 'errors.generic': sharedAr.generic, 'errors.saveUncertain': sharedAr.saveUncertain }[key]
+}
 function t(key: string, params?: Record<string, unknown>): string {
-  const template = key.startsWith('hrPayroll.errors.')
-    ? arPayroll.errors[key.slice('hrPayroll.errors.'.length)]
-    : { 'errors.generic': sharedAr.generic, 'errors.saveUncertain': sharedAr.saveUncertain }[key]
+  const template = lookup(key)
   if (typeof template !== 'string') throw new Error(`missing locale key: ${key}`)
   return interpolate(template, params)
 }
+const te = (key: string) => typeof lookup(key) === 'string'
 
 const names = new Map([[3, 'ليلى'], [4, 'سارة']])
 
@@ -69,6 +73,27 @@ describe('payrollErrorMessage', () => {
   it('falls back to the count-only text when no name is known', () => {
     const error = new ApiError(422, 'missing_iban', 'raw', 'iban', { employee_ids: [8, 9] })
     expect(payrollErrorMessage(error, t, names)).toBe(interpolate(arPayroll.errors.missing_iban_count, { names: '', count: 2 }))
+  })
+
+  it('sends an editable run to the compensation, but never an approved run whose snapshot is fixed', () => {
+    const error = new ApiError(422, 'missing_iban', 'raw', 'iban', { employee_ids: [4] })
+    for (const state of ['draft', 'computed'] as const) {
+      expect(payrollErrorMessage(error, t, names, state)).toBe(interpolate(arPayroll.errors.missing_iban, { names: 'سارة', count: 1 }))
+    }
+    for (const state of ['approved', 'posted', 'paid'] as const) {
+      const text = payrollErrorMessage(error, t, names, state)
+      expect(text).toBe('تعذّر إنشاء الملف لأن لقطة بيانات الدفع عند اعتماد هذا المسيّر ناقصة لـسارة. تعديل الآيبان في التعويضات الآن لن يغيّر هذا المسيّر. تواصل مع مسؤول الرواتب أو الدعم لمعالجة موثّقة.')
+      expect(text).not.toContain('قبل الاعتماد')
+    }
+    const unnamed = new ApiError(422, 'missing_iban', 'raw', 'iban', { employee_ids: [8, 9] })
+    expect(payrollErrorMessage(unnamed, t, names, 'approved')).toBe(interpolate(arPayroll.errors.missing_iban_snapshot_count, { names: '', count: 2 }))
+    expect(enPayroll.errors.missing_iban_snapshot).toContain('will not change this run')
+    expect(enPayroll.warnings.missing_iban_snapshot).toContain('will not change this run')
+  })
+
+  it('keeps every other naming refusal the same on an approved run', () => {
+    const error = new ApiError(422, 'negative_net', 'raw', undefined, { employee_ids: [3] })
+    expect(payrollErrorMessage(error, t, names, 'approved')).toBe(interpolate(arPayroll.errors.negative_net, { names: 'ليلى', count: 1 }))
   })
 
   it('names the employees of a stale run and falls back to the count', () => {
@@ -141,5 +166,34 @@ describe('payrollFieldError', () => {
   it('shows the generic text for a field refusal it has no text for', () => {
     const error = new ApiError(422, 'invalid', 'bonus_amount must be zero or more', 'bonus_amount')
     expect(payrollFieldError(error, t, 'bonus_amount')).toBe(sharedAr.generic)
+  })
+})
+
+describe('payrollWarningText', () => {
+  const warning = { code: 'missing_iban', employee: { id: 4, name: 'سارة' } }
+
+  it('asks for the IBAN in the compensation before the approval', () => {
+    for (const state of ['draft', 'computed'] as const) {
+      expect(payrollWarningText(warning, state, t, te)).toBe(interpolate(arPayroll.warnings.missing_iban, { name: 'سارة' }))
+    }
+    expect(arPayroll.warnings.missing_iban).toContain('أكمل الآيبان في التعويضات قبل الاعتماد')
+  })
+
+  it('says the approved snapshot is incomplete and the compensation will not change the run', () => {
+    for (const state of ['approved', 'posted', 'paid'] as const) {
+      const text = payrollWarningText(warning, state, t, te)
+      expect(text).toBe(interpolate(arPayroll.warnings.missing_iban_snapshot, { name: 'سارة' }))
+      expect(text).toContain('لن يغيّر هذا المسيّر')
+    }
+  })
+
+  it('keeps the other warnings and shows an unknown code raw', () => {
+    const missing = { code: 'compensation_missing', employee: { id: 3, name: 'ليلى' } }
+    expect(payrollWarningText(missing, 'approved', t, te)).toBe(interpolate(arPayroll.warnings.compensation_missing, { name: 'ليلى' }))
+    expect(payrollWarningText({ code: 'new_code', employee: { id: 3, name: 'ليلى' } }, 'computed', t, te)).toBe('new_code: ليلى')
+  })
+
+  it('has the same warning keys in ar and en', () => {
+    expect(Object.keys(arPayroll.warnings).sort()).toEqual(Object.keys(enPayroll.warnings).sort())
   })
 })

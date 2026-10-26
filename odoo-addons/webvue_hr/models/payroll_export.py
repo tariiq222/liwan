@@ -69,15 +69,20 @@ class WebVueHrPayrollExport(models.AbstractModel):
 
     @api.model
     def _webvue_salary_lines(self, run):
-        """One ``SalaryLine`` per payslip of the run, ordered by employee name."""
+        """One ``SalaryLine`` per payslip of the run, ordered by employee name.
+
+        The IBAN, bank code and identification number are the ``webvue.hr.payslip.payment`` row stored when the run
+        was approved; a later change to the compensation or the employee never reaches a salary file of an approved
+        run. A payslip without that row exports empty payment data, never the live values.
+        """
         totals = self._webvue_line_totals(run)
-        compensations = self.env['webvue.hr.compensation'].search([('employee_id', 'in', run.slip_ids.employee_id.ids)])
-        by_employee = {record.employee_id.id: record for record in compensations}
+        snapshots = self.env['webvue.hr.payslip.payment']._webvue_by_payslip(run.slip_ids)
+        empty = self.env['webvue.hr.payslip.payment']
         lines = []
         for slip in run.slip_ids.sorted(lambda row: (row.employee_id.name or '', row.id)):
             employee = slip.employee_id
-            compensation = by_employee.get(employee.id)
             codes = totals[slip.id]
+            paid = snapshots.get(slip.id, empty)
 
             def total(names, codes=codes):
                 return money(sum((codes.get(name, Decimal(0)) for name in names), Decimal(0)))
@@ -85,10 +90,10 @@ class WebVueHrPayrollExport(models.AbstractModel):
             lines.append(SalaryLine(
                 employee_id=employee.id,
                 employee_ref=str(employee.id),
-                identification=employee.current_version_id.identification_id or '',
+                identification=paid.identification or '',
                 name=employee.name or '',
-                iban=(compensation.iban if compensation else '') or '',
-                bank_code=(compensation.bank_id.bic if compensation else '') or '',
+                iban=paid.iban or '',
+                bank_code=paid.bank_code or '',
                 basic=total(('BASIC',)),
                 housing=total(('HOUSING',)),
                 other_allowances=total(OTHER_ALLOWANCE_CODES),
