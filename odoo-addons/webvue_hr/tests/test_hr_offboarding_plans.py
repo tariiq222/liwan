@@ -344,9 +344,9 @@ class TestHrOffboardingPlans(WebVueHrCase):
             })
         self.assertEqual((plan.company_id, plan.department_id), (self.company, self.department))
         # A companyless side stays allowed.
+        plan.department_id = False
         plan.company_id = False
         plan.company_id = self.company
-        plan.department_id = False
         companyless = self.env['hr.department'].create({'name': 'Companyless Dept', 'company_id': False})
         plan.department_id = companyless
         self.assertEqual(plan.department_id, companyless)
@@ -530,3 +530,39 @@ class TestHrOffboardingPlans(WebVueHrCase):
             self.assertEqual((response.status_code, response.json()['code']), (404, 'not_found'), run)
         listed = {item['id'] for item in self.api('GET', RUNS).json()['items']}
         self.assertFalse(listed & {self.onboarding_run.id, self.foreign_run.id})
+
+    def test_a_shared_plan_stays_free_of_company_departments(self):
+        shared = self._make_plan('Shared offboarding plan', 'offboarding', self.env['res.company'], 'Shared step')
+        department = self.department
+        # The ORM refuses a company department on a shared plan, from either side.
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            shared.write({'department_id': department.id})
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            self.env['mail.activity.plan'].create({
+                'name': 'Shared mismatch', 'res_model': 'hr.employee', 'hr_purpose': 'offboarding',
+                'company_id': False, 'department_id': department.id,
+            })
+        pinned = self._make_plan('Pinned shared check', 'offboarding', self.company, 'Pin step')
+        pinned.department_id = department
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            pinned.company_id = False
+        self.assertEqual((shared.department_id, pinned.company_id), (self.env['hr.department'], self.company))
+        # The department gaining a company while a shared plan targets it is refused.
+        free = self.env['hr.department'].create({'name': 'Ofb Free', 'company_id': False})
+        shared.department_id = free
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            free.company_id = self.company
+        self.assertFalse(free.company_id)
+        # The route answers 422 department_id and leaves the plan unchanged.
+        shared.department_id = False
+        self._as_manager()
+        refused = self.api('PATCH', f'{PLANS}/{shared.id}', json={'department_id': department.id})
+        self.assertEqual((refused.status_code, refused.json()['field']), (422, 'department_id'))
+        self.assertFalse(shared.department_id)
+        # A companyless department stays allowed on a shared plan; readers see only that one.
+        shared.department_id = free
+        self._as_reader()
+        listed = {i['id']: i['department'] for i in self.api('GET', PLANS).json()['items']}
+        self.assertEqual(listed[shared.id], {'id': free.id, 'name': 'Ofb Free'})
+        one = self.api('GET', f'{PLANS}/{shared.id}').json()
+        self.assertEqual(one['department'], {'id': free.id, 'name': 'Ofb Free'})

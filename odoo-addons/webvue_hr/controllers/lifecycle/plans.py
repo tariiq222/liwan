@@ -52,7 +52,7 @@ def _create_plan(area, payload):
     vals = parse_plan_create(payload)
     steps = vals.pop('steps')
     vals.update({'hr_purpose': area, 'company_id': request.env.company.id})
-    _validate_plan_relations(vals, steps)
+    _validate_plan_relations(vals, steps, request.env.company)
     plan = request.env['mail.activity.plan'].create(vals)
     _set_plan_steps(plan, steps)
     return _dump_one(plan)
@@ -62,7 +62,7 @@ def _patch_plan(area, plan_id, payload):
     plan = _purpose_plan(area, plan_id)
     vals = parse_plan_patch(payload)
     steps = vals.pop('steps', None)
-    _validate_plan_relations(vals, steps or [])
+    _validate_plan_relations(vals, steps or [], plan.company_id)
     if vals:
         plan.write(vals)
     if steps is not None:
@@ -82,13 +82,20 @@ def _visible(model, domain):
         return request.env[model]
 
 
-def _validate_plan_relations(vals, steps):
+def _validate_plan_relations(vals, steps, plan_company):
     department_id = vals.get('department_id')
-    if department_id and not _visible('hr.department', [
-        ('id', '=', department_id),
-        ('company_id', 'in', [*request.env.companies.ids, False]),
-    ]):
-        raise ApiError(422, 'invalid', 'department_id is not available', field='department_id')
+    if department_id:
+        department = _visible('hr.department', [
+            ('id', '=', department_id),
+            ('company_id', 'in', [*request.env.companies.ids, False]),
+        ])
+        if not department:
+            raise ApiError(422, 'invalid', 'department_id is not available', field='department_id')
+        if department.company_id and department.company_id != plan_company:
+            raise ApiError(
+                422, 'invalid', 'a shared plan cannot target a company department',
+                field='department_id',
+            )
     for step in steps:
         user_id = step.get('responsible_id')
         if not user_id:

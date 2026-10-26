@@ -33,8 +33,10 @@ class MailActivityPlan(models.Model):
     def _check_department_company(self):
         # mail.activity.plan has no _check_company_auto, so check_company on
         # department_id is never enforced; hr.department re-runs this on its side.
+        # A company department needs a plan of that same company: a shared (companyless)
+        # plan is visible everywhere, so it may only point at a companyless department.
         if any(
-            plan.company_id and plan.department_id.company_id
+            plan.department_id.company_id
             and plan.company_id != plan.department_id.company_id
             for plan in self
         ):
