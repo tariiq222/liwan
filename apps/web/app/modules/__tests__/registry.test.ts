@@ -71,7 +71,7 @@ const TODAY: ReadonlyArray<readonly [string, string | null, boolean]> = [
   ['hr.assets.read', 'hr.enabled', false], ['hr.assets.manage', 'hr.enabled', true],
   ['hr.payroll.read', 'hr.enabled', false], ['hr.payroll.manage', 'hr.enabled', true],
   ['hr.payroll.approve', 'hr.enabled', true], ['hr.payroll.config', 'hr.enabled', true],
-  ['hr.payroll.audit.read', 'hr.enabled', false],
+  ['hr.payroll.audit.read', 'hr.enabled', false], ['hr.payroll.finance.manage', 'hr.enabled', true],
   ['documents.items.read', 'documents.enabled', false], ['documents.items.manage', 'documents.enabled', true],
   ['documents.items.archive', 'documents.enabled', true], ['documents.access.manage', 'documents.enabled', true], ['documents.library.manage', 'documents.enabled', true],
   ['pmo.projects.read', 'pmo.enabled', false], ['pmo.projects.create', 'pmo.enabled', true],

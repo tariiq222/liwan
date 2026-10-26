@@ -64,6 +64,7 @@ const CAPABILITIES = [
   'hr.payroll.approve',
   'hr.payroll.config',
   'hr.payroll.audit.read',
+  'hr.payroll.finance.manage',
   'documents.items.read',
   'documents.items.manage',
   'documents.items.archive',
@@ -134,7 +135,7 @@ const AUDIT_SUMMARY = {
 describe('access capability and reference schemas', () => {
   it("lists today's capability catalog and accepts any well-formed key", () => {
     expect(KNOWN_CAPABILITIES).toEqual(CAPABILITIES)
-    expect(KNOWN_CAPABILITIES).toHaveLength(52)
+    expect(KNOWN_CAPABILITIES).toHaveLength(53)
     for (const key of [...CAPABILITIES, 'sales.orders.read', 'sales.orders.write', 'customer_acme.reports.export']) {
       expect(CapabilitySchema.parse(key)).toBe(key)
     }
