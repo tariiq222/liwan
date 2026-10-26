@@ -1,5 +1,6 @@
 """Infrastructure SQL guards never operate on Odoo business tables."""
 import unittest
+from .backup import Deadline
 from .postgres import validate_runtime_role, fence_runtime, fence_writers, writer_grants, runtime_role_fixture
 
 
@@ -112,8 +113,8 @@ class PostgresTests(unittest.TestCase):
         self.assertTrue(swapped['fenced'])
         self.assertIn('GRANT CONNECT', connection.commands[-1][0])
         connection.commands.clear()
-        window = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db: connection,
-                               allowed_principals=('admin_role',), deadline_seconds=0)
+        window = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db, **_: connection,
+                               allowed_principals=('admin_role',), deadline=Deadline(30), drain_seconds=0)
         self.assertTrue(window['fenced'])
         self.assertEqual(window['deniedWriters'], ['pool_old', 'pool_new'])
         self.assertEqual(window['writerConnections'], 0)
@@ -124,8 +125,8 @@ class PostgresTests(unittest.TestCase):
 
     def test_unsupported_writer_principal_refuses_before_any_effect(self):
         connection = Connection(); connection.connect_principals = ['pool_old', 'pool_new', 'stray_writer']
-        result = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db: connection,
-                               allowed_principals=('admin_role',), deadline_seconds=0)
+        result = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db, **_: connection,
+                               allowed_principals=('admin_role',), deadline=Deadline(30), drain_seconds=0)
         self.assertFalse(result['fenced'])
         self.assertEqual(result['reason'], 'unsupported_writer_principal')
         self.assertEqual(result['principals'], ['stray_writer'])
@@ -140,7 +141,7 @@ class PostgresTests(unittest.TestCase):
             return original(self)
         Cursor.fetchall = broken
         try:
-            result = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db: connection, deadline_seconds=0)
+            result = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db, **_: connection, deadline=Deadline(30), drain_seconds=0)
         finally:
             Cursor.fetchall = original
         self.assertFalse(result['fenced'])
@@ -148,8 +149,8 @@ class PostgresTests(unittest.TestCase):
 
     def test_active_writer_transaction_is_waited_for_and_never_killed(self):
         connection = Connection(active=1, idle=[(12,)])
-        result = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db: connection,
-                               allowed_principals=('admin_role',), deadline_seconds=0)
+        result = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db, **_: connection,
+                               allowed_principals=('admin_role',), deadline=Deadline(30), drain_seconds=0)
         self.assertFalse(result['fenced'])
         self.assertEqual(result['reason'], 'active_transactions')
         sql = '\n'.join(command for command, _ in connection.commands)
@@ -159,8 +160,8 @@ class PostgresTests(unittest.TestCase):
 
     def test_idle_sessions_of_every_writer_role_are_retired(self):
         connection = Connection(idle=[(12,), (13,)])
-        result = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db: connection,
-                               allowed_principals=('admin_role',), deadline_seconds=0)
+        result = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db, **_: connection,
+                               allowed_principals=('admin_role',), deadline=Deadline(30), drain_seconds=0)
         self.assertTrue(result['fenced'])
         terminate = [args for command, args in connection.commands if 'pg_terminate_backend' in command]
         self.assertEqual(len(terminate), 2)
@@ -172,7 +173,7 @@ class PostgresTests(unittest.TestCase):
         connection = Connection()
         for roles in [(), ('pool_old', 'pool_old'), ('pool_old', 'bad role'), 'pool_old']:
             with self.subTest(roles=roles), self.assertRaises(ValueError):
-                fence_writers(backup_binding(), roles, lambda db: connection)
+                fence_writers(backup_binding(), roles, lambda db, **_: connection, deadline=Deadline(30))
         self.assertFalse(connection.commands)
 
     def test_writer_grants_reports_durable_admission_per_role(self):

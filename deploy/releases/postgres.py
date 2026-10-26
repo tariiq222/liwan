@@ -1,4 +1,6 @@
 """PostgreSQL infrastructure isolation; never queries Odoo business tables."""
+from contextlib import contextmanager
+import math
 import re
 import time
 
@@ -118,7 +120,66 @@ def _backup_fence_binding(binding):
     return binding.get('database')
 
 
-def _await_no_writer_work(connection, database, deadline):
+class _BudgetedCursor:
+    """Cursor whose every statement first gets only the time left on the budget."""
+    def __init__(self, cursor, deadline): self.cursor, self.deadline = cursor, deadline
+    def __enter__(self):
+        self.cursor.__enter__()
+        return self
+    def __exit__(self, *exc): return self.cursor.__exit__(*exc)
+    def __getattr__(self, attribute): return getattr(self.cursor, attribute)
+
+    def execute(self, sql, args=None):
+        # Recomputed per statement (0 would disable the timeout): sequential
+        # statements share one budget instead of each getting a fresh allowance.
+        timeout = max(1, math.ceil(self.deadline.remaining() * 1000))
+        self.cursor.execute(f'SET LOCAL statement_timeout = {timeout}')
+        if args is None: self.cursor.execute(sql)
+        else: self.cursor.execute(sql, args)
+
+
+class _BudgetedConnection:
+    """Admin connection on one budget: bounded statements, budget checked after commit."""
+    def __init__(self, connection, deadline): self.connection, self.deadline = connection, deadline
+    def __enter__(self):
+        self.connection.__enter__()
+        return self
+    def __exit__(self, *exc): return self.connection.__exit__(*exc)
+    def __getattr__(self, attribute): return getattr(self.connection, attribute)
+    def cursor(self): return _BudgetedCursor(self.connection.cursor(), self.deadline)
+
+    def commit(self):
+        self.connection.commit()
+        self.deadline.remaining()
+
+
+@contextmanager
+def bounded_connection(connector, database, deadline):
+    """Admin connection whose connect wait and every statement are bounded by ``deadline``.
+
+    ``deadline`` is the caller's absolute budget (``backup.Deadline``): its
+    ``remaining()`` raises ``backup_deadline_exceeded`` once spent. The connection
+    is always closed on exit, including when the budget ran out while connecting.
+    """
+    # libpq rounds connect_timeout below 2 s up to 2 s; the check after
+    # connecting still refuses any connection obtained past the budget.
+    connection = connector(database, connect_timeout=max(2, math.ceil(deadline.remaining())))
+    try:
+        deadline.remaining()
+        yield _BudgetedConnection(connection, deadline)
+    finally:
+        connection.close()
+
+
+def _expired(deadline):
+    try:
+        deadline.remaining()
+    except ValueError:
+        return True
+    return False
+
+
+def _await_no_writer_work(connection, database, deadline, drain_end):
     """Wait until no transaction or prepared transaction remains on the database."""
     while True:
         with connection.cursor() as cursor:
@@ -127,11 +188,11 @@ def _await_no_writer_work(connection, database, deadline):
             active = cursor.fetchone()[0]
         connection.commit()
         if active == 0: return None
-        if time.monotonic() >= deadline: return 'active_transactions'
-        time.sleep(min(0.05, max(0, deadline - time.monotonic())))
+        if deadline.clock() >= drain_end: return 'active_transactions'
+        time.sleep(min(0.05, max(0, drain_end - deadline.clock())))
 
 
-def _retire_idle_writers(connection, database, roles, deadline):
+def _retire_idle_writers(connection, database, roles, deadline, drain_end):
     """Terminate idle sessions of every declared writer, then wait until none remain."""
     with connection.cursor() as cursor:
         cursor.execute("SELECT pid FROM pg_stat_activity WHERE datname=%s AND usename = ANY(%s) AND pid<>pg_backend_pid() AND state='idle' AND xact_start IS NULL", (database, roles))
@@ -148,8 +209,8 @@ def _retire_idle_writers(connection, database, roles, deadline):
             remaining = cursor.fetchall()
         connection.commit()
         if not remaining: return None
-        if time.monotonic() >= deadline: return 'writer_connections_remain'
-        time.sleep(min(0.05, max(0, deadline - time.monotonic())))
+        if deadline.clock() >= drain_end: return 'writer_connections_remain'
+        time.sleep(min(0.05, max(0, drain_end - deadline.clock())))
 
 
 def writer_grants(connection, roles, database):
@@ -188,7 +249,36 @@ def writer_authority(connection, database):
     return {'complete': True, 'principals': principals}
 
 
-def fence_writers(binding, roles, admin_connector, *, allowed_principals=(), deadline_seconds=30):
+def _deny_writers(connection, database, role_names, allowed, fence, deadline, drain_seconds):
+    for role in role_names:
+        evidence = validate_runtime_role(connection, role, database)
+        if not evidence['valid']:
+            return {'fenced': False, 'reason': 'runtime_role_rejected', 'fence': fence}
+    authority = writer_authority(connection, database)
+    if not authority['complete']:
+        return {'fenced': False, 'reason': 'writer_authority_unverifiable', 'fence': fence}
+    unsupported = sorted(set(authority['principals']) - set(role_names) - allowed)
+    if unsupported:
+        return {'fenced': False, 'reason': 'unsupported_writer_principal', 'fence': fence, 'principals': unsupported}
+    with connection.cursor() as cursor:
+        for role in role_names:
+            cursor.execute(f'REVOKE CONNECT ON DATABASE {identifier(database)} FROM {identifier(role)}')
+    connection.commit()
+    # The drain wait is capped by drain_seconds and by what is left of the budget.
+    drain_end = deadline.clock() + deadline.remaining(drain_seconds)
+    active = _await_no_writer_work(connection, database, deadline, drain_end)
+    if active: return {'fenced': False, 'reason': active, 'fence': fence}
+    retired = _retire_idle_writers(connection, database, list(role_names), deadline, drain_end)
+    if retired: return {'fenced': False, 'reason': retired, 'fence': fence}
+    with connection.cursor() as cursor:
+        cursor.execute('SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND usename = ANY(%s) AND pid<>pg_backend_pid()', (database, list(role_names)))
+        if cursor.fetchone()[0]: return {'fenced': False, 'reason': 'writer_connections_remain', 'fence': fence}
+    connection.commit()
+    return {'fenced': True, 'reason': 'fenced', 'fence': fence, 'activeTransactions': 0, 'oldConnections': 0,
+            'writerConnections': 0, 'deniedWriters': list(role_names), 'transactionScope': 'tenant'}
+
+
+def fence_writers(binding, roles, admin_connector, *, deadline, allowed_principals=(), drain_seconds=30):
     """Backup window: deny CONNECT to every declared writer role for its whole length.
 
     This primitive never grants CONNECT and never changes release generation swap
@@ -196,57 +286,41 @@ def fence_writers(binding, roles, admin_connector, *, allowed_principals=(), dea
     CONNECT or schema write authority outside the declared writers and the
     explicit operator allowance refuses the window instead of promising an
     isolation the operator cannot prove.
+
+    ``deadline`` is the caller's operation budget, never renewed here: the admin
+    connect, every catalog/REVOKE/drain/terminate statement and every drain wait
+    get only what is left of it. An overrun raises ``backup_deadline_exceeded``
+    instead of reporting any fence result.
     """
     database = _backup_fence_binding(binding)
     if not isinstance(roles, (tuple, list)) or not roles or len(set(roles)) != len(roles):
         raise ValueError('writer_roles_rejected')
     role_names = tuple(roles)
     for role in role_names: identifier(role)
-    if not isinstance(deadline_seconds, (int, float)) or not 0 <= deadline_seconds <= 600:
+    if not callable(getattr(deadline, 'remaining', None)) or not callable(getattr(deadline, 'clock', None)):
+        raise ValueError('backup_deadline_rejected')
+    if not isinstance(drain_seconds, (int, float)) or not 0 <= drain_seconds <= 600:
         raise ValueError('fence_deadline_rejected')
     allowed = set(allowed_principals)
     try:
         for role in allowed: identifier(role)
     except ValueError:
         raise ValueError('fence_allowance_rejected') from None
-    quoted_db = identifier(database)
-    connection = None
+    identifier(database)
     try:
-        connection = admin_connector(database)
-        for role in role_names:
-            evidence = validate_runtime_role(connection, role, database)
-            if not evidence['valid']:
-                return {'fenced': False, 'reason': 'runtime_role_rejected', 'fence': binding['fence']}
-        authority = writer_authority(connection, database)
-        if not authority['complete']:
-            return {'fenced': False, 'reason': 'writer_authority_unverifiable', 'fence': binding['fence']}
-        unsupported = sorted(set(authority['principals']) - set(role_names) - allowed)
-        if unsupported:
-            return {'fenced': False, 'reason': 'unsupported_writer_principal', 'fence': binding['fence'], 'principals': unsupported}
-        with connection.cursor() as cursor:
-            for role in role_names:
-                cursor.execute(f'REVOKE CONNECT ON DATABASE {quoted_db} FROM {identifier(role)}')
-        connection.commit()
-        deadline = time.monotonic() + deadline_seconds
-        active = _await_no_writer_work(connection, database, deadline)
-        if active: return {'fenced': False, 'reason': active, 'fence': binding['fence']}
-        retired = _retire_idle_writers(connection, database, list(role_names), deadline)
-        if retired: return {'fenced': False, 'reason': retired, 'fence': binding['fence']}
-        with connection.cursor() as cursor:
-            cursor.execute('SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND usename = ANY(%s) AND pid<>pg_backend_pid()', (database, list(role_names)))
-            if cursor.fetchone()[0]: return {'fenced': False, 'reason': 'writer_connections_remain', 'fence': binding['fence']}
-        connection.commit()
-        return {'fenced': True, 'reason': 'fenced', 'fence': binding['fence'], 'activeTransactions': 0, 'oldConnections': 0,
-                'writerConnections': 0, 'deniedWriters': list(role_names), 'transactionScope': 'tenant'}
+        with bounded_connection(admin_connector, database, deadline) as connection:
+            try:
+                result = _deny_writers(connection, database, role_names, allowed, binding['fence'], deadline, drain_seconds)
+            except Exception:
+                try: connection.rollback()
+                except Exception: pass  # Preserve fail-closed result if the connection itself failed.
+                raise
     except Exception:
-        if connection is not None:
-            try: connection.rollback()
-            except Exception: pass  # Preserve fail-closed result if the connection itself failed.
-        return {'fenced': False, 'reason': 'database_fence_failed', 'fence': binding['fence']}
-    finally:
-        if connection is not None:
-            try: connection.close()
-            except Exception: pass  # Never replace sanitized fence evidence with driver diagnostics.
+        result = {'fenced': False, 'reason': 'database_fence_failed', 'fence': binding['fence']}
+    # Inspection helpers sanitize driver errors, so an overrun can surface as any
+    # refusal; past the budget no fence result is reported, only the overrun.
+    if result['fenced'] is not True and _expired(deadline): raise ValueError('backup_deadline_exceeded')
+    return result
 
 
 def runtime_role_fixture(database, owner, roles):

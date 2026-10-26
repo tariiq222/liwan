@@ -32,13 +32,15 @@ class BackupOperationTests(unittest.TestCase):
         class Runtime:
             def prepare_backup(self,b,r):
                 events.append('prepare'); return previous
-            def acknowledge(self,b,r,maintenance=False):
+            def acknowledge_within(self,b,r,maintenance,deadline):
                 if resume_ack_fail and maintenance is False:
                     events.append('fail'); return {'ready': False}
                 return {'ready': True}
             def backup_deadline(self):
                 return budget
-            def fence_backup(self,b,r,observed):
+            def recovery_deadline(self):
+                return Deadline(60)
+            def fence_backup(self,b,r,observed,deadline):
                 # Barrier order: the durable marker exists whenever the writer fence runs.
                 events.append(('fence_backup', marker.is_file()))
                 assert observed == previous
@@ -54,7 +56,7 @@ class BackupOperationTests(unittest.TestCase):
                 events.append('validate'); assert deadline is budget
             def resume_backup(self,b,r,observed,deadline):
                 events.append('resume'); assert observed == previous and deadline is budget
-            def reconcile_backup(self,b,r,observed):
+            def reconcile_backup(self,b,r,observed,deadline):
                 events.append('reconcile'); assert observed == previous
                 if reconcile_fail: events.append('fail'); raise ReleaseConflict('backup_fence_lost')
         return Runtime()

@@ -231,11 +231,12 @@ may claim a quiescent tenant window, and only inside its own contract:
 | Live proof | Opt-in `test_backup_live` (scratch `webvue_scratch_backup_*`, loopback PostgreSQL) exercises `fence_writers`, recheck, dump/archive capture and scratch restore of a one-row table. It refuses existing fixture roles or restore target, restores into a fresh `webvue_scratch_backup_restore_<random>` database and drops only the roles and database it created. Docker/Odoo runtime, cron containers and a non-zero business restore stay separate gates. |
 
 Setup keys the runtime reads: `backup.totalDeadlineSeconds` (one absolute monotonic budget per
-operation, fixed before the first effect and covering the writer fence, filestore walk, dump,
-archive, hashes, fsyncs, every recheck connection/statement, the final artifact validation and
-the resume; default 600; a blocking call is bounded by the remaining time, not preempted mid-call;
-an overrun fails closed and is never `verified`), `backup.timeoutSeconds` (per-child cap and the
-separate budget of a later same-id reconciliation) and
+operation, fixed before the first effect and covering the initial guard ACK, lease drain, every
+writer-fence connection/statement, the cron stop, filestore walk, dump, archive, hashes, fsyncs,
+every recheck connection/statement, the final artifact validation, the resume and the final ACK;
+default 600; a blocking call is bounded by the remaining time, not preempted mid-call; an overrun
+fails closed and is never `verified`), `backup.timeoutSeconds` (per-child cap; the separate budget
+of a later same-id reconciliation through its final ACK, and of each fail-closed re-fence) and
 `backup.allowedPrincipals` (closed operator allowance beside `postgres.adminUser`).
 Never reuse an existing artifact directory, database or filestore: a refused or
 interrupted run preserves partial artifacts for investigation.

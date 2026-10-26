@@ -65,33 +65,50 @@ def _fail_closed(state, runtime, binding, route, request_id, previous, error):
     A failed resume or reconciliation may already have removed the maintenance
     marker, re-admitted writers or restarted cron. The durable marker comes back
     first, then the same window entry as a capture (guard ACK, lease drain, writer
-    fence, owned cron stop). If any step fails the marker stays and the error says
-    the fence is unverified; nothing here ever reopens admission.
+    fence, owned cron stop). It runs on its own fresh recovery budget, so a spent
+    capture or reconciliation budget bounds this cleanup instead of skipping it.
+    If any step fails the marker stays and the error says the fence is
+    unverified; nothing here ever reopens admission.
     """
     try:
         state.maintenance(binding['tenantId'], route['fence'])
-        runtime.fence_backup(binding, route, previous)
+        runtime.fence_backup(binding, route, previous, runtime.recovery_deadline())
     except BaseException:
         error = 'backup_fail_closed_unverified'
     state.stage(request_id, binding['tenantId'], 'needs_intervention', route['fence'], error=error)
+
+
+def _reopen(state, runtime, binding, route, deadline):
+    """Remove the barrier last and require the final guard ACK, on ``deadline``.
+
+    The budget is checked before the marker goes and again after the ACK: an
+    overrun at either point raises and the caller fails closed.
+    """
+    deadline.remaining()
+    state.resume(binding['tenantId'], route['fence'])
+    if runtime.acknowledge_within(binding, route, False, deadline).get('ready') is not True:
+        raise ReleaseConflict('release_guard_ack_missing')
+    deadline.remaining()
 
 
 def _reconcile(state, runtime, binding, request_id):
     """Restore the previous state of an interrupted backup; never capture again.
 
     Valid from any non-terminal stage: a process killed in ``prepared`` or
-    ``backed_up`` leaves the same durable intent as a handled failure.
+    ``backed_up`` leaves the same durable intent as a handled failure. One
+    reconciliation budget (``runtime.recovery_deadline()``), owned here, covers
+    the restore, the barrier removal and the final guard ACK; ``reconciled`` is
+    recorded only while it remains, otherwise the request fails closed.
     """
     tenant = binding['tenantId']
     if state.binding(tenant) != binding: raise ReleaseConflict('backup_binding_changed')
     route = state.route(tenant)
     previous = read_intent(state, tenant, request_id)
+    deadline = runtime.recovery_deadline()
     try:
         state.maintenance(tenant, route['fence'])
-        runtime.reconcile_backup(binding, route, previous)
-        state.resume(tenant, route['fence'])
-        if runtime.acknowledge(binding, route, False).get('ready') is not True:
-            raise ReleaseConflict('release_guard_ack_missing')
+        runtime.reconcile_backup(binding, route, previous, deadline)
+        _reopen(state, runtime, binding, route, deadline)
     except BaseException:
         _fail_closed(state, runtime, binding, route, request_id, previous, 'backup_reconciliation_failed')
         raise
@@ -103,8 +120,9 @@ def backup_current(state, runtime, binding, request_id, output_dir, finalize=Non
     """Capture one tenant inside the writer window and restore its previous state.
 
     One absolute budget (``runtime.backup_deadline()``) starts with the first
-    effect and covers the writer fence, capture, the bounded final validation,
-    ``finalize`` and the resume. ``finalize`` is an optional caller step on the
+    effect and covers the guard ACK, lease drain, writer fence and cron stop,
+    capture, the bounded final validation, ``finalize``, the resume and the
+    final guard ACK. ``finalize`` is an optional caller step on the
     validated capture; it is not preempted, but the budget is checked after it,
     and an overrun anywhere fails closed and never reports ``verified``.
     """
@@ -125,8 +143,8 @@ def backup_current(state, runtime, binding, request_id, output_dir, finalize=Non
         state.stage(request_id, tenant, 'prepared', route['fence'])
         try:
             state.maintenance(tenant, route['fence'])
-            if runtime.acknowledge(binding, route, True).get('ready') is not True: raise ReleaseConflict('release_guard_ack_missing')
-            proof = runtime.fence_backup(binding, route, previous)
+            if runtime.acknowledge_within(binding, route, True, deadline).get('ready') is not True: raise ReleaseConflict('release_guard_ack_missing')
+            proof = runtime.fence_backup(binding, route, previous, deadline)
             if (proof.get('fence') != route['fence'] or proof.get('gateClosed') is not True
                     or any(type(proof.get(k)) is not int or proof[k] != 0 for k in ('admittedWriters', 'activeTransactions', 'oldConnections'))):
                 raise ReleaseConflict('backup_quiescence_unverified')
@@ -138,9 +156,7 @@ def backup_current(state, runtime, binding, request_id, output_dir, finalize=Non
             deadline.remaining()
             state.stage(request_id, tenant, 'backed_up', route['fence'], backup_digest=result['digest'])
             runtime.resume_backup(binding, route, previous, deadline)
-            state.resume(tenant, route['fence'])
-            if runtime.acknowledge(binding, route, False).get('ready') is not True: raise ReleaseConflict('release_guard_ack_missing')
-            deadline.remaining()
+            _reopen(state, runtime, binding, route, deadline)
             state.stage(request_id, tenant, 'verified', route['fence'], backup_digest=result['digest'])
             return state.receipt(request_id)
         except BaseException:

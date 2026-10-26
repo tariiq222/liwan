@@ -106,8 +106,9 @@ class BackupLiveTests(unittest.TestCase):
         self.addCleanup(lambda: idle.closed or idle.close())
         with idle.cursor() as cursor: cursor.execute('SELECT 1')
         binding = {**self.binding, 'fence': 1, 'gateClosed': True, 'admittedWriters': 0}
-        result = fence_writers(binding, list(self.roles), lambda _: self.psycopg2.connect(dsn),
-                               allowed_principals=(admin_user,), deadline_seconds=10)
+        connect = lambda _database, **options: self.psycopg2.connect(dsn, **options)
+        result = fence_writers(binding, list(self.roles), connect, deadline=Deadline(30),
+                               allowed_principals=(admin_user,), drain_seconds=10)
         self.assertTrue(result['fenced'], result)
         self.assertEqual(result['deniedWriters'], list(self.roles))
         with self.admin.cursor() as cursor:
@@ -120,8 +121,8 @@ class BackupLiveTests(unittest.TestCase):
         with self.admin.cursor() as cursor:
             self.create_role(cursor, 'webvue_backup_live_rogue')
             cursor.execute(f'GRANT CONNECT ON DATABASE "{self.database}" TO webvue_backup_live_rogue')
-        rogue = fence_writers(binding, list(self.roles), lambda _: self.psycopg2.connect(dsn),
-                              allowed_principals=(admin_user,), deadline_seconds=10)
+        rogue = fence_writers(binding, list(self.roles), connect, deadline=Deadline(30),
+                              allowed_principals=(admin_user,), drain_seconds=10)
         self.assertEqual(rogue['reason'], 'unsupported_writer_principal')
         with self.admin.cursor() as cursor:
             cursor.execute(f'REVOKE CONNECT ON DATABASE "{self.database}" FROM webvue_backup_live_rogue')

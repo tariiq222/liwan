@@ -6,7 +6,6 @@ source subprocess migrations are reported as local-source evidence, never image 
 from contextlib import contextmanager
 import hashlib
 import json
-import math
 from pathlib import Path
 import subprocess
 import time
@@ -19,7 +18,7 @@ from .manifest import load_manifest, manifest_digest
 from .migrate import migrate_tenant, verify_tenant
 from .runtime_identity import inspect_odoo_runtime
 from .source_gate import verify_sources, snapshot_digest
-from .postgres import fence_runtime, fence_writers, validate_runtime_role, identifier, writer_grants
+from .postgres import bounded_connection, fence_runtime, fence_writers, validate_runtime_role, identifier, writer_grants
 from .state import ReleaseConflict, atomic_json, name, safe_directory
 
 
@@ -98,7 +97,7 @@ class LocalRuntime:
                 raise ReleaseConflict('candidate_cron_must_be_stopped')
         return proof
 
-    def _guard(self, binding):
+    def _guard(self, binding, timeout=10):
         config = self._tenant(binding)
         url = self.config['guardUrl']
         parsed = urlsplit(url)
@@ -108,11 +107,19 @@ class LocalRuntime:
         if len(token) < 32: raise ValueError('guard_token_rejected')
         headers = {'Host': config['host'], 'X-WebVue-Proxy-Token': token,
                    'X-WebVue-Tenant-Revision': str(binding['registryRevision'])}
-        with build_opener(NoRedirect()).open(Request(url.rstrip('/') + '/_webvue/release-status', headers=headers), timeout=10) as response:
+        with build_opener(NoRedirect()).open(Request(url.rstrip('/') + '/_webvue/release-status', headers=headers), timeout=timeout) as response:
             return json.load(response)
 
     def acknowledge(self, binding, route, maintenance=False):
         observed = self._guard(binding)
+        return {**observed, 'ready': all(observed.get(k) == route[k] for k in ('routeRevision','fence','poolId','releaseId'))
+                and observed.get('maintenance') is maintenance}
+
+    def acknowledge_within(self, binding, route, maintenance, deadline):
+        """Backup guard acknowledgement on ``deadline``: the request gets only what is
+        left (at most the usual 10 s) and an answer obtained past it is refused."""
+        observed = self._guard(binding, deadline.remaining(10))
+        deadline.remaining()
         return {**observed, 'ready': all(observed.get(k) == route[k] for k in ('routeRevision','fence','poolId','releaseId'))
                 and observed.get('maintenance') is maintenance}
 
@@ -171,11 +178,13 @@ class LocalRuntime:
         if self._inspect_cron(binding,pool,job,container_id)['running'] is not running:
             raise ReleaseConflict('tenant_cron_start_unverified' if running else 'old_cron_stop_unverified')
 
-    def _stop_owned_cron(self,binding,pool,previous):
-        """Backup window: stop only the recorded owned crons, by their recorded ids."""
+    def _stop_owned_cron(self,binding,pool,previous,deadline):
+        """Backup window: stop only the recorded owned crons, by their recorded ids,
+        each Docker call capped by what is left of ``deadline``."""
         jobs=self._recorded_cron_jobs(binding,pool,previous)
         for container,job in jobs.items():
-            self._set_cron(binding,pool,job,previous[container]['containerId'],False,30)
+            self._set_cron(binding,pool,job,previous[container]['containerId'],False,deadline.remaining(30))
+        deadline.remaining()
 
     def _recorded_cron_jobs(self,binding,pool,previous):
         jobs={job['container']:job for job in self._owned_cron_jobs(binding,pool)}
@@ -210,20 +219,27 @@ class LocalRuntime:
         if admin: allowed.append(admin)
         return tuple(allowed)
 
-    def _fence_backup_writers(self, binding, route, previous):
-        deadline = time.monotonic() + min(30, self.config.get('drainSeconds', 30))
+    def _drain_backup_leases(self, binding, deadline):
+        # The lease wait is capped by drainSeconds and by what is left of the budget.
+        drain_end = deadline.clock() + deadline.remaining(min(30, self.config.get('drainSeconds', 30)))
         while self._leases(binding):
-            if time.monotonic() >= deadline: raise ReleaseConflict('release_writers_not_drained')
-            time.sleep(0.05)
+            if deadline.clock() >= drain_end:
+                deadline.remaining()  # an overrun reports the overrun, not an undrained lease
+                raise ReleaseConflict('release_writers_not_drained')
+            time.sleep(min(0.05, max(0, drain_end - deadline.clock())))
+
+    def _fence_backup_writers(self, binding, route, previous, deadline):
+        self._drain_backup_leases(binding, deadline)
         roles = self._writer_roles(binding)
         self._bind_role(binding, route['poolId'])
+        deadline.remaining()
         if self._role(binding, route['poolId']) not in roles:
             raise ReleaseConflict('runtime_writer_roles_incomplete')
         result = fence_writers({**binding,'fence':route['fence'],'gateClosed':True,'admittedWriters':0,'transactionScope':'tenant'},
-            roles, self.connector, allowed_principals=self._allowed_principals(),
-            deadline_seconds=self.config.get('drainSeconds',30))
+            roles, self.connector, deadline=deadline, allowed_principals=self._allowed_principals(),
+            drain_seconds=self.config.get('drainSeconds',30))
         if result.get('fenced') is not True: raise ReleaseConflict(result.get('reason','fence_failed'))
-        self._stop_owned_cron(binding,route['poolId'],previous['cron'])
+        self._stop_owned_cron(binding,route['poolId'],previous['cron'],deadline)
         return {**binding,**result,'gateClosed':True,'admittedWriters':0}
 
     def _fence(self, binding, route, *, gate_closed):
@@ -263,17 +279,19 @@ class LocalRuntime:
         self.proofs[binding['tenantId']] = proof
         return proof
 
-    def fence_backup(self, binding, route, previous):
+    def fence_backup(self, binding, route, previous, deadline):
         """Backup-only writer window; release and migrate keep ``quiesce``.
 
         ``previous`` is the durable intent: the owned crons it recorded are stopped
-        by their recorded container ids only.
+        by their recorded container ids only. ``deadline`` is the caller's budget,
+        never renewed: the guard ACK, lease drain, admin connection, every fence
+        statement and the cron stop get only what is left of it.
         """
         if not self.state.routes.joinpath(binding['tenantId'] + '.maintenance').is_file():
             raise ReleaseConflict('maintenance_barrier_missing')
-        if not self.acknowledge(binding,route,True)['ready']: raise ReleaseConflict('release_guard_ack_missing')
+        if not self.acknowledge_within(binding,route,True,deadline)['ready']: raise ReleaseConflict('release_guard_ack_missing')
         previous = self._previous_state(binding, route, previous)
-        return self._fence_backup_writers(binding,route,previous)
+        return self._fence_backup_writers(binding,route,previous,deadline)
 
     def _recheck(self, binding):
         route = self.state.route(binding['tenantId'])
@@ -288,25 +306,12 @@ class LocalRuntime:
 
     @contextmanager
     def _window_connection(self, database, deadline):
-        """Admin connection whose connect wait is bounded by what is left of the window budget.
-
-        Always closed on exit, including when the budget ran out while connecting:
-        a driver connection's own context manager only ends the transaction.
-        """
-        # libpq rounds connect_timeout below 2 s up to 2 s; the check after
-        # connecting still refuses any result obtained past the budget.
-        connection = self.connector(database, connect_timeout=max(2, math.ceil(deadline.remaining())))
-        try:
-            deadline.remaining()
-            with connection:
-                yield connection
-        finally:
-            connection.close()
-
-    @staticmethod
-    def _statement_budget(cursor, deadline):
-        # Recomputed before every statement: sequential queries share one budget.
-        cursor.execute(f'SET LOCAL statement_timeout = {max(1, int(deadline.remaining() * 1000))}')
+        """Admin transaction on ``bounded_connection``: connect and every statement get
+        only what is left of ``deadline``; always closed, including after an overrun
+        while connecting (a driver connection's own context manager only ends the
+        transaction)."""
+        with bounded_connection(self.connector, database, deadline) as connection, connection:
+            yield connection
 
     def _recheck_window(self, binding, deadline):
         """Window evidence: gate closed, every declared writer denied, nothing running.
@@ -319,14 +324,13 @@ class LocalRuntime:
         roles = self._writer_roles(binding)
         with self._window_connection(binding['database'], deadline) as connection:
             with connection.cursor() as cursor:
-                self._statement_budget(cursor, deadline)
                 cursor.execute("SELECT (SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND pid<>pg_backend_pid() AND (usename = ANY(%s) OR state<>'idle' OR xact_start IS NOT NULL)) + (SELECT count(*) FROM pg_prepared_xacts WHERE database=%s)",
                     (binding['database'],list(roles),binding['database']))
                 if cursor.fetchone()[0]: raise ReleaseConflict('writer_reconnect_observed')
-                self._statement_budget(cursor, deadline)
             try:
                 grants = writer_grants(connection, roles, binding['database'])
             except ValueError:
+                deadline.remaining()  # an overrun is reported as the overrun
                 raise ReleaseConflict('writer_admission_unverified') from None
         deadline.remaining()
         if any(grants[role] is not False for role in roles):
@@ -375,8 +379,15 @@ class LocalRuntime:
 
     def backup_deadline(self):
         """The one absolute budget of a backup-current operation, from its first effect
-        through capture, final validation, finalize and resume; never renewed."""
+        through the guard ACK, writer fence, capture, final validation, finalize,
+        resume and final ACK; never renewed."""
         return Deadline(self.config['backup'].get('totalDeadlineSeconds', 600))
+
+    def recovery_deadline(self):
+        """A separate bounded budget for one recovery step: a later same-id
+        reconciliation, or the fail-closed re-fence after a failure. A fresh one per
+        step, so an exhausted capture budget never skips the fail-closed cleanup."""
+        return Deadline(self.config['backup'].get('timeoutSeconds', 120))
 
     def resume_backup(self, binding, route, previous, deadline):
         """Reopen the previous state after a finished window on what is left of the
@@ -387,11 +398,6 @@ class LocalRuntime:
         self._recheck_window(binding, deadline)
         return self._restore_previous(binding, route, previous, deadline)
 
-    def _reconcile_deadline(self):
-        # Reconciliation is a later, explicit operator run of the same request after the
-        # operation already failed closed; it gets its own bounded budget.
-        return Deadline(self.config['backup'].get('timeoutSeconds', 120))
-
     def _restore_previous(self, binding, route, previous, deadline):
         # Every recorded cron must still be the recorded container before any writer reopens.
         pool = route['poolId']
@@ -401,7 +407,6 @@ class LocalRuntime:
         with self._window_connection(binding['database'], deadline) as connection:
             with connection.cursor() as cursor:
                 for role in restored:
-                    self._statement_budget(cursor, deadline)
                     cursor.execute(f'GRANT CONNECT ON DATABASE {identifier(binding["database"])} TO {identifier(role)}')
             connection.commit()
         jobs = self._restore_previous_cron(binding, route['poolId'], previous['cron'], deadline)
@@ -419,24 +424,25 @@ class LocalRuntime:
         deadline.remaining()
         return previous
 
-    def reconcile_backup(self, binding, route, previous):
+    def reconcile_backup(self, binding, route, previous, deadline):
         """Finish an interrupted backup by restoring the previous state only.
 
         Valid from any stage, including a crash before the fence took effect.
         Never captures again and never opens a principal that was closed before:
         a writer admitted now that was not admitted before means the fence was
-        lost and the window stays closed for the operator.
+        lost and the window stays closed for the operator. ``deadline`` is the
+        caller's reconciliation budget, which also bounds the barrier removal and
+        the final guard ACK after this returns.
         """
         if self.state.route(binding['tenantId']) != route:
             raise ReleaseConflict('backup_route_changed')
         previous = self._previous_state(binding, route, previous)
-        deadline = self._reconcile_deadline()
         try:
             with self._window_connection(binding['database'], deadline) as connection:
-                with connection.cursor() as cursor: self._statement_budget(cursor, deadline)
                 grants = writer_grants(connection, previous['roles'], binding['database'])
         except ValueError as error:
             if str(error) == 'backup_deadline_exceeded': raise
+            deadline.remaining()  # writer_grants hides an overrun behind its own refusal
             raise ReleaseConflict('backup_fence_unverified') from None
         if any(grants[role] is True for role in previous['roles'] if previous['grants'][role] is not True):
             raise ReleaseConflict('backup_fence_lost')

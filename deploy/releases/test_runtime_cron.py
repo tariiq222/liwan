@@ -39,8 +39,14 @@ class BackupCursor:
         self.connection.statements.append((sql, args)); self.sql, self.args = sql, args
         self.connection.tick()
         if sql.startswith('GRANT CONNECT ON DATABASE'): self.connection.grants[sql.rsplit('"', 2)[1]] = True
+        if sql.startswith('REVOKE CONNECT ON DATABASE'): self.connection.grants[sql.rsplit('"', 2)[1]] = False
     def fetchone(self):
+        # Enough catalog for the real fence_writers role validation: an existing
+        # database and plain login roles without membership, ownership or PUBLIC.
         if 'count(*)' in self.sql: return (self.connection.active,)
+        if 'FROM pg_database WHERE datname' in self.sql: return (True,)
+        if 'FROM pg_roles WHERE rolname' in self.sql: return (True, False, False, False, False, False)
+        if self.sql.startswith('SELECT EXISTS'): return (False,)
         return (0,)
     def fetchall(self):
         if 'has_database_privilege' in self.sql:
@@ -295,7 +301,7 @@ class RuntimeCronTests(unittest.TestCase):
         route = self.backup_config()
         with patch.object(runtime_module, 'fence_writers', self.window), \
                 patch.object(runtime_module.subprocess, 'run', self.docker):
-            proof = self.runtime._fence_backup_writers(self.binding, route, self.backup_previous())
+            proof = self.runtime._fence_backup_writers(self.binding, route, self.backup_previous(), backup_module.Deadline(30))
         self.assertEqual(proof['deniedWriters'], ['role_blue', 'role_green'])
         self.assertEqual(proof['writerConnections'], 0)
         window = next(event for event in self.events if event[0] == 'window')
@@ -359,7 +365,14 @@ class RuntimeCronTests(unittest.TestCase):
         self.config['pools']['blue']['odooRuntime']['image'] = image
         self.config['tenants']['tenant_a']['filestorePath'] = str(store)
         marker = self.state.routes / 'tenant_a.maintenance'
-        self.runtime.acknowledge = lambda binding, route, maintenance=False: {'ready': marker.is_file() is maintenance}
+        self.guard_timeouts = []
+        def guard(binding, timeout=10):
+            # The real HTTP seam: the guard reports the route and whether the marker is up.
+            self.guard_timeouts.append(timeout); self.guard_delay()
+            return {**{key: route[key] for key in ('routeRevision', 'fence', 'poolId', 'releaseId')},
+                    'maintenance': marker.is_file()}
+        self.guard_delay = lambda: None
+        self.runtime._guard = guard
         def window(binding, roles, connector, **kwargs):
             self.connection.grants = dict.fromkeys(roles, False)
             return self.window(binding, roles, connector, **kwargs)
@@ -417,14 +430,14 @@ class RuntimeCronTests(unittest.TestCase):
         self.state.maintenance('tenant_a', 1)
         route = self.backup_config(grants={'role_blue': True, 'role_green': True})
         with self.assertRaisesRegex(state_module.ReleaseConflict, 'backup_fence_lost'):
-            self.runtime.reconcile_backup(self.binding, route, self.backup_previous())
+            self.runtime.reconcile_backup(self.binding, route, self.backup_previous(), backup_module.Deadline(30))
 
     def test_reconcile_restores_previous_state_without_capturing(self):
         self.state.maintenance('tenant_a', 1)
         route = self.backup_config(grants={'role_blue': False, 'role_green': False})
         self.running['blue-cron'] = False
         with patch.object(runtime_module.subprocess, 'run', self.docker):
-            result = self.runtime.reconcile_backup(self.binding, route, self.backup_previous())
+            result = self.runtime.reconcile_backup(self.binding, route, self.backup_previous(), backup_module.Deadline(30))
         self.assertEqual(result['restoredWriters'], ['role_blue'])
         sql = '\n'.join(statement for statement, _ in self.connection.statements)
         self.assertIn('TO "role_blue"', sql)
@@ -450,7 +463,7 @@ class RuntimeCronTests(unittest.TestCase):
         self.ids['blue-cron'] = '2' * 64
         with patch.object(runtime_module.subprocess, 'run', self.docker):
             with self.assertRaisesRegex(state_module.ReleaseConflict, '^cron_container_replaced$'):
-                self.runtime.reconcile_backup(self.binding, route, self.backup_previous())
+                self.runtime.reconcile_backup(self.binding, route, self.backup_previous(), backup_module.Deadline(30))
         self.assertFalse([event for event in self.events if event[0] == 'docker'])
 
     def test_window_refuses_to_stop_a_cron_replaced_after_prepare(self):
@@ -462,7 +475,7 @@ class RuntimeCronTests(unittest.TestCase):
         with patch.object(runtime_module, 'fence_writers', self.window), \
                 patch.object(runtime_module.subprocess, 'run', self.docker):
             with self.assertRaisesRegex(state_module.ReleaseConflict, '^cron_container_replaced$'):
-                self.runtime._fence_backup_writers(self.binding, route, previous)
+                self.runtime._fence_backup_writers(self.binding, route, previous, backup_module.Deadline(30))
         self.assertFalse([event for event in self.events if event[0] == 'docker'])
 
     def test_previous_cron_state_without_a_container_id_is_refused(self):
@@ -557,6 +570,148 @@ class RuntimeCronTests(unittest.TestCase):
         self.connection.close = lambda: closed.append(True)
         self.runtime._recheck_window(self.binding, backup_module.Deadline(30))
         self.assertEqual(closed, [True])
+
+    def clocked_run(self, tmp, now, *, statement=0, connect=0, ack=0):
+        """Real backup_current + LocalRuntime + fence_writers on a fake clock.
+
+        Only the PostgreSQL, guard HTTP and Docker seams are faked: every executed
+        statement costs ``statement`` s, every admin connect ``connect`` s, and a
+        final guard ACK (marker already removed) ``ack`` s.
+        """
+        route, _window = self.cronless_backup(tmp)
+        marker = self.state.routes / 'tenant_a.maintenance'
+        self.timeline = []
+        def tick(): now[0] += statement
+        self.connection.tick = tick
+        def connector(_database, **options):
+            self.timeline.append(('connect', now[0], options)); now[0] += connect
+            return self.connection
+        self.runtime.connector = connector
+        def guard_delay():
+            if not marker.is_file(): now[0] += ack
+        self.guard_delay = guard_delay
+        clock = lambda seconds: backup_module.Deadline(seconds, lambda: now[0])
+        return route, clock
+
+    def statement_timeouts(self, start=0, end=None):
+        return [int(sql.rsplit(' ', 1)[1]) for sql, _ in self.connection.statements[start:end]
+                if sql.startswith('SET LOCAL statement_timeout')]
+
+    def run_fence_overrun(self, request_id, *, budget, statement=0, connect=0):
+        now = [0.0]
+        with tempfile.TemporaryDirectory() as temporary:
+            tmp = Path(temporary).resolve()
+            _route, clock = self.clocked_run(tmp, now, statement=statement, connect=connect)
+            self.config['backup']['totalDeadlineSeconds'] = budget
+            with patch.object(runtime_module, 'Deadline', clock), \
+                    patch.object(runtime_module.subprocess, 'run', self.docker):
+                with self.assertRaisesRegex(ValueError, '^backup_deadline_exceeded$'):
+                    operation_module.backup_current(self.state, self.runtime, self.binding, request_id,
+                                                    tmp / request_id, lambda result: self.fail('captured past the budget'))
+                self.assertFalse((tmp / request_id).exists())  # nothing captured
+        receipt = self.state.receipt(request_id)
+        self.assertEqual((receipt['stage'], receipt['errorCode']), ('needs_intervention', 'backup_unverified'))
+        self.assertTrue((self.state.routes / 'tenant_a.maintenance').is_file())
+        self.assertEqual(self.connection.grants, {'role_blue': False, 'role_green': False})
+        return now
+
+    def test_fence_entry_slow_sql_overruns_one_budget_and_fails_closed(self):
+        # 10 s budget, every statement 2 s (its SET LOCAL included): the fence runs
+        # out mid-catalog. It must stop there, not finish after ~38 modeled seconds.
+        self.run_fence_overrun('fence_slow_sql', budget=10, statement=1)
+        preflight, capture_connect, recovery_connect = self.timeline[:3]
+        self.assertEqual(preflight[2], {})  # read-only prepare_backup, before the budget starts
+        self.assertEqual(capture_connect[2], {'connect_timeout': 10})
+        fence_window = self.connection.statements[:next(i for i, (sql, _) in enumerate(self.connection.statements)
+                                                        if sql.startswith('SET LOCAL statement_timeout = 120000'))]
+        timeouts = self.statement_timeouts(0, len(fence_window))
+        self.assertEqual(timeouts, [10000, 8000, 6000, 4000, 2000])  # recomputed from what is left
+        self.assertFalse([sql for sql, _ in fence_window if sql.startswith('REVOKE')])
+        # The fail-closed cleanup ran on its own fresh budget, from the overrun instant.
+        self.assertEqual(recovery_connect[2], {'connect_timeout': 120})
+        self.assertLessEqual(recovery_connect[1], 10 + 2)
+
+    def test_fence_entry_slow_connect_overruns_one_budget_and_fails_closed(self):
+        self.run_fence_overrun('fence_slow_connect', budget=10, connect=15)
+        capture_connect = self.timeline[1]
+        self.assertEqual(capture_connect[2], {'connect_timeout': 10})
+        # No statement ran on the connection obtained past the budget.
+        recovery_start = next(i for i, (sql, _) in enumerate(self.connection.statements)
+                              if sql.startswith('SET LOCAL statement_timeout'))
+        recovery_start -= 1  # the preflight grant read ran first, unbudgeted
+        self.assertEqual(self.timeline[2][2], {'connect_timeout': 120})
+        self.assertEqual(self.statement_timeouts()[0], 120000 - 15000)
+        self.assertEqual(recovery_start, 0)
+
+    def test_fence_entry_within_budget_still_verifies(self):
+        now = [0.0]
+        with tempfile.TemporaryDirectory() as temporary:
+            tmp = Path(temporary).resolve()
+            _route, clock = self.clocked_run(tmp, now, statement=1, connect=1)
+            self.config['backup']['totalDeadlineSeconds'] = 120
+            with patch.object(runtime_module, 'Deadline', clock), \
+                    patch.object(runtime_module.subprocess, 'run', self.docker):
+                receipt = operation_module.backup_current(self.state, self.runtime, self.binding, 'fence_ok',
+                                                          tmp / 'fence_ok', lambda result: None)
+        self.assertEqual(receipt['stage'], 'verified')
+        self.assertEqual(self.connection.grants, {'role_blue': True, 'role_green': False})
+        self.assertFalse((self.state.routes / 'tenant_a.maintenance').exists())
+        timeouts = self.statement_timeouts()
+        self.assertEqual(timeouts[0], 120000 - 1000)  # after the 1 s connect
+        self.assertEqual(timeouts, sorted(timeouts, reverse=True))
+        self.assertLess(timeouts[-1], 120000 - 50000)  # one budget, not a fresh one per step
+        self.assertTrue(all(0 < entry[2]['connect_timeout'] <= 120 for entry in self.timeline[1:]))
+        self.assertLess(now[0], 120)
+
+    def failed_backup_then_reconcile(self, request_id, *, connect, ack):
+        now = [0.0]
+        with tempfile.TemporaryDirectory() as temporary:
+            tmp = Path(temporary).resolve()
+            _route, clock = self.clocked_run(tmp, now)
+            self.config['backup']['timeoutSeconds'] = 120
+            def interrupted(result): raise OSError('finalize interrupted')
+            with patch.object(runtime_module, 'Deadline', clock), \
+                    patch.object(runtime_module.subprocess, 'run', self.docker):
+                with self.assertRaises(OSError):
+                    operation_module.backup_current(self.state, self.runtime, self.binding, request_id,
+                                                    tmp / request_id, interrupted)
+                self.assertEqual(self.state.receipt(request_id)['stage'], 'needs_intervention')
+                # Reconciliation: two admin connects then the final ACK, on one 120 s budget.
+                now[0] = 0.0
+                self.connection.statements.clear(); self.timeline.clear()
+                def connect_slow(_database, **options):
+                    self.timeline.append(('connect', now[0], options)); now[0] += connect
+                    return self.connection
+                self.runtime.connector = connect_slow
+                marker = self.state.routes / 'tenant_a.maintenance'
+                def ack_slow():
+                    if not marker.is_file(): now[0] += ack
+                self.guard_delay = ack_slow
+                try:
+                    return operation_module.backup_current(self.state, self.runtime, self.binding, request_id,
+                                                           tmp / request_id, interrupted), now
+                except ValueError as error:
+                    return error, now
+
+    def test_reconciliation_overrun_at_final_ack_is_never_reconciled(self):
+        # Restore done at t=119 of a 120 s budget; the final ACK takes 2 s (t=121).
+        result, now = self.failed_backup_then_reconcile('reconcile_late', connect=59.5, ack=2)
+        self.assertIsInstance(result, ValueError)
+        self.assertEqual(str(result), 'backup_deadline_exceeded')
+        receipt = self.state.receipt('reconcile_late')
+        self.assertEqual((receipt['stage'], receipt['errorCode']), ('needs_intervention', 'backup_reconciliation_failed'))
+        self.assertTrue((self.state.routes / 'tenant_a.maintenance').is_file())  # marker kept
+        self.assertEqual(self.connection.grants, {'role_blue': False, 'role_green': False})  # writers fenced again
+        self.assertEqual(self.guard_timeouts[-2], 1)  # the final ACK got only what was left
+        self.assertGreaterEqual(now[0], 121)
+
+    def test_reconciliation_within_budget_still_reconciles(self):
+        receipt, now = self.failed_backup_then_reconcile('reconcile_ok', connect=50, ack=2)
+        self.assertEqual(receipt['stage'], 'reconciled')
+        self.assertFalse((self.state.routes / 'tenant_a.maintenance').exists())
+        self.assertEqual(self.connection.grants, {'role_blue': True, 'role_green': False})
+        self.assertEqual([entry[2]['connect_timeout'] for entry in self.timeline], [120, 70])
+        self.assertEqual(now[0], 102)
 
 
 if __name__ == '__main__':
