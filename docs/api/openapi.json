@@ -26474,6 +26474,254 @@
         ],
         "type": "object"
       },
+      "HrPayrollAuditChangeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "new_value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "old_value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "field",
+          "old_value",
+          "new_value"
+        ],
+        "type": "object"
+      },
+      "HrPayrollAuditEventListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "enum": [
+                    "payroll_settings_changed",
+                    "gosi_rate_created",
+                    "gosi_rate_changed",
+                    "gosi_rate_deleted",
+                    "bank_profile_created",
+                    "bank_profile_changed",
+                    "bank_profile_deleted",
+                    "eos_case_changed",
+                    "settlement_saved",
+                    "settlement_confirmed",
+                    "compensation_changed",
+                    "run_inputs_changed",
+                    "run_approved",
+                    "run_cancelled"
+                  ],
+                  "type": "string"
+                },
+                "actor": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "changes": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "field": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "new_value": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "old_value": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "field",
+                      "old_value",
+                      "new_value"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "created_at": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "res_id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "res_model": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "action",
+                "actor",
+                "created_at",
+                "res_model",
+                "res_id",
+                "changes"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "HrPayrollAuditEventSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "payroll_settings_changed",
+              "gosi_rate_created",
+              "gosi_rate_changed",
+              "gosi_rate_deleted",
+              "bank_profile_created",
+              "bank_profile_changed",
+              "bank_profile_deleted",
+              "eos_case_changed",
+              "settlement_saved",
+              "settlement_confirmed",
+              "compensation_changed",
+              "run_inputs_changed",
+              "run_approved",
+              "run_cancelled"
+            ],
+            "type": "string"
+          },
+          "actor": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "changes": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "field": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "new_value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "old_value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "field",
+                "old_value",
+                "new_value"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "res_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "res_model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "actor",
+          "created_at",
+          "res_model",
+          "res_id",
+          "changes"
+        ],
+        "type": "object"
+      },
       "HrPayrollCostCenterListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -60252,7 +60500,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "create_allocation",
+        "summary": "Grant days to another employee; the grant is approved at once.",
         "tags": [
           "webvue_hr"
         ],
@@ -61907,6 +62155,47 @@
           "feature_operation": "write",
           "handler": "complete_onboarding_step",
           "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/hr/payroll/audit-events": {
+      "get": {
+        "operationId": "webvue_hr.HrPayrollAuditController.list_audit_events.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_audit_events",
+        "tags": [
+          "webvue_hr"
+        ],
+        "x-webvue": {
+          "addon": "webvue_hr",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "hr",
+          "controller": "HrPayrollAuditController",
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll"
+          ],
+          "feature_operation": "read",
+          "handler": "list_audit_events",
+          "readonly": true,
           "route_type": "json2"
         }
       }

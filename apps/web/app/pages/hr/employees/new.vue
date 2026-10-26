@@ -20,7 +20,7 @@ function created(employee: { id: number }) { void navigateTo({ path: `/hr/employ
 </script>
 <template>
   <SharedCreatePanel :title="t('hr.employee.createTitle')" :back-to="backTo">
-    <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
+    <SharedForbiddenState v-if="!canManage" />
     <SharedPageState
       v-else
       :loading="departments.isLoading.value || employees.isLoading.value"

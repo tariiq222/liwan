@@ -31,9 +31,14 @@ class WebVueHrPayrollEosCase(models.Model):
         return (rows.filtered('company_id') or rows)[:1].case or False
 
     @api.model
+    def _webvue_company_row(self, reason, company):
+        """The company's own mapping row of a reason (empty when the company has none)."""
+        return self.search([('departure_reason_id', '=', reason.id), ('company_id', '=', company.id)], limit=1)
+
+    @api.model
     def _webvue_set_case(self, reason, company, case):
         """Write the company's own mapping of a reason, creating it on the first save."""
-        row = self.search([('departure_reason_id', '=', reason.id), ('company_id', '=', company.id)], limit=1)
+        row = self._webvue_company_row(reason, company)
         if row:
             row.case = case
             return row

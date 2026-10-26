@@ -1895,6 +1895,21 @@
       "handler": "get_onboarding_run",
       "no_capability_reason": null
     },
+    "GET /api/v1/hr/payroll/audit-events": {
+      "addon": "webvue_hr",
+      "auth": "user",
+      "capability_keys": [
+        "hr.payroll.audit.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "hr.enabled",
+        "hr.payroll"
+      ],
+      "handler": "list_audit_events",
+      "no_capability_reason": null
+    },
     "GET /api/v1/hr/payroll/bank-profiles": {
       "addon": "webvue_hr",
       "auth": "user",

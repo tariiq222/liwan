@@ -37,6 +37,7 @@ PAYROLL_PERMISSIONS = frozenset(
         'hr.payroll.manage',
         'hr.payroll.approve',
         'hr.payroll.config',
+        'hr.payroll.audit.read',
         'hr.payroll.finance.manage',
     },
 )
@@ -83,6 +84,7 @@ PAYROLL_PERMISSION_DEPENDENCIES = {
     'hr.payroll.manage': {'hr.payroll.read'},
     'hr.payroll.approve': {'hr.payroll.read'},
     'hr.payroll.config': {'hr.payroll.read'},
+    'hr.payroll.audit.read': {'hr.payroll.read'},
     'hr.payroll.finance.manage': {'hr.payroll.read'},
 }
 

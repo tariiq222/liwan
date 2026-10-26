@@ -28,10 +28,10 @@ class HrPayslipRun(models.Model):
 
     webvue_state = fields.Selection(
         [('draft', 'Draft'), ('computed', 'Computed'), ('approved', 'Approved')],
-        string='Payroll status', required=True, default='draft', copy=False, index=True, readonly=True,
+        string='Payroll status', required=True, default='draft', copy=False, index=True, readonly=True, tracking=True,
     )
-    webvue_approved_by_id = fields.Many2one('res.users', string='Approved by', copy=False, readonly=True)
-    webvue_approved_at = fields.Datetime(string='Approved on', copy=False, readonly=True)
+    webvue_approved_by_id = fields.Many2one('res.users', string='Approved by', copy=False, readonly=True, tracking=True)
+    webvue_approved_at = fields.Datetime(string='Approved on', copy=False, readonly=True, tracking=True)
 
     _webvue_one_run_per_month = models.Constraint(
         'UNIQUE(company_id, date_start)', 'a payroll run already exists for this month',
@@ -228,6 +228,8 @@ class HrPayslipRun(models.Model):
             raise WebVueHrRule(
                 blocker['code'], blocker['message'], field=blocker.get('field'), details=blocker.get('details'),
             )
+        Audit = self.env['webvue.hr.audit.event']
+        before = Audit._webvue_policy_snapshot(self)
         self.slip_ids.with_context(without_compute_sheet=True).action_payslip_done()
         self.close_payslip_run()
         self.write({
@@ -235,6 +237,7 @@ class HrPayslipRun(models.Model):
             'webvue_approved_by_id': self.env.user.id,
             'webvue_approved_at': fields.Datetime.now(),
         })
+        Audit._webvue_log('run_approved', self, before)
 
     def _webvue_cancel(self):
         """Drop a run that is not approved, with its payslips, so its month is free again."""
@@ -242,7 +245,10 @@ class HrPayslipRun(models.Model):
         self._webvue_require_state(EDITABLE_STATES, self.env._('An approved run cannot be deleted.'))
         self.slip_ids.action_payslip_cancel()
         self.slip_ids.unlink()
-        self.unlink()
+        # The event and the unlink share one savepoint: a refused unlink leaves no cancellation behind.
+        with self.env.cr.savepoint():
+            self.env['webvue.hr.audit.event']._webvue_log('run_cancelled', self)
+            self.unlink()
 
     def _webvue_set_inputs(self, payslip, values):
         """Write input amounts by engine input code. A computed run goes back to draft: its figures are stale."""
@@ -252,13 +258,21 @@ class HrPayslipRun(models.Model):
             self.env._('The inputs of an approved run cannot be edited.'),
             details={'reason': 'not_editable'},
         )
+        Audit = self.env['webvue.hr.audit.event']
+        before = Audit._webvue_policy_snapshot(self)
         lines = {line.code: line for line in payslip.input_line_ids}
+        changed = sorted(code for code, amount in values.items() if lines[code].amount != amount)
+        reset = self.webvue_state == 'computed'
         for code, amount in values.items():
             lines[code].amount = amount
-        if self.webvue_state == 'computed':
+        if reset:
             self.slip_ids.line_ids.unlink()
             self.slip_ids.action_payslip_draft()
             self.webvue_state = 'draft'
+        if changed or reset:
+            # The input codes are named, never valued: an amount is pay data (owner decision D-9). A reset of a
+            # computed run is logged even when no amount moved: its stored figures were dropped.
+            Audit._webvue_log('run_inputs_changed', self, before, names=changed)
 
     # --- figures and hints for the screens ---------------------------------------------------
 

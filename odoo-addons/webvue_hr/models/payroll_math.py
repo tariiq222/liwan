@@ -130,7 +130,7 @@ def eos_award(wage, years, case):
         return money(full)  # Articles 84 and 87
     if years < 2:
         return money(0)  # Article 85
-    factor = Decimal(1) / 3 if years < 5 else Decimal(2) / 3 if years < 10 else Decimal(1)
+    factor = Decimal(1) / 3 if years <= 5 else Decimal(2) / 3 if years < 10 else Decimal(1)
     return money(full * factor)
 
 

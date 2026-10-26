@@ -45,7 +45,7 @@ async function submit() {
 
 <template>
   <SharedCreatePanel :title="t(`${NAMESPACE}.runs.new`)" :back-to="backTo">
-    <SharedPageState v-if="!can('hr.onboarding.manage')" :empty="true" :empty-text="t(`${NAMESPACE}.errors.forbidden`)" />
+    <SharedForbiddenState v-if="!can('hr.onboarding.manage')" :description="t(`${NAMESPACE}.errors.forbidden`)" />
     <UForm v-else :state="{ employeeId, planId, planDate }" class="webvue-form" method="post" :loading-auto="false" novalidate @submit="submit">
       <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t(`${NAMESPACE}.form.saveError`)" :description="errorMessage" />
       <SharedFormSection panel :title="t(`${NAMESPACE}.runs.title`)">

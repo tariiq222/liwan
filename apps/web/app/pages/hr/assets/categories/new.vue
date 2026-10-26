@@ -43,7 +43,7 @@ async function submit() {
 <template>
   <SharedCreatePanel :title="t('hrAssets.categories.new')" :back-to="backTo">
     <SharedUnsavedChanges :dirty="dirty" />
-    <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
+    <SharedForbiddenState v-if="!canManage" />
     <UForm v-else novalidate :state="{ name }" class="webvue-form" method="post" data-testid="hr-asset-category-form" @submit="submit">
       <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" />
       <SharedFormSection panel :title="t('hrAssets.categories.form.details')">
