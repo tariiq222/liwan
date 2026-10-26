@@ -20,7 +20,11 @@ export function commercialExpiryDate(trialEndsAt: string | Date, graceDays: numb
 }
 
 export async function commercialValidUntil(client: Pool | PoolClient, order: Record<string, any>): Promise<string | null> {
-  if (order.kind !== 'new' || order.payment_state !== 'not_required' || !order.trial_ends_at) return null
+  // A trial that is still running keeps its cutoff through a plan change; only an order that
+  // starts the trial, or pays for the period after it, sets or clears the date.
+  if (!order.trial_ends_at || !['new', 'change'].includes(order.kind)) return null
+  if (order.kind === 'new' && order.payment_state !== 'not_required') return null
+  if (order.kind === 'change' && new Date(order.trial_ends_at).getTime() <= Date.now()) return null
   const plan = await client.query('SELECT grace_days FROM plan_revisions WHERE id=$1', [order.snapshot.plan_revision_id])
   return commercialExpiryDate(order.trial_ends_at, Number(plan.rows[0]?.grace_days ?? 0))
 }
@@ -56,8 +60,8 @@ export async function applyReceipt(pool: Pool, input: { order_id: string; receip
     const next = nextOrderState(started, { type: 'fulfillment_applied', receipt, target_revision_id: order.target_revision_id })
     await client.query('UPDATE orders SET fulfillment_state=$2 WHERE id=$1', [order.id, next.fulfillment_state])
     await client.query(`UPDATE subscriptions SET applied_revision_id=$2,target_revision_id=NULL,
-      state=CASE WHEN $3='change' THEN 'active' WHEN trial_ends_at>now() THEN 'trialing' ELSE 'active' END,
-      trial_ends_at=CASE WHEN $3 IN ('renewal','change') THEN NULL ELSE trial_ends_at END,
+      state=CASE WHEN $3='change' AND trial_ends_at>now() THEN 'trialing' WHEN $3='change' THEN 'active' WHEN trial_ends_at>now() THEN 'trialing' ELSE 'active' END,
+      trial_ends_at=CASE WHEN $3='renewal' OR ($3='change' AND trial_ends_at<=now()) THEN NULL ELSE trial_ends_at END,
       renewal_at=CASE WHEN applied_revision_id IS NULL OR $3='renewal' THEN COALESCE((SELECT period_end FROM renewals WHERE order_id=$5),$4::date,renewal_at) ELSE renewal_at END,
       revision=revision+1 WHERE id=$1`, [order.subscription_id, order.target_revision_id, order.kind, order.snapshot.period_end??null, order.id])
     if(!order.applied_revision_id){

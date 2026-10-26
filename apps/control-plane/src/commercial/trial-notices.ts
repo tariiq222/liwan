@@ -27,10 +27,13 @@ export async function sendTrialNotices(pool: Pool, input: { now: Date; mail: Mai
         payload: { subscription_id: row.id, days_left: daysLeft, trial_ends_at: riyadhDate(new Date(row.trial_ends_at)), amount: quote?.next_renewal ?? null },
       })
       if (!inserted) {
-        // A failed SMTP send is retried on the next run; a delivered one is left alone.
+        // A failed send, or one interrupted after the row was queued but before delivery, is
+        // retried on the next run; only a completed row is left alone.
         const existing = (await pool.query("SELECT id,status FROM commercial_outbox WHERE kind='trial.notice' AND aggregate_id=$1 AND dedupe_key=$2", [row.id, dedupe])).rows[0]
-        if (!existing || existing.status !== 'failed') continue
-        await pool.query("UPDATE commercial_outbox SET status='pending',processed_at=NULL,payload=payload-'error' WHERE id=$1", [existing.id])
+        if (!existing || !['failed', 'pending'].includes(existing.status)) continue
+        if (existing.status === 'failed') {
+          await pool.query("UPDATE commercial_outbox SET status='pending',processed_at=NULL,payload=payload-'error' WHERE id=$1", [existing.id])
+        }
       }
       sent++
       const outboxId = (await pool.query("SELECT id FROM commercial_outbox WHERE kind='trial.notice' AND aggregate_id=$1 AND dedupe_key=$2", [row.id, dedupe])).rows[0].id

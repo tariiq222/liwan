@@ -200,15 +200,15 @@ try:
         refuse('observed_mismatch')
     operator = profile.with_context(**{OPERATOR_CONTEXT: True})
     not_granted = None
+    expiry_vals = _commercial_expiry_vals(values, profile, refuse)
     if current != values['target_revision_id']:
         roles_before = env['webvue.entitlement.service']._webvue_entitled_admin_roles()
         # Every application stays installed; keys the target omits close (booleans
         # false, limits 0). Odoo still refuses a target without its platform keys.
         features = env['webvue.entitlement.service']._webvue_close_unlisted_features(values['features'])
-        expiry_vals = _commercial_expiry_vals(values, profile, refuse)
-        operator.write({'features': features, 'commercial_revision_id': values['target_revision_id'],
-                        'commercial_digest': values['digest'],
-                        'commercial_applied_at': fields.Datetime.now(), **expiry_vals})
+        write_vals = {'features': features, 'commercial_revision_id': values['target_revision_id'],
+                      'commercial_digest': values['digest'],
+                      'commercial_applied_at': fields.Datetime.now()}
         # Roles the policy newly opened go to the enrolment administrator only.
         granted = operator._webvue_grant_opened_admin_roles(values['admin_login'], roles_before)
         opened = [k for k in env['webvue.entitlement.service']._webvue_entitled_admin_roles() if k not in set(roles_before or ())]
@@ -221,6 +221,13 @@ try:
                 not_granted = 'admin_not_found'
             else:
                 not_granted = 'roles_missing'
+    else:
+        write_vals = {}
+    write_vals.update(expiry_vals)
+    if write_vals:
+        # Reusing the applied revision (a trial extension or a paid renewal) still moves the
+        # independently versioned expiry; one write either way.
+        operator.write(write_vals)
     # Archive first so a swap never trips branches.extra_limit; data is kept.
     for uid in values['archive']:
         branch = env['webvue.tenant.branch'].search([('branch_uid', '=', uid)])

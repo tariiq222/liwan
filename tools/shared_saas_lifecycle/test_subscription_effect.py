@@ -170,7 +170,7 @@ class ReconfigureTests(Base):
         self.assertEqual(values['commercial_valid_until_revision'], 1)
         self.assertIn("_commercial_expiry_vals(values, profile, refuse)", script)
         self.assertIn("'commercial_valid_until_revision': wanted_revision", script)
-        self.assertIn("**expiry_vals", script)
+        self.assertIn("write_vals.update(expiry_vals)", script)
 
     def test_clears_the_commercial_expiry_when_requested(self):
         request = make_request(commercial_valid_until=None, commercial_valid_until_revision=2)

@@ -45,6 +45,21 @@ export function refusalKey(code: unknown): string | null {
     : null
 }
 
+/** The commercial facts of a quote, ignoring its identity and expiry, so a re-quote of the
+ * same selection compares equal even though `expires_at` moves the digest. */
+export function quoteEconomics(q: Quote) {
+  return {
+    plan: q.plan_revision_id, bundles: [...q.bundle_revision_ids].sort(), terms: q.terms_revision_id,
+    cadence: q.cadence, users: q.requested_users, storage: q.requested_storage_mb,
+    branches: q.requested_extra_branches, due: q.due_now.minor, renewal: q.next_renewal.minor,
+    lines: q.lines.map(l => [l.kind, l.key, l.amount.minor, l.quantity]),
+  }
+}
+
+export function sameQuoteEconomics(a: Quote, b: Quote): boolean {
+  return JSON.stringify(quoteEconomics(a)) === JSON.stringify(quoteEconomics(b))
+}
+
 export const QUOTE_IS_EXPIRED = (quote: Pick<Quote, 'expires_at'>, now = Date.now()): boolean => Date.parse(quote.expires_at) <= now
 
 /** Body for POST /quotes and /branch-quotes never carries tenant/customer identity (the BFF rejects those keys). */

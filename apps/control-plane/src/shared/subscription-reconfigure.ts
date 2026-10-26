@@ -20,7 +20,10 @@ export async function assertReconfigureAuthority(client:PoolClient,job:SharedRec
     WHERE s.tenant_id=$1 AND o.id=$2 AND r.subscription_id=s.id FOR SHARE OF s,o`,[job.controlTenantId,job.authority.order_id,job.authority.target_revision_id])
   const row=result.rows[0]
   if(!row || !['paid','not_required'].includes(row.payment_state) || row.cancelled)throw Error('order_not_released')
-  if((job.restore || row.fulfillment_state==='applied'?row.applied_revision_id:row.target_revision_id)!==job.authority.target_revision_id)throw Error('stale_target')
+  // A paid trial renewal legitimately reuses the applied revision while the order is still
+  // queued, so accepting only `target_revision_id` would mark it stale before the effect runs.
+  const renewalOfApplied = row.target_revision_id === null && row.applied_revision_id === job.authority.target_revision_id
+  if((job.restore || row.fulfillment_state==='applied' || renewalOfApplied ? row.applied_revision_id : row.target_revision_id)!==job.authority.target_revision_id)throw Error('stale_target')
   if(row.snapshot.entitlement?.digest!==job.authority.entitlement.digest)throw Error('observed_mismatch')
   if(job.restore){
     const approved=await client.query(`SELECT 1 FROM shared_restore_approvals a LEFT JOIN shared_jobs j ON j.payload->>'approvalId'=a.id::text

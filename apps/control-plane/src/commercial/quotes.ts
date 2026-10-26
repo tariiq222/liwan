@@ -124,7 +124,10 @@ async function quoteForCustomer(pool: Pool, value: QuoteInput, now: Date, persis
         current = pricingBaseline(old, { extra_branches: applied.included_extra_branches, users: pinned?.included_users ?? 0, storage_mb: pinned?.included_storage_mb ?? 0 })
       }
     }
-    const sources = await loadQuoteSources(client, value.customer_id, input)
+    // A change against the subscription's own pinned revision stays quotable after that
+    // revision is withdrawn from new sales; only a new sale requires a sellable plan.
+    const pinnedChange = input.kind === 'change' && Boolean(s?.applied_revision_id)
+    const sources = await loadQuoteSources(client, value.customer_id, input, !pinnedChange)
     if (value.previewTerms) {
       if (value.previewTerms.customer_id !== value.customer_id) throw bad('not_found', 'customer_id', 404)
       sources.terms = value.previewTerms

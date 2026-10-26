@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Quote } from '@webvue/commercial-contracts'
 import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
-import { QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect } from '@/utils/subscription'
+import { QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect, sameQuoteEconomics } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.manage'))
@@ -122,7 +122,7 @@ async function accept() {
   try {
     // Persist the accepted quote now, not on every keystroke, and refuse a silent price change.
     const fresh = await api.quote(value)
-    if (quote.value && (fresh.due_now.minor !== quote.value.due_now.minor || fresh.digest !== quote.value.digest)) {
+    if (quote.value && !sameQuoteEconomics(fresh, quote.value)) {
       quote.value = fresh; notice.value = 'changed'; return
     }
     const action = safeIdemAction('change', sub?.id ?? '', sub?.revision ?? 0, JSON.stringify(value))
