@@ -190,4 +190,11 @@
         <field name="global" eval="True"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
+    <!-- Kept salary files: the rows of the caller's companies only. -->
+    <record id="rule_webvue_hr_payroll_file_company" model="ir.rule">
+        <field name="name">webvue payroll file: multi company</field>
+        <field name="model_id" ref="model_webvue_hr_payroll_file"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

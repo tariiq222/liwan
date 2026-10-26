@@ -76,6 +76,18 @@ test.describe('payroll run page', () => {
     await expect(page.getByTestId('inline-confirm')).toContainText('اعتماد هذا المسير؟')
     await page.getByTestId('inline-confirm-cancel').click()
     await expect(page.getByTestId('hr-payroll-run-state')).toHaveText('محسوب')
+
+    // Owner decision D-10: a net to pay without an IBAN refuses the approval and names the employee.
+    const withoutRefusals = trackRefusedRequests(page, '/api/v1/hr/payroll/runs/2/approve')
+    await page.getByTestId('hr-payroll-approve').click()
+    await page.getByTestId('inline-confirm-action').click()
+    await expect(page.getByTestId('hr-payroll-run-failure')).toContainText('خالد الشمري')
+    await expect(page.getByTestId('hr-payroll-run-state')).toHaveText('محسوب')
+    errors = withoutRefusals(errors)
+
+    // With an IBAN on every employee the same approval goes through.
+    expect((await page.request.post('/api/v1/__mock/reset-payroll', { data: { ibansComplete: true } })).status()).toBe(200)
+    await open(page, '/hr/payroll/2', 'مسير رواتب نوفمبر 2026')
     await page.getByTestId('hr-payroll-approve').click()
     await page.getByTestId('inline-confirm-action').click()
     await expect(page.getByTestId('hr-payroll-run-state')).toHaveText('معتمد')

@@ -92,10 +92,13 @@ class TestPayrollFiles(PayrollCase):
         self.assertIn(IBAN_ONE, one)
         self.assertEqual(one[3:], ['10000.00', '2500.00', '1000.00', '1218.75', '12281.25', '2026-12-01'])
 
-    def test_bank_file_refuses_employee_without_iban(self):
+    def test_bank_file_refuses_a_payslip_approved_without_an_iban(self):
+        """A run approved before 19.0.1.12.0 may hold a positive net with no IBAN stored: its files are refused."""
         nameless = self.make_employee('No Iban')
-        self.set_compensation(nameless, 4000, iban=None, gosi_registration_date=date(2020, 1, 1))
+        self.set_compensation(nameless, 4000, iban=IBAN_TWO, gosi_registration_date=date(2020, 1, 1))
         run_id = self._run()
+        slip = self.env['hr.payslip.run'].browse(run_id).slip_ids.filtered(lambda row: row.employee_id == nameless)
+        slip.webvue_iban = False
         res = self.api('GET', f'{RUNS}/{run_id}/bank-file?profile_id={self.generic.id}')
         self.assertEqual(res.status_code, 422, res.text)
         body = res.json()

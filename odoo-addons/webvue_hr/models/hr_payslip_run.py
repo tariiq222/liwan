@@ -17,6 +17,7 @@ TRANSITION_FORBIDDEN = 'transition_forbidden'
 NEGATIVE_NET = 'negative_net'
 RUN_EMPTY = 'run_empty'
 RUN_STALE = 'run_stale'
+MISSING_IBAN = 'missing_iban'
 INPUT_AMOUNT = {name: 0 for name in INPUT_CODES.values()}
 
 
@@ -70,6 +71,15 @@ class HrPayslipRun(models.Model):
                 field='structure_id',
             )
         return structure
+
+    def _webvue_is_editable(self):
+        """Whether the run can still change: its figures, its payment snapshot and its salary files follow this.
+
+        One definition of "not fixed yet" for the payslips, the salary files and the screens; a state a bridge
+        adds through ``selection_add`` is fixed unless it is one of ``EDITABLE_STATES``.
+        """
+        self.ensure_one()
+        return self.webvue_state in EDITABLE_STATES
 
     def _webvue_require_state(self, states, message, details=None):
         """Refuse a transition from any other lifecycle state (403 ``transition_forbidden``)."""
@@ -151,7 +161,7 @@ class HrPayslipRun(models.Model):
                 'message': self.env._('The run has no payslip: no employee with a compensation record is due this month.'),
                 'field': 'employee_id',
             }]
-        return [*self._webvue_settlement_blockers(), *self._webvue_stale_blockers()]
+        return [*self._webvue_settlement_blockers(), *self._webvue_stale_blockers(), *self._webvue_iban_blockers()]
 
     def _webvue_leavers(self):
         return self.slip_ids.employee_id.filtered(
@@ -208,6 +218,18 @@ class HrPayslipRun(models.Model):
             'details': {'employee_ids': missing.ids},
         }]
 
+    def _webvue_iban_blockers(self):
+        """``missing_iban`` for employees with a net to pay and no IBAN to pay it to (owner decision D-10)."""
+        missing = self.slip_ids.browse(sorted(self.slip_ids._webvue_iban_missing()))
+        if not missing:
+            return []
+        return [{
+            'code': MISSING_IBAN,
+            'message': self.env._('Record the IBAN of every employee with a net to pay before approving the run.'),
+            'field': 'iban',
+            'details': {'employee_ids': sorted(missing.employee_id.ids)},
+        }]
+
     def _webvue_approve(self):
         self.ensure_one()
         self._webvue_require_state(('computed',), self.env._('Only a computed run can be approved.'))
@@ -230,6 +252,7 @@ class HrPayslipRun(models.Model):
             )
         Audit = self.env['webvue.hr.audit.event']
         before = Audit._webvue_policy_snapshot(self)
+        self.slip_ids._webvue_snapshot_payment()
         self.slip_ids.with_context(without_compute_sheet=True).action_payslip_done()
         self.close_payslip_run()
         self.write({
@@ -304,7 +327,7 @@ class HrPayslipRun(models.Model):
         access = self.env['webvue.access.service']
         can_manage = access._webvue_has_capability(self.env.user, 'hr.payroll.manage')
         can_approve = access._webvue_has_capability(self.env.user, 'hr.payroll.approve')
-        editable = self.webvue_state in EDITABLE_STATES
+        editable = self._webvue_is_editable()
         actions = []
         if editable and can_manage:
             actions.append('compute')

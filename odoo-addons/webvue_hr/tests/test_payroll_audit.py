@@ -226,7 +226,7 @@ class TestPayrollAudit(PayrollCase):
         with self.assertRaises(AccessError):
             self.Event.with_user(self.officer)._webvue_log('gosi_rate_changed', own.with_user(self.officer))
         with self.assertRaisesRegex(AccessError, 'audit_action_unknown'):
-            self.Event.with_user(self.config)._webvue_log('payment_file_generated', own.with_user(self.config))
+            self.Event.with_user(self.config)._webvue_log('salary_file_deleted', own.with_user(self.config))
         self.assertFalse(self.Event.search_count([]))
 
     def test_log_refuses_a_second_company_record_the_caller_holds_no_capability_in(self):

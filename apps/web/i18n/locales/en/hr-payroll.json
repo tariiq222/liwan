@@ -74,7 +74,7 @@
     "warnings": {
       "title": "Warnings to review",
       "compensation_missing": "{name}: no compensation recorded, so they are left out of the computation.",
-      "missing_iban": "{name}: no IBAN recorded, so they will not appear in the bank transfer file.",
+      "missing_iban": "{name}: no IBAN recorded, so they are absent from the bank transfer file; every positive net needs an IBAN.",
       "unmapped_department": "{name}: their department has no cost center, so the cost goes to the default cost center or none."
     },
     "register": {
@@ -288,9 +288,9 @@
       "period_locked": "The accounting period of this action is locked.",
       "missing_cost_center": "One or more departments have no cost center. Set them in the payroll settings.",
       "settings_incomplete": "The payroll accounting settings are incomplete. Complete the journal and accounts in the payroll settings.",
-      "missing_iban": "{count} employee(s) have no IBAN ({names}). Record it in the compensation and download again.",
+      "missing_iban": "{count} employee(s) have no IBAN ({names}). Record it in the compensation before approving or downloading.",
       "wps_totals_mismatch": "The WPS file totals do not match the run totals. Review the run before downloading.",
-      "missing_iban_count": "{count} employee(s) have no IBAN. Record it in the compensation and download again.",
+      "missing_iban_count": "{count} employee(s) have no IBAN. Record it in the compensation before approving or downloading.",
       "negative_net_count": "The net pay is negative for {count} employee(s). Adjust the deductions and compute again.",
       "eos_case_missing": "The departure reason has no award case. Pick the case here or map it in the payroll settings.",
       "run_stale": "The figures of {count} employees ({names}) changed after the last compute. Compute the run again.",
@@ -308,6 +308,8 @@
       "nationality_missing": "This employee has no nationality, so GOSI cannot be computed.",
       "gosi_registration_missing": "This employee has no GOSI registration date.",
       "provision_after_run": "A run older than an already posted end-of-service provision cannot be posted.",
+      "profile_in_use": "A generated salary file keeps this profile, so it cannot be deleted.",
+      "profile_unavailable": "The salary file profile is no longer available. Refresh the page and choose another profile.",
       "ownRecordForbidden": "You cannot approve a run that holds your own payslip. Someone else with the approval capability approves it."
     },
     "compensation": {

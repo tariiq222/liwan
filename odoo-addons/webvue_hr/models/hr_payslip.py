@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from odoo import fields, models
 
+from .hr_version import PAYROLL_READ_GROUP
 from .payroll_math import money
 from odoo.addons.webvue_hr.rules import WebVueHrRule
 
@@ -34,6 +35,9 @@ RULE_VALUE_KEYS = {
     'GOSI_EE_ANN': ('gosi_ee_annuities', -1), 'GOSI_EE_SANED': ('gosi_ee_saned', -1),
     'GOSI_ER_ANN': ('gosi_er_annuities', 1), 'GOSI_ER_SANED': ('gosi_er_saned', 1), 'GOSI_ER_OH': ('gosi_er_hazards', 1),
 }
+# The payment data of an approved payslip is payroll data: the employee reader of their own payslip never sees it.
+# The group is hr_version's payroll read capability group, so a field gated here and a field gated there answer
+# the same readers.
 
 
 class HrPayslip(models.Model):
@@ -54,6 +58,13 @@ class HrPayslip(models.Model):
         string='GOSI class', readonly=True, copy=False,
         help='The GOSI nationality class used when the payslip was computed: the GOSI statement of an approved '
              'run reads it instead of the live nationality and registration date.',
+    )
+    # Where the salary of an approved payslip is paid, stored on approval: the salary files read these and never
+    # the live compensation or employee version (owner decision D-4).
+    webvue_iban = fields.Char(string='Paid IBAN', readonly=True, copy=False, groups=PAYROLL_READ_GROUP)
+    webvue_bank_code = fields.Char(string='Paid bank code', readonly=True, copy=False, groups=PAYROLL_READ_GROUP)
+    webvue_identification = fields.Char(
+        string='Paid identification number', readonly=True, copy=False, groups=PAYROLL_READ_GROUP,
     )
 
     def get_current_contract_dict(self, contract, contracts):
@@ -154,9 +165,46 @@ class HrPayslip(models.Model):
                 compensation = calculator._webvue_compensation(payslip.employee_id)
                 payslip.webvue_gosi_class = calculator._webvue_gosi_class(payslip.employee_id, compensation)
 
+    def _webvue_snapshot_payment(self):
+        """Store the IBAN, bank code and identification number each payslip is paid to, as they are now."""
+        compensations = self.env['webvue.hr.compensation'].search([('employee_id', 'in', self.employee_id.ids)])
+        by_employee = {record.employee_id.id: record for record in compensations}
+        for payslip in self:
+            compensation = by_employee.get(payslip.employee_id.id)
+            payslip.write({
+                'webvue_iban': compensation.iban if compensation else False,
+                'webvue_bank_code': compensation.bank_id.bic if compensation else False,
+                'webvue_identification': payslip.employee_id.current_version_id.identification_id,
+            })
+
+    def _webvue_paid_iban(self):
+        """``{payslip_id: IBAN}``: the live compensation IBAN of an editable run, the approval snapshot of a fixed one.
+
+        One helper decides where the IBAN of a payslip comes from, so the approval blocker, the run warnings and
+        the payslip rows never disagree with each other. A payslip outside a run, or in a run whose state can still
+        change, reads the compensation; a fixed run reads what ``_webvue_snapshot_payment`` stored (owner decisions
+        D-4 and D-10). The salary files do not call it: they read the stored snapshot fields of the payslip
+        directly, which for the fixed runs they serve is the same value.
+        """
+        fixed = self.filtered(lambda slip: slip.payslip_run_id and not slip.payslip_run_id._webvue_is_editable())
+        live = self - fixed
+        compensations = self.env['webvue.hr.compensation'].search([('employee_id', 'in', live.employee_id.ids)])
+        by_employee = {record.employee_id.id: record.iban for record in compensations}
+        return {
+            slip.id: (slip.webvue_iban or '') if slip in fixed else (by_employee.get(slip.employee_id.id) or '')
+            for slip in self
+        }
+
     def _webvue_iban_missing(self):
-        """Ids of the payslips whose employee has no IBAN on the compensation record."""
-        with_iban = self.env['webvue.hr.compensation'].search([
-            ('employee_id', 'in', self.employee_id.ids), ('iban', '!=', False),
-        ]).employee_id
-        return {slip.id for slip in self if slip.employee_id not in with_iban}
+        """Ids of the payslips to be paid to an employee who has no IBAN recorded.
+
+        A payslip is to be paid while it is not computed yet (its net is unknown) or when its net is positive; a
+        computed zero net pays nothing and needs no IBAN (owner decision D-10). The IBAN is the live one while the
+        run can still change and the snapshot stored at approval once it is fixed (owner decision D-4).
+        """
+        with_iban = self._webvue_paid_iban()
+        amounts = self._webvue_amounts()
+        return {
+            slip.id for slip in self
+            if not with_iban[slip.id] and (slip.state == 'draft' or amounts[slip.id]['net'] > 0)
+        }

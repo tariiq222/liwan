@@ -69,14 +69,15 @@ class WebVueHrPayrollExport(models.AbstractModel):
 
     @api.model
     def _webvue_salary_lines(self, run):
-        """One ``SalaryLine`` per payslip of the run, ordered by employee name."""
+        """One ``SalaryLine`` per payslip of the run, ordered by employee name.
+
+        The IBAN, bank code and identification number are the ones stored on the payslip when the run was approved;
+        a later change to the compensation or the employee never reaches a salary file of an approved run.
+        """
         totals = self._webvue_line_totals(run)
-        compensations = self.env['webvue.hr.compensation'].search([('employee_id', 'in', run.slip_ids.employee_id.ids)])
-        by_employee = {record.employee_id.id: record for record in compensations}
         lines = []
         for slip in run.slip_ids.sorted(lambda row: (row.employee_id.name or '', row.id)):
             employee = slip.employee_id
-            compensation = by_employee.get(employee.id)
             codes = totals[slip.id]
 
             def total(names, codes=codes):
@@ -85,10 +86,10 @@ class WebVueHrPayrollExport(models.AbstractModel):
             lines.append(SalaryLine(
                 employee_id=employee.id,
                 employee_ref=str(employee.id),
-                identification=employee.current_version_id.identification_id or '',
+                identification=slip.webvue_identification or '',
                 name=employee.name or '',
-                iban=(compensation.iban if compensation else '') or '',
-                bank_code=(compensation.bank_id.bic if compensation else '') or '',
+                iban=slip.webvue_iban or '',
+                bank_code=slip.webvue_bank_code or '',
                 basic=total(('BASIC',)),
                 housing=total(('HOUSING',)),
                 other_allowances=total(OTHER_ALLOWANCE_CODES),

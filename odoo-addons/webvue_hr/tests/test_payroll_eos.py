@@ -26,6 +26,7 @@ EOS = '/api/v1/hr/payroll/eos'
 CASES = '/api/v1/hr/payroll/eos-cases'
 RUNS = '/api/v1/hr/payroll/runs'
 DEPARTURE = date(2026, 11, 30)
+LEAVER_IBAN = 'SA0380000000608010167519'
 
 
 @tagged('post_install', '-at_install', 'webvue')
@@ -44,7 +45,9 @@ class TestPayrollEos(PayrollCase):
         }])
         cls.resigned = cls.env.ref('hr.departure_resigned')
         cls.leaver = cls.make_employee(cls, 'Eos Leaver', start=date(2023, 12, 1))
-        cls.set_compensation(cls, cls.leaver, 8000, 2000, 500, gosi_registration_date=date(2020, 1, 1))
+        cls.set_compensation(
+            cls, cls.leaver, 8000, 2000, 500, iban=LEAVER_IBAN, gosi_registration_date=date(2020, 1, 1),
+        )
         cls.leaver.write({'departure_date': DEPARTURE, 'departure_reason_id': cls.resigned.id})
         cls.env['hr.leave.allocation'].create({
             'employee_id': cls.leaver.id,

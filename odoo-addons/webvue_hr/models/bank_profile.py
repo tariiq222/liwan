@@ -1,5 +1,22 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from psycopg2.errors import ForeignKeyViolation
+
 from odoo import fields, models
+
+from odoo.addons.webvue_hr.models.payroll_file import PROFILE_FK
+from odoo.addons.webvue_hr.rules import WebVueHrRule
+
+PROFILE_IN_USE_CODE = 'profile_in_use'
+
+
+def _profile_in_use_refusal(profile, kept_files=0):
+    """The 409 ``profile_in_use`` refusal of deleting a profile a kept salary file still names."""
+    return WebVueHrRule(
+        PROFILE_IN_USE_CODE,
+        profile.env._('This salary file profile is kept by a generated salary file, so it cannot be deleted.'),
+        status=409,
+        details={'file_count': kept_files} if kept_files else None,
+    )
 
 
 class WebVueHrPayrollBankProfile(models.Model):
@@ -25,6 +42,26 @@ class WebVueHrPayrollBankProfile(models.Model):
     revision = fields.Integer(required=True, default=1)
 
     _revision_positive = models.Constraint('CHECK(revision > 0)', 'a saved revision must be positive')
+
+    def _webvue_delete(self):
+        """Delete one own profile, refusing while a kept salary file names it (409 ``profile_in_use``).
+
+        A salary file keeps the layout that rendered it (owner decision D-4), so its profile stays. The count
+        below is the ordinary refusal; the database's own foreign key answers a file kept between it and the
+        delete, and only that profile key is translated. The delete goes through the public ``unlink``, so a
+        refusal raised there keeps its own error and rolls the caller's audit row back.
+        """
+        self.ensure_one()
+        kept = self.env['webvue.hr.payroll.file'].search_count([('profile_id', '=', self.id)])
+        if kept:
+            raise _profile_in_use_refusal(self, kept)
+        try:
+            with self.env.cr.savepoint():
+                return self.unlink()
+        except ForeignKeyViolation as error:
+            if error.diag.constraint_name != PROFILE_FK:
+                raise
+            raise _profile_in_use_refusal(self) from None
 
 
 class WebVueHrPayrollBankProfileColumn(models.Model):
