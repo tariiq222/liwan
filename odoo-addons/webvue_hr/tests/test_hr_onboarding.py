@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import fields
+from odoo.exceptions import ValidationError
 from odoo.tests import new_test_user, tagged
 
 from .common import WebVueHrCase, set_hr_feature
@@ -279,3 +280,117 @@ class TestHrOnboarding(WebVueHrCase):
         ):
             response = self.api(method, path, json=payload)
             self.assertEqual((response.status_code, response.json()['code']), (404, 'not_found'), (method, path))
+
+    def test_a_plan_and_its_department_stay_in_one_company(self):
+        other_company = self.env['res.company'].create({'name': 'Onboarding Pair Other Co'})
+        own = self.env['hr.department'].create({'name': 'Onb Own', 'company_id': self.company.id})
+        foreign = self.env['hr.department'].create({'name': 'Onb Foreign', 'company_id': other_company.id})
+        plan = self.plan.copy({'name': 'Onboarding pair plan'})
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            plan.write({'department_id': foreign.id})
+        plan.department_id = own
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            plan.write({'company_id': other_company.id})
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            self.env['mail.activity.plan'].create({
+                'name': 'Mismatch', 'res_model': 'hr.employee', 'hr_purpose': 'onboarding',
+                'company_id': self.company.id, 'department_id': foreign.id,
+            })
+        self.assertEqual((plan.company_id, plan.department_id), (self.company, own))
+        # A companyless side stays allowed.
+        plan.department_id = False
+        plan.company_id = False
+        plan.company_id = self.company
+        companyless = self.env['hr.department'].create({'name': 'Onb Companyless', 'company_id': False})
+        plan.department_id = companyless
+        self.assertEqual(plan.department_id, companyless)
+
+    def test_a_department_linked_to_a_plan_cannot_move_to_another_company(self):
+        department = self.env['hr.department'].create({'name': 'Onb Pinned', 'company_id': self.company.id})
+        other_company = self.env['res.company'].create({'name': 'Onboarding Move Other Co'})
+        bound = self.plan.copy({'name': 'Onboarding pinned plan'})
+        bound.department_id = department
+        bound.active = False
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            department.company_id = other_company
+        self.assertEqual(department.company_id, self.company)
+        bound.active = True
+        self._as_reader()
+        expected = {'id': department.id, 'name': 'Onb Pinned'}
+        listing = self.api('GET', '/api/v1/hr/onboarding/plans')
+        self.assertEqual({i['id']: i['department'] for i in listing.json()['items']}[bound.id], expected)
+        one = self.api('GET', f'/api/v1/hr/onboarding/plans/{bound.id}')
+        self.assertEqual(one.json()['department'], expected)
+
+    def test_reader_without_department_access_sees_the_plan_department_reference(self):
+        department = self.env['hr.department'].create({'name': 'Onb Parent', 'company_id': self.company.id})
+        child = self.env['hr.department'].create({
+            'name': 'Onb Child', 'company_id': self.company.id, 'parent_id': department.id,
+        })
+        bound = self.plan.copy({'name': 'Onboarding dept plan'})
+        bound.department_id = department
+        nested = self.plan.copy({'name': 'Onboarding sub dept plan'})
+        nested.department_id = child
+        other_company = self.env['res.company'].create({'name': 'Onboarding Dept Other Co'})
+        foreign_department = self.env['hr.department'].create({
+            'name': 'Foreign Onb Dept', 'company_id': other_company.id,
+        })
+        foreign_plan = self.plan.copy({'name': 'Foreign onboarding plan', 'company_id': other_company.id})
+        self._as_reader()
+        listing = self.api('GET', '/api/v1/hr/onboarding/plans')
+        self.assertEqual(listing.status_code, 200, listing.text)
+        by_id = {item['id']: item for item in listing.json()['items']}
+        self.assertEqual(by_id[bound.id]['department'], {'id': department.id, 'name': 'Onb Parent'})
+        self.assertEqual(by_id[nested.id]['department'], {'id': child.id, 'name': 'Onb Child'})
+        self.assertIsNone(by_id[self.plan.id]['department'])
+        self.assertNotIn(foreign_plan.id, by_id)
+        one = self.api('GET', f'/api/v1/hr/onboarding/plans/{bound.id}')
+        self.assertEqual(one.status_code, 200, one.text)
+        self.assertEqual(one.json()['department'], {'id': department.id, 'name': 'Onb Parent'})
+        foreign = self.api('GET', f'/api/v1/hr/onboarding/plans/{foreign_plan.id}')
+        self.assertEqual((foreign.status_code, foreign.json()['code']), (404, 'not_found'))
+        for path in ('/api/v1/hr/departments', f'/api/v1/hr/departments/{department.id}'):
+            denied = self.api('GET', path)
+            self.assertEqual((denied.status_code, denied.json()['code']), (403, 'forbidden'), path)
+        # Linking another company's department is refused (needs the department read to resolve it).
+        self._as_manager()
+        refused = self.api('POST', '/api/v1/hr/onboarding/plans', json={
+            'name': 'خطة', 'steps': [_step('خطوة')], 'department_id': foreign_department.id,
+        })
+        self.assertEqual((refused.status_code, refused.json()['field']), (422, 'department_id'))
+
+    def test_a_shared_plan_stays_free_of_company_departments(self):
+        shared = self.plan.copy({'name': 'Onboarding shared plan', 'company_id': False})
+        department = self.env['hr.department'].create({'name': 'Onb Shared Dept', 'company_id': self.company.id})
+        # The ORM refuses a company department on a shared plan, from either side.
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            shared.write({'department_id': department.id})
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            self.env['mail.activity.plan'].create({
+                'name': 'Shared mismatch', 'res_model': 'hr.employee', 'hr_purpose': 'onboarding',
+                'company_id': False, 'department_id': department.id,
+            })
+        pinned = self.plan.copy({'name': 'Onboarding pinned shared check'})
+        pinned.department_id = department
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            pinned.company_id = False
+        self.assertEqual((shared.department_id, pinned.company_id), (self.env['hr.department'], self.company))
+        # The department gaining a company while a shared plan targets it is refused.
+        free = self.env['hr.department'].create({'name': 'Onb Free', 'company_id': False})
+        shared.department_id = free
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            free.company_id = self.company
+        self.assertFalse(free.company_id)
+        # The route answers 422 department_id and leaves the plan unchanged.
+        shared.department_id = False
+        self._as_manager()
+        refused = self.api('PATCH', f'/api/v1/hr/onboarding/plans/{shared.id}', json={'department_id': department.id})
+        self.assertEqual((refused.status_code, refused.json()['field']), (422, 'department_id'))
+        self.assertFalse(shared.department_id)
+        # A companyless department stays allowed on a shared plan; readers see only that one.
+        shared.department_id = free
+        self._as_reader()
+        listed = {i['id']: i['department'] for i in self.api('GET', '/api/v1/hr/onboarding/plans').json()['items']}
+        self.assertEqual(listed[shared.id], {'id': free.id, 'name': 'Onb Free'})
+        one = self.api('GET', f'/api/v1/hr/onboarding/plans/{shared.id}').json()
+        self.assertEqual(one['department'], {'id': free.id, 'name': 'Onb Free'})
