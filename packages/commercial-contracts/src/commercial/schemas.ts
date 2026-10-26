@@ -60,15 +60,23 @@ export const planRevisionSchema = z.strictObject({
   platform_limits: sellableLimitsSchema, included_bundle_revision_ids: z.array(revisionIdSchema),
   optional_bundle_revision_ids: z.array(revisionIdSchema), included_extra_branches: z.number().int().min(0).max(MAX),
   extra_branch_prices: z.array(priceSchema), extra_branches_limit: z.number().int().min(0).max(MAX).nullable(),
+  included_users: z.number().int().min(0).max(MAX), included_storage_mb: z.number().int().min(0).max(MAX),
+  user_prices: z.array(priceSchema), storage_prices: z.array(priceSchema),
   policy_revision_id: revisionIdSchema, currency: z.string().regex(/^[A-Z]{3}$/),
   trial_days: z.number().int().min(0).max(3650), grace_days: z.number().int().min(0).max(3650),
   auto_suspend: z.boolean(), auto_renew_allowed: z.boolean(),
+})
+const METERED_LIMIT_KEYS = [USERS_LIMIT_KEY, 'storage.limit_mb']
+/** Terms negotiate prices and non-capacity limits; users and storage stay the customer's chosen quantities. */
+const termsLimitsSchema = sellableLimitsSchema.superRefine((m, ctx) => {
+  for (const k of METERED_LIMIT_KEYS) if (Object.hasOwn(m, k))
+    ctx.addIssue({ code: 'custom', message: 'users and storage are chosen quantities, not terms limits', path: [k] })
 })
 export const customerTermsRevisionSchema = z.strictObject({
   id: revisionIdSchema, customer_id: z.string(), reason,
   base_price: priceSchema.optional(), bundle_prices: z.record(revisionIdSchema, priceSchema).optional(),
   included_extra_branches: z.number().int().min(0).max(MAX).optional(), extra_branch_price: priceSchema.optional(),
-  extra_branches_limit: z.number().int().min(0).max(MAX).nullable().optional(), limits: sellableLimitsSchema.optional(),
+  extra_branches_limit: z.number().int().min(0).max(MAX).nullable().optional(), limits: termsLimitsSchema.optional(),
   term_months: z.number().int().positive().max(120).optional(), cadence: cadenceSchema.optional(),
 })
 export const entitlementSnapshotSchema = z.strictObject({
@@ -84,7 +92,7 @@ export const pricingPolicySchema = z.strictObject({
   ]),
 })
 export const quoteLineSchema = z.strictObject({
-  key: z.string(), kind: z.enum(['base', 'bundle', 'branch', 'discount', 'tax', 'adjustment']),
+  key: z.string(), kind: z.enum(['base', 'bundle', 'branch', 'users', 'storage', 'discount', 'tax', 'adjustment']),
   timing: z.enum(['now', 'renewal']), description: z.string(), quantity: z.number().int().min(0).max(MAX),
   amount: moneySchema, period_start: isoDate, period_end: isoDate, source_revision_id: revisionIdSchema,
 })
@@ -92,7 +100,8 @@ export const quoteSchema = z.strictObject({
   id: z.string(), customer_id: z.string(), subscription_id: z.string().nullable(),
   expected_subscription_revision: z.number().int().min(0), plan_revision_id: revisionIdSchema,
   bundle_revision_ids: z.array(revisionIdSchema), terms_revision_id: revisionIdSchema.nullable(),
-  entitlement_digest: sha, requested_extra_branches: z.number().int().min(0).max(MAX), cadence: cadenceSchema,
+  entitlement_digest: sha, requested_extra_branches: z.number().int().min(0).max(MAX),
+  requested_users: z.number().int().min(0).max(MAX), requested_storage_mb: z.number().int().min(0).max(MAX), cadence: cadenceSchema,
   effective_date: isoDate, policy_revision_id: revisionIdSchema, lines: z.array(quoteLineSchema),
   due_now: moneySchema, next_renewal: moneySchema, next_renewal_at: isoDate, expires_at: z.string(), digest: sha,
 })
@@ -110,7 +119,9 @@ const planFields = {
   currency: z.string().regex(/^[A-Z]{3}$/), prices: z.array(priceSchema), platform_limits: sellableLimitsSchema,
   included_bundle_revision_ids: z.array(revisionIdSchema), optional_bundle_revision_ids: z.array(revisionIdSchema),
   included_extra_branches: z.number().int().min(0).max(MAX), extra_branch_prices: z.array(priceSchema),
-  extra_branches_limit: z.number().int().min(0).max(MAX).nullable(), policy_revision_id: revisionIdSchema,
+  extra_branches_limit: z.number().int().min(0).max(MAX).nullable(),
+  included_users: z.number().int().min(0).max(MAX), included_storage_mb: z.number().int().min(0).max(MAX),
+  user_prices: z.array(priceSchema), storage_prices: z.array(priceSchema), policy_revision_id: revisionIdSchema,
   trial_days: z.number().int().min(0).max(3650), grace_days: z.number().int().min(0).max(3650),
   auto_suspend: z.boolean(), auto_renew_allowed: z.boolean(),
 }
@@ -124,6 +135,7 @@ export const quoteRequestSchema = z.strictObject({
   kind: z.enum(['new', 'change']), plan_revision_id: revisionIdSchema, bundle_revision_ids: z.array(revisionIdSchema),
   terms_revision_id: revisionIdSchema.nullable().optional(), cadence: cadenceSchema,
   requested_extra_branches: z.number().int().min(0).max(MAX),
+  requested_users: z.number().int().min(0).max(MAX), requested_storage_mb: z.number().int().min(0).max(MAX),
   subscription_id: z.string().nullable().optional(), expected_subscription_revision: z.number().int().min(0).optional(),
   effective_date: isoDate.optional(),
 })

@@ -4,7 +4,23 @@ import { randomUUID } from 'node:crypto'
 import { scratchUrl, seedOrder, setupScratch } from './shared-subscription-reconfigure.test.js'
 import { processFulfillmentOutbox } from '../commercial/fulfillment.js'
 import { runSubscriptionReconfigure, type SubscriptionRunner } from '../shared/subscription-reconfigure.js'
+import { enqueueReconfigureJob } from '../shared/job-store.js'
+import { transaction } from '../db.js'
 import { recoverInterrupted, reconcileAfterRestore, fakeObserveRunner } from '../shared/subscription-reconcile.js'
+
+async function enqueueExpiryJob(pool: Pool, s: Awaited<ReturnType<typeof seedOrder>>, validUntil: string, revision: number) {
+  await pool.query("UPDATE subscriptions SET applied_revision_id=$2,target_revision_id=NULL,revision=revision+1 WHERE id=$1",[s.subscription,s.target])
+  await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE id=$1",[s.order])
+  const row=(await pool.query(`SELECT b.tenant_id,b.host,b.database_name,b.filestore,b.registry_revision,r.snapshot
+    FROM shared_registry_bindings b JOIN subscription_revisions r ON r.subscription_id=$1 AND r.id=$2 WHERE b.control_tenant_id=$3`,[s.subscription,s.target,s.tenant])).rows[0]
+  const operation_id=randomUUID()
+  return transaction(pool,async client=>(await enqueueReconfigureJob(client,{schemaVersion:1,operation:'reconfigure',requestId:operation_id,
+    controlTenantId:s.tenant,host:row.host,
+    binding:{tenantId:row.tenant_id,database:row.database_name,filestore:row.filestore,registryRevision:Number(row.registry_revision)},
+    authority:{order_id:s.order,operation_id,previous_revision_id:s.target,target_revision_id:s.target,
+      entitlement:{modules:row.snapshot.entitlement.modules,features:row.snapshot.entitlement.features,digest:row.snapshot.entitlement.digest,compiler_version:row.snapshot.entitlement.compiler_version},
+      branches:{apply:[],archive:[]},commercial_valid_until:validUntil,commercial_valid_until_revision:revision}})).id)
+}
 
 describe.skipIf(!scratchUrl)('subscription recovery integration-fake',()=>{
   const pool=new Pool({connectionString:scratchUrl})
@@ -26,6 +42,19 @@ describe.skipIf(!scratchUrl)('subscription recovery integration-fake',()=>{
     expect(recovered.find(r=>r.receipt?.order_id===s.order)?.receipt).toEqual(s.receipt)
     expect(mutations).toBe(1)
     expect((await pool.query('SELECT count(*)::int AS n FROM fulfillment_effects WHERE order_id=$1',[s.order])).rows[0].n).toBe(1)
+  },60000)
+  it('records tenant support when an expiry-carrying job verifies',async()=>{
+    const s=await seedOrder(pool)
+    const job=await enqueueExpiryJob(pool,s,'2026-12-01',1)
+    await runSubscriptionReconfigure(pool,job,async()=>({...s.receipt,commercial_expiry_supported:true}))
+    expect((await pool.query('SELECT commercial_expiry_supported FROM tenants WHERE id=$1',[s.tenant])).rows[0].commercial_expiry_supported).toBe(true)
+  },60000)
+  it('records a refused tenant upgrade and the refusal code',async()=>{
+    const s=await seedOrder(pool)
+    const job=await enqueueExpiryJob(pool,s,'2026-12-01',1)
+    await expect(runSubscriptionReconfigure(pool,job,async()=>{throw Error('tenant_upgrade_required')})).rejects.toThrow('tenant_upgrade_required')
+    expect((await pool.query('SELECT commercial_expiry_supported FROM tenants WHERE id=$1',[s.tenant])).rows[0].commercial_expiry_supported).toBe(false)
+    expect((await pool.query('SELECT journal FROM shared_jobs WHERE id=$1',[job])).rows[0].journal.error_code).toBe('tenant_upgrade_required')
   },60000)
   it('restore observes approved target, queues one repair and only reports ready after readback',async()=>{
     const s=await seedOrder(pool);await processFulfillmentOutbox(pool,{limit:100})

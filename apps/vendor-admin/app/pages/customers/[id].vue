@@ -149,6 +149,7 @@ async function cancelPendingOrder() {
                 </template>
               </template>
             </VendorSubscriptionSummary>
+            <VendorTrialPanel v-if="view?.state === 'trialing'" :subscription="view" class="mt-4" @done="async () => { await refresh(); await refreshExtra() }" />
             <p v-if="view?.pending_order && can('vendor.subscriptions.manage')" class="mt-3 text-sm text-muted">{{ t('vendor.customers.changeBlocked') }}</p>
             <UAlert v-if="cancelFailure" class="mt-3" color="error" variant="subtle" :title="cancelFailure" />
             <UAlert v-if="extra?.full.failed" class="mt-3" color="error" variant="subtle" :title="t('vendor.customers.cancelOrder.refreshFailed')"><template #actions><UButton color="neutral" variant="outline" :disabled="!hydrated || cancelBusy" @click="refreshCancellationState">{{ t('app.retry') }}</UButton></template></UAlert>

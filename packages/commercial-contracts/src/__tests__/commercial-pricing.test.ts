@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { addCadence, daysBetween, periodBounds, remainingDays, vat, paidExtraBranches, prorateMinor, riyadhDate, CommercialError } from '../commercial/index.js'
+import { addCadence, daysBetween, periodBounds, remainingDays, vat, paidExtraBranches, paidUnits, prorateMinor, riyadhDate, CommercialError, planRevisionSchema, quoteRequestSchema } from '../commercial/index.js'
+import { M, plan, sar } from './fixtures.js'
 
 describe('commercial calendar and pricing math', () => {
   it('computes paid extra branches (HQ free)', () => {
@@ -55,5 +56,34 @@ describe('commercial calendar and pricing math', () => {
   it('maps instants to the Asia/Riyadh calendar day', () => {
     expect(riyadhDate('2027-10-16T21:00:00Z')).toBe('2027-10-17')
     expect(riyadhDate('2027-10-16T20:59:59Z')).toBe('2027-10-16')
+  })
+})
+
+describe('commercial metered pricing', () => {
+  it('prices paid units above the included minimum', () => {
+    expect(paidUnits(10, 3)).toBe(7)
+    expect(paidUnits(3, 3)).toBe(0)
+    expect(paidUnits(1, 3)).toBe(0)
+    expect(() => paidUnits(-1, 3)).toThrow('invalid_quantity')
+    expect(() => paidUnits(1.5, 3)).toThrow('invalid_quantity')
+  })
+})
+
+describe('commercial metering contracts', () => {
+  it('accepts the metered fields on a plan', () => {
+    const metered = plan({ included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: M, amount: sar(2500) }], storage_prices: [{ cadence: M, amount: sar(500) }] })
+    expect(planRevisionSchema.safeParse(metered).success).toBe(true)
+  })
+  it('rejects a negative included minimum', () => {
+    expect(planRevisionSchema.safeParse(plan({ included_users: -1 })).success).toBe(false)
+  })
+  it('rejects a non-integer unit price', () => {
+    const p = plan({ user_prices: [{ cadence: M, amount: { currency: 'SAR', exponent: 2, minor: 12.5 } }] })
+    expect(planRevisionSchema.safeParse(p).success).toBe(false)
+  })
+  it('accepts the requested quantities on a quote request and rejects a negative one', () => {
+    const request = { kind: 'new', plan_revision_id: '00000000-0000-4000-8000-000000000004', bundle_revision_ids: [], cadence: M, requested_extra_branches: 0, requested_users: 10, requested_storage_mb: 20480 }
+    expect(quoteRequestSchema.safeParse(request).success).toBe(true)
+    expect(quoteRequestSchema.safeParse({ ...request, requested_users: -1 }).success).toBe(false)
   })
 })

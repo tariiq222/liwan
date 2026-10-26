@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CatalogRelease } from '@webvue/commercial-contracts'
-import { appName, bundleLimitKeys, bundleDraftFromView, dependencyHints, emptyBundleDraft, keyLabel, commercialFailure, commercialErrorKey, fieldIssue, limitFromDraft, priceRowErrors, type BundleDraft, type BundleView, type LimitDraft } from '@/utils/vendorCommercial'
+import { appName, bundleLimitKeys, bundleDraftFromView, dependencyHints, emptyBundleDraft, grantedFeatures, keyLabel, commercialFailure, commercialErrorKey, fieldIssue, limitFromDraft, priceRowErrors, type BundleDraft, type BundleView, type LimitDraft } from '@/utils/vendorCommercial'
 const props = withDefaults(defineProps<{ releases: CatalogRelease[]; initial?: BundleView; busy?: boolean; error?: unknown; resetKey?: number; requireReason?: boolean; canPrice?: boolean }>(), { busy: false, resetKey: 0, requireReason: false, canPrice: true })
 const emit = defineEmits<{ save: [draft: BundleDraft, release: CatalogRelease | undefined]; cancel: [] }>()
 const { t, te, locale } = useI18n(); const hydrated = useHydrated()
@@ -36,11 +36,7 @@ const errors = computed(() => {
   if (props.requireReason && draft.reason.trim().length < 3) e.reason = t('vendor.pricing.reasonRequired')
   return e
 })
-function toggleApp(id: string, value: boolean) { draft.apps[id] = { selected: value, features: value ? (draft.apps[id]?.features ?? []) : [] } }
-function toggleFeature(appId: string, key: string, value: boolean) {
-  const cur = draft.apps[appId] ?? { selected: true, features: [] }
-  draft.apps[appId] = { selected: true, features: value ? [...new Set([...cur.features, key])] : cur.features.filter(k => k !== key) }
-}
+function toggleApp(id: string, value: boolean) { draft.apps[id] = { selected: value, features: value ? grantedFeatures(release.value, id) : [] } }
 function submit() {
   if (!hydrated.value || props.busy) return
   attempted.value = true
@@ -71,10 +67,8 @@ const dis = computed(() => !hydrated.value || props.busy)
       <div v-for="app in selectableApps" :key="app.id" class="space-y-2 rounded-lg p-3 ring ring-default">
         <UCheckbox :model-value="draft.apps[app.id]?.selected ?? false" :label="appName(app, locale)" :disabled="dis" @update:model-value="toggleApp(app.id, $event === true)" />
         <div v-if="draft.apps[app.id]?.selected" class="ms-6 space-y-1">
-          <template v-for="f in app.features.filter(x => x.kind === 'boolean')" :key="f.key">
-            <UCheckbox v-if="f.selectable" :model-value="draft.apps[app.id]?.features.includes(f.key)" :label="keyLabel(f.key, t, te)" :disabled="dis" @update:model-value="toggleFeature(app.id, f.key, $event === true)" />
-            <p v-else class="flex items-center gap-2 text-sm text-muted"><UIcon name="i-lucide-lock" />{{ keyLabel(f.key, t, te) }} · {{ t('commercial.pricing.summary.included') }}</p>
-          </template>
+          <p class="text-sm text-muted">{{ t('vendor.pricing.bundle.grantedFeatures') }}</p>
+          <ul class="space-y-1 text-sm"><li v-for="key in grantedFeatures(release, app.id)" :key="key" class="flex items-center gap-2"><UIcon name="i-lucide-check" />{{ keyLabel(key, t, te) }}</li></ul>
         </div>
       </div>
       <UAlert v-for="h in hints.missing" :key="`m-${h.app}-${h.requires}`" color="warning" variant="subtle" :title="t('vendor.pricing.bundle.requires', { app: name(h.app), other: name(h.requires) })" />

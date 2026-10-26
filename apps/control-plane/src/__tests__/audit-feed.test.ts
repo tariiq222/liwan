@@ -37,7 +37,8 @@ describe.skipIf(!url)('audit filters on PostgreSQL', () => {
   const ids = async (query: Record<string, unknown>) => (await listAudit(pool, auditListQuerySchema.parse(query))).items.map(item => item.reason)
   beforeAll(async () => {
     await migrate(pool)
-    await pool.query('TRUNCATE audit_events, tenants, customers, vendor_accounts, plan_revisions, commercial_plans CASCADE')
+    // Plan revisions are seeded by the schema migration and shared by the catalog; this suite only needs its own fixtures.
+    await pool.query('TRUNCATE audit_events, tenants, customers, vendor_accounts CASCADE')
     const owner = await vendorSession(pool, config.installationId, ['owner'], { key: config.key })
     const outsider = await vendorSession(pool, config.installationId, ['finance'], { key: config.key })
     ownerHeaders = owner.headers; outsiderHeaders = outsider.headers; accountId = owner.accountId
@@ -60,7 +61,7 @@ describe.skipIf(!url)('audit filters on PostgreSQL', () => {
     const address = server.address(); if (!address || typeof address === 'string') throw Error('No address')
     origin = `http://127.0.0.1:${address.port}`
   })
-  afterAll(async () => { await pool.query('TRUNCATE audit_events, tenants, customers, vendor_accounts, commercial_plans CASCADE'); await new Promise<void>(resolve => server.close(() => resolve())); await pool.end() })
+  afterAll(async () => { await pool.query('TRUNCATE audit_events, tenants, customers, vendor_accounts CASCADE'); await new Promise<void>(resolve => server.close(() => resolve())); await pool.end() })
 
   it('lists newest first, valid against the contract, with resolved names', async () => {
     const result = auditListSchema.parse(await listAudit(pool, {}))

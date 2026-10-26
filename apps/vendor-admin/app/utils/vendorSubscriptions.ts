@@ -130,16 +130,16 @@ export function isNotAvailable(cause: unknown): boolean {
 export type TermsDraft = {
   basePrice: string; baseUnit: '' | 'month' | 'year'; baseCount: string
   includedExtraBranches: string; extraBranchPrice: string; extraBranchUnit: '' | 'month' | 'year'; extraBranchCount: string
-  extraBranchesLimit: LimitDraft; users: LimitDraft; storage: LimitDraft; termMonths: string; reason: string
+  extraBranchesLimit: LimitDraft; termMonths: string; reason: string
 }
 export const emptyTermsDraft = (): TermsDraft => ({
   basePrice: '', baseUnit: '', baseCount: '1', includedExtraBranches: '', extraBranchPrice: '', extraBranchUnit: '', extraBranchCount: '1',
-  extraBranchesLimit: emptyLimit(), users: emptyLimit(), storage: emptyLimit(), termMonths: '', reason: '',
+  extraBranchesLimit: emptyLimit(), termMonths: '', reason: '',
 })
 export type TermsPayload = {
   customer_id: string; reason: string; base_price?: { cadence: Cadence; amount: ReturnType<typeof sar> }
   included_extra_branches?: number; extra_branch_price?: { cadence: Cadence; amount: ReturnType<typeof sar> }
-  extra_branches_limit?: number | null; limits?: Record<string, number | null>; term_months?: number
+  extra_branches_limit?: number | null; term_months?: number
 }
 function price(amount: string, unit: string, count: string) {
   const minor = parseVendorMoneyInput(amount); const n = parseCount(count, 12)
@@ -154,10 +154,6 @@ export function termsPayload(customerId: string, d: TermsDraft): TermsPayload {
   if (d.includedExtraBranches.trim()) { const n = parseCount(d.includedExtraBranches); if (n === null) throw new Error('invalid_count'); out.included_extra_branches = n }
   if (d.extraBranchPrice.trim()) out.extra_branch_price = price(d.extraBranchPrice, d.extraBranchUnit, d.extraBranchCount)
   if (touched(d.extraBranchesLimit)) out.extra_branches_limit = limitFromDraft(d.extraBranchesLimit)
-  const limits: Record<string, number | null> = {}
-  if (touched(d.users)) limits['users.limit'] = limitFromDraft(d.users)
-  if (touched(d.storage)) limits['storage.limit_mb'] = limitFromDraft(d.storage)
-  if (Object.keys(limits).length) out.limits = limits
   if (d.termMonths.trim()) { const n = parseCount(d.termMonths, 120); if (n === null || n < 1) throw new Error('invalid_count'); out.term_months = n }
   if (Object.keys(out).length <= 2 || out.reason.length < 3) throw new Error('invalid_terms')
   return out
@@ -166,7 +162,7 @@ export function hasTermsOverride(d: TermsDraft): boolean {
   try { termsPayload('x', { ...d, reason: d.reason.trim().length >= 3 ? d.reason : 'xxx' }); return true } catch { return false }
 }
 /** Preview body for POST commercial/customer-quotes: the server computes both sides; `terms` is an unsaved draft, nothing is persisted. */
-export function customerQuoteBody(customerId: string, view: SubscriptionView, extra: { terms?: Omit<TermsPayload, 'customer_id' | 'reason'>; planRevisionId?: string; bundleIds?: string[]; cadence?: Cadence; extraBranches?: number } = {}) {
+export function customerQuoteBody(customerId: string, view: SubscriptionView, extra: { terms?: Omit<TermsPayload, 'customer_id' | 'reason'>; planRevisionId?: string; bundleIds?: string[]; cadence?: Cadence; extraBranches?: number; users?: number; storageMb?: number } = {}) {
   const base = view.target ?? view.applied
   if (!base) {
     if (!extra.planRevisionId || !extra.cadence || !extra.bundleIds) throw new Error('no_subscription')
@@ -174,12 +170,15 @@ export function customerQuoteBody(customerId: string, view: SubscriptionView, ex
       customer_id: customerId, kind: 'new' as const, subscription_id: view.id, expected_subscription_revision: view.revision,
       plan_revision_id: extra.planRevisionId, bundle_revision_ids: extra.bundleIds,
       cadence: extra.cadence, requested_extra_branches: extra.extraBranches ?? 0,
+      requested_users: extra.users ?? 0, requested_storage_mb: extra.storageMb ?? 0,
     }
   }
   return {
     customer_id: customerId, kind: 'change' as const, subscription_id: view.id, expected_subscription_revision: view.revision,
     plan_revision_id: extra.planRevisionId ?? base.plan_revision_id, bundle_revision_ids: extra.bundleIds ?? base.bundle_revision_ids,
     cadence: extra.cadence ?? base.cadence, requested_extra_branches: extra.extraBranches ?? base.extra_branch_count,
+    requested_users: extra.users ?? Number(base.entitlement.features['users.limit'] ?? 0),
+    requested_storage_mb: extra.storageMb ?? Number(base.entitlement.features['storage.limit_mb'] ?? 0),
     ...(extra.terms ? { terms: extra.terms } : {}),
   }
 }
