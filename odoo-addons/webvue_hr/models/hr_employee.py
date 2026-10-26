@@ -195,6 +195,37 @@ class WebVueHrEmployee(models.Model):
         with self.env.cr.savepoint():
             return super().write(vals)
 
+    def _webvue_exit_blockers(self):
+        """What keeps these employees from leaving the company, as ``{code, message, details}`` dicts.
+
+        ``departure_missing`` (no departure date), ``custody_open`` (active equipment still assigned) and
+        ``settlement_missing`` (no confirmed final settlement for the current departure). ``details`` names
+        the employees (and equipment) concerned. The clearance checklist is deliberately not a blocker.
+        """
+        blockers = []
+        departed = self.filtered('departure_date')
+        undeparted = self - departed
+        if undeparted:
+            blockers.append(self._webvue_exit_blocker(
+                'departure_missing', self.env._('Record the departure date of the employee first.'), undeparted,
+            ))
+        equipment = self.env['maintenance.equipment'].search([('employee_id', 'in', self.ids)])
+        if equipment:
+            blockers.append(self._webvue_exit_blocker(
+                'custody_open', self.env._('Return the equipment assigned to the employee first.'),
+                equipment.employee_id, equipment_ids=equipment.ids,
+            ))
+        confirmed = self.env['webvue.hr.payroll.eos.settlement']._webvue_confirmed_employee_ids(departed)
+        unsettled = departed.filtered(lambda employee: employee.id not in confirmed)
+        if unsettled:
+            blockers.append(self._webvue_exit_blocker(
+                'settlement_missing', self.env._('Confirm the final settlement of the employee first.'), unsettled,
+            ))
+        return blockers
+
+    def _webvue_exit_blocker(self, code, message, employees, **details):
+        return {'code': code, 'message': message, 'details': {'employee_ids': employees.ids, **details}}
+
     def _webvue_before_archive(self):
         """Extension point run inside the archive savepoint, before the rows are deactivated."""
 
@@ -202,6 +233,10 @@ class WebVueHrEmployee(models.Model):
         self._webvue_require_capability('hr.employees.archive')
         self._webvue_validate_scope()
         with self.env.cr.savepoint():
+            for blocker in self._webvue_exit_blockers():
+                raise WebVueHrRule(
+                    blocker['code'], blocker['message'], field='employee_id', details=blocker['details'],
+                )
             self._webvue_before_archive()
             # The resource model is deliberately protected against generic
             # active writes. Update the two stored columns here as the

@@ -4,6 +4,7 @@ from odoo.tests import TransactionCase, new_test_user, tagged
 
 from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 from odoo.addons.webvue_hr.rules import WebVueHrRule
+from odoo.addons.webvue_hr.tests.common import make_archivable
 
 
 @tagged('webvue', '-at_install', 'post_install')
@@ -115,6 +116,7 @@ class TestEmployeeAccountModel(TransactionCase):
         employee = self._employee()
         user = self._linked_user('archive_model_employee')
         employee.write({'user_id': user.id})
+        make_archivable(self.env, employee)
         employee.with_user(self.hr_manager)._webvue_archive()
         employee.invalidate_recordset(['active'])
         user.invalidate_recordset(['active'])
@@ -133,6 +135,7 @@ class TestEmployeeAccountModel(TransactionCase):
     def test_archive_refuses_to_disable_the_acting_account(self):
         employee = self._employee()
         employee.write({'user_id': self.hr_manager.id})
+        make_archivable(self.env, employee)
         with self.assertRaises(WebVueAccessRule) as error:
             employee.with_user(self.hr_manager)._webvue_archive()
         self.assertEqual(error.exception.code, 'self_access_change')
@@ -147,6 +150,7 @@ class TestEmployeeAccountModel(TransactionCase):
             company_ids=[self.company.id],
         )
         employee.write({'user_id': vendor.id})
+        make_archivable(self.env, employee)
         with self.assertRaises(WebVueAccessRule) as error:
             employee.with_user(self.hr_manager)._webvue_archive()
         self.assertEqual((error.exception.code, error.exception.status), ('protected_user', 403))
@@ -158,6 +162,7 @@ class TestEmployeeAccountModel(TransactionCase):
     def test_archive_refuses_to_disable_the_last_access_admin(self):
         employee = self._employee()
         employee.write({'user_id': self.access_admin.id})
+        make_archivable(self.env, employee)
         others = self.env['res.users'].search([
             ('company_id', '=', self.company.id), ('id', 'not in', (self.access_admin | self.hr_manager).ids),
         ]).filtered(lambda user: self.service._webvue_has_capability(user, 'access.users.assign_roles'))

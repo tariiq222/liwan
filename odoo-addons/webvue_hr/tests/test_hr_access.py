@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import new_test_user, tagged
 
-from .common import WebVueHrCase
+from .common import WebVueHrCase, make_archivable
 
 
 @tagged('post_install', '-at_install', 'webvue')
@@ -61,6 +61,7 @@ class TestHrAccessSeparation(WebVueHrCase):
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json()['job_title'], 'Coordinator')
 
+        make_archivable(self.env, self.env['hr.employee'].browse(created_id))
         result = self.api('POST', f'/api/v1/hr/employees/{created_id}/archive', {})
         self.assertEqual(result.status_code, 200)
         self.assertFalse(result.json()['active'])
@@ -102,6 +103,7 @@ class TestHrAccessSeparation(WebVueHrCase):
         )
         employee = self._employee(email='atomic.archive@example.com')
         employee.write({'user_id': linked_user.id})
+        make_archivable(self.env, employee)
         self.authenticate('separation_hr_manager', 'separation_hr_manager_pass_123')
 
         result = self.api('POST', f'/api/v1/hr/employees/{employee.id}/archive', {})
@@ -124,6 +126,7 @@ class TestHrAccessSeparation(WebVueHrCase):
             name='HR Manager Employee', email='separation_hr_manager@example.com',
         )
         own_employee.write({'user_id': self.hr_manager.id})
+        make_archivable(self.env, own_employee)
         self.authenticate('separation_hr_manager', 'separation_hr_manager_pass_123')
         result = self.api('POST', f'/api/v1/hr/employees/{own_employee.id}/archive', {})
         self.assertEqual((result.status_code, result.json()['code']), (422, 'self_access_change'))
@@ -137,6 +140,7 @@ class TestHrAccessSeparation(WebVueHrCase):
         )
         vendor_employee = self._employee(name='Vendor Employee', email='vendor.employee@example.com')
         vendor_employee.write({'user_id': vendor.id})
+        make_archivable(self.env, vendor_employee)
         result = self.api('POST', f'/api/v1/hr/employees/{vendor_employee.id}/archive', {})
         self.assertEqual((result.status_code, result.json()['code']), (403, 'protected_user'))
 
@@ -184,6 +188,7 @@ class TestHrAccessSeparation(WebVueHrCase):
             'company_id': isolated_company.id,
         })
         access_admin_employee.write({'user_id': access_admin.id})
+        make_archivable(self.env, access_admin_employee)
         self.authenticate('isolated_hr_manager', 'isolated_hr_manager_pass_123')
         result = self.api('POST', f'/api/v1/hr/employees/{access_admin_employee.id}/archive', {})
         self.assertEqual((result.status_code, result.json()['code']), (409, 'last_access_admin'))
@@ -198,6 +203,7 @@ class TestHrAccessSeparation(WebVueHrCase):
         )
         employee = self._employee(email='restore.stopped@example.com')
         employee.write({'user_id': linked_user.id})
+        make_archivable(self.env, employee)
         self.authenticate('separation_hr_manager', 'separation_hr_manager_pass_123')
 
         result = self.api('POST', f'/api/v1/hr/employees/{employee.id}/archive', {})

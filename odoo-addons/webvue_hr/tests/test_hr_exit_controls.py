@@ -1,0 +1,129 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import date
+
+from odoo.tests import tagged
+
+from .payroll_common import PayrollCase
+
+ARCHIVE = '/api/v1/hr/employees/{}/archive'
+EOS = '/api/v1/hr/payroll/eos'
+RUNS = '/api/v1/hr/payroll/runs'
+DEPARTURE = date(2026, 11, 30)
+IBAN = 'SA0380000000608010167519'
+
+
+@tagged('post_install', '-at_install', 'webvue')
+class TestHrExitControls(PayrollCase):
+    """Archiving an employee and approving a payroll run both wait for the exit blockers."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.hr = cls.payroll_user(cls, 'exit_hr', ['hr.employees.read', 'hr.employees.archive'])
+        cls.officer = cls.payroll_user(
+            cls, 'exit_officer', ['hr.payroll.read', 'hr.payroll.manage', 'hr.employees.read'])
+        cls.approver = cls.payroll_user(
+            cls, 'exit_approver', ['hr.payroll.read', 'hr.payroll.approve', 'hr.employees.read'])
+        cls.category = cls.env['maintenance.equipment.category'].create({'name': 'Exit laptops'})
+
+    def _leaver(self, name, departure=DEPARTURE):
+        employee = self.make_employee(name, start=date(2023, 12, 1))
+        self.set_compensation(employee, 8000, 2000, 500, iban=IBAN, gosi_registration_date=date(2020, 1, 1))
+        if departure:
+            employee.write({
+                'departure_date': departure, 'departure_reason_id': self.env.ref('hr.departure_resigned').id,
+            })
+        return employee
+
+    def _custody(self, employee):
+        return self.env['maintenance.equipment'].create({
+            'name': f'Laptop of {employee.name}', 'category_id': self.category.id,
+            'equipment_assign_to': 'employee', 'employee_id': employee.id,
+        })
+
+    def _settle(self, employee):
+        self.env['webvue.hr.payroll.eos.settlement']._webvue_save_draft(employee, 'resignation', 0)
+        self.env['webvue.hr.payroll.eos.settlement']._webvue_current(employee)._webvue_confirm()
+
+    def _archive(self, employee, user=None):
+        self.authenticate((user or self.hr).login, f'{(user or self.hr).login}_pass_123')
+        return self.api('POST', ARCHIVE.format(employee.id), json={})
+
+    def _assert_refused(self, res, employee, code):
+        self.assertEqual((res.status_code, res.json()['code']), (422, code))
+        self.assertIn(employee.id, res.json()['details']['employee_ids'])
+        employee.invalidate_recordset(['active'])
+        self.assertTrue(employee.active)
+
+    def test_archive_without_departure_is_refused(self):
+        employee = self._leaver('No Departure', departure=None)
+        self._assert_refused(self._archive(employee), employee, 'departure_missing')
+
+    def test_archive_with_open_custody_is_refused_for_an_archive_only_caller(self):
+        employee = self._leaver('Holds Custody')
+        equipment = self._custody(employee)
+        self._settle(employee)
+        res = self._archive(employee)
+        self._assert_refused(res, employee, 'custody_open')
+        self.assertEqual(res.json()['details']['equipment_ids'], equipment.ids)
+
+    def test_archive_without_a_confirmed_settlement_is_refused(self):
+        employee = self._leaver('Unsettled')
+        self._assert_refused(self._archive(employee), employee, 'settlement_missing')
+
+    def test_a_draft_or_stale_settlement_is_not_a_confirmed_one(self):
+        employee = self._leaver('Draft Only')
+        self.env['webvue.hr.payroll.eos.settlement']._webvue_save_draft(employee, 'resignation', 0)
+        self._assert_refused(self._archive(employee), employee, 'settlement_missing')
+        self.env['webvue.hr.payroll.eos.settlement']._webvue_current(employee)._webvue_confirm()
+        employee.write({'departure_date': date(2026, 12, 15)})
+        self._assert_refused(self._archive(employee), employee, 'settlement_missing')
+
+    def test_first_blocker_wins_in_the_documented_order(self):
+        employee = self._leaver('Everything Open', departure=None)
+        self._custody(employee)
+        self._assert_refused(self._archive(employee), employee, 'departure_missing')
+
+    def test_happy_path_archives(self):
+        employee = self._leaver('Clean Exit')
+        self._settle(employee)
+        res = self._archive(employee)
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(res.json()['active'])
+
+    def test_returned_custody_no_longer_blocks(self):
+        employee = self._leaver('Returns Laptop')
+        equipment = self._custody(employee)
+        self._settle(employee)
+        equipment.write({'employee_id': False, 'equipment_assign_to': 'other'})
+        self.assertEqual(self._archive(employee).status_code, 200)
+
+    def test_open_clearance_alone_does_not_block(self):
+        employee = self._leaver('Clearance Open')
+        self._settle(employee)
+        self.assertEqual(employee._webvue_exit_blockers(), [])
+        self.assertEqual(self._archive(employee).status_code, 200)
+
+    def test_archive_still_disables_the_linked_account(self):
+        user = self.env['res.users'].create({
+            'name': 'Exit Linked', 'login': 'exit_linked', 'password': 'exit_linked_pass_123',
+            'group_ids': [(6, 0, [self.env.ref('webvue_core.group_employee').id])],
+        })
+        employee = self._leaver('Linked Leaver')
+        employee.write({'user_id': user.id})
+        self._settle(employee)
+        self.assertEqual(self._archive(employee).status_code, 200)
+        user.invalidate_recordset(['active'])
+        self.assertFalse(user.active)
+
+    def test_payroll_approval_refuses_a_leaver_holding_custody(self):
+        employee = self._leaver('Payroll Custody')
+        self._custody(employee)
+        self._settle(employee)
+        self.authenticate(self.officer.login, f'{self.officer.login}_pass_123')
+        run = self.api('POST', RUNS, json={'month': '2026-11'}).json()
+        self.assertEqual(self.api('POST', f"{RUNS}/{run['id']}/compute").status_code, 200)
+        self.authenticate(self.approver.login, f'{self.approver.login}_pass_123')
+        res = self.api('POST', f"{RUNS}/{run['id']}/approve")
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'custody_open'))
+        self.assertEqual(res.json()['details']['employee_ids'], [employee.id])

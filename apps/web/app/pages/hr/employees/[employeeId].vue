@@ -21,14 +21,22 @@ const backTo = computed(() => owningListBack(route.query, sourcePaths.value, rou
 const canReadCompensation = computed(() => can('hr.payroll.read'))
 const compensation = useHrCompensation(computed(() => isDetail.value && validId.value ? id.value : 0))
 const confirmArchive = ref(false)
-const { mutateAsync: archive, isPending: archiving } = useArchiveHrEmployee()
+const { mutateAsync: archive, isPending: archiving, error: archiveError, reset: resetArchive } = useArchiveHrEmployee()
+// The server names the first exit blocker (departure, custody, settlement); show it inline, never in a dialog.
+const EXIT_BLOCKERS = new Set(['departure_missing', 'custody_open', 'settlement_missing'])
+const exitBlocker = computed(() => archiveError.value instanceof ApiError && EXIT_BLOCKERS.has(archiveError.value.code) ? archiveError.value.code : null)
 const { mutateAsync: unarchive, isPending: unarchiving } = useUnarchiveHrEmployee()
 const archivePending = computed(() => archiving.value || unarchiving.value)
 async function toggleArchive() {
   if (!query.data.value || !hydrated.value) return
-  if (query.data.value.active) await archive(query.data.value.id)
-  else await unarchive(query.data.value.id)
-  confirmArchive.value = false
+  try {
+    if (query.data.value.active) await archive(query.data.value.id)
+    else await unarchive(query.data.value.id)
+    confirmArchive.value = false
+  } catch (error) {
+    if (!exitBlocker.value) throw error
+    confirmArchive.value = false
+  }
 }
 const headerTags = computed(() => query.data.value
   ? [{ label: t(query.data.value.active ? 'hr.directory.status.active' : 'hr.directory.status.archived'), tone: query.data.value.active ? 'success' : 'neutral' } satisfies PageHeaderTag]
@@ -43,7 +51,7 @@ const menuActions = computed<RowAction[]>(() => {
       label: employee.active ? t('hr.employee.archive') : t('hr.employee.unarchive'),
       icon: employee.active ? 'i-lucide-archive' : 'i-lucide-archive-restore',
       destructive: employee.active,
-      onSelect: () => { confirmArchive.value = !confirmArchive.value },
+      onSelect: () => { resetArchive(); confirmArchive.value = !confirmArchive.value },
     } satisfies RowAction] : []),
   ]
 })
@@ -63,6 +71,15 @@ const menuActions = computed<RowAction[]>(() => {
       <UButton v-if="!query.data.value.user_id && can('access.users.grant')" color="neutral" variant="outline" icon="i-lucide-key-round" :disabled="!hydrated" :to="recordChildTo(`/hr/employees/${id}/access`, route.query, sourcePaths, route.hash)" :label="t('hr.employee.grantAccess')" data-testid="hr-employee-grant-access" @click="!hydrated && $event.preventDefault()" />
       <SharedRowActions :actions="menuActions" :label="t('hr.directory.rowActions', { name: query.data.value.name })" :disabled="archivePending" />
     </template>
+    <UAlert
+      v-if="query.data.value && exitBlocker"
+      role="alert"
+      color="warning"
+      variant="subtle"
+      :title="t('hr.employee.exitBlocked.title')"
+      :description="t(`hr.employee.exitBlocked.${exitBlocker}`)"
+      data-testid="hr-employee-exit-blocker"
+    />
     <SharedInlineConfirm
       v-if="query.data.value && confirmArchive"
       :color="query.data.value.active ? 'error' : 'primary'"

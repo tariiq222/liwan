@@ -161,7 +161,10 @@ class HrPayslipRun(models.Model):
                 'message': self.env._('The run has no payslip: no employee with a compensation record is due this month.'),
                 'field': 'employee_id',
             }]
-        return [*self._webvue_settlement_blockers(), *self._webvue_stale_blockers(), *self._webvue_iban_blockers()]
+        return [
+            *self._webvue_settlement_blockers(), *self._webvue_custody_blockers(),
+            *self._webvue_stale_blockers(), *self._webvue_iban_blockers(),
+        ]
 
     def _webvue_leavers(self):
         return self.slip_ids.employee_id.filtered(
@@ -217,6 +220,13 @@ class HrPayslipRun(models.Model):
             'field': 'employee_id',
             'details': {'employee_ids': missing.ids},
         }]
+
+    def _webvue_custody_blockers(self):
+        """``custody_open`` for leavers of the month who still hold equipment, from the employee's exit check."""
+        return [
+            {'code': blocker['code'], 'message': blocker['message'], 'field': 'employee_id', 'details': blocker['details']}
+            for blocker in self._webvue_leavers()._webvue_exit_blockers() if blocker['code'] == 'custody_open'
+        ]
 
     def _webvue_iban_blockers(self):
         """``missing_iban`` for employees with a net to pay and no IBAN to pay it to (owner decision D-10)."""

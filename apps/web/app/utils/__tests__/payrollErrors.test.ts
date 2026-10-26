@@ -19,7 +19,7 @@ const sharedAr = {
 // (kept in step with OWN_TEXT/NAMING in payrollErrors.ts).
 const OWN_CODES = [
   'duplicate', 'transition_forbidden', 'structure_missing', 'contract_missing', 'gosi_rate_missing', 'payroll_structure_mismatch',
-  'compensation_missing', 'settlement_missing', 'settlement_changed', 'annual_leave_type_missing', 'departure_missing', 'eos_case_missing',
+  'compensation_missing', 'settlement_missing', 'custody_open', 'settlement_changed', 'annual_leave_type_missing', 'departure_missing', 'eos_case_missing',
   'period_locked', 'missing_cost_center', 'settings_incomplete', 'wps_totals_mismatch', 'run_empty', 'nationality_missing',
   'gosi_registration_missing', 'provision_after_run', 'profile_in_use', 'profile_unavailable',
 ]
