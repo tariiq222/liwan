@@ -133,7 +133,7 @@ msgstr "مطلوب مشروع مقروء في الشركة الحالية."
 #. module: webvue_pmo
 #: model:ir.model.fields,field_description:webvue_pmo.field_webvue_project_raci__accountable_task_id
 msgid "Accountable Task"
-msgstr "المهمة المسؤولة عنها"
+msgstr "المهمة المسؤول عنها"
 
 #. module: webvue_pmo
 #: model:ir.model.fields,field_description:webvue_pmo.field_webvue_project_charter_catalog_mixin__active
@@ -652,7 +652,7 @@ msgstr "النوع"
 #: model:ir.model.fields,field_description:webvue_pmo.field_webvue_project_stakeholder__write_uid
 #: model:ir.model.fields,field_description:webvue_pmo.field_webvue_project_type__write_uid
 msgid "Last Updated by"
-msgstr "حدّثه"
+msgstr "آخر تعديل بواسطة"
 
 #. module: webvue_pmo
 #: model:ir.model.fields,field_description:webvue_pmo.field_webvue_project_finance_entry__write_date
@@ -662,7 +662,7 @@ msgstr "حدّثه"
 #: model:ir.model.fields,field_description:webvue_pmo.field_webvue_project_stakeholder__write_date
 #: model:ir.model.fields,field_description:webvue_pmo.field_webvue_project_type__write_date
 msgid "Last Updated on"
-msgstr "تاريخ آخر تحديث"
+msgstr "تاريخ آخر تعديل"
 
 #. module: webvue_pmo
 #: model:ir.model.fields.selection,name:webvue_pmo.selection__project_project__webvue_priority__low
@@ -707,7 +707,7 @@ msgstr "يجب أن يكون الموعد النهائي للمعلم في أو 
 #. odoo-python
 #: code:addons/webvue_pmo/models/project_milestone.py:0
 msgid "Milestone deliverable done must be a boolean."
-msgstr "حدد حالة إنجاز مخرج المعلم بصحيح أو خطأ."
+msgstr "يجب أن تكون حالة إنجاز مخرج المعلم قيمة منطقية (صحيح أو خطأ)."
 
 #. module: webvue_pmo
 #. odoo-python
@@ -762,7 +762,7 @@ msgstr "الاسم"
 #. module: webvue_pmo
 #: model:ir.model.fields.selection,name:webvue_pmo.selection__project_project__webvue_completion_approval__none
 msgid "None"
-msgstr "بلا"
+msgstr "لا يوجد"
 
 #. module: webvue_pmo
 #: model:ir.model.fields.selection,name:webvue_pmo.selection__project_project__webvue_priority__normal
@@ -1065,14 +1065,14 @@ msgstr "يجب تحديد بداية الجدولة ونهايتها معًا، 
 #. odoo-python
 #: code:addons/webvue_pmo/models/task_schedule.py:0
 msgid "Schedule start and end must be set together."
-msgstr "يُحدَّد بداية الجدولة ونهايتها معًا."
+msgstr "تُحدَّد بداية الجدولة ونهايتها معًا."
 
 #. module: webvue_pmo
 #. odoo-python
 #: code:addons/webvue_pmo/models/project_task.py:0
 #: code:addons/webvue_pmo/models/task_schedule.py:0
 msgid "Schedule start must be on or before the end date."
-msgstr "يجب أن يكون بدء الجدولة في تاريخ الإنتهاء أو قبله."
+msgstr "يجب أن يكون بدء الجدولة في تاريخ الانتهاء أو قبله."
 
 #. module: webvue_pmo
 #. odoo-python
@@ -1556,7 +1556,7 @@ msgstr "مراجعة الإكمال"
 #. module: webvue_pmo
 #: model:ir.model.fields,field_description:webvue_pmo.field_project_project__webvue_constraints
 msgid "Webvue Constraints"
-msgstr "المعوقات"
+msgstr "القيود"
 
 #. module: webvue_pmo
 #: model:ir.model.fields,field_description:webvue_pmo.field_project_milestone__webvue_deliverables
@@ -1856,4 +1856,4 @@ msgstr "سياسات المشروع"
 #. module: webvue_pmo
 #: model:ir.actions.server,name:webvue_pmo.ir_cron_webvue_deadline_notifications_ir_actions_server
 msgid "webvue: deadline notifications"
-msgstr "ويب فيو: إشعارات المواعيد"
+msgstr "ويب فيو: إشعارات المواعيد النهائية"
