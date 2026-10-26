@@ -12,8 +12,6 @@ import { expect, test, type Page, type Route } from '@playwright/test'
 // The stub grants `finance.setup.read`/`finance.setup.manage`; the shared UI preview mock does not carry the
 // finance capabilities, which is why this spec brings its own upstream instead of depending on that mock.
 //
-// NOT RUN yet in this task: the isolated stack and the screenshot matrix require the captain's port
-// allocation. Every assertion below is authored, not executed, so nothing here claims browser proof.
 process.env.NUXT_ODOO_DB = 'webvue_fiscal_settings_unused_scratch'
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -236,7 +234,9 @@ test('a changed company refuses the write and hides the draft it no longer speak
   await expect(fiscalCard(page).getByText(/تغيّرت الشركة أو هوية الدخول/)).toBeVisible()
   await expect(page.getByText('تم حفظ إعدادات السنة والأقفال.', { exact: true })).toHaveCount(0)
   expect(fiscalPatches).toHaveLength(1)
-  await expect(page.locator('#finance-fiscal-fiscalyear_last_day')).toHaveValue('31')
+  // The draft is discarded, not reverted: nothing of it stays in the field and nothing can be saved.
+  await expect(page.locator('#finance-fiscal-fiscalyear_last_day')).toHaveValue('')
+  await expect(saveButton(page)).toBeDisabled()
 })
 
 test('reverting sends nothing, and a hash change keeps the draft', async ({ page }) => {
@@ -247,7 +247,7 @@ test('reverting sends nothing, and a hash change keeps the draft', async ({ page
   await expect(day).toHaveValue('31')
   await expect(saveButton(page)).toBeDisabled()
   await day.fill('30')
-  await page.getByTestId('settings-context-sub-list').getByRole('link').first().click()
+  await page.getByTestId('settings-context-sub-list').locator('a[href$="#setup"]').click()
   await expect(page.getByTestId('unsaved-changes-dialog')).toHaveCount(0)
   await expect(day).toHaveValue('30')
   expect(fiscalPatches).toHaveLength(0)
@@ -255,15 +255,15 @@ test('reverting sends nothing, and a hash change keeps the draft', async ({ page
 
 // The matrix the design review asked for: the reader, editor and rejection states at the three widths.
 // Light/dark come from the appearance cookie and RTL/LTR from the locale cookie; both cookie names are read
-// from the app's own composables (webvue-appearance, i18n_redirected) and are re-checked when this runs.
-for (const { locale, dir, i18n } of [{ locale: 'ar', dir: 'rtl', i18n: '' }, { locale: 'en', dir: 'ltr', i18n: 'en' }]) {
+// from the app's own composables (webvue-appearance, webvue-locale) and are re-checked when this runs.
+for (const { locale, dir, i18n } of [{ locale: 'ar', dir: 'rtl', i18n: 'ar' }, { locale: 'en', dir: 'ltr', i18n: 'en' }]) {
   for (const appearance of ['light', 'dark']) {
     test(`fiscal.<state>.${locale}.${appearance} across widths`, async ({ page }, testInfo) => {
       for (const width of [390, 768, 1440]) {
         await page.setViewportSize({ width, height: 900 })
         await openFiscal(page, [
           { name: 'webvue-appearance', value: JSON.stringify({ mode: appearance, fontSize: 'medium' }) },
-          ...(i18n ? [{ name: 'i18n_redirected', value: i18n }] : []),
+          ...(i18n ? [{ name: 'webvue-locale', value: i18n }] : []),
         ])
         await expect(page.locator('html')).toHaveAttribute('dir', dir)
         await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
@@ -273,8 +273,9 @@ for (const { locale, dir, i18n } of [{ locale: 'ar', dir: 'rtl', i18n: '' }, { l
         await day.fill('30')
         await page.screenshot({ path: testInfo.outputPath(`fiscal.editing.${locale}.${appearance}.${width}.png`), fullPage: true })
         rejectNextPatch = { status: 422, code: 'fiscal_year_has_posted_entries', message: 'server text' }
-        await saveButton(page).click()
-        await expect(page.getByText('تم حفظ إعدادات السنة والأقفال.', { exact: true })).toHaveCount(0)
+        // The label follows the locale, so the submit button is found by its type.
+        await fiscalCard(page).locator('button[type="submit"]').click()
+        await expect(fiscalCard(page).getByRole('alert')).toBeVisible()
         await page.screenshot({ path: testInfo.outputPath(`fiscal.rejected.${locale}.${appearance}.${width}.png`), fullPage: true })
       }
     })
