@@ -23,7 +23,7 @@ function saved(equipment: HrEquipment) {
 
 <template>
   <SharedCreatePanel :title="t('hrAssets.new')" :back-to="backTo">
-    <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
+    <SharedForbiddenState v-if="!canManage" />
     <SharedPageState v-else :loading="categories.isLoading.value" :error="categories.error.value" @retry="categories.refetch">
       <EquipmentForm :categories="categories.data.value?.items ?? []" :back-to="backTo" @saved="saved" />
     </SharedPageState>

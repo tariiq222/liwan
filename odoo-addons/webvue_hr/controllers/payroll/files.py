@@ -51,9 +51,12 @@ def _month(run):
 
 
 def _csv_response(content, filename):
+    """A salary file: never cached by the browser or a proxy, and never sniffed into another type."""
     return request.make_response(content, headers=[
         ('Content-Type', 'text/csv; charset=utf-8'),
         ('Content-Disposition', content_disposition(filename)),
+        ('Cache-Control', 'private, no-store'),
+        ('X-Content-Type-Options', 'nosniff'),
     ])
 
 

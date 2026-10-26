@@ -45,6 +45,8 @@ export const KNOWN_CAPABILITIES = [
   'hr.payroll.manage',
   'hr.payroll.approve',
   'hr.payroll.config',
+  'hr.payroll.audit.read',
+  'hr.payroll.finance.manage',
   'documents.items.read',
   'documents.items.manage',
   'documents.items.archive',

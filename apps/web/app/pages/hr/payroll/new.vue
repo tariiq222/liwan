@@ -19,7 +19,7 @@ function saved(run: HrPayrollRun) {
 
 <template>
   <SharedCreatePanel :title="t('hrPayroll.runs.new')" :back-to="backTo">
-    <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
+    <SharedForbiddenState v-if="!canManage" />
     <PayrollRunCreateForm v-else :back-to="backTo" @saved="saved" />
   </SharedCreatePanel>
 </template>

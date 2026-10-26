@@ -66,7 +66,11 @@ class HrPayrollEosController(http.Controller):
     def put_settlement(self, employee_id, **payload):
         employee = payroll_employee(employee_id)
         case, open_deductions = parse_settlement(payload)
-        settlement = request.env['webvue.hr.payroll.eos.settlement']._webvue_save_draft(employee, case, open_deductions)
+        Settlement = request.env['webvue.hr.payroll.eos.settlement']
+        Audit = request.env['webvue.hr.audit.event']
+        before = Audit._webvue_policy_snapshot(Settlement._webvue_current(employee))
+        settlement = Settlement._webvue_save_draft(employee, case, open_deductions)
+        Audit._webvue_log('settlement_saved', settlement, before)
         return dump_settlement(settlement)
 
     @http.route(f'{EOS_ROUTE}/<int:employee_id>/settlement/confirm', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -76,7 +80,10 @@ class HrPayrollEosController(http.Controller):
     @requires_capability('hr.payroll.approve')
     def confirm_settlement(self, employee_id, **_):
         settlement = _settlement(payroll_employee(employee_id))
+        Audit = request.env['webvue.hr.audit.event']
+        before = Audit._webvue_policy_snapshot(settlement)
         settlement._webvue_confirm()
+        Audit._webvue_log('settlement_confirmed', settlement, before)
         return dump_settlement(settlement)
 
     @http.route('/api/v1/hr/payroll/eos-cases', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -93,5 +100,9 @@ class HrPayrollEosController(http.Controller):
     @requires_capability('hr.payroll.config')
     def put_case(self, **payload):
         reason, case = parse_case_map(payload, request.env)
-        request.env['webvue.hr.payroll.eos.case']._webvue_set_case(reason, current_company(), case)
+        Case = request.env['webvue.hr.payroll.eos.case']
+        Audit = request.env['webvue.hr.audit.event']
+        before = Audit._webvue_policy_snapshot(Case._webvue_company_row(reason, current_company()))
+        row = Case._webvue_set_case(reason, current_company(), case)
+        Audit._webvue_log('eos_case_changed', row, before)
         return _case_item(reason)
