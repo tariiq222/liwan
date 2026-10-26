@@ -44,7 +44,7 @@ msgstr "المعرّف"
 #. odoo-python
 #: code:addons/webvue_api/serializers/maintenance.py:0
 msgid "Invalid integer value."
-msgstr "القيمة العددية الصحيحة غير صالحة."
+msgstr "قيمة العدد الصحيح غير صالحة."
 
 #. module: webvue_api
 #: model:ir.model.fields.selection,name:webvue_api.selection__res_users__webvue_font_size__large
@@ -65,7 +65,7 @@ msgstr "توجد حقول صيانة مفقودة أو غير معروفة."
 #. module: webvue_api
 #: model:ir.model.fields.selection,name:webvue_api.selection__res_users__webvue_font_size__medium
 msgid "Medium"
-msgstr "وسط"
+msgstr "متوسط"
 
 #. module: webvue_api
 #. odoo-python
