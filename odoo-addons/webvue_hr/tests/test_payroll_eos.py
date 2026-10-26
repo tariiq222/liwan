@@ -21,7 +21,7 @@ SETTLEMENT_KEYS = {
     'id', 'employee', 'state', 'departure_date', 'departure_mismatch', 'case', 'service_years', 'eos_wage', 'award',
     'leave_days', 'leave_amount', 'open_deductions', 'total',
 }
-CASE_KEYS = {'departure_reason', 'case'}
+CASE_KEYS = {'departure_reason', 'case', 'revision'}
 EOS = '/api/v1/hr/payroll/eos'
 CASES = '/api/v1/hr/payroll/eos-cases'
 RUNS = '/api/v1/hr/payroll/runs'
@@ -182,17 +182,17 @@ class TestPayrollEos(PayrollCase):
         self.assertEqual(set(listing), {'items', 'total'})
         self.assertEqual(set(listing['items'][0]), CASE_KEYS)
         self.assertIsNone(next(item for item in listing['items'] if item['departure_reason']['id'] == other.id)['case'])
-        res = self.api('PUT', CASES, json={'departure_reason_id': other.id, 'case': 'termination'})
+        res = self.api('PUT', CASES, json={'departure_reason_id': other.id, 'case': 'termination', 'revision': 0})
         self.assertEqual((res.status_code, res.json()['code']), (403, 'forbidden'))
         self._login(self.config)
-        res = self.api('PUT', CASES, json={'departure_reason_id': other.id, 'case': 'termination'})
+        res = self.api('PUT', CASES, json={'departure_reason_id': other.id, 'case': 'termination', 'revision': 0})
         self.assertEqual(res.status_code, 200, res.text)
-        self.assertEqual(res.json()['case'], 'termination')
+        self.assertEqual((res.json()['case'], res.json()['revision']), ('termination', 1))
         res = self._estimate(self.reader, self.leaver, f'?date={DEPARTURE}')
         self.assertEqual(res.status_code, 200, res.text)
         self.assertEqual(res.json()['case'], 'termination')
         self._login(self.config)
-        res = self.api('PUT', CASES, json={'departure_reason_id': other.id, 'case': 'bogus'})
+        res = self.api('PUT', CASES, json={'departure_reason_id': other.id, 'case': 'bogus', 'revision': 1})
         self.assertEqual((res.status_code, res.json()['field']), (422, 'case'))
 
     def test_seeded_case_map(self):

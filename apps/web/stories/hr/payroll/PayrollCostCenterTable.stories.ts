@@ -14,7 +14,7 @@ const meta = {
   component: PayrollCostCenterTable,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:101', 'جدول مراكز تكلفة الأقسام في إعدادات الرواتب: يُحمَّل راتب كل قسم على مركز التكلفة المختار له.'),
+    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:146', 'جدول مراكز تكلفة الأقسام في إعدادات الرواتب: يُحمَّل راتب كل قسم على مركز التكلفة المختار له.'),
   },
   args: {
     centers,

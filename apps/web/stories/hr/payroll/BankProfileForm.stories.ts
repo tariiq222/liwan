@@ -8,9 +8,9 @@ import { storyContext } from '../../support/context'
 // confirmation.
 const column = (source: string, label: string, constant_value = '') => ({ source, label, constant_value })
 const profiles = [
-  { id: 1, name: 'ملف بنكي عام', kind: 'bank', delimiter: ',', encoding: 'utf-8', include_header: true, footer: 'none', columns: [column('iban', 'IBAN'), column('net', 'Amount')], shared: true },
-  { id: 2, name: 'تحويل بنك الراجحي', kind: 'bank', delimiter: ';', encoding: 'utf-8-sig', include_header: false, footer: 'totals', columns: [column('iban', 'IBAN'), column('constant', 'Type', 'SAL')], shared: false },
-  { id: 3, name: 'مدد - حماية الأجور', kind: 'wps', delimiter: ',', encoding: 'utf-8', include_header: true, footer: 'none', columns: [column('identification', 'ID')], shared: true },
+  { id: 1, name: 'ملف بنكي عام', kind: 'bank', delimiter: ',', encoding: 'utf-8', include_header: true, footer: 'none', columns: [column('iban', 'IBAN'), column('net', 'Amount')], shared: true, revision: 1 },
+  { id: 2, name: 'تحويل بنك الراجحي', kind: 'bank', delimiter: ';', encoding: 'utf-8-sig', include_header: false, footer: 'totals', columns: [column('iban', 'IBAN'), column('constant', 'Type', 'SAL')], shared: false, revision: 2 },
+  { id: 3, name: 'مدد - حماية الأجور', kind: 'wps', delimiter: ',', encoding: 'utf-8', include_header: true, footer: 'none', columns: [column('identification', 'ID')], shared: true, revision: 1 },
 ]
 
 const meta = {
@@ -18,9 +18,9 @@ const meta = {
   component: BankProfileForm,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:84', 'قسم تنسيقات ملفات البنك وحماية الأجور في إعدادات الرواتب: جدول الملفات، والملفات المشتركة للقراءة فقط، ونموذج الأعمدة.'),
+    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:127', 'قسم تنسيقات ملفات البنك وحماية الأجور في إعدادات الرواتب: جدول الملفات، والملفات المشتركة للقراءة فقط، ونموذج الأعمدة.'),
   },
-  args: { profiles, canEdit: true },
+  args: { profiles, canEdit: true, reloadProfiles: async () => profiles },
   render: args => ({
     components: { BankProfileForm, PageContainer },
     setup: () => ({ args }),

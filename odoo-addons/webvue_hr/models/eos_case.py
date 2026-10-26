@@ -17,10 +17,12 @@ class WebVueHrPayrollEosCase(models.Model):
     company_id = fields.Many2one('res.company', index=True, ondelete='cascade')
     departure_reason_id = fields.Many2one('hr.departure.reason', required=True, ondelete='cascade')
     case = fields.Selection(EOS_CASE_SELECTION, required=True)
+    revision = fields.Integer(required=True, default=1)
 
     _reason_unique = models.Constraint(
         'UNIQUE(company_id, departure_reason_id)', 'a departure reason maps to one case per company',
     )
+    _revision_positive = models.Constraint('CHECK(revision > 0)', 'a saved revision must be positive')
 
     @api.model
     def _webvue_case_for(self, reason, company):
@@ -37,9 +39,9 @@ class WebVueHrPayrollEosCase(models.Model):
 
     @api.model
     def _webvue_set_case(self, reason, company, case):
-        """Write the company's own mapping of a reason, creating it on the first save."""
+        """Write the company's own mapping of a reason and advance its revision, creating it on the first save."""
         row = self._webvue_company_row(reason, company)
         if row:
-            row.case = case
+            row.write({'case': case, 'revision': row.revision + 1})
             return row
         return self.create({'departure_reason_id': reason.id, 'company_id': company.id, 'case': case})

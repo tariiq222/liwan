@@ -48,20 +48,20 @@ function seed(finance = true, previewError = false, ibansComplete = false) {
       { id: 2, month: '2026-11', state: 'computed', approvedAt: null, slips: slips(2, 500) },
       { id: 1, month: '2026-10', state: 'approved', approvedAt: '2026-10-28T09:30:00Z', slips: slips(1) },
     ],
-    settings: { day_divisor: 30, structure: { id: 1, name: 'هيكل الرواتب السعودي' }, unpaid_leave_types: [{ id: 3, name: 'إجازة بدون راتب' }], annual_leave_type: { id: 1, name: 'إجازة سنوية' } },
+    settings: { revision: 1, day_divisor: 30, structure: { id: 1, name: 'هيكل الرواتب السعودي' }, unpaid_leave_types: [{ id: 3, name: 'إجازة بدون راتب' }], annual_leave_type: { id: 1, name: 'إجازة سنوية' } },
     rates: [
-      { id: 1, branch: 'annuities', nationality_class: 'saudi_from_2024', date_from: '2024-07-03', employee_rate: 9.5, employer_rate: 11.5, wage_min: 400, wage_max: 45000, shared: true },
-      { id: 2, branch: 'hazards', nationality_class: 'non_saudi', date_from: '2026-01-01', employee_rate: 0, employer_rate: 2, wage_min: 0, wage_max: 45000, shared: false },
+      { id: 1, branch: 'annuities', nationality_class: 'saudi_from_2024', date_from: '2024-07-03', employee_rate: 9.5, employer_rate: 11.5, wage_min: 400, wage_max: 45000, shared: true, revision: 1 },
+      { id: 2, branch: 'hazards', nationality_class: 'non_saudi', date_from: '2026-01-01', employee_rate: 0, employer_rate: 2, wage_min: 0, wage_max: 45000, shared: false, revision: 1 },
     ],
     nextRateId: 3,
-    eosCases: [{ reasonId: 1, name: 'استقالة', case: 'resignation' }, { reasonId: 2, name: 'انتهاء العقد', case: null }],
+    eosCases: [{ reasonId: 1, name: 'استقالة', case: 'resignation', revision: 1 }, { reasonId: 2, name: 'انتهاء العقد', case: null, revision: 0 }],
     settlements: {},
     provisions: [],
     previewError,
     ibansComplete,
     profiles: [
-      { id: 1, name: 'ملف بنكي عام', kind: 'bank', delimiter: ',', encoding: 'utf-8', include_header: true, footer: 'none', columns: [{ source: 'iban', label: 'IBAN', constant_value: '' }, { source: 'net', label: 'Amount', constant_value: '' }], shared: true },
-      { id: 2, name: 'مدد - حماية الأجور', kind: 'wps', delimiter: ',', encoding: 'utf-8', include_header: true, footer: 'none', columns: [{ source: 'identification', label: 'ID', constant_value: '' }, { source: 'net', label: 'Amount', constant_value: '' }], shared: true },
+      { id: 1, name: 'ملف بنكي عام', kind: 'bank', delimiter: ',', encoding: 'utf-8', include_header: true, footer: 'none', columns: [{ source: 'iban', label: 'IBAN', constant_value: '' }, { source: 'net', label: 'Amount', constant_value: '' }], shared: true, revision: 1 },
+      { id: 2, name: 'مدد - حماية الأجور', kind: 'wps', delimiter: ',', encoding: 'utf-8', include_header: true, footer: 'none', columns: [{ source: 'identification', label: 'ID', constant_value: '' }, { source: 'net', label: 'Amount', constant_value: '' }], shared: true, revision: 1 },
     ],
     nextProfileId: 3,
     finance: finance
@@ -211,7 +211,7 @@ export function hrPayrollPreviewData(route, url) {
     if (eos[2] === 'estimate') return eosEstimate(leaver, url)
     return state.settlements[eos[1]] ? settlementOf(leaver, state.settlements[eos[1]]) : { refusal: { status: 404, body: { code: 'not_found', message: 'no settlement yet' } } }
   }
-  if (route === '/api/v1/hr/payroll/eos-cases') return { items: state.eosCases.map(mapping => ({ departure_reason: { id: mapping.reasonId, name: mapping.name }, case: mapping.case })), total: state.eosCases.length }
+  if (route === '/api/v1/hr/payroll/eos-cases') return { items: state.eosCases.map(caseItem), total: state.eosCases.length }
   if (route === '/api/v1/hr/payroll/eos-provisions') return state.finance && { items: state.provisions, total: state.provisions.length }
   if (route === '/api/v1/hr/payroll/settings') return state.settings
   if (route === '/api/v1/hr/payroll/gosi-rates') return { items: state.rates, total: state.rates.length }
@@ -277,18 +277,38 @@ function salaryFile(run, section) {
 const ok = body => ({ status: 200, body })
 const notFound = { status: 404, body: { code: 'not_found', message: 'not found' } }
 const invalid = (message, field) => ({ status: 422, body: { code: 'invalid', message, field } })
+const conflict = message => ({ status: 409, body: { code: 'conflict', message } })
+const caseItem = mapping => ({ departure_reason: { id: mapping.reasonId, name: mapping.name }, case: mapping.case, revision: mapping.revision })
+/** Like the server's `split_revision`: a missing or too small revision is a 422, the rest of the body comes back. */
+function splitRevision(body, minimum = 1) {
+  const { revision, ...rest } = body ?? {}
+  if (!Number.isInteger(revision) || revision < minimum) return { refusal: invalid(`revision must be an integer of at least ${minimum}`, 'revision') }
+  return { revision, rest }
+}
+/** A revision-checked write of `record`: 409 when the client read an older revision, else the write and revision + 1. */
+function revised(record, revision, message, apply) {
+  if (revision !== record.revision) return conflict(message)
+  apply()
+  record.revision += 1
+  return ok(record)
+}
 
 /** The writes: `{status, body}`, or undefined for a route this preview does not own. */
 export function hrPayrollPreviewWrite(method, route, body) {
   if (method === 'POST' && route === '/api/v1/__mock/reset-payroll') { seed(body.finance !== false, body.previewError === true, body.ibansComplete === true); return ok({ ok: true }) }
   if (method === 'PATCH' && route === '/api/v1/hr/payroll/settings') {
-    // Like the server: an empty patch, a divisor outside 28-31 and a null annual leave type are refused.
+    // Like the server: the revision read, then an empty patch, a divisor outside 28-31 and a null annual leave type are refused.
+    const split = splitRevision(body, 0)
+    if (split.refusal) return split.refusal
+    if (split.revision !== state.settings.revision) return conflict('payroll settings changed; reload before saving')
+    body = split.rest
     if (!Object.keys(body).length) return invalid('no fields to update')
     if (body.day_divisor !== undefined && !(Number.isInteger(body.day_divisor) && body.day_divisor >= 28 && body.day_divisor <= 31)) return invalid('day_divisor must be a whole number from 28 to 31', 'day_divisor')
     if ('annual_leave_type_id' in body && !(Number.isInteger(body.annual_leave_type_id) && body.annual_leave_type_id > 0)) return invalid('annual_leave_type_id does not reference an existing record', 'annual_leave_type_id')
     if (body.day_divisor !== undefined) state.settings.day_divisor = body.day_divisor
     if (body.annual_leave_type_id !== undefined) state.settings.annual_leave_type = { id: body.annual_leave_type_id, name: 'إجازة' }
     if (body.unpaid_leave_type_ids !== undefined) state.settings.unpaid_leave_types = body.unpaid_leave_type_ids.map(id => ({ id, name: 'إجازة' }))
+    state.settings.revision += 1
     return ok(state.settings)
   }
   if (method === 'PATCH' && route === '/api/v1/hr/payroll/finance-settings') {
@@ -333,9 +353,13 @@ export function hrPayrollPreviewWrite(method, route, body) {
   if (method === 'PUT' && route === '/api/v1/hr/payroll/eos-cases') {
     const mapping = state.eosCases.find(item => item.reasonId === body.departure_reason_id)
     if (!mapping) return notFound
+    const split = splitRevision(body, 0)
+    if (split.refusal) return split.refusal
     if (!EOS_CASES.includes(body.case)) return invalid('case is not an award case', 'case')
+    if (split.revision !== mapping.revision) return conflict('the end-of-service case changed; reload before saving')
     mapping.case = body.case
-    return ok({ departure_reason: { id: mapping.reasonId, name: mapping.name }, case: mapping.case })
+    mapping.revision += 1
+    return ok(caseItem(mapping))
   }
   if (method === 'POST' && route === '/api/v1/hr/payroll/eos-provisions') {
     if (!state.finance) return notFound
@@ -346,12 +370,12 @@ export function hrPayrollPreviewWrite(method, route, body) {
     return { status: 201, body: item }
   }
   if (method === 'POST' && route === '/api/v1/hr/payroll/gosi-rates') {
-    const rate = { id: state.nextRateId++, ...body, shared: false }
+    const rate = { id: state.nextRateId++, ...body, shared: false, revision: 1 }
     state.rates.push(rate)
     return { status: 201, body: rate }
   }
   if (method === 'POST' && route === '/api/v1/hr/payroll/bank-profiles') {
-    const profile = { id: state.nextProfileId++, ...body, shared: false }
+    const profile = { id: state.nextProfileId++, ...body, shared: false, revision: 1 }
     state.profiles.push(profile)
     return { status: 201, body: profile }
   }
@@ -360,15 +384,29 @@ export function hrPayrollPreviewWrite(method, route, body) {
     const profile = state.profiles.find(item => item.id === Number(profileMatch[1]))
     if (!profile) return notFound
     if (profile.shared) return { status: 403, body: { code: 'forbidden', message: 'a shared profile is read-only' } }
-    if (method === 'PATCH') return ok(Object.assign(profile, body))
-    if (method === 'DELETE') { state.profiles = state.profiles.filter(item => item !== profile); return { status: 204, body: '' } }
+    const split = splitRevision(body)
+    if (split.refusal) return split.refusal
+    if (method === 'DELETE' && Object.keys(split.rest).length) return invalid('a delete carries only its revision')
+    if (method === 'PATCH') return revised(profile, split.revision, 'the salary file profile changed; reload before saving', () => Object.assign(profile, split.rest))
+    if (method === 'DELETE') {
+      if (split.revision !== profile.revision) return conflict('the salary file profile changed; reload before deleting')
+      state.profiles = state.profiles.filter(item => item !== profile)
+      return { status: 204, body: '' }
+    }
   }
   const rateMatch = /^\/api\/v1\/hr\/payroll\/gosi-rates\/(\d+)$/.exec(route)
   if (rateMatch) {
     const rate = state.rates.find(item => item.id === Number(rateMatch[1]))
     if (!rate) return notFound
-    if (method === 'PATCH') return ok(Object.assign(rate, body))
-    if (method === 'DELETE') { state.rates = state.rates.filter(item => item !== rate); return { status: 204, body: '' } }
+    const split = splitRevision(body)
+    if (split.refusal) return split.refusal
+    if (method === 'DELETE' && Object.keys(split.rest).length) return invalid('a delete carries only its revision')
+    if (method === 'PATCH') return revised(rate, split.revision, 'the GOSI rate changed; reload before saving', () => Object.assign(rate, split.rest))
+    if (method === 'DELETE') {
+      if (split.revision !== rate.revision) return conflict('the GOSI rate changed; reload before deleting')
+      state.rates = state.rates.filter(item => item !== rate)
+      return { status: 204, body: '' }
+    }
   }
   if (method === 'POST' && route === '/api/v1/hr/payroll/runs') {
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(body.month))) return invalid('month must be a YYYY-MM month', 'month')

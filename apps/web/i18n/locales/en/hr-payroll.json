@@ -458,6 +458,11 @@
     },
     "eosProvisions": {
       "posted": "End-of-service provision posted for this month: {name}"
+    },
+    "revision": {
+      "conflict": "Someone else changed these settings while you were editing. Your draft is kept; reload to review the latest values before saving.",
+      "reload": "Reload",
+      "reloadError": "The latest values could not be reloaded. Try again."
     }
   }
 }

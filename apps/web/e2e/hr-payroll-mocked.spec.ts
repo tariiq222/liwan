@@ -289,6 +289,33 @@ test.describe('payroll settings', () => {
     await expect(page.getByTestId('hr-payroll-divisor')).toContainText('31')
   })
 
+  test('a save after another administrator changed the settings keeps the draft and offers a reload', async ({ page }) => {
+    await open(page, '/settings/apps/hr', 'الموارد البشرية')
+    await page.getByTestId('hr-payroll-divisor').click()
+    await page.getByRole('option', { name: '28' }).click()
+    // Another administrator saves first, from the revision this page also read.
+    expect((await page.request.patch('/api/v1/hr/payroll/settings', { data: { day_divisor: 31, revision: 1 } })).status()).toBe(200)
+    // The refused request is logged by the browser; it is the behaviour under test.
+    const withoutRefusals = trackRefusedRequests(page, '/api/v1/hr/payroll/settings')
+    await page.getByTestId('hr-payroll-settings-submit').click()
+    await expect(page.getByText('غيّر مستخدم آخر هذه الإعدادات أثناء تعديلك')).toBeVisible()
+    errors = withoutRefusals(errors)
+    await expect(page.getByTestId('hr-payroll-divisor')).toContainText('28')
+    await expect(page.getByTestId('hr-payroll-settings-submit')).toBeDisabled()
+    // A reload that fails keeps the editors: the draft, the conflict and the reload error stay for another attempt.
+    const refuseReload = trackRefusedRequests(page, '/api/v1/hr/payroll/settings')
+    await page.route('**/api/v1/hr/payroll/settings', route => route.request().method() === 'GET'
+      ? route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ code: 'invalid', message: 'unavailable' }) })
+      : route.fallback())
+    await page.getByTestId('hr-payroll-settings-reload').click()
+    await expect(page.getByText('تعذّرت إعادة تحميل أحدث قيمة')).toBeVisible()
+    await expect(page.getByTestId('hr-payroll-divisor')).toContainText('28')
+    errors = refuseReload(errors)
+    await page.unroute('**/api/v1/hr/payroll/settings')
+    await page.getByTestId('hr-payroll-settings-reload').click()
+    await expect(page.getByTestId('hr-payroll-divisor')).toContainText('31')
+  })
+
   test('a GOSI rate form refuses a missing start date and a company rate is deleted after an inline confirmation', async ({ page }) => {
     await open(page, '/settings/apps/hr', 'الموارد البشرية')
     await expect(row(page, /المعاشات.*مشتركة/)).toBeVisible()
