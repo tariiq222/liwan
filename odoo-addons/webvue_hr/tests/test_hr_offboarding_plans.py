@@ -8,7 +8,9 @@ from .test_hr_onboarding import PLAN_KEYS, RUN_STEP_KEYS, STEP_KEYS
 PLANS = '/api/v1/hr/offboarding/plans'
 RUNS = '/api/v1/hr/offboarding/runs'
 TODO = 'mail.mail_activity_data_todo'
-ONBOARDING_MANAGER_KEYS = ('hr.onboarding.read', 'hr.onboarding.manage')
+ONBOARDING_MANAGER_KEYS = (
+    'hr.employees.read', 'hr.employees.manage', 'hr.onboarding.read', 'hr.onboarding.manage',
+)
 
 
 def _step(summary, responsible_type='manager', **extra):
@@ -26,7 +28,9 @@ class TestHrOffboardingPlans(WebVueHrCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.company = cls.env.company
-        cls.manager = cls._make_user('hr_ofbplan_mgr', 'Offboarding Plan Manager', MANAGER_KEYS)
+        cls.manager = cls._make_user(
+            'hr_ofbplan_mgr', 'Offboarding Plan Manager', (*MANAGER_KEYS, 'hr.departments.read'),
+        )
         cls.reader = cls._make_user('hr_ofbplan_reader', 'Offboarding Plan Reader', READER_KEYS)
         cls.onboarding_only = cls._make_user('hr_ofbplan_onb', 'Onboarding Only', ONBOARDING_MANAGER_KEYS)
         cls.no_capability = cls._make_user('hr_ofbplan_none', 'No Capability', ('hr.employees.read',))
