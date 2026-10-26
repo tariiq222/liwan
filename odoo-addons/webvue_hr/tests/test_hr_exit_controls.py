@@ -98,6 +98,36 @@ class TestHrExitControls(PayrollCase):
         equipment.write({'employee_id': False, 'equipment_assign_to': 'other'})
         self.assertEqual(self._archive(employee).status_code, 200)
 
+    def test_archived_equipment_still_assigned_does_not_block(self):
+        employee = self._leaver('Archived Laptop')
+        equipment = self._custody(employee)
+        equipment.write({'active': False})
+        self._settle(employee)
+        self.assertEqual(employee._webvue_exit_blockers(), [])
+        self.assertEqual(self._archive(employee).status_code, 200)
+        self.assertFalse(employee.active)
+
+    def test_active_equipment_blocks_even_when_another_is_archived(self):
+        employee = self._leaver('Mixed Laptops')
+        self._custody(employee).write({'active': False})
+        active = self._custody(employee)
+        self._settle(employee)
+        res = self._archive(employee)
+        self._assert_refused(res, employee, 'custody_open')
+        self.assertEqual(res.json()['details']['equipment_ids'], active.ids)
+
+    def test_payroll_custody_blocker_ignores_archived_equipment(self):
+        employee = self._leaver('Payroll Archived')
+        self._custody(employee).write({'active': False})
+        self._settle(employee)
+        self.authenticate(self.officer.login, f'{self.officer.login}_pass_123')
+        run = self.api('POST', RUNS, json={'month': '2026-11'}).json()
+        self.assertEqual(self.api('POST', f"{RUNS}/{run['id']}/compute").status_code, 200)
+        self.assertEqual(self.env['hr.payslip.run'].browse(run['id'])._webvue_custody_blockers(), [])
+        self.authenticate(self.approver.login, f'{self.approver.login}_pass_123')
+        res = self.api('POST', f"{RUNS}/{run['id']}/approve")
+        self.assertNotEqual(res.json().get('code'), 'custody_open')
+
     def test_open_clearance_alone_does_not_block(self):
         employee = self._leaver('Clearance Open')
         self._settle(employee)

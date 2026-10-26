@@ -209,7 +209,11 @@ class WebVueHrEmployee(models.Model):
             blockers.append(self._webvue_exit_blocker(
                 'departure_missing', self.env._('Record the departure date of the employee first.'), undeparted,
             ))
-        equipment = self.env['maintenance.equipment'].search([('employee_id', 'in', self.ids)])
+        # Explicit ``active``: the archive path searches with ``active_test=False``, which must not turn
+        # archived equipment that still names the employee into an open custody.
+        equipment = self.env['maintenance.equipment'].search([
+            ('employee_id', 'in', self.ids), ('active', '=', True),
+        ])
         if equipment:
             blockers.append(self._webvue_exit_blocker(
                 'custody_open', self.env._('Return the equipment assigned to the employee first.'),
