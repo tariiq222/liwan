@@ -3,6 +3,7 @@ from datetime import date
 
 from odoo.tests import tagged
 
+from .common import set_hr_feature
 from .payroll_common import PayrollCase
 
 ARCHIVE = '/api/v1/hr/employees/{}/archive'
@@ -157,3 +158,50 @@ class TestHrExitControls(PayrollCase):
         res = self.api('POST', f"{RUNS}/{run['id']}/approve")
         self.assertEqual((res.status_code, res.json()['code']), (422, 'custody_open'))
         self.assertEqual(res.json()['details']['employee_ids'], [employee.id])
+
+    def test_departure_blocker_applies_only_with_offboarding(self):
+        employee = self._leaver('No Departure Feature', departure=None)
+        self._assert_refused(self._archive(employee), employee, 'departure_missing')
+        set_hr_feature(self, 'hr.offboarding', False)
+        self.assertEqual(self._archive(employee).status_code, 200)
+        self.assertFalse(employee.active)
+
+    def test_custody_blocker_applies_only_with_assets(self):
+        employee = self._leaver('Custody Feature')
+        self._custody(employee)
+        self._settle(employee)
+        self._assert_refused(self._archive(employee), employee, 'custody_open')
+        set_hr_feature(self, 'hr.assets', False)
+        self.assertEqual(self._archive(employee).status_code, 200)
+        self.assertFalse(employee.active)
+
+    def test_settlement_blocker_applies_only_with_payroll(self):
+        employee = self._leaver('Settlement Feature')
+        self._assert_refused(self._archive(employee), employee, 'settlement_missing')
+        set_hr_feature(self, 'hr.payroll', False)
+        self.assertEqual(self._archive(employee).status_code, 200)
+        self.assertFalse(employee.active)
+
+    def test_one_disabled_feature_keeps_the_other_blockers(self):
+        employee = self._leaver('Partial Features', departure=None)
+        self._custody(employee)
+        set_hr_feature(self, 'hr.offboarding', False)
+        set_hr_feature(self, 'hr.payroll', False)
+        self._assert_refused(self._archive(employee), employee, 'custody_open')
+
+    def test_every_sub_feature_off_blocks_nothing(self):
+        employee = self._leaver('All Off', departure=None)
+        self._custody(employee)
+        for key in ('hr.offboarding', 'hr.assets', 'hr.payroll'):
+            set_hr_feature(self, key, False)
+        self.assertEqual(employee._webvue_exit_blockers(), [])
+        self.assertEqual(self._archive(employee).status_code, 200)
+
+    def test_all_features_enabled_keeps_the_documented_order(self):
+        employee = self._leaver('All On', departure=None)
+        self._custody(employee)
+        self.assertEqual(
+            [blocker['code'] for blocker in employee._webvue_exit_blockers()], ['departure_missing', 'custody_open'])
+        employee.write({'departure_date': DEPARTURE})
+        self.assertEqual(
+            [blocker['code'] for blocker in employee._webvue_exit_blockers()], ['custody_open', 'settlement_missing'])

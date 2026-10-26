@@ -248,31 +248,41 @@ class WebVueHrEmployee(models.Model):
         ``departure_missing`` (no departure date), ``custody_open`` (active equipment still assigned) and
         ``settlement_missing`` (no confirmed final settlement for the current departure). ``details`` names
         the employees (and equipment) concerned. The clearance checklist is deliberately not a blocker.
+
+        Each blocker applies only while the sub-feature that can resolve it is enabled for the tenant:
+        ``hr.offboarding`` records the departure, ``hr.assets`` returns the equipment and ``hr.payroll``
+        confirms the settlement. A tenant without a feature cannot satisfy its blocker, so it never blocks.
         """
         blockers = []
         departed = self.filtered('departure_date')
         undeparted = self - departed
-        if undeparted:
+        if undeparted and self._webvue_exit_feature('hr.offboarding'):
             blockers.append(self._webvue_exit_blocker(
                 'departure_missing', self.env._('Record the departure date of the employee first.'), undeparted,
             ))
         # Explicit ``active``: the archive path searches with ``active_test=False``, which must not turn
         # archived equipment that still names the employee into an open custody.
-        equipment = self.env['maintenance.equipment'].search([
-            ('employee_id', 'in', self.ids), ('active', '=', True),
-        ])
+        equipment = self.env['maintenance.equipment'].browse()
+        if self._webvue_exit_feature('hr.assets'):
+            equipment = equipment.search([('employee_id', 'in', self.ids), ('active', '=', True)])
         if equipment:
             blockers.append(self._webvue_exit_blocker(
                 'custody_open', self.env._('Return the equipment assigned to the employee first.'),
                 equipment.employee_id, equipment_ids=equipment.ids,
             ))
-        confirmed = self.env['webvue.hr.payroll.eos.settlement']._webvue_confirmed_employee_ids(departed)
-        unsettled = departed.filtered(lambda employee: employee.id not in confirmed)
+        unsettled = self.browse()
+        if self._webvue_exit_feature('hr.payroll'):
+            confirmed = self.env['webvue.hr.payroll.eos.settlement']._webvue_confirmed_employee_ids(departed)
+            unsettled = departed.filtered(lambda employee: employee.id not in confirmed)
         if unsettled:
             blockers.append(self._webvue_exit_blocker(
                 'settlement_missing', self.env._('Confirm the final settlement of the employee first.'), unsettled,
             ))
         return blockers
+
+    def _webvue_exit_feature(self, key):
+        """Whether the tenant may write ``key``: the check the ``requires_feature`` routes of that area make."""
+        return self.env['webvue.entitlement.service']._webvue_feature_write(key)
 
     def _webvue_exit_blocker(self, code, message, employees, **details):
         return {'code': code, 'message': message, 'details': {'employee_ids': employees.ids, **details}}
