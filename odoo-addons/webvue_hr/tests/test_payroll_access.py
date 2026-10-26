@@ -12,6 +12,7 @@ PAYROLL_GROUPS = (
     'webvue_hr.group_cap_hr_payroll_approve',
     'webvue_hr.group_cap_hr_payroll_config',
     'webvue_hr.group_cap_hr_payroll_audit_read',
+    'webvue_hr.group_cap_hr_payroll_finance_manage',
 )
 FORBIDDEN_IMPLIED = (
     'hr.group_hr_user',
@@ -79,6 +80,8 @@ class TestPayrollAccess(TransactionCase):
         role = self.env.ref('webvue_hr.role_payroll_manager')
         self.assertEqual(role.key, 'payroll_manager')
         self.assertEqual(set(role.permission_ids.mapped('key')), PAYROLL_PERMISSIONS)
+        self.assertIn('hr.payroll.finance.manage', PAYROLL_PERMISSIONS)
+        self.assertNotIn('finance.setup.manage', PAYROLL_PERMISSIONS)
         self.assertEqual(self._role_grants('webvue_hr.role_payroll_manager'), PAYROLL_PERMISSIONS)
 
     def test_audit_read_is_a_separate_payroll_key_only_the_payroll_role_holds(self):
