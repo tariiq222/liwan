@@ -79,9 +79,16 @@ export function useFinanceSetup(enabled: MaybeRefOrGetter<boolean> = true) {
   return { ...query, scope }
 }
 
+/** Drops the in-flight reads of this identity's setup, so none can land older data over a write. */
+function cancelFinanceSetupReads(queryClient: ReturnType<typeof useQueryClient>, scope: FinanceSetupScope) {
+  return queryClient.cancelQueries({ queryKey: financeSetupScopeKey(scope), exact: true })
+}
+
 /** One successful setup write refreshes what the server changed: the setup itself, the fiscal years and
  * their previews, and the audit log the write added to. */
-function applyFinanceSetupWrite(queryClient: ReturnType<typeof useQueryClient>, scope: FinanceSetupScope, setup: FinanceSetup) {
+async function applyFinanceSetupWrite(queryClient: ReturnType<typeof useQueryClient>, scope: FinanceSetupScope, setup: FinanceSetup) {
+  // A read that began before the write committed would otherwise resolve after this and overwrite it.
+  await cancelFinanceSetupReads(queryClient, scope)
   queryClient.setQueryData(financeSetupScopeKey(scope), setup)
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['finance', 'closing'] }),
@@ -117,6 +124,7 @@ export function useSaveFinanceFiscal() {
       schema: FinanceSetupSchema,
       headers: financeExpectedContextHeaders(request.scope),
     })),
+    onMutate: (request: FinanceFiscalSaveRequest) => cancelFinanceSetupReads(qc, request.scope),
     onSuccess: (setup, request) => (sameFinanceSetupScope(request.scope, scope.value)
       ? applyFinanceSetupWrite(qc, request.scope, setup)
       : undefined),
@@ -135,6 +143,7 @@ export function useLoadFinanceChart() {
       schema: FinanceSetupSchema,
       headers: financeExpectedContextHeaders(target),
     })),
+    onMutate: (target: FinanceSetupScope) => cancelFinanceSetupReads(qc, target),
     onSuccess: (setup, target) => (sameFinanceSetupScope(target, scope.value)
       ? applyFinanceSetupWrite(qc, target, setup)
       : undefined),

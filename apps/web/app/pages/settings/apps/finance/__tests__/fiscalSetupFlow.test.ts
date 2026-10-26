@@ -251,3 +251,48 @@ describe('a write queued while offline', () => {
     await saving
   })
 })
+
+describe('a background setup read that is older than a fiscal save', () => {
+  const baselineDay = (h: ReturnType<typeof mountPage>) => h.value<{ fiscalyear_last_day: string }>('fiscalBaseline').fiscalyear_last_day
+  const cachedDay = (h: ReturnType<typeof mountPage>) => (h.client.getQueryCache().findAll({ queryKey: setupComposables.financeSetupKey })
+    .map(query => (query.state.data as { fiscal: Fiscal } | undefined)?.fiscal.fiscalyear_last_day)
+    .filter(day => day !== undefined))
+
+  it('cannot overwrite the saved settings when it started before the PATCH', async () => {
+    const h = mountPage()
+    await openCompany(h, 7, 3, 31)
+    h.draft().value.fiscalyear_last_day = '15'
+    const saving = (h.page.submitFiscal as () => Promise<void>)()
+    await h.settle()
+    // The focus refetch starts after the PATCH began and resolves after its success.
+    void h.client.refetchQueries({ queryKey: setupComposables.financeSetupKey })
+    await h.settle()
+    const staleRead = h.pending(SETUP_URL, 'GET').at(-1)!
+    h.pending(FISCAL_URL, 'PATCH')[0]!.resolve({ fiscal: fiscal(15) })
+    await saving
+    await h.settle()
+    staleRead.resolve({ fiscal: fiscal(31) })
+    await h.settle()
+    expect(cachedDay(h)).toEqual([15])
+    expect(baselineDay(h)).toBe('15')
+    expect(h.draft().value.fiscalyear_last_day).toBe('15')
+  })
+
+  it('cannot overwrite the saved settings when it started before the save was made', async () => {
+    const h = mountPage()
+    await openCompany(h, 7, 3, 31)
+    void h.client.refetchQueries({ queryKey: setupComposables.financeSetupKey })
+    await h.settle()
+    const staleRead = h.pending(SETUP_URL, 'GET').at(-1)!
+    h.draft().value.fiscalyear_last_day = '15'
+    const saving = (h.page.submitFiscal as () => Promise<void>)()
+    await h.settle()
+    h.pending(FISCAL_URL, 'PATCH')[0]!.resolve({ fiscal: fiscal(15) })
+    await saving
+    await h.settle()
+    staleRead.resolve({ fiscal: fiscal(31) })
+    await h.settle()
+    expect(cachedDay(h)).toEqual([15])
+    expect(baselineDay(h)).toBe('15')
+  })
+})
