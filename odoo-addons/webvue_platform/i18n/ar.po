@@ -29,7 +29,7 @@ msgstr "يجب أن يرتبط حدث الصيانة بسجل واحد فقط."
 #. odoo-python
 #: code:addons/webvue_platform/models/maintenance.py:0
 msgid "A non-negative revision is required."
-msgstr "يلزم رقم نسخة غير سالب."
+msgstr "يلزم رقم مراجعة غير سالب."
 
 #. module: webvue_platform
 #. odoo-python
@@ -40,7 +40,7 @@ msgstr "يلزم معرّف إصدار وتقدير مقاس وسياسة يحد
 #. module: webvue_platform
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_maintenance_release_release_unique
 msgid "A release notice already exists for this tenant."
-msgstr "يوجد إشعار بهذا الإصدار لهذا العميل بالفعل."
+msgstr "يوجد إشعار بهذا الإصدار لهذه الشركة بالفعل."
 
 #. module: webvue_platform
 #. odoo-python
@@ -81,7 +81,7 @@ msgstr "نشط"
 #. odoo-python
 #: code:addons/webvue_platform/models/maintenance.py:0
 msgid "An active maintenance booking conflicts with this window or release."
-msgstr "يوجد حجز صيانة سابق لهذا الإصدار أو تتعارض النافذة مع حجز نشط."
+msgstr "يوجد حجز صيانة نشط يتعارض مع هذه النافذة أو هذا الإصدار."
 
 #. module: webvue_platform
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_maintenance_event_positive_revision
@@ -122,7 +122,7 @@ msgstr "فشل الحجز"
 #. odoo-python
 #: code:addons/webvue_platform/models/maintenance.py:0
 msgid "Booking is outside this tenant."
-msgstr "الحجز لا يخص هذا المستأجر."
+msgstr "الحجز لا يخص هذه الشركة."
 
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_event__action__booking_rescheduled
@@ -172,12 +172,12 @@ msgstr "التصنيف يخالف مدخل المشغّل المحلي."
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__commercial_applied_at
 msgid "Commercial Applied At"
-msgstr "تاريخ تطبيق الترخيص التجاري"
+msgstr "تاريخ تطبيق التصنيف التجاري"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__commercial_digest
 msgid "Commercial Digest"
-msgstr "بصمة الترخيص التجاري"
+msgstr "بصمة التصنيف التجاري"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__commercial_mode
@@ -187,7 +187,7 @@ msgstr "النمط التجاري"
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__commercial_revision_id
 msgid "Commercial Revision"
-msgstr "مراجعة الترخيص التجاري"
+msgstr "مراجعة التصنيف التجاري"
 
 #. module: webvue_platform
 #. odoo-python
@@ -255,7 +255,7 @@ msgstr "تاريخ الإنشاء"
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__deadline_at
 msgid "Deadline At"
-msgstr "آخر موعد"
+msgstr "الموعد النهائي"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_ir_attachment__display_name
@@ -338,7 +338,7 @@ msgstr "المعرّف"
 #. module: webvue_platform
 #: model:ir.model,name:webvue_platform.model_webvue_maintenance_event
 msgid "Immutable maintenance event"
-msgstr "حدث صيانة محفوظ للتدقيق"
+msgstr "حدث صيانة غير قابل للتعديل"
 
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_profile__commercial_mode__non_saas
@@ -349,7 +349,7 @@ msgstr "مستقل"
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "Independent installations cannot have a subscription expiry."
-msgstr "التثبيتات المستقلة لا يكون لها تاريخ انتهاء اشتراك."
+msgstr "ليس للتثبيتات المستقلة تاريخ انتهاء اشتراك."
 
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_release__scope__infrastructure
@@ -437,7 +437,7 @@ msgstr "تغيرت بيانات الصيانة. حدّث البيانات قبل
 #. odoo-python
 #: code:addons/webvue_platform/models/maintenance_event.py:0
 msgid "Maintenance event target is outside this tenant."
-msgstr "السجل المستهدف بحدث الصيانة لا يخص هذا المستأجر."
+msgstr "السجل المستهدف بحدث الصيانة لا يخص هذه الشركة."
 
 #. module: webvue_platform
 #. odoo-python
@@ -457,7 +457,7 @@ msgstr "لا تُسجل أحداث الصيانة إلا من خلال عملي�
 #. odoo-python
 #: code:addons/webvue_platform/models/maintenance.py:0
 msgid "Maintenance is managed from the tenant root company."
-msgstr "تُدار الصيانة من الشركة الرئيسية للمستأجر."
+msgstr "تُدار الصيانة من الشركة الرئيسية."
 
 #. module: webvue_platform
 #: model:res.groups,name:webvue_platform.group_maintenance_manager
@@ -503,7 +503,7 @@ msgstr "المنطقة الزمنية الجديدة"
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__new_weekday
 msgid "New Weekday"
-msgstr "اليوم الجديد"
+msgstr "يوم الأسبوع الجديد"
 
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_release__urgency__normal
@@ -538,17 +538,17 @@ msgstr "المنطقة الزمنية السابقة"
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_event__old_weekday
 msgid "Old Weekday"
-msgstr "اليوم السابق"
+msgstr "يوم الأسبوع السابق"
 
 #. module: webvue_platform
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_maintenance_authority_company_unique
 msgid "One maintenance authority per tenant."
-msgstr "سجل تنسيق صيانة واحد لكل عميل."
+msgstr "سجل تنسيق صيانة واحد لكل شركة."
 
 #. module: webvue_platform
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_maintenance_preference_company_unique
 msgid "One maintenance preference per tenant."
-msgstr "تفضيل صيانة واحد لكل عميل."
+msgstr "تفضيل صيانة واحد لكل شركة."
 
 #. module: webvue_platform
 #. odoo-python
@@ -612,7 +612,7 @@ msgstr "الإصدار"
 #. odoo-python
 #: code:addons/webvue_platform/models/maintenance.py:0
 msgid "Release is outside this tenant."
-msgstr "الإصدار لا يخص هذا المستأجر."
+msgstr "الإصدار لا يخص هذه الشركة."
 
 #. module: webvue_platform
 #. odoo-python
@@ -624,13 +624,13 @@ msgstr "لم يُعثر على إشعار الإصدار."
 #. odoo-python
 #: code:addons/webvue_platform/models/maintenance.py:0
 msgid "Release notice tenant cannot change."
-msgstr "لا يمكن تغيير مستأجر إشعار الإصدار."
+msgstr "لا يمكن تغيير شركة إشعار الإصدار."
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/maintenance.py:0
 msgid "Release notices belong to this database tenant."
-msgstr "تخص إشعارات الإصدارات مستأجر قاعدة البيانات هذه."
+msgstr "تخص إشعارات الإصدارات شركة قاعدة البيانات هذه."
 
 #. module: webvue_platform
 #. odoo-python
@@ -641,7 +641,7 @@ msgstr "لا يمكن تغيير موعد الإصدار أو نطاقه أثن�
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__retained_read_features
 msgid "Retained Read Features"
-msgstr "الميزات المحتفظ بقراءتها"
+msgstr "الميزات المحتفظ بها للقراءة"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_booking__revision
@@ -665,7 +665,7 @@ msgstr "قيد التنفيذ"
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_tenant_profile__commercial_mode__saas
 msgid "SaaS"
-msgstr "ساس"
+msgstr "اشتراك سحابي"
 
 #. module: webvue_platform
 #. odoo-python
@@ -745,22 +745,22 @@ msgstr "المراجعة المستهدفة"
 #. module: webvue_platform
 #: model:ir.model.fields.selection,name:webvue_platform.selection__webvue_maintenance_release__scope__tenant
 msgid "Tenant"
-msgstr "العميل"
+msgstr "الشركة"
 
 #. module: webvue_platform
 #: model:ir.model,name:webvue_platform.model_webvue_maintenance_booking
 msgid "Tenant maintenance booking"
-msgstr "حجز صيانة العميل"
+msgstr "حجز صيانة الشركة"
 
 #. module: webvue_platform
 #: model:ir.model,name:webvue_platform.model_webvue_maintenance_preference
 msgid "Tenant maintenance preference"
-msgstr "تفضيل صيانة العميل"
+msgstr "تفضيل صيانة الشركة"
 
 #. module: webvue_platform
 #: model:ir.model,name:webvue_platform.model_webvue_maintenance_authority
 msgid "Tenant maintenance serialization authority"
-msgstr "سجل تنسيق عمليات صيانة العميل"
+msgstr "سجل تنسيق عمليات صيانة الشركة"
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__terminology
@@ -802,7 +802,7 @@ msgstr "هذا الوقت المحلي مفقود أو ملتبس بسبب ال�
 #. odoo-python
 #: code:addons/webvue_platform/models/maintenance.py:0
 msgid "This release is not available for an individual tenant booking."
-msgstr "هذا الإصدار غير متاح لحجز مستقل لعميل واحد."
+msgstr "هذا الإصدار غير متاح لحجز مستقل لشركة واحدة."
 
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_tenant_profile__tier
@@ -818,7 +818,7 @@ msgstr "المنطقة الزمنية"
 #. module: webvue_platform
 #: model:ir.model.fields,field_description:webvue_platform.field_webvue_maintenance_release__urgency
 msgid "Urgency"
-msgstr "الأولوية"
+msgstr "درجة الإلحاح"
 
 #. module: webvue_platform
 #. odoo-python
@@ -887,7 +887,7 @@ msgstr "يوم الأسبوع"
 #. odoo-python
 #: code:addons/webvue_platform/models/maintenance_messages.py:0
 msgid "Window duration must be between 1 and 1440 minutes."
-msgstr "يجب أن تكون مدة النافذة بين دقيقة واحدة و١٤٤٠ دقيقة."
+msgstr "يجب أن تكون مدة النافذة بين دقيقة واحدة و1440 دقيقة."
 
 #. module: webvue_platform
 #. odoo-python
@@ -908,7 +908,7 @@ msgstr "لا يمكن ربط الشركة إلا بفرع ويب فيو واحد
 #. module: webvue_platform
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_profile_independent_cutoff
 msgid "independent installations cannot have a subscription expiry"
-msgstr "التثبيتات المستقلة لا يكون لها تاريخ انتهاء اشتراك"
+msgstr "ليس للتثبيتات المستقلة تاريخ انتهاء اشتراك"
 
 #. module: webvue_platform
 #: model:ir.model.constraint,message:webvue_platform.constraint_webvue_tenant_branch_branch_uid_unique
@@ -1034,13 +1034,13 @@ msgstr "عدة ملفات شركة موجودة؛ لن نخمّن."
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: retained_read_features contains invalid key %(key)s"
-msgstr "تحوي الميزات المحتفظ بقراءتها مفتاحًا غير صالح: %(key)s"
+msgstr "تحوي الميزات المحتفظ بها للقراءة مفتاحًا غير صالح: %(key)s"
 
 #. module: webvue_platform
 #. odoo-python
 #: code:addons/webvue_platform/models/entitlement_service.py:0
 msgid "webvue_platform: retained_read_features must be a list"
-msgstr "يجب أن تكون الميزات المحتفظ بقراءتها قائمة"
+msgstr "يجب أن تكون الميزات المحتفظ بها للقراءة قائمة"
 
 #. module: webvue_platform
 #. odoo-python
@@ -1052,7 +1052,7 @@ msgstr "لا يمكن أن تكون المراجعات سالبة"
 #. odoo-python
 #: code:addons/webvue_platform/models/tenant_profile.py:0
 msgid "webvue_platform: status must be active or suspended"
-msgstr "يجب أن تكون الحالة نشط أو موقوف"
+msgstr "يجب أن تكون الحالة نشطة أو موقوفة"
 
 #. module: webvue_platform
 #. odoo-python
