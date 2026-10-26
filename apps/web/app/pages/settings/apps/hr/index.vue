@@ -106,7 +106,10 @@ const eosFailureMessage = computed(() => {
   if (eosConflict.value) return t('hrPayroll.revision.conflict')
   return eosFailure.value ? saveErrorMessage(eosFailure.value, t('errors.generic'), t('errors.saveUncertain')) : ''
 })
-const error = computed(() => settings.error.value ?? rates.error.value ?? bankProfiles.error.value ?? eosCases.error.value)
+// Only a query that never loaded fails the card, like the shift settings below. A failed refetch of loaded data (a
+// reload after a 409 included) must not switch the card to its error state: that would remount the editors and drop
+// the draft, its conflict and the reload error the form shows itself.
+const error = computed(() => [settings, rates, bankProfiles, eosCases].map(query => query.data.value ? null : query.error.value).find(Boolean) ?? null)
 function retry() {
   void settings.refetch()
   void rates.refetch()

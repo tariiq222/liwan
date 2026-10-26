@@ -302,6 +302,16 @@ test.describe('payroll settings', () => {
     errors = withoutRefusals(errors)
     await expect(page.getByTestId('hr-payroll-divisor')).toContainText('28')
     await expect(page.getByTestId('hr-payroll-settings-submit')).toBeDisabled()
+    // A reload that fails keeps the editors: the draft, the conflict and the reload error stay for another attempt.
+    const refuseReload = trackRefusedRequests(page, '/api/v1/hr/payroll/settings')
+    await page.route('**/api/v1/hr/payroll/settings', route => route.request().method() === 'GET'
+      ? route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ code: 'invalid', message: 'unavailable' }) })
+      : route.fallback())
+    await page.getByTestId('hr-payroll-settings-reload').click()
+    await expect(page.getByText('تعذّرت إعادة تحميل أحدث قيمة')).toBeVisible()
+    await expect(page.getByTestId('hr-payroll-divisor')).toContainText('28')
+    errors = refuseReload(errors)
+    await page.unroute('**/api/v1/hr/payroll/settings')
     await page.getByTestId('hr-payroll-settings-reload').click()
     await expect(page.getByTestId('hr-payroll-divisor')).toContainText('31')
   })
