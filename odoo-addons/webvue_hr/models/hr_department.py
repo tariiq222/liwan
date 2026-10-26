@@ -237,6 +237,16 @@ class WebVueHrDepartment(models.Model):
             super().unlink()
         return True
 
+    @api.constrains('company_id')
+    def _check_plan_company(self):
+        # Constraints run sudo-ed, so this sees every plan, archived ones included.
+        departments = self.filtered('company_id')
+        if not departments:
+            return
+        self.env['mail.activity.plan'].with_context(active_test=False).search([
+            ('department_id', 'in', departments.ids),
+        ])._check_department_company()
+
     @api.model_create_multi
     def create(self, vals_list):
         if not self.env.is_superuser() and not self.env.user.has_group(
