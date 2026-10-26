@@ -1,5 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import contextlib
 import functools
+
+from psycopg2.errors import UniqueViolation
 
 from odoo.http import request
 
@@ -26,3 +29,19 @@ def hr_rule_handler(func):
                 error.status, error.code, error.message, error.field, error.details,
             ) from None
     return wrapper
+
+
+@contextlib.contextmanager
+def unique_conflict(message):
+    """Run a write a concurrent request may win on a UNIQUE constraint: the loser answers 409, never a 500.
+
+    The savepoint flushes on exit, so the violation surfaces here and the transaction stays usable.
+    Wrap only a block whose one UNIQUE key is the raced row's: every UniqueViolation inside answers 409, so a
+    second constrained table written in the same block would hide its own fault behind a conflict. The audit
+    rows written alongside carry no UNIQUE constraint.
+    """
+    try:
+        with request.env.cr.savepoint():
+            yield
+    except UniqueViolation as error:
+        raise ApiError(409, 'conflict', message) from error

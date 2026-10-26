@@ -21,6 +21,7 @@ def dump_profile(profile):
             for column in profile.column_ids.sorted('sequence')
         ],
         'shared': not profile.company_id,
+        'revision': profile.revision,
     }
 
 

@@ -834,37 +834,37 @@
         {
           "id": "ManagerApprovalDefault",
           "name": "ManagerApprovalDefault",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:128"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:159"
         },
         {
           "id": "DirectEmployee",
           "name": "DirectEmployee",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:128"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:159"
         },
         {
           "id": "ManagerOnly",
           "name": "ManagerOnly",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:128"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:159"
         },
         {
           "id": "ReadOnly",
           "name": "ReadOnly",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:128"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:159"
         },
         {
           "id": "Saving",
           "name": "Saving",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:128"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:159"
         },
         {
           "id": "SaveError",
           "name": "SaveError",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:128"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:159"
         },
         {
           "id": "Conflict",
           "name": "Conflict",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:128"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:159"
         }
       ]
     },
@@ -931,17 +931,17 @@
         {
           "id": "CompanyDefault",
           "name": "CompanyDefault",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:133"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:164"
         },
         {
           "id": "UserReference",
           "name": "UserReference",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:133"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:164"
         },
         {
           "id": "ReadOnly",
           "name": "ReadOnly",
-          "context": "apps/web/app/pages/settings/apps/hr/index.vue:133"
+          "context": "apps/web/app/pages/settings/apps/hr/index.vue:164"
         }
       ]
     },

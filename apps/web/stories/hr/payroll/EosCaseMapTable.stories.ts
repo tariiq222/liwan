@@ -6,8 +6,8 @@ import { storyContext } from '../../support/context'
 // The end-of-service case of each departure reason in the payroll settings. A choice is saved at once; the row being
 // saved waits, and a reason without a case is shown as not mapped.
 const mappings = [
-  { departure_reason: { id: 1, name: 'استقالة' }, case: 'resignation' },
-  { departure_reason: { id: 2, name: 'انتهاء العقد' }, case: null },
+  { departure_reason: { id: 1, name: 'استقالة' }, case: 'resignation', revision: 1 },
+  { departure_reason: { id: 2, name: 'انتهاء العقد' }, case: null, revision: 0 },
 ] as const
 
 const meta = {
@@ -15,9 +15,9 @@ const meta = {
   component: EosCaseMapTable,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:87', 'جدول حالات نهاية الخدمة في إعدادات الرواتب: الحالة التي يُحسب بها استحقاق كل سبب مغادرة.'),
+    ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:132', 'جدول حالات نهاية الخدمة في إعدادات الرواتب: الحالة التي يُحسب بها استحقاق كل سبب مغادرة.'),
   },
-  args: { mappings: [...mappings], canEdit: true, saving: [] },
+  args: { mappings: [...mappings], canEdit: true, saving: [], drafts: {}, locked: false },
   render: args => ({
     components: { EosCaseMapTable, PageContainer },
     setup: () => ({ args }),
@@ -31,6 +31,8 @@ type Story = StoryObj<typeof meta>
 export const Editable: Story = { name: 'قابل للتعديل' }
 
 export const Saving: Story = { name: 'حفظ صف قيد التنفيذ', args: { saving: [2] } }
+
+export const Conflict: Story = { name: 'اختيار تغيّر من مستخدم آخر', args: { drafts: { 2: 'termination' }, locked: true } }
 
 export const ReadOnly: Story = { name: 'قراءة فقط', args: { canEdit: false } }
 

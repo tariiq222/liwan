@@ -46,3 +46,8 @@ export function eosProvisionErrorMessage(error: unknown, t: Translate): string {
   if (error instanceof ApiError && error.code === 'invalid' && error.field === 'month') return t('hrPayroll.errors.eos_provision_empty')
   return payrollErrorMessage(error, t, new Map())
 }
+
+/** A payroll settings write sent a revision someone else has changed since: the form keeps its draft and offers a reload. */
+export function isPayrollConflict(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409 && error.code === 'conflict'
+}

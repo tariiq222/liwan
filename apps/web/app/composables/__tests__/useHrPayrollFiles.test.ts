@@ -33,14 +33,14 @@ describe('bank profile writes', () => {
     const invalidate = vi.spyOn(qc, 'invalidateQueries')
     await saveHrBankProfile(api, qc, { body })
     expect(api).toHaveBeenLastCalledWith('/api/v1/hr/payroll/bank-profiles', { method: 'POST', body, schema: expect.anything() })
-    await saveHrBankProfile(api, qc, { id: 4, body: { name: 'جديد' } })
-    expect(api).toHaveBeenLastCalledWith('/api/v1/hr/payroll/bank-profiles/4', { method: 'PATCH', body: { name: 'جديد' }, schema: expect.anything() })
+    await saveHrBankProfile(api, qc, { id: 4, body: { name: 'جديد', revision: 2 } })
+    expect(api).toHaveBeenLastCalledWith('/api/v1/hr/payroll/bank-profiles/4', { method: 'PATCH', body: { name: 'جديد', revision: 2 }, schema: expect.anything() })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: hrPayrollKeys.bankProfiles })
   })
 
-  it('deleting a profile sends DELETE', async () => {
+  it('deleting a profile sends DELETE with the revision read', async () => {
     const api = vi.fn().mockResolvedValue(undefined)
-    await deleteHrBankProfile(api, new QueryClient(), 4)
-    expect(api).toHaveBeenCalledWith('/api/v1/hr/payroll/bank-profiles/4', { method: 'DELETE' })
+    await deleteHrBankProfile(api, new QueryClient(), { id: 4, revision: 2 })
+    expect(api).toHaveBeenCalledWith('/api/v1/hr/payroll/bank-profiles/4', { method: 'DELETE', body: { revision: 2 } })
   })
 })

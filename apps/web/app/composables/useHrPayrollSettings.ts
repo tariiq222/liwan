@@ -3,7 +3,9 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import {
   HrGosiRateListSchema,
   HrGosiRateSchema,
+  HrPayrollRevisionSchema,
   HrPayrollSettingsSchema,
+  type HrGosiRatePatch,
   type HrGosiRateWrite,
   type HrPayrollSettingsPatch,
 } from '@webvue/contracts'
@@ -21,8 +23,10 @@ export async function patchHrPayrollSettings($api: Api, qc: QueryClient, body: H
   return settings
 }
 
-/** Without an id the rate is created (every field), with one it is patched (the changed fields). */
-export async function saveHrGosiRate($api: Api, qc: QueryClient, { id, body }: { id?: number; body: Partial<HrGosiRateWrite> }) {
+export type HrGosiRateSave = { id?: undefined; body: HrGosiRateWrite } | { id: number; body: HrGosiRatePatch }
+
+/** Without an id the rate is created (every field), with one it is patched (the changed fields and the revision read). */
+export async function saveHrGosiRate($api: Api, qc: QueryClient, { id, body }: HrGosiRateSave) {
   const rate = id === undefined
     ? await $api(RATES_PATH, { method: 'POST', body, schema: HrGosiRateSchema })
     : await $api(`${RATES_PATH}/${id}`, { method: 'PATCH', body, schema: HrGosiRateSchema })
@@ -30,8 +34,9 @@ export async function saveHrGosiRate($api: Api, qc: QueryClient, { id, body }: {
   return rate
 }
 
-export async function deleteHrGosiRate($api: Api, qc: QueryClient, id: number) {
-  await $api(`${RATES_PATH}/${id}`, { method: 'DELETE' })
+/** The DELETE carries the revision the caller read: a rate changed since answers 409. */
+export async function deleteHrGosiRate($api: Api, qc: QueryClient, { id, revision }: { id: number; revision: number }) {
+  await $api(`${RATES_PATH}/${id}`, { method: 'DELETE', body: HrPayrollRevisionSchema.parse({ revision }) })
   void qc.invalidateQueries({ queryKey: hrPayrollKeys.gosiRates })
 }
 
@@ -64,11 +69,11 @@ export function useHrGosiRates() {
 export function useSaveHrGosiRate() {
   const qc = useQueryClient()
   const { $api } = useApi()
-  return useMutation({ mutationFn: (input: { id?: number; body: Partial<HrGosiRateWrite> }) => saveHrGosiRate($api, qc, input) })
+  return useMutation({ mutationFn: (input: HrGosiRateSave) => saveHrGosiRate($api, qc, input) })
 }
 
 export function useDeleteHrGosiRate() {
   const qc = useQueryClient()
   const { $api } = useApi()
-  return useMutation({ mutationFn: (id: number) => deleteHrGosiRate($api, qc, id) })
+  return useMutation({ mutationFn: (input: { id: number; revision: number }) => deleteHrGosiRate($api, qc, input) })
 }

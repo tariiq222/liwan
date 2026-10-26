@@ -62,9 +62,9 @@ describe('end of service calls', () => {
   it('a case mapping PUT refreshes the mapping list', async () => {
     const qc = new QueryClient()
     const spy = vi.spyOn(qc, 'invalidateQueries')
-    const api = vi.fn().mockResolvedValue({ departure_reason: { id: 2, name: 'x' }, case: 'no_award' })
-    await saveHrEosCase(api, qc, { departure_reason_id: 2, case: 'no_award' })
-    expect(api).toHaveBeenCalledWith('/api/v1/hr/payroll/eos-cases', { method: 'PUT', body: { departure_reason_id: 2, case: 'no_award' }, schema: expect.anything() })
+    const api = vi.fn().mockResolvedValue({ departure_reason: { id: 2, name: 'x' }, case: 'no_award', revision: 1 })
+    await saveHrEosCase(api, qc, { departure_reason_id: 2, case: 'no_award', revision: 0 })
+    expect(api).toHaveBeenCalledWith('/api/v1/hr/payroll/eos-cases', { method: 'PUT', body: { departure_reason_id: 2, case: 'no_award', revision: 0 }, schema: expect.anything() })
     expect(spy).toHaveBeenCalledWith({ queryKey: hrPayrollKeys.eosCases })
   })
 

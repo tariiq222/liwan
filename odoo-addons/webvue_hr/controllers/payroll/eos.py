@@ -9,7 +9,7 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.webvue_hr.controllers.common import hr_rule_handler
+from odoo.addons.webvue_hr.controllers.common import hr_rule_handler, unique_conflict
 from odoo.addons.webvue_hr.serializers.payroll.eos import (
     dump_case_item,
     dump_estimate,
@@ -18,8 +18,13 @@ from odoo.addons.webvue_hr.serializers.payroll.eos import (
     parse_estimate_args,
     parse_settlement,
 )
+from odoo.addons.webvue_hr.serializers.payroll.revision import (
+    require_revision,
+    split_revision,
+)
 
 EOS_ROUTE = '/api/v1/hr/payroll/eos'
+CASE_CONFLICT = 'the end-of-service case of this reason changed; reload before saving'
 
 
 def _settlement(employee):
@@ -30,8 +35,9 @@ def _settlement(employee):
 
 
 def _case_item(reason):
-    case = request.env['webvue.hr.payroll.eos.case']._webvue_case_for(reason, current_company())
-    return dump_case_item(reason, case)
+    Case = request.env['webvue.hr.payroll.eos.case']
+    company = current_company()
+    return dump_case_item(reason, Case._webvue_case_for(reason, company), Case._webvue_company_row(reason, company))
 
 
 class HrPayrollEosController(http.Controller):
@@ -69,8 +75,9 @@ class HrPayrollEosController(http.Controller):
         Settlement = request.env['webvue.hr.payroll.eos.settlement']
         Audit = request.env['webvue.hr.audit.event']
         before = Audit._webvue_policy_snapshot(Settlement._webvue_current(employee))
-        settlement = Settlement._webvue_save_draft(employee, case, open_deductions)
-        Audit._webvue_log('settlement_saved', settlement, before)
+        with unique_conflict('a final settlement was saved for this departure at the same time'):
+            settlement = Settlement._webvue_save_draft(employee, case, open_deductions)
+            Audit._webvue_log('settlement_saved', settlement, before)
         return dump_settlement(settlement)
 
     @http.route(f'{EOS_ROUTE}/<int:employee_id>/settlement/confirm', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -99,10 +106,14 @@ class HrPayrollEosController(http.Controller):
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.config')
     def put_case(self, **payload):
+        revision, payload = split_revision(payload, minimum=0)
         reason, case = parse_case_map(payload, request.env)
         Case = request.env['webvue.hr.payroll.eos.case']
         Audit = request.env['webvue.hr.audit.event']
-        before = Audit._webvue_policy_snapshot(Case._webvue_company_row(reason, current_company()))
-        row = Case._webvue_set_case(reason, current_company(), case)
-        Audit._webvue_log('eos_case_changed', row, before)
+        current = Case._webvue_company_row(reason, current_company())
+        require_revision(current, revision, CASE_CONFLICT)
+        before = Audit._webvue_policy_snapshot(current)
+        with unique_conflict(CASE_CONFLICT):
+            row = Case._webvue_set_case(reason, current_company(), case)
+            Audit._webvue_log('eos_case_changed', row, before)
         return _case_item(reason)

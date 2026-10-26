@@ -5,6 +5,8 @@ import {
   HrBankProfileListSchema,
   HrBankProfileSchema,
   HrGosiStatementSchema,
+  HrPayrollRevisionSchema,
+  type HrBankProfilePatch,
   type HrBankProfileWrite,
 } from '@webvue/contracts'
 import { hrPayrollKeys } from './useHrPayrollCompensation'
@@ -22,8 +24,10 @@ export function hrPayrollFileUrl(runId: number, kind: 'bank' | 'wps', params: { 
   return `${PAYROLL_PATH}/runs/${runId}/${FILE_ROUTES[kind]}?${query}`
 }
 
-/** Without an id the profile is created (every field), with one it is patched (the changed fields). */
-export async function saveHrBankProfile($api: Api, qc: QueryClient, { id, body }: { id?: number; body: Partial<HrBankProfileWrite> }) {
+export type HrBankProfileSave = { id?: undefined; body: HrBankProfileWrite } | { id: number; body: HrBankProfilePatch }
+
+/** Without an id the profile is created (every field), with one it is patched (the fields sent and the revision read). */
+export async function saveHrBankProfile($api: Api, qc: QueryClient, { id, body }: HrBankProfileSave) {
   const profile = id === undefined
     ? await $api(PROFILES_PATH, { method: 'POST', body, schema: HrBankProfileSchema })
     : await $api(`${PROFILES_PATH}/${id}`, { method: 'PATCH', body, schema: HrBankProfileSchema })
@@ -31,8 +35,9 @@ export async function saveHrBankProfile($api: Api, qc: QueryClient, { id, body }
   return profile
 }
 
-export async function deleteHrBankProfile($api: Api, qc: QueryClient, id: number) {
-  await $api(`${PROFILES_PATH}/${id}`, { method: 'DELETE' })
+/** The DELETE carries the revision the caller read: a profile changed since answers 409. */
+export async function deleteHrBankProfile($api: Api, qc: QueryClient, { id, revision }: { id: number; revision: number }) {
+  await $api(`${PROFILES_PATH}/${id}`, { method: 'DELETE', body: HrPayrollRevisionSchema.parse({ revision }) })
   void qc.invalidateQueries({ queryKey: hrPayrollKeys.bankProfiles })
 }
 
@@ -61,11 +66,11 @@ export function useHrBankProfiles(enabled: MaybeRefOrGetter<boolean> = true) {
 export function useSaveHrBankProfile() {
   const qc = useQueryClient()
   const { $api } = useApi()
-  return useMutation({ mutationFn: (input: { id?: number; body: Partial<HrBankProfileWrite> }) => saveHrBankProfile($api, qc, input) })
+  return useMutation({ mutationFn: (input: HrBankProfileSave) => saveHrBankProfile($api, qc, input) })
 }
 
 export function useDeleteHrBankProfile() {
   const qc = useQueryClient()
   const { $api } = useApi()
-  return useMutation({ mutationFn: (id: number) => deleteHrBankProfile($api, qc, id) })
+  return useMutation({ mutationFn: (input: { id: number; revision: number }) => deleteHrBankProfile($api, qc, input) })
 }

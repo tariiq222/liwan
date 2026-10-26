@@ -6,6 +6,7 @@ import {
   HR_BANK_PROFILE_ENCODINGS,
   HR_BANK_PROFILE_FOOTERS,
   HR_BANK_PROFILE_KINDS,
+  HrBankProfilePatchSchema,
   HrBankProfileWriteSchema,
   type HrBankProfile,
   type HrBankProfileColumn,
@@ -15,10 +16,12 @@ import { saveErrorMessage } from '@/utils/formFeedback'
 // The bank and WPS file layouts of the company: a name, the file's delimiter, encoding, header and footer, and the
 // ordered columns, each taken from a payslip figure, the employee or a constant. A shared profile (the platform's
 // seed) is read-only; a company profile is edited in a form that opens above the table and deleted after an inline
-// confirmation. The component owns its writes and shows the server's refusal above the form.
+// confirmation. The component owns its writes and shows the server's refusal above the form. An edit or a delete sends
+// the revision of the profile it opened; a 409 keeps the draft until the user reloads the latest profile.
 const props = defineProps<{
   profiles: HrBankProfile[]
   canEdit: boolean
+  reloadProfiles: () => Promise<HrBankProfile[]>
 }>()
 
 const { t } = useI18n()
@@ -40,7 +43,17 @@ const footer = ref<HrBankProfile['footer']>(HR_BANK_PROFILE_FOOTERS[0])
 const includeHeader = ref(true)
 const columns = ref<HrBankProfileColumn[]>([])
 const attempted = ref(false)
-const failure = ref<unknown>(null)
+// After a reload the profile that changed becomes the baseline again (or the form closes when it was deleted).
+const { failure, conflict, reloading, reloadFailure, reload } = usePayrollConflict(() => props.reloadProfiles(), (profiles) => {
+  const fresh = (profile: HrBankProfile) => profiles.find(row => row.id === profile.id) ?? null
+  if (deleting.value) deleting.value = fresh(deleting.value)
+  const target = editing.value
+  if (target && target !== 'new') {
+    const row = fresh(target)
+    if (row) open(row)
+    else close()
+  }
+})
 
 const kindOptions = computed(() => HR_BANK_PROFILE_KINDS.map(value => ({ value, label: t(`hrPayroll.bankProfiles.kind.${value}`) })))
 const delimiterOptions = computed(() => HR_BANK_PROFILE_DELIMITERS.map(value => ({ value, label: t(`hrPayroll.bankProfiles.delimiter.${DELIMITER_KEYS[value]}`) })))
@@ -68,6 +81,11 @@ function close() {
   editing.value = null
   failure.value = null
 }
+function askDelete(profile: HrBankProfile | null) {
+  deleting.value = profile
+  editing.value = null
+  failure.value = null
+}
 
 function setSource(column: HrBankProfileColumn, source: HrBankProfileColumn['source']) {
   column.source = source
@@ -88,27 +106,31 @@ const body = computed(() => ({
 const parsed = computed(() => HrBankProfileWriteSchema.safeParse(body.value))
 const invalid = computed(() => attempted.value && !parsed.value.success)
 const nameInvalid = computed(() => invalid.value && name.value.trim() === '')
-const formAlert = computed(() => failure.value
-  ? saveErrorMessage(failure.value, t('errors.generic'), t('errors.saveUncertain'))
-  : undefined)
+const formAlert = computed(() => {
+  if (conflict.value) return t('hrPayroll.revision.conflict')
+  return failure.value ? saveErrorMessage(failure.value, t('errors.generic'), t('errors.saveUncertain')) : undefined
+})
+const locked = computed(() => !hydrated.value || saving.value || reloading.value)
 
 async function submit() {
-  if (!hydrated.value || saving.value || !editing.value) return
+  if (locked.value || conflict.value || !editing.value) return
   attempted.value = true
   failure.value = null
   if (!parsed.value.success) return
   const target = editing.value
   try {
-    await save({ id: target === 'new' ? undefined : target.id, body: parsed.value.data })
+    await save(target === 'new'
+      ? { body: parsed.value.data }
+      : { id: target.id, body: HrBankProfilePatchSchema.parse({ ...parsed.value.data, revision: target.revision }) })
     close()
   } catch (error) { failure.value = error }
 }
 
 async function confirmDelete() {
-  if (!hydrated.value || removing.value || !deleting.value) return
+  if (!hydrated.value || removing.value || reloading.value || conflict.value || !deleting.value) return
   failure.value = null
   try {
-    await remove(deleting.value.id)
+    await remove({ id: deleting.value.id, revision: deleting.value.revision })
     deleting.value = null
   } catch (error) { failure.value = error }
 }
@@ -121,7 +143,7 @@ const tableColumns = computed<TableColumn<HrBankProfile>[]>(() => [
 ])
 const rowActions = (profile: HrBankProfile) => [
   { label: t('app.edit'), icon: 'i-lucide-pencil' as const, onSelect: () => open(profile) },
-  { label: t('hrPayroll.bankProfiles.delete'), icon: 'i-lucide-trash-2' as const, destructive: true, onSelect: () => { deleting.value = profile; editing.value = null } },
+  { label: t('hrPayroll.bankProfiles.delete'), icon: 'i-lucide-trash-2' as const, destructive: true, onSelect: () => askDelete(profile) },
 ]
 </script>
 
@@ -131,15 +153,18 @@ const rowActions = (profile: HrBankProfile) => [
       <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :disabled="!hydrated" :label="t('hrPayroll.bankProfiles.add')" data-testid="hr-bank-profile-add" @click="open('new')" />
     </template>
 
-    <UAlert v-if="deleting && failure" role="alert" color="error" variant="subtle" :title="saveErrorMessage(failure, t('errors.generic'), t('errors.saveUncertain'))" />
+    <UAlert v-if="deleting && formAlert" role="alert" color="error" variant="subtle" :title="formAlert" />
+    <UButton v-if="conflict" color="neutral" variant="outline" :label="t('hrPayroll.revision.reload')" :loading="reloading" :disabled="!hydrated || reloading" data-testid="hr-bank-profile-reload" @click="reload" />
+    <UAlert v-if="reloadFailure" role="alert" color="error" variant="subtle" :title="t('hrPayroll.revision.reloadError')" />
     <SharedInlineConfirm
       v-if="deleting"
       :title="t('hrPayroll.bankProfiles.deleteTitle', { name: deleting.name })"
       :description="t('hrPayroll.bankProfiles.deleteHint')"
       :confirm-label="t('hrPayroll.bankProfiles.delete')"
       :pending="removing"
+      :disabled="removing || reloading || conflict"
       @confirm="confirmDelete"
-      @cancel="deleting = null"
+      @cancel="askDelete(null)"
     />
 
     <UForm v-if="editing" novalidate :state="body" class="webvue-form" method="post" data-testid="hr-bank-profile-form" @submit="submit">
@@ -147,22 +172,22 @@ const rowActions = (profile: HrBankProfile) => [
       <SharedFormSection :title="editing === 'new' ? t('hrPayroll.bankProfiles.new') : t('hrPayroll.bankProfiles.edit')">
         <div class="webvue-form-grid">
           <UFormField :label="t('hrPayroll.bankProfiles.columns.name')" name="hr-bank-profile-name" required :error="nameInvalid ? t('hrPayroll.bankProfiles.fieldInvalid') : undefined">
-            <UInput id="hr-bank-profile-name" v-model="name" class="w-full" :disabled="!hydrated || saving" data-testid="hr-bank-profile-name" />
+            <UInput id="hr-bank-profile-name" v-model="name" class="w-full" :disabled="locked" data-testid="hr-bank-profile-name" />
           </UFormField>
           <UFormField :label="t('hrPayroll.bankProfiles.columns.kind')" name="hr-bank-profile-kind">
-            <USelect id="hr-bank-profile-kind" v-model="kind" class="w-full" :items="kindOptions" :disabled="!hydrated || saving" data-testid="hr-bank-profile-kind" />
+            <USelect id="hr-bank-profile-kind" v-model="kind" class="w-full" :items="kindOptions" :disabled="locked" data-testid="hr-bank-profile-kind" />
           </UFormField>
           <UFormField :label="t('hrPayroll.bankProfiles.delimiterLabel')" name="hr-bank-profile-delimiter">
-            <USelect id="hr-bank-profile-delimiter" v-model="delimiter" class="w-full" :items="delimiterOptions" :disabled="!hydrated || saving" data-testid="hr-bank-profile-delimiter" />
+            <USelect id="hr-bank-profile-delimiter" v-model="delimiter" class="w-full" :items="delimiterOptions" :disabled="locked" data-testid="hr-bank-profile-delimiter" />
           </UFormField>
           <UFormField :label="t('hrPayroll.bankProfiles.encodingLabel')" name="hr-bank-profile-encoding">
-            <USelect id="hr-bank-profile-encoding" v-model="encoding" class="w-full" :items="encodingOptions" :disabled="!hydrated || saving" data-testid="hr-bank-profile-encoding" />
+            <USelect id="hr-bank-profile-encoding" v-model="encoding" class="w-full" :items="encodingOptions" :disabled="locked" data-testid="hr-bank-profile-encoding" />
           </UFormField>
           <UFormField :label="t('hrPayroll.bankProfiles.footerLabel')" name="hr-bank-profile-footer">
-            <USelect id="hr-bank-profile-footer" v-model="footer" class="w-full" :items="footerOptions" :disabled="!hydrated || saving" data-testid="hr-bank-profile-footer" />
+            <USelect id="hr-bank-profile-footer" v-model="footer" class="w-full" :items="footerOptions" :disabled="locked" data-testid="hr-bank-profile-footer" />
           </UFormField>
           <UFormField name="hr-bank-profile-header">
-            <UCheckbox id="hr-bank-profile-header" v-model="includeHeader" :label="t('hrPayroll.bankProfiles.includeHeader')" :disabled="!hydrated || saving" data-testid="hr-bank-profile-header" />
+            <UCheckbox id="hr-bank-profile-header" v-model="includeHeader" :label="t('hrPayroll.bankProfiles.includeHeader')" :disabled="locked" data-testid="hr-bank-profile-header" />
           </UFormField>
         </div>
       </SharedFormSection>
@@ -171,22 +196,22 @@ const rowActions = (profile: HrBankProfile) => [
         <ol class="grid gap-3" data-testid="hr-bank-profile-columns">
           <li v-for="(column, index) in columns" :key="index" class="webvue-form-grid items-end">
             <UFormField :label="t('hrPayroll.bankProfiles.source.label')" :name="`hr-bank-profile-source-${index}`">
-              <USelect :id="`hr-bank-profile-source-${index}`" :model-value="column.source" class="w-full" :items="sourceOptions" :disabled="!hydrated || saving" :data-testid="`hr-bank-profile-source-${index}`" @update:model-value="setSource(column, $event)" />
+              <USelect :id="`hr-bank-profile-source-${index}`" :model-value="column.source" class="w-full" :items="sourceOptions" :disabled="locked" :data-testid="`hr-bank-profile-source-${index}`" @update:model-value="setSource(column, $event)" />
             </UFormField>
             <UFormField :label="t('hrPayroll.bankProfiles.columnLabel')" :name="`hr-bank-profile-label-${index}`" required :error="invalid && column.label.trim() === '' ? t('hrPayroll.bankProfiles.fieldInvalid') : undefined">
-              <UInput :id="`hr-bank-profile-label-${index}`" v-model="column.label" class="w-full" :disabled="!hydrated || saving" :data-testid="`hr-bank-profile-label-${index}`" />
+              <UInput :id="`hr-bank-profile-label-${index}`" v-model="column.label" class="w-full" :disabled="locked" :data-testid="`hr-bank-profile-label-${index}`" />
             </UFormField>
             <UFormField v-if="column.source === 'constant'" :label="t('hrPayroll.bankProfiles.constantValue')" :name="`hr-bank-profile-constant-${index}`" required :error="invalid && column.constant_value.trim() === '' ? t('hrPayroll.bankProfiles.fieldInvalid') : undefined">
-              <UInput :id="`hr-bank-profile-constant-${index}`" v-model="column.constant_value" class="w-full" :disabled="!hydrated || saving" :data-testid="`hr-bank-profile-constant-${index}`" />
+              <UInput :id="`hr-bank-profile-constant-${index}`" v-model="column.constant_value" class="w-full" :disabled="locked" :data-testid="`hr-bank-profile-constant-${index}`" />
             </UFormField>
-            <UButton type="button" color="neutral" variant="ghost" icon="i-lucide-x" :disabled="!hydrated || saving" :aria-label="t('hrPayroll.bankProfiles.removeColumn')" :data-testid="`hr-bank-profile-remove-${index}`" @click="removeColumn(index)" />
+            <UButton type="button" color="neutral" variant="ghost" icon="i-lucide-x" :disabled="locked" :aria-label="t('hrPayroll.bankProfiles.removeColumn')" :data-testid="`hr-bank-profile-remove-${index}`" @click="removeColumn(index)" />
           </li>
         </ol>
-        <UButton type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :disabled="!hydrated || saving" :label="t('hrPayroll.bankProfiles.addColumn')" data-testid="hr-bank-profile-add-column" @click="addColumn" />
+        <UButton type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :disabled="locked" :label="t('hrPayroll.bankProfiles.addColumn')" data-testid="hr-bank-profile-add-column" @click="addColumn" />
       </SharedFormSection>
       <SharedFormActions>
         <UButton type="button" color="neutral" variant="outline" :disabled="saving" :label="t('app.cancel')" @click="close" />
-        <UButton type="submit" color="primary" :disabled="!hydrated || saving" :loading="saving" :label="t('app.saveChanges')" data-testid="hr-bank-profile-submit" />
+        <UButton type="submit" color="primary" :disabled="locked || conflict" :loading="saving" :label="t('app.saveChanges')" data-testid="hr-bank-profile-submit" />
       </SharedFormActions>
     </UForm>
 

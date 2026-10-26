@@ -5,6 +5,7 @@ from odoo.addons.webvue_api.controllers.common import ApiError, parse_positive_i
 from odoo.addons.webvue_hr.models.payroll_math import EOS_CASES
 from odoo.addons.webvue_hr.serializers.assets.common import ref, reject_unknown
 from odoo.addons.webvue_hr.serializers.dates import parse_optional_date
+from odoo.addons.webvue_hr.serializers.payroll.revision import stored_revision
 
 SETTLEMENT_FIELDS = ('case', 'open_deductions')
 CASE_MAP_FIELDS = ('departure_reason_id', 'case')
@@ -84,5 +85,6 @@ def dump_settlement(settlement):
     }
 
 
-def dump_case_item(reason, case):
-    return {'departure_reason': ref(reason), 'case': case or None}
+def dump_case_item(reason, case, company_row):
+    """``revision`` is the company's own row's, the one a PUT sends: 0 while the reason has none."""
+    return {'departure_reason': ref(reason), 'case': case or None, 'revision': stored_revision(company_row)}

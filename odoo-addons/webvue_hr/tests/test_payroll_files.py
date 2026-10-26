@@ -19,7 +19,7 @@ MONTH = '2026-11'
 IBAN_ONE = 'SA0380000000608010167519'
 IBAN_TWO = 'SA4420000001234567891234'
 ARABIC_NAME = 'أحمد الغامدي'
-PROFILE_KEYS = {'id', 'name', 'kind', 'delimiter', 'encoding', 'include_header', 'footer', 'columns', 'shared'}
+PROFILE_KEYS = {'id', 'name', 'kind', 'delimiter', 'encoding', 'include_header', 'footer', 'columns', 'shared', 'revision'}
 COLUMN_KEYS = {'source', 'label', 'constant_value'}
 STATEMENT_KEYS = {'month', 'lines', 'totals'}
 STATEMENT_LINE_KEYS = {
@@ -257,7 +257,7 @@ class TestPayrollFiles(PayrollCase):
         res = self.api('GET', f'{RUNS}/{run_id}/bank-file?profile_id={profile.id}')
         self.assertEqual(res.status_code, 404, res.text)
         self._login(self.config)
-        self.assertEqual(self.api('DELETE', f'{PROFILES}/{profile.id}').status_code, 404)
+        self.assertEqual(self.api('DELETE', f'{PROFILES}/{profile.id}', json={'revision': 1}).status_code, 404)
 
     def test_shared_profile_is_read_only(self):
         self._login(self.config)
@@ -266,8 +266,8 @@ class TestPayrollFiles(PayrollCase):
         items = {item['id']: item for item in res.json()['items']}
         self.assertEqual(set(items[self.generic.id]), PROFILE_KEYS)
         self.assertTrue(items[self.generic.id]['shared'])
-        self.assertEqual(self.api('PATCH', f'{PROFILES}/{self.generic.id}', json={'name': 'x'}).status_code, 403)
-        self.assertEqual(self.api('DELETE', f'{PROFILES}/{self.generic.id}').status_code, 403)
+        self.assertEqual(self.api('PATCH', f'{PROFILES}/{self.generic.id}', json={'name': 'x', 'revision': 1}).status_code, 403)
+        self.assertEqual(self.api('DELETE', f'{PROFILES}/{self.generic.id}', json={'revision': 1}).status_code, 403)
         self.assertEqual(self.generic.name, self.env.ref('webvue_hr.profile_generic_csv').name)
 
     def test_shared_profile_is_read_only_in_the_orm(self):
@@ -320,12 +320,13 @@ class TestPayrollFiles(PayrollCase):
         self.assertFalse(created['shared'])
         self.assertEqual([set(column) for column in created['columns']], [COLUMN_KEYS, COLUMN_KEYS])
         self.assertEqual(created['columns'][1]['constant_value'], 'RJHI')
-        res = self.api('PATCH', f"{PROFILES}/{created['id']}", json={'columns': [{'source': 'net', 'label': 'Net'}]})
+        res = self.api('PATCH', f"{PROFILES}/{created['id']}", json={'columns': [{'source': 'net', 'label': 'Net'}], 'revision': 1})
         self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json()['revision'], 2)
         self.assertEqual([column['source'] for column in res.json()['columns']], ['net'])
         res = self.api('POST', PROFILES, json={**body, 'columns': [{'source': 'constant', 'label': 'Bank'}]})
         self.assertEqual((res.status_code, res.json()['field']), (422, 'columns'))
         res = self.api('POST', PROFILES, json={**body, 'delimiter': 'x'})
         self.assertEqual((res.status_code, res.json()['field']), (422, 'delimiter'))
-        self.assertEqual(self.api('DELETE', f"{PROFILES}/{created['id']}").status_code, 204)
-        self.assertEqual(self.api('DELETE', f"{PROFILES}/{created['id']}").status_code, 404)
+        self.assertEqual(self.api('DELETE', f"{PROFILES}/{created['id']}", json={'revision': 2}).status_code, 204)
+        self.assertEqual(self.api('DELETE', f"{PROFILES}/{created['id']}", json={'revision': 2}).status_code, 404)

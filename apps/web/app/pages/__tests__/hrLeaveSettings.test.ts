@@ -9,6 +9,7 @@ import { useHrBankProfiles } from '../../composables/useHrPayrollFiles'
 import { useHrEosCases } from '../../composables/useHrPayrollEos'
 import { useHrPayrollFinanceSettings } from '../../composables/useHrPayrollFinance'
 import { useHrLeaveTypes } from '../../composables/useHrLeave'
+import { usePayrollConflict } from '../../composables/usePayrollConflict'
 const queries = vi.hoisted(() => ({ options: [] as any[] }))
 vi.mock('@tanstack/vue-query', () => ({useQuery:(options:any)=>{queries.options.push(options);return {data:Vue.ref(undefined),error:Vue.ref(null),isLoading:Vue.ref(false),refetch:vi.fn()}},useMutation:()=>({mutateAsync:vi.fn()}),useQueryClient:()=>({})}))
 vi.mock('../../composables/useHrOwnIdentity', () => ({useHrOwnIdentity:()=>({ready:Vue.ref(true),scope:Vue.ref({userId:7,companyId:3})})}))
@@ -31,7 +32,7 @@ describe('leave settings permission isolation',()=>{
       useHrPayrollSettings,useHrGosiRates,useHrBankProfiles,useHrEosCases,useHrPayrollFinanceSettings,useHrLeaveTypes,
       useHrPayrollFinanceLookups:()=>({accounts:idle(),journals:idle(),analyticAccounts:idle()}),useHrPayrollCostCenters:idle,
       useSetHrPayrollCostCenter:()=>({mutateAsync:vi.fn()}),useSaveHrEosCase:()=>({mutateAsync:vi.fn()}),
-      ApiError:Error,isTruncated:()=>false,saveErrorMessage:String,
+      ApiError:Error,isTruncated:()=>false,saveErrorMessage:String,usePayrollConflict,isPayrollConflict:()=>false,
     }
     const js=ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.None}}).outputText
     const component=new Function(...Object.keys(bindings),js)(...Object.values(bindings))
