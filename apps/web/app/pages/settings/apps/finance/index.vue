@@ -50,9 +50,12 @@ async function confirmLoadChart() {
   if (!hydrated.value || loadingChart.value || !canManage.value || !target) return
   try {
     await loadChart(target)
+    if (!sameFinanceSetupScope(target, setup.scope.value)) return
     confirmChart.value = false
     chartError.value = null
-  } catch (failure) { chartError.value = failure }
+  } catch (failure) {
+    if (sameFinanceSetupScope(target, setup.scope.value)) chartError.value = failure
+  }
 }
 
 // The fiscal editor: an immutable baseline of the values this identity was read for, and a draft of the
@@ -120,11 +123,24 @@ function revertFiscal() {
   fiscalSaved.value = false
 }
 
+function focusFiscalField(field: FinanceFiscalField) {
+  document.getElementById(`finance-fiscal-${field}`)?.focus()
+}
+
 async function focusFirstFiscalIssue() {
   await nextTick()
   const field = fiscalIssues.value[0]?.field
-  if (field) document.getElementById(`finance-fiscal-${field}`)?.focus()
+  if (field) focusFiscalField(field)
 }
+
+/** The summary of several broken rules: one linked line per invalid control, next to the field messages. */
+const fiscalSummary = computed(() => fiscalAttempted.value && fiscalIssues.value.length > 1
+  ? fiscalIssues.value.map(issue => ({
+      field: issue.field,
+      label: t(`finance.setup.fiscal.${FISCAL_FIELD_LABELS[issue.field] ?? issue.field}`),
+      message: t(`finance.setup.fiscal.errors.${issue.code}`),
+    }))
+  : [])
 
 // Saves the changed fields only. A draft that breaks a rule sends nothing, an unchanged draft never reaches
 // the network, and the precondition states the identity the draft was read for. A screen that moved on since
@@ -146,6 +162,8 @@ async function submitFiscal() {
     seedFiscal(saved, target)
     fiscalSaved.value = true
   } catch (failure) {
+    // An answer for an identity the screen has left is another screen's outcome: it touches nothing here.
+    if (!sameFinanceSetupScope(target, setup.scope.value)) return
     fiscalError.value = failure
     if (isFinanceContextChanged(failure)) {
       // The screen no longer speaks for this draft: hide it and say so instead of presenting it as saved.
@@ -165,6 +183,7 @@ onBeforeRouteLeave(() => {
 
 function monthName(month: number) { return new Intl.DateTimeFormat(locale.value, { month: 'long' }).format(new Date(2000, month - 1, 1)) }
 const monthOptions = computed(() => Array.from({ length: 12 }, (_, index) => ({ value: String(index + 1), label: monthName(index + 1) })))
+const FISCAL_FIELD_LABELS: Partial<Record<FinanceFiscalField, string>> = { fiscalyear_last_day: 'yearEndDay', fiscalyear_last_month: 'yearEndMonth' }
 const LOCK_FIELDS = ['fiscalyear_lock_date', 'tax_lock_date', 'sale_lock_date', 'purchase_lock_date', 'hard_lock_date'] as const
 const ZATCA_TONE = { not_started: 'neutral', compliance_checked: 'info', onboarded: 'success' } as const
 </script>
@@ -208,6 +227,15 @@ const ZATCA_TONE = { not_started: 'neutral', compliance_checked: 'info', onboard
           >
             <UAlert v-if="fiscalNoticeKey" role="alert" color="error" variant="subtle" :description="t(fiscalNoticeKey)" />
             <UAlert v-else-if="fiscalError" role="alert" color="error" variant="subtle" :title="t('finance.setup.fiscal.saveError')" :description="financeFiscalSaveMessage(fiscalError, t)" />
+            <UAlert v-else-if="fiscalSummary.length" role="alert" color="error" variant="subtle" :title="t('finance.setup.fiscal.errorSummary')" data-testid="finance-fiscal-error-summary">
+              <template #description>
+                <ul class="grid gap-1">
+                  <li v-for="item in fiscalSummary" :key="item.field">
+                    <a :href="`#finance-fiscal-${item.field}`" class="underline" @click.prevent="focusFiscalField(item.field)">{{ item.label }}: {{ item.message }}</a>
+                  </li>
+                </ul>
+              </template>
+            </UAlert>
             <UAlert v-else-if="fiscalSaved" role="status" color="success" variant="subtle" :description="t('finance.setup.fiscal.saved')" />
             <div class="webvue-form-grid">
               <UFormField :label="t('finance.setup.fiscal.yearEndDay')" name="finance-fiscal-fiscalyear_last_day" :error="fiscalFieldMessage('fiscalyear_last_day')">

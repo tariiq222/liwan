@@ -1,5 +1,5 @@
-import type { MaybeRefOrGetter } from 'vue'
-import { computed, toValue } from 'vue'
+import type { ComputedRef, MaybeRefOrGetter, Ref } from 'vue'
+import { computed, effectScope, ref, toValue, watch } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { FinanceSetupSchema, type FinanceSetup, type FinanceSetupFiscalInput } from '@webvue/contracts'
 import {
@@ -14,24 +14,48 @@ export type { FinanceSetup }
 export const financeSetupKey = ['finance', 'setup'] as const
 
 /** The cache leaf of one identity. The prefix stays, so the existing closing and audit invalidations still
- * reach every setup cache, while a leaf never moves between users, companies or observed epochs. */
+ * reach every setup cache, while a leaf never moves between users, companies or observed generations. */
 export function financeSetupScopeKey(scope: FinanceSetupScope | null) {
   return [...financeSetupKey, 'scope', scope ? financeSetupScopeToken(scope) : 'none']
 }
 
+type FinanceIdentity = { userId: number; companyId: number }
+
+/** One counter per Nuxt app (so per server request): it moves on every observed identity transition, to and
+ * from "unknown" included, and never goes back. */
+const identityGenerations = new WeakMap<object, Ref<number>>()
+
+function observedGeneration(identity: ComputedRef<FinanceIdentity | null>): Ref<number> {
+  const app = useNuxtApp()
+  const known = identityGenerations.get(app)
+  if (known) return known
+  const generation = ref(0)
+  identityGenerations.set(app, generation)
+  // Synchronous, so a transition that reverts within one tick (A, then nobody, then A) is still counted.
+  effectScope(true).run(() => watch(
+    () => (identity.value ? `${identity.value.userId}:${identity.value.companyId}` : null),
+    () => { generation.value += 1 },
+    { flush: 'sync' },
+  ))
+  return generation
+}
+
 /** The identity the signed-in session presents, or null while it is unknown (before `me` is read, or after
- * logout). The epoch is the observed access-policy revision: a marker of the screen this draft belongs to,
- * not a session generation, so it never claims to detect a re-issued session for the same user and company. */
+ * logout). The epoch is a finance-owned generation of the observed identity, not a server revision: a view
+ * that returns to the same user and company after any gap in between is a new view, so a request sent for the
+ * earlier one can never be taken for it. */
 export function useFinanceSetupScope() {
   const { me } = useMe()
-  return computed<FinanceSetupScope | null>(() => {
-    const identity = me.value
-    if (!identity) return null
-    const userId = identity.id
-    const companyId = identity.company.id
+  const identity = computed<FinanceIdentity | null>(() => {
+    const current = me.value
+    if (!current) return null
+    const userId = current.id
+    const companyId = current.company.id
     if (!Number.isSafeInteger(userId) || !Number.isSafeInteger(companyId) || userId <= 0 || companyId <= 0) return null
-    return { userId, companyId, epoch: identity.access_policy_version ?? 0 }
+    return { userId, companyId }
   })
+  const generation = observedGeneration(identity)
+  return computed<FinanceSetupScope | null>(() => (identity.value ? { ...identity.value, epoch: generation.value } : null))
 }
 
 export function useFinanceSetup(enabled: MaybeRefOrGetter<boolean> = true) {

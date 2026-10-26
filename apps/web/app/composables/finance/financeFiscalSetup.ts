@@ -29,7 +29,7 @@ export type FinanceFiscalIssueCode =
   | 'invalidDay' | 'invalidMonth' | 'invalidYearEnd' | 'invalidLockDate' | 'lockCannotClear' | 'lockCannotMoveEarlier'
 export type FinanceFiscalIssue = { field: FinanceFiscalField; code: FinanceFiscalIssueCode }
 
-/** The identity a setup screen was read for: the signed-in user, their current company and the observed epoch. */
+/** The identity a setup screen was read for: the signed-in user, their current company and the observed identity generation. */
 export type FinanceSetupScope = { userId: number; companyId: number; epoch: number }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -157,7 +157,7 @@ export function financeSetupScopeToken(scope: FinanceSetupScope): string {
   return `${scope.userId}:${scope.companyId}:${scope.epoch}`
 }
 
-/** The same user, on the same company, at the same observed epoch. Anything else is another screen's state. */
+/** The same user, on the same company, at the same observed generation. Anything else is another screen's state. */
 export function sameFinanceSetupScope(left: FinanceSetupScope | null, right: FinanceSetupScope | null): boolean {
   if (!left || !right) return false
   return financeSetupScopeToken(left) === financeSetupScopeToken(right)

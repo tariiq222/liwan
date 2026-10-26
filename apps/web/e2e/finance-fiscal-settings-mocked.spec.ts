@@ -216,6 +216,25 @@ test('an impossible year end blocks the save and sends nothing', async ({ page }
   expect(fiscalPatches).toHaveLength(0)
 })
 
+test('several broken rules list every field in one summary and focus the first', async ({ page }) => {
+  await openFiscal(page)
+  const day = page.locator('#finance-fiscal-fiscalyear_last_day')
+  await day.fill('40')
+  await page.locator('#finance-fiscal-fiscalyear_lock_date').click()
+  await page.getByRole('button', { name: 'مسح التاريخ' }).click()
+  await page.keyboard.press('Escape')
+  await expect(saveButton(page)).toBeEnabled()
+  await saveButton(page).click()
+  const summary = page.getByTestId('finance-fiscal-error-summary')
+  await expect(summary).toBeVisible()
+  await expect(summary.getByRole('link')).toHaveCount(2)
+  await expect(fiscalCard(page).getByText('أدخل يومًا صحيحًا من 1 إلى 31.', { exact: true })).toBeVisible()
+  await expect(day).toBeFocused()
+  await summary.getByRole('link').nth(1).click()
+  await expect(page.locator('#finance-fiscal-fiscalyear_lock_date')).toBeFocused()
+  expect(fiscalPatches).toHaveLength(0)
+})
+
 test('a posted-entries refusal keeps the draft and reports it without claiming success', async ({ page }) => {
   await openFiscal(page)
   rejectNextPatch = { status: 422, code: 'fiscal_year_has_posted_entries', message: 'server text' }
