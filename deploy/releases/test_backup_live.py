@@ -27,6 +27,7 @@ class BackupLiveTests(unittest.TestCase):
         self.database = url.path[1:]
         self.admin = psycopg2.connect(dsn); self.admin.autocommit = True
         with self.admin.cursor() as cursor:
+            cursor.execute(f'REVOKE CONNECT ON DATABASE "{self.database}" FROM PUBLIC')  # as provisioned in production
             for role in self.roles:
                 cursor.execute('SELECT 1 FROM pg_roles WHERE rolname=%s', (role,))
                 if not cursor.fetchone():
