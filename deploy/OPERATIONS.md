@@ -222,18 +222,20 @@ may claim a quiescent tenant window, and only inside its own contract:
 | Claim | Status |
 | --- | --- |
 | Writer window | Proven by source: every declared writer role (current and candidate) is denied `CONNECT` for the whole dump/archive, existing work is drained and idle sessions retired, candidate is never granted admission. An unsupported principal refuses the window. |
-| Previous-state restore | Durable intent before the first effect; only previously granted writers are reopened and only a previously running cron is restarted, under the same container identity. |
+| Previous-state restore | Durable intent before the first effect, including each owned cron's inspected container id; only previously granted writers are reopened and only a previously running cron is restarted, by that recorded id. A same-name replacement refuses (`cron_container_replaced`). |
+| Pending operation | A new request id is refused (`backup_operation_pending`) while the tenant has a maintenance marker or an unresolved backup intent; only the owning request id recovers it. |
 | Interruption | A crash (SIGKILL) or failure leaves the durable intent; a re-run of the same request, from any stage, reconciles the previous state without capturing again and refuses when the fence is no longer intact. Every failure recreates the maintenance marker before re-fencing (ACK, lease drain, writer fence, cron stop) and keeps it if fencing fails. |
 | Consistency / restore | `consistency: quiescent_gate` and `restoreVerified: false`. Hash-valid capture is not a business restore, and the manual tool's `UNVERIFIED` claim is never upgraded. |
 | Coverage boundary | Not proven against a privileged DBA/root, a host-side writer outside the declared model, a shared volatile mount, or any target outside `webvue_scratch_*`. |
 | Release path | `prepare`/`quiesce`/`capture`/`migrate`/`verify`/`retire` are unchanged from `main`; the candidate keeps `CONNECT` through verify. Only `backup-current` uses the writer window and `capture_window`. |
 | Live proof | Opt-in `test_backup_live` (scratch `webvue_scratch_backup_*`, loopback PostgreSQL) exercises `fence_writers`, recheck, dump/archive capture and scratch restore of a one-row table. It refuses existing fixture roles or restore target, restores into a fresh `webvue_scratch_backup_restore_<random>` database and drops only the roles and database it created. Docker/Odoo runtime, cron containers and a non-zero business restore stay separate gates. |
 
-Setup keys the runtime reads: `backup.totalDeadlineSeconds` (one absolute monotonic budget
-fixed before the filestore walk and covering the walk, dump, archive, hashes, fsyncs and every
-recheck connection/statement; default 600; a blocking call is bounded by the remaining time, not
-preempted mid-call, and no receipt is published past it), `backup.timeoutSeconds` (per-child cap
-and the resume/reconcile budget) and
+Setup keys the runtime reads: `backup.totalDeadlineSeconds` (one absolute monotonic budget per
+operation, fixed before the first effect and covering the writer fence, filestore walk, dump,
+archive, hashes, fsyncs, every recheck connection/statement, the final artifact validation and
+the resume; default 600; a blocking call is bounded by the remaining time, not preempted mid-call;
+an overrun fails closed and is never `verified`), `backup.timeoutSeconds` (per-child cap and the
+separate budget of a later same-id reconciliation) and
 `backup.allowedPrincipals` (closed operator allowance beside `postgres.adminUser`).
 Never reuse an existing artifact directory, database or filestore: a refused or
 interrupted run preserves partial artifacts for investigation.

@@ -75,6 +75,7 @@ class RuntimeCronTests(unittest.TestCase):
             'draining': [{key: self.old[key] for key in ('poolId', 'releaseId', 'routeRevision', 'fence')}]}
         self.events = []
         self.running = {'blue-cron': True, 'green-cron': False}
+        self.ids = {'blue-cron': '1' * 64, 'green-cron': '3' * 64}
         self.config = {'mode': 'local', 'postgres': {'host': '127.0.0.1'}, 'targetPool': 'green',
             'jobsRequired': True, 'drainSeconds': 0, 'pools': {},
             'tenants': {'tenant_a': {**self.binding, 'roles': {'blue': 'role_blue', 'green': 'role_green'}}}}
@@ -89,7 +90,8 @@ class RuntimeCronTests(unittest.TestCase):
 
     def inspect(self, container, expected, **kwargs):
         self.events.append(('inspect', container, kwargs))
-        return {'ready': True, 'dbUser': expected['dbUser'], 'running': self.running.get(container, True)}
+        return {'ready': True, 'dbUser': expected['dbUser'], 'running': self.running.get(container, True),
+            'containerId': self.ids.get(container, 'f' * 64)}
 
     def fence(self, binding, old_role, new_role, connector, **kwargs):
         self.events.append(('fence', old_role, new_role))
@@ -99,7 +101,9 @@ class RuntimeCronTests(unittest.TestCase):
     def docker(self, argv, **kwargs):
         self.events.append(('docker', tuple(argv)))
         if argv[:2] in (['docker', 'stop'], ['docker', 'start']):
-            self.running[argv[-1]] = argv[1] == 'start'
+            # The backup targets the inspected id; the release path still uses the name.
+            container = next((name for name, value in self.ids.items() if value == argv[-1]), argv[-1])
+            self.running[container] = argv[1] == 'start'
         return type('Result', (), {'returncode': 0, 'stdout': '', 'stderr': ''})()
 
     def publish(self):
@@ -227,11 +231,11 @@ class RuntimeCronTests(unittest.TestCase):
         return self.old
 
     def backup_previous(self, grants=None, cron=None, **patch):
-        return {'version': 1, 'tenantId': 'tenant_a', 'database': self.binding['database'],
+        return {'version': 2, 'tenantId': 'tenant_a', 'database': self.binding['database'],
             'filestore': self.binding['filestore'], 'registryRevision': 1, 'releaseId': 'r1', 'poolId': 'blue',
             'routeRevision': 1, 'fence': 1, 'image': 'img-blue', 'roles': ['role_blue', 'role_green'],
             'grants': grants if grants is not None else {'role_blue': True, 'role_green': False},
-            'cron': cron if cron is not None else {'blue-cron': True}, **patch}
+            'cron': cron if cron is not None else {'blue-cron': {'containerId': '1' * 64, 'running': True}}, **patch}
 
     def window(self, binding, roles, connector, **kwargs):
         self.events.append(('window', tuple(roles), binding.get('transactionScope')))
@@ -278,7 +282,7 @@ class RuntimeCronTests(unittest.TestCase):
         previous = self.runtime.prepare_backup(self.binding, route)
         self.assertEqual(previous['roles'], ['role_blue', 'role_green'])
         self.assertEqual(previous['grants'], {'role_blue': True, 'role_green': False})
-        self.assertEqual(previous['cron'], {'blue-cron': True})
+        self.assertEqual(previous['cron'], {'blue-cron': {'containerId': '1' * 64, 'running': True}})
         self.assertEqual((previous['fence'], previous['poolId'], previous['routeRevision']), (1, 'blue', 1))
 
     def test_backup_previous_state_refuses_a_running_candidate_cron(self):
@@ -291,7 +295,7 @@ class RuntimeCronTests(unittest.TestCase):
         route = self.backup_config()
         with patch.object(runtime_module, 'fence_writers', self.window), \
                 patch.object(runtime_module.subprocess, 'run', self.docker):
-            proof = self.runtime._fence_backup_writers(self.binding, route)
+            proof = self.runtime._fence_backup_writers(self.binding, route, self.backup_previous())
         self.assertEqual(proof['deniedWriters'], ['role_blue', 'role_green'])
         self.assertEqual(proof['writerConnections'], 0)
         window = next(event for event in self.events if event[0] == 'window')
@@ -299,7 +303,7 @@ class RuntimeCronTests(unittest.TestCase):
         self.assertEqual(window[2], 'tenant')
         stops = [event for event in self.events if event[0] == 'docker' and event[1][:2] == ('docker', 'stop')]
         self.assertEqual(len(stops), 1)
-        self.assertIn('blue-cron', stops[0][1])
+        self.assertEqual(stops[0][1], ('docker', 'stop', '1' * 64))
         self.assertFalse(any('green-cron' in event[1] for event in stops))
 
     def test_resume_restores_only_previously_granted_writers_and_running_cron(self):
@@ -307,20 +311,23 @@ class RuntimeCronTests(unittest.TestCase):
         route = self.backup_config(grants={'role_blue': False, 'role_green': False})
         self.running['blue-cron'] = False
         with patch.object(runtime_module.subprocess, 'run', self.docker):
-            result = self.runtime.resume_backup(self.binding, route, self.backup_previous())
+            result = self.runtime.resume_backup(self.binding, route, self.backup_previous(), backup_module.Deadline(30))
         self.assertEqual(result['restoredWriters'], ['role_blue'])
         sql = '\n'.join(statement for statement, _ in self.connection.statements)
         self.assertIn('GRANT CONNECT ON DATABASE "webvue_scratch_cron_a" TO "role_blue"', sql)
         self.assertNotIn('role_green', sql)
         self.assertTrue(self.running['blue-cron'])
+        starts = [event[1] for event in self.events if event[0] == 'docker']
+        self.assertEqual(starts, [('docker', 'start', '1' * 64)])
 
     def test_stopped_previous_cron_is_never_started_by_a_backup(self):
         self.state.maintenance('tenant_a', 1)
         route = self.backup_config(grants={'role_blue': False, 'role_green': False})
         self.running['blue-cron'] = False
         with patch.object(runtime_module.subprocess, 'run', self.docker):
-            result = self.runtime.resume_backup(self.binding, route, self.backup_previous(cron={'blue-cron': False}))
-        self.assertEqual(result['cron'], {'blue-cron': False})
+            result = self.runtime.resume_backup(self.binding, route,
+                self.backup_previous(cron={'blue-cron': {'containerId': '1' * 64, 'running': False}}), backup_module.Deadline(30))
+        self.assertEqual(result['cron'], {'blue-cron': {'containerId': '1' * 64, 'running': False}})
         self.assertFalse(self.running['blue-cron'])
         self.assertFalse([event for event in self.events if event[0] == 'docker'])
 
@@ -329,14 +336,14 @@ class RuntimeCronTests(unittest.TestCase):
         route = self.backup_config(grants={'role_blue': False, 'role_green': False})
         self.config['pools']['blue']['cronRuntimes'][0]['container'] = 'blue-cron-v2'
         with self.assertRaisesRegex(state_module.ReleaseConflict, 'cron_identity_changed'):
-            self.runtime.resume_backup(self.binding, route, self.backup_previous())
+            self.runtime.resume_backup(self.binding, route, self.backup_previous(), backup_module.Deadline(30))
 
     def test_resume_refuses_a_previous_state_from_another_route(self):
         self.state.maintenance('tenant_a', 1)
         route = self.backup_config()
         for patch_state in ({'fence': 2}, {'poolId': 'green'}, {'roles': ['role_blue']}, {'grants': {'role_blue': True}}):
             with self.subTest(patch=patch_state), self.assertRaisesRegex(state_module.ReleaseConflict, 'backup_previous_state_mismatch'):
-                self.runtime.resume_backup(self.binding, route, self.backup_previous(**patch_state))
+                self.runtime.resume_backup(self.binding, route, self.backup_previous(**patch_state), backup_module.Deadline(30))
 
     def cronless_backup(self, tmp):
         self.config['jobsRequired'] = False
@@ -387,7 +394,7 @@ class RuntimeCronTests(unittest.TestCase):
         self.state.maintenance('tenant_a', 1)
         route = self.backup_config(grants={'role_blue': False, 'role_green': False})
         with self.assertRaisesRegex(state_module.ReleaseConflict, 'cron_identity_changed'):
-            self.runtime.resume_backup(self.binding, route, self.backup_previous(cron={}))
+            self.runtime.resume_backup(self.binding, route, self.backup_previous(cron={}), backup_module.Deadline(30))
 
     def test_every_window_query_gets_only_the_time_left_on_one_budget(self):
         # Each statement costs 2 s on a fake clock: four sequential rechecks overrun
@@ -422,6 +429,134 @@ class RuntimeCronTests(unittest.TestCase):
         sql = '\n'.join(statement for statement, _ in self.connection.statements)
         self.assertIn('TO "role_blue"', sql)
         self.assertNotIn('role_green', sql)
+
+    def test_resume_refuses_a_same_name_replacement_cron_without_starting_it(self):
+        # F2: the recorded cron was container 111…; a replacement under the same name
+        # (222…) passes image/config/role checks but is not the container recorded.
+        self.state.maintenance('tenant_a', 1)
+        route = self.backup_config(grants={'role_blue': False, 'role_green': False})
+        self.running['blue-cron'] = False
+        self.ids['blue-cron'] = '2' * 64
+        with patch.object(runtime_module.subprocess, 'run', self.docker):
+            with self.assertRaisesRegex(state_module.ReleaseConflict, '^cron_container_replaced$'):
+                self.runtime.resume_backup(self.binding, route, self.backup_previous(), backup_module.Deadline(30))
+        self.assertFalse([event for event in self.events if event[0] == 'docker'])
+        self.assertFalse(self.running['blue-cron'])
+
+    def test_reconcile_refuses_a_same_name_replacement_cron_without_starting_it(self):
+        self.state.maintenance('tenant_a', 1)
+        route = self.backup_config(grants={'role_blue': False, 'role_green': False})
+        self.running['blue-cron'] = False
+        self.ids['blue-cron'] = '2' * 64
+        with patch.object(runtime_module.subprocess, 'run', self.docker):
+            with self.assertRaisesRegex(state_module.ReleaseConflict, '^cron_container_replaced$'):
+                self.runtime.reconcile_backup(self.binding, route, self.backup_previous())
+        self.assertFalse([event for event in self.events if event[0] == 'docker'])
+
+    def test_window_refuses_to_stop_a_cron_replaced_after_prepare(self):
+        self.state.maintenance('tenant_a', 1)
+        route = self.backup_config()
+        previous = self.runtime.prepare_backup(self.binding, route)
+        self.assertEqual(previous['cron'], {'blue-cron': {'containerId': '1' * 64, 'running': True}})
+        self.ids['blue-cron'] = '2' * 64
+        with patch.object(runtime_module, 'fence_writers', self.window), \
+                patch.object(runtime_module.subprocess, 'run', self.docker):
+            with self.assertRaisesRegex(state_module.ReleaseConflict, '^cron_container_replaced$'):
+                self.runtime._fence_backup_writers(self.binding, route, previous)
+        self.assertFalse([event for event in self.events if event[0] == 'docker'])
+
+    def test_previous_cron_state_without_a_container_id_is_refused(self):
+        self.state.maintenance('tenant_a', 1)
+        route = self.backup_config(grants={'role_blue': False, 'role_green': False})
+        for cron in ({'blue-cron': True}, {'blue-cron': {'running': True}},
+                     {'blue-cron': {'containerId': 'blue-cron', 'running': True}}):
+            with self.subTest(cron=cron), self.assertRaisesRegex(state_module.ReleaseConflict, '^cron_identity_changed$'):
+                self.runtime.resume_backup(self.binding, route, self.backup_previous(cron=cron), backup_module.Deadline(30))
+
+    def budget_run(self, request_id, tmp, *, during_validation=0, during_finalize=0):
+        """Drive the real backup_current consumer on a fake clock: every SQL statement
+        costs 2 s, and the given phase consumes the stated seconds of the budget."""
+        route, window = self.cronless_backup(tmp)
+        now = [0.0]
+        def tick(): now[0] += 2
+        self.connection.tick = tick
+        real_validate = runtime_module.validate_window
+        def slow_validate(path, deadline):
+            now[0] += during_validation
+            return real_validate(path, deadline)
+        def finalize(result): now[0] += during_finalize
+        clock = lambda seconds: backup_module.Deadline(seconds, lambda: now[0])
+        with patch.object(runtime_module, 'fence_writers', window), \
+                patch.object(runtime_module, 'Deadline', clock), \
+                patch.object(runtime_module, 'validate_window', slow_validate), \
+                patch.object(runtime_module.subprocess, 'run', self.docker):
+            try:
+                return operation_module.backup_current(self.state, self.runtime, self.binding, request_id,
+                                                       tmp / request_id, finalize)
+            finally:
+                self.connection.tick = lambda: None
+
+    def assert_failed_closed(self, request_id):
+        receipt = self.state.receipt(request_id)
+        self.assertEqual((receipt['stage'], receipt['errorCode']), ('needs_intervention', 'backup_unverified'))
+        self.assertTrue((self.state.routes / 'tenant_a.maintenance').is_file())
+        self.assertEqual(self.connection.grants, {'role_blue': False, 'role_green': False})
+
+    def test_one_operation_budget_covers_capture_validation_and_resume(self):
+        # F3: totalDeadlineSeconds=60; capture and resume cost about 28 s of SQL.
+        with tempfile.TemporaryDirectory() as temporary:
+            tmp = Path(temporary).resolve()
+            self.assertEqual(self.budget_run('budget_ok', tmp, during_validation=20)['stage'], 'verified')
+            self.assertEqual(self.connection.grants, {'role_blue': True, 'role_green': False})
+            self.assertFalse((self.state.routes / 'tenant_a.maintenance').exists())
+
+    def test_overrun_during_final_validation_is_never_verified(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            tmp = Path(temporary).resolve()
+            with self.assertRaisesRegex(ValueError, '^backup_deadline_exceeded$'):
+                self.budget_run('budget_validation', tmp, during_validation=60)
+            self.assert_failed_closed('budget_validation')
+            self.assertTrue((tmp / 'budget_validation' / 'receipt.json').is_file())  # artifacts kept for the operator
+            # The owning request id still recovers on its own reconciliation budget.
+            receipt = operation_module.backup_current(self.state, self.runtime, self.binding, 'budget_validation',
+                                                      tmp / 'budget_validation')
+        self.assertEqual(receipt['stage'], 'reconciled')
+        self.assertEqual(self.connection.grants, {'role_blue': True, 'role_green': False})
+        self.assertFalse((self.state.routes / 'tenant_a.maintenance').exists())
+
+    def test_overrun_during_resume_fails_closed(self):
+        # Finalize leaves 7 s: the post-finalize check passes, the resume statements overrun.
+        with tempfile.TemporaryDirectory() as temporary:
+            tmp = Path(temporary).resolve()
+            with self.assertRaisesRegex(ValueError, '^backup_deadline_exceeded$'):
+                self.budget_run('budget_resume', tmp, during_finalize=60 - 16 - 7)
+            self.assert_failed_closed('budget_resume')
+            self.assertNotIn('GRANT CONNECT', '\n'.join(sql for sql, _ in self.connection.statements))
+            receipt = operation_module.backup_current(self.state, self.runtime, self.binding, 'budget_resume',
+                                                      tmp / 'budget_resume')
+        self.assertEqual(receipt['stage'], 'reconciled')
+        self.assertEqual(self.connection.grants, {'role_blue': True, 'role_green': False})
+
+    def test_window_connection_is_closed_when_the_budget_ran_out_while_connecting(self):
+        self.backup_config()
+        now = [0.0]
+        closed = []
+        def connect(_database, **options):
+            now[0] += 10  # connect returned after the budget
+            return SimpleNamespace(close=lambda: closed.append(True))
+        self.runtime.connector = connect
+        with self.assertRaisesRegex(ValueError, '^backup_deadline_exceeded$'):
+            with self.runtime._window_connection(self.binding['database'], backup_module.Deadline(5, lambda: now[0])):
+                self.fail('a connection obtained past the budget was used')
+        self.assertEqual(closed, [True])
+
+    def test_every_window_connection_is_closed_after_use(self):
+        self.state.maintenance('tenant_a', 1)
+        self.backup_config(grants={'role_blue': False, 'role_green': False})
+        closed = []
+        self.connection.close = lambda: closed.append(True)
+        self.runtime._recheck_window(self.binding, backup_module.Deadline(30))
+        self.assertEqual(closed, [True])
 
 
 if __name__ == '__main__':

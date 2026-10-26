@@ -229,6 +229,42 @@ def capture_window(binding, quiescence, config, deadline):
     return receipt
 
 
+def validate_window(backup, deadline):
+    """Backup-current final validation on what is left of the operation budget.
+
+    The same artifact checks as ``validate_backup`` (which restore keeps
+    unchanged), but every hashed block and every archive member asks ``deadline``
+    first, so validation cannot run unbounded while the writers stay fenced.
+    An overrun raises ``backup_deadline_exceeded``; any other defect raises
+    ``backup_validation_failed``. Returns the validated receipt.
+    """
+    if not isinstance(deadline, Deadline): raise ValueError('backup_deadline_rejected')
+    try:
+        deadline.remaining()
+        root = _path(backup, exists=True, directory=True)
+        receipt_path = _path(root / 'receipt.json', exists=True)
+        if receipt_path.stat().st_size > 65536: raise ValueError()
+        receipt = json.loads(receipt_path.read_text())
+        if (receipt.get('version') != 1 or receipt.get('consistency') != 'quiescent_gate'
+                or type(receipt.get('fence')) is not int or receipt['fence'] < 1
+                or not IMAGE.fullmatch(receipt.get('image', ''))): raise ValueError()
+        identifier(receipt['database'])
+        if set(receipt['hashes']) != {'database.dump', 'filestore.tar'}: raise ValueError()
+        for name, digest in receipt['hashes'].items():
+            path = _path(root / name, exists=True)
+            if not path.is_file() or not re.fullmatch('[a-f0-9]{64}', digest) or _sha(path, deadline) != digest: raise ValueError()
+        with tarfile.open(root / 'filestore.tar', 'r') as archive:
+            for member in archive:
+                deadline.remaining()
+                path = PurePosixPath(member.name)
+                if path.is_absolute() or '..' in path.parts or not (member.isfile() or member.isdir()): raise ValueError()
+        deadline.remaining()
+        return receipt
+    except Exception as error:
+        if str(error) == 'backup_deadline_exceeded': raise
+        raise ValueError('backup_validation_failed') from None
+
+
 def validate_backup(backup):
     """Check both complete artifacts before any restore-side mutation."""
     try:
