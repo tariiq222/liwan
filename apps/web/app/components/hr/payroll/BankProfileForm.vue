@@ -12,6 +12,7 @@ import {
   type HrBankProfileColumn,
 } from '@webvue/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
+import { payrollErrorMessage } from '@/utils/payrollErrors'
 
 // The bank and WPS file layouts of the company: a name, the file's delimiter, encoding, header and footer, and the
 // ordered columns, each taken from a payslip figure, the employee or a constant. A shared profile (the platform's
@@ -110,6 +111,12 @@ const formAlert = computed(() => {
   if (conflict.value) return t('hrPayroll.revision.conflict')
   return failure.value ? saveErrorMessage(failure.value, t('errors.generic'), t('errors.saveUncertain')) : undefined
 })
+// A refused delete answers with a payroll refusal code (a profile a kept salary file names, 409); a refused save
+// keeps the server's own text. The two never show together: opening a delete closes the form and the reverse.
+const deleteAlert = computed(() => {
+  if (conflict.value) return t('hrPayroll.revision.conflict')
+  return failure.value ? payrollErrorMessage(failure.value, t, new Map()) : undefined
+})
 const locked = computed(() => !hydrated.value || saving.value || reloading.value)
 
 async function submit() {
@@ -153,7 +160,7 @@ const rowActions = (profile: HrBankProfile) => [
       <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :disabled="!hydrated" :label="t('hrPayroll.bankProfiles.add')" data-testid="hr-bank-profile-add" @click="open('new')" />
     </template>
 
-    <UAlert v-if="deleting && formAlert" role="alert" color="error" variant="subtle" :title="formAlert" />
+    <UAlert v-if="deleting && deleteAlert" role="alert" color="error" variant="subtle" :title="deleteAlert" />
     <UButton v-if="conflict" color="neutral" variant="outline" :label="t('hrPayroll.revision.reload')" :loading="reloading" :disabled="!hydrated || reloading" data-testid="hr-bank-profile-reload" @click="reload" />
     <UAlert v-if="reloadFailure" role="alert" color="error" variant="subtle" :title="t('hrPayroll.revision.reloadError')" />
     <SharedInlineConfirm

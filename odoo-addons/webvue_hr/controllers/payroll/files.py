@@ -12,10 +12,8 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.webvue_hr.controllers.common import hr_rule_handler
-from odoo.addons.webvue_hr.models.hr_payslip_run import EDITABLE_STATES
 from odoo.addons.webvue_hr.serializers.dates import parse_optional_date
 from odoo.addons.webvue_hr.serializers.payroll.files import dump_gosi_statement
-from odoo.addons.webvue_hr.serializers.payroll.run import run_states
 
 RUN = '/api/v1/hr/payroll/runs/<int:run_id>'
 DEFAULT_PROFILES = {'bank': 'webvue_hr.profile_generic_csv', 'wps': 'webvue_hr.profile_mudad_wps'}
@@ -24,7 +22,7 @@ DEFAULT_PROFILES = {'bank': 'webvue_hr.profile_generic_csv', 'wps': 'webvue_hr.p
 def _approved_run(run_id):
     """The run once its figures are fixed (approved or any later state a bridge adds) → 403 otherwise."""
     run = scoped_run(run_id)
-    if run.webvue_state not in set(run_states(request.env)) - set(EDITABLE_STATES):
+    if run._webvue_is_editable():
         raise ApiError(403, 'transition_forbidden', 'the salary files need an approved payroll run')
     return run
 
@@ -50,6 +48,13 @@ def _month(run):
     return run.date_start.strftime('%Y-%m')
 
 
+def _kept_response(run, kind, profile, value_date, content, filename):
+    """Keep the generated file and log its handing out, then answer it as the download."""
+    kept = request.env['webvue.hr.payroll.file']._webvue_keep(run, kind, profile, value_date, filename, content)
+    request.env['webvue.hr.audit.event']._webvue_log('payment_file_generated', kept)
+    return _csv_response(content, filename)
+
+
 def _csv_response(content, filename):
     """A salary file: never cached by the browser or a proxy, and never sniffed into another type."""
     return request.make_response(content, headers=[
@@ -62,10 +67,13 @@ def _csv_response(content, filename):
 
 class HrPayrollFilesController(http.Controller):
 
-    @http.route(f'{RUN}/bank-file', type='http', auth='user', methods=['GET'], readonly=True)
+    # A write, though a GET: every download keeps the file it hands out and logs it (owner decision D-4), so a
+    # read-only tenant (expired, or suspended with support signed in) is refused 403 ``tenant_read_only`` before
+    # any file is generated, kept or logged, a file kept earlier included (owner decision 2026-10-26).
+    @http.route(f'{RUN}/bank-file', type='http', auth='user', methods=['GET'], readonly=False)
     @api_handler
     @hr_rule_handler
-    @requires_feature('hr.enabled', 'hr.payroll', operation='read')
+    @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.read')
     def bank_file(self, run_id, **_):
         """The bank salary file of a fixed run: employees with a net to pay, each of them with an IBAN."""
@@ -76,12 +84,14 @@ class HrPayrollFilesController(http.Controller):
         export = request.env['webvue.hr.payroll.export']
         lines = [line for line in export._webvue_salary_lines(run) if line.net > 0]
         _require_iban(lines)
-        return _csv_response(export._webvue_render(profile, lines, value_date), f'salaries-{_month(run)}.csv')
+        content = export._webvue_render(profile, lines, value_date)
+        return _kept_response(run, 'bank', profile, value_date, content, f'salaries-{_month(run)}.csv')
 
-    @http.route(f'{RUN}/wps-file', type='http', auth='user', methods=['GET'], readonly=True)
+    # A write, like the bank file: see above.
+    @http.route(f'{RUN}/wps-file', type='http', auth='user', methods=['GET'], readonly=False)
     @api_handler
     @hr_rule_handler
-    @requires_feature('hr.enabled', 'hr.payroll', operation='read')
+    @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.read')
     def wps_file(self, run_id, **_):
         """The WPS file of a fixed run: every payslip, zero net included, once its totals add up."""
@@ -91,9 +101,9 @@ class HrPayrollFilesController(http.Controller):
         lines = export._webvue_salary_lines(run)
         export._webvue_check_totals(lines)
         _require_iban(lines)
-        return _csv_response(
-            export._webvue_render(profile, lines, fields.Date.context_today(run)), f'wps-{_month(run)}.csv',
-        )
+        value_date = fields.Date.context_today(run)
+        content = export._webvue_render(profile, lines, value_date)
+        return _kept_response(run, 'wps', profile, value_date, content, f'wps-{_month(run)}.csv')
 
     @http.route(f'{RUN}/gosi-statement', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
