@@ -177,7 +177,10 @@ class TestFinanceClosing(ClosingCase):
 
     def test_an_earlier_year_covered_by_a_lock_does_not_block_a_later_close(self):
         self._entry(self.company, '2024-05-01', self.cash, self.income, 300)
-        patched = self.api('PATCH', '/api/v1/finance/setup/fiscal', json={'fiscalyear_lock_date': '2024-12-31'})
+        patched = self.setup_api(
+            'PATCH', '/api/v1/finance/setup/fiscal', user=self.manager, company=self.company,
+            json={'fiscalyear_lock_date': '2024-12-31'},
+        )
         self.assertEqual(patched.status_code, 200, patched.text)
         self.assertEqual(self.year_item(2024)['state'], 'locked')
         self.assertRefused(self.close(2024), 422, 'already_closed')

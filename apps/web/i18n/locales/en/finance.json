@@ -170,12 +170,35 @@
       },
       "fiscal": {
         "title": "Fiscal year",
+        "errorSummary": "Fix these fields before saving:",
         "yearEnd": "Fiscal year end",
         "fiscalyear_lock_date": "Fiscal year lock",
         "tax_lock_date": "Tax lock",
         "sale_lock_date": "Sales lock",
         "purchase_lock_date": "Purchases lock",
-        "hard_lock_date": "Hard lock"
+        "hard_lock_date": "Hard lock",
+        "scopeHint": "These settings apply only to the current company.",
+        "yearEndDay": "Fiscal year end day",
+        "yearEndMonth": "Fiscal year end month",
+        "yearEndHint": "The fiscal year end cannot change after entries are posted. The system checks this when saving.",
+        "locksHint": "Locks can only be tightened; they cannot be removed or moved earlier here.",
+        "hardLockHint": "The hard lock is read-only and cannot be changed here.",
+        "revert": "Revert changes",
+        "saveError": "The company settings could not be saved",
+        "saved": "Fiscal year and lock settings saved.",
+        "saving": "Saving the company settings… wait for the request to finish.",
+        "errors": {
+          "invalidDay": "Enter a whole day from 1 to 31.",
+          "invalidMonth": "Enter a whole month from 1 to 12.",
+          "invalidYearEnd": "That date does not exist in the calendar. Enter a valid date.",
+          "invalidLockDate": "Enter a valid date.",
+          "lockCannotClear": "This lock cannot be removed here; it can only be tightened.",
+          "lockCannotMoveEarlier": "This lock cannot be moved to an earlier date.",
+          "fiscal_year_has_posted_entries": "The fiscal year end cannot change because entries have been posted. Restore the saved year end to save lock changes only.",
+          "lock_date_loosening": "This lock cannot be removed or moved to an earlier date.",
+          "invalid_request_context": "This request could not be checked against the signed-in identity. Reload the page and try again.",
+          "request_context_changed": "The company or sign-in identity changed since this screen was opened, so this request's result was not applied. Reload the current company's settings to verify."
+        }
       },
       "chart": {
         "title": "Chart of accounts",
