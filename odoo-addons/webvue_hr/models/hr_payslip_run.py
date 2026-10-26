@@ -252,7 +252,7 @@ class HrPayslipRun(models.Model):
             )
         Audit = self.env['webvue.hr.audit.event']
         before = Audit._webvue_policy_snapshot(self)
-        self.slip_ids._webvue_snapshot_payment()
+        self.env['webvue.hr.payslip.payment']._webvue_snapshot(self.slip_ids)
         self.slip_ids.with_context(without_compute_sheet=True).action_payslip_done()
         self.close_payslip_run()
         self.write({

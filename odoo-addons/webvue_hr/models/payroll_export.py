@@ -71,14 +71,18 @@ class WebVueHrPayrollExport(models.AbstractModel):
     def _webvue_salary_lines(self, run):
         """One ``SalaryLine`` per payslip of the run, ordered by employee name.
 
-        The IBAN, bank code and identification number are the ones stored on the payslip when the run was approved;
-        a later change to the compensation or the employee never reaches a salary file of an approved run.
+        The IBAN, bank code and identification number are the ``webvue.hr.payslip.payment`` row stored when the run
+        was approved; a later change to the compensation or the employee never reaches a salary file of an approved
+        run. A payslip without that row exports empty payment data, never the live values.
         """
         totals = self._webvue_line_totals(run)
+        snapshots = self.env['webvue.hr.payslip.payment']._webvue_by_payslip(run.slip_ids)
+        empty = self.env['webvue.hr.payslip.payment']
         lines = []
         for slip in run.slip_ids.sorted(lambda row: (row.employee_id.name or '', row.id)):
             employee = slip.employee_id
             codes = totals[slip.id]
+            paid = snapshots.get(slip.id, empty)
 
             def total(names, codes=codes):
                 return money(sum((codes.get(name, Decimal(0)) for name in names), Decimal(0)))
@@ -86,10 +90,10 @@ class WebVueHrPayrollExport(models.AbstractModel):
             lines.append(SalaryLine(
                 employee_id=employee.id,
                 employee_ref=str(employee.id),
-                identification=slip.webvue_identification or '',
+                identification=paid.identification or '',
                 name=employee.name or '',
-                iban=slip.webvue_iban or '',
-                bank_code=slip.webvue_bank_code or '',
+                iban=paid.iban or '',
+                bank_code=paid.bank_code or '',
                 basic=total(('BASIC',)),
                 housing=total(('HOUSING',)),
                 other_allowances=total(OTHER_ALLOWANCE_CODES),

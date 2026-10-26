@@ -98,7 +98,7 @@ class TestPayrollFiles(PayrollCase):
         self.set_compensation(nameless, 4000, iban=IBAN_TWO, gosi_registration_date=date(2020, 1, 1))
         run_id = self._run()
         slip = self.env['hr.payslip.run'].browse(run_id).slip_ids.filtered(lambda row: row.employee_id == nameless)
-        slip.webvue_iban = False
+        self.env['webvue.hr.payslip.payment'].search([('payslip_id', '=', slip.id)]).iban = False
         res = self.api('GET', f'{RUNS}/{run_id}/bank-file?profile_id={self.generic.id}')
         self.assertEqual(res.status_code, 422, res.text)
         body = res.json()

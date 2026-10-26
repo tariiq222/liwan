@@ -1,19 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Fill the payment snapshot of the payslips of runs approved before 19.0.1.12.0.
+"""Store the payment snapshot of the payslips of runs approved before 19.0.1.12.0.
 
-The salary files now read the IBAN, bank code and identification number stored on the payslip at approval and
-never the live compensation or employee. A run approved before this version has none stored, so its payslips
-take the values the employee holds now, which is what its files showed until this version. Only payslips whose
-three snapshot fields are all empty are written.
-
-That is a backfill from current data, not a proof of idempotence: re-running the step while the live compensation
-and version are unchanged writes the same values and changes nothing. Only payslips whose three snapshot fields are
-all empty are candidates, so a stored snapshot is never rewritten; the values written are the current ones, not what
-the employee held at approval, which this version is the first to record. A rerun after those live values changed
-therefore writes the new ones, including onto a payslip whose empty snapshot was correct (a zero net paid where the
-employee had no IBAN at approval). Odoo runs this step once per version upgrade; freezing an empty snapshot against
-a later manual rerun would need a stored marker and is out of this ticket's scope. A fresh install has no approved
-run.
+The salary files now read the IBAN, bank code and identification number of the ``webvue.hr.payslip.payment`` row
+stored at approval and never the live compensation or employee. A run approved before this version has no row, so
+each of its payslips gets one from the values the employee holds now, which is what its files showed until this
+version. A payslip that already has a row is never written again: the row itself marks the payment data as fixed,
+so a rerun, even after the live data changed, changes nothing. A fresh install has no approved run.
 """
 from odoo import SUPERUSER_ID, api
 
@@ -28,9 +20,9 @@ def migrate(cr, version):
 
 
 def fill_payment_snapshots(env):
-    """Snapshot the payslips of fixed runs whose payment data was never stored."""
+    """Snapshot the payslips of fixed runs that have no payment snapshot row yet."""
+    Payment = env['webvue.hr.payslip.payment']
     payslips = env['hr.payslip'].search([
         ('payslip_run_id', '!=', False), ('payslip_run_id.webvue_state', 'not in', EDITABLE_STATES),
-        ('webvue_iban', '=', False), ('webvue_bank_code', '=', False), ('webvue_identification', '=', False),
     ])
-    payslips._webvue_snapshot_payment()
+    Payment._webvue_snapshot(payslips - Payment.search([('payslip_id', 'in', payslips.ids)]).payslip_id)

@@ -27,5 +27,6 @@ from . import (
     payroll_file,
     payroll_finance_link,
     payroll_settings,
+    payslip_payment,
     shift_settings,
 )

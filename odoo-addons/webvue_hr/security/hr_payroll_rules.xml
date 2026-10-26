@@ -42,6 +42,15 @@
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
 
+    <!-- The payment snapshot of an approved payslip is company-scoped for everyone too: the payroll ACL above
+         grants it, the native company fence projects that grant per company, never the global group union. -->
+    <record id="rule_webvue_hr_payslip_payment_company" model="ir.rule">
+        <field name="name">webvue payslip payment snapshot: multi company</field>
+        <field name="model_id" ref="model_webvue_hr_payslip_payment"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
     <!-- GOSI rates: the shared seed rows (no company) are readable by every company but writable by none;
          a company writes only its own rows. -->
     <record id="rule_webvue_hr_gosi_rate_company" model="ir.rule">

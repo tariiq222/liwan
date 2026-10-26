@@ -6,7 +6,8 @@ from odoo.tests import new_test_user, tagged
 
 from .payroll_common import PayrollCase
 
-SNAPSHOT_FIELDS = ('webvue_iban', 'webvue_bank_code', 'webvue_identification')
+SNAPSHOT_FIELDS = ('iban', 'bank_code', 'identification')
+PAYMENT = 'webvue.hr.payslip.payment'
 EMPLOYEES_READ_SCOPE = ((('hr.employees.read',), 'all'),)
 
 
@@ -16,7 +17,9 @@ class TestPayrollCompanyFence(PayrollCase):
 
     ``mixed`` reads payroll in A and only employees in B (a branch of A) and C (an unrelated company). In B and C
     the employee read ACL opens hr.payslip and the global payroll group opens the (1, '=', 1) payroll rules, so
-    without the fence they would read every payslip of B and C, with its lines and payment snapshot.
+    without the fence they would read every payslip of B and C, with its lines. The payment snapshot is a model of
+    its own (``webvue.hr.payslip.payment``) that only the payroll ACL opens, projected per company: even their own
+    approved payslip in B shows its summary and lines, never where it is paid.
     """
 
     @classmethod
@@ -71,7 +74,8 @@ class TestPayrollCompanyFence(PayrollCase):
         slip = cls._slip(employee)
         # The engine stamps each line with the computing company, as a run computed in its own company does.
         slip.with_company(company).compute_sheet()
-        slip.write({'state': 'done', **{field: f'{name} {field}' for field in SNAPSHOT_FIELDS}})
+        slip.state = 'done'
+        cls.env[PAYMENT].create({'payslip_id': slip.id, **{field: f'{name} {field}' for field in SNAPSHOT_FIELDS}})
         return slip
 
     def _as_mixed(self, *companies, scope=None):
@@ -83,6 +87,12 @@ class TestPayrollCompanyFence(PayrollCase):
     def _visible(self, env):
         return env['hr.payslip'].search([]), env['hr.payslip.line'].search([]).slip_id
 
+    def _payment(self, slip):
+        return self.env[PAYMENT].search([('payslip_id', '=', slip.id)])
+
+    def _visible_payments(self, env):
+        return env[PAYMENT].search([]).payslip_id
+
     def _assign_payroll(self, company):
         return self.env['webvue.access.assignment'].create({
             'user_id': self.mixed.id, 'role_id': self.payroll_role.id, 'company_id': company.id,
@@ -92,17 +102,22 @@ class TestPayrollCompanyFence(PayrollCase):
         slips, line_slips = self._visible(self._as_mixed(self.company_a))
         self.assertEqual(slips, self.slip_a)
         self.assertEqual(line_slips, self.slip_a)
-        values = slips.read(['name', *SNAPSHOT_FIELDS])[0]
-        self.assertEqual(values['webvue_iban'], 'Fence worker A webvue_iban')
+        env = self._as_mixed(self.company_a)
+        self.assertEqual(self._visible_payments(env), self.slip_a)
+        values = env[PAYMENT].browse(self._payment(self.slip_a).id).read(list(SNAPSHOT_FIELDS))[0]
+        self.assertEqual(values['iban'], 'Fence worker A iban')
 
     def test_a_branch_with_only_employee_read_shows_only_the_own_approved_payslip(self):
         env = self._as_mixed(self.company_a, self.company_b, scope=EMPLOYEES_READ_SCOPE)
         slips, line_slips = self._visible(env)
         self.assertEqual(slips, self.slip_a | self.own_b)
         self.assertEqual(line_slips, self.slip_a | self.own_b)
-        for fields in (['name'], list(SNAPSHOT_FIELDS)):
+        with self.assertRaises(AccessError):
+            env['hr.payslip'].browse(self.slip_b.id).read(['name'])
+        self.assertEqual(self._visible_payments(env), self.slip_a)
+        for slip in (self.slip_b, self.own_b):
             with self.assertRaises(AccessError):
-                env['hr.payslip'].browse(self.slip_b.id).read(fields)
+                env[PAYMENT].browse(self._payment(slip).id).read(list(SNAPSHOT_FIELDS))
         with self.assertRaises(AccessError):
             env['hr.payslip.line'].browse(self.slip_b.line_ids.ids).read(['total'])
 
@@ -114,13 +129,14 @@ class TestPayrollCompanyFence(PayrollCase):
         self.assertEqual(env['hr.payslip'].browse(self.own_b.id).read(['name'])[0]['name'], self.own_b.name)
         for slip in (self.slip_b, self.own_draft_b):
             with self.assertRaises(AccessError):
-                env['hr.payslip'].browse(slip.id).read(['name', *SNAPSHOT_FIELDS])
+                env['hr.payslip'].browse(slip.id).read(['name'])
         with self.assertRaises(AccessError):
             env['hr.payslip.line'].browse(self.slip_b.line_ids.ids).read(['amount', 'total'])
         env_c = self._as_mixed(self.company_c)
         self.assertFalse(env_c['hr.payslip'].search([]))
+        self.assertFalse(env_c[PAYMENT].search([]))
         with self.assertRaises(AccessError):
-            env_c['hr.payslip'].browse(self.slip_c.id).read(list(SNAPSHOT_FIELDS))
+            env_c[PAYMENT].browse(self._payment(self.slip_c).id).read(list(SNAPSHOT_FIELDS))
 
     def test_a_payslip_attachment_of_a_company_without_payroll_read_is_refused(self):
         env = self._as_mixed(self.company_b, self.company_a)
@@ -136,12 +152,14 @@ class TestPayrollCompanyFence(PayrollCase):
         self.assertEqual(self._visible(env)[0], self.own_b)
         assignment = self._assign_payroll(self.company_b)
         self.assertEqual(self._visible(env)[0], self.slip_b | self.own_b | self.own_draft_b)
+        self.assertEqual(self._visible_payments(env), self.slip_b | self.own_b)
         # The global payroll group stays (A still grants it): only the per-company fence closes B again.
         assignment.unlink()
         self.assertTrue(self.mixed.has_group('webvue_hr.group_cap_hr_payroll_read'))
         self.assertEqual(self._visible(env)[0], self.own_b)
+        self.assertFalse(self._visible_payments(env))
         with self.assertRaises(AccessError):
-            env['hr.payslip'].browse(self.slip_b.id).read(list(SNAPSHOT_FIELDS))
+            env[PAYMENT].browse(self._payment(self.slip_b).id).read(list(SNAPSHOT_FIELDS))
         # Removing A's payroll grant closes A as well, in the same warm environment.
         env_a = self._as_mixed(self.company_a)
         self.assertEqual(self._visible(env_a)[0], self.slip_a)
@@ -158,8 +176,9 @@ class TestPayrollCompanyFence(PayrollCase):
             'role_ids': [(6, 0, self.payroll_role.ids)],
         })
         self.assertEqual(self._visible(env)[0], self.slip_a | self.slip_b | self.own_b | self.own_draft_b)
-        self.assertTrue(env['hr.payslip'].browse(self.slip_b.id).read(list(SNAPSHOT_FIELDS)))
+        self.assertTrue(env[PAYMENT].browse(self._payment(self.slip_b).id).read(list(SNAPSHOT_FIELDS)))
         inheritance.inherit = False
+        self.assertEqual(self._visible_payments(env), self.slip_a)
         self.assertEqual(self._visible(env)[0], self.slip_a | self.own_b)
         with self.assertRaises(AccessError):
             env['hr.payslip'].browse(self.slip_b.id).read(['name'])
@@ -180,3 +199,76 @@ class TestPayrollCompanyFence(PayrollCase):
         for slip in (draft, colleague):
             with self.assertRaises(AccessError):
                 Payslip.browse(slip.id).read(['name'])
+
+    # --- the payment snapshot answers per payslip company, never the global payroll group -----------------
+
+    def _snapshot_reads(self, env):
+        """Every way the mixed actor could read ``own_b``'s snapshot; each raises or answers nothing."""
+        Payment = env[PAYMENT]
+        own = Payment.browse(self._payment(self.own_b).id)
+        with self.assertRaises(AccessError):
+            own.read(list(SNAPSHOT_FIELDS))
+        self.assertNotIn(self.own_b, Payment.search([('iban', '!=', False)]).payslip_id)
+        groups = Payment._read_group([], ['iban'], ['__count'])
+        self.assertNotIn('Fence mixed in B iban', [iban for iban, _count in groups])
+        with self.assertRaises(AccessError):
+            own.export_data(['iban'])
+
+    def test_a_payroll_reader_elsewhere_never_reads_the_snapshot_of_their_own_branch_payslip(self):
+        """H1: payroll.read in A, employees.read in B; the own approved B payslip shows no payment data."""
+        self.mixed.group_ids = [(4, self.env.ref('base.group_allow_export').id)]
+        self.assertTrue(self.mixed.has_group('webvue_hr.group_cap_hr_payroll_read'))
+        for env in (self._as_mixed(self.company_b, self.company_a),
+                    self._as_mixed(self.company_a, self.company_b, scope=EMPLOYEES_READ_SCOPE)):
+            self._snapshot_reads(env)
+            # The summary and lines of the own approved payslip stay readable, with no snapshot key in them.
+            summary = env['hr.payslip'].browse(self.own_b.id).read(['name', 'state'])[0]
+            self.assertEqual((summary['name'], summary['state']), (self.own_b.name, 'done'))
+            self.assertTrue(env['hr.payslip.line'].search([('slip_id', '=', self.own_b.id)]))
+            self.assertFalse(set(SNAPSHOT_FIELDS) & set(env['hr.payslip'].fields_get()))
+        # In A, where payroll is granted, the snapshot of the company's own payslip still reads.
+        env_a = self._as_mixed(self.company_a)
+        self.assertEqual(env_a[PAYMENT].browse(self._payment(self.slip_a).id).iban, 'Fence worker A iban')
+
+    def test_a_branch_payroll_grant_opens_the_own_snapshot_at_once_and_its_revocation_closes_it(self):
+        self.mixed.group_ids = [(4, self.env.ref('base.group_allow_export').id)]
+        env = self._as_mixed(self.company_b, self.company_a)
+        self._snapshot_reads(env)
+        assignment = self._assign_payroll(self.company_b)
+        own = env[PAYMENT].browse(self._payment(self.own_b).id)
+        self.assertEqual(own.read(['iban'])[0]['iban'], 'Fence mixed in B iban')
+        self.assertIn(self.own_b, env[PAYMENT].search([]).payslip_id)
+        assignment.unlink()
+        # Same warm environment, global payroll group still held through A: B's snapshot is closed again.
+        self.assertTrue(self.mixed.has_group('webvue_hr.group_cap_hr_payroll_read'))
+        self._snapshot_reads(env)
+
+    def test_an_employee_only_reader_has_no_access_to_any_payment_snapshot(self):
+        employee_only = self.payroll_user('fence_snapshot_employee', ['hr.employees.read'])
+        employee = self.make_employee('Fence snapshot employee', user=employee_only)
+        own = self._slip(employee)
+        own.compute_sheet()
+        own.state = 'done'
+        payment = self.env[PAYMENT].create({'payslip_id': own.id, 'iban': 'SA00 own'})
+        Payment = self.env[PAYMENT].with_user(employee_only)
+        self.assertEqual(self.env['hr.payslip'].with_user(employee_only).search([]), own)
+        with self.assertRaises(AccessError):
+            Payment.search([])
+        with self.assertRaises(AccessError):
+            Payment.browse(payment.id).read(['iban'])
+
+    def test_no_payroll_capability_rewrites_a_payment_snapshot(self):
+        """Approval creates the row (the approver's create right); nobody writes or deletes it afterwards."""
+        approver = self.payroll_user('fence_snapshot_approver', ['hr.employees.read', 'hr.payroll.read', 'hr.payroll.approve'])
+        manager = self.payroll_user('fence_snapshot_manager', ['hr.employees.read', 'hr.payroll.read', 'hr.payroll.manage'])
+        slip = self._slip(self.make_employee('Fence snapshot target'))
+        payment = self.env[PAYMENT].with_user(approver).create({'payslip_id': slip.id, 'iban': 'SA00 fixed'})
+        for user in (approver, manager):
+            row = self.env[PAYMENT].with_user(user).browse(payment.id)
+            self.assertEqual(row.iban, 'SA00 fixed')
+            with self.assertRaises(AccessError):
+                row.write({'iban': 'SA00 forged'})
+            with self.assertRaises(AccessError):
+                row.unlink()
+        with self.assertRaises(AccessError):
+            self.env[PAYMENT].with_user(manager).create({'payslip_id': self._slip(slip.employee_id).id})

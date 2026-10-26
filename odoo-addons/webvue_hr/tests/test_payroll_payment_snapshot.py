@@ -22,7 +22,8 @@ NEW_IBAN = 'SA4420000001234567891234'
 OLD_IBAN = 'SA0380000000608010167518'
 IDENTIFICATION = '1012345678'
 NEW_IDENTIFICATION = '1098765432'
-SNAPSHOT_FIELDS = ('webvue_iban', 'webvue_bank_code', 'webvue_identification')
+SNAPSHOT_FIELDS = ('iban', 'bank_code', 'identification')
+EMPTY = (False, False, False)
 MIGRATION = 'webvue_hr/migrations/19.0.1.12.0/post-payment_snapshot.py'
 
 
@@ -64,6 +65,7 @@ class TestPayrollPaymentSnapshot(PayrollCase):
         cls.wps = cls.env.ref('webvue_hr.profile_mudad_wps')
         cls.File = cls.env['webvue.hr.payroll.file']
         cls.Event = cls.env['webvue.hr.audit.event']
+        cls.Payment = cls.env['webvue.hr.payslip.payment']
 
     def _login(self, user):
         self.authenticate(user.login, f'{user.login}_pass_123')
@@ -101,6 +103,14 @@ class TestPayrollPaymentSnapshot(PayrollCase):
     def _slip(self, run, employee=None):
         return run.slip_ids.filtered(lambda slip: slip.employee_id == (employee or self.worker))
 
+    def _payment(self, slip):
+        return self.Payment.search([('payslip_id', '=', slip.id)])
+
+    def _snapshot(self, slip):
+        """``(iban, bank_code, identification)`` stored for ``slip``; ``None`` when it has no snapshot row."""
+        payment = self._payment(slip)
+        return tuple(payment[name] for name in SNAPSHOT_FIELDS) if payment else None
+
     def _row(self, run, employee):
         """The payslip row of ``employee`` as the logged-in payroll reader sees it."""
         rows = self.api('GET', f'{RUNS}/{run.id}/payslips').json()['items']
@@ -117,7 +127,7 @@ class TestPayrollPaymentSnapshot(PayrollCase):
         body = res.json()
         self.assertEqual((body['code'], body['field'], body['details']), ('missing_iban', 'iban', {'employee_ids': [no_iban.id]}))
         self.assertEqual(run.webvue_state, 'computed')
-        self.assertFalse(self._slip(run).webvue_iban)
+        self.assertFalse(self.Payment.search([('payslip_id', 'in', run.slip_ids.ids)]))
         # The warning still tells the officer before the approval.
         self._login(self.officer)
         warnings = self.api('GET', f'{RUNS}/{run.id}').json()['warnings']
@@ -131,7 +141,7 @@ class TestPayrollPaymentSnapshot(PayrollCase):
         res = self._approve(run)
         self.assertEqual(res.status_code, 200, res.text)
         self.assertNotIn('missing_iban', [warning['code'] for warning in res.json()['warnings']])
-        self.assertFalse(self._slip(run, zero).webvue_iban)
+        self.assertEqual(self._snapshot(self._slip(run, zero))[0], False)
 
     # --- D-4: the snapshot ------------------------------------------------------------------------
 
@@ -140,10 +150,9 @@ class TestPayrollPaymentSnapshot(PayrollCase):
         self.assertFalse(access._webvue_has_capability(self.approver, 'hr.payroll.manage'))
         run = self._approved_run()
         self.assertEqual(run.webvue_state, 'approved')
-        slip = self._slip(run)
-        self.assertEqual(
-            (slip.webvue_iban, slip.webvue_bank_code, slip.webvue_identification), (IBAN, 'RJHISARI', IDENTIFICATION),
-        )
+        payment = self._payment(self._slip(run))
+        self.assertEqual(self._snapshot(self._slip(run)), (IBAN, 'RJHISARI', IDENTIFICATION))
+        self.assertEqual((payment.company_id, payment.create_uid), (run.company_id, self.approver))
 
     def test_salary_files_keep_the_approved_payment_data(self):
         run = self._approved_run()
@@ -171,7 +180,7 @@ class TestPayrollPaymentSnapshot(PayrollCase):
     def test_an_approved_run_with_an_empty_snapshot_warns_and_refuses_its_file(self):
         """A run approved with no stored IBAN keeps asking for one even while the live compensation has it."""
         run = self._approved_run()
-        self._slip(run).write(dict.fromkeys(SNAPSHOT_FIELDS, False))
+        self._payment(self._slip(run)).write(dict.fromkeys(SNAPSHOT_FIELDS, False))
         self._login(self.officer)
         warnings = self.api('GET', f'{RUNS}/{run.id}').json()['warnings']
         self.assertIn({'code': 'missing_iban', 'employee': {'id': self.worker.id, 'name': self.worker.name}}, warnings)
@@ -186,10 +195,11 @@ class TestPayrollPaymentSnapshot(PayrollCase):
         slip = self.env['hr.payslip'].with_user(self.own).browse(self._slip(run).id)
         self.assertEqual(slip.state, 'done')
         self.assertTrue(slip.webvue_paid_days)
-        for name in SNAPSHOT_FIELDS:
-            self.assertNotIn(name, slip.fields_get())
-            with self.assertRaises(AccessError):
-                slip.read([name])
+        Payment = self.Payment.with_user(self.own)
+        with self.assertRaises(AccessError):
+            Payment.search([])
+        with self.assertRaises(AccessError):
+            Payment.browse(self._payment(slip).id).read(list(SNAPSHOT_FIELDS))
         self._login(self.own)
         paths = [
             f'/api/v1/hr/employees/{self.worker.id}', '/api/v1/hr/employees', '/api/v1/hr/payroll/payslips/mine',
@@ -416,45 +426,42 @@ class TestPayrollPaymentSnapshot(PayrollCase):
 
     # --- the 19.0.1.12.0 migration ----------------------------------------------------------------
 
-    def test_the_migration_fills_only_empty_snapshots_and_is_idempotent(self):
+    def test_the_migration_fills_only_payslips_without_a_snapshot_and_is_idempotent(self):
         other = self.make_employee('Snap Other')
         self.set_compensation(other, 6000, iban=NEW_IBAN, gosi_registration_date=date(2020, 1, 1))
         run = self._approved_run()
-        empty, kept = self._slip(run), self._slip(run, other)
-        empty.write(dict.fromkeys(SNAPSHOT_FIELDS, False))
-        kept.write({'webvue_iban': OLD_IBAN, 'webvue_bank_code': False, 'webvue_identification': False})
+        missing, kept = self._slip(run), self._slip(run, other)
+        # A run approved before 19.0.1.12.0 has no row; one already holding a row keeps it whatever it says.
+        self._payment(missing).unlink()
+        self._payment(kept).write({'iban': OLD_IBAN, 'bank_code': False, 'identification': False})
         self._login(self.officer)
         draft = self.env['hr.payslip.run'].browse(self.api('POST', RUNS, json={'month': '2026-12'}).json()['id'])
         migration = _load_migration()
         migration.migrate(self.env.cr, None)
-        self.env.invalidate_all()
-        self.assertFalse(empty.webvue_iban)
+        self.assertIsNone(self._snapshot(missing))
         for _attempt in range(2):
             migration.migrate(self.env.cr, '19.0.1.11.0')
             self.env.invalidate_all()
-            self.assertEqual(
-                (empty.webvue_iban, empty.webvue_bank_code, empty.webvue_identification),
-                (IBAN, 'RJHISARI', IDENTIFICATION),
-            )
-            self.assertEqual((kept.webvue_iban, kept.webvue_bank_code), (OLD_IBAN, False))
-            self.assertFalse(any(draft.slip_ids.mapped('webvue_iban')))
+            self.assertEqual(self._snapshot(missing), (IBAN, 'RJHISARI', IDENTIFICATION))
+            self.assertEqual(self._snapshot(kept), (OLD_IBAN, False, False))
+            self.assertFalse(self.Payment.search([('payslip_id', 'in', draft.slip_ids.ids)]))
 
-    def test_a_repeat_over_an_all_empty_source_leaves_the_snapshot_empty(self):
-        """A zero net paid with no IBAN keeps an empty snapshot; a repeat over the same live data changes nothing."""
+    def test_a_rerun_never_rewrites_an_empty_snapshot_even_after_the_live_data_changed(self):
+        """A zero net paid with no IBAN keeps its empty row: the row marks the payment data as fixed."""
         zero = self.make_employee('Snap Zero Snapshot', country='EG')
-        self.set_compensation(zero, 5000)
+        compensation = self.set_compensation(zero, 5000)
         run = self._computed_run(deduction_of=zero)
         self.assertEqual(self._approve(run).status_code, 200)
         empty = self._slip(run, zero)
-        self.assertEqual((empty.webvue_iban, empty.webvue_bank_code, empty.webvue_identification), (False, False, False))
+        self.assertEqual(self._snapshot(empty), EMPTY)
         migration = _load_migration()
-        for _attempt in range(2):
+        for live_iban in (False, NEW_IBAN):
+            compensation.iban = live_iban
             migration.migrate(self.env.cr, '19.0.1.11.0')
             self.env.invalidate_all()
-            self.assertEqual(
-                (empty.webvue_iban, empty.webvue_bank_code, empty.webvue_identification), (False, False, False),
-            )
-            self.assertEqual(self._slip(run).webvue_iban, IBAN)
+            self.assertEqual(self._snapshot(empty), EMPTY)
+            self.assertEqual(self._snapshot(self._slip(run))[0], IBAN)
+        self.assertEqual(self.Payment.search_count([('payslip_id', 'in', run.slip_ids.ids)]), len(run.slip_ids))
 
     # --- the mutation routes expose no snapshot write ----------------------------------------------
 
@@ -466,12 +473,12 @@ class TestPayrollPaymentSnapshot(PayrollCase):
             res = self.api('PATCH', f'{RUNS}/{run.id}/payslips/{slip.id}/inputs', json={name: IBAN})
             self.assertEqual(res.status_code, 422, (name, res.text))
             self.assertEqual((res.json()['code'], res.json()['field']), ('invalid', name))
-        self.assertEqual((slip.webvue_iban, slip.webvue_bank_code, slip.webvue_identification), (False, False, False))
+        self.assertIsNone(self._snapshot(slip))
 
     def test_a_fixed_run_refuses_every_mutation_route(self):
         run = self._approved_run()
         slip = self._slip(run)
-        snapshot = (slip.webvue_iban, slip.webvue_bank_code, slip.webvue_identification)
+        snapshot = self._snapshot(slip)
         self._login(self.officer)
         self.assertEqual(self.api('POST', f'{RUNS}/{run.id}/compute').status_code, 403)
         self.assertEqual(self.api('DELETE', f'{RUNS}/{run.id}').status_code, 403)
@@ -480,4 +487,4 @@ class TestPayrollPaymentSnapshot(PayrollCase):
         )
         self._login(self.approver)
         self.assertEqual(self.api('POST', f'{RUNS}/{run.id}/approve').status_code, 403)
-        self.assertEqual((slip.webvue_iban, slip.webvue_bank_code, slip.webvue_identification), snapshot)
+        self.assertEqual(self._snapshot(slip), snapshot)
