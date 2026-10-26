@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import {
   HrGosiRateListSchema,
   HrGosiRateSchema,
+  HrPayrollRevisionSchema,
   HrPayrollSettingsSchema,
   type HrGosiRatePatch,
   type HrGosiRateWrite,
@@ -35,7 +36,7 @@ export async function saveHrGosiRate($api: Api, qc: QueryClient, { id, body }: H
 
 /** The DELETE carries the revision the caller read: a rate changed since answers 409. */
 export async function deleteHrGosiRate($api: Api, qc: QueryClient, { id, revision }: { id: number; revision: number }) {
-  await $api(`${RATES_PATH}/${id}`, { method: 'DELETE', body: { revision } })
+  await $api(`${RATES_PATH}/${id}`, { method: 'DELETE', body: HrPayrollRevisionSchema.parse({ revision }) })
   void qc.invalidateQueries({ queryKey: hrPayrollKeys.gosiRates })
 }
 

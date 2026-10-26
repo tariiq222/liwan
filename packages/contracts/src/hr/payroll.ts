@@ -379,7 +379,6 @@ export type HrGosiRate = z.infer<typeof HrGosiRateSchema>
 export type HrGosiRateList = z.infer<typeof HrGosiRateListSchema>
 export type HrGosiRateWrite = z.infer<typeof HrGosiRateWriteSchema>
 export type HrGosiRatePatch = z.infer<typeof HrGosiRatePatchSchema>
-export type HrPayrollRevision = z.infer<typeof HrPayrollRevisionSchema>
 export type HrPayrollAccountRole = typeof HR_PAYROLL_ACCOUNT_ROLES[number]
 export type HrPayrollEntryDetail = typeof HR_PAYROLL_ENTRY_DETAILS[number]
 export type HrPayrollFinanceSettings = z.infer<typeof HrPayrollFinanceSettingsSchema>

@@ -5,6 +5,7 @@ import {
   HrBankProfileListSchema,
   HrBankProfileSchema,
   HrGosiStatementSchema,
+  HrPayrollRevisionSchema,
   type HrBankProfilePatch,
   type HrBankProfileWrite,
 } from '@webvue/contracts'
@@ -36,7 +37,7 @@ export async function saveHrBankProfile($api: Api, qc: QueryClient, { id, body }
 
 /** The DELETE carries the revision the caller read: a profile changed since answers 409. */
 export async function deleteHrBankProfile($api: Api, qc: QueryClient, { id, revision }: { id: number; revision: number }) {
-  await $api(`${PROFILES_PATH}/${id}`, { method: 'DELETE', body: { revision } })
+  await $api(`${PROFILES_PATH}/${id}`, { method: 'DELETE', body: HrPayrollRevisionSchema.parse({ revision }) })
   void qc.invalidateQueries({ queryKey: hrPayrollKeys.bankProfiles })
 }
 
