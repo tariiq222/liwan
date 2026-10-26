@@ -227,6 +227,8 @@ test('several broken rules list every field in one summary and focus the first',
   await saveButton(page).click()
   const summary = page.getByTestId('finance-fiscal-error-summary')
   await expect(summary).toBeVisible()
+  await expect(summary.getByText('صحّح هذه الحقول قبل الحفظ:', { exact: true })).toBeVisible()
+  await expect(summary).not.toContainText('finance.setup.fiscal.errorSummary')
   await expect(summary.getByRole('link')).toHaveCount(2)
   await expect(fiscalCard(page).getByText('أدخل يومًا صحيحًا من 1 إلى 31.', { exact: true })).toBeVisible()
   await expect(day).toBeFocused()

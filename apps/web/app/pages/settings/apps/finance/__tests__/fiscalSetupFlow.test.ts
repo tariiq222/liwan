@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
-import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { QueryClient, VueQueryPlugin, onlineManager } from '@tanstack/vue-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../../../../composables/useApi'
 import { financeSetupProgress } from '../../../../../composables/finance/financeSetupSteps'
@@ -25,7 +25,7 @@ const fiscal = (day: number, lock: string | null = null): Fiscal => ({
 type Call = { url: string; method: string; body: unknown; resolve: (value: unknown) => void; reject: (cause: unknown) => void }
 
 const cleanups: Array<() => void> = []
-afterEach(() => { for (const cleanup of cleanups.splice(0)) cleanup(); vi.unstubAllGlobals() })
+afterEach(() => { onlineManager.setOnline(true); for (const cleanup of cleanups.splice(0)) cleanup(); vi.unstubAllGlobals() })
 
 function mountPage() {
   const calls: Call[] = []
@@ -34,7 +34,9 @@ function mountPage() {
   })
   const me = Vue.ref<{ id: number; company: { id: number }; access_policy_version: number } | null>(null)
   const focused: string[] = []
-  const nuxtApp = {}
+  const identity = setupComposables.createFinanceIdentityGeneration(me)
+  cleanups.push(identity.stop)
+  const nuxtApp = { $financeIdentityGeneration: identity.generation }
   vi.stubGlobal('useApi', () => ({ $api: api }))
   vi.stubGlobal('useMe', () => ({ me }))
   vi.stubGlobal('useNuxtApp', () => nuxtApp)
@@ -48,7 +50,7 @@ function mountPage() {
   const bindings: Record<string, unknown> = {
     _defineComponent: Vue.defineComponent,
     ref: Vue.ref, computed: Vue.computed, watch: Vue.watch, nextTick: Vue.nextTick,
-    useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('en') }),
+    useI18n: () => ({ t: (key: string) => (key === 'finance.setup.fiscal.errorSummary' ? 'Fix these fields before saving:' : key), locale: Vue.ref('en') }),
     useAccess: () => ({ can: () => true }),
     useSettingsPage: () => ({ parts: [], shows: () => true }),
     useHydrated: () => Vue.ref(true),
@@ -182,5 +184,68 @@ describe('several broken rules', () => {
     h.draft().value.fiscalyear_last_day = '40'
     await (h.page.submitFiscal as () => Promise<void>)()
     expect(h.value<unknown[]>('fiscalSummary')).toEqual([])
+  })
+})
+
+describe('a write queued while offline', () => {
+  const CHART_URL = '/api/v1/finance/setup/chart'
+  const detours: Array<[string, (h: ReturnType<typeof mountPage>) => void]> = [
+    ['A, then nobody, then A again', h => { h.me.value = null }],
+    ['A, then B, then A again', h => { h.me.value = asUser(8, 3) }],
+  ]
+
+  it.each(detours)('never reaches the network for a fiscal save once the view left and returned (%s)', async (_name, detour) => {
+    const h = mountPage()
+    await openCompany(h, 7, 3, 31)
+    h.draft().value.fiscalyear_last_day = '15'
+    onlineManager.setOnline(false)
+    const saving = (h.page.submitFiscal as () => Promise<void>)()
+    await h.settle()
+    expect(h.pending(FISCAL_URL, 'PATCH')).toHaveLength(0)
+
+    detour(h)
+    h.me.value = asUser(7, 3)
+    await h.settle()
+    onlineManager.setOnline(true)
+    await h.client.resumePausedMutations()
+    await saving
+    await h.settle()
+    expect(h.pending(FISCAL_URL, 'PATCH')).toHaveLength(0)
+    expect(h.value('fiscalError')).toBeNull()
+    expect(h.value<boolean>('fiscalSaved')).toBe(false)
+  })
+
+  it.each(detours)('never reaches the network for a chart load once the view left and returned (%s)', async (_name, detour) => {
+    const h = mountPage()
+    await openCompany(h, 7, 3, 31)
+    onlineManager.setOnline(false)
+    const loading = (h.page.confirmLoadChart as () => Promise<void>)()
+    await h.settle()
+    expect(h.pending(CHART_URL, 'POST')).toHaveLength(0)
+
+    detour(h)
+    h.me.value = asUser(7, 3)
+    await h.settle()
+    onlineManager.setOnline(true)
+    await h.client.resumePausedMutations()
+    await loading
+    await h.settle()
+    expect(h.pending(CHART_URL, 'POST')).toHaveLength(0)
+    expect(h.value('chartError')).toBeNull()
+  })
+
+  it('still sends when the identity never moved', async () => {
+    const h = mountPage()
+    await openCompany(h, 7, 3, 31)
+    h.draft().value.fiscalyear_last_day = '15'
+    onlineManager.setOnline(false)
+    const saving = (h.page.submitFiscal as () => Promise<void>)()
+    await h.settle()
+    onlineManager.setOnline(true)
+    void h.client.resumePausedMutations()
+    await h.settle()
+    expect(h.pending(FISCAL_URL, 'PATCH')).toHaveLength(1)
+    h.pending(FISCAL_URL, 'PATCH')[0]!.resolve({ fiscal: fiscal(15) })
+    await saving
   })
 })

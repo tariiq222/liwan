@@ -120,7 +120,6 @@
         "archived": "Archived"
       },
       "form": {
-        "errorSummary": "Fix these fields before saving:",
         "saveError": "The partner could not be saved. Review the details and try again.",
         "general": "General",
         "generalHint": "The partner's name and type.",
@@ -171,6 +170,7 @@
       },
       "fiscal": {
         "title": "Fiscal year",
+        "errorSummary": "Fix these fields before saving:",
         "yearEnd": "Fiscal year end",
         "fiscalyear_lock_date": "Fiscal year lock",
         "tax_lock_date": "Tax lock",

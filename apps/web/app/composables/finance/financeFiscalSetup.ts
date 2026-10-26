@@ -132,10 +132,6 @@ export function isFinanceContextChanged(cause: unknown): boolean {
   return cause instanceof ApiError && cause.code === 'request_context_changed'
 }
 
-export function isFinanceRequestContextInvalid(cause: unknown): boolean {
-  return cause instanceof ApiError && cause.code === 'invalid_request_context'
-}
-
 /** The message for a failed save: the user's language for a code we know, otherwise the server's own
  * refusal, and the uncertain-outcome line for a call that never answered. */
 export function financeFiscalSaveMessage(cause: unknown, t: Translate): string {

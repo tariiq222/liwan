@@ -15,7 +15,6 @@ import {
   financeSetupScopeToken,
   isFinanceCalendarDate,
   isFinanceContextChanged,
-  isFinanceRequestContextInvalid,
   sameFinanceSetupScope,
   type FinanceFiscalDraft,
   type FinanceSetupScope,
@@ -161,7 +160,6 @@ describe('the messages a refusal becomes', () => {
   it('separates a changed context from a malformed one', () => {
     expect(isFinanceContextChanged(new ApiError(409, 'request_context_changed', 'x'))).toBe(true)
     expect(isFinanceContextChanged(new ApiError(422, 'invalid_request_context', 'x'))).toBe(false)
-    expect(isFinanceRequestContextInvalid(new ApiError(422, 'invalid_request_context', 'x'))).toBe(true)
     expect(isFinanceContextChanged(new Error('boom'))).toBe(false)
   })
 })
