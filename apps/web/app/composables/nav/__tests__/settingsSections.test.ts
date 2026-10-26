@@ -26,7 +26,7 @@ describe('settings pages', () => {
   it('build one page per application from the registered manifests', () => {
     const apps = () => appSettingsPages().map(candidate => candidate.to)
     expect(apps()).toEqual(['/settings/apps/projects', '/settings/apps/hr', '/settings/apps/finance', '/settings/apps/operations/processes'])
-    expect(page('hr').parts.map(part => [part.id, part.capability])).toEqual([['leave', 'hr.leave.config'], ['payroll', 'hr.payroll.config'], ['shifts', 'hr.shifts.manage']])
+    expect(page('hr').parts.map(part => [part.id, part.capability])).toEqual([['leave', 'hr.leave.config'], ['payroll', 'hr.payroll.read'], ['shifts', 'hr.shifts.manage']])
     expect(page('projects').parts.map(part => part.id)).toEqual(['project-creation', 'project-defaults', 'project-reminders', 'catalogs'])
     expect(page('finance').parts.map(part => [part.id, part.to, part.within])).toEqual([['setup', undefined, undefined], ['accounts', '/settings/apps/finance/accounts', undefined], ['journals', '/settings/apps/finance/journals', undefined], ['taxes', '/settings/apps/finance/taxes', undefined], ['payment-terms', '/settings/apps/finance/payment-terms', undefined], ['asset-profiles', '/settings/apps/finance/asset-profiles', undefined], ['analytic', undefined, undefined], ['closing', undefined, undefined], ['zatca', undefined, undefined], ['audit', undefined, '/settings/apps/finance/audit']])
     const crm: AppManifest = {

@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
     access_service,
+    audit_event,
     bank_profile,
     entitlement_service,
     eos_case,

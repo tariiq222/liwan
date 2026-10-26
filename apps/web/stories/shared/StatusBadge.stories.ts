@@ -51,7 +51,7 @@ export const AccessState: Story = {
 }
 export const HrAccess: Story = {
   name: 'حساب الموظف',
-  parameters: storyContext('apps/web/app/components/hr/DirectoryTable.vue:228'),
+  parameters: storyContext('apps/web/app/components/hr/DirectoryTable.vue:231'),
   render: row('<StatusBadge v-for="(a, i) in accesses" :key="i" variant="outline" :tone="hrAccessBadge(a).tone" :label="t(hrAccessBadge(a).labelKey)" />', () => ({
     accesses: [null, { user_id: 7, login: 'sara', role: 'employee', active: true }, { user_id: 2, login: 'admin', role: 'admin', active: true }, { user_id: 9, login: 'm', role: 'employee', active: false }],
     hrAccessBadge,

@@ -313,6 +313,37 @@ export const HrPayrollPostingPreviewSchema = z.object({
 
 export const HrPayrollPaymentCreateSchema = z.object({ journal_id: recordId, date: isoDate }).strict()
 
+// ---- Payroll audit trail (GET /api/v1/hr/payroll/audit-events, `hr.payroll.audit.read`) ----
+export const HR_PAYROLL_AUDIT_ACTIONS = [
+  'payroll_settings_changed', 'gosi_rate_created', 'gosi_rate_changed', 'gosi_rate_deleted',
+  'bank_profile_created', 'bank_profile_changed', 'bank_profile_deleted', 'eos_case_changed',
+  'settlement_saved', 'settlement_confirmed', 'compensation_changed',
+  'run_inputs_changed', 'run_approved', 'run_cancelled',
+] as const
+
+// Values are present only for non-secret policy fields; pay, IBAN and settlement fields carry the name alone.
+export const HrPayrollAuditChangeSchema = z.object({
+  field: z.string().min(1),
+  old_value: z.string().nullable(),
+  new_value: z.string().nullable(),
+}).strict()
+
+export const HrPayrollAuditEventSchema = z.object({
+  id: z.number().int().positive(),
+  action: z.enum(HR_PAYROLL_AUDIT_ACTIONS),
+  actor: HrRefSchema,
+  created_at: z.string().datetime(),
+  res_model: z.string(),
+  res_id: z.number().int().positive(),
+  changes: z.array(HrPayrollAuditChangeSchema),
+}).strict()
+
+// Query: `action`, `date_from`, `date_to` (inclusive days in the user's timezone), `limit`, `offset`.
+export const HrPayrollAuditEventListSchema = z.object({
+  items: z.array(HrPayrollAuditEventSchema),
+  total: z.number().int().nonnegative(),
+}).strict()
+
 export type HrPayrollRunState = z.infer<typeof HrPayrollRunStateSchema>
 export type HrPayrollTotals = z.infer<typeof HrPayrollTotalsSchema>
 export type HrPayrollRunSummary = z.infer<typeof HrPayrollRunSummarySchema>
@@ -344,6 +375,10 @@ export type HrBankProfileColumn = z.infer<typeof HrBankProfileColumnSchema>
 export type HrBankProfile = z.infer<typeof HrBankProfileSchema>
 export type HrBankProfileList = z.infer<typeof HrBankProfileListSchema>
 export type HrBankProfileWrite = z.infer<typeof HrBankProfileWriteSchema>
+export type HrPayrollAuditAction = typeof HR_PAYROLL_AUDIT_ACTIONS[number]
+export type HrPayrollAuditChange = z.infer<typeof HrPayrollAuditChangeSchema>
+export type HrPayrollAuditEvent = z.infer<typeof HrPayrollAuditEventSchema>
+export type HrPayrollAuditEventList = z.infer<typeof HrPayrollAuditEventListSchema>
 export type HrGosiStatementLine = z.infer<typeof HrGosiStatementLineSchema>
 export type HrGosiStatement = z.infer<typeof HrGosiStatementSchema>
 

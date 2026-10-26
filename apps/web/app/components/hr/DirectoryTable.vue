@@ -29,6 +29,8 @@ const offset = ref(Math.max(0, Number(route.query.offset ?? 0) || 0))
 const { can } = useAccess()
 const canManage = computed(() => can('hr.employees.manage'))
 const canArchive = computed(() => can('hr.employees.archive'))
+// The server fills `access` only for callers holding this capability; without it the account column is hidden.
+const canSeeAccess = computed(() => can('hr.employees.access_status.read'))
 const pendingArchiveId = ref<number | null>(null)
 const { mutateAsync: archiveEmployee, isPending: archiving } = useArchiveHrEmployee()
 const { mutateAsync: unarchiveEmployee, isPending: unarchiving } = useUnarchiveHrEmployee()
@@ -133,7 +135,7 @@ const columns = computed<TableColumn<HrEmployee>[]>(() => [
   column('department', t('hr.directory.columns.department'), WIDTH.department, false),
   column('manager', t('hr.directory.columns.manager'), WIDTH.manager),
   column('status', t('hr.directory.columns.status'), WIDTH.status),
-  column('access', t('hr.directory.columns.account'), WIDTH.access),
+  ...(canSeeAccess.value ? [column('access', t('hr.directory.columns.account'), WIDTH.access)] : []),
   ...(showActions.value ? [column('manage', t('hr.directory.columns.actions'), WIDTH.manage)] : []),
 ])
 
@@ -226,7 +228,7 @@ function clearFilters() {
         <template #department-cell="{ row }"><template v-if="row.original.department?.name">{{ row.original.department.name }}</template><template v-else><span aria-hidden="true" class="text-muted">—</span><span class="sr-only">{{ t('states.noValue') }}</span></template></template>
         <template #manager-cell="{ row }"><SharedPersonAvatar :people="row.original.manager ? [row.original.manager] : []" /></template>
         <template #status-cell="{ row }"><SharedStatusBadge size="sm" :tone="row.original.active ? 'success' : 'neutral'" :label="t(row.original.active ? 'hr.directory.status.active' : 'hr.directory.status.archived')" /></template>
-        <template #access-cell="{ row }"><SharedStatusBadge size="sm" data-testid="hr-access-badge" :tone="hrAccessBadge(row.original.access).tone" :label="t(hrAccessBadge(row.original.access).labelKey)" /></template>
+        <template v-if="canSeeAccess" #access-cell="{ row }"><SharedStatusBadge size="sm" data-testid="hr-access-badge" :tone="hrAccessBadge(row.original.access).tone" :label="t(hrAccessBadge(row.original.access).labelKey)" /></template>
         <template v-if="showActions" #manage-cell="{ row }">
           <div class="flex justify-end"><SharedRowActions :actions="actionsFor(row.original)" :label="t('hr.directory.rowActions', { name: row.original.name })" /></div>
         </template>
@@ -239,7 +241,7 @@ function clearFilters() {
               <p v-if="row.department?.name || row.manager?.name" class="mt-1 truncate text-xs text-muted">{{ [row.department?.name, row.manager?.name].filter(Boolean).join(' · ') }}</p>
             </div>
             <div class="flex shrink-0 items-center gap-1">
-              <SharedStatusBadge size="sm" data-testid="hr-access-badge" :tone="hrAccessBadge(row.access).tone" :label="t(hrAccessBadge(row.access).labelKey)" />
+              <SharedStatusBadge v-if="canSeeAccess" size="sm" data-testid="hr-access-badge" :tone="hrAccessBadge(row.access).tone" :label="t(hrAccessBadge(row.access).labelKey)" />
               <SharedRowActions v-if="showActions" :actions="actionsFor(row)" :label="t('hr.directory.rowActions', { name: row.name })" />
             </div>
           </div>

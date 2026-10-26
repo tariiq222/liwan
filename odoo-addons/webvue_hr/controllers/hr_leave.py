@@ -335,9 +335,17 @@ class HrLeaveController(http.Controller):
     @api_handler
     @requires_feature('hr.enabled', operation='write')
     def create_allocation(self, **payload):
+        """Grant days to another employee; the grant is approved at once.
+
+        The manager's ``hr.leave.manage`` decision is the approval (owner decision
+        2026-10-25, D-5 b), so the type's ``allocation_validation_type`` adds no
+        second step here. Nobody grants days to their own employee record.
+        """
         _require('hr.leave.manage')
         vals = parse_allocation(payload)
         employee = _company_employee(vals['employee_id'])
+        if employee.user_id == request.env.user:
+            raise ApiError(403, 'forbidden', 'an allocation cannot be granted by its own employee')
         if not _can('hr.leave.manage', employee):
             raise ApiError(403, 'forbidden', 'hr.leave.manage capability is required')
         leave_type = _leave_type(vals['leave_type_id'], employee.company_id)

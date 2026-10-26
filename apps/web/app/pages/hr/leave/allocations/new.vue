@@ -12,7 +12,7 @@ function saved() { void navigateTo(backTo.value, { replace: true }) }
 
 <template>
   <SharedCreatePanel :title="t('hr.leave.allocate')" :back-to="backTo">
-    <SharedPageState v-if="!can('hr.leave.manage')" :empty="true" :empty-text="t('errors.forbidden')" />
+    <SharedForbiddenState v-if="!can('hr.leave.manage')" />
     <LeaveAllocationForm v-else :back-to="backTo" @saved="saved" />
   </SharedCreatePanel>
 </template>

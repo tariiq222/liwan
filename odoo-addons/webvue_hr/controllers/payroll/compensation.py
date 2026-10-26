@@ -44,8 +44,11 @@ class HrPayrollCompensationController(http.Controller):
         if vals['bank_id'] and not request.env['res.bank'].search_count([('id', '=', vals['bank_id'])]):
             raise ApiError(422, 'invalid', 'bank_id does not reference a bank', field='bank_id')
         record = request.env['webvue.hr.compensation'].search([('employee_id', '=', employee.id)], limit=1)
+        Audit = request.env['webvue.hr.audit.event']
+        before = Audit._webvue_policy_snapshot(record)
         if record:
             record.write(vals)
         else:
             record = request.env['webvue.hr.compensation'].create({**vals, 'employee_id': employee.id})
+        Audit._webvue_log('compensation_changed', record, before)
         return dump_compensation(record)

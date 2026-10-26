@@ -16,7 +16,7 @@ function saved(department: { id: number }) { void navigateTo({ path: `/hr/depart
 </script>
 <template>
   <SharedCreatePanel :title="t('hr.depts.new')" :back-to="backTo">
-    <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
+    <SharedForbiddenState v-if="!canManage" />
     <SharedPageState v-else :loading="departments.isLoading.value || employees.isLoading.value" :error="initialDataReady ? undefined : dependencyError" @retry="retryDependencies">
       <DepartmentForm :initial-parent-id="initialParentId" :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" :back-to="backTo" @saved="saved" />
     </SharedPageState>
