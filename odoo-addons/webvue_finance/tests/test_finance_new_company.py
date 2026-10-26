@@ -18,7 +18,11 @@ class TestFinanceNewCompany(WebVueFinanceCase):
         cls.fresh = cls._fresh_company_manager('Finance New Company', LOGIN, PASSWORD)
 
     def call(self, method, path, json=None, status=200):
-        result = self.api(method, f'{API}{path}', json=json)
+        if path.startswith('/setup/'):
+            user = self.env['res.users'].sudo().search([('login', '=', LOGIN)], limit=1)
+            result = self.setup_api(method, f'{API}{path}', user=user, company=self.fresh, json=json)
+        else:
+            result = self.api(method, f'{API}{path}', json=json)
         self.assertEqual(result.status_code, status, result.text)
         return result.json()
 
