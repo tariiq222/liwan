@@ -10,7 +10,7 @@ import { formatDate, localIsoDay } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { HR_PAYSLIP_PAGE_SIZE, fetchAllHrPayslips, hrPayslipsQuery } from '@/composables/useHrPayrollRuns'
 import { hrPayrollFileUrl } from '@/composables/useHrPayrollFiles'
-import { eosProvisionErrorMessage, payrollErrorMessage } from '@/utils/payrollErrors'
+import { eosProvisionErrorMessage, payrollErrorMessage, payrollWarningText } from '@/utils/payrollErrors'
 import { saveBlob } from '@/utils/saveBlob'
 import { formatPayrollMonth, payrollRunStateTone } from '@/utils/payrollFormat'
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
@@ -67,7 +67,7 @@ const refusedNames = ref<ReadonlyMap<number, string>>(new Map())
 // The provision's own refusal is kept apart: its codes (`duplicate`, `invalid`) mean something else on the run.
 const provisionFailure = ref<unknown>(null)
 watch(failure, (now) => { if (now) provisionFailure.value = null })
-const failureMessage = computed(() => provisionFailure.value ? eosProvisionErrorMessage(provisionFailure.value, t) : failure.value ? payrollErrorMessage(failure.value, t, new Map([...employeeNames.value, ...refusedNames.value])) : '')
+const failureMessage = computed(() => provisionFailure.value ? eosProvisionErrorMessage(provisionFailure.value, t) : failure.value ? payrollErrorMessage(failure.value, t, new Map([...employeeNames.value, ...refusedNames.value]), run.value?.state) : '')
 
 // The salary files exist once the run's figures are fixed; the bank profile list is asked for only then.
 const FILE_STATES = ['approved', 'posted', 'paid']
@@ -142,10 +142,12 @@ function saveInputs(payload: { payslipId: number; body: HrPayslipInputsPatch }) 
 const editable = computed(() => !!run.value?.allowed_actions.includes('edit_inputs'))
 const title = computed(() => run.value ? t('hrPayroll.run.title', { month: formatPayrollMonth(run.value.month, locale.value) }) : t('hrPayroll.title'))
 const tags = computed(() => run.value ? [statusTag({ tone: payrollRunStateTone(run.value.state), label: t(`hrPayroll.runs.state.${run.value.state}`) }, 'hr-payroll-run-state')] : [])
-const warnings = computed(() => (run.value?.warnings ?? []).map(warning => ({
-  key: `${warning.code}:${warning.employee.id}`,
-  text: te(`hrPayroll.warnings.${warning.code}`) ? t(`hrPayroll.warnings.${warning.code}`, { name: warning.employee.name }) : `${warning.code}: ${warning.employee.name}`,
-})))
+// A missing IBAN on an approved run is an incomplete approval snapshot, not a compensation to complete.
+const warnings = computed(() => {
+  const current = run.value
+  if (!current) return []
+  return current.warnings.map(warning => ({ key: `${warning.code}:${warning.employee.id}`, text: payrollWarningText(warning, current.state, t, te) }))
+})
 const approval = computed(() => run.value?.approved_by && run.value.approved_at
   ? t('hrPayroll.run.approvedBy', { name: run.value.approved_by.name, date: formatDate(run.value.approved_at) })
   : '')

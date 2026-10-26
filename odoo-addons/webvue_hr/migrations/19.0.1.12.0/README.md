@@ -21,3 +21,13 @@ current values onto a payslip whose empty snapshot was correct (a zero net paid 
 approval). Odoo runs the step once per version upgrade; freezing an empty snapshot against a later manual rerun would
 need a stored marker and is out of this ticket's scope. No salary file was kept before this version, so the new table
 starts empty.
+
+## Limitation: an approved run left with an empty snapshot
+
+An approved (or posted, or paid) run whose employee had no IBAN on file when this step ran keeps an empty snapshot for
+that payslip. Only this migration can produce such a payslip: from this version, approval refuses a positive net
+without an IBAN. Its bank and WPS files are then refused with `missing_iban`, and recording the IBAN in the
+compensation afterwards does not repair them, because the files read the snapshot only. The run page says so for a
+fixed run (`hrPayroll.errors.missing_iban_snapshot`, `hrPayroll.warnings.missing_iban_snapshot`) and points to the
+payroll administrator or support; an editable run keeps asking for the IBAN in the compensation before approval.
+No product route rewrites an approved snapshot; a correction is a documented, out-of-band repair.
