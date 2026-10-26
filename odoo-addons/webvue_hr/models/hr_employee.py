@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, UserError
 from odoo.fields import Domain
 from odoo.tools import SQL
 
@@ -17,6 +17,17 @@ EMPLOYEE_SCOPE_ERROR = 'employee is outside the current company'
 INVALID_FIELD_CODE = 'invalid_field'
 ACCESS_USER_CREATE_MARKER = 'webvue_core.access_user_create_depth'
 ACCESS_USER_WRITE_MARKER = 'webvue_core.access_user_write'
+# Every model that records what an employee did or was paid; an employee with a row in any of them
+# is archived, never deleted. A version beyond the one every employee is created with counts too.
+EMPLOYEE_HISTORY_MODELS = (
+    'hr.leave',
+    'hr.leave.allocation',
+    'hr.work.entry',
+    'hr.payslip',
+    'webvue.hr.payroll.eos.settlement',
+    'webvue.hr.compensation',
+    'webvue.hr.plan.run',
+)
 
 
 class WebVueHrEmployee(models.Model):
@@ -98,6 +109,28 @@ class WebVueHrEmployee(models.Model):
         return service._webvue_has_capability(
             self.env.user, capability, company=service._webvue_native_hire_company(),
         )
+
+    @api.ondelete(at_uninstall=False)
+    def _unlink_except_employee_history(self):
+        """Only an employee with no history at all, such as a record made by mistake, can be deleted."""
+        employee_ids = tuple(self.ids)
+        # bypass_access: the caller may lack read access to payroll or leave rows, which must not
+        # let the delete through; the query only tells whether a row exists.
+        history = SQL(' UNION ALL ').join(
+            self.env[model]._search(
+                [('employee_id', 'in', employee_ids)], active_test=False, bypass_access=True,
+            ).subselect('employee_id')
+            for model in EMPLOYEE_HISTORY_MODELS
+        )
+        versions = self.env['hr.version'].with_context(active_test=False)._read_group(
+            [('employee_id', 'in', employee_ids)], groupby=['employee_id'],
+            aggregates=['__count'], having=[('__count', '>', 1)],
+        )
+        self.env.cr.execute(SQL('SELECT 1 FROM (%s) AS history LIMIT 1', history))
+        if self.env.cr.rowcount or versions:
+            raise UserError(self.env._(
+                'An employee with history cannot be deleted. Archive the employee instead.',
+            ))
 
     def _webvue_require_capability(self, capability):
         if not self._webvue_has_capability(capability):
