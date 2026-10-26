@@ -52,7 +52,7 @@ msgstr "أُنشئ الحساب"
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__account_unarchived
 msgid "Account unarchived"
-msgstr "أُلغي أرشفة الحساب"
+msgstr "أُلغيت أرشفة الحساب"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_audit_event__action
@@ -95,7 +95,7 @@ msgstr "المبلغ"
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__asset_disposed
 msgid "Asset disposed of"
-msgstr "تمت إبراء الأصل"
+msgstr "تم استبعاد الأصل"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__asset_profile_archived
@@ -115,7 +115,7 @@ msgstr "أُنشئ ملف الأصل"
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__asset_profile_unarchived
 msgid "Asset profile unarchived"
-msgstr "أُلغي أرشفة ملف الأصل"
+msgstr "أُلغيت أرشفة ملف الأصل"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_difference
@@ -346,7 +346,7 @@ msgstr "صلاحية: قراءة الضرائب"
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_closing_read
 msgid "Capability: read finance year-end closing"
-msgstr "صلاحية: قراءة year-end closing"
+msgstr "صلاحية: قراءة إقفال السنة المالية"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_zakat_read
@@ -361,7 +361,7 @@ msgstr "صلاحية: قراءة سجل التدقيق المالي"
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_zakat_review
 msgid "Capability: review finance review the zakat computation"
-msgstr "صلاحية: مراجعة حسبة الزكاة"
+msgstr "صلاحية: مراجعة احتساب الزكاة"
 
 #. module: webvue_finance
 #: model:res.groups,name:webvue_finance.group_cap_finance_zatca_submit
@@ -580,7 +580,7 @@ msgstr "أُنشئت اليومية"
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__journal_unarchived
 msgid "Journal unarchived"
-msgstr "أُلغي أرشفة اليومية"
+msgstr "أُلغيت أرشفة اليومية"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_idempotency__key
@@ -603,7 +603,7 @@ msgstr "التسمية"
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_adjustment__write_uid
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_review__write_uid
 msgid "Last Updated by"
-msgstr "حدّثه"
+msgstr "آخر تعديل بواسطة"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_audit_event__write_date
@@ -611,7 +611,7 @@ msgstr "حدّثه"
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_adjustment__write_date
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_zakat_review__write_date
 msgid "Last Updated on"
-msgstr "تاريخ آخر تحديث"
+msgstr "تاريخ آخر تعديل"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_long_term_investments
@@ -626,12 +626,12 @@ msgstr "الخصوم غير المتداولة"
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_mis_budget_by_account_item
 msgid "MIS Budget Item (by Account)"
-msgstr "بند ميزانية MIS (بحساب)"
+msgstr "بند ميزانية MIS (حسب الحساب)"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_mis_budget_by_account
 msgid "MIS Budget by Account"
-msgstr "ميزانية MIS بحساب"
+msgstr "ميزانية MIS حسب الحساب"
 
 #. module: webvue_finance
 #: model:ir.model.fields,field_description:webvue_finance.field_webvue_finance_idempotency__method
@@ -755,12 +755,12 @@ msgstr "أُنشئ شرط الدفع"
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__payment_term_unarchived
 msgid "Payment term unarchived"
-msgstr "أُلغي أرشفة شرط الدفع"
+msgstr "أُلغيت أرشفة شرط الدفع"
 
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__payment_unallocated
 msgid "Payment unallocated"
-msgstr "أُلغيت توزيع الدفعة"
+msgstr "أُلغي توزيع الدفعة"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_prepayments
@@ -801,7 +801,7 @@ msgstr "نموذج السجل"
 #: model:mis.report.kpi,description:webvue_finance.mis_bs_kpi_retained_earnings
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_retained_earnings
 msgid "Retained earnings of previous years"
-msgstr "أرباح موجّهة للسنوات السابقة"
+msgstr "الأرباح المبقاة للسنوات السابقة"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_pl_kpi_revenue
@@ -840,7 +840,7 @@ msgstr "أُنشئت الضريبة"
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__tax_unarchived
 msgid "Tax unarchived"
-msgstr "أُلغي أرشفة الضريبة"
+msgstr "أُلغيت أرشفة الضريبة"
 
 #. module: webvue_finance
 #. odoo-python
@@ -961,7 +961,7 @@ msgstr "تسوية أساس الزكاة في ويب فيو"
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_zakat_review
 msgid "WebVue finance Zakat computation review"
-msgstr "مراجعة حساب الزكاة في ويب فيو"
+msgstr "مراجعة احتساب الزكاة في ويب فيو"
 
 #. module: webvue_finance
 #: model:ir.model,name:webvue_finance.model_webvue_finance_zakat
@@ -1053,7 +1053,7 @@ msgstr "أُزيلت تسوية زكاة"
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_profit_addbacks
 msgid "Zakat and income tax expense added back"
-msgstr "أُضيف ترجيحًا مصروف الزكاة وضريبة الدخل"
+msgstr "مصروف الزكاة وضريبة الدخل المُعاد إضافته"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_zakat_base
@@ -1068,7 +1068,7 @@ msgstr "أساس الزكاة (مبسّط)"
 #. module: webvue_finance
 #: model:ir.model.fields.selection,name:webvue_finance.selection__webvue_finance_audit_event__action__zakat_reviewed
 msgid "Zakat computation reviewed"
-msgstr "رُوجعت حسبة الزكاة"
+msgstr "رُوجع احتساب الزكاة"
 
 #. module: webvue_finance
 #: model:mis.report.kpi,description:webvue_finance.mis_zk_kpi_zakat_due
