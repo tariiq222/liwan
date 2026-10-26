@@ -2,12 +2,16 @@
 from odoo import Command
 from odoo.tests import new_test_user
 
-from odoo.addons.webvue_api.tests.common import WebVueApiCase
+from odoo.addons.webvue_api.tests.common import WebVueApiCase, record_contract_fixture
 
 MANAGER_LOGIN = 'finance_manager'
 MANAGER_PASSWORD = 'finance_manager_pass_123'
 OUTSIDER_LOGIN = 'finance_outsider'
 OUTSIDER_PASSWORD = 'finance_outsider_pass_123'
+
+# The precondition the two fiscal setup writes state: the identity their screen was read for.
+SETUP_EXPECTED_USER_HEADER = 'X-WebVue-Expected-User-Id'
+SETUP_EXPECTED_COMPANY_HEADER = 'X-WebVue-Expected-Company-Id'
 
 
 class WebVueFinanceCase(WebVueApiCase):
@@ -88,3 +92,26 @@ class WebVueFinanceCase(WebVueApiCase):
         )
         cls.invoice = cls._sale_invoice(cls.company, cls.partner)
         cls.other_invoice = cls._sale_invoice(cls.other_company, cls.partner)
+
+    def setup_api(self, method, path, *, user=None, company=None, json=None, headers=None):
+        """One finance setup call that states the identity its screen was read for.
+
+        ``user`` and ``company`` are the records whose ids the precondition headers carry. They are named
+        explicitly, never read from the request environment, so a test can state another identity on
+        purpose. ``headers`` replaces the whole header set, which is how the missing and malformed cases
+        are stated — a header is never filled in for the caller.
+        """
+        if headers is None:
+            if user is None or company is None:
+                missing_identity = 'setup_api needs the user and the company it states, or explicit headers'
+                raise AssertionError(missing_identity)
+            headers = {
+                SETUP_EXPECTED_USER_HEADER: str(user.id),
+                SETUP_EXPECTED_COMPANY_HEADER: str(company.id),
+            }
+        response = self.url_open(
+            path, json={} if json is None else json,
+            headers={'Content-Type': 'application/json', **headers}, method=method,
+        )
+        record_contract_fixture(method, path, response)
+        return response
