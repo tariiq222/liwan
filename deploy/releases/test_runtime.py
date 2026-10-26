@@ -195,13 +195,11 @@ class RuntimeTests(unittest.TestCase):
             guard_seen.set()
             return 200, {**self.old, 'maintenance': True}
 
-        def fence(binding, roles, connector, **kwargs):
+        def fence(binding, old, new, connector, **kwargs):
             self.assertFalse(lease.exists())
             self.assertEqual(binding['transactionScope'], 'tenant')
-            self.assertEqual(tuple(roles), ('runtime_blue', 'runtime_green'))
             fenced.set()
-            return {'fenced': True, 'fence': 1, 'activeTransactions': 0, 'oldConnections': 0,
-                    'writerConnections': 0, 'deniedWriters': list(roles)}
+            return {'fenced': True, 'fence': 1, 'activeTransactions': 0, 'oldConnections': 0}
 
         def quiesce():
             try:
@@ -209,7 +207,7 @@ class RuntimeTests(unittest.TestCase):
             except (RuntimeError, ValueError, AssertionError, OSError) as error:
                 errors.append(error)
 
-        with http_server(guard) as url, patch('deploy.releases.runtime.fence_writers', side_effect=fence):
+        with http_server(guard) as url, patch('deploy.releases.runtime.fence_runtime', side_effect=fence):
             self.config['guardUrl'] = url
             thread = threading.Thread(target=quiesce)
             thread.start()

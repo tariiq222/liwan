@@ -26,20 +26,38 @@ def read_intent(state, tenant, request_id):
     return json.loads(path.read_text())
 
 
+def _fail_closed(state, runtime, binding, route, request_id, error):
+    """Deny every writer again, stop owned cron, then keep the tenant in maintenance.
+
+    A failed resume or reconciliation may already have re-admitted writers or
+    restarted cron, so the HTTP barrier alone is never the last line.
+    """
+    try:
+        runtime.fail_closed_backup(binding, route)
+    except BaseException:
+        error = 'backup_fail_closed_unverified'
+    state.maintenance(binding['tenantId'], route['fence'])
+    state.stage(request_id, binding['tenantId'], 'needs_intervention', route['fence'], error=error)
+
+
 def _reconcile(state, runtime, binding, request_id):
-    """Restore the previous state of an interrupted backup; never capture again."""
+    """Restore the previous state of an interrupted backup; never capture again.
+
+    Valid from any non-terminal stage: a process killed in ``prepared`` or
+    ``backed_up`` leaves the same durable intent as a handled failure.
+    """
     tenant = binding['tenantId']
     if state.binding(tenant) != binding: raise ReleaseConflict('backup_binding_changed')
     route = state.route(tenant)
     previous = read_intent(state, tenant, request_id)
     try:
+        state.maintenance(tenant, route['fence'])
         runtime.reconcile_backup(binding, route, previous)
         state.resume(tenant, route['fence'])
         if runtime.acknowledge(binding, route, False).get('ready') is not True:
             raise ReleaseConflict('release_guard_ack_missing')
     except BaseException:
-        state.maintenance(tenant, route['fence'])
-        state.stage(request_id, tenant, 'needs_intervention', route['fence'], error='backup_reconciliation_failed')
+        _fail_closed(state, runtime, binding, route, request_id, 'backup_reconciliation_failed')
         raise
     state.stage(request_id, tenant, 'reconciled', route['fence'])
     return state.receipt(request_id)
@@ -52,8 +70,7 @@ def backup_current(state, runtime, binding, request_id, output_dir, finalize):
         state.request(request_id,payload)
         receipt=state.receipt(request_id)
         if receipt['stage'] in ('verified','reconciled'):return receipt
-        if receipt['stage']=='needs_intervention':return _reconcile(state,runtime,binding,request_id)
-        if receipt['stage']!='planned':raise ReleaseConflict('backup_requires_reconciliation')
+        if receipt['stage']!='planned':return _reconcile(state,runtime,binding,request_id)
         if state.binding(tenant)!=binding:raise ReleaseConflict('backup_binding_changed')
         route=state.route(tenant)
         if route.get('draining'):raise ReleaseConflict('previous_release_not_drained')
@@ -63,7 +80,7 @@ def backup_current(state, runtime, binding, request_id, output_dir, finalize):
         try:
             state.maintenance(tenant,route['fence'])
             if runtime.acknowledge(binding,route,True).get('ready') is not True:raise ReleaseConflict('release_guard_ack_missing')
-            proof=runtime.quiesce(binding,route)
+            proof=runtime.fence_backup(binding,route)
             if (proof.get('fence')!=route['fence'] or proof.get('gateClosed') is not True
                     or any(type(proof.get(k)) is not int or proof[k]!=0 for k in ('admittedWriters','activeTransactions','oldConnections'))):
                 raise ReleaseConflict('backup_quiescence_unverified')
@@ -77,13 +94,5 @@ def backup_current(state, runtime, binding, request_id, output_dir, finalize):
             state.stage(request_id,tenant,'verified',route['fence'],backup_digest=result['digest'])
             return state.receipt(request_id)
         except BaseException:
-            # A failed resume may already have re-opened writers, so deny them and
-            # stop the owned cron before the HTTP barrier is the only thing left.
-            try:
-                runtime.fail_closed_backup(binding,route)
-                error='backup_unverified'
-            except BaseException:
-                error='backup_fail_closed_unverified'
-            state.maintenance(tenant,route['fence'])
-            state.stage(request_id,tenant,'needs_intervention',route['fence'],error=error)
+            _fail_closed(state,runtime,binding,route,request_id,'backup_unverified')
             raise

@@ -162,7 +162,7 @@ def writer_authority(connection, database):
             for role, reason in cursor.fetchall(): principals.setdefault(role, []).append(reason)
             cursor.execute("SELECT r.rolname, 'owner' FROM pg_database d JOIN pg_roles r ON r.oid=d.datdba WHERE d.datname=%s", (database,))
             for role, reason in cursor.fetchall(): principals.setdefault(role, []).append(reason)
-            cursor.execute("SELECT DISTINCT r.rolname, 'write' FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace, LATERAL aclexplode(COALESCE(c.relacl, acldefault(CASE WHEN c.relkind='S' THEN 'S' ELSE 'r' END, c.relowner))) a JOIN pg_roles r ON r.oid=a.grantee WHERE n.nspname='public' AND a.privilege_type IN ('INSERT','UPDATE','DELETE','TRUNCATE')")
+            cursor.execute("""SELECT DISTINCT r.rolname, 'write' FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace, LATERAL aclexplode(COALESCE(c.relacl, acldefault(CASE WHEN c.relkind='S' THEN 'S'::"char" ELSE 'r'::"char" END, c.relowner))) a JOIN pg_roles r ON r.oid=a.grantee WHERE n.nspname='public' AND a.privilege_type IN ('INSERT','UPDATE','DELETE','TRUNCATE')""")
             for role, reason in cursor.fetchall(): principals.setdefault(role, []).append(reason)
     except Exception:
         return {'complete': False, 'principals': {}}

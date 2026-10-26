@@ -1,4 +1,4 @@
-"""Opt-in real PostgreSQL: the writer window refuses open admission and live work.
+"""Opt-in real PostgreSQL: writer fence, window recheck, capture and scratch restore.
 
 Runs only on a task-owned ``webvue_scratch_backup_*`` loopback database. The two
 runtime roles are task-owned fixture principals: the test creates them when
@@ -7,9 +7,12 @@ the operator, never dropped here).
 """
 import os
 from pathlib import Path
+import shutil
 import tempfile
 import unittest
 from urllib.parse import urlsplit
+from .backup import capture_tenant, restore_tenant, validate_backup
+from .postgres import fence_writers, writer_grants
 from .runtime import LocalRuntime
 from .state import ReleaseState, ReleaseConflict
 
@@ -50,11 +53,11 @@ class BackupLiveTests(unittest.TestCase):
 
     def test_window_recheck_refuses_open_admission_live_work_and_reports_the_denied_set(self):
         with self.assertRaises(ReleaseConflict):
-            self.runtime._recheck_window(self.binding)  # both runtime roles still hold CONNECT
+            self.runtime._recheck_window(self.binding, 5)  # both runtime roles still hold CONNECT
         with self.admin.cursor() as cursor:
             for role in self.roles:
                 cursor.execute(f'REVOKE CONNECT ON DATABASE "{self.database}" FROM "{role}"')
-        proof = self.runtime._recheck_window(self.binding)
+        proof = self.runtime._recheck_window(self.binding, 5)
         self.assertTrue(proof['gateClosed'])
         self.assertEqual(proof['deniedWriters'], list(self.roles))
         self.assertEqual(proof['writerConnections'], 0)
@@ -63,8 +66,68 @@ class BackupLiveTests(unittest.TestCase):
             with other.cursor() as cursor:
                 cursor.execute('SELECT 1')
             with self.assertRaises(ReleaseConflict):
-                self.runtime._recheck_window(self.binding)
+                self.runtime._recheck_window(self.binding, 5)
             other.rollback()
-            self.assertTrue(self.runtime._recheck_window(self.binding)['gateClosed'])
+            self.assertTrue(self.runtime._recheck_window(self.binding, 5)['gateClosed'])
         finally:
             other.close()
+
+    def test_fence_capture_and_restore_against_real_postgres(self):
+        dsn = os.environ['WEBVUE_BACKUP_TEST_DSN']
+        restored = 'webvue_scratch_backup_restored'
+        postgres_dsn = dsn.rsplit('/', 1)[0] + '/postgres'
+        def drop_restored():
+            conn = self.psycopg2.connect(postgres_dsn); conn.autocommit = True
+            with conn.cursor() as cursor: cursor.execute(f'DROP DATABASE IF EXISTS "{restored}"')
+            conn.close()
+        drop_restored(); self.addCleanup(drop_restored)
+        with self.admin.cursor() as cursor:
+            cursor.execute('CREATE TABLE IF NOT EXISTS backup_live_rows(id serial PRIMARY KEY, value text)')
+            cursor.execute('DELETE FROM backup_live_rows'); cursor.execute("INSERT INTO backup_live_rows(value) VALUES ('seed')")
+            cursor.execute('SELECT current_user'); admin_user = cursor.fetchone()[0]
+        idle = self.psycopg2.connect(dsn.replace('//', f'//{self.roles[0]}@', 1)); idle.autocommit = True
+        self.addCleanup(lambda: idle.closed or idle.close())
+        with idle.cursor() as cursor: cursor.execute('SELECT 1')
+        binding = {**self.binding, 'fence': 1, 'gateClosed': True, 'admittedWriters': 0}
+        result = fence_writers(binding, list(self.roles), lambda _: self.psycopg2.connect(dsn),
+                               allowed_principals=(admin_user,), deadline_seconds=10)
+        self.assertTrue(result['fenced'], result)
+        self.assertEqual(result['deniedWriters'], list(self.roles))
+        with self.admin.cursor() as cursor:
+            self.assertEqual(writer_grants(self.admin, self.roles, self.database), {role: False for role in self.roles})
+        with self.assertRaises(self.psycopg2.OperationalError):  # idle session retired, reconnect refused
+            self.psycopg2.connect(dsn.replace('//', f'//{self.roles[1]}@', 1))
+        with self.assertRaises(self.psycopg2.Error):
+            with idle.cursor() as cursor: cursor.execute('SELECT 1')
+        # An unlisted principal with write authority must refuse the window.
+        with self.admin.cursor() as cursor:
+            cursor.execute('SELECT 1 FROM pg_roles WHERE rolname=%s', ('webvue_backup_live_rogue',))
+            if not cursor.fetchone(): cursor.execute('CREATE ROLE webvue_backup_live_rogue LOGIN')
+            cursor.execute(f'GRANT CONNECT ON DATABASE "{self.database}" TO webvue_backup_live_rogue')
+        rogue = fence_writers(binding, list(self.roles), lambda _: self.psycopg2.connect(dsn),
+                              allowed_principals=(admin_user,), deadline_seconds=10)
+        self.assertEqual(rogue['reason'], 'unsupported_writer_principal')
+        with self.admin.cursor() as cursor:
+            cursor.execute(f'REVOKE CONNECT ON DATABASE "{self.database}" FROM webvue_backup_live_rogue')
+        store = Path(self.temp.name).resolve() / 'filestore' / self.database
+        store.mkdir(parents=True); (store / 'attachment').write_bytes(b'live-attachment')
+        pg = Path(shutil.which('pg_dump') or '').parent
+        config = {'mode': 'local', 'outputDir': str(Path(self.temp.name).resolve() / 'backup'), 'filestorePath': str(store),
+                  'pgDump': str(pg / 'pg_dump'), 'createdb': str(pg / 'createdb'), 'pgRestore': str(pg / 'pg_restore'),
+                  'image': 'webvue/odoo@sha256:' + 'a' * 64, 'writerWindow': True, 'recheck': self.runtime._recheck_window,
+                  'totalDeadlineSeconds': 120, 'timeoutSeconds': 60}
+        proof = {**self.binding, 'fence': 1, 'gateClosed': True, 'admittedWriters': 0, 'activeTransactions': 0,
+                 'oldConnections': 0, 'writerConnections': 0, 'deniedWriters': list(self.roles)}
+        receipt = capture_tenant({**self.binding, 'fence': 1}, proof, config)
+        self.assertFalse(receipt['restoreVerified'])
+        self.assertTrue(validate_backup(config['outputDir'])['valid'])
+        target = {'tenantId': 'tenant_a', 'database': restored, 'filestore': restored}
+        source = {key: receipt[key] for key in ('tenantId', 'database', 'filestore', 'fence')}
+        restore_tenant(config['outputDir'], target, {**config, 'restoreAllowed': True, 'writesResumed': False,
+            'targetFilestore': str(Path(self.temp.name).resolve() / 'restored' / restored), 'recoverySource': source})
+        check = self.psycopg2.connect(dsn.rsplit('/', 1)[0] + '/' + restored)
+        try:
+            with check.cursor() as cursor:
+                cursor.execute('SELECT value FROM backup_live_rows'); self.assertEqual(cursor.fetchall(), [('seed',)])
+        finally: check.close()
+        self.assertEqual((Path(self.temp.name).resolve() / 'restored' / restored / 'attachment').read_bytes(), b'live-attachment')

@@ -223,13 +223,14 @@ may claim a quiescent tenant window, and only inside its own contract:
 | --- | --- |
 | Writer window | Proven by source: every declared writer role (current and candidate) is denied `CONNECT` for the whole dump/archive, existing work is drained and idle sessions retired, candidate is never granted admission. An unsupported principal refuses the window. |
 | Previous-state restore | Durable intent before the first effect; only previously granted writers are reopened and only a previously running cron is restarted, under the same container identity. |
-| Interruption | Stays in tenant maintenance with `needs_intervention`; a re-run of the same request reconciles the previous state without capturing again, and refuses when the fence is no longer intact. |
+| Interruption | A crash (SIGKILL) or failure leaves the durable intent; a re-run of the same request, from any stage, reconciles the previous state without capturing again, refuses when the fence is no longer intact, and re-applies the fail-closed fence if reconciliation itself fails. |
 | Consistency / restore | `consistency: quiescent_gate` and `restoreVerified: false`. Hash-valid capture is not a business restore, and the manual tool's `UNVERIFIED` claim is never upgraded. |
 | Coverage boundary | Not proven against a privileged DBA/root, a host-side writer outside the declared model, a shared volatile mount, or any target outside `webvue_scratch_*`. |
-| Live proof | **Not run in this phase.** Mock regressions prove the fence, ordering and state restoration; live PostgreSQL/Docker writer-window acceptance and a non-zero business restore remain separate gates. |
+| Release path | `quiesce`/`migrate`/`retire` are unchanged; the candidate keeps `CONNECT` through verify. Only `backup-current` uses the writer window. |
+| Live proof | Opt-in `test_backup_live` (scratch `webvue_scratch_backup_*`, loopback PostgreSQL) exercises `fence_writers`, recheck, dump/archive capture and scratch restore of a one-row table. Docker/Odoo runtime, cron containers and a non-zero business restore stay separate gates. |
 
 Setup keys the runtime reads: `backup.totalDeadlineSeconds` (one monotonic budget
-for dump, archive, rechecks and hashing; default 600) and
+for the dump, every archived and hashed block and each recheck's statement timeout; default 600; one blocking subprocess or query is bounded by its own timeout, not preempted mid-call) and
 `backup.allowedPrincipals` (closed operator allowance beside `postgres.adminUser`).
 Never reuse an existing artifact directory, database or filestore: a refused or
 interrupted run preserves partial artifacts for investigation.

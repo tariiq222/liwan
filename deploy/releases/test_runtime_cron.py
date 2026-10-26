@@ -233,28 +233,36 @@ class RuntimeCronTests(unittest.TestCase):
         self.state.maintenance('tenant_a', 1)
         route = self.backup_config(grants={'role_blue': True, 'role_green': False})
         with self.assertRaisesRegex(state_module.ReleaseConflict, 'writer_admission_open'):
-            self.runtime._recheck_window(self.binding)
+            self.runtime._recheck_window(self.binding, 5)
         self.connection.grants = {'role_blue': False, 'role_green': False}
-        proof = self.runtime._recheck_window(self.binding)
+        proof = self.runtime._recheck_window(self.binding, 5)
         self.assertEqual(proof['deniedWriters'], ['role_blue', 'role_green'])
         self.assertEqual(proof['writerConnections'], 0)
         self.assertEqual(proof['fence'], route['fence'])
 
-    def test_generation_recheck_keeps_serving_role_admission_for_migration(self):
-        # fence_runtime still admits the serving generation; the shared recheck must
-        # stay usable there instead of demanding a full writer window.
+    def test_release_quiesce_keeps_the_candidate_connectable_through_verify(self):
+        # R1: release/migrate/retire behave as on main. quiesce swaps generations with
+        # fence_runtime (grants the candidate) and never uses the backup-only fence.
         self.state.maintenance('tenant_a', 1)
         self.backup_config(grants={'role_blue': True, 'role_green': False})
-        self.assertTrue(self.runtime._recheck(self.binding)['gateClosed'])
+        self.runtime.acknowledge = lambda *_: {'ready': True}
+        def forbidden(*_a, **_k): self.fail('release path used the backup writer fence')
+        with patch.object(runtime_module, 'fence_runtime', self.fence), \
+                patch.object(runtime_module, 'fence_writers', forbidden), \
+                patch.object(runtime_module.subprocess, 'run', self.docker):
+            proof = self.runtime.quiesce(self.binding, self.old)
+        self.assertIn(('fence', 'role_blue', 'role_green'), self.events)  # old revoked, candidate granted
+        self.assertEqual(self.runtime.proofs['tenant_a'], proof)
+        self.assertEqual(self.runtime._recheck(self.binding), proof)
         with self.assertRaisesRegex(state_module.ReleaseConflict, 'writer_admission_open'):
-            self.runtime._recheck_window(self.binding)
+            self.runtime._recheck_window(self.binding, 5)
 
     def test_recheck_refuses_a_writer_session_of_any_declared_role(self):
         self.state.maintenance('tenant_a', 1)
         self.backup_config(grants={'role_blue': False, 'role_green': False})
         self.connection.active = 1
         with self.assertRaisesRegex(state_module.ReleaseConflict, 'writer_reconnect_observed'):
-            self.runtime._recheck_window(self.binding)
+            self.runtime._recheck_window(self.binding, 5)
 
     def test_backup_previous_state_records_grants_and_owned_cron(self):
         route = self.backup_config()

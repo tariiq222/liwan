@@ -42,6 +42,7 @@ class LocalRuntime:
         self.role_inspector = role_inspector or inspect_odoo_runtime
         self.classifier = classifier or self._classify
         self.inventory_inspector = inventory_inspector or self._inspect_inventory
+        self.proofs = {}
         self.classifications = {}
 
     def _connect(self, database):
@@ -143,17 +144,6 @@ class LocalRuntime:
             observed[job['container']]=proof['running']
         return observed
 
-    def _stop_owned_cron(self,binding,pool):
-        # Only after PG has proved zero writer connections/transactions. Never kill
-        # an active business cron, and never stop a shared multi-tenant process.
-        for job in self._owned_cron_jobs(binding,pool):
-            expected=self._cron_expected(binding,pool,job)
-            observed=self.role_inspector(job['container'],expected,cron_databases=job['databases'],allow_stopped=True)
-            if observed.get('running') is True:
-                subprocess.run(['docker','stop',name(job['container'])],check=True,capture_output=True,timeout=30)
-            stopped=self.role_inspector(job['container'],expected,cron_databases=job['databases'],allow_stopped=True)
-            if stopped.get('running') is not False: raise ReleaseConflict('old_cron_stop_unverified')
-
     def _writer_roles(self, binding):
         """Every role the tenant's pools may write with, from the operator config.
 
@@ -189,7 +179,7 @@ class LocalRuntime:
             roles, self.connector, allowed_principals=self._allowed_principals(binding),
             deadline_seconds=self.config.get('drainSeconds',30))
         if result.get('fenced') is not True: raise ReleaseConflict(result.get('reason','fence_failed'))
-        self._stop_owned_cron(binding,route['poolId'])
+        self._stop_old_jobs(binding,route['poolId'])
         return {**binding,**result,'gateClosed':True,'admittedWriters':0}
 
     def _fence(self, binding, route, *, gate_closed):
@@ -206,41 +196,71 @@ class LocalRuntime:
         result = fence_runtime({**binding, 'fence': route['fence'], 'gateClosed': True, 'admittedWriters': 0,'transactionScope':'tenant' if gate_closed else 'old_role'},
             old_role,new_role,self.connector,deadline_seconds=self.config.get('drainSeconds',30))
         if result.get('fenced') is not True: raise ReleaseConflict(result.get('reason','fence_failed'))
-        self._stop_owned_cron(binding,route['poolId'])
+        self._stop_old_jobs(binding,route['poolId'])
         return {**binding,**result,'gateClosed':True,'admittedWriters':0}
 
+    def _stop_old_jobs(self,binding,pool):
+        # Only after PG has proved zero old connections/transactions. Never kill
+        # an active business cron, and never stop a shared multi-tenant process.
+        for job in self.config['pools'][pool]['cronRuntimes']:
+            if job['databases'] != [binding['database']]: continue
+            expected={**job['identity'],'poolId':pool,'dbUser':self._role(binding,pool)}
+            observed=self.role_inspector(job['container'],expected,cron_databases=job['databases'],allow_stopped=True)
+            if observed.get('running') is True:
+                subprocess.run(['docker','stop',name(job['container'])],check=True,capture_output=True,timeout=30)
+            stopped=self.role_inspector(job['container'],expected,cron_databases=job['databases'],allow_stopped=True)
+            if stopped.get('running') is not False: raise ReleaseConflict('old_cron_stop_unverified')
+
     def quiesce(self, binding, route):
+        if not self.state.routes.joinpath(binding['tenantId'] + '.maintenance').is_file():
+            raise ReleaseConflict('maintenance_barrier_missing')
+        if not self.acknowledge(binding,route,True)['ready']: raise ReleaseConflict('release_guard_ack_missing')
+        proof = self._fence(binding,route,gate_closed=True)
+        self.proofs[binding['tenantId']] = proof
+        return proof
+
+    def fence_backup(self, binding, route):
+        """Backup-only writer window; release and migrate keep ``quiesce``."""
         if not self.state.routes.joinpath(binding['tenantId'] + '.maintenance').is_file():
             raise ReleaseConflict('maintenance_barrier_missing')
         if not self.acknowledge(binding,route,True)['ready']: raise ReleaseConflict('release_guard_ack_missing')
         return self._fence_backup_writers(binding,route)
 
     def _recheck(self, binding):
-        """Fresh gate and no-work evidence, shared by release migration and the backup window."""
+        route = self.state.route(binding['tenantId'])
+        if not self.state.routes.joinpath(binding['tenantId'] + '.maintenance').is_file() or self._leases(binding):
+            raise ReleaseConflict('maintenance_gate_changed')
+        with self.connector(binding['database']) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT (SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND pid<>pg_backend_pid() AND (usename=%s OR state<>'idle' OR xact_start IS NOT NULL)) + (SELECT count(*) FROM pg_prepared_xacts WHERE database=%s)",
+                    (binding['database'],self._role(binding,route['poolId']),binding['database']))
+                if cursor.fetchone()[0]: raise ReleaseConflict('old_connections_remain')
+        return self.proofs[binding['tenantId']]
+
+    def _recheck_window(self, binding, timeout):
+        """Window evidence: gate closed, every declared writer denied, nothing running.
+
+        ``timeout`` (seconds) bounds each query so a stalled database cannot outlive the budget.
+        """
         route = self.state.route(binding['tenantId'])
         if not self.state.routes.joinpath(binding['tenantId'] + '.maintenance').is_file() or self._leases(binding):
             raise ReleaseConflict('maintenance_gate_changed')
         roles = self._writer_roles(binding)
         with self.connector(binding['database']) as connection:
             with connection.cursor() as cursor:
+                cursor.execute(f'SET LOCAL statement_timeout = {max(1, int(timeout * 1000))}')
                 cursor.execute("SELECT (SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND pid<>pg_backend_pid() AND (usename = ANY(%s) OR state<>'idle' OR xact_start IS NOT NULL)) + (SELECT count(*) FROM pg_prepared_xacts WHERE database=%s)",
                     (binding['database'],list(roles),binding['database']))
                 if cursor.fetchone()[0]: raise ReleaseConflict('writer_reconnect_observed')
-        return {**binding,'fence':route['fence'],'gateClosed':True,'admittedWriters':0,
-                'activeTransactions':0,'oldConnections':0,'transactionScope':'tenant'}
-
-    def _recheck_window(self, binding):
-        """Window evidence: every declared writer is still denied and nothing is running."""
-        proof = self._recheck(binding)
-        roles = self._writer_roles(binding)
-        with self.connector(binding['database']) as connection:
             try:
                 grants = writer_grants(connection, roles, binding['database'])
             except ValueError:
                 raise ReleaseConflict('writer_admission_unverified') from None
         if any(grants[role] is not False for role in roles):
             raise ReleaseConflict('writer_admission_open')
-        return {**proof,'writerConnections':0,'deniedWriters':list(roles)}
+        return {**binding,'fence':route['fence'],'gateClosed':True,'admittedWriters':0,
+                'activeTransactions':0,'oldConnections':0,'transactionScope':'tenant',
+                'writerConnections':0,'deniedWriters':list(roles)}
 
     def prepare_backup(self, binding, route):
         """Inspect every declared writer and return the previous state to persist.
@@ -280,10 +300,14 @@ class LocalRuntime:
         return previous
 
     def resume_backup(self, binding, route, previous):
+        """Reopen the previous state after a finished window; the window must still be intact."""
         if self.state.route(binding['tenantId']) != route:
             raise ReleaseConflict('backup_route_changed')
         previous = self._previous_state(binding, route, previous)
-        self._recheck_window(binding)
+        self._recheck_window(binding, self.config['backup'].get('timeoutSeconds', 120))
+        return self._restore_previous(binding, route, previous)
+
+    def _restore_previous(self, binding, route, previous):
         restored = [role for role in previous['roles'] if previous['grants'][role] is True]
         with self.connector(binding['database']) as connection:
             with connection.cursor() as cursor:
@@ -319,15 +343,16 @@ class LocalRuntime:
             roles, self.connector, allowed_principals=self._allowed_principals(binding),
             deadline_seconds=self.config.get('drainSeconds',30))
         if result.get('fenced') is not True: raise ReleaseConflict(result.get('reason','backup_fail_closed_unverified'))
-        self._stop_owned_cron(binding, route['poolId'])
+        self._stop_old_jobs(binding, route['poolId'])
         return {'ready':True,'deniedWriters':result['deniedWriters']}
 
     def reconcile_backup(self, binding, route, previous):
         """Finish an interrupted backup by restoring the previous state only.
 
+        Valid from any stage, including a crash before the fence took effect.
         Never captures again and never opens a principal that was closed before:
-        a writer whose CONNECT this request reopened means the fence was lost and
-        the window stays closed for the operator.
+        a writer admitted now that was not admitted before means the fence was
+        lost and the window stays closed for the operator.
         """
         if self.state.route(binding['tenantId']) != route:
             raise ReleaseConflict('backup_route_changed')
@@ -339,7 +364,7 @@ class LocalRuntime:
             raise ReleaseConflict('backup_fence_unverified') from None
         if any(grants[role] is True for role in previous['roles'] if previous['grants'][role] is not True):
             raise ReleaseConflict('backup_fence_lost')
-        return self.resume_backup(binding, route, previous)
+        return self._restore_previous(binding, route, previous)
 
     def capture_into(self, binding, proof, output):
         tenant = self._tenant(binding)

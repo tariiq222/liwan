@@ -1,9 +1,12 @@
 """Backup tests use real temporary dump/archive files and external-command seams."""
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
+from . import backup
 from .backup import capture_tenant, validate_backup, restore_tenant
 
 
@@ -24,7 +27,7 @@ class BackupTests(unittest.TestCase):
         self.config = {'mode': 'local', 'outputDir': str(self.root / 'backup'), 'filestorePath': str(self.store),
                        'pgDump': '/usr/bin/true', 'createdb': '/usr/bin/true', 'pgRestore': '/usr/bin/true',
                        'image': 'webvue/odoo@sha256:' + 'a' * 64, 'runner': runner, 'writerWindow': True,
-                       'recheck': lambda binding: self.proof, 'totalDeadlineSeconds': 60,
+                       'recheck': lambda binding, timeout: self.proof, 'totalDeadlineSeconds': 60,
                        'pgEnv': {}, 'timeoutSeconds': 30}
 
     def test_capture_records_hashes_and_never_stops_shared_services(self):
@@ -57,7 +60,7 @@ class BackupTests(unittest.TestCase):
 
     def test_window_evidence_is_rechecked_after_the_filestore_archive(self):
         observed = []
-        def recheck(binding):
+        def recheck(binding, timeout):
             observed.append(binding['tenantId'])
             if len(observed) > 1: raise ValueError('writer reconnected during the window')
             return self.proof
@@ -79,6 +82,34 @@ class BackupTests(unittest.TestCase):
         self.assertFalse((self.root / 'backup' / 'receipt.json').exists())
         with self.assertRaises(ValueError):
             capture_tenant(self.binding, self.proof, {**self.config, 'totalDeadlineSeconds': 0})
+
+    def test_deadline_bounds_the_archive_and_the_hashing_not_only_the_dump(self):
+        clock = [0.0]
+        def after_dump(argv, **kwargs):
+            Path(argv[argv.index('--file') + 1]).write_bytes(b'dump-data')
+            clock[0] = 1000.0  # time runs out after the dump, before the archive
+            return subprocess.CompletedProcess(argv, 0, '', '')
+        with patch.object(backup.time, 'monotonic', lambda: clock[0]), self.assertRaisesRegex(ValueError, 'backup_deadline_exceeded'):
+            capture_tenant(self.binding, self.proof, {**self.config, 'runner': after_dump})
+        self.assertFalse((self.root / 'backup' / 'receipt.json').exists())
+        clock[0] = 0.0
+        shutil.rmtree(self.root / 'backup')
+        calls = []
+        def late_recheck(binding, timeout):
+            calls.append(timeout)
+            if len(calls) == 2: clock[0] = 1000.0  # budget exhausted right before hashing
+            return self.proof
+        with patch.object(backup.time, 'monotonic', lambda: clock[0]), self.assertRaisesRegex(ValueError, 'backup_deadline_exceeded'):
+            capture_tenant(self.binding, self.proof, {**self.config, 'recheck': late_recheck})
+        self.assertFalse((self.root / 'backup' / 'receipt.json').exists())
+
+    def test_deadline_is_passed_to_every_recheck_as_its_remaining_time(self):
+        seen = []
+        def recheck(binding, timeout):
+            seen.append(timeout); return self.proof
+        capture_tenant(self.binding, self.proof, {**self.config, 'recheck': recheck, 'totalDeadlineSeconds': 30})
+        self.assertEqual(len(seen), 2)
+        self.assertTrue(all(0 < value <= 30 for value in seen))
 
     def test_fixture_capture_without_a_writer_window_keeps_its_contract(self):
         # The isolated infrastructure fixture does not own a tenant writer window;
