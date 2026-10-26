@@ -3717,9 +3717,10 @@
       "addon": "webvue_hr_finance",
       "auth": "user",
       "capability_keys": [
+        "hr.payroll.finance.manage",
         "finance.setup.manage"
       ],
-      "capability_match": "all",
+      "capability_match": "any",
       "capability_source": "decorator",
       "feature_keys": [],
       "handler": "patch_finance_settings",

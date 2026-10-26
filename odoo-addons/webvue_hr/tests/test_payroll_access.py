@@ -11,6 +11,7 @@ PAYROLL_GROUPS = (
     'webvue_hr.group_cap_hr_payroll_manage',
     'webvue_hr.group_cap_hr_payroll_approve',
     'webvue_hr.group_cap_hr_payroll_config',
+    'webvue_hr.group_cap_hr_payroll_finance_manage',
 )
 FORBIDDEN_IMPLIED = (
     'hr.group_hr_user',
@@ -74,10 +75,12 @@ class TestPayrollAccess(TransactionCase):
             group = self.env.ref(xmlid)
             self.assertFalse(group.all_implied_ids & forbidden, xmlid)
 
-    def test_payroll_role_grants_exactly_the_four_keys(self):
+    def test_payroll_role_grants_only_payroll_keys(self):
         role = self.env.ref('webvue_hr.role_payroll_manager')
         self.assertEqual(role.key, 'payroll_manager')
         self.assertEqual(set(role.permission_ids.mapped('key')), PAYROLL_PERMISSIONS)
+        self.assertIn('hr.payroll.finance.manage', PAYROLL_PERMISSIONS)
+        self.assertNotIn('finance.setup.manage', PAYROLL_PERMISSIONS)
         self.assertEqual(self._role_grants('webvue_hr.role_payroll_manager'), PAYROLL_PERMISSIONS)
 
     def test_hr_payroll_feature_is_registered(self):
