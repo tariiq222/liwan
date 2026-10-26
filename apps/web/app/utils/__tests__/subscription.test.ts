@@ -57,17 +57,17 @@ describe('refusalKey', () => {
 })
 
 describe('sameQuoteEconomics', () => {
-  const base = {
+  const base: Record<string, unknown> = {
     id: 'q1', plan_revision_id: 'p', bundle_revision_ids: ['b'], terms_revision_id: null,
     cadence: { unit: 'month', count: 1 }, requested_users: 3, requested_storage_mb: 1024,
     requested_extra_branches: 0, due_now: money(100), next_renewal: money(200),
     lines: [{ kind: 'base', key: 'base', amount: money(100), quantity: 1 }],
-  } as never
+  }
   it('ignores a new expiry and quote id', () => {
-    expect(sameQuoteEconomics(base, { ...base, id: 'q2', expires_at: '2030-01-01' } as never)).toBe(true)
+    expect(sameQuoteEconomics(base as never, { ...base, id: 'q2', expires_at: '2030-01-01' } as never)).toBe(true)
   })
   it('detects a real price or quantity change', () => {
-    expect(sameQuoteEconomics(base, { ...base, due_now: money(101) } as never)).toBe(false)
-    expect(sameQuoteEconomics(base, { ...base, requested_users: 4 } as never)).toBe(false)
+    expect(sameQuoteEconomics(base as never, { ...base, due_now: money(101) } as never)).toBe(false)
+    expect(sameQuoteEconomics(base as never, { ...base, requested_users: 4 } as never)).toBe(false)
   })
 })
