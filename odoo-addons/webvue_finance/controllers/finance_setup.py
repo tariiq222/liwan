@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
+
 from odoo import http
 from odoo.http import request
 
@@ -14,6 +16,48 @@ from odoo.addons.webvue_finance.serializers.setup import dump_setup
 LOCK_DATE_FIELDS = ('fiscalyear_lock_date', 'tax_lock_date', 'sale_lock_date', 'purchase_lock_date')
 FISCAL_DAYS = range(1, 32)
 FISCAL_MONTHS = range(1, 13)
+
+# The two fiscal writes carry the identity the screen was read for, so a screen that moved to another
+# user or company before it saved is refused before the payload is parsed and before anything is written.
+# The header is a comparison value only: it never selects the target and never grants a capability.
+EXPECTED_USER_HEADER = 'X-WebVue-Expected-User-Id'
+EXPECTED_COMPANY_HEADER = 'X-WebVue-Expected-Company-Id'
+# Positive canonical ASCII decimal, no wider than an exact JavaScript integer (Number.MAX_SAFE_INTEGER).
+EXPECTED_ID_PATTERN = re.compile(r'^[1-9][0-9]*$')
+MAX_EXPECTED_ID_DIGITS = 16
+MAX_EXPECTED_ID = 9007199254740991
+
+
+def _expected_id(header):
+    """The id a precondition header states, or a 422 naming the header it must carry."""
+    value = request.httprequest.headers.get(header)
+    invalid = (
+        value is None
+        or len(value) > MAX_EXPECTED_ID_DIGITS
+        or not EXPECTED_ID_PATTERN.match(value)
+        or int(value) > MAX_EXPECTED_ID
+    )
+    if invalid:
+        # The refusal names no identity: neither the authenticated one nor the stated one leaves this layer.
+        raise ApiError(422, 'invalid_request_context', 'the request must state the expected sign-in user and company', field=header)
+    return int(value)
+
+
+def require_expected_context(user, company):
+    """Refuse a fiscal write whose screen was read for another user or company.
+
+    ``user`` and ``company`` are the authenticated identity of this request, read once by the caller and
+    kept for the write that follows. A missing or malformed header is a 422; a stated identity that is not
+    the authenticated one is a 409. Both are decided before the payload is parsed and before any write,
+    audit event or server-side effect, and neither can select a company or replace the capability check.
+    """
+    expected_user = _expected_id(EXPECTED_USER_HEADER)
+    expected_company = _expected_id(EXPECTED_COMPANY_HEADER)
+    if expected_user != user.id or expected_company != company.id:
+        raise ApiError(
+            409, 'request_context_changed',
+            'the sign-in user or company changed since this screen was loaded; reload it and try again',
+        )
 
 
 def _require_payload(payload, allowed):
@@ -88,7 +132,9 @@ class FinanceSetupController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def load_chart(self, **_):
         require_capability('finance.setup.manage')
-        company = request.env.company
+        # Read the identity once: the precondition, the write and the response all use this same record.
+        user, company = request.env.user, request.env.company
+        require_expected_context(user, company)
         request.env['webvue.finance.setup']._webvue_load_chart(company)
         return dump_setup(company)
 
@@ -97,5 +143,9 @@ class FinanceSetupController(http.Controller):
     @requires_feature('finance.enabled', operation='write')
     def patch_fiscal(self, **payload):
         require_capability('finance.setup.manage')
-        request.env['webvue.finance.setup']._webvue_write_company(request.env.company, parse_fiscal_vals(payload, request.env.company))
-        return dump_setup(request.env.company)
+        # Read the identity once: the precondition, the parsed payload and the write that follows all
+        # act on this same company, so a company switch cannot move the target after the check.
+        user, company = request.env.user, request.env.company
+        require_expected_context(user, company)
+        request.env['webvue.finance.setup']._webvue_write_company(company, parse_fiscal_vals(payload, company))
+        return dump_setup(company)
