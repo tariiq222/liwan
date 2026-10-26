@@ -55,6 +55,8 @@ function mountPage() {
     useSettingsPage: () => ({ parts: [], shows: () => true }),
     useHydrated: () => Vue.ref(true),
     onBeforeRouteLeave: () => undefined,
+    // The server-side seed; this flow runs as the client, where the immediate watcher seeds the draft.
+    useSsrQuerySeed: () => undefined,
     SettingsPreviewCard: {}, SetupChecklist: {}, AnalyticAccountsSection: {}, AnalyticPlansSection: {},
     AuditPreview: {}, ClosingView: {}, ZatcaView: {},
     financeSetupProgress, saveErrorMessage,

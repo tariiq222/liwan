@@ -21,6 +21,35 @@ const user = (id: number, company: number): Me => ({ id, company: { id: company 
 afterEach(() => vi.unstubAllGlobals())
 
 describe('the observed-identity generation', () => {
+  it('is the same on the server render and on the hydrating client for the identity both resolved', () => {
+    // The server's plugin runs before the auth middleware read `me`; the hydrating client starts from the
+    // payload, so it already holds that identity. Both must name it with the same generation, or the cache
+    // key of the SSR data differs from the one the client looks up.
+    const serverMe = ref<Me>(null)
+    const server = createFinanceIdentityGeneration(serverMe)
+    serverMe.value = user(7, 3)
+    const client = createFinanceIdentityGeneration(ref<Me>(user(7, 3)))
+    expect(server.generation.value).toBe(client.generation.value)
+    server.stop()
+    client.stop()
+  })
+
+  it.each([
+    ['A, then nobody, then A again', null],
+    ['A, then B, then A again', user(8, 3)],
+  ])('still moves on every later transition after that first identity (%s)', (_name, detour) => {
+    for (const me of [ref<Me>(null), ref<Me>(user(7, 3))]) {
+      const own = createFinanceIdentityGeneration(me)
+      me.value = user(7, 3)
+      const first = own.generation.value
+      me.value = detour
+      expect(own.generation.value).toBe(first + 1)
+      me.value = user(7, 3)
+      expect(own.generation.value).toBe(first + 2)
+      own.stop()
+    }
+  })
+
   it('survives the unmount of the component whose setup created it, and stops only when its owner stops it', () => {
     const me = ref<Me>(null)
     let own!: ReturnType<typeof createFinanceIdentityGeneration>
@@ -29,13 +58,13 @@ describe('the observed-identity generation', () => {
     me.value = user(1, 1)
     me.value = null
     me.value = user(1, 1)
-    expect(own.generation.value).toBe(3)
+    expect(own.generation.value).toBe(2)
     app.unmount()
     me.value = user(2, 1)
-    expect(own.generation.value).toBe(4)
+    expect(own.generation.value).toBe(3)
     own.stop()
     me.value = user(3, 1)
-    expect(own.generation.value).toBe(4)
+    expect(own.generation.value).toBe(3)
   })
 
   it('keeps counting across consumer unmount and remount, without a consumer retaining it', async () => {
@@ -49,15 +78,15 @@ describe('the observed-identity generation', () => {
 
     const first = mount()
     me.value = user(1, 1)
-    expect(own.generation.value).toBe(1)
+    expect(own.generation.value).toBe(0)
     first.unmount()
     me.value = null
     me.value = user(1, 1)
-    expect(own.generation.value).toBe(3)
+    expect(own.generation.value).toBe(2)
     const second = mount()
     await nextTick()
     me.value = user(2, 1)
-    expect(own.generation.value).toBe(4)
+    expect(own.generation.value).toBe(3)
     second.unmount()
     own.stop()
   })

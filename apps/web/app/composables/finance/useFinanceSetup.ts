@@ -30,17 +30,24 @@ function financeIdentityOf(current: FinanceSessionUser): FinanceIdentity | null 
   return { userId, companyId }
 }
 
-/** The observed-identity generation of one Nuxt app (so of one server request): it moves on every observed
- * identity transition, to and from "unknown" included, and never goes back. It lives in a detached effect
- * scope, never in a component, so no consumer is retained by it and consumers may unmount and remount freely.
- * The owner (the finance-identity plugin) stops it when the app ends. */
+/** The observed-identity generation of one Nuxt app (so of one server request). The first identity the app
+ * knows is generation 0: no finance scope, request or cache entry exists before it, and the server render
+ * (which learns it after this starts) and the hydrating client (which starts with it) must name it alike, or
+ * the client cannot reuse the server's data. From there it moves on every observed identity transition, to
+ * and from "unknown" included, and never goes back. It lives in a detached effect scope, never in a
+ * component, so no consumer is retained by it and consumers may unmount and remount freely. The owner (the
+ * finance-identity plugin) stops it when the app ends. */
 export function createFinanceIdentityGeneration(me: Readonly<Ref<FinanceSessionUser>>) {
   const generation = ref(0)
+  let known = financeIdentityOf(me.value) !== null
   const scope = effectScope(true)
   // Synchronous, so a transition that reverts within one tick (A, then nobody, then A) is still counted.
   scope.run(() => watch(
     () => { const identity = financeIdentityOf(me.value); return identity ? `${identity.userId}:${identity.companyId}` : null },
-    () => { generation.value += 1 },
+    (identity) => {
+      if (known) generation.value += 1
+      else known = identity !== null
+    },
     { flush: 'sync' },
   ))
   return { generation, stop: () => scope.stop() }

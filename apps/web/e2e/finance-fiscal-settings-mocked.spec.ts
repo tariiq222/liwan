@@ -148,8 +148,8 @@ test.afterAll(async () => {
 
 test.beforeEach(() => { mode = 'manager'; fiscalPatches = []; rejectNextPatch = null })
 
-/** Opens the settings page over the synthetic upstream and captures every fiscal write it makes. */
-async function openFiscal(page: Page, cookies: Array<{ name: string; value: string }> = []) {
+/** Serves the settings page over the synthetic upstream and captures every fiscal write it makes. */
+async function routeFiscal(page: Page, cookies: Array<{ name: string; value: string }> = []) {
   await page.context().addCookies([
     { name: 'session_id', value: 'fiscal_mock', url: origin, httpOnly: true, sameSite: 'Lax' },
     ...cookies.map(cookie => ({ ...cookie, url: origin })),
@@ -169,6 +169,11 @@ async function openFiscal(page: Page, cookies: Array<{ name: string; value: stri
       body: JSON.stringify({ ...SETUP, fiscal: { ...SETUP.fiscal, ...body, fiscalyear_last_month: body.fiscalyear_last_month ?? SETUP.fiscal.fiscalyear_last_month } }),
     })
   })
+}
+
+/** Opens the settings page once the card is shown. */
+async function openFiscal(page: Page, cookies: Array<{ name: string; value: string }> = []) {
+  await routeFiscal(page, cookies)
   await page.goto(`${origin}/settings/apps/finance#setup`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByTestId('finance-setup-fiscal')).toBeVisible({ timeout: 15_000 })
 }
@@ -194,6 +199,34 @@ test('a manager edits inline and the write states the identity the screen was re
   expect(patch?.headers['x-webvue-expected-company-id']).toBe('1')
   await expect(saveButton(page)).toBeDisabled()
   await expect(day).toHaveValue('30')
+})
+
+test('the server-rendered card hydrates in place without waiting for a browser read of the setup', async ({ page }) => {
+  const hydrationMessages: string[] = []
+  page.on('console', message => { if (/hydration/i.test(message.text())) hydrationMessages.push(message.text()) })
+  await routeFiscal(page)
+  // The browser's own setup read is held for the whole test: the card must come from the server render.
+  let browserReads = 0
+  let release!: () => void
+  const held = new Promise<void>(resolveHeld => { release = resolveHeld })
+  await page.route('**/api/v1/finance/setup', async (route) => {
+    browserReads += 1
+    await held
+    await fulfillApi(route).catch(() => undefined)
+  })
+  try {
+    await page.goto(`${origin}/settings/apps/finance#setup`, { waitUntil: 'load' })
+    const day = page.locator('#finance-fiscal-fiscalyear_last_day')
+    // Enabled only once hydrated, so every check below runs on the hydrated card.
+    await expect(day).toBeEnabled({ timeout: 15_000 })
+    await expect(fiscalCard(page)).toBeVisible()
+    await expect(day).toHaveValue('31')
+    await expect(page.locator('#finance-fiscal-fiscalyear_lock_date')).toContainText('2025')
+    expect(browserReads).toBe(0)
+    expect(hydrationMessages).toEqual([])
+  } finally {
+    release()
+  }
 })
 
 test('a reader sees the values and no editor at all', async ({ page }) => {

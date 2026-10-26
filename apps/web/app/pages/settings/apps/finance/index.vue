@@ -24,6 +24,7 @@ import {
   type FinanceSetupScope,
 } from '@/composables/finance/financeFiscalSetup'
 import { saveErrorMessage } from '@/utils/formFeedback'
+import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 import type { PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
 
 const { t, locale } = useI18n()
@@ -109,10 +110,13 @@ function discardFiscal() {
 
 // A new identity seeds its own baseline and drops the old draft; a background refetch of the same identity
 // never replaces a dirty draft with the server's copy.
-watch([setup.data, setup.scope], ([values, scope]) => {
+function syncFiscal(values: typeof setup.data.value, scope: FinanceSetupScope | null) {
   if (!values || !scope) { discardFiscal(); return }
   if (!sameFinanceSetupScope(draftScope.value, scope) || !fiscalDirty.value) seedFiscal(values, scope)
-}, { immediate: true })
+}
+watch([setup.data, setup.scope], ([values, scope]) => syncFiscal(values, scope), { immediate: true })
+// The server renders the editor too, and its watcher cannot rerun once the setup query settles there.
+useSsrQuerySeed(setup, values => syncFiscal(values, setup.scope.value))
 
 function revertFiscal() {
   if (!fiscalBaseline.value || savingFiscal.value) return
