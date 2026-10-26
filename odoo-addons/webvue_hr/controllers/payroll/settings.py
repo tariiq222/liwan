@@ -119,8 +119,9 @@ class HrPayrollSettingsController(http.Controller):
         vals = parse_rate(payload, request.env['webvue.hr.gosi.rate'], partial=False)
         _reject_inverted_wages(None, vals)
         _reject_duplicate(None, vals)
-        rate = request.env['webvue.hr.gosi.rate'].create({**vals, 'company_id': current_company().id})
-        _audit()._webvue_log('gosi_rate_created', rate)
+        with unique_conflict('a GOSI rate was created for this branch, class and date at the same time'):
+            rate = request.env['webvue.hr.gosi.rate'].create({**vals, 'company_id': current_company().id})
+            _audit()._webvue_log('gosi_rate_created', rate)
         return request.make_json_response(dump_rate(rate), status=201)
 
     @http.route('/api/v1/hr/payroll/gosi-rates/<int:rate_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)

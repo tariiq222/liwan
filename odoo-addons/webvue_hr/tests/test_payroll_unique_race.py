@@ -10,6 +10,11 @@ from .payroll_common import PayrollCase
 RUNS = '/api/v1/hr/payroll/runs'
 COMPENSATION = '/api/v1/hr/payroll/compensation'
 EOS = '/api/v1/hr/payroll/eos'
+RATES = '/api/v1/hr/payroll/gosi-rates'
+RACE_RATE = {
+    'branch': 'annuities', 'nationality_class': 'gcc', 'date_from': '2031-01-01',
+    'employee_rate': 9, 'employer_rate': 9, 'wage_min': 1500, 'wage_max': 45000,
+}
 MONTH = '2026-11'
 MONTH_START = date(2026, 11, 1)
 DEPARTURE = date(2026, 11, 30)
@@ -31,7 +36,7 @@ class TestPayrollUniqueRace(PayrollCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.officer = cls.payroll_user(cls, 'race_officer', [
-            'hr.payroll.read', 'hr.payroll.manage', 'hr.employees.read',
+            'hr.payroll.read', 'hr.payroll.manage', 'hr.payroll.config', 'hr.employees.read',
         ])
         cls.Event = cls.env['webvue.hr.audit.event']
         cls.worker = cls.make_employee(cls, 'Race Worker')
@@ -112,3 +117,25 @@ class TestPayrollUniqueRace(PayrollCase):
         self.assertEqual((read.json()['id'], read.json()['case']), (winner.id, 'resignation'))
         self.assertEqual(Settlement.search_count([('employee_id', '=', self.leaver.id)]), 1)
         self.assertEqual(self._events(), events)
+
+    def test_gosi_rate_race_loser_answers_409(self):
+        Rate = self.env['webvue.hr.gosi.rate']
+        Rate.create({**RACE_RATE, 'company_id': self.env.company.id})
+        self.env.flush_all()
+        events = self._events()
+        domain = [
+            ('branch', '=', 'annuities'), ('nationality_class', '=', 'gcc'),
+            ('date_from', '=', date(2031, 1, 1)), ('company_id', '=', self.env.company.id),
+        ]
+        with self._missing_lookup('webvue.hr.gosi.rate', 'search_count', domain), mute_logger('odoo.sql_db'):
+            res = self.api('POST', RATES, json=RACE_RATE)
+        self._assert_conflict(res)
+        listed = self.api('GET', RATES)
+        self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertEqual(Rate.search_count(domain), 1)
+        self.assertEqual(self._events(), events)
+
+    def test_sequential_duplicate_gosi_rate_keeps_its_422(self):
+        self.assertEqual(self.api('POST', RATES, json=RACE_RATE).status_code, 201)
+        res = self.api('POST', RATES, json=RACE_RATE)
+        self.assertEqual((res.status_code, res.json()['field']), (422, 'date_from'), res.text)
