@@ -154,12 +154,17 @@ export const HrMyPayslipListSchema = z.object({
 }).strict()
 
 const dayDivisor = z.number().int().min(28).max(31)
+// The optimistic revision of a payroll settings row: a write sends the one it read, a stale one answers 409.
+// A row the company has not saved yet (the settings, an end-of-service case) is revision 0.
+const storedRevision = z.number().int().positive()
+const baselineRevision = z.number().int().nonnegative()
 
 export const HrPayrollSettingsSchema = z.object({
   day_divisor: dayDivisor,
   structure: HrRefSchema.nullable(),
   unpaid_leave_types: z.array(HrRefSchema),
   annual_leave_type: HrRefSchema.nullable(),
+  revision: baselineRevision,
 }).strict()
 
 export const HrPayrollSettingsPatchSchema = z.object({
@@ -167,7 +172,8 @@ export const HrPayrollSettingsPatchSchema = z.object({
   structure_id: z.number().int().positive(),
   unpaid_leave_type_ids: z.array(z.number().int().positive()),
   annual_leave_type_id: z.number().int().positive(),
-}).partial().strict().refine(patch => Object.keys(patch).length > 0, 'no settings to update')
+}).partial().extend({ revision: baselineRevision }).strict()
+  .refine(({ revision: _, ...patch }) => Object.keys(patch).length > 0, 'no settings to update')
 
 export const HR_GOSI_BRANCHES = ['annuities', 'saned', 'hazards'] as const
 export const HR_GOSI_NATIONALITY_CLASSES = ['saudi_before_2024', 'saudi_from_2024', 'non_saudi', 'gcc'] as const
@@ -183,6 +189,7 @@ export const HrGosiRateSchema = z.object({
   wage_max: amount,
   // A shared row belongs to no company: it is read-only for a tenant.
   shared: z.boolean(),
+  revision: storedRevision,
 }).strict()
 
 export const HrGosiRateListSchema = z.object({
@@ -190,8 +197,12 @@ export const HrGosiRateListSchema = z.object({
   total: z.number().int().nonnegative(),
 }).strict()
 
-// A create sends every field; a PATCH sends the ones it changes.
-export const HrGosiRateWriteSchema = HrGosiRateSchema.omit({ id: true, shared: true })
+// A create sends every field; a PATCH sends the ones it changes, with the revision it read.
+export const HrGosiRateWriteSchema = HrGosiRateSchema.omit({ id: true, shared: true, revision: true })
+export const HrGosiRatePatchSchema = HrGosiRateWriteSchema.partial().extend({ revision: storedRevision }).strict()
+
+// A DELETE of a GOSI rate or a salary file profile sends the revision it read, in its JSON body.
+export const HrPayrollRevisionSchema = z.object({ revision: storedRevision }).strict()
 
 // ---- Salary files: bank/WPS file layouts and the GOSI statement of a fixed run ----
 export const HR_BANK_PROFILE_KINDS = ['bank', 'wps'] as const
@@ -220,6 +231,7 @@ export const HrBankProfileSchema = z.object({
   columns: z.array(HrBankProfileColumnSchema),
   // A shared row belongs to no company: it is read-only for a tenant.
   shared: z.boolean(),
+  revision: storedRevision,
 }).strict()
 
 export const HrBankProfileListSchema = z.object({
@@ -228,13 +240,16 @@ export const HrBankProfileListSchema = z.object({
 }).strict()
 
 // A create sends every field; a PATCH sends the ones it changes. A constant column carries a value, any other none.
-export const HrBankProfileWriteSchema = HrBankProfileSchema.omit({ id: true, shared: true }).extend({
+const bankProfileFields = HrBankProfileSchema.omit({ id: true, shared: true, revision: true }).extend({
   name: z.string().trim().min(1),
   columns: z.array(HrBankProfileColumnSchema).min(1),
-}).refine(
-  profile => profile.columns.every(column => (column.source === 'constant') === (column.constant_value.trim() !== '')),
-  { message: 'only a constant column carries a value, and it needs one', path: ['columns'] },
-)
+})
+const constantColumns = { message: 'only a constant column carries a value, and it needs one', path: ['columns'] }
+const columnsCarryConstants = (columns: z.infer<typeof HrBankProfileColumnSchema>[] | undefined) =>
+  (columns ?? []).every(column => (column.source === 'constant') === (column.constant_value.trim() !== ''))
+export const HrBankProfileWriteSchema = bankProfileFields.refine(profile => columnsCarryConstants(profile.columns), constantColumns)
+export const HrBankProfilePatchSchema = bankProfileFields.partial().extend({ revision: storedRevision }).strict()
+  .refine(profile => columnsCarryConstants(profile.columns), constantColumns)
 
 const gosiSide = z.object({ employee: amount, employer: amount }).strict()
 
@@ -363,6 +378,8 @@ export type HrPayrollSettingsPatch = z.infer<typeof HrPayrollSettingsPatchSchema
 export type HrGosiRate = z.infer<typeof HrGosiRateSchema>
 export type HrGosiRateList = z.infer<typeof HrGosiRateListSchema>
 export type HrGosiRateWrite = z.infer<typeof HrGosiRateWriteSchema>
+export type HrGosiRatePatch = z.infer<typeof HrGosiRatePatchSchema>
+export type HrPayrollRevision = z.infer<typeof HrPayrollRevisionSchema>
 export type HrPayrollAccountRole = typeof HR_PAYROLL_ACCOUNT_ROLES[number]
 export type HrPayrollEntryDetail = typeof HR_PAYROLL_ENTRY_DETAILS[number]
 export type HrPayrollFinanceSettings = z.infer<typeof HrPayrollFinanceSettingsSchema>
@@ -375,6 +392,7 @@ export type HrBankProfileColumn = z.infer<typeof HrBankProfileColumnSchema>
 export type HrBankProfile = z.infer<typeof HrBankProfileSchema>
 export type HrBankProfileList = z.infer<typeof HrBankProfileListSchema>
 export type HrBankProfileWrite = z.infer<typeof HrBankProfileWriteSchema>
+export type HrBankProfilePatch = z.infer<typeof HrBankProfilePatchSchema>
 export type HrPayrollAuditAction = typeof HR_PAYROLL_AUDIT_ACTIONS[number]
 export type HrPayrollAuditChange = z.infer<typeof HrPayrollAuditChangeSchema>
 export type HrPayrollAuditEvent = z.infer<typeof HrPayrollAuditEventSchema>
@@ -418,11 +436,12 @@ export const HrSettlementSchema = z.object({
 // A draft settlement is saved with its case and the deductions still open; the figures are the server's.
 export const HrSettlementWriteSchema = z.object({ case: HrEosCaseSchema, open_deductions: amount }).strict()
 
-export const HrEosCaseMapSchema = z.object({ departure_reason: HrRefSchema, case: HrEosCaseSchema.nullable() }).strict()
+// `revision` is the company's own mapping row's: 0 while the company has not mapped the reason itself.
+export const HrEosCaseMapSchema = z.object({ departure_reason: HrRefSchema, case: HrEosCaseSchema.nullable(), revision: baselineRevision }).strict()
 
 export const HrEosCaseMapListSchema = z.object({ items: z.array(HrEosCaseMapSchema), total: z.number().int().nonnegative() }).strict()
 
-export const HrEosCaseMapWriteSchema = z.object({ departure_reason_id: z.number().int().positive(), case: HrEosCaseSchema }).strict()
+export const HrEosCaseMapWriteSchema = z.object({ departure_reason_id: z.number().int().positive(), case: HrEosCaseSchema, revision: baselineRevision }).strict()
 
 // The monthly provision posted by the finance bridge.
 export const HrEosProvisionSchema = z.object({

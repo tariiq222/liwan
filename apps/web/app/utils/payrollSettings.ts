@@ -9,9 +9,12 @@ export interface PayrollSettingsDraft {
 
 const sortedIds = (ids: number[]) => [...ids].sort((a, b) => a - b)
 
+/** The changed settings; the form adds the revision its draft started from. */
+export type PayrollSettingsChanges = Omit<HrPayrollSettingsPatch, 'revision'>
+
 /** Only the settings the user changed; the annual leave type is required, so it is sent only once one is chosen. */
-export function payrollSettingsPatch(settings: HrPayrollSettings, draft: PayrollSettingsDraft): HrPayrollSettingsPatch {
-  const patch: HrPayrollSettingsPatch = {}
+export function payrollSettingsPatch(settings: HrPayrollSettings, draft: PayrollSettingsDraft): PayrollSettingsChanges {
+  const patch: PayrollSettingsChanges = {}
   if (Number(draft.dayDivisor) !== settings.day_divisor) patch.day_divisor = Number(draft.dayDivisor)
   const unpaid = sortedIds(draft.unpaidLeaveTypes.map(Number))
   if (unpaid.join() !== sortedIds(settings.unpaid_leave_types.map(type => type.id)).join()) patch.unpaid_leave_type_ids = unpaid

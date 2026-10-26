@@ -24,11 +24,13 @@ class WebVueHrPayrollSettings(models.Model):
         'settings_id', 'leave_type_id',
     )
     annual_leave_type_id = fields.Many2one('hr.leave.type', ondelete='restrict')
+    revision = fields.Integer(required=True, default=1)
 
     _company_unique = models.Constraint('UNIQUE(company_id)', 'a company has one payroll settings record')
     _day_divisor_valid = models.Constraint(
         'CHECK(day_divisor BETWEEN 28 AND 31)', 'the day divisor must be between 28 and 31',
     )
+    _revision_positive = models.Constraint('CHECK(revision > 0)', 'a saved revision must be positive')
 
     @api.model
     def _webvue_defaults(self):
@@ -46,10 +48,10 @@ class WebVueHrPayrollSettings(models.Model):
 
     @api.model
     def _webvue_save(self, company, vals):
-        """Write the company's record, creating it from the defaults on the first save."""
+        """Write the company's record and advance its revision, creating it from the defaults on the first save."""
         record = self.search([('company_id', '=', company.id)], limit=1)
         if record:
-            record.write(vals)
+            record.write({**vals, 'revision': record.revision + 1})
             return record
         defaults = self._webvue_for_company(company)
         base = {

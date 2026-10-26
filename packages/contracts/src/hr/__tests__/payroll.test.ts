@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   HrCompensationSchema,
   HrBankProfileListSchema,
+  HrBankProfilePatchSchema,
   HrBankProfileSchema,
   HrBankProfileWriteSchema,
   HrCompensationWriteSchema,
@@ -16,6 +17,7 @@ import {
   HrSettlementWriteSchema,
   HrGosiStatementSchema,
   HrGosiRateListSchema,
+  HrGosiRatePatchSchema,
   HrGosiRateSchema,
   HrGosiRateWriteSchema,
   HrMyPayslipListSchema,
@@ -29,6 +31,7 @@ import {
   HrPayrollRunListSchema,
   HrPayrollRunSchema,
   HrPayrollRunStateSchema,
+  HrPayrollRevisionSchema,
   HrPayrollSettingsPatchSchema,
   HrPayrollSettingsSchema,
   HrPayslipInputsPatchSchema,
@@ -118,7 +121,7 @@ const PAYSLIP = {
 const { id: _id, shared: _shared, ...RATE_WRITE } = { id: 2, shared: true, branch: 'annuities', nationality_class: 'saudi_from_2024', date_from: '2024-07-03', employee_rate: 9.5, employer_rate: 11.5, wage_min: 400, wage_max: 45000 }
 const RATE = {
   id: 2, branch: 'annuities', nationality_class: 'saudi_from_2024', date_from: '2024-07-03',
-  employee_rate: 9.5, employer_rate: 11.5, wage_min: 400, wage_max: 45000, shared: true,
+  employee_rate: 9.5, employer_rate: 11.5, wage_min: 400, wage_max: 45000, shared: true, revision: 1,
 }
 
 describe('payroll run schemas', () => {
@@ -164,21 +167,33 @@ describe('payslip schemas', () => {
 
 describe('payroll settings schemas', () => {
   const SETTINGS = {
-    day_divisor: 30, structure: { id: 1, name: 'هيكل' }, unpaid_leave_types: [{ id: 2, name: 'بدون راتب' }], annual_leave_type: null,
+    day_divisor: 30, structure: { id: 1, name: 'هيكل' }, unpaid_leave_types: [{ id: 2, name: 'بدون راتب' }], annual_leave_type: null, revision: 0,
   }
 
   it('accepts settings, a partial patch, and GOSI rates', () => {
     expect(HrPayrollSettingsSchema.parse(SETTINGS)).toEqual(SETTINGS)
-    expect(HrPayrollSettingsPatchSchema.parse({ day_divisor: 28 })).toEqual({ day_divisor: 28 })
-    expect(HrPayrollSettingsPatchSchema.safeParse({ unpaid_leave_type_ids: [2], annual_leave_type_id: 1 }).success).toBe(true)
+    expect(HrPayrollSettingsPatchSchema.parse({ day_divisor: 28, revision: 0 })).toEqual({ day_divisor: 28, revision: 0 })
+    expect(HrPayrollSettingsPatchSchema.safeParse({ unpaid_leave_type_ids: [2], annual_leave_type_id: 1, revision: 3 }).success).toBe(true)
     expect(HrGosiRateListSchema.parse({ items: [RATE], total: 1 }).items[0]).toEqual(RATE)
     expect(HrGosiRateWriteSchema.safeParse(RATE_WRITE).success).toBe(true)
+    expect(HrGosiRatePatchSchema.parse({ employer_rate: 12, revision: 2 })).toEqual({ employer_rate: 12, revision: 2 })
+    expect(HrPayrollRevisionSchema.parse({ revision: 2 })).toEqual({ revision: 2 })
+  })
+
+  it('requires the revision a settings write read', () => {
+    expect(HrPayrollSettingsSchema.safeParse({ ...SETTINGS, revision: undefined }).success).toBe(false)
+    expect(HrPayrollSettingsPatchSchema.safeParse({ day_divisor: 28 }).success).toBe(false)
+    expect(HrPayrollSettingsPatchSchema.safeParse({ revision: 1 }).success).toBe(false)
+    expect(HrGosiRateSchema.safeParse({ ...RATE, revision: 0 }).success).toBe(false)
+    expect(HrGosiRatePatchSchema.safeParse({ employer_rate: 12 }).success).toBe(false)
+    expect(HrPayrollRevisionSchema.safeParse({}).success).toBe(false)
+    expect(HrPayrollRevisionSchema.safeParse({ revision: 0 }).success).toBe(false)
   })
 
   it('rejects a divisor outside 28 to 31, an empty patch, unknown branches and negative rates', () => {
-    expect(HrPayrollSettingsPatchSchema.safeParse({ day_divisor: 32 }).success).toBe(false)
+    expect(HrPayrollSettingsPatchSchema.safeParse({ day_divisor: 32, revision: 1 }).success).toBe(false)
     expect(HrPayrollSettingsPatchSchema.safeParse({}).success).toBe(false)
-    expect(HrPayrollSettingsPatchSchema.safeParse({ annual_leave_type_id: null }).success).toBe(false)
+    expect(HrPayrollSettingsPatchSchema.safeParse({ annual_leave_type_id: null, revision: 1 }).success).toBe(false)
     expect(HrGosiRateSchema.safeParse({ ...RATE, branch: 'other' }).success).toBe(false)
     expect(HrGosiRateWriteSchema.safeParse({ ...RATE_WRITE, employee_rate: -1 }).success).toBe(false)
     expect(HrGosiRateWriteSchema.safeParse({ ...RATE }).success).toBe(false)
@@ -235,6 +250,7 @@ describe('salary file schemas', () => {
     footer: 'none',
     columns: [{ source: 'iban', label: 'IBAN', constant_value: '' }, { source: 'constant', label: 'Type', constant_value: 'SAL' }],
     shared: false,
+    revision: 3,
   }
   const STATEMENT = {
     month: '2026-10',
@@ -253,14 +269,17 @@ describe('salary file schemas', () => {
   it('accepts a bank profile, its list and the write body', () => {
     expect(HrBankProfileSchema.parse(PROFILE)).toEqual(PROFILE)
     expect(HrBankProfileListSchema.parse({ items: [PROFILE], total: 1 }).total).toBe(1)
-    const { id: _id, shared: _shared, ...body } = PROFILE
+    const { id: _id, shared: _shared, revision: _revision, ...body } = PROFILE
     expect(HrBankProfileWriteSchema.parse(body)).toEqual(body)
+    expect(HrBankProfilePatchSchema.parse({ footer: 'totals', revision: 3 })).toEqual({ footer: 'totals', revision: 3 })
+    expect(HrBankProfilePatchSchema.safeParse({ footer: 'totals' }).success).toBe(false)
+    expect(HrBankProfilePatchSchema.safeParse({ columns: [{ source: 'constant', label: 'T', constant_value: '' }], revision: 3 }).success).toBe(false)
   })
 
   it('rejects an unknown delimiter, a column without a label and a misplaced constant', () => {
     expect(HrBankProfileSchema.safeParse({ ...PROFILE, delimiter: 'x' }).success).toBe(false)
     expect(HrBankProfileSchema.safeParse({ ...PROFILE, columns: [{ source: 'iban', label: '', constant_value: '' }] }).success).toBe(false)
-    const { id: _id, shared: _shared, ...body } = PROFILE
+    const { id: _id, shared: _shared, revision: _revision, ...body } = PROFILE
     expect(HrBankProfileWriteSchema.safeParse({ ...body, columns: [{ source: 'iban', label: 'IBAN', constant_value: 'x' }] }).success).toBe(false)
     expect(HrBankProfileWriteSchema.safeParse({ ...body, columns: [{ source: 'constant', label: 'T', constant_value: '' }] }).success).toBe(false)
     expect(HrBankProfileWriteSchema.safeParse({ ...body, columns: [] }).success).toBe(false)
@@ -323,11 +342,12 @@ describe('end of service contracts', () => {
   })
 
   it('maps departure reasons to cases, with an unmapped reason', () => {
-    const list = { items: [{ departure_reason: { id: 1, name: 'مفصول' }, case: 'termination' }, { departure_reason: { id: 2, name: 'أخرى' }, case: null }], total: 2 }
+    const list = { items: [{ departure_reason: { id: 1, name: 'مفصول' }, case: 'termination', revision: 2 }, { departure_reason: { id: 2, name: 'أخرى' }, case: null, revision: 0 }], total: 2 }
     expect(HrEosCaseMapListSchema.parse(list)).toEqual(list)
     expect(HrEosCaseSchema.safeParse(null).success).toBe(false)
-    expect(HrEosCaseMapWriteSchema.parse({ departure_reason_id: 2, case: 'no_award' })).toEqual({ departure_reason_id: 2, case: 'no_award' })
-    expect(HrEosCaseMapWriteSchema.safeParse({ departure_reason_id: 0, case: 'no_award' }).success).toBe(false)
+    expect(HrEosCaseMapWriteSchema.parse({ departure_reason_id: 2, case: 'no_award', revision: 0 })).toEqual({ departure_reason_id: 2, case: 'no_award', revision: 0 })
+    expect(HrEosCaseMapWriteSchema.safeParse({ departure_reason_id: 0, case: 'no_award', revision: 0 }).success).toBe(false)
+    expect(HrEosCaseMapWriteSchema.safeParse({ departure_reason_id: 2, case: 'no_award' }).success).toBe(false)
   })
 
   it('lists the posted provisions and creates one for a month', () => {

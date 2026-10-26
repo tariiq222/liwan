@@ -37,6 +37,7 @@ class WebVueHrGosiRate(models.Model):
     employer_rate = fields.Float(digits=(6, 4))
     wage_min = fields.Monetary(currency_field='currency_id')
     wage_max = fields.Monetary(currency_field='currency_id')
+    revision = fields.Integer(required=True, default=1)
 
     _rate_unique = models.Constraint(
         'UNIQUE(company_id, branch, nationality_class, date_from)',
@@ -46,6 +47,7 @@ class WebVueHrGosiRate(models.Model):
         'CHECK(employee_rate >= 0 AND employer_rate >= 0 AND wage_max >= wage_min)',
         'rates must not be negative and the maximum wage must reach the minimum',
     )
+    _revision_positive = models.Constraint('CHECK(revision > 0)', 'a saved revision must be positive')
 
     @api.depends('company_id')
     def _compute_currency_id(self):
