@@ -24,7 +24,9 @@ from . import (
     mail_activity_plan,
     payroll_calculator,
     payroll_export,
+    payroll_file,
     payroll_finance_link,
     payroll_settings,
+    payslip_payment,
     shift_settings,
 )

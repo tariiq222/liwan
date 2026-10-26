@@ -2,6 +2,11 @@
 from odoo import api, models
 from odoo.fields import Domain
 
+# The payslip models fenced per payroll company, with the path from each to its payslip. OCA hr.payslip.line
+# copies hr.salary.rule's company_id (payroll/models/hr_salary_rule.py:44-48, the computing environment's
+# company), never the payslip's, so a line answers through its slip (payroll/models/hr_payslip_line.py:13-15).
+PAYSLIP_PATHS = {'hr.payslip': '', 'hr.payslip.line': 'slip_id.'}
+
 
 class WebVueHrIrRule(models.Model):
     _inherit = 'ir.rule'
@@ -39,6 +44,9 @@ class WebVueHrIrRule(models.Model):
                         & Domain(owner_field, 'in', memberships))
                        | (Domain(owner_field, 'in', companies)
                           & Domain(owner_field, 'in', sorted(staff_ids))))
+        if (model_name in PAYSLIP_PATHS and mode == 'read' and not self.env.su
+                and not self.env.user.has_group('base.group_system')):
+            domain &= self._webvue_payslip_read_fence(PAYSLIP_PATHS[model_name])
         if model_name == 'webvue.hr.leave.settings' and not self.env.su:
             service = self.env['webvue.access.service']
             companies = set()
@@ -51,3 +59,20 @@ class WebVueHrIrRule(models.Model):
             domain &= (self.env['webvue.hr.leave.cancellation']._webvue_visibility_domain()
                        & Domain('leave_id', 'in', self.env['hr.leave']._search([])))
         return domain
+
+    @api.model
+    def _webvue_payslip_read_fence(self, slip):
+        """Payroll readers read their payroll companies; an employee reads their own approved payslips.
+
+        The payroll groups and the native (1, '=', 1) payroll read rules are unioned across companies, and the
+        employee read ACL opens hr.payslip in every company holding it, so the native rules alone would let a
+        payroll reader of one company read every payslip of another company where they only read employees.
+        Each branch is rechecked per owning company, after the native cache. ``slip`` is the path to the payslip.
+        """
+        service = self.env['webvue.access.service']
+        payroll = service._webvue_operation_capability_company_ids('hr.payroll.read')
+        employee = service._webvue_operation_capability_company_ids('hr.employees.read')
+        return (Domain(f'{slip}company_id', 'in', payroll)
+                | (Domain(f'{slip}employee_id.user_id', '=', self.env.uid)
+                   & Domain(f'{slip}state', '=', 'done')
+                   & Domain(f'{slip}company_id', 'in', employee)))

@@ -26710,7 +26710,8 @@
                     "compensation_changed",
                     "run_inputs_changed",
                     "run_approved",
-                    "run_cancelled"
+                    "run_cancelled",
+                    "payment_file_generated"
                   ],
                   "type": "string"
                 },
@@ -26825,7 +26826,8 @@
               "compensation_changed",
               "run_inputs_changed",
               "run_approved",
-              "run_cancelled"
+              "run_cancelled",
+              "payment_file_generated"
             ],
             "type": "string"
           },
@@ -63804,9 +63806,9 @@
             "hr.enabled",
             "hr.payroll"
           ],
-          "feature_operation": "read",
+          "feature_operation": "write",
           "handler": "bank_file",
-          "readonly": true,
+          "readonly": false,
           "route_type": "http"
         }
       }
@@ -64296,9 +64298,9 @@
             "hr.enabled",
             "hr.payroll"
           ],
-          "feature_operation": "read",
+          "feature_operation": "write",
           "handler": "wps_file",
-          "readonly": true,
+          "readonly": false,
           "route_type": "http"
         }
       }

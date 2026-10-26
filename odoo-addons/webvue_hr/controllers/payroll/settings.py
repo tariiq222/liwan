@@ -10,7 +10,7 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.webvue_hr.controllers.common import unique_conflict
+from odoo.addons.webvue_hr.controllers.common import hr_rule_handler, unique_conflict
 from odoo.addons.webvue_hr.serializers.payroll.files import dump_profile, parse_profile
 from odoo.addons.webvue_hr.serializers.payroll.revision import (
     parse_delete_revision,
@@ -191,6 +191,7 @@ class HrPayrollSettingsController(http.Controller):
 
     @http.route('/api/v1/hr/payroll/bank-profiles/<int:profile_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
+    @hr_rule_handler
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.config')
     def delete_bank_profile(self, profile_id, **payload):
@@ -199,5 +200,5 @@ class HrPayrollSettingsController(http.Controller):
         require_revision(profile, revision, PROFILE_CONFLICT)
         with request.env.cr.savepoint():
             _audit()._webvue_log('bank_profile_deleted', profile)
-            profile.unlink()
+            profile._webvue_delete()
         return request.make_json_response('', status=204)
