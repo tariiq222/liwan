@@ -28,3 +28,15 @@ class MailActivityPlan(models.Model):
             if plan.hr_purpose and plan.res_model != EMPLOYEE_PLAN_RES_MODEL:
                 msg = 'An HR purpose is only allowed on plans of hr.employee.'
                 raise ValidationError(msg)
+
+    @api.constrains('company_id', 'department_id')
+    def _check_department_company(self):
+        # mail.activity.plan has no _check_company_auto, so check_company on
+        # department_id is never enforced; hr.department re-runs this on its side.
+        if any(
+            plan.company_id and plan.department_id.company_id
+            and plan.company_id != plan.department_id.company_id
+            for plan in self
+        ):
+            msg = 'an activity plan and its department must belong to the same company'
+            raise ValidationError(msg)

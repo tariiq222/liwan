@@ -281,6 +281,29 @@ class TestHrOnboarding(WebVueHrCase):
             response = self.api(method, path, json=payload)
             self.assertEqual((response.status_code, response.json()['code']), (404, 'not_found'), (method, path))
 
+    def test_a_plan_and_its_department_stay_in_one_company(self):
+        other_company = self.env['res.company'].create({'name': 'Onboarding Pair Other Co'})
+        own = self.env['hr.department'].create({'name': 'Onb Own', 'company_id': self.company.id})
+        foreign = self.env['hr.department'].create({'name': 'Onb Foreign', 'company_id': other_company.id})
+        plan = self.plan.copy({'name': 'Onboarding pair plan'})
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            plan.write({'department_id': foreign.id})
+        plan.department_id = own
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            plan.write({'company_id': other_company.id})
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            self.env['mail.activity.plan'].create({
+                'name': 'Mismatch', 'res_model': 'hr.employee', 'hr_purpose': 'onboarding',
+                'company_id': self.company.id, 'department_id': foreign.id,
+            })
+        self.assertEqual((plan.company_id, plan.department_id), (self.company, own))
+        # A companyless side stays allowed.
+        plan.company_id = False
+        plan.company_id = self.company
+        companyless = self.env['hr.department'].create({'name': 'Onb Companyless', 'company_id': False})
+        plan.department_id = companyless
+        self.assertEqual(plan.department_id, companyless)
+
     def test_a_department_linked_to_a_plan_cannot_move_to_another_company(self):
         department = self.env['hr.department'].create({'name': 'Onb Pinned', 'company_id': self.company.id})
         other_company = self.env['res.company'].create({'name': 'Onboarding Move Other Co'})

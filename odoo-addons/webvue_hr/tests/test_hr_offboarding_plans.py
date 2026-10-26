@@ -329,6 +329,28 @@ class TestHrOffboardingPlans(WebVueHrCase):
             denied = self.api('GET', path)
             self.assertEqual((denied.status_code, denied.json()['code']), (403, 'forbidden'), path)
 
+    def test_a_plan_and_its_department_stay_in_one_company(self):
+        plans = self.env['mail.activity.plan']
+        plan = self._make_plan('Same company plan', 'offboarding', self.company, 'Same step')
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            plan.write({'department_id': self.foreign_department.id})
+        plan.department_id = self.department
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            plan.write({'company_id': self.other_company.id})
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            plans.create({
+                'name': 'Mismatch', 'res_model': 'hr.employee', 'hr_purpose': 'offboarding',
+                'company_id': self.company.id, 'department_id': self.foreign_department.id,
+            })
+        self.assertEqual((plan.company_id, plan.department_id), (self.company, self.department))
+        # A companyless side stays allowed.
+        plan.company_id = False
+        plan.company_id = self.company
+        plan.department_id = False
+        companyless = self.env['hr.department'].create({'name': 'Companyless Dept', 'company_id': False})
+        plan.department_id = companyless
+        self.assertEqual(plan.department_id, companyless)
+
     def test_a_department_linked_to_a_plan_cannot_move_to_another_company(self):
         bound = self._make_plan('Pinned dept plan', 'offboarding', self.company, 'Pinned step')
         bound.department_id = self.department

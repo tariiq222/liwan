@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError
 from odoo.fields import Domain
 from odoo.tools import SQL
 
@@ -243,13 +243,9 @@ class WebVueHrDepartment(models.Model):
         departments = self.filtered('company_id')
         if not departments:
             return
-        plans = self.env['mail.activity.plan'].with_context(active_test=False).search([
+        self.env['mail.activity.plan'].with_context(active_test=False).search([
             ('department_id', 'in', departments.ids),
-            ('company_id', '!=', False),
-        ])
-        if any(plan.company_id != plan.department_id.company_id for plan in plans):
-            msg = 'department is used by an activity plan of another company'
-            raise ValidationError(msg)
+        ])._check_department_company()
 
     @api.model_create_multi
     def create(self, vals_list):
