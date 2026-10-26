@@ -11,7 +11,7 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.webvue_hr.controllers.common import hr_rule_handler
+from odoo.addons.webvue_hr.controllers.common import hr_rule_handler, unique_conflict
 from odoo.addons.webvue_hr.serializers.payroll.run import (
     dump_payslip_rows,
     dump_run,
@@ -68,7 +68,9 @@ class HrPayrollRunController(http.Controller):
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.manage')
     def create_run(self, **payload):
-        run = request.env['hr.payslip.run']._webvue_create_month(parse_month(payload))
+        month = parse_month(payload)
+        with unique_conflict('a payroll run was created for this month at the same time'):
+            run = request.env['hr.payslip.run']._webvue_create_month(month)
         return request.make_json_response(dump_run(run), status=201)
 
     @http.route('/api/v1/hr/payroll/runs/<int:run_id>', type='json2', auth='user', methods=['GET'], readonly=True)
