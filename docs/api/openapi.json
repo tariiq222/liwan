@@ -22093,6 +22093,11 @@
                 "name": {
                   "type": "string"
                 },
+                "revision": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
                 "shared": {
                   "type": "boolean"
                 }
@@ -22106,7 +22111,8 @@
                 "include_header",
                 "footer",
                 "columns",
-                "shared"
+                "shared",
+                "revision"
               ],
               "type": "object"
             },
@@ -22121,6 +22127,97 @@
         "required": [
           "items",
           "total"
+        ],
+        "type": "object"
+      },
+      "HrBankProfilePatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "constant_value": {
+                  "type": "string"
+                },
+                "label": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "source": {
+                  "enum": [
+                    "employee_ref",
+                    "identification",
+                    "name",
+                    "iban",
+                    "bank_code",
+                    "basic",
+                    "housing",
+                    "other_allowances",
+                    "deductions",
+                    "net",
+                    "value_date",
+                    "constant"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source",
+                "label",
+                "constant_value"
+              ],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "delimiter": {
+            "enum": [
+              ",",
+              ";",
+              "\t",
+              "|"
+            ],
+            "type": "string"
+          },
+          "encoding": {
+            "enum": [
+              "utf-8",
+              "utf-8-sig"
+            ],
+            "type": "string"
+          },
+          "footer": {
+            "enum": [
+              "none",
+              "totals"
+            ],
+            "type": "string"
+          },
+          "include_header": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "bank",
+              "wps"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
         ],
         "type": "object"
       },
@@ -22207,6 +22304,11 @@
           "name": {
             "type": "string"
           },
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
           "shared": {
             "type": "boolean"
           }
@@ -22220,7 +22322,8 @@
           "include_header",
           "footer",
           "columns",
-          "shared"
+          "shared",
+          "revision"
         ],
         "type": "object"
       },
@@ -24040,11 +24143,17 @@
                     "name"
                   ],
                   "type": "object"
+                },
+                "revision": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
                 }
               },
               "required": [
                 "departure_reason",
-                "case"
+                "case",
+                "revision"
               ],
               "type": "object"
             },
@@ -24101,11 +24210,17 @@
               "name"
             ],
             "type": "object"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
           "departure_reason",
-          "case"
+          "case",
+          "revision"
         ],
         "type": "object"
       },
@@ -24128,11 +24243,17 @@
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
             "type": "integer"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
           "departure_reason_id",
-          "case"
+          "case",
+          "revision"
         ],
         "type": "object"
       },
@@ -24916,6 +25037,11 @@
                   ],
                   "type": "string"
                 },
+                "revision": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
                 "shared": {
                   "type": "boolean"
                 },
@@ -24937,7 +25063,8 @@
                 "employer_rate",
                 "wage_min",
                 "wage_max",
-                "shared"
+                "shared",
+                "revision"
               ],
               "type": "object"
             },
@@ -24952,6 +25079,58 @@
         "required": [
           "items",
           "total"
+        ],
+        "type": "object"
+      },
+      "HrGosiRatePatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "branch": {
+            "enum": [
+              "annuities",
+              "saned",
+              "hazards"
+            ],
+            "type": "string"
+          },
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "employee_rate": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "employer_rate": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "nationality_class": {
+            "enum": [
+              "saudi_before_2024",
+              "saudi_from_2024",
+              "non_saudi",
+              "gcc"
+            ],
+            "type": "string"
+          },
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "wage_max": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "wage_min": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "revision"
         ],
         "type": "object"
       },
@@ -24993,6 +25172,11 @@
             ],
             "type": "string"
           },
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
           "shared": {
             "type": "boolean"
           },
@@ -25014,7 +25198,8 @@
           "employer_rate",
           "wage_min",
           "wage_max",
-          "shared"
+          "shared",
+          "revision"
         ],
         "type": "object"
       },
@@ -27718,6 +27903,21 @@
         ],
         "type": "object"
       },
+      "HrPayrollRevisionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "type": "object"
+      },
       "HrPayrollRunCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -28118,6 +28318,11 @@
             "minimum": 28,
             "type": "integer"
           },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
           "structure_id": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
@@ -28132,6 +28337,9 @@
             "type": "array"
           }
         },
+        "required": [
+          "revision"
+        ],
         "type": "object"
       },
       "HrPayrollSettingsSchema": {
@@ -28166,6 +28374,11 @@
           "day_divisor": {
             "maximum": 31,
             "minimum": 28,
+            "type": "integer"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
             "type": "integer"
           },
           "structure": {
@@ -28219,7 +28432,8 @@
           "day_divisor",
           "structure",
           "unpaid_leave_types",
-          "annual_leave_type"
+          "annual_leave_type",
+          "revision"
         ],
         "type": "object"
       },
