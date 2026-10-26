@@ -27,19 +27,13 @@ class TestPayrollFinanceLinkBase(PayrollCase):
         self.assertIsNone(WebVueHrPayrollFinanceLink._webvue_finance_refs(link, self.payroll_run))
         self.assertEqual(WebVueHrPayrollFinanceLink._webvue_finance_actions(link, self.payroll_run), [])
 
-    def test_serialized_run_without_the_bridge_has_null_finance_and_only_payroll_actions(self):
-        installed = self.env['ir.module.module'].sudo().search_count([
-            ('name', '=', 'webvue_hr_finance'), ('state', '=', 'installed'),
-        ])
-        if installed:
-            # The bridge extends the hooks through super(); the base answer is covered by the test above.
-            self.assertTrue(self.env['webvue.hr.payroll.finance.link']._webvue_finance_actions(self.payroll_run) is not None)
-            return
-        shown = dump_run(self.payroll_run)
+    def test_serialized_draft_run_has_null_finance_and_only_payroll_actions(self):
+        # A draft run has no entry and offers no posting action, so the answer is the same with or without the
+        # finance bridge: the bridge only adds actions from the approved state on (covered in webvue_hr_finance).
+        shown = dump_run(self.payroll_run.with_user(self.officer))
         self.assertIsNone(shown['finance'])
-        self.assertEqual(shown['allowed_actions'], [])
+        self.assertEqual(shown['allowed_actions'], ['compute', 'cancel', 'edit_inputs'])
         self.authenticate(self.officer.login, f'{self.officer.login}_pass_123')
         body = self.api('GET', f'{RUNS}/{self.payroll_run.id}').json()
         self.assertIsNone(body['finance'])
         self.assertEqual(body['allowed_actions'], ['compute', 'cancel', 'edit_inputs'])
-        self.assertNotIn('post', body['allowed_actions'])
