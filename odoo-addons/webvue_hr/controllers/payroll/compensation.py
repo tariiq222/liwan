@@ -9,6 +9,7 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.webvue_hr.controllers.common import unique_conflict
 from odoo.addons.webvue_hr.serializers.payroll.compensation import (
     dump_compensation,
     parse_compensation,
@@ -46,9 +47,10 @@ class HrPayrollCompensationController(http.Controller):
         record = request.env['webvue.hr.compensation'].search([('employee_id', '=', employee.id)], limit=1)
         Audit = request.env['webvue.hr.audit.event']
         before = Audit._webvue_policy_snapshot(record)
-        if record:
-            record.write(vals)
-        else:
-            record = request.env['webvue.hr.compensation'].create({**vals, 'employee_id': employee.id})
-        Audit._webvue_log('compensation_changed', record, before)
+        with unique_conflict('a compensation record was created for this employee at the same time'):
+            if record:
+                record.write(vals)
+            else:
+                record = request.env['webvue.hr.compensation'].create({**vals, 'employee_id': employee.id})
+            Audit._webvue_log('compensation_changed', record, before)
         return dump_compensation(record)
