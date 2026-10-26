@@ -18,13 +18,13 @@ suite('commercial B1 atomic orders', () => {
   const api = client(pool)
   let plan: any
   const vendor: any = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage','vendor.pricing.manage'] }
-  const request = () => ({ kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly, requested_extra_branches: 0 })
+  const request = () => ({ kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly, requested_extra_branches: 0, requested_users: 1, requested_storage_mb: 0 })
   async function customer() { const id = randomUUID(); await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [id, 'B1 customer']); return id }
   const accept = (q: any, key = randomUUID()) => ({ quote_id: q.id, expected_subscription_revision: q.expected_subscription_revision, idempotency_key: key })
   beforeAll(async () => {
     const { version } = await setup(pool)
     await api('POST','/catalog/releases',{catalog_version: version,reason:'B1 acceptance'})
-    const c = await api('POST','/plans',{name:`B1 ${randomUUID()}`,audience:{kind:'public'},term_months:12,currency:'SAR',prices:[{cadence:monthly,amount:money(10000)}],platform_limits: { 'users.limit': null, 'storage.limit_mb': null },included_bundle_revision_ids:[],optional_bundle_revision_ids:[],included_extra_branches:1,extra_branch_prices:[{cadence:monthly,amount:money(5000)}],extra_branches_limit:null,policy_revision_id:'6f1c3d8e-0000-4000-8000-000000000001',trial_days:0,grace_days:0,auto_suspend:true,auto_renew_allowed:true})
+    const c = await api('POST','/plans',{name:`B1 ${randomUUID()}`,audience:{kind:'public'},term_months:12,currency:'SAR',prices:[{cadence:monthly,amount:money(10000)}],platform_limits: {},included_bundle_revision_ids:[],optional_bundle_revision_ids:[],included_extra_branches:1,extra_branch_prices:[{cadence:monthly,amount:money(5000)}],extra_branches_limit:null,included_users:1,included_storage_mb:0,user_prices:[{cadence:monthly,amount:money(0)}],storage_prices:[{cadence:monthly,amount:money(0)}],policy_revision_id:'6f1c3d8e-0000-4000-8000-000000000001',trial_days:0,grace_days:0,auto_suspend:true,auto_renew_allowed:true})
     const v = await api('POST',`/plans/${c.body.id}/validate`,{edit_revision:1,reason:'B1 acceptance'})
     plan = (await api('POST',`/plans/${c.body.id}/publish`,{edit_revision:v.body.edit_revision,reason:'B1 acceptance'})).body
   })

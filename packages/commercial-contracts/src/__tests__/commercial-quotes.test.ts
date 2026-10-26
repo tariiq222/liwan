@@ -1,17 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { computeQuote, type ComputeQuoteInput } from '../commercial/quotes.js'
+import { computeQuote } from '../commercial/quotes.js'
 import { moneySchema, quoteRequestSchema, quoteSchema, planRevisionSchema } from '../commercial/index.js'
-import type { BundleRevision, PlanRevision, PricingPolicy } from '../commercial/index.js'
-
-const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
-const M = { unit: 'month', count: 1 } as const
-const sar = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
-const policy: PricingPolicy = { id: id(6), timezone: 'Asia/Riyadh', rounding: 'half_up_per_line', tax: { kind: 'vat_exclusive', rate_bps: 1500 } }
-const bundle = (n: number, price: number | null): BundleRevision => ({ id: id(n), bundle_id: id(n + 20), version: 1, edit_revision: 1, name: `b${n}`, description: 'd', audience: { kind: 'public' }, status: 'published', available: true, catalog_release_id: id(1), selections: [], domain_limits: {}, prices: price === null ? [] : [{ cadence: M, amount: sar(price) }] })
-const plan = (over: Partial<PlanRevision> = {}): PlanRevision => ({ id: id(4), plan_id: id(5), version: 1, edit_revision: 1, name: 'Plan', status: 'published', available: true, audience: { kind: 'public' }, term_months: 12, prices: [{ cadence: M, amount: sar(50000) }], platform_limits: { 'users.limit': null, 'storage.limit_mb': null }, included_bundle_revision_ids: [], optional_bundle_revision_ids: [id(2), id(3)], included_extra_branches: 1, extra_branch_prices: [{ cadence: M, amount: sar(50000) }], extra_branches_limit: 8, policy_revision_id: id(6), currency: 'SAR', trial_days: 0, grace_days: 0, auto_suspend: false, auto_renew_allowed: false, ...over })
-const ids = { id: 'q1', customer_id: 'c1', subscription_id: null, expected_subscription_revision: 0 }
-const base = (over: Partial<ComputeQuoteInput> = {}): ComputeQuoteInput => ({ kind: 'new', plan: plan(), bundles: [], terms: null, cadence: M, requested_extra_branches: 3, effective_date: '2027-10-01', period: { start: '2027-10-01', end: '2027-11-01' }, policy, ids, expires_at: '2027-10-02T00:00:00Z', ...over })
-const err = (f: () => unknown) => { try { f() } catch (e) { return (e as { code: string }).code } return 'none' }
+import { base, bundle, err, id, M, plan, sar } from './fixtures.js'
 
 describe('computeQuote', () => {
   it('new: 3 extra, 1 free => 2 paid = 100000 + base 50000, VAT separate', () => {
@@ -49,7 +39,7 @@ describe('computeQuote', () => {
     expect(computeQuote(base({ requested_extra_branches: 4 })).digest).not.toBe(a.digest)
   })
   it('change: added bundle prorated now; downgrade shown at renewal with 0 now', () => {
-    const current = { plan_revision_id: id(4), bundle_revision_ids: [id(3)], paid_extra_branches: 0, base_minor: 50000, bundle_minor: { [id(3)]: 10000 }, branch_unit_minor: 50000 }
+    const current = { plan_revision_id: id(4), bundle_revision_ids: [id(3)], paid_extra_branches: 0, base_minor: 50000, bundle_minor: { [id(3)]: 10000 }, branch_unit_minor: 50000, paid_users: 0, paid_storage_gb: 0, user_unit_minor: 0, storage_unit_minor: 0 }
     const q = computeQuote(base({ kind: 'change', requested_extra_branches: 1, bundles: [bundle(2, 50000)], current, effective_date: '2027-10-17' }))
     const added = q.lines.find(l => l.key === `bundle:${id(2)}:delta`)!
     expect(added.timing).toBe('now'); expect(added.amount.minor).toBe(24194)
@@ -59,7 +49,7 @@ describe('computeQuote', () => {
     expect(q.next_renewal.minor).toBe(Math.round(100000 * 1.15))
   })
   it('change: removing paid branches charges nothing now', () => {
-    const current = { plan_revision_id: id(4), bundle_revision_ids: [], paid_extra_branches: 3, base_minor: 50000, bundle_minor: {}, branch_unit_minor: 50000 }
+    const current = { plan_revision_id: id(4), bundle_revision_ids: [], paid_extra_branches: 3, base_minor: 50000, bundle_minor: {}, branch_unit_minor: 50000, paid_users: 0, paid_storage_gb: 0, user_unit_minor: 0, storage_unit_minor: 0 }
     const q = computeQuote(base({ kind: 'change', requested_extra_branches: 1, current, effective_date: '2027-10-17' }))
     expect(q.due_now.minor).toBe(0); expect(q.next_renewal.minor).toBe(57500)
   })
@@ -80,10 +70,48 @@ describe('computeQuote', () => {
   })
   it('change: adding/removing an included bundle is free', () => {
     const p = plan({ included_bundle_revision_ids: [id(2)], optional_bundle_revision_ids: [] })
-    const cur = { plan_revision_id: id(4), bundle_revision_ids: [] as string[], paid_extra_branches: 0, base_minor: 50000, bundle_minor: {}, branch_unit_minor: 50000 }
+    const cur = { plan_revision_id: id(4), bundle_revision_ids: [] as string[], paid_extra_branches: 0, base_minor: 50000, bundle_minor: {}, branch_unit_minor: 50000, paid_users: 0, paid_storage_gb: 0, user_unit_minor: 0, storage_unit_minor: 0 }
     const add = computeQuote(base({ kind: 'change', plan: p, requested_extra_branches: 1, bundles: [bundle(2, 30000)], current: cur, effective_date: '2027-10-17' }))
     expect(add.due_now.minor).toBe(0); expect(add.lines.some(l => l.key.startsWith(`bundle:${id(2)}`) && l.timing === 'now')).toBe(false)
     const rem = computeQuote(base({ kind: 'change', plan: p, requested_extra_branches: 1, bundles: [], current: { ...cur, bundle_revision_ids: [id(2)] }, effective_date: '2027-10-17' }))
     expect(rem.due_now.minor).toBe(0); expect(rem.lines.some(l => l.key === `bundle:${id(2)}:delta`)).toBe(false)
+  })
+})
+
+describe('computeQuote metered lines', () => {
+  const metered = plan({ included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: M, amount: sar(2500) }], storage_prices: [{ cadence: M, amount: sar(500) }] })
+  it('adds one users line and one storage line to a new quote', () => {
+    const q = computeQuote(base({ plan: metered, requested_extra_branches: 1, requested_users: 10, requested_storage_mb: 20480 }))
+    expect(q.lines.filter(l => l.kind === 'users')).toHaveLength(1)
+    expect(q.lines.find(l => l.kind === 'users')!.quantity).toBe(7)
+    expect(q.lines.find(l => l.kind === 'users')!.amount.minor).toBe(7 * 2500)
+    expect(q.lines.find(l => l.kind === 'storage')!.quantity).toBe(15)
+    expect(q.lines.find(l => l.kind === 'storage')!.amount.minor).toBe(15 * 500)
+    expect(q.due_now.minor).toBe(Math.round((50000 + 17500 + 7500) * 1.15))
+    expect(q.requested_users).toBe(10); expect(q.requested_storage_mb).toBe(20480)
+  })
+  it('omits the line entirely at the included minimum', () => {
+    const q = computeQuote(base({ plan: metered, requested_extra_branches: 1, requested_users: 3, requested_storage_mb: 5120 }))
+    expect(q.lines.some(l => l.kind === 'users' || l.kind === 'storage')).toBe(false)
+  })
+  it('charges the base price, never a negative line, below the included minimum', () => {
+    const q = computeQuote(base({ plan: metered, requested_extra_branches: 1, requested_users: 1, requested_storage_mb: 1024 }))
+    expect(q.lines.some(l => l.kind === 'users' || l.kind === 'storage')).toBe(false)
+    expect(q.due_now.minor).toBe(Math.round(50000 * 1.15))
+  })
+  it('refuses a paid quantity with no unit price', () => {
+    expect(err(() => computeQuote(base({ plan: plan({ included_users: 3, user_prices: [] }), requested_users: 10 })))).toBe('price_missing')
+    expect(err(() => computeQuote(base({ plan: plan({ included_storage_mb: 1024, storage_prices: [] }), requested_storage_mb: 2048 })))).toBe('price_missing')
+  })
+  it('refuses a storage increment that is not a whole gigabyte', () => {
+    expect(err(() => computeQuote(base({ plan: metered, requested_extra_branches: 1, requested_storage_mb: 5632 })))).toBe('invalid_quantity')
+  })
+  it('prorates a mid-period increase in users and storage', () => {
+    const current = { plan_revision_id: id(4), bundle_revision_ids: [], paid_extra_branches: 0, base_minor: 50000, bundle_minor: {}, branch_unit_minor: 50000,
+      paid_users: 0, paid_storage_gb: 0, user_unit_minor: 2500, storage_unit_minor: 500 }
+    const q = computeQuote(base({ kind: 'change', plan: metered, requested_extra_branches: 1, requested_users: 10, requested_storage_mb: 20480, current, effective_date: '2027-10-17' }))
+    expect(q.lines.find(l => l.kind === 'users' && l.timing === 'now')!.amount.minor).toBe(8468)
+    expect(q.lines.find(l => l.kind === 'storage' && l.timing === 'now')!.amount.minor).toBe(3629)
+    expect(q.next_renewal.minor).toBe(Math.round((50000 + 17500 + 7500) * 1.15))
   })
 })

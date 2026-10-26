@@ -7,6 +7,7 @@ import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
 
 export const CURRENCY = 'SAR'
+export const MB_PER_GB = 1024
 export const EXPONENT = 2
 export const MAX_LIMIT = Number.MAX_SAFE_INTEGER
 /** Platform limits are owned by the plan, never by a bundle. */
@@ -114,6 +115,11 @@ export function bundleLimitKeys(release: CatalogRelease | undefined, selectedApp
   for (const app of release?.applications ?? []) if (selectedAppIds.includes(app.id)) for (const f of app.features) if (f.kind === 'limit' && !PLATFORM_ONLY_FEATURES.has(f.key)) keys.add(f.key)
   return [...keys].sort()
 }
+/** Selecting an application grants every selectable boolean it owns; the console shows that list read-only. */
+export function grantedFeatures(release: CatalogRelease | undefined, appId: string): string[] {
+  const app = release?.applications.find(a => a.id === appId)
+  return (app?.features ?? []).filter(f => f.kind === 'boolean' && f.selectable).map(f => f.key).sort()
+}
 export type DependencyHints = { missing: { app: string; requires: string }[]; conflicts: { app: string; with: string }[] }
 export function dependencyHints(release: CatalogRelease | undefined, selectedAppIds: string[]): DependencyHints {
   const hints: DependencyHints = { missing: [], conflicts: [] }
@@ -176,14 +182,16 @@ export function bundleEditPayload(draft: BundleDraft, release: CatalogRelease | 
 export type Tri = '' | 'true' | 'false'
 export type PlanDraft = {
   name: string; audience: AudienceDraft; term_months: string; prices: PriceDraft[]
-  included: string[]; optional: string[]; platform: Record<string, LimitDraft>
+  included: string[]; optional: string[]; included_users: string; included_storage_mb: string
+  user_prices: PriceDraft[]; storage_prices: PriceDraft[]
   included_extra_branches: string; extra_branch_prices: PriceDraft[]; extra_branches_limit: LimitDraft
   trial_days: string; grace_days: string; auto_suspend: Tri; auto_renew_allowed: Tri; reason: string
 }
 export function emptyPlanDraft(): PlanDraft {
   return {
     name: '', audience: { kind: 'public', customer_id: '' }, term_months: '', prices: [], included: [], optional: [],
-    platform: Object.fromEntries(PLATFORM_LIMIT_KEYS.map(k => [k, emptyLimit()])), included_extra_branches: '', extra_branch_prices: [],
+    included_users: '', included_storage_mb: '', user_prices: [], storage_prices: [],
+    included_extra_branches: '', extra_branch_prices: [],
     extra_branches_limit: emptyLimit(), trial_days: '', grace_days: '', auto_suspend: '', auto_renew_allowed: '', reason: '',
   }
 }
@@ -192,7 +200,8 @@ export function planDraftFromView(v: PlanRevision): PlanDraft {
   return {
     name: v.name, audience: audienceToDraft(v.audience), term_months: String(v.term_months), prices: v.prices.map(priceToDraft),
     included: [...v.included_bundle_revision_ids], optional: [...v.optional_bundle_revision_ids],
-    platform: { ...Object.fromEntries(PLATFORM_LIMIT_KEYS.map(k => [k, limitToDraft(v.platform_limits[k])])) },
+    included_users: String(v.included_users), included_storage_mb: String(v.included_storage_mb),
+    user_prices: v.user_prices.map(priceToDraft), storage_prices: v.storage_prices.map(priceToDraft),
     included_extra_branches: String(v.included_extra_branches), extra_branch_prices: v.extra_branch_prices.map(priceToDraft),
     extra_branches_limit: limitToDraft(v.extra_branches_limit), trial_days: String(v.trial_days), grace_days: String(v.grace_days),
     auto_suspend: triOf(v.auto_suspend), auto_renew_allowed: triOf(v.auto_renew_allowed), reason: '',
@@ -201,9 +210,15 @@ export function planDraftFromView(v: PlanRevision): PlanDraft {
 function triValue(v: Tri): boolean { if (!v) throw new Error('invalid_choice'); return v === 'true' }
 function requireCount(v: string, max = MAX_LIMIT): number { const n = parseCount(v, max); if (n === null) throw new Error('invalid_count'); return n }
 export function planFields(draft: PlanDraft, policyId: string) {
+  const includedUsers = requireCount(draft.included_users)
+  if (includedUsers < 1) throw new Error('invalid_count')
+  const includedStorage = requireCount(draft.included_storage_mb)
+  if (includedStorage % MB_PER_GB !== 0) throw new Error('invalid_storage_minimum')
   return {
     name: draft.name.trim(), audience: audienceFromDraft(draft.audience), term_months: requireCount(draft.term_months, 120), currency: CURRENCY,
-    prices: pricesFromDrafts(draft.prices), platform_limits: limitsFromDrafts(draft.platform, [...PLATFORM_LIMIT_KEYS]),
+    prices: pricesFromDrafts(draft.prices), platform_limits: {},
+    included_users: includedUsers, included_storage_mb: includedStorage,
+    user_prices: pricesFromDrafts(draft.user_prices), storage_prices: pricesFromDrafts(draft.storage_prices),
     included_bundle_revision_ids: [...draft.included], optional_bundle_revision_ids: draft.optional.filter(id => !draft.included.includes(id)),
     included_extra_branches: requireCount(draft.included_extra_branches), extra_branch_prices: pricesFromDrafts(draft.extra_branch_prices),
     extra_branches_limit: limitFromDraft(draft.extra_branches_limit), policy_revision_id: policyId,
@@ -251,7 +266,7 @@ export function commercialFailure(cause: unknown): CommercialFailure {
   return { status, code, message: body?.message ?? e?.message ?? '', field: body?.field ?? e?.field, conflict: status === 409 || code === 'revision_conflict', forbidden: status === 403 || code === 'forbidden' }
 }
 /** Every code the control-plane commercial routes, the contract compiler and the vendor proxy can emit; each needs vendor.pricing.errors.<code> in ar and en. */
-export const COMMERCIAL_ERROR_CODES = ['revision_conflict', 'invalid', 'forbidden', 'not_found', 'transition_forbidden', 'transition_invalid', 'customers_attached', 'price_missing', 'feature_not_selectable', 'dependency_missing', 'app_conflict', 'dependency_cycle', 'unknown_app', 'app_not_selectable', 'catalog_release_mismatch', 'bundle_not_allowed', 'bundle_missing', 'bundle_unavailable', 'bundle_duplicated', 'bundle_delete_forbidden', 'bundle_audience_mismatch', 'plan_missing', 'plan_unavailable', 'plan_delete_forbidden', 'policy_missing', 'release_missing', 'published_catalog_missing', 'quote_missing', 'quote_kind_unsupported', 'terms_unsupported', 'content_digest_mismatch', 'review_required', 'audience_invalid', 'branch_limit_invalid', 'branch_limit_exceeded', 'branch_price_missing', 'currency_mismatch', 'duplicate_price_cadence', 'term_not_multiple', 'ambiguous_limit', 'limit_not_supported', 'invalid_limit_scope', 'invalid_quantity', 'invalid_billing_period', 'invalid_order_transition', 'invalid_json', 'payload_too_large', 'unauthorized', 'vendor_unavailable', 'method_not_allowed'] as const
+export const COMMERCIAL_ERROR_CODES = ['revision_conflict', 'invalid', 'forbidden', 'not_found', 'transition_forbidden', 'transition_invalid', 'customers_attached', 'price_missing', 'feature_not_selectable', 'dependency_missing', 'app_conflict', 'dependency_cycle', 'unknown_app', 'app_not_selectable', 'catalog_release_mismatch', 'bundle_not_allowed', 'bundle_missing', 'bundle_unavailable', 'bundle_duplicated', 'bundle_delete_forbidden', 'bundle_audience_mismatch', 'plan_missing', 'plan_unavailable', 'plan_delete_forbidden', 'policy_missing', 'release_missing', 'published_catalog_missing', 'quote_missing', 'quote_kind_unsupported', 'terms_unsupported', 'content_digest_mismatch', 'review_required', 'audience_invalid', 'branch_limit_invalid', 'branch_limit_exceeded', 'branch_price_missing', 'unit_price_missing', 'platform_limit_derived', 'users_limit_admin_required', 'storage_minimum_not_whole_gb', 'currency_mismatch', 'duplicate_price_cadence', 'term_not_multiple', 'ambiguous_limit', 'limit_not_supported', 'invalid_limit_scope', 'invalid_quantity', 'invalid_billing_period', 'invalid_order_transition', 'invalid_json', 'payload_too_large', 'unauthorized', 'vendor_unavailable', 'method_not_allowed', 'tenant_upgrade_required', 'tenant_binding_unavailable', 'trial_order_unavailable'] as const
 const KNOWN_ERRORS = new Set<string>(COMMERCIAL_ERROR_CODES)
 export function commercialErrorKey(cause: unknown): string {
   const f = commercialFailure(cause)
@@ -273,9 +288,9 @@ export function commercialReturnTo(value: unknown, root: '/bundles' | '/plans'):
 export function summaryLimits(view: { domain_limits?: CapacityMap; platform_limits?: CapacityMap }): [string, number | null][] {
   return Object.entries({ ...(view.platform_limits ?? {}), ...(view.domain_limits ?? {}) }).sort(([a], [b]) => a.localeCompare(b))
 }
-export type QuoteInput = { plan: PlanRevision | PlanView; cadence: Cadence; extraBranches: number; optionalBundleIds: string[] }
+export type QuoteInput = { plan: PlanRevision | PlanView; cadence: Cadence; extraBranches: number; users: number; storageMb: number; optionalBundleIds: string[] }
 export function quoteRequestBody(input: QuoteInput) {
-  return { kind: 'new' as const, plan_revision_id: input.plan.id, bundle_revision_ids: [...input.plan.included_bundle_revision_ids, ...input.optionalBundleIds], cadence: input.cadence, requested_extra_branches: input.extraBranches }
+  return { kind: 'new' as const, plan_revision_id: input.plan.id, bundle_revision_ids: [...input.plan.included_bundle_revision_ids, ...input.optionalBundleIds], cadence: input.cadence, requested_extra_branches: input.extraBranches, requested_users: input.users, requested_storage_mb: input.storageMb }
 }
 
 export function keyLabel(key: string, t: (key: string) => string, te: (key: string) => boolean): string {

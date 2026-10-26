@@ -9,7 +9,8 @@ import { CommercialHttpError } from './lifecycle.js'
 import { assertNoCustomerIdentity, parseCustomerPrincipal, requireCapability } from './authorization.js'
 import { parseBody } from './http.js'
 import { getSubscription } from './subscriptions.js'
-import { createQuoteForCustomer } from './quotes.js'
+import { buildQuote, createQuoteForCustomer } from './quotes.js'
+import { convertTrial, startTrial } from './trial.js'
 import { acceptQuote } from './orders.js'
 import { listInvoices, getInvoice } from './invoices.js'
 import { planWire } from './plans.js'
@@ -40,7 +41,8 @@ export async function createBranchQuote(pool: Pool, customerId: string, raw: str
   if (!view.applied) throw new CommercialHttpError('subscription_required',409)
   const current = view.applied
   const count = await requestedExtraBranches(pool,{subscription_id:view.id,add:input.add.length,archive:input.archive})
-  const quote = await createQuoteForCustomer(pool,{customer_id:customerId,request:{kind:'change',plan_revision_id:current.plan_revision_id,bundle_revision_ids:current.bundle_revision_ids,terms_revision_id:current.terms_revision_id,cadence:current.cadence,requested_extra_branches:count,expected_subscription_revision:view.revision}})
+  const limits = current.entitlement.features
+  const quote = await createQuoteForCustomer(pool,{customer_id:customerId,request:{kind:'change',plan_revision_id:current.plan_revision_id,bundle_revision_ids:current.bundle_revision_ids,terms_revision_id:current.terms_revision_id,cadence:current.cadence,requested_extra_branches:count,requested_users:Number(limits['users.limit'] ?? 0),requested_storage_mb:Number(limits['storage.limit_mb'] ?? 0),expected_subscription_revision:view.revision}})
   await pool.query('INSERT INTO branch_quote_requests(quote_id,subscription_id,adds,archive,quoted_paid) VALUES($1,$2,$3,$4,$5)',[quote.id,view.id,JSON.stringify(input.add),JSON.stringify(input.archive),Math.max(0,count-current.included_extra_branches)])
   return quote
 }
@@ -72,7 +74,17 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   const path=url.pathname.slice('/v1/customer'.length),m=input.method,customerId=principal.customer_id!
   if (m==='GET' && path==='/subscription') {requireCapability(principal,'subscription.read');return {status:200,data:await getSubscription(pool,customerId)}}
   if (m==='GET' && path==='/catalog') {requireCapability(principal,'subscription.read');return {status:200,data:await customerCatalog(pool,customerId)}}
+  if (m==='POST' && path==='/trial/convert') {requireCapability(principal,'subscription.manage');const payment=needPayment(runtime);return {status:201,data:await convertTrial(pool,{customer_id:customerId,now:new Date(),adapter:payment.adapter,allowedOrigin:payment.allowedOrigin})}}
+  if (m==='POST' && path==='/trial') {requireCapability(principal,'subscription.manage');return {status:201,data:await startTrial(pool,{customer_id:customerId,request:parseBody(input.raw,quoteRequestSchema.omit({subscription_id:true})),principal})}}
   if (m==='POST' && path==='/quotes') {requireCapability(principal,'subscription.manage');return {status:201,data:await createQuoteForCustomer(pool,{customer_id:customerId,request:{...parseBody(input.raw,quoteRequestSchema),effective_date:undefined}})}}
+  if (m==='POST' && path==='/preview') {
+    requireCapability(principal,'subscription.read')
+    // The caller never names a subscription: a change preview prices the caller's own subscription.
+    const request = parseBody(input.raw, quoteRequestSchema.omit({ subscription_id: true }))
+    const own = (await pool.query('SELECT id FROM subscriptions WHERE customer_id=$1', [customerId])).rows[0]
+    if (request.kind === 'change' && !own) throw new CommercialHttpError('subscription_required', 409)
+    return {status:200,data:await buildQuote(pool,{customer_id:customerId,request:{...request,subscription_id:own?.id ?? null}})}
+  }
   if (m==='POST' && path==='/orders') {requireCapability(principal,'subscription.manage');const result=await acceptQuote(pool,parseBody(input.raw,acceptQuoteRequestSchema),principal);return {status:result.replay?200:201,data:result}}
   const payment=/^\/orders\/([^/]+)\/payment-attempts$/.exec(path)
   if(m==='POST'&&payment){

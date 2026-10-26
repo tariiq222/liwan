@@ -66,6 +66,7 @@ RESTORE_WRAPPER = Path(__file__).resolve().parents[2] / 'deploy' / 'restore_veri
 ENTITLE_SCRIPT = """\
 import json
 import os
+from datetime import date
 from odoo.addons.webvue_platform.commercial_config import load_classification
 from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
 
@@ -95,11 +96,24 @@ try:
             result = {'status': 'conflict', 'changed': False, 'error_code': 'classification_conflict'}
         elif int(profile.policy_revision) != expected_revision:
             result = {'status': 'conflict', 'changed': False, 'error_code': 'revision_conflict'}
-        elif _features_match(profile.features, policy['features']):
+        elif (_features_match(profile.features, policy['features'])
+              and ('commercial_valid_until' not in policy
+                   or profile.commercial_valid_until == (date.fromisoformat(policy['commercial_valid_until']) if policy['commercial_valid_until'] else False))
+              and ('commercial_valid_until_revision' not in policy
+                   or int(getattr(profile, 'commercial_valid_until_revision', 0) or 0) == policy['commercial_valid_until_revision'])):
             result = {'status': 'ok', 'changed': False,
                       'policy_revision': int(profile.policy_revision)}
         else:
-            profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': policy['features']})
+            write_vals = {'features': policy['features']}
+            if 'commercial_valid_until' in policy:
+                write_vals['commercial_valid_until'] = (
+                    date.fromisoformat(policy['commercial_valid_until']) if policy['commercial_valid_until'] else False)
+            if 'commercial_valid_until_revision' in policy:
+                current_revision = int(getattr(profile, 'commercial_valid_until_revision', 0) or 0)
+                if policy['commercial_valid_until_revision'] < current_revision:
+                    raise ValueError('commercial_expiry_revision_stale')
+                write_vals['commercial_valid_until_revision'] = policy['commercial_valid_until_revision']
+            profile.with_context(**{OPERATOR_CONTEXT: True}).write(write_vals)
             result = {'status': 'ok', 'changed': True,
                       'policy_revision': int(profile.policy_revision)}
             env.cr.commit()
@@ -243,12 +257,20 @@ def _policy(path, *, create=False):
     raw = _private_file(path, POLICY_MAX, 'policy')
     value = _decode(raw, 'policy')
     expected_keys = {'schema_version', 'channel', 'features'} | ({'modules'} if create else set())
-    if (not isinstance(value, dict) or set(value) != expected_keys
+    optional_keys = {'commercial_valid_until', 'commercial_valid_until_revision'}
+    if (not isinstance(value, dict) or not expected_keys <= set(value) <= expected_keys | optional_keys
             or type(value['schema_version']) is not int or value['schema_version'] != 1
             or value['channel'] not in ('local_policy', 'control_plane')
             or not isinstance(value['features'], dict)
             or len(value['features']) > 256):
         _fail(2, 'invalid_input', 'policy', 'local entitlement policy requires features only')
+    expiry = value.get('commercial_valid_until')
+    if expiry is not None and (not isinstance(expiry, str)
+                               or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', expiry)):
+        _fail(2, 'invalid_input', 'policy', 'commercial_valid_until must be YYYY-MM-DD or null')
+    revision = value.get('commercial_valid_until_revision')
+    if revision is not None and (type(revision) is not int or revision < 0):
+        _fail(2, 'invalid_input', 'policy', 'commercial_valid_until_revision must be a non-negative integer')
     for key, item in value['features'].items():
         if (not FEATURE_KEY.fullmatch(key) or type(item) not in (bool, int, type(None))
                 or (type(item) is int and (item < 0 or item > 1000000000))):

@@ -8,6 +8,20 @@ export function paidExtraBranches(additional: number, included: number): number 
   return Math.max(0, additional - included)
 }
 
+/** Metered paid quantity: the amount above the base minimum. Below the minimum is the base, never a negative line. */
+export function paidUnits(requested: number, included: number): number {
+  if (!isNat(requested) || !isNat(included)) throw new CommercialError('invalid_quantity')
+  return Math.max(0, requested - included)
+}
+
+const MB_PER_GB = 1024
+/** Storage is sold in whole gigabytes while the entitlement limit is in megabytes. */
+export function paidStorageGb(requestedMb: number, includedMb: number): number {
+  const paidMb = paidUnits(requestedMb, includedMb)
+  if (paidMb % MB_PER_GB !== 0) throw new CommercialError('invalid_quantity', 'requested_storage_mb')
+  return paidMb / MB_PER_GB
+}
+
 function toSafe(v: bigint): number {
   if (v > BigInt(Number.MAX_SAFE_INTEGER)) throw new CommercialError('invalid_quantity')
   return Number(v)
