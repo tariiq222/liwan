@@ -107,6 +107,8 @@ function totals(run) {
   }
   return Object.fromEntries(Object.entries(sums).map(([key, value]) => [key, money(value)]))
 }
+/** Like the server: only a positive net is to be paid, so a zero-net payslip without an IBAN is not flagged. */
+const unpaidIban = slip => ibanMissing(slip) && figures(slip).net > 0
 
 const BASE_ACTIONS = { draft: ['compute', 'cancel', 'edit_inputs'], computed: ['compute', 'approve', 'cancel', 'edit_inputs'], approved: [], posted: [], paid: [] }
 const FINANCE_ACTIONS = { approved: ['post'], posted: ['record_payment'] }
@@ -121,7 +123,7 @@ function summary(run) {
 function detail(run) {
   return {
     ...summary(run),
-    warnings: run.slips.filter(slip => ibanMissing(slip)).map(slip => ({ code: 'missing_iban', employee: slip.person.employee })),
+    warnings: run.slips.filter(unpaidIban).map(slip => ({ code: 'missing_iban', employee: slip.person.employee })),
     allowed_actions: actionsOf(run),
     approved_by: run.approvedAt ? ADMIN : null,
     finance: state.finance ? { entry_id: run.entry ? 91 : null, entry_name: run.entry ?? null, payment_id: run.payment ? 92 : null, payment_name: run.payment ?? null } : null,
@@ -131,7 +133,7 @@ function row(slip) {
   const f = figures(slip)
   return {
     id: slip.id, employee: slip.person.employee, department: slip.person.department, state: slip.state, paid_days: 30,
-    inputs: slip.inputs, gross: f.gross, deductions: f.deductions, net: f.net, iban_missing: ibanMissing(slip),
+    inputs: slip.inputs, gross: f.gross, deductions: f.deductions, net: f.net, iban_missing: unpaidIban(slip),
   }
 }
 function payslip(run, slip) {
@@ -266,10 +268,13 @@ function gosiStatement(run) {
   return { month: run.month, lines, totals: { contributory_wage: sum('contributory_wage'), employee_amount: sum('employee_amount'), employer_amount: sum('employer_amount') } }
 }
 
+/** The `missing_iban` refusal naming the employees of ``slips``. */
+const missingIban = (slips, message) => ({ status: 422, body: { code: 'missing_iban', message, field: 'iban', details: { employee_ids: slips.map(slip => slip.person.employee.id) } } })
+
 /** A file answers like the server: a refusal while an employee has no IBAN, otherwise a small CSV. */
 function salaryFile(run, section) {
-  const missing = run.slips.filter(ibanMissing)
-  if (missing.length) return { refusal: { status: 422, body: { code: 'missing_iban', message: 'an employee to be paid has no IBAN', field: 'iban', details: { employee_ids: missing.map(slip => slip.person.employee.id) } } } }
+  const missing = run.slips.filter(unpaidIban)
+  if (missing.length) return { refusal: missingIban(missing, 'an employee to be paid has no IBAN') }
   const prefix = section === 'bank-file' ? 'salaries' : 'wps'
   return { file: { filename: `${prefix}-${run.month}.csv`, body: ['IBAN,Amount', ...run.slips.map(slip => `SA0000000000000000000000,${figures(slip).net}`)].join('\n') } }
 }
@@ -433,6 +438,9 @@ export function hrPayrollPreviewWrite(method, route, body) {
   }
   if (method === 'POST' && section === 'approve') {
     if (!actionsOf(run).includes('approve')) return { status: 403, body: { code: 'transition_forbidden', message: 'the run cannot be approved' } }
+    // Like the server (owner decision D-10): a net to pay without an IBAN blocks the approval; a zero net does not.
+    const unpaid = run.slips.filter(unpaidIban)
+    if (unpaid.length) return missingIban(unpaid, 'record the IBAN of every employee with a net to pay before approving the run')
     run.state = 'approved'
     run.approvedAt = '2026-11-28T09:30:00Z'
     return ok(detail(run))

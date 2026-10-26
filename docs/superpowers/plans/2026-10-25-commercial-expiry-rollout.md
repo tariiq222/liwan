@@ -65,7 +65,10 @@ ORDER BY created_at DESC LIMIT 5;
 ```
 
 Then read the tenant profile again; the two dates must match. A customer still in the trial
-keeps access until that date; afterwards Odoo answers `403` on every route except support.
+keeps access until that date. Afterwards the tenant is `expired` and read-only: every write
+answers `403 tenant_read_only`, while authorized reads of retained features keep working
+(`entitlement_service._webvue_assert_lifecycle`). Only a `suspended` tenant refuses reads,
+except for an allowed support login.
 
 ## Failure modes
 

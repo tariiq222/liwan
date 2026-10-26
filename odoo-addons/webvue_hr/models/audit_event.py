@@ -31,6 +31,9 @@ TRACKED_FIELDS = {
     )),
     # The lifecycle of a pay month; the entered input amounts are named in the event, never valued.
     'hr.payslip.run': (('webvue_state', 'webvue_approved_by_id', 'webvue_approved_at'), ()),
+    # A handed-out salary file: what kind, under which name, for which value date. Its content (IBANs, amounts)
+    # and checksum are never recorded.
+    'webvue.hr.payroll.file': (('kind', 'filename', 'value_date'), ()),
 }
 
 # action -> (audited model, capability the caller holds in the record's company)
@@ -49,6 +52,7 @@ ACTIONS = {
     'run_inputs_changed': ('hr.payslip.run', 'hr.payroll.manage'),
     'run_approved': ('hr.payslip.run', 'hr.payroll.approve'),
     'run_cancelled': ('hr.payslip.run', 'hr.payroll.manage'),
+    'payment_file_generated': ('webvue.hr.payroll.file', 'hr.payroll.read'),
 }
 # Actions logged ahead of the record's unlink, inside the caller's savepoint: the old side keeps the values.
 DELETE_ACTIONS = frozenset({'gosi_rate_deleted', 'bank_profile_deleted', 'run_cancelled'})
@@ -67,6 +71,7 @@ ACTION_SELECTION = [
     ('run_inputs_changed', 'Payroll run inputs changed'),
     ('run_approved', 'Payroll run approved'),
     ('run_cancelled', 'Payroll run cancelled'),
+    ('payment_file_generated', 'Salary file generated'),
 ]
 
 

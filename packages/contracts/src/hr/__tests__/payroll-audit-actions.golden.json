@@ -12,5 +12,6 @@
   "compensation_changed",
   "run_inputs_changed",
   "run_approved",
-  "run_cancelled"
+  "run_cancelled",
+  "payment_file_generated"
 ]
