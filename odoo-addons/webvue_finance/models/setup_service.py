@@ -9,11 +9,14 @@ from odoo.addons.webvue_api.controllers.common import ApiError
 _logger = logging.getLogger(__name__)
 
 SAUDI_CHART_TEMPLATE = 'sa'
+SAUDI_COUNTRY_CODE = 'SA'
+GLOBAL_TAX_ROUNDING = 'round_globally'
 SETUP_MANAGE = 'finance.setup.manage'
 # The hard lock date is irreversible in stock Odoo, so it is never writable here.
 COMPANY_FISCAL_FIELDS = frozenset({
     'fiscalyear_last_day', 'fiscalyear_last_month',
     'fiscalyear_lock_date', 'tax_lock_date', 'sale_lock_date', 'purchase_lock_date',
+    'tax_calculation_rounding_method',
 })
 
 
@@ -53,14 +56,25 @@ class WebVueFinanceSetup(models.AbstractModel):
         if elevated['account.move'].search_count([('company_id', '=', company.id)], limit=1):
             raise ApiError(422, 'invalid', 'the chart cannot be loaded into a company that already has journal entries')
         chart_templates.try_loading(SAUDI_CHART_TEMPLATE, company.with_env(chart_templates.env))
+        if company.account_fiscal_country_id.code == SAUDI_COUNTRY_CODE:
+            self._webvue_write_company(
+                company,
+                {'tax_calculation_rounding_method': GLOBAL_TAX_ROUNDING},
+                log=False,
+                audit=False,
+            )
         _logger.info('finance.setup.chart_loaded company=%s user=%s template=%s', company.id, self.env.uid, SAUDI_CHART_TEMPLATE)
         self.env['webvue.finance.audit.event']._webvue_log('chart_loaded', company, outcome=SAUDI_CHART_TEMPLATE)
 
     @api.model
-    def _webvue_write_company(self, company, vals):
+    def _webvue_write_company(self, company, vals, *, log=True, audit=True):
         """Write whitelisted fiscal fields of the current company (sudo: R7 case "finance setup")."""
         self.env['webvue.access.service']._webvue_require_capability(SETUP_MANAGE)
         self._webvue_check_current_company(company)
+        vals = dict(vals)
+        audit_vals = dict(vals)
+        if company.account_fiscal_country_id.code == SAUDI_COUNTRY_CODE:
+            vals['tax_calculation_rounding_method'] = GLOBAL_TAX_ROUNDING
         forbidden = sorted(set(vals) - COMPANY_FISCAL_FIELDS)
         if forbidden:
             raise AccessError(self.env._('Finance setup cannot write the field %s.', forbidden[0]))
@@ -69,5 +83,7 @@ class WebVueFinanceSetup(models.AbstractModel):
         except RedirectWarning as warning:
             # Stock offers an action link; the API only reports the reason.
             raise UserError(warning.args[0]) from None
-        _logger.info('finance.setup.company_written company=%s user=%s fields=%s', company.id, self.env.uid, ', '.join(sorted(vals)))
-        self.env['webvue.finance.audit.event']._webvue_log('company_written', company, fields_written=vals)
+        if log:
+            _logger.info('finance.setup.company_written company=%s user=%s fields=%s', company.id, self.env.uid, ', '.join(sorted(vals)))
+        if audit:
+            self.env['webvue.finance.audit.event']._webvue_log('company_written', company, fields_written=audit_vals)
