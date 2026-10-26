@@ -289,6 +289,23 @@ test.describe('payroll settings', () => {
     await expect(page.getByTestId('hr-payroll-divisor')).toContainText('31')
   })
 
+  test('a save after another administrator changed the settings keeps the draft and offers a reload', async ({ page }) => {
+    await open(page, '/settings/apps/hr', 'الموارد البشرية')
+    await page.getByTestId('hr-payroll-divisor').click()
+    await page.getByRole('option', { name: '28' }).click()
+    // Another administrator saves first, from the revision this page also read.
+    expect((await page.request.patch('/api/v1/hr/payroll/settings', { data: { day_divisor: 31, revision: 1 } })).status()).toBe(200)
+    // The refused request is logged by the browser; it is the behaviour under test.
+    const withoutRefusals = trackRefusedRequests(page, '/api/v1/hr/payroll/settings')
+    await page.getByTestId('hr-payroll-settings-submit').click()
+    await expect(page.getByText('غيّر مستخدم آخر هذه الإعدادات أثناء تعديلك')).toBeVisible()
+    errors = withoutRefusals(errors)
+    await expect(page.getByTestId('hr-payroll-divisor')).toContainText('28')
+    await expect(page.getByTestId('hr-payroll-settings-submit')).toBeDisabled()
+    await page.getByTestId('hr-payroll-settings-reload').click()
+    await expect(page.getByTestId('hr-payroll-divisor')).toContainText('31')
+  })
+
   test('a GOSI rate form refuses a missing start date and a company rate is deleted after an inline confirmation', async ({ page }) => {
     await open(page, '/settings/apps/hr', 'الموارد البشرية')
     await expect(row(page, /المعاشات.*مشتركة/)).toBeVisible()
