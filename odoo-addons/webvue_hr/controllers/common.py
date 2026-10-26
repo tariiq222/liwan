@@ -36,6 +36,9 @@ def unique_conflict(message):
     """Run a write a concurrent request may win on a UNIQUE constraint: the loser answers 409, never a 500.
 
     The savepoint flushes on exit, so the violation surfaces here and the transaction stays usable.
+    Wrap only a block whose one UNIQUE key is the raced row's: every UniqueViolation inside answers 409, so a
+    second constrained table written in the same block would hide its own fault behind a conflict. The audit
+    rows written alongside carry no UNIQUE constraint.
     """
     try:
         with request.env.cr.savepoint():
