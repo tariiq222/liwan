@@ -4,13 +4,17 @@ Run against the coordinator's current source without copying it::
 
     WEBVUE_RUNTIME_REVIEW_SOURCE=/absolute/coordinator/worktree python3 -m unittest deploy.releases.test_runtime_cron -v
 """
+from contextlib import contextmanager
 import importlib
 import importlib.util
 import json
 import os
 from pathlib import Path
+import socket
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from unittest.mock import patch
 from types import SimpleNamespace
@@ -67,6 +71,66 @@ class BackupConnection:
     def close(self): pass
 
 
+@contextmanager
+def trickle_guard(modes, *, chunk=3, every=0.025, cap=4.0):
+    """Loopback HTTP guard: connection ``i`` answers with ``modes[i]`` (the last one
+    repeats). A mode is ``('fast', body)``, ``('trickle', body)`` — the whole response,
+    status line and headers included, ``chunk`` bytes every ``every`` s —
+    ``('endless', None)``: a valid head without a length and a body that never
+    ends — or ``('stall', body)``: the head and half the announced body at once,
+    then silence on an open connection. No connection is served past ``cap`` s."""
+    server = socket.create_server(('127.0.0.1', 0))
+    served = []
+
+    def respond(connection, mode, body):
+        end = time.monotonic() + cap
+        connection.settimeout(cap)
+        request = b''
+        while b'\r\n\r\n' not in request:
+            part = connection.recv(4096)
+            if not part: return
+            request += part
+        served.append(request.split(b'\r\n', 1)[0])
+        length = b'' if mode == 'endless' else b'Content-Length: %d\r\n' % len(body)
+        head = b'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n' + length + b'Connection: close\r\n\r\n'
+        if mode == 'fast':
+            connection.sendall(head + body); return
+        if mode == 'stall':
+            connection.sendall(head + body[:len(body) // 2])
+            time.sleep(cap); return
+        data = head + (b'' if mode == 'endless' else body)
+        while time.monotonic() < end:
+            if not data:
+                if mode != 'endless': return
+                data = b' ' * chunk  # JSON whitespace, forever
+            connection.sendall(data[:chunk]); data = data[chunk:]
+            time.sleep(every)
+
+    def serve():
+        index = 0
+        while True:
+            try:
+                connection, _ = server.accept()
+            except OSError:
+                return
+            mode, body = modes[min(index, len(modes) - 1)]; index += 1
+            def run(connection=connection, mode=mode, body=body):
+                with connection:
+                    try:
+                        respond(connection, mode, body)
+                    except OSError:
+                        pass  # the client gave up and closed
+            threading.Thread(target=run, daemon=True).start()
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    try:
+        yield 'http://127.0.0.1:%d' % server.getsockname()[1], served
+    finally:
+        server.close()
+        thread.join(2)
+
+
 class RuntimeCronTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
@@ -92,7 +156,7 @@ class RuntimeCronTests(unittest.TestCase):
                     'identity': identity, 'databases': [self.binding['database']]}]}
         self.runtime = runtime_module.LocalRuntime(self.state, self.config, role_inspector=self.inspect,
             classifier=lambda *_: {'ready': True}, inspector=lambda *_: {'ready': True},
-            inventory_inspector=lambda *_: None)
+            inventory_inspector=lambda *_, **__: None)
 
     def inspect(self, container, expected, **kwargs):
         self.events.append(('inspect', container, kwargs))
@@ -366,13 +430,13 @@ class RuntimeCronTests(unittest.TestCase):
         self.config['tenants']['tenant_a']['filestorePath'] = str(store)
         marker = self.state.routes / 'tenant_a.maintenance'
         self.guard_timeouts = []
-        def guard(binding, timeout=10):
-            # The real HTTP seam: the guard reports the route and whether the marker is up.
-            self.guard_timeouts.append(timeout); self.guard_delay()
+        def guard(binding, deadline):
+            # The bounded HTTP seam: the guard reports the route and whether the marker is up.
+            self.guard_timeouts.append(deadline.remaining(10)); self.guard_delay()
             return {**{key: route[key] for key in ('routeRevision', 'fence', 'poolId', 'releaseId')},
                     'maintenance': marker.is_file()}
         self.guard_delay = lambda: None
-        self.runtime._guard = guard
+        self.runtime._guard_within = guard
         def window(binding, roles, connector, **kwargs):
             self.connection.grants = dict.fromkeys(roles, False)
             return self.window(binding, roles, connector, **kwargs)
@@ -712,6 +776,185 @@ class RuntimeCronTests(unittest.TestCase):
         self.assertEqual(self.connection.grants, {'role_blue': True, 'role_green': False})
         self.assertEqual([entry[2]['connect_timeout'] for entry in self.timeline], [120, 70])
         self.assertEqual(now[0], 102)
+
+
+    # Bounded guard reads (F1): a real loopback HTTP guard, the real acknowledge_within.
+
+    def guard_config(self, url):
+        token = Path(self.state.root) / 'proxy-token'
+        token.write_text('p' * 40)
+        self.config.update(guardUrl=url, proxyTokenFile=str(token))
+        self.config['tenants']['tenant_a']['host'] = 'tenant.example'
+
+    def ack_body(self, maintenance=True):
+        return json.dumps({**{key: self.old[key] for key in ('routeRevision', 'fence', 'poolId', 'releaseId')},
+                           'maintenance': maintenance}, separators=(',', ':')).encode()
+
+    def timed_ack(self, url, seconds):
+        self.guard_config(url)
+        start = time.monotonic()
+        try:
+            return self.runtime.acknowledge_within(self.binding, self.old, True, backup_module.Deadline(seconds)), \
+                time.monotonic() - start
+        except ValueError as error:
+            return error, time.monotonic() - start
+
+    def test_trickled_valid_ack_past_the_budget_is_refused_at_the_budget(self):
+        body = self.ack_body()
+        self.assertEqual(len(body), 81)
+        with trickle_guard([('trickle', body)]) as (url, served):
+            result, elapsed = self.timed_ack(url, 0.08)
+        self.assertIsInstance(result, ValueError)
+        self.assertEqual(str(result), 'backup_deadline_exceeded')
+        self.assertLess(elapsed, 0.08 + 0.3)
+        self.assertEqual(served, [b'GET /_webvue/release-status HTTP/1.1'])
+
+    def test_never_ending_ack_body_is_refused_within_the_budget(self):
+        with trickle_guard([('endless', None)]) as (url, _served):
+            result, elapsed = self.timed_ack(url, 0.3)
+        self.assertIsInstance(result, ValueError)
+        self.assertEqual(str(result), 'backup_deadline_exceeded')
+        self.assertLess(elapsed, 0.3 + 0.3)
+
+    def test_incomplete_ack_body_is_refused_within_the_budget(self):
+        with trickle_guard([('stall', self.ack_body())]) as (url, _served):
+            result, elapsed = self.timed_ack(url, 0.3)
+        self.assertIsInstance(result, ValueError)
+        self.assertEqual(str(result), 'backup_deadline_exceeded')
+        self.assertLess(elapsed, 0.3 + 0.3)
+
+    def test_oversized_ack_body_is_refused(self):
+        with trickle_guard([('fast', b' ' * 70000 + self.ack_body())]) as (url, _served):
+            result, _elapsed = self.timed_ack(url, 5)
+        self.assertIsInstance(result, ValueError)
+        self.assertEqual(str(result), 'http_body_too_large')
+
+    def test_fast_ack_within_the_budget_is_ready(self):
+        with trickle_guard([('fast', self.ack_body())]) as (url, served):
+            result, elapsed = self.timed_ack(url, 2)
+        self.assertIsInstance(result, dict)
+        self.assertIs(result['ready'], True)
+        self.assertLess(elapsed, 2)
+        self.assertEqual(len(served), 1)
+
+    def test_trickled_ack_within_the_budget_is_ready(self):
+        # A slow but finite answer that completes inside the budget still counts.
+        with trickle_guard([('trickle', self.ack_body())], chunk=40, every=0.01) as (url, _served):
+            result, _elapsed = self.timed_ack(url, 3)
+        self.assertIs(result['ready'], True)
+
+    def test_fail_closed_recovery_ack_terminates_on_its_own_budget(self):
+        # The real backup_current: the window ACK answers, the final ACK (marker
+        # removed) and the fail-closed recovery ACK trickle forever. Both must end
+        # on their budgets (1 s operation, 0.5 s recovery) and the marker stays.
+        with tempfile.TemporaryDirectory() as temporary:
+            tmp = Path(temporary).resolve()
+            _route, window = self.cronless_backup(tmp)
+            del self.runtime._guard_within  # back to the real bounded HTTP read
+            self.config['backup'].update(totalDeadlineSeconds=1, timeoutSeconds=0.5)
+            with trickle_guard([('fast', self.ack_body(True)), ('endless', None)]) as (url, served), \
+                    patch.object(runtime_module, 'fence_writers', window), \
+                    patch.object(runtime_module.subprocess, 'run', self.docker):
+                self.guard_config(url)
+                start = time.monotonic()
+                with self.assertRaisesRegex(ValueError, '^backup_deadline_exceeded$'):
+                    operation_module.backup_current(self.state, self.runtime, self.binding, 'trickled_ack',
+                                                    tmp / 'trickled_ack', lambda result: None)
+                elapsed = time.monotonic() - start
+        self.assertLess(elapsed, 1 + 0.5 + 0.6)
+        self.assertEqual(len(served), 3)  # window ACK, final ACK, recovery ACK
+        receipt = self.state.receipt('trickled_ack')
+        self.assertEqual((receipt['stage'], receipt['errorCode']), ('needs_intervention', 'backup_fail_closed_unverified'))
+        self.assertTrue((self.state.routes / 'tenant_a.maintenance').is_file())
+
+    # Docker calls on the budget (F2): inspections and start/stop take what is left at dispatch.
+
+    def budgeted_docker(self, now, *, inspect_cost, docker_cost=0):
+        """Inspector and Docker CLI fakes on a fake clock that record the timeout each
+        call would get at dispatch (the real inspector asks the deadline the same way)."""
+        self.dispatch = []
+        def inspect(container, expected, **kwargs):
+            deadline = kwargs.pop('deadline', None)  # None: an unbounded fixed-10 s inspection
+            self.dispatch.append(('inspect', container, deadline and deadline.remaining(10)))
+            now[0] += inspect_cost
+            return self.inspect(container, expected, **kwargs)
+        def docker(argv, **kwargs):
+            self.dispatch.append(('docker', argv[1], kwargs['timeout']))
+            now[0] += docker_cost
+            return self.docker(argv, **kwargs)
+        self.runtime.role_inspector = inspect
+        return docker
+
+    def test_cron_stop_never_dispatches_after_the_inspection_spent_the_budget(self):
+        self.state.maintenance('tenant_a', 1)
+        self.backup_config()
+        now = [0.0]
+        docker = self.budgeted_docker(now, inspect_cost=2)
+        with patch.object(runtime_module.subprocess, 'run', docker):
+            with self.assertRaisesRegex(ValueError, '^backup_deadline_exceeded$'):
+                self.runtime._stop_owned_cron(self.binding, 'blue', self.backup_previous()['cron'],
+                                              backup_module.Deadline(1, lambda: now[0]))
+        self.assertEqual(self.dispatch, [('inspect', 'blue-cron', 1)])
+        self.assertFalse([event for event in self.events if event[0] == 'docker'])
+        self.assertTrue(self.running['blue-cron'])
+        self.assertTrue((self.state.routes / 'tenant_a.maintenance').is_file())
+
+    def test_cron_start_never_dispatches_after_the_inspection_spent_the_budget(self):
+        self.state.maintenance('tenant_a', 1)
+        self.backup_config()
+        self.running['blue-cron'] = False
+        now = [0.0]
+        docker = self.budgeted_docker(now, inspect_cost=2)
+        with patch.object(runtime_module.subprocess, 'run', docker):
+            with self.assertRaisesRegex(ValueError, '^backup_deadline_exceeded$'):
+                self.runtime._restore_previous_cron(self.binding, 'blue', self.backup_previous()['cron'],
+                                                    backup_module.Deadline(1, lambda: now[0]))
+        self.assertEqual(self.dispatch, [('inspect', 'blue-cron', 1)])
+        self.assertFalse([event for event in self.events if event[0] == 'docker'])
+        self.assertFalse(self.running['blue-cron'])
+
+    def test_cron_stop_within_the_budget_gets_the_time_left_at_each_dispatch(self):
+        self.state.maintenance('tenant_a', 1)
+        self.backup_config()
+        now = [0.0]
+        docker = self.budgeted_docker(now, inspect_cost=2, docker_cost=1)
+        with patch.object(runtime_module.subprocess, 'run', docker):
+            self.runtime._stop_owned_cron(self.binding, 'blue', self.backup_previous()['cron'],
+                                          backup_module.Deadline(8, lambda: now[0]))
+        self.assertEqual(self.dispatch, [('inspect', 'blue-cron', 8), ('docker', 'stop', 6), ('inspect', 'blue-cron', 5)])
+        self.assertFalse(self.running['blue-cron'])
+
+    def test_window_inspection_overrun_fails_closed_without_docker_side_effects(self):
+        # The real backup_current: binding the serving runtime inside the window costs
+        # 2 s per Docker inspection on a 1 s operation budget, and the fresh 1 s
+        # recovery budget again. No stop/start is dispatched and the marker stays.
+        with tempfile.TemporaryDirectory() as temporary:
+            tmp = Path(temporary).resolve()
+            self.backup_config()
+            self.config['backup'].update(totalDeadlineSeconds=1, timeoutSeconds=1)
+            marker = self.state.routes / 'tenant_a.maintenance'
+            now = [0.0]
+            docker = self.budgeted_docker(now, inspect_cost=2)
+            clock = lambda seconds: backup_module.Deadline(seconds, lambda: now[0])
+            # Window and recovery ACKs come from a real loopback guard (marker up for both).
+            with trickle_guard([('fast', self.ack_body(True))]) as (url, _served), \
+                    patch.object(runtime_module, 'Deadline', clock), \
+                    patch.object(runtime_module, 'fence_writers', self.window), \
+                    patch.object(runtime_module.subprocess, 'run', docker):
+                self.guard_config(url)
+                with self.assertRaisesRegex(ValueError, '^backup_deadline_exceeded$'):
+                    operation_module.backup_current(self.state, self.runtime, self.binding, 'slow_inspect',
+                                                    tmp / 'slow_inspect', lambda result: self.fail('captured past the budget'))
+        self.assertEqual([entry for entry in self.dispatch if entry[0] == 'docker'], [])
+        preflight = [entry for entry in self.dispatch if entry[2] is None]  # read-only, before the budget starts
+        self.assertEqual(self.dispatch[:len(preflight)], preflight)
+        # Window entry, then the fail-closed recovery: each inspection got only what was left.
+        self.assertEqual(self.dispatch[len(preflight):], [('inspect', 'blue-http', 1), ('inspect', 'blue-http', 1)])
+        self.assertFalse([event for event in self.events if event[0] in ('docker', 'window')])
+        self.assertTrue(self.running['blue-cron'])
+        receipt = self.state.receipt('slow_inspect')
+        self.assertEqual((receipt['stage'], receipt['errorCode']), ('needs_intervention', 'backup_fail_closed_unverified'))
+        self.assertTrue(marker.is_file())
 
 
 if __name__ == '__main__':

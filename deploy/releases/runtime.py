@@ -14,6 +14,7 @@ from urllib.request import Request, HTTPRedirectHandler, build_opener
 from urllib.parse import urlsplit
 
 from .backup import Deadline, capture_tenant, capture_window, validate_window, _path
+from .bounded_http import get_json
 from .manifest import load_manifest, manifest_digest
 from .migrate import migrate_tenant, verify_tenant
 from .runtime_identity import inspect_odoo_runtime
@@ -32,6 +33,23 @@ class NoRedirect(HTTPRedirectHandler):
 
 
 CONTAINER_ID = re.compile(r'[a-f0-9]{64}')
+
+
+def _budget(deadline):
+    """Keyword passed to Docker inspectors on backup paths only; release calls stay unchanged."""
+    return {} if deadline is None else {'deadline': deadline}
+
+
+def _docker(argv, deadline, cap, **options):
+    """One Docker CLI call: ``cap`` seconds, or only what is left of ``deadline``,
+    recomputed at dispatch; a spent budget refuses before the call and a timeout
+    past it reports the overrun."""
+    try:
+        return subprocess.run(argv, check=True, capture_output=True,
+                              timeout=cap if deadline is None else deadline.remaining(cap), **options)
+    except subprocess.TimeoutExpired:
+        if deadline is not None: deadline.remaining()
+        raise
 
 
 class LocalRuntime:
@@ -66,22 +84,25 @@ class LocalRuntime:
     def _role(self, binding, pool):
         return self._tenant(binding)['roles'][name(pool)]
 
-    def _inspect_inventory(self, pool):
+    def _inspect_inventory(self, pool, deadline=None):
         config = self.config['pools'][pool]
         declared = [*config['containers'].values(), *(job['container'] for job in config['cronRuntimes'])]
         if len(declared) != len(set(declared)): raise ReleaseConflict('duplicate_runtime_ownership')
-        observed = subprocess.run(['docker','ps','--all','--filter','label=webvue.pool='+name(pool),'--format','{{.Names}}'],
-                                  check=True,capture_output=True,text=True,timeout=10).stdout.splitlines()
+        observed = _docker(['docker','ps','--all','--filter','label=webvue.pool='+name(pool),'--format','{{.Names}}'],
+                           deadline, 10, text=True).stdout.splitlines()
         if set(observed) != set(declared): raise ReleaseConflict('runtime_inventory_mismatch')
 
-    def _bind_role(self,binding,pool,*,candidate=False):
+    def _bind_role(self,binding,pool,*,candidate=False,deadline=None):
+        """With ``deadline`` (backup window only) every Docker call it makes gets only
+        what is left; release callers pass none and keep the fixed per-call bounds."""
         config=self.config['pools'][pool]
-        self.inventory_inspector(pool)
+        budget=_budget(deadline)
+        self.inventory_inspector(pool,**budget)
         matches=[job for job in config['cronRuntimes'] if job['databases']==[binding['database']]]
         if self.config.get('jobsRequired',True) and len(matches)!=1:
             raise ReleaseConflict('tenant_cron_ownership_missing')
         expected={**config['odooRuntime'],'poolId':pool,'dbUser':self._role(binding,pool)}
-        proof=self.role_inspector(config['containers']['odoo'],expected)
+        proof=self.role_inspector(config['containers']['odoo'],expected,**budget)
         if proof.get('ready') is not True or proof.get('dbUser')!=expected['dbUser']:
             raise ReleaseConflict('runtime_role_binding_unverified')
         # Every declared cron is bound separately; a stopped cron is allowed only
@@ -90,14 +111,15 @@ class LocalRuntime:
             cron_expected={**cron['identity'],'poolId':pool,'dbUser':expected['dbUser']}
             if cron['databases'] != [binding['database']]:
                 continue
-            observed=self.role_inspector(cron['container'],cron_expected,cron_databases=cron['databases'],allow_stopped=True)
+            observed=self.role_inspector(cron['container'],cron_expected,cron_databases=cron['databases'],allow_stopped=True,**budget)
             if observed.get('ready') is not True or observed.get('dbUser')!=expected['dbUser']:
                 raise ReleaseConflict('cron_role_binding_unverified')
             if candidate and observed.get('running') is True:
                 raise ReleaseConflict('candidate_cron_must_be_stopped')
         return proof
 
-    def _guard(self, binding, timeout=10):
+    def _guard_request(self, binding):
+        """The release-status URL and headers of the tenant's guard."""
         config = self._tenant(binding)
         url = self.config['guardUrl']
         parsed = urlsplit(url)
@@ -107,8 +129,17 @@ class LocalRuntime:
         if len(token) < 32: raise ValueError('guard_token_rejected')
         headers = {'Host': config['host'], 'X-WebVue-Proxy-Token': token,
                    'X-WebVue-Tenant-Revision': str(binding['registryRevision'])}
-        with build_opener(NoRedirect()).open(Request(url.rstrip('/') + '/_webvue/release-status', headers=headers), timeout=timeout) as response:
+        return url.rstrip('/') + '/_webvue/release-status', headers
+
+    def _guard(self, binding):
+        url, headers = self._guard_request(binding)
+        with build_opener(NoRedirect()).open(Request(url, headers=headers), timeout=10) as response:
             return json.load(response)
+
+    def _guard_within(self, binding, deadline):
+        """Backup guard read: connect, request, status, headers and body all end by ``deadline``."""
+        url, headers = self._guard_request(binding)
+        return get_json(url, headers, deadline)
 
     def acknowledge(self, binding, route, maintenance=False):
         observed = self._guard(binding)
@@ -116,9 +147,11 @@ class LocalRuntime:
                 and observed.get('maintenance') is maintenance}
 
     def acknowledge_within(self, binding, route, maintenance, deadline):
-        """Backup guard acknowledgement on ``deadline``: the request gets only what is
-        left (at most the usual 10 s) and an answer obtained past it is refused."""
-        observed = self._guard(binding, deadline.remaining(10))
+        """Backup guard acknowledgement on ``deadline``: the whole HTTP exchange gets
+        only what is left (each socket operation at most the usual 10 s), so a
+        trickled or endless answer cannot outlive it, and an answer obtained past
+        it is refused."""
+        observed = self._guard_within(binding, deadline)
         deadline.remaining()
         return {**observed, 'ready': all(observed.get(k) == route[k] for k in ('routeRevision','fence','poolId','releaseId'))
                 and observed.get('maintenance') is maintenance}
@@ -155,15 +188,15 @@ class LocalRuntime:
             observed[job['container']]={'containerId':proof['containerId'],'running':proof['running']}
         return observed
 
-    def _inspect_cron(self,binding,pool,job,container_id=None):
+    def _inspect_cron(self,binding,pool,job,container_id=None,deadline=None):
         """One owned cron's identity; with ``container_id`` it must be that exact container.
 
         A same-name replacement passes image/config/role checks but is not the
         container whose state was recorded, so it refuses instead of being started
-        or stopped.
+        or stopped. With ``deadline`` every Docker inspect/exec gets only what is left.
         """
         expected=self._cron_expected(binding,pool,job)
-        proof=self.role_inspector(job['container'],expected,cron_databases=job['databases'],allow_stopped=True)
+        proof=self.role_inspector(job['container'],expected,cron_databases=job['databases'],allow_stopped=True,**_budget(deadline))
         if (proof.get('ready') is not True or proof.get('dbUser')!=expected['dbUser'] or type(proof.get('running')) is not bool
                 or not isinstance(proof.get('containerId'),str) or not CONTAINER_ID.fullmatch(proof['containerId'])):
             raise ReleaseConflict('cron_role_binding_unverified')
@@ -171,19 +204,24 @@ class LocalRuntime:
             raise ReleaseConflict('cron_container_replaced')
         return proof
 
-    def _set_cron(self,binding,pool,job,container_id,running,timeout):
-        """Start or stop exactly the recorded container id, then prove the result on it."""
-        if self._inspect_cron(binding,pool,job,container_id)['running'] is not running:
-            subprocess.run(['docker','start' if running else 'stop',container_id],capture_output=True,check=True,timeout=timeout)
-        if self._inspect_cron(binding,pool,job,container_id)['running'] is not running:
+    def _set_cron(self,binding,pool,job,container_id,running,deadline):
+        """Start or stop exactly the recorded container id, then prove the result on it.
+
+        Every inspect and the start/stop take what is left of ``deadline`` at their
+        own dispatch, so nothing starts once the budget is spent.
+        """
+        if self._inspect_cron(binding,pool,job,container_id,deadline)['running'] is not running:
+            _docker(['docker','start' if running else 'stop',container_id],deadline,30)
+        if self._inspect_cron(binding,pool,job,container_id,deadline)['running'] is not running:
             raise ReleaseConflict('tenant_cron_start_unverified' if running else 'old_cron_stop_unverified')
+        deadline.remaining()
 
     def _stop_owned_cron(self,binding,pool,previous,deadline):
         """Backup window: stop only the recorded owned crons, by their recorded ids,
         each Docker call capped by what is left of ``deadline``."""
         jobs=self._recorded_cron_jobs(binding,pool,previous)
         for container,job in jobs.items():
-            self._set_cron(binding,pool,job,previous[container]['containerId'],False,deadline.remaining(30))
+            self._set_cron(binding,pool,job,previous[container]['containerId'],False,deadline)
         deadline.remaining()
 
     def _recorded_cron_jobs(self,binding,pool,previous):
@@ -231,7 +269,7 @@ class LocalRuntime:
     def _fence_backup_writers(self, binding, route, previous, deadline):
         self._drain_backup_leases(binding, deadline)
         roles = self._writer_roles(binding)
-        self._bind_role(binding, route['poolId'])
+        self._bind_role(binding, route['poolId'], deadline=deadline)
         deadline.remaining()
         if self._role(binding, route['poolId']) not in roles:
             raise ReleaseConflict('runtime_writer_roles_incomplete')
@@ -402,7 +440,7 @@ class LocalRuntime:
         # Every recorded cron must still be the recorded container before any writer reopens.
         pool = route['poolId']
         for container, job in self._recorded_cron_jobs(binding, pool, previous['cron']).items():
-            self._inspect_cron(binding, pool, job, previous['cron'][container]['containerId'])
+            self._inspect_cron(binding, pool, job, previous['cron'][container]['containerId'], deadline)
         restored = [role for role in previous['roles'] if previous['grants'][role] is True]
         with self._window_connection(binding['database'], deadline) as connection:
             with connection.cursor() as cursor:
@@ -417,8 +455,8 @@ class LocalRuntime:
         for container, job in jobs.items():
             recorded = previous[container]
             if recorded['running']:
-                self._set_cron(binding, pool, job, recorded['containerId'], True, deadline.remaining(30))
-            elif self._inspect_cron(binding, pool, job, recorded['containerId'])['running'] is not False:
+                self._set_cron(binding, pool, job, recorded['containerId'], True, deadline)
+            elif self._inspect_cron(binding, pool, job, recorded['containerId'], deadline)['running'] is not False:
                 # A cron the operator had stopped stays stopped; a backup never starts one.
                 raise ReleaseConflict('previous_cron_state_unverified')
         deadline.remaining()
