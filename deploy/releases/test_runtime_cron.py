@@ -29,6 +29,30 @@ engine_module = importlib.import_module(PACKAGE + '.engine')
 manifest_module = importlib.import_module(PACKAGE + '.manifest')
 
 
+class BackupCursor:
+    def __init__(self, connection): self.connection = connection
+    def __enter__(self): return self
+    def __exit__(self, *args): pass
+    def execute(self, sql, args=()):
+        self.connection.statements.append((sql, args)); self.sql, self.args = sql, args
+    def fetchone(self):
+        if 'has_database_privilege' in self.sql: return (self.connection.grants.get(self.args[0]),)
+        if 'count(*)' in self.sql: return (self.connection.active,)
+        return (0,)
+
+
+class BackupConnection:
+    """Fake PostgreSQL seam: reports durable CONNECT grants and records statements."""
+    def __init__(self, grants):
+        self.grants, self.active, self.statements = dict(grants), 0, []
+    def cursor(self): return BackupCursor(self)
+    def __enter__(self): return self
+    def __exit__(self, *args): pass
+    def commit(self): pass
+    def rollback(self): pass
+    def close(self): pass
+
+
 class RuntimeCronTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
@@ -66,8 +90,8 @@ class RuntimeCronTests(unittest.TestCase):
 
     def docker(self, argv, **kwargs):
         self.events.append(('docker', tuple(argv)))
-        if argv[:2] == ['docker', 'stop']:
-            self.running[argv[-1]] = False
+        if argv[:2] in (['docker', 'stop'], ['docker', 'start']):
+            self.running[argv[-1]] = argv[1] == 'start'
         return type('Result', (), {'returncode': 0, 'stdout': '', 'stderr': ''})()
 
     def publish(self):
@@ -183,6 +207,144 @@ class RuntimeCronTests(unittest.TestCase):
         self.assertEqual(json.loads((self.state.routes / 'tenant_a.json').read_text())['poolId'], 'green')
         self.assertEqual(engine.reconcile(request, manifest)['stage'], 'verified')
         self.assertEqual(calls, ['migrate', 'retire', 'activate', 'activate'])
+
+
+    def backup_config(self, grants=None):
+        self.config['backup'] = {'image': 'img-blue', 'totalDeadlineSeconds': 60}
+        self.config['pools']['blue']['odooRuntime']['image'] = 'img-blue'
+        self.config['pools']['green']['odooRuntime']['image'] = 'img-green'
+        self.connection = BackupConnection(grants if grants is not None else {'role_blue': True, 'role_green': False})
+        self.runtime.connector = lambda _: self.connection
+        return self.old
+
+    def backup_previous(self, grants=None, cron=None, **patch):
+        return {'version': 1, 'tenantId': 'tenant_a', 'database': self.binding['database'],
+            'filestore': self.binding['filestore'], 'registryRevision': 1, 'releaseId': 'r1', 'poolId': 'blue',
+            'routeRevision': 1, 'fence': 1, 'image': 'img-blue', 'roles': ['role_blue', 'role_green'],
+            'grants': grants if grants is not None else {'role_blue': True, 'role_green': False},
+            'cron': cron if cron is not None else {'blue-cron': True}, **patch}
+
+    def window(self, binding, roles, connector, **kwargs):
+        self.events.append(('window', tuple(roles), binding.get('transactionScope')))
+        return {'fenced': True, 'fence': binding['fence'], 'activeTransactions': 0, 'oldConnections': 0,
+            'writerConnections': 0, 'deniedWriters': list(roles), 'transactionScope': 'tenant'}
+
+    def test_window_recheck_requires_every_declared_writer_to_be_denied(self):
+        self.state.maintenance('tenant_a', 1)
+        route = self.backup_config(grants={'role_blue': True, 'role_green': False})
+        with self.assertRaisesRegex(state_module.ReleaseConflict, 'writer_admission_open'):
+            self.runtime._recheck_window(self.binding)
+        self.connection.grants = {'role_blue': False, 'role_green': False}
+        proof = self.runtime._recheck_window(self.binding)
+        self.assertEqual(proof['deniedWriters'], ['role_blue', 'role_green'])
+        self.assertEqual(proof['writerConnections'], 0)
+        self.assertEqual(proof['fence'], route['fence'])
+
+    def test_generation_recheck_keeps_serving_role_admission_for_migration(self):
+        # fence_runtime still admits the serving generation; the shared recheck must
+        # stay usable there instead of demanding a full writer window.
+        self.state.maintenance('tenant_a', 1)
+        self.backup_config(grants={'role_blue': True, 'role_green': False})
+        self.assertTrue(self.runtime._recheck(self.binding)['gateClosed'])
+        with self.assertRaisesRegex(state_module.ReleaseConflict, 'writer_admission_open'):
+            self.runtime._recheck_window(self.binding)
+
+    def test_recheck_refuses_a_writer_session_of_any_declared_role(self):
+        self.state.maintenance('tenant_a', 1)
+        self.backup_config(grants={'role_blue': False, 'role_green': False})
+        self.connection.active = 1
+        with self.assertRaisesRegex(state_module.ReleaseConflict, 'writer_reconnect_observed'):
+            self.runtime._recheck_window(self.binding)
+
+    def test_backup_previous_state_records_grants_and_owned_cron(self):
+        route = self.backup_config()
+        previous = self.runtime.prepare_backup(self.binding, route)
+        self.assertEqual(previous['roles'], ['role_blue', 'role_green'])
+        self.assertEqual(previous['grants'], {'role_blue': True, 'role_green': False})
+        self.assertEqual(previous['cron'], {'blue-cron': True})
+        self.assertEqual((previous['fence'], previous['poolId'], previous['routeRevision']), (1, 'blue', 1))
+
+    def test_backup_previous_state_refuses_a_running_candidate_cron(self):
+        route = self.backup_config(); self.running['green-cron'] = True
+        with self.assertRaisesRegex(state_module.ReleaseConflict, 'candidate_cron_must_be_stopped'):
+            self.runtime.prepare_backup(self.binding, route)
+
+    def test_backup_window_denies_every_declared_writer_before_stopping_owned_cron(self):
+        self.state.maintenance('tenant_a', 1)
+        route = self.backup_config()
+        with patch.object(runtime_module, 'fence_writers', self.window), \
+                patch.object(runtime_module.subprocess, 'run', self.docker):
+            proof = self.runtime._fence_backup_writers(self.binding, route)
+        self.assertEqual(proof['deniedWriters'], ['role_blue', 'role_green'])
+        self.assertEqual(proof['writerConnections'], 0)
+        window = next(event for event in self.events if event[0] == 'window')
+        self.assertEqual(window[1], ('role_blue', 'role_green'))
+        self.assertEqual(window[2], 'tenant')
+        stops = [event for event in self.events if event[0] == 'docker' and event[1][:2] == ('docker', 'stop')]
+        self.assertEqual(len(stops), 1)
+        self.assertIn('blue-cron', stops[0][1])
+        self.assertFalse(any('green-cron' in event[1] for event in stops))
+
+    def test_resume_restores_only_previously_granted_writers_and_running_cron(self):
+        self.state.maintenance('tenant_a', 1)
+        route = self.backup_config(grants={'role_blue': False, 'role_green': False})
+        self.running['blue-cron'] = False
+        with patch.object(runtime_module.subprocess, 'run', self.docker):
+            result = self.runtime.resume_backup(self.binding, route, self.backup_previous())
+        self.assertEqual(result['restoredWriters'], ['role_blue'])
+        sql = '\n'.join(statement for statement, _ in self.connection.statements)
+        self.assertIn('GRANT CONNECT ON DATABASE "webvue_scratch_cron_a" TO "role_blue"', sql)
+        self.assertNotIn('role_green', sql)
+        self.assertTrue(self.running['blue-cron'])
+
+    def test_stopped_previous_cron_is_never_started_by_a_backup(self):
+        self.state.maintenance('tenant_a', 1)
+        route = self.backup_config(grants={'role_blue': False, 'role_green': False})
+        self.running['blue-cron'] = False
+        with patch.object(runtime_module.subprocess, 'run', self.docker):
+            result = self.runtime.resume_backup(self.binding, route, self.backup_previous(cron={'blue-cron': False}))
+        self.assertEqual(result['cron'], {'blue-cron': False})
+        self.assertFalse(self.running['blue-cron'])
+        self.assertFalse([event for event in self.events if event[0] == 'docker'])
+
+    def test_resume_refuses_a_replaced_or_unverified_previous_cron(self):
+        self.state.maintenance('tenant_a', 1)
+        route = self.backup_config(grants={'role_blue': False, 'role_green': False})
+        self.config['pools']['blue']['cronRuntimes'][0]['container'] = 'blue-cron-v2'
+        with self.assertRaisesRegex(state_module.ReleaseConflict, 'cron_identity_changed'):
+            self.runtime.resume_backup(self.binding, route, self.backup_previous())
+
+    def test_resume_refuses_a_previous_state_from_another_route(self):
+        self.state.maintenance('tenant_a', 1)
+        route = self.backup_config()
+        for patch_state in ({'fence': 2}, {'poolId': 'green'}, {'roles': ['role_blue']}, {'grants': {'role_blue': True}}):
+            with self.subTest(patch=patch_state), self.assertRaisesRegex(state_module.ReleaseConflict, 'backup_previous_state_mismatch'):
+                self.runtime.resume_backup(self.binding, route, self.backup_previous(**patch_state))
+
+    def test_partial_resume_failure_denies_writers_and_stops_owned_cron(self):
+        route = self.backup_config(); self.running['blue-cron'] = True
+        with patch.object(runtime_module, 'fence_writers', self.window), \
+                patch.object(runtime_module.subprocess, 'run', self.docker):
+            result = self.runtime.fail_closed_backup(self.binding, route)
+        self.assertEqual(result['deniedWriters'], ['role_blue', 'role_green'])
+        self.assertFalse(self.running['blue-cron'])
+
+    def test_reconcile_refuses_when_a_previously_denied_writer_was_reopened(self):
+        self.state.maintenance('tenant_a', 1)
+        route = self.backup_config(grants={'role_blue': True, 'role_green': True})
+        with self.assertRaisesRegex(state_module.ReleaseConflict, 'backup_fence_lost'):
+            self.runtime.reconcile_backup(self.binding, route, self.backup_previous())
+
+    def test_reconcile_restores_previous_state_without_capturing(self):
+        self.state.maintenance('tenant_a', 1)
+        route = self.backup_config(grants={'role_blue': False, 'role_green': False})
+        self.running['blue-cron'] = False
+        with patch.object(runtime_module.subprocess, 'run', self.docker):
+            result = self.runtime.reconcile_backup(self.binding, route, self.backup_previous())
+        self.assertEqual(result['restoredWriters'], ['role_blue'])
+        sql = '\n'.join(statement for statement, _ in self.connection.statements)
+        self.assertIn('TO "role_blue"', sql)
+        self.assertNotIn('role_green', sql)
 
 
 if __name__ == '__main__':

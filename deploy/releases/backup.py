@@ -6,6 +6,7 @@ from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import tarfile
+import time
 from .manifest import IMAGE
 from .postgres import identifier
 
@@ -28,10 +29,10 @@ def _tool(value):
     return str(path)
 
 
-def _run(argv, config, *, input=None, read_only=False):
+def _run(argv, config, *, input=None, read_only=False, timeout=None):
     """No shell, bounded timeout, no raw command output in public errors."""
     try:
-        timeout = config.get('timeoutSeconds', 120)
+        timeout = config.get('timeoutSeconds', 120) if timeout is None else timeout
         if not isinstance(timeout, (int, float)) or not 0 < timeout <= 3600: raise ValueError()
         env = {key: value for key, value in os.environ.items() if not key.startswith('PG')}
         pg_env = config.get('pgEnv', {})
@@ -49,6 +50,19 @@ def _run(argv, config, *, input=None, read_only=False):
         raise ValueError('release_process_failed') from None
 
 
+def _budget(config):
+    """One monotonic budget for the whole window; each child may take less, never more."""
+    total = config.get('totalDeadlineSeconds', 600)
+    if not isinstance(total, (int, float)) or not 0 < total <= 3600: raise ValueError('backup_deadline_rejected')
+    return time.monotonic() + total
+
+
+def _remaining(deadline, per_child):
+    left = deadline - time.monotonic()
+    if left <= 0: raise ValueError('backup_deadline_exceeded')
+    return min(left, per_child)
+
+
 def _sha(path):
     digest = hashlib.sha256()
     with path.open('rb') as source:
@@ -56,11 +70,16 @@ def _sha(path):
     return digest.hexdigest()
 
 
-def _quiescent(binding, proof):
+def _quiescent(binding, proof, *, writer_window=False):
     if (not isinstance(proof, dict) or any(proof.get(key) != binding.get(key) for key in ('tenantId', 'database', 'fence'))
             or type(binding.get('fence')) is not int or binding['fence'] < 1 or proof.get('transactionScope','tenant') != 'tenant' or proof.get('gateClosed') is not True
             or any(type(proof.get(key)) is not int or proof[key] != 0 for key in ('admittedWriters', 'activeTransactions', 'oldConnections'))):
         raise ValueError('tenant_not_quiescent')
+    if writer_window:
+        denied = proof.get('deniedWriters')
+        if (not isinstance(denied, list) or not denied or len(set(denied)) != len(denied)
+                or any(not isinstance(role, str) for role in denied) or proof.get('writerConnections') != 0):
+            raise ValueError('writer_window_unproven')
 
 
 def _store_entries(store):
@@ -77,13 +96,18 @@ def _store_entries(store):
 def capture_tenant(binding, quiescence, config):
     """Capture after the caller's durable gate/drain evidence; no global stop.
 
-    Optional ``recheck(binding)`` must return fresh same-fence quiescence before
-    and after copying. Consistency remains conditional on that durable gate.
+    In ``writerWindow`` mode the proof must carry the denied writer set and a
+    callable ``recheck`` must return fresh same-fence evidence before and after
+    copying, so consistency rests on the closed window rather than on one dict a
+    caller supplies. One monotonic budget bounds dump, tar, rechecks and hashing.
     """
     if config.get('mode') != 'local': raise ValueError('unsupported_runtime_mode')
     identifier(binding.get('database'))
-    _quiescent(binding, quiescence)
-    if config.get('recheck'): _quiescent(binding, config['recheck'](binding))
+    window = config.get('writerWindow') is True
+    _quiescent(binding, quiescence, writer_window=window)
+    recheck = config.get('recheck')
+    if window and not callable(recheck): raise ValueError('backup_recheck_required')
+    if recheck: _quiescent(binding, recheck(binding), writer_window=window)
     image = config.get('image')
     if not isinstance(image, str) or not IMAGE.fullmatch(image): raise ValueError('backup_image_rejected')
     store = _path(config['filestorePath'], exists=True, directory=True)
@@ -92,20 +116,27 @@ def capture_tenant(binding, quiescence, config):
         raise ValueError('backup_path_rejected')
     entries = _store_entries(store)
     tool = _tool(config['pgDump'])
+    per_child = config.get('timeoutSeconds', 120)
+    if not isinstance(per_child, (int, float)) or not 0 < per_child <= 3600: raise ValueError('backup_timeout_rejected')
+    deadline = _budget(config)
     output.mkdir(mode=0o700, parents=True, exist_ok=False)
     dump, archive = output / 'database.dump', output / 'filestore.tar'
     _run([tool, '--format=custom', '--serializable-deferrable', '--no-owner', '--file', str(dump),
-          '--dbname', binding['database']], config)
+          '--dbname', binding['database']], config, timeout=_remaining(deadline, per_child))
     if not dump.is_file() or dump.is_symlink() or not dump.stat().st_size:
         raise ValueError('backup_dump_missing')
+    _remaining(deadline, per_child)
     with tarfile.open(archive, 'w', dereference=True) as target:
         for path in entries:
             if path.is_symlink(): raise ValueError('filestore_entry_rejected')
             target.add(path, arcname=path.relative_to(store).as_posix(), recursive=False)
-    if config.get('recheck'): _quiescent(binding, config['recheck'](binding))
+    _remaining(deadline, per_child)
+    if recheck: _quiescent(binding, recheck(binding), writer_window=window)
+    hashes = {'database.dump': _sha(dump), 'filestore.tar': _sha(archive)}
+    _remaining(deadline, per_child)
     receipt = {'version': 1, 'tenantId': binding['tenantId'], 'database': binding['database'],
                'filestore': binding.get('filestore'), 'fence': binding['fence'], 'image': image,
-               'hashes': {'database.dump': _sha(dump), 'filestore.tar': _sha(archive)},
+               'hashes': hashes,
                'consistency': 'quiescent_gate', 'restoreVerified': False}
     receipt_path = output / 'receipt.json'
     with receipt_path.open('x', encoding='utf-8') as target:
