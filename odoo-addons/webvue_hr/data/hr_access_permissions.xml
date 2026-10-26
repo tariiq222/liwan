@@ -200,14 +200,6 @@
         <field name="group_xmlid">webvue_hr.group_cap_hr_payroll_audit_read</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
-    <record id="permission_hr_payroll_audit_read" model="webvue.access.permission">
-        <field name="key">hr.payroll.audit.read</field><field name="domain">hr</field>
-        <field name="resource">payroll</field><field name="action">audit_read</field>
-        <field name="name_ar">قراءة سجل تدقيق الرواتب</field><field name="name_en">Read the payroll audit trail</field>
-        <field name="description_ar">قراءة من غيّر إعدادات الرواتب وسجلاتها ومتى</field><field name="description_en">Read who changed payroll settings and records, and when</field>
-        <field name="group_xmlid">webvue_hr.group_cap_hr_payroll_audit_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
-    </record>
     <record id="permission_hr_payroll_finance_manage" model="webvue.access.permission">
         <field name="key">hr.payroll.finance.manage</field><field name="domain">hr</field>
         <field name="resource">payroll_finance</field><field name="action">manage</field>
