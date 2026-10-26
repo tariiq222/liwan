@@ -47,6 +47,10 @@ export const sharedReconfigureJobSchema = z.strictObject({
       features: z.record(z.string(), z.union([z.boolean(), z.number().int().nonnegative(), z.null()])),
       digest, compiler_version: z.union([z.string(), z.number().int()]) }),
     branches: z.strictObject({ apply: z.array(z.strictObject({ branch_id: z.uuid(), name: z.string().min(1).max(120) })), archive: z.array(z.uuid()) }),
+    // Commercial subscription expiry written by the control plane; the classification
+    // cutoff `valid_until` stays untouched. Optional so older jobs still parse.
+    commercial_valid_until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    commercial_valid_until_revision: z.number().int().nonnegative().optional(),
   }),
   restore: z.boolean().optional(), restoreId: z.uuid().optional(),
 })

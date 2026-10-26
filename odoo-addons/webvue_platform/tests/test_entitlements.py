@@ -179,6 +179,22 @@ class TestEntitlements(TransactionCase):
             self.service.require(key)
         self.assertEqual(error.exception.code, 'tenant_read_only')
 
+    def test_commercial_expiry_is_separate_from_the_classification_cutoff(self):
+        if self.record.commercial_mode == 'non_saas':
+            with self.assertRaises(ValidationError):
+                self._operator().write({'commercial_valid_until': datetime.now(timezone.utc).date() + timedelta(days=1)})
+            self.assertFalse(self.record.commercial_valid_until)
+            return
+        future = datetime.now(timezone.utc).date() + timedelta(days=3)
+        self._operator().write({'commercial_valid_until': future})
+        self.assertEqual(self.record.valid_until, False)
+        self.assertEqual(self.service._webvue_effective_state(), 'active')
+        self._operator().write({'commercial_valid_until': datetime.now(timezone.utc).date() - timedelta(days=1)})
+        self.assertEqual(self.service._webvue_effective_state(), 'expired')
+        self.service.require_read(self._readable_key())
+        with self.assertRaises(WebVueAccessRule):
+            self.service.require(self._readable_key())
+
     def test_xmlid_is_repaired_when_profile_row_survives(self):
         self.env['ir.model.data'].search([
             ('module', '=', 'webvue_platform'), ('name', '=', 'tenant_profile'),

@@ -58,6 +58,9 @@ const ROUTES: Route[] = [
   { method: 'GET', pattern: /^subscription$/ },
   { method: 'GET', pattern: /^catalog$/ },
   { method: 'POST', pattern: /^quotes$/ },
+  { method: 'POST', pattern: /^trial$/ },
+  { method: 'POST', pattern: /^trial\/convert$/ },
+  { method: 'POST', pattern: /^preview$/ },
   { method: 'POST', pattern: /^orders$/ },
   { method: 'POST', pattern: /^orders\/[A-Za-z0-9_-]{1,128}\/payment-attempts$/ },
   { method: 'GET', pattern: /^invoices$/ },
@@ -69,7 +72,8 @@ const ROUTES: Route[] = [
 ]
 /** Capability each route needs (authoritative check also repeats in the control plane). */
 const NEEDS: Array<[RegExp, string, CustomerCommercialCapability]> = [
-  [/^quotes$|^orders|^auto-renew$/, 'POST', 'subscription.manage'],
+  [/^quotes$|^orders|^auto-renew$|^trial(\/convert)?$/, 'POST', 'subscription.manage'],
+  [/^preview$/, 'POST', 'subscription.read'],
   [/^branch-quotes$/, 'POST', 'branches.manage'],
   [/^invoices/, 'GET', 'billing.read'],
   [/./, 'GET', 'subscription.read'],
@@ -201,7 +205,12 @@ export async function forwardCustomerRequest(event: H3Event): Promise<unknown> {
     return response._data
   } catch (cause: any) {
     const status = Number(cause?.statusCode ?? cause?.response?.status)
-    if (status >= 400 && status < 500) throw createError({ statusCode: status, data: cause.data ?? { code: 'commercial_request_failed', message: 'Request failed' } })
+    if (status >= 400 && status < 500) {
+      // Preserve the control plane's refusal code: the customer UI must explain an
+      // unavailable tenant upgrade instead of calling every 409 a subscription conflict.
+      const data = cause?.data ?? cause?.response?._data
+      throw createError({ statusCode: status, data: data ?? { code: 'commercial_request_failed', message: 'Request failed' } })
+    }
     fail(503, 'commercial_unavailable', 'Subscription service is temporarily unavailable')
   }
 }

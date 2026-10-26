@@ -27,6 +27,7 @@ HOST_RE = re.compile(r'[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?')
 SENTINEL = 'WEBVUE_SUBSCRIPTION:'
 SCRIPT_ERRORS = frozenset({
     'stale_target', 'observed_mismatch', 'profile_invalid', 'target_mismatch',
+    'tenant_upgrade_required', 'commercial_expiry_revision_stale',
     'branch_binding_invalid', 'branch_binding_conflict', 'branch_not_found',
     'feature_not_included', 'subscription_script_failed',
 })
@@ -80,6 +81,13 @@ def validate_reconfigure(request):
     if login is not None and (not isinstance(login, str) or not 1 <= len(login) <= 254
                               or any(ord(c) < 32 for c in login)):
         raise EffectError('input_invalid')
+    commercial = request.get('commercial_valid_until')
+    if commercial is not None and (not isinstance(commercial, str)
+                                   or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', commercial)):
+        raise EffectError('commercial_valid_until_invalid')
+    revision = request.get('commercial_valid_until_revision')
+    if revision is not None and (type(revision) is not int or revision < 0):
+        raise EffectError('commercial_valid_until_invalid')
     branches = request['branches']
     if not isinstance(branches, dict) or set(branches) != {'apply', 'archive'}:
         raise EffectError('branches_invalid')
@@ -112,6 +120,18 @@ class Refusal(Exception):
 def refuse(code):
     raise Refusal(code)
 
+def _commercial_expiry_vals(values, profile, refuse):
+    if 'commercial_valid_until' not in values:
+        return {}
+    current_revision = int(getattr(profile, 'commercial_valid_until_revision', 0) or 0)
+    wanted_revision = int(values.get('commercial_valid_until_revision', current_revision))
+    if wanted_revision < current_revision:
+        refuse('commercial_expiry_revision_stale')
+    expiry = values['commercial_valid_until']
+    return {'commercial_valid_until': fields.Date.to_date(expiry) if expiry else False,
+            'commercial_valid_until_revision': wanted_revision}
+
+
 def collect(profile):
     root = profile.root_company_id
     feats = profile.features
@@ -136,6 +156,10 @@ def collect(profile):
     return {'database': env.cr.dbname, 'root_company_id': root.id, 'commercial_revision_id': profile.commercial_revision_id or None,
             'commercial_digest': profile.commercial_digest or None,
             'commercial_applied_at': str(profile.commercial_applied_at) if profile.commercial_applied_at else None,
+            'commercial_valid_until': str(profile.commercial_valid_until) if getattr(profile, 'commercial_valid_until', None) else None,
+            'commercial_valid_until_revision': int(getattr(profile, 'commercial_valid_until_revision', 0) or 0),
+            'commercial_expiry_supported': (hasattr(profile, 'commercial_valid_until')
+                                            and hasattr(profile, 'commercial_valid_until_revision')),
             'features': feats, 'modules': modules, 'branches': branches, 'usage': usage, 'limit_gates': gates}
 
 def read_profile():
@@ -176,14 +200,15 @@ try:
         refuse('observed_mismatch')
     operator = profile.with_context(**{OPERATOR_CONTEXT: True})
     not_granted = None
+    expiry_vals = _commercial_expiry_vals(values, profile, refuse)
     if current != values['target_revision_id']:
         roles_before = env['webvue.entitlement.service']._webvue_entitled_admin_roles()
         # Every application stays installed; keys the target omits close (booleans
         # false, limits 0). Odoo still refuses a target without its platform keys.
         features = env['webvue.entitlement.service']._webvue_close_unlisted_features(values['features'])
-        operator.write({'features': features, 'commercial_revision_id': values['target_revision_id'],
-                        'commercial_digest': values['digest'],
-                        'commercial_applied_at': fields.Datetime.now()})
+        write_vals = {'features': features, 'commercial_revision_id': values['target_revision_id'],
+                      'commercial_digest': values['digest'],
+                      'commercial_applied_at': fields.Datetime.now()}
         # Roles the policy newly opened go to the enrolment administrator only.
         granted = operator._webvue_grant_opened_admin_roles(values['admin_login'], roles_before)
         opened = [k for k in env['webvue.entitlement.service']._webvue_entitled_admin_roles() if k not in set(roles_before or ())]
@@ -196,6 +221,13 @@ try:
                 not_granted = 'admin_not_found'
             else:
                 not_granted = 'roles_missing'
+    else:
+        write_vals = {}
+    write_vals.update(expiry_vals)
+    if write_vals:
+        # Reusing the applied revision (a trial extension or a paid renewal) still moves the
+        # independently versioned expiry; one write either way.
+        operator.write(write_vals)
     # Archive first so a swap never trips branches.extra_limit; data is kept.
     for uid in values['archive']:
         branch = env['webvue.tenant.branch'].search([('branch_uid', '=', uid)])
@@ -236,6 +268,10 @@ def build_apply_script(request):
               'target_revision_id': request['target_revision_id'], 'digest': ent['digest'],
               'features': ent['features'], 'apply': br['apply'], 'archive': br['archive'],
               'admin_login': request.get('admin_login')}
+    if 'commercial_valid_until' in request:
+        values['commercial_valid_until'] = request['commercial_valid_until']
+    if 'commercial_valid_until_revision' in request:
+        values['commercial_valid_until_revision'] = request['commercial_valid_until_revision']
     return _prefix(values) + _COMMON + _APPLY_BODY + _TAIL
 
 
@@ -257,7 +293,7 @@ def parse_output(stdout):
 
 def validate_observation(value):
     keys = {'database', 'root_company_id', 'commercial_revision_id', 'commercial_digest', 'commercial_applied_at',
-            'features', 'modules', 'branches', 'usage', 'limit_gates'}
+            'commercial_valid_until', 'commercial_valid_until_revision', 'commercial_expiry_supported', 'features', 'modules', 'branches', 'usage', 'limit_gates'}
     if set(value) != keys:
         raise EffectError('observation_invalid')
     odoo_effect.validate_database(value['database'])
@@ -267,6 +303,13 @@ def validate_observation(value):
     for field in ('commercial_revision_id', 'commercial_digest', 'commercial_applied_at'):
         if value[field] is not None and not isinstance(value[field], str):
             raise EffectError('observation_invalid')
+    if value['commercial_valid_until'] is not None and (not isinstance(value['commercial_valid_until'], str)
+                                                       or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', value['commercial_valid_until'])):
+        raise EffectError('observation_invalid')
+    if type(value['commercial_expiry_supported']) is not bool:
+        raise EffectError('observation_invalid')
+    if type(value['commercial_valid_until_revision']) is not int or value['commercial_valid_until_revision'] < 0:
+        raise EffectError('observation_invalid')
     if not isinstance(value['modules'], list) or not all(isinstance(m, str) for m in value['modules']):
         raise EffectError('observation_invalid')
     usage, gates = value['usage'], value['limit_gates']
@@ -338,6 +381,10 @@ def verify(request, observed):
     ent, br = request['entitlement'], request['branches']
     if observed['commercial_revision_id'] != request['target_revision_id'] or observed['commercial_digest'] != ent['digest']:
         return False
+    if 'commercial_valid_until' in request and observed.get('commercial_valid_until') != request['commercial_valid_until']:
+        return False
+    if 'commercial_valid_until_revision' in request and observed.get('commercial_valid_until_revision') != request['commercial_valid_until_revision']:
+        return False
     if not all(k in observed['features'] and type(observed['features'][k]) is type(v)
                and observed['features'][k] == v for k, v in ent['features'].items()):
         return False
@@ -402,7 +449,8 @@ class SubscriptionEffect:
     def receipt(self, request, observed, installed, not_granted=None):
         by_id = {b['branch_id']: b for b in observed['branches']}
         extra = {'roles_not_granted': True, 'roles_not_granted_reason': not_granted} if not_granted else {}
-        return {**extra, 'order_id': request['order_id'], 'database': observed['database'],
+        return {**extra, 'commercial_expiry_supported': observed.get('commercial_expiry_supported', False),
+                'order_id': request['order_id'], 'database': observed['database'],
                 'tenant_id': observed['database'], 'root_company_id': observed['root_company_id'],
                 'target_revision_id': request['target_revision_id'],
                 'observed_entitlement_digest': observed['commercial_digest'],
@@ -419,6 +467,15 @@ class SubscriptionEffect:
         validate_reconfigure(request)
         database, target = request['tenant']['database'], request['target_revision_id']
         observed = self._observe(database)
+        if ('commercial_valid_until_revision' in request
+                and request['commercial_valid_until_revision'] < observed['commercial_valid_until_revision']):
+            raise EffectError('commercial_expiry_revision_stale')
+        if not observed.get('commercial_expiry_supported'):
+            if request.get('commercial_valid_until') is not None:
+                raise EffectError('tenant_upgrade_required')
+            # Clearing an expiry that cannot exist on an old tenant is a no-op, not a failed order.
+            request = {key: value for key, value in request.items()
+                       if key not in ('commercial_valid_until', 'commercial_valid_until_revision')}
         current = observed['commercial_revision_id']
         if current not in (None, request['previous_revision_id'], target):
             raise EffectError('stale_target')

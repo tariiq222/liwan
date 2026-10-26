@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import { lifecycleBadge } from '@/utils/vendorCommercial'
 import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
-import { commercialReturnTo, isStatusFilter, keyLabel, limitLabel, STATUS_FILTERS, type PlanView } from '@/utils/vendorCommercial'
+import { commercialReturnTo, isStatusFilter, STATUS_FILTERS, type PlanView } from '@/utils/vendorCommercial'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ capability: 'vendor.read' })
 const { t, te, locale } = useI18n(); const route = useRoute(); const router = useRouter(); const { can } = useVendorContext(); const hydrated = useHydrated(); const api = useVendorCommercial()
@@ -44,7 +44,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
   <template #name-cell="{ row: { original: p } }"><NuxtLink :to="path(p)" data-testid="plan-row" class="font-medium hover:underline">{{ p.name }}</NuxtLink> <SharedRecordNumber :value="`v${p.version}`" /></template>
   <template #status-cell="{ row: { original: p } }"><SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(p).tone" :label="lifecycleBadge(p).labelKey ? t(lifecycleBadge(p).labelKey) : p.status" /></template>
   <template #prices-cell="{ row: { original: p } }"><ul><li v-for="pr in p.prices" :key="`${pr.cadence.unit}${pr.cadence.count}`">{{ cadenceLabel(pr.cadence, t) }}: <bdi dir="ltr">{{ formatCommercialMoney(pr.amount, locale) }}</bdi></li></ul></template>
-  <template #limits-cell="{ row: { original: p } }"><ul><li v-for="(v,k) in p.platform_limits" :key="k">{{ keyLabel(String(k),t,te) }}: {{ limitLabel(v,t) }}</li></ul></template>
+  <template #limits-cell="{ row: { original: p } }"><ul><li>{{ t('vendor.pricing.fields.includedUsers') }}: {{ p.included_users }}</li><li>{{ t('vendor.pricing.fields.includedStorage') }}: {{ p.included_storage_mb }}</li></ul></template>
   <template #bundles-cell="{ row: { original: p } }">{{ t('vendor.plans.bundlesCount', {included:p.included_bundle_revision_ids.length, optional:p.optional_bundle_revision_ids.length}) }}</template>
   <template #customers-cell="{ row: { original: p } }">{{ t('vendor.pricing.customers', {count:p.customer_count}, p.customer_count) }}</template>
   <template #mobile-row="{ row: p }"><div class="flex flex-wrap items-start justify-between gap-4">
@@ -52,7 +52,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
             <SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(p).tone" :label="t(lifecycleBadge(p).labelKey)" />
           </div>
           <ul class="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm tabular-nums"><li v-for="pr in p.prices" :key="`${pr.cadence.unit}${pr.cadence.count}`">{{ cadenceLabel(pr.cadence, t) }}: <span class="font-medium">{{ formatCommercialMoney(pr.amount, locale) }}</span></li></ul>
-          <ul class="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted"><li v-for="(v, k) in p.platform_limits" :key="k">{{ keyLabel(String(k), t, te) }}: {{ limitLabel(v, t) }}</li><li>{{ t('vendor.plans.bundlesCount', { included: p.included_bundle_revision_ids.length, optional: p.optional_bundle_revision_ids.length }) }}</li></ul>
+          <ul class="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted"><li>{{ t('vendor.pricing.fields.includedUsers') }}: {{ p.included_users }}</li><li>{{ t('vendor.pricing.fields.includedStorage') }}: {{ p.included_storage_mb }}</li><li>{{ t('vendor.plans.bundlesCount', { included: p.included_bundle_revision_ids.length, optional: p.optional_bundle_revision_ids.length }) }}</li></ul>
           <div class="mt-4 flex flex-wrap items-center justify-between gap-2"><p class="text-sm text-muted">{{ t('vendor.pricing.customers', { count: p.customer_count }, p.customer_count) }}</p><UButton :to="path(p)" color="neutral" variant="link">{{ t(`vendor.pricing.next.${nextKey(p)}`) }}</UButton></div></template>
 </SharedDataTable>
 </SharedListPage>

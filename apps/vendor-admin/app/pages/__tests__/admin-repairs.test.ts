@@ -23,7 +23,7 @@ const subscription = { id: 'sub1', applied: null, target: null, pending_order: o
 const customer = { id: 'customer1', name: 'Customer', subscription, tenant_id: null }
 const money = { minor: 12345, exponent: 2, currency: 'SAR' }
 const invoice = { id: 'invoice1', order_id: 'order/1', customer_id: 'customer1', status: 'issued', kind: 'initial', total: money, subtotal: money, tax: money, period_start: '2026-10-01', period_end: '2026-11-01', lines: [] }
-const plan = { id: 'plan2', name: 'New plan', included_bundle_revision_ids: ['bundle2'], prices: [{ cadence: { unit: 'month', count: 1 }, amount: money }] }
+const plan = { id: 'plan2', name: 'New plan', included_bundle_revision_ids: ['bundle2'], prices: [{ cadence: { unit: 'month', count: 1 }, amount: money }], included_users: 3, included_storage_mb: 5120 }
 const attempt = { id: 'attempt1', order_id: order.id, invoice_id: invoice.id, status: 'pending', amount: money, created_at: '2026-10-04T12:34:00Z', provider_ref: 'private-provider-reference', redirect_url: 'https://private.example/pay' }
 
 async function page(name: string, options: { path?: string; tab?: string; tenantId?: string; query?: Record<string, string>; grants?: string[]; subscription?: unknown; orderId?: string | null; attempts?: unknown[]; attemptsError?: unknown; attemptsLoading?: boolean; hydrated?: boolean; tenantError?: unknown } = {}) {
@@ -171,7 +171,7 @@ describe('customer detail repairs', () => {
     expect(next.api.changeQuote).not.toHaveBeenCalled()
     next.state.cadence.value = 'month:1'
     await next.state.recompute()
-    expect(next.api.changeQuote).toHaveBeenCalledWith({ customer_id: 'customer1', kind: 'new', subscription_id: 'sub1', expected_subscription_revision: 1, plan_revision_id: 'plan2', bundle_revision_ids: ['bundle2'], cadence: { unit: 'month', count: 1 }, requested_extra_branches: 0 })
+    expect(next.api.changeQuote).toHaveBeenCalledWith({ customer_id: 'customer1', kind: 'new', subscription_id: 'sub1', expected_subscription_revision: 1, plan_revision_id: 'plan2', bundle_revision_ids: ['bundle2'], cadence: { unit: 'month', count: 1 }, requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 5120 })
     await next.state.place()
     expect(next.api.placeOrder).toHaveBeenCalledWith(expect.objectContaining({ quote_id: 'new-quote', expected_subscription_revision: 1, idempotency_key: expect.any(String) }))
   })
@@ -190,8 +190,8 @@ describe('customer detail repairs', () => {
     expect(p.state.quote.value.id).toBe('fresh-quote')
   })
   it('preserves applied subscription change requests', async () => {
-    const applied = { plan_revision_id: 'plan1', bundle_revision_ids: ['bundle1'], cadence: { unit: 'year', count: 1 }, extra_branch_count: 2 }
-    expect(subscriptions.customerQuoteBody('customer1', { ...subscription, applied } as never, { planRevisionId: 'plan2', extraBranches: 3 })).toEqual({ customer_id: 'customer1', kind: 'change', subscription_id: 'sub1', expected_subscription_revision: 1, plan_revision_id: 'plan2', bundle_revision_ids: ['bundle1'], cadence: { unit: 'year', count: 1 }, requested_extra_branches: 3 })
+    const applied = { plan_revision_id: 'plan1', bundle_revision_ids: ['bundle1'], cadence: { unit: 'year', count: 1 }, extra_branch_count: 2, entitlement: { features: { 'users.limit': 3, 'storage.limit_mb': 5120 } } }
+    expect(subscriptions.customerQuoteBody('customer1', { ...subscription, applied } as never, { planRevisionId: 'plan2', extraBranches: 3 })).toEqual({ customer_id: 'customer1', kind: 'change', subscription_id: 'sub1', expected_subscription_revision: 1, plan_revision_id: 'plan2', bundle_revision_ids: ['bundle1'], cadence: { unit: 'year', count: 1 }, requested_extra_branches: 3, requested_users: 3, requested_storage_mb: 5120 })
   })
   it('hides financial actions and invoice requests without grants', async () => {
     const p = await page('customers/[id].vue', { grants: ['vendor.read'], tab: 'invoices' })

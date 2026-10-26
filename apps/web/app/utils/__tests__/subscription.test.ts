@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Invoice } from '@webvue/commercial-contracts'
-import { formatSubscriptionMoney, subscriptionInvoiceView } from '../subscription'
+import { formatSubscriptionMoney, refusalCode, refusalKey, sameQuoteEconomics, subscriptionInvoiceView } from '../subscription'
 
 const money = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
 const t = (key: string) => `t:${key}`
@@ -21,9 +21,53 @@ describe('subscriptionInvoiceView', () => {
     expect(view.lines[1]!.amount).toBe(formatSubscriptionMoney(money(-50), 'ar'))
   })
 
+  it('labels metered invoice lines from the locale, never the server description', () => {
+    const metered = { ...invoice, lines: [
+      ...invoice.lines,
+      { key: 'users', kind: 'users', timing: 'now', description: 'Users', quantity: 7, unit_amount: money(2500), amount: money(17500), period_start: '2026-10-01', period_end: '2026-10-31', source_revision_id: 'r' },
+      { key: 'storage', kind: 'storage', timing: 'now', description: 'Storage', quantity: 15, unit_amount: money(500), amount: money(7500), period_start: '2026-10-01', period_end: '2026-10-31', source_revision_id: 'r' },
+    ] } as unknown as Invoice
+    const view = subscriptionInvoiceView(metered, t, 'ar')
+    expect(view.lines.find(l => l.id === 'users')!.description).toBe('t:subscription.invoices.users')
+    expect(view.lines.find(l => l.id === 'storage')!.description).toBe('t:subscription.invoices.storage')
+  })
+
   it('ends with subtotal, tax and total in that order', () => {
     expect(subscriptionInvoiceView(invoice, t, 'ar').totals.map(row => row.label)).toEqual([
       't:subscription.invoices.subtotal', 't:subscription.invoices.tax', 't:subscription.invoices.total',
     ])
+  })
+})
+
+describe('refusalCode', () => {
+  it('reads the body the BFF createError produces, at either nesting level', () => {
+    expect(refusalCode({ data: { data: { code: 'tenant_upgrade_required' } } })).toBe('tenant_upgrade_required')
+    expect(refusalCode({ data: { code: 'tenant_binding_unavailable' } })).toBe('tenant_binding_unavailable')
+    expect(refusalCode(new Error('x'))).toBeNull()
+    expect(refusalKey(refusalCode({ data: { data: { code: 'tenant_upgrade_required' } } }))).toBe('subscription.trial.upgradeRequired')
+  })
+})
+
+describe('refusalKey', () => {
+  it('explains an unupgraded tenant and an unbound push, and ignores unrelated codes', () => {
+    expect(refusalKey('tenant_upgrade_required')).toBe('subscription.trial.upgradeRequired')
+    expect(refusalKey('tenant_binding_unavailable')).toBe('subscription.trial.notConfigured')
+    expect(refusalKey('revision_conflict')).toBeNull()
+  })
+})
+
+describe('sameQuoteEconomics', () => {
+  const base: Record<string, unknown> = {
+    id: 'q1', plan_revision_id: 'p', bundle_revision_ids: ['b'], terms_revision_id: null,
+    cadence: { unit: 'month', count: 1 }, requested_users: 3, requested_storage_mb: 1024,
+    requested_extra_branches: 0, due_now: money(100), next_renewal: money(200),
+    lines: [{ kind: 'base', key: 'base', amount: money(100), quantity: 1 }],
+  }
+  it('ignores a new expiry and quote id', () => {
+    expect(sameQuoteEconomics(base as never, { ...base, id: 'q2', expires_at: '2030-01-01' } as never)).toBe(true)
+  })
+  it('detects a real price or quantity change', () => {
+    expect(sameQuoteEconomics(base as never, { ...base, due_now: money(101) } as never)).toBe(false)
+    expect(sameQuoteEconomics(base as never, { ...base, requested_users: 4 } as never)).toBe(false)
   })
 })

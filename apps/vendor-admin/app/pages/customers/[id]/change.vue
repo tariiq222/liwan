@@ -29,7 +29,7 @@ async function recompute() {
   const sub = data.value?.sub; const n = parseCount(extra.value)
   if (!hydrated.value || quoting.value || busy.value || sub?.pending_order || !sub || !planId.value || n === null || (isInitial.value && (!selectedPlan.value || !selectedCadence.value))) return
   quoting.value = true; quote.value = null; failure.value = undefined
-  try { quote.value = await api.changeQuote(customerQuoteBody(id.value, sub, { planRevisionId: planId.value, extraBranches: n, ...(isInitial.value ? { bundleIds: selectedPlan.value!.included_bundle_revision_ids, cadence: selectedCadence.value! } : {}) })) } catch (cause) { quote.value = null; failure.value = (cause as { code?: string })?.code === 'preview_quote' ? t('vendor.customers.change.previewRejected') : t(commercialErrorKey(cause)) } finally { quoting.value = false }
+  try { quote.value = await api.changeQuote(customerQuoteBody(id.value, sub, { planRevisionId: planId.value, extraBranches: n, ...(isInitial.value ? { bundleIds: selectedPlan.value!.included_bundle_revision_ids, cadence: selectedCadence.value!, users: selectedPlan.value!.included_users, storageMb: selectedPlan.value!.included_storage_mb } : {}) })) } catch (cause) { quote.value = null; failure.value = (cause as { code?: string })?.code === 'preview_quote' ? t('vendor.customers.change.previewRejected') : t(commercialErrorKey(cause)) } finally { quoting.value = false }
 }
 async function place() {
   const sub = data.value?.sub

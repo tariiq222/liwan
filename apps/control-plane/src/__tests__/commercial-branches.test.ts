@@ -95,13 +95,13 @@ suite('commercial branches & usage (B4)', () => {
   it('new order reserves pending extras using target allowances, excluding HQ from paid count', async () => {
     const { version } = await setup(pool), api = client(pool)
     await api('POST','/catalog/releases',{catalog_version:version,reason:'Initial branches regression'})
-    const p = await api('POST','/plans',{name:`Initial branches ${randomUUID()}`,audience:{kind:'public'},term_months:12,currency:'SAR',prices:[{cadence:monthly,amount:money(10000)}],platform_limits: { 'users.limit': null, 'storage.limit_mb': null },included_bundle_revision_ids:[],optional_bundle_revision_ids:[],included_extra_branches:1,extra_branch_prices:[{cadence:monthly,amount:money(5000)}],extra_branches_limit:8,policy_revision_id:'6f1c3d8e-0000-4000-8000-000000000001',trial_days:0,grace_days:0,auto_suspend:true,auto_renew_allowed:true})
+    const p = await api('POST','/plans',{name:`Initial branches ${randomUUID()}`,audience:{kind:'public'},term_months:12,currency:'SAR',prices:[{cadence:monthly,amount:money(10000)}],platform_limits: {},included_bundle_revision_ids:[],optional_bundle_revision_ids:[],included_extra_branches:1,extra_branch_prices:[{cadence:monthly,amount:money(5000)}],extra_branches_limit:8,included_users:3,included_storage_mb:0,user_prices:[{cadence:monthly,amount:money(0)}],storage_prices:[{cadence:monthly,amount:money(0)}],policy_revision_id:'6f1c3d8e-0000-4000-8000-000000000001',trial_days:0,grace_days:0,auto_suspend:true,auto_renew_allowed:true})
     const v = await api('POST',`/plans/${p.body.id}/validate`,{edit_revision:1,reason:'Initial branches regression'})
     const plan = (await api('POST',`/plans/${p.body.id}/publish`,{edit_revision:v.body.edit_revision,reason:'Initial branches regression'})).body
     const t=randomUUID(), customer=randomUUID()
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Initial','saas','managed',$2,true)",[t,`inv-${t}`])
     await pool.query("INSERT INTO customers(id,name,tenant_id) VALUES($1,'Initial',$2)",[customer,t])
-    const quote=await createQuoteForCustomer(pool,{customer_id:customer,request:{kind:'new',plan_revision_id:plan.id,bundle_revision_ids:[],cadence:monthly,requested_extra_branches:3}})
+    const quote=await createQuoteForCustomer(pool,{customer_id:customer,request:{kind:'new',plan_revision_id:plan.id,bundle_revision_ids:[],cadence:monthly,requested_extra_branches:3,requested_users:3,requested_storage_mb:0}})
     const vendor:any={actor_id:'7',kind:'vendor',customer_id:null,tenant_id:null,capabilities:['vendor.subscriptions.manage']}
     const {order}=await acceptQuote(pool,{quote_id:quote.id,expected_subscription_revision:0,idempotency_key:randomUUID()},vendor)
     const pending=await listBranches(pool,order.subscription_id)
@@ -116,15 +116,15 @@ suite('commercial branches & usage (B4)', () => {
     expect(await listBranches(pool,order.subscription_id)).toMatchObject({total:4,hq:1,free_extra_used:1,free_extra_allowed:1,paid:2})
     const now=new Date()
     const effective=new Date(now.getTime()+86400000).toISOString().slice(0,10)
-    const change=await createQuoteForCustomer(pool,{customer_id:customer,request:{kind:'change',plan_revision_id:plan.id,bundle_revision_ids:[],cadence:monthly,requested_extra_branches:3,effective_date:effective}},now)
+    const change=await createQuoteForCustomer(pool,{customer_id:customer,request:{kind:'change',plan_revision_id:plan.id,bundle_revision_ids:[],cadence:monthly,requested_extra_branches:3,requested_users:3,requested_storage_mb:0,effective_date:effective}},now)
     expect(change.effective_date).toBe(effective)
     const environment=process.env.NODE_ENV
     try {
       process.env.NODE_ENV='production'
-      const production=await createQuoteForCustomer(pool,{customer_id:customer,request:{kind:'change',plan_revision_id:plan.id,bundle_revision_ids:[],cadence:monthly,requested_extra_branches:3,effective_date:effective}},now)
+      const production=await createQuoteForCustomer(pool,{customer_id:customer,request:{kind:'change',plan_revision_id:plan.id,bundle_revision_ids:[],cadence:monthly,requested_extra_branches:3,requested_users:3,requested_storage_mb:0,effective_date:effective}},now)
       expect(production.effective_date).toBe(riyadhDate(now))
     } finally { process.env.NODE_ENV=environment }
-    const path='/v1/customer/quotes',raw=JSON.stringify({kind:'change',plan_revision_id:plan.id,bundle_revision_ids:[],cadence:monthly,requested_extra_branches:3,effective_date:effective})
+    const path='/v1/customer/quotes',raw=JSON.stringify({kind:'change',plan_revision_id:plan.id,bundle_revision_ids:[],cadence:monthly,requested_extra_branches:3,requested_users:3,requested_storage_mb:0,effective_date:effective})
     const header=Buffer.from(JSON.stringify({actor_id:'7',kind:'customer',tenant_id:t,capabilities:['subscription.manage']})).toString('base64')
     const config={installationId:'branch-vendor',key:'vendor-test-key-'.repeat(4),customerCommercialIssuer:'branch-customer',customerCommercialServiceKey:'customer-test-key-'.repeat(4),inventoryPath:'',repositoryRoot:'',python:'python3',stateDir:''}
     const signed=signServiceRequest({method:'POST',path,body:`webvue-principal:${header}\n${raw}`,actor:7,issuer:config.customerCommercialIssuer,key:config.customerCommercialServiceKey})

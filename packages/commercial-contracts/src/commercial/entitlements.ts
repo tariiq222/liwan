@@ -7,12 +7,15 @@ import type { BundleRevision, CapacityMap, CatalogApplication, CatalogRelease, C
 export { CommercialError }
 /** /2: modules are the whole release (every application is installed in every tenant) and
  * features carry every key of every release application (spec 3.6, rulings E2/E3/E6). */
-export const COMPILER_VERSION = 'commercial-compiler/2'
+export const COMPILER_VERSION = 'commercial-compiler/3'
 
 export function compileEntitlements(input: {
   release: CatalogRelease; plan: PlanRevision; bundles: BundleRevision[]; terms: CustomerTermsRevision | null
+  quantities: { users: number; storage_mb: number }
 }): EntitlementSnapshot {
-  const { release, plan, bundles, terms } = input
+  const { release, plan, bundles, terms, quantities } = input
+  if (![quantities.users, quantities.storage_mb].every(v => Number.isSafeInteger(v) && v >= 0))
+    throw new CommercialError('invalid_quantity', 'quantities')
   const apps = new Map(release.applications.map(a => [a.id, a]))
   const coreApps = release.applications.filter(a => !a.selectable)
 
@@ -30,12 +33,17 @@ export function compileEntitlements(input: {
     if (!app) throw new CommercialError('unknown_app', 'selections')
     if (!app.selectable) throw new CommercialError('app_not_selectable', 'selections')
     selectedApps.add(app.id)
+    // The list is validated for shape so existing rows parse, but it is no longer the grant unit.
     for (const key of sel.feature_keys) {
       const f = app.features.find(x => x.key === key)
       if (!f || !f.selectable || f.kind !== 'boolean') throw new CommercialError('feature_not_selectable', 'selections')
-      booleanFeatures.add(key)
     }
   }
+  // Selecting an application grants every selectable boolean it owns (spec §4.2.7): the
+  // customer buys the application whole, so its internal feature keys must not be a second
+  // purchasing decision stored beside it.
+  for (const id of selectedApps) for (const f of (apps.get(id) as CatalogApplication).features)
+    if (f.kind === 'boolean' && f.selectable) booleanFeatures.add(f.key)
 
   // Dependency cycles across selected apps' requires graph
   const state = new Map<string, number>()
@@ -74,18 +82,26 @@ export function compileEntitlements(input: {
     if (k in domain && domain[k] !== v) throw new CommercialError('ambiguous_limit', 'domain_limits')
     domain[k] = v
   }
-  const platform: CapacityMap = { ...plan.platform_limits }
-  for (const k of Object.keys(platform)) if (!platformKeys.has(k)) throw new CommercialError('limit_not_supported', 'platform_limits')
-  // Code never invents a commercial value: every platform limit the plan does not derive is set by it
+  // Users and storage are customer-chosen quantities, never plan limits: one source of truth.
+  const derived = new Set([USERS_LIMIT_KEY, 'storage.limit_mb', 'branches.extra_limit'])
+  for (const k of Object.keys(plan.platform_limits)) {
+    if (derived.has(k)) throw new CommercialError('platform_limit_derived', 'platform_limits')
+    if (!platformKeys.has(k)) throw new CommercialError('limit_not_supported', 'platform_limits')
+  }
+  // Code never invents a commercial value: every other platform limit the plan does not derive is set by it
   // (an explicit null means unlimited).
-  for (const k of platformKeys) if (k !== 'branches.extra_limit' && !Object.hasOwn(platform, k)) throw new CommercialError('platform_limit_missing', 'platform_limits')
+  for (const k of platformKeys) if (!derived.has(k) && !Object.hasOwn(plan.platform_limits, k)) throw new CommercialError('platform_limit_missing', 'platform_limits')
+  const platform: CapacityMap = { ...plan.platform_limits, [USERS_LIMIT_KEY]: quantities.users, 'storage.limit_mb': quantities.storage_mb }
   Object.assign(features, domain, platform)
   for (const [k, v] of Object.entries(terms?.limits ?? {})) {
+    // Capacity is the customer's chosen quantity, changed only by a new subscription quote;
+    // a terms revision may not grant or remove users/storage outside that agreement.
+    if (derived.has(k)) throw new CommercialError('platform_limit_derived', 'limits')
     if (!platformKeys.has(k) && !domainKeys.has(k)) throw new CommercialError('limit_not_supported', 'limits')
     features[k] = v
   }
-  if (Object.hasOwn(features, USERS_LIMIT_KEY) && !admitsRequiredAdmin(features[USERS_LIMIT_KEY]))
-    throw new CommercialError('users_limit_admin_required', Object.hasOwn(terms?.limits ?? {}, USERS_LIMIT_KEY) ? 'limits' : 'platform_limits')
+  if (!admitsRequiredAdmin(features[USERS_LIMIT_KEY]))
+    throw new CommercialError('users_limit_admin_required', 'quantities')
   const branches = terms?.extra_branches_limit !== undefined ? terms.extra_branches_limit : plan.extra_branches_limit
   features['branches.extra_limit'] = branches
 
