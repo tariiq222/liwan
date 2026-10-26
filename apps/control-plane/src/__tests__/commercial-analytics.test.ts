@@ -50,7 +50,7 @@ suite('live PostgreSQL vendor analytics', () => {
   let p1: string, p2: string
   let a: Awaited<ReturnType<typeof seedCustomer>>, b: Awaited<ReturnType<typeof seedCustomer>>, j: Awaited<ReturnType<typeof seedCustomer>>
   async function plan(name: string) {
-    const c = await client(pool)('POST', '/plans', { name, audience: { kind: 'public' }, term_months: 12, currency: 'SAR', prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: { 'users.limit': null, 'storage.limit_mb': null }, included_bundle_revision_ids: [], optional_bundle_revision_ids: [], included_extra_branches: 0, extra_branch_prices: [], extra_branches_limit: null, policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 0, grace_days: 5, auto_suspend: true, auto_renew_allowed: false, reason: 'Analytics fixture' })
+    const c = await client(pool)('POST', '/plans', { name, audience: { kind: 'public' }, term_months: 12, currency: 'SAR', prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [], included_extra_branches: 0, extra_branch_prices: [], extra_branches_limit: null, included_users: 1, included_storage_mb: 0, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }], policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 0, grace_days: 5, auto_suspend: true, auto_renew_allowed: false, reason: 'Analytics fixture' })
     expect(c.status).toBe(201)
     return c.body.id as string
   }

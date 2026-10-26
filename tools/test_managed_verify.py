@@ -62,6 +62,7 @@ class Profile:
         self.entitlement_source = 'control_plane'
         self.status = 'active'
         self.valid_until = False
+        self.commercial_valid_until = False
         self.features = {}
         self.policy_revision = 0
         self.context = {}

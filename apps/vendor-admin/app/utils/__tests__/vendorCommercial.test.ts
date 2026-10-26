@@ -78,12 +78,27 @@ describe('bundle form ↔ payload', () => {
 })
 describe('plan form ↔ payload', () => {
   const filled = () => ({ ...emptyPlanDraft(), name: 'P', term_months: '12', prices: [{ unit: 'month' as const, count: '1', amount: '100' }], included: [rid(5)], optional: [rid(5), rid(6)],
-    platform: { 'users.limit': { mode: 'number' as const, value: '10' }, 'storage.limit_mb': { mode: 'unlimited' as const, value: '' } }, included_extra_branches: '0',
+    included_users: '3', included_storage_mb: '5120', user_prices: [{ unit: 'month' as const, count: '1', amount: '25' }], storage_prices: [{ unit: 'month' as const, count: '1', amount: '5' }], included_extra_branches: '0',
     extra_branch_prices: [{ unit: 'month' as const, count: '1', amount: '20' }], extra_branches_limit: { mode: 'unlimited' as const, value: '' }, trial_days: '0', grace_days: '7', auto_suspend: 'true' as const, auto_renew_allowed: 'false' as const })
   it('maps explicit values (0 free branches, false renew) and drops optional dupes', () => {
     const p = planCreatePayload(filled(), rid(9))
     expect(p.included_extra_branches).toBe(0); expect(p.trial_days).toBe(0); expect(p.auto_renew_allowed).toBe(false); expect(p.extra_branches_limit).toBeNull()
-    expect(p.optional_bundle_revision_ids).toEqual([rid(6)]); expect(p.currency).toBe('SAR'); expect(p.platform_limits['storage.limit_mb']).toBeNull()
+    expect(p.optional_bundle_revision_ids).toEqual([rid(6)]); expect(p.currency).toBe('SAR'); expect(p.platform_limits).toEqual({})
+  })
+  it('round-trips the metered users and storage fields through a draft', () => {
+    const p = planCreatePayload(filled(), rid(9))
+    const d = planDraftFromView({ ...p, id: rid(1), plan_id: 'p', version: 1, edit_revision: 1, status: 'draft', available: false } as never)
+    expect(d.included_users).toBe('3'); expect(d.included_storage_mb).toBe('5120')
+    const edit = planEditPayload({ ...d, reason: 'تعديل' }, rid(9), 1)
+    expect(edit.included_users).toBe(3)
+    expect(edit.user_prices).toEqual([{ cadence: { unit: 'month', count: 1 }, amount: { currency: 'SAR', exponent: 2, minor: 2500 } }])
+  })
+  it('refuses a plan whose included user minimum admits no administrator', () => {
+    expect(() => planCreatePayload({ ...filled(), included_users: '0' }, rid(9))).toThrow()
+  })
+  it('refuses an included storage minimum that is not a whole gigabyte', () => {
+    expect(() => planCreatePayload({ ...filled(), included_storage_mb: '5000' }, rid(9))).toThrow('invalid_storage_minimum')
+    expect(planCreatePayload({ ...filled(), included_storage_mb: '5120' }, rid(9)).included_storage_mb).toBe(5120)
   })
   it('rejects empty explicit choices instead of defaulting', () => {
     for (const patch of [{ auto_suspend: '' }, { auto_renew_allowed: '' }, { trial_days: '' }, { grace_days: '' }, { included_extra_branches: '' }, { term_months: '' }, { extra_branches_limit: { mode: '', value: '' } }])
@@ -134,8 +149,8 @@ describe('errors and routing', () => {
 })
 describe('quote request', () => {
   it('sends ids and counts only', () => {
-    const body = quoteRequestBody({ plan: { id: rid(1), included_bundle_revision_ids: [rid(2)] } as never, cadence: { unit: 'month', count: 1 }, extraBranches: 2, optionalBundleIds: [rid(3)] })
-    expect(body).toEqual({ kind: 'new', plan_revision_id: rid(1), bundle_revision_ids: [rid(2), rid(3)], cadence: { unit: 'month', count: 1 }, requested_extra_branches: 2 })
+    const body = quoteRequestBody({ plan: { id: rid(1), included_bundle_revision_ids: [rid(2)] } as never, cadence: { unit: 'month', count: 1 }, extraBranches: 2, users: 10, storageMb: 20480, optionalBundleIds: [rid(3)] })
+    expect(body).toEqual({ kind: 'new', plan_revision_id: rid(1), bundle_revision_ids: [rid(2), rid(3)], cadence: { unit: 'month', count: 1 }, requested_extra_branches: 2, requested_users: 10, requested_storage_mb: 20480 })
   })
 })
 

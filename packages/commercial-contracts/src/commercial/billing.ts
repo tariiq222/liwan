@@ -7,7 +7,7 @@ export const TAX_LABEL = 'VAT 15% exclusive' as const
 export const invoiceKindSchema = z.enum(['initial', 'change', 'renewal', 'adjustment'])
 export const invoiceStatusSchema = z.enum(['draft', 'issued', 'paid', 'void', 'credit_pending'])
 export const invoiceLineSchema = z.strictObject({
-  key: z.string(), kind: z.enum(['base', 'bundle', 'branch', 'discount', 'tax', 'adjustment']),
+  key: z.string(), kind: z.enum(['base', 'bundle', 'branch', 'users', 'storage', 'discount', 'tax', 'adjustment']),
   timing: z.enum(['now', 'renewal']), description: z.string(), quantity: z.number().int().min(0),
   unit_amount: moneySchema, amount: moneySchema, period_start: isoDate, period_end: isoDate,
   source_revision_id: revisionIdSchema, free_quantity: z.number().int().min(0).optional(),

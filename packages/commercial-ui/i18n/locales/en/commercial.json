@@ -13,6 +13,8 @@
       },
       "quote": {
         "hq": "Headquarters",
+      "users": "Users",
+      "storage": "Storage",
         "dueNow": "Due now",
         "nextRenewal": "Next renewal",
         "loading": "Calculating…",

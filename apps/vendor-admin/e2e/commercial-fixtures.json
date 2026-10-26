@@ -252,10 +252,7 @@
         ],
         "plan_id": "plan-growth",
         "term_months": 12,
-        "platform_limits": {
-          "users.limit": 10,
-          "storage.limit_mb": 10240
-        },
+        "platform_limits": {},
         "included_bundle_revision_ids": [
           "00000000-0000-4000-8000-000000000020"
         ],
@@ -288,7 +285,57 @@
         "customer_count": 1,
         "created_at": "2026-10-01T08:00:00.000Z",
         "published_at": "2026-10-01T08:00:00.000Z",
-        "issues": []
+        "issues": [],
+        "included_users": 10,
+        "included_storage_mb": 10240,
+        "user_prices": [
+          {
+            "cadence": {
+              "unit": "month",
+              "count": 1
+            },
+            "amount": {
+              "currency": "SAR",
+              "exponent": 2,
+              "minor": 2500
+            }
+          },
+          {
+            "cadence": {
+              "unit": "year",
+              "count": 1
+            },
+            "amount": {
+              "currency": "SAR",
+              "exponent": 2,
+              "minor": 25000
+            }
+          }
+        ],
+        "storage_prices": [
+          {
+            "cadence": {
+              "unit": "month",
+              "count": 1
+            },
+            "amount": {
+              "currency": "SAR",
+              "exponent": 2,
+              "minor": 500
+            }
+          },
+          {
+            "cadence": {
+              "unit": "year",
+              "count": 1
+            },
+            "amount": {
+              "currency": "SAR",
+              "exponent": 2,
+              "minor": 5000
+            }
+          }
+        ]
       },
       {
         "id": "00000000-0000-4000-8000-000000000011",
@@ -315,10 +362,7 @@
         ],
         "plan_id": "plan-start",
         "term_months": 12,
-        "platform_limits": {
-          "users.limit": 10,
-          "storage.limit_mb": 10240
-        },
+        "platform_limits": {},
         "included_bundle_revision_ids": [],
         "optional_bundle_revision_ids": [],
         "included_extra_branches": 1,
@@ -347,7 +391,35 @@
         "customer_count": 0,
         "created_at": "2026-10-01T08:00:00.000Z",
         "published_at": null,
-        "issues": []
+        "issues": [],
+        "included_users": 10,
+        "included_storage_mb": 10240,
+        "user_prices": [
+          {
+            "cadence": {
+              "unit": "month",
+              "count": 1
+            },
+            "amount": {
+              "currency": "SAR",
+              "exponent": 2,
+              "minor": 2500
+            }
+          }
+        ],
+        "storage_prices": [
+          {
+            "cadence": {
+              "unit": "month",
+              "count": 1
+            },
+            "amount": {
+              "currency": "SAR",
+              "exponent": 2,
+              "minor": 500
+            }
+          }
+        ]
       }
     ],
     "total": 2
@@ -1788,6 +1860,8 @@
     },
     "next_renewal_at": "2026-11-02",
     "expires_at": "2026-10-02T12:00:00Z",
-    "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "requested_users": 1,
+    "requested_storage_mb": 0
   }
 }

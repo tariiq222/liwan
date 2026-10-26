@@ -6,6 +6,8 @@ import { onSubscriptionActivated, sendInvitationOutbox } from './invitations.js'
 import { reconcileUnknownAttempts } from './payments.js'
 import { recoverInterrupted } from '../shared/subscription-reconcile.js'
 import { generateRenewals, applyDunning } from './renewals.js'
+import { expireTrials } from './trial-expiry.js'
+import { sendTrialNotices } from './trial-notices.js'
 import * as settlements from './settlements.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import type { MailAdapter } from './mail-adapter.js'
@@ -89,6 +91,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       if (o.mailAdapter) {
         const mail = o.mailAdapter
         await job('invitation.send', () => sendInvitationOutbox(pool, { mail, origin, smtpHost: env.WEBVUE_MAIL_SMTP_HOST }))
+        await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail }))
       }
       if (ticks % reconcileEvery === 0) {
         if (o.paymentAdapter) {
@@ -120,6 +123,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         lastBilling = now
         if (o.paymentAdapter) {
           const adapter = o.paymentAdapter
+          await job('trial-expiry', () => expireTrials(pool, { now: new Date(now), adapter, allowedOrigin: origin, return_path: '/subscription/status' }))
           await job('renewals', () => generateRenewals(pool, { now: new Date(now), adapter, allowedOrigin: origin, return_path: '/subscription/status' }))
         }
         await job('dunning', () => applyDunning(pool, { now: new Date(now) }))

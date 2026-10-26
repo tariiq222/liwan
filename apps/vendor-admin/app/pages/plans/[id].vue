@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { lifecycleBadge } from '@/utils/vendorCommercial'
 import type { Quote } from '@webvue/commercial-contracts'
-import { cadenceKey, commercialErrorKey, keyLabel, limitLabel, parseCount, quoteRequestBody, type BundleView, type LifecycleAction, type PlanView } from '@/utils/vendorCommercial'
+import { cadenceKey, commercialErrorKey, limitLabel, parseCount, quoteRequestBody, type BundleView, type LifecycleAction, type PlanView } from '@/utils/vendorCommercial'
 import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
 import { catalogReturn, priceFact } from '@/utils/vendorCatalog'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
@@ -26,7 +26,7 @@ async function recompute() {
   if (!v || !cadence.value || count === null) { quote.value = null; quoteError.value = count === null ? t('vendor.pricing.quote.extraInvalid') : ''; return }
   const price = v.prices.find(p => cadenceKey(p.cadence) === cadence.value); if (!price) return
   const mine = ++seq; quotePending.value = true; quoteError.value = ''
-  try { const result = await api.quote(quoteRequestBody({ plan: v, cadence: price.cadence, extraBranches: count, optionalBundleIds: optional.value })); if (mine === seq) quote.value = result }
+  try { const result = await api.quote(quoteRequestBody({ plan: v, cadence: price.cadence, extraBranches: count, users: v.included_users, storageMb: v.included_storage_mb, optionalBundleIds: optional.value })); if (mine === seq) quote.value = result }
   catch (cause) { if (mine === seq) { quote.value = null; quoteError.value = t(commercialErrorKey(cause)) } }
   finally { if (mine === seq) quotePending.value = false }
 }
@@ -71,7 +71,8 @@ const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value
           </li>
         </ul>
         <dl class="mt-4 grid gap-4 sm:grid-cols-2">
-          <div v-for="(v, k) in view.platform_limits" :key="k"><dt class="text-sm text-muted">{{ keyLabel(String(k), t, te) }}</dt><dd class="font-semibold tabular-nums">{{ limitLabel(v, t) }}</dd></div>
+          <div><dt class="text-sm text-muted">{{ t('vendor.pricing.fields.includedUsers') }}</dt><dd class="font-semibold tabular-nums">{{ view.included_users }}</dd></div>
+          <div><dt class="text-sm text-muted">{{ t('vendor.pricing.fields.includedStorage') }}</dt><dd class="font-semibold tabular-nums">{{ view.included_storage_mb }}</dd></div>
           <div><dt class="text-sm text-muted">{{ t('vendor.pricing.fields.freeBranches') }}</dt><dd class="font-semibold tabular-nums">{{ view.included_extra_branches }}</dd></div>
           <div><dt class="text-sm text-muted">{{ t('vendor.pricing.fields.branchLimit') }}</dt><dd class="font-semibold tabular-nums">{{ limitLabel(view.extra_branches_limit, t) }}</dd></div>
         </dl>
@@ -79,6 +80,8 @@ const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value
       <SharedRecordSection :title="t('vendor.pricing.sections.prices')" class="mt-6">
         <ul class="grid gap-2 sm:grid-cols-2"><li v-for="p in view.prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
         <ul v-if="view.extra_branch_prices.length" class="mt-2 grid gap-2 sm:grid-cols-2"><li v-for="p in view.extra_branch_prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ t('vendor.pricing.fields.branchPrice') }} · {{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
+        <ul v-if="view.user_prices.length" class="mt-2 grid gap-2 sm:grid-cols-2"><li v-for="p in view.user_prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ t('vendor.pricing.fields.userPrice') }} · {{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
+        <ul v-if="view.storage_prices.length" class="mt-2 grid gap-2 sm:grid-cols-2"><li v-for="p in view.storage_prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ t('vendor.pricing.fields.storagePrice') }} · {{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
       </SharedRecordSection>
       <SharedRecordSection :title="t('vendor.pricing.quote.title')" :description="t('vendor.pricing.quote.hint')" class="mt-6" data-testid="quote-preview">
         <div class="grid gap-3 sm:grid-cols-2">

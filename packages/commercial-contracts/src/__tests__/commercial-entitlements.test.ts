@@ -11,8 +11,8 @@ function fixture() {
   const release: CatalogRelease = { id: id(1), version: 'v1', source_digest: 'a'.repeat(64), artifact_digest: 'b'.repeat(64), applications: catalogApplicationsFromSolution(solution, 'v1') }
   const bundle = (n: number, app: string, keys: string[], limits = {}): BundleRevision => ({ id: id(n), bundle_id: id(n + 20), version: 1, edit_revision: 1, name: app, description: app, audience: { kind: 'public' }, status: 'published', available: true, catalog_release_id: release.id, selections: [{ app_id: app, feature_keys: keys }], domain_limits: limits, prices: [] })
   const bundles = [bundle(2, 'projects', ['pmo.enabled', 'meetings.enabled'], { 'projects.max_projects': 0 }), bundle(3, 'people', ['hr.enabled'])]
-  const plan: PlanRevision = { id: id(4), plan_id: id(5), version: 1, edit_revision: 1, name: 'Plan', status: 'published', available: true, audience: { kind: 'public' }, term_months: 12, prices: [], platform_limits: { 'users.limit': 20, 'storage.limit_mb': null }, included_bundle_revision_ids: [], optional_bundle_revision_ids: bundles.map(b => b.id), included_extra_branches: 1, extra_branch_prices: [], extra_branches_limit: 8, policy_revision_id: id(6), currency: 'SAR', trial_days: 0, grace_days: 0, auto_suspend: false, auto_renew_allowed: false }
-  return { release, plan, bundles, terms: null }
+  const plan: PlanRevision = { id: id(4), plan_id: id(5), version: 1, edit_revision: 1, name: 'Plan', status: 'published', available: true, audience: { kind: 'public' }, term_months: 12, prices: [], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: bundles.map(b => b.id), included_extra_branches: 1, extra_branch_prices: [], extra_branches_limit: 8, included_users: 20, included_storage_mb: 0, user_prices: [], storage_prices: [], policy_revision_id: id(6), currency: 'SAR', trial_days: 0, grace_days: 0, auto_suspend: false, auto_renew_allowed: false }
+  return { release, plan, bundles, terms: null, quantities: { users: 20, storage_mb: 0 } }
 }
 
 describe('commercial catalog and entitlement compiler', () => {
@@ -25,19 +25,19 @@ describe('commercial catalog and entitlement compiler', () => {
     expect(apps.flatMap(a => a.features).every(f => f.enforcement_refs.length > 0)).toBe(true)
     expect(apps[0].features.every(f => !f.selectable)).toBe(true)
   })
-  it('installs the whole release, keeps 0/null, and overrides only explicit limits', () => {
+  it('installs the whole release, keeps 0/null, and overrides only explicit domain limits', () => {
     const input = fixture()
-    const result = compileEntitlements({ ...input, terms: { id: id(9), customer_id: id(10), reason: 'Special terms', limits: { 'users.limit': 1 } } })
+    const result = compileEntitlements({ ...input, terms: { id: id(9), customer_id: id(10), reason: 'Special terms', limits: { 'projects.max_projects': 1 } } })
     expect(result.modules).toEqual(['webvue_api', 'webvue_chat', 'webvue_core', 'webvue_hr', 'webvue_meetings', 'webvue_platform', 'webvue_pmo'])
-    expect(result.features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': null, 'users.limit': 1 })
-    expect(result.compiler_version).toBe('commercial-compiler/2')
-    expect(input.plan.platform_limits['users.limit']).toBe(20)
+    expect(result.features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 1, 'storage.limit_mb': 0, 'users.limit': 20 })
+    expect(result.compiler_version).toBe('commercial-compiler/3')
+    expect(input.quantities.users).toBe(20)
   })
   it('closes every application the plan leaves out (booleans false, limits 0)', () => {
     const input = fixture()
     input.plan.optional_bundle_revision_ids = [input.bundles[1]!.id]
     const result = compileEntitlements({ ...input, bundles: [input.bundles[1]!] })
-    expect(result.features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': false, 'pmo.enabled': false, 'projects.max_projects': 0, 'storage.limit_mb': null, 'users.limit': 20 })
+    expect(result.features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': false, 'pmo.enabled': false, 'projects.max_projects': 0, 'storage.limit_mb': 0, 'users.limit': 20 })
     expect(result.modules).toEqual(compileEntitlements(fixture()).modules)
   })
   it('keeps the catalog value for an included application limit no bundle sets', () => {
@@ -45,10 +45,10 @@ describe('commercial catalog and entitlement compiler', () => {
     input.bundles[0]!.domain_limits = {}
     expect(compileEntitlements(input).features['projects.max_projects']).toBeNull()
   })
-  it('closes an included application boolean the bundle did not select', () => {
+  it('opens every selectable boolean of a selected application', () => {
     const input = fixture()
     input.bundles[0]!.selections[0]!.feature_keys = ['pmo.enabled']
-    expect(compileEntitlements(input).features['meetings.enabled']).toBe(false)
+    expect(compileEntitlements(input).features['meetings.enabled']).toBe(true)
   })
   it('is deterministic across bundle, selection, feature and object-key ordering', () => {
     const input = fixture()
@@ -102,25 +102,25 @@ describe('commercial catalog and entitlement compiler', () => {
     const error = new CommercialError('dependency_missing', 'selections')
     expect(error.code).toBe('dependency_missing'); expect(error.field).toBe('selections')
   })
-  it('refuses a plan that leaves a platform limit unset, and allows an explicit null', () => {
+  it('refuses a plan that leaves a non-derived platform limit unset, and allows an explicit null', () => {
     const input = fixture()
-    input.plan.platform_limits = { 'users.limit': 5 }
+    input.release.applications.find(a => !a.selectable)!.features.push({ key: 'core.capacity', kind: 'limit', selectable: false, requires: [], enforcement_refs: ['probe'] })
     expect(() => compileEntitlements(input)).toThrowError(expect.objectContaining({ code: 'platform_limit_missing', field: 'platform_limits' }))
-    input.plan.platform_limits = {}
-    expect(() => compileEntitlements(input)).toThrowError(expect.objectContaining({ code: 'platform_limit_missing' }))
-    input.plan.platform_limits = { 'users.limit': null, 'storage.limit_mb': null }
-    expect(compileEntitlements(input).features['users.limit']).toBeNull()
+    input.plan.platform_limits = { 'core.capacity': null }
+    expect(compileEntitlements(input).features['core.capacity']).toBeNull()
   })
-  it('refuses a users.limit that cannot admit the required customer administrator', () => {
-    const input = fixture()
-    input.plan.platform_limits = { 'users.limit': 0, 'storage.limit_mb': null }
-    expect(() => compileEntitlements(input)).toThrowError(expect.objectContaining({ code: 'users_limit_admin_required', field: 'platform_limits' }))
-    const terms = (limit: number | null) => ({ id: id(9), customer_id: id(10), reason: 'Special terms', limits: { 'users.limit': limit } })
-    expect(() => compileEntitlements({ ...fixture(), terms: terms(0) })).toThrowError(expect.objectContaining({ code: 'users_limit_admin_required', field: 'limits' }))
-    expect(compileEntitlements({ ...fixture(), terms: terms(1) }).features['users.limit']).toBe(1)
-    expect(compileEntitlements({ ...fixture(), terms: terms(null) }).features['users.limit']).toBeNull()
+  it('refuses a chosen quantity that cannot admit the required customer administrator', () => {
+    expect(() => compileEntitlements({ ...fixture(), quantities: { users: 0, storage_mb: 0 } }))
+      .toThrowError(expect.objectContaining({ code: 'users_limit_admin_required', field: 'quantities' }))
   })
-  it('shares one users.limit floor across plan and terms inputs', () => {
+  it('refuses a terms revision that overrides the chosen metered capacity', () => {
+    const terms = (limits: Record<string, number | null>) => ({ id: id(9), customer_id: id(10), reason: 'Special terms', limits })
+    expect(() => compileEntitlements({ ...fixture(), terms: terms({ 'users.limit': 1 }) }))
+      .toThrowError(expect.objectContaining({ code: 'platform_limit_derived', field: 'limits' }))
+    expect(() => compileEntitlements({ ...fixture(), terms: terms({ 'storage.limit_mb': 1024 }) }))
+      .toThrowError(expect.objectContaining({ code: 'platform_limit_derived', field: 'limits' }))
+  })
+  it('shares one users.limit floor across the plan input', () => {
     expect([null, 1, 25].map(admitsRequiredAdmin)).toEqual([true, true, true])
     expect([0, -1, 1.5, undefined, '1'].map(admitsRequiredAdmin)).toEqual([false, false, false, false, false])
     const { plan } = fixture()
@@ -131,10 +131,10 @@ describe('commercial catalog and entitlement compiler', () => {
     const refused = planCreateSchema.safeParse(planInput(0))
     expect(refused.success).toBe(false)
     expect(refused.error?.issues[0]?.path).toEqual(['platform_limits', 'users.limit'])
-    const terms = (limit: number | null) => ({ id: id(9), customer_id: 'cust', reason: 'Special terms', limits: { 'users.limit': limit } })
-    expect(customerTermsRevisionSchema.safeParse(terms(1)).success).toBe(true)
-    expect(customerTermsRevisionSchema.safeParse(terms(0)).success).toBe(false)
-    expect(customerTermsRevisionSchema.safeParse({ ...terms(1), limits: { 'storage.limit_mb': 0 } }).success).toBe(true)
+    const terms = (limits: Record<string, number | null>) => ({ id: id(9), customer_id: 'cust', reason: 'Special terms', limits })
+    expect(customerTermsRevisionSchema.safeParse(terms({ 'users.limit': 1 })).success).toBe(false)
+    expect(customerTermsRevisionSchema.safeParse(terms({ 'storage.limit_mb': 1024 })).success).toBe(false)
+    expect(customerTermsRevisionSchema.safeParse(terms({ 'projects.max_projects': 1 })).success).toBe(true)
     expect(planRevisionSchema.safeParse({ ...plan, platform_limits: { 'users.limit': 0, 'storage.limit_mb': null } }).success).toBe(false)
   })
   it('opens a non-selectable boolean of a core or included application', () => {
@@ -147,8 +147,7 @@ describe('commercial catalog and entitlement compiler', () => {
     const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))
     const input = fixture()
     input.release.applications = catalogApplicationsFromSolution(v3, 'v3')
-    input.plan.platform_limits = { 'users.limit': 20, 'storage.limit_mb': null }
-    expect(compileEntitlements(input).features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.assets': false, 'hr.enabled': true, 'hr.offboarding': false, 'hr.onboarding': false, 'hr.payroll': false, 'hr.recruitment': false, 'hr.shifts': false, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': null, 'tasks.enabled': false, 'users.limit': 20 })
+    expect(compileEntitlements(input).features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.assets': true, 'hr.enabled': true, 'hr.offboarding': true, 'hr.onboarding': true, 'hr.payroll': true, 'hr.recruitment': true, 'hr.shifts': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': 0, 'tasks.enabled': false, 'users.limit': 20 })
   })
   it('names an application unknown to the platform from its catalog tier', () => {
     const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))
@@ -156,5 +155,37 @@ describe('commercial catalog and entitlement compiler', () => {
     const probe = catalogApplicationsFromSolution(v3, 'v3').find(a => a.id === 'probe')!
     expect([probe.name_ar, probe.name_en]).toEqual(['Probe', 'Probe'])
     expect(probe.features.map(f => [f.key, f.selectable])).toEqual([['probe.enabled', true]])
+  })
+})
+
+describe('application is the grant unit', () => {
+  const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))
+  const release: CatalogRelease = { id: id(1), version: 'v3', source_digest: 'a'.repeat(64), artifact_digest: 'b'.repeat(64), applications: catalogApplicationsFromSolution(v3, 'v3') }
+  const bundle = (n: number, app: string): BundleRevision => ({ id: id(n), bundle_id: id(n + 20), version: 1, edit_revision: 1, name: app, description: app, audience: { kind: 'public' }, status: 'published', available: true, catalog_release_id: release.id, selections: [{ app_id: app, feature_keys: [] }], domain_limits: {}, prices: [] })
+  const plan: PlanRevision = { id: id(4), plan_id: id(5), version: 1, edit_revision: 1, name: 'Plan', status: 'published', available: true, audience: { kind: 'public' }, term_months: 12, prices: [], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [id(2), id(3)], included_extra_branches: 1, extra_branch_prices: [], extra_branches_limit: 8, included_users: 20, included_storage_mb: 0, user_prices: [], storage_prices: [], policy_revision_id: id(6), currency: 'SAR', trial_days: 0, grace_days: 0, auto_suspend: false, auto_renew_allowed: false }
+  it('grants all seven HR features when the people application is selected', () => {
+    const snap = compileEntitlements({ release, plan, bundles: [bundle(3, 'people')], terms: null, quantities: { users: 20, storage_mb: 0 } })
+    for (const k of ['hr.enabled', 'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets', 'hr.payroll'])
+      expect(snap.features[k]).toBe(true)
+  })
+  it('does not grant a feature of an application that was not selected', () => {
+    const snap = compileEntitlements({ release, plan, bundles: [bundle(3, 'people')], terms: null, quantities: { users: 20, storage_mb: 0 } })
+    expect(snap.features['tasks.enabled']).toBe(false)
+    expect(snap.features['finance.enabled']).toBeUndefined()
+  })
+})
+
+describe('entitlement metered limits', () => {
+  it('writes the chosen quantities into the platform limits', () => {
+    const input = fixture()
+    const snap = compileEntitlements({ ...input, quantities: { users: 10, storage_mb: 20480 } })
+    expect(snap.features['users.limit']).toBe(10)
+    expect(snap.features['storage.limit_mb']).toBe(20480)
+  })
+  it('refuses a plan that still carries a users limit', () => {
+    const input = fixture()
+    input.plan.platform_limits = { 'users.limit': 10 }
+    expect(() => compileEntitlements({ ...input, quantities: { users: 10, storage_mb: 20480 } }))
+      .toThrowError(expect.objectContaining({ code: 'platform_limit_derived', field: 'platform_limits' }))
   })
 })

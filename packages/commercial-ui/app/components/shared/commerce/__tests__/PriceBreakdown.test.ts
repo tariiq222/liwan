@@ -40,6 +40,15 @@ describe('PriceBreakdown', () => {
     expect(html).toContain('commercial.pricing.quote.vatNote')
   })
 
+  it('renders the metered users and storage lines from the server quote', async () => {
+    const metered = { ...quote, lines: [...quote.lines, line('us', 'users', 'now', 'Users', 7, 17500), line('st', 'storage', 'now', 'Storage', 15, 7500)] }
+    const html = await render({ quote: metered })
+    expect(html).toContain('commercial.pricing.quote.users')
+    expect(html).toContain('commercial.pricing.quote.storage')
+    expect(html).toMatch(/commercial\.pricing\.quote\.users\|[^<]*175\.00/)
+    expect(html).not.toContain('|Users')
+  })
+
   it('hides the headquarters line when the plan does not include it', async () => {
     const html = await render({ quote, hqIncluded: false })
     expect(html).not.toContain('commercial.pricing.quote.hq|')
