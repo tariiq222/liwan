@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import fields
+from odoo.exceptions import ValidationError
 from odoo.tests import new_test_user, tagged
 
 from .common import WebVueHrCase, set_hr_feature
@@ -279,6 +280,23 @@ class TestHrOnboarding(WebVueHrCase):
         ):
             response = self.api(method, path, json=payload)
             self.assertEqual((response.status_code, response.json()['code']), (404, 'not_found'), (method, path))
+
+    def test_a_department_linked_to_a_plan_cannot_move_to_another_company(self):
+        department = self.env['hr.department'].create({'name': 'Onb Pinned', 'company_id': self.company.id})
+        other_company = self.env['res.company'].create({'name': 'Onboarding Move Other Co'})
+        bound = self.plan.copy({'name': 'Onboarding pinned plan'})
+        bound.department_id = department
+        bound.active = False
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            department.company_id = other_company
+        self.assertEqual(department.company_id, self.company)
+        bound.active = True
+        self._as_reader()
+        expected = {'id': department.id, 'name': 'Onb Pinned'}
+        listing = self.api('GET', '/api/v1/hr/onboarding/plans')
+        self.assertEqual({i['id']: i['department'] for i in listing.json()['items']}[bound.id], expected)
+        one = self.api('GET', f'/api/v1/hr/onboarding/plans/{bound.id}')
+        self.assertEqual(one.json()['department'], expected)
 
     def test_reader_without_department_access_sees_the_plan_department_reference(self):
         department = self.env['hr.department'].create({'name': 'Onb Parent', 'company_id': self.company.id})

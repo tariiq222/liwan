@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.exceptions import ValidationError
 from odoo.tests import new_test_user, tagged
 
 from .common import WebVueHrCase, set_hr_feature
@@ -327,6 +328,20 @@ class TestHrOffboardingPlans(WebVueHrCase):
         for path in ('/api/v1/hr/departments', f'/api/v1/hr/departments/{self.department.id}'):
             denied = self.api('GET', path)
             self.assertEqual((denied.status_code, denied.json()['code']), (403, 'forbidden'), path)
+
+    def test_a_department_linked_to_a_plan_cannot_move_to_another_company(self):
+        bound = self._make_plan('Pinned dept plan', 'offboarding', self.company, 'Pinned step')
+        bound.department_id = self.department
+        bound.active = False
+        with self.assertRaises(ValidationError), self.env.cr.savepoint():
+            self.department.company_id = self.other_company
+        self.assertEqual(self.department.company_id, self.company)
+        bound.active = True
+        self._as_reader()
+        expected = {'id': self.department.id, 'name': 'Plan Dept'}
+        listing = self.api('GET', PLANS)
+        self.assertEqual({i['id']: i['department'] for i in listing.json()['items']}[bound.id], expected)
+        self.assertEqual(self.api('GET', f'{PLANS}/{bound.id}').json()['department'], expected)
 
     def test_a_department_of_another_company_cannot_be_linked_to_a_plan(self):
         self._as_manager()
