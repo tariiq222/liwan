@@ -12,6 +12,7 @@ import secrets
 from pathlib import Path
 import shutil
 import tempfile
+import time
 import unittest
 from urllib.parse import urlsplit
 from .backup import Deadline, capture_window, restore_tenant, validate_backup
@@ -50,10 +51,10 @@ class BackupLiveTests(unittest.TestCase):
                   'tenants':{'tenant_a':{**self.binding,'roles':{'blue':self.roles[0],'green':self.roles[1]}}}}
         self.runtime = LocalRuntime(state, config, connector=lambda _database, **options: psycopg2.connect(dsn, **options))
 
-    def create_role(self, cursor, role):
+    def create_role(self, cursor, role, inherit='NOINHERIT'):
         cursor.execute('SELECT 1 FROM pg_roles WHERE rolname=%s', (role,))
         if cursor.fetchone(): self.fail(f'{role} already exists; refusing to reuse a principal this run did not create')
-        cursor.execute(f'CREATE ROLE "{role}" LOGIN NOINHERIT NOSUPERUSER')
+        cursor.execute(f'CREATE ROLE "{role}" LOGIN {inherit} NOSUPERUSER')
         self.created_roles.append(role)
 
     def drop_created_roles(self):
@@ -82,6 +83,36 @@ class BackupLiveTests(unittest.TestCase):
             self.assertTrue(self.runtime._recheck_window(self.binding, Deadline(5))['gateClosed'])
         finally:
             other.close()
+
+    def test_inherited_writer_login_refuses_the_window_and_the_recheck(self):
+        # An undeclared login that is a member of a declared writer inherits its
+        # CONNECT and table privileges; its idle session survives the revocation.
+        dsn = os.environ['WEBVUE_BACKUP_TEST_DSN']
+        member = 'webvue_backup_live_member'
+        with self.admin.cursor() as cursor:
+            self.create_role(cursor, member, inherit='INHERIT')  # connects through the writer's grant
+            cursor.execute(f'GRANT "{self.roles[0]}" TO "{member}"')
+            cursor.execute('SELECT current_user'); admin_user = cursor.fetchone()[0]
+        idle = self.psycopg2.connect(dsn.replace('//', f'//{member}@', 1)); idle.autocommit = True
+        self.addCleanup(lambda: idle.closed or idle.close())
+        with idle.cursor() as cursor: cursor.execute('SELECT 1')
+        binding = {**self.binding, 'fence': 1, 'gateClosed': True, 'admittedWriters': 0}
+        connect = lambda _database, **options: self.psycopg2.connect(dsn, **options)
+        result = fence_writers(binding, list(self.roles), connect, deadline=Deadline(30),
+                               allowed_principals=(admin_user,), drain_seconds=10)
+        self.assertFalse(result['fenced'], result)
+        self.assertEqual(result['reason'], 'unsupported_writer_principal')
+        self.assertEqual(result['principals'], [member])
+        with self.admin.cursor() as cursor:
+            for role in self.roles:
+                cursor.execute(f'REVOKE CONNECT ON DATABASE "{self.database}" FROM "{role}"')
+        with self.assertRaisesRegex(ReleaseConflict, 'writer_reconnect_observed'):
+            self.runtime._recheck_window(self.binding, Deadline(5))
+        idle.close()
+        for _ in range(100):  # the backend exits shortly after the client closes
+            try: return self.assertTrue(self.runtime._recheck_window(self.binding, Deadline(5))['gateClosed'])
+            except ReleaseConflict: time.sleep(0.05)
+        self.fail('member session never left')
 
     def test_fence_capture_and_restore_against_real_postgres(self):
         dsn = os.environ['WEBVUE_BACKUP_TEST_DSN']

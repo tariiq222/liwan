@@ -167,6 +167,24 @@ class BackupOperationTests(unittest.TestCase):
         self.assertEqual(self.events, ['prepare'])  # inspection only, no effect
         self.assertFalse((self.state.routes/'tenant_a.maintenance').exists())
 
+    def test_retry_after_a_kill_between_intent_and_prepared_recovers_with_a_fresh_preflight(self):
+        # SIGKILL after write_intent, before the prepared stage: the request is still
+        # planned, nothing was fenced, and the cron state has changed since.
+        payload = {'operation':'backup','binding':self.binding,'output':str(self.root/'backup_one')}
+        self.state.request('backup_one', payload)
+        stale = {**self.previous,'cron':{'blue-cron':{'containerId':'1'*64,'running':True}}}
+        backup_operation.write_intent(self.state, 'tenant_a', 'backup_one', stale)
+        self.assertEqual(self.state.receipt('backup_one')['stage'], 'planned')
+        with self.assertRaisesRegex(ReleaseConflict, '^backup_operation_pending$'): self.call(self.runtime(), 'backup_two')
+        self.assertEqual(self.events, [])
+        result = self.call(self.runtime())
+        self.assertEqual(result['stage'], 'verified')
+        self.assertEqual(self.events, ['prepare',('fence_backup',True),'capture','validate','finalize','resume'])
+        intent = json.loads(backup_operation.intent_path(self.state,'tenant_a','backup_one').read_text())
+        self.assertEqual(intent, self.previous)
+        self.assertFalse((self.state.routes/'tenant_a.maintenance').exists())
+        self.assertEqual(self.call(self.runtime(), 'backup_two')['stage'], 'verified')
+
     def assert_new_request_refused_and_original_recoverable(self, error):
         intents = sorted(path.name for path in backup_operation.intent_path(self.state,'tenant_a','x').parent.iterdir())
         before = (self.state.receipt('backup_one'), intents, (self.state.routes/'tenant_a.maintenance').read_text())

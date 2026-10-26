@@ -323,6 +323,15 @@ class RuntimeCronTests(unittest.TestCase):
         self.assertEqual(proof['writerConnections'], 0)
         self.assertEqual(proof['fence'], route['fence'])
 
+    def test_window_recheck_counts_sessions_of_logins_inheriting_a_writer(self):
+        self.state.maintenance('tenant_a', 1)
+        self.backup_config(grants={'role_blue': False, 'role_green': False})
+        self.runtime._recheck_window(self.binding, backup_module.Deadline(5))
+        sessions = [(sql, args) for sql, args in self.connection.statements if 'pg_stat_activity' in sql]
+        self.assertEqual(len(sessions), 1)
+        self.assertIn('pg_auth_members', sessions[0][0])
+        self.assertEqual(sessions[0][1][1], ['role_blue', 'role_green'])
+
     def test_release_quiesce_keeps_the_candidate_connectable_through_verify(self):
         # R1: release/migrate/retire behave as on main. quiesce swaps generations with
         # fence_runtime (grants the candidate) and never uses the backup-only fence.

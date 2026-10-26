@@ -19,7 +19,7 @@ from .manifest import load_manifest, manifest_digest
 from .migrate import migrate_tenant, verify_tenant
 from .runtime_identity import inspect_odoo_runtime
 from .source_gate import verify_sources, snapshot_digest
-from .postgres import bounded_connection, fence_runtime, fence_writers, validate_runtime_role, identifier, writer_grants
+from .postgres import WRITER_LOGINS, bounded_connection, fence_runtime, fence_writers, validate_runtime_role, identifier, writer_grants
 from .state import ReleaseConflict, atomic_json, name, safe_directory
 
 
@@ -362,7 +362,9 @@ class LocalRuntime:
         roles = self._writer_roles(binding)
         with self._window_connection(binding['database'], deadline) as connection:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT (SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND pid<>pg_backend_pid() AND (usename = ANY(%s) OR state<>'idle' OR xact_start IS NOT NULL)) + (SELECT count(*) FROM pg_prepared_xacts WHERE database=%s)",
+                # An idle session of a role that is a member of a declared writer keeps the
+                # inherited table privileges after the CONNECT revocation, so it counts too.
+                cursor.execute(f"SELECT (SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND pid<>pg_backend_pid() AND (usename IN {WRITER_LOGINS} OR state<>'idle' OR xact_start IS NOT NULL)) + (SELECT count(*) FROM pg_prepared_xacts WHERE database=%s)",
                     (binding['database'],list(roles),binding['database']))
                 if cursor.fetchone()[0]: raise ReleaseConflict('writer_reconnect_observed')
             try:

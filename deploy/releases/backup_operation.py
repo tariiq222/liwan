@@ -9,11 +9,19 @@ def intent_path(state, tenant, request_id):
     return state.root / 'backup_intents' / name(tenant) / (name(request_id) + '.json')
 
 
-def write_intent(state, tenant, request_id, previous):
-    """Persist the previous state before the first effect; never silently replace it."""
+def write_intent(state, tenant, request_id, previous, *, planned=False):
+    """Persist the previous state before the first effect; never silently replace it.
+
+    ``planned`` is set only when this request id was already recorded as
+    ``planned`` before this call: the stage becomes ``prepared`` before the
+    maintenance marker or any fence, so its intent was never acted on. It is
+    the snapshot of a process that died between this write and ``prepared``,
+    and the retry of the same id replaces it atomically with its own fresh
+    preflight instead of requiring the old snapshot to still match.
+    """
     path = intent_path(state, tenant, request_id)
     if path.is_symlink(): raise ReleaseConflict('backup_intent_invalid')
-    if path.exists():
+    if path.exists() and not planned:
         if json.loads(path.read_text()) != previous: raise ReleaseConflict('backup_intent_conflict')
         return previous
     atomic_json(path, previous)
@@ -129,7 +137,8 @@ def backup_current(state, runtime, binding, request_id, output_dir, finalize=Non
     tenant = binding['tenantId']
     payload = {'operation': 'backup', 'binding': binding, 'output': str(Path(output_dir))}
     with state.locked('global_maintenance'), state.locked(tenant):
-        if _request_stage(state, request_id) in (None, 'planned'): _refuse_pending(state, tenant, request_id)
+        recorded = _request_stage(state, request_id)
+        if recorded in (None, 'planned'): _refuse_pending(state, tenant, request_id)
         state.request(request_id, payload)
         receipt = state.receipt(request_id)
         if receipt['stage'] in TERMINAL: return receipt
@@ -139,7 +148,7 @@ def backup_current(state, runtime, binding, request_id, output_dir, finalize=Non
         if route.get('draining'): raise ReleaseConflict('previous_release_not_drained')
         previous = runtime.prepare_backup(binding, route)
         deadline = runtime.backup_deadline()
-        write_intent(state, tenant, request_id, previous)
+        write_intent(state, tenant, request_id, previous, planned=recorded == 'planned')
         state.stage(request_id, tenant, 'prepared', route['fence'])
         try:
             state.maintenance(tenant, route['fence'])

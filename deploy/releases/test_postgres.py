@@ -13,6 +13,8 @@ class Cursor:
         self.sql, self.args = sql, args
         if 'pg_terminate_backend' in sql: self.connection.idle = []
     def fetchone(self):
+        if 'pg_stat_activity' in self.sql:  # session counts and pg_terminate_backend
+            return (self.connection.active,) if 'count(*)' in self.sql else (True,)
         if 'SELECT EXISTS (SELECT 1 FROM pg_database WHERE' in self.sql: return (self.connection.database_exists,)
         if 'FROM pg_roles WHERE' in self.sql: return self.connection.flags
         if 'aclexplode' in self.sql: return (self.connection.public,)
@@ -24,6 +26,13 @@ class Cursor:
         if 'has_database_privilege' in self.sql:
             return [(role, self.connection.grants[role]) for role in self.args[1] if role in self.connection.grants]
         if 'pg_stat_activity' in self.sql: return list(self.connection.idle)
+        if 'pg_auth_members' in self.sql:  # transitive members of the authorized principals
+            found, pending = [], [(role, role) for role in self.args[0]]
+            while pending:
+                role, via = pending.pop()
+                for member in self.connection.members.get(role, []):
+                    found.append((member, 'member_of:' + via)); pending.append((member, via))
+            return found
         if 'aclexplode' in self.sql and 'pg_database' in self.sql:
             return [(role, 'connect') for role in self.connection.connect_principals]
         if 'datdba' in self.sql: return [(role, 'owner') for role in self.connection.owner_principals]
@@ -40,6 +49,7 @@ class Connection:
         self.connect_principals = ['pool_old', 'pool_new', 'admin_role']
         self.write_principals = ['pool_old', 'pool_new']
         self.owner_principals = []
+        self.members = {}
     def cursor(self): return Cursor(self)
     def commit(self): pass
     def rollback(self): pass
@@ -132,6 +142,30 @@ class PostgresTests(unittest.TestCase):
         self.assertEqual(result['principals'], ['stray_writer'])
         effects = [command for command, _ in connection.commands if command.startswith(('REVOKE', 'GRANT')) or 'pg_terminate_backend' in command]
         self.assertFalse(effects)
+
+    def test_login_inheriting_a_declared_writer_refuses_the_window(self):
+        # An undeclared login that is a member of a declared writer keeps the
+        # inherited table privileges after the CONNECT revocation; its idle
+        # session must never be accepted as fenced.
+        connection = Connection(idle=[(21,)])
+        connection.members = {'pool_old': ['stray_group'], 'stray_group': ['stray_login']}
+        result = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db, **_: connection,
+                               allowed_principals=('admin_role',), deadline=Deadline(30), drain_seconds=0)
+        self.assertFalse(result['fenced'])
+        self.assertEqual(result['reason'], 'unsupported_writer_principal')
+        self.assertEqual(result['principals'], ['stray_group', 'stray_login'])
+        effects = [command for command, _ in connection.commands if command.startswith(('REVOKE', 'GRANT')) or 'pg_terminate_backend' in command]
+        self.assertFalse(effects)
+
+    def test_writer_sessions_include_logins_that_are_members_of_a_writer(self):
+        connection = Connection(idle=[(12,)])
+        fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db, **_: connection,
+                      allowed_principals=('admin_role',), deadline=Deadline(30), drain_seconds=0)
+        session_queries = [command for command, _ in connection.commands if 'pg_stat_activity' in command and 'usename' in command]
+        self.assertTrue(session_queries)
+        for command in session_queries:
+            self.assertIn('pg_auth_members', command)
+            self.assertNotIn('usename = ANY', command)
 
     def test_unverifiable_writer_authority_refuses_the_window(self):
         connection = Connection()

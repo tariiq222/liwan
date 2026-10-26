@@ -179,6 +179,15 @@ def _expired(deadline):
     return False
 
 
+# Every login that can act as a declared writer: the roles themselves and every
+# role that is a member of one, directly or transitively. pg_has_role is avoided on
+# purpose: it treats a superuser as a member of every role, which would retire the
+# operator's own sessions. Parameter: the declared writer role names.
+WRITER_LOGINS = ("(WITH RECURSIVE effective(oid) AS (SELECT oid FROM pg_roles WHERE rolname = ANY(%s::text[]) "
+                 "UNION SELECT m.member FROM pg_auth_members m JOIN effective e ON m.roleid = e.oid) "
+                 "SELECT r.rolname FROM pg_roles r JOIN effective e ON e.oid = r.oid)")
+
+
 def _await_no_writer_work(connection, database, deadline, drain_end):
     """Wait until no transaction or prepared transaction remains on the database."""
     while True:
@@ -193,19 +202,21 @@ def _await_no_writer_work(connection, database, deadline, drain_end):
 
 
 def _retire_idle_writers(connection, database, roles, deadline, drain_end):
-    """Terminate idle sessions of every declared writer, then wait until none remain."""
+    """Terminate idle sessions of every declared writer and of every role that is a
+    member of one (it keeps the inherited table privileges after the CONNECT
+    revocation), then wait until none remain."""
     with connection.cursor() as cursor:
-        cursor.execute("SELECT pid FROM pg_stat_activity WHERE datname=%s AND usename = ANY(%s) AND pid<>pg_backend_pid() AND state='idle' AND xact_start IS NULL", (database, roles))
+        cursor.execute(f"SELECT pid FROM pg_stat_activity WHERE datname=%s AND usename IN {WRITER_LOGINS} AND pid<>pg_backend_pid() AND state='idle' AND xact_start IS NULL", (database, roles))
         idle = cursor.fetchall()
         for (pid,) in idle:
-            cursor.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid=%s AND datname=%s AND usename = ANY(%s) AND state='idle' AND xact_start IS NULL", (pid, database, roles))
+            cursor.execute(f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid=%s AND datname=%s AND usename IN {WRITER_LOGINS} AND state='idle' AND xact_start IS NULL", (pid, database, roles))
             result = cursor.fetchone()
             if not result or result[0] is not True: return 'idle_backend_changed'
     connection.commit()
     # pg_terminate_backend acknowledges the signal before the backend exits.
     while True:
         with connection.cursor() as cursor:
-            cursor.execute('SELECT pid FROM pg_stat_activity WHERE datname=%s AND usename = ANY(%s) AND pid<>pg_backend_pid()', (database, roles))
+            cursor.execute(f'SELECT pid FROM pg_stat_activity WHERE datname=%s AND usename IN {WRITER_LOGINS} AND pid<>pg_backend_pid()', (database, roles))
             remaining = cursor.fetchall()
         connection.commit()
         if not remaining: return None
@@ -231,6 +242,9 @@ def writer_grants(connection, roles, database):
 def writer_authority(connection, database):
     """Enumerate principals with CONNECT or schema write authority on the database.
 
+    Authority is effective, not only direct: every role that is a member of an
+    authorized principal, directly or transitively, inherits or can SET ROLE to
+    its admission and table privileges and is reported as ``member_of:<role>``.
     A partial enumeration would make any writer fence a false promise, so an
     inspection failure reports ``complete=False`` and callers must refuse.
     """
@@ -243,6 +257,8 @@ def writer_authority(connection, database):
             cursor.execute("SELECT r.rolname, 'owner' FROM pg_database d JOIN pg_roles r ON r.oid=d.datdba WHERE d.datname=%s", (database,))
             for role, reason in cursor.fetchall(): principals.setdefault(role, []).append(reason)
             cursor.execute("""SELECT DISTINCT r.rolname, 'write' FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace, LATERAL aclexplode(COALESCE(c.relacl, acldefault(CASE WHEN c.relkind='S' THEN 'S'::"char" ELSE 'r'::"char" END, c.relowner))) a JOIN pg_roles r ON r.oid=a.grantee WHERE n.nspname='public' AND a.privilege_type IN ('INSERT','UPDATE','DELETE','TRUNCATE')""")
+            for role, reason in cursor.fetchall(): principals.setdefault(role, []).append(reason)
+            cursor.execute("WITH RECURSIVE members(oid, via) AS (SELECT m.member, g.rolname FROM pg_auth_members m JOIN pg_roles g ON g.oid=m.roleid WHERE g.rolname = ANY(%s::text[]) UNION SELECT m.member, s.via FROM pg_auth_members m JOIN members s ON m.roleid=s.oid) SELECT DISTINCT r.rolname, 'member_of:' || s.via FROM members s JOIN pg_roles r ON r.oid=s.oid", (sorted(principals),))
             for role, reason in cursor.fetchall(): principals.setdefault(role, []).append(reason)
     except Exception:
         return {'complete': False, 'principals': {}}
@@ -271,7 +287,7 @@ def _deny_writers(connection, database, role_names, allowed, fence, deadline, dr
     retired = _retire_idle_writers(connection, database, list(role_names), deadline, drain_end)
     if retired: return {'fenced': False, 'reason': retired, 'fence': fence}
     with connection.cursor() as cursor:
-        cursor.execute('SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND usename = ANY(%s) AND pid<>pg_backend_pid()', (database, list(role_names)))
+        cursor.execute(f'SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND usename IN {WRITER_LOGINS} AND pid<>pg_backend_pid()', (database, list(role_names)))
         if cursor.fetchone()[0]: return {'fenced': False, 'reason': 'writer_connections_remain', 'fence': fence}
     connection.commit()
     return {'fenced': True, 'reason': 'fenced', 'fence': fence, 'activeTransactions': 0, 'oldConnections': 0,
