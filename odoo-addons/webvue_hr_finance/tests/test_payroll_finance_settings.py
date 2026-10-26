@@ -19,6 +19,10 @@ class TestPayrollFinanceSettings(PayrollFinanceCase):
         super().setUpClass()
         cls.payroll_config = cls.user_with('pf_config', ['hr.payroll.read', 'hr.payroll.config', 'hr.employees.read'])
         cls.accountant = cls.user_with('pf_accountant', ['finance.setup.read'])
+        cls.payroll_finance_manager = cls.user_with('pf_finance_manager', [
+            'hr.payroll.finance.manage', 'hr.payroll.read', 'hr.employees.read',
+        ])
+        cls.unrelated = cls.user_with('pf_unrelated', ['hr.employees.read'])
         cls.cost_center_reader = cls.user_with('pf_cc_reader', [
             'hr.payroll.read', 'hr.employees.read', 'hr.departments.read', 'finance.analytic.read',
         ])
@@ -48,12 +52,14 @@ class TestPayrollFinanceSettings(PayrollFinanceCase):
         self.assertTrue(all(value is None for value in body['accounts'].values()))
         self.assertFalse(self.env['webvue.hr.payroll.finance.settings'].search_count([]))
 
-    def test_only_finance_setup_manage_edits_accounts(self):
+    def test_payroll_and_finance_managers_can_edit_settings(self):
         body = {'accounts': {'salaries_payable': self.accounts['salaries_payable'].id}}
-        self.login_as(self.payroll_config)
-        self.assertRefused(self.api('PATCH', SETTINGS, json=body), 403, 'forbidden')
-        self.login_as(self.accountant)
-        self.assertRefused(self.api('PATCH', SETTINGS, json=body), 403, 'forbidden')
+        for user in (self.payroll_config, self.accountant, self.unrelated):
+            self.login_as(user)
+            self.assertRefused(self.api('PATCH', SETTINGS, json=body), 403, 'forbidden')
+        self.login_as(self.payroll_finance_manager)
+        payroll_response = self.api('PATCH', SETTINGS, json=body)
+        self.assertEqual(payroll_response.status_code, 200, payroll_response.text)
         self.authenticate('finance_manager', 'finance_manager_pass_123')
         res = self.api('PATCH', SETTINGS, json={
             **body, 'journal_id': self.general_journal.id, 'entry_detail': 'per_employee',
@@ -78,9 +84,11 @@ class TestPayrollFinanceSettings(PayrollFinanceCase):
 
     def test_settings_readers(self):
         self.full_settings()
-        for user in (self.payroll_config, self.accountant):
+        for user in (self.payroll_config, self.accountant, self.payroll_finance_manager):
             self.login_as(user)
             self.assertEqual(self.api('GET', SETTINGS).status_code, 200, user.login)
+        self.login_as(self.unrelated)
+        self.assertRefused(self.api('GET', SETTINGS), 403, 'forbidden')
         self.authenticate('finance_outsider', 'finance_outsider_pass_123')
         self.assertRefused(self.api('GET', SETTINGS), 403, 'forbidden')
 

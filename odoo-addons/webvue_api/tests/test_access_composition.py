@@ -23,7 +23,7 @@ HR = frozenset({
 # Payroll is a section of webvue_hr behind its own keys: no HR role or group grants them.
 PAYROLL = frozenset({
     'hr.payroll.read', 'hr.payroll.manage', 'hr.payroll.approve', 'hr.payroll.config',
-    'hr.payroll.audit.read',
+    'hr.payroll.finance.manage',
 })
 PMO = frozenset({
     'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage',
@@ -71,7 +71,7 @@ DEPENDENCIES = {
     'hr.payroll.manage': {'hr.payroll.read'},
     'hr.payroll.approve': {'hr.payroll.read'},
     'hr.payroll.config': {'hr.payroll.read'},
-    'hr.payroll.audit.read': {'hr.payroll.read'},
+    'hr.payroll.finance.manage': {'hr.payroll.read'},
     'pmo.projects.create': {'pmo.projects.read'},
     'pmo.projects.manage': {'pmo.projects.read'},
     'pmo.settings.manage': {'pmo.projects.read'},

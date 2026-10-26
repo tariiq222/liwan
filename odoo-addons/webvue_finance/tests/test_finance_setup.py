@@ -318,6 +318,67 @@ class TestFinanceSetup(WebVueFinanceCase):
         self.assertEqual(self.fresh.fiscalyear_last_day, 30)
         self.assertEqual((self.company.fiscalyear_last_day, self.other_company.fiscalyear_last_day), (31, 31))
 
+    def _setup_manager(self):
+        self._user(MANAGER_NO_ADMIN_LOGIN, self.fresh, 'webvue_core.group_employee',
+                   ['finance.setup.read', 'finance.setup.manage'])
+        self.authenticate(MANAGER_NO_ADMIN_LOGIN, PASSWORD)
+
+    def _post_fresh_company_entry(self):
+        self._setup_manager()
+        self._write('POST', 'chart', {})
+        journal = self.env['account.journal'].search([
+            ('company_id', '=', self.fresh.id), ('type', '=', 'general'),
+        ], limit=1)
+        move = self.env['account.move'].with_company(self.fresh).create({
+            'journal_id': journal.id, 'move_type': 'entry', 'date': '2026-10-01',
+            'line_ids': [
+                Command.create({'name': 'Debit', 'account_id': self.env['account.account'].with_company(self.fresh).search([
+                    ('code', '=', '400064'), ('company_ids', 'in', self.fresh.ids),
+                ], limit=1).id, 'debit': 1}),
+                Command.create({'name': 'Credit', 'account_id': self.env['account.account'].with_company(self.fresh).search([
+                    ('code', '=', '101001'), ('company_ids', 'in', self.fresh.ids),
+                ], limit=1).id, 'credit': 1}),
+            ],
+        })
+        move.action_post()
+        return move
+
+    def test_posted_entries_refuse_a_changed_fiscal_year_end(self):
+        self._post_fresh_company_entry()
+        before = (self.fresh.fiscalyear_last_day, self.fresh.fiscalyear_last_month)
+
+        result = self._write('PATCH', 'fiscal', {'fiscalyear_last_day': 30, 'fiscalyear_last_month': 6})
+
+        self.assertEqual((result.status_code, result.json()['code']), (422, 'fiscal_year_has_posted_entries'), result.text)
+        self.env.invalidate_all()
+        self.assertEqual((self.fresh.fiscalyear_last_day, self.fresh.fiscalyear_last_month), before)
+
+    def test_fiscal_year_end_can_change_before_any_posted_entry(self):
+        self._setup_manager()
+
+        result = self._write('PATCH', 'fiscal', {'fiscalyear_last_day': 30, 'fiscalyear_last_month': 6})
+
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual((self.fresh.fiscalyear_last_day, self.fresh.fiscalyear_last_month), (30, '6'))
+
+    def test_posted_entries_allow_unchanged_fiscal_year_values(self):
+        self._post_fresh_company_entry()
+        self.authenticate(MANAGER_NO_ADMIN_LOGIN, PASSWORD)
+
+        result = self._write('PATCH', 'fiscal', {'fiscalyear_last_day': self.fresh.fiscalyear_last_day,
+                                                 'fiscalyear_last_month': int(self.fresh.fiscalyear_last_month)})
+
+        self.assertEqual(result.status_code, 200, result.text)
+
+    def test_posted_entries_do_not_block_lock_date_tightening(self):
+        self._post_fresh_company_entry()
+        self.authenticate(MANAGER_NO_ADMIN_LOGIN, PASSWORD)
+
+        result = self._write('PATCH', 'fiscal', {'fiscalyear_lock_date': '2026-06-30'})
+
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(str(self.fresh.fiscalyear_lock_date), '2026-06-30')
+
     def test_a_closed_feature_refuses_every_setup_route(self):
         set_probe_feature(self, key='finance.enabled', enabled=False)
         self.authenticate(ADMIN_LOGIN, PASSWORD)
