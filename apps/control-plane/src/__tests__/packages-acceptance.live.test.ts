@@ -65,8 +65,8 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
     return published.body
   }
   const plan = (name: string, bundles: string[], users: number) => publish('plans', { name, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
-    prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: { 'users.limit': users, 'storage.limit_mb': 1000 }, included_bundle_revision_ids: bundles,
-    optional_bundle_revision_ids: [], included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(5000) }], extra_branches_limit: 0,
+    prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: {}, included_bundle_revision_ids: bundles,
+    optional_bundle_revision_ids: [], included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(5000) }], extra_branches_limit: 0, included_users: users, included_storage_mb: 1000, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
     policy_revision_id: POLICY, trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
   /** Real collector pass over the real Odoo observation (a downgrade or reopen quote needs a fresh sample). */
   async function collect() {
@@ -77,7 +77,7 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
     } })
   }
   async function order(kind: 'new' | 'change', planId: string) {
-    const q = await createQuoteForCustomer(pool, { customer_id: state.customer, request: { kind, plan_revision_id: planId, bundle_revision_ids: [], cadence: monthly, requested_extra_branches: 0 } }, new Date())
+    const q = await createQuoteForCustomer(pool, { customer_id: state.customer, request: { kind, plan_revision_id: planId, bundle_revision_ids: [], cadence: monthly, requested_extra_branches: 0, requested_users: planId === state.small.id ? state.smallUsers : state.fullUsers, requested_storage_mb: planId === state.small.id ? state.smallStorage : state.fullStorage } }, new Date())
     const { order: o } = await orders.acceptQuote(pool, { quote_id: q.id, expected_subscription_revision: q.expected_subscription_revision, idempotency_key: randomUUID() }, vendor)
     const snapshot = (await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [o.target_revision_id])).rows[0].snapshot
     return { order: o, snapshot }
@@ -124,8 +124,10 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
 
   it('1: a plan with two or more apps is applied to the tenant and the applied keys match the compiled ones', async () => {
     state.full = await plan(`Full ${randomUUID()}`, [state.projects.id, state.people.id, state.probe.id], 10)
+    state.fullUsers = 10; state.fullStorage = 1000
     state.peopleOnly = await plan(`People ${randomUUID()}`, [state.people.id, state.probe.id], 10)
     state.small = await plan(`Small ${randomUUID()}`, [state.people.id, state.probe.id], 1)
+    state.smallUsers = 1; state.smallStorage = 1000
     const policy = deriveSharedPolicy(solution, 'core')
     // The tenant has the test-only probe addon installed; provisioning compares installed addons with the policy closure.
     // Reconfigure refuses test-only addons in an entitlement, so the probe tier lists a real release module instead.
@@ -175,7 +177,7 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
   })
 
   it('5: a downgrade below real collected usage is refused', async () => {
-    const request = { kind: 'change' as const, plan_revision_id: state.small.id, bundle_revision_ids: [], cadence: monthly, requested_extra_branches: 0 }
+    const request = { kind: 'change' as const, plan_revision_id: state.small.id, bundle_revision_ids: [], cadence: monthly, requested_extra_branches: 0, requested_users: state.smallUsers, requested_storage_mb: state.smallStorage }
     // Earlier steps collected samples; without a fresh sample the downgrade is refused as unavailable.
     await pool.query("UPDATE usage_snapshots SET freshness='stale' WHERE tenant_id=$1", [state.tenant])
     await expect(createQuoteForCustomer(pool, { customer_id: state.customer, request }, new Date())).rejects.toMatchObject({ status: 409, code: 'usage_unavailable', field: 'users.limit' })

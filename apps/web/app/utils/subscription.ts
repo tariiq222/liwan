@@ -31,6 +31,35 @@ export function usageFigure(metric: UsageMetric, freshness: UsageSnapshot['fresh
   return { value: known ? metric.used : null, limit: metric.limit, known, stale: known && freshness === 'stale' }
 }
 
+/** The refusal code `createError({statusCode,data})` produces on the client: the body is nested one level. */
+export function refusalCode(cause: unknown): string | null {
+  const e = cause as { data?: { code?: string; data?: { code?: string } } } | null
+  const code = e?.data?.data?.code ?? e?.data?.code
+  return typeof code === 'string' ? code : null
+}
+
+/** Refusal codes that need a specific explanation; everything else falls back to the generic message. */
+export function refusalKey(code: unknown): string | null {
+  return code === 'tenant_upgrade_required' || code === 'tenant_binding_unavailable' || code === 'trial_order_unavailable'
+    ? `subscription.trial.${code === 'tenant_upgrade_required' ? 'upgradeRequired' : 'notConfigured'}`
+    : null
+}
+
+/** The commercial facts of a quote, ignoring its identity and expiry, so a re-quote of the
+ * same selection compares equal even though `expires_at` moves the digest. */
+export function quoteEconomics(q: Quote) {
+  return {
+    plan: q.plan_revision_id, bundles: [...q.bundle_revision_ids].sort(), terms: q.terms_revision_id,
+    cadence: q.cadence, users: q.requested_users, storage: q.requested_storage_mb,
+    branches: q.requested_extra_branches, due: q.due_now.minor, renewal: q.next_renewal.minor,
+    lines: q.lines.map(l => [l.kind, l.key, l.amount.minor, l.quantity]),
+  }
+}
+
+export function sameQuoteEconomics(a: Quote, b: Quote): boolean {
+  return JSON.stringify(quoteEconomics(a)) === JSON.stringify(quoteEconomics(b))
+}
+
 export const QUOTE_IS_EXPIRED = (quote: Pick<Quote, 'expires_at'>, now = Date.now()): boolean => Date.parse(quote.expires_at) <= now
 
 /** Body for POST /quotes and /branch-quotes never carries tenant/customer identity (the BFF rejects those keys). */
@@ -87,7 +116,8 @@ export function subscriptionInvoiceView(invoice: Invoice, t: (key: string) => st
     const q = invoiceLineQuantities(line)
     return {
       id: line.key,
-      description: line.description,
+      // Metered quantities are UI labels, not stored descriptions; the priced revision names the rest.
+      description: line.kind === 'users' ? t('subscription.invoices.users') : line.kind === 'storage' ? t('subscription.invoices.storage') : line.description,
       cells: [
         { key: 'quantity', label: '', value: `× ${line.quantity}` },
         ...(q.free === null ? [] : [

@@ -12,9 +12,13 @@ const branchLines = computed(() => (props.quote?.lines ?? []).filter(l => l.kind
 const paid = computed(() => branchLines.value.reduce((n, l) => n + l.quantity, 0))
 const freeBranches = computed(() => Math.max(0, (props.quote?.requested_extra_branches ?? 0) - paid.value))
 
+// Metered lines are customer-facing quantities, so their labels come from the UI locale rather than
+// the server description. Every other description is the priced revision's own name.
+const describe = (line: Quote['lines'][number]) => line.kind === 'users' ? t('commercial.pricing.quote.users')
+  : line.kind === 'storage' ? t('commercial.pricing.quote.storage') : line.description
 const lines = computed<InvoiceLineView[]>(() => [
   ...(props.hqIncluded !== false ? [{ id: 'hq-included', description: t('commercial.pricing.quote.hq'), cells: [], amount: t('commercial.pricing.summary.included') }] : []),
-  ...now.value.map(line => ({ id: line.key, description: line.description, cells: line.quantity > 1 ? [{ key: 'quantity', label: '', value: `× ${line.quantity}` }] : [], amount: money(line.amount) })),
+  ...now.value.map(line => ({ id: line.key, description: describe(line), cells: line.quantity > 1 ? [{ key: 'quantity', label: '', value: `× ${line.quantity}` }] : [], amount: money(line.amount) })),
 ])
 const totals = computed(() => props.quote ? [
   { label: t('commercial.pricing.quote.dueNow'), value: money(props.quote.due_now) },

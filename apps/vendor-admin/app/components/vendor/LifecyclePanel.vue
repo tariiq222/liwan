@@ -26,6 +26,7 @@ async function perform() {
   } catch (cause) { failure.value = cause } finally { busy.value = false }
 }
 const destructive = (a: LifecycleAction) => a === 'delete' || a === 'withdraw'
+const strandsPlans = computed(() => props.kind === 'bundle' && action.value === 'withdraw' && (props.view.customer_count ?? 0) > 0)
 </script>
 <template>
   <SharedFormSection :title="t('vendor.pricing.lifecycle.title')" :description="t('vendor.pricing.lifecycle.preserve')" data-testid="lifecycle-panel">
@@ -41,6 +42,7 @@ const destructive = (a: LifecycleAction) => a === 'delete' || a === 'withdraw'
     </div>
     <template v-else>
       <SharedInlineConfirm v-if="destructive(action)" :title="t(`vendor.pricing.actions.${action}`)" :description="t(`vendor.pricing.effects.${action}`)" :confirm-label="t(`vendor.pricing.actions.${action}`)" :pending="busy" @cancel="cancel" @confirm="perform">
+        <UAlert v-if="strandsPlans" color="warning" variant="subtle" :title="t('vendor.pricing.effects.withdrawReferenced')" class="mb-3" />
         <UFormField :label="t('vendor.pricing.fields.reason')" required :error="reasonError" class="mt-3"><UTextarea v-model="reason" maxlength="1000" class="w-full" :disabled="busy" /></UFormField>
       </SharedInlineConfirm>
       <form v-else class="space-y-4" novalidate @submit.prevent="perform">

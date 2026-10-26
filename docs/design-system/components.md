@@ -194,6 +194,7 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | `apps/vendor-admin/app/components/vendor/StatusStrip.vue` | شريط الحالة المضغوط في صفحة اليوم: أعداد تفتح القوائم التي تعدّها | `NuxtLink` |
 | `apps/vendor-admin/app/components/vendor/SubscriptionSummary.vue` | ملخص اشتراك العميل والطلب المعلّق ومساحة لإجراءاته | `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UAlert` |
 | `apps/vendor-admin/app/components/vendor/SubscriptionTimeline.vue` | خط زمني لمراحل الاشتراك: المطبّق والتغيير المطلوب والطلب المعلّق | `SharedStatusBadge`, `UIcon` |
+| `apps/vendor-admin/app/components/vendor/TrialPanel.vue` | لوحة التجربة في صفحة العميل: تاريخ الانتهاء والأيام المتبقية، وتمديد أو إنهاء بتأكيد مضمّن وسبب | `SharedInlineConfirm`, `SharedRecordSection`, `UAlert`, `UButton`, `UFormField`, `UInput`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/TenantOperationsPanel.vue` | تبويب عمليات مساحة العميل: إضافة عملية بتأكيد مضمّن وآخر العمليات ومنطقة حساسة لصلاحية العمليات | `SharedForbiddenState`, `SharedInlineConfirm`, `SharedPageState`, `SharedRecordSection`, `SharedStatusBadge`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/TenantProperties.vue` | خصائص مساحة العميل: الحالة والنمط والاستضافة والكتالوج وآخر فحص | `SharedPageState`, `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UButton` |
 | `apps/vendor-admin/app/components/vendor/UsageMeters.vue` | مقاييس الاستهلاك مقابل الحدود | `SharedStatusBadge`, `UProgress` |

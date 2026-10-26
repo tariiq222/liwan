@@ -31,5 +31,7 @@ export function useVendorSubscriptions() {
       return r.quote
     },
     placeOrder: (body: { quote_id: string; expected_subscription_revision: number; idempotency_key: string }) => request<Order>('commercial/orders', { method: 'POST', body }),
+    extendTrial: (id: string, body: { days: number; reason: string }) => request<{ customer_id: string; trial_ends_at: string }>(`commercial/trials/${seg(id)}/extend`, { method: 'POST', body }),
+    endTrial: (id: string, body: { reason: string }) => request<{ customer_id: string }>(`commercial/trials/${seg(id)}/end`, { method: 'POST', body }),
   }
 }

@@ -20,9 +20,12 @@ class ScriptContentTests(unittest.TestCase):
         text = self.script()
         self.assertIn('OPERATOR_CONTEXT', text)
         self.assertEqual(text.count('.write('), 1)
-        block = text[text.index('operator.write('):text.index('if values')]
+        # The policy fields are assembled into `write_vals` and written once, so the
+        # expiry fields can join the same write on an unchanged revision.
+        block = text[text.index('write_vals = {'):text.index('operator.write(write_vals)')]
         for field in ("'features'", "'commercial_revision_id'", "'commercial_digest'", "'commercial_applied_at'"):
             self.assertIn(field, block)
+        self.assertIn('write_vals.update(expiry_vals)', text)
         self.assertIn('_webvue_apply_branches(values', text)
         self.assertIn('_webvue_archive_branch(values', text)
         self.assertLess(text.index('_webvue_archive_branch'), text.index('_webvue_apply_branches('))

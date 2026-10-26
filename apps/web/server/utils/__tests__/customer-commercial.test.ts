@@ -66,6 +66,11 @@ describe('customer commercial BFF', () => {
     const forged = Buffer.from(JSON.stringify({ ...principal, tenant_id: 'tenant-other' })).toString('base64')
     expect(verifyServiceRequest({ method: 'GET', path: '/v1/customer/subscription', body: signedBodyFor(forged, undefined), key: KEY, headers: h })).toBeNull()
   })
+  it('keeps the control-plane refusal code on a 409', async () => {
+    const raw = setup({ url: 'https://acme.example/api/commercial/v1/trial', method: 'POST', body: '{"plan_id":"p"}' })
+    raw.mockRejectedValueOnce(Object.assign(new Error('refused'), { statusCode: 409, data: { code: 'tenant_upgrade_required', message: 'tenant needs an upgrade' } }))
+    await expect(forwardCustomerRequest({} as never)).rejects.toMatchObject({ statusCode: 409, data: { code: 'tenant_upgrade_required' } })
+  })
   it('rejects forged tenant/customer/capability fields in query and body with 400', async () => {
     const raw = setup({ url: 'https://acme.example/api/commercial/v1/usage?tenant_id=other' })
     await expect(forwardCustomerRequest({} as never)).rejects.toMatchObject({ statusCode: 400, data: { code: 'forbidden_field' } })
@@ -103,6 +108,9 @@ describe('customer commercial BFF', () => {
   })
   it('only forwards the documented customer routes', () => {
     expect(customerRoute('GET', 'subscription')?.upstream).toBe('/v1/customer/subscription')
+    expect(customerRoute('POST', 'preview')).toEqual({ upstream: '/v1/customer/preview', needs: 'subscription.read' })
+    expect(customerRoute('POST', 'trial')).toEqual({ upstream: '/v1/customer/trial', needs: 'subscription.manage' })
+    expect(customerRoute('POST', 'trial/convert')).toEqual({ upstream: '/v1/customer/trial/convert', needs: 'subscription.manage' })
     expect(customerRoute('POST', 'orders/abc/payment-attempts')?.needs).toBe('subscription.manage')
     expect(customerRoute('GET', 'invoices/inv-1')?.needs).toBe('billing.read')
     expect(customerRoute('POST', 'branch-quotes')?.needs).toBe('branches.manage')

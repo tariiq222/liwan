@@ -93,10 +93,10 @@ describe('forms: explicit values', () => {
   it('plan form has no silent defaults for the choice fields', () => {
     const f = comp('PlanForm.vue')
     for (const k of ['auto_suspend', 'auto_renew_allowed', 'trial_days', 'grace_days']) expect(f).toContain(k)
-    expect(f).toContain('vendor.pricing.plan.storageHint'); expect(f).toContain('vendor.pricing.plan.hq'); expect(f).toContain('policy?.timezone')
+    expect(f).toContain('vendor.pricing.plan.quantitiesHint'); expect(f).toContain('vendor.pricing.plan.userPricesHint'); expect(f).toContain('vendor.pricing.plan.storagePricesHint'); expect(f).toContain('vendor.pricing.plan.hq'); expect(f).toContain('policy?.timezone')
   })
   it('bundle form shows dependency hints and locked included features', () => {
-    const f = comp('BundleForm.vue'); expect(f).toContain('dependencyHints'); expect(f).toContain('i-lucide-lock'); expect(f).toContain('hints.missing'); expect(f).toContain('hints.conflicts')
+    const f = comp('BundleForm.vue'); expect(f).toContain('dependencyHints'); expect(f).toContain('grantedFeatures'); expect(f).toContain('i-lucide-check'); expect(f).toContain('hints.missing'); expect(f).toContain('hints.conflicts')
   })
   it('every field is wrapped in UFormField', () => { for (const f of ['BundleForm.vue', 'PlanForm.vue']) expect(comp(f)).toContain('<UFormField') })
 })
@@ -110,7 +110,7 @@ describe('locale parity for vendor.bundles/plans/pricing', () => {
     expect(ar.status).toEqual({ draft: 'مسودة', validated: 'جاهزة للاعتماد', published: 'منشورة ومتاحة', withdrawn: 'موقوفة' })
     expect(json('ar').bundles.title).toBe('الحزم'); expect(json('ar').plans.title).toBe('الباقات')
   })
-  it('storage is labelled as counted attachments, not database', () => { expect(json('ar').pricing.keys.storage_limit_mb).toContain('المرفقات'); expect(json('ar').pricing.plan.storageHint).toContain('قاعدة البيانات') })
+  it('storage is labelled as counted attachments and priced per gigabyte above the minimum', () => { expect(json('ar').pricing.keys.storage_limit_mb).toContain('المرفقات'); expect(json('ar').pricing.fields.storagePrice).toContain('غيغابايت') })
   it('every t() key used by the new pages exists', () => {
     const files = ['bundles/index.vue', 'bundles/new.vue', 'bundles/[id].vue', 'bundles/[id]/edit.vue', 'plans/index.vue', 'plans/new.vue', 'plans/[id].vue', 'plans/[id]/edit.vue'].map(page)
       .concat(['BundleForm.vue', 'PlanForm.vue', 'EntitlementSummary.vue', 'LifecyclePanel.vue', 'PriceListEditor.vue', 'CapacityLimitsEditor.vue', 'LimitControl.vue'].map(comp)).concat(read('../../packages/commercial-ui/app/components/shared/commerce/PriceBreakdown.vue'))
