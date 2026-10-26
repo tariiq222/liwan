@@ -64,3 +64,40 @@ it('strict receiving socket sees tenant Host/token/revision for API and all sess
     expect(calls).toHaveLength(count)
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllEnvs() }
 })
+
+// The two expected-context headers are a comparison value for the fiscal writes, never client authority:
+// bound transport forwards them and keeps every other client-declared identity header out.
+it('forwards the expected context in bound mode and never invents or accepts authority from it', async () => {
+  const token = 'synthetic-wire-token'.repeat(3)
+  const path = join(mkdtempSync(join(tmpdir(), 'webvue-context-')), 'registry.json')
+  writeFileSync(path, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }] }))
+  vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared'); vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token); vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', path)
+  const seen: http.IncomingHttpHeaders[] = []
+  const server = http.createServer((req, res) => { seen.push(req.headers); req.resume(); res.statusCode = 200; res.end('{}') })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+  const requestEvent = (headers: Record<string, string>) => ({
+    node: { req: Object.assign(new EventEmitter(), { headers }), res: new EventEmitter() },
+  } as never)
+  const binding: Record<string, string> = {
+    host: 'a.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1', cookie: 'session_id=signed-envelope',
+    // Client-declared hop identity that must never reach Odoo from a caller.
+    'x-webvue-release-fence': 'forged',
+  }
+  const stating: Record<string, string> = { ...binding, 'x-webvue-expected-user-id': '7', 'x-webvue-expected-company-id': '3' }
+  const silent: Record<string, string> = { ...binding }
+  const lastHeaders = () => seen[seen.length - 1] ?? {}
+  const write = (event: never) => tenantTransport(event, base, '/api/v1/finance/setup/fiscal', { method: 'PATCH', body: '{}' })
+  try {
+    expect((await write(requestEvent(stating))).status).toBe(200)
+    expect(lastHeaders()['x-webvue-expected-user-id']).toBe('7')
+    expect(lastHeaders()['x-webvue-expected-company-id']).toBe('3')
+    expect(lastHeaders()['x-webvue-release-fence']).toBeUndefined()
+    expect(lastHeaders()['x-webvue-proxy-token']).toBe(token)
+    // A caller that states nothing forwards nothing: the precondition is never filled in for it.
+    seen.length = 0
+    expect((await write(requestEvent(silent))).status).toBe(200)
+    expect(lastHeaders()['x-webvue-expected-user-id']).toBeUndefined()
+    expect(lastHeaders()['x-webvue-expected-company-id']).toBeUndefined()
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllEnvs() }
+})

@@ -703,12 +703,12 @@
         {
           "id": "Latest",
           "name": "آخر الأحداث",
-          "context": "apps/web/app/pages/settings/apps/finance/index.vue:139"
+          "context": "apps/web/app/pages/settings/apps/finance/index.vue:316"
         },
         {
           "id": "Empty",
           "name": "فارغة",
-          "context": "apps/web/app/pages/settings/apps/finance/index.vue:139"
+          "context": "apps/web/app/pages/settings/apps/finance/index.vue:316"
         }
       ]
     },
