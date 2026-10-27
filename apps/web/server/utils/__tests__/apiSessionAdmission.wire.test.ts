@@ -37,6 +37,7 @@ async function fixture() {
       probes.push(req.headers.cookie ?? '')
       const respond = () => {
         if (unavailable) { res.statusCode = 503; res.end('{}'); return }
+        if (req.headers.cookie?.startsWith('session_id=suspended')) { res.statusCode = 403; res.end(JSON.stringify({ code: 'tenant_suspended', message: 'this tenant is suspended' })); return }
         if (!req.headers.cookie?.startsWith('session_id=verified')) { res.statusCode = 403; res.end('{}'); return }
         res.end(JSON.stringify({ id: 7, company: { id: 1 } }))
       }
@@ -79,6 +80,8 @@ async function fixture() {
 it.each([
   ['missing', 403, 'session_required', 'A valid session is required.'],
   ['forged', 403, 'session_required', 'A valid session is required.'],
+  // Odoo ends a suspended tenant's session; the reason must reach the browser.
+  ['suspended', 403, 'tenant_suspended', 'This tenant is suspended.'],
   ['outage', 503, 'session_validation_unavailable', 'Session validation is temporarily unavailable.'],
 ] as const)('returns the complete strict API envelope for %s admission', async (kind, status, code, message) => {
   const wire = await fixture()

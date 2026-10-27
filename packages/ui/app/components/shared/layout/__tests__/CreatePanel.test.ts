@@ -5,61 +5,10 @@ import { fileURLToPath } from 'node:url'
 import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
-import { createRenderer, defineComponent, h, type App, type Component } from 'vue'
+import { defineComponent, h, type App, type Component } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
+import { createHostNode, findNode, hostRenderer, type HostNode } from '../../../../../test/helpers/hostRenderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-
-interface HostNode {
-  children: HostNode[]
-  parent: HostNode | null
-  props: Record<string, unknown>
-  text?: string
-  type?: string
-}
-
-function createHostNode(type = 'root'): HostNode {
-  return { type, children: [], parent: null, props: {} }
-}
-
-const renderer = createRenderer<HostNode, HostNode>({
-  patchProp(node, key, _oldValue, value) {
-    node.props[key] = value
-  },
-  insert(child, parent, anchor) {
-    child.parent = parent
-    const index = anchor ? parent.children.indexOf(anchor) : -1
-    if (index === -1) parent.children.push(child)
-    else parent.children.splice(index, 0, child)
-  },
-  remove(child) {
-    if (!child.parent) return
-    const index = child.parent.children.indexOf(child)
-    if (index !== -1) child.parent.children.splice(index, 1)
-    child.parent = null
-  },
-  createElement: type => createHostNode(type),
-  createText: text => ({ text, children: [], parent: null, props: {} }),
-  createComment: text => ({ text, type: 'comment', children: [], parent: null, props: {} }),
-  setText(node, text) { node.text = text },
-  setElementText(node, text) { node.text = text; node.children = [] },
-  parentNode: node => node.parent,
-  nextSibling(node) {
-    if (!node.parent) return null
-    return node.parent.children[node.parent.children.indexOf(node) + 1] ?? null
-  },
-  querySelector: () => null,
-  setScopeId: () => {},
-  cloneNode: node => ({ ...node, children: [...node.children], props: { ...node.props }, parent: null }),
-  insertStaticContent(content, parent, anchor) {
-    const node = createHostNode('static')
-    node.text = content
-    node.parent = parent
-    const index = anchor ? parent.children.indexOf(anchor) : -1
-    if (index === -1) parent.children.push(node)
-    else parent.children.splice(index, 0, node)
-    return [node, node]
-  },
-})
 
 const mountedApps: App[] = []
 
@@ -89,14 +38,6 @@ afterEach(() => {
   for (const app of mountedApps.splice(0)) app.unmount()
 })
 
-function findNode(node: HostNode, predicate: (candidate: HostNode) => boolean): HostNode | undefined {
-  if (predicate(node)) return node
-  for (const child of node.children) {
-    const match = findNode(child, predicate)
-    if (match) return match
-  }
-  return undefined
-}
 
 function textOf(node: HostNode): string {
   return [node.text ?? '', ...node.children.map(textOf)].join('')
@@ -115,7 +56,7 @@ describe('SharedCreatePanel', () => {
     await router.isReady()
 
     const CreatePanel = loadCreatePanel()
-    const app = renderer.createApp(defineComponent({
+    const app = hostRenderer.createApp(defineComponent({
       render: () => h(CreatePanel, { title: 'مهمة جديدة', backTo: '/tasks' }),
     }))
     app.component('UButton', defineComponent({
@@ -155,7 +96,7 @@ describe('SharedCreatePanel', () => {
     await router.isReady()
 
     const CreatePanel = loadCreatePanel()
-    const app = renderer.createApp(defineComponent({
+    const app = hostRenderer.createApp(defineComponent({
       render: () => h(CreatePanel, { title: 'مهمة جديدة', backTo: '/tasks' }),
     }))
     app.component('UButton', defineComponent({
@@ -201,7 +142,7 @@ describe('SharedCreatePanel', () => {
 
     const CreatePanel = loadCreatePanel()
     let content: Record<string, unknown> | undefined
-    const app = renderer.createApp(defineComponent({
+    const app = hostRenderer.createApp(defineComponent({
       render: () => h(CreatePanel, { title: 'مهمة جديدة', description: 'تُضاف إلى المشروع', backTo: '/tasks' }),
     }))
     app.component('UButton', defineComponent({

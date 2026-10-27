@@ -12,6 +12,7 @@ import { ApiError } from '../../../../composables/useApi'
 import { validateTaskDates } from '../../../../utils/projectDateBounds'
 import { errorStateKind } from '@webvue/ui/app/utils/errorState'
 import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
+import { rootedNode } from '../../../../../tests/hostNode'
 
 interface HostNode {
   type: string
@@ -19,8 +20,9 @@ interface HostNode {
   children: HostNode[]
   parent: HostNode | null
   text?: string
+  getRootNode(): unknown
 }
-const node = (type = 'root'): HostNode => ({ type, props: {}, children: [], parent: null })
+const node = (type = 'root'): HostNode => rootedNode({ type, props: {}, children: [], parent: null })
 const renderer = Vue.createRenderer<HostNode, HostNode>({
   patchProp: (element, key, _old, value) => { element.props[key] = value },
   insert(child, parent, anchor) {

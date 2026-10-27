@@ -21,6 +21,7 @@ DEPARTURE = date(2026, 11, 30)
 PUT_COMPENSATION = {
     'basic_wage': 10000, 'housing_allowance': 2500, 'transport_allowance': 1000, 'other_allowance': 0,
     'iban': None, 'bank_id': None, 'gosi_number': None, 'gosi_registration_date': '2024-01-01',
+    'relationship_type': 'employee',
 }
 
 
