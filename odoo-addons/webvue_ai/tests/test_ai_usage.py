@@ -110,6 +110,14 @@ class TestAiUsage(AiProbe, WebVueApiCase):
             ({'called_at': '2026-10-27T09:30:00'}, 'called_at', None),
             ({'called_at': 'yesterday'}, 'called_at', None),
             ({'called_at': 1_790_000_000}, 'called_at', None),
+            ({'called_at': '20261027T093000+0300'}, 'called_at', None),
+            ({'called_at': '2026-W44-2T09:30+03'}, 'called_at', None),
+            ({'called_at': '2026-10-27T09:30:00,5+03:00'}, 'called_at', None),
+            ({'called_at': '2026-10-27T09:30:00+03:00:30'}, 'called_at', None),
+            ({'called_at': '2026-10-27 09:30:00+03:00'}, 'called_at', None),
+            ({'called_at': '0001-01-01T00:00:00+14:00'}, 'called_at', None),
+            ({'called_at': '9999-12-31T23:59:59-01:00'}, 'called_at', None),
+            ({'called_at': '2026-02-30T00:00:00Z'}, 'called_at', None),
         )
         for change, field, code in cases:
             with self.subTest(change=change):

@@ -22,6 +22,10 @@ CONTROL_CHARACTERS = re.compile(r'[\x00-\x1f\x7f-\x9f]')
 MAX_MODEL_LENGTH = 128
 MAX_TOKENS = 100_000_000
 FUTURE_TOLERANCE = timedelta(minutes=5)
+# RFC 3339 with an offset, the same instants the zod contract's iso datetime({offset: true}) accepts.
+RFC3339 = re.compile(
+    r'(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?(?:Z|([+-])(\d{2}):(\d{2}))',
+)
 
 
 def is_token_count(value):
@@ -29,16 +33,22 @@ def is_token_count(value):
 
 
 def parse_called_at(value):
-    """The UTC instant of an ISO-8601 string that carries an offset, or ``None`` for anything else."""
-    if not isinstance(value, str):
+    """The UTC instant of an RFC 3339 string with an offset, or ``None`` for anything else."""
+    match = RFC3339.fullmatch(value) if isinstance(value, str) else None
+    if not match:
         return None
+    year, month, day, hour, minute, second, fraction, sign, offset_hours, offset_minutes = match.groups()
+    offset = timedelta(hours=int(offset_hours or 0), minutes=int(offset_minutes or 0))
     try:
-        parsed = datetime.fromisoformat(value[:-1] + '+00:00' if value.endswith('Z') else value)
-    except ValueError:
+        local = datetime(
+            int(year), int(month), int(day), int(hour), int(minute), int(second or 0),
+            int((fraction or '0')[:6].ljust(6, '0')),
+            tzinfo=timezone(-offset if sign == '-' else offset),
+        )
+        return local.astimezone(timezone.utc)
+    except (ValueError, OverflowError):
+        # A calendar-invalid value, an offset of 24 hours or more, or an instant outside the range in UTC.
         return None
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        return None
-    return parsed.astimezone(timezone.utc)
 
 
 class WebVueAiUsage(models.Model):
@@ -62,11 +72,14 @@ class WebVueAiUsage(models.Model):
     kind = fields.Selection([(kind, kind) for kind in USAGE_KINDS], required=True)
     provider = fields.Char(required=True)
     model = fields.Char(required=True)
-    outcome = fields.Selection([(outcome, outcome) for outcome in USAGE_OUTCOMES], required=True, index=True)
+    outcome = fields.Selection([(outcome, outcome) for outcome in USAGE_OUTCOMES], required=True)
     input_tokens = fields.Integer()
     output_tokens = fields.Integer()
     tokens_reported = fields.Boolean()
     called_at = fields.Datetime(required=True, index=True)
+
+    # The own-rows rule filters on user_id and orders by called_at; a monthly per-user sum reads the same.
+    _user_called_at_idx = models.Index('(user_id, called_at)')
 
     @api.model
     def _webvue_ai_prepare(self, values):
