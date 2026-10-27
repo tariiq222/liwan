@@ -16,6 +16,26 @@ describe('mentionIdsInText', () => {
     expect(mentionIdsInText('hi @Khaledx', [khaled])).toEqual([])
     expect(mentionIdsInText('mail a@Khaled', [khaled])).toEqual([])
   })
+  it('matches the longest name first so a shorter name inside it is not also mentioned', () => {
+    const ali = { id: 1, name: 'Ali' }
+    const aliHassan = { id: 2, name: 'Ali Hassan' }
+    expect(mentionIdsInText('@Ali Hassan hi', [ali, aliHassan])).toEqual([2])
+    expect(mentionIdsInText('@Ali Hassan and @Ali', [ali, aliHassan])).toEqual([1, 2])
+    expect(mentionIdsInText('@Ali hi', [ali, aliHassan])).toEqual([1])
+  })
+  it('handles Arabic names with spaces the same way', () => {
+    const short = { id: 1, name: 'سارة' }
+    const long = { id: 2, name: 'سارة أحمد' }
+    expect(mentionIdsInText('مرحبا @سارة أحمد', [short, long])).toEqual([2])
+    expect(mentionIdsInText('مرحبا @سارة، @سارة أحمد', [short, long])).toEqual([1, 2])
+  })
+  it('resolves a display name shared by two people only through the picked one', () => {
+    const first = { id: 1, name: 'Omar' }
+    const second = { id: 2, name: 'Omar' }
+    expect(mentionIdsInText('hi @Omar', [], [first, second])).toEqual([])
+    expect(mentionIdsInText('hi @Omar', [second], [first, second])).toEqual([2])
+    expect(mentionIdsInText('hi @Sam', [], [{ id: 3, name: 'Sam' }])).toEqual([3])
+  })
   it('lists a person once', () => expect(mentionIdsInText('@Khaled @Khaled', [khaled, khaled])).toEqual([8]))
 })
 

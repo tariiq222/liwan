@@ -2,6 +2,7 @@
 import { ApiError } from '@/composables/useApi'
 import { ATTACHMENT_ACCEPT, attachmentProblem, fileToBase64 } from '@/utils/attachmentFile'
 import { composerKeyAction, mentionIdsInText, moveHighlight, shouldNotifyTyping, type ChatMention } from '@/utils/chatComposer'
+import { chatDrafts } from '@/utils/chatDrafts'
 import { preserveFailedDraft } from '@/utils/chatState'
 
 import type { ChatMessage } from '@webvue/contracts'
@@ -11,6 +12,7 @@ const emit = defineEmits<{ 'update:pending': [string]; 'clear-reply': [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
+const { me } = useMe()
 // A parent that must outlive this form (the phone's info panel unmounts it) binds the draft; unbound it stays local.
 const draft = defineModel<string>('draft', { default: '' })
 const file = ref<File | null>(null)
@@ -63,7 +65,9 @@ async function submit() {
   const body = draft.value
   const selected = file.value
   // Only the people whose @name is still in the text are mentioned.
-  const mentionIds = mentionIdsInText(body, [...pickedMentions.value, ...(members.value?.items ?? [])])
+  const mentionIds = mentionIdsInText(body, pickedMentions.value, members.value?.items ?? [])
+  // The conversation may be left while the send is in flight: clear the stored draft of the one that was sent.
+  const sentFrom = { userId: me.value?.id, conversationId: props.conversationId }
   sending.value = true
   emit('update:pending', body)
   try {
@@ -74,6 +78,9 @@ async function submit() {
       mention_user_ids: mentionIds.length ? mentionIds : undefined,
     })
     draft.value = preserveFailedDraft(body, false)
+    if (sentFrom.userId) chatDrafts.set(sentFrom.userId, sentFrom.conversationId, '')
+    clearTimeout(typingTimer)
+    typingSentAt = 0
     file.value = null
     pickedMentions.value = []
     notifyTyping(false)

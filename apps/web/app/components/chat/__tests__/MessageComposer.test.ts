@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../../composables/useApi'
 import { ATTACHMENT_ACCEPT, attachmentProblem, fileToBase64 } from '../../../utils/attachmentFile'
 import { composerKeyAction, mentionIdsInText, moveHighlight, shouldNotifyTyping } from '../../../utils/chatComposer'
+import { createChatDrafts } from '../../../utils/chatDrafts'
 import { preserveFailedDraft } from '../../../utils/chatState'
 
 const filename = new URL('../MessageComposer.vue', import.meta.url).pathname
@@ -19,9 +20,11 @@ function mountComposer() {
   const toast = { add: vi.fn() }
   const members = { items: [{ id: 7, name: 'Sara', im_status: null }, { id: 8, name: 'Khaled', im_status: null }] }
   const draft = Vue.ref('')
+  const store = new Map<string, string>()
+  const chatDrafts = createChatDrafts(() => ({ getItem: k => store.get(k) ?? null, setItem: (k, v) => void store.set(k, v), removeItem: k => void store.delete(k), key: i => [...store.keys()][i] ?? null, length: store.size }))
   const bindings = {
     _defineComponent: Vue.defineComponent, _useModel: () => draft, _mergeModels: (a: object, b: object) => ({ ...a, ...b }), _unref: Vue.unref, ref: Vue.ref, computed: Vue.computed, watch: Vue.watch, onUnmounted: Vue.onUnmounted,
-    ApiError, ATTACHMENT_ACCEPT, attachmentProblem, fileToBase64, composerKeyAction, mentionIdsInText, moveHighlight, shouldNotifyTyping, preserveFailedDraft,
+    ApiError, chatDrafts, useMe: () => ({ me: Vue.ref({ id: 1 }) }), ATTACHMENT_ACCEPT, attachmentProblem, fileToBase64, composerKeyAction, mentionIdsInText, moveHighlight, shouldNotifyTyping, preserveFailedDraft,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => toast,
     useSendChatMessage: () => ({ mutateAsync: send }), useChatTyping: () => ({ mutate: typing }), useChatMembers: () => ({ data: Vue.ref(members) }),
   }
@@ -30,7 +33,7 @@ function mountComposer() {
   const props = Vue.reactive({ conversationId: 5 })
   const emitted: string[] = []
   const state = component.setup(props, { expose: () => {}, emit: (event: string) => { emitted.push(event) } })
-  return { state, props, draft, send, typing, toast, emitted }
+  return { state, props, draft, store, chatDrafts, send, typing, toast, emitted }
 }
 
 const fileInput = (file: File) => ({ target: { files: [file], value: 'x' } }) as unknown as Event
@@ -115,5 +118,31 @@ describe('MessageComposer', () => {
     expect(toast.add).toHaveBeenCalled()
     await state.submit()
     expect(draft.value).toBe('')
+  })
+
+  it('clears the stored draft of the conversation that was sent even when the user switched away mid-send', async () => {
+    const { state, props, draft, send, store, chatDrafts } = mountComposer()
+    draft.value = 'sent text'
+    chatDrafts.set(1, 5, 'sent text')
+    let finish: () => void = () => {}
+    send.mockImplementationOnce(() => new Promise(resolve => { finish = () => resolve({}) }))
+    const pending = state.submit()
+    props.conversationId = 6
+    finish()
+    await pending
+    expect(store.size).toBe(0)
+    expect(chatDrafts.get(1, 5)).toBe('')
+  })
+
+  it('resets the typing throttle after a successful send', async () => {
+    vi.useFakeTimers()
+    const { state, draft, typing } = mountComposer()
+    state.onDraft()
+    draft.value = 'x'
+    await state.submit()
+    typing.mockClear()
+    state.onDraft()
+    expect(typing).toHaveBeenCalledWith(true)
+    vi.useRealTimers()
   })
 })

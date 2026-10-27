@@ -1,6 +1,7 @@
 import type { VueQueryPluginOptions } from '@tanstack/vue-query'
 import { VueQueryPlugin, QueryCache, QueryClient, MutationCache, hydrate, dehydrate } from '@tanstack/vue-query'
 import { ApiError } from '@/composables/useApi'
+import { clearChatDrafts } from '@/utils/chatDrafts'
 import { restoreDehydratedErrors, serializeDehydratedErrors, settleServerQueries, type SerializedDehydratedState } from '@/lib/vueQuerySsr'
 
 // Domain-level 403s: the request was understood, the *action* is not allowed
@@ -37,6 +38,7 @@ export default defineNuxtPlugin({
         await refreshNuxtData('me')
         const { data } = useNuxtData<unknown>('me')
         if (data.value) return // still signed in: a genuine permission error
+        clearChatDrafts()
         const current = router.currentRoute.value
         if (current.path === '/login') return
         await navigateTo({ path: '/login', query: { next: current.fullPath } })

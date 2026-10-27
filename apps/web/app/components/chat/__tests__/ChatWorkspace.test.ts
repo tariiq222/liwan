@@ -6,7 +6,7 @@ import { createChatDrafts } from '../../../utils/chatDrafts'
 import { isFatalChatStatus } from '../../../utils/chatState'
 
 function open(store: Map<string, string>, conversationId: number, error: Vue.Ref<unknown> = Vue.ref(null)) {
-  const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) }
+  const storage = { get length() { return store.size }, key: (i: number) => [...store.keys()][i] ?? null, getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) }
   const query = (data: unknown) => ({ data: Vue.ref(data), error, isLoading: Vue.ref(false), refetch: vi.fn() })
   const bindings = {
     onMounted: (fn: () => void) => fn(), useMediaQuery: () => Vue.ref(true), useQueryClient: () => ({ cancelQueries: vi.fn(), removeQueries: vi.fn() }),

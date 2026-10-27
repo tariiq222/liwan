@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { createChatDrafts } from '../chatDrafts'
 
 function memoryStorage() {
   const map = new Map<string, string>()
-  return { map, getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => void map.set(k, v), removeItem: (k: string) => void map.delete(k) }
+  return { map, get length() { return map.size }, key: (i: number) => [...map.keys()][i] ?? null, getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => void map.set(k, v), removeItem: (k: string) => void map.delete(k) }
 }
 
 describe('chatDrafts', () => {
@@ -34,5 +35,21 @@ describe('chatDrafts', () => {
     const blocked = createChatDrafts(() => { throw new Error('blocked') })
     expect(() => blocked.set(1, 10, 'x')).not.toThrow()
     expect(blocked.get(1, 10)).toBe('')
+  })
+
+  it('clear removes every chat draft and nothing else', () => {
+    const store = memoryStorage()
+    const drafts = createChatDrafts(() => store)
+    drafts.set(1, 10, 'a')
+    drafts.set(2, 11, 'b')
+    store.setItem('webvue-nav:1', 'keep')
+    drafts.clear()
+    expect([...store.map.keys()]).toEqual(['webvue-nav:1'])
+    expect(() => createChatDrafts(() => { throw new Error('blocked') }).clear()).not.toThrow()
+  })
+  it('is cleared at logout and when the session expires', () => {
+    for (const file of ['../../pages/account/settings.vue', '../../plugins/vue-query.ts']) {
+      expect(readFileSync(new URL(file, import.meta.url), 'utf8'), file).toContain('clearChatDrafts()')
+    }
   })
 })

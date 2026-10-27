@@ -4,6 +4,7 @@ import PasswordForm from '@/components/account/PasswordForm.vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import type { AppearanceMode, FontSize } from '@/utils/appearance'
 import { clearAiSessionState } from '@/utils/aiDraft'
+import { clearChatDrafts } from '@/utils/chatDrafts'
 import { useAiConversation } from '@/composables/useAiConversation'
 
 // Personal preferences keep their existing persistence and session cleanup.
@@ -35,6 +36,7 @@ async function logout() {
     await $fetch('/api/auth/logout', { method: 'POST', body: {} })
     sessionStorage.removeItem(navPreferenceKey.value)
     clearAiSessionState()
+    clearChatDrafts()
     clearAiConversation()
     await queryClient.cancelQueries()
     queryClient.clear()
