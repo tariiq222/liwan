@@ -279,7 +279,7 @@ msgstr "النوع"
 #: model:ir.model.fields,field_description:webvue_hr.field_webvue_hr_plan_run__write_uid
 #: model:ir.model.fields,field_description:webvue_hr.field_webvue_hr_shift_settings__write_uid
 msgid "Last Updated by"
-msgstr "آخر تحديث بواسطة"
+msgstr "آخر تعديل بواسطة"
 
 #. module: webvue_hr
 #: model:ir.model.fields,field_description:webvue_hr.field_webvue_hr_audit_change__write_date
@@ -298,7 +298,7 @@ msgstr "آخر تحديث بواسطة"
 #: model:ir.model.fields,field_description:webvue_hr.field_webvue_hr_plan_run__write_date
 #: model:ir.model.fields,field_description:webvue_hr.field_webvue_hr_shift_settings__write_date
 msgid "Last Updated on"
-msgstr "آخر تحديث في"
+msgstr "تاريخ آخر تعديل"
 
 #. module: webvue_hr
 #: model:ir.model.fields,field_description:webvue_hr.field_webvue_hr_audit_change__new_value
