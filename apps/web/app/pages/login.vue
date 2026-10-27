@@ -8,7 +8,9 @@ const { branding } = useBranding()
 const productName = computed(() => branding.value?.name ?? t('app.productName'))
 const route = useRoute()
 const { me, refresh } = useMe()
-const state = reactive({ login: '', password: '' })
+// ?login= only prefills the username (the invitation page links here); it is never trusted beyond that.
+const queryLogin = typeof route.query.login === 'string' ? route.query.login.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 128) : ''
+const state = reactive({ login: queryLogin, password: '' })
 const totpState = reactive({ code: '' })
 const pending = ref(false)
 const errorMessage = ref<string | null>(route.query.reason === 'tenant_suspended' ? t('auth.tenantSuspended') : null)

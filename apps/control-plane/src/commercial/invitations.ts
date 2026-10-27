@@ -73,6 +73,14 @@ export async function sendInvitationOutbox(pool: Pool, o: { mail: MailAdapter; r
   return { sent, failed }
 }
 
+/** Read-only: true only when acceptInvitation's consume condition would match (unconsumed, not revoked, not expired). Malformed tokens are simply not usable. */
+export async function isInvitationUsable(pool: Pool, token: unknown): Promise<boolean> {
+  if (typeof token !== 'string' || token.length < 20 || token.length > MAX_TOKEN_LENGTH) return false
+  const r = await pool.query(
+    `SELECT 1 FROM admin_invitations WHERE token_hash=$1 AND consumed_at IS NULL AND revoked_at IS NULL AND expires_at > now()`, [hashToken(token)])
+  return r.rows.length > 0
+}
+
 export async function acceptInvitation(pool: Pool, a: { token: string; password: string; setPassword?: SetPassword }) {
   if (typeof a.token !== 'string' || a.token.length < 20 || typeof a.password !== 'string' || a.password.length < MIN_PASSWORD_LENGTH || a.token.length > MAX_TOKEN_LENGTH) throw new InvitationError('invalid')
   if (a.password.length > MAX_PASSWORD_LENGTH) throw new InvitationError('password_policy')

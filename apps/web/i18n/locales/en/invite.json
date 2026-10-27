@@ -7,6 +7,8 @@
     "rulesTitle": "Password rules",
     "ruleLength": "At least 12 characters",
     "ruleMatch": "Both passwords match",
+    "checking": "Checking your invitation link...",
+    "retry": "Try again",
     "submit": "Activate account",
     "invalidTitle": "This invitation link is invalid or has expired",
     "invalidBody": "Ask your company administrator to send a new invitation.",
