@@ -10,7 +10,7 @@ import * as commercial from '../../utils/vendorCommercial'
 import * as clients from '../../utils/vendorClients'
 import { invoiceStatusBadge } from '@webvue/commercial-ui/app/utils/commercialBadges'
 import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
-import { paymentAttemptBadge, customerDisplayBadge, operationStatusBadge } from '../../utils/vendorBadges'
+import { adjustmentStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge } from '../../utils/vendorBadges'
 import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 import { formatWebVueDate, formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 
@@ -22,11 +22,12 @@ const order = { id: 'order/1', kind: 'new', payment_state: 'awaiting_payment', f
 const subscription = { id: 'sub1', applied: null, target: null, pending_order: order, revision: 1 }
 const customer = { id: 'customer1', name: 'Customer', subscription, tenant_id: null }
 const money = { minor: 12345, exponent: 2, currency: 'SAR' }
-const invoice = { id: 'invoice1', order_id: 'order/1', customer_id: 'customer1', status: 'issued', kind: 'initial', total: money, subtotal: money, tax: money, period_start: '2026-10-01', period_end: '2026-11-01', lines: [] }
+const invoice = { id: 'invoice1', order_id: 'order/1', customer_id: 'customer1', status: 'issued', kind: 'initial', total: money, subtotal: money, tax: money, period_start: '2026-10-01', period_end: '2026-11-01', lines: [], adjustments: [] }
+const creditNote = { id: 'note1', invoice_id: invoice.id, customer_id: 'customer1', kind: 'credit_note', reason: 'Provisioning failed after payment', amount: money, status: 'pending', created_at: '2026-10-04T12:34:00Z', created_by: 'system', refund_reference: null, refunded_at: null, refunded_by: null }
 const plan = { id: 'plan2', name: 'New plan', included_bundle_revision_ids: ['bundle2'], prices: [{ cadence: { unit: 'month', count: 1 }, amount: money }], included_users: 3, included_storage_mb: 5120 }
 const attempt = { id: 'attempt1', order_id: order.id, invoice_id: invoice.id, status: 'pending', amount: money, created_at: '2026-10-04T12:34:00Z', provider_ref: 'private-provider-reference', redirect_url: 'https://private.example/pay' }
 
-async function page(name: string, options: { path?: string; tab?: string; tenantId?: string; query?: Record<string, string>; grants?: string[]; subscription?: unknown; orderId?: string | null; attempts?: unknown[]; attemptsError?: unknown; attemptsLoading?: boolean; hydrated?: boolean; tenantError?: unknown } = {}) {
+async function page(name: string, options: { path?: string; tab?: string; tenantId?: string; query?: Record<string, string>; grants?: string[]; subscription?: unknown; orderId?: string | null; attempts?: unknown[]; attemptsError?: unknown; attemptsLoading?: boolean; hydrated?: boolean; tenantError?: unknown; adjustments?: unknown[] } = {}) {
   const filename = resolve(import.meta.dirname, '..', name)
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = stripImports(compileScript(descriptor, { id: 'admin-repairs' }).content).replaceAll('import.meta.client', 'false').replace('export default', 'return')
@@ -36,7 +37,8 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
     customer: vi.fn(async () => { calls.push('customer'); return { ...customer, tenant_id: options.tenantId ?? null, subscription: current } }),
     subscription: vi.fn(async () => { calls.push('subscription'); return current }),
     branches: vi.fn(async () => null), usage: vi.fn(async () => null), listInvoices: vi.fn(async () => ({ items: [], total: 0 })),
-    invoice: vi.fn(async () => ({ ...invoice, order_id: options.orderId === undefined ? invoice.order_id : options.orderId })),
+    invoice: vi.fn(async () => ({ ...invoice, adjustments: options.adjustments ?? invoice.adjustments, order_id: options.orderId === undefined ? invoice.order_id : options.orderId })),
+    refundCreditNote: vi.fn(async () => ({ ...creditNote, status: 'refunded' })),
     paymentAttempts: vi.fn(async () => { if (options.attemptsError) throw options.attemptsError; return { items: options.attempts ?? [attempt], total: (options.attempts ?? [attempt]).length } }),
     changeQuote: vi.fn(async () => ({ id: 'new-quote' })), placeOrder: vi.fn(async () => order),
     cancelOrder: vi.fn(async () => { calls.push('cancel'); current = { ...current, pending_order: null }; return order }),
@@ -45,7 +47,7 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
   const slots = new Map<string, unknown>()
   const bindings = {
     formatWebVueDate, formatWebVueDateTime,
-    invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge, formatCommercialMoney, cadenceLabel,
+    invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge, formatCommercialMoney, cadenceLabel,
     ...subscriptions, ...commercial, ...clients, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive, onMounted: () => {}, onBeforeUnmount: () => {}, safeReturnTo, sharedTenantLoginUrl: () => null, buildVendorPolicy: () => ({}),
     definePageMeta: () => {}, useHydrated: () => hydrated,
@@ -236,6 +238,73 @@ describe('invoice payment attempts', () => {
   it.each([{ orderId: null }, { grants: ['vendor.read'] }])('does not query attempts without an order or grant: %j', async options => {
     const p = await page('invoices/[id].vue', options)
     expect(p.api.paymentAttempts).not.toHaveBeenCalled()
+  })
+})
+
+describe('invoice credit notes', () => {
+  const draft = (p: Awaited<ReturnType<typeof page>>, reference = 'MOY-REFUND-77', reason = 'Refunded in the dashboard') => {
+    p.state.openRefund('note1'); p.state.refundReference.value = reference; p.state.refundReason.value = reason
+  }
+  it('says there are no adjustments when there are none', async () => {
+    const { html } = await (await page('invoices/[id].vue')).rendered()
+    expect(html).toContain('vendor.invoices.adjustmentsNone'); expect(html).not.toContain('vendor.invoices.refund.action')
+  })
+  it('lists a pending credit note with the record-refund action', async () => {
+    const { html } = await (await page('invoices/[id].vue', { adjustments: [creditNote] })).rendered()
+    expect(html).toContain('vendor.invoices.adjustmentStatus.pending'); expect(html).toContain('vendor.invoices.adjustmentKind.credit_note')
+    expect(html).toContain('Provisioning failed after payment'); expect(html).toContain('vendor.invoices.refund.action')
+    expect(html).not.toContain('refund-record')
+  })
+  it('shows the recorded reference and no action once refunded', async () => {
+    const refunded = { ...creditNote, status: 'refunded', refund_reference: 'MOY-REFUND-77', refunded_at: '2026-10-05T08:00:00Z', refunded_by: 'account:7' }
+    const { html } = await (await page('invoices/[id].vue', { adjustments: [refunded] })).rendered()
+    expect(html).toContain('refund-record'); expect(html).toContain('MOY-REFUND-77'); expect(html).toContain('account:7')
+    expect(html).toContain('vendor.invoices.adjustmentStatus.refunded'); expect(html).not.toContain('vendor.invoices.refund.action')
+  })
+  it.each([{ grants: ['vendor.read'] }, {}])('offers no action to a debit note, a settled note or a role without billing: %j', async options => {
+    const p = await page('invoices/[id].vue', { ...options, adjustments: [{ ...creditNote, kind: 'debit_note' }, { ...creditNote, id: 'note2', status: 'void' }] })
+    expect((await p.rendered()).html).not.toContain('vendor.invoices.refund.action')
+  })
+  it('hides the action without the billing grant', async () => {
+    const p = await page('invoices/[id].vue', { grants: ['vendor.read'], adjustments: [creditNote] })
+    expect(p.state.canRefund.value).toBe(false); expect((await p.rendered()).html).not.toContain('vendor.invoices.refund.action')
+  })
+  it('opens one inline form, validates the draft and records the refund once, then reloads the invoice', async () => {
+    const p = await page('invoices/[id].vue', { adjustments: [creditNote] })
+    draft(p, 'ab')
+    expect((await p.rendered()).captured.find(c => c.name === 'SharedInlineConfirm')?.props.disabled).toBe(true)
+    await p.state.recordRefund(); expect(p.api.refundCreditNote).not.toHaveBeenCalled()
+    p.state.refundReference.value = '  MOY-REFUND-77  '
+    const before = p.api.invoice.mock.calls.length
+    await p.state.recordRefund()
+    expect(p.api.refundCreditNote).toHaveBeenCalledTimes(1)
+    expect(p.api.refundCreditNote).toHaveBeenCalledWith('note1', { external_reference: '  MOY-REFUND-77  ', reason: 'Refunded in the dashboard' })
+    expect(p.api.invoice.mock.calls.length).toBe(before + 1)
+    expect(p.state.refundNoteId.value).toBeNull(); expect(p.state.refundFailure.value).toBeUndefined()
+  })
+  it('does not record while another request is in flight or before hydration', async () => {
+    const p = await page('invoices/[id].vue', { adjustments: [creditNote], hydrated: false }); draft(p)
+    await p.state.recordRefund(); expect(p.api.refundCreditNote).not.toHaveBeenCalled()
+    p.hydrated.value = true
+    let finish!: () => void
+    p.api.refundCreditNote.mockImplementationOnce(() => new Promise(resolve => { finish = () => resolve(creditNote) }))
+    const first = p.state.recordRefund(); await p.state.recordRefund()
+    expect(p.api.refundCreditNote).toHaveBeenCalledTimes(1); expect((await p.rendered()).captured.find(c => c.name === 'SharedInlineConfirm')?.props.pending).toBe(true)
+    finish(); await first
+  })
+  it('keeps the draft and says why when the note is no longer pending, and still reloads', async () => {
+    const p = await page('invoices/[id].vue', { adjustments: [creditNote] }); draft(p)
+    p.api.refundCreditNote.mockRejectedValueOnce({ statusCode: 409, data: { code: 'credit_note_not_pending' } })
+    const before = p.api.invoice.mock.calls.length
+    await p.state.recordRefund()
+    expect(p.state.refundFailure.value).toBe('vendor.invoices.refund.errors.credit_note_not_pending')
+    expect(p.state.refundReference.value).toBe('MOY-REFUND-77'); expect(p.api.invoice.mock.calls.length).toBe(before + 1)
+    expect((await p.rendered()).html).toContain('vendor.invoices.refund.errors.credit_note_not_pending')
+  })
+  it('sends the refund to the adjustment route with trimmed text', async () => {
+    const request = vi.fn(async () => creditNote)
+    await apiWith(request).refundCreditNote('note/1', { external_reference: ' MOY-1 ', reason: ' done ' })
+    expect(request).toHaveBeenCalledWith('commercial/invoice-adjustments/note%2F1/refund', { method: 'POST', body: { external_reference: 'MOY-1', reason: 'done' } })
   })
 })
 

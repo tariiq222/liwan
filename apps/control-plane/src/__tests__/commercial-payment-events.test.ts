@@ -3,10 +3,12 @@ import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { migrate, transaction } from '../db.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
+import { PaymentError } from '../commercial/payment-adapter.js'
 import { createPaymentAttempt, handleProviderEvent, reconcileUnknownAttempts, verifyReturnedAttempt } from '../commercial/payments.js'
 import { recordFulfillmentFailure, processRefundOutbox } from '../commercial/settlements.js'
 import { cancelOrder } from '../commercial/orders.js'
 import { routesB } from '../commercial/routes-b.js'
+import { fixedReturnOrigin } from '../commercial/return-origin.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
 if (url && new URL(url).pathname !== '/webvue_control_scratch_payfinal') throw new Error('payment tests require own scratch DB')
@@ -27,7 +29,7 @@ suite('simulated payment settlement on live PostgreSQL', () => {
       await c.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
         VALUES($1,$2,$3,$4,'initial','SAR',2,10000,1500,11500,'2026-01-01','2026-02-01',now())`,[invoice,customer_id,sub,order_id])
     })
-    const input = {order_id,customer_id,adapter,allowedOrigin:'https://webvue.test'}
+    const input = {order_id,customer_id,adapter,returnOrigin: fixedReturnOrigin('https://webvue.test')}
     return {input,adapter,order_id,invoice}
   }
   const deliver = (adapter: SimulatorAdapter, rawBody: Uint8Array) => handleProviderEvent(pool,{provider:'simulator',adapter,rawBody,headers:{}})
@@ -78,7 +80,7 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     await pool.query("UPDATE payment_attempts SET updated_at=now()-interval '10 seconds' WHERE id=$1",[a.id])
     expect(await verifyReturnedAttempt(pool,{attempt_id:a.id,customer_id:f.input.customer_id,adapter:f.adapter})).toEqual({order_id:f.order_id,payment_state:'awaiting_payment',fulfillment_state:'not_started'})
     expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[a.id])).rows[0].status).toBe('redirected')
-    await expect(createPaymentAttempt(pool,{...f.input,allowedOrigin:'https://webvue.test/path'})).rejects.toMatchObject({status:422})
+    await expect(createPaymentAttempt(pool,{...f.input,returnOrigin: fixedReturnOrigin('https://webvue.test/path')})).rejects.toMatchObject({status:422})
     expect((await pool.query('SELECT count(*)::int AS n FROM payment_attempts WHERE order_id=$1',[f.order_id])).rows[0].n).toBe(1)
   })
   it('hands the provider one return url per attempt that carries only the attempt id',async () => {
@@ -117,6 +119,180 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     expect(await verifyReturnedAttempt(pool,{attempt_id:a.id,customer_id:f.input.customer_id,adapter:f.adapter})).toMatchObject({payment_state:'awaiting_payment'})
     expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[a.id])).rows[0].status).toBe('redirected')
   })
+  it('an expired or provider-cancelled attempt keeps the order payable and a new attempt on the same order is paid once',async () => {
+    const f=await fixture(),first=await createPaymentAttempt(pool,f.input)
+    f.adapter.settle(first.provider_ref,'canceled')
+    expect(await deliver(f.adapter,f.adapter.webhookBody(first.provider_ref))).toEqual({status:200,outcome:'accepted'})
+    expect(await state(f.order_id)).toMatchObject({payment_state:'awaiting_payment',fulfillment_state:'not_started',cancelled:false})
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[first.id])).rows[0].status).toBe('canceled')
+    expect((await pool.query('SELECT status FROM invoices WHERE id=$1',[f.invoice])).rows[0].status).toBe('issued')
+    const [a,b]=await Promise.all([createPaymentAttempt(pool,f.input),createPaymentAttempt(pool,f.input)])
+    expect(a.id).toBe(b.id);expect(a.id).not.toBe(first.id)
+    expect((await pool.query("SELECT count(*)::int AS n FROM payment_attempts WHERE order_id=$1 AND status IN ('created','redirected','pending','unknown')",[f.order_id])).rows[0].n).toBe(1)
+    f.adapter.settle(a.provider_ref)
+    await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))
+    expect(await state(f.order_id)).toMatchObject({payment_state:'paid',fulfillment_state:'queued'})
+    expect(await counts(f.order_id)).toEqual({payments:1,outbox:1})
+    await expect(createPaymentAttempt(pool,f.input)).rejects.toMatchObject({status:409,code:'payment_not_awaiting'})
+    // The first attempt is closed at the provider: a replay of its cancel changes nothing.
+    expect(await deliver(f.adapter,f.adapter.webhookBody(first.provider_ref))).toMatchObject({status:200})
+    expect(await counts(f.order_id)).toEqual({payments:1,outbox:1})
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[first.id])).rows[0].status).toBe('canceled')
+  })
+  it('a live attempt older than the invoice lifetime is looked up first, so an expired one is replaced',async () => {
+    const f=await fixture(),first=await createPaymentAttempt(pool,f.input)
+    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '31 minutes',updated_at=now()-interval '31 minutes' WHERE id=$1",[first.id])
+    f.adapter.settle(first.provider_ref,'canceled') // expired at the provider; no webhook arrived
+    const next=await createPaymentAttempt(pool,f.input)
+    expect(next.id).not.toBe(first.id)
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[first.id])).rows[0].status).toBe('canceled')
+    expect(await state(f.order_id)).toMatchObject({payment_state:'awaiting_payment'})
+  })
+  it('a stale attempt the provider still reports pending is returned, never duplicated',async () => {
+    const f=await fixture(),first=await createPaymentAttempt(pool,f.input),create=vi.spyOn(f.adapter,'createAttempt')
+    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '31 minutes',updated_at=now()-interval '31 minutes' WHERE id=$1",[first.id])
+    expect((await createPaymentAttempt(pool,f.input)).id).toBe(first.id)
+    expect(create).not.toHaveBeenCalled()
+  })
+  it('throttles the stale lookup to one per 5 seconds and never turns a failing lookup into an error',async()=>{
+    const f=await fixture(),first=await createPaymentAttempt(pool,f.input),lookup=vi.spyOn(f.adapter,'lookupAttempt')
+    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '31 minutes',updated_at=now()-interval '31 minutes' WHERE id=$1",[first.id])
+    lookup.mockRejectedValueOnce(new Error('provider down'))
+    expect((await createPaymentAttempt(pool,f.input)).id).toBe(first.id) // the failure is swallowed
+    expect(lookup).toHaveBeenCalledTimes(1)
+    expect((await createPaymentAttempt(pool,f.input)).id).toBe(first.id)
+    expect(lookup).toHaveBeenCalledTimes(1) // claimed within the last 5 seconds: no second provider call
+    await pool.query("UPDATE payment_attempts SET updated_at=now()-interval '10 seconds' WHERE id=$1",[first.id])
+    await createPaymentAttempt(pool,f.input)
+    expect(lookup).toHaveBeenCalledTimes(2)
+  })
+  it('records a late success of a cancelled attempt after another attempt paid as a duplicate charge, not silently',async()=>{
+    const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
+    f.adapter.settle(a.provider_ref,'canceled');await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))
+    const b=await createPaymentAttempt(pool,f.input)
+    f.adapter.settle(b.provider_ref);await deliver(f.adapter,f.adapter.webhookBody(b.provider_ref))
+    expect(await state(f.order_id)).toMatchObject({payment_state:'paid'})
+    f.adapter.settle(a.provider_ref) // the first invoice was in fact paid after all
+    expect(await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))).toEqual({status:200,outcome:'accepted'})
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[a.id])).rows[0].status).toBe('succeeded')
+    expect(await counts(f.order_id)).toEqual({payments:2,outbox:1}) // one fulfillment, two charges
+    const audit=(await pool.query("SELECT metadata FROM audit_events WHERE action='payment.duplicate_charge' AND subject=$1",[f.order_id])).rows
+    expect(audit).toHaveLength(1);expect(audit[0].metadata).toMatchObject({attempt_id:a.id})
+    expect((await pool.query("SELECT payload FROM commercial_outbox WHERE kind='reconcile.refund' AND aggregate_id=$1",[f.order_id])).rows[0].payload).toMatchObject({duplicate:true,attempt_id:a.id})
+    const refund=vi.spyOn(f.adapter,'refund')
+    expect(await processRefundOutbox(pool,f.adapter)).toBe(1)
+    const notes=(await pool.query('SELECT kind,status,amount_minor,reason FROM invoice_adjustments WHERE invoice_id=$1',[f.invoice])).rows
+    expect(notes).toEqual([{kind:'credit_note',status:'pending',amount_minor:'11500',reason:`duplicate payment — manual review (attempt ${a.id})`}])
+    expect(refund).not.toHaveBeenCalled()
+    expect(await state(f.order_id)).toMatchObject({payment_state:'paid',fulfillment_state:'queued'})
+    // A redelivery of the same duplicate adds nothing.
+    await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref));await processRefundOutbox(pool,f.adapter)
+    expect((await pool.query('SELECT count(*)::int AS n FROM invoice_adjustments WHERE invoice_id=$1',[f.invoice])).rows[0].n).toBe(1)
+    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='payment.duplicate_charge' AND subject=$1",[f.order_id])).rows[0].n).toBe(1)
+  })
+  it('a refunded duplicate charge is recorded on its attempt and leaves the paid order alone',async()=>{
+    const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
+    await pool.query("UPDATE payment_attempts SET status='canceled' WHERE id=$1",[a.id])
+    const b=await createPaymentAttempt(pool,f.input)
+    f.adapter.settle(b.provider_ref);await deliver(f.adapter,f.adapter.webhookBody(b.provider_ref)) // B pays the order
+    f.adapter.settle(a.provider_ref);await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref)) // A is a duplicate
+    expect((await state(f.order_id)).paid_attempt_id).toBe(b.id)
+    await processRefundOutbox(pool,f.adapter)
+    const duplicate=await f.adapter.lookupAttempt(a.provider_ref)
+    await f.adapter.refund(duplicate.payment_id!) // the operator refunds the duplicate at the provider
+    expect(await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))).toEqual({status:200,outcome:'accepted'})
+    expect(await state(f.order_id)).toMatchObject({payment_state:'paid',fulfillment_state:'queued',paid_attempt_id:b.id})
+    expect(await counts(f.order_id)).toEqual({payments:2,outbox:1})
+    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='payment.duplicate_refunded' AND subject=$1",[f.order_id])).rows[0].n).toBe(1)
+    expect((await pool.query("SELECT count(*)::int AS n FROM commercial_outbox WHERE aggregate_id=$1 AND kind='payment.intervention'",[f.order_id])).rows[0].n).toBe(0)
+    // The credit note stays pending until the operator records the provider reference.
+    expect((await pool.query('SELECT status FROM invoice_adjustments WHERE invoice_id=$1',[f.invoice])).rows).toEqual([{status:'pending'}])
+  })
+  it('refunding the attempt that paid the order still refunds the order',async()=>{
+    const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
+    f.adapter.settle(a.provider_ref);await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))
+    expect((await state(f.order_id)).paid_attempt_id).toBe(a.id)
+    await f.adapter.refund((await f.adapter.lookupAttempt(a.provider_ref)).payment_id!)
+    await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))
+    expect(await state(f.order_id)).toMatchObject({payment_state:'refunded',paid_attempt_id:a.id})
+  })
+  it('the reconciler cancels a payable attempt of an order another attempt already paid',async()=>{
+    const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
+    f.adapter.settle(a.provider_ref);await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))
+    const bid=randomUUID(),created=await f.adapter.createAttempt({attempt_id:bid,order_id:f.order_id,amount:{minor:11500,currency:'SAR',exponent:2},description:'x',success_url:'https://webvue.test/a',back_url:'https://webvue.test/a',callback_url:'https://webvue.test/a'})
+    const b=(await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,status)
+      SELECT $1,order_id,invoice_id,provider,mode,merchant_ref,$2,amount_minor,currency,exponent,'redirected' FROM payment_attempts WHERE id=$3 RETURNING id`,[bid,created.provider_ref,a.id])).rows[0]
+    await reconcileUnknownAttempts(pool,f.adapter)
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[b.id])).rows[0].status).toBe('canceled')
+    expect((await f.adapter.lookupAttempt(created.provider_ref)).status).toBe('canceled')
+  })
+  it('closes a token charge the provider does not know so the renewal can be paid by hand',async()=>{
+    const f=await fixture(),order=await state(f.order_id)
+    const insert=(ref:string)=>pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,status,token_charge)
+      SELECT $1,$2,$3,'simulator','simulator',$2::uuid::text,$4,11500,'SAR',2,'unknown',true`,[randomUUID(),f.order_id,f.invoice,ref])
+    // A payment id the provider answered 404 for is authoritative.
+    await insert(`pay_gone_${randomUUID()}`)
+    const next=await createPaymentAttempt(pool,f.input)
+    expect(next.status).toBe('redirected')
+    expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND token_charge",[f.order_id])).rows).toEqual([{status:'failed'}])
+    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='payment.token_charge_missing' AND subject=$1",[f.order_id])).rows[0].n).toBe(1)
+    expect(await state(f.order_id)).toMatchObject({payment_state:'awaiting_payment'})
+    // Only our own order id as the reference proves nothing yet: it waits out a grace period.
+    await pool.query("UPDATE payment_attempts SET status='canceled' WHERE order_id=$1 AND NOT token_charge",[f.order_id])
+    await pool.query('DELETE FROM payment_attempts WHERE order_id=$1 AND token_charge',[f.order_id])
+    await insert(order.id)
+    await expect(createPaymentAttempt(pool,f.input)).rejects.toBeTruthy()
+    expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND token_charge",[f.order_id])).rows).toEqual([{status:'unknown'}])
+    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '2 hours' WHERE order_id=$1 AND token_charge",[f.order_id])
+    expect((await createPaymentAttempt(pool,f.input)).status).toBe('redirected')
+    expect((await pool.query("SELECT status FROM payment_attempts WHERE order_id=$1 AND token_charge",[f.order_id])).rows).toEqual([{status:'failed'}])
+  })
+  it('never closes a hosted invoice attempt because the provider says it is missing',async()=>{
+    const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
+    await pool.query("UPDATE payment_attempts SET status='unknown' WHERE id=$1",[a.id])
+    vi.spyOn(f.adapter,'lookupAttempt').mockRejectedValue(new PaymentError('not_found','inv'))
+    await expect(createPaymentAttempt(pool,f.input)).rejects.toBeTruthy()
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[a.id])).rows[0].status).toBe('unknown')
+  })
+  it('cancels the live attempt at the provider when an earlier cancelled attempt turns out to be paid',async()=>{
+    const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
+    await pool.query("UPDATE payment_attempts SET status='canceled' WHERE id=$1",[a.id]) // closed locally, still payable at the provider
+    const b=await createPaymentAttempt(pool,f.input)
+    expect(b.id).not.toBe(a.id)
+    f.adapter.settle(a.provider_ref)
+    await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))
+    expect(await state(f.order_id)).toMatchObject({payment_state:'paid'})
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[b.id])).rows[0].status).toBe('canceled')
+    expect((await f.adapter.lookupAttempt(b.provider_ref)).status).toBe('canceled')
+    expect(await counts(f.order_id)).toEqual({payments:1,outbox:1})
+  })
+  it('leaves a sibling the provider could not cancel live for the reconciler',async()=>{
+    const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
+    await pool.query("UPDATE payment_attempts SET status='canceled' WHERE id=$1",[a.id])
+    const b=await createPaymentAttempt(pool,f.input)
+    vi.spyOn(f.adapter,'cancelAttempt').mockRejectedValue(new Error('provider down'))
+    f.adapter.settle(a.provider_ref)
+    await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))
+    expect(await state(f.order_id)).toMatchObject({payment_state:'paid'})
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[b.id])).rows[0].status).toBe('redirected')
+  })
+  it('a stale attempt that was in fact paid settles the order instead of starting a second charge',async () => {
+    const f=await fixture(),first=await createPaymentAttempt(pool,f.input),create=vi.spyOn(f.adapter,'createAttempt')
+    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '31 minutes',updated_at=now()-interval '31 minutes' WHERE id=$1",[first.id])
+    f.adapter.settle(first.provider_ref)
+    await expect(createPaymentAttempt(pool,f.input)).rejects.toMatchObject({status:409,code:'payment_not_awaiting'})
+    expect(create).not.toHaveBeenCalled()
+    expect(await state(f.order_id)).toMatchObject({payment_state:'paid'})
+    expect(await counts(f.order_id)).toEqual({payments:1,outbox:1})
+  })
+  it('a declined attempt fails the order and refuses a new attempt, but a late success is still honoured',async () => {
+    const f=await fixture(),first=await createPaymentAttempt(pool,f.input)
+    f.adapter.settle(first.provider_ref,'failed')
+    expect(await deliver(f.adapter,f.adapter.webhookBody(first.provider_ref))).toEqual({status:200,outcome:'accepted'})
+    expect(await state(f.order_id)).toMatchObject({payment_state:'failed'})
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[first.id])).rows[0].status).toBe('failed')
+    await expect(createPaymentAttempt(pool,f.input)).rejects.toMatchObject({status:409,code:'payment_not_awaiting'})
+  })
   it('paid after cancellation requires refund rather than fulfillment',async () => {
     const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
     await pool.query('UPDATE orders SET cancelled=true WHERE id=$1',[f.order_id]);f.adapter.settle(a.provider_ref)
@@ -132,7 +308,7 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     const cancel=vi.spyOn(f.adapter,'cancelAttempt')
     await expect(cancelOrder(pool,{order_id:f.order_id,principal:{...principal,customer_id:randomUUID()},reason:'Cancel purchase',adapter:f.adapter})).rejects.toMatchObject({status:404})
     const pathname=`/v1/commercial/orders/${f.order_id}/cancel`
-    expect(await routesB(pool,{method:'POST',pathname,raw:JSON.stringify({reason:'Cancel purchase'}),issuer:'vendor-test',actor:7,capabilities:['vendor.subscriptions.manage'],stepUpFresh:true},new URL(pathname,'https://webvue.test'),{adapter:f.adapter,allowedOrigin:'https://webvue.test'})).toMatchObject({status:200,data:{id:f.order_id}})
+    expect(await routesB(pool,{method:'POST',pathname,raw:JSON.stringify({reason:'Cancel purchase'}),issuer:'vendor-test',actor:7,capabilities:['vendor.subscriptions.manage'],stepUpFresh:true},new URL(pathname,'https://webvue.test'),{adapter:f.adapter,returnOrigin: fixedReturnOrigin('https://webvue.test')})).toMatchObject({status:200,data:{id:f.order_id}})
     expect(cancel).toHaveBeenCalledWith(a.provider_ref)
     expect(await state(f.order_id)).toMatchObject({cancelled:true,fulfillment_state:'not_started'})
     expect((await pool.query('SELECT target_revision_id,revision FROM subscriptions WHERE id=$1',[order.subscription_id])).rows[0]).toEqual({target_revision_id:null,revision:2})
@@ -163,7 +339,7 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     // While the outcome is unknown a second cancel is refused rather than guessed.
     await expect(cancelOrder(pool,{order_id:f.order_id,principal,reason:'Cancel purchase',adapter:f.adapter})).rejects.toMatchObject({status:409,code:'payment_reconciliation_required'})
     expect(await reconcileUnknownAttempts(pool,f.adapter)).toEqual([{id:a.id,outcome:'accepted'}])
-    expect(await state(f.order_id)).toMatchObject({cancelled:false,payment_state:'failed'})
+    expect(await state(f.order_id)).toMatchObject({cancelled:false,payment_state:'awaiting_payment'})
     expect(await cancelOrder(pool,{order_id:f.order_id,principal,reason:'Cancel purchase',adapter:f.adapter})).toMatchObject({id:f.order_id})
     expect(await state(f.order_id)).toMatchObject({cancelled:true})
     expect((await pool.query('SELECT status FROM invoices WHERE id=$1',[f.invoice])).rows[0].status).toBe('void')

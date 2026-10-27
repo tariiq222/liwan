@@ -9,7 +9,8 @@ import { trialEndsAt } from './renewals.js'
 import { expireTrials } from './trial-expiry.js'
 import { enqueueReconfigureJob } from '../shared/job-store.js'
 import { commercialExpiryDate } from './fulfillment.js'
-import { assertReturnOrigin, paymentAttemptView } from './payments.js'
+import { paymentAttemptView } from './payments.js'
+import type { ReturnOrigin } from './return-origin.js'
 
 /** A trial is an ordinary zero-due order: same snapshot, fulfillment and entitlement as a paid purchase. */
 export async function startTrial(pool: Pool, input: { customer_id: string; request: unknown; principal: Principal; now?: Date }) {
@@ -69,8 +70,8 @@ async function pushCommercialExpiry(client: PoolClient, subscription_id: string,
 }
 
 /** Customer conversion: end the trial now and return the first invoice's hosted attempt. */
-export async function convertTrial(pool: Pool, input: { customer_id: string; now: Date; adapter: Parameters<typeof expireTrials>[1]['adapter']; allowedOrigin: string }) {
-  assertReturnOrigin(input.allowedOrigin)
+export async function convertTrial(pool: Pool, input: { customer_id: string; now: Date; adapter: Parameters<typeof expireTrials>[1]['adapter']; returnOrigin: ReturnOrigin }) {
+  await input.returnOrigin(input.customer_id) // an unusable origin refuses before any write
   const sub = (await pool.query('SELECT * FROM subscriptions WHERE customer_id=$1', [input.customer_id])).rows[0]
   if (!sub || sub.state !== 'trialing') throw new CommercialHttpError('trial_not_active', 409)
   await transaction(pool, async client => {
@@ -80,7 +81,7 @@ export async function convertTrial(pool: Pool, input: { customer_id: string; now
       [randomUUID(), `customer:${input.customer_id}`, 'trial.converted', sub.id, 'Customer converted the trial', JSON.stringify({ converted_at: input.now.toISOString() })])
     await pushCommercialExpiry(client, sub.id, null)
   })
-  await expireTrials(pool, { now: input.now, adapter: input.adapter, allowedOrigin: input.allowedOrigin, subscription_id: sub.id })
+  await expireTrials(pool, { now: input.now, adapter: input.adapter, returnOrigin: input.returnOrigin, subscription_id: sub.id })
   // The expiry run may also create other due renewals: read this subscription's own first order, never index 0.
   const row = (await pool.query(`SELECT o.* FROM orders o JOIN renewals r ON r.order_id=o.id
     WHERE r.subscription_id=$1 ORDER BY r.created_at DESC,o.id DESC LIMIT 1`, [sub.id])).rows[0]
@@ -104,8 +105,10 @@ export async function extendTrial(pool: Pool, input: { subscription_id: string; 
   })
 }
 
-export async function endTrial(pool: Pool, input: { subscription_id: string; reason: string; actor: string; now: Date; adapter: Parameters<typeof expireTrials>[1]['adapter']; allowedOrigin: string }) {
-  assertReturnOrigin(input.allowedOrigin)
+export async function endTrial(pool: Pool, input: { subscription_id: string; reason: string; actor: string; now: Date; adapter: Parameters<typeof expireTrials>[1]['adapter']; returnOrigin: ReturnOrigin }) {
+  const owner = (await pool.query('SELECT customer_id FROM subscriptions WHERE id=$1', [input.subscription_id])).rows[0]
+  if (!owner) throw new CommercialHttpError('trial_not_active', 409)
+  await input.returnOrigin(owner.customer_id) // an unusable origin refuses before any write
   const ended = await transaction(pool, async client => {
     const updated = await client.query("UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1 AND state='trialing' RETURNING customer_id", [input.subscription_id, input.now])
     if (!updated.rowCount) throw new CommercialHttpError('trial_not_active', 409)
@@ -114,7 +117,7 @@ export async function endTrial(pool: Pool, input: { subscription_id: string; rea
     await pushCommercialExpiry(client, input.subscription_id, null)
     return updated.rows[0].customer_id as string
   })
-  await expireTrials(pool, { now: input.now, adapter: input.adapter, allowedOrigin: input.allowedOrigin, subscription_id: input.subscription_id })
+  await expireTrials(pool, { now: input.now, adapter: input.adapter, returnOrigin: input.returnOrigin, subscription_id: input.subscription_id })
   return { customer_id: ended }
 }
 

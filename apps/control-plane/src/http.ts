@@ -4,6 +4,7 @@ import { packageHttp } from './package-http.js'
 import { PackageError } from './packages.js'
 import { commercialHttp } from './commercial/http.js'
 import { customerHttp, type PaymentRuntime } from './commercial/customer-http.js'
+import { returnOriginFromEnv } from './commercial/return-origin.js'
 import { routesB, paymentEventsHttp } from './commercial/routes-b.js'
 import { paymentAdapterFromEnv } from './commercial/payment-adapter.js'
 import { CommercialHttpError } from './commercial/lifecycle.js'
@@ -312,8 +313,8 @@ async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tena
 }
 
 export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }, deps?: { webauthn?: WebAuthnLib }) {
-  // One return origin for every tenant (the first entry). Per-tenant return origins in shared mode are a separate ticket.
-  const paymentRuntime: PaymentRuntime = {adapter:null,allowedOrigin:(process.env.WEBVUE_PAYMENT_RETURN_ORIGINS??'').split(',').map(s=>s.trim()).filter(Boolean)[0]??''}
+  // Dedicated: the first WEBVUE_PAYMENT_RETURN_ORIGINS entry. Shared: each customer's own tenant host, checked against that allowlist.
+  const paymentRuntime: PaymentRuntime = {adapter:null,returnOrigin:returnOriginFromEnv(pool,process.env)}
   try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env) } catch { /* Fail payment routes closed; non-payment routes remain available. */ }
   // Password setting runs in control-worker (the only Docker-capable process); unset channel = acceptance fails closed.
   const effect = config.internalEffect

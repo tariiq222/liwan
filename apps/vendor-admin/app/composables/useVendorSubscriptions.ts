@@ -1,6 +1,6 @@
 import { commercialFailure } from '@/utils/vendorCommercial'
 import { normalizeQuoteResponse, withoutDraftTerms } from '@/utils/vendorSubscriptions'
-import type { BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt } from '@webvue/commercial-contracts'
+import type { Adjustment, BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt } from '@webvue/commercial-contracts'
 import type { VendorCustomer, VendorInvoice, VendorInvoiceList } from '@/utils/vendorSubscriptions'
 
 /** Typed access to the vendor customer / subscription / invoice endpoints (proxy /api/vendor/v1 → /v1). Totals and prices always come from the server. */
@@ -21,6 +21,8 @@ export function useVendorSubscriptions() {
     usage: (subscriptionId: string) => request<UsageSnapshot>(`commercial/subscriptions/${seg(subscriptionId)}/usage`),
     listInvoices: (query: Record<string, unknown>) => request<VendorInvoiceList>('commercial/invoices', { query }),
     invoice: (id: string) => request<VendorInvoice>(`commercial/invoices/${seg(id)}`),
+    /** Records a refund the operator already made in the provider dashboard; nothing is refunded by this call. */
+    refundCreditNote: (id: string, body: { external_reference: string; reason: string }) => request<Adjustment>(`commercial/invoice-adjustments/${seg(id)}/refund`, { method: 'POST', body: { external_reference: body.external_reference.trim(), reason: body.reason.trim() } }),
     saveTerms: (body: unknown) => request<CustomerTermsRevision>('commercial/customer-terms', { method: 'POST', body }),
     /** Draft `terms` bodies return a preview only (never persisted, never acceptable). */
     customerQuote: async (body: Record<string, unknown>) => normalizeQuoteResponse<Quote>(await request<unknown>('commercial/customer-quotes', { method: 'POST', body })),

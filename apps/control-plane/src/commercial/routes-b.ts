@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { actorName } from '../admin-auth/accounts.js'
 import type { Pool } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
-import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceStatusSchema, type Principal } from '@webvue/commercial-contracts'
+import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceStatusSchema, refundCreditNoteRequestSchema, type Principal } from '@webvue/commercial-contracts'
 import { parseBody, need, type CommercialInput } from './http.js'
 import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { createCustomerTerms } from './customer-terms.js'
@@ -22,6 +22,7 @@ import { endTrial, extendTrial } from './trial.js'
 import { createPaymentAttempt, handleProviderEvent, paymentAttemptView } from './payments.js'
 import { generateRenewals, applyDunning } from './renewals.js'
 import { SimulatorAdapter } from './payment-simulator.js'
+import { refundCreditNote } from './settlements.js'
 
 export async function paymentEventsHttp(pool: Pool, input: {method:string;pathname:string;raw:string;headers:IncomingHttpHeaders}, runtime?: PaymentRuntime) {
   const hit=/^\/v1\/commercial\/payment-events\/([^/]+)$/.exec(input.pathname)
@@ -80,7 +81,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     }
     const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
     const payment=needPayment(runtime)
-    return {status:200,data:await endTrial(pool,{subscription_id:trial[1],reason:body.reason,actor:principal.actor_id,now:new Date(),adapter:payment.adapter,allowedOrigin:payment.allowedOrigin})}
+    return {status:200,data:await endTrial(pool,{subscription_id:trial[1],reason:body.reason,actor:principal.actor_id,now:new Date(),adapter:payment.adapter,returnOrigin:payment.returnOrigin})}
   }
   if(m==='POST'&&path==='/customer-terms'){need(input,'vendor.pricing.manage','vendor.subscriptions.manage');return {status:201,data:await createCustomerTerms(pool,parseBody(input.raw,z.unknown()),principal)}}
   if(m==='POST'&&path==='/customer-quotes'){
@@ -124,6 +125,12 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     const order=(await pool.query('SELECT customer_id FROM orders WHERE id=$1',[payment[1]])).rows[0];if(!order)throw new CommercialHttpError('not_found',404)
     if(m==='GET'){const rows=(await pool.query('SELECT * FROM payment_attempts WHERE order_id=$1 ORDER BY created_at DESC',[payment[1]])).rows;return {status:200,data:{items:rows.map(paymentAttemptView),total:rows.length}}}
     parseBody(input.raw||'{}',z.strictObject({idempotency_key:z.uuid().optional()}));return {status:201,data:await createPaymentAttempt(pool,{order_id:payment[1]!,customer_id:order.customer_id,...needPayment(runtime)})}
+  }
+  const refund=/^\/invoice-adjustments\/([^/]+)\/refund$/.exec(path)
+  if(refund&&m==='POST'){
+    need(input,'vendor.billing.manage')
+    if(!z.uuid().safeParse(refund[1]).success)throw new CommercialHttpError('not_found',404)
+    return {status:200,data:await refundCreditNote(pool,{adjustment_id:refund[1]!,actor:{issuer:input.issuer,actorUid:input.actor},request:parseBody(input.raw,refundCreditNoteRequestSchema)})}
   }
   const settle=/^\/payment-simulator\/([^/]+)\/settle$/.exec(path)
   if(settle){

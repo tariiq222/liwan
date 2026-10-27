@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { invoiceStatusBadge } from '@webvue/commercial-ui/app/utils/commercialBadges'
-import { paymentAttemptBadge } from '@/utils/vendorBadges'
+import { adjustmentStatusBadge, paymentAttemptBadge } from '@/utils/vendorBadges'
 import { formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
-import { invoicesReturnTo, isCreditRelated, isNotAvailable, vendorInvoiceLineViews } from '@/utils/vendorSubscriptions'
+import { invoicesReturnTo, isNotAvailable, refundErrorKey, validRefundDraft, vendorInvoiceLineViews } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { formatWebVueDate, formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 definePageMeta({ capability: 'vendor.billing.manage' })
 const { t, locale } = useI18n(); const route = useRoute(); const api = useVendorSubscriptions()
 const { can } = useVendorContext()
+const hydrated = useHydrated()
 const canBilling = computed(() => can('vendor.billing.manage'))
 const id = computed(() => String(route.params.id))
 const backTo = computed(() => invoicesReturnTo(route.query.returnTo))
@@ -21,6 +22,28 @@ const attemptTime = (value: string) => formatWebVueDateTime(value, locale.value)
 const unavailable = computed(() => isNotAvailable(error.value) && !data.value)
 const money = (m: NonNullable<typeof data.value>['total']) => formatCommercialMoney(m, locale.value)
 const date = (v: string | null) => (v ? formatWebVueDate(v, locale.value) : null)
+const canRefund = computed(() => canBilling.value && !unavailable.value)
+const refundNoteId = ref<string | null>(null)
+const refundReference = ref('')
+const refundReason = ref('')
+const refundBusy = ref(false)
+const refundFailure = ref<string | undefined>()
+const refundValid = computed(() => validRefundDraft({ reference: refundReference.value, reason: refundReason.value }))
+function openRefund(noteId: string) { refundNoteId.value = noteId; refundReference.value = ''; refundReason.value = ''; refundFailure.value = undefined }
+function closeRefund() { refundNoteId.value = null; refundReference.value = ''; refundReason.value = ''; refundFailure.value = undefined }
+async function recordRefund() {
+  if (!hydrated.value || refundBusy.value || !canRefund.value || !refundNoteId.value || !refundValid.value) return
+  refundBusy.value = true; refundFailure.value = undefined
+  try {
+    await api.refundCreditNote(refundNoteId.value, { external_reference: refundReference.value, reason: refundReason.value })
+    closeRefund()
+  } catch (cause) {
+    refundFailure.value = t(refundErrorKey(cause))
+  } finally {
+    // The note may already have been closed by someone else: always show the server's current state.
+    try { await refresh() } finally { refundBusy.value = false }
+  }
+}
 const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status, 'vendor.invoices.status') : null))
 </script>
 <template>
@@ -57,7 +80,34 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
       </SharedPageState>
     </SharedRecordSection>
     <SharedRecordSection :title="t('vendor.invoices.adjustments')">
-      <p class="text-sm" :class="isCreditRelated(data) ? '' : 'text-muted'">{{ isCreditRelated(data) ? t('vendor.invoices.creditPending') : t('vendor.invoices.adjustmentsNone') }}</p>
+      <p v-if="!data.adjustments.length" class="text-sm text-muted">{{ t('vendor.invoices.adjustmentsNone') }}</p>
+      <ul v-else class="divide-y divide-default">
+        <li v-for="note in data.adjustments" :key="note.id" class="space-y-3 py-3" data-testid="adjustment">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-3">
+              <SharedStatusBadge :tone="adjustmentStatusBadge(note.status).tone" :label="t(adjustmentStatusBadge(note.status).labelKey)" />
+              <span class="text-sm text-muted">{{ t(`vendor.invoices.adjustmentKind.${note.kind}`) }}</span>
+            </div>
+            <span class="tabular-nums">{{ money(note.amount) }}</span>
+          </div>
+          <p class="text-sm">{{ note.reason }}</p>
+          <dl v-if="note.status === 'refunded'" class="grid gap-2 text-sm sm:grid-cols-3" data-testid="refund-record">
+            <div><dt class="text-muted">{{ t('vendor.invoices.refund.reference') }}</dt><dd><bdi dir="ltr">{{ note.refund_reference }}</bdi></dd></div>
+            <div><dt class="text-muted">{{ t('vendor.invoices.refund.at') }}</dt><dd>{{ note.refunded_at ? attemptTime(note.refunded_at) : '' }}</dd></div>
+            <div><dt class="text-muted">{{ t('vendor.invoices.refund.by') }}</dt><dd><bdi dir="ltr">{{ note.refunded_by }}</bdi></dd></div>
+          </dl>
+          <template v-if="canRefund && note.kind === 'credit_note' && note.status === 'pending'">
+            <SharedInlineConfirm v-if="refundNoteId === note.id" :title="t('vendor.invoices.refund.title')" :description="t('vendor.invoices.refund.description')" :confirm-label="t('vendor.invoices.refund.confirm')" :pending="refundBusy" :disabled="!hydrated || refundBusy || !refundValid" @confirm="recordRefund" @cancel="closeRefund">
+              <div class="mt-3 space-y-4">
+                <UFormField :label="t('vendor.invoices.refund.reference')" :help="t('vendor.invoices.refund.referenceHint')" required><UInput v-model="refundReference" :maxlength="200" dir="ltr" :disabled="!hydrated || refundBusy" class="w-full" /></UFormField>
+                <UFormField :label="t('vendor.invoices.refund.reason')" required><UTextarea v-model="refundReason" :maxlength="1000" :disabled="!hydrated || refundBusy" class="w-full" /></UFormField>
+              </div>
+            </SharedInlineConfirm>
+            <UButton v-else color="neutral" variant="outline" size="sm" :disabled="!hydrated || refundBusy" @click="openRefund(note.id)">{{ t('vendor.invoices.refund.action') }}</UButton>
+          </template>
+        </li>
+      </ul>
+      <UAlert v-if="refundFailure" class="mt-3" color="error" variant="subtle" :title="refundFailure" data-testid="refund-failure" />
       <p class="mt-1 text-xs text-muted">{{ t('vendor.invoices.immutable') }}</p>
     </SharedRecordSection>
     <details class="text-sm"><summary class="cursor-pointer text-muted">{{ t('vendor.customers.technical') }}</summary>

@@ -7,6 +7,7 @@ import { reconcileUnknownAttempts } from './payments.js'
 import { recoverInterrupted } from '../shared/subscription-reconcile.js'
 import { generateRenewals, applyDunning } from './renewals.js'
 import { expireTrials } from './trial-expiry.js'
+import { returnOriginFromEnv, unusableReturnOrigin } from './return-origin.js'
 import { sendTrialNotices } from './trial-notices.js'
 import * as settlements from './settlements.js'
 import type { PaymentAdapter } from './payment-adapter.js'
@@ -63,7 +64,8 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   const USAGE_RETRY_MS = 30_000
   let usageRun: Promise<void> | undefined
   const billingMs = posInt(env.WEBVUE_COMMERCIAL_BILLING_INTERVAL_SEC, 3600) * 1000
-  const origin = (env.WEBVUE_PAYMENT_RETURN_ORIGINS ?? '').split(',')[0]?.trim() ?? ''
+  // Payment returns and invitation links both resolve one origin per customer (the tenant's own host in shared mode).
+  const returnOrigin = returnOriginFromEnv(pool, env) ?? unusableReturnOrigin
   let ticks = 0
   let lastBilling: number | undefined
   let jobCounts: Record<string, { runs: number; failures: number }> = {}
@@ -90,7 +92,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       })
       if (o.mailAdapter) {
         const mail = o.mailAdapter
-        await job('invitation.send', () => sendInvitationOutbox(pool, { mail, origin, smtpHost: env.WEBVUE_MAIL_SMTP_HOST }))
+        await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.WEBVUE_MAIL_SMTP_HOST }))
         await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail }))
       }
       if (ticks % reconcileEvery === 0) {
@@ -123,8 +125,8 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         lastBilling = now
         if (o.paymentAdapter) {
           const adapter = o.paymentAdapter
-          await job('trial-expiry', () => expireTrials(pool, { now: new Date(now), adapter, allowedOrigin: origin }))
-          await job('renewals', () => generateRenewals(pool, { now: new Date(now), adapter, allowedOrigin: origin }))
+          await job('trial-expiry', () => expireTrials(pool, { now: new Date(now), adapter, returnOrigin }))
+          await job('renewals', () => generateRenewals(pool, { now: new Date(now), adapter, returnOrigin }))
         }
         await job('dunning', () => applyDunning(pool, { now: new Date(now) }))
         const refund = (settlements as Record<string, unknown>).processRefundOutbox

@@ -32,6 +32,16 @@ export const adjustmentSchema = z.strictObject({
   kind: z.enum(['credit_note', 'debit_note']), reason: z.string().min(3).max(1000),
   amount: moneySchema, status: z.enum(['pending', 'applied', 'refunded', 'void']),
   created_at: z.string(), created_by: z.string().min(1),
+  /** Set together, only once the operator recorded the refund made outside the system. */
+  refund_reference: z.string().nullable(), refunded_at: z.string().nullable(), refunded_by: z.string().nullable(),
+}).refine(a => (a.status === 'refunded') === (a.refund_reference !== null && a.refunded_at !== null && a.refunded_by !== null)
+  && (a.status === 'refunded' || (a.refund_reference === null && a.refunded_at === null && a.refunded_by === null)),
+{ path: ['status'], message: 'Refund details exactly when refunded' })
+
+/** Vendor-only: record that a pending credit note was refunded outside the system (no automatic refund exists). */
+export const refundCreditNoteRequestSchema = z.strictObject({
+  external_reference: z.string().trim().min(3).max(200),
+  reason: z.string().trim().min(3).max(1000),
 })
 
 export const paymentProviderSchema = z.enum(['moyasar', 'simulator'])
@@ -56,6 +66,7 @@ export type InvoiceStatus = z.infer<typeof invoiceStatusSchema>
 export type InvoiceLine = z.infer<typeof invoiceLineSchema>
 export type Invoice = z.infer<typeof invoiceSchema>
 export type Adjustment = z.infer<typeof adjustmentSchema>
+export type RefundCreditNoteRequest = z.infer<typeof refundCreditNoteRequestSchema>
 export type PaymentAttempt = z.infer<typeof paymentAttemptSchema>
 export type PaymentAttemptStatus = z.infer<typeof paymentAttemptStatusSchema>
 export type PaymentEventRecord = z.infer<typeof paymentEventRecordSchema>

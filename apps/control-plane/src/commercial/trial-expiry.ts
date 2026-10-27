@@ -1,8 +1,9 @@
 import type { Pool } from 'pg'
 import { riyadhDate } from '@webvue/commercial-contracts'
 import { transaction } from '../db.js'
+import { CommercialHttpError } from './lifecycle.js'
 import { generateRenewals } from './renewals.js'
-import { assertReturnOrigin } from './payments.js'
+import type { ReturnOrigin } from './return-origin.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 
 /**
@@ -10,19 +11,27 @@ import type { PaymentAdapter } from './payment-adapter.js'
  * existing renewal path issues the first invoice and a hosted payment attempt; the renewals unique
  * key keeps a repeated run from issuing a second invoice.
  */
-export async function expireTrials(pool: Pool, input: { now: Date; adapter: PaymentAdapter; allowedOrigin: string; subscription_id?: string }) {
-  assertReturnOrigin(input.allowedOrigin)
+export async function expireTrials(pool: Pool, input: { now: Date; adapter: PaymentAdapter; returnOrigin: ReturnOrigin; subscription_id?: string }) {
   const expired: string[] = []
+  let unusableOrigins = 0
   await transaction(pool, async client => {
-    const due = (await client.query(`SELECT id,trial_ends_at FROM subscriptions
+    const due = (await client.query(`SELECT id,customer_id,trial_ends_at FROM subscriptions
       WHERE state='trialing' AND trial_ends_at IS NOT NULL AND trial_ends_at <= $1
         AND ($2::uuid IS NULL OR id=$2)
       ORDER BY id FOR UPDATE SKIP LOCKED`, [input.now, input.subscription_id ?? null])).rows
     for (const row of due) {
+      // A customer without a usable return origin keeps its trial untouched; the run fails below so it is never silent.
+      try { await input.returnOrigin(row.customer_id) }
+      catch (error) {
+        if ((error as { code?: string }).code !== 'return_url_forbidden') throw error
+        unusableOrigins++
+        continue
+      }
       await client.query("UPDATE subscriptions SET state='past_due',renewal_at=$2,revision=revision+1 WHERE id=$1", [row.id, riyadhDate(new Date(row.trial_ends_at))])
       expired.push(row.id)
     }
   })
-  const orders = expired.length ? await generateRenewals(pool, { now: input.now, adapter: input.adapter, allowedOrigin: input.allowedOrigin }) : []
+  const orders = expired.length ? await generateRenewals(pool, { now: input.now, adapter: input.adapter, returnOrigin: input.returnOrigin, subscription_id: input.subscription_id }) : []
+  if (unusableOrigins) throw new CommercialHttpError('return_url_forbidden', 422)
   return { expired, orders }
 }

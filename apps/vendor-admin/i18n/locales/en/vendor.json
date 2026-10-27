@@ -1093,7 +1093,31 @@
       "attemptsNone": "Payment attempts are not yet attached to this invoice.",
       "adjustments": "Adjustments and credit notes",
       "adjustmentsNone": "No adjustments.",
-      "creditPending": "A credit note is pending.",
+      "adjustmentKind": {
+        "credit_note": "Credit note",
+        "debit_note": "Debit note"
+      },
+      "adjustmentStatus": {
+        "pending": "Pending refund",
+        "applied": "Applied",
+        "refunded": "Refunded",
+        "void": "Void"
+      },
+      "refund": {
+        "action": "Record refund",
+        "title": "Record that this credit note was refunded",
+        "description": "This does not refund anything. Refund the customer in the payment provider's dashboard first, then record the provider's reference here.",
+        "reference": "Provider refund reference",
+        "referenceHint": "The refund or payment id shown in the provider's dashboard.",
+        "reason": "Reason",
+        "confirm": "Record refund",
+        "at": "Recorded",
+        "by": "Recorded by",
+        "errors": {
+          "credit_note_not_pending": "This credit note is no longer pending. The page shows its current state.",
+          "refund_reference_in_use": "This refund reference is already recorded on another credit note."
+        }
+      },
       "immutable": "An issued invoice is never edited; corrections are separate documents.",
       "techId": "Invoice id",
       "techOrder": "Order id",
