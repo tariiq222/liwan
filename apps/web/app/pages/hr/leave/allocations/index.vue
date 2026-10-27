@@ -19,7 +19,7 @@ const offset = computed(() => {
   const parsed = Number(Array.isArray(route.query.offset) ? route.query.offset[0] : route.query.offset)
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 0
 })
-const allocations = useHrLeaveAllocations(computed(() => ({ limit: LIMIT, offset: offset.value })))
+const allocations = useHrLeaveAllocations(computed(() => ({ limit: LIMIT, offset: offset.value })), computed(() => can('hr.leave.manage')))
 const items = computed(() => allocations.data.value?.items ?? [])
 const total = computed(() => allocations.data.value?.total ?? 0)
 const page = computed(() => Math.floor(offset.value / LIMIT) + 1)

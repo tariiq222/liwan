@@ -18,7 +18,7 @@ const { validity, days } = useHrLeaveFormat()
 
 const id = computed(() => Number(route.params.allocationId))
 const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0)
-const query = useHrLeaveAllocation(computed(() => validId.value ? id.value : null))
+const query = useHrLeaveAllocation(computed(() => validId.value ? id.value : null), computed(() => can('hr.leave.manage')))
 const allocation = computed(() => query.data.value ?? null)
 const pageError = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const sourcePaths = useRecordListPaths(['/hr/leave/allocations'])

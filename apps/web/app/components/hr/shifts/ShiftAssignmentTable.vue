@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import { h } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
-import { useHrShiftPeriod, type HrShiftAssignment } from '@/composables/useHrShifts'
+import type { HrShiftAssignment } from '@/composables/useHrShifts'
 
 // The assignment list of /hr/shifts (and of the employee's own schedule) on SharedDataTable.
 // On /hr/shifts a row opens the assignment's own page (`rowTo`), where it is edited; removing is handed to the page, which owns the inline

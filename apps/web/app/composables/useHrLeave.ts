@@ -165,23 +165,23 @@ export function useCreateLeaveAllocation() {
   })
 }
 
-/** The grants of the companies where the caller manages leave, newest validity first. */
-export function useHrLeaveAllocations(params: MaybeRefOrGetter<HrLeaveAllocationListParams>) {
+/** The grants of the companies where the caller manages leave, newest validity first.
+ *  The page passes its own hr.leave.manage check as `enabled`: the HR attention provider imports
+ *  this module, so it must not reach the access layer itself. */
+export function useHrLeaveAllocations(params: MaybeRefOrGetter<HrLeaveAllocationListParams>, enabled: MaybeRefOrGetter<boolean>) {
   const { $api } = useApi()
-  const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrLeaveKeys.allocations(toValue(params))),
-    enabled: computed(() => can('hr.leave.manage')),
+    enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/hr/leave/allocations', { query: { ...toValue(params) }, schema: HrLeaveAllocationListSchema }),
   })
 }
 
-export function useHrLeaveAllocation(id: MaybeRefOrGetter<number | null>) {
+export function useHrLeaveAllocation(id: MaybeRefOrGetter<number | null>, enabled: MaybeRefOrGetter<boolean>) {
   const { $api } = useApi()
-  const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrLeaveKeys.allocation(toValue(id) ?? 0)),
-    enabled: computed(() => !!toValue(id) && can('hr.leave.manage')),
+    enabled: computed(() => !!toValue(id) && toValue(enabled)),
     queryFn: () => $api(`/api/v1/hr/leave/allocations/${toValue(id)}`, { schema: HrLeaveAllocationSchema }),
   })
 }
