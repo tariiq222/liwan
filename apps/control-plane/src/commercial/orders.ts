@@ -105,6 +105,12 @@ export function orderView(row: Record<string, any>) {
     due_now: { minor: Number(row.due_now_minor), currency: row.currency, exponent: row.exponent }, created_at: iso(row.created_at) })
 }
 
+/** What the customer's order-status page needs: states and amount only, never the idempotency key, digest or payment data. */
+export function customerOrderStatusView(row: Record<string, any>) {
+  const { id, kind, payment_state, fulfillment_state, due_now, created_at } = orderView(row)
+  return { id, kind, payment_state, fulfillment_state, cancelled: Boolean(row.cancelled), due_now, created_at }
+}
+
 async function findReplay(client: Pick<Pool, 'query'> | PoolClient, quote: Quote, input: AcceptQuoteRequest, digest: string) {
   const r = await client.query('SELECT * FROM orders WHERE customer_id=$1 AND idempotency_key=$2', [quote.customer_id, input.idempotency_key])
   if (!r.rowCount) return null

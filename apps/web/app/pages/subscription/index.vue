@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { subscriptionStateBadge } from '@/utils/subscription'
-import { daysBetween, riyadhDate, subscriptionDisplayState } from '@webvue/commercial-contracts'
-import { formatSubscriptionMoney, refusalCode, refusalKey, safePaymentRedirect } from '@/utils/subscription'
+import { subscriptionDisplayState } from '@webvue/commercial-contracts'
+import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import { formatSubscriptionMoney, refusalCode, refusalKey, safePaymentRedirect, trialDaysRemaining } from '@/utils/subscription'
 import { entitledFeaturePrefixes } from '@webvue/commercial-ui/app/utils/entitlementApps'
 import { humanizeId } from '@webvue/ui/app/utils/humanizeId'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
@@ -9,19 +10,22 @@ const { t, te, locale } = useI18n(); const api = useSubscriptionApi(); const { c
 const allowed = computed(() => can('subscription.read'))
 const isMissing = (cause: any) => (cause?.statusCode ?? cause?.status ?? cause?.response?.status) === 404
 const { data, error, pending, refresh } = await useAsyncData('subscription:overview', async () => {
+  // A secondary section that fails is reported as failed, never shown as empty.
+  const failed = new Set<'usage' | 'branches' | 'invoices'>()
+  const soft = <T,>(key: 'usage' | 'branches' | 'invoices', request: Promise<T>) => request.catch(() => { failed.add(key); return null })
   const [sub, usage, branches, invoices] = await Promise.all([
     api.subscription().catch((cause: any) => { if (isMissing(cause)) return null; throw cause }),
-    api.usage().catch(() => null), api.branches().catch(() => null),
-    can('billing.read') ? api.invoices().catch(() => null) : Promise.resolve(null),
+    soft('usage', api.usage()), soft('branches', api.branches()),
+    can('billing.read') ? soft('invoices', api.invoices()) : Promise.resolve(null),
   ])
-  return { sub, usage, branches, invoices }
+  return { sub, usage, branches, invoices, failed }
 }, { immediate: allowed.value })
 const display = computed(() => (data.value?.sub ? subscriptionDisplayState(data.value.sub) : null))
 // The one action block: only when the customer must act on an order (payment due or activation failed).
 const needsAction = computed(() => display.value === 'awaiting_payment' || display.value === 'failed')
 const entitlement = computed(() => data.value?.sub?.applied?.entitlement ?? null)
 const trialEndsAt = computed(() => data.value?.sub?.trial_ends_at ?? null)
-const trialDaysLeft = computed(() => trialEndsAt.value ? daysBetween(riyadhDate(new Date()), riyadhDate(new Date(trialEndsAt.value))) : null)
+const trialDaysLeft = computed(() => trialDaysRemaining(trialEndsAt.value))
 const converting = ref(false); const convertError = ref<string | undefined>()
 async function convertTrial() {
   if (converting.value || !can('subscription.manage')) return
@@ -60,7 +64,7 @@ definePageMeta({ middleware: 'customer-commercial' })
       <div v-else-if="data && data.sub" class="grid gap-(--webvue-gap-card)">
         <UAlert v-if="data.sub.state === 'trialing' && trialDaysLeft !== null" :color="trialDaysLeft <= 3 ? 'warning' : 'info'" variant="subtle" icon="i-lucide-hourglass"
           :title="t('subscription.trial.daysLeft', { count: trialDaysLeft })"
-          :description="`${t('subscription.trial.endsOn', { date: trialEndsAt?.slice(0, 10) })}${trialDaysLeft <= 3 ? ' — ' + t('subscription.trial.expiring') : ''}`">
+          :description="`${t('subscription.trial.endsOn', { date: formatDate(trialEndsAt, 'Asia/Riyadh') })}${trialDaysLeft <= 3 ? ' — ' + t('subscription.trial.expiring') : ''}`">
           <template #actions><UButton v-if="can('subscription.manage')" size="sm" color="neutral" variant="outline" :disabled="!hydrated || converting" :loading="converting" @click="convertTrial">{{ t('subscription.trial.convert') }}</UButton></template>
         </UAlert>
         <UAlert v-if="convertError" color="error" variant="subtle" :title="convertError" />
@@ -74,7 +78,7 @@ definePageMeta({ middleware: 'customer-commercial' })
           <p v-if="!data.sub.applied" class="text-sm text-muted">{{ t('subscription.summary.none') }}</p>
           <SharedPropertiesPanel v-else>
             <SharedPropertyRow :label="t('subscription.summary.cadence')" :value="data.sub.applied.cadence.count === 1 ? t(`subscription.cadence.${data.sub.applied.cadence.unit}.one`) : t(`subscription.cadence.${data.sub.applied.cadence.unit}.many`, { count: data.sub.applied.cadence.count })" />
-            <SharedPropertyRow v-if="data.sub.renewal_at" :label="t('subscription.summary.renewal')"><bdi dir="ltr">{{ data.sub.renewal_at }}</bdi></SharedPropertyRow><SharedPropertyRow v-else :label="t('subscription.summary.renewal')" :value="null" />
+            <SharedPropertyRow v-if="data.sub.renewal_at" :label="t('subscription.summary.renewal')">{{ formatDate(data.sub.renewal_at) }}</SharedPropertyRow><SharedPropertyRow v-else :label="t('subscription.summary.renewal')" :value="null" />
           </SharedPropertiesPanel>
         </SharedRecordSection>
         <SharedRecordSection variant="panel" :title="t('subscription.summary.services')">
@@ -83,13 +87,15 @@ definePageMeta({ middleware: 'customer-commercial' })
         </SharedRecordSection>
         <SharedRecordSection :title="t('subscription.usage.title')">
           <SubscriptionUsagePanel v-if="data.usage" :usage="data.usage" />
-          <p v-else class="text-sm text-muted" role="status">{{ t('subscription.usage.unavailableNote') }}</p>
+          <UAlert v-else color="warning" variant="subtle" role="status" :title="t(data.failed.has('usage') ? 'subscription.sectionError' : 'subscription.usage.unavailableNote')" />
         </SharedRecordSection>
         <SharedRecordSection variant="list" :title="t('subscription.branches.title')"><template #actions><UButton to="/subscription/branches" color="neutral" variant="link">{{ t('subscription.branches.title') }}</UButton></template>
           <SubscriptionBranchSummary v-if="data.branches" :summary="data.branches" />
+          <UAlert v-else-if="data.failed.has('branches')" class="m-(--webvue-card-pad)" color="warning" variant="subtle" role="status" :title="t('subscription.sectionError')" />
         </SharedRecordSection>
-        <SharedRecordSection v-if="data.invoices" variant="list" :title="t('subscription.invoices.preview')"><template #actions><UButton to="/subscription/invoices" color="neutral" variant="link">{{ t('subscription.invoices.all') }}</UButton></template>
-          <p v-if="!data.invoices.items.length" class="p-(--webvue-card-pad) text-sm text-muted">{{ t('subscription.invoices.empty') }}</p>
+        <SharedRecordSection v-if="data.invoices || data.failed.has('invoices')" variant="list" :title="t('subscription.invoices.preview')"><template #actions><UButton to="/subscription/invoices" color="neutral" variant="link">{{ t('subscription.invoices.all') }}</UButton></template>
+          <UAlert v-if="!data.invoices" class="m-(--webvue-card-pad)" color="warning" variant="subtle" role="status" :title="t('subscription.sectionError')" />
+          <p v-else-if="!data.invoices.items.length" class="p-(--webvue-card-pad) text-sm text-muted">{{ t('subscription.invoices.empty') }}</p>
           <ul v-else class="divide-y divide-default"><li v-for="inv in data.invoices.items.slice(0, 3)" :key="inv.id" class="flex items-center justify-between gap-3 px-(--webvue-card-pad) py-3"><NuxtLink :to="`/subscription/invoices/${encodeURIComponent(inv.id)}`" class="font-medium hover:underline">{{ inv.number ?? inv.id }}</NuxtLink><span class="tabular-nums">{{ formatSubscriptionMoney(inv.total, locale) }}</span></li></ul>
         </SharedRecordSection>
         <SharedRecordSection variant="panel" :title="t('subscription.autoRenew.title')">

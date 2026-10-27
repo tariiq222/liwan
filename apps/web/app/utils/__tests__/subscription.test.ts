@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Invoice } from '@webvue/commercial-contracts'
-import { formatSubscriptionMoney, refusalCode, refusalKey, sameQuoteEconomics, subscriptionInvoiceView } from '../subscription'
+import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import { formatSubscriptionMoney, orderOutcome, refusalCode, refusalKey, sameQuoteEconomics, subscriptionInvoiceView, trialDaysRemaining } from '../subscription'
 
 const money = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
 const t = (key: string) => `t:${key}`
@@ -69,5 +70,34 @@ describe('sameQuoteEconomics', () => {
   it('detects a real price or quantity change', () => {
     expect(sameQuoteEconomics(base as never, { ...base, due_now: money(101) } as never)).toBe(false)
     expect(sameQuoteEconomics(base as never, { ...base, requested_users: 4 } as never)).toBe(false)
+  })
+})
+
+describe('order outcome on the payment return page', () => {
+  it('maps every open order state to what the customer should see', () => {
+    expect(orderOutcome({ payment_state: 'awaiting_payment', fulfillment_state: 'not_started' })).toBe('awaiting_payment')
+    expect(orderOutcome({ payment_state: 'failed', fulfillment_state: 'not_started' })).toBe('payment_failed')
+    expect(orderOutcome({ payment_state: 'paid', fulfillment_state: 'queued' })).toBe('processing')
+    expect(orderOutcome({ payment_state: 'paid', fulfillment_state: 'applying' })).toBe('processing')
+    expect(orderOutcome({ payment_state: 'not_required', fulfillment_state: 'queued' })).toBe('processing')
+    expect(orderOutcome({ payment_state: 'paid', fulfillment_state: 'failed' })).toBe('activation_failed')
+    expect(orderOutcome({ payment_state: 'paid', fulfillment_state: 'needs_intervention' })).toBe('activation_failed')
+    expect(orderOutcome({ payment_state: 'refund_pending', fulfillment_state: 'not_started' })).toBe('refund')
+    expect(orderOutcome({ payment_state: 'refunded', fulfillment_state: 'not_started' })).toBe('refund')
+    expect(orderOutcome({ payment_state: 'paid', fulfillment_state: 'applied' })).toBe('applied')
+    expect(orderOutcome({ payment_state: 'awaiting_payment', fulfillment_state: 'not_started', cancelled: true })).toBe('cancelled')
+    expect(orderOutcome({ payment_state: 'paid', fulfillment_state: 'applied', cancelled: false })).toBe('applied')
+  })
+})
+describe('subscription dates', () => {
+  it('trial days left never go negative and count Riyadh calendar days', () => {
+    const now = new Date('2026-10-27T10:00:00Z')
+    expect(trialDaysRemaining('2026-10-30T10:00:00Z', now)).toBe(3)
+    expect(trialDaysRemaining('2026-10-20T10:00:00Z', now)).toBe(0)
+    expect(trialDaysRemaining(null, now)).toBeNull()
+  })
+  it('renewal day and trial end use the app date format, not raw ISO', () => {
+    expect(formatDate('2026-11-05')).toContain('05/11/2026')
+    expect(formatDate('2026-10-30T22:30:00Z', 'Asia/Riyadh')).toContain('31/10/2026')
   })
 })

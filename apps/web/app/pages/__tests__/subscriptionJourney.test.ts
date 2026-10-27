@@ -55,6 +55,17 @@ describe('permission gating', () => {
     expect(s).toContain('api.subscription()'); expect(s).not.toMatch(/api\.accept|api\.quote/)
     expect(s).toMatch(/continuePayment/)
   })
+  it('status page treats a closed order as settled, not missing, and reports payment errors', () => {
+    const s = page('status.vue')
+    expect(s).toContain('api.order(orderId.value)'); expect(s).toContain('order-settled'); expect(s).toContain('order-empty'); expect(s).toContain('orderOutcome')
+    expect(s).not.toContain('status.missing')
+    expect(s).toMatch(/catch \{ payError/); expect(s).toContain('else payError.value')
+  })
+  it('subscription page formats dates and reports failed sections', () => {
+    const s = page('index.vue')
+    expect(s).toContain('formatDate(data.sub.renewal_at)'); expect(s).not.toContain('trialEndsAt?.slice'); expect(s).not.toContain('.catch(() => null)')
+    expect(s).toContain("failed.has('invoices')")
+  })
   it('invoice page labels non-official invoices and has no physical RTL classes', () => {
     expect(read('app/utils/subscription.ts')).toContain('subscription.invoices.notOfficial')
     for (const f of ['index.vue', 'change.vue', 'status.vue', 'branches.vue', 'branches/new.vue', 'invoices/index.vue', 'invoices/[id].vue']) expect(page(f)).not.toMatch(/\b(ml|mr|pl|pr)-\d/)

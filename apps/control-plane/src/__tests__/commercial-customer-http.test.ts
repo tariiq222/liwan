@@ -81,6 +81,23 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
       VALUES($1,$2,$3,$4,'initial','SAR',2,10000,1500,11500,'2026-01-01','2026-02-01',now())`,[invoice,ownCustomer,ownSubscription,order])
     return order
   }
+  it('reads one own order, with states only and no idempotency or payment data',async()=>{
+    const order=await awaitingOrder()
+    const response=await call(`/v1/customer/orders/${order}`,{capabilities:['subscription.read']})
+    expect(response.status).toBe(200)
+    const body=await response.json() as Record<string,unknown>
+    expect(body).toMatchObject({id:order,payment_state:'awaiting_payment',fulfillment_state:'not_started',cancelled:false,due_now:{minor:11500}})
+    expect(Object.keys(body).sort()).toEqual(['cancelled','created_at','due_now','fulfillment_state','id','kind','payment_state'])
+    await pool.query('UPDATE orders SET cancelled=true WHERE id=$1',[order])
+    expect(await (await call(`/v1/customer/orders/${order}`,{capabilities:['subscription.read']})).json()).toMatchObject({cancelled:true})
+  })
+  it('answers the same 404 for another tenant order, an unknown id and a malformed id',async()=>{
+    const order=await awaitingOrder()
+    expect((await call(`/v1/customer/orders/${order}`,{capabilities:['subscription.read'],tenantId:otherTenant})).status).toBe(404)
+    expect((await call(`/v1/customer/orders/${randomUUID()}`,{capabilities:['subscription.read']})).status).toBe(404)
+    expect((await call('/v1/customer/orders/not-a-uuid',{capabilities:['subscription.read']})).status).toBe(404)
+    expect((await call(`/v1/customer/orders/${order}`,{capabilities:['billing.read']})).status).toBe(403)
+  })
   it('creates a payment attempt from the idempotency key alone and refuses a caller-chosen return path',async()=>{
     const order=await awaitingOrder()
     expect((await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{return_path:'/subscription',idempotency_key:randomUUID()},capabilities:['subscription.manage']})).status).toBe(422)

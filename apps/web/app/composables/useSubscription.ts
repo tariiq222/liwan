@@ -1,9 +1,11 @@
-import type { Branch, BranchSummary, Invoice, PaymentAttempt, Quote, SubscriptionView, UsageSnapshot } from '@webvue/commercial-contracts'
+import type { Branch, Order, BranchSummary, Invoice, PaymentAttempt, Quote, SubscriptionView, UsageSnapshot } from '@webvue/commercial-contracts'
 import { deriveCustomerCapabilities } from '@/utils/customerCapabilities'
 import { forgetIdempotencyKey, idempotencyKey, safePaymentRedirect, sanitizeBody } from '@/utils/subscription'
 
 export type SubscriptionList<T> = { items: T[]; total: number }
 export type CustomerCatalog = { plans: Array<Record<string, any>>; bundles: Array<Record<string, any>>; release?: Record<string, any> | null }
+/** Read-only order status; the control plane answers 404 for an order that is not this customer's. */
+export type CustomerOrderStatus = Pick<Order, 'id' | 'kind' | 'payment_state' | 'fulfillment_state' | 'due_now' | 'created_at'> & { cancelled: boolean }
 export type CustomerOrderResult = { order: NonNullable<SubscriptionView['pending_order']> }
 const CSRF_COOKIE = 'webvue_csrf'
 
@@ -26,6 +28,7 @@ export function useSubscriptionApi() {
     usage: () => request<UsageSnapshot>('usage'),
     invoices: () => request<SubscriptionList<Invoice>>('invoices'),
     invoice: (id: string) => request<Invoice>(`invoices/${encodeURIComponent(id)}`),
+    order: (id: string) => request<CustomerOrderStatus>(`orders/${encodeURIComponent(id)}`),
     branches: () => request<BranchSummary>('branches'),
     quote: (body: unknown) => request<Quote>('quotes', { method: 'POST', body }),
     /** Prices the same request in memory; the control plane never writes a quote row for it. */
