@@ -1,23 +1,28 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
+
 from odoo import fields
 from odoo.tools import html2plaintext
 
 from odoo.addons.webvue_api.serializers.attachment import dump_attachment
 from odoo.addons.webvue_api.serializers.common import iso
+from odoo.addons.webvue_chat.models.chat_service import MEMBER_REMOVED_NOTICE
 
 CONVERSATION_KEYS = (
     'id', 'type', 'name', 'unread_count', 'last_message_at',
     'last_message_preview', 'member_count', 'muted', 'notifications',
-    'peer_seen_message_id', 'im_status', 'can_manage',
+    'peer_seen_message_id', 'im_status', 'can_manage', 'can_remove_members',
 )
 MESSAGE_KEYS = (
     'id', 'conversation_id', 'author', 'body', 'created_at', 'attachments',
-    'parent', 'edited', 'pinned', 'starred', 'reactions',
+    'parent', 'edited', 'pinned', 'starred', 'reactions', 'notice',
 )
 MEMBER_KEYS = ('id', 'name', 'im_status')
 ATTACHMENT_KEYS = ('id', 'name', 'mimetype', 'url')
 RECIPIENT_KEYS = ('id', 'name')
 REACTION_CONTENTS = frozenset({'👍', '❤️', '😂', '🎉', '😮', '😢'})
+# Anchored on the opening tag: typed text is always escaped, so only a server-posted notice starts with it.
+NOTICE_PATTERN = re.compile(rf'<div class="o_mail_notification" data-oe-type="{MEMBER_REMOVED_NOTICE}" data-oe-id="(\d+)">')
 
 
 def dump_user_ref(user):
@@ -39,6 +44,15 @@ def _partner_user(partner):
 
 def _plain_body(html):
     return html2plaintext(html or '', include_references=False).strip()
+
+
+def message_notice(message):
+    """The structured notice a conversation event left, or None for an ordinary message."""
+    match = NOTICE_PATTERN.match(message.body or '')
+    if not match:
+        return None
+    user = message.env['res.users'].with_context(active_test=False).browse(int(match.group(1))).exists()
+    return {'type': 'member_removed', 'user': dump_user_ref(user)} if user else None
 
 
 def _conversation_type(channel):
@@ -83,13 +97,14 @@ def dump_conversation(channel, comments_by_channel=None):
         'name': _conversation_name(channel, viewer),
         'unread_count': unread,
         'last_message_at': iso(last.date) if last else None,
-        'last_message_preview': _plain_body(last.body) if last else None,
+        'last_message_preview': _plain_body(last.body) if last and not message_notice(last) else None,
         'member_count': channel.member_count,
         'muted': muted,
         'notifications': (member.custom_notifications or None) if member else None,
         'peer_seen_message_id': peer.seen_message_id.id if peer and peer.seen_message_id else None,
         'im_status': peer_partner.im_status or None if peer_partner else None,
         'can_manage': channel.channel_type in ('group', 'channel') and channel.has_access('write'),
+        'can_remove_members': channel.channel_type == 'group' and channel.create_uid == viewer,
     }
 
 
@@ -121,6 +136,7 @@ def _dump_reactions(message):
 
 def dump_message(message):
     author_user = _message_author_user(message)
+    notice = message_notice(message)
     attachments = message.attachment_ids.filtered(
         lambda attachment: attachment.type == 'binary' and not attachment.url,
     )
@@ -128,7 +144,7 @@ def dump_message(message):
         'id': message.id,
         'conversation_id': message.res_id,
         'author': dump_user_ref(author_user),
-        'body': _plain_body(message.body),
+        'body': '' if notice else _plain_body(message.body),
         'created_at': iso(message.date),
         'attachments': [dump_attachment(attachment, conversation_attachments_route(message.res_id)) for attachment in attachments],
         'parent': _dump_message_parent(message),
@@ -136,4 +152,5 @@ def dump_message(message):
         'pinned': bool(message.pinned_at),
         'starred': bool(message.starred),
         'reactions': _dump_reactions(message),
+        'notice': notice,
     }

@@ -22,6 +22,7 @@ export const ChatConversationSchema = z.object({
   peer_seen_message_id: z.number().int().positive().nullable(),
   im_status: z.string().nullable(),
   can_manage: z.boolean(),
+  can_remove_members: z.boolean(),
 }).strict()
 
 export const ChatConversationListSchema = z.object({

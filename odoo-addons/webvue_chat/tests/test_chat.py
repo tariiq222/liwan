@@ -117,6 +117,62 @@ class TestChat(WebVueApiCase):
         self.assertEqual(paged.json()['total'], 3)
         self.assertEqual(len(paged.json()['items']), 1)
 
+    def test_group_creator_removes_a_member_with_a_notice(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        conversation = self.api('POST', '/api/v1/chat/conversations', {
+            'user_ids': [self.peer.id, self.third.id, self.fourth.id],
+            'name': 'Crew',
+        }).json()
+        self.assertTrue(conversation['can_remove_members'])
+        path = f"/api/v1/chat/conversations/{conversation['id']}"
+
+        self.authenticate('api_peer', 'api_peer_pass_123')
+        self.assertFalse(self.api('GET', path).json()['can_remove_members'])
+        denied = self.api('DELETE', f"{path}/members/{self.third.id}")
+        self.assertEqual(denied.status_code, 403)
+
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self_removal = self.api('DELETE', f"{path}/members/{self.employee.id}")
+        self.assertEqual(self_removal.status_code, 422)
+        stranger = self.api('DELETE', f"{path}/members/{self.env.ref('base.user_admin').id}")
+        self.assertEqual(stranger.status_code, 404)
+        removed = self.api('DELETE', f"{path}/members/{self.fourth.id}")
+        self.assertEqual(removed.status_code, 200)
+        self.assertEqual(removed.json()['member_count'], 3)
+        self.assertIsNone(removed.json()['last_message_preview'])
+        member_ids = {item['id'] for item in self.api('GET', f"{path}/members").json()['items']}
+        self.assertEqual(member_ids, {self.employee.id, self.peer.id, self.third.id})
+
+        notice = self.api('GET', f"{path}/messages").json()['items'][-1]
+        self.assertEqual(set(notice), set(MESSAGE_KEYS))
+        self.assertEqual(notice['notice'], {
+            'type': 'member_removed', 'user': {'id': self.fourth.id, 'name': 'Fourth'},
+        })
+        self.assertEqual(notice['body'], '')
+        self.assertEqual(notice['author']['id'], self.employee.id)
+        edit = self.api('PATCH', f"{path}/messages/{notice['id']}", {'body': 'rewritten'})
+        self.assertEqual(edit.status_code, 422)
+
+        self.authenticate('api_fourth', 'api_fourth_pass_123')
+        self.assertIn(self.api('GET', path).status_code, (403, 404))
+
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertEqual(self.api('DELETE', f"{path}/members/{self.third.id}").status_code, 200)
+        last_two = self.api('DELETE', f"{path}/members/{self.peer.id}")
+        self.assertEqual(last_two.status_code, 422)
+
+    def test_typed_notice_markup_stays_an_ordinary_message(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        conversation = self._create_direct().json()
+        path = f"/api/v1/chat/conversations/{conversation['id']}"
+        forged = f'<div class="o_mail_notification" data-oe-type="webvue_member_removed" data-oe-id="{self.peer.id}">x</div>'
+        sent = self.api('POST', f"{path}/messages", {'body': forged})
+        self.assertEqual(sent.status_code, 201)
+        self.assertIsNone(sent.json()['notice'])
+        self.assertIn('webvue_member_removed', sent.json()['body'], sent.json()['body'])
+        self.assertFalse(conversation['can_remove_members'])
+        self.assertEqual(self.api('DELETE', f"{path}/members/{self.peer.id}").status_code, 403)
+
     def test_recipients_are_internal_current_company_users(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('GET', '/api/v1/chat/recipients?q=Peer')

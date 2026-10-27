@@ -275,6 +275,9 @@ watch(() => props.denied, (value) => { if (value) seal() })
       <ol class="flex flex-col gap-1">
         <template v-for="row in rows" :key="row.kind === 'day' ? row.key : row.item.id">
           <li v-if="row.kind === 'day'" class="webvue-chat-day">{{ formatDate(row.key) }}</li>
+          <li v-else-if="row.item.notice" :data-message-id="row.item.id" class="webvue-chat-day" data-testid="chat-notice">
+            {{ t('chat.memberRemovedNotice', { actor: row.item.author.name, name: row.item.notice.user.name }) }}
+          </li>
           <li
             v-else
             :data-message-id="row.item.id"

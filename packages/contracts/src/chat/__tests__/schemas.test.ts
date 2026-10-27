@@ -29,6 +29,7 @@ const CONVERSATION = {
   peer_seen_message_id: null,
   im_status: 'online',
   can_manage: false,
+  can_remove_members: false,
 }
 
 const MESSAGE = {
@@ -43,6 +44,7 @@ const MESSAGE = {
   pinned: false,
   starred: false,
   reactions: [],
+  notice: null,
 }
 
 describe('ChatConversationSchema', () => {
