@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import RunCancel from '@/components/hr/lifecycle/RunCancel.vue'
 import RunSteps from '@/components/hr/lifecycle/RunSteps.vue'
-import { useCompleteHrOnboardingStep, useHrOnboardingRun } from '@/composables/useHrOnboarding'
+import { useCancelHrOnboardingRun, useCompleteHrOnboardingStep, useHrOnboardingRun } from '@/composables/useHrOnboarding'
 import { ApiError } from '@/composables/useApi'
 
 const NAMESPACE = 'hrOnboarding'
@@ -24,6 +25,17 @@ async function complete(stepId: number, feedback?: string) {
     stepError.value = error
   }
 }
+const { mutateAsync: cancelRun, isPending: cancelling } = useCancelHrOnboardingRun()
+async function cancel(reason: string) {
+  if (!run.value || cancelling.value) return
+  try {
+    await cancelRun({ runId: run.value.id, reason })
+    stepError.value = null
+  } catch (error) {
+    stepError.value = error
+  }
+}
+const STATE_TONES = { open: 'info', done: 'success', cancelled: 'neutral' } as const
 </script>
 
 <template>
@@ -37,10 +49,11 @@ async function complete(stepId: number, feedback?: string) {
   >
     <SharedIdentityCard v-if="run" :id="run.id" :name="run.employee.name" :subtitle="run.plan.name">
       <template #badge>
-        <SharedStatusBadge size="sm" :tone="run.state === 'done' ? 'success' : 'info'" :label="t(`${NAMESPACE}.states.${run.state}`)" />
+        <SharedStatusBadge size="sm" :tone="STATE_TONES[run.state]" :label="t(`${NAMESPACE}.states.${run.state}`)" />
       </template>
     </SharedIdentityCard>
     <UAlert v-if="stepError" role="alert" color="error" variant="subtle" :title="t(`${NAMESPACE}.form.saveError`)" />
+    <RunCancel v-if="run" :run="run" :namespace="NAMESPACE" :pending="cancelling" @confirm="cancel" />
     <SharedRecordSection v-if="run" :title="t(`${NAMESPACE}.run.steps`)">
       <RunSteps :run="run" :namespace="NAMESPACE" :pending="isPending" @complete="complete" />
     </SharedRecordSection>

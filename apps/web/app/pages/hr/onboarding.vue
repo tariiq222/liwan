@@ -18,7 +18,8 @@ const isListRoute = computed(() => {
   const path = route.path.replace(/\/+$/, '') || '/'
   return path === '/hr/onboarding' || path === '/hr/onboarding/new'
 })
-const state = computed<'open' | 'done' | undefined>(() => route.query.state === 'open' || route.query.state === 'done' ? route.query.state : undefined)
+const RUN_STATES = ['open', 'done', 'cancelled'] as const
+const state = computed(() => RUN_STATES.find(value => value === route.query.state))
 const offset = computed(() => {
   const value = Number(route.query.offset)
   return Number.isSafeInteger(value) && value > 0 ? value : 0
@@ -33,6 +34,7 @@ const stateOptions = computed(() => [
   { value: 'all', label: t(`${NAMESPACE}.runs.allStates`) },
   { value: 'open', label: t(`${NAMESPACE}.states.open`) },
   { value: 'done', label: t(`${NAMESPACE}.states.done`) },
+  { value: 'cancelled', label: t(`${NAMESPACE}.states.cancelled`) },
 ])
 const listQuery = computed(() => {
   const { returnTo: _returnTo, ...rest } = route.query

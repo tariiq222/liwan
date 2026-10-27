@@ -128,10 +128,11 @@ def _launch_run(area, employee, plan, plan_date=None):
 
 
 def _clearance_runs():
-    """{employee id: latest offboarding run} of the current company."""
+    """{employee id: latest offboarding run} of the current company; a cancelled run is no clearance."""
     runs = request.env['webvue.hr.plan.run'].search([
         ('company_id', 'in', request.env.companies.ids),
         ('plan_id.hr_purpose', '=', OFFBOARDING),
+        ('state', '=', 'open'),
     ], order='plan_date desc, id desc')
     latest = {}
     for run in runs:

@@ -7,6 +7,7 @@ import {
   HrPlanRunCreateSchema,
   HrPlanRunDetailSchema,
   HrPlanRunListSchema,
+  HrPlanRunCancelSchema,
   HrPlanRunSchema,
   HrPlanRunStepSchema,
   HrPlanStepDoneSchema,
@@ -41,6 +42,7 @@ const RUN = {
   done: 1,
   total: 2,
   state: 'open',
+  cancellation: null,
 }
 
 describe('HrActivityPlanSchema', () => {
@@ -99,6 +101,15 @@ describe('HrPlanRunSchema', () => {
     expect(() => HrPlanRunSchema.parse({ ...RUN, state: 'closed' })).toThrow()
   })
 
+  it('carries who cancelled a run, when and why, and refuses a cancellation without a reason', () => {
+    const cancellation = { by: { id: 7, name: 'Huda' }, on: '2026-10-28T09:30:00Z', reason: 'wrong employee' }
+    expect(HrPlanRunSchema.parse({ ...RUN, state: 'cancelled', cancellation }).cancellation?.reason).toBe('wrong employee')
+    expect(() => HrPlanRunSchema.parse({ ...RUN, state: 'cancelled', cancellation: { ...cancellation, reason: '' } })).toThrow()
+    expect(() => HrPlanRunSchema.parse({ ...RUN, cancellation: undefined })).toThrow()
+    expect(HrPlanRunCancelSchema.parse({ reason: ' late ' }).reason).toBe('late')
+    expect(() => HrPlanRunCancelSchema.parse({ reason: '  ' })).toThrow()
+  })
+
   it('accepts a run with its steps and rejects an unknown step state', () => {
     const step = {
       id: 21,
@@ -109,7 +120,7 @@ describe('HrPlanRunSchema', () => {
       date_done: null,
       can_complete: true,
     }
-    const parsed = HrPlanRunDetailSchema.parse({ ...RUN, steps: [step] })
+    const parsed = HrPlanRunDetailSchema.parse({ ...RUN, steps: [step], can_cancel: true })
     expect(parsed.steps[0]?.can_complete).toBe(true)
     expect(HrPlanRunStepSchema.parse({ ...step, state: 'done', date_done: '2026-11-04' }).date_done).toBe('2026-11-04')
     expect(() => HrPlanRunStepSchema.parse({ ...step, state: 'late' })).toThrow()

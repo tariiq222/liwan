@@ -14,6 +14,7 @@ import {
   hrLifecycleKeys,
   useHrActivityPlan,
   useHrActivityPlans,
+  useCancelHrPlanRun,
   useCompleteHrPlanStep,
   useCreateHrActivityPlan,
   useLaunchHrPlanRun,
@@ -80,6 +81,10 @@ export function useLaunchHrOffboardingRun() {
 
 export function useCompleteHrOffboardingStep() {
   return useCompleteHrPlanStep('offboarding')
+}
+
+export function useCancelHrOffboardingRun() {
+  return useCancelHrPlanRun('offboarding')
 }
 
 export function useHrDepartureReasons() {

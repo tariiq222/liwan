@@ -22,6 +22,8 @@ export const run: HrPlanRunDetail = {
   done: 1,
   total: 2,
   state: 'open',
+  cancellation: null,
+  can_cancel: true,
   steps: [
     { id: 21, summary: 'تجهيز المكتب', assignee: { id: 7, name: 'Huda' }, date_deadline: '2026-11-01', state: 'done', date_done: '2026-10-30', can_complete: false },
     { id: 22, summary: 'تسليم العهدة', assignee: { id: 10, name: 'نورة' }, date_deadline: '2026-11-05', state: 'today', date_done: null, can_complete: true },

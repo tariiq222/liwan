@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import RunCancel from '@/components/hr/lifecycle/RunCancel.vue'
 import RunSteps from '@/components/hr/lifecycle/RunSteps.vue'
 import DepartureForm from '@/components/hr/lifecycle/DepartureForm.vue'
 import EosSettlementSection from '@/components/hr/payroll/EosSettlementSection.vue'
-import { useCompleteHrOffboardingStep, useHrDeparture, useHrOffboardingRun } from '@/composables/useHrOffboarding'
+import { useCancelHrOffboardingRun, useCompleteHrOffboardingStep, useHrDeparture, useHrOffboardingRun } from '@/composables/useHrOffboarding'
 import { ApiError } from '@/composables/useApi'
 import { payrollErrorMessage } from '@/utils/payrollErrors'
 import type { HrEosCase, HrSettlementWrite } from '@webvue/contracts'
@@ -32,6 +33,17 @@ async function complete(stepId: number, feedback?: string) {
   if (!clearanceId.value || isPending.value) return
   try {
     await completeStep({ runId: clearanceId.value, stepId, feedback })
+    stepError.value = null
+  } catch (error) {
+    stepError.value = error
+  }
+}
+// A clearance launched with the wrong plan is cancelled; the departure then has no clearance until a new one runs.
+const { mutateAsync: cancelRun, isPending: cancelling } = useCancelHrOffboardingRun()
+async function cancelClearance(reason: string) {
+  if (!clearanceId.value || cancelling.value) return
+  try {
+    await cancelRun({ runId: clearanceId.value, reason })
     stepError.value = null
   } catch (error) {
     stepError.value = error
@@ -117,7 +129,10 @@ async function confirmEos() {
     <SharedRecordSection v-if="departure" :title="t(`${NAMESPACE}.departures.clearance`)">
       <UAlert v-if="stepError" role="alert" color="error" variant="subtle" :title="t(`${NAMESPACE}.form.saveError`)" />
       <SharedPageState v-else-if="!clearanceId" :empty="true" :empty-text="t(`${NAMESPACE}.run.noSteps`)" />
-      <RunSteps v-else-if="clearance.data.value" :run="clearance.data.value" :namespace="NAMESPACE" :pending="isPending" @complete="complete" />
+      <template v-else-if="clearance.data.value">
+        <RunSteps :run="clearance.data.value" :namespace="NAMESPACE" :pending="isPending" @complete="complete" />
+        <RunCancel :run="clearance.data.value" :namespace="NAMESPACE" :pending="cancelling" @confirm="cancelClearance" />
+      </template>
     </SharedRecordSection>
     <EosSettlementSection
       v-if="departure && canReadPayroll && settlementQuery.data.value !== undefined"

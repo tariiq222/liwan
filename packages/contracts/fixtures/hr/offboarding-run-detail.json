@@ -1,4 +1,6 @@
 {
+  "can_cancel": true,
+  "cancellation": null,
   "done": 0,
   "employee": {
     "id": 2,

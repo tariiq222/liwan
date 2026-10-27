@@ -15,7 +15,9 @@ import {
   type HrActivityPlanList,
   type HrActivityPlanPatch,
   type HrPlanRunDetail,
+  type HrPlanRunCancel,
   type HrPlanRunList,
+  type HrPlanRunState,
   type HrPlanStepDone,
 } from '@webvue/contracts'
 
@@ -45,7 +47,7 @@ export interface HrPlanListParams {
 /** GET /runs query: the checklist state is derived, so it filters after the read. */
 export interface HrRunListParams {
   employee_id?: number
-  state?: 'open' | 'done'
+  state?: HrPlanRunState
   limit: number
   offset: number
 }
@@ -165,6 +167,24 @@ export function useCompleteHrPlanStep(area: HrLifecycleArea) {
   })
 }
 
+/** Cancel a run launched by mistake: its open steps go, its done ones stay, and the reason is kept. */
+export function useCancelHrPlanRun(area: HrLifecycleArea) {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ runId, reason }: { runId: number; reason: string }) =>
+      $api(`/api/v1/hr/${area}/runs/${runId}/cancel`, {
+        method: 'POST',
+        body: { reason } satisfies HrPlanRunCancel,
+        schema: HrPlanRunDetailSchema,
+      }),
+    onSuccess: (run) => {
+      qc.setQueryData(hrLifecycleKeys.run(area, run.id), run)
+      return qc.invalidateQueries({ queryKey: hrLifecycleKeys.area(area) })
+    },
+  })
+}
+
 export const HR_ONBOARDING = 'onboarding' as const
 
 export function useHrOnboardingPlans(params: MaybeRefOrGetter<HrPlanListParams>, enabled: MaybeRefOrGetter<boolean> = true) {
@@ -197,4 +217,8 @@ export function useLaunchHrOnboardingRun() {
 
 export function useCompleteHrOnboardingStep() {
   return useCompleteHrPlanStep(HR_ONBOARDING)
+}
+
+export function useCancelHrOnboardingRun() {
+  return useCancelHrPlanRun(HR_ONBOARDING)
 }
