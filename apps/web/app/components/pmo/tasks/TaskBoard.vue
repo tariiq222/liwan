@@ -143,7 +143,8 @@ function applyMove(task: Task, stage: BoardStage | null) {
   const move = moveTo(kind.value, stage)
   if (!move || !task.can_write) return
   if ((stageOf(task, kind.value)?.id ?? null) === (stage?.id ?? null)) return
-  updateTask({ id: task.id, ...move })
+  // The failure toast and the cache rollback come from useUpdateTask; the card is put back in its column.
+  updateTask({ id: task.id, ...move }, { onError: rebuildColumns })
 }
 
 // A status change is a workflow transition, never optimistic: the server may refuse

@@ -6,7 +6,6 @@ import { usePersonalStages } from '@/composables/usePersonalStages'
 import { useUpdateTask } from '@/composables/useTasks'
 import { useMilestones } from '@/composables/useMilestones'
 import { useProject } from '@/composables/useProjects'
-import { ApiError } from '@/composables/useApi'
 import { validateTaskDates } from '@/utils/projectDateBounds'
 import AssigneePicker from './AssigneePicker.vue'
 import MilestoneSelect from './MilestoneSelect.vue'
@@ -20,7 +19,6 @@ const { data: stages } = usePersonalStages()
 const projectId = computed(() => props.task.project?.id ?? null)
 const { data: milestones } = useMilestones(projectId)
 const { data: project } = useProject(projectId)
-const toast = useToast()
 const deadlineError = ref<string | null>(null)
 const selectedMilestone = computed(() => {
   const milestoneId = props.task.milestone?.id
@@ -46,10 +44,7 @@ function saveName() {
     return
   }
   updateTask({ id: props.task.id, patch: { name } }, {
-    onError: (error) => {
-      nameDraft.value = props.task.name
-      toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
-    },
+    onError: () => { nameDraft.value = props.task.name },
   })
 }
 

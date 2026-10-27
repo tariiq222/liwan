@@ -11,6 +11,7 @@ import {
   type TaskState,
 } from '@webvue/contracts'
 import { daysRemaining } from './taskState'
+import { ApiError } from './useApi'
 import { invalidateProjectCaches } from './projectKeys'
 import { taskAttributeQuery, type TaskAssignee, type TaskDeadline, type TaskPriority } from './taskFilterParams'
 
@@ -144,9 +145,13 @@ export function useTask(id: Ref<number | null>) {
   })
 }
 
-export function useUpdateTask() {
+// A failed update rolls the optimistic change back and tells the user why with a toast (the ApiError message).
+// A caller that shows the failure itself inline passes `notifyErrors: false` so it is not reported twice.
+export function useUpdateTask({ notifyErrors = true }: { notifyErrors?: boolean } = {}) {
   const qc = useQueryClient()
   const { $api } = useApi()
+  const { t } = useI18n()
+  const toast = useToast()
   return useMutation({
     mutationFn: ({ id, patch }: { id: number; patch: TaskPatch; resolved?: Resolved }) =>
       $api(`/api/v1/tasks/${id}`, { method: 'PATCH', body: patch, schema: TaskDetailSchema }),
@@ -165,9 +170,10 @@ export function useUpdateTask() {
       }
       return { prevDetail, prevLists }
     },
-    onError: (_e, { id }, ctx) => {
+    onError: (error, { id }, ctx) => {
       if (ctx?.prevDetail) qc.setQueryData(taskKeys.detail(id), ctx.prevDetail)
       for (const [k, d] of ctx?.prevLists ?? []) qc.setQueryData(k, d)
+      if (notifyErrors) toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
     },
     onSuccess: (detail, { id }) => {
       qc.setQueryData(taskKeys.detail(id), detail)
