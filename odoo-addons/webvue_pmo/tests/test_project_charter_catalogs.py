@@ -168,6 +168,19 @@ class TestProjectCharterCatalogModel(TransactionCase):
         units = self.env['webvue.project.owning.unit'].search([('company_id', '=', other.id)])
         self.assertFalse(units)
 
+    def test_system_admin_without_employee_group_seeds_a_new_company(self):
+        """Core res.company.create admits only a system administrator, who need not be a WebVue
+        employee and then holds no ACL row on webvue.project.type: the provisioning seed must still
+        seed the new company and stay idempotent for an archived seed (the documented elevation)."""
+        admin = new_test_user(self.env, login='cat_sysadmin', groups='base.group_system')
+        other = self.env['res.company'].with_user(admin).create({'name': 'Admin Charter Co'})
+        Type = self.env['webvue.project.type'].with_context(active_test=False)
+        seeded = Type.search([('company_id', '=', other.id)], order='sequence, id')
+        self.assertEqual(seeded.mapped('seed_key'), ['technical', 'operational', 'construction', 'development'])
+        seeded[0].write({'active': False})
+        other.with_user(admin)._webvue_seed_project_types()
+        self.assertEqual(Type.search_count([('company_id', '=', other.id)]), 4)
+
     def test_orm_capabilities_and_company_scope(self):
         employee = new_test_user(self.env, login='cat_emp', groups='webvue_core.group_employee')
         manager = new_test_user(

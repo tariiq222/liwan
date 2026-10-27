@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.tests import TransactionCase, tagged
+from odoo.tests import TransactionCase, new_test_user, tagged
 
 from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
 from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
@@ -43,5 +43,23 @@ class TestProjectQuota(TransactionCase):
         with self.assertRaises(WebVueAccessRule):
             project.write({'active': True})
         extra.unlink()
+        project.write({'active': True})
+        self.assertEqual(self.service._webvue_count_projects(), current)
+
+    def test_project_manager_claims_the_quota_unelevated(self):
+        """Project create/archive/restore call the entitlement service in the caller's environment;
+        the service elevates its own tenant-profile read, so a non-system manager still claims."""
+        manager = new_test_user(
+            self.env, login='quota_pm', groups='webvue_core.group_employee,project.group_project_manager',
+        )
+        self.assertFalse(manager.has_group('base.group_system'))
+        Project = self.env['project.project'].with_user(manager)
+        project = Project.create({'name': 'Manager quota', 'user_id': manager.id, 'date': '2030-12-31'})
+        current = self.service._webvue_count_projects()
+        self._operator().write({'features': {**self.record.features, 'projects.max_projects': current}})
+        with self.assertRaises(WebVueAccessRule):
+            Project.create({'name': 'Manager over quota', 'user_id': manager.id, 'date': '2030-12-31'})
+        project.write({'active': False})
+        self.assertEqual(self.service._webvue_count_projects(), current - 1)
         project.write({'active': True})
         self.assertEqual(self.service._webvue_count_projects(), current)

@@ -300,14 +300,17 @@ cross-addon links.
 - `webvue_hr`, `webvue_tasks`, `webvue_operations` and their bridges have no `sudo()` path.
   `webvue_pmo` uses it only for the documented manager-write,
   charter-approval (approval fields only, through `_webvue_write_sudo` with its own whitelist, after the manager or sponsor check), policy/config, display-lookup, integer-count, completion-status and notification
-  cron/candidate cases, each after the caller's authorization check: the project copy-create policy, the stage and milestone
-  task counts, the `res.company` scan and the project/task scans of the deadline and overdue crons, the settings and legacy
-  `ir.config_parameter` policy writes, the project-type provisioning seed, the task serializers' project, milestone and
+  candidate cases, each after the caller's authorization check: the project copy-create policy, the stage and milestone
+  task counts, the settings and legacy
+  `ir.config_parameter` policy writes, the project-type provisioning seed (a system administrator who creates a
+  company need not hold the employee ACL on `webvue.project.type`), the task serializers' project, milestone and
   stage display and id lookups, the timeline tracking-value reads, and the charter and completion reviewer-eligibility
   company reads. Its milestone-bounds validators carry no elevation at all, and
   that is deliberate: Odoo's `_validate_fields` runs every `@api.constrains` method on `self.sudo()`
   ("run constrains just as sudoed computed-stored fields"), so a `sudo()` written inside a constraint
-  cannot change what it reads and was only noise. Never add one there.
+  cannot change what it reads and was only noise. Never add one there. The deadline and overdue crons and the
+  project quota claims carry none either: the cron runs as `base.user_root`, and the entitlement service elevates
+  its own tenant-profile read.
   `webvue_platform` uses it only for the entitlement service's tenant-profile read, blocked by the system-only
   `access_webvue_tenant_profile_system` row, which no ordinary user or public route may hold. Its callers (the user quota
   delta, the pre-login suspension gates, the attachment storage-quota accounting, the binary image route and the
