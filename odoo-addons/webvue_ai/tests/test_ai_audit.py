@@ -213,27 +213,42 @@ class TestAiAuditHardening(AiProbe, WebVueApiCase):
             self.assertEqual(caught.exception.webvue_field, field)
         self.assertFalse(self.env['webvue.ai.audit'].search([]))
 
-    # 2. lock before count
-    def test_profile_lock_is_taken_before_the_count(self):
+    # 2. quota fence before count
+    def _spy_fence_and_count(self):
         calls = []
         profile_model = type(self.env['webvue.tenant.profile'])
         audit_model = type(self.env['webvue.ai.audit'])
-        lock = profile_model._webvue_lock
+        fence = profile_model._webvue_bump_quota_revision
         count = audit_model._webvue_ai_count_messages
 
-        def spy_lock(model):
-            calls.append('lock')
-            return lock(model)
+        def spy_fence(model):
+            calls.append('fence')
+            return fence(model)
 
         def spy_count(model):
             calls.append('count')
             return count(model)
 
-        self.patch(profile_model, '_webvue_lock', spy_lock)
+        self.patch(profile_model, '_webvue_bump_quota_revision', spy_fence)
         self.patch(audit_model, '_webvue_ai_count_messages', spy_count)
+        return calls
+
+    def test_a_limited_tenant_writes_the_quota_fence_before_the_count(self):
+        # Under REPEATABLE READ only a write makes a concurrent sender with an older snapshot fail
+        # serialization (and be retried on fresh data); a lock alone let the limit overshoot.
+        self._set_feature('ai.messages.monthly', 10)
+        profile = self.env.ref('webvue_platform.tenant_profile')
+        before = profile.quota_revision
+        calls = self._spy_fence_and_count()
         self.audit_a.create(MESSAGE)
-        self.assertIn('lock', calls)
-        self.assertLess(calls.index('lock'), calls.index('count'))
+        self.assertEqual(calls[:2], ['fence', 'count'])
+        profile.invalidate_recordset()
+        self.assertEqual(profile.quota_revision, before + 1)
+
+    def test_an_unlimited_tenant_takes_no_quota_fence(self):
+        calls = self._spy_fence_and_count()
+        self.audit_a.create(MESSAGE)
+        self.assertNotIn('fence', calls)
 
     # 3. types
     def test_non_string_values_are_422_never_500(self):
