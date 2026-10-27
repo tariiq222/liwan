@@ -36,6 +36,7 @@ describe('isLoggedOutError', () => {
 describe('isTenantSuspendedError', () => {
   it('recognizes the 403 the API answers after it ended a suspended tenant session', () => {
     expect(isTenantSuspendedError({ statusCode: 403, data: { code: 'tenant_suspended' } })).toBe(true)
+    expect(isTenantSuspendedError({ statusCode: 403, data: { data: { code: 'tenant_suspended' } } })).toBe(true)
   })
 
   it('keeps an ordinary logged-out 403 and other failures apart', () => {
