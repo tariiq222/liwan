@@ -61,6 +61,19 @@ class TestMeetingSeriesCancel(WebVueMeetingsCase):
         self.assertFalse(series.active)
         self.assertEqual(len(series.meeting_ids), 4)
 
+    def test_meeting_that_already_started_today_is_kept_beside_a_date_only_one(self):
+        series = self._series(self.manager)
+        today = fields.Date.today()
+        date_only = self._meeting(series, 0)
+        now = fields.Datetime.now()
+        started = self.env['webvue.meeting.minute'].create({
+            'name': 'Started', 'state': 'draft', 'organizer_id': self.manager.id, 'series_id': series.id,
+            'meeting_date': today, 'start_datetime': now - timedelta(hours=2), 'end_datetime': now - timedelta(hours=1),
+            'attendee_ids': [(6, 0, series.attendee_ids.ids)],
+        })
+        self.assertEqual(self._cancel(series).status_code, 200)
+        self.assertEqual((date_only.state, started.state), ('cancelled', 'draft'))
+
     def test_ended_series_stays_listed_and_takes_no_new_meeting(self):
         series = self._series(self.manager)
         self._cancel(series)

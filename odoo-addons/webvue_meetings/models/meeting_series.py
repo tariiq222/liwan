@@ -8,7 +8,7 @@ from dateutil.rrule import MONTHLY, WEEKLY, rrule
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
-from .meeting_context import _CALENDAR_IMPORT, _SERIES_GENERATION, _occurrence_key
+from .meeting_context import _CALENDAR_IMPORT, _SERIES_GENERATION
 from odoo.addons.calendar.models.calendar_recurrence import weekday_to_field
 
 MAX_OCCURRENCES = 60
@@ -175,7 +175,7 @@ class WebVueMeetingSeries(models.Model):
         if pending:
             if not self._webvue_is_manager():
                 raise AccessError(self.env._("Only a meetings manager may cancel the upcoming meetings of a series."))
-            min(pending, key=_occurrence_key).action_cancel_scope('this_and_following')
+            pending.action_cancel()
         self.active = False
         return self
 

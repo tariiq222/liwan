@@ -194,8 +194,13 @@ const cancelSeries = useCancelMeetingSeries()
 const confirmingEnd = ref(false)
 const endError = ref('')
 const canEndSeries = computed(() => query.data.value?.can_edit === true && query.data.value.active)
+// An unsaved occurrence would be dropped when the ended series closes its form, so the editor saves or discards it first.
+function requestEndSeries() {
+  endError.value = occurrenceDirty.value ? t('meetingsUx.endSeriesUnsaved') : ''
+  confirmingEnd.value = !occurrenceDirty.value
+}
 async function endSeries() {
-  if (!hydrated.value || cancelSeries.isPending.value || id.value === null) return
+  if (!hydrated.value || cancelSeries.isPending.value || id.value === null || occurrenceDirty.value) return
   endError.value = ''
   try {
     await cancelSeries.mutateAsync(id.value)
@@ -269,7 +274,7 @@ function setHistoryPage(page: number) {
     <template #actions>
       <UButton v-if="query.data.value?.can_edit === true" color="neutral" variant="outline" :to="recordChildTo(`/meetings/series/${id}/edit`, route.query, sourcePaths, route.hash)" :label="t('meetingsUx.seriesSettingsLink')" />
       <UButton v-if="canAddOccurrence && !addingOccurrence" icon="i-lucide-plus" :disabled="!hydrated" :label="t('meetingsUi.addOccurrence')" data-testid="meeting-add-occurrence" @click="addingOccurrence = true" />
-      <UDropdownMenu v-if="canEndSeries" :items="[[{ label: t('meetingsUx.endSeriesAction'), icon: 'i-lucide-ban', color: 'error', disabled: cancelSeries.isPending.value, onSelect: () => { endError = ''; confirmingEnd = true } }]]" :content="{ align: 'end' }">
+      <UDropdownMenu v-if="canEndSeries" :items="[[{ label: t('meetingsUx.endSeriesAction'), icon: 'i-lucide-ban', color: 'error', disabled: cancelSeries.isPending.value, onSelect: requestEndSeries }]]" :content="{ align: 'end' }">
         <UButton color="neutral" variant="outline" square icon="i-lucide-ellipsis" :aria-label="t('app.actions')" :disabled="!hydrated" data-testid="meeting-series-more-actions" />
       </UDropdownMenu>
     </template>

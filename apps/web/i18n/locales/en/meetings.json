@@ -178,6 +178,7 @@
     "seriesEnded": "Ended",
     "endSeriesAction": "End series",
     "endSeriesConfirmLabel": "End series",
+    "endSeriesUnsaved": "Save or discard the new meeting you are adding before ending the series.",
     "confirmEndSeries": "End this series? Its upcoming meetings are cancelled and no new meeting can be added. Held meetings and their minutes are kept.",
     "occurrence": {
       "title": "New occurrence in this series",
