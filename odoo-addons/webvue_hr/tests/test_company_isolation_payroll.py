@@ -76,12 +76,14 @@ class TestHrPayrollCompanyIsolation(CompanyIsolationCase):
                 }),
             }
 
-    def assert_hidden_every_way(self, path, hidden_id):
-        for response in self.api_forged('GET', path, hidden_id):
+    def assert_hidden_every_way(self, path, hidden_company):
+        # api_forged names the hidden COMPANY in cids (cookie, query) and the body context, never a record id.
+        self.assertNotEqual(hidden_company.id, self.iso_user.company_id.id, 'forgery must name another company')
+        for response in self.api_forged('GET', path, hidden_company.id):
             self.assertEqual(response.status_code, 404, f'{path} must stay hidden: {response.text[:200]}')
             self.assertEqual(response.json()['code'], 'not_found', path)
 
-    def assert_matrix(self, template, key, own_company_only=False):
+    def assert_matrix(self, template, own_company_only=False):
         """``template`` builds a path from a fixture row; visible tags answer 200, hidden ones 404 under forgery.
 
         ``own_company_only`` is for the self-service routes, which read the caller's own record of exactly the
@@ -95,29 +97,28 @@ class TestHrPayrollCompanyIsolation(CompanyIsolationCase):
             for tag in visible:
                 self.assertVisible(template(self.recs[tag]))
             for tag in hidden:
-                record = self.recs[tag][key]
-                self.assert_hidden_every_way(template(self.recs[tag]), record.id)
+                self.assert_hidden_every_way(template(self.recs[tag]), self.by_tag[tag])
 
     def test_own_leave_request_is_company_scoped(self):
         # leave/me/<id>: the caller owns an employee (and a leave) in every company; only the current one answers.
-        self.assert_matrix(lambda recs: f'/api/v1/hr/leave/me/{recs["leave"].id}', 'leave', own_company_only=True)
+        self.assert_matrix(lambda recs: f'/api/v1/hr/leave/me/{recs["leave"].id}', own_company_only=True)
 
     def test_own_payslip_is_company_scoped(self):
-        self.assert_matrix(lambda recs: f'/api/v1/hr/payroll/payslips/mine/{recs["slip"].id}', 'slip', own_company_only=True)
+        self.assert_matrix(lambda recs: f'/api/v1/hr/payroll/payslips/mine/{recs["slip"].id}', own_company_only=True)
 
     def test_run_payslip_detail_is_company_scoped(self):
         self.assert_matrix(
-            lambda recs: f'{RUN.format(recs["run"].id)}/payslips/{recs["slip"].id}', 'run',
+            lambda recs: f'{RUN.format(recs["run"].id)}/payslips/{recs["slip"].id}',
         )
 
     def test_gosi_statement_is_company_scoped(self):
-        self.assert_matrix(lambda recs: f'{RUN.format(recs["run"].id)}/gosi-statement', 'run')
+        self.assert_matrix(lambda recs: f'{RUN.format(recs["run"].id)}/gosi-statement')
 
     def test_eos_settlement_is_company_scoped(self):
-        self.assert_matrix(lambda recs: f'{EOS.format(recs["employee"].id)}/settlement', 'employee')
+        self.assert_matrix(lambda recs: f'{EOS.format(recs["employee"].id)}/settlement')
 
     def test_eos_estimate_is_company_scoped(self):
-        self.assert_matrix(lambda recs: f'{EOS.format(recs["employee"].id)}/estimate?case=no_award', 'employee')
+        self.assert_matrix(lambda recs: f'{EOS.format(recs["employee"].id)}/estimate?case=no_award')
 
     def test_salary_files_of_a_hidden_company_are_not_found_and_keep_nothing(self):
         File = self.env['webvue.hr.payroll.file']
@@ -126,7 +127,7 @@ class TestHrPayrollCompanyIsolation(CompanyIsolationCase):
             for tag in ('p', 'p2', 'c'):
                 run = self.recs[tag]['run']
                 before = File.search_count([])
-                self.assert_hidden_every_way(f'{RUN.format(run.id)}/{kind}', run.id)
+                self.assert_hidden_every_way(f'{RUN.format(run.id)}/{kind}', self.by_tag[tag])
                 self.assertEqual(File.search_count([]), before, f'{kind} of {tag} must keep no file')
 
     def test_salary_files_of_the_current_company_are_served(self):
