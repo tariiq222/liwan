@@ -20,6 +20,8 @@ const notFound = computed(() => status.value === 404)
 const title = computed(() => t(forbidden.value ? 'errors.pageForbiddenTitle' : notFound.value ? 'errors.pageNotFoundTitle' : 'errors.pageErrorTitle'))
 const description = computed(() => t(forbidden.value ? 'errors.forbidden' : notFound.value ? 'errors.pageNotFound' : 'errors.pageError'))
 const hint = computed(() => (forbidden.value ? t('errors.pageForbidden') : undefined))
+// Only an unexpected failure may pass on a second try; a missing or forbidden page stays the same.
+const canRetry = computed(() => !forbidden.value && !notFound.value)
 // A signed-in user keeps the rail, header and sidebar around the error; sign-in and outage errors have no identity to build them from.
 const { me } = useMe()
 const productName = computed(() => branding.value?.name ?? t('app.productName'))
@@ -39,6 +41,10 @@ function goHome() {
   // `/` resolves to the first section the user may open (pages/index.vue); a signed-in user goes there directly.
   void clearError({ redirect: me.value ? firstAllowedPath(me.value) : '/' })
 }
+function retry() {
+  // A full reload of the same address, so the failed render and its data are requested again.
+  reloadNuxtApp()
+}
 function goBack() {
   void clearError().then(() => window.history.back())
 }
@@ -54,7 +60,8 @@ function goBack() {
         <p v-if="hint" class="text-sm text-muted">{{ hint }}</p>
         <p class="text-xs text-muted">{{ t('errors.code', { code: '' }) }}<span dir="ltr">{{ status }}</span></p>
         <div class="mt-2 flex flex-wrap justify-center gap-2">
-          <UButton icon="i-lucide-house" :label="t('errors.goHome')" @click="goHome" />
+          <UButton v-if="canRetry" icon="i-lucide-rotate-cw" :label="t('app.retry')" :disabled="!hydrated" @click="retry" />
+          <UButton icon="i-lucide-house" :color="canRetry ? 'neutral' : 'primary'" :variant="canRetry ? 'outline' : 'solid'" :label="t('errors.goHome')" @click="goHome" />
           <UButton v-if="canGoBack" color="neutral" variant="outline" :label="t('errors.goBack')" @click="goBack" />
         </div>
       </section>

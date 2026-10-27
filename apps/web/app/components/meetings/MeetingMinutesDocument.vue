@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { joinList } from '@/utils/listFormat'
 import {
   formatMeetingDate,
   formatMeetingTime,
@@ -78,7 +79,7 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.location') }}</dt><dd>{{ displayMeeting.location || '—' }}</dd></div>
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.secretary') }}</dt><dd>{{ displayMeeting.secretary?.name || '—' }}</dd></div>
       </dl>
-      <div :class="compact ? 'hidden print:block' : ''" class="text-sm"><span class="text-muted">{{ t('meetingMinutesForm.attendees') }}:</span> {{ displayMeeting.attendees?.map(person => person.name).join('، ') || '—' }}</div>
+      <div :class="compact ? 'hidden print:block' : ''" class="text-sm"><span class="text-muted">{{ t('meetingMinutesForm.attendees') }}:</span> {{ joinList(displayMeeting.attendees?.map(person => person.name) ?? [], t) || '—' }}</div>
 
       <template v-if="form">
         <div class="grid gap-1"><h3 class="font-semibold text-highlighted">{{ t('meetingMinutesForm.opening') }}</h3><p class="whitespace-pre-wrap text-sm">{{ form.opening || '—' }}</p></div>

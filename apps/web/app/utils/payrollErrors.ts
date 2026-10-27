@@ -1,5 +1,6 @@
 import type { HrPayrollRunState, HrPayrollWarning } from '@webvue/contracts'
 import { ApiError } from '../composables/useApi'
+import { joinList } from './listFormat'
 
 type Translate = (key: string, params?: Record<string, unknown>) => string
 type HasTranslation = (key: string) => boolean
@@ -45,7 +46,7 @@ export function payrollErrorMessage(error: unknown, t: Translate, employeeNames:
   if (NAMING.has(error.code)) {
     const ids = employeeIds(error)
     const names = ids.flatMap(id => employeeNames.get(id) ?? [])
-    return t(`hrPayroll.errors.${runCodeKey(error.code, runState)}${names.length ? '' : '_count'}`, { names: names.join('، '), count: ids.length })
+    return t(`hrPayroll.errors.${runCodeKey(error.code, runState)}${names.length ? '' : '_count'}`, { names: joinList(names, t), count: ids.length })
   }
   // The GOSI rate form: a second row for a branch and class on the same date, or a maximum below the minimum.
   if (error.code === 'invalid' && error.field === 'date_from') return t('hrPayroll.errors.rateDuplicate')

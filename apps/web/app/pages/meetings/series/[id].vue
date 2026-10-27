@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { joinList } from '@/utils/listFormat'
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import { SERIES_LIST_PATHS } from '@/modules/meetings/navigation'
@@ -375,7 +376,7 @@ function setHistoryPage(page: number) {
             <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.organizer') }}</dt><dd class="text-highlighted">{{ query.data.value.organizer?.name || '—' }}</dd></div>
             <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.recurrenceLabel') }}</dt><dd class="text-highlighted">{{ t(`meetingsUi.recurrence.${query.data.value.recurrence}`) }}</dd></div>
             <div v-if="query.data.value.meeting_url" class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.url') }}</dt><dd><UButton color="primary" variant="link" class="p-0 break-all whitespace-normal text-start" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" dir="ltr">{{ query.data.value.meeting_url }}</UButton></dd></div>
-            <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUx.attendees') }}</dt><dd class="text-highlighted">{{ query.data.value.attendees.map(person => person.name).join('، ') || '—' }}</dd></div>
+            <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUx.attendees') }}</dt><dd class="text-highlighted">{{ joinList(query.data.value.attendees.map(person => person.name), t) || '—' }}</dd></div>
             <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUx.termination') }}</dt><dd class="text-highlighted">{{ query.data.value.until_count ? t('meetingsUx.terminationCount', { count: query.data.value.until_count }, query.data.value.until_count) : query.data.value.until_date ? formatCalendarDate(query.data.value.until_date, locale) : t('meetingsUx.terminationOpen') }}</dd></div>
           </dl>
         </SharedRecordSection>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { joinList } from '@/utils/listFormat'
 import { ApiError } from '@/composables/useApi'
 import { useNotifications, useMarkNotificationRead, isDigestNotification, isKnownNotification, type BellNotification } from '@/composables/useNotifications'
 import { bellKindFor } from '@/modules/surfaces'
@@ -65,7 +66,7 @@ async function openNotification(item: BellNotification) {
   >
     <UButton
       data-testid="notification-bell"
-      :aria-label="hydrated && data?.unread_count ? `${t('notifications.title')}، ${data.unread_count} ${t('notifications.unread')}` : t('notifications.title')"
+      :aria-label="hydrated && data?.unread_count ? joinList([t('notifications.title'), `${data.unread_count} ${t('notifications.unread')}`], t) : t('notifications.title')"
       color="neutral"
       variant="ghost"
       square

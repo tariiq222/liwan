@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { joinList } from '@/utils/listFormat'
 import { ApiError } from '@/composables/useApi'
 import { useEmployeeDocumentLink, useEmployeeDocument, useDocumentFiles } from '@/composables/useDocuments'
 import { employeeDocumentBack } from '@/lib/documentNavigation'
@@ -40,7 +41,7 @@ const hasProperties = computed(() => !!(document.value?.expiry_date || document.
     </template>
     <template v-if="document && hasProperties" #aside><SharedPropertiesPanel :title="t('documents.details')">
       <SharedPropertyRow v-if="document.expiry_date" :label="t('documents.expiry')" :value="document.expiry_date" />
-      <SharedPropertyRow v-if="document.tags.length" :label="t('documents.tags')" :value="document.tags.map(tag => tag.name).join('، ')" />
+      <SharedPropertyRow v-if="document.tags.length" :label="t('documents.tags')" :value="joinList(document.tags.map(tag => tag.name), t)" />
     </SharedPropertiesPanel></template>
   </SharedRecordPage>
 </template>

@@ -11,6 +11,7 @@ import { createDocumentDraft } from '../../../lib/documentEditorDraft'
 import { documentAccessPayload } from '../../../lib/documentAccess'
 import { ApiError } from '../../../composables/useApi'
 import * as navigation from '../../../utils/recordListOrigin'
+import { joinList } from '../../../utils/listFormat'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 export const documentFixture = { id: 8, revision: 3, name: 'Policy', body: '<p>Original</p>', expiry_date: null, context: null, tags: [], file_count: 0, visibility: 'restricted' as const, active: true, write_date: '2026-10-19T00:00:00Z', allowed_actions: { update: true, archive: true, restore: false, upload_file: true, manage_access: true } }
 export async function load(file: string, props: Record<string, unknown> = {}, allowed = true, options: { path?: string; bindings?: Record<string, unknown> } = {}) {
@@ -30,7 +31,7 @@ export async function load(file: string, props: Record<string, unknown> = {}, al
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => hydrated, useToast: () => ({ add: vi.fn() }), useAccess: () => ({ can: () => allowed }),
     useRoute: () => router.currentRoute.value, useRouter: () => router, navigateTo: navigate, useSsrQuerySeed: () => {},
     definePageMeta: () => {}, useEmployeeDocumentLink: () => ({ ...query, data: Vue.ref({ id: 3 }) }), useEmployeeDocument: () => query, useEmployeeDocuments: () => query, useDocumentFiles: () => ({ ...query, isRecovering: Vue.ref(false) }), useDocument: () => query, useUpdateDocument: () => ({ mutateAsync: mutation, isPending: pending }), useCreateDocument: () => ({ mutateAsync: mutation, isPending: pending }),
-    createDocumentDraft, documentAccessPayload, ApiError, returnToQuery, ...navigation, ...documentNavigation,
+    createDocumentDraft, documentAccessPayload, ApiError, returnToQuery, joinList, ...navigation, ...documentNavigation,
     DocumentEditor: {}, DocumentMetadataFields: {}, DocumentReader: {}, DocumentFiles: {}, DocumentList: {}, ...options.bindings,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))

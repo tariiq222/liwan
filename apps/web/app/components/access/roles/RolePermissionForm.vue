@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { joinList } from '@/utils/listFormat'
 import type { RouteLocationRaw } from 'vue-router'
 import type { PermissionDefinition, RoleDetail } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
@@ -123,7 +124,7 @@ async function save() {
               </template>
               <template #description>
                 <span class="block text-xs text-muted">{{ permissionDescription(permission) }}</span>
-                <span v-if="permission.dependencies.length" class="block text-xs text-muted">{{ t('access.roles.requires') }}: <span>{{ permission.dependencies.map((key) => permissionLabel(key)).join('، ') }}</span></span>
+                <span v-if="permission.dependencies.length" class="block text-xs text-muted">{{ t('access.roles.requires') }}: <span>{{ joinList(permission.dependencies.map((key) => permissionLabel(key)), t) }}</span></span>
               </template>
             </UCheckbox>
           </div>

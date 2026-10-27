@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { joinList } from '@/utils/listFormat'
 import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
 import type { PersonalTask } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
@@ -200,7 +201,7 @@ const deadlineText = (value: string | null) => formatCalendarDate(deadlineDay(va
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('myTasks.detail.deadline')"><span data-testid="my-task-deadline">{{ deadlineText(task.date_deadline) }}</span></SharedPropertyRow>
         <SharedPropertyRow :label="t('myTasks.detail.priority')"><span data-testid="my-task-priority">{{ t(`myTasks.priority.${task.priority}`) }}</span></SharedPropertyRow>
-        <SharedPropertyRow :label="t('myTasks.detail.assignees')" :value="task.assignees.map(person => person.name).join('، ') || t('myTasks.detail.noAssignees')" />
+        <SharedPropertyRow :label="t('myTasks.detail.assignees')" :value="joinList(task.assignees.map(person => person.name), t) || t('myTasks.detail.noAssignees')" />
       </SharedPropertiesPanel>
     </template>
     <SharedUnsavedChanges :dirty="guarded" guard-route-updates />

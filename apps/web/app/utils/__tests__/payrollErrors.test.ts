@@ -5,7 +5,7 @@ import { ApiError } from '../../composables/useApi'
 import { eosProvisionErrorMessage, payrollErrorMessage, payrollFieldError, payrollWarningText } from '../payrollErrors'
 
 // The real locale files the UI ships, so a code without a text fails instead of hiding behind the key itself:
-// the payroll namespace, the shared `errors.saveUncertain`, and `errors.generic` from the @webvue/ui layer that
+// the payroll namespace, the shared `errors.saveUncertain` and `app.listSeparator`, and `errors.generic` from the @webvue/ui layer that
 // Nuxt merges into the app's messages.
 const read = (relative: string) => JSON.parse(readFileSync(resolve(import.meta.dirname, relative), 'utf8'))
 const arPayroll = read('../../../i18n/locales/ar/hr-payroll.json').hrPayroll
@@ -13,6 +13,7 @@ const enPayroll = read('../../../i18n/locales/en/hr-payroll.json').hrPayroll
 const sharedAr = {
   generic: read('../../../../../packages/ui/i18n/locales/ar/ui.json').errors.generic,
   saveUncertain: read('../../../i18n/locales/ar/common.json').errors.saveUncertain,
+  listSeparator: read('../../../i18n/locales/ar/common.json').app.listSeparator,
 }
 
 // The refusal codes of the payroll routes that have their own text, and the ones that list the employees they name
@@ -34,7 +35,7 @@ function interpolate(template: string, params?: Record<string, unknown>): string
 function lookup(key: string): unknown {
   if (key.startsWith('hrPayroll.errors.')) return arPayroll.errors[key.slice('hrPayroll.errors.'.length)]
   if (key.startsWith('hrPayroll.warnings.')) return arPayroll.warnings[key.slice('hrPayroll.warnings.'.length)]
-  return { 'errors.generic': sharedAr.generic, 'errors.saveUncertain': sharedAr.saveUncertain }[key]
+  return { 'errors.generic': sharedAr.generic, 'errors.saveUncertain': sharedAr.saveUncertain, 'app.listSeparator': sharedAr.listSeparator }[key]
 }
 function t(key: string, params?: Record<string, unknown>): string {
   const template = lookup(key)

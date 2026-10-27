@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { joinList } from '@/utils/listFormat'
 import type { TaskDetail } from '@webvue/contracts'
 import { CalendarDate, parseDate } from '@internationalized/date'
 import { formatWebVueDate } from '@webvue/ui/app/composables/calendarDate'
@@ -186,7 +187,7 @@ function onHoursChange() {
     </SharedPropertyRow>
     <SharedPropertyRow :label="t('tasks.drawer.assignees')">
       <span id="task-assignees-label" class="sr-only">{{ t('tasks.drawer.assignees') }}</span>
-      <span v-if="!task.can_write">{{ task.assignees.map(person => person.name).join('، ') || t('tasks.drawer.unassigned') }}</span>
+      <span v-if="!task.can_write">{{ joinList(task.assignees.map(person => person.name), t) || t('tasks.drawer.unassigned') }}</span>
       <AssigneePicker v-else :model-value="task.assignees" labelledby="task-assignees-label" @update:model-value="onAssigneesChange" />
     </SharedPropertyRow>
     <SharedPropertyRow :label="t('tasks.drawer.priority')">
@@ -235,7 +236,7 @@ function onHoursChange() {
     </SharedPropertyRow>
     <SharedPropertyRow :label="t('tasks.drawer.tags')">
       <span id="task-tags-label" class="sr-only">{{ t('tasks.drawer.tags') }}</span>
-      <span v-if="!task.can_write">{{ task.tags.map(tag => tag.name).join('، ') || '—' }}</span>
+      <span v-if="!task.can_write">{{ joinList(task.tags.map(tag => tag.name), t) || '—' }}</span>
       <TagPicker v-else :model-value="task.tags" :can-create="task.can_approve" labelledby="task-tags-label" @update:model-value="onTagsChange" />
     </SharedPropertyRow>
   </SharedPropertiesPanel>
