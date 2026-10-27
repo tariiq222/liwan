@@ -2,6 +2,7 @@ import type { ZodType } from 'zod'
 import { saveErrorMessage } from '../utils/formFeedback'
 import { ApiErrorSchema } from '@webvue/contracts'
 import { contentDispositionFilename } from '../utils/contentDisposition'
+import { isTenantSuspended, reportTenantSuspension, TENANT_SUSPENDED } from '../utils/tenantSuspension'
 
 export class ApiError extends Error {
   constructor(
@@ -97,6 +98,11 @@ export function useApi() {
     if (e?.name === 'ZodError' || e?.cause?.name === 'ZodError') return e
     const status: number = e?.statusCode ?? e?.response?.status ?? 0
     const parsed = ApiErrorSchema.safeParse(await errorBody(e?.data))
+    if (status === 403 && (parsed.data?.code === TENANT_SUSPENDED || isTenantSuspended())) {
+      // The suspension ended the session: every refusal that follows it reads as the suspension itself.
+      reportTenantSuspension()
+      return new ApiError(status, TENANT_SUSPENDED, t(`errors.codes.${TENANT_SUSPENDED}`))
+    }
     if (parsed.success) {
       const { code, field, details, message } = parsed.data
       return new ApiError(status, code, userMessage(status, code, details, message), field, details)

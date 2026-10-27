@@ -2,6 +2,7 @@ import type { VueQueryPluginOptions } from '@tanstack/vue-query'
 import { VueQueryPlugin, QueryCache, QueryClient, MutationCache, hydrate, dehydrate } from '@tanstack/vue-query'
 import { ApiError } from '@/composables/useApi'
 import { clearChatDrafts } from '@/utils/chatDrafts'
+import { clearTenantSuspension, isTenantSuspended, onTenantSuspension, SUSPENDED_LOGIN, TENANT_SUSPENDED } from '@/utils/tenantSuspension'
 import { restoreDehydratedErrors, serializeDehydratedErrors, settleServerQueries, type SerializedDehydratedState } from '@/lib/vueQuerySsr'
 
 // Domain-level 403s: the request was understood, the *action* is not allowed
@@ -11,6 +12,7 @@ const AUTHORIZED_403_CODES = new Set(['transition_forbidden', 'status_forbidden'
 
 function isPossibleSessionExpiry(error: unknown): boolean {
   return error instanceof ApiError && error.status === 403 && !AUTHORIZED_403_CODES.has(error.code)
+    && error.code !== TENANT_SUSPENDED
 }
 
 // Named so bus.client.ts can declare `dependsOn: ['vue-query']` - it calls
@@ -27,20 +29,24 @@ export default defineNuxtPlugin({
     // query just 403'd and toasted "forbidden" forever. Re-check `me` once
     // (deduped below) on any 403 that isn't a known domain-level one, and if
     // the session really is gone, route to /login with a `next` back here.
+    // `me` is null when its last request failed; useNuxtData('me') would still
+    // read the last signed-in user out of the payload and hide the expiry.
+    const identity = import.meta.client ? useMe() : undefined
     let recovering = false
     function onMaybeExpiredSession(error: unknown) {
-      if (!import.meta.client || recovering || !isPossibleSessionExpiry(error)) return
+      if (!identity || recovering || !isPossibleSessionExpiry(error)) return
       recovering = true
       // runWithContext: these callbacks fire from vue-query's cache, outside
       // any component setup, so the Nuxt composables below need the app
       // context restored explicitly.
       Promise.resolve(nuxt.runWithContext(async () => {
-        await refreshNuxtData('me')
-        const { data } = useNuxtData<unknown>('me')
-        if (data.value) return // still signed in: a genuine permission error
+        await identity.refresh()
+        if (identity.me.value) return // still signed in: a genuine permission error
         clearChatDrafts()
         const current = router.currentRoute.value
         if (current.path === '/login') return
+        // A suspension reported while `me` was re-checked owns the redirect and its reason.
+        if (isTenantSuspended()) return
         await navigateTo({ path: '/login', query: { next: current.fullPath } })
       })).finally(() => { recovering = false })
     }
@@ -73,6 +79,24 @@ export default defineNuxtPlugin({
         })
       })
     }
+    // A tenant suspended mid-session: useApi reports the first `tenant_suspended` refusal once. Drop the
+    // cached tenant data, stop the background refetches that would only fail again, and show the one
+    // suspended state on the login page (the session has ended), without the toasts the failures raised.
+    if (identity) {
+      onTenantSuspension(() => {
+        void nuxt.runWithContext(async () => {
+          clearChatDrafts()
+          await queryClient.cancelQueries()
+          queryClient.clear()
+          await navigateTo(SUSPENDED_LOGIN, { replace: true })
+          useToast().clear()
+        })
+      })
+      // Signing in again starts a session the old suspension no longer describes. Only a signed-out to
+      // signed-in change clears it: a late success of a request sent before the suspension does not.
+      watch(identity.me, (me, before) => { if (me && !before) clearTenantSuspension() })
+    }
+
     const options: VueQueryPluginOptions = { queryClient }
     nuxt.vueApp.use(VueQueryPlugin, options)
 

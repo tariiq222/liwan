@@ -209,6 +209,19 @@ it('serves a definitively rejected session from the negative cache but never cac
   } finally { await wire.close() }
 })
 
+// Odoo ended the suspended session with the first refusal; a request racing it must still name the suspension.
+it('keeps the suspension reason for a session served from the negative cache', async () => {
+  const wire = await fixture()
+  try {
+    for (let call = 0; call < 2; call++) {
+      const response = await wire.call('suspended-x')
+      expect(response.status).toBe(403)
+      expect((await response.json()).data.code).toBe('tenant_suspended')
+    }
+    expect(wire.probes).toEqual(['session_id=suspended-x'])
+  } finally { await wire.close() }
+})
+
 it('validates a real session queued behind a flood of forged sessions', async () => {
   const wire = await fixture()
   const flood: Array<Promise<Response>> = []
