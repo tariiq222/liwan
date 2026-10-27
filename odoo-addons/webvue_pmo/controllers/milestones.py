@@ -18,16 +18,17 @@ from odoo.addons.webvue_pmo.serializers.milestone import dump_milestone
 def _milestone_of(project, mid):
     """Coerce + authorise a milestone id: it must belong to `project`.
 
-    Browsed in sudo, mirroring `serializers/task.py::_parse_milestone`: a milestone
-    belonging to another, unreadable project (e.g. `privacy_visibility='followers'`)
-    passes `exists()` (raw SQL, ignores ir.rule) but then reading `milestone.project_id`
-    in the caller's own env hits `milestone_visibility_rule` and raises AccessError
-    instead of the contracted 422 — an existence oracle to boot. The
-    `milestone.project_id.id != project.id` membership test is the real authorization
-    here; `project` was already access-checked by `get_record`.
+    Searched in the caller's own environment with the project in the domain: a
+    milestone of another, unreadable project (e.g. `privacy_visibility='followers'`)
+    is simply not found, so it answers the contracted 422 rather than a
+    `milestone_visibility_rule` AccessError (403, an existence oracle). `project`
+    was already access-checked by `get_record`, and the returned record stays in
+    the caller's environment for the write or unlink that follows.
     """
-    m = request.env['project.milestone'].sudo().browse(int(mid)).exists()
-    if not m or m.project_id.id != project.id:
+    m = request.env['project.milestone'].search([
+        ('id', '=', int(mid)), ('project_id', '=', project.id),
+    ], limit=1)
+    if not m:
         raise ApiError(422, 'invalid', "milestone must belong to this project", field='milestone_id')
     return m
 

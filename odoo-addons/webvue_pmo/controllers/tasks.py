@@ -259,8 +259,10 @@ class TaskController(http.Controller):
             vals['parent_id'] = get_record('project.task', parent_id).id
         if milestone_id is not None:
             milestone_id = parse_positive_int(milestone_id, 'milestone_id')
-            milestone = request.env['project.milestone'].sudo().browse(milestone_id).exists()
-            if not milestone or milestone.project_id.id != project.id:
+            milestone = request.env['project.milestone'].search([
+                ('id', '=', milestone_id), ('project_id', '=', project.id),
+            ], limit=1)
+            if not milestone:
                 raise ApiError(422, 'invalid', "milestone_id must belong to the project's milestones", field='milestone_id')
             vals['milestone_id'] = milestone.id
 

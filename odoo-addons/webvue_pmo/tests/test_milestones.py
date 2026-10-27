@@ -63,6 +63,39 @@ class TestMilestones(WebVuePmoCase):
         self.assertEqual(res.status_code, 422, res.text)
         self.assertEqual(res.json()['field'], 'milestone_id')
 
+    def test_delete_milestone_of_unreadable_project_is_422_and_keeps_it(self):
+        """The lookup runs in the caller's environment with the route's project in the domain:
+        a milestone of a followers-only project the caller cannot read is not found (422, not a
+        `milestone_visibility_rule` 403) and is never deleted through this route."""
+        private = self.env['project.project'].create({'name': 'Private delete', 'privacy_visibility': 'followers'})
+        foreign = self.env['project.milestone'].create({'name': 'Hidden', 'project_id': private.id})
+        # The employee manages this project through WebVue but holds no Odoo project-manager
+        # group, so `milestone_visibility_rule` hides the foreign milestone from them.
+        self.project.write({'user_id': self.employee.id})
+        self.assertFalse(self.employee.has_group('project.group_project_manager'))
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('DELETE', f'/api/v1/projects/{self.project.id}/milestones/{foreign.id}')
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(res.json()['field'], 'milestone_id')
+        self.assertTrue(foreign.exists())
+
+    def test_create_task_with_milestone_of_unreadable_project_is_422_not_403(self):
+        private = self.env['project.project'].create({'name': 'Private create', 'privacy_visibility': 'followers'})
+        foreign = self.env['project.milestone'].create({'name': 'Hidden create', 'project_id': private.id})
+        own = self.env['project.milestone'].create({'name': 'Own', 'project_id': self.project.id})
+        self.assertFalse(self.employee.has_group('project.group_project_manager'))
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('POST', '/api/v1/tasks', {
+            'name': 'With hidden milestone', 'project_id': self.project.id, 'milestone_id': foreign.id,
+        })
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(res.json()['field'], 'milestone_id')
+        res = self.api('POST', '/api/v1/tasks', {
+            'name': 'With own milestone', 'project_id': self.project.id, 'milestone_id': own.id,
+        })
+        self.assertEqual(res.status_code, 201, res.text)
+        self.assertEqual(res.json()['milestone'], {'id': own.id, 'name': 'Own'})
+
     def test_checklist_round_trip_does_not_change_task_or_reach_metrics(self):
         project = self._dated_project()
         self.authenticate('api_mgr', 'api_mgr_pass_123')

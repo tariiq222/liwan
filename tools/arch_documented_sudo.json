@@ -56,14 +56,6 @@
       "count": 1,
       "reason": "webvue_platform tenant-profile lookup: `self.env['webvue.tenant.profile'].sudo().search([], limit=2)`; blocked by odoo-addons/webvue_platform/security/ir.model.access.csv:2 `access_webvue_tenant_profile_system` (base.group_system only), with no group_user or public row; the service answers every caller including the public routes, and a read grant would expose the tenant's commercial policy and terminology to all users."
     },
-    "odoo-addons/webvue_pmo/controllers/milestones.py": {
-      "count": 1,
-      "reason": "webvue_pmo milestone id validation: `request.env['project.milestone'].sudo().browse(int(mid)).exists()` in `_milestone_of`; blocked by /Users/tariq/code/odoo/addons/project/security/project_security.xml:319-330 `milestone_visibility_rule`, so reading `m.project_id` unelevated raises AccessError and turns the contracted 422 into a 403 existence oracle; the route is reached after the caller's own project check, and the id must be validated uniformly."
-    },
-    "odoo-addons/webvue_pmo/controllers/tasks.py": {
-      "count": 1,
-      "reason": "webvue_pmo task route milestone id validation: `request.env['project.milestone'].sudo().browse(milestone_id).exists()`; blocked by the same stock `milestone_visibility_rule` (project_security.xml:319-330); the caller may read the task but not every milestone, and a foreign id must answer the contracted 422 rather than a rule-induced 403."
-    },
     "odoo-addons/webvue_pmo/controllers/timeline.py": {
       "count": 2,
       "reason": "webvue_pmo timeline tracking-value visibility: `m.sudo().tracking_value_ids` (:49) and `task.message_ids.filtered(lambda m: m.sudo().tracking_value_ids)` (:51); blocked by a field-level group, not an ACL — Odoo mail declares `tracking_value_ids` with `groups='base.group_system'` (/Users/tariq/code/odoo/addons/mail/models/mail_message.py:180-184); the timeline must decide whether a message carries tracking without exposing the tracking payload, and stock Odoo elevates it the same way (mail_message.py:782)."
@@ -97,8 +89,8 @@
       "reason": "webvue_pmo settings policy: `self.sudo().write(vals)` in `set_values` (:90) — blocked by /Users/tariq/code/odoo/addons/base/security/ir.model.access.csv:45 `access_res_company_employee` (write=0) plus `res_company_rule_employee`, because the caller is gated on the WebVue `pmo.settings.manage` capability, not on Odoo's system or erp-manager groups; and `self.env['ir.config_parameter'].sudo()` in `_params` (:114) — blocked by ir.model.access.csv:118 `access_ir_config_parameter_system` (group_system only) for the legacy global fallback."
     },
     "odoo-addons/webvue_pmo/serializers/task.py": {
-      "count": 5,
-      "reason": "webvue_pmo task payload lookups. `project.sudo().display_name` in `_project_ref` (:90) and `milestone.sudo().display_name` in `_milestone_ref` (:103) — blocked by stock `project_public_members_rule` (followers-only projects) and /Users/tariq/code/odoo/addons/project/security/project_security.xml:319-330 `milestone_visibility_rule`, where the caller may read the task but not its project's or milestone's name; this mirrors the Odoo web client's many2one display resolution. `request.env['project.task.type'].sudo().browse(stage_id).exists()` in `_parse_personal_stage` (:261) and `_parse_stage` (:281) — blocked by project_security.xml:118-122 `task_type_visibility_rule` `[('user_id','in',(False, user.id))]`, so a foreign personal stage answers the contracted 422 instead of an AccessError. `request.env['project.milestone'].sudo().browse(milestone_id).exists()` in `_parse_milestone` (:304) — blocked by `milestone_visibility_rule` for the same 422-not-403 contract."
+      "count": 3,
+      "reason": "webvue_pmo task payload lookups. `project.sudo().display_name` in `_project_ref` (:90) and `milestone.sudo().display_name` in `_milestone_ref` (:103) — blocked by stock `project_public_members_rule` (followers-only projects) and /Users/tariq/code/odoo/addons/project/security/project_security.xml:319-330 `milestone_visibility_rule`, where the caller may read the task but not its project's or milestone's name; this mirrors the Odoo web client's many2one display resolution. `request.env['project.milestone'].sudo().browse(milestone_id).exists()` in `_parse_milestone` — blocked by `milestone_visibility_rule`, measured required for the 422-not-403 contract (audit F-ST304). The stage lookups of `_parse_personal_stage` and `_parse_stage` search in the caller's environment with the owner or project in the domain, so a foreign stage is not found and answers 422."
     },
     "odoo-addons/webvue_pmo/serializers/timeline.py": {
       "count": 1,
