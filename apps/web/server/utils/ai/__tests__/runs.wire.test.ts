@@ -326,7 +326,8 @@ describe('POST /api/ai/runs', () => {
 
 describe('provider usage', () => {
   const startedBody = () => JSON.parse(serviceCalls.find(c => c.url === '/v1/runs')!.body)
-  const waitFor = async (done: () => boolean) => { for (let i = 0; i < 100 && !done(); i++) await new Promise(r => setTimeout(r, 20)) }
+  // Bounded at 5 s: the usage report runs after the browser stream closes, so a loaded run needs headroom.
+  const waitFor = async (done: () => boolean) => { for (let i = 0; i < 250 && !done(); i++) await new Promise(r => setTimeout(r, 20)) }
 
   it('names a new run itself: the message audit and the service request carry the same r_<24 hex> id', async () => {
     await events(await post('/api/ai/runs', { message: 'هلا' }))
@@ -409,8 +410,9 @@ describe('provider usage', () => {
     const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
     expect(list.map(([n]) => n)).toEqual(['run', 'tool_request', 'tool_result', 'token', 'answer', 'done'])
     expect(list.at(-1)![1]).toEqual({ status: 'done' })
-    await waitFor(() => spy.mock.calls.length > 0)
-    expect(spy.mock.calls.map(call => call[0])).toContain('[webvue-ai] usage report of 4 rows failed: UsageRefused')
+    const reported = '[webvue-ai] usage report of 4 rows failed: UsageRefused'
+    await waitFor(() => spy.mock.calls.some(call => call[0] === reported))
+    expect(spy.mock.calls.map(call => call[0])).toContain(reported)
     expect(JSON.stringify(spy.mock.calls)).not.toContain('secret detail')
     spy.mockRestore()
   })
