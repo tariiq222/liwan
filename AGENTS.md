@@ -318,14 +318,14 @@ cross-addon links.
   `webvue_chat` uses it for the two `mail.message.reaction` paths — the toggle after `_webvue_member_channel`
   proved the caller's membership, and the reaction aggregation of an already-authorized message — both blocked
   by `mail.message.reaction` being system-only in Odoo (owner decision 2026-10-25: authorized).
-  `webvue_notify` uses it for bell delivery and recipient-owned bell reads: the idempotency-key count, the
-  bell-message create and key replacement, and the three reader helpers. Their blocker is a **Python-level
-  visibility filter**, not an ACL or an `ir.rule`: `mail.notification` is ACL-open to `base.group_user` and its
-  only group_user rule is write-only, while `mail.message._search`/`_check_access` silently drop messages whose
-  `partner_ids` exclude the caller. Removing the elevations makes a row whose source the caller may no longer
-  read vanish instead of being filtered, which fails the `webvue_tasks` bell-visibility tests. The elevated
-  reads apply `res_partner_id = current partner` in the domain and `_webvue_domain` refuses to run under
-  `env.su`.
+  `webvue_notify` uses sudo for bell delivery and recipient-owned bell reads. The `mail.message` environment in
+  `_webvue_deliver` bypasses the stock create/unlink document-access gates: create may be allowed by following the
+  source, while unlink requires source write/create access. The three recipient-owned reader helpers retain
+  elevation for the measured same-transaction flush/SQL-ordering issue in `mail.message._search`; the recorded
+  cold reads miss rows without it, and after flush their results agree. These are not `mail.notification`
+  read-ACL failures. Elevated reader domains remain restricted to the current partner, and `_webvue_domain`
+  refuses `env.su`. The idempotency precheck and `mail.notification` create elevations are measured unnecessary and
+  remain recorded for scoped removal.
   `webvue_meetings` uses it only for its server-controlled minutes, snapshot,
   version and event records, the company-wide organizer-overlap check, the
   existence check of the minutes linked to a calendar event (read only, access is
