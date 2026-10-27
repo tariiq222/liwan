@@ -86,6 +86,7 @@ def test_the_sdks_never_retry_on_their_own_so_the_service_reports_every_attempt(
         assert model.max_retries == 0
 
 
-@pytest.mark.parametrize("name", ["openai", "openrouter"])
-def test_openai_compatible_builds_ask_for_the_usage_chunk_of_a_stream(name):
-    assert build_chat_model(settings(name, AI_API_KEY="k")).stream_usage is True
+def test_stream_usage_is_asked_only_of_endpoints_known_to_accept_it():
+    assert build_chat_model(settings("openai", AI_API_KEY="k")).stream_usage is True
+    assert build_chat_model(settings("openai", AI_API_KEY="k", AI_BASE_URL="http://proxy/v1")).stream_usage is False  # a compatible server may refuse stream_options
+    assert build_chat_model(settings("openrouter", AI_API_KEY="k")).stream_usage is True

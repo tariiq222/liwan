@@ -161,7 +161,7 @@ async def test_the_fake_answers_400_in_the_openai_error_shape_for_what_the_real_
 async def test_each_plan_attempt_is_one_http_request_and_its_usage_comes_from_the_stream(serve_fake, monkeypatch):
     monkeypatch.setattr(usage, "BACKOFF_SECONDS", (0.0, 0.0))
     fake, base_url = serve_fake([failure_turn(429), failure_turn(503), text_turn("تمام")])
-    async with service_client(base_url) as client:
+    async with service_client(base_url, "openrouter") as client:  # OpenRouter always asks for the usage chunk, whatever the test's base URL
         events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
     assert fake.state.attempts == 3 and len(fake.state.requests) == 1  # the SDK adds no retry of its own (max_retries=0)
     usages = [data for name, data in events if name == "model_usage"]
@@ -176,3 +176,12 @@ async def test_a_provider_400_is_one_request_and_a_failed_call(serve_fake):
         events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
     assert fake.state.attempts == 1
     assert [data["outcome"] for name, data in events if name == "model_usage"] == ["failed"] and events[-1][1] == {"status": "failed"}
+
+
+async def test_a_custom_openai_base_url_is_not_sent_stream_options_so_its_tokens_are_null(serve_fake):
+    fake, base_url = serve_fake([text_turn("تمام")])
+    async with service_client(base_url) as client:
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
+    usages = [data for name, data in events if name == "model_usage"]
+    assert fake.state.rejected == [] and [item["outcome"] for item in usages] == ["ok", "ok"]
+    assert all(item["input_tokens"] is None and item["output_tokens"] is None for item in usages)

@@ -85,7 +85,7 @@ describe('WebVue AI usage contracts', () => {
 
   it('parses a model_call and rejects loose ids, providers, models and offsets', () => {
     expect(AiModelCallEventSchema.parse(call).kind).toBe('plan')
-    for (const bad of [{ call_id: 'AB12' }, { kind: 'other' }, { provider: 'Open AI' }, { model: '' }, { model: 'a'.repeat(129) }, { model: 'a\nb' }, { called_at: '2026-10-27T10:00:00' }, { extra: 1 }]) {
+    for (const bad of [{ call_id: 'AB12' }, { kind: 'other' }, { provider: 'Open AI' }, { model: '' }, { model: 'a'.repeat(129) }, { model: 'a\nb' }, { model: 'a\u0085b' }, { model: 'a\u009fb' }, { model: 'a\u007fb' }, { called_at: '2026-10-27T10:00:00' }, { extra: 1 }]) {
       expect(() => AiModelCallEventSchema.parse({ ...call, ...bad })).toThrow()
     }
   })

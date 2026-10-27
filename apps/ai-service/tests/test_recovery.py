@@ -222,7 +222,7 @@ async def test_a_settled_waiting_status_is_stored_as_is_even_when_the_checkpoint
             return await super().aget_tuple(config)
 
     real = service.run_config
-    monkeypatch.setattr(service, "run_config", lambda run_id, steps: {**real(run_id, steps), "configurable": {**real(run_id, steps)["configurable"], "probe": steps == 1}})
+    monkeypatch.setattr(service, "run_config", lambda run_id, steps, *rest: {**real(run_id, steps, *rest), "configurable": {**real(run_id, steps, *rest)["configurable"], "probe": steps == 1}})
     store = MemoryRunStore()
     async with client_for(make_app(ScriptedChatModel([ai_tool_call(TASKS, {}, "c_1")]), store, Probed())) as client:
         events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)

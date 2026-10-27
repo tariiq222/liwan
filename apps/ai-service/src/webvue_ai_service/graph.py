@@ -12,6 +12,7 @@ from typing import Annotated, Any, Literal, TypedDict
 import jsonschema
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.runnables import RunnableConfig
 from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
@@ -52,9 +53,18 @@ def initial_state(request: RunRequest) -> dict[str, Any]:
     return {"messages": [HumanMessage(request.message)], **request_state(request)}
 
 
-def run_config(run_id: str, max_steps: int) -> dict[str, Any]:
-    """Graph config; the recursion limit leaves room for error-only loops to reach ``max_steps`` first."""
-    return {"configurable": {"thread_id": run_id}, "recursion_limit": 3 * max_steps + 10}
+DEADLINE_KEY = "__deadline_at"  # a dunder key stays out of the checkpoint metadata
+
+
+def run_config(run_id: str, max_steps: int, deadline_at: float | None = None) -> dict[str, Any]:
+    """Graph config; the recursion limit leaves room for error-only loops to reach ``max_steps`` first.
+
+    ``deadline_at`` is the run deadline on the event loop clock: model retries do not wait past it.
+    """
+    configurable: dict[str, Any] = {"thread_id": run_id}
+    if deadline_at is not None:
+        configurable[DEADLINE_KEY] = deadline_at
+    return {"configurable": configurable, "recursion_limit": 3 * max_steps + 10}
 
 
 def text_of(content: str | list[Any]) -> str:
@@ -115,14 +125,15 @@ def invalid_arguments(args: Any, schema: dict[str, Any]) -> str | None:
 def build_graph(model: BaseChatModel, checkpointer, identity: ModelIdentity):
     bound = model.bind_tools  # resolved per call so tests may swap tools per run
 
-    async def plan(state: AgentState) -> dict[str, Any]:
+    async def plan(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
         if state["steps"] >= state["limits"]["max_steps"]:
             return {"outcome": "limit_reached"}
         specs = [ToolSpec.model_validate(tool) for tool in state["tools"]]
         context = RunContext.model_validate(state["context"]) if state["context"] else None
         prompt = SystemMessage(system_prompt(state["locale"], specs, context))
         history = [message for message in state["messages"] if not isinstance(message, SystemMessage)]
-        response = await invoke_planned(bound(_openai_tools(state["tools"])), [prompt, *history], identity, get_stream_writer())
+        deadline_at = config["configurable"].get(DEADLINE_KEY)
+        response = await invoke_planned(bound(_openai_tools(state["tools"])), [prompt, *history], identity, get_stream_writer(), deadline_at)
         return {"messages": [response], "steps": state["steps"] + 1}
 
     def route_after_plan(state: AgentState) -> Literal["request_tool", "answer", "__end__"]:

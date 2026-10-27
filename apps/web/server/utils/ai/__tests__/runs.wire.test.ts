@@ -27,6 +27,8 @@ let runList: unknown = RUN_LIST
 let patchStatus = 200
 let runId = 'r_1' // what the fake service announces: the run id the start request names
 let usageStatus = 200
+let usageDelayMs = 0
+let usageAnsweredAt = 0
 let usageBatches: { items: Record<string, unknown>[] }[] = []
 let usageInvalid: string[] = []
 
@@ -71,6 +73,8 @@ beforeAll(async () => {
       const parsed = AiUsageBatchSchema.safeParse(JSON.parse(body))
       if (!parsed.success) usageInvalid.push(parsed.error.message)
       else usageBatches.push(parsed.data)
+      await new Promise(resolve => setTimeout(resolve, usageDelayMs))
+      usageAnsweredAt = Date.now()
       res.statusCode = usageStatus
       return res.end(JSON.stringify(usageStatus === 200 ? { items: parsed.success ? parsed.data.items.map((item, index) => ({ id: index + 1, ...item })) : [], total: usageBatches.length } : { code: 'boom', message: 'secret detail from odoo' }))
     }
@@ -198,7 +202,7 @@ beforeAll(async () => {
 afterAll(() => { odoo.close(); service.close(); app.close() })
 const DRAFT_PENDING = { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', input: { name: 'بوابة' } }
 const WRITE_PENDING = { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', input: { task_id: 7, state: 'done' } }
-beforeEach(() => { odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false; runList = RUN_LIST; patchStatus = 200; runId = 'r_1'; usageStatus = 200; usageBatches = []; usageInvalid = [] })
+beforeEach(() => { odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false; runList = RUN_LIST; patchStatus = 200; runId = 'r_1'; usageStatus = 200; usageDelayMs = 0; usageAnsweredAt = 0; usageBatches = []; usageInvalid = [] })
 
 const post = (path: string, body: unknown, cookie = 'session_id=s1') => fetch(`${url}${path}`, {
   method: 'POST', headers: { 'content-type': 'application/json', cookie, origin: url, 'sec-fetch-site': 'same-origin' }, body: JSON.stringify(body),
@@ -416,12 +420,30 @@ describe('provider usage', () => {
     expect(list[1]![1]).toEqual({ status: 'failed' })
   })
 
-  it('answers 502 ai_upstream for a malformed model event and reports nothing', async () => {
+  it('logs and skips a malformed model event: the turn finishes normally and nothing is reported', async () => {
     scenario = 'malformed_usage'
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
-    expect(list.map(([n]) => n)).toEqual(['run', 'error', 'done'])
-    expect(list[1]![1]).toMatchObject({ code: 'ai_upstream' })
+    expect(list.map(([n]) => n)).toEqual(['run', 'done'])
+    expect(list.at(-1)![1]).toEqual({ status: 'done' })
     expect(usageBatches).toEqual([])
+    expect(spy.mock.calls.map(call => call[0])).toContain('[webvue-ai] skipped a malformed model_call event: MalformedUsageEvent')
+    spy.mockRestore()
+  })
+
+  it('sends the final done to the browser before the usage report is answered', async () => {
+    scenario = 'usage'
+    usageDelayMs = 400
+    const response = await post('/api/ai/runs', { message: 'هلا' })
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let doneSeenAt = 0
+    for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+      if (!doneSeenAt && decoder.decode(chunk.value).includes('event: done')) doneSeenAt = Date.now()
+    }
+    expect(doneSeenAt).toBeGreaterThan(0)
+    expect(usageAnsweredAt).toBeGreaterThanOrEqual(doneSeenAt + 200) // Odoo answered well after the browser had its done
+    expect(usageBatches).toHaveLength(1)
   })
 })
 

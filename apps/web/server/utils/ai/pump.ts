@@ -89,7 +89,7 @@ export type PumpOptions = { runId: string; auditFailed?: boolean; shielded?: boo
  * waiting state before the resume arrives. Every stream ends with exactly one `done`; a failed audit shows up as `audit_failed`
  * just before it. When the browser is gone nothing more is executed or resumed; a shielded stream is still read to its end,
  * without pushing, so the run settles. The provider attempts the service reports (`model_call`, `model_usage`) are counted even
- * then, never relayed, and sent to Odoo once: before the final `done`, or, when the pump ends early or throws, as it unwinds.
+ * then, never relayed, and sent to Odoo once, after the final `done` has been pushed (or as the pump unwinds when it ends early or throws), so the report never delays the browser.
  */
 export async function pumpRun(event: H3Event, session: RunSession, stream: EventStream, response: Response, options: PumpOptions): Promise<void> {
   const usage = createUsageLedger()
@@ -163,7 +163,6 @@ async function relayRun(event: H3Event, session: RunSession, stream: EventStream
     }
     next = await serviceFetch(event, 'POST', `/v1/runs/${encodeURIComponent(runId)}/resume`, session.owner, { call_id: call.call_id, result })
   }
-  await usage.flush(event, runId)
   if (auditFailed) await stream.push(auditFailedEvent())
   await stream.push({ event: 'done', data: JSON.stringify(finalDone) })
 }

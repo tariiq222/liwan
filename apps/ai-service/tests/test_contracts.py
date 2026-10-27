@@ -132,7 +132,7 @@ def test_a_new_run_id_has_the_service_shape():
 def test_model_events_are_strict_and_pair_their_tokens():
     call = {"call_id": "ab" * 8, "kind": "plan", "provider": "openrouter", "model": "anthropic/claude-sonnet-4.5", "called_at": "2026-10-27T10:00:00Z"}
     assert ModelCallEvent.model_validate(call).kind == "plan"
-    for bad in ({"kind": "other"}, {"provider": "Open AI"}, {"model": ""}, {"model": "a\nb"}, {"call_id": "xyz"}, {"called_at": "2026-10-27T10:00:00"}, {"extra": 1}):
+    for bad in ({"kind": "other"}, {"provider": "Open AI"}, {"model": ""}, {"model": "a\nb"}, {"model": "a\x85b"}, {"model": "a\x9fb"}, {"model": "a\x7fb"}, {"call_id": "xyz"}, {"called_at": "2026-10-27T10:00:00"}, {"extra": 1}):
         with pytest.raises(ValidationError):
             ModelCallEvent.model_validate({**call, **bad})
     usage = {"call_id": "ab" * 8, "outcome": "ok", "input_tokens": 3, "output_tokens": 5}

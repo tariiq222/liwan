@@ -1,5 +1,7 @@
 """Every provider attempt is reported: ``model_call`` before, ``model_usage`` after; plan calls retry transient failures."""
 import asyncio
+from datetime import UTC, datetime, timedelta
+from email.utils import format_datetime
 
 import httpx
 import openai
@@ -18,8 +20,8 @@ from webvue_ai_service.store import MemoryRunStore
 REQUEST = httpx.Request("POST", "http://provider/v1/chat/completions")
 
 
-def status_error(status: int) -> openai.APIStatusError:
-    return openai.APIStatusError("scripted", response=httpx.Response(status, request=REQUEST), body=None)
+def status_error(status: int, **headers: str) -> openai.APIStatusError:
+    return openai.APIStatusError("scripted", response=httpx.Response(status, request=REQUEST, headers=headers), body=None)
 
 
 def connection_error() -> openai.APIConnectionError:
@@ -31,14 +33,15 @@ def no_backoff(monkeypatch):
     monkeypatch.setattr(usage, "BACKOFF_SECONDS", (0.0, 0.0))
 
 
-async def plan_events(model, *, timeout=None):
+async def plan_events(model, *, timeout=None, deadline_in=None):
     """The ``(event, data)`` pairs the plan node writes for one run of the graph, and the error that ended it (or None)."""
     graph = build_graph(model, InMemorySaver(), IDENTITY)
     request = RunRequest.model_validate({**fresh(), "tools": []})
+    deadline_at = None if deadline_in is None else asyncio.get_running_loop().time() + deadline_in
     events, error = [], None
     try:
         async with asyncio.timeout(timeout):
-            async for mode, payload in graph.astream(initial_state(request), run_config(new_id(), 6), stream_mode=["custom", "messages"]):
+            async for mode, payload in graph.astream(initial_state(request), run_config(new_id(), 6, deadline_at), stream_mode=["custom", "messages"]):
                 if mode == "custom":  # "messages" makes the model stream, as the service does
                     events.append((payload["event"], payload["data"]))
     except (Exception, TimeoutError) as caught:
@@ -182,3 +185,72 @@ async def test_a_new_run_id_names_the_run_and_a_second_use_of_it_is_a_conflict()
         assert again.status_code == 409
         other_owner = await client.post("/v1/runs", json={**body, "tenant": "t9"}, headers={"X-WebVue-Tenant": "t9", "X-WebVue-User": "42"})
         assert other_owner.status_code == 409
+
+
+async def test_an_empty_run_id_is_not_a_continuation_and_does_not_bypass_the_one_of_rule():
+    async with make_client(ScriptedChatModel([ai_text("x")] * 2)) as client:
+        assert (await client.post("/v1/runs", json={**BODY, "run_id": ""}, headers=HEADERS)).status_code == 422
+        assert (await client.post("/v1/runs", json={**fresh(), "run_id": ""}, headers=HEADERS)).status_code == 422
+
+
+@pytest.fixture
+def sleeps(monkeypatch):
+    waited = []
+
+    async def record(seconds):
+        waited.append(seconds)
+
+    monkeypatch.setattr(usage.asyncio, "sleep", record)
+    return waited
+
+
+async def test_a_429_with_retry_after_waits_at_least_that_long_with_jitter(sleeps):
+    model = FlakyChatModel([ai_text("تم")], failures=[status_error(429, **{"retry-after": "2"})])
+    events, error = await plan_events(model)
+    assert error is None and model.attempts == 2 and len(sleeps) == 1
+    assert 2 <= sleeps[0] <= 2 * (1 + usage.JITTER)
+    assert shape(events)[1] == ("model_usage", "retried")
+
+
+async def test_without_retry_after_the_backoff_applies(sleeps, monkeypatch):
+    monkeypatch.setattr(usage, "BACKOFF_SECONDS", (0.5, 1.0))
+    model = FlakyChatModel([ai_text("تم")], failures=[status_error(503), status_error(503)])
+    _, error = await plan_events(model)
+    assert error is None and len(sleeps) == 2
+    assert 0.5 <= sleeps[0] <= 0.5 * (1 + usage.JITTER) and 1.0 <= sleeps[1] <= 1.0 * (1 + usage.JITTER)
+
+
+def test_retry_after_reads_seconds_and_http_dates_and_ignores_the_unreadable():
+    now = datetime(2026, 10, 27, 10, 0, 0, tzinfo=UTC)
+    assert usage.retry_after_seconds(status_error(429, **{"retry-after": "3"})) == 3
+    assert usage.retry_after_seconds(status_error(429, **{"retry-after": "0.5"})) == 0.5
+    assert usage.retry_after_seconds(status_error(429, **{"retry-after": format_datetime(now + timedelta(seconds=10), usegmt=True)}), now) == 10
+    assert usage.retry_after_seconds(status_error(429, **{"retry-after": format_datetime(now - timedelta(seconds=10), usegmt=True)}), now) == 0
+    for bad in ("soon", "", "nan", "-5"):
+        assert usage.retry_after_seconds(status_error(429, **{"retry-after": bad})) in (None, 0)
+    assert usage.retry_after_seconds(status_error(429)) is None
+    assert usage.retry_after_seconds(RuntimeError("no response")) is None
+
+
+def test_jitter_stays_within_its_bounds_and_actually_varies(monkeypatch):
+    monkeypatch.setattr(usage, "BACKOFF_SECONDS", (1.0, 2.0))
+    waits = [usage.retry_wait(RuntimeError("x"), 0) for _ in range(300)]
+    assert all(1.0 <= wait <= 1.0 * (1 + usage.JITTER) for wait in waits) and len(set(waits)) > 100
+    hinted = [usage.retry_wait(status_error(429, **{"retry-after": "5"}), 1) for _ in range(100)]
+    assert all(5.0 <= wait <= 5.0 * (1 + usage.JITTER) for wait in hinted)
+
+
+async def test_a_wait_that_would_pass_the_run_deadline_is_not_started(sleeps):
+    model = FlakyChatModel([ai_text("never")], failures=[status_error(429, **{"retry-after": "30"})])
+    events, error = await plan_events(model, deadline_in=5)
+    assert isinstance(error, openai.APIStatusError) and model.attempts == 1 and sleeps == []
+    assert shape(events) == [("model_call", "plan"), ("model_usage", "failed")]
+
+
+async def test_a_backoff_longer_than_the_time_left_gives_up_but_a_shorter_one_retries(sleeps, monkeypatch):
+    monkeypatch.setattr(usage, "BACKOFF_SECONDS", (0.5, 1.0))
+    _, error = await plan_events(FlakyChatModel([ai_text("never")], failures=[status_error(500)]), deadline_in=0.1)
+    assert isinstance(error, openai.APIStatusError) and sleeps == []
+    _, error = await plan_events(FlakyChatModel([ai_text("تم")], failures=[status_error(500)]), deadline_in=60)
+    assert error is None and len(sleeps) == 1
+

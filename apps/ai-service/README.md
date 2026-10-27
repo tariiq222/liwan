@@ -49,6 +49,11 @@ The registry in `src/webvue_ai_service/provider_registry.py` is the single list 
 
 For `openrouter`, `AI_MODEL` is the OpenRouter model id (`vendor/model`).
 
+Token counts come from the provider's stream. The `openai` provider asks for the usage chunk (`stream_options`) only without `AI_BASE_URL`,
+because a compatible server may answer 400 to it; with a custom `AI_BASE_URL` its calls are still reported, with null token counts. OpenRouter
+and Anthropic always report tokens. `AI_MODEL` must be 1 to 128 characters without control characters and the provider name must match
+`^[a-z][a-z0-9_-]{0,31}$` (the usage ledger's rule); a bad value stops the boot.
+
 ## Adding a provider
 
 - An OpenAI-compatible endpoint (vLLM, LM Studio, LiteLLM, Together, Groq, Mistral's compatible API) needs no code:
@@ -68,8 +73,9 @@ and `run_id` (continues a finished run); anything else is 422.
 Before each provider attempt the stream carries `model_call` (`call_id`, `kind` `plan|title`, `provider`, `model`, `called_at`) and after it
 `model_usage` (`call_id`, `outcome` `ok|failed|retried|aborted`, `input_tokens`, `output_tokens`, null when the provider reported none). The
 Nuxt server consumes both and never relays them to the browser. The provider SDKs are built with `max_retries=0`; the service retries a plan
-call itself, up to 3 attempts (0.5 s then 1 s apart, inside the run deadline), only for a 408/409/429/5xx answer or a connection error.
-Titles are never retried.
+call itself, up to 3 attempts, only for a 408/409/429/5xx answer or a connection error (Ollama's 5xx answers included). A wait is 0.5 s then 1 s,
+or the provider's `Retry-After` when longer, plus 0 to 25 % jitter; a wait that would not end before the run deadline is not started and the failure is
+final. Titles are never retried.
 
 ## Service token
 

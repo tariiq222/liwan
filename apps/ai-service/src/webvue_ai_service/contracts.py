@@ -20,7 +20,7 @@ RUN_TITLE_MAX_CHARS = 80
 NEW_RUN_ID = r"^r_[0-9a-f]{24}$"
 CALL_ID = r"^[0-9a-f]{16}$"
 PROVIDER_NAME = r"^[a-z][a-z0-9_-]{0,31}$"
-MODEL_NAME = r"^[^\x00-\x1f\x7f]{1,128}$"
+MODEL_NAME = r"^[^\x00-\x1f\x7f-\x9f]{1,128}$"  # the same rule as the Odoo usage ledger and the zod contract
 RUN_STATUSES = ("running", "executing", "waiting_tool", "waiting_user", "done", "failed", "limit_reached")
 RunStatusValue = Literal["running", "executing", "waiting_tool", "waiting_user", "done", "failed", "limit_reached"]
 
@@ -93,7 +93,7 @@ class RunRequest(Strict):
     context: RunContext | None = None
     tools: list[ToolSpec] = Field(max_length=MAX_TOOLS)
     limits: Limits
-    run_id: str | None = None  # continues this run
+    run_id: str | None = Field(default=None, min_length=1)  # continues this run
     new_run_id: str | None = Field(default=None, pattern=NEW_RUN_ID)  # starts a run under the caller's id
 
     @model_validator(mode="after")

@@ -48,40 +48,46 @@ describe('usage ledger', () => {
     expect(sent()[0]!.body.items).toEqual([expect.objectContaining({ outcome: 'aborted', input_tokens: null, output_tokens: null })])
   })
 
-  it('closes only the calls still open: a later usage for a closed call is malformed', () => {
-    const ledger = createUsageLedger()
-    ledger.observe('model_call', callEvent('a1'))
-    ledger.endStream()
-    expect(() => ledger.observe('model_usage', usageEvent('a1'))).toThrow(expect.objectContaining({ statusCode: 502, data: expect.objectContaining({ code: 'ai_upstream' }) }))
-  })
-
   it.each([
     ['a call with a loose id', 'model_call', { call_id: 'xyz' }],
     ['a call with an unknown kind', 'model_call', { kind: 'other' }],
     ['a call with an extra key', 'model_call', { extra: 1 }],
     ['a call without an offset', 'model_call', { called_at: '2026-10-27T10:00:00' }],
-  ])('answers 502 ai_upstream for %s', (_label, name, patch) => {
+  ])('logs and skips %s without failing the turn', async (_label, name, patch) => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const ledger = createUsageLedger()
-    expect(() => ledger.observe(name, callEvent('a1', patch))).toThrow(expect.objectContaining({ statusCode: 502, data: expect.objectContaining({ code: 'ai_upstream' }) }))
+    expect(ledger.observe(name, callEvent('a1', patch))).toBe(true)
+    ledger.endStream()
+    await ledger.flush(event, 'r_1')
+    expect(odooJson).not.toHaveBeenCalled()
+    expect(spy.mock.calls.map(call => call[0])).toEqual(['[webvue-ai] skipped a malformed model_call event: MalformedUsageEvent'])
   })
 
   it.each([
     ['unpaired tokens', { output_tokens: null }],
     ['negative tokens', { input_tokens: -1 }],
     ['an unknown outcome', { outcome: 'lost' }],
-    ['a call the ledger never saw', { call_id: 'f'.padStart(16, 'f') }],
-  ])('answers 502 ai_upstream for usage with %s', (_label, patch) => {
+  ])('closes a known call as aborted when its usage has %s', async (_label, patch) => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const ledger = createUsageLedger()
     ledger.observe('model_call', callEvent('a1'))
-    expect(() => ledger.observe('model_usage', usageEvent('a1', patch))).toThrow(expect.objectContaining({ statusCode: 502 }))
+    expect(ledger.observe('model_usage', usageEvent('a1', patch))).toBe(true)
+    await ledger.flush(event, 'r_1')
+    expect(sent()[0]!.body.items).toEqual([expect.objectContaining({ outcome: 'aborted', input_tokens: null, output_tokens: null })])
   })
 
-  it('rejects a repeated call id and a second usage for one call', () => {
+  it('skips a usage for a call it never saw, a repeated call id and a second usage for one call', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const ledger = createUsageLedger()
+    ledger.observe('model_usage', usageEvent('f'.padStart(16, 'f')))
     ledger.observe('model_call', callEvent('a1'))
-    expect(() => ledger.observe('model_call', callEvent('a1'))).toThrow(expect.objectContaining({ statusCode: 502 }))
+    ledger.observe('model_call', callEvent('a1', { kind: 'title' }))
     ledger.observe('model_usage', usageEvent('a1'))
-    expect(() => ledger.observe('model_usage', usageEvent('a1'))).toThrow(expect.objectContaining({ statusCode: 502 }))
+    ledger.observe('model_usage', usageEvent('a1', { outcome: 'failed' }))
+    ledger.endStream()
+    await ledger.flush(event, 'r_1')
+    expect(spy).toHaveBeenCalledTimes(3)
+    expect(sent()[0]!.body.items).toEqual([expect.objectContaining({ kind: 'plan', outcome: 'ok', input_tokens: 120 })])
   })
 
   it('sends 70 calls as two posts of at most 64 rows', async () => {

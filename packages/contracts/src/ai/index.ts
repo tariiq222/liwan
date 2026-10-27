@@ -76,7 +76,7 @@ export const AiModelCallKindSchema = z.enum(['plan', 'title'])
 export const AiModelCallOutcomeSchema = z.enum(['ok', 'failed', 'retried', 'aborted'])
 const AiCallIdSchema = z.string().regex(/^[0-9a-f]{16}$/)
 const AiProviderNameSchema = z.string().regex(/^[a-z][a-z0-9_-]{0,31}$/)
-const AiModelNameSchema = z.string().min(1).max(128).refine(value => !/[\u0000-\u001f\u007f]/.test(value), 'no control characters')
+const AiModelNameSchema = z.string().min(1).max(128).refine(value => !/[\u0000-\u001f\u007f-\u009f]/.test(value), 'no control characters')
 const AiTokenCountSchema = z.number().int().nonnegative().max(100_000_000).nullable()
 const tokensComeInPairs = (value: { input_tokens: number | null, output_tokens: number | null }) => (value.input_tokens === null) === (value.output_tokens === null)
 const TOKENS_IN_PAIRS = { message: 'input_tokens and output_tokens are both set or both null', path: ['output_tokens'] }

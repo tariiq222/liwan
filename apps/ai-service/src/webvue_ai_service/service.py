@@ -249,8 +249,8 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
         # ``decided`` is assigned BEFORE the event that announces it is yielded: a client that vanishes while that event is sent
         # closes the generator at the yield, and the run must already carry its outcome.
         decided: tuple[str, str | None] | None = None
-        config = run_config(run_id, limits["max_steps"])
         deadline = asyncio.timeout(limits["timeout_seconds"])
+        config = run_config(run_id, limits["max_steps"], deadline.when())
         try:
             yield format_event("run", {"run_id": run_id})
             async with deadline, contextlib.aclosing(graph.astream(graph_input, config, stream_mode=["messages", "updates", "custom"])) as events:
@@ -304,7 +304,7 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
     async def start_run(request: RunRequest, who: Annotated[Owner, Depends(owner)]) -> StreamingResponse:
         if request.tenant != who.tenant or request.user_ref != who.user_ref:
             raise HTTPException(422, "tenant/user headers must match the body")
-        if request.run_id:
+        if request.run_id is not None:
             record = await owned_run(request.run_id, who)
             state = await graph.aget_state(run_config(record.run_id, 1))
             if pending_of(state) is not None and not stale_executing(record):  # a stale claimed write is answered by the new message
