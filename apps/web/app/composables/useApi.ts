@@ -10,9 +10,33 @@ export class ApiError extends Error {
     message: string,
     public field?: string,
     public details?: Record<string, unknown>,
+    /** The raw server text, for diagnostics only: `message` is the localized text users may see. */
+    public serverMessage?: string,
   ) {
     super(message)
   }
+}
+
+/** Class of refusal by HTTP status, used when the code has no more specific text. */
+function statusKey(status: number): string | undefined {
+  if (status === 400 || status === 422) return 'invalid'
+  if (status === 401) return 'unauthorized'
+  if (status === 403) return 'forbidden'
+  if (status === 404) return 'notFound'
+  if (status === 409) return 'conflict'
+  if (status === 429) return 'rateLimited'
+  if (status >= 500) return 'unavailable'
+  return undefined
+}
+
+/** The code a refusal carries when it names one of the generic classes itself. */
+const CLASS_BY_CODE: Record<string, string> = {
+  invalid: 'invalid',
+  forbidden: 'forbidden',
+  not_found: 'notFound',
+  conflict: 'conflict',
+  rate_limited: 'rateLimited',
+  unavailable: 'unavailable',
 }
 
 /** A refusal of a file route arrives as a blob: its JSON text is the structured error. */
@@ -22,7 +46,7 @@ async function errorBody(data: unknown): Promise<unknown> {
 }
 
 export function useApi() {
-  const { t } = useI18n()
+  const { t, te } = useI18n()
   // Cookie forwarding is only meaningful during SSR: on the client the browser
   // already attaches the session cookie to same-origin requests.
   const headers = import.meta.server ? useRequestHeaders(['cookie']) : {}
@@ -66,21 +90,32 @@ export function useApi() {
     const status: number = e?.statusCode ?? e?.response?.status ?? 0
     const parsed = ApiErrorSchema.safeParse(await errorBody(e?.data))
     if (parsed.success) {
-      const { code, field, details } = parsed.data
-      let message = parsed.data.message
-      // Translate only structured quota denials; arbitrary server messages
-      // and other feature denials retain their existing meaning.
-      if (code === 'feature_not_included' && details?.reason === 'limit') {
-        const key = details.limit_key
-        const quota = key === 'users.limit' ? 'users'
-          : key === 'projects.max_projects' ? 'projects'
-            : key === 'storage.limit_mb' ? 'storage' : 'generic'
-        message = t(`errors.packageQuota.${quota}`)
-      }
-      return new ApiError(status, code, message, field, details)
+      const { code, field, details, message: serverMessage } = parsed.data
+      return new ApiError(status, code, userMessage(status, code, details), field, details, serverMessage)
     }
     const message = writing ? saveErrorMessage({ status, message: e?.message }, t('errors.generic'), t('errors.saveUncertain')) : e?.message ?? t('errors.generic')
     return new ApiError(status, 'http_error', message)
+  }
+
+  /** The text users see for a structured refusal: always a locale string, never the server's English. */
+  function userMessage(status: number, code: string, details: Record<string, unknown> | undefined): string {
+    // Structured quota denials name the plan limit that was reached.
+    if (code === 'feature_not_included' && details?.reason === 'limit') {
+      const key = details.limit_key
+      const quota = key === 'users.limit' ? 'users'
+        : key === 'projects.max_projects' ? 'projects'
+          : key === 'storage.limit_mb' ? 'storage' : 'generic'
+      return t(`errors.packageQuota.${quota}`)
+    }
+    // A business rule may name itself with `details.reason`, or a specific `code`; both are optional locale hooks.
+    const reason = details?.reason
+    const candidates = [
+      typeof reason === 'string' ? `errors.reasons.${reason}` : undefined,
+      `errors.codes.${code}`,
+      (CLASS_BY_CODE[code] ?? statusKey(status)) && `errors.api.${CLASS_BY_CODE[code] ?? statusKey(status)}`,
+    ]
+    const key = candidates.find(candidate => candidate && te(candidate))
+    return key ? t(key) : t('errors.generic')
   }
 
   /** A file route: the raw body and the file name the server chose. A refusal is the same ApiError `$api` throws.

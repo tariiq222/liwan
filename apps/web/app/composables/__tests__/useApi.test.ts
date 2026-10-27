@@ -3,7 +3,7 @@ import { ApiError } from '../useApi'
 import { useApi } from '../useApi'
 
 describe('useApi', () => {
-  beforeEach(() => vi.stubGlobal('useI18n', () => ({ t: (key: string) => key })))
+  beforeEach(() => vi.stubGlobal('useI18n', () => ({ t: (key: string) => key, te: (key: string) => key.startsWith('errors.api') })))
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
@@ -26,14 +26,14 @@ describe('useApi', () => {
     const error = await $api('/api/v1/hr/departments/1', { method: 'DELETE' }).catch((value) => value)
     const apiError = error as ApiError
     expect(apiError).toBeInstanceOf(ApiError)
-    expect(apiError).toMatchObject({ status: 422, code: 'department_in_use', message: 'x' })
+    expect(apiError).toMatchObject({ status: 422, code: 'department_in_use', message: 'errors.api.invalid', serverMessage: 'x' })
     expect(apiError.details).toEqual({ employees: 1, children: 0, documents: 2 })
   })
 })
 
 describe('useApi download', () => {
   beforeEach(() => {
-    vi.stubGlobal('useI18n', () => ({ t: (key: string) => key }))
+    vi.stubGlobal('useI18n', () => ({ t: (key: string) => key, te: (key: string) => key.startsWith('errors.api') }))
     ;(globalThis as any).useRequestHeaders = vi.fn().mockReturnValue({})
   })
   afterEach(() => {
@@ -93,13 +93,13 @@ describe('structured package quota presentation', () => {
     ['feature_not_included', { reason: 'module', limit_key: 'users.limit' }],
     ['feature_not_included', undefined],
     ['forbidden', { reason: 'limit', limit_key: 'users.limit' }],
-  ])('preserves non-quota errors: %s %j', async (code, details) => {
-    const t = vi.fn()
-    vi.stubGlobal('useI18n', () => ({ t }))
+  ])('does not use the quota text for %s %j', async (code, details) => {
+    const t = vi.fn((key: string) => key)
+    vi.stubGlobal('useI18n', () => ({ t, te: (key: string) => key.startsWith('errors.api') }))
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue({ statusCode: 403, data: { code, message: 'Original message', details } }))
     const error = await useApi().$api('/api/v1/projects').catch(value => value)
-    expect(error).toMatchObject({ status: 403, code, message: 'Original message', details })
-    expect(t).not.toHaveBeenCalled()
+    expect(error).toMatchObject({ status: 403, code, message: 'errors.api.forbidden', serverMessage: 'Original message', details })
+    expect(t).not.toHaveBeenCalledWith(expect.stringContaining('packageQuota'))
   })
 
   it('does not wrap a Zod contract error', async () => {
@@ -113,10 +113,57 @@ describe('structured package quota presentation', () => {
 describe('interrupted writes', () => {
   afterEach(() => vi.unstubAllGlobals())
   it('states an unknown write outcome and explicitly disables transport retries', async () => {
-    vi.stubGlobal('useI18n', () => ({ t: (key: string) => key }))
+    vi.stubGlobal('useI18n', () => ({ t: (key: string) => key, te: (key: string) => key.startsWith('errors.api') }))
     const fetch = vi.fn().mockRejectedValue(new Error('connection failed'))
     vi.stubGlobal('$fetch', fetch)
     await expect(useApi().$api('/api/v1/tasks', { method: 'POST', body: { name: 'draft' } })).rejects.toMatchObject({ status: 0, message: 'errors.saveUncertain' })
     expect(fetch.mock.calls[0]?.[1]).toMatchObject({ retry: 0 })
+  })
+})
+
+describe('localized server refusals', () => {
+  const ar: Record<string, string> = {
+    'errors.api.invalid': 'تعذّر الحفظ لأن بعض البيانات غير صحيحة.',
+    'errors.api.notFound': 'العنصر غير موجود أو حُذف.',
+    'errors.api.unavailable': 'الخدمة غير متاحة الآن.',
+    'errors.codes.stale_write': 'تغيّرت البيانات.',
+    'errors.reasons.self_chat': 'لا يمكنك بدء محادثة مع نفسك.',
+    'errors.generic': 'حدث خطأ غير متوقع',
+  }
+  const fail = async (statusCode: number, data: unknown) => {
+    vi.stubGlobal('useI18n', () => ({ t: (key: string) => ar[key] ?? key, te: (key: string) => key in ar }))
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue({ statusCode, data }))
+    return useApi().$api('/api/v1/chat/channels', { method: 'POST' }).catch(value => value) as Promise<ApiError>
+  }
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('never surfaces an English server message; keeps it as serverMessage', async () => {
+    const error = await fail(422, { code: 'invalid', message: 'cannot chat with yourself', field: 'partner_id' })
+    expect(error.message).toBe(ar['errors.api.invalid'])
+    expect(error.serverMessage).toBe('cannot chat with yourself')
+    expect(error.field).toBe('partner_id')
+  })
+
+  it.each([
+    [404, 'not_found', 'errors.api.notFound'],
+    [503, 'pdf_unavailable_x', 'errors.api.unavailable'],
+    [422, 'some_business_rule', 'errors.api.invalid'],
+    [409, 'stale_write', 'errors.codes.stale_write'],
+    [418, 'teapot', 'errors.generic'],
+  ])('maps %s %s to %s', async (status, code, key) => {
+    const error = await fail(status, { code, message: 'English text' })
+    expect(error.message).toBe(ar[key])
+  })
+
+  it('prefers details.reason when its locale key exists', async () => {
+    expect((await fail(422, { code: 'invalid', message: 'x', details: { reason: 'self_chat' } })).message).toBe(ar['errors.reasons.self_chat'])
+    expect((await fail(422, { code: 'invalid', message: 'x', details: { reason: 'unknown_reason' } })).message).toBe(ar['errors.api.invalid'])
+  })
+
+  it('leaves a non-JSON failure untouched', async () => {
+    vi.stubGlobal('useI18n', () => ({ t: (key: string) => ar[key] ?? key, te: (key: string) => key.startsWith('errors.api') }))
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue({ statusCode: 502, message: 'Bad Gateway', data: '<html>' }))
+    const error = await useApi().$api('/api/v1/chat/channels').catch(value => value)
+    expect(error).toMatchObject({ status: 502, code: 'http_error', message: 'Bad Gateway' })
   })
 })

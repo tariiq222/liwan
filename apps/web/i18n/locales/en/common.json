@@ -145,6 +145,24 @@
       "projects": "You have reached the project limit for your plan.",
       "storage": "You have reached the attachment storage limit for your plan.",
       "generic": "You have reached a usage limit for your plan."
+    },
+    "api": {
+      "invalid": "Could not save because some of the data is not valid.",
+      "unauthorized": "Your session has ended. Sign in again.",
+      "forbidden": "You do not have permission to do this.",
+      "notFound": "This item does not exist or was deleted.",
+      "conflict": "The data changed since you opened it. Refresh the page and try again.",
+      "rateLimited": "Too many attempts in a short time. Wait a moment and try again.",
+      "unavailable": "The service is not available right now. Try again shortly."
+    },
+    "codes": {
+      "stale_write": "The data changed since you opened it. Refresh the page and try again.",
+      "wrong_password": "The password is incorrect.",
+      "weak_password": "The password is too weak. Choose a stronger one.",
+      "transition_forbidden": "This transition is not allowed in the current state.",
+      "invalid_state": "This action is not allowed in the current state.",
+      "pdf_unavailable": "Could not generate the PDF right now. Try again shortly.",
+      "commercial_unavailable": "This service is not available in this edition."
     }
   },
   "account": {
