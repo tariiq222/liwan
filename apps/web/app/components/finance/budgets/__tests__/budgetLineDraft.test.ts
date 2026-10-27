@@ -1,6 +1,6 @@
-import { FinanceBudgetLineCreateSchema } from '@webvue/contracts'
+import { FinanceBudgetLineCreateSchema, FinanceBudgetLinePatchSchema, type FinanceBudgetLine } from '@webvue/contracts'
 import { describe, expect, it } from 'vitest'
-import { buildBudgetLine, emptyBudgetLine, hasBudgetLineErrors, validateBudgetLine } from '../budgetLineDraft'
+import { budgetLineDraftFrom, buildBudgetLine, buildBudgetLinePatch, emptyBudgetLine, hasBudgetLineErrors, validateBudgetLine } from '../budgetLineDraft'
 
 const valid = () => ({ ...emptyBudgetLine(), accountId: 21, amount: '1500.5' })
 
@@ -23,5 +23,35 @@ describe('budget line form', () => {
     const full = buildBudgetLine({ ...valid(), label: ' رواتب ', dateFrom: '2026-01-01', dateTo: '2026-03-31' })
     expect(full).toEqual({ account_id: 21, amount: 1500.5, label: 'رواتب', date_from: '2026-01-01', date_to: '2026-03-31' })
     expect(FinanceBudgetLineCreateSchema.safeParse(full).success).toBe(true)
+  })
+})
+
+describe('editing a budget line', () => {
+  const budget = { date_from: '2026-01-01', date_to: '2026-12-31' }
+  const line: FinanceBudgetLine = {
+    id: 4,
+    account: { id: 21, name: 'Salaries' },
+    nature: 'debit',
+    analytic_account: { id: 9, name: 'Riyadh' },
+    label: 'Q2',
+    date_from: '2026-04-01',
+    date_to: '2026-06-30',
+    amount: 1200,
+  }
+
+  it('fills the form from the stored line', () => {
+    expect(budgetLineDraftFrom(line)).toEqual({ accountId: 21, amount: '1200', label: 'Q2', dateFrom: '2026-04-01', dateTo: '2026-06-30' })
+  })
+
+  it('sends the edited fields, clears an emptied label and keeps the cost center', () => {
+    const body = buildBudgetLinePatch({ ...budgetLineDraftFrom(line), amount: '900', label: ' ' }, budget)
+    expect(body).toEqual({ account_id: 21, amount: 900, label: '', date_from: '2026-04-01', date_to: '2026-06-30' })
+    expect(body).not.toHaveProperty('analytic_account_id')
+    expect(FinanceBudgetLinePatchSchema.safeParse(body).success).toBe(true)
+  })
+
+  it('falls back to the budget period when a date is cleared', () => {
+    const body = buildBudgetLinePatch({ ...budgetLineDraftFrom(line), dateFrom: null, dateTo: null }, budget)
+    expect(body).toMatchObject({ date_from: '2026-01-01', date_to: '2026-12-31' })
   })
 })

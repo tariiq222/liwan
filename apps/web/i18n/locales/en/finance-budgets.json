@@ -52,7 +52,12 @@
       "add": "Add a line",
       "addSubmit": "Add line",
       "accountRequired": "Choose the account",
-      "amountInvalid": "Enter an amount of zero or more"
+      "amountInvalid": "Enter an amount of zero or more",
+      "edit": "Edit the line",
+      "actionsFor": "Actions for the {name} line",
+      "delete": "Delete the line",
+      "confirmDelete": "Delete the {name} line?",
+      "confirmDeleteHint": "The line is removed from the draft budget for good."
     },
     "actual": {
       "title": "Budget vs actual",

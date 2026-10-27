@@ -52,7 +52,12 @@
       "add": "إضافة بند",
       "addSubmit": "إضافة البند",
       "accountRequired": "اختر الحساب",
-      "amountInvalid": "أدخل مبلغًا صفرًا أو أكثر"
+      "amountInvalid": "أدخل مبلغًا صفرًا أو أكثر",
+      "edit": "تعديل البند",
+      "actionsFor": "إجراءات بند {name}",
+      "delete": "حذف البند",
+      "confirmDelete": "حذف بند {name}؟",
+      "confirmDeleteHint": "يُحذف البند من مسودة الميزانية نهائيًا."
     },
     "actual": {
       "title": "الميزانية مقابل الفعلي",
