@@ -35,7 +35,8 @@ STATIC_ONLY_TOOLS = (
     'tools/ui_policy.py', 'tools/ui_templates.mjs', 'tools/worktree_claims.py', 'tools/wt.py',
 )
 ISOLATION_STAGES = ('odoo-app-standalone', 'odoo-bridge')
-SHARED_PACKAGE_STAGES = ('control-plane', 'vendor-admin', 'e2e-mock', 'rtl-stories')
+# The web and vendor-admin images build from these packages, so `image` is selected with them.
+SHARED_PACKAGE_STAGES = ('control-plane', 'vendor-admin', 'image', 'e2e-mock', 'rtl-stories')
 UNMAPPED = '(no rule: all stages)'
 
 # First match wins, so the paths that need every stage come first. `*` also crosses `/`, hence
@@ -68,10 +69,10 @@ RULES = (
     ('.claude/*', ()),                       # agent setup for local and cloud sessions; no CI step reads it
     ('ruff.toml', ('ai-service',)),          # the ai-service step lints with the nearest ruff config
     # Applications and the shared packages they build from.
-    ('apps/web/*', ('control-plane', 'e2e-mock', 'rtl-stories')),  # control-plane tests import apps/web server code
-    ('apps/vendor-admin/*', ('vendor-admin',)),
+    ('apps/web/*', ('control-plane', 'image', 'e2e-mock', 'rtl-stories')),  # control-plane tests import apps/web server code
+    ('apps/vendor-admin/*', ('vendor-admin', 'image')),
     ('apps/control-plane/*', ('control-plane',)),
-    ('apps/ai-service/*', ('ai-service',)),
+    ('apps/ai-service/*', ('ai-service', 'image')),
     ('packages/ui/*', SHARED_PACKAGE_STAGES),
     ('packages/commercial-ui/*', SHARED_PACKAGE_STAGES),
     ('packages/commercial-contracts/*', SHARED_PACKAGE_STAGES),
