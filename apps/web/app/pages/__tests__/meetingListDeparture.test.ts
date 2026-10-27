@@ -11,6 +11,7 @@ import { expect, it } from 'vitest'
 import * as filters from '../../utils/meetingListFilters'
 import { parseOffset } from '../../utils/routeQuery'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { rootedNode } from '../../../tests/hostNode'
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -67,7 +68,7 @@ async function mountList(file: 'index.vue' | 'series.vue', base: string, auth: (
   const Blank = Vue.defineComponent({ render: () => Vue.h('div') })
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: base, component: ListPage, children: [{ path: ':recordId', component: Blank }] }, { path: '/outside', component: Blank }] })
   const anchors: any[] = []
-  const node = (tag = '') => ({ tag, props: {} as Record<string, any>, children: [] as any[], parent: null as any })
+  const node = (tag = '') => rootedNode({ tag, props: {} as Record<string, any>, children: [] as any[], parent: null as any })
   const renderer = Vue.createRenderer<any, any>({
     patchProp(element, key, _previous, next) { element.props[key] = next }, insert(child, parent) { child.parent = parent; parent.children.push(child) }, remove() {},
     createElement: tag => { const element = node(tag); if (tag === 'a') anchors.push(element); return element }, createText: node, createComment: node, setText() {}, setElementText() {},
