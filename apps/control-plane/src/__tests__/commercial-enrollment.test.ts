@@ -60,7 +60,8 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     await pool.query("UPDATE shared_jobs SET state='verified',receipt=jsonb_build_object('status','verified','payloadDigest',payload_digest) WHERE id=$1", [jobs[0].id])
     await pool.query("UPDATE shared_onboardings SET stage='active' WHERE control_tenant_id=$1", [customer.tenant_id])
     await pool.query('UPDATE shared_registry_bindings SET enabled=true,registry_revision=registry_revision+1 WHERE control_tenant_id=$1', [customer.tenant_id])
-    const processed=await process()
+    // Two workers racing on the same ready order still enqueue one reconfigure job.
+    const processed=(await Promise.all([process(),process()])).flat()
     expect(processed.find(x=>x.order_id===s.order)).toMatchObject({job_id:expect.any(String)})
     await process()
     const reconfigure = (await pool.query("SELECT payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'operation'='reconfigure'", [customer.tenant_id])).rows
@@ -83,6 +84,26 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     expect((await pool.query('SELECT renewal_at::text AS renewal_at FROM subscriptions WHERE id=$1',[s.subscription])).rows[0].renewal_at).toBe('2027-02-01')
     expect((await pool.query('SELECT fulfillment_state FROM orders WHERE id=$1',[renewal])).rows[0].fulfillment_state).toBe('applied')
     expect((await pool.query("SELECT count(*)::int AS n FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'operation'='reconfigure'",[customer.tenant_id])).rows[0].n).toBe(1)
+  })
+  it('concurrent runs onboard once and a vendor edit between attempts replays the stored input', async () => {
+    const s = await seed()
+    await Promise.all([process(), process()])
+    const counts = async () => (await pool.query(`SELECT (SELECT count(*)::int FROM shared_onboardings WHERE request_id=c.enrollment_request_id) AS onboardings,
+      (SELECT count(*)::int FROM shared_registry_bindings WHERE control_tenant_id=c.enrollment_request_id) AS bindings,
+      (SELECT count(*)::int FROM shared_jobs WHERE control_tenant_id=c.enrollment_request_id AND payload->>'operation'='provision') AS jobs
+      FROM customers c WHERE c.id=$1`, [s.customer])).rows[0]
+    expect(await counts()).toEqual({ onboardings: 1, bindings: 1, jobs: 1 })
+    // Crash between onboarding and linking, then the vendor edits the customer before the retry.
+    const requestId = (await pool.query('SELECT enrollment_request_id FROM customers WHERE id=$1', [s.customer])).rows[0].enrollment_request_id
+    await pool.query('UPDATE customers SET tenant_id=NULL WHERE id=$1', [s.customer])
+    await pool.query('UPDATE subscriptions SET tenant_id=NULL,revision=revision+1 WHERE id=$1', [s.subscription])
+    await pool.query("UPDATE customers SET name='Renamed by vendor',admin_name='Other admin',admin_login='other@example.test' WHERE id=$1", [s.customer])
+    await pool.query("UPDATE commercial_outbox SET next_attempt_at=now() WHERE aggregate_id=$1", [s.order])
+    await Promise.all([process(), process()])
+    expect(await counts()).toEqual({ onboardings: 1, bindings: 1, jobs: 1 })
+    expect((await pool.query('SELECT status,attempts FROM commercial_outbox WHERE aggregate_id=$1', [s.order])).rows[0]).toEqual({ status: 'pending', attempts: 0 })
+    expect((await pool.query('SELECT tenant_id FROM subscriptions WHERE id=$1', [s.subscription])).rows[0].tenant_id).toBe(requestId)
+    expect((await pool.query('SELECT name,admin_login FROM shared_onboardings o JOIN tenants t ON t.id=o.control_tenant_id WHERE o.request_id=$1', [requestId])).rows[0]).toEqual({ name: 'New customer', admin_login: `${s.customer}@example.test` })
   })
   it('new customer without tenant reserves three extras and enrollment links all pending branches', async () => {
     const api = client(pool)
