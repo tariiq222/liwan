@@ -21,6 +21,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -31,6 +32,14 @@ DEST_NAME = 'oca-19.0'
 IMAGE_DEST = '/opt/oca'  # where deploy/odoo/Dockerfile puts the repositories
 REPO_NAME = re.compile(r'OCA/[a-z0-9][a-z0-9_-]*')
 SHA = re.compile(r'[0-9a-f]{40}')
+# Seconds to wait before each retry of a fetch that failed on the network; a refused or unknown
+# commit is never retried. The CI image build fetches every pin from github.com.
+FETCH_RETRY_DELAYS = (10, 30)
+TRANSIENT_FETCH = re.compile(
+    r"could not resolve host|failed to connect|couldn't connect to server|connection timed out|"
+    r'connection reset|operation timed out|early eof|rpc failed; (curl|http 5)|returned error: 5\d\d',
+    re.IGNORECASE,
+)
 
 
 class OcaError(Exception):
@@ -151,6 +160,19 @@ def repo_url(base_url, repo, allow_local_base):
     return '%s/%s.git' % (base_url.rstrip('/'), repo)
 
 
+def fetch_commit(url, commit, target):
+    """``git fetch`` one commit, retrying only failures that ``TRANSIENT_FETCH`` names."""
+    for delay in FETCH_RETRY_DELAYS:
+        try:
+            return git('fetch', '-q', '--depth', '1', url, commit, cwd=target)
+        except OcaError as exc:
+            if not TRANSIENT_FETCH.search(str(exc)):
+                raise
+            sys.stderr.write('oca_addons: %s; retrying in %ds\n' % (exc, delay))
+            time.sleep(delay)
+    return git('fetch', '-q', '--depth', '1', url, commit, cwd=target)
+
+
 def fetch_repo(entry, dest, base_url, allow_local_base=False):
     """Make ``dest/<name>`` a checkout of exactly ``entry['commit']``; returns ``'kept'`` or ``'fetched'``.
 
@@ -170,7 +192,7 @@ def fetch_repo(entry, dest, base_url, allow_local_base=False):
             git('init', '-q', cwd=target)
         kept = existing and current_head(target) == commit
         if not kept:
-            git('fetch', '-q', '--depth', '1', url, commit, cwd=target)
+            fetch_commit(url, commit, target)
         git('checkout', '-q', '--force', '--detach', commit if kept else 'FETCH_HEAD', cwd=target)
         git('clean', '-qfdx', cwd=target)
         verify_repo(entry, dest)

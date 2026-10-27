@@ -10,6 +10,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import oca_addons
 
@@ -149,6 +150,48 @@ class PinFileTest(unittest.TestCase):
         for item in data['python_requirements']:
             for package in item['packages']:
                 self.assertIn(package.lower().replace('_', '-'), pinned, '%s needs %s' % (item['module'], package))
+
+
+class FetchRetryTest(unittest.TestCase):
+    NETWORK = oca_addons.OcaError("git fetch -q failed: fatal: unable to access 'https://github.com/OCA/x.git/': "
+                                  "Failed to connect to github.com port 443 after 134380 ms: Couldn't connect to server")
+    REFUSED = oca_addons.OcaError('git fetch -q failed: fatal: remote error: upload-pack: not our ref ' + 'b' * 40)
+
+    def fetch(self, *outcomes):
+        with mock.patch.object(oca_addons, 'git', side_effect=list(outcomes)) as git_call, \
+                mock.patch.object(oca_addons.time, 'sleep') as sleep, \
+                contextlib.redirect_stderr(io.StringIO()):
+            try:
+                return oca_addons.fetch_commit('https://github.com/OCA/x.git', 'a' * 40, Path('.')), git_call, sleep
+            except oca_addons.OcaError as exc:
+                return exc, git_call, sleep
+
+    def test_a_network_failure_is_retried_until_the_fetch_succeeds(self):
+        result, git_call, sleep = self.fetch(self.NETWORK, self.NETWORK, '')
+        self.assertEqual(result, '')
+        self.assertEqual(git_call.call_count, 3)
+        self.assertEqual([c.args[0] for c in sleep.call_args_list], list(oca_addons.FETCH_RETRY_DELAYS))
+
+    def test_a_network_failure_fails_after_the_last_attempt(self):
+        result, git_call, _ = self.fetch(*[self.NETWORK] * (len(oca_addons.FETCH_RETRY_DELAYS) + 1))
+        self.assertIs(result, self.NETWORK)
+        self.assertEqual(git_call.call_count, len(oca_addons.FETCH_RETRY_DELAYS) + 1)
+
+    def test_a_refused_commit_or_access_is_not_retried(self):
+        forbidden = oca_addons.OcaError('git fetch -q failed: error: RPC failed; HTTP 403 curl 22 '
+                                        'The requested URL returned error: 403')
+        for refusal in (self.REFUSED, forbidden):
+            result, git_call, sleep = self.fetch(refusal)
+            self.assertIs(result, refusal)
+            self.assertEqual(git_call.call_count, 1)
+            sleep.assert_not_called()
+
+    def test_a_dropped_transfer_and_a_server_error_are_retried(self):
+        for message in ('error: RPC failed; curl 56 Recv failure: Connection reset by peer',
+                        'error: RPC failed; HTTP 502 curl 22 The requested URL returned error: 502'):
+            result, git_call, _ = self.fetch(oca_addons.OcaError(message), '')
+            self.assertEqual(result, '')
+            self.assertEqual(git_call.call_count, 2)
 
 
 if __name__ == '__main__':
