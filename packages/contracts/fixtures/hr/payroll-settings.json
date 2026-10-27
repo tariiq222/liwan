@@ -1,0 +1,18 @@
+{
+  "annual_leave_type": {
+    "id": 1,
+    "name": "Paid Time Off"
+  },
+  "day_divisor": 30,
+  "revision": 0,
+  "structure": {
+    "id": 1,
+    "name": "Saudi monthly salary"
+  },
+  "unpaid_leave_types": [
+    {
+      "id": 2,
+      "name": "Unpaid"
+    }
+  ]
+}

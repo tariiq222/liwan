@@ -143,6 +143,38 @@
       "route": "/api/v1/hr/expiring",
       "status": 200,
       "schema": "HrExpiringListSchema"
+    },
+    {
+      "name": "hr/payroll-run-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/payroll/runs",
+      "status": 200,
+      "schema": "HrPayrollRunListSchema"
+    },
+    {
+      "name": "hr/payroll-run-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/payroll/runs/{id}",
+      "status": 200,
+      "schema": "HrPayrollRunSchema"
+    },
+    {
+      "name": "hr/payroll-payslip-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/payroll/runs/{id}/payslips",
+      "status": 200,
+      "schema": "HrPayslipRowListSchema"
+    },
+    {
+      "name": "hr/payroll-settings",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/payroll/settings",
+      "status": 200,
+      "schema": "HrPayrollSettingsSchema"
     }
   ]
 }

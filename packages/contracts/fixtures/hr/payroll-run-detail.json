@@ -1,0 +1,33 @@
+{
+  "allowed_actions": [],
+  "approved_at": null,
+  "approved_by": null,
+  "employee_count": 2,
+  "finance": null,
+  "id": 1,
+  "month": "2026-11",
+  "state": "draft",
+  "totals": {
+    "deductions": 0.0,
+    "gosi_employee": 0.0,
+    "gosi_employer": 0.0,
+    "gross": 0.0,
+    "net": 0.0
+  },
+  "warnings": [
+    {
+      "code": "compensation_missing",
+      "employee": {
+        "id": 2,
+        "name": "No Compensation"
+      }
+    },
+    {
+      "code": "missing_iban",
+      "employee": {
+        "id": 3,
+        "name": "No Iban"
+      }
+    }
+  ]
+}
