@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { h } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
-import type { HrShiftAssignment } from '@/composables/useHrShifts'
+import { useHrShiftPeriod, type HrShiftAssignment } from '@/composables/useHrShifts'
 
-// The assignment list of /hr/shifts on SharedDataTable. Ending an assignment is handed to
-// the page, which owns the inline confirmation; an open end of a range is shown as such.
+// The assignment list of /hr/shifts (and of the employee's own schedule) on SharedDataTable.
+// On /hr/shifts a row opens the assignment's own page (`rowTo`), where it is edited; removing is handed to the page, which owns the inline
+// confirmation. An open end of a range is shown as such.
 const props = defineProps<{
   assignments: HrShiftAssignment[]
   caption: string
   loading?: boolean
   error?: unknown
   canManage?: boolean
+  rowTo?: (assignment: HrShiftAssignment) => RouteLocationRaw
 }>()
 const emit = defineEmits<{ remove: [assignment: HrShiftAssignment]; retry: [] }>()
 const { t } = useI18n()
@@ -23,18 +26,15 @@ const columns = computed<TableColumn<HrShiftAssignment>[]>(() => [
   { id: 'actions', header: () => h('span', { class: 'sr-only' }, t('app.actions')), meta: { class: { th: 'w-12', td: 'w-12 text-end' } } },
 ])
 
-function period(assignment: HrShiftAssignment) {
-  if (assignment.date_start && assignment.date_end) {
-    return t('hrShifts.range', { from: assignment.date_start, to: assignment.date_end })
-  }
-  if (assignment.date_start) return t('hrShifts.rangeFrom', { from: assignment.date_start })
-  if (assignment.date_end) return t('hrShifts.rangeUntil', { to: assignment.date_end })
-  return t('hrShifts.rangeOpen')
-}
+const period = useHrShiftPeriod()
 
 function actions(assignment: HrShiftAssignment): RowAction[] {
-  if (!props.canManage) return []
+  if (!props.canManage || !props.rowTo) return []
   return [{
+    label: t('hrShifts.editAssignment'),
+    icon: 'i-lucide-pencil',
+    to: props.rowTo(assignment),
+  }, {
     label: t('hrShifts.remove'),
     icon: 'i-lucide-trash-2',
     destructive: true,
@@ -49,12 +49,16 @@ function actions(assignment: HrShiftAssignment): RowAction[] {
     :rows="props.assignments"
     :columns="columns"
     row-key="id"
+    :row-to="props.rowTo"
     :loading="props.loading"
     :error="props.error"
     :caption="props.caption"
     @retry="emit('retry')"
   >
-    <template #employee-cell="{ row }">{{ row.original.employee.name }}</template>
+    <template #employee-cell="{ row }">
+      <NuxtLink v-if="props.rowTo" :to="props.rowTo(row.original)" class="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.employee.name }}</NuxtLink>
+      <template v-else>{{ row.original.employee.name }}</template>
+    </template>
     <template #schedule-cell="{ row }">{{ row.original.schedule.name }}</template>
     <template #date_start-cell="{ row }"><bdi class="tabular-nums">{{ period(row.original) }}</bdi></template>
     <template #actions-cell="{ row }">

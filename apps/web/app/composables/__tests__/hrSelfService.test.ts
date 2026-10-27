@@ -55,7 +55,7 @@ describe('Self-service HR queries', () => {
     const { useMyHrShiftAssignments } = await import('../useHrShifts')
     vi.stubGlobal('useApi', () => ({$api:vi.fn()}))
     vi.stubGlobal('useAccess', () => ({can:() => true}))
-    const queries = [useMyHrProfile(), useMyHrLeaveRequest(ref(7)), useHrLeaveBalances(), useHrLeaveRequests({scope:'mine',limit:25,offset:0}), useMyHrAssets(), useMyHrPayslips(), useMyHrPayslip(ref(7)), useMyHrShiftAssignments()] as unknown as CapturedQuery[]
+    const queries = [useMyHrProfile(), useMyHrLeaveRequest(ref(7)), useHrLeaveBalances(), useHrLeaveRequests({scope:'mine',limit:25,offset:0}), useMyHrAssets(), useMyHrPayslips({ limit: 25, offset: 0 }), useMyHrPayslip(ref(7)), useMyHrShiftAssignments()] as unknown as CapturedQuery[]
     const firstKeys = queries.map(query => toValue(query.queryKey))
     identity.value = {id:2,company:{id:3}}
     const secondKeys = queries.map(query => toValue(query.queryKey))

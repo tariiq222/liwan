@@ -5,14 +5,24 @@ import type { HrMyPayslipSummary } from '@webvue/contracts'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import { formatPayrollAmount, formatPayrollMonth } from '@/utils/payrollFormat'
 
-// The caller's own approved payslips, newest first: a row opens the printable payslip document.
+// The caller's own approved payslips, newest first, one page at a time (`?offset=`):
+// a row opens the printable payslip document.
+const LIMIT = 25
 const route = useRoute()
+const router = useRouter()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 
+const offset = computed(() => {
+  const parsed = Number(Array.isArray(route.query.offset) ? route.query.offset[0] : route.query.offset)
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 0
+})
 const profile = useMyHrProfile()
-const mine = useMyHrPayslips()
+const mine = useMyHrPayslips(computed(() => ({ limit: LIMIT, offset: offset.value })))
 const items = computed(() => mine.data.value?.items ?? [])
+const total = computed(() => mine.data.value?.total ?? 0)
+const page = computed(() => Math.floor(offset.value / LIMIT) + 1)
+const pages = computed(() => Math.max(1, Math.ceil(total.value / LIMIT)))
 const showEmpty = computed(() => !mine.isLoading.value && !mine.error.value && items.value.length === 0)
 
 const columns = computed<TableColumn<HrMyPayslipSummary>[]>(() => [
@@ -21,6 +31,12 @@ const columns = computed<TableColumn<HrMyPayslipSummary>[]>(() => [
   { accessorKey: 'net', header: t('hrPayroll.mine.columns.net') },
 ])
 const amount = (value: number) => formatPayrollAmount(value, locale.value)
+
+function setPage(next: number) {
+  if (!hydrated.value || mine.isFetching.value || next < 1 || next > pages.value) return
+  const nextOffset = (next - 1) * LIMIT
+  void router.replace({ query: { ...route.query, offset: nextOffset > 0 ? nextOffset : undefined }, hash: route.hash })
+}
 
 function payslipTo(row: HrMyPayslipSummary) {
   return { path: `/account/pay/${row.id}`, query: returnToQuery(route.fullPath) }
@@ -57,6 +73,15 @@ function payslipTo(row: HrMyPayslipSummary) {
           </template>
         </SharedDataTable>
       </SharedPageState>
+      <SharedListFooter
+        v-if="mine.data.value && pages > 1"
+        :count-label="t('hrPayroll.mine.footer', { shown: items.length, total }, total)"
+        :page="page"
+        :pages="pages"
+        :disabled="mine.isFetching.value"
+        count-test-id="hr-my-payslips-count"
+        @update:page="setPage"
+      />
     </SharedListCard>
   </SharedListPage>
 </template>

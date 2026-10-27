@@ -3,16 +3,16 @@ import { fetchMyHrPayslip, fetchMyHrPayslips, hrMyPayslipKeys } from '../useHrPa
 
 describe('hrMyPayslipKeys', () => {
   it('keeps the own payslips apart from the run-scoped payslips', () => {
-    expect(hrMyPayslipKeys.list).toEqual(['hr', 'payroll', 'payslips', 'mine'])
+    expect(hrMyPayslipKeys.page({ limit: 25, offset: 50 })).toEqual(['hr', 'payroll', 'payslips', 'mine', 'page', { limit: 25, offset: 50 }])
     expect(hrMyPayslipKeys.one(7)).toEqual(['hr', 'payroll', 'payslips', 'mine', 7])
   })
 })
 
 describe('own payslip requests', () => {
-  it('lists the caller\'s approved payslips', async () => {
+  it('lists one page of the caller\'s approved payslips', async () => {
     const api = vi.fn().mockResolvedValue({ items: [], total: 0 })
-    await fetchMyHrPayslips(api)
-    expect(api).toHaveBeenCalledWith('/api/v1/hr/payroll/payslips/mine', { schema: expect.anything() })
+    await fetchMyHrPayslips(api, { limit: 25, offset: 25 })
+    expect(api).toHaveBeenCalledWith('/api/v1/hr/payroll/payslips/mine', { query: { limit: 25, offset: 25 }, schema: expect.anything() })
   })
 
   it('reads one payslip through the own route, never the run route', async () => {

@@ -4,27 +4,32 @@ import { refDebounced } from '@vueuse/core'
 import { localIsoDay } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { useHrEmployees } from '@/composables/useHrEmployees'
-import { useCreateLeaveAllocation, useHrLeaveTypes } from '@/composables/useHrLeave'
+import { useCreateLeaveAllocation, useHrLeaveTypes, useUpdateLeaveAllocation, type HrLeaveAllocation } from '@/composables/useHrLeave'
 
-const props = defineProps<{ backTo: RouteLocationRaw }>()
+// Grants days (`/hr/leave/allocations/new`) or, given an `allocation`, corrects its days and
+// validity in place on the record page; the employee and the leave type of a grant never change.
+const props = defineProps<{ backTo: RouteLocationRaw; allocation?: HrLeaveAllocation }>()
 const emit = defineEmits<{ saved: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 
-const types = useHrLeaveTypes()
+const editing = computed(() => !!props.allocation)
+const types = useHrLeaveTypes(computed(() => !editing.value))
 const employeeSearch = ref('')
 const debouncedSearch = refDebounced(employeeSearch, 250)
-const employees = useHrEmployees(computed(() => ({ q: debouncedSearch.value.trim() || undefined, limit: 50 })))
-const { mutateAsync: allocate, isPending } = useCreateLeaveAllocation()
+const employees = useHrEmployees(computed(() => ({ q: debouncedSearch.value.trim() || undefined, limit: 50 })), computed(() => !editing.value))
+const create = useCreateLeaveAllocation()
+const update = useUpdateLeaveAllocation()
+const isPending = computed(() => create.isPending.value || update.isPending.value)
 
-const employeeId = ref<number | null>(null)
-const leaveTypeId = ref<number | null>(null)
-const days = ref<number | null>(null)
-const dateFrom = ref<string | null>(null)
+const employeeId = ref<number | null>(props.allocation?.employee.id ?? null)
+const leaveTypeId = ref<number | null>(props.allocation?.leave_type.id ?? null)
+const days = ref<number | null>(props.allocation?.number_of_days ?? null)
+const dateFrom = ref<string | null>(props.allocation?.date_from ?? null)
 // Filled after hydration from the browser's own day: toISOString would give the UTC day,
 // which is the previous date in Riyadh between 00:00 and 03:00.
 onMounted(() => { dateFrom.value ??= localIsoDay() })
-const dateTo = ref<string | null>(null)
+const dateTo = ref<string | null>(props.allocation?.date_to ?? null)
 const attempted = ref(false)
 const saved = ref(false)
 const error = ref('')
@@ -35,7 +40,11 @@ const typeOptions = computed(() => (types.data.value?.items ?? [])
   .filter(type => type.requires_allocation)
   .map(type => ({ value: String(type.id), label: type.name })))
 const employeeOptions = computed(() => (employees.data.value?.items ?? []).map(employee => ({ value: String(employee.id), label: employee.name })))
-const dirty = computed(() => !saved.value && Boolean(employeeId.value || leaveTypeId.value || days.value))
+const dirty = computed(() => {
+  if (saved.value) return false
+  if (!props.allocation) return Boolean(employeeId.value || leaveTypeId.value || days.value)
+  return days.value !== props.allocation.number_of_days || dateFrom.value !== props.allocation.date_from || dateTo.value !== props.allocation.date_to
+})
 
 function fieldError(field: string) {
   return serverField.value === field ? error.value : undefined
@@ -53,13 +62,17 @@ async function submit() {
   serverField.value = ''
   if (!employeeId.value || !leaveTypeId.value || !(days.value && days.value > 0) || !dateFrom.value || toError.value) return
   try {
-    await allocate({
-      employee_id: employeeId.value,
-      leave_type_id: leaveTypeId.value,
-      number_of_days: days.value,
-      date_from: dateFrom.value,
-      date_to: dateTo.value,
-    })
+    if (props.allocation) {
+      await update.mutateAsync({ id: props.allocation.id, patch: { number_of_days: days.value, date_from: dateFrom.value, date_to: dateTo.value } })
+    } else {
+      await create.mutateAsync({
+        employee_id: employeeId.value,
+        leave_type_id: leaveTypeId.value,
+        number_of_days: days.value,
+        date_from: dateFrom.value,
+        date_to: dateTo.value,
+      })
+    }
     saved.value = true
     await nextTick()
     emit('saved')
@@ -72,12 +85,16 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <SharedPageState :loading="types.isLoading.value" :error="types.error.value" :empty="!types.isLoading.value && !typeOptions.length" :empty-text="t('hr.leave.allocation.noTypes')" @retry="types.refetch">
+  <SharedPageState :loading="!editing && types.isLoading.value" :error="editing ? null : types.error.value" :empty="!editing && !types.isLoading.value && !typeOptions.length" :empty-text="t('hr.leave.allocation.noTypes')" @retry="types.refetch">
     <UForm novalidate :state="{ employeeId, leaveTypeId, days, dateFrom, dateTo }" class="webvue-form" method="post" data-testid="hr-leave-allocation-form" @submit="submit">
       <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" />
-      <SharedFormSection panel :title="t('hr.leave.allocation.details')">
+      <SharedFormSection
+        panel
+        :title="t('hr.leave.allocation.details')"
+        :description="props.allocation ? t('hr.leave.allocation.editHint', { employee: props.allocation.employee.name, type: props.allocation.leave_type.name }) : undefined"
+      >
         <div class="grid gap-4">
-          <UFormField :label="t('hr.leave.allocation.employee')" name="hr-allocation-employee-search" required :error="employeeError">
+          <UFormField v-if="!props.allocation" :label="t('hr.leave.allocation.employee')" name="hr-allocation-employee-search" required :error="employeeError">
             <div class="grid gap-2">
               <UInput id="hr-allocation-employee-search" v-model="employeeSearch" class="w-full" icon="i-lucide-search" :placeholder="t('hr.leave.allocation.employeeSearch')" :aria-label="t('hr.leave.allocation.employeeSearch')" :disabled="!hydrated || isPending" />
               <UAlert v-if="employees.error.value" role="alert" color="error" variant="subtle" :title="t('hr.leave.allocation.employeesError')">
@@ -96,7 +113,7 @@ async function submit() {
               />
             </div>
           </UFormField>
-          <UFormField :label="t('hr.leave.form.type')" name="hr-allocation-type" required :error="typeError">
+          <UFormField v-if="!props.allocation" :label="t('hr.leave.form.type')" name="hr-allocation-type" required :error="typeError">
             <USelect
               id="hr-allocation-type"
               class="w-full"
@@ -125,7 +142,7 @@ async function submit() {
         <span class="text-xs text-muted">{{ t('hr.leave.form.requiredHint') }}</span>
         <div class="ms-auto flex flex-wrap items-center gap-2">
           <UButton type="button" color="neutral" variant="outline" :to="props.backTo" :label="t('app.cancel')" />
-          <UButton type="submit" color="primary" :disabled="!hydrated || isPending" :loading="isPending" :label="t('hr.leave.allocation.submit')" data-testid="hr-allocation-submit" />
+          <UButton type="submit" color="primary" :disabled="!hydrated || isPending" :loading="isPending" :label="t(props.allocation ? 'hr.leave.allocation.save' : 'hr.leave.allocation.submit')" data-testid="hr-allocation-submit" />
         </div>
       </SharedFormActions>
     </UForm>

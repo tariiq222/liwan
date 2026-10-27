@@ -249,6 +249,13 @@ export const HrLeaveAllocationCreateSchema = z.object({
   date_to: isoDate.nullable().optional(),
 }).strict()
 
+// The employee and the leave type identify the grant; an edit changes only its days and validity.
+export const HrLeaveAllocationPatchSchema = z.object({
+  number_of_days: z.number().positive().optional(),
+  date_from: isoDate.optional(),
+  date_to: isoDate.nullable().optional(),
+}).strict().refine(requirePatchField, { message: 'At least one field is required' })
+
 export const HrLeaveWithdrawalSchema = z.object({
   id: z.number().int().positive(),
   withdrawn: z.literal(true),
@@ -257,6 +264,7 @@ export const HrLeaveWithdrawalSchema = z.object({
 export const HrLeaveTypeListSchema = z.object({ items: z.array(HrLeaveTypeSchema), total: z.number().int().nonnegative() }).strict()
 export const HrLeaveListSchema = z.object({ items: z.array(HrLeaveSchema), total: z.number().int().nonnegative() }).strict()
 export const HrLeaveBalanceListSchema = z.object({ items: z.array(HrLeaveBalanceSchema), total: z.number().int().nonnegative() }).strict()
+export const HrLeaveAllocationListSchema = z.object({ items: z.array(HrLeaveAllocationSchema), total: z.number().int().nonnegative() }).strict()
 
 export type HrEmployeeAccess = z.infer<typeof HrEmployeeAccessSchema>
 export type HrEmployeeCreate = z.infer<typeof HrEmployeeCreateSchema>
@@ -282,6 +290,8 @@ export type HrLeaveBalance = z.infer<typeof HrLeaveBalanceSchema>
 export type HrLeaveAllocation = z.infer<typeof HrLeaveAllocationSchema>
 export type HrLeaveRequestCreate = z.infer<typeof HrLeaveRequestCreateSchema>
 export type HrLeaveAllocationCreate = z.infer<typeof HrLeaveAllocationCreateSchema>
+export type HrLeaveAllocationPatch = z.infer<typeof HrLeaveAllocationPatchSchema>
+export type HrLeaveAllocationList = z.infer<typeof HrLeaveAllocationListSchema>
 export type HrLeaveWithdrawal = z.infer<typeof HrLeaveWithdrawalSchema>
 export type HrLeaveTypeList = z.infer<typeof HrLeaveTypeListSchema>
 export type HrLeaveList = z.infer<typeof HrLeaveListSchema>

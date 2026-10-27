@@ -67,7 +67,7 @@ describe('app manifests', () => {
     ['/hr/employees/new', 'hr.employees.manage'], ['/hr/employees/3/edit', 'hr.employees.manage'],
     ['/hr/departments/new', 'hr.departments.manage'], ['/hr/employees/3/access', 'access.users.grant'], ['/hr/employees/3/compensation', 'hr.payroll.manage'],
     ['/hr/departments', 'hr.departments.read'], ['/documents', 'documents.items.read'],
-    ['/hr/leave', 'hr.leave.read'], ['/hr/leave/5', 'hr.leave.read'], ['/hr/reports', 'hr.employees.manage'], ['/account/leave/new', 'hr.leave.request'], ['/hr/leave/allocations/new', 'hr.leave.manage'],
+    ['/hr/leave', 'hr.leave.read'], ['/hr/leave/5', 'hr.leave.read'], ['/hr/reports', 'hr.employees.manage'], ['/account/leave/new', 'hr.leave.request'], ['/hr/leave/allocations/new', 'hr.leave.manage'], ['/hr/leave/allocations', 'hr.leave.manage'], ['/hr/leave/allocations/9', 'hr.leave.manage'],
     ['/hr/recruitment', 'hr.recruitment.read'], ['/hr/recruitment/new', 'hr.recruitment.manage'], ['/hr/recruitment/jobs/new', 'hr.recruitment.manage'],
     ['/hr/shifts', 'hr.shifts.read'], ['/hr/shifts/schedules/new', 'hr.shifts.manage'],
     ['/hr/onboarding/9', 'hr.onboarding.read'], ['/hr/onboarding/plans/new', 'hr.onboarding.manage'],

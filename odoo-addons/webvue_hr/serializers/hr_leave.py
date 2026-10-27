@@ -8,6 +8,8 @@ from odoo.addons.webvue_hr.serializers.dates import parse_optional_date
 LEAVE_STATES = ('confirm', 'validate1', 'validate', 'refuse', 'cancel')
 REQUEST_FIELDS = {'leave_type_id', 'date_from', 'date_to', 'notes', 'employee_id'}
 ALLOCATION_FIELDS = {'employee_id', 'leave_type_id', 'number_of_days', 'date_from', 'date_to'}
+# The employee and the leave type identify the grant; an edit changes only its days and validity.
+ALLOCATION_PATCH_FIELDS = {'number_of_days', 'date_from', 'date_to'}
 
 
 def _ref(record):
@@ -145,23 +147,47 @@ def parse_leave_request(payload):
     }
 
 
-def parse_allocation(payload):
-    _reject_unknown(payload, ALLOCATION_FIELDS)
+def _allocation_days(payload):
     days = payload.get('number_of_days')
     if isinstance(days, bool) or not isinstance(days, (int, float)) or days <= 0:
         raise ApiError(422, 'invalid', "number_of_days must be a positive number", field='number_of_days')
-    date_from = _required_date(payload, 'date_from')
-    date_to = parse_optional_date(payload.get('date_to'), 'date_to')
+    return float(days)
+
+
+def _check_allocation_range(date_from, date_to):
     if date_to and date_to < date_from:
         raise ApiError(422, 'invalid', "date_to is before date_from", field='date_to')
+
+
+def parse_allocation(payload):
+    _reject_unknown(payload, ALLOCATION_FIELDS)
+    days = _allocation_days(payload)
+    date_from = _required_date(payload, 'date_from')
+    date_to = parse_optional_date(payload.get('date_to'), 'date_to')
+    _check_allocation_range(date_from, date_to)
     return {
         'employee_id': parse_positive_int(payload.get('employee_id'), 'employee_id'),
         'leave_type_id': parse_positive_int(payload.get('leave_type_id'), 'leave_type_id'),
-        'number_of_days': float(days),
+        'number_of_days': days,
         'date_from': date_from,
         'date_to': date_to,
-        'notes': _notes(payload),
     }
+
+
+def parse_allocation_patch(payload, allocation):
+    """The edited days and validity; the range is checked against the stored values it keeps."""
+    _reject_unknown(payload, ALLOCATION_PATCH_FIELDS)
+    if not payload:
+        raise ApiError(422, 'invalid', 'at least one field is required')
+    vals = {}
+    if 'number_of_days' in payload:
+        vals['number_of_days'] = _allocation_days(payload)
+    if 'date_from' in payload:
+        vals['date_from'] = _required_date(payload, 'date_from')
+    if 'date_to' in payload:
+        vals['date_to'] = parse_optional_date(payload['date_to'], 'date_to') or False
+    _check_allocation_range(vals.get('date_from', allocation.date_from), vals.get('date_to', allocation.date_to))
+    return vals
 
 
 def parse_cancel_reason(value):

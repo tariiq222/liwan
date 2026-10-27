@@ -3,6 +3,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
 import {
+  HrLeaveAllocationListSchema,
   HrLeaveAllocationSchema,
   HrLeaveBalanceListSchema,
   HrLeaveListSchema,
@@ -10,12 +11,14 @@ import {
   HrLeaveTypeListSchema,
   HrLeaveWithdrawalSchema,
   type HrLeave,
+  type HrLeaveAllocation,
   type HrLeaveAllocationCreate,
+  type HrLeaveAllocationPatch,
   type HrLeaveRequestCreate,
   type HrLeaveState,
 } from '@webvue/contracts'
 
-export type { HrLeave }
+export type { HrLeave, HrLeaveAllocation }
 
 /** `mine` lists the caller's own requests; `pending` and `all` are the approver's views. */
 export type HrLeaveScope = 'mine' | 'pending' | 'all'
@@ -27,6 +30,11 @@ export interface HrLeaveListParams {
   cancellation_state?: 'pending'
 }
 
+export interface HrLeaveAllocationListParams {
+  limit: number
+  offset: number
+}
+
 export const hrLeaveKeys = {
   all: ['hr', 'leave'] as const,
   types: ['hr', 'leave', 'types'] as const,
@@ -34,6 +42,8 @@ export const hrLeaveKeys = {
   requests: (params: HrLeaveListParams) => ['hr', 'leave', 'requests', params] as const,
   ownRequest: (id: number) => ['hr', 'leave', 'me', id] as const,
   request: (id: number) => ['hr', 'leave', 'request', id] as const,
+  allocations: (params: HrLeaveAllocationListParams) => ['hr', 'leave', 'allocations', params] as const,
+  allocation: (id: number) => ['hr', 'leave', 'allocation', id] as const,
 }
 
 /** The pending queue is every request still waiting for a decision: first and second approval. */
@@ -155,6 +165,39 @@ export function useCreateLeaveAllocation() {
   })
 }
 
+/** The grants of the companies where the caller manages leave, newest validity first. */
+export function useHrLeaveAllocations(params: MaybeRefOrGetter<HrLeaveAllocationListParams>) {
+  const { $api } = useApi()
+  const { can } = useAccess()
+  return useQuery({
+    queryKey: computed(() => hrLeaveKeys.allocations(toValue(params))),
+    enabled: computed(() => can('hr.leave.manage')),
+    queryFn: () => $api('/api/v1/hr/leave/allocations', { query: { ...toValue(params) }, schema: HrLeaveAllocationListSchema }),
+  })
+}
+
+export function useHrLeaveAllocation(id: MaybeRefOrGetter<number | null>) {
+  const { $api } = useApi()
+  const { can } = useAccess()
+  return useQuery({
+    queryKey: computed(() => hrLeaveKeys.allocation(toValue(id) ?? 0)),
+    enabled: computed(() => !!toValue(id) && can('hr.leave.manage')),
+    queryFn: () => $api(`/api/v1/hr/leave/allocations/${toValue(id)}`, { schema: HrLeaveAllocationSchema }),
+  })
+}
+
+export function useUpdateLeaveAllocation() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: number; patch: HrLeaveAllocationPatch }) =>
+      $api(`/api/v1/hr/leave/allocations/${id}`, { method: 'PATCH', body: patch, schema: HrLeaveAllocationSchema }),
+    onSuccess: async (allocation) => {
+      qc.setQueryData(hrLeaveKeys.allocation(allocation.id), allocation)
+      await refreshLeave(qc)
+    },
+  })
+}
 
 /** Cancellation decisions carry the observed aggregate revision and await native execution. */
 export function useCancellationDecision() {
