@@ -87,7 +87,7 @@ async function submit() {
 </script>
 
 <template>
-  <SharedUnsavedChanges :dirty="dirty" />
+  <SharedUnsavedChanges :dirty="dirty" :guard-route-updates="!!props.allocation" />
   <SharedPageState :loading="!editing && types.isLoading.value" :error="editing ? null : types.error.value" :empty="!editing && !types.isLoading.value && !typeOptions.length" :empty-text="t('hr.leave.allocation.noTypes')" @retry="types.refetch">
     <UForm novalidate :state="{ employeeId, leaveTypeId, days, dateFrom, dateTo }" class="webvue-form" method="post" data-testid="hr-leave-allocation-form" @submit="submit">
       <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" />

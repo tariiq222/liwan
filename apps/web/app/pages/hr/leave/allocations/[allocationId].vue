@@ -25,10 +25,21 @@ const sourcePaths = useRecordListPaths(['/hr/leave/allocations'])
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 const editable = computed(() => !!allocation.value && allocation.value.state !== 'refuse')
 
-const editing = ref(false)
+// Edit mode lives in the address (`?edit=1`): leaving it is a navigation, so the form's
+// unsaved-changes guard asks before a draft is dropped, and a refresh keeps the form open.
+const router = useRouter()
+const editing = computed(() => route.query.edit === '1' && editable.value)
+const viewTo = computed(() => {
+  const { edit: _edit, ...query } = route.query
+  return { path: route.path, query, ...(route.hash ? { hash: route.hash } : {}) }
+})
+function startEditing() {
+  if (!hydrated.value) return
+  void router.push({ path: route.path, query: { ...route.query, edit: '1' }, ...(route.hash ? { hash: route.hash } : {}) })
+}
 
 async function onSaved() {
-  editing.value = false
+  await router.replace(viewTo.value)
   await query.refetch()
 }
 </script>
@@ -54,7 +65,7 @@ async function onSaved() {
         :disabled="!hydrated"
         :label="t('hr.leave.allocation.edit')"
         data-testid="hr-allocation-edit"
-        @click="editing = true"
+        @click="startEditing"
       />
       <UButton
         v-else
@@ -62,13 +73,13 @@ async function onSaved() {
         variant="ghost"
         icon="i-lucide-x"
         :label="t('app.cancel')"
+        :to="viewTo"
         data-testid="hr-allocation-cancel"
-        @click="editing = false"
       />
     </template>
 
     <template v-if="allocation && editing">
-      <LeaveAllocationForm :allocation="allocation" :back-to="backTo" @saved="onSaved" />
+      <LeaveAllocationForm :allocation="allocation" :back-to="viewTo" @saved="onSaved" />
     </template>
 
     <template v-else-if="allocation">

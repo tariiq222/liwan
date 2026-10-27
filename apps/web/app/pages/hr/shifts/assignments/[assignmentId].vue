@@ -20,7 +20,18 @@ const sourcePaths = useRecordListPaths(['/hr/shifts'])
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 const canManage = computed(() => can('hr.shifts.manage'))
 
-const editing = ref(false)
+// Edit mode lives in the address (`?edit=1`): leaving it is a navigation, so the form's
+// unsaved-changes guard asks before a draft is dropped, and a refresh keeps the form open.
+const router = useRouter()
+const editing = computed(() => route.query.edit === '1' && canManage.value)
+const viewTo = computed(() => {
+  const { edit: _edit, ...query } = route.query
+  return { path: route.path, query, ...(route.hash ? { hash: route.hash } : {}) }
+})
+function startEditing() {
+  if (!hydrated.value) return
+  void router.push({ path: route.path, query: { ...route.query, edit: '1' }, ...(route.hash ? { hash: route.hash } : {}) })
+}
 const schedules = useHrShiftSchedules(computed(() => ({ active: 'true' as const, limit: 200, offset: 0 })))
 // The current schedule stays choosable even when it has since been archived.
 const scheduleOptions = computed(() => {
@@ -34,7 +45,7 @@ const scheduleOptions = computed(() => {
 const period = useHrShiftPeriod()
 
 async function onSaved() {
-  editing.value = false
+  await router.replace(viewTo.value)
   await query.refetch()
 }
 </script>
@@ -60,7 +71,7 @@ async function onSaved() {
         :disabled="!hydrated"
         :label="t('hrShifts.editAssignment')"
         data-testid="hr-shift-assignment-edit"
-        @click="editing = true"
+        @click="startEditing"
       />
       <UButton
         v-else
@@ -68,14 +79,14 @@ async function onSaved() {
         variant="ghost"
         icon="i-lucide-x"
         :label="t('app.cancel')"
+        :to="viewTo"
         data-testid="hr-shift-assignment-cancel"
-        @click="editing = false"
       />
     </template>
 
     <template v-if="assignment && editing">
       <SharedPageState :loading="schedules.isLoading.value" :error="schedules.error.value" @retry="schedules.refetch">
-        <ShiftAssignmentForm :assignment="assignment" :back-to="backTo" :employees="[]" :schedules="scheduleOptions" @saved="onSaved" />
+        <ShiftAssignmentForm :assignment="assignment" :back-to="viewTo" :employees="[]" :schedules="scheduleOptions" @saved="onSaved" />
       </SharedPageState>
     </template>
 
