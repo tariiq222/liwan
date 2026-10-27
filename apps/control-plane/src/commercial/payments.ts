@@ -20,6 +20,9 @@ export function assertReturnOrigin(allowedOrigin: string) {
   let origin: string
   try { origin = new URL(allowedOrigin).origin } catch { throw new CommercialHttpError('return_url_forbidden', 422) }
   if (allowedOrigin !== origin) throw new CommercialHttpError('return_url_forbidden', 422)
+  // The same rules the provider adapter applies to the final URL (scheme, credentials, origin), so an
+  // unusable origin fails before any order, invoice or renewal is written.
+  try { assertReturnUrl(`${origin}/`, [origin]) } catch { throw new CommercialHttpError('return_url_forbidden', 422) }
   return origin
 }
 /** One URL serves success_url, back_url and callback_url; the attempt id is the only thing the browser or provider carries back. */
@@ -112,7 +115,12 @@ export async function lookup(pool: Pool, adapter: PaymentAdapter, row: any) {
     throw new CommercialHttpError('payment_mismatch', 409)
   // Timeout may have lost only the create response, not the provider-side attempt.
   await pool.query('UPDATE payment_attempts SET provider_ref=COALESCE(provider_ref,$2),updated_at=now() WHERE id=$1', [row.id,event.provider_ref])
-  return applyConfirmedEvent(pool, event)
+  const outcome = await applyConfirmedEvent(pool, event)
+  // A pending answer changes nothing in the order, so it would leave an attempt parked as `unknown`
+  // (a cancel that crashed before reaching the provider) unable to be paid or cancelled again.
+  if (event.status === 'pending' && row.status === 'unknown')
+    await pool.query("UPDATE payment_attempts SET status='pending',updated_at=now() WHERE id=$1 AND status='unknown'", [row.id])
+  return outcome
 }
 
 export async function createPaymentAttempt(pool: Pool, input: { order_id: string; customer_id: string; adapter: PaymentAdapter; allowedOrigin: string }) {

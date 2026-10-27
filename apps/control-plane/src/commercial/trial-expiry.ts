@@ -2,6 +2,7 @@ import type { Pool } from 'pg'
 import { riyadhDate } from '@webvue/commercial-contracts'
 import { transaction } from '../db.js'
 import { generateRenewals } from './renewals.js'
+import { assertReturnOrigin } from './payments.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 
 /**
@@ -10,6 +11,7 @@ import type { PaymentAdapter } from './payment-adapter.js'
  * key keeps a repeated run from issuing a second invoice.
  */
 export async function expireTrials(pool: Pool, input: { now: Date; adapter: PaymentAdapter; allowedOrigin: string; subscription_id?: string }) {
+  assertReturnOrigin(input.allowedOrigin)
   const expired: string[] = []
   await transaction(pool, async client => {
     const due = (await client.query(`SELECT id,trial_ends_at FROM subscriptions

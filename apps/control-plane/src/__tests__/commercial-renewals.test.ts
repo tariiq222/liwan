@@ -54,6 +54,15 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     const rows=(await pool.query('SELECT i.total_minor,o.target_revision_id,s.applied_revision_id FROM renewals r JOIN invoices i ON i.id=r.invoice_id JOIN orders o ON o.id=r.order_id JOIN subscriptions s ON s.id=r.subscription_id WHERE r.subscription_id=$1',[s.id])).rows
     expect(rows).toHaveLength(1);expect(rows[0].total_minor).toBe('11500');expect(rows[0].target_revision_id).toBe(rows[0].applied_revision_id)
   })
+  it('rejects an origin the provider would refuse before any renewal write',async()=>{
+    const s=await subscription()
+    const count=async()=>(await pool.query("SELECT (SELECT count(*)::int FROM renewals) AS renewals,(SELECT count(*)::int FROM orders WHERE kind='renewal') AS orders,(SELECT count(*)::int FROM invoices) AS invoices")).rows[0]
+    const before=await count()
+    for(const origin of ['http://billing.example.com','https://user:pw@billing.example.com'])
+      await expect(generateRenewals(pool,{...args(new SimulatorAdapter()),allowedOrigin:origin})).rejects.toMatchObject({status:422,code:'return_url_forbidden'})
+    expect(await count()).toEqual(before)
+    expect((await pool.query('SELECT state FROM subscriptions WHERE id=$1',[s.id])).rows[0].state).toBe('active')
+  })
   it('no consent never charges; charge response waits for lookup and paid renewal waits for receipt',async()=>{
     const no=await subscription(),yes=await subscription()
     await pool.query('UPDATE subscriptions SET provider_token_ref=$2,revision=revision+1 WHERE id=$1',[no.id,'token'])

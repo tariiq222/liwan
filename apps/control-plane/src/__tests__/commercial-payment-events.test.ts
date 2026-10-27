@@ -178,6 +178,20 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     expect(cancel).toHaveBeenCalledTimes(2)
     expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[a.id])).rows[0].status).toBe('canceled')
   })
+  it('a cancel that crashed before reaching the provider is given back by the reconciler and can be cancelled again',async () => {
+    const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
+    const principal:any={actor_id:'7',kind:'vendor',customer_id:null,tenant_id:null,capabilities:['vendor.subscriptions.manage']}
+    // Step 1 committed the reservation; the process died before cancelAttempt: the provider never heard of it.
+    await pool.query("UPDATE payment_attempts SET status='unknown',updated_at=now() WHERE id=$1",[a.id])
+    const cancel=vi.spyOn(f.adapter,'cancelAttempt')
+    await expect(cancelOrder(pool,{order_id:f.order_id,principal,reason:'Cancel purchase',adapter:f.adapter})).rejects.toMatchObject({status:409,code:'payment_reconciliation_required'})
+    expect(cancel).not.toHaveBeenCalled()
+    expect((await reconcileUnknownAttempts(pool,f.adapter)).map(r=>r.id)).toEqual([a.id]) // the provider answers pending
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[a.id])).rows[0].status).toBe('pending')
+    expect(await cancelOrder(pool,{order_id:f.order_id,principal,reason:'Cancel purchase',adapter:f.adapter})).toMatchObject({id:f.order_id})
+    expect(cancel).toHaveBeenCalledWith(a.provider_ref)
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[a.id])).rows[0].status).toBe('canceled')
+  })
   it('refuses to cancel an order whose payment succeeded while the provider was being called',async () => {
     const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
     const principal:any={actor_id:'7',kind:'vendor',customer_id:null,tenant_id:null,capabilities:['vendor.subscriptions.manage']}

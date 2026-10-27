@@ -86,6 +86,11 @@ suite('commercial trial', () => {
     expect(after.state).toBe('past_due')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
   })
+  it('rejects an unusable return origin before ending any trial', async () => {
+    const c = await trialAt(now, -1)
+    await expect(expireTrials(pool, { now, adapter: new SimulatorAdapter(), allowedOrigin: 'http://billing.example.com' })).rejects.toMatchObject({ status: 422, code: 'return_url_forbidden' })
+    expect((await getSubscription(pool, c.id)).state).toBe('trialing')
+  })
   it('is idempotent across a repeated run', async () => {
     const c = await trialAt(now, -1)
     const adapter = new SimulatorAdapter()

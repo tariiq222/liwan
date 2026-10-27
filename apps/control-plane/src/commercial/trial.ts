@@ -9,7 +9,7 @@ import { trialEndsAt } from './renewals.js'
 import { expireTrials } from './trial-expiry.js'
 import { enqueueReconfigureJob } from '../shared/job-store.js'
 import { commercialExpiryDate } from './fulfillment.js'
-import { paymentAttemptView } from './payments.js'
+import { assertReturnOrigin, paymentAttemptView } from './payments.js'
 
 /** A trial is an ordinary zero-due order: same snapshot, fulfillment and entitlement as a paid purchase. */
 export async function startTrial(pool: Pool, input: { customer_id: string; request: unknown; principal: Principal; now?: Date }) {
@@ -70,6 +70,7 @@ async function pushCommercialExpiry(client: PoolClient, subscription_id: string,
 
 /** Customer conversion: end the trial now and return the first invoice's hosted attempt. */
 export async function convertTrial(pool: Pool, input: { customer_id: string; now: Date; adapter: Parameters<typeof expireTrials>[1]['adapter']; allowedOrigin: string }) {
+  assertReturnOrigin(input.allowedOrigin)
   const sub = (await pool.query('SELECT * FROM subscriptions WHERE customer_id=$1', [input.customer_id])).rows[0]
   if (!sub || sub.state !== 'trialing') throw new CommercialHttpError('trial_not_active', 409)
   await transaction(pool, async client => {
@@ -104,6 +105,7 @@ export async function extendTrial(pool: Pool, input: { subscription_id: string; 
 }
 
 export async function endTrial(pool: Pool, input: { subscription_id: string; reason: string; actor: string; now: Date; adapter: Parameters<typeof expireTrials>[1]['adapter']; allowedOrigin: string }) {
+  assertReturnOrigin(input.allowedOrigin)
   const ended = await transaction(pool, async client => {
     const updated = await client.query("UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1 AND state='trialing' RETURNING customer_id", [input.subscription_id, input.now])
     if (!updated.rowCount) throw new CommercialHttpError('trial_not_active', 409)

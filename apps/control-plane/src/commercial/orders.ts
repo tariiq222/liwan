@@ -92,7 +92,7 @@ export async function cancelOrder(pool: Pool, input: { order_id: string; princip
     if (attempts.some(a => a.status === 'succeeded')) throw new CommercialHttpError('order_not_cancellable', 409)
     const open = attempts.filter(a => LIVE_ATTEMPT.includes(a.status))
     if (open.some(a => !confirmed.has(a.id))) throw new CommercialHttpError('payment_reconciliation_required', 409)
-    if (open.length) await client.query("UPDATE payment_attempts SET status='canceled',updated_at=now() WHERE id = ANY($1::uuid[]) AND status='unknown'", [open.map(a => a.id)])
+    if (open.length) await client.query("UPDATE payment_attempts SET status='canceled',updated_at=now() WHERE id = ANY($1::uuid[]) AND status = ANY($2::text[])", [open.map(a => a.id), LIVE_ATTEMPT])
     return settleCancellation(client, order, principal, reason)
   })
 }
