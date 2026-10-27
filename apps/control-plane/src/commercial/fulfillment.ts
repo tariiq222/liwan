@@ -43,7 +43,7 @@ export type FulfillmentAuthority = {
 export type SubscriptionReceipt = EffectReceipt & { database?: string; modules_installed?: string[]; root_company_id?: number; archived_branch_ids?: string[]; roles_not_granted?: boolean; roles_not_granted_reason?: 'no_admin_login' | 'admin_not_found' | 'roles_missing' }
 
 /** Needs a human to read Odoo back: no credit note, the operator settles the money. */
-const INTERVENTION_CODES = ['stale_target', 'observed_mismatch']
+const INTERVENTION_CODES = ['stale_target', 'observed_mismatch', 'provision_needs_intervention']
 /** Retrying cannot change the outcome: the order fails and a credit note is recorded. */
 const PERMANENT_CODES = ['renewal_missing', 'order_not_found', 'enrollment_base_catalog_missing', 'enrollment_link_conflict', 'idempotency_conflict', 'shared_replay_forbidden']
 /** 1 minute doubling to a 60 minute cap: about four hours before a transient error becomes permanent. */
@@ -88,7 +88,7 @@ export async function applyReceipt(pool: Pool, input: { order_id: string; receip
     [randomUUID(), order.id, effect.rows[0].operation_id, receipt, receipt.observed_entitlement_digest])
     return { applied: true, replay: false }
   }) } catch(error) {
-    if(error instanceof Error && ['observed_mismatch','stale_target'].includes(error.message))await failFulfillment(pool,{order_id:input.order_id,code:error.message})
+    if(error instanceof Error && INTERVENTION_CODES.includes(error.message))await failFulfillment(pool,{order_id:input.order_id,code:error.message})
     throw error
   }
 }
@@ -167,7 +167,7 @@ async function enrollNewOrder(pool: Pool, orderId: string, runtime?: EnrollmentR
   return null
 }
 /** Terminal step in one transaction: outbox row, then order (the main path's lock order), then the row is marked failed. */
-async function failEnqueueTerminally(pool: Pool, row: OutboxRow, code: string) {
+export async function failEnqueueTerminally(pool: Pool, row: OutboxRow, code: string) {
   await transaction(pool,async client=>{
     const pending=await client.query("SELECT id FROM commercial_outbox WHERE id=$1 AND status='pending' FOR UPDATE",[row.id])
     if(!pending.rowCount)return
@@ -224,6 +224,9 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
           await releaseOutbox(client,row.id)
           return {order_id:order.id as string,reason}
         }
+        // A provision job that needs an operator never becomes ready by itself: stop waiting.
+        const stuck=await client.query("SELECT 1 FROM shared_onboardings o JOIN shared_jobs j ON j.id=o.job_id WHERE o.control_tenant_id=$1 AND j.state='needs_intervention'",[order.tenant_id])
+        if(stuck.rowCount)throw Error('provision_needs_intervention')
         const readiness=await client.query(`SELECT 1 FROM shared_onboardings o JOIN tenants t ON t.id=o.control_tenant_id
           LEFT JOIN shared_jobs j ON j.id=o.job_id WHERE o.control_tenant_id=$1
           AND (t.status<>'active' OR o.stage<>'active' OR j.state IS DISTINCT FROM 'verified'
@@ -274,8 +277,13 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
     }catch(error){
       const code=error instanceof Error?error.message:'fulfillment_enqueue_failed'
       try{results.push(await handleEnqueueFailure(pool,row,code))}
-      catch{
+      catch(handlingError){
         // One bad row must not stop the batch; its lease expires and it is claimed again.
+        // The cause is logged and kept on the row so the operator can read it.
+        const detail=`${code}; ${handlingError instanceof Error?`${handlingError.name}: ${handlingError.message}`:String(handlingError)}`.slice(0,300)
+        console.error(`[control-plane] fulfillment failure handling failed for outbox ${row.id}: ${detail}`)
+        await pool.query("UPDATE commercial_outbox SET payload=payload||jsonb_build_object('error',$2::text) WHERE id=$1 AND status='pending'",[row.id,`failure_handling_failed: ${detail}`])
+          .catch(e=>console.error(`[control-plane] could not record failure cause for outbox ${row.id}: ${e instanceof Error?e.message:String(e)}`))
         results.push({order_id:row.aggregate_id,reason:'failure_handling_failed'})
       }
     }

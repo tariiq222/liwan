@@ -1,8 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
 import { url, setup, client } from './commercial-helpers.js'
-import { failFulfillment, processFulfillmentOutbox } from '../commercial/fulfillment.js'
+import { failEnqueueTerminally, failFulfillment, failFulfillmentOn, processFulfillmentOutbox } from '../commercial/fulfillment.js'
 import { completeOutbox, deferOutbox, failOutbox } from '../commercial/outbox.js'
 
 const suite = url ? describe : describe.skip
@@ -129,5 +129,65 @@ suite('fulfillment enqueue retry on scratch PostgreSQL', () => {
     await pool.query(requeue)
     expect(await row(waiting.order)).toMatchObject({ status: 'pending', attempts: 0, waiting: false })
     expect(await row(done.order)).toMatchObject({ status: 'failed', attempts: 3 })
+  })
+
+  it('two workers holding the same expired claim give one terminal failure', async () => {
+    const s = await seed({ catalogRelease: randomUUID() })
+    const claimed = (await pool.query('SELECT * FROM commercial_outbox WHERE aggregate_id=$1', [s.order])).rows[0]
+    // Both workers hold the same row, as after a lease expiry; only the row lock can pick one outcome.
+    const sameClaim = { connect: pool.connect.bind(pool), query: (sql: string, params?: unknown[]) => /^\s*WITH due AS/.test(sql) ? Promise.resolve({ rows: [claimed] }) : pool.query(sql, params as any[]) } as unknown as Pool
+    await Promise.all([processFulfillmentOutbox(sameClaim, { enrollment }), processFulfillmentOutbox(sameClaim, { enrollment })])
+    expect(await orderState(s.order)).toBe('failed')
+    expect(await notes(s.order)).toHaveLength(1)
+    expect(await row(s.order)).toMatchObject({ status: 'failed' })
+    expect((await pool.query("SELECT count(*)::int AS n FROM shared_jobs j JOIN subscriptions s ON s.tenant_id=j.control_tenant_id WHERE s.id=$1", [s.subscription])).rows[0].n).toBe(0)
+  })
+
+  it('the terminal step from two connections gives one credit note and no job', async () => {
+    const s = await seed()
+    const outbox = (await pool.query('SELECT * FROM commercial_outbox WHERE aggregate_id=$1', [s.order])).rows[0]
+    const a = await pool.connect()
+    try {
+      // Connection A is inside its terminal transaction when B starts.
+      await a.query('BEGIN')
+      expect((await a.query("SELECT id FROM commercial_outbox WHERE id=$1 AND status='pending' FOR UPDATE", [outbox.id])).rowCount).toBe(1)
+      await failFulfillmentOn(a, { order_id: s.order, code: 'idempotency_conflict' })
+      await failOutbox(a, outbox.id, 'idempotency_conflict')
+      const b = failEnqueueTerminally(pool, outbox, 'idempotency_conflict')
+      const blocked = await Promise.race([b.then(() => 'finished'), new Promise(r => setTimeout(() => r('waiting'), 300))])
+      expect(blocked).toBe('waiting')
+      await a.query('COMMIT')
+      await b
+    } finally { a.release() }
+    expect(await notes(s.order)).toHaveLength(1)
+    expect(await orderState(s.order)).toBe('failed')
+    expect(await row(s.order)).toMatchObject({ status: 'failed' })
+    expect((await pool.query('SELECT count(*)::int AS n FROM fulfillment_effects WHERE order_id=$1', [s.order])).rows[0].n).toBe(0)
+  })
+
+  it('records the cause when failure handling itself fails, and keeps the row pending', async () => {
+    const s = await seed({ catalogRelease: randomUUID() })
+    // A refund lands between the attempt and the terminal step: the order is no longer fulfillable.
+    const claimed = (await pool.query('SELECT * FROM commercial_outbox WHERE aggregate_id=$1', [s.order])).rows[0]
+    const refund = {
+      query: (sql: string, params?: unknown[]) => /^\s*WITH due AS/.test(sql) ? Promise.resolve({ rows: [claimed] }) : pool.query(sql, params as any[]),
+      connect: async () => {
+        const c = await pool.connect(), original = c.query, release = c.release
+        c.query = (async (sql: any, params: any) => {
+          if (typeof sql === 'string' && /commercial_outbox WHERE id=\$1 AND status='pending' FOR UPDATE/.test(sql)) await pool.query("UPDATE orders SET payment_state='refund_pending' WHERE id=$1", [s.order])
+          return (original as any).call(c, sql, params)
+        }) as any
+        c.release = ((e?: any) => { c.query = original; c.release = release; return release.call(c, e) }) as any
+        return c
+      },
+    } as unknown as Pool
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(await processFulfillmentOutbox(refund, { enrollment })).toContainEqual({ order_id: s.order, reason: expect.any(String) })
+      expect(logged).toHaveBeenCalledWith(expect.stringContaining('failure handling failed'))
+    } finally { logged.mockRestore() }
+    const r = await row(s.order)
+    expect(r.status).toBe('pending')
+    expect(String(r.payload.error)).toMatch(/^failure_handling_failed: enrollment_base_catalog_missing; .*invalid_order_transition/)
   })
 })

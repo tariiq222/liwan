@@ -60,8 +60,10 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     await pool.query("UPDATE shared_jobs SET state='verified',receipt=jsonb_build_object('status','verified','payloadDigest',payload_digest) WHERE id=$1", [jobs[0].id])
     await pool.query("UPDATE shared_onboardings SET stage='active' WHERE control_tenant_id=$1", [customer.tenant_id])
     await pool.query('UPDATE shared_registry_bindings SET enabled=true,registry_revision=registry_revision+1 WHERE control_tenant_id=$1', [customer.tenant_id])
-    // Two workers racing on the same ready order still enqueue one reconfigure job.
-    const processed=(await Promise.all([process(),process()])).flat()
+    // Two workers holding the same expired claim still enqueue one reconfigure job: the row lock decides.
+    const claimed=(await pool.query('SELECT * FROM commercial_outbox WHERE aggregate_id=$1',[s.order])).rows[0]
+    const sameClaim={connect:pool.connect.bind(pool),query:(sql:string,params?:unknown[])=>/^\s*WITH due AS/.test(sql)?Promise.resolve({rows:[claimed]}):pool.query(sql,params as any[])} as unknown as Pool
+    const processed=(await Promise.all([1,2].map(()=>processFulfillmentOutbox(sameClaim,{enrollment:{config}})))).flat()
     expect(processed.find(x=>x.order_id===s.order)).toMatchObject({job_id:expect.any(String)})
     await process()
     const reconfigure = (await pool.query("SELECT payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'operation'='reconfigure'", [customer.tenant_id])).rows
@@ -104,6 +106,18 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     expect((await pool.query('SELECT status,attempts FROM commercial_outbox WHERE aggregate_id=$1', [s.order])).rows[0]).toEqual({ status: 'pending', attempts: 0 })
     expect((await pool.query('SELECT tenant_id FROM subscriptions WHERE id=$1', [s.subscription])).rows[0].tenant_id).toBe(requestId)
     expect((await pool.query('SELECT name,admin_login FROM shared_onboardings o JOIN tenants t ON t.id=o.control_tenant_id WHERE o.request_id=$1', [requestId])).rows[0]).toEqual({ name: 'New customer', admin_login: `${s.customer}@example.test` })
+  })
+  it('a provision job that needs an operator ends the wait: order needs_intervention, no credit note', async () => {
+    const s = await seed()
+    await pool.query("INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end) VALUES($1,$2,$3,$4,'initial','paid','SAR',2,100,15,115,'2026-01-01','2027-01-01')", [randomUUID(), s.customer, s.subscription, s.order])
+    expect(await process()).toContainEqual({ order_id: s.order, reason: 'enrollment_pending' })
+    await pool.query("UPDATE shared_jobs SET state='needs_intervention' WHERE control_tenant_id=(SELECT tenant_id FROM subscriptions WHERE id=$1) AND payload->>'operation'='provision'", [s.subscription])
+    await pool.query('UPDATE commercial_outbox SET next_attempt_at=now() WHERE aggregate_id=$1', [s.order])
+    expect(await process()).toContainEqual({ order_id: s.order, reason: 'provision_needs_intervention' })
+    expect((await pool.query('SELECT fulfillment_state FROM orders WHERE id=$1', [s.order])).rows[0].fulfillment_state).toBe('needs_intervention')
+    expect((await pool.query('SELECT status FROM invoices WHERE order_id=$1', [s.order])).rows[0].status).toBe('paid')
+    expect((await pool.query('SELECT count(*)::int AS n FROM invoice_adjustments a JOIN invoices i ON i.id=a.invoice_id WHERE i.order_id=$1', [s.order])).rows[0].n).toBe(0)
+    expect((await pool.query('SELECT status FROM commercial_outbox WHERE aggregate_id=$1', [s.order])).rows[0].status).toBe('failed')
   })
   it('new customer without tenant reserves three extras and enrollment links all pending branches', async () => {
     const api = client(pool)

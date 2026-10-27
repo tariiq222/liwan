@@ -117,7 +117,8 @@ npm -w apps/vendor-admin run dev -- --port 3100
 
 **النهاية.**
 - خطأ دائم (`renewal_missing`، `order_not_found`، `enrollment_base_catalog_missing`، `enrollment_link_conflict`، `idempotency_conflict`، `shared_replay_forbidden`) أو استنفاد المحاولات: الطلب `failed`، والفاتورة `credit_pending`، وإشعار دائن `pending` واحد، والصف `failed`.
-- `stale_target` و`observed_mismatch`: الطلب `needs_intervention` بلا إشعار دائن؛ المشغّل يقرأ Odoo ويقرر.
+- `stale_target` و`observed_mismatch` و`provision_needs_intervention` (مهمة تجهيز المستأجر انتهت إلى `needs_intervention`): الطلب `needs_intervention` بلا إشعار دائن؛ المشغّل يعالج المهمة أو يقرأ Odoo ويقرر.
+- إن فشلت معالجة الفشل نفسها (مثل استرداد وصل بين المحاولة والخطوة النهائية) يبقى الصف `pending` ويُسجَّل السبب في `payload.error` بالصيغة `failure_handling_failed: ...` وفي سجل `control-api`.
 - `order_not_released` (الطلب مُسترد أو مُلغى): يُغلق الصف ولا يُمس الطلب؛ المال يعالجه `refund_pending`.
 
 **الاسترداد اليدوي.** لا إجراء في وحدة التحكم يغلق الإشعار الدائن، و`payment.intervention` لا يُستهلك حاليًا. يحدّد المشغّل المبلغ من الفاتورة `credit_pending` ويُرجعه عبر لوحة مزود الدفع، ثم يوثّقه خارج النظام. السياسة في [refund-policy.md](../finance/refund-policy.md).
