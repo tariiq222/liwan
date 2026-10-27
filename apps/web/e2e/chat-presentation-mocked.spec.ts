@@ -209,7 +209,8 @@ test.describe('touch', () => {
     const submitBox = await page.locator('button[form="chat-create-form"][type="submit"]').boundingBox()
     expect(submitBox!.y + submitBox!.height).toBeLessThanOrEqual(page.viewportSize()!.height - 12)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-    expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1)).toBe(true)
+    // The shell is 2-3px taller than the viewport right after the form mounts and settles on its own; assert the settled layout.
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1)).toBe(true)
     await page.getByRole('link', { name: 'رجوع', exact: true }).click()
     await expect(page).toHaveURL(/\/chat\?filter=channels$/)
     await expect(page.getByTestId('chat-create-form')).toHaveCount(0)
