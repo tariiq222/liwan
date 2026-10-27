@@ -7,6 +7,7 @@ from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import ApiError, api_handler
 from odoo.addons.webvue_api.serializers.user import dump_me
+from odoo.addons.webvue_platform.models.entitlement_service import WebVueTenantSuspended
 
 
 class AuthController(http.Controller):
@@ -27,8 +28,10 @@ class AuthController(http.Controller):
         service = request.env['webvue.entitlement.service']
         try:
             service._webvue_assert_login_allowed(user)
-        except AccessDenied:
+        except WebVueTenantSuspended:
             raise ApiError(403, 'tenant_suspended', 'this tenant is suspended') from None
+        except AccessDenied:
+            raise ApiError(403, 'login_refused', 'this account may not sign in') from None
         try:
             with user._assert_can_auth(user=user.id):
                 credentials = {'type': user._mfa_type(), 'token': token}

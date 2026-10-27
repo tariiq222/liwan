@@ -52,6 +52,7 @@ const COMPENSATION = {
   gosi_number: '123456789',
   gosi_registration_date: '2024-01-01',
   nationality: { id: 186, name: 'السعودية', code: 'SA' },
+  relationship_type: 'employee',
 }
 
 const WRITE = {
@@ -63,6 +64,7 @@ const WRITE = {
   bank_id: 4,
   gosi_number: '123456789',
   gosi_registration_date: '2024-01-01',
+  relationship_type: 'employee',
 }
 
 describe('HrCompensationSchema', () => {
@@ -73,6 +75,13 @@ describe('HrCompensationSchema', () => {
 
   it('rejects an unknown key', () => {
     expect(HrCompensationSchema.safeParse({ ...COMPENSATION, salary: 1 }).success).toBe(false)
+  })
+
+  it('accepts every relationship the customer may choose and nothing else', () => {
+    for (const relationship_type of ['employee', 'independent_contractor', 'consultant', 'other_cooperation']) {
+      expect(HrCompensationSchema.safeParse({ ...COMPENSATION, relationship_type }).success).toBe(true)
+    }
+    expect(HrCompensationWriteSchema.safeParse({ ...WRITE, relationship_type: 'intern' }).success).toBe(false)
   })
 })
 

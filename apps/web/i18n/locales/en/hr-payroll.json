@@ -348,6 +348,15 @@
       "amountInvalid": "Enter an amount of zero or more.",
       "saved": "Compensation saved",
       "saveError": "Compensation was not saved",
+      "relationshipSection": "Relationship type",
+      "relationshipHint": "How you classify this relationship is your company's decision; it does not change the calculation.",
+      "relationship": "Relationship type",
+      "relationshipEmployee": "Employee",
+      "relationshipIndependentContractor": "Independent contractor",
+      "relationshipConsultant": "Consultant",
+      "relationshipOtherCooperation": "Other cooperation arrangement",
+      "relationshipWarningTitle": "Check the regulatory effect of this classification",
+      "relationshipWarningBody": "The calculation still applies GOSI, wage protection (WPS) and the end-of-service award as for an employee. Saudi labor law looks at the actual relationship, not the contract's name, so confirm the classification with your advisor. This is a warning only; it does not block the run or the payment.",
       "formHint": "Only people with payroll access see these amounts."
     },
     "finance": {

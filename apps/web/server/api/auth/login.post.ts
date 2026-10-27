@@ -21,8 +21,14 @@ export default defineEventHandler(async (event) => {
       headers: { 'Content-Type': 'application/json', ...authUpstreamHeaders(event, authProxyClientIpHeader) },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { db: tenant?.database ?? odooDb, login, password } }),
     })
-    const body = await upstream.json() as { result?: { uid?: number | null }; error?: unknown }
+    const body = await upstream.json() as { result?: { uid?: number | null }; error?: { data?: { name?: unknown } } }
 
+    // Odoo raises WebVueTenantSuspended only after the password checked out, so naming
+    // the suspension reveals nothing to a caller without valid credentials.
+    const errorName = body.error?.data?.name
+    if (typeof errorName === 'string' && errorName.endsWith('.WebVueTenantSuspended')) {
+      throw createError({ statusCode: 403, data: { code: 'tenant_suspended' } })
+    }
     if (body.error || body.result?.uid === undefined) {
       // Code only, no message: the *client* owns the wording so it lands in the
       // active locale. A literal here was rendered verbatim, so an `en` user was

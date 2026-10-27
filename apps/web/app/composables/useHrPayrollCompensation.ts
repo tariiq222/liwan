@@ -1,7 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
-import { HrCompensationSchema, type HrCompensation, type HrCompensationWrite } from '@webvue/contracts'
+import { HrCompensationSchema, type HrCompensation, type HrCompensationWrite, type HrPayrollRelationship } from '@webvue/contracts'
 import { ApiError } from './useApi'
 
 type Api = ReturnType<typeof useApi>['$api']
@@ -64,4 +64,15 @@ export function useSaveHrCompensation(employeeId: MaybeRefOrGetter<number>) {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({ mutationFn: (body: HrCompensationWrite) => saveHrCompensation($api, qc, toValue(employeeId), body) })
+}
+
+/** The relationship types the customer may choose for a compensation, labelled in the active locale. */
+export function usePayrollRelationshipItems() {
+  const { t } = useI18n()
+  return computed<{ value: HrPayrollRelationship, label: string }[]>(() => [
+    { value: 'employee', label: t('hrPayroll.compensation.relationshipEmployee') },
+    { value: 'independent_contractor', label: t('hrPayroll.compensation.relationshipIndependentContractor') },
+    { value: 'consultant', label: t('hrPayroll.compensation.relationshipConsultant') },
+    { value: 'other_cooperation', label: t('hrPayroll.compensation.relationshipOtherCooperation') },
+  ])
 }
