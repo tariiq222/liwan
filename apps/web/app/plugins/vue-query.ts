@@ -1,19 +1,9 @@
 import type { VueQueryPluginOptions } from '@tanstack/vue-query'
 import { VueQueryPlugin, QueryCache, QueryClient, MutationCache, hydrate, dehydrate } from '@tanstack/vue-query'
-import { ApiError } from '@/composables/useApi'
 import { clearChatDrafts } from '@/utils/chatDrafts'
-import { clearTenantSuspension, isTenantSuspended, onTenantSuspension, SUSPENDED_LOGIN, TENANT_SUSPENDED } from '@/utils/tenantSuspension'
+import { isPossibleSessionExpiry } from '@/utils/sessionExpiry'
+import { clearTenantSuspension, dropToastsWhileSuspended, isTenantSuspended, onTenantSuspension, SUSPENDED_LOGIN } from '@/utils/tenantSuspension'
 import { restoreDehydratedErrors, serializeDehydratedErrors, settleServerQueries, type SerializedDehydratedState } from '@/lib/vueQuerySsr'
-
-// Domain-level 403s: the request was understood, the *action* is not allowed
-// for this user. They must surface as a toast where they happen, never as a
-// logout — only an expired/absent session should send the tab to /login.
-const AUTHORIZED_403_CODES = new Set(['transition_forbidden', 'status_forbidden'])
-
-function isPossibleSessionExpiry(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 403 && !AUTHORIZED_403_CODES.has(error.code)
-    && error.code !== TENANT_SUSPENDED
-}
 
 // Named so bus.client.ts can declare `dependsOn: ['vue-query']` - it calls
 // useQueryClient() and must not run before this plugin has registered
@@ -92,6 +82,9 @@ export default defineNuxtPlugin({
           useToast().clear()
         })
       })
+      // Mutations still in flight are not cancelled: one that fails after the redirect toasts from its own
+      // onError, over the suspended login page that already states the reason.
+      dropToastsWhileSuspended(useToast().toasts)
       // Signing in again starts a session the old suspension no longer describes. Only a signed-out to
       // signed-in change clears it: a late success of a request sent before the suspension does not.
       watch(identity.me, (me, before) => { if (me && !before) clearTenantSuspension() })

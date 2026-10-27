@@ -54,6 +54,13 @@ async function errorBody(data: unknown): Promise<unknown> {
   try { return JSON.parse(await data.text()) } catch { return undefined }
 }
 
+/** A Nitro admission refusal arrives in H3's envelope, `{ statusCode, data: { code, message } }`. */
+function structuredError(body: unknown) {
+  const direct = ApiErrorSchema.safeParse(body)
+  if (direct.success || !body || typeof body !== 'object' || !('data' in body)) return direct
+  return ApiErrorSchema.safeParse(body.data)
+}
+
 export function useApi() {
   const { t, te, locale } = useI18n()
   // Cookie forwarding is only meaningful during SSR: on the client the browser
@@ -97,7 +104,7 @@ export function useApi() {
     // propagate unchanged rather than wrapping it as an ApiError.
     if (e?.name === 'ZodError' || e?.cause?.name === 'ZodError') return e
     const status: number = e?.statusCode ?? e?.response?.status ?? 0
-    const parsed = ApiErrorSchema.safeParse(await errorBody(e?.data))
+    const parsed = structuredError(await errorBody(e?.data))
     if (status === 403 && (parsed.data?.code === TENANT_SUSPENDED || isTenantSuspended())) {
       // The suspension ended the session: every refusal that follows it reads as the suspension itself.
       reportTenantSuspension()

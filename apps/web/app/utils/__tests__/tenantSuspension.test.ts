@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { nextTick, ref } from 'vue'
 
 async function load() {
   vi.resetModules()
@@ -28,5 +29,19 @@ describe('tenantSuspension', () => {
     latch.reportTenantSuspension()
     expect(listener).not.toHaveBeenCalled()
     expect(latch.isTenantSuspended()).toBe(false)
+  })
+
+  it('drops toasts raised after the suspension, such as a late mutation refusal, and keeps them before it', async () => {
+    vi.stubGlobal('window', {})
+    const latch = await load()
+    const toasts = ref<unknown[]>([])
+    latch.dropToastsWhileSuspended(toasts)
+    toasts.value = [{ id: 'before' }]
+    await nextTick()
+    expect(toasts.value).toHaveLength(1)
+    latch.reportTenantSuspension()
+    toasts.value = [...toasts.value, { id: 'late-mutation' }]
+    await nextTick()
+    expect(toasts.value).toEqual([])
   })
 })

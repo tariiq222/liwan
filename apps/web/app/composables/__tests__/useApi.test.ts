@@ -206,4 +206,19 @@ describe('useApi tenant suspension', () => {
     expect(unrelated).toMatchObject({ status: 404, code: 'not_found' })
     expect(listener).toHaveBeenCalledTimes(1)
   })
+
+  it('detects a first suspension that the Nitro admission wraps in its H3 envelope', async () => {
+    const { useApi: freshUseApi } = await import('../useApi')
+    const { onTenantSuspension } = await import('../../utils/tenantSuspension')
+    const listener = vi.fn()
+    onTenantSuspension(listener)
+    ;(globalThis as any).$fetch = vi.fn().mockRejectedValueOnce({
+      statusCode: 403,
+      data: { statusCode: 403, statusMessage: 'Forbidden', data: { code: 'tenant_suspended', message: 'This tenant is suspended.' } },
+    })
+    const { $api } = freshUseApi()
+    const refusal = await $api('/api/v1/projects').catch(value => value)
+    expect(refusal).toMatchObject({ status: 403, code: 'tenant_suspended', message: 'errors.codes.tenant_suspended' })
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
 })

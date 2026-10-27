@@ -4,6 +4,8 @@
 // Browser only: a module-level latch on the server would be shared between users' requests, so there it
 // never latches and never reads as latched.
 
+import { watch, type Ref } from 'vue'
+
 export const TENANT_SUSPENDED = 'tenant_suspended'
 
 /** Where a suspended session goes: the login page, which explains the suspension. */
@@ -31,4 +33,9 @@ export function clearTenantSuspension(): void {
 
 export function onTenantSuspension(handler: () => void): void {
   listener = handler
+}
+
+/** Keeps a toast list empty while the tab is suspended: late refusals of earlier requests must not toast. */
+export function dropToastsWhileSuspended(toasts: Ref<unknown[]>): void {
+  watch(toasts, list => { if (list.length && isTenantSuspended()) toasts.value = [] })
 }
