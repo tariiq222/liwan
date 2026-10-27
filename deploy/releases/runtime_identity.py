@@ -27,6 +27,7 @@ SHARED_ENTRYPOINT = ['/opt/venv/bin/python', '/opt/webvue/shared/launch_odoo.py'
 CONFIG = '/etc/odoo/odoo.conf'
 PROTECTED = ('/opt/venv', '/opt/odoo', '/opt/oca', '/opt/webvue/addons', '/opt/webvue/tools', '/opt/webvue/deploy', '/opt/webvue/shared', '/opt/webvue/odoo_secure.py', '/usr/local/bin/webvue-odoo')
 MAX_OUTPUT = 1048576
+DOCKER_SECONDS = 10
 
 
 class RuntimeIdentityError(ValueError):
@@ -41,8 +42,11 @@ def _bytes(value):
     return value
 
 
-def _run(runner, argv):
-    result = runner(argv, check=True, capture_output=True, timeout=10)
+def _run(runner, argv, deadline=None):
+    """One Docker call: the fixed bound, or only what is left of a backup ``deadline``
+    at dispatch (a spent one refuses before the call)."""
+    timeout = DOCKER_SECONDS if deadline is None else deadline.remaining(DOCKER_SECONDS)
+    result = runner(argv, check=True, capture_output=True, timeout=timeout)
     if result.returncode != 0:
         raise ValueError()
     return _bytes(result.stdout)
@@ -150,13 +154,15 @@ def _mounts(item, expected):
             raise ValueError()
 
 
-def inspect_odoo_runtime(container, expected, runner=subprocess.run, *, cron_databases=None, allow_stopped=False):
+def inspect_odoo_runtime(container, expected, runner=subprocess.run, *, cron_databases=None, allow_stopped=False, deadline=None):
     """Inspect only: Docker inspect/image inspect and captured `exec <id> cat`.
 
     Stopped cron candidates prove only configured launch/config/image identity,
     without exec or any claim that these bytes were loaded by a running process.
     Success returns safe identity facts. Every failure raises one fixed exception;
     subprocess/config/environment output and raw exception text never escape.
+    A backup caller passes its ``deadline``: each Docker call then gets only what
+    is left, and a spent budget raises ``backup_deadline_exceeded`` instead.
     """
     try:
         if (not isinstance(expected, dict) or set(expected) != FIELDS or not isinstance(container, str) or not NAME.fullmatch(container)
@@ -169,7 +175,7 @@ def inspect_odoo_runtime(container, expected, runner=subprocess.run, *, cron_dat
         if cron_databases is not None and (not isinstance(cron_databases,(list,tuple)) or not cron_databases or list(cron_databases)!=sorted(set(cron_databases)) or any(not ROLE.fullmatch(db) for db in cron_databases)):
             raise ValueError()
         expected = dict(expected)
-        item = _one(_run(runner, ['docker', 'inspect', container]))
+        item = _one(_run(runner, ['docker', 'inspect', container], deadline))
         if (not isinstance(item['State']['Running'],bool) or (not item['State']['Running'] and not (allow_stopped and cron_databases)) or not re.fullmatch(r'[a-f0-9]{64}', item['Id'])
                 or not re.fullmatch(r'sha256:[a-f0-9]{64}', item['Image'])):
             raise ValueError()
@@ -184,10 +190,10 @@ def inspect_odoo_runtime(container, expected, runner=subprocess.run, *, cron_dat
         path, host_raw, fingerprint = _host_config(expected['configPath'], observed_ns)
         if hashlib.sha256(host_raw).hexdigest() != expected['configDigest']:
             raise ValueError()
-        image = _one(_run(runner, ['docker', 'image', 'inspect', item['Image']]))
+        image = _one(_run(runner, ['docker', 'image', 'inspect', item['Image']], deadline))
         if image.get('Id') != item['Image'] or expected['image'] not in image.get('RepoDigests', []):
             raise ValueError()
-        mounted = _run(runner, ['docker', 'exec', item['Id'], 'cat', CONFIG]) if item['State']['Running'] else host_raw
+        mounted = _run(runner, ['docker', 'exec', item['Id'], 'cat', CONFIG], deadline) if item['State']['Running'] else host_raw
         if hashlib.sha256(mounted).hexdigest() != expected['configDigest'] or mounted != host_raw:
             raise ValueError()
         parser = configparser.ConfigParser(interpolation=None, strict=True)
@@ -204,4 +210,6 @@ def inspect_odoo_runtime(container, expected, runner=subprocess.run, *, cron_dat
                 'running': item['State']['Running'], 'runtimeRole': 'cron' if cron_databases is not None else 'http',
                 'bindingProof': 'guarded-launch-and-mounted-config' if item['State']['Running'] else 'configured-stopped-runtime'}
     except Exception:
-        raise RuntimeIdentityError('odoo_runtime_identity_rejected') from None
+        pass  # refused below, outside the handler, so no raw exception is chained
+    if deadline is not None: deadline.remaining()  # an overrun is reported as the overrun
+    raise RuntimeIdentityError('odoo_runtime_identity_rejected')
