@@ -264,7 +264,7 @@
         },
         {
           "name": "backTo",
-          "type": "string | it | et",
+          "type": "string | et | X",
           "required": false
         }
       ],
@@ -371,7 +371,7 @@
         },
         {
           "name": "backTo",
-          "type": "string | it | et",
+          "type": "string | et | X",
           "required": true
         }
       ],
@@ -499,6 +499,10 @@
       ],
       "events": [
         {
+          "name": "retry",
+          "payload": "[]"
+        },
+        {
           "name": "upload",
           "payload": "[file: File]"
         },
@@ -509,10 +513,6 @@
         {
           "name": "page",
           "payload": "[value: number]"
-        },
-        {
-          "name": "retry",
-          "payload": "[]"
         }
       ],
       "slots": [],
@@ -1043,12 +1043,12 @@
       ],
       "events": [
         {
-          "name": "page",
-          "payload": "[page: number]"
-        },
-        {
           "name": "retry",
           "payload": "[]"
+        },
+        {
+          "name": "page",
+          "payload": "[page: number]"
         }
       ],
       "slots": [],
@@ -1419,7 +1419,7 @@
       "props": [
         {
           "name": "meeting",
-          "type": "{ id: number; name: string; reference: string; meeting_date: string | null; start_datetime: string | null; end_datetime: string | null; state: \"done\" | \"draft\" | \"cancelled\" | \"confirmed\"; organizer: { id: number; name: string; } | null; open_resolution_count: number; series_id: number | null; project_id: number | null; write_date: string; agenda: string; minutes: string; location: string; meeting_url: string; can_edit: boolean; can_manage: boolean; secretary: { id: number; name: string; } | null; attendees: { id: number; name: string; }[]; resolutions: { id: number; name: string; deadline: string | null; priority: \"0\" | \"1\" | \"2\" | \"3\"; state: \"done\" | \"in_progress\" | \"cancelled\" | \"open\"; responsible: { id: number; name: string; } | null; task_id: number | null; result: string; can_update_execution: boolean; can_edit_decision: boolean; execution_state?: \"done\" | \"in_progress\" | \"cancelled\" | \"open\" | undefined; task_linked?: boolean | undefined; allowed_actions?: (\"cancel\" | \"start\" | \"complete\" | \"reopen\" | \"edit_result\")[] | undefined; execution_period?: string | undefined; project?: { id: number; name: string; } | null | undefined; }[]; series: { id: number; name: string; } | null; project: { id: number; name: string; } | null; previous_resolutions: { id: number; name: string; deadline: string | null; priority: \"0\" | \"1\" | \"2\" | \"3\"; state: \"done\" | \"in_progress\" | \"cancelled\" | \"open\"; responsible: { id: number; name: string; } | null; task_id: number | null; result: string; can_update_execution: boolean; can_edit_decision: boolean; meeting_id: number; meeting_name: string; execution_state?: \"done\" | \"in_progress\" | \"cancelled\" | \"open\" | undefined; task_linked?: boolean | undefined; allowed_actions?: (\"cancel\" | \"start\" | \"complete\" | \"reopen\" | \"edit_result\")[] | undefined; execution_period?: string | undefined; project?: { id: number; name: string; } | null | undefined; }[]; minutes_snapshot?: { name: string; meeting_date: string | null; start_datetime: string | null; end_datetime: string | null; location: string; organizer: { id: number; name: string; } | null; secretary: { id: number; name: string; } | null; attendees: { id: number; name: string; }[]; agenda: string; minutes: string; resolutions: { id: number; name: string; deadline: string | null; priority: \"0\" | \"1\" | \"2\" | \"3\"; state: \"done\" | \"in_progress\" | \"cancelled\" | \"open\"; responsible: { id: number; name: string; } | null; result: string; meeting_name?: string | undefined; execution_period?: string | undefined; project?: { id: number; name: string; } | null | undefined; }[]; captured_at?: string | null | undefined; minutes_form?: { opening: string; closing: string; chairperson: string; approver_name: string; approver_title: string; topics: { key: string; title: string; discussion: string; project_id: number | null; resolution_ids: number[]; }[]; } | undefined; } | null | undefined; minutes_form?: { opening: string; closing: string; chairperson: string; approver_name: string; approver_title: string; topics: { key: string; title: string; discussion: string; project_id: number | null; resolution_ids: number[]; }[]; } | undefined; }",
+          "type": "{ id: number; name: string; reference: string; meeting_date: string | null; start_datetime: string | null; end_datetime: string | null; state: \"done\" | \"draft\" | \"confirmed\" | \"cancelled\"; organizer: { id: number; name: string; } | null; open_resolution_count: number; series_id: number | null; project_id: number | null; write_date: string; agenda: string; minutes: string; location: string; meeting_url: string; can_edit: boolean; can_manage: boolean; secretary: { id: number; name: string; } | null; attendees: { id: number; name: string; }[]; resolutions: { id: number; name: string; deadline: string | null; priority: \"0\" | \"1\" | \"2\" | \"3\"; state: \"done\" | \"cancelled\" | \"open\" | \"in_progress\"; responsible: { id: number; name: string; } | null; task_id: number | null; result: string; can_update_execution: boolean; can_edit_decision: boolean; execution_state?: \"done\" | \"cancelled\" | \"open\" | \"in_progress\" | undefined; task_linked?: boolean | undefined; allowed_actions?: (\"cancel\" | \"start\" | \"complete\" | \"reopen\" | \"edit_result\")[] | undefined; execution_period?: string | undefined; project?: { id: number; name: string; } | null | undefined; }[]; series: { id: number; name: string; } | null; project: { id: number; name: string; } | null; previous_resolutions: { id: number; name: string; deadline: string | null; priority: \"0\" | \"1\" | \"2\" | \"3\"; state: \"done\" | \"cancelled\" | \"open\" | \"in_progress\"; responsible: { id: number; name: string; } | null; task_id: number | null; result: string; can_update_execution: boolean; can_edit_decision: boolean; meeting_id: number; meeting_name: string; execution_state?: \"done\" | \"cancelled\" | \"open\" | \"in_progress\" | undefined; task_linked?: boolean | undefined; allowed_actions?: (\"cancel\" | \"start\" | \"complete\" | \"reopen\" | \"edit_result\")[] | undefined; execution_period?: string | undefined; project?: { id: number; name: string; } | null | undefined; }[]; minutes_snapshot?: { name: string; meeting_date: string | null; start_datetime: string | null; end_datetime: string | null; location: string; organizer: { id: number; name: string; } | null; secretary: { id: number; name: string; } | null; attendees: { id: number; name: string; }[]; agenda: string; minutes: string; resolutions: { id: number; name: string; deadline: string | null; priority: \"0\" | \"1\" | \"2\" | \"3\"; state: \"done\" | \"cancelled\" | \"open\" | \"in_progress\"; responsible: { id: number; name: string; } | null; result: string; meeting_name?: string | undefined; execution_period?: string | undefined; project?: { id: number; name: string; } | null | undefined; }[]; captured_at?: string | null | undefined; minutes_form?: { opening: string; closing: string; chairperson: string; approver_name: string; approver_title: string; topics: { key: string; title: string; discussion: string; project_id: number | null; resolution_ids: number[]; }[]; } | undefined; } | null | undefined; minutes_form?: { opening: string; closing: string; chairperson: string; approver_name: string; approver_title: string; topics: { key: string; title: string; discussion: string; project_id: number | null; resolution_ids: number[]; }[]; } | undefined; }",
           "required": true
         },
         {
@@ -1461,7 +1461,7 @@
       "props": [
         {
           "name": "meetings",
-          "type": "{ id: number; name: string; reference: string; meeting_date: string | null; start_datetime: string | null; end_datetime: string | null; state: \"done\" | \"draft\" | \"cancelled\" | \"confirmed\"; organizer: { id: number; name: string; } | null; open_resolution_count: number; series_id: number | null; project_id: number | null; }[]",
+          "type": "{ id: number; name: string; reference: string; meeting_date: string | null; start_datetime: string | null; end_datetime: string | null; state: \"done\" | \"draft\" | \"confirmed\" | \"cancelled\"; organizer: { id: number; name: string; } | null; open_resolution_count: number; series_id: number | null; project_id: number | null; }[]",
           "required": true
         },
         {
@@ -1575,12 +1575,12 @@
       ],
       "events": [
         {
-          "name": "page",
-          "payload": "[page: number]"
-        },
-        {
           "name": "retry",
           "payload": "[]"
+        },
+        {
+          "name": "page",
+          "payload": "[page: number]"
         },
         {
           "name": "select",
@@ -1770,7 +1770,7 @@
       "props": [
         {
           "name": "record",
-          "type": "{ id: number; name: string; process: { id: number; name: string; }; process_revision: number; purpose: \"employee\" | \"work\"; state: \"done\" | \"pending\" | \"draft\" | \"returned\" | \"rejected\" | \"withdrawn\"; revision: number; cycle: number; requester: { id: number; name: string; user_id: number; }; created_at: string; execution_count: number; description: string; target: { id: number; name: string; href: string; } | null; steps: { sequence: number; name: string; reviewers: { id: number; name: string; user_id: number; }[]; status: \"pending\" | \"rejected\" | \"waiting\" | \"approved\" | \"cancel\"; }[]; events: { id: number; kind: string; actor: { id: number; name: string; user_id: number; }; comment: string; cycle: number; created_at: string; }[]; attachments: { id: number; name: string; mimetype: string; url: string; }[]; allowed_actions: { edit: boolean; submit: boolean; approve: boolean; reject: boolean; return: boolean; withdraw: boolean; }; }",
+          "type": "{ id: number; name: string; process: { id: number; name: string; }; process_revision: number; purpose: \"employee\" | \"work\"; state: \"done\" | \"pending\" | \"draft\" | \"returned\" | \"rejected\" | \"withdrawn\"; revision: number; cycle: number; requester: { id: number; name: string; user_id: number; }; created_at: string; execution_count: number; description: string; target: { id: number; name: string; href: string; } | null; steps: { sequence: number; name: string; reviewers: { id: number; name: string; user_id: number; }[]; status: \"cancel\" | \"pending\" | \"rejected\" | \"waiting\" | \"approved\"; }[]; events: { id: number; kind: string; actor: { id: number; name: string; user_id: number; }; comment: string; cycle: number; created_at: string; }[]; attachments: { id: number; name: string; mimetype: string; url: string; }[]; allowed_actions: { edit: boolean; submit: boolean; approve: boolean; reject: boolean; return: boolean; withdraw: boolean; }; }",
           "required": false
         },
         {
@@ -1801,19 +1801,19 @@
         },
         {
           "name": "refresh",
-          "type": "(() => Promise<{ id: number; name: string; process: { id: number; name: string; }; process_revision: number; purpose: \"employee\" | \"work\"; state: \"done\" | \"pending\" | \"draft\" | \"returned\" | \"rejected\" | \"withdrawn\"; revision: number; cycle: number; requester: { id: number; name: string; user_id: number; }; created_at: string; execution_count: number; description: string; target: { id: number; name: string; href: string; } | null; steps: { sequence: number; name: string; reviewers: { id: number; name: string; user_id: number; }[]; status: \"pending\" | \"rejected\" | \"waiting\" | \"approved\" | \"cancel\"; }[]; events: { id: number; kind: string; actor: { id: number; name: string; user_id: number; }; comment: string; cycle: number; created_at: string; }[]; attachments: { id: number; name: string; mimetype: string; url: string; }[]; allowed_actions: { edit: boolean; submit: boolean; approve: boolean; reject: boolean; return: boolean; withdraw: boolean; }; }>)",
+          "type": "(() => Promise<{ id: number; name: string; process: { id: number; name: string; }; process_revision: number; purpose: \"employee\" | \"work\"; state: \"done\" | \"pending\" | \"draft\" | \"returned\" | \"rejected\" | \"withdrawn\"; revision: number; cycle: number; requester: { id: number; name: string; user_id: number; }; created_at: string; execution_count: number; description: string; target: { id: number; name: string; href: string; } | null; steps: { sequence: number; name: string; reviewers: { id: number; name: string; user_id: number; }[]; status: \"cancel\" | \"pending\" | \"rejected\" | \"waiting\" | \"approved\"; }[]; events: { id: number; kind: string; actor: { id: number; name: string; user_id: number; }; comment: string; cycle: number; created_at: string; }[]; attachments: { id: number; name: string; mimetype: string; url: string; }[]; allowed_actions: { edit: boolean; submit: boolean; approve: boolean; reject: boolean; return: boolean; withdraw: boolean; }; }>)",
           "required": false
         },
         {
           "name": "save",
-          "type": "(body: RequestFormPayload) => Promise<{ id: number; name: string; process: { id: number; name: string; }; process_revision: number; purpose: \"employee\" | \"work\"; state: \"done\" | \"pending\" | \"draft\" | \"returned\" | \"rejected\" | \"withdrawn\"; revision: number; cycle: number; requester: { id: number; name: string; user_id: number; }; created_at: string; execution_count: number; description: string; target: { id: number; name: string; href: string; } | null; steps: { sequence: number; name: string; reviewers: { id: number; name: string; user_id: number; }[]; status: \"pending\" | \"rejected\" | \"waiting\" | \"approved\" | \"cancel\"; }[]; events: { id: number; kind: string; actor: { id: number; name: string; user_id: number; }; comment: string; cycle: number; created_at: string; }[]; attachments: { id: number; name: string; mimetype: string; url: string; }[]; allowed_actions: { edit: boolean; submit: boolean; approve: boolean; reject: boolean; return: boolean; withdraw: boolean; }; }>",
+          "type": "(body: RequestFormPayload) => Promise<{ id: number; name: string; process: { id: number; name: string; }; process_revision: number; purpose: \"employee\" | \"work\"; state: \"done\" | \"pending\" | \"draft\" | \"returned\" | \"rejected\" | \"withdrawn\"; revision: number; cycle: number; requester: { id: number; name: string; user_id: number; }; created_at: string; execution_count: number; description: string; target: { id: number; name: string; href: string; } | null; steps: { sequence: number; name: string; reviewers: { id: number; name: string; user_id: number; }[]; status: \"cancel\" | \"pending\" | \"rejected\" | \"waiting\" | \"approved\"; }[]; events: { id: number; kind: string; actor: { id: number; name: string; user_id: number; }; comment: string; cycle: number; created_at: string; }[]; attachments: { id: number; name: string; mimetype: string; url: string; }[]; allowed_actions: { edit: boolean; submit: boolean; approve: boolean; reject: boolean; return: boolean; withdraw: boolean; }; }>",
           "required": true
         }
       ],
       "events": [
         {
           "name": "saved",
-          "payload": "[record: { id: number; name: string; process: { id: number; name: string; }; process_revision: number; purpose: \"employee\" | \"work\"; state: \"done\" | \"pending\" | \"draft\" | \"returned\" | \"rejected\" | \"withdrawn\"; revision: number; cycle: number; requester: { id: number; name: string; user_id: number; }; created_at: string; execution_count: number; description: string; target: { id: number; name: string; href: string; } | null; steps: { sequence: number; name: string; reviewers: { id: number; name: string; user_id: number; }[]; status: \"pending\" | \"rejected\" | \"waiting\" | \"approved\" | \"cancel\"; }[]; events: { id: number; kind: string; actor: { id: number; name: string; user_id: number; }; comment: string; cycle: number; created_at: string; }[]; attachments: { id: number; name: string; mimetype: string; url: string; }[]; allowed_actions: { edit: boolean; submit: boolean; approve: boolean; reject: boolean; return: boolean; withdraw: boolean; }; }]"
+          "payload": "[record: { id: number; name: string; process: { id: number; name: string; }; process_revision: number; purpose: \"employee\" | \"work\"; state: \"done\" | \"pending\" | \"draft\" | \"returned\" | \"rejected\" | \"withdrawn\"; revision: number; cycle: number; requester: { id: number; name: string; user_id: number; }; created_at: string; execution_count: number; description: string; target: { id: number; name: string; href: string; } | null; steps: { sequence: number; name: string; reviewers: { id: number; name: string; user_id: number; }[]; status: \"cancel\" | \"pending\" | \"rejected\" | \"waiting\" | \"approved\"; }[]; events: { id: number; kind: string; actor: { id: number; name: string; user_id: number; }; comment: string; cycle: number; created_at: string; }[]; attachments: { id: number; name: string; mimetype: string; url: string; }[]; allowed_actions: { edit: boolean; submit: boolean; approve: boolean; reject: boolean; return: boolean; withdraw: boolean; }; }]"
         }
       ],
       "slots": [],
@@ -2119,7 +2119,7 @@
         },
         {
           "name": "project",
-          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"archive\" | \"write\" | \"read\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; phase: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\"; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"followers\" | \"employees\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"approved\" | \"submitted\"; approval_required: boolean; can_review: boolean; submitted_by: { id: number; name: string; } | null; submitted_at: string | null; approved_by: { id: number; name: string; } | null; approved_at: string | null; return_note: string; }; phase_state: { current: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\"; next: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\" | null; previous: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\" | null; next_checks: { key: string; ok: boolean; }[]; }; }",
+          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"archive\" | \"write\" | \"read\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; phase: \"closing\" | \"initiating\" | \"planning\" | \"executing\" | \"closed\"; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"employees\" | \"followers\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"approved\" | \"submitted\"; approval_required: boolean; can_review: boolean; submitted_by: { id: number; name: string; } | null; submitted_at: string | null; approved_by: { id: number; name: string; } | null; approved_at: string | null; return_note: string; }; phase_state: { current: \"closing\" | \"initiating\" | \"planning\" | \"executing\" | \"closed\"; next: \"closing\" | \"initiating\" | \"planning\" | \"executing\" | \"closed\" | null; previous: \"closing\" | \"initiating\" | \"planning\" | \"executing\" | \"closed\" | null; next_checks: { key: string; ok: boolean; }[]; }; }",
           "required": false
         },
         {
@@ -2172,12 +2172,12 @@
       ],
       "events": [
         {
-          "name": "saved",
-          "payload": "[outcome: \"saved\" | \"approved\" | \"submitted\" | \"reopened\"]"
-        },
-        {
           "name": "cancel",
           "payload": "[]"
+        },
+        {
+          "name": "saved",
+          "payload": "[outcome: \"saved\" | \"approved\" | \"submitted\" | \"reopened\"]"
         },
         {
           "name": "created",
@@ -2185,7 +2185,7 @@
         },
         {
           "name": "drafted",
-          "payload": "[id: number, step: \"scope\" | \"basics\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\" | \"review\", reason?: string | undefined]"
+          "payload": "[id: number, step: \"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\" | \"basics\" | \"review\", reason?: string | undefined]"
         },
         {
           "name": "draftSaved",
@@ -2297,7 +2297,7 @@
       "props": [
         {
           "name": "project",
-          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"archive\" | \"write\" | \"read\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; phase: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\"; manager?: { id: number; name: string; } | null | undefined; date_end?: string | null | undefined; } | { id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"archive\" | \"write\" | \"read\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; phase: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\"; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"followers\" | \"employees\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"approved\" | \"submitted\"; approval_required: boolean; can_review: boolean; submitted_by: { id: number; name: string; } | null; submitted_at: string | null; approved_by: { id: number; name: string; } | null; approved_at: string | null; return_note: string; }; phase_state: { current: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\"; next: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\" | null; previous: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\" | null; next_checks: { key: string; ok: boolean; }[]; }; }",
+          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"archive\" | \"write\" | \"read\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; phase: \"closing\" | \"initiating\" | \"planning\" | \"executing\" | \"closed\"; manager?: { id: number; name: string; } | null | undefined; date_end?: string | null | undefined; } | { id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"archive\" | \"write\" | \"read\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; phase: \"closing\" | \"initiating\" | \"planning\" | \"executing\" | \"closed\"; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"employees\" | \"followers\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"approved\" | \"submitted\"; approval_required: boolean; can_review: boolean; submitted_by: { id: number; name: string; } | null; submitted_at: string | null; approved_by: { id: number; name: string; } | null; approved_at: string | null; return_note: string; }; phase_state: { current: \"closing\" | \"initiating\" | \"planning\" | \"executing\" | \"closed\"; next: \"closing\" | \"initiating\" | \"planning\" | \"executing\" | \"closed\" | null; previous: \"closing\" | \"initiating\" | \"planning\" | \"executing\" | \"closed\" | null; next_checks: { key: string; ok: boolean; }[]; }; }",
           "required": true
         },
         {
@@ -2308,7 +2308,7 @@
         },
         {
           "name": "to",
-          "type": "string | it | et",
+          "type": "string | et | X",
           "required": false
         }
       ],
@@ -2401,7 +2401,7 @@
       "props": [
         {
           "name": "task",
-          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; subtask_count: number; subtask_done_count: number; attachment_count: number; }",
+          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"cancelled\" | \"in_progress\" | \"changes_requested\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"cancelled\" | \"in_progress\" | \"changes_requested\")[]; subtask_count: number; subtask_done_count: number; attachment_count: number; }",
           "required": true
         },
         {
@@ -2448,7 +2448,7 @@
       "props": [
         {
           "name": "task",
-          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; subtask_count: number; subtask_done_count: number; attachment_count: number; }",
+          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"cancelled\" | \"in_progress\" | \"changes_requested\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"cancelled\" | \"in_progress\" | \"changes_requested\")[]; subtask_count: number; subtask_done_count: number; attachment_count: number; }",
           "required": true
         },
         {
@@ -2489,7 +2489,7 @@
       "props": [
         {
           "name": "task",
-          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; subtask_count: number; subtask_done_count: number; attachment_count: number; }",
+          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"cancelled\" | \"in_progress\" | \"changes_requested\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"cancelled\" | \"in_progress\" | \"changes_requested\")[]; subtask_count: number; subtask_done_count: number; attachment_count: number; }",
           "required": true
         },
         {
@@ -2624,7 +2624,7 @@
         },
         {
           "name": "allTo",
-          "type": "string | it | et",
+          "type": "string | et | X",
           "required": true
         },
         {
@@ -3691,7 +3691,7 @@
       "props": [
         {
           "name": "usage",
-          "type": "{ tenant_id: string; observed_at: string | null; policy_revision_id: string; freshness: \"fresh\" | \"stale\" | \"unavailable\"; metrics: { key: string; used: number | null; limit: number | null; unit: \"count\" | \"projects\" | \"users\" | \"attachment_bytes\" | \"extra_branches\" | \"mebibytes\"; reason: \"source_unreachable\" | \"timeout\" | \"not_collected\" | \"forbidden\" | null; }[]; }",
+          "type": "{ tenant_id: string; observed_at: string | null; policy_revision_id: string; freshness: \"unavailable\" | \"stale\" | \"fresh\"; metrics: { key: string; used: number | null; limit: number | null; unit: \"projects\" | \"count\" | \"users\" | \"attachment_bytes\" | \"extra_branches\" | \"mebibytes\"; reason: \"timeout\" | \"forbidden\" | \"source_unreachable\" | \"not_collected\" | null; }[]; }",
           "required": true
         }
       ],
@@ -5098,7 +5098,7 @@
       "props": [
         {
           "name": "backTo",
-          "type": "string | it | et",
+          "type": "string | et | X",
           "required": false
         },
         {
@@ -6090,7 +6090,7 @@
       "props": [
         {
           "name": "width",
-          "type": "\"list\" | \"detail\" | \"form\" | \"full\"",
+          "type": "\"list\" | \"detail\" | \"full\" | \"form\"",
           "required": false,
           "default": "\"list\""
         }
@@ -6931,7 +6931,7 @@
         },
         {
           "name": "preference",
-          "type": "\"open\" | \"closed\" | \"auto\"",
+          "type": "\"auto\" | \"open\" | \"closed\"",
           "required": false
         },
         {

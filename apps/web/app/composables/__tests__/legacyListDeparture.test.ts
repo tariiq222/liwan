@@ -10,6 +10,7 @@ import { refDebounced } from '@vueuse/core'
 import { createHooks } from 'hookable'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as myTaskList from '../../utils/myTaskList'
+import { rootedNode } from '../../../tests/hostNode'
 
 const cases = [
   { file: 'my-tasks/index.vue', base: '/my-tasks' },
@@ -43,7 +44,7 @@ async function mountList(testCase: typeof cases[number], guard: (to: RouteLocati
     { path: `${testCase.base}/:record`, component: { render: () => Vue.h('div') } },
   ] })
   router.onError(() => {})
-  const node = () => ({ children: [] as any[], parent: null as any })
+  const node = () => rootedNode({ children: [] as any[], parent: null as any })
   const renderer = Vue.createRenderer<any, any>({ patchProp() {}, insert(child, parent) { child.parent = parent; parent.children.push(child) }, remove() {}, createElement: node, createText: node, createComment: node, setText() {}, setElementText() {}, parentNode: n => n.parent, nextSibling: () => null })
   await router.push(`${testCase.base}#ledger`)
   const app = renderer.createApp({ render: () => Vue.h(RouterView) })
@@ -95,7 +96,7 @@ function mountRealTitle(testCase: typeof cases[number], view: Awaited<ReturnType
   const compiled = compileTemplate({ source: markup, filename, id: 'actual-router-link-title', compilerOptions: { mode: 'function', expressionPlugins: ['typescript'] } })
   const code = ts.transpileModule(compiled.code, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
   const render = new Function('Vue', code)(Vue)
-  const node = (type = '') => ({ type, props: {} as Record<string, any>, children: [] as any[], parent: null as any })
+  const node = (type = '') => rootedNode({ type, props: {} as Record<string, any>, children: [] as any[], parent: null as any })
   const renderer = Vue.createRenderer<any, any>({ patchProp(n, key, _old, value) { n.props[key] = value }, insert(child, parent) { child.parent = parent; parent.children.push(child) }, remove() {}, createElement: node, createText: () => node(), createComment: () => node(), setText() {}, setElementText() {}, parentNode: n => n.parent, nextSibling: () => null })
   const root = node()
   const app = renderer.createApp({ render: () => render(Vue.proxyRefs(context), []) })

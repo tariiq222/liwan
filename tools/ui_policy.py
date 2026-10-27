@@ -174,6 +174,15 @@ REVIEWED_E2E_TOOLING = {
 # jiti loads the TypeScript contracts into the vendor admin's mock control service (e2e only).
 REVIEWED_TEST_TOOLING = {'@vue/compiler-sfc', '@vue/server-renderer', 'typescript', 'jiti'}
 
+# Version changes from the baseline that the owner approved under docs/UPDATE_POLICY.md.
+# Only the exact recorded specifier passes; any other change still needs review.
+REVIEWED_VERSIONS = {
+    # Owner approval 2026-10-27, launch blocker B1: closes npm audit high and critical advisories.
+    'nuxt': '^4.6.2',
+    'vitest': '4.1.12',
+    'zod': '^4.6.7',
+}
+
 
 def source_file(path: str) -> bool:
     return (path.startswith(SOURCE_ROOTS) and Path(path).suffix in {'.vue', '.ts', '.js', '.mjs', '.css', '.scss'}
@@ -933,7 +942,7 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     for package in sorted(dependencies(current) & RETIRED_PACKAGES):
         errors.append('retired dependency: ' + package)
     for package in sorted(set(current_versions) & set(baseline_versions)):
-        if current_versions[package] != baseline_versions[package]:
+        if current_versions[package] not in (baseline_versions[package], REVIEWED_VERSIONS.get(package)):
             errors.append('dependency version needs review: ' + package)
     for path, source in sorted(current.items()):
         if not source_file(path):

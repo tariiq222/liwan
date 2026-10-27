@@ -14,7 +14,7 @@
     "@vue/compiler-sfc": "^3.5.42",
     "@vue/server-renderer": "^3.5.42",
     "typescript": "^5.9.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   },
   "peerDependencies": {
     "@internationalized/date": "^3.12.0",
