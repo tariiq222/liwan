@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "date_end": null,
+      "date_start": "2026-11-01",
+      "employee": {
+        "id": 2,
+        "name": "Shift Manager"
+      },
+      "id": 1,
+      "schedule": {
+        "id": 3,
+        "name": "Day Shift"
+      }
+    }
+  ],
+  "total": 1
+}

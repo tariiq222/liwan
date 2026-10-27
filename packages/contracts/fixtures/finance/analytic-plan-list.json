@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "name": "Project",
+      "parent": null
+    },
+    {
+      "id": 2,
+      "name": "Branches",
+      "parent": null
+    },
+    {
+      "id": 3,
+      "name": "Projects 2026",
+      "parent": null
+    },
+    {
+      "id": 4,
+      "name": "Cities",
+      "parent": {
+        "id": 2,
+        "name": "Branches"
+      }
+    }
+  ],
+  "total": 4
+}

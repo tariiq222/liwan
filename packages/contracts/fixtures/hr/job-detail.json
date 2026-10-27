@@ -1,0 +1,12 @@
+{
+  "active": true,
+  "application_count": 2,
+  "department": {
+    "id": 2,
+    "name": "Branch recruitment department"
+  },
+  "description": "",
+  "id": 1,
+  "name": "Branch recruitment position",
+  "no_of_recruitment": 1
+}

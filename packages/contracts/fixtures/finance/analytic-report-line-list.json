@@ -1,0 +1,45 @@
+{
+  "items": [
+    {
+      "amount": 600.0,
+      "date": "2026-10-19",
+      "general_account": {
+        "id": 3,
+        "name": "500001 Sales Account"
+      },
+      "id": 1,
+      "kind": "income",
+      "move": {
+        "id": 2,
+        "name": "INV/2026/00003"
+      },
+      "name": "Consulting",
+      "partner": {
+        "id": 4,
+        "name": "Al Noor Trading"
+      },
+      "ref": ""
+    },
+    {
+      "amount": 600.0,
+      "date": "2026-10-18",
+      "general_account": {
+        "id": 3,
+        "name": "500001 Sales Account"
+      },
+      "id": 5,
+      "kind": "income",
+      "move": {
+        "id": 6,
+        "name": "INV/2026/00002"
+      },
+      "name": "Consulting",
+      "partner": {
+        "id": 4,
+        "name": "Al Noor Trading"
+      },
+      "ref": ""
+    }
+  ],
+  "total": 2
+}

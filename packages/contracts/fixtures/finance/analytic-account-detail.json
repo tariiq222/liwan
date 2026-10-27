@@ -1,0 +1,10 @@
+{
+  "active": true,
+  "code": "",
+  "id": 1,
+  "name": "Analytic P",
+  "plan": {
+    "id": 2,
+    "name": "Isolation Plan"
+  }
+}

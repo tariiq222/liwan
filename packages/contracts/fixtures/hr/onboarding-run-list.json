@@ -1,0 +1,24 @@
+{
+  "items": [
+    {
+      "done": 0,
+      "employee": {
+        "id": 2,
+        "name": "Onboarding Employee"
+      },
+      "id": 1,
+      "launched_by": {
+        "id": 4,
+        "name": "Onboarding Manager"
+      },
+      "plan": {
+        "id": 3,
+        "name": "Onboarding plan"
+      },
+      "plan_date": "2026-11-02",
+      "state": "open",
+      "total": 1
+    }
+  ],
+  "total": 1
+}

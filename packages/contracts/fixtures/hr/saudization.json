@@ -1,0 +1,53 @@
+{
+  "items": [
+    {
+      "department": {
+        "id": 1,
+        "name": "Administration"
+      },
+      "non_saudi": 0,
+      "saudi": 0,
+      "saudi_percent": null,
+      "total": 1,
+      "unknown": 1
+    },
+    {
+      "department": {
+        "id": 2,
+        "name": "Saud A"
+      },
+      "non_saudi": 1,
+      "saudi": 2,
+      "saudi_percent": 66.67,
+      "total": 3,
+      "unknown": 0
+    },
+    {
+      "department": {
+        "id": 3,
+        "name": "Saud B"
+      },
+      "non_saudi": 1,
+      "saudi": 0,
+      "saudi_percent": 0.0,
+      "total": 2,
+      "unknown": 1
+    },
+    {
+      "department": null,
+      "non_saudi": 0,
+      "saudi": 1,
+      "saudi_percent": 100.0,
+      "total": 1,
+      "unknown": 0
+    }
+  ],
+  "overall": {
+    "non_saudi": 2,
+    "saudi": 3,
+    "saudi_percent": 60.0,
+    "total": 7,
+    "unknown": 2
+  },
+  "total": 4
+}

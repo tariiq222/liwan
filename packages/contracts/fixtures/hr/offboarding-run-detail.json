@@ -1,0 +1,45 @@
+{
+  "done": 0,
+  "employee": {
+    "id": 2,
+    "name": "Leaving Employee"
+  },
+  "id": 1,
+  "launched_by": {
+    "id": 4,
+    "name": "Offboarding Manager"
+  },
+  "plan": {
+    "id": 3,
+    "name": "Offboarding"
+  },
+  "plan_date": "2026-10-27",
+  "state": "open",
+  "steps": [
+    {
+      "assignee": {
+        "id": 6,
+        "name": "Offboarding Lead"
+      },
+      "can_complete": true,
+      "date_deadline": "2026-10-27",
+      "date_done": null,
+      "id": 5,
+      "state": "today",
+      "summary": "Organize knowledge transfer inside the team"
+    },
+    {
+      "assignee": {
+        "id": 6,
+        "name": "Offboarding Lead"
+      },
+      "can_complete": true,
+      "date_deadline": "2026-10-27",
+      "date_done": null,
+      "id": 7,
+      "state": "today",
+      "summary": "Take Back HR Materials"
+    }
+  ],
+  "total": 2
+}

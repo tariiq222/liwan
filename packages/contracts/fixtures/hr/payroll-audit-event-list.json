@@ -1,0 +1,71 @@
+{
+  "items": [
+    {
+      "action": "payroll_settings_changed",
+      "actor": {
+        "id": 2,
+        "name": "aud_config"
+      },
+      "changes": [
+        {
+          "field": "day_divisor",
+          "new_value": "29",
+          "old_value": "30"
+        }
+      ],
+      "created_at": "2026-01-01T00:00:00Z",
+      "id": 1,
+      "res_id": 1,
+      "res_model": "webvue.hr.payroll.settings"
+    },
+    {
+      "action": "gosi_rate_created",
+      "actor": {
+        "id": 2,
+        "name": "aud_config"
+      },
+      "changes": [
+        {
+          "field": "branch",
+          "new_value": "annuities",
+          "old_value": null
+        },
+        {
+          "field": "date_from",
+          "new_value": "2026-01-01",
+          "old_value": null
+        },
+        {
+          "field": "employee_rate",
+          "new_value": "9.0",
+          "old_value": null
+        },
+        {
+          "field": "employer_rate",
+          "new_value": "9.0",
+          "old_value": null
+        },
+        {
+          "field": "nationality_class",
+          "new_value": "gcc",
+          "old_value": null
+        },
+        {
+          "field": "wage_max",
+          "new_value": "45000.0",
+          "old_value": null
+        },
+        {
+          "field": "wage_min",
+          "new_value": "1500.0",
+          "old_value": null
+        }
+      ],
+      "created_at": "2026-01-01T00:00:00Z",
+      "id": 3,
+      "res_id": 14,
+      "res_model": "webvue.hr.gosi.rate"
+    }
+  ],
+  "total": 2
+}

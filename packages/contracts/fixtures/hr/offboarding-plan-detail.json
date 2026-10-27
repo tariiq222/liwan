@@ -1,0 +1,20 @@
+{
+  "active": false,
+  "department": null,
+  "id": 1,
+  "name": "اسم جديد",
+  "steps": [
+    {
+      "delay_count": 2,
+      "delay_from": "before_plan_date",
+      "delay_unit": "days",
+      "id": 2,
+      "responsible": {
+        "id": 3,
+        "name": "Offboarding Plan Reader"
+      },
+      "responsible_type": "other",
+      "summary": "وحيدة"
+    }
+  ]
+}

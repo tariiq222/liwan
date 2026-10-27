@@ -1,0 +1,34 @@
+{
+  "items": [
+    {
+      "action": "zatca_submitted",
+      "actor": {
+        "id": 2,
+        "name": "Finance Manager"
+      },
+      "created_at": "2026-01-01T00:00:00Z",
+      "fields_written": [],
+      "id": 1,
+      "outcome": "accepted",
+      "res_id": 140,
+      "res_model": "account.move"
+    },
+    {
+      "action": "company_written",
+      "actor": {
+        "id": 2,
+        "name": "Finance Manager"
+      },
+      "created_at": "2026-01-01T00:00:00Z",
+      "fields_written": [
+        "city",
+        "vat"
+      ],
+      "id": 3,
+      "outcome": null,
+      "res_id": 174,
+      "res_model": "res.company"
+    }
+  ],
+  "total": 2
+}

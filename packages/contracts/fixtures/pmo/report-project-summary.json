@@ -1,0 +1,165 @@
+{
+  "attention": [
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 560,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 3,
+      "progress": 0,
+      "project": {
+        "id": 2,
+        "name": "A high overdue",
+        "status": "at_risk"
+      },
+      "task_count": 3
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 561,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 1,
+      "progress": 0,
+      "project": {
+        "id": 3,
+        "name": "B low overdue",
+        "status": null
+      },
+      "task_count": 1
+    },
+    {
+      "closed_task_count": 1,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 352,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 1,
+      "progress": 33,
+      "project": {
+        "id": 4,
+        "name": "Erada Portal",
+        "status": null
+      },
+      "task_count": 3
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 562,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 5,
+        "name": "C status only",
+        "status": "off_track"
+      },
+      "task_count": 0
+    }
+  ],
+  "attention_project_count": 4,
+  "overdue_task_count": 5,
+  "project_count": 4,
+  "status_counts": [
+    {
+      "count": 1,
+      "status": "at_risk"
+    },
+    {
+      "count": 1,
+      "status": "off_track"
+    },
+    {
+      "count": 2,
+      "status": null
+    }
+  ],
+  "totals": [
+    {
+      "actual": 0.0,
+      "budgeted_project_count": 0,
+      "currency": {
+        "decimal_places": 2,
+        "id": 1,
+        "name": "USD",
+        "symbol": "$"
+      },
+      "over_budget_count": 0,
+      "planned": 0.0,
+      "project_count": 4,
+      "remaining": 0.0
+    }
+  ]
+}

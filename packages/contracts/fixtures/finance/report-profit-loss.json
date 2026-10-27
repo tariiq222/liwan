@@ -1,0 +1,55 @@
+{
+  "currency": "SAR",
+  "date_from": "2025-01-01",
+  "date_to": "2025-12-31",
+  "lines": [
+    {
+      "code": "revenue",
+      "label": "Revenue",
+      "value": 10000.0
+    },
+    {
+      "code": "cost_of_revenue",
+      "label": "Cost of revenue",
+      "value": 0.0
+    },
+    {
+      "code": "gross_profit",
+      "label": "Gross profit",
+      "value": 10000.0
+    },
+    {
+      "code": "operating_expenses",
+      "label": "Operating expenses",
+      "value": 6000.0
+    },
+    {
+      "code": "depreciation",
+      "label": "Depreciation",
+      "value": 0.0
+    },
+    {
+      "code": "operating_profit",
+      "label": "Operating profit",
+      "value": 4000.0
+    },
+    {
+      "code": "other_income",
+      "label": "Other income",
+      "value": 0.0
+    },
+    {
+      "code": "other_expenses",
+      "label": "Other expenses",
+      "value": 0.0
+    },
+    {
+      "code": "net_profit",
+      "label": "Net profit",
+      "value": 4000.0
+    }
+  ],
+  "status": "management_information",
+  "statutory": false,
+  "target_move": "posted"
+}

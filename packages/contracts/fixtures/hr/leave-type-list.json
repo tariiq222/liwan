@@ -1,0 +1,101 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "name": "Paid Time Off",
+      "requires_allocation": true,
+      "support_document": false
+    },
+    {
+      "id": 2,
+      "name": "Sick Time Off",
+      "requires_allocation": false,
+      "support_document": true
+    },
+    {
+      "id": 3,
+      "name": "Unpaid",
+      "requires_allocation": false,
+      "support_document": false
+    },
+    {
+      "id": 4,
+      "name": "Compensatory Days",
+      "requires_allocation": true,
+      "support_document": false
+    },
+    {
+      "id": 5,
+      "name": "Extra Time Off",
+      "requires_allocation": true,
+      "support_document": false
+    },
+    {
+      "id": 6,
+      "name": "Extra Hours",
+      "requires_allocation": false,
+      "support_document": false
+    },
+    {
+      "id": 7,
+      "name": "Sick Leave (100% Paid)",
+      "requires_allocation": true,
+      "support_document": false
+    },
+    {
+      "id": 8,
+      "name": "Sick Leave (75% Paid)",
+      "requires_allocation": true,
+      "support_document": false
+    },
+    {
+      "id": 9,
+      "name": "Sick Leave (UnPaid)",
+      "requires_allocation": false,
+      "support_document": false
+    },
+    {
+      "id": 10,
+      "name": "Marriage Leave",
+      "requires_allocation": false,
+      "support_document": false
+    },
+    {
+      "id": 11,
+      "name": "Maternity Leave",
+      "requires_allocation": false,
+      "support_document": false
+    },
+    {
+      "id": 12,
+      "name": "Iddah Leave",
+      "requires_allocation": false,
+      "support_document": false
+    },
+    {
+      "id": 13,
+      "name": "Hajj Leave",
+      "requires_allocation": false,
+      "support_document": false
+    },
+    {
+      "id": 14,
+      "name": "Paternity Leave",
+      "requires_allocation": false,
+      "support_document": false
+    },
+    {
+      "id": 15,
+      "name": "Study Leave",
+      "requires_allocation": false,
+      "support_document": false
+    },
+    {
+      "id": 16,
+      "name": "Emergency Leave",
+      "requires_allocation": false,
+      "support_document": false
+    }
+  ],
+  "total": 16
+}

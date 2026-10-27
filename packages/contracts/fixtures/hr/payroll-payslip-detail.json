@@ -1,0 +1,52 @@
+{
+  "company": {
+    "name": "My Company",
+    "vat": ""
+  },
+  "deductions": 1218.75,
+  "department": null,
+  "employee": {
+    "id": 2,
+    "name": "Slip A"
+  },
+  "gosi_employer": 1468.75,
+  "gross": 13500.0,
+  "id": 1,
+  "lines": [
+    {
+      "amount": 10000.0,
+      "category": "BASIC",
+      "code": "BASIC",
+      "name": "Basic wage"
+    },
+    {
+      "amount": 2500.0,
+      "category": "ALW",
+      "code": "HOUSING",
+      "name": "Housing allowance"
+    },
+    {
+      "amount": 1000.0,
+      "category": "ALW",
+      "code": "TRANSPORT",
+      "name": "Transport allowance"
+    },
+    {
+      "amount": -1125.0,
+      "category": "GOSI",
+      "code": "GOSI_EE_ANN",
+      "name": "GOSI annuities (employee)"
+    },
+    {
+      "amount": -93.75,
+      "category": "GOSI",
+      "code": "GOSI_EE_SANED",
+      "name": "GOSI SANED (employee)"
+    }
+  ],
+  "month": "2026-11",
+  "net": 12281.25,
+  "number": "SLIP/114",
+  "paid_days": 30,
+  "state": "done"
+}

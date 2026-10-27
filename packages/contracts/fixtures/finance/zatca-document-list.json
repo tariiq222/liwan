@@ -1,0 +1,100 @@
+{
+  "items": [
+    {
+      "amount_total": 1150.0,
+      "date": "2026-10-26",
+      "invoice": {
+        "id": 1,
+        "name": "INV/2026/00002"
+      },
+      "move_type": "out_invoice",
+      "partner": {
+        "id": 2,
+        "name": "Al Noor Company"
+      },
+      "submission": {
+        "errors": [],
+        "mode": "clearance",
+        "qr_present": false,
+        "state": "pending",
+        "warnings": []
+      }
+    },
+    {
+      "amount_total": 1150.0,
+      "date": "2026-10-26",
+      "invoice": {
+        "id": 3,
+        "name": "INV/2026/00003"
+      },
+      "move_type": "out_invoice",
+      "partner": {
+        "id": 2,
+        "name": "Al Noor Company"
+      },
+      "submission": {
+        "errors": [
+          {
+            "code": null,
+            "message": "ZATCA could not be reached or answered unexpectedly; retry later"
+          }
+        ],
+        "mode": "clearance",
+        "qr_present": false,
+        "state": "retry",
+        "warnings": []
+      }
+    },
+    {
+      "amount_total": 1150.0,
+      "date": "2026-10-26",
+      "invoice": {
+        "id": 4,
+        "name": "INV/2026/00004"
+      },
+      "move_type": "out_invoice",
+      "partner": {
+        "id": 2,
+        "name": "Al Noor Company"
+      },
+      "submission": {
+        "errors": [
+          {
+            "code": "BR-KSA-F-06-C01",
+            "message": "The invoice type code is not valid"
+          }
+        ],
+        "mode": "clearance",
+        "qr_present": false,
+        "state": "rejected",
+        "warnings": []
+      }
+    },
+    {
+      "amount_total": 1150.0,
+      "date": "2026-10-26",
+      "invoice": {
+        "id": 5,
+        "name": "INV/2026/00005"
+      },
+      "move_type": "out_invoice",
+      "partner": {
+        "id": 2,
+        "name": "Al Noor Company"
+      },
+      "submission": {
+        "errors": [
+          {
+            "code": null,
+            "message": "signing failed"
+          }
+        ],
+        "mode": "clearance",
+        "qr_present": false,
+        "state": "blocked",
+        "warnings": []
+      }
+    }
+  ],
+  "total": 4
+}

@@ -102,6 +102,9 @@ class TestOperationsWorkflow(WebVueApiCase):
         result = self.api('POST', '/api/v1/operations/processes', payload)
         self.assertEqual(result.status_code, 200, result.text)
         self.assertEqual(result.json()['purpose'], 'employee')
+        kinds = self.api('GET', '/api/v1/operations/execution-kinds')
+        self.assertEqual(kinds.status_code, 200, kinds.text)
+        self.assertEqual(kinds.json()['total'], len(kinds.json()['items']))
         self.assertEqual(self.api('POST', '/api/v1/operations/processes', {
             **payload, 'purpose': 'personal',
         }).status_code, 422)

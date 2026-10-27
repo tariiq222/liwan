@@ -1,0 +1,115 @@
+{
+  "basis": "indirect",
+  "closing_cash": 103000.0,
+  "currency": "SAR",
+  "date_from": "2026-01-01",
+  "date_to": "2026-12-31",
+  "difference": 0.0,
+  "financing": {
+    "items": [
+      {
+        "account": {
+          "code": "202001",
+          "id": 9,
+          "name": "End of Service Provision"
+        },
+        "amount": 8000.0
+      },
+      {
+        "account": {
+          "code": "300001",
+          "id": 10,
+          "name": "Share capital"
+        },
+        "amount": 100000.0
+      }
+    ],
+    "total": 108000.0
+  },
+  "investing": {
+    "depreciation_reclass": -2400.0,
+    "items": [
+      {
+        "account": {
+          "code": "106002",
+          "id": 7,
+          "name": "Furniture and Equipment"
+        },
+        "amount": -12000.0
+      },
+      {
+        "account": {
+          "code": "106007",
+          "id": 8,
+          "name": "Accumulated Depreciation of Furniture & Office Equipment"
+        },
+        "amount": 2400.0
+      }
+    ],
+    "total": -12000.0
+  },
+  "net_change": 98000.0,
+  "opening_cash": 5000.0,
+  "operating": {
+    "adjustments": [
+      {
+        "amount": 2400.0,
+        "key": "depreciation"
+      }
+    ],
+    "items": [
+      {
+        "account": {
+          "code": "101003",
+          "id": 1,
+          "name": "Outstanding Receipts"
+        },
+        "amount": -400.0
+      },
+      {
+        "account": {
+          "code": "102011",
+          "id": 2,
+          "name": "Accounts Receivable"
+        },
+        "amount": -1095.0
+      },
+      {
+        "account": {
+          "code": "104041",
+          "id": 3,
+          "name": "VAT Input"
+        },
+        "amount": -60.0
+      },
+      {
+        "account": {
+          "code": "201002",
+          "id": 4,
+          "name": "Payables"
+        },
+        "amount": 460.0
+      },
+      {
+        "account": {
+          "code": "201005",
+          "id": 5,
+          "name": "Leave Tickets Provision"
+        },
+        "amount": 2000.0
+      },
+      {
+        "account": {
+          "code": "201017",
+          "id": 6,
+          "name": "VAT Output"
+        },
+        "amount": 195.0
+      }
+    ],
+    "net_income": -1500.0,
+    "total": 2000.0
+  },
+  "statutory": false,
+  "total_change": 98000.0
+}

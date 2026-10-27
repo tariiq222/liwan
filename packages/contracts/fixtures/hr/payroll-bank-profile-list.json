@@ -1,0 +1,172 @@
+{
+  "items": [
+    {
+      "columns": [
+        {
+          "constant_value": "",
+          "label": "Identification",
+          "source": "identification"
+        },
+        {
+          "constant_value": "",
+          "label": "Name",
+          "source": "name"
+        },
+        {
+          "constant_value": "",
+          "label": "IBAN",
+          "source": "iban"
+        },
+        {
+          "constant_value": "",
+          "label": "Basic",
+          "source": "basic"
+        },
+        {
+          "constant_value": "",
+          "label": "Housing",
+          "source": "housing"
+        },
+        {
+          "constant_value": "",
+          "label": "Other allowances",
+          "source": "other_allowances"
+        },
+        {
+          "constant_value": "",
+          "label": "Deductions",
+          "source": "deductions"
+        },
+        {
+          "constant_value": "",
+          "label": "Net",
+          "source": "net"
+        },
+        {
+          "constant_value": "",
+          "label": "Value date",
+          "source": "value_date"
+        }
+      ],
+      "delimiter": ",",
+      "encoding": "utf-8",
+      "footer": "none",
+      "id": 1,
+      "include_header": true,
+      "kind": "bank",
+      "name": "Generic bank CSV",
+      "revision": 1,
+      "shared": true
+    },
+    {
+      "columns": [
+        {
+          "constant_value": "",
+          "label": "identification",
+          "source": "identification"
+        },
+        {
+          "constant_value": "",
+          "label": "iban",
+          "source": "iban"
+        },
+        {
+          "constant_value": "",
+          "label": "bank_code",
+          "source": "bank_code"
+        },
+        {
+          "constant_value": "",
+          "label": "net",
+          "source": "net"
+        },
+        {
+          "constant_value": "",
+          "label": "value_date",
+          "source": "value_date"
+        }
+      ],
+      "delimiter": ",",
+      "encoding": "utf-8",
+      "footer": "none",
+      "id": 2,
+      "include_header": true,
+      "kind": "bank",
+      "name": "Snapshot layout",
+      "revision": 1,
+      "shared": false
+    },
+    {
+      "columns": [
+        {
+          "constant_value": "",
+          "label": "IBAN",
+          "source": "iban"
+        }
+      ],
+      "delimiter": ",",
+      "encoding": "utf-8",
+      "footer": "none",
+      "id": 3,
+      "include_header": true,
+      "kind": "bank",
+      "name": "Snapshot raced",
+      "revision": 1,
+      "shared": false
+    },
+    {
+      "columns": [
+        {
+          "constant_value": "",
+          "label": "Employee name",
+          "source": "name"
+        },
+        {
+          "constant_value": "",
+          "label": "ID number",
+          "source": "identification"
+        },
+        {
+          "constant_value": "",
+          "label": "IBAN",
+          "source": "iban"
+        },
+        {
+          "constant_value": "",
+          "label": "Basic salary",
+          "source": "basic"
+        },
+        {
+          "constant_value": "",
+          "label": "Housing allowance",
+          "source": "housing"
+        },
+        {
+          "constant_value": "",
+          "label": "Other earnings",
+          "source": "other_allowances"
+        },
+        {
+          "constant_value": "",
+          "label": "Deductions",
+          "source": "deductions"
+        },
+        {
+          "constant_value": "",
+          "label": "Net salary",
+          "source": "net"
+        }
+      ],
+      "delimiter": ",",
+      "encoding": "utf-8",
+      "footer": "none",
+      "id": 4,
+      "include_header": true,
+      "kind": "wps",
+      "name": "Mudad WPS",
+      "revision": 1,
+      "shared": true
+    }
+  ],
+  "total": 4
+}

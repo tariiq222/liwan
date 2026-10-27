@@ -1,0 +1,26 @@
+{
+  "items": [
+    {
+      "account": {
+        "code": "400001",
+        "id": 3,
+        "name": "Cost of Goods Sold in Trading"
+      },
+      "amount": 1000.0,
+      "balance": 1000.0,
+      "date": "2026-10-27",
+      "entry": {
+        "id": 2,
+        "name": "BILL/2026/10/0001"
+      },
+      "entry_type": "in_invoice",
+      "id": 1,
+      "label": "Paper",
+      "partner": {
+        "id": 4,
+        "name": "Gulf Supplies"
+      }
+    }
+  ],
+  "total": 1
+}

@@ -1,0 +1,54 @@
+{
+  "items": [
+    {
+      "active": true,
+      "charter_steps": [
+        "justification",
+        "scope",
+        "schedule",
+        "budget",
+        "risks"
+      ],
+      "id": 1,
+      "name": "تقني",
+      "sequence": 10
+    },
+    {
+      "active": true,
+      "charter_steps": [
+        "justification",
+        "scope",
+        "schedule"
+      ],
+      "id": 2,
+      "name": "تشغيلي",
+      "sequence": 20
+    },
+    {
+      "active": true,
+      "charter_steps": [
+        "justification",
+        "scope",
+        "schedule",
+        "budget",
+        "risks"
+      ],
+      "id": 3,
+      "name": "إنشائي",
+      "sequence": 30
+    },
+    {
+      "active": true,
+      "charter_steps": [
+        "justification",
+        "scope",
+        "schedule",
+        "budget"
+      ],
+      "id": 4,
+      "name": "تطويري",
+      "sequence": 40
+    }
+  ],
+  "total": 4
+}

@@ -1,0 +1,11 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "mimetype": "text/plain",
+      "name": "brief.txt",
+      "url": "/api/v1/tasks/1102/attachments/2851/download"
+    }
+  ],
+  "total": 1
+}

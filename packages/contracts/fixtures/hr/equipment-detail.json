@@ -1,0 +1,15 @@
+{
+  "active": false,
+  "assign_date": null,
+  "category": {
+    "id": 2,
+    "name": "Laptops"
+  },
+  "employee": null,
+  "id": 1,
+  "model": "M4",
+  "name": "MacBook Pro",
+  "scrap_date": "2026-09-30",
+  "serial_no": "SN-001",
+  "warranty_date": null
+}

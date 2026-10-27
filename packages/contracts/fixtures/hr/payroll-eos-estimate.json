@@ -1,0 +1,14 @@
+{
+  "award": 15750.0,
+  "case": "termination",
+  "employee": {
+    "id": 1,
+    "name": "Eos Leaver"
+  },
+  "end_date": "2026-11-30",
+  "eos_wage": 10500.0,
+  "leave_amount": 4375.0,
+  "leave_days": 12.5,
+  "service_years": 3.0,
+  "start_date": "2023-12-01"
+}

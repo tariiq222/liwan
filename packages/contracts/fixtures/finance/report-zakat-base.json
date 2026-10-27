@@ -1,0 +1,109 @@
+{
+  "adjustments": [
+    {
+      "amount": 100.0,
+      "date_to": "2026-12-31",
+      "id": 1,
+      "kind": "deduct",
+      "label": "Exempt investment",
+      "note": ""
+    }
+  ],
+  "adjustments_total": -100.0,
+  "base": 103800.0,
+  "currency": "SAR",
+  "date_to": "2026-12-31",
+  "disclaimer": "Simplified Zakat base for management information only. The formula is not a ZATCA filing computation and must be reviewed by a Saudi certified public accountant (CPA) before it is relied on. The rate is 2.5% scaled by 365/354 for a Gregorian fiscal year.",
+  "filed": false,
+  "lines": [
+    {
+      "code": "equity",
+      "label": "Equity (capital, reserves and other equity accounts)",
+      "value": 100000.0
+    },
+    {
+      "code": "retained_earnings",
+      "label": "Retained earnings of previous years",
+      "value": 5000.0
+    },
+    {
+      "code": "long_term_liabilities",
+      "label": "Long-term liabilities",
+      "value": 8000.0
+    },
+    {
+      "code": "provisions",
+      "label": "Provisions (leave days and leave tickets)",
+      "value": 2000.0
+    },
+    {
+      "code": "net_profit",
+      "label": "Net profit of the fiscal year to date",
+      "value": 900.0
+    },
+    {
+      "code": "profit_addbacks",
+      "label": "Zakat and income tax expense added back",
+      "value": 0.0
+    },
+    {
+      "code": "adjusted_net_profit",
+      "label": "Adjusted net profit",
+      "value": 900.0
+    },
+    {
+      "code": "net_fixed_assets",
+      "label": "Net fixed assets",
+      "value": 12000.0
+    },
+    {
+      "code": "long_term_investments",
+      "label": "Long-term investments and non-current assets",
+      "value": 0.0
+    },
+    {
+      "code": "total_additions",
+      "label": "Total additions",
+      "value": 115900.0
+    },
+    {
+      "code": "total_deductions",
+      "label": "Total deductions",
+      "value": 12000.0
+    },
+    {
+      "code": "zakat_base",
+      "label": "Zakat base",
+      "value": 103900.0
+    },
+    {
+      "code": "zakat_rate",
+      "label": "Zakat rate: 2.5% of the lunar year scaled to the Gregorian year (x 365/354)",
+      "value": 0.02577683615819209
+    },
+    {
+      "code": "zakat_due",
+      "label": "Zakat due on the positive base",
+      "value": 2678.21
+    }
+  ],
+  "rate": 0.02577683615819209,
+  "review": {
+    "base": 103900.0,
+    "credential": "SOCPA 12345",
+    "current": false,
+    "date_to": "2026-12-31",
+    "id": 2,
+    "note": "Checked against the ledger",
+    "reviewed_at": "2026-01-01T00:00:00Z",
+    "reviewer": {
+      "id": 3,
+      "name": "Finance Manager"
+    },
+    "zakat_due": 2678.21
+  },
+  "status": "review_stale",
+  "target_move": "posted",
+  "template_base": 103900.0,
+  "zakat_due": 2675.64
+}

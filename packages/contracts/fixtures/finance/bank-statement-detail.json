@@ -1,0 +1,58 @@
+{
+  "balance_end": 540.0,
+  "balance_end_real": 540.0,
+  "balance_start": 0.0,
+  "currency": "SAR",
+  "date": "2026-10-31",
+  "id": 1,
+  "journal": {
+    "id": 2,
+    "name": "Bank"
+  },
+  "lines": [
+    {
+      "amount": 750.0,
+      "amount_residual": -750.0,
+      "date": "2026-10-25",
+      "id": 1,
+      "is_reconciled": false,
+      "partner": {
+        "id": 3,
+        "name": "Al Noor Trading"
+      },
+      "payment_ref": "INV/2026/00001"
+    },
+    {
+      "amount": -460.0,
+      "amount_residual": 460.0,
+      "date": "2026-10-26",
+      "id": 4,
+      "is_reconciled": false,
+      "partner": {
+        "id": 5,
+        "name": "Gulf Supplies"
+      },
+      "payment_ref": "Gulf Supplies bill"
+    },
+    {
+      "amount": 50.0,
+      "amount_residual": -50.0,
+      "date": "2026-10-27",
+      "id": 6,
+      "is_reconciled": false,
+      "partner": null,
+      "payment_ref": "Bank interest"
+    },
+    {
+      "amount": 200.0,
+      "amount_residual": -200.0,
+      "date": "2026-10-28",
+      "id": 7,
+      "is_reconciled": false,
+      "partner": null,
+      "payment_ref": "Unknown deposit"
+    }
+  ],
+  "lines_count": 4,
+  "name": "October"
+}
