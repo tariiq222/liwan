@@ -10,6 +10,7 @@ from odoo.addons.webvue_ai.models.access_service import AI_USE
 from odoo.addons.webvue_ai.models.tool_registry import TOOL_KINDS
 
 AUDIT_KINDS = ('message', *TOOL_KINDS)
+MONTHLY_MESSAGES = 'ai.messages.monthly'
 AUDIT_RESULTS = ('ok', 'denied', 'failed', 'proposed', 'approved', 'rejected')
 DRAFT_RESULTS = ('proposed', 'approved', 'rejected')
 WIRE_KEYS = frozenset({
@@ -19,6 +20,22 @@ SECRET_FRAGMENTS = ('password', 'passwd', 'token', 'secret', 'apikey', 'authoriz
 NUL = '\x00'
 MAX_JSON_DEPTH = 8
 MAX_JSON_BYTES = 32 * 1024
+MAX_CONVERSATION_ID = 64
+CONVERSATION_ID_MESSAGE = (
+    f'conversation_id must be a non-empty string of at most {MAX_CONVERSATION_ID} characters, without NUL'
+)
+
+
+def is_conversation_id(value):
+    return isinstance(value, str) and 0 < len(value) <= MAX_CONVERSATION_ID and NUL not in value
+
+
+def raise_invalid(env, field, message, code='invalid'):
+    """Raise the ``ValidationError`` that the route maps to a 422 carrying ``field`` and ``code``."""
+    error = ValidationError(env._('%(message)s', message=message))
+    error.webvue_field = field
+    error.webvue_code = code
+    raise error
 
 
 def is_secret_key(key):
@@ -87,10 +104,7 @@ class WebVueAiAudit(models.Model):
 
     @api.model
     def _webvue_ai_invalid(self, field, message, code='invalid'):
-        error = ValidationError(self.env._('%(message)s', message=message))
-        error.webvue_field = field
-        error.webvue_code = code
-        raise error
+        raise_invalid(self.env, field, message, code)
 
     @api.model
     def _webvue_ai_json(self, field, value):
@@ -123,8 +137,8 @@ class WebVueAiAudit(models.Model):
             field = sorted(unknown)[0]
             self._webvue_ai_invalid(field, f'field {field!r} is not accepted', code='unknown_field')
         conversation_id = values.get('conversation_id')
-        if not isinstance(conversation_id, str) or not conversation_id or len(conversation_id) > 64 or NUL in conversation_id:
-            invalid('conversation_id', 'conversation_id must be a non-empty string of at most 64 characters, without NUL')
+        if not is_conversation_id(conversation_id):
+            invalid('conversation_id', CONVERSATION_ID_MESSAGE)
         kind = values.get('kind')
         if not isinstance(kind, str) or kind not in AUDIT_KINDS:
             invalid('kind', f'kind must be one of {AUDIT_KINDS}')
@@ -189,13 +203,16 @@ class WebVueAiAudit(models.Model):
         rows = [self._webvue_ai_prepare(values) for values in vals_list]
         messages = sum(row['kind'] == 'message' for row in rows)
         if messages:
-            # The lock serialises writers on the tenant row, but Odoo runs REPEATABLE READ: a sender that
-            # waited here may count from a snapshot older than the winner's commit. The limit can
-            # therefore overshoot by at most the number of concurrent senders (the same bounded pattern
-            # as the platform's quota claims); it is not an exact cap.
             entitlement = self.env['webvue.entitlement.service']
-            entitlement._webvue_profile()._webvue_lock()
-            entitlement.require_within_limit('ai.messages.monthly', self._webvue_ai_count_messages() + messages)
+            if entitlement._webvue_limit_value(MONTHLY_MESSAGES) is not None:
+                # An exact cap. Odoo runs REPEATABLE READ, so a lock alone would let a sender that waited count
+                # from a snapshot older than the winner's commit. Writing the tenant's quota fence before the
+                # count makes such a sender fail serialization instead; Odoo then retries its whole request on
+                # fresh data, which already holds the winner's row. Unlimited tenants skip the fence. Known limit:
+                # Odoo retries a request five times, so a burst of more concurrent capped messages for one tenant
+                # (or ones racing other quota claims) can still end in a server error; each transaction is short.
+                entitlement._webvue_profile()._webvue_bump_quota_revision()
+            entitlement.require_within_limit(MONTHLY_MESSAGES, self._webvue_ai_count_messages() + messages)
         return super().create(rows)
 
     @api.model
