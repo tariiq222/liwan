@@ -58,14 +58,13 @@ suite('commercial B1 atomic orders', () => {
     const firstQuote = await createQuoteForCustomer(pool, { customer_id:id, request:request() })
     const input = accept(firstQuote), first = await acceptQuote(pool, input, vendor)
     const adapter = new SimulatorAdapter()
-    const attempt = await createPaymentAttempt(pool, { order_id:first.order.id, customer_id:id, adapter, allowedOrigin:'https://webvue.test', return_path:'/subscription' })
+    const attempt = await createPaymentAttempt(pool, { order_id:first.order.id, customer_id:id, adapter, allowedOrigin:'https://webvue.test' })
     if (initialPayment === 'failed') {
       adapter.settle(attempt.provider_ref, 'failed')
       expect(await handleProviderEvent(pool, {provider:'simulator',adapter,rawBody:adapter.webhookBody(attempt.provider_ref),headers:{}})).toEqual({status:200,outcome:'accepted'})
       expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [first.order.id])).rows[0].payment_state).toBe('failed')
-      // Failed attempts can still settle later. Existing cancellation cannot resolve
-      // this state; accepting a replacement must stay blocked until explicit resolution.
-      await expect(cancelOrder(pool, {order_id:first.order.id,principal:vendor,reason:'Customer changed selection',adapter})).rejects.toMatchObject({status:409,code:'order_not_cancellable'})
+      // A failed attempt can still settle later, so until the order is explicitly cancelled
+      // accepting a replacement must stay blocked.
     }
     const beforeReject = (await pool.query(`SELECT
       (SELECT count(*) FROM invoices WHERE order_id=$1) AS invoices,
@@ -200,23 +199,38 @@ suite('commercial B1 atomic orders', () => {
 describe('order cancellation provider uncertainty', () => {
   const principal: any = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage'] }
   function fixture(attempt: Record<string, unknown> | Record<string, unknown>[], state: Record<string, unknown> = {}) {
-    const writes: string[] = [], providerCalls: string[] = []
+    // `log` is the ordered story of one cancellation: commits, writes and provider calls.
+    const writes: string[] = [], providerCalls: string[] = [], log: string[] = []
     const order = { id:'order', customer_id:'customer', subscription_id:'subscription', kind:'new', quote_id:'quote',
       target_revision_id:'11111111-1111-4111-8111-111111111111', expected_applied_revision_id:null, payment_state:'awaiting_payment', fulfillment_state:'not_started',
       cancelled:false, effective_at:null, idempotency_key:'key', request_digest:'digest', due_now_minor:100, currency:'SAR', exponent:2, created_at:'2026-10-04T00:00:00Z', ...state }
-    const client = { release() {}, async query(sql: string) {
-      if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') return { rows:[], rowCount:0 }
+    const rows = (Array.isArray(attempt) ? attempt : [attempt])
+      .map((item, i) => ({ id:`attempt${i}`, provider:'simulator', mode:'simulator', status:'pending', provider_ref:`ref${i}`, ...item })) as any[]
+    let transactions = 0, failSecond: Error | null = null
+    const client = { release() {}, async query(sql: string, params: any[] = []) {
+      if (sql === 'BEGIN') { transactions++; log.push(`begin ${transactions}`); return { rows:[], rowCount:0 } }
+      if (sql === 'COMMIT') { log.push(`commit ${transactions}`); return { rows:[], rowCount:0 } }
+      if (sql === 'ROLLBACK') { log.push(`rollback ${transactions}`); return { rows:[], rowCount:0 } }
       if (sql.startsWith('SELECT customer_id,subscription_id FROM orders')) return { rows:[order], rowCount:1 }
       if (sql.startsWith('SELECT * FROM customers')) return { rows:[{id:'customer',tenant_id:'tenant'}], rowCount:1 }
       if (sql.startsWith('SELECT id FROM subscriptions')) return { rows:[{id:'subscription'}], rowCount:1 }
       if (sql.startsWith('SELECT * FROM orders')) return { rows:[order], rowCount:1 }
-      if (sql.startsWith('SELECT * FROM payment_attempts')) return { rows:(Array.isArray(attempt)?attempt:[attempt]).map(item=>({id:'attempt',provider:'simulator',mode:'simulator',status:'pending',provider_ref:'ref',...item})), rowCount:1 }
-      if (/^(UPDATE|INSERT)/.test(sql)) { writes.push(sql); return { rows:[order],rowCount:1 } }
+      if (sql.startsWith('SELECT * FROM payment_attempts')) {
+        if (transactions === 2 && failSecond) throw failSecond
+        const found = sql.includes('status = ANY') ? rows.filter(r => params[1].includes(r.status)) : rows
+        return { rows:found.map(r => ({ ...r })), rowCount:found.length }
+      }
+      if (/^(UPDATE|INSERT)/.test(sql)) {
+        writes.push(sql); log.push(`write ${transactions}: ${sql.slice(0, 40)}`)
+        if (sql.startsWith('UPDATE payment_attempts SET status=\'unknown\'')) for (const r of rows) if (params[0].includes(r.id)) r.status = 'unknown'
+        if (sql.startsWith('UPDATE payment_attempts SET status=\'canceled\'')) for (const r of rows) if (params[0].includes(r.id) && r.status === 'unknown') r.status = 'canceled'
+        return { rows:[order],rowCount:1 }
+      }
       throw Error('Unexpected query: '+sql)
     } }
     const pool = { connect:async()=>client } as unknown as Pool
-    const adapter: any = { provider:'simulator', mode:'simulator', cancelAttempt:async(ref:string)=>{providerCalls.push(ref)} }
-    return { pool, adapter, writes, providerCalls }
+    const adapter: any = { provider:'simulator', mode:'simulator', cancelAttempt:async(ref:string)=>{providerCalls.push(ref);log.push(`provider cancel ${ref}`)} }
+    return { pool, adapter, writes, providerCalls, log, rows, failSettleRead(error: Error) { failSecond = error } }
   }
   it.each([
     ['unknown status', {status:'unknown'}, 'configured'],
@@ -236,12 +250,36 @@ describe('order cancellation provider uncertainty', () => {
     expect(f.providerCalls).toEqual([])
     expect(f.writes).toEqual([])
   })
-  it('settles a supported pending attempt only after provider cancellation', async()=>{
+  it('calls the provider only after the reserving commit, then settles in a second transaction', async()=>{
     const f=fixture({})
     const result=await cancelOrder(f.pool,{order_id:'order',principal,reason:'Customer request',adapter:f.adapter})
     expect(result).toMatchObject({id:'order',payment_state:'awaiting_payment',fulfillment_state:'not_started'})
-    expect(f.providerCalls).toEqual(['ref'])
-    expect(f.writes).toHaveLength(6)
+    expect(f.providerCalls).toEqual(['ref0'])
+    const providerAt=f.log.indexOf('provider cancel ref0')
+    expect(f.log.slice(0,providerAt).filter(line=>line.startsWith('write')).length).toBe(1)
+    expect(f.log.indexOf('commit 1')).toBeLessThan(providerAt)
+    expect(f.log.indexOf('begin 2')).toBeGreaterThan(providerAt)
+    expect(f.log.slice(providerAt).filter(line=>line.startsWith('write'))).toHaveLength(6)
+    expect(f.rows[0]!.status).toBe('canceled')
+  })
+  it('cancels every live attempt of an order, reserving them with one write', async()=>{
+    const f=fixture([{}, {}])
+    await cancelOrder(f.pool,{order_id:'order',principal,reason:'Customer request',adapter:f.adapter})
+    expect(f.providerCalls).toEqual(['ref0','ref1'])
+    expect(f.log.filter(line=>line.startsWith('write 1'))).toHaveLength(1)
+    expect(f.rows.map(r=>r.status)).toEqual(['canceled','canceled'])
+  })
+  it('cancels an order with no live attempt in one transaction and never calls the provider', async()=>{
+    const f=fixture([])
+    await cancelOrder(f.pool,{order_id:'order',principal,reason:'Customer request',adapter:f.adapter})
+    expect(f.providerCalls).toEqual([])
+    expect(f.log.filter(line=>line.startsWith('begin'))).toEqual(['begin 1'])
+    expect(f.writes).toHaveLength(5)
+  })
+  it('cancels a failed order', async()=>{
+    const f=fixture([],{payment_state:'failed'})
+    expect(await cancelOrder(f.pool,{order_id:'order',principal,reason:'Customer request',adapter:f.adapter})).toMatchObject({id:'order'})
+    expect(f.writes).toHaveLength(5)
   })
   it.each([{payment_state:'paid'}, {fulfillment_state:'applying'}])('refuses an order outside cancellable state %j', async(state)=>{
     const f=fixture({},state)
@@ -262,9 +300,24 @@ describe('order cancellation provider uncertainty', () => {
     await expect(cancelOrder(f.pool,{order_id:'order',principal,reason:'Customer request',adapter:f.adapter})).rejects.toMatchObject({code:'provider_mismatch'})
     expect(f.writes).toEqual([])
   })
-  it('provider refusal propagates without local settlement', async()=>{
+  it('a provider refusal leaves the attempt unknown with one reserving write and a 409', async()=>{
     const f=fixture({});f.adapter.cancelAttempt=async()=>{throw Error('provider refused')}
-    await expect(cancelOrder(f.pool,{order_id:'order',principal,reason:'Customer request',adapter:f.adapter})).rejects.toThrow('provider refused')
-    expect(f.writes).toEqual([])
+    await expect(cancelOrder(f.pool,{order_id:'order',principal,reason:'Customer request',adapter:f.adapter})).rejects.toMatchObject({code:'payment_reconciliation_required',status:409})
+    expect(f.writes).toHaveLength(1)
+    expect(f.rows[0]!.status).toBe('unknown')
+  })
+  it('a failure in the settle transaction leaves the attempt unknown', async()=>{
+    const f=fixture({});f.failSettleRead(new Error('connection lost'))
+    await expect(cancelOrder(f.pool,{order_id:'order',principal,reason:'Customer request',adapter:f.adapter})).rejects.toThrow('connection lost')
+    expect(f.providerCalls).toEqual(['ref0'])
+    expect(f.writes).toHaveLength(1)
+    expect(f.rows[0]!.status).toBe('unknown')
+    expect(f.log).toContain('rollback 2')
+  })
+  it('refuses when the order was paid or cancelled while the provider was being called', async()=>{
+    const f=fixture({})
+    f.adapter.cancelAttempt=async()=>{f.rows[0]!.status='succeeded'}
+    await expect(cancelOrder(f.pool,{order_id:'order',principal,reason:'Customer request',adapter:f.adapter})).rejects.toMatchObject({code:'order_not_cancellable',status:409})
+    expect(f.writes).toHaveLength(1)
   })
 })

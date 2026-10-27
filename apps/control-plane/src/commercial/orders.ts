@@ -8,48 +8,87 @@ import { requireCapability } from './authorization.js'
 import { loadQuoteSources, pricingBaseline } from './quotes.js'
 import { issueInvoiceFromQuote } from './invoices.js'
 import { enqueueOutbox } from './outbox.js'
+import { lookup } from './payments.js'
 import { reserveBranchesForOrder } from './branches.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { assertDowngradeFitsUsage } from './usage.js'
 
+const LIVE_ATTEMPT = ['created','redirected','pending','unknown']
+const cancellable = (order: Record<string, any>) => order.kind !== 'renewal' && !order.cancelled
+  && ['awaiting_payment','failed'].includes(order.payment_state) && order.fulfillment_state === 'not_started'
+
+/** Locks the customer, subscription and order in the one order every payment path uses, and re-checks scope. */
+async function lockOrder(client: PoolClient, input: { order_id: string; principal: Principal }) {
+  const { principal } = input
+  const found = (await client.query('SELECT customer_id,subscription_id FROM orders WHERE id=$1', [input.order_id])).rows[0]
+  if (!found) throw new CommercialHttpError('not_found', 404)
+  const customer = (await client.query('SELECT * FROM customers WHERE id=$1 FOR UPDATE', [found.customer_id])).rows[0]
+  if ((principal.customer_id && principal.customer_id !== found.customer_id)
+    || (principal.kind === 'customer' && (principal.customer_id !== found.customer_id || principal.tenant_id !== customer.tenant_id)))
+    throw new CommercialHttpError('not_found', 404)
+  await client.query('SELECT id FROM subscriptions WHERE id=$1 FOR UPDATE', [found.subscription_id])
+  return (await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [input.order_id])).rows[0]
+}
+
+async function settleCancellation(client: PoolClient, order: Record<string, any>, principal: Principal, reason: string) {
+  const updated = (await client.query('UPDATE orders SET cancelled=true WHERE id=$1 RETURNING *', [order.id])).rows[0]
+  await client.query('UPDATE subscriptions SET target_revision_id=NULL,revision=revision+1 WHERE id=$1 AND target_revision_id=$2', [order.subscription_id,order.target_revision_id])
+  // Retain immutable purchase evidence while releasing unfulfilled reservations
+  // and preventing dunning from collecting the canceled purchase invoice.
+  const released = await client.query("UPDATE commercial_branches SET state='archived',archived_at=now() WHERE order_id=$1 AND subscription_id=$2 AND kind='extra' AND state='pending' RETURNING id", [order.id,order.subscription_id])
+  const voided = await client.query("UPDATE invoices SET status='void' WHERE order_id=$1 AND status='issued' RETURNING id", [order.id])
+  await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+    [randomUUID(),principal.actor_id,'order.cancelled',order.id,reason,JSON.stringify({ customer_id: order.customer_id, target_revision_id: order.target_revision_id, archived_branch_ids: released.rows.map(r => r.id), void_invoice_ids: voided.rows.map(r => r.id) })])
+  return orderView(updated)
+}
+
+/**
+ * Three steps, so a provider call never holds a database transaction open:
+ * 1. reserve: lock, check, and park every live attempt as `unknown` (an order with none cancels right here);
+ * 2. call the provider outside any transaction, looking the state up once if a cancel fails;
+ * 3. settle: re-lock and re-read, then cancel only what the provider confirmed.
+ * A crash between steps leaves `unknown` attempts, which the reconciler resolves.
+ */
 export async function cancelOrder(pool: Pool, input: { order_id: string; principal: Principal; reason: string; adapter?: PaymentAdapter }) {
   const { principal, reason, adapter } = input
   requireCapability(principal, principal.kind === 'vendor' ? 'vendor.subscriptions.manage' : 'subscription.manage')
   if (reason.trim().length < 3) throw new CommercialHttpError('reason_required', 422)
-  return transaction(pool, async client => {
-    const found = (await client.query('SELECT customer_id,subscription_id FROM orders WHERE id=$1', [input.order_id])).rows[0]
-    if (!found) throw new CommercialHttpError('not_found', 404)
-    const customer = (await client.query('SELECT * FROM customers WHERE id=$1 FOR UPDATE', [found.customer_id])).rows[0]
-    if ((principal.customer_id && principal.customer_id !== found.customer_id)
-      || (principal.kind === 'customer' && (principal.customer_id !== found.customer_id || principal.tenant_id !== customer.tenant_id)))
-      throw new CommercialHttpError('not_found', 404)
-    await client.query('SELECT id FROM subscriptions WHERE id=$1 FOR UPDATE', [found.subscription_id])
-    const order = (await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [input.order_id])).rows[0]
+  const reserved = await transaction(pool, async client => {
+    const order = await lockOrder(client, input)
     // Renewal cycles have a separate collection lifecycle and a unique period;
     // purchase cancellation must not silently erase that cycle's obligation.
-    if (order.kind === 'renewal' || order.cancelled || order.payment_state !== 'awaiting_payment' || order.fulfillment_state !== 'not_started')
-      throw new CommercialHttpError('order_not_cancellable', 409)
-    const attempts = (await client.query("SELECT * FROM payment_attempts WHERE order_id=$1 AND status IN ('created','redirected','pending','unknown') FOR UPDATE", [order.id])).rows
+    if (!cancellable(order)) throw new CommercialHttpError('order_not_cancellable', 409)
+    const attempts = (await client.query('SELECT * FROM payment_attempts WHERE order_id=$1 AND status = ANY($2::text[]) FOR UPDATE', [order.id, LIVE_ATTEMPT])).rows
+    if (!attempts.length) return { done: await settleCancellation(client, order, principal, reason) }
     // Preflight every attempt before any provider or local cancellation effect.
     // An unknown outcome must be reconciled before it can be settled as canceled.
-    if (attempts.length && !adapter?.cancelAttempt) throw new CommercialHttpError('payment_reconciliation_required', 409)
+    if (!adapter?.cancelAttempt) throw new CommercialHttpError('payment_reconciliation_required', 409)
     for (const attempt of attempts) {
-      if (adapter!.provider !== attempt.provider || adapter!.mode !== attempt.mode) throw new CommercialHttpError('provider_mismatch', 409)
+      if (adapter.provider !== attempt.provider || adapter.mode !== attempt.mode) throw new CommercialHttpError('provider_mismatch', 409)
       if (attempt.status === 'unknown' || !attempt.provider_ref) throw new CommercialHttpError('payment_reconciliation_required', 409)
     }
-    for (const attempt of attempts) {
-      await adapter!.cancelAttempt!(attempt.provider_ref)
-      await client.query("UPDATE payment_attempts SET status='canceled',updated_at=now() WHERE id=$1", [attempt.id])
+    await client.query("UPDATE payment_attempts SET status='unknown',updated_at=now() WHERE id = ANY($1::uuid[])", [attempts.map(a => a.id)])
+    return { attempts }
+  })
+  if (reserved.done) return reserved.done
+  const confirmed = new Set<string>()
+  for (const attempt of reserved.attempts!) {
+    try { await adapter!.cancelAttempt!(attempt.provider_ref); confirmed.add(attempt.id) }
+    catch {
+      // Only the provider's own state can say whether the charge is still collectable: a settled
+      // lookup moves the attempt out of `unknown`; anything else stays for the reconciler.
+      try { await lookup(pool, adapter!, attempt) } catch { /* unresolved: refused in the settle step */ }
     }
-    const updated = (await client.query('UPDATE orders SET cancelled=true WHERE id=$1 RETURNING *', [order.id])).rows[0]
-    await client.query('UPDATE subscriptions SET target_revision_id=NULL,revision=revision+1 WHERE id=$1 AND target_revision_id=$2', [order.subscription_id,order.target_revision_id])
-    // Retain immutable purchase evidence while releasing unfulfilled reservations
-    // and preventing dunning from collecting the canceled purchase invoice.
-    const released = await client.query("UPDATE commercial_branches SET state='archived',archived_at=now() WHERE order_id=$1 AND subscription_id=$2 AND kind='extra' AND state='pending' RETURNING id", [order.id,order.subscription_id])
-    const voided = await client.query("UPDATE invoices SET status='void' WHERE order_id=$1 AND status='issued' RETURNING id", [order.id])
-    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-      [randomUUID(),principal.actor_id,'order.cancelled',order.id,reason,JSON.stringify({ customer_id: order.customer_id, target_revision_id: order.target_revision_id, archived_branch_ids: released.rows.map(r => r.id), void_invoice_ids: voided.rows.map(r => r.id) })])
-    return orderView(updated)
+  }
+  return transaction(pool, async client => {
+    const order = await lockOrder(client, input)
+    if (!cancellable(order)) throw new CommercialHttpError('order_not_cancellable', 409)
+    const attempts = (await client.query('SELECT * FROM payment_attempts WHERE order_id=$1 FOR UPDATE', [order.id])).rows
+    if (attempts.some(a => a.status === 'succeeded')) throw new CommercialHttpError('order_not_cancellable', 409)
+    const open = attempts.filter(a => LIVE_ATTEMPT.includes(a.status))
+    if (open.some(a => !confirmed.has(a.id))) throw new CommercialHttpError('payment_reconciliation_required', 409)
+    if (open.length) await client.query("UPDATE payment_attempts SET status='canceled',updated_at=now() WHERE id = ANY($1::uuid[]) AND status='unknown'", [open.map(a => a.id)])
+    return settleCancellation(client, order, principal, reason)
   })
 }
 

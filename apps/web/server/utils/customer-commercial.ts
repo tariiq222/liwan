@@ -149,11 +149,16 @@ export function signCustomerForward(input: { method: string; path: string; rawBo
   return { ...signed, 'x-webvue-principal': principalHeader }
 }
 
+/** The tenant this request is bound to: the verified host binding in shared mode, the configured id in dedicated mode. */
+function boundTenantId(tenant: ReturnType<typeof tenantRequest>, config: CustomerConfig): string | undefined {
+  return tenant ? tenant.tenantId ?? (tenant as any).tenant_id ?? (tenant as any).id : config.customerCommercialTenantId
+}
+
 export async function customerPrincipal(event: H3Event, config: CustomerConfig): Promise<CustomerPrincipal> {
   const cookie = getHeader(event, 'cookie')
   if (!cookie) fail(401, 'unauthorized', 'A signed-in company session is required')
   const tenant = tenantRequest(event)
-  const tenantId = tenant ? tenant.tenantId ?? (tenant as any).tenant_id ?? (tenant as any).id : config.customerCommercialTenantId
+  const tenantId = boundTenantId(tenant, config)
   if (!tenantId) fail(503, 'commercial_unavailable', 'Tenant binding is not configured')
   let me: unknown
   try {
@@ -213,4 +218,42 @@ export async function forwardCustomerRequest(event: H3Event): Promise<unknown> {
     }
     fail(503, 'commercial_unavailable', 'Subscription service is temporarily unavailable')
   }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const PAYMENT_RETURN_BODY = (tenantId: string) => `webvue-payment-return:${tenantId}\n`
+
+/** Asks the control plane to verify one attempt with the provider; resolves the order id, or null on any failure. */
+async function verifyPaymentReturn(event: H3Event, config: CustomerConfig, attempt: string): Promise<string | null> {
+  try {
+    if (!config.customerCommercialServiceKey || !config.customerCommercialIssuer) return null
+    if (!rateLimitMutation(`payment-return:${attempt}`)) return null
+    const tenantId = boundTenantId(tenantRequest(event), config)
+    if (!tenantId) return null
+    const target = new URL(`/v1/customer/payment-returns/${attempt}`, customerControlBase(config))
+    // Anonymous signature: the return carries no user, so it proves only that this web server asked.
+    const signed = signServiceRequest({ method: 'POST', path: target.pathname, body: PAYMENT_RETURN_BODY(tenantId), actor: 'anonymous', anonymous: true, issuer: config.customerCommercialIssuer, key: config.customerCommercialServiceKey })
+    const response = await $fetch.raw(target.toString(), { method: 'POST', headers: { ...signed, 'x-webvue-tenant': tenantId, accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(8000) })
+    const orderId = (response._data as { order_id?: unknown } | null)?.order_id
+    return typeof orderId === 'string' && UUID.test(orderId) ? orderId : null
+  } catch { return null }
+}
+
+/**
+ * Payment return endpoint, reached by the customer's browser (GET) or the provider's notification (POST).
+ * Neither is trusted: only the attempt id is read, no body, no cookie, no CSRF. It triggers a provider
+ * lookup in the control plane and shows its result; the reconciler settles whatever this misses.
+ */
+export async function relayPaymentReturn(event: H3Event): Promise<string> {
+  const config = useRuntimeConfig(event) as CustomerConfig
+  if (!customerCommercialEnabled(config)) fail(404, 'not_found', 'Not found')
+  const method = getMethod(event).toUpperCase()
+  setResponseHeader(event, 'cache-control', 'no-store')
+  if (method !== 'GET' && method !== 'POST') { setResponseStatus(event, 405); setResponseHeader(event, 'allow', 'GET, POST'); return '' }
+  const attempt = getRequestURL(event).searchParams.get('attempt') ?? ''
+  const orderId = UUID.test(attempt) ? await verifyPaymentReturn(event, config, attempt) : null
+  if (method === 'POST') { setResponseStatus(event, 204); return '' }
+  setResponseStatus(event, 303)
+  setResponseHeader(event, 'location', orderId ? `/subscription/status?order=${orderId}` : '/subscription')
+  return ''
 }

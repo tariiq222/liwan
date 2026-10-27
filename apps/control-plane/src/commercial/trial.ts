@@ -79,7 +79,7 @@ export async function convertTrial(pool: Pool, input: { customer_id: string; now
       [randomUUID(), `customer:${input.customer_id}`, 'trial.converted', sub.id, 'Customer converted the trial', JSON.stringify({ converted_at: input.now.toISOString() })])
     await pushCommercialExpiry(client, sub.id, null)
   })
-  await expireTrials(pool, { now: input.now, adapter: input.adapter, allowedOrigin: input.allowedOrigin, return_path: '/subscription', subscription_id: sub.id })
+  await expireTrials(pool, { now: input.now, adapter: input.adapter, allowedOrigin: input.allowedOrigin, subscription_id: sub.id })
   // The expiry run may also create other due renewals: read this subscription's own first order, never index 0.
   const row = (await pool.query(`SELECT o.* FROM orders o JOIN renewals r ON r.order_id=o.id
     WHERE r.subscription_id=$1 ORDER BY r.created_at DESC,o.id DESC LIMIT 1`, [sub.id])).rows[0]
@@ -112,7 +112,7 @@ export async function endTrial(pool: Pool, input: { subscription_id: string; rea
     await pushCommercialExpiry(client, input.subscription_id, null)
     return updated.rows[0].customer_id as string
   })
-  await expireTrials(pool, { now: input.now, adapter: input.adapter, allowedOrigin: input.allowedOrigin, return_path: '/subscription', subscription_id: input.subscription_id })
+  await expireTrials(pool, { now: input.now, adapter: input.adapter, allowedOrigin: input.allowedOrigin, subscription_id: input.subscription_id })
   return { customer_id: ended }
 }
 

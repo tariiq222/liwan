@@ -81,7 +81,7 @@ suite('commercial trial', () => {
   it('ends a trial by issuing the first renewal invoice', async () => {
     const c = await trialAt(now, -1)
     const adapter = new SimulatorAdapter()
-    await expireTrials(pool, { now, adapter, allowedOrigin: 'https://webvue.test', return_path: '/subscription/status' })
+    await expireTrials(pool, { now, adapter, allowedOrigin: 'https://webvue.test' })
     const after = await getSubscription(pool, c.id)
     expect(after.state).toBe('past_due')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
@@ -89,14 +89,14 @@ suite('commercial trial', () => {
   it('is idempotent across a repeated run', async () => {
     const c = await trialAt(now, -1)
     const adapter = new SimulatorAdapter()
-    const args = { now, adapter, allowedOrigin: 'https://webvue.test', return_path: '/x' }
+    const args = { now, adapter, allowedOrigin: 'https://webvue.test' }
     await expireTrials(pool, args)
     await expireTrials(pool, args)
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
   })
   it('does not end a trial before its end date', async () => {
     const c = await trialAt(now, 2)
-    await expireTrials(pool, { now, adapter: new SimulatorAdapter(), allowedOrigin: 'https://webvue.test', return_path: '/x' })
+    await expireTrials(pool, { now, adapter: new SimulatorAdapter(), allowedOrigin: 'https://webvue.test' })
     expect((await getSubscription(pool, c.id)).state).toBe('trialing')
   })
   it('writes each notice threshold exactly once', async () => {

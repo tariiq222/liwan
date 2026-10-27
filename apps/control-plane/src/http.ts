@@ -312,6 +312,7 @@ async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tena
 }
 
 export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }, deps?: { webauthn?: WebAuthnLib }) {
+  // One return origin for every tenant (the first entry). Per-tenant return origins in shared mode are a separate ticket.
   const paymentRuntime: PaymentRuntime = {adapter:null,allowedOrigin:(process.env.WEBVUE_PAYMENT_RETURN_ORIGINS??'').split(',').map(s=>s.trim()).filter(Boolean)[0]??''}
   try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env) } catch { /* Fail payment routes closed; non-payment routes remain available. */ }
   // Password setting runs in control-worker (the only Docker-capable process); unset channel = acceptance fails closed.

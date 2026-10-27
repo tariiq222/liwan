@@ -123,8 +123,8 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         lastBilling = now
         if (o.paymentAdapter) {
           const adapter = o.paymentAdapter
-          await job('trial-expiry', () => expireTrials(pool, { now: new Date(now), adapter, allowedOrigin: origin, return_path: '/subscription/status' }))
-          await job('renewals', () => generateRenewals(pool, { now: new Date(now), adapter, allowedOrigin: origin, return_path: '/subscription/status' }))
+          await job('trial-expiry', () => expireTrials(pool, { now: new Date(now), adapter, allowedOrigin: origin }))
+          await job('renewals', () => generateRenewals(pool, { now: new Date(now), adapter, allowedOrigin: origin }))
         }
         await job('dunning', () => applyDunning(pool, { now: new Date(now) }))
         const refund = (settlements as Record<string, unknown>).processRefundOutbox

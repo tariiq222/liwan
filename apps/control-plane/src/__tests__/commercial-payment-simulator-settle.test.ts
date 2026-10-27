@@ -61,7 +61,7 @@ suite('vendor simulator settlement on live PostgreSQL', () => {
     })
     const runtime = {adapter:new SimulatorAdapter(),allowedOrigin:'https://webvue.test'}
     const pathname = `/v1/commercial/orders/${order_id}/payment-attempts`
-    const result = await routesB(pool,{method:'POST',pathname,raw:JSON.stringify({return_path:'/subscription'}),issuer:'test-vendor',actor:7,capabilities:['vendor.billing.manage'],stepUpFresh:true},new URL(pathname,'http://localhost'),runtime)
+    const result = await routesB(pool,{method:'POST',pathname,raw:JSON.stringify({}),issuer:'test-vendor',actor:7,capabilities:['vendor.billing.manage'],stepUpFresh:true},new URL(pathname,'http://localhost'),runtime)
     const attempt = result!.data as {id:string;provider_ref:string}
     return {runtime,attempt,order_id,invoice_id}
   }

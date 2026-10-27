@@ -123,7 +123,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     need(input,'vendor.billing.manage');if(!z.uuid().safeParse(payment[1]).success)throw new CommercialHttpError('not_found',404)
     const order=(await pool.query('SELECT customer_id FROM orders WHERE id=$1',[payment[1]])).rows[0];if(!order)throw new CommercialHttpError('not_found',404)
     if(m==='GET'){const rows=(await pool.query('SELECT * FROM payment_attempts WHERE order_id=$1 ORDER BY created_at DESC',[payment[1]])).rows;return {status:200,data:{items:rows.map(paymentAttemptView),total:rows.length}}}
-    const body=parseBody(input.raw,z.strictObject({return_path:z.string().min(1).max(2048),idempotency_key:z.uuid().optional()}));return {status:201,data:await createPaymentAttempt(pool,{order_id:payment[1]!,customer_id:order.customer_id,return_path:body.return_path,...needPayment(runtime)})}
+    parseBody(input.raw||'{}',z.strictObject({idempotency_key:z.uuid().optional()}));return {status:201,data:await createPaymentAttempt(pool,{order_id:payment[1]!,customer_id:order.customer_id,...needPayment(runtime)})}
   }
   const settle=/^\/payment-simulator\/([^/]+)\/settle$/.exec(path)
   if(settle){
@@ -145,7 +145,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   if(m==='POST'&&path==='/renewals/run'){
     need(input,'vendor.billing.manage');const body=parseBody(input.raw||'{}',z.strictObject({now:z.iso.datetime().optional()}));if(body.now&&process.env.NODE_ENV==='production')throw new CommercialHttpError('forbidden',403)
     const now=body.now?new Date(body.now):new Date(),paymentRuntime=needPayment(runtime)
-    const generated=await generateRenewals(pool,{now,...paymentRuntime,return_path:'/subscription/status'});const dunning=await applyDunning(pool,{now});return {status:200,data:{generated,dunning}}
+    const generated=await generateRenewals(pool,{now,...paymentRuntime});const dunning=await applyDunning(pool,{now});return {status:200,data:{generated,dunning}}
   }
   return null
 }

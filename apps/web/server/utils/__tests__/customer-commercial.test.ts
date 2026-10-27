@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { verifyServiceRequest } from '@webvue/commercial-contracts/server'
-import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerCommercialEnabled, customerRoute, forwardCustomerRequest, rateLimitMutation, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
+import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerCommercialEnabled, customerRoute, forwardCustomerRequest, rateLimitMutation, relayPaymentReturn, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
 import { deriveCustomerCapabilities } from '../../../app/utils/customerCapabilities'
 
 vi.mock('../tenantRequest', async (orig) => {
@@ -146,5 +146,74 @@ describe('mutation origin binding', () => {
     setup(); vi.mocked(tenantRequest).mockReturnValue(null)
     expect(() => assertCustomerMutationOrigin({} as never, config)).not.toThrow()
     expect(() => assertCustomerMutationOrigin({} as never, { ...config, customerCommercialPublicOrigin: '' })).toThrow(expect.objectContaining({ statusCode: 503 }))
+  })
+})
+
+describe('payment return relay', () => {
+  const ATTEMPT = '3f2b8c1e-5d4a-4b7e-9c10-2a6d8e0f1b34'
+  const ORDER = '9a7c5e3b-1d2f-4a6b-8c0e-4f2a6b8d0c1e'
+  const returnSetup = (opts: { method?: string; attempt?: string; cfg?: Record<string, unknown> } = {}) => {
+    const raw = setup({ method: opts.method ?? 'GET', url: `https://acme.example/api/commercial/payment-callback?attempt=${opts.attempt ?? ATTEMPT}`, cookies: {}, headers: { cookie: '' }, cfg: opts.cfg })
+    raw.mockResolvedValue({ status: 200, _data: { order_id: ORDER, payment_state: 'paid', fulfillment_state: 'queued' } })
+    const status = vi.fn(); const headers: Record<string, string> = {}
+    vi.stubGlobal('setResponseStatus', status)
+    vi.stubGlobal('setResponseHeader', (_e: unknown, n: string, v: string) => { headers[n] = v })
+    return { raw, status, headers }
+  }
+  it('sends a browser return to the order status after an anonymous signed lookup', async () => {
+    const { raw, status, headers } = returnSetup()
+    expect(await relayPaymentReturn({} as never)).toBe('')
+    expect(status).toHaveBeenLastCalledWith({}, 303)
+    expect(headers).toMatchObject({ location: `/subscription/status?order=${ORDER}`, 'cache-control': 'no-store' })
+    const [url, init] = raw.mock.calls[0]!
+    expect(url).toBe(`https://control.example/v1/customer/payment-returns/${ATTEMPT}`)
+    expect(init).toMatchObject({ method: 'POST', redirect: 'error' })
+    expect(init.signal).toBeInstanceOf(AbortSignal)
+    const h = init.headers as Record<string, string>
+    expect(h).not.toHaveProperty('cookie'); expect(h).not.toHaveProperty('x-webvue-principal')
+    expect(h['x-webvue-tenant']).toBe('tenant-acme')
+    const verify = (key: string, tenant: string) => verifyServiceRequest({ method: 'POST', path: `/v1/customer/payment-returns/${ATTEMPT}`, body: `webvue-payment-return:${tenant}\n`, key, headers: h, anonymous: true })
+    expect(verify(KEY, 'tenant-acme')).toMatchObject({ actor: 'anonymous', issuer: 'customer-web' })
+    expect(verify(KEY, 'tenant-other')).toBeNull()
+    expect(verify('x'.repeat(48), 'tenant-acme')).toBeNull()
+  })
+  it.each(['not-a-uuid', '', '../x'])('makes no control-plane call for the attempt %j', async attempt => {
+    const { raw, headers } = returnSetup({ attempt })
+    await relayPaymentReturn({} as never)
+    expect(raw).not.toHaveBeenCalled()
+    expect(headers.location).toBe('/subscription')
+  })
+  it('falls back to the subscription page when the control plane fails or answers nonsense', async () => {
+    const failed = returnSetup(); failed.raw.mockRejectedValue(Object.assign(new Error('down'), { statusCode: 503 }))
+    await relayPaymentReturn({} as never)
+    expect(failed.headers.location).toBe('/subscription')
+    const odd = returnSetup(); odd.raw.mockResolvedValue({ status: 200, _data: { order_id: '/evil' } })
+    await relayPaymentReturn({} as never)
+    expect(odd.headers.location).toBe('/subscription')
+  })
+  it('answers a provider POST with 204 and never reads the body', async () => {
+    const { raw, status } = returnSetup({ method: 'POST' })
+    const read = vi.fn(); vi.stubGlobal('readRawBody', read)
+    expect(await relayPaymentReturn({} as never)).toBe('')
+    expect(status).toHaveBeenLastCalledWith({}, 204)
+    expect(raw).toHaveBeenCalledTimes(1)
+    expect(read).not.toHaveBeenCalled()
+  })
+  it('is 404 when the commercial feature is disabled, 405 for other methods, and rate-limited per attempt', async () => {
+    const off = returnSetup({ cfg: { customerCommercialEnabled: false } })
+    await expect(relayPaymentReturn({} as never)).rejects.toMatchObject({ statusCode: 404 })
+    expect(off.raw).not.toHaveBeenCalled()
+    const put = returnSetup({ method: 'PUT' })
+    await relayPaymentReturn({} as never)
+    expect(put.status).toHaveBeenLastCalledWith({}, 405)
+    const limited = returnSetup()
+    for (let i = 0; i < 25; i++) await relayPaymentReturn({} as never)
+    expect(limited.raw).toHaveBeenCalledTimes(20)
+  })
+  it('uses the verified host binding as the tenant in shared mode', async () => {
+    const { raw } = returnSetup()
+    vi.mocked(tenantRequest).mockReturnValueOnce({ tenantId: 'registry-tenant', host: 'acme.example' } as never)
+    await relayPaymentReturn({} as never)
+    expect((raw.mock.calls[0]![1].headers as Record<string, string>)['x-webvue-tenant']).toBe('registry-tenant')
   })
 })

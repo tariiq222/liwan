@@ -154,10 +154,15 @@ suite('vendor customer listing and cancellation HTTP boundary', () => {
     expect((await pool.query('SELECT cancelled FROM orders WHERE id=$1', [f.id])).rows[0].cancelled).toBe(false)
     expect((await pool.query('SELECT target_revision_id,revision FROM subscriptions WHERE id=$1', [f.subscription])).rows[0]).toEqual({target_revision_id:expect.any(String),revision:1})
   })
-  it.each(['paid', 'failed'])('keeps a %s order authoritative', async state => {
-    const f = await order(state)
+  it('keeps a paid order authoritative', async () => {
+    const f = await order('paid')
     await expect(call('POST', `/orders/${f.id}/cancel`, { reason: 'Customer changed selection' })).rejects.toMatchObject({ status: 409, code: 'order_not_cancellable' })
     expect((await pool.query('SELECT cancelled FROM orders WHERE id=$1', [f.id])).rows[0].cancelled).toBe(false)
+  })
+  it('cancels a failed order that has no live attempt', async () => {
+    const f = await order('failed')
+    await expect(call('POST', `/orders/${f.id}/cancel`, { reason: 'Customer changed selection' })).resolves.toMatchObject({ status: 200, data: { id: f.id } })
+    expect((await pool.query('SELECT cancelled FROM orders WHERE id=$1', [f.id])).rows[0].cancelled).toBe(true)
   })
   it('requires reconciliation for an unknown provider attempt instead of cancelling locally', async () => {
     const f = await order(), invoice = randomUUID()

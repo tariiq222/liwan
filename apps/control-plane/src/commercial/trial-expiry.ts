@@ -9,7 +9,7 @@ import type { PaymentAdapter } from './payment-adapter.js'
  * existing renewal path issues the first invoice and a hosted payment attempt; the renewals unique
  * key keeps a repeated run from issuing a second invoice.
  */
-export async function expireTrials(pool: Pool, input: { now: Date; adapter: PaymentAdapter; allowedOrigin: string; return_path: string; subscription_id?: string }) {
+export async function expireTrials(pool: Pool, input: { now: Date; adapter: PaymentAdapter; allowedOrigin: string; subscription_id?: string }) {
   const expired: string[] = []
   await transaction(pool, async client => {
     const due = (await client.query(`SELECT id,trial_ends_at FROM subscriptions
@@ -21,6 +21,6 @@ export async function expireTrials(pool: Pool, input: { now: Date; adapter: Paym
       expired.push(row.id)
     }
   })
-  const orders = expired.length ? await generateRenewals(pool, { now: input.now, adapter: input.adapter, allowedOrigin: input.allowedOrigin, return_path: input.return_path }) : []
+  const orders = expired.length ? await generateRenewals(pool, { now: input.now, adapter: input.adapter, allowedOrigin: input.allowedOrigin }) : []
   return { expired, orders }
 }
