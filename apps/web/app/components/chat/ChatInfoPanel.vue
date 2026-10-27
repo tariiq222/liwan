@@ -52,6 +52,12 @@ const canManage = computed(() => Boolean(conversation.value?.can_manage))
 const canRemoveMember = (memberId: number) => Boolean(conversation.value?.can_remove_members) && memberId !== me.value?.id
 const canLeave = computed(() => conversation.value?.type === 'group' || conversation.value?.type === 'channel')
 
+// A removal can empty the last member page; step back to the page that still exists.
+watch(() => members.value?.total, (total) => {
+  if (total === undefined || memberOffset.value < total) return
+  memberOffset.value = Math.max(0, pagesFor(total) - 1) * CHAT_PAGE_SIZE
+})
+
 async function runAction(work: () => Promise<unknown>) {
   if (busy.value) return
   busy.value = true

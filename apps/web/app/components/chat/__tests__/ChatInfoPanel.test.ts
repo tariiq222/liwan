@@ -64,4 +64,14 @@ describe('ChatInfoPanel', () => {
     expect(view.state.removingId.value).toBeNull()
     view.stop()
   })
+
+  it('steps back to the last existing member page when a removal empties the current one', async () => {
+    const members = query({ items: [{ id: 7, name: 'Sara', im_status: null }], total: 51 })
+    const { view } = await open({ members, canRemove: true })
+    view.state.memberOffset.value = 50
+    members.data.value = { items: [], total: 50 }
+    await Vue.nextTick()
+    expect(view.state.memberOffset.value).toBe(0)
+    view.stop()
+  })
 })
