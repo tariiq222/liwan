@@ -10,8 +10,6 @@ export class ApiError extends Error {
     message: string,
     public field?: string,
     public details?: Record<string, unknown>,
-    /** The raw server text, for diagnostics only: `message` is the localized text users may see. */
-    public serverMessage?: string,
   ) {
     super(message)
   }
@@ -39,6 +37,16 @@ const CLASS_BY_CODE: Record<string, string> = {
   unavailable: 'unavailable',
 }
 
+/**
+ * Odoo translates the validation text it raises (`env._()`), so a server message already written in the
+ * UI language is specific and worth showing; an English message under an Arabic UI is a developer text.
+ * The script is the only signal the envelope carries, so compare Arabic letters with the UI locale.
+ */
+function isInUiLanguage(message: string, locale: string): boolean {
+  const arabic = /[\u0600-\u06FF]/.test(message)
+  return locale === 'ar' ? arabic : !arabic
+}
+
 /** A refusal of a file route arrives as a blob: its JSON text is the structured error. */
 async function errorBody(data: unknown): Promise<unknown> {
   if (!(data instanceof Blob)) return data
@@ -46,7 +54,7 @@ async function errorBody(data: unknown): Promise<unknown> {
 }
 
 export function useApi() {
-  const { t, te } = useI18n()
+  const { t, te, locale } = useI18n()
   // Cookie forwarding is only meaningful during SSR: on the client the browser
   // already attaches the session cookie to same-origin requests.
   const headers = import.meta.server ? useRequestHeaders(['cookie']) : {}
@@ -90,15 +98,15 @@ export function useApi() {
     const status: number = e?.statusCode ?? e?.response?.status ?? 0
     const parsed = ApiErrorSchema.safeParse(await errorBody(e?.data))
     if (parsed.success) {
-      const { code, field, details, message: serverMessage } = parsed.data
-      return new ApiError(status, code, userMessage(status, code, details), field, details, serverMessage)
+      const { code, field, details, message } = parsed.data
+      return new ApiError(status, code, userMessage(status, code, details, message), field, details)
     }
     const message = writing ? saveErrorMessage({ status, message: e?.message }, t('errors.generic'), t('errors.saveUncertain')) : e?.message ?? t('errors.generic')
     return new ApiError(status, 'http_error', message)
   }
 
   /** The text users see for a structured refusal: always a locale string, never the server's English. */
-  function userMessage(status: number, code: string, details: Record<string, unknown> | undefined): string {
+  function userMessage(status: number, code: string, details: Record<string, unknown> | undefined, serverText: string): string {
     // Structured quota denials name the plan limit that was reached.
     if (code === 'feature_not_included' && details?.reason === 'limit') {
       const key = details.limit_key
@@ -108,10 +116,15 @@ export function useApi() {
       return t(`errors.packageQuota.${quota}`)
     }
     // A business rule may name itself with `details.reason`, or a specific `code`; both are optional locale hooks.
+    // Otherwise the server's own text, when it is in the UI language, then the class of refusal.
     const reason = details?.reason
-    const candidates = [
+    const specific = [
       typeof reason === 'string' ? `errors.reasons.${reason}` : undefined,
       `errors.codes.${code}`,
+    ].find(candidate => candidate && te(candidate))
+    if (specific) return t(specific)
+    if (serverText && isInUiLanguage(serverText, locale.value)) return serverText
+    const candidates = [
       (CLASS_BY_CODE[code] ?? statusKey(status)) && `errors.api.${CLASS_BY_CODE[code] ?? statusKey(status)}`,
     ]
     const key = candidates.find(candidate => candidate && te(candidate))

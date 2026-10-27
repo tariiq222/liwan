@@ -36,7 +36,7 @@ const submitError = computed(() => {
   if (!failure) return null
   if (failure instanceof ApiError && failure.status === 403) {
     // $api already turns a structured quota denial into the plan-limit message.
-    return failure.code === 'feature_not_included' && failure.message ? failure.message : t('projects.copy.forbidden')
+    return failure.code === 'feature_not_included' && failure.details?.reason === 'limit' ? failure.message : t('projects.copy.forbidden')
   }
   if (failure instanceof ApiError && failure.status === 422) return failure.message || t('projects.copy.invalid')
   return t('projects.copy.error')

@@ -151,7 +151,7 @@
       "unauthorized": "Your session has ended. Sign in again.",
       "forbidden": "You do not have permission to do this.",
       "notFound": "This item does not exist or was deleted.",
-      "conflict": "The data changed since you opened it. Refresh the page and try again.",
+      "conflict": "This could not be done because it conflicts with other data.",
       "rateLimited": "Too many attempts in a short time. Wait a moment and try again.",
       "unavailable": "The service is not available right now. Try again shortly."
     },
@@ -160,9 +160,10 @@
       "wrong_password": "The password is incorrect.",
       "weak_password": "The password is too weak. Choose a stronger one.",
       "transition_forbidden": "This transition is not allowed in the current state.",
-      "invalid_state": "This action is not allowed in the current state.",
+      "invalid_state": "This action cannot be done right now.",
       "pdf_unavailable": "Could not generate the PDF right now. Try again shortly.",
-      "commercial_unavailable": "This service is not available in this edition."
+      "commercial_unavailable": "This service is not available in this edition.",
+      "feature_not_included": "This feature is not included in your plan."
     }
   },
   "account": {
