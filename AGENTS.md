@@ -329,8 +329,8 @@ cross-addon links.
   elevation for the measured same-transaction flush/SQL-ordering issue in `mail.message._search`; the recorded
   cold reads miss rows without it, and after flush their results agree. These are not `mail.notification`
   read-ACL failures. Elevated reader domains remain restricted to the current partner, and `_webvue_domain`
-  refuses `env.su`. The idempotency precheck and `mail.notification` create elevations are measured unnecessary and
-  remain recorded for scoped removal.
+  refuses `env.su`. The idempotency precheck and the `mail.notification` create carry no elevation: the unique key
+  index guarantees single delivery and the actor creates the linked message.
   `webvue_meetings` uses it only for its server-controlled minutes, snapshot,
   version and event records, the company-wide organizer-overlap check, the
   existence check of the minutes linked to a calendar event (read only, access is
