@@ -4205,6 +4205,18 @@
       "handler": "record_audit",
       "no_capability_reason": null
     },
+    "POST /api/v1/ai/usage": {
+      "addon": "webvue_ai",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "registry:webvue.ai.tool.registry"
+      ],
+      "handler": "record_usage",
+      "no_capability_reason": null
+    },
     "POST /api/v1/auth/totp": {
       "addon": "webvue_api",
       "auth": "public",
