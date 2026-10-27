@@ -11,7 +11,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
 from tests.test_release_continuity import ADMIN, OWNER, TOKEN
-from tests.test_service import BODY, RESUME_C1, SETTINGS, parse_sse
+from tests.test_service import RESUME_C1, SETTINGS, fresh, parse_sse
 from webvue_ai_service.service import create_app
 from webvue_ai_service.store import StateCompatibilityError, open_state
 
@@ -66,7 +66,7 @@ async def test_two_processes_share_one_claim_and_two_compatible_apps_preserve_ch
     try:
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=old), base_url="http://old") as a, \
                 httpx.AsyncClient(transport=httpx.ASGITransport(app=new), base_url="http://new") as b:
-            run_id = parse_sse((await a.post("/v1/runs", json=BODY, headers=OWNER)).text)[0][1]["run_id"]
+            run_id = parse_sse((await a.post("/v1/runs", json=fresh(), headers=OWNER)).text)[0][1]["run_id"]
             run_ids.append(run_id)
             assert sorted(await asyncio.gather(claim_from_process(run_id), claim_from_process(run_id))) == [False, True]
             evidence = (await a.post("/internal/release/drain", headers=ADMIN)).json()

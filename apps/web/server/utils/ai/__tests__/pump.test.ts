@@ -11,7 +11,7 @@ describe('relay', () => {
     const close = vi.fn(async () => undefined)
     const stream = { push: vi.fn(async () => { throw new Error('secret push detail') }), close, send: vi.fn(() => 'sent') }
     const event = { node: { res: Object.assign(new EventEmitter(), { writableEnded: false }) }, context: {} }
-    const result = relay(event as any, {} as any, stream as any, new Response('nope', { status: 500 }))
+    const result = relay(event as any, {} as any, stream as any, new Response('nope', { status: 500 }), { runId: 'r_1' })
     await new Promise(resolve => setTimeout(resolve, 50))
     process.off('unhandledRejection', unhandled)
     expect(result).toBe('sent')

@@ -12,7 +12,7 @@ from psycopg import sql
 from psycopg.conninfo import make_conninfo
 
 from tests.test_release_continuity import ADMIN, OWNER
-from tests.test_service import BODY, RESUME_C1, parse_sse
+from tests.test_service import BODY, RESUME_C1, fresh, parse_sse
 
 pytestmark = pytest.mark.skipif(not os.environ.get("AI_TEST_DATABASE_URL"), reason="needs dedicated AI_TEST_DATABASE_URL and loopback ports 8618/8619")
 
@@ -107,16 +107,16 @@ async def runtimes():
 async def test_real_http_processes_keep_one_claim_shared_checkpoint_and_active_stream_drain(runtimes):
     old, new = runtimes
     assert (await old.get("/internal/release/readiness")).status_code == 401
-    incompatible = await old.post("/v1/runs", json=BODY, headers={**OWNER, "x-webvue-ai-state-version": "future"})
+    incompatible = await old.post("/v1/runs", json=fresh(), headers={**OWNER, "x-webvue-ai-state-version": "future"})
     assert incompatible.status_code == 503
-    response = await old.post("/v1/runs", json=BODY, headers=OWNER)
+    response = await old.post("/v1/runs", json=fresh(), headers=OWNER)
     run_id = parse_sse(response.text)[0][1]["run_id"]
     path = f"/v1/runs/{run_id}"
     claims = await asyncio.gather(*(client.post(path + "/claim", json={"call_id":"c_1"}, headers=OWNER) for client in (old, new)))
     assert sorted(result.status_code for result in claims) == [200, 409]
     evidence = (await old.post("/internal/release/drain", headers=ADMIN)).json()
     assert evidence["state_version"] == "1" and evidence["claimed_writes"] == 1 and evidence["drained"] is False
-    assert (await old.post("/v1/runs", json=BODY, headers=OWNER)).status_code == 503
+    assert (await old.post("/v1/runs", json=fresh(), headers=OWNER)).status_code == 503
     assert (await new.post(path + "/claim", json={"call_id":"c_1"}, headers=OWNER)).status_code == 409
     resumed = await new.post(path + "/resume", json=RESUME_C1, headers=OWNER)
     assert resumed.status_code == 200 and parse_sse(resumed.text)[-1][1] == {"status":"done"}
@@ -126,7 +126,7 @@ async def test_real_http_processes_keep_one_claim_shared_checkpoint_and_active_s
 
     chunks = []
     observed_active = False
-    async with new.stream("POST", "/v1/runs", json={**BODY, "message":"slow-active"}, headers=OWNER) as streaming:
+    async with new.stream("POST", "/v1/runs", json=fresh({**BODY, "message":"slow-active"}), headers=OWNER) as streaming:
         assert streaming.status_code == 200
         async for chunk in streaming.aiter_text():
             chunks.append(chunk)

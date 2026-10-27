@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import re
+from typing import NamedTuple
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from webvue_ai_service.graph import text_of
+from webvue_ai_service.usage import Tokens, tokens_of
 
 TITLE_MAX_CHARS = 60
 TITLE_MAX_WORDS = 6
@@ -38,9 +40,16 @@ def clean_generated_title(raw: str) -> str | None:
     return title_from(text) if text else None
 
 
-async def generate_title(model: BaseChatModel, first_message: str, first_answer: str) -> str | None:
-    """Ask the model for a short title from the first exchange; None when its reply is unusable. Errors and timeouts propagate to the caller."""
+class GeneratedTitle(NamedTuple):
+    title: str | None
+    tokens: Tokens
+
+
+async def generate_title(model: BaseChatModel, first_message: str, first_answer: str) -> GeneratedTitle:
+    """Ask the model for a short title from the first exchange: the title (None when its reply is unusable) and the tokens it reported.
+
+    Errors and timeouts propagate to the caller.
+    """
     prompt = f"User message:\n{first_message[:TITLE_SOURCE_CHARS]}\n\nAnswer:\n{first_answer[:TITLE_SOURCE_CHARS]}"
-    chunks = model.astream([SystemMessage(TITLE_RULES), HumanMessage(prompt)])  # streamed like the run itself
-    parts = [text_of(chunk.content) async for chunk in chunks]
-    return clean_generated_title("".join(parts))
+    chunks = [chunk async for chunk in model.astream([SystemMessage(TITLE_RULES), HumanMessage(prompt)])]  # streamed like the run itself
+    return GeneratedTitle(clean_generated_title("".join(text_of(chunk.content) for chunk in chunks)), tokens_of(chunks))

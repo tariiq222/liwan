@@ -7,7 +7,7 @@ import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
 from tests.fakes import ScriptedChatModel, ai_text
-from tests.test_service import BODY, HEADERS, parse_sse
+from tests.test_service import BODY, HEADERS, fresh, parse_sse
 from webvue_ai_service.service import create_app
 from webvue_ai_service.settings import Settings, SettingsError
 from webvue_ai_service.store import MemoryRunStore
@@ -49,14 +49,14 @@ async def test_a_missing_or_wrong_token_is_401_with_a_fixed_body_on_every_route(
                 assert response.status_code == 401
                 bodies.add(response.text)
         assert len(bodies) == 1 and TOKEN not in bodies.pop()
-        assert (await client.post("/v1/runs", json=BODY)).status_code == 401  # even before the owner headers are checked
+        assert (await client.post("/v1/runs", json=fresh())).status_code == 401  # even before the owner headers are checked
 
 
 async def test_the_right_token_is_accepted_and_healthz_stays_open(caplog):
     caplog.set_level(logging.DEBUG)
     async with make_client(responses=[ai_text("تم")]) as client:
         assert (await client.get("/healthz")).json() == {"ok": True}
-        response = await client.post("/v1/runs", json=BODY, headers=WITH_TOKEN)
+        response = await client.post("/v1/runs", json=fresh(), headers=WITH_TOKEN)
         assert response.status_code == 200 and TOKEN not in response.text
         events = parse_sse(response.text)
         run_id = events[0][1]["run_id"]
@@ -66,7 +66,7 @@ async def test_the_right_token_is_accepted_and_healthz_stays_open(caplog):
 
 async def test_without_a_configured_token_nothing_is_required():
     async with make_client(token=None, responses=[ai_text("تم")]) as client:
-        assert (await client.post("/v1/runs", json=BODY, headers=HEADERS)).status_code == 200
+        assert (await client.post("/v1/runs", json=fresh(), headers=HEADERS)).status_code == 200
 
 
 async def test_the_token_is_compared_in_constant_time(monkeypatch):

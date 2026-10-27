@@ -11,9 +11,9 @@ import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
-from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
+from tests.fakes import IDENTITY, ScriptedChatModel, ai_text, ai_tool_call, new_id
 from tests.test_contracts import READ_TOOL
-from tests.test_service import BODY, HEADERS, LEAKY, RESUME_C1, SETTINGS, parse_sse
+from tests.test_service import BODY, HEADERS, LEAKY, RESUME_C1, SETTINGS, fresh, parse_sse
 from webvue_ai_service.contracts import RunRequest
 from webvue_ai_service.graph import build_graph, request_state, run_config
 from webvue_ai_service.service import STALE_AFTER_SECONDS, create_app
@@ -30,9 +30,9 @@ def client_for(app):
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
 
 
-async def disconnect_at(app, event, body=BODY, *, wait=True):
+async def disconnect_at(app, event, body=None, *, wait=True):
     """POST straight through ASGI; the client vanishes while ``send`` writes ``event`` (the task is cancelled there)."""
-    payload, reached, delivered = json.dumps(body).encode(), asyncio.Event(), False
+    payload, reached, delivered = json.dumps(body or fresh()).encode(), asyncio.Event(), False
 
     async def receive():
         nonlocal delivered
@@ -120,7 +120,7 @@ async def test_a_failing_store_finish_is_logged_redacted_and_the_stream_still_en
             raise ConnectionError(LEAKY)
 
     async with client_for(make_app(ScriptedChatModel([ai_text("تم")]), BrokenFinish())) as client:
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
     assert events[-1][0] == "done"
     for secret in ("sk-secret", "u:pw@h", "postgresql://"):
         assert secret not in caplog.text
@@ -137,7 +137,7 @@ async def test_a_stale_running_run_without_a_pending_call_can_be_continued_and_a
     store = MemoryRunStore()
     model = ScriptedChatModel([ai_text("أول"), ai_text("ثاني")])
     async with client_for(make_app(model, store)) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         store.records[run_id].status = "running"  # a crash left it running, but only just now
         again = {**BODY, "run_id": run_id, "message": "وبعدين؟"}
         assert (await client.post("/v1/runs", json=again, headers=HEADERS)).status_code == 409
@@ -150,7 +150,7 @@ async def test_a_stale_running_run_with_a_pending_call_only_resumes():
     store = MemoryRunStore()
     model = ScriptedChatModel([ai_tool_call(TASKS, {}, "c_1"), ai_text("تم")])
     async with client_for(make_app(model, store)) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         age(store, run_id)
         assert (await client.post("/v1/runs", json={**BODY, "run_id": run_id}, headers=HEADERS)).status_code == 409
         assert (await client.post(f"/v1/runs/{run_id}/resume", json={**RESUME_C1, "call_id": "c_x"}, headers=HEADERS)).status_code == 409
@@ -171,7 +171,7 @@ async def test_a_late_resume_with_the_old_call_id_cannot_apply_to_a_newer_interr
     store = MovesOn()
     model = ScriptedChatModel([ai_tool_call(TASKS, {}, "c_1"), ai_text("x")])
     async with client_for(make_app(model, store)) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         assert store.records[run_id].pending_call_id == "c_1"
         before = len(model.calls)
         assert (await client.post(f"/v1/runs/{run_id}/resume", json=RESUME_C1, headers=HEADERS)).status_code == 409
@@ -185,7 +185,7 @@ async def test_an_unexpected_validation_failure_answers_invalid_arguments_and_th
     caplog.set_level(logging.INFO)
     model = ScriptedChatModel([ai_tool_call(TASKS, {"a": 1}, "c_1"), ai_text("تعذر")])
     async with client_for(make_app(model)) as client:
-        events = parse_sse((await client.post("/v1/runs", json={**BODY, "tools": [SCHEMA_TOOL]}, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh({**BODY, "tools": [SCHEMA_TOOL]}), headers=HEADERS)).text)
     assert events[-1][1] == {"status": "done"}
     [reply] = [m for m in model.calls[-1] if isinstance(m, ToolMessage)]
     assert reply.tool_call_id == "c_1" and json.loads(reply.content)["error"]["code"] == "invalid_arguments"
@@ -197,10 +197,10 @@ async def test_continuing_a_thread_cuts_short_tool_calls_that_never_got_a_reply(
     store = MemoryRunStore()
     model = ScriptedChatModel([ai_text("من جديد")])
     async with client_for(make_app(model, store, checkpointer)) as client:
-        record = await store.create("t1", "42")
+        record = await store.create(new_id(), "t1", "42")
         await store.finish(record.run_id, "failed", record.lease)
-        graph = build_graph(model, checkpointer)  # the thread a cancel left behind: a plan checkpoint, no interrupt, no reply
-        await graph.aupdate_state(run_config(record.run_id, 6), {**request_state(RunRequest.model_validate(BODY)), "messages": [ai_tool_call(TASKS, {}, "c_9")]}, as_node="plan")
+        graph = build_graph(model, checkpointer, IDENTITY)  # the thread a cancel left behind: a plan checkpoint, no interrupt, no reply
+        await graph.aupdate_state(run_config(record.run_id, 6), {**request_state(RunRequest.model_validate(fresh())), "messages": [ai_tool_call(TASKS, {}, "c_9")]}, as_node="plan")
         events = parse_sse((await client.post("/v1/runs", json={**BODY, "run_id": record.run_id, "message": "كمّل"}, headers=HEADERS)).text)
     assert events[-1][1] == {"status": "done"}
     sent = model.calls[-1]
@@ -222,10 +222,10 @@ async def test_a_settled_waiting_status_is_stored_as_is_even_when_the_checkpoint
             return await super().aget_tuple(config)
 
     real = service.run_config
-    monkeypatch.setattr(service, "run_config", lambda run_id, steps: {**real(run_id, steps), "configurable": {**real(run_id, steps)["configurable"], "probe": steps == 1}})
+    monkeypatch.setattr(service, "run_config", lambda run_id, steps, *rest: {**real(run_id, steps, *rest), "configurable": {**real(run_id, steps, *rest)["configurable"], "probe": steps == 1}})
     store = MemoryRunStore()
     async with client_for(make_app(ScriptedChatModel([ai_tool_call(TASKS, {}, "c_1")]), store, Probed())) as client:
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
     assert events[-1][1] == {"status": "waiting_tool"}
     assert store.records[events[0][1]["run_id"]].status == "waiting_tool"
 

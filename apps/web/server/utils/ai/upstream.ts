@@ -64,6 +64,11 @@ export type SignalOption = AbortSignal | null | undefined
 const withTimeout = (event: H3Event, ms: number, signal: SignalOption): AbortSignal =>
   AbortSignal.any([AbortSignal.timeout(ms), ...(signal === null ? [] : [signal ?? clientSignal(event)])])
 
+/** Server-side log of a failure: the class name only, never a message that could carry Odoo or service details. */
+export function logFailure(what: string, error: unknown): void {
+  console.error(`[webvue-ai] ${what}: ${(error as object | null)?.constructor?.name ?? 'unknown'}`)
+}
+
 /** Throw an Odoo failure with its own status and structured code (flat body; `{error}` only as a fallback). */
 export function forwardUpstream(upstream: Upstream): never {
   throw createError({ statusCode: upstream.status, data: upstreamError(upstream.body) ?? { code: 'http_error', message: `upstream status ${upstream.status}` } })

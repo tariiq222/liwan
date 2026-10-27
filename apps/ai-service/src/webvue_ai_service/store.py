@@ -12,11 +12,6 @@ from uuid import uuid4
 
 from webvue_ai_service.contracts import AI_STATE_VERSION
 
-
-def new_run_id() -> str:
-    return "r_" + secrets.token_hex(12)
-
-
 ACTIVE = ("running", "executing")  # a process holds the run: only its lease settles it
 EXECUTING = "executing"  # a claimed write: it may already have run, so a stale one is never re-entered by claim or resume
 DRAIN_ACTIVE = (*ACTIVE, "waiting_tool")  # the BFF is still answering an automatic read between two service streams
@@ -53,7 +48,9 @@ class RunStore(Protocol):
     async def activity(self) -> dict[str, int]:
         """Shared active leases, including unresolved claimed writes; never age them out for retirement."""
         ...
-    async def create(self, tenant: str, user_ref: str, title: str | None = None) -> RunRecord: ...
+    async def create(self, run_id: str, tenant: str, user_ref: str, title: str | None = None) -> RunRecord | None:
+        """Start the run ``run_id`` (chosen by the caller); None when a run with that id already exists."""
+        ...
     async def get(self, run_id: str) -> RunRecord | None: ...
     async def list_for_owner(self, tenant: str, user_ref: str, limit: int = 50, *, archived: bool = False) -> list[RunRecord]:
         """The owner's active runs (or, with ``archived``, only the archived ones), most recently updated first; never another tenant's or user's."""
@@ -112,9 +109,11 @@ class MemoryRunStore:
     async def activity(self) -> dict[str, int]:
         return {status: sum(record.status == status for record in self.records.values()) for status in DRAIN_ACTIVE}
 
-    async def create(self, tenant: str, user_ref: str, title: str | None = None) -> RunRecord:
-        record = RunRecord(new_run_id(), tenant, user_ref, lease=new_lease(), title=title)
-        self.records[record.run_id] = record
+    async def create(self, run_id: str, tenant: str, user_ref: str, title: str | None = None) -> RunRecord | None:
+        if run_id in self.records:
+            return None
+        record = RunRecord(run_id, tenant, user_ref, lease=new_lease(), title=title)
+        self.records[run_id] = record
         return record
 
     async def get(self, run_id: str) -> RunRecord | None:
@@ -234,15 +233,15 @@ class PostgresRunStore:
             for statement in CREATE_RUNS:  # one statement per call: the pool prepares every query
                 await conn.execute(statement)
 
-    async def create(self, tenant: str, user_ref: str, title: str | None = None) -> RunRecord:
-        record = RunRecord(new_run_id(), tenant, user_ref, lease=new_lease(), title=title)
+    async def create(self, run_id: str, tenant: str, user_ref: str, title: str | None = None) -> RunRecord | None:
+        record = RunRecord(run_id, tenant, user_ref, lease=new_lease(), title=title)
         async with self.pool.connection() as conn:
-            await conn.execute(
+            row = await (await conn.execute(
                 "INSERT INTO ai_runs (run_id, tenant, user_ref, status, created_at, updated_at, lease, title)"
-                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                (record.run_id, tenant, user_ref, record.status, record.created_at, record.updated_at, record.lease, title),
-            )
-        return record
+                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT (run_id) DO NOTHING RETURNING run_id",
+                (run_id, tenant, user_ref, record.status, record.created_at, record.updated_at, record.lease, title),
+            )).fetchone()
+        return record if row is not None else None
 
     async def get(self, run_id: str) -> RunRecord | None:
         async with self.pool.connection() as conn:
