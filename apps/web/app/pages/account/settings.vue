@@ -11,6 +11,7 @@ import { useAiConversation } from '@/composables/useAiConversation'
 const queryClient = useQueryClient()
 const { clear: clearAiConversation } = useAiConversation()
 const { t, locale, setLocale } = useI18n()
+const toast = useToast()
 const { mode, fontSize, setMode, setFontSize } = useAppearance()
 const localeCookie = useCookie<string | null>('webvue-locale', { default: () => null, path: '/', sameSite: 'lax', maxAge: 60 * 60 * 24 * 365 })
 const languages = [{ code: 'ar', name: 'العربية' }, { code: 'en', name: 'English' }] as const
@@ -30,14 +31,19 @@ function chooseLanguage(code: (typeof languages)[number]['code']) {
 }
 
 async function logout() {
-  await $fetch('/api/auth/logout', { method: 'POST', body: {} })
-  sessionStorage.removeItem(navPreferenceKey.value)
-  clearAiSessionState()
-  clearAiConversation()
-  await queryClient.cancelQueries()
-  queryClient.clear()
-  await refreshNuxtData('me')
-  await navigateTo('/login')
+  try {
+    await $fetch('/api/auth/logout', { method: 'POST', body: {} })
+    sessionStorage.removeItem(navPreferenceKey.value)
+    clearAiSessionState()
+    clearAiConversation()
+    await queryClient.cancelQueries()
+    queryClient.clear()
+    await refreshNuxtData('me')
+    await navigateTo('/login')
+  } catch {
+    toast.add({ title: t('account.logoutFailed'), color: 'error' })
+    await refreshNuxtData('me')
+  }
 }
 
 </script>

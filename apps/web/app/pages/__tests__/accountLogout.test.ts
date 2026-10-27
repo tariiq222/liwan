@@ -6,7 +6,7 @@ import { useAiConversation } from '../../composables/useAiConversation'
 
 afterEach(() => vi.unstubAllGlobals())
 
-it('clears the shared assistant conversation on successful logout before identity refresh completes', async () => {
+async function renderLogout(fetch: ReturnType<typeof vi.fn>) {
   const states = new Map<string, ReturnType<typeof Vue.ref>>()
   vi.stubGlobal('useState', (key: string, init: () => unknown) => {
     if (!states.has(key)) states.set(key, Vue.ref(init()))
@@ -20,8 +20,9 @@ it('clears the shared assistant conversation on successful logout before identit
   conversation.currentRunId.value = 'previous-identity-run'
   const cancelQueries = vi.fn(async () => { expect(conversation.currentRunId.value).toBeNull() })
   const clear = vi.fn()
-  const fetch = vi.fn().mockResolvedValue({})
   const navigate = vi.fn()
+  const addToast = vi.fn()
+  const clearAiSessionState = vi.fn()
   let click!: () => Promise<void>
   const UButton = Vue.defineComponent({
     inheritAttrs: false, props: { label: String },
@@ -36,19 +37,34 @@ it('clears the shared assistant conversation on successful logout before identit
     globals: {
       useMe: () => ({ me }), useCookie: () => Vue.ref(null),
       useAppearance: () => ({ mode: Vue.ref('light'), fontSize: Vue.ref('medium'), setMode: vi.fn(), setFontSize: vi.fn() }),
+      useToast: () => ({ add: addToast }),
       $fetch: fetch, refreshNuxtData: vi.fn().mockResolvedValue(undefined), navigateTo: navigate,
     },
     modules: {
       '@/components/account/PasswordForm.vue': { __esModule: true, default: container },
       '@tanstack/vue-query': { useQueryClient: () => ({ cancelQueries, clear }) },
-      '@/utils/aiDraft': { clearAiSessionState: vi.fn() },
+      '@/utils/aiDraft': { clearAiSessionState },
       '@/composables/useAiConversation': { useAiConversation },
     },
   })
-  await click()
+  return { click, conversation, clear, navigate, addToast, clearAiSessionState }
+}
+
+it('clears the shared assistant conversation on successful logout before identity refresh completes', async () => {
+  const fetch = vi.fn().mockResolvedValue({})
+  const page = await renderLogout(fetch)
+  await page.click()
   expect(fetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', body: {} })
-  expect(conversation.currentRunId.value).toBeNull()
-  expect(clear).toHaveBeenCalledTimes(1)
-  expect(navigate).toHaveBeenCalledWith('/login')
-  scope.stop()
+  expect(page.conversation.currentRunId.value).toBeNull()
+  expect(page.clear).toHaveBeenCalledTimes(1)
+  expect(page.navigate).toHaveBeenCalledWith('/login')
+})
+
+it('keeps local session state and reports when logout cannot destroy the Odoo session', async () => {
+  const page = await renderLogout(vi.fn().mockRejectedValue(new Error('logout_failed')))
+  await page.click()
+  expect(page.clearAiSessionState).not.toHaveBeenCalled()
+  expect(page.clear).not.toHaveBeenCalled()
+  expect(page.navigate).not.toHaveBeenCalled()
+  expect(page.addToast).toHaveBeenCalledWith({ title: 'account.logoutFailed', color: 'error' })
 })

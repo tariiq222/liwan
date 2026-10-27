@@ -150,6 +150,7 @@
   "account": {
     "title": "Self-service",
     "company": "Organization",
+    "logoutFailed": "The session could not be ended. Check your connection and try again.",
     "passwordTitle": "Change password",
     "currentPassword": "Current password",
     "newPassword": "New password",

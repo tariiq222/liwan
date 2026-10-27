@@ -11,9 +11,13 @@ export default defineEventHandler(async (event) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', cookie, ...tenantUpstreamHeaders(event) },
     body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: {} }),
-  }).catch((error) => { if (bound) throw error; return undefined })
-  if (bound && (!upstream?.ok || (await upstream.json() as { error?: unknown }).error)) throw createError({ statusCode: 502, message: 'tenant_logout_failed' })
-  for (const cookie of bound ? upstream!.headers.getSetCookie() : []) appendResponseHeader(event, 'set-cookie', cookie)
+  })
+  // Fail closed: the browser cookie is dropped only after Odoo confirmed it destroyed the session, so a failed
+  // upstream never leaves a live Odoo session behind a client that believes it logged out.
+  const failed = () => createError({ statusCode: 502, ...(bound ? { message: 'tenant_logout_failed' } : { statusMessage: 'logout_failed' }) })
+  const body = await upstream.json().catch(() => { throw failed() }) as { error?: unknown }
+  if (!upstream.ok || body.error) throw failed()
+  for (const cookie of upstream.headers.getSetCookie()) appendResponseHeader(event, 'set-cookie', cookie)
   deleteCookie(event, 'session_id', { path: '/' })
   setResponseStatus(event, 204)
   return null
