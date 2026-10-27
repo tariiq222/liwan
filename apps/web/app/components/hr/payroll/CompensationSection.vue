@@ -15,6 +15,8 @@ const props = defineProps<{
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const money = (value: number) => `${formatPayrollAmount(value, locale.value)} ${t('hrPayroll.currency')}`
+const relationshipItems = usePayrollRelationshipItems()
+const relationshipLabel = (value: string) => relationshipItems.value.find(item => item.value === value)?.label
 const editLabel = computed(() => t(props.compensation ? 'hrPayroll.compensation.edit' : 'hrPayroll.compensation.add'))
 </script>
 
@@ -25,6 +27,7 @@ const editLabel = computed(() => t(props.compensation ? 'hrPayroll.compensation.
     </template>
     <SharedEmptyState v-if="!compensation" compact :title="t('hrPayroll.compensation.empty')" :description="t('hrPayroll.compensation.emptyHint')" />
     <SharedPropertiesPanel v-else>
+      <SharedPropertyRow :label="t('hrPayroll.compensation.relationship')" :value="relationshipLabel(compensation.relationship_type)" />
       <SharedPropertyRow :label="t('hrPayroll.compensation.basicWage')" :value="money(compensation.basic_wage)" />
       <SharedPropertyRow :label="t('hrPayroll.compensation.housingAllowance')" :value="money(compensation.housing_allowance)" />
       <SharedPropertyRow :label="t('hrPayroll.compensation.transportAllowance')" :value="money(compensation.transport_allowance)" />
@@ -38,5 +41,6 @@ const editLabel = computed(() => t(props.compensation ? 'hrPayroll.compensation.
       <SharedPropertyRow :label="t('hrPayroll.compensation.gosiRegistrationDate')" :value="compensation.gosi_registration_date ? formatDate(compensation.gosi_registration_date) : null" />
       <SharedPropertyRow :label="t('hrPayroll.compensation.nationality')" :value="compensation.nationality?.name" />
     </SharedPropertiesPanel>
+    <HrPayrollRelationshipWarning v-if="compensation" :relationship="compensation.relationship_type" />
   </SharedRecordSection>
 </template>
