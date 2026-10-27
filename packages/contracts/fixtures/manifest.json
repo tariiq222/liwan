@@ -1087,6 +1087,22 @@
       "route": "/api/v1/operations/requests/employee/me/{id}",
       "status": 200,
       "schema": "OperationRequestSchema"
+    },
+    {
+      "name": "tasks/my-task-detail",
+      "addon": "webvue_tasks",
+      "method": "GET",
+      "route": "/api/v1/my-tasks/{id}",
+      "status": 200,
+      "schema": "PersonalTaskSchema"
+    },
+    {
+      "name": "tasks/notification-list",
+      "addon": "webvue_notify",
+      "method": "GET",
+      "route": "/api/v1/notifications",
+      "status": 200,
+      "schema": "NotificationListSchema"
     }
   ]
 }
