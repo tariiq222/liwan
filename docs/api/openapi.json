@@ -51224,6 +51224,46 @@
         }
       }
     },
+    "/api/v1/ai/usage": {
+      "post": {
+        "operationId": "webvue_ai.AiController.record_usage.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "record_usage",
+        "tags": [
+          "webvue_ai"
+        ],
+        "x-webvue": {
+          "addon": "webvue_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiController",
+          "feature_keys": [
+            "registry:webvue.ai.tool.registry"
+          ],
+          "feature_operation": "write",
+          "handler": "record_usage",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/auth/totp": {
       "post": {
         "operationId": "webvue_api.AuthController.totp.post",
