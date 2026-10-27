@@ -89,10 +89,10 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
     expect(await response.json()).toMatchObject({order_id:order,status:'redirected',amount:{minor:11500}})
   })
   // The web server signs a return anonymously: no principal, the tenant bound into the signed body.
-  async function paymentReturn(attempt:string, options:{tenantId?:string;key?:string;replay?:Record<string,string>;path?:string}={}) {
+  async function paymentReturn(attempt:string, options:{tenantId?:string;headerTenant?:string;key?:string;replay?:Record<string,string>;path?:string}={}) {
     const tenantId=options.tenantId??tenant, path=options.path??`/v1/customer/payment-returns/${attempt}`
     const headers=options.replay??{...signServiceRequest({method:'POST',path,body:`webvue-payment-return:${tenantId}\n`,actor:'anonymous',anonymous:true,
-      issuer:config.customerCommercialIssuer,key:options.key??config.customerCommercialServiceKey}),'x-webvue-tenant':tenantId}
+      issuer:config.customerCommercialIssuer,key:options.key??config.customerCommercialServiceKey}),'x-webvue-tenant':options.headerTenant??tenantId}
     return {headers,response:await fetch(origin+path,{method:'POST',headers})}
   }
   it('accepts an anonymous signed payment return and reveals only the order state',async()=>{
@@ -106,6 +106,8 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
     const order=await awaitingOrder()
     const created=await (await call(`/v1/customer/orders/${order}/payment-attempts`,{body:{idempotency_key:randomUUID()},capabilities:['subscription.manage']})).json() as {id:string}
     expect((await paymentReturn(created.id,{key:config.key})).response.status).toBe(401)
+    // Signed for tenant A but sent as tenant B: the signed body no longer matches the header.
+    expect((await paymentReturn(created.id,{tenantId:tenant,headerTenant:otherTenant})).response.status).toBe(401)
     const first=await paymentReturn(created.id)
     expect(first.response.status).toBe(200)
     expect((await paymentReturn(created.id,{replay:first.headers})).response.status).toBe(401)

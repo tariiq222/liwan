@@ -168,6 +168,16 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     expect(await state(f.order_id)).toMatchObject({cancelled:true})
     expect((await pool.query('SELECT status FROM invoices WHERE id=$1',[f.invoice])).rows[0].status).toBe('void')
   })
+  it('a provider cancel that failed while the invoice is still payable gives the attempt back so a retry can cancel',async () => {
+    const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
+    const principal:any={actor_id:'7',kind:'vendor',customer_id:null,tenant_id:null,capabilities:['vendor.subscriptions.manage']}
+    const cancel=vi.spyOn(f.adapter,'cancelAttempt').mockRejectedValueOnce(new Error('timeout before reaching the provider'))
+    await expect(cancelOrder(pool,{order_id:f.order_id,principal,reason:'Cancel purchase',adapter:f.adapter})).rejects.toMatchObject({status:409,code:'payment_reconciliation_required'})
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[a.id])).rows[0].status).toBe('redirected')
+    expect(await cancelOrder(pool,{order_id:f.order_id,principal,reason:'Cancel purchase',adapter:f.adapter})).toMatchObject({id:f.order_id})
+    expect(cancel).toHaveBeenCalledTimes(2)
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[a.id])).rows[0].status).toBe('canceled')
+  })
   it('refuses to cancel an order whose payment succeeded while the provider was being called',async () => {
     const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
     const principal:any={actor_id:'7',kind:'vendor',customer_id:null,tenant_id:null,capabilities:['vendor.subscriptions.manage']}

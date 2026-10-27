@@ -1,4 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import { isIP } from 'node:net'
 import type { H3Event } from 'h3'
 import { MeSchema } from '@webvue/contracts'
 import { signServiceRequest } from '@webvue/commercial-contracts/server'
@@ -129,7 +130,32 @@ export function rateLimitMutation(sessionKey: string, now = Date.now()): boolean
   if (buckets.size > 5000) for (const [k, v] of buckets) if (!v.some(t => now - t < WINDOW_MS)) buckets.delete(k)
   return true
 }
-export function resetRateLimitForTests() { buckets.clear() }
+export function resetRateLimitForTests() { buckets.clear(); returnHits.clear() }
+
+// The payment return route is unauthenticated, so every key below is chosen by the caller or the network and
+// must never share the signed-in users' `buckets`. This store has a fixed size and evicts its oldest key first.
+export const PAYMENT_RETURN_LIMITS = { perClient: 30, perAttempt: 5, global: 300, windowMs: 60_000, maxKeys: 2000 }
+const returnHits = new Map<string, number[]>()
+export function paymentReturnStoreSize() { return returnHits.size }
+/** Counts one return against its client+tenant, its attempt and the whole route; refuses without recording when any is full. */
+export function allowPaymentReturn(client: string, attempt: string, now = Date.now()): boolean {
+  const limits = PAYMENT_RETURN_LIMITS
+  const keys: Array<[string, number]> = [['global', limits.global], [`client:${client}`, limits.perClient], [`attempt:${attempt}`, limits.perAttempt]]
+  const recent = keys.map(([key]) => (returnHits.get(key) ?? []).filter(t => now - t < limits.windowMs))
+  if (keys.some(([, max], i) => recent[i]!.length >= max)) return false
+  keys.forEach(([key], i) => {
+    // Re-inserting moves the key to the newest end of the Map, which is the eviction order.
+    returnHits.delete(key)
+    returnHits.set(key, [...recent[i]!, now])
+  })
+  while (returnHits.size > limits.maxKeys) returnHits.delete(returnHits.keys().next().value!)
+  return true
+}
+/** The edge-supplied client address, or 'unknown'; a value that is not an IP is never used as a key. */
+function paymentReturnClient(event: H3Event): string {
+  const ip = getHeader(event, 'x-webvue-client-ip')
+  return ip && isIP(ip) ? ip : 'unknown'
+}
 
 export const encodePrincipal = (p: CustomerPrincipal) => Buffer.from(JSON.stringify(p), 'utf8').toString('base64')
 
@@ -227,16 +253,21 @@ const PAYMENT_RETURN_BODY = (tenantId: string) => `webvue-payment-return:${tenan
 async function verifyPaymentReturn(event: H3Event, config: CustomerConfig, attempt: string): Promise<string | null> {
   try {
     if (!config.customerCommercialServiceKey || !config.customerCommercialIssuer) return null
-    if (!rateLimitMutation(`payment-return:${attempt}`)) return null
     const tenantId = boundTenantId(tenantRequest(event), config)
     if (!tenantId) return null
+    if (!allowPaymentReturn(`${tenantId}|${paymentReturnClient(event)}`, `${tenantId}|${attempt}`)) { console.warn('[payment-return] rate limited'); return null }
     const target = new URL(`/v1/customer/payment-returns/${attempt}`, customerControlBase(config))
     // Anonymous signature: the return carries no user, so it proves only that this web server asked.
     const signed = signServiceRequest({ method: 'POST', path: target.pathname, body: PAYMENT_RETURN_BODY(tenantId), actor: 'anonymous', anonymous: true, issuer: config.customerCommercialIssuer, key: config.customerCommercialServiceKey })
     const response = await $fetch.raw(target.toString(), { method: 'POST', headers: { ...signed, 'x-webvue-tenant': tenantId, accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(8000) })
     const orderId = (response._data as { order_id?: unknown } | null)?.order_id
     return typeof orderId === 'string' && UUID.test(orderId) ? orderId : null
-  } catch { return null }
+  } catch (cause: any) {
+    // Never the attempt id: it is the only secret-like value this route handles.
+    const status = Number(cause?.statusCode ?? cause?.response?.status)
+    console.warn(`[payment-return] lookup failed: ${status ? `http ${status}` : (cause?.name ?? 'error')}`)
+    return null
+  }
 }
 
 /**

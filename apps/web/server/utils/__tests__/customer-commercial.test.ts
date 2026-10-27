@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { verifyServiceRequest } from '@webvue/commercial-contracts/server'
-import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerCommercialEnabled, customerRoute, forwardCustomerRequest, rateLimitMutation, relayPaymentReturn, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
+import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerCommercialEnabled, customerRoute, allowPaymentReturn, forwardCustomerRequest, PAYMENT_RETURN_LIMITS, paymentReturnStoreSize, rateLimitMutation, relayPaymentReturn, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
 import { deriveCustomerCapabilities } from '../../../app/utils/customerCapabilities'
 
 vi.mock('../tenantRequest', async (orig) => {
@@ -208,12 +208,45 @@ describe('payment return relay', () => {
     expect(put.status).toHaveBeenLastCalledWith({}, 405)
     const limited = returnSetup()
     for (let i = 0; i < 25; i++) await relayPaymentReturn({} as never)
-    expect(limited.raw).toHaveBeenCalledTimes(20)
+    expect(limited.raw).toHaveBeenCalledTimes(PAYMENT_RETURN_LIMITS.perAttempt)
   })
   it('uses the verified host binding as the tenant in shared mode', async () => {
     const { raw } = returnSetup()
     vi.mocked(tenantRequest).mockReturnValueOnce({ tenantId: 'registry-tenant', host: 'acme.example' } as never)
     await relayPaymentReturn({} as never)
     expect((raw.mock.calls[0]![1].headers as Record<string, string>)['x-webvue-tenant']).toBe('registry-tenant')
+  })
+  it('limits a client that sends a fresh attempt id every time, without touching the signed-in buckets', async () => {
+    const { raw } = returnSetup({ attempt: '00000000-0000-4000-8000-000000000000' })
+    for (let i = 0; i < 10; i++) rateLimitMutation('signed-in-user') // an unrelated signed-in session
+    const ids = Array.from({ length: PAYMENT_RETURN_LIMITS.perClient + 20 }, (_, n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`)
+    for (const id of ids) {
+      setup({ method: 'GET', url: `https://acme.example/api/commercial/payment-callback?attempt=${id}`, headers: { cookie: '', 'x-webvue-client-ip': '203.0.113.9' } })
+      vi.stubGlobal('$fetch', Object.assign(vi.fn(), { raw }))
+      vi.stubGlobal('setResponseStatus', vi.fn()); vi.stubGlobal('setResponseHeader', vi.fn())
+      await relayPaymentReturn({} as never)
+    }
+    expect(raw).toHaveBeenCalledTimes(PAYMENT_RETURN_LIMITS.perClient)
+    // The shared mutation store still holds the session with its own count: 10 used, 10 left of 20.
+    for (let i = 0; i < 10; i++) expect(rateLimitMutation('signed-in-user')).toBe(true)
+    expect(rateLimitMutation('signed-in-user')).toBe(false)
+  })
+  it('keeps the payment return store bounded, evicts oldest first, and caps the whole route', () => {
+    const now = 1_000_000
+    for (let i = 0; i < PAYMENT_RETURN_LIMITS.maxKeys * 2; i++) allowPaymentReturn(`t|10.0.${i % 250}.${i}`, `t|${i}`, now + i * 1000)
+    expect(paymentReturnStoreSize()).toBeLessThanOrEqual(PAYMENT_RETURN_LIMITS.maxKeys)
+    resetRateLimitForTests()
+    let allowed = 0
+    for (let i = 0; i < PAYMENT_RETURN_LIMITS.global + 50; i++) if (allowPaymentReturn(`t|client${i}`, `t|attempt${i}`, now)) allowed++
+    expect(allowed).toBe(PAYMENT_RETURN_LIMITS.global)
+    expect(allowPaymentReturn('t|client-late', 't|attempt-late', now + PAYMENT_RETURN_LIMITS.windowMs + 1)).toBe(true)
+  })
+  it('logs a short reason without the attempt id when the lookup fails', async () => {
+    const { raw } = returnSetup(); raw.mockRejectedValue(Object.assign(new Error('x'), { statusCode: 502 }))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await relayPaymentReturn({} as never)
+    expect(warn).toHaveBeenCalledWith('[payment-return] lookup failed: http 502')
+    expect(JSON.stringify(warn.mock.calls)).not.toContain(ATTEMPT)
+    warn.mockRestore()
   })
 })

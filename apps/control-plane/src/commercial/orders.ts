@@ -77,7 +77,12 @@ export async function cancelOrder(pool: Pool, input: { order_id: string; princip
     catch {
       // Only the provider's own state can say whether the charge is still collectable: a settled
       // lookup moves the attempt out of `unknown`; anything else stays for the reconciler.
-      try { await lookup(pool, adapter!, attempt) } catch { /* unresolved: refused in the settle step */ }
+      try {
+        await lookup(pool, adapter!, attempt)
+        // The provider answered and the attempt is still unsettled, so it can still be paid: give the
+        // customer their previous status back instead of freezing the order until the invoice expires.
+        await pool.query("UPDATE payment_attempts SET status=$2,updated_at=now() WHERE id=$1 AND status='unknown'", [attempt.id, attempt.status])
+      } catch { /* unresolved: refused in the settle step and left to the reconciler */ }
     }
   }
   return transaction(pool, async client => {
