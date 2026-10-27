@@ -1,0 +1,24 @@
+{
+  "description": "Process private description",
+  "execution_kind": "approval",
+  "id": 1,
+  "name": "Published 36",
+  "purpose": "work",
+  "revision": 1,
+  "state": "published",
+  "steps": [
+    {
+      "name": "Confidential stage",
+      "reviewer_ids": [
+        265
+      ],
+      "reviewers": [
+        {
+          "id": 2,
+          "name": "ops_branch_reviewer (base.group_user,base.group_allow_export)",
+          "user_id": 265
+        }
+      ]
+    }
+  ]
+}

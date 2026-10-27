@@ -1055,6 +1055,38 @@
       "route": "/api/v1/meeting-series/{id}/events",
       "status": 200,
       "schema": "MeetingEventListSchema"
+    },
+    {
+      "name": "operations/execution-kind-list",
+      "addon": "webvue_operations",
+      "method": "GET",
+      "route": "/api/v1/operations/execution-kinds",
+      "status": 200,
+      "schema": "OperationExecutionKindsSchema"
+    },
+    {
+      "name": "operations/process-target-list",
+      "addon": "webvue_operations",
+      "method": "GET",
+      "route": "/api/v1/operations/processes/{id}/targets",
+      "status": 200,
+      "schema": "OperationTargetsSchema"
+    },
+    {
+      "name": "operations/process-detail",
+      "addon": "webvue_operations",
+      "method": "GET",
+      "route": "/api/v1/operations/processes/{id}",
+      "status": 200,
+      "schema": "OperationProcessSchema"
+    },
+    {
+      "name": "operations/my-request-detail",
+      "addon": "webvue_operations",
+      "method": "GET",
+      "route": "/api/v1/operations/requests/employee/me/{id}",
+      "status": 200,
+      "schema": "OperationRequestSchema"
     }
   ]
 }
