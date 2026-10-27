@@ -72,6 +72,8 @@ elif "SELECT state" in ' '.join(args): print('installed')
                   'ODOO_PORT': '52101', 'ISOLATION_PORT': '52102',
                   'DOCKER_CONFIG': str(self.root / 'docker')}
         self.environment = {**os.environ, **config, 'PATH': str(self.bin) + os.pathsep + os.environ['PATH']}
+        # The runner's own job summary file must not capture a stage's output; tests that want it set it.
+        self.environment.pop('GITHUB_STEP_SUMMARY', None)
 
     def fake(self, name, body):
         file = self.bin / name
