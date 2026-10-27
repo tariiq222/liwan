@@ -3,7 +3,7 @@ attrs==26.1.0
 babel==2.10.3
 beautifulsoup4==4.15.0
 cbor2==6.1.4
-certifi==2026.7.22
+certifi==2026.10.18
 cffi==2.1.1
 chardet==5.2.0
 charset-normalizer==3.5.1
@@ -27,7 +27,7 @@ num2words==0.5.13
 ofxparse==0.21
 openpyxl==3.1.2
 passlib==1.7.4
-pillow==12.3.0
+pillow==13.0.0
 platformdirs==4.11.7
 polib==1.1.1
 psutil==5.9.8
