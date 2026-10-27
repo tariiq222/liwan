@@ -83,10 +83,13 @@ Check, in this order:
    are checked by `tools/git_policy.py`, which owns the type and scope lists.
    Run `python3 -B tools/arch_policy.py --base origin/main` and
    `python3 -B tools/git_policy.py --base origin/main` and report their result.
-7. **Jev (always, advisory).** Run `npm run review:jev -- --base origin/main --task "<one line: what
+7. **Jev (advisory, when authorized).** Run `npm run review:jev -- --base origin/main --task "<one line: what
    the change does>"` from the reviewed checkout and copy its per-dimension scores into
-   `## Jev scores`. No permission is needed. The scores never replace a finding's file:line
-   evidence and never gate a merge. If it fails (no key, refused diff), report that in one line;
+   `## Jev scores`. The diff leaves the machine for a paid service, so run it only when the
+   session holds authorization for Jev calls (the owner's standing authorization in their own
+   sessions, or the requester's explicit approval); otherwise write `Jev skipped: no
+   authorization` and continue (REVIEW.md: no paid API without explicit authorization). The
+   scores never replace a finding's file:line evidence and never gate a merge. If it fails (no key, refused diff), report that in one line;
    do not retry.
 
 Output format:
