@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { joinList } from '@/utils/listFormat'
 import type { Task } from '@webvue/contracts'
 import { refDebounced } from '@vueuse/core'
 import { ApiError } from '@/composables/useApi'
@@ -105,7 +106,7 @@ function onCreateItem() {
       @update:model-value="onSelectMenuChange"
       @create="onCreateItem"
     >
-        <template #default><span class="truncate">{{ modelValue.length ? modelValue.map(tag => tag.name).join('، ') : t('tasks.drawer.addTag') }}</span></template>
+        <template #default><span class="truncate">{{ modelValue.length ? joinList(modelValue.map(tag => tag.name), t) : t('tasks.drawer.addTag') }}</span></template>
       <template v-if="showCreate" #create-item-label>
         {{ t('tasks.drawer.createTag', { name: trimmedQ }) }}
       </template>

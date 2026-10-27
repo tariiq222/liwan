@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { joinList } from '@/utils/listFormat'
 import type { RouteLocationRaw } from 'vue-router'
 import type { AdminUserDetail, CapabilitySource, EffectiveCapability, PermissionDefinition, RoleSummary } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
@@ -69,7 +70,7 @@ const afterCapabilities = computed<EffectiveCapability[]>(() => {
 })
 const capabilityChanges = computed(() => permissionDiff(beforeCapabilities.value, afterCapabilities.value))
 const changeGroups = computed(() => {
-  const withSources = (item: EffectiveCapability) => `${capabilityLabel(item.key)} · ${item.sources.map((source) => roleLabel(source.role)).join('، ')}`
+  const withSources = (item: EffectiveCapability) => `${capabilityLabel(item.key)} · ${joinList(item.sources.map((source) => roleLabel(source.role)), t)}`
   return [
     { key: 'added', title: t('access.roles.added'), tone: 'success' as const, items: capabilityChanges.value.added.map((item) => ({ key: item.key, label: capabilityLabel(item.key) })) },
     { key: 'removed', title: t('access.roles.removed'), tone: 'destructive' as const, items: capabilityChanges.value.removed.map((item) => ({ key: item.key, label: capabilityLabel(item.key) })) },

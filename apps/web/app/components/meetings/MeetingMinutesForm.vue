@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { joinList } from '@/utils/listFormat'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import {
   formatMeetingDate,
@@ -98,7 +99,7 @@ function readAgenda() {
       </dl>
       <div class="flex flex-wrap gap-2 text-sm">
         <span class="text-muted">{{ t('meetingMinutesForm.attendees') }}:</span>
-        <span v-if="meeting.attendees?.length">{{ meeting.attendees.map(person => person.name).join('، ') }}</span>
+        <span v-if="meeting.attendees?.length">{{ joinList(meeting.attendees.map(person => person.name), t) }}</span>
         <span v-else>—</span>
       </div>
     </SharedRecordSection>

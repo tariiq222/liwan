@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { joinList } from '@/utils/listFormat'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 import type { DocumentFile } from '@webvue/contracts'
 import type { PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
@@ -89,7 +90,7 @@ const secondaryActions = computed<RowAction[]>(() => {
     <template v-if="document && hasProperties" #aside><SharedPropertiesPanel :title="t('documents.details')">
       <SharedPropertyRow v-if="document.expiry_date" :label="t('documents.expiry')" :value="document.expiry_date || '—'" />
       <SharedPropertyRow v-if="document.context" :label="t('documents.context')"><NuxtLink v-if="document.context?.href && document.context?.label" :to="document.context.href" class="text-primary underline">{{ document.context.label }}</NuxtLink><span v-else>{{ document.context?.label || '—' }}</span></SharedPropertyRow>
-      <SharedPropertyRow v-if="document.tags.length" :label="t('documents.tags')" :value="document.tags.map(tag => tag.name).join('، ') || '—'" />
+      <SharedPropertyRow v-if="document.tags.length" :label="t('documents.tags')" :value="joinList(document.tags.map(tag => tag.name), t) || '—'" />
     </SharedPropertiesPanel></template>
   </SharedRecordPage>
   <NuxtPage />

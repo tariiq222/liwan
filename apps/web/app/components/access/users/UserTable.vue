@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { joinList } from '@/utils/listFormat'
 import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import { accessBadge } from '@/components/access/accessBadge'
 import type { TableColumn } from '@nuxt/ui'
@@ -21,7 +22,7 @@ const { t, locale } = useI18n()
 // A row shows the first two roles as pills and the rest as a count; the phone row lists them all.
 const ROLE_PILLS = 2
 const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
-const rolesOf = (user: AdminUserSummary) => user.assignments.map(assignment => roleLabel(assignment.role)).join('، ') || t('access.users.noRoles')
+const rolesOf = (user: AdminUserSummary) => joinList(user.assignments.map(assignment => roleLabel(assignment.role)), t) || t('access.users.noRoles')
 const userTo = (user: AdminUserSummary): RouteLocationRaw => props.toFor?.(user) ?? `/settings/team/users/${user.id}`
 const { can } = useAccess()
 const badge = (user: AdminUserSummary) => accessBadge({ active: user.active, protected: user.protected })

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AccessAuditSummary, AdminUserSummary, RoleSummary } from '@webvue/contracts'
 import { eventPreview, rolePreview, userPreview } from '../settingsPreview'
 
-const labels = { t: (key: string) => key, te: () => false, locale: 'ar' }
+const labels = { t: (key: string) => (key === 'app.listSeparator' ? '، ' : key), te: () => false, locale: 'ar' }
 const name = (ar: string) => ({ ar, en: null })
 
 describe('settings preview rows', () => {

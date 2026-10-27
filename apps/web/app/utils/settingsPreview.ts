@@ -4,6 +4,7 @@ import { builtinRoleDescription } from './labelFallback'
 import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 import type { RouteLocationRaw } from 'vue-router'
 import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import { joinList } from './listFormat'
 
 /** One row of a settings preview card: a chip (a person or an icon), a name, one muted line and at most one pill. */
 export interface SettingsPreviewItem {
@@ -27,7 +28,7 @@ const SEPARATOR = ' · '
 
 export function userPreview(user: AdminUserSummary, { t, locale }: Labels): SettingsPreviewItem {
   const badge = accessBadge({ active: user.active, protected: user.protected })
-  const roles = user.assignments.map(assignment => roleName(assignment.role, locale)).join('، ') || t('access.users.noRoles')
+  const roles = joinList(user.assignments.map(assignment => roleName(assignment.role, locale)), t) || t('access.users.noRoles')
   return { id: user.id, to: `/settings/team/users/${user.id}`, name: user.name, person: { id: user.id, name: user.name }, secondary: [user.login, roles].join(SEPARATOR), badge: { label: t(badge.labelKey), tone: badge.tone } }
 }
 

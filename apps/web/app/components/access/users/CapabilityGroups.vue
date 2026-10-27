@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { joinList } from '@/utils/listFormat'
 import type { EffectiveCapability, PermissionDefinition } from '@webvue/contracts'
 import { CAPABILITY_GROUPS_OPEN_LIMIT, groupCapabilities } from '@/components/access/capabilityGroups'
 import { permissionDomainLabel } from '@/utils/labelFallback'
@@ -10,7 +11,7 @@ const { t, te, locale } = useI18n()
 const lang = computed(() => locale.value === 'ar' ? 'ar' : 'en')
 const definitions = computed(() => new Map((props.permissions ?? []).map((permission) => [permission.key, permission])))
 const capabilityLabel = (key: string) => definitions.value.get(key)?.label[lang.value] ?? definitions.value.get(key)?.label.ar ?? t('access.roles.unknownPermission')
-const sourcesOf = (capability: EffectiveCapability) => capability.sources.map((source) => source.role.name[lang.value] ?? source.role.name.ar).join('، ')
+const sourcesOf = (capability: EffectiveCapability) => joinList(capability.sources.map((source) => source.role.name[lang.value] ?? source.role.name.ar), t)
 const groups = computed(() => groupCapabilities(props.capabilities, (key) => definitions.value.get(key)?.domain ?? key.split('.')[0]!))
 const collapsedByDefault = computed(() => props.capabilities.length > CAPABILITY_GROUPS_OPEN_LIMIT)
 const toggled = ref(new Set<string>())

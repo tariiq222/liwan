@@ -9,7 +9,8 @@
     "saving": "Saving…",
     "saved": "Saved",
     "saveChanges": "Save changes",
-    "loadMore": "Load more"
+    "loadMore": "Load more",
+    "listSeparator": ", "
   },
   "home": {
     "empty": "No workspaces are currently available for your account.",
@@ -132,7 +133,7 @@
     "pageNotFoundTitle": "Page not found",
     "pageNotFound": "The link may be wrong, or the page has moved.",
     "pageErrorTitle": "This page could not be shown",
-    "pageError": "Something went wrong. Go back to the home page and try again.",
+    "pageError": "Something went wrong. Try again, or go back to the home page.",
     "goBack": "Back",
     "pageForbiddenTitle": "You do not have access to this page",
     "pageForbidden": "If you need this page, ask your system administrator for access.",

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { joinList } from '@/utils/listFormat'
 import { owningListBack } from '@/utils/recordListOrigin'
 import type { Capability, PermissionDefinition } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
@@ -137,7 +138,7 @@ async function submit() {
                 <template #label><span class="font-medium">{{ permissionLabel(permission.key) }}</span></template>
                 <template #description>
                   <span class="block text-sm text-muted">{{ permissionDescription(permission.key) }}</span>
-                  <span class="block text-xs text-muted">{{ permission.dependencies.length ? `${t('access.roles.requires')}: ${permission.dependencies.map((key) => permissionLabel(key)).join('، ')}` : t('access.roles.noDependencies') }}</span>
+                  <span class="block text-xs text-muted">{{ permission.dependencies.length ? `${t('access.roles.requires')}: ${joinList(permission.dependencies.map((key) => permissionLabel(key)), t)}` : t('access.roles.noDependencies') }}</span>
                   <span class="block text-xs text-muted">{{ t('access.roles.companyScope') }}</span>
                 </template>
               </UCheckbox>
