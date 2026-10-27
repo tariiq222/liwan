@@ -64,6 +64,8 @@ RULES = (
     *((path, ()) for path in STATIC_ONLY_TOOLS),
     ('e2e/*', ()),
     ('e2e.config.ts', ()),
+    ('.gitignore', ()),                      # no step reads it; tools/test_gitignore.py is static
+    ('.claude/*', ()),                       # agent setup for local and cloud sessions; no CI step reads it
     ('ruff.toml', ('ai-service',)),          # the ai-service step lints with the nearest ruff config
     # Applications and the shared packages they build from.
     ('apps/web/*', ('control-plane', 'e2e-mock', 'rtl-stories')),  # control-plane tests import apps/web server code

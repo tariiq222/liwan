@@ -31,7 +31,9 @@ class StagesForTest(unittest.TestCase):
         for path in ('tools/app_isolation.py', 'tools/arch_layers.json'):
             self.assert_stages(path, ('static', 'odoo-app-standalone', 'odoo-bridge'))
         for path in ('README.md', 'apps/web/PRODUCT.md', 'docs/testing.md', 'docs/reports/x.png',
-                     'e2e/tests/smoke.e2e.ts', 'e2e.config.ts'):
+                     'e2e/tests/smoke.e2e.ts', 'e2e.config.ts', '.gitignore',
+                     '.claude/settings.json', '.claude/agents/odoo-reviewer.md',
+                     '.claude/scripts/session-start.sh'):
             self.assert_stages(path, ('static',))
         self.assert_stages('ruff.toml', ('static', 'ai-service'))
         self.assert_stages('apps/web/app/pages/index.vue', ('static', 'control-plane', 'e2e-mock', 'rtl-stories'))
@@ -57,6 +59,7 @@ class StagesForTest(unittest.TestCase):
     def test_root_only_patterns_do_not_match_nested_files(self):
         self.assert_stages('apps/web/package.json', ('static', 'control-plane', 'e2e-mock', 'rtl-stories'))
         self.assert_stages('apps/web/.npmrc', ('static', 'control-plane', 'e2e-mock', 'rtl-stories'))
+        self.assert_stages('apps/web/.gitignore', ('static', 'control-plane', 'e2e-mock', 'rtl-stories'))
 
     def test_unmapped_path_runs_all_twelve(self):
         for path in ('plans/roadmap.txt', 'scripts/verify.py', 'packages/new-pkg/a.ts',
