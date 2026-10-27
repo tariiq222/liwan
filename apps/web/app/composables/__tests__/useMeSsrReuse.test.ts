@@ -40,8 +40,9 @@ function runtime(server: boolean, transport: (url: string, options: any) => unkn
   }
   const debounceTick = installed('dist/app/utils/debounce-tick.js', { queuePostFlushCb: Vue.queuePostFlushCb }, server, 'debounceTick')
   const error = installed('dist/app/error.js', { createError$1: createError }, server, 'createError')
+  const clientServerPrefetch = installed('dist/app/composables/server-prefetch.js', { getCurrentInstance: Vue.getCurrentInstance }, server, 'onServerPrefetch')
   const bindings = {
-    ...vueBindings, useNuxtApp: () => app, createError: error, debounceTick,
+    ...vueBindings, useNuxtApp: () => app, createError: error, debounceTick, onServerPrefetch$1: clientServerPrefetch,
     defineKeyedFunctionFactory: (descriptor: { factory: unknown }) => descriptor.factory,
     asyncDataDefaults: { deep: false }, granularCachedData: true, pendingWhenIdle: false, purgeCachedData: true,
     stripNeverHydratedData: false, tracingChannelNuxt: false, vapor: false,

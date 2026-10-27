@@ -9,6 +9,7 @@ import { expect, it } from 'vitest'
 import * as finance from '../../utils/projectFinance'
 import { parsePositiveId } from '../../utils/routeParams'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { rootedNode } from '../../../tests/hostNode'
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 function gate() {
@@ -45,7 +46,7 @@ async function mountFinance(auth: (to: RouteLocationNormalized) => unknown | Pro
   } })
   const Blank = Vue.defineComponent({ render: () => Vue.h('div') })
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/projects/:id/finance', component: FinancePage, children: [{ path: ':entryId', component: Blank }] }, { path: '/outside', component: Blank }] })
-  const node = () => ({ children: [] as any[], parent: null as any })
+  const node = () => rootedNode({ children: [] as any[], parent: null as any })
   const renderer = Vue.createRenderer<any, any>({
     patchProp() {}, insert(child, parent) { child.parent = parent; parent.children.push(child) }, remove() {},
     createElement: node, createText: node, createComment: node, setText() {}, setElementText() {},
