@@ -357,6 +357,7 @@ describe('provider usage', () => {
     const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
     expect(list.map(([n]) => n)).toEqual(['run', 'tool_request', 'tool_result', 'token', 'answer', 'done'])
     expect(list.at(-1)![1]).toEqual({ status: 'done' })
+    await waitFor(() => usageBatches.length > 0)
     expect(usageInvalid).toEqual([])
     expect(usageBatches).toHaveLength(1)
     const id = startedBody().new_run_id
@@ -370,6 +371,7 @@ describe('provider usage', () => {
     scenario = 'usage_cut'
     const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
     expect(list.map(([n]) => n)).toEqual(['run', 'done'])
+    await waitFor(() => usageBatches.length > 0)
     expect(usageBatches[0]!.items).toEqual([expect.objectContaining({ kind: 'plan', outcome: 'aborted', input_tokens: null, output_tokens: null })])
   })
 
@@ -407,6 +409,7 @@ describe('provider usage', () => {
     const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
     expect(list.map(([n]) => n)).toEqual(['run', 'tool_request', 'tool_result', 'token', 'answer', 'done'])
     expect(list.at(-1)![1]).toEqual({ status: 'done' })
+    await waitFor(() => spy.mock.calls.length > 0)
     expect(spy.mock.calls.map(call => call[0])).toContain('[webvue-ai] usage report of 4 rows failed: UsageRefused')
     expect(JSON.stringify(spy.mock.calls)).not.toContain('secret detail')
     spy.mockRestore()
@@ -431,7 +434,7 @@ describe('provider usage', () => {
     spy.mockRestore()
   })
 
-  it('sends the final done to the browser before the usage report is answered', async () => {
+  it('ends the browser stream before the usage report is answered, so a slow Odoo never holds the UI busy', async () => {
     scenario = 'usage'
     usageDelayMs = 400
     const response = await post('/api/ai/runs', { message: 'هلا' })
@@ -441,8 +444,10 @@ describe('provider usage', () => {
     for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
       if (!doneSeenAt && decoder.decode(chunk.value).includes('event: done')) doneSeenAt = Date.now()
     }
+    const streamEndedAt = Date.now()
     expect(doneSeenAt).toBeGreaterThan(0)
-    expect(usageAnsweredAt).toBeGreaterThanOrEqual(doneSeenAt + 200) // Odoo answered well after the browser had its done
+    await waitFor(() => usageAnsweredAt > 0)
+    expect(usageAnsweredAt).toBeGreaterThanOrEqual(streamEndedAt + 200) // Odoo answered well after the browser stream had closed
     expect(usageBatches).toHaveLength(1)
   })
 })

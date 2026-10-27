@@ -83,23 +83,6 @@ type Action = { kind: 'read'; call: ToolCall & { summary_ar: string; summary_en:
  * `preface`: one event the stream opens with (the result of a read the server ran again). */
 export type PumpOptions = { runId: string; auditFailed?: boolean; shielded?: boolean; preface?: { event: string; data: string } }
 
-/**
- * Relays the service stream to the browser. A tool_request the server must answer (a read, or a call the catalog does not back)
- * is acted on only after that service stream delivered its `done` and the reader was cancelled, so the service has saved its
- * waiting state before the resume arrives. Every stream ends with exactly one `done`; a failed audit shows up as `audit_failed`
- * just before it. When the browser is gone nothing more is executed or resumed; a shielded stream is still read to its end,
- * without pushing, so the run settles. The provider attempts the service reports (`model_call`, `model_usage`) are counted even
- * then, never relayed, and sent to Odoo once, after the final `done` has been pushed (or as the pump unwinds when it ends early or throws), so the report never delays the browser.
- */
-export async function pumpRun(event: H3Event, session: RunSession, stream: EventStream, response: Response, options: PumpOptions): Promise<void> {
-  const usage = createUsageLedger()
-  try {
-    await relayRun(event, session, stream, response, options, usage)
-  } finally {
-    await usage.flush(event, options.runId)
-  }
-}
-
 /** The events of one service stream that concern the browser: the provider usage events are taken out first (counted even when the browser is gone), and the attempts left open when the stream ends are closed. */
 async function* serviceEvents(response: Response, usage: UsageLedger): AsyncGenerator<[string, any]> {
   try {
@@ -109,7 +92,16 @@ async function* serviceEvents(response: Response, usage: UsageLedger): AsyncGene
   }
 }
 
-async function relayRun(event: H3Event, session: RunSession, stream: EventStream, response: Response, options: PumpOptions, usage: UsageLedger): Promise<void> {
+/**
+ * Relays the service stream to the browser. A tool_request the server must answer (a read, or a call the catalog does not back)
+ * is acted on only after that service stream delivered its `done` and the reader was cancelled, so the service has saved its
+ * waiting state before the resume arrives. Every stream ends with exactly one `done`; a failed audit shows up as `audit_failed`
+ * just before it. When the browser is gone nothing more is executed or resumed; a shielded stream is still read to its end,
+ * without pushing, so the run settles. The provider attempts the service reports (`model_call`, `model_usage`) are counted even
+ * then, never relayed, and gathered in `usage`; `relay` sends them to Odoo once the browser stream is closed, so the report never
+ * keeps the browser waiting.
+ */
+export async function pumpRun(event: H3Event, session: RunSession, stream: EventStream, response: Response, options: PumpOptions, usage: UsageLedger): Promise<void> {
   const gone = clientSignal(event)
   const { runId } = options
   if (options.preface) await stream.push(options.preface)
@@ -178,7 +170,8 @@ export function settle(stream: EventStream, events: { event: string; data: strin
 
 /** Starts the pump in the background and returns the stream response; errors reach the browser as an `error` event followed by `done`. */
 export function relay(event: H3Event, session: RunSession, stream: EventStream, response: Response, options: PumpOptions) {
-  pumpRun(event, session, stream, response, options)
+  const usage = createUsageLedger()
+  pumpRun(event, session, stream, response, options, usage)
     .catch(async (error) => {
       if (clientSignal(event).aborted) { logFailure('stream after disconnect failed', error); return }
       try {
@@ -188,5 +181,7 @@ export function relay(event: H3Event, session: RunSession, stream: EventStream, 
     })
     .finally(() => stream.close())
     .catch(error => logFailure('stream close failed', error))
+    // The browser stream is closed before the usage report, so a slow or failing Odoo write never holds the UI busy.
+    .finally(() => usage.flush(event, options.runId))
   return stream.send()
 }
