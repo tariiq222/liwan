@@ -1,4 +1,4 @@
-import type { Invoice, Money, Quote, SubscriptionDisplayState, UsageMetric, UsageSnapshot } from '@webvue/commercial-contracts'
+import { daysBetween, riyadhDate, type Invoice, type Money, type Order, type Quote, type SubscriptionDisplayState, type UsageMetric, type UsageSnapshot } from '@webvue/commercial-contracts'
 
 import { invoiceLineQuantities, type InvoiceLineView } from '@webvue/commercial-ui/app/utils/invoiceLines'
 import { humanizeId } from '@webvue/ui/app/utils/humanizeId'
@@ -137,4 +137,23 @@ export function subscriptionInvoiceView(invoice: Invoice, t: (key: string) => st
       { label: t('subscription.invoices.total'), value: money(invoice.total) },
     ],
   }
+}
+
+export type OrderOutcome = 'applied' | 'cancelled' | 'awaiting_payment' | 'payment_failed' | 'processing' | 'activation_failed' | 'refund'
+
+/** What the customer should see for an order, whether it is still open or already closed. */
+export function orderOutcome(order: Pick<Order, 'payment_state' | 'fulfillment_state'> & { cancelled?: boolean }): OrderOutcome {
+  // A refund can follow activation and leaves fulfillment_state as it was, so the payment outcome wins.
+  if (order.payment_state === 'refund_pending' || order.payment_state === 'refunded') return 'refund'
+  if (order.fulfillment_state === 'applied') return 'applied'
+  if (order.fulfillment_state === 'failed' || order.fulfillment_state === 'needs_intervention') return 'activation_failed'
+  if (order.cancelled) return 'cancelled'
+  if (order.payment_state === 'failed') return 'payment_failed'
+  if (order.payment_state === 'awaiting_payment') return 'awaiting_payment'
+  return 'processing'
+}
+
+/** Whole Riyadh calendar days left until `endsAt`, never below zero. */
+export function trialDaysRemaining(endsAt: string | null | undefined, now: Date = new Date()): number | null {
+  return endsAt ? Math.max(0, daysBetween(riyadhDate(now), riyadhDate(endsAt))) : null
 }

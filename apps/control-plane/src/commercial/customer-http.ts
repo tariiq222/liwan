@@ -11,7 +11,7 @@ import { parseBody } from './http.js'
 import { getSubscription } from './subscriptions.js'
 import { buildQuote, createQuoteForCustomer } from './quotes.js'
 import { convertTrial, startTrial } from './trial.js'
-import { acceptQuote } from './orders.js'
+import { acceptQuote, customerOrderStatusView } from './orders.js'
 import { listInvoices, getInvoice } from './invoices.js'
 import { planWire } from './plans.js'
 import { bundleWire } from './bundles.js'
@@ -113,6 +113,14 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
     return {status:200,data:await buildQuote(pool,{customer_id:customerId,request:{...request,subscription_id:own?.id ?? null}})}
   }
   if (m==='POST' && path==='/orders') {requireCapability(principal,'subscription.manage');const result=await acceptQuote(pool,parseBody(input.raw,acceptQuoteRequestSchema),principal);return {status:result.replay?200:201,data:result}}
+  const orderRead=/^\/orders\/([^/]+)$/.exec(path)
+  if(m==='GET'&&orderRead){
+    requireCapability(principal,'subscription.read')
+    // Unknown, malformed and another customer's id all answer the same 404.
+    const row=z.uuid().safeParse(orderRead[1]).success?(await pool.query('SELECT * FROM orders WHERE id=$1 AND customer_id=$2',[orderRead[1],customerId])).rows[0]:undefined
+    if(!row)throw new CommercialHttpError('not_found',404)
+    return {status:200,data:customerOrderStatusView(row)}
+  }
   const payment=/^\/orders\/([^/]+)\/payment-attempts$/.exec(path)
   if(m==='POST'&&payment){
     requireCapability(principal,'subscription.manage')
