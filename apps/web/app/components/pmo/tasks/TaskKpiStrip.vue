@@ -25,6 +25,6 @@ const tiles = computed<KpiTile[]>(() => data.value ? [
 </script>
 
 <template>
-  <SharedErrorState v-if="isError" :error="error" data-testid="task-kpi-error" @retry="refetch()" />
+  <SharedErrorState v-if="isError && !data" :error="error" data-testid="task-kpi-error" @retry="refetch()" />
   <SharedKpiStrip v-else :tiles="tiles" :loading="!data" :label="t('tasks.kpi.label')" data-testid="task-kpi-strip" />
 </template>
