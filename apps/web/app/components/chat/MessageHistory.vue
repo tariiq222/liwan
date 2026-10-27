@@ -22,6 +22,8 @@ const props = defineProps<{
   peerSeenMessageId?: number | null
   direct?: boolean
   q?: string
+  /** False for a read-only tenant: no write action is offered and nothing is marked read. */
+  writable?: boolean
 }>()
 const emit = defineEmits<{ denied: []; reply: [ChatMessage] }>()
 const { t, locale } = useI18n()
@@ -177,7 +179,7 @@ function visibleIds(): number[] {
 }
 
 async function maybeMarkRead() {
-  if (sealed.value || !import.meta.client) return
+  if (sealed.value || !props.writable || !import.meta.client) return
   await nextTick()
   const target = visibleReadMessageId({
     tabVisible: typeof document !== 'undefined' && document.visibilityState === 'visible',
@@ -317,8 +319,8 @@ watch(() => props.denied, (value) => { if (value) seal() })
                   :variant="reaction.me ? 'soft' : 'ghost'"
                   size="xs"
                   :aria-pressed="reaction.me"
-                  :disabled="busyId === row.item.id"
-                  @click="runMessageAction(row.item, () => reactMessage({ messageId: row.item.id, content: reaction.content, action: reaction.me ? 'remove' : 'add' }))"
+                  :disabled="busyId === row.item.id || !props.writable"
+                  @click="props.writable && runMessageAction(row.item, () => reactMessage({ messageId: row.item.id, content: reaction.content, action: reaction.me ? 'remove' : 'add' }))"
                   :label="`${reaction.content} ${reaction.count}`"
                 />
               </div>
@@ -327,7 +329,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
                 <span v-if="row.item.author.id === me?.id">{{ direct && peerSeenMessageId && row.item.id <= peerSeenMessageId ? t('chat.seen') : t('chat.sent') }}</span>
               </p>
             </div>
-            <div class="webvue-chat-msg-actions flex flex-wrap gap-1 text-xs text-muted">
+            <div v-if="props.writable" class="webvue-chat-msg-actions flex flex-wrap gap-1 text-xs text-muted">
               <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.reply')" @click="emit('reply', row.item)" />
               <UButton
                 v-for="emoji in CHAT_REACTIONS"

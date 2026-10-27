@@ -5,7 +5,7 @@ import { nextListOffset } from '../../../utils/chatState'
 
 const query = (data: unknown, extra: Record<string, unknown> = {}) => ({ data: Vue.ref(data), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn(), ...extra })
 
-async function open(options: { recipients?: unknown; members?: ReturnType<typeof query>; attachments?: ReturnType<typeof query>; q?: string; canRemove?: boolean } = {}) {
+async function open(options: { recipients?: unknown; members?: ReturnType<typeof query>; attachments?: ReturnType<typeof query>; q?: string; canRemove?: boolean; writable?: boolean } = {}) {
   const removeMember = vi.fn().mockResolvedValue({})
   const members = options.members ?? query({ items: [{ id: 7, name: 'Sara', im_status: null }], total: 1 })
   const attachments = options.attachments ?? query({ items: [], total: 0 })
@@ -15,6 +15,7 @@ async function open(options: { recipients?: unknown; members?: ReturnType<typeof
     CHAT_PAGE_SIZE: 50, nextListOffset, parseChatListRoute: () => ({ q: '', filter: 'all', offset: 0 }), serializeChatListRoute: () => ({}),
     useChatConversation: () => query({ id: 3, type: 'group', name: 'G', can_manage: true, can_remove_members: options.canRemove ?? false }),
     useMe: () => ({ me: Vue.ref({ id: 1 }) }), useRemoveChatMember: () => ({ mutateAsync: removeMember }),
+    useChatWritable: () => Vue.computed(() => options.writable ?? true),
     useChatMembers: () => members, useChatAttachments: () => attachments,
     useChatRecipients: (_q: unknown, _o: unknown, active: Vue.MaybeRefOrGetter<boolean>) => ({ data: Vue.computed(() => (Vue.toValue(active) ? recipients.value : undefined)) }),
     usePatchConversation: () => ({ mutateAsync: vi.fn() }), useAddChatMembers: () => ({ mutateAsync: vi.fn() }), useLeaveConversation: () => ({ mutateAsync: vi.fn() }),
@@ -72,6 +73,14 @@ describe('ChatInfoPanel', () => {
     members.data.value = { items: [], total: 50 }
     await Vue.nextTick()
     expect(view.state.memberOffset.value).toBe(0)
+    view.stop()
+  })
+
+  it('offers no rename, no add, no remove and no leave to a read-only tenant', async () => {
+    const { view } = await open({ canRemove: true, writable: false })
+    expect(view.state.canManage.value).toBe(false)
+    expect(view.state.canRemoveMember(7)).toBe(false)
+    expect(view.state.canLeave.value).toBe(false)
     view.stop()
   })
 })

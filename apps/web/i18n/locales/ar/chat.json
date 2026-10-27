@@ -81,6 +81,8 @@
   "online": "متصل",
   "offline": "غير متصل",
   "actionFailed": "تعذر إكمال الإجراء.",
+  "readOnly": "الاشتراك للقراءة فقط",
+  "readOnlyDescription": "يمكنك قراءة المحادثات، أما الإرسال والتعديل فيحتاج اشتراكًا ساريًا.",
   "newAction": "جديد",
   "newDirect": "محادثة",
   "newChannelTitle": "قناة جديدة",

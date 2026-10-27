@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ChatAttachment from '@/components/chat/ChatAttachment.vue'
 import { ApiError } from '@/composables/useApi'
+import { useChatWritable } from '@/composables/useChat'
 import { CHAT_PAGE_SIZE, nextListOffset, parseChatListRoute, serializeChatListRoute } from '@/utils/chatState'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
@@ -48,9 +49,10 @@ useSsrQuerySeed({ data: conversation }, seedConversationName)
 const pageFor = (offset: number) => Math.floor(offset / CHAT_PAGE_SIZE) + 1
 const pagesFor = (total: number | undefined) => Math.max(1, Math.ceil((total ?? 0) / CHAT_PAGE_SIZE))
 const offsetFor = (page: number, total: number | undefined) => nextListOffset(0, total ?? 0, (page - 1) * CHAT_PAGE_SIZE)
-const canManage = computed(() => Boolean(conversation.value?.can_manage))
-const canRemoveMember = (memberId: number) => Boolean(conversation.value?.can_remove_members) && memberId !== me.value?.id
-const canLeave = computed(() => conversation.value?.type === 'group' || conversation.value?.type === 'channel')
+const writable = useChatWritable()
+const canManage = computed(() => writable.value && Boolean(conversation.value?.can_manage))
+const canRemoveMember = (memberId: number) => writable.value && Boolean(conversation.value?.can_remove_members) && memberId !== me.value?.id
+const canLeave = computed(() => writable.value && (conversation.value?.type === 'group' || conversation.value?.type === 'channel'))
 
 // A removal can empty the last member page; step back to the page that still exists.
 watch(() => members.value?.total, (total) => {
@@ -125,7 +127,7 @@ async function confirmLeave() {
         :model-value="notificationChoice"
         :items="notificationItems"
         :label="t('chat.notifications')"
-        :disabled="busy"
+        :disabled="busy || !writable"
         @update:model-value="setNotifications($event as NotificationChoice)"
       />
     </SharedRecordSection>
