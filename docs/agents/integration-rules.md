@@ -113,8 +113,11 @@ changes twice. A clean merge simulation proves textual compatibility only.
 
 ## GitHub protection policy and live settings
 
-Publish through a PR with current-head `ci-result` from GitHub Actions, an
-up-to-date branch, resolved conversations and normal merge commits. No protection
+Publish through a PR with current-head `ci-result` from GitHub Actions,
+resolved conversations and normal merge commits. The branch need not be up to
+date with `main` (owner decision 2026-10-27: the strict policy restarted CI on
+every concurrent merge); `ci` on `main` after each merge catches a semantic
+conflict between two green PRs. No protection
 bypass, force updates or branch deletion is permitted. A mandatory second-account
 or model-provider approval is not part of the owner's reset.
 
