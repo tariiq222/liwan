@@ -55,7 +55,13 @@ if 'deploy/classification.py' in args:
 ''')
         self.fake('git', "sys.exit(17)  # Read-only validated upstream must not be cloned by stages.\n")
         self.fake('dropdb', '')
-        self.fake('docker', '')
+        self.fake('docker', '''
+joined = ' '.join(args)
+if args[:1] == ['inspect']: print('true')
+if args[:1] == ['exec'] and joined.endswith('id -u'): print(10001)
+if args[:1] == ['exec'] and 'unknown.invalid' in joined: print(403)
+if args[:2] == ['image', 'inspect']: print('sha256:' + args[-1])
+''')
         self.fake('psql', '''
 if 'webvue_tasks_pmo' in ' '.join(args) and "SELECT state" in ' '.join(args): print('installed')
 elif "SELECT state" in ' '.join(args): print('installed')
@@ -66,6 +72,8 @@ elif "SELECT state" in ' '.join(args): print('installed')
                   'ODOO_PORT': '52101', 'ISOLATION_PORT': '52102',
                   'DOCKER_CONFIG': str(self.root / 'docker')}
         self.environment = {**os.environ, **config, 'PATH': str(self.bin) + os.pathsep + os.environ['PATH']}
+        # The runner's own job summary file must not capture a stage's output; tests that want it set it.
+        self.environment.pop('GITHUB_STEP_SUMMARY', None)
 
     def fake(self, name, body):
         file = self.bin / name
@@ -220,14 +228,60 @@ if 'deploy/restore_verify.py' in args:
         self.assertEqual(build[build.index('-t') + 1], 'webvue-odoo:ci-123')
         self.assertIn('WEBVUE_REVISION=' + 'b' * 12, build)
         runs = [x for x in calls if x[:2] == ['docker', 'run']]
-        self.assertEqual(len(runs), 2)
-        self.assertEqual([x[x.index('--name') + 1] for x in runs],
-                         ['webvue-ci-123-image', 'webvue-ci-123-check'])
-        install = runs[0]
+        install = next(x for x in runs if x[x.index('--name') + 1] == 'webvue-ci-123-image')
+        check = next(x for x in runs if x[x.index('--name') + 1] == 'webvue-ci-123-check')
         self.assertEqual(install[install.index('--network') + 1], 'host')
+        self.assertIn('--entrypoint', check)
         for value in (x for x in install if ':/etc/odoo/' in x or ':/run/webvue/' in x):
             self.assertFalse(value.startswith(str(self.root)), value)
         self.assertIn(['docker', 'rmi', '-f', 'webvue-odoo:ci-123'], calls)
+
+    def test_image_gate_builds_smokes_cleans_and_records_every_production_image(self):
+        process = self.execute('image')
+        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+        calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
+        builds = {x[x.index('-t') + 1]: x for x in calls if x[:2] == ['docker', 'build']}
+        contexts = {'web': '.', 'vendor-admin': '.', 'ai-service': 'apps/ai-service', 'proxy': '.', 'guard': '.'}
+        dockerfiles = {'web': 'apps/web/Dockerfile', 'vendor-admin': 'apps/vendor-admin/Dockerfile',
+                       'ai-service': 'apps/ai-service/Dockerfile', 'proxy': 'deploy/proxy/Dockerfile',
+                       'guard': 'deploy/shared/Dockerfile'}
+        self.assertEqual(set(builds), {'webvue-odoo:ci-123', *('webvue-%s:ci-123' % n for n in contexts)})
+        for name, context in contexts.items():
+            with self.subTest(image=name):
+                tag = 'webvue-%s:ci-123' % name
+                build = builds[tag]
+                self.assertEqual(build[build.index('-f') + 1], dockerfiles[name])
+                self.assertEqual(build[-1], context)
+                self.assertIn(['docker', 'rmi', '-f', tag], calls)
+                self.assertIn(['docker', 'image', 'inspect', '--format', '{{.Id}}', tag], calls)
+                self.assertIn('| %s | sha256:%s |' % (tag, tag), process.stdout)
+                if name != 'proxy':
+                    started = next(x for x in calls if x[:3] == ['docker', 'run', '-d']
+                                   and x[x.index('--name') + 1] == 'webvue-ci-123-' + name)
+                    self.assertIn(tag, started)
+                    self.assertIn(['docker', 'exec', 'webvue-ci-123-' + name, 'id', '-u'], calls)
+                    self.assertIn(['docker', 'rm', '-fv', 'webvue-ci-123-' + name], calls)
+        self.assertIn('| webvue-odoo:ci-123 | sha256:webvue-odoo:ci-123 |', process.stdout)
+        proxy = [x for x in calls if x[:2] == ['docker', 'run'] and 'webvue-proxy:ci-123' in x]
+        validated = [x for x in proxy if 'validate' in x]
+        self.assertEqual(len(validated), 2)
+        self.assertTrue(any('http.handlers.rate_limit' in ' '.join(x) for x in proxy))
+        guard = next(x for x in calls if x[:3] == ['docker', 'run', '-d'] and 'webvue-ci-123-guard' in x)
+        self.assertIn('WEBVUE_TENANCY_MODE=shared', guard)
+
+    def test_image_gate_fails_when_an_image_runs_as_root(self):
+        self.fake('docker', "if args[:1] == ['inspect']: print('true')\nif args[:1] == ['exec'] and ' '.join(args).endswith('id -u'): print(0)\n")
+        process = self.execute('image')
+        self.assertNotEqual(process.returncode, 0)
+        self.assertIn('runs as root', process.stderr)
+
+    def test_image_gate_writes_the_digest_table_to_the_step_summary_when_set(self):
+        summary = self.root / 'summary.md'
+        self.environment['GITHUB_STEP_SUMMARY'] = str(summary)
+        process = self.execute('image')
+        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+        self.assertIn('| webvue-guard:ci-123 |', summary.read_text())
+        self.assertNotIn('| Image |', process.stdout)
 
 
 class TestVendorAdminStage(unittest.TestCase):
