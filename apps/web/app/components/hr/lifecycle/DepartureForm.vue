@@ -38,6 +38,17 @@ const reasonId = ref<number | null>(props.departure?.reason?.id ?? null)
 const description = ref(props.departure?.description ?? '')
 const setContractEnd = ref(true)
 const planId = ref<number | null>(null)
+// The draft against the record it started from. A registration is released just before `saved` lets the
+// page navigate away; an edited record stays guarded, its baseline following the refreshed departure.
+const saved = ref(false)
+const dirty = computed(() => !saved.value && (
+  employeeId.value !== (props.departure?.employee.id ?? null)
+  || departureDate.value !== (props.departure?.departure_date ?? null)
+  || reasonId.value !== (props.departure?.reason?.id ?? null)
+  || description.value !== (props.departure?.description ?? '')
+  || !setContractEnd.value
+  || planId.value !== null
+))
 const employeeError = ref<string>()
 const dateError = ref<string>()
 const reasonError = ref<string>()
@@ -96,6 +107,10 @@ async function submit() {
         plan_id: planId.value,
       })
     formError.value = null
+    if (!props.departure) {
+      saved.value = true
+      await nextTick()
+    }
     emit('saved', departure)
   } catch (error) {
     formError.value = error
@@ -104,6 +119,7 @@ async function submit() {
 </script>
 
 <template>
+  <SharedUnsavedChanges :dirty="dirty" />
   <UForm :state="{ employeeId, departureDate, reasonId, description }" class="webvue-form" method="post" :loading-auto="false" novalidate @submit="submit">
     <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t(`${namespace}.form.saveError`)" :description="errorMessage" />
     <SharedFormSection panel :title="t(`${namespace}.departures.title`)">
