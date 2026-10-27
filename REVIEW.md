@@ -78,6 +78,19 @@ flags, but anything else sensitive is the sender's responsibility.
 Remote reviews follow the criteria above and consume recorded CI evidence.
 Distinguish checks the reviewer actually ran from evidence supplied by others.
 
+## Agent review path
+
+The default agent review path in this repository is `/code-review` for the whole diff, plus the
+`odoo-reviewer` agent (`.claude/agents/odoo-reviewer.md`) when the diff touches `odoo-addons`,
+`packages/contracts` or `apps/web` composables, plus the Jev signal above. Another selected agent
+or a human may review instead when they apply the criteria of this file. Generic review plugins, skills and bots (style, clean-architecture, simplification or
+code-quality reviewers, and automated PR review comments) do not know R1-R10, the documented
+`sudo()` cases or the contract-parity rules. Their output is input to weigh, never the review of
+record: a finding from them still needs its own `file:line` evidence against the rules here, and
+their silence is never evidence that the rules were checked. A suggestion that conflicts with
+`AGENTS.md`, this file or `DESIGN.md` (for example adding an abstraction layer, a wrapper, a
+compatibility path or a second UI library) is not applied.
+
 ## How to report
 
 Findings first, ranked by severity, each with `file:line` and the input or state that breaks it.

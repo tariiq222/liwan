@@ -30,6 +30,7 @@ apps/web/127.0.0.1/
 !/.claude/agents/
 /.claude/agents/*
 !/.claude/agents/frontend-theme.md
+!/.claude/agents/odoo-reviewer.md
 !/.claude/skills/
 /.claude/skills/*
 !/.claude/skills/e2e/
