@@ -27,6 +27,21 @@ def _approved_run(run_id):
     return run
 
 
+def _require_same_site_json():
+    """CSRF guard of a request that writes: a JSON body and no cross-site origin, like ``assertSameSiteJson``.
+
+    A plain cross-site ``<form>`` cannot send ``application/json`` and a cross-site ``fetch`` that does needs a
+    CORS preflight Odoo never grants, so the media type carries the defence; ``Sec-Fetch-Site`` additionally
+    rejects anything the browser labels as coming from another origin. Odoo's json2 dispatcher alone lets an
+    empty-bodied request of any media type through, which is why the type is checked here.
+    """
+    httprequest = request.httprequest
+    if httprequest.mimetype != 'application/json':
+        raise ApiError(415, 'unsupported_media_type', 'JSON only')
+    if httprequest.headers.get('Sec-Fetch-Site', 'same-origin') not in ('same-origin', 'none'):
+        raise ApiError(403, 'cross_site_request', 'cross-site request rejected')
+
+
 def _profile(args, kind):
     """The requested profile, or the shared one of this kind; a profile of the other kind → 422."""
     if args.get('profile_id') in (None, ''):
@@ -67,20 +82,21 @@ def _csv_response(content, filename):
 
 class HrPayrollFilesController(http.Controller):
 
-    # A write, though a GET: every download keeps the file it hands out and logs it (owner decision D-4), so a
-    # read-only tenant (expired, or suspended with support signed in) is refused 403 ``tenant_read_only`` before
-    # any file is generated, kept or logged, a file kept earlier included (owner decision 2026-10-26).
-    @http.route(f'{RUN}/bank-file', type='http', auth='user', methods=['GET'], readonly=False)
+    # A write: every download keeps the file it hands out and logs it (owner decision D-4), so it is a POST that
+    # needs a same-site JSON request (a GET is not CSRF-protected) and a read-only tenant (expired, or suspended with
+    # support signed in) is refused 403 ``tenant_read_only`` before any file is generated, kept or logged, a file
+    # kept earlier included (owner decisions 2026-10-26). The profile and value date travel in the JSON body.
+    @http.route(f'{RUN}/bank-file', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @hr_rule_handler
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.read')
-    def bank_file(self, run_id, **_):
+    def bank_file(self, run_id, **payload):
         """The bank salary file of a fixed run: employees with a net to pay, each of them with an IBAN."""
+        _require_same_site_json()
         run = _approved_run(run_id)
-        args = request.httprequest.args
-        profile = _profile(args, 'bank')
-        value_date = parse_optional_date(args.get('value_date'), 'value_date') or fields.Date.context_today(run)
+        profile = _profile(payload, 'bank')
+        value_date = parse_optional_date(payload.get('value_date'), 'value_date') or fields.Date.context_today(run)
         export = request.env['webvue.hr.payroll.export']
         lines = [line for line in export._webvue_salary_lines(run) if line.net > 0]
         _require_iban(lines)
@@ -88,15 +104,16 @@ class HrPayrollFilesController(http.Controller):
         return _kept_response(run, 'bank', profile, value_date, content, f'salaries-{_month(run)}.csv')
 
     # A write, like the bank file: see above.
-    @http.route(f'{RUN}/wps-file', type='http', auth='user', methods=['GET'], readonly=False)
+    @http.route(f'{RUN}/wps-file', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @hr_rule_handler
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
     @requires_capability('hr.payroll.read')
-    def wps_file(self, run_id, **_):
+    def wps_file(self, run_id, **payload):
         """The WPS file of a fixed run: every payslip, zero net included, once its totals add up."""
+        _require_same_site_json()
         run = _approved_run(run_id)
-        profile = _profile(request.httprequest.args, 'wps')
+        profile = _profile(payload, 'wps')
         export = request.env['webvue.hr.payroll.export']
         lines = export._webvue_salary_lines(run)
         export._webvue_check_totals(lines)

@@ -91,14 +91,14 @@ class TestPayrollPaymentSnapshot(PayrollCase):
         self.assertEqual(res.status_code, 200, res.text)
         return run
 
-    def _download(self, run, route, query=''):
+    def _download(self, run, route, **payload):
         self._login(self.officer)
-        res = self.api('GET', f'{RUNS}/{run.id}/{route}{query}')
+        res = self.api('POST', f'{RUNS}/{run.id}/{route}', json=payload)
         self.assertEqual(res.status_code, 200, res.text)
         return res.content
 
     def _bank_file(self, run, value_date='2026-12-01'):
-        return self._download(run, 'bank-file', f'?profile_id={self.profile.id}&value_date={value_date}')
+        return self._download(run, 'bank-file', profile_id=self.profile.id, value_date=value_date)
 
     def _slip(self, run, employee=None):
         return run.slip_ids.filtered(lambda slip: slip.employee_id == (employee or self.worker))
@@ -157,14 +157,14 @@ class TestPayrollPaymentSnapshot(PayrollCase):
     def test_salary_files_keep_the_approved_payment_data(self):
         run = self._approved_run()
         bank_before = self._bank_file(run)
-        wps_before = self._download(run, 'wps-file', f'?profile_id={self.wps.id}')
+        wps_before = self._download(run, 'wps-file', profile_id=self.wps.id)
         self.assertIn(IBAN, bank_before.decode())
         self.assertIn(IDENTIFICATION, bank_before.decode())
         self.assertIn('RJHISARI', bank_before.decode())
         self.compensation.write({'iban': NEW_IBAN, 'bank_id': self.new_bank.id})
         self.worker.version_id.identification_id = NEW_IDENTIFICATION
         self.assertEqual(self._bank_file(run), bank_before)
-        self.assertEqual(self._download(run, 'wps-file', f'?profile_id={self.wps.id}'), wps_before)
+        self.assertEqual(self._download(run, 'wps-file', profile_id=self.wps.id), wps_before)
         self.assertEqual(self.File.search_count([('run_id', '=', run.id)]), 2)
 
     def test_clearing_the_live_iban_leaves_an_approved_run_and_its_files_alone(self):
@@ -185,7 +185,7 @@ class TestPayrollPaymentSnapshot(PayrollCase):
         warnings = self.api('GET', f'{RUNS}/{run.id}').json()['warnings']
         self.assertIn({'code': 'missing_iban', 'employee': {'id': self.worker.id, 'name': self.worker.name}}, warnings)
         self.assertTrue(self._row(run, self.worker)['iban_missing'])
-        res = self.api('GET', f'{RUNS}/{run.id}/bank-file?profile_id={self.profile.id}&value_date=2026-12-01')
+        res = self.api('POST', f'{RUNS}/{run.id}/bank-file', json={'profile_id': self.profile.id, 'value_date': '2026-12-01'})
         self.assertEqual(res.status_code, 422, res.text)
         self.assertEqual(res.json()['code'], 'missing_iban')
         self.assertEqual(res.json()['details'], {'employee_ids': [self.worker.id]})
@@ -260,7 +260,7 @@ class TestPayrollPaymentSnapshot(PayrollCase):
         """The read capability alone generates a file and reads the kept bytes back; it changes nothing."""
         run = self._approved_run()
         self._login(self.reader)
-        res = self.api('GET', f'{RUNS}/{run.id}/bank-file?profile_id={self.profile.id}&value_date=2026-12-01')
+        res = self.api('POST', f'{RUNS}/{run.id}/bank-file', json={'profile_id': self.profile.id, 'value_date': '2026-12-01'})
         self.assertEqual(res.status_code, 200, res.text)
         kept = self.File.with_user(self.reader).search([('run_id', '=', run.id)])
         self.assertEqual(len(kept), 1)
@@ -284,7 +284,7 @@ class TestPayrollPaymentSnapshot(PayrollCase):
             return content
         self.patch(type(export), '_webvue_render', render_then_delete)
         self._login(self.officer)
-        res = self.api('GET', f'{RUNS}/{run.id}/bank-file?profile_id={spare.id}&value_date=2026-12-01')
+        res = self.api('POST', f'{RUNS}/{run.id}/bank-file', json={'profile_id': spare.id, 'value_date': '2026-12-01'})
         self.assertEqual(res.status_code, 409, res.text)
         self.assertEqual(res.json()['code'], 'profile_unavailable')
         # This test injects the deletion in the download's own transaction, not a second connection. The API
