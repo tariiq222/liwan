@@ -1,0 +1,51 @@
+{
+  "can_manage": true,
+  "items": [
+    {
+      "amount": 250.0,
+      "budget_entry_id": 26,
+      "expense_date": "2030-01-15",
+      "id": 1,
+      "kind": "expense",
+      "notes": "",
+      "project_id": 315,
+      "reference": "",
+      "title": "Contractor",
+      "updated_at": "v1"
+    },
+    {
+      "amount": 1000.0,
+      "budget_entry_id": null,
+      "expense_date": null,
+      "id": 2,
+      "kind": "budget",
+      "notes": "",
+      "project_id": 315,
+      "reference": "",
+      "title": "Design phase",
+      "updated_at": "v1"
+    }
+  ],
+  "summary": {
+    "actual": 250.0,
+    "actual_account": null,
+    "actual_source": "manual",
+    "budget_count": 1,
+    "can_choose_actual_account": false,
+    "can_read_actual_lines": false,
+    "charter_estimate": null,
+    "currency": {
+      "decimal_places": 2,
+      "id": 3,
+      "name": "USD",
+      "symbol": "$"
+    },
+    "expense_count": 1,
+    "over_budget": false,
+    "planned": 1000.0,
+    "project_id": 315,
+    "remaining": 750.0,
+    "utilization_percent": 25.0
+  },
+  "total": 2
+}

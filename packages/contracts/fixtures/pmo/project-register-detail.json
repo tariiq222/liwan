@@ -1,0 +1,18 @@
+{
+  "description": "",
+  "due_date": "2024-02-29",
+  "id": 1,
+  "impact": 5,
+  "kind": "risk",
+  "owner": {
+    "id": 2,
+    "name": "Mona"
+  },
+  "priority": "critical",
+  "probability": 4,
+  "response": "Mitigated",
+  "score": 20,
+  "status": "closed",
+  "task": null,
+  "title": "Risk"
+}

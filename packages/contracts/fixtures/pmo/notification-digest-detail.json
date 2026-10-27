@@ -1,0 +1,81 @@
+{
+  "id": 1,
+  "items": [
+    {
+      "allowed_transitions": [
+        "changes_requested",
+        "approved",
+        "waiting",
+        "done",
+        "cancelled"
+      ],
+      "assignees": [
+        {
+          "id": 4,
+          "name": "Sara"
+        }
+      ],
+      "attachment_count": 0,
+      "can_approve": true,
+      "can_write": true,
+      "date_deadline": "2026-01-01T00:00:00Z",
+      "days_remaining": -300,
+      "description_excerpt": "",
+      "id": 2,
+      "is_closed": false,
+      "is_overdue": true,
+      "name": "Overdue A",
+      "personal_stage": null,
+      "priority": "0",
+      "project": {
+        "id": 3,
+        "name": "Erada Portal"
+      },
+      "stage": null,
+      "state": "in_progress",
+      "subtask_count": 0,
+      "subtask_done_count": 0,
+      "tags": []
+    },
+    {
+      "allowed_transitions": [
+        "changes_requested",
+        "approved",
+        "waiting",
+        "done",
+        "cancelled"
+      ],
+      "assignees": [
+        {
+          "id": 4,
+          "name": "Sara"
+        }
+      ],
+      "attachment_count": 0,
+      "can_approve": true,
+      "can_write": true,
+      "date_deadline": "2026-01-01T00:00:00Z",
+      "days_remaining": -300,
+      "description_excerpt": "",
+      "id": 5,
+      "is_closed": false,
+      "is_overdue": true,
+      "name": "Overdue B",
+      "personal_stage": null,
+      "priority": "0",
+      "project": {
+        "id": 3,
+        "name": "Erada Portal"
+      },
+      "stage": null,
+      "state": "in_progress",
+      "subtask_count": 0,
+      "subtask_done_count": 0,
+      "tags": []
+    }
+  ],
+  "kind": "overdue_digest",
+  "local_date": "2026-01-02",
+  "overdue_count": 2,
+  "total": 2
+}

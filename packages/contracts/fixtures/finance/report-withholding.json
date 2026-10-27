@@ -1,0 +1,36 @@
+{
+  "base": 3500.0,
+  "currency": "SAR",
+  "date_from": "2026-10-01",
+  "date_to": "2026-10-31",
+  "taxes": [
+    {
+      "base": 1000.0,
+      "rate": 5.0,
+      "tax": {
+        "id": 1,
+        "name": "5% WH R D"
+      },
+      "withheld": 50.0
+    },
+    {
+      "base": 2000.0,
+      "rate": 15.0,
+      "tax": {
+        "id": 2,
+        "name": "15% WH R D"
+      },
+      "withheld": 300.0
+    },
+    {
+      "base": 500.0,
+      "rate": 20.0,
+      "tax": {
+        "id": 3,
+        "name": "20% WH MF D"
+      },
+      "withheld": 100.0
+    }
+  ],
+  "withheld": 450.0
+}

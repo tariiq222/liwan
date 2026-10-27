@@ -14,7 +14,7 @@ time. The fetched repositories stay outside this checkout. The separately mainta
 | Command | Effect |
 |---|---|
 | `python3 -B tools/oca_addons.py check` | Validates the file: unique `OCA/<name>` repos, 40-character shas. |
-| `python3 -B tools/oca_addons.py fetch [--dest DIR]` | Clones each repository (https only) to exactly its commit under `DIR/<name>`; idempotent (a checkout at the pin is kept and cleaned with `git clean -fdx`, anything else is replaced; a failed fetch leaves nothing behind), verifies `HEAD`. |
+| `python3 -B tools/oca_addons.py fetch [--dest DIR]` | Clones each repository (https only) to exactly its commit under `DIR/<name>`; idempotent (a checkout at the pin is kept and cleaned with `git clean -fdx`, anything else is replaced; a failed fetch leaves nothing behind), verifies `HEAD`. A network failure (unreachable host, timeout, reset, 5xx) is retried twice, after 10 and 30 seconds; a refused or unknown commit fails at once. |
 | `python3 -B tools/oca_addons.py path [--dest DIR] [--check]` | Prints the comma-joined addons paths, in pin order. `--check` fails (exit 2) unless every repository is fetched at its pin with no local changes; every script that starts Odoo uses it. |
 
 The destination is `--dest`, else `$WEBVUE_OCA_DIR`, else `oca-19.0` next to the main checkout

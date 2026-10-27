@@ -1,0 +1,29 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "name": "Refused by applicant: salary"
+    },
+    {
+      "id": 2,
+      "name": "Refused by applicant: job fit"
+    },
+    {
+      "id": 3,
+      "name": "Does not fit the job requirements"
+    },
+    {
+      "id": 4,
+      "name": "Job already fulfilled"
+    },
+    {
+      "id": 5,
+      "name": "Duplicate"
+    },
+    {
+      "id": 6,
+      "name": "Spam"
+    }
+  ],
+  "total": 6
+}

@@ -4,7 +4,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from webvue_ai_service.contracts import AI_STATE_VERSION
+from webvue_ai_service.contracts import AI_STATE_VERSION, MODEL_NAME, PROVIDER_NAME
 from webvue_ai_service.provider_registry import REGISTRY
 
 
@@ -82,10 +82,14 @@ class Settings:
         if provider not in REGISTRY:
             msg = f"AI_PROVIDER must be one of {', '.join(REGISTRY)}, got {provider!r}"
             raise SettingsError("AI_PROVIDER", msg)
+        if not re.fullmatch(PROVIDER_NAME, provider):  # reported with every provider call: a bad name fails the boot, not every plan
+            raise SettingsError("AI_PROVIDER", f"AI_PROVIDER must match {PROVIDER_NAME}")
         model = environ.get("AI_MODEL", "").strip()
         if not model:
             msg = "AI_MODEL is required"
             raise SettingsError("AI_MODEL", msg)
+        if not re.fullmatch(MODEL_NAME, model):
+            raise SettingsError("AI_MODEL", "AI_MODEL must be 1 to 128 characters without control characters")
         api_key = environ.get("AI_API_KEY") or None
         if REGISTRY[provider].needs_api_key and not api_key:
             msg = f"AI_API_KEY is required for provider {provider}"

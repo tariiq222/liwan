@@ -1,0 +1,16 @@
+{
+  "access": null,
+  "active": true,
+  "contract": null,
+  "department": {
+    "id": 2,
+    "name": "Engineering"
+  },
+  "id": 1,
+  "job_title": "Engineer",
+  "manager": null,
+  "name": "Sara",
+  "user_id": 521,
+  "work_email": "sara@example.com",
+  "work_phone": "+966500000000"
+}

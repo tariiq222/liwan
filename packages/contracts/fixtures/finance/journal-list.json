@@ -1,0 +1,95 @@
+{
+  "items": [
+    {
+      "active": true,
+      "code": "TA",
+      "currency": "SAR",
+      "default_account": null,
+      "id": 1,
+      "name": "Tax Adjustments",
+      "type": "general"
+    },
+    {
+      "active": true,
+      "code": "INV",
+      "currency": "SAR",
+      "default_account": {
+        "id": 3,
+        "name": "500001 Sales Account"
+      },
+      "id": 2,
+      "name": "Sales",
+      "type": "sale"
+    },
+    {
+      "active": true,
+      "code": "BILL",
+      "currency": "SAR",
+      "default_account": {
+        "id": 5,
+        "name": "400001 Cost of Goods Sold in Trading"
+      },
+      "id": 4,
+      "name": "Purchases",
+      "type": "purchase"
+    },
+    {
+      "active": true,
+      "code": "BNK1",
+      "currency": "SAR",
+      "default_account": {
+        "id": 7,
+        "name": "101001 Bank"
+      },
+      "id": 6,
+      "name": "Bank",
+      "type": "bank"
+    },
+    {
+      "active": true,
+      "code": "MISC",
+      "currency": "SAR",
+      "default_account": null,
+      "id": 8,
+      "name": "Miscellaneous Operations",
+      "type": "general"
+    },
+    {
+      "active": true,
+      "code": "CABA",
+      "currency": "SAR",
+      "default_account": null,
+      "id": 9,
+      "name": "Cash Basis Taxes",
+      "type": "general"
+    },
+    {
+      "active": true,
+      "code": "EXCH",
+      "currency": "SAR",
+      "default_account": null,
+      "id": 10,
+      "name": "Exchange Difference",
+      "type": "general"
+    },
+    {
+      "active": true,
+      "code": "IFRS",
+      "currency": "SAR",
+      "default_account": null,
+      "id": 11,
+      "name": "IFRS 16 Right of Use Asset",
+      "type": "general"
+    },
+    {
+      "active": true,
+      "code": "ZAKAT",
+      "currency": "SAR",
+      "default_account": null,
+      "id": 12,
+      "name": "Zakat",
+      "type": "general"
+    }
+  ],
+  "total": 9
+}

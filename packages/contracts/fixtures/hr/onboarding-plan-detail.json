@@ -1,0 +1,29 @@
+{
+  "active": true,
+  "department": null,
+  "id": 1,
+  "name": "تهيئة",
+  "steps": [
+    {
+      "delay_count": 0,
+      "delay_from": "before_plan_date",
+      "delay_unit": "days",
+      "id": 2,
+      "responsible": null,
+      "responsible_type": "manager",
+      "summary": "تجهيز المكتب"
+    },
+    {
+      "delay_count": 0,
+      "delay_from": "before_plan_date",
+      "delay_unit": "days",
+      "id": 3,
+      "responsible": {
+        "id": 4,
+        "name": "Onboarding Reader"
+      },
+      "responsible_type": "other",
+      "summary": "تسليم العهدة"
+    }
+  ]
+}

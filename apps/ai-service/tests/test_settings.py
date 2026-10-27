@@ -73,3 +73,24 @@ def test_generation_identity_is_explicit_and_validated():
         with pytest.raises(SettingsError) as error:
             Settings.from_env({**env, "AI_GENERATION_ID": generation})
         assert error.value.variable == "AI_GENERATION_ID"
+
+
+@pytest.mark.parametrize("model", ["a\nb", "a\x00b", "a\x7fb", "a\x85b", "a\x9fb", "x" * 129])
+def test_a_model_name_the_usage_ledger_would_refuse_stops_the_boot(model):
+    with pytest.raises(SettingsError) as error:
+        Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": model, "AI_ALLOW_MEMORY_STATE": "true"})
+    assert error.value.variable == "AI_MODEL"
+
+
+def test_the_longest_model_name_and_a_unicode_one_boot():
+    for model in ("x" * 128, "نموذج-١"):
+        assert Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": model, "AI_ALLOW_MEMORY_STATE": "true"}).model == model
+
+
+def test_every_registered_provider_name_fits_the_usage_ledger_rule():
+    import re
+
+    from webvue_ai_service.contracts import PROVIDER_NAME
+    from webvue_ai_service.provider_registry import REGISTRY
+
+    assert all(re.fullmatch(PROVIDER_NAME, name) for name in REGISTRY)

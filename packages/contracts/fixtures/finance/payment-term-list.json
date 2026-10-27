@@ -1,0 +1,171 @@
+{
+  "items": [
+    {
+      "active": true,
+      "id": 1,
+      "lines": [
+        {
+          "delay_type": "days_after",
+          "nb_days": 0,
+          "value": "percent",
+          "value_amount": 100.0
+        }
+      ],
+      "name": "Immediate Payment",
+      "shared": true
+    },
+    {
+      "active": true,
+      "id": 2,
+      "lines": [
+        {
+          "delay_type": "days_after",
+          "nb_days": 15,
+          "value": "percent",
+          "value_amount": 100.0
+        }
+      ],
+      "name": "15 Days",
+      "shared": true
+    },
+    {
+      "active": true,
+      "id": 3,
+      "lines": [
+        {
+          "delay_type": "days_after",
+          "nb_days": 21,
+          "value": "percent",
+          "value_amount": 100.0
+        }
+      ],
+      "name": "21 Days",
+      "shared": true
+    },
+    {
+      "active": true,
+      "id": 4,
+      "lines": [
+        {
+          "delay_type": "days_after",
+          "nb_days": 30,
+          "value": "percent",
+          "value_amount": 100.0
+        }
+      ],
+      "name": "30 Days",
+      "shared": true
+    },
+    {
+      "active": true,
+      "id": 5,
+      "lines": [
+        {
+          "delay_type": "days_after",
+          "nb_days": 45,
+          "value": "percent",
+          "value_amount": 100.0
+        }
+      ],
+      "name": "45 Days",
+      "shared": true
+    },
+    {
+      "active": true,
+      "id": 6,
+      "lines": [
+        {
+          "delay_type": "days_after_end_of_next_month",
+          "nb_days": 0,
+          "value": "percent",
+          "value_amount": 100.0
+        }
+      ],
+      "name": "End of Following Month",
+      "shared": true
+    },
+    {
+      "active": true,
+      "id": 7,
+      "lines": [
+        {
+          "delay_type": "days_after_end_of_next_month",
+          "nb_days": 10,
+          "value": "percent",
+          "value_amount": 100.0
+        }
+      ],
+      "name": "10 Days after End of Next Month",
+      "shared": true
+    },
+    {
+      "active": true,
+      "id": 8,
+      "lines": [
+        {
+          "delay_type": "days_after",
+          "nb_days": 0,
+          "value": "percent",
+          "value_amount": 30.0
+        },
+        {
+          "delay_type": "days_after",
+          "nb_days": 60,
+          "value": "percent",
+          "value_amount": 70.0
+        }
+      ],
+      "name": "30% Now, Balance 60 Days",
+      "shared": true
+    },
+    {
+      "active": true,
+      "id": 9,
+      "lines": [
+        {
+          "delay_type": "days_after",
+          "nb_days": 30,
+          "value": "percent",
+          "value_amount": 100.0
+        }
+      ],
+      "name": "2/7 Net 30",
+      "shared": true
+    },
+    {
+      "active": true,
+      "id": 10,
+      "lines": [
+        {
+          "delay_type": "days_end_of_month_on_the",
+          "nb_days": 90,
+          "value": "percent",
+          "value_amount": 100.0
+        }
+      ],
+      "name": "90 days, on the 10th",
+      "shared": true
+    },
+    {
+      "active": true,
+      "id": 11,
+      "lines": [
+        {
+          "delay_type": "days_after",
+          "nb_days": 0,
+          "value": "percent",
+          "value_amount": 50.0
+        },
+        {
+          "delay_type": "days_after",
+          "nb_days": 30,
+          "value": "percent",
+          "value_amount": 50.0
+        }
+      ],
+      "name": "50% now, 50% in 30 days",
+      "shared": false
+    }
+  ],
+  "total": 11
+}

@@ -1,0 +1,154 @@
+{
+  "items": [
+    {
+      "active": true,
+      "attendances": [
+        {
+          "day_period": "morning",
+          "dayofweek": "0",
+          "hour_from": 8.0,
+          "hour_to": 12.0,
+          "week_type": null
+        }
+      ],
+      "hours_per_week": 4.0,
+      "id": 1,
+      "name": "Day Shift",
+      "two_weeks": false,
+      "tz": "UTC"
+    },
+    {
+      "active": false,
+      "attendances": [
+        {
+          "day_period": "afternoon",
+          "dayofweek": "0",
+          "hour_from": 13.0,
+          "hour_to": 17.0,
+          "week_type": null
+        }
+      ],
+      "hours_per_week": 4.0,
+      "id": 2,
+      "name": "Evening Shift B",
+      "two_weeks": false,
+      "tz": "UTC"
+    },
+    {
+      "active": true,
+      "attendances": [
+        {
+          "day_period": "morning",
+          "dayofweek": "0",
+          "hour_from": 8.0,
+          "hour_to": 12.0,
+          "week_type": null
+        },
+        {
+          "day_period": "lunch",
+          "dayofweek": "0",
+          "hour_from": 12.0,
+          "hour_to": 13.0,
+          "week_type": null
+        },
+        {
+          "day_period": "afternoon",
+          "dayofweek": "0",
+          "hour_from": 13.0,
+          "hour_to": 17.0,
+          "week_type": null
+        },
+        {
+          "day_period": "morning",
+          "dayofweek": "1",
+          "hour_from": 8.0,
+          "hour_to": 12.0,
+          "week_type": null
+        },
+        {
+          "day_period": "lunch",
+          "dayofweek": "1",
+          "hour_from": 12.0,
+          "hour_to": 13.0,
+          "week_type": null
+        },
+        {
+          "day_period": "afternoon",
+          "dayofweek": "1",
+          "hour_from": 13.0,
+          "hour_to": 17.0,
+          "week_type": null
+        },
+        {
+          "day_period": "morning",
+          "dayofweek": "2",
+          "hour_from": 8.0,
+          "hour_to": 12.0,
+          "week_type": null
+        },
+        {
+          "day_period": "lunch",
+          "dayofweek": "2",
+          "hour_from": 12.0,
+          "hour_to": 13.0,
+          "week_type": null
+        },
+        {
+          "day_period": "afternoon",
+          "dayofweek": "2",
+          "hour_from": 13.0,
+          "hour_to": 17.0,
+          "week_type": null
+        },
+        {
+          "day_period": "morning",
+          "dayofweek": "3",
+          "hour_from": 8.0,
+          "hour_to": 12.0,
+          "week_type": null
+        },
+        {
+          "day_period": "lunch",
+          "dayofweek": "3",
+          "hour_from": 12.0,
+          "hour_to": 13.0,
+          "week_type": null
+        },
+        {
+          "day_period": "afternoon",
+          "dayofweek": "3",
+          "hour_from": 13.0,
+          "hour_to": 17.0,
+          "week_type": null
+        },
+        {
+          "day_period": "morning",
+          "dayofweek": "4",
+          "hour_from": 8.0,
+          "hour_to": 12.0,
+          "week_type": null
+        },
+        {
+          "day_period": "lunch",
+          "dayofweek": "4",
+          "hour_from": 12.0,
+          "hour_to": 13.0,
+          "week_type": null
+        },
+        {
+          "day_period": "afternoon",
+          "dayofweek": "4",
+          "hour_from": 13.0,
+          "hour_to": 17.0,
+          "week_type": null
+        }
+      ],
+      "hours_per_week": 40.0,
+      "id": 3,
+      "name": "Standard 40 hours/week",
+      "two_weeks": false,
+      "tz": "UTC"
+    }
+  ],
+  "total": 3
+}

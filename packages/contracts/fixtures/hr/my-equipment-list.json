@@ -1,0 +1,20 @@
+{
+  "items": [
+    {
+      "active": true,
+      "assign_date": null,
+      "category": null,
+      "employee": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "id": 1,
+      "model": "",
+      "name": "My Laptop",
+      "scrap_date": null,
+      "serial_no": "",
+      "warranty_date": null
+    }
+  ],
+  "total": 1
+}

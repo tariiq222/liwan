@@ -30,6 +30,7 @@ apps/web/127.0.0.1/
 !/.claude/agents/
 /.claude/agents/*
 !/.claude/agents/frontend-theme.md
+!/.claude/agents/odoo-reviewer.md
 !/.claude/skills/
 /.claude/skills/*
 !/.claude/skills/e2e/
@@ -100,6 +101,8 @@ apps/web/storybook-static/
 # Local agent tool state (the plugin may name its state dir .agent-teams-<project>)
 .agent-teams*/
 .dsh-auto/
+.council/
+.project-council/
 /.codex/
 /.agents/
 /.dsh/

@@ -1,0 +1,15 @@
+{
+  "items": [
+    {
+      "allocated": 3.0,
+      "leave_type": {
+        "id": 1,
+        "name": "Reference leave Isolation P1 True"
+      },
+      "pending": 0,
+      "remaining": 3.0,
+      "taken": 0
+    }
+  ],
+  "total": 1
+}

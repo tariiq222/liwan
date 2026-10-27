@@ -1,0 +1,75 @@
+{
+  "deadline_reminders_days_before": 1,
+  "deadline_reminders_enabled": true,
+  "default_completion_approval": "none",
+  "default_stages": [
+    {
+      "fold": false,
+      "name": "جديد"
+    },
+    {
+      "fold": false,
+      "name": "قيد التنفيذ"
+    },
+    {
+      "fold": false,
+      "name": "مراجعة"
+    },
+    {
+      "fold": true,
+      "name": "منجز"
+    }
+  ],
+  "extensions": [
+    {
+      "help": "The report font.",
+      "kind": "selection",
+      "label": "Font",
+      "name": "font",
+      "options": [
+        {
+          "label": "Lato",
+          "value": "Lato"
+        },
+        {
+          "label": "Roboto",
+          "value": "Roboto"
+        },
+        {
+          "label": "Open Sans",
+          "value": "Open_Sans"
+        },
+        {
+          "label": "Montserrat",
+          "value": "Montserrat"
+        },
+        {
+          "label": "Oswald",
+          "value": "Oswald"
+        },
+        {
+          "label": "Raleway",
+          "value": "Raleway"
+        },
+        {
+          "label": "Tajawal",
+          "value": "Tajawal"
+        },
+        {
+          "label": "Fira Mono",
+          "value": "Fira_Mono"
+        },
+        {
+          "label": "IBM Plex Sans Arabic",
+          "value": "IBM_Plex_Sans_Arabic"
+        }
+      ],
+      "value": "IBM_Plex_Sans_Arabic"
+    }
+  ],
+  "overdue_digest_enabled": true,
+  "project_creators": "managers",
+  "require_charter_approval": false,
+  "require_end_date_on_create": true,
+  "require_manager_on_create": true
+}

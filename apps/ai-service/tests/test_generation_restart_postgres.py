@@ -35,7 +35,7 @@ from webvue_ai_service.service import create_app
 from webvue_ai_service.settings import Settings
 from webvue_ai_service.store import open_state
 from tests.fakes import ScriptedChatModel, ai_text
-from tests.test_service import BODY, HEADERS
+from tests.test_service import BODY, HEADERS, fresh
 async def main():
     token = 'synthetic-durable-test-token-' * 2
     admin = {'x-webvue-service-token':token}
@@ -60,7 +60,7 @@ async def main():
                     ready = (await client.post('/internal/release/drain', headers=admin)).json()
                 else:
                     ready = (await client.get('/internal/release/readiness', headers=admin)).json()
-                result = await client.post('/v1/runs', json=BODY, headers={**HEADERS, **admin})
+                result = await client.post('/v1/runs', json=fresh(), headers={**HEADERS, **admin})
                 print(json.dumps({'evidence':ready, 'start_status':result.status_code}))
     finally:
         await app.state.drain()

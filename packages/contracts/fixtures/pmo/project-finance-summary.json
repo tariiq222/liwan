@@ -1,0 +1,25 @@
+{
+  "actual": -12.5,
+  "actual_account": {
+    "code": "ALP",
+    "id": 2,
+    "name": "Alpha cost center"
+  },
+  "actual_source": "external",
+  "budget_count": 1,
+  "can_choose_actual_account": false,
+  "can_read_actual_lines": true,
+  "charter_estimate": null,
+  "currency": {
+    "decimal_places": 2,
+    "id": 1,
+    "name": "USD",
+    "symbol": "$"
+  },
+  "expense_count": 3,
+  "over_budget": false,
+  "planned": 1000.0,
+  "project_id": 313,
+  "remaining": 1012.5,
+  "utilization_percent": -1.25
+}

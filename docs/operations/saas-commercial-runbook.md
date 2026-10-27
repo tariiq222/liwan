@@ -107,11 +107,21 @@ npm -w apps/vendor-admin run dev -- --port 3100
 |---|---|---|
 | `queued`/`applying` ومهمة حية | قيد التنفيذ | انتظر؛ راقب انتهاء lease |
 | `applying` ومهمة منتهية/lease منقضٍ | عامل توقف | أعد تشغيل العامل؛ الاستئناف يعتمد observation لا إعادة تنفيذ أعمى |
-| `failed` | فشل التنفيذ | اقرأ الخطأ؛ أعد المحاولة من واجهة العمليات (`vendor.operations.run`) بعد إصلاح السبب |
+| `failed` | فشل التنفيذ نهائيًا بعد استنفاد المحاولات التلقائية أو لخطأ دائم | لا توجد إعادة محاولة يدوية من الواجهة. يوجد إشعار دائن `pending` على الفاتورة (`credit_pending`)؛ ارجع إلى «الاسترداد اليدوي» أدناه |
 | `needs_intervention` | يحتاج قرارًا | لا تُعلن نجاحًا؛ تحقق من Odoo يدويًا (readback)، ثم أعد أو عوّض الدفع حسب السياسة |
 | `applied` لكن الاشتراك لا يعكس | عدم اتساق | قارن `observed_digest` بحالة Odoo؛ افتح حادثة |
 
 5. لا تصل بالاشتراك إلى «active» ولا تحصّل مرة ثانية؛ الاسترداد لا يتم تلقائيًا (قرار معتمد: لا استرداد تلقائي).
+
+**المحاولات التلقائية.** صف `commercial_outbox` من نوع `fulfillment.enqueue` يُعاد تلقائيًا عند الأخطاء العابرة (`tenant_unavailable`، `shared_adapter_unavailable`، أخطاء قاعدة البيانات والشبكة، وأي خطأ غير معروف): حتى 10 محاولات، تأخير دقيقة يتضاعف حتى 60 دقيقة (نحو 4 ساعات). `attempts` و`next_attempt_at` يظهران في الصف والخطأ الأخير في `payload.error`. حالات الانتظار (`tenant_required`، `enrollment_pending`) لا تستهلك محاولات.
+
+**النهاية.**
+- خطأ دائم (`renewal_missing`، `order_not_found`، `enrollment_base_catalog_missing`، `enrollment_link_conflict`، `idempotency_conflict`، `shared_replay_forbidden`) أو استنفاد المحاولات: الطلب `failed`، والفاتورة `credit_pending`، وإشعار دائن `pending` واحد، والصف `failed`.
+- `stale_target` و`observed_mismatch` و`provision_needs_intervention` (مهمة تجهيز المستأجر انتهت إلى `needs_intervention`): الطلب `needs_intervention` بلا إشعار دائن؛ المشغّل يعالج المهمة أو يقرأ Odoo ويقرر.
+- إن فشلت معالجة الفشل نفسها (مثل استرداد وصل بين المحاولة والخطوة النهائية) يبقى الصف `pending` ويُسجَّل السبب في `payload.error` بالصيغة `failure_handling_failed: ...` وفي سجل `control-api`.
+- `order_not_released` (الطلب مُسترد أو مُلغى): يُغلق الصف ولا يُمس الطلب؛ المال يعالجه `refund_pending`.
+
+**الاسترداد اليدوي.** لا إجراء في وحدة التحكم يغلق الإشعار الدائن، و`payment.intervention` لا يُستهلك حاليًا. يحدّد المشغّل المبلغ من الفاتورة `credit_pending` ويُرجعه عبر لوحة مزود الدفع، ثم يوثّقه خارج النظام. السياسة في [refund-policy.md](../finance/refund-policy.md).
 
 ### 4.2 رفض webhook الدفع [قبول تشغيلي غير متحقق] [غير مختبر]
 

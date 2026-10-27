@@ -1,12 +1,13 @@
 import http from 'node:http'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { AiUsageBatchSchema } from '@webvue/contracts'
 import { appendResponseHeader, createApp, createError, createEventStream, defineEventHandler, getCookie, getHeader, getQuery, getRequestHeader, getRouterParam, readBody, setResponseHeader, toNodeListener } from 'h3'
 
 let odoo: http.Server, service: http.Server, app: http.Server
 let odooUrl: string, serviceUrl: string, url: string
 let odooCalls: { method: string; url: string; cookie?: string; body?: string }[] = []
 let serviceCalls: { method: string; url: string; headers: http.IncomingHttpHeaders; body: string; at: number }[] = []
-let scenario: 'read' | 'draft' | 'limit' | 'unknown' | 'draft_as_read' | 'write_light' | 'bogus_draft' | 'draft_wrong_kind' | 'abort' | 'read_slow_done' | 'error_only' = 'read'
+let scenario: 'read' | 'draft' | 'limit' | 'unknown' | 'draft_as_read' | 'write_light' | 'bogus_draft' | 'draft_wrong_kind' | 'abort' | 'read_slow_done' | 'error_only' | 'usage' | 'usage_cut' | 'usage_gone' | 'wrong_run' | 'malformed_usage' = 'read'
 let pending: Record<string, unknown> | null = null
 let odooToolsStatus = 200
 let deadServiceUrl = ''
@@ -18,12 +19,18 @@ let doneSentAt = 0
 let odooMode: 'normal' | 'destroy_writes' | 'hang_writes' | 'destroy_reads' = 'normal'
 let auditFailKind: string | null = null
 let runStatus = 'waiting_user'
-let resumeMode: 'ok' | 'http500' | 'destroy' | 'slow' = 'ok'
+let resumeMode: 'ok' | 'http500' | 'destroy' | 'slow' | 'usage_slow' = 'ok'
 let resumeStreamFinished = false
 let resumeStreamCancelled = false
 const RUN_LIST = { items: [{ run_id: 'r_1', title: 'هلا', status: 'done', updated_at: '2026-10-16T10:00:00.123456Z', archived: false }], total: 1 }
 let runList: unknown = RUN_LIST
 let patchStatus = 200
+let runId = 'r_1' // what the fake service announces: the run id the start request names
+let usageStatus = 200
+let usageDelayMs = 0
+let usageAnsweredAt = 0
+let usageBatches: { items: Record<string, unknown>[] }[] = []
+let usageInvalid: string[] = []
 
 const TOOLS = {
   items: [
@@ -35,6 +42,14 @@ const TOOLS = {
   limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1 },
 }
 const ME = { id: 42, name: 'سارة', company: { id: 1, name: 'ويب فيو' } }
+
+const CALL_A = '00000000000000a1', CALL_B = '00000000000000b2', CALL_C = '00000000000000c3', CALL_D = '00000000000000d4'
+const modelCall = (id: string, kind = 'plan'): [string, unknown] => ['model_call', { call_id: id, kind, provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }]
+const modelUsage = (id: string, outcome: string, input: number | null, output: number | null): [string, unknown] => ['model_usage', { call_id: id, outcome, input_tokens: input, output_tokens: output }]
+const MODEL_PLAN_RETRIED = [modelCall(CALL_A), modelUsage(CALL_A, 'retried', null, null)]
+const MODEL_PLAN_OK = [modelCall(CALL_B), modelUsage(CALL_B, 'ok', 120, 7)]
+const MODEL_PLAN_OK_2 = [modelCall(CALL_C), modelUsage(CALL_C, 'ok', 200, 15)]
+const MODEL_TITLE = [modelCall(CALL_D, 'title'), modelUsage(CALL_D, 'ok', 20, 3)]
 
 function sse(res: http.ServerResponse, events: [string, unknown][]) {
   res.writeHead(200, { 'content-type': 'text/event-stream' })
@@ -54,6 +69,15 @@ beforeAll(async () => {
     if (req.url === '/api/v1/ai/audit') {
       if (auditFailKind && JSON.parse(body).kind === auditFailKind) { res.statusCode = 500; return res.end(JSON.stringify({ code: 'boom', message: 'secret detail from odoo' })) }
       odooToolsStatus === 200 ? res.end(JSON.stringify({ id: 1, messages_used: 2, messages_limit: 100 })) : (res.statusCode = 403, res.end(JSON.stringify({ code: 'feature_not_included', message: 'limit', details: { reason: 'limit', limit_key: 'ai.messages.monthly' } }))); return }
+    if (req.url === '/api/v1/ai/usage') {
+      const parsed = AiUsageBatchSchema.safeParse(JSON.parse(body))
+      if (!parsed.success) usageInvalid.push(parsed.error.message)
+      else usageBatches.push(parsed.data)
+      await new Promise(resolve => setTimeout(resolve, usageDelayMs))
+      usageAnsweredAt = Date.now()
+      res.statusCode = usageStatus
+      return res.end(JSON.stringify(usageStatus === 200 ? { items: parsed.success ? parsed.data.items.map((item, index) => ({ id: index + 1, ...item })) : [], total: usageBatches.length } : { code: 'boom', message: 'secret detail from odoo' }))
+    }
     if (req.url?.startsWith('/api/v1/tasks/') && odooMode === 'destroy_writes') return req.socket.destroy()
     if (req.url?.startsWith('/api/v1/tasks/') && odooMode === 'hang_writes') return
     if (req.url?.startsWith('/api/v1/tasks?') && odooMode === 'destroy_reads') return req.socket.destroy()
@@ -70,6 +94,12 @@ beforeAll(async () => {
   service = http.createServer(async (req, res) => {
     let body = ''
     for await (const chunk of req) body += chunk
+    if (req.method === 'POST' && req.url === '/v1/runs') {
+      const started = JSON.parse(body) as { new_run_id?: string; run_id?: string }
+      runId = started.new_run_id ?? started.run_id ?? 'r_1'
+    }
+    // The tests name the run `r_1` whatever id the start request chose.
+    req.url = req.url!.replace(`/v1/runs/${runId}`, '/v1/runs/r_1')
     serviceCalls.push({ method: req.method!, url: req.url!, headers: req.headers, body, at: Date.now() })
     if (req.url === '/v1/runs/r_1/claim') {
       const ok = claimMode === 'atomic' && !claimed
@@ -80,10 +110,18 @@ beforeAll(async () => {
     }
     if (req.url === '/v1/runs/r_1/resume' && resumeMode === 'http500') { res.statusCode = 500; return res.end('{}') }
     if (req.url === '/v1/runs/r_1/resume' && resumeMode === 'destroy') return res.destroy()
+    if (req.url === '/v1/runs/r_1/resume' && resumeMode === 'usage_slow') {
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      res.write(`event: run\ndata: {"run_id":"${runId}"}\n\n`)
+      setTimeout(() => res.write(`event: model_call\ndata: ${JSON.stringify(modelCall(CALL_A)[1])}\n\n`), 100)
+      setTimeout(() => res.write(`event: model_usage\ndata: ${JSON.stringify(modelUsage(CALL_A, 'ok', 120, 7)[1])}\n\n`), 300)
+      setTimeout(() => res.end('event: token\ndata: {"text":"x"}\n\nevent: done\ndata: {"status":"done"}\n\n'), 500)
+      return
+    }
     if (req.url === '/v1/runs/r_1/resume' && resumeMode === 'slow') {
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       res.on('close', () => { if (!resumeStreamFinished) resumeStreamCancelled = true })
-      setTimeout(() => res.write('event: run\ndata: {"run_id":"r_1"}\n\n'), 100)
+      setTimeout(() => res.write(`event: run\ndata: {"run_id":"${runId}"}\n\n`), 100)
       setTimeout(() => res.write('event: token\ndata: {"text":"x"}\n\n'), 300)
       setTimeout(() => res.end('event: done\ndata: {"status":"done"}\n\n', () => { resumeStreamFinished = true }), 500)
       return
@@ -99,23 +137,40 @@ beforeAll(async () => {
     }
     if (req.method === 'GET') { res.setHeader('content-type', 'application/json'); return res.end(JSON.stringify({ run_id: 'r_1', status: runStatus, messages: [{ role: 'user', content: 'هلا' }], pending })) }
     if (req.url === '/v1/runs') {
-      if (scenario === 'abort') { res.writeHead(200, { 'content-type': 'text/event-stream' }); res.write('event: run\ndata: {"run_id":"r_1"}\n\n'); setTimeout(() => res.destroy(), 20); return }
+      if (scenario === 'abort') { res.writeHead(200, { 'content-type': 'text/event-stream' }); res.write(`event: run\ndata: {"run_id":"${runId}"}\n\n`); setTimeout(() => res.destroy(), 20); return }
       if (scenario === 'read_slow_done') {
         res.writeHead(200, { 'content-type': 'text/event-stream' })
-        res.write('event: run\ndata: {"run_id":"r_1"}\n\n')
+        res.write(`event: run\ndata: {"run_id":"${runId}"}\n\n`)
         res.write('event: tool_request\ndata: {"call_id":"c_1","tool":"pmo.list_my_tasks","kind":"read","input":{},"summary_ar":"س","summary_en":"s"}\n\n')
         setTimeout(() => { doneSentAt = Date.now(); res.write('event: done\ndata: {"status":"waiting_tool"}\n\n'); res.end() }, 300)
         return
       }
-      if (scenario === 'error_only') return sse(res, [['run', { run_id: 'r_1' }], ['error', { code: 'model_failed', message: 'boom' }]])
-      if (scenario === 'read') return sse(res, [['run', { run_id: 'r_1' }], ['tool_request', { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', input: {}, summary_ar: 'سأقرأ', summary_en: 'read' }], ['done', { status: 'waiting_tool' }]])
-      if (scenario === 'draft_as_read') return sse(res, [['run', { run_id: 'r_1' }], ['tool_request', { call_id: 'c_4', tool: 'pmo.draft_project', kind: 'read', input: { name: 'x' }, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_tool' }]])
-      if (scenario === 'bogus_draft') return sse(res, [['run', { run_id: 'r_1' }], ['tool_request', { call_id: 'c_7', tool: 'pmo.draft_nothing', kind: 'draft', input: { name: 'x' }, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_user' }]])
-      if (scenario === 'draft_wrong_kind') return sse(res, [['run', { run_id: 'r_1' }], ['tool_request', { call_id: 'c_8', tool: 'pmo.list_my_tasks', kind: 'write_light', input: {}, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_user' }]])
-      if (scenario === 'unknown') return sse(res, [['run', { run_id: 'r_1' }], ['tool_request', { call_id: 'c_9', tool: 'pmo.delete_all', kind: 'read', input: {}, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_tool' }]])
-      return sse(res, [['run', { run_id: 'r_1' }], ['tool_request', { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', input: { name: 'بوابة' }, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_user' }]])
+      if (scenario === 'usage') {
+        return sse(res, [['run', { run_id: runId }], ...MODEL_PLAN_RETRIED, ...MODEL_PLAN_OK,
+          ['tool_request', { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', input: {}, summary_ar: 'سأقرأ', summary_en: 'read' }], ['done', { status: 'waiting_tool' }]])
+      }
+      if (scenario === 'usage_cut') return sse(res, [['run', { run_id: runId }], modelCall(CALL_A)]) // the stream ends with no usage and no done
+      if (scenario === 'usage_gone') {
+        res.writeHead(200, { 'content-type': 'text/event-stream' })
+        res.write(`event: run\ndata: {"run_id":"${runId}"}\n\nevent: model_call\ndata: ${JSON.stringify(modelCall(CALL_A)[1])}\n\n`)
+        setTimeout(() => {
+          res.write('event: token\ndata: {"text":"x"}\n\n')
+          res.end()
+        }, 300)
+        return
+      }
+      if (scenario === 'wrong_run') return sse(res, [['run', { run_id: 'r_other' }], ['done', { status: 'done' }]])
+      if (scenario === 'malformed_usage') return sse(res, [['run', { run_id: runId }], ['model_call', { call_id: 'nope' }], ['done', { status: 'done' }]])
+      if (scenario === 'error_only') return sse(res, [['run', { run_id: runId }], ['error', { code: 'model_failed', message: 'boom' }]])
+      if (scenario === 'read') return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', input: {}, summary_ar: 'سأقرأ', summary_en: 'read' }], ['done', { status: 'waiting_tool' }]])
+      if (scenario === 'draft_as_read') return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_4', tool: 'pmo.draft_project', kind: 'read', input: { name: 'x' }, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_tool' }]])
+      if (scenario === 'bogus_draft') return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_7', tool: 'pmo.draft_nothing', kind: 'draft', input: { name: 'x' }, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_user' }]])
+      if (scenario === 'draft_wrong_kind') return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_8', tool: 'pmo.list_my_tasks', kind: 'write_light', input: {}, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_user' }]])
+      if (scenario === 'unknown') return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_9', tool: 'pmo.delete_all', kind: 'read', input: {}, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_tool' }]])
+      return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', input: { name: 'بوابة' }, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_user' }]])
     }
-    return sse(res, [['run', { run_id: 'r_1' }], ['token', { text: 'عندك' }], ['answer', { text: 'عندك مهمة', records: [{ type: 'task', id: 5, label: 'تقرير' }] }], ['done', { status: 'done' }]])
+    const resumeUsage = scenario === 'usage' ? [...MODEL_PLAN_OK_2] : []
+    return sse(res, [['run', { run_id: runId }], ['token', { text: 'عندك' }], ...resumeUsage, ['answer', { text: 'عندك مهمة', records: [{ type: 'task', id: 5, label: 'تقرير' }] }], ...(scenario === 'usage' ? MODEL_TITLE : []), ['done', { status: 'done' }]])
   })
   await new Promise<void>(r => odoo.listen(0, '127.0.0.1', r))
   await new Promise<void>(r => service.listen(0, '127.0.0.1', r))
@@ -147,7 +202,7 @@ beforeAll(async () => {
 afterAll(() => { odoo.close(); service.close(); app.close() })
 const DRAFT_PENDING = { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', input: { name: 'بوابة' } }
 const WRITE_PENDING = { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', input: { task_id: 7, state: 'done' } }
-beforeEach(() => { odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false; runList = RUN_LIST; patchStatus = 200 })
+beforeEach(() => { odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false; runList = RUN_LIST; patchStatus = 200; runId = 'r_1'; usageStatus = 200; usageDelayMs = 0; usageAnsweredAt = 0; usageBatches = []; usageInvalid = [] })
 
 const post = (path: string, body: unknown, cookie = 'session_id=s1') => fetch(`${url}${path}`, {
   method: 'POST', headers: { 'content-type': 'application/json', cookie, origin: url, 'sec-fetch-site': 'same-origin' }, body: JSON.stringify(body),
@@ -266,6 +321,134 @@ describe('POST /api/ai/runs', () => {
     const response = await fetch(`${url}/api/ai/runs`, { method: 'POST', headers: { 'content-type': 'application/json', cookie: 'session_id=s1', origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' }, body: '{"message":"x"}' })
     expect(response.status).toBeGreaterThanOrEqual(400)
     expect(serviceCalls).toEqual([])
+  })
+})
+
+describe('provider usage', () => {
+  const startedBody = () => JSON.parse(serviceCalls.find(c => c.url === '/v1/runs')!.body)
+  const waitFor = async (done: () => boolean) => { for (let i = 0; i < 100 && !done(); i++) await new Promise(r => setTimeout(r, 20)) }
+
+  it('names a new run itself: the message audit and the service request carry the same r_<24 hex> id', async () => {
+    await events(await post('/api/ai/runs', { message: 'هلا' }))
+    const started = startedBody()
+    expect(started.new_run_id).toMatch(/^r_[0-9a-f]{24}$/)
+    expect('run_id' in started).toBe(false)
+    const audits = odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!))
+    expect(audits[0]).toMatchObject({ kind: 'message', conversation_id: started.new_run_id })
+    expect(audits.some(a => a.conversation_id === 'pending')).toBe(false)
+  })
+
+  it('continues a run with run_id, audits that id and sends no new_run_id', async () => {
+    await events(await post('/api/ai/runs', { message: 'هلا', run_id: 'r_old' }))
+    const started = startedBody()
+    expect(started.run_id).toBe('r_old')
+    expect('new_run_id' in started).toBe(false)
+    expect(JSON.parse(odooCalls.find(c => c.url === '/api/v1/ai/audit')!.body!).conversation_id).toBe('r_old')
+  })
+
+  it('does not name the run twice: an over-limit tenant is refused before the service is reached', async () => {
+    odooToolsStatus = 403
+    expect((await post('/api/ai/runs', { message: 'هلا' })).status).toBe(403)
+    expect(serviceCalls).toEqual([])
+  })
+
+  it('reports every attempt of the start and the resume in one batch, and relays no model event to the browser', async () => {
+    scenario = 'usage'
+    const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
+    expect(list.map(([n]) => n)).toEqual(['run', 'tool_request', 'tool_result', 'token', 'answer', 'done'])
+    expect(list.at(-1)![1]).toEqual({ status: 'done' })
+    await waitFor(() => usageBatches.length > 0)
+    expect(usageInvalid).toEqual([])
+    expect(usageBatches).toHaveLength(1)
+    const id = startedBody().new_run_id
+    expect(usageBatches[0]!.items.map(item => [item.conversation_id, item.kind, item.outcome, item.input_tokens, item.output_tokens])).toEqual([
+      [id, 'plan', 'retried', null, null], [id, 'plan', 'ok', 120, 7], [id, 'plan', 'ok', 200, 15], [id, 'title', 'ok', 20, 3],
+    ])
+    expect(odooCalls.filter(c => c.url === '/api/v1/ai/usage')).toHaveLength(1)
+  })
+
+  it('reports a call whose stream was cut as aborted', async () => {
+    scenario = 'usage_cut'
+    const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
+    expect(list.map(([n]) => n)).toEqual(['run', 'done'])
+    await waitFor(() => usageBatches.length > 0)
+    expect(usageBatches[0]!.items).toEqual([expect.objectContaining({ kind: 'plan', outcome: 'aborted', input_tokens: null, output_tokens: null })])
+  })
+
+  it('reports a call as aborted when the browser disconnects before the service answered it', async () => {
+    scenario = 'usage_gone'
+    const controller = new AbortController()
+    const response = await fetch(`${url}/api/ai/runs`, {
+      method: 'POST', headers: { 'content-type': 'application/json', cookie: 'session_id=s1', origin: url, 'sec-fetch-site': 'same-origin' }, body: JSON.stringify({ message: 'هلا' }), signal: controller.signal,
+    })
+    await response.body!.getReader().read() // the `run` event
+    controller.abort()
+    await waitFor(() => usageBatches.length > 0)
+    expect(usageBatches).toHaveLength(1)
+    expect(usageBatches[0]!.items).toEqual([expect.objectContaining({ kind: 'plan', outcome: 'aborted', input_tokens: null, output_tokens: null })])
+  })
+
+  it('still counts the attempts of a shielded stream (a claimed write) whose browser is gone', async () => {
+    pending = WRITE_PENDING
+    resumeMode = 'usage_slow'
+    const controller = new AbortController()
+    const response = await fetch(`${url}/api/ai/runs/r_1/resume`, {
+      method: 'POST', headers: { 'content-type': 'application/json', cookie: 'session_id=s1', origin: url, 'sec-fetch-site': 'same-origin' }, body: JSON.stringify({ call_id: 'c_3', decision: 'approved' }), signal: controller.signal,
+    })
+    expect(response.status).toBe(200)
+    controller.abort()
+    await waitFor(() => usageBatches.length > 0)
+    expect(usageBatches).toHaveLength(1)
+    expect(usageBatches[0]!.items).toEqual([expect.objectContaining({ conversation_id: 'r_1', kind: 'plan', outcome: 'ok', input_tokens: 120, output_tokens: 7 })])
+  })
+
+  it('leaves the browser stream untouched when Odoo refuses the usage report, and logs only a class name and the row count', async () => {
+    scenario = 'usage'
+    usageStatus = 500
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
+    expect(list.map(([n]) => n)).toEqual(['run', 'tool_request', 'tool_result', 'token', 'answer', 'done'])
+    expect(list.at(-1)![1]).toEqual({ status: 'done' })
+    await waitFor(() => spy.mock.calls.length > 0)
+    expect(spy.mock.calls.map(call => call[0])).toContain('[webvue-ai] usage report of 4 rows failed: UsageRefused')
+    expect(JSON.stringify(spy.mock.calls)).not.toContain('secret detail')
+    spy.mockRestore()
+  })
+
+  it('answers 502 ai_upstream when the service announces another run than the requested one', async () => {
+    scenario = 'wrong_run'
+    const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
+    expect(list.map(([n]) => n)).toEqual(['error', 'done'])
+    expect(list[0]![1].code).toBe('ai_upstream')
+    expect(list[1]![1]).toEqual({ status: 'failed' })
+  })
+
+  it('logs and skips a malformed model event: the turn finishes normally and nothing is reported', async () => {
+    scenario = 'malformed_usage'
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
+    expect(list.map(([n]) => n)).toEqual(['run', 'done'])
+    expect(list.at(-1)![1]).toEqual({ status: 'done' })
+    expect(usageBatches).toEqual([])
+    expect(spy.mock.calls.map(call => call[0])).toContain('[webvue-ai] skipped a malformed model_call event: MalformedUsageEvent')
+    spy.mockRestore()
+  })
+
+  it('ends the browser stream before the usage report is answered, so a slow Odoo never holds the UI busy', async () => {
+    scenario = 'usage'
+    usageDelayMs = 400
+    const response = await post('/api/ai/runs', { message: 'هلا' })
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let doneSeenAt = 0
+    for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+      if (!doneSeenAt && decoder.decode(chunk.value).includes('event: done')) doneSeenAt = Date.now()
+    }
+    const streamEndedAt = Date.now()
+    expect(doneSeenAt).toBeGreaterThan(0)
+    await waitFor(() => usageAnsweredAt > 0)
+    expect(usageAnsweredAt).toBeGreaterThanOrEqual(streamEndedAt + 200) // Odoo answered well after the browser stream had closed
+    expect(usageBatches).toHaveLength(1)
   })
 })
 

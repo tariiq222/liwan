@@ -20,19 +20,6 @@
       "Bash(python3 -B tools/ui_policy.py:*)",
       "Bash(python3 -B -m unittest:*)",
       "Bash(ruff check:*)"
-    ],
-    "ask": [
-      "Bash(git push:*)",
-      "Bash(git merge:*)",
-      "Bash(git rebase:*)",
-      "Bash(git reset --hard:*)",
-      "Bash(git branch -D:*)",
-      "Bash(git worktree remove:*)",
-      "Bash(npm run wt -- gc:*)",
-      "Bash(python3 -B tools/wt.py gc:*)",
-      "Bash(python3 -B tools/arch_policy.py --write-baseline:*)",
-      "Bash(gh pr merge:*)",
-      "mcp__github__merge_pull_request"
     ]
   },
   "hooks": {

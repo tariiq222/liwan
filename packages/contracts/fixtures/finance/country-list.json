@@ -1,0 +1,255 @@
+{
+  "items": [
+    {
+      "code": "AF",
+      "id": 1,
+      "name": "Afghanistan"
+    },
+    {
+      "code": "AX",
+      "id": 2,
+      "name": "Åland Islands"
+    },
+    {
+      "code": "AL",
+      "id": 3,
+      "name": "Albania"
+    },
+    {
+      "code": "DZ",
+      "id": 4,
+      "name": "Algeria"
+    },
+    {
+      "code": "AS",
+      "id": 5,
+      "name": "American Samoa"
+    },
+    {
+      "code": "AD",
+      "id": 6,
+      "name": "Andorra"
+    },
+    {
+      "code": "AO",
+      "id": 7,
+      "name": "Angola"
+    },
+    {
+      "code": "AI",
+      "id": 8,
+      "name": "Anguilla"
+    },
+    {
+      "code": "AQ",
+      "id": 9,
+      "name": "Antarctica"
+    },
+    {
+      "code": "AG",
+      "id": 10,
+      "name": "Antigua and Barbuda"
+    },
+    {
+      "code": "AR",
+      "id": 11,
+      "name": "Argentina"
+    },
+    {
+      "code": "AM",
+      "id": 12,
+      "name": "Armenia"
+    },
+    {
+      "code": "AW",
+      "id": 13,
+      "name": "Aruba"
+    },
+    {
+      "code": "AU",
+      "id": 14,
+      "name": "Australia"
+    },
+    {
+      "code": "AT",
+      "id": 15,
+      "name": "Austria"
+    },
+    {
+      "code": "AZ",
+      "id": 16,
+      "name": "Azerbaijan"
+    },
+    {
+      "code": "BS",
+      "id": 17,
+      "name": "Bahamas"
+    },
+    {
+      "code": "BH",
+      "id": 18,
+      "name": "Bahrain"
+    },
+    {
+      "code": "BD",
+      "id": 19,
+      "name": "Bangladesh"
+    },
+    {
+      "code": "BB",
+      "id": 20,
+      "name": "Barbados"
+    },
+    {
+      "code": "BY",
+      "id": 21,
+      "name": "Belarus"
+    },
+    {
+      "code": "BE",
+      "id": 22,
+      "name": "Belgium"
+    },
+    {
+      "code": "BZ",
+      "id": 23,
+      "name": "Belize"
+    },
+    {
+      "code": "BJ",
+      "id": 24,
+      "name": "Benin"
+    },
+    {
+      "code": "BM",
+      "id": 25,
+      "name": "Bermuda"
+    },
+    {
+      "code": "BT",
+      "id": 26,
+      "name": "Bhutan"
+    },
+    {
+      "code": "BO",
+      "id": 27,
+      "name": "Bolivia"
+    },
+    {
+      "code": "BQ",
+      "id": 28,
+      "name": "Bonaire, Sint Eustatius and Saba"
+    },
+    {
+      "code": "BA",
+      "id": 29,
+      "name": "Bosnia and Herzegovina"
+    },
+    {
+      "code": "BW",
+      "id": 30,
+      "name": "Botswana"
+    },
+    {
+      "code": "BV",
+      "id": 31,
+      "name": "Bouvet Island"
+    },
+    {
+      "code": "BR",
+      "id": 32,
+      "name": "Brazil"
+    },
+    {
+      "code": "IO",
+      "id": 33,
+      "name": "British Indian Ocean Territory"
+    },
+    {
+      "code": "BN",
+      "id": 34,
+      "name": "Brunei Darussalam"
+    },
+    {
+      "code": "BG",
+      "id": 35,
+      "name": "Bulgaria"
+    },
+    {
+      "code": "BF",
+      "id": 36,
+      "name": "Burkina Faso"
+    },
+    {
+      "code": "BI",
+      "id": 37,
+      "name": "Burundi"
+    },
+    {
+      "code": "KH",
+      "id": 38,
+      "name": "Cambodia"
+    },
+    {
+      "code": "CM",
+      "id": 39,
+      "name": "Cameroon"
+    },
+    {
+      "code": "CA",
+      "id": 40,
+      "name": "Canada"
+    },
+    {
+      "code": "CV",
+      "id": 41,
+      "name": "Cape Verde"
+    },
+    {
+      "code": "KY",
+      "id": 42,
+      "name": "Cayman Islands"
+    },
+    {
+      "code": "CF",
+      "id": 43,
+      "name": "Central African Republic"
+    },
+    {
+      "code": "TD",
+      "id": 44,
+      "name": "Chad"
+    },
+    {
+      "code": "CL",
+      "id": 45,
+      "name": "Chile"
+    },
+    {
+      "code": "CN",
+      "id": 46,
+      "name": "China"
+    },
+    {
+      "code": "CX",
+      "id": 47,
+      "name": "Christmas Island"
+    },
+    {
+      "code": "CC",
+      "id": 48,
+      "name": "Cocos (Keeling) Islands"
+    },
+    {
+      "code": "CO",
+      "id": 49,
+      "name": "Colombia"
+    },
+    {
+      "code": "KM",
+      "id": 50,
+      "name": "Comoros"
+    }
+  ],
+  "total": 251
+}

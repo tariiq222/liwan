@@ -1,0 +1,75 @@
+{
+  "accounts": [
+    {
+      "account": {
+        "code": "100103",
+        "id": 1,
+        "name": "VAT Receivable"
+      },
+      "current": 20000.0,
+      "days_1_30": 0.0,
+      "days_31_60": 0.0,
+      "days_61_90": 0.0,
+      "days_91_120": 0.0,
+      "days_over_120": 0.0,
+      "partners": [
+        {
+          "current": 20000.0,
+          "days_1_30": 0.0,
+          "days_31_60": 0.0,
+          "days_61_90": 0.0,
+          "days_91_120": 0.0,
+          "days_over_120": 0.0,
+          "partner": {
+            "id": 2,
+            "name": "Noor Trading"
+          },
+          "total": 20000.0
+        }
+      ],
+      "total": 20000.0
+    },
+    {
+      "account": {
+        "code": "102011",
+        "id": 3,
+        "name": "Accounts Receivable"
+      },
+      "current": 0.0,
+      "days_1_30": 7350.0,
+      "days_31_60": 0.0,
+      "days_61_90": 0.0,
+      "days_91_120": 0.0,
+      "days_over_120": 0.0,
+      "partners": [
+        {
+          "current": 0.0,
+          "days_1_30": 7350.0,
+          "days_31_60": 0.0,
+          "days_61_90": 0.0,
+          "days_91_120": 0.0,
+          "days_over_120": 0.0,
+          "partner": {
+            "id": 2,
+            "name": "Noor Trading"
+          },
+          "total": 7350.0
+        }
+      ],
+      "total": 7350.0
+    }
+  ],
+  "currency": "SAR",
+  "date_to": "2026-10-31",
+  "kind": "receivable",
+  "target_move": "posted",
+  "totals": {
+    "current": 20000.0,
+    "days_1_30": 7350.0,
+    "days_31_60": 0.0,
+    "days_61_90": 0.0,
+    "days_91_120": 0.0,
+    "days_over_120": 0.0,
+    "total": 27350.0
+  }
+}

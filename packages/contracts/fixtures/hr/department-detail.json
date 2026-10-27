@@ -1,0 +1,13 @@
+{
+  "child_ids": [
+    22
+  ],
+  "employee_count": 2,
+  "id": 1,
+  "manager": {
+    "id": 2,
+    "name": "Sara"
+  },
+  "name": "Engineering",
+  "parent_id": null
+}

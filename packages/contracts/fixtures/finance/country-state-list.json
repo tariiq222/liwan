@@ -1,0 +1,255 @@
+{
+  "items": [
+    {
+      "code": "AL",
+      "id": 1,
+      "name": "Alabama"
+    },
+    {
+      "code": "AK",
+      "id": 2,
+      "name": "Alaska"
+    },
+    {
+      "code": "AS",
+      "id": 3,
+      "name": "American Samoa"
+    },
+    {
+      "code": "AZ",
+      "id": 4,
+      "name": "Arizona"
+    },
+    {
+      "code": "AR",
+      "id": 5,
+      "name": "Arkansas"
+    },
+    {
+      "code": "AA",
+      "id": 6,
+      "name": "Armed Forces Americas"
+    },
+    {
+      "code": "AE",
+      "id": 7,
+      "name": "Armed Forces Europe"
+    },
+    {
+      "code": "AP",
+      "id": 8,
+      "name": "Armed Forces Pacific"
+    },
+    {
+      "code": "CA",
+      "id": 9,
+      "name": "California"
+    },
+    {
+      "code": "CO",
+      "id": 10,
+      "name": "Colorado"
+    },
+    {
+      "code": "CT",
+      "id": 11,
+      "name": "Connecticut"
+    },
+    {
+      "code": "DE",
+      "id": 12,
+      "name": "Delaware"
+    },
+    {
+      "code": "DC",
+      "id": 13,
+      "name": "District of Columbia"
+    },
+    {
+      "code": "FM",
+      "id": 14,
+      "name": "Federated States of Micronesia"
+    },
+    {
+      "code": "FL",
+      "id": 15,
+      "name": "Florida"
+    },
+    {
+      "code": "GA",
+      "id": 16,
+      "name": "Georgia"
+    },
+    {
+      "code": "GU",
+      "id": 17,
+      "name": "Guam"
+    },
+    {
+      "code": "HI",
+      "id": 18,
+      "name": "Hawaii"
+    },
+    {
+      "code": "ID",
+      "id": 19,
+      "name": "Idaho"
+    },
+    {
+      "code": "IL",
+      "id": 20,
+      "name": "Illinois"
+    },
+    {
+      "code": "IN",
+      "id": 21,
+      "name": "Indiana"
+    },
+    {
+      "code": "IA",
+      "id": 22,
+      "name": "Iowa"
+    },
+    {
+      "code": "KS",
+      "id": 23,
+      "name": "Kansas"
+    },
+    {
+      "code": "KY",
+      "id": 24,
+      "name": "Kentucky"
+    },
+    {
+      "code": "LA",
+      "id": 25,
+      "name": "Louisiana"
+    },
+    {
+      "code": "ME",
+      "id": 26,
+      "name": "Maine"
+    },
+    {
+      "code": "MH",
+      "id": 27,
+      "name": "Marshall Islands"
+    },
+    {
+      "code": "MD",
+      "id": 28,
+      "name": "Maryland"
+    },
+    {
+      "code": "MA",
+      "id": 29,
+      "name": "Massachusetts"
+    },
+    {
+      "code": "MI",
+      "id": 30,
+      "name": "Michigan"
+    },
+    {
+      "code": "MN",
+      "id": 31,
+      "name": "Minnesota"
+    },
+    {
+      "code": "MS",
+      "id": 32,
+      "name": "Mississippi"
+    },
+    {
+      "code": "MO",
+      "id": 33,
+      "name": "Missouri"
+    },
+    {
+      "code": "MT",
+      "id": 34,
+      "name": "Montana"
+    },
+    {
+      "code": "NE",
+      "id": 35,
+      "name": "Nebraska"
+    },
+    {
+      "code": "NV",
+      "id": 36,
+      "name": "Nevada"
+    },
+    {
+      "code": "NH",
+      "id": 37,
+      "name": "New Hampshire"
+    },
+    {
+      "code": "NJ",
+      "id": 38,
+      "name": "New Jersey"
+    },
+    {
+      "code": "NM",
+      "id": 39,
+      "name": "New Mexico"
+    },
+    {
+      "code": "NY",
+      "id": 40,
+      "name": "New York"
+    },
+    {
+      "code": "NC",
+      "id": 41,
+      "name": "North Carolina"
+    },
+    {
+      "code": "ND",
+      "id": 42,
+      "name": "North Dakota"
+    },
+    {
+      "code": "MP",
+      "id": 43,
+      "name": "Northern Mariana Islands"
+    },
+    {
+      "code": "OH",
+      "id": 44,
+      "name": "Ohio"
+    },
+    {
+      "code": "OK",
+      "id": 45,
+      "name": "Oklahoma"
+    },
+    {
+      "code": "OR",
+      "id": 46,
+      "name": "Oregon"
+    },
+    {
+      "code": "PW",
+      "id": 47,
+      "name": "Palau"
+    },
+    {
+      "code": "PA",
+      "id": 48,
+      "name": "Pennsylvania"
+    },
+    {
+      "code": "PR",
+      "id": 49,
+      "name": "Puerto Rico"
+    },
+    {
+      "code": "RI",
+      "id": 50,
+      "name": "Rhode Island"
+    }
+  ],
+  "total": 62
+}

@@ -1,0 +1,97 @@
+{
+  "items": [
+    {
+      "active": true,
+      "department": null,
+      "id": 1,
+      "name": "Onboarding",
+      "steps": [
+        {
+          "delay_count": 0,
+          "delay_from": "before_plan_date",
+          "delay_unit": "days",
+          "id": 1,
+          "responsible": null,
+          "responsible_type": "manager",
+          "summary": "Setup IT Materials"
+        },
+        {
+          "delay_count": 0,
+          "delay_from": "before_plan_date",
+          "delay_unit": "days",
+          "id": 2,
+          "responsible": null,
+          "responsible_type": "manager",
+          "summary": "Plan Training"
+        },
+        {
+          "delay_count": 0,
+          "delay_from": "before_plan_date",
+          "delay_unit": "days",
+          "id": 3,
+          "responsible": null,
+          "responsible_type": "employee",
+          "summary": "Training"
+        }
+      ]
+    },
+    {
+      "active": true,
+      "department": {
+        "id": 5,
+        "name": "Onb Shared Dept"
+      },
+      "id": 4,
+      "name": "Onboarding pinned shared check",
+      "steps": [
+        {
+          "delay_count": 0,
+          "delay_from": "before_plan_date",
+          "delay_unit": "days",
+          "id": 6,
+          "responsible": null,
+          "responsible_type": "manager",
+          "summary": "Prepare the desk"
+        }
+      ]
+    },
+    {
+      "active": true,
+      "department": null,
+      "id": 6,
+      "name": "Onboarding plan",
+      "steps": [
+        {
+          "delay_count": 0,
+          "delay_from": "before_plan_date",
+          "delay_unit": "days",
+          "id": 7,
+          "responsible": null,
+          "responsible_type": "manager",
+          "summary": "Prepare the desk"
+        }
+      ]
+    },
+    {
+      "active": true,
+      "department": {
+        "id": 9,
+        "name": "Onb Free"
+      },
+      "id": 8,
+      "name": "Onboarding shared plan",
+      "steps": [
+        {
+          "delay_count": 0,
+          "delay_from": "before_plan_date",
+          "delay_unit": "days",
+          "id": 10,
+          "responsible": null,
+          "responsible_type": "manager",
+          "summary": "Prepare the desk"
+        }
+      ]
+    }
+  ],
+  "total": 4
+}

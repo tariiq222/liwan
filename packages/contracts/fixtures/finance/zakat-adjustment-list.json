@@ -1,0 +1,21 @@
+{
+  "items": [
+    {
+      "amount": 3900.0,
+      "date_to": "2026-12-31",
+      "id": 1,
+      "kind": "deduct",
+      "label": "Exempt investment",
+      "note": ""
+    },
+    {
+      "amount": 1000.0,
+      "date_to": "2026-12-31",
+      "id": 2,
+      "kind": "add",
+      "label": "Disallowed provision",
+      "note": "Per the accountant"
+    }
+  ],
+  "total": 2
+}

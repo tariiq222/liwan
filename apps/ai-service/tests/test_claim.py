@@ -6,9 +6,9 @@ import httpx
 from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
-from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
+from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call, new_id
 from tests.test_recovery import age
-from tests.test_service import BODY, HEADERS, RESUME_C1, SETTINGS, parse_sse
+from tests.test_service import BODY, HEADERS, RESUME_C1, SETTINGS, fresh, parse_sse
 from webvue_ai_service.service import create_app
 from webvue_ai_service.store import MemoryRunStore
 
@@ -23,7 +23,7 @@ def make_client(responses, store=None):
 
 
 async def start(client, tool=DRAFT):
-    events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+    events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
     assert events[-1][0] == "done"
     return events[0][1]["run_id"]
 
@@ -180,7 +180,7 @@ async def test_a_stale_executing_run_without_a_pending_call_can_be_continued():
 
 async def test_the_store_claims_only_waiting_user_with_the_same_pending_call():
     store = MemoryRunStore()
-    record = await store.create("t1", "42")
+    record = await store.create(new_id(), "t1", "42")
     await store.finish(record.run_id, "waiting_user", record.lease, "c_1")
     assert await store.acquire(record.run_id, ("waiting_user",), stale_after_seconds=60, pending_call_id="c_2", to_status="executing") is None
     lease = await store.acquire(record.run_id, ("waiting_user",), stale_after_seconds=60, pending_call_id="c_1", to_status="executing")

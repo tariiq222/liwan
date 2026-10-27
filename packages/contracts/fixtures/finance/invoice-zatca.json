@@ -1,0 +1,12 @@
+{
+  "errors": [
+    {
+      "code": null,
+      "message": "The invoice could not be processed here; check the journal onboarding and the invoice data"
+    }
+  ],
+  "mode": "clearance",
+  "qr_present": false,
+  "state": "blocked",
+  "warnings": []
+}

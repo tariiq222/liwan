@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import secrets
 from collections.abc import AsyncIterator, Iterator, Sequence
 from typing import Any
 
@@ -11,6 +12,13 @@ from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, Syst
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 
 from webvue_ai_service.titles import TITLE_RULES
+from webvue_ai_service.usage import ModelIdentity
+
+IDENTITY = ModelIdentity("ollama", "m")  # what the Settings of the service tests name
+
+
+def new_id() -> str:
+    return "r_" + secrets.token_hex(12)
 
 
 def ai_text(text: str) -> AIMessage:
@@ -19,6 +27,12 @@ def ai_text(text: str) -> AIMessage:
 
 def ai_blocks(*texts: str) -> AIMessage:
     return AIMessage(content=[{"type": "text", "text": text} for text in texts])
+
+
+def ai_usage(message: AIMessage, input_tokens: int, output_tokens: int) -> AIMessage:
+    """``message`` as a provider reports it, with its token usage."""
+    message.usage_metadata = {"input_tokens": input_tokens, "output_tokens": output_tokens, "total_tokens": input_tokens + output_tokens}
+    return message
 
 
 def ai_tool_call(name: str, args: dict[str, Any], call_id: str) -> AIMessage:
@@ -69,20 +83,39 @@ class ScriptedChatModel(BaseChatModel):
     def _stream(self, messages: list[BaseMessage], stop: list[str] | None = None,
                 run_manager: CallbackManagerForLLMRun | None = None, **kwargs: Any) -> Iterator[ChatGenerationChunk]:
         message = self._next(messages)
+        yield from self._chunks(message)
+        if message.usage_metadata:  # the provider's final usage chunk
+            yield ChatGenerationChunk(message=AIMessageChunk(content="", usage_metadata=message.usage_metadata))
+
+    @staticmethod
+    def _chunks(message: AIMessage) -> Iterator[ChatGenerationChunk]:
         if message.tool_calls:
             yield ChatGenerationChunk(message=AIMessageChunk(content=message.content, tool_calls=message.tool_calls))
-            return
-        if isinstance(message.content, list):  # block content, as langchain_anthropic sends it when tools are bound
+        elif isinstance(message.content, list):  # block content, as langchain_anthropic sends it when tools are bound
             for block in message.content:
                 yield ChatGenerationChunk(message=AIMessageChunk(content=[block]))
-            return
-        for char in str(message.content):
-            yield ChatGenerationChunk(message=AIMessageChunk(content=char))
+        else:
+            for char in str(message.content):
+                yield ChatGenerationChunk(message=AIMessageChunk(content=char))
 
     async def _astream(self, messages: list[BaseMessage], stop: list[str] | None = None,
                        run_manager: AsyncCallbackManagerForLLMRun | None = None, **kwargs: Any) -> AsyncIterator[ChatGenerationChunk]:
         for chunk in self._stream(messages, stop, None, **kwargs):
             yield chunk
+
+
+class FlakyChatModel(ScriptedChatModel):
+    """The plan calls fail first with the errors of ``failures`` (one per attempt, in order), then follow the script."""
+
+    failures: list[Any] = []
+    attempts: int = 0
+
+    def _next(self, messages: list[BaseMessage]) -> AIMessage:
+        if not is_title_request(messages):
+            self.attempts += 1
+            if self.failures:
+                raise self.failures.pop(0)
+        return super()._next(messages)
 
 
 class SlowChatModel(ScriptedChatModel):

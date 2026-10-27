@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "balance_end": 50.0,
+      "balance_end_real": 50.0,
+      "balance_start": 0.0,
+      "currency": "SAR",
+      "date": "2026-10-31",
+      "id": 1,
+      "journal": {
+        "id": 2,
+        "name": "Bank"
+      },
+      "lines_count": 1,
+      "name": "BNK1 Statement 2026-10-31"
+    }
+  ],
+  "total": 1
+}

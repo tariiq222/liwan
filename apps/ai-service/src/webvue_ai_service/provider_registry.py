@@ -29,13 +29,15 @@ class ProviderSpec:
 def _anthropic(settings: Settings, base_url: str | None) -> BaseChatModel:
     from langchain_anthropic import ChatAnthropic
 
-    return ChatAnthropic(model=settings.model, api_key=settings.api_key, temperature=0, max_tokens=2048)
+    return ChatAnthropic(model=settings.model, api_key=settings.api_key, temperature=0, max_tokens=2048, max_retries=0)
 
 
 def _openai(settings: Settings, base_url: str | None) -> BaseChatModel:
     from langchain_openai import ChatOpenAI
 
-    return ChatOpenAI(model=settings.model, api_key=settings.api_key, base_url=base_url, temperature=0)
+    # The usage chunk needs `stream_options`, which only the official endpoint is known to accept: a custom AI_BASE_URL
+    # (an OpenAI-compatible server) may answer 400 to it, so its calls are reported without token counts.
+    return ChatOpenAI(model=settings.model, api_key=settings.api_key, base_url=base_url, temperature=0, max_retries=0, stream_usage=base_url is None)
 
 
 def _ollama(settings: Settings, base_url: str | None) -> BaseChatModel:
@@ -49,7 +51,10 @@ def _openrouter(settings: Settings, base_url: str | None) -> BaseChatModel:
 
     attribution = {"HTTP-Referer": settings.openrouter_referer, "X-Title": settings.openrouter_title}
     headers = {name: value for name, value in attribution.items() if value}
-    return ChatOpenAI(model=settings.model, api_key=settings.api_key, base_url=base_url, default_headers=headers or None, temperature=0)
+    return ChatOpenAI(
+        model=settings.model, api_key=settings.api_key, base_url=base_url, default_headers=headers or None,
+        temperature=0, max_retries=0, stream_usage=True,
+    )
 
 
 _SPECS = (

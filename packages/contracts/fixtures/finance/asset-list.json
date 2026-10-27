@@ -1,0 +1,41 @@
+{
+  "items": [
+    {
+      "code": "CH-1",
+      "currency": "SAR",
+      "date_start": "2024-01-01",
+      "depreciation_base": 12000.0,
+      "id": 1,
+      "name": "Draft chair",
+      "partner": null,
+      "profile": {
+        "id": 2,
+        "name": "Furniture 5 years"
+      },
+      "purchase_value": 12000.0,
+      "salvage_value": 0.0,
+      "state": "draft",
+      "value_depreciated": 0.0,
+      "value_residual": 12000.0
+    },
+    {
+      "code": "",
+      "currency": "SAR",
+      "date_start": "2024-01-01",
+      "depreciation_base": 12000.0,
+      "id": 3,
+      "name": "Running table",
+      "partner": null,
+      "profile": {
+        "id": 2,
+        "name": "Furniture 5 years"
+      },
+      "purchase_value": 12000.0,
+      "salvage_value": 0.0,
+      "state": "open",
+      "value_depreciated": 0.0,
+      "value_residual": 12000.0
+    }
+  ],
+  "total": 2
+}

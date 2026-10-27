@@ -1,0 +1,17 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "name": "Fired"
+    },
+    {
+      "id": 2,
+      "name": "Resigned"
+    },
+    {
+      "id": 3,
+      "name": "Retired"
+    }
+  ],
+  "total": 3
+}

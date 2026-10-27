@@ -1,0 +1,28 @@
+{
+  "active": true,
+  "asset_account": {
+    "id": 2,
+    "name": "106002 Furniture and Equipment"
+  },
+  "depreciation_account": {
+    "id": 3,
+    "name": "106007 Accumulated Depreciation of Furniture & Office Equipment"
+  },
+  "expense_account": {
+    "id": 4,
+    "name": "400064 Depreciation Of Furniture & Office Equipment"
+  },
+  "id": 1,
+  "journal": {
+    "id": 5,
+    "name": "Tax Adjustments"
+  },
+  "method": "linear",
+  "method_number": 4,
+  "method_period": "year",
+  "method_time": "year",
+  "min_value_account": null,
+  "name": "Vehicles 4 years",
+  "plus_value_account": null,
+  "prorata": true
+}

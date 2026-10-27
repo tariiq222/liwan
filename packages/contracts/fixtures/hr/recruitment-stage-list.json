@@ -1,0 +1,47 @@
+{
+  "items": [
+    {
+      "fold": false,
+      "hired_stage": false,
+      "id": 1,
+      "name": "New",
+      "sequence": 0
+    },
+    {
+      "fold": false,
+      "hired_stage": false,
+      "id": 2,
+      "name": "Qualification",
+      "sequence": 1
+    },
+    {
+      "fold": false,
+      "hired_stage": false,
+      "id": 3,
+      "name": "First Interview",
+      "sequence": 2
+    },
+    {
+      "fold": false,
+      "hired_stage": false,
+      "id": 4,
+      "name": "Second Interview",
+      "sequence": 3
+    },
+    {
+      "fold": false,
+      "hired_stage": false,
+      "id": 5,
+      "name": "Contract Proposal",
+      "sequence": 4
+    },
+    {
+      "fold": true,
+      "hired_stage": true,
+      "id": 6,
+      "name": "Contract Signed",
+      "sequence": 5
+    }
+  ],
+  "total": 6
+}

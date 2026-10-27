@@ -1,0 +1,1607 @@
+{
+  "items": [
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "100001",
+      "currency": null,
+      "id": 1,
+      "name": "Liquidity Transfer",
+      "reconcile": true
+    },
+    {
+      "account_type": "asset_fixed",
+      "active": true,
+      "code": "100101",
+      "currency": null,
+      "id": 2,
+      "name": "Right of use Asset (IFRS 16)",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_fixed",
+      "active": true,
+      "code": "100102",
+      "currency": null,
+      "id": 3,
+      "name": "Accumulated Depreciation on Right of use asset (IFRS 16)",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_receivable",
+      "active": true,
+      "code": "100103",
+      "currency": null,
+      "id": 4,
+      "name": "VAT Receivable",
+      "reconcile": true
+    },
+    {
+      "account_type": "asset_receivable",
+      "active": true,
+      "code": "100104",
+      "currency": null,
+      "id": 5,
+      "name": "Withholding Receivable",
+      "reconcile": true
+    },
+    {
+      "account_type": "asset_cash",
+      "active": true,
+      "code": "101001",
+      "currency": null,
+      "id": 6,
+      "name": "Bank",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "101002",
+      "currency": null,
+      "id": 7,
+      "name": "Bank Suspense Account",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "101003",
+      "currency": null,
+      "id": 8,
+      "name": "Outstanding Receipts",
+      "reconcile": true
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "101004",
+      "currency": null,
+      "id": 9,
+      "name": "Outstanding Payments",
+      "reconcile": true
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "101005",
+      "currency": null,
+      "id": 10,
+      "name": "Main Safe",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "101006",
+      "currency": null,
+      "id": 11,
+      "name": "Main Safe - Foreign Currency",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "101060",
+      "currency": null,
+      "id": 12,
+      "name": "VAT Paid to Customs",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_receivable",
+      "active": true,
+      "code": "102011",
+      "currency": null,
+      "id": 13,
+      "name": "Accounts Receivable",
+      "reconcile": true
+    },
+    {
+      "account_type": "asset_receivable",
+      "active": true,
+      "code": "102012",
+      "currency": null,
+      "id": 14,
+      "name": "Accounts Receivable (PoS)",
+      "reconcile": true
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "102013",
+      "currency": null,
+      "id": 15,
+      "name": "Post Dated Cheques Received",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "102014",
+      "currency": null,
+      "id": 16,
+      "name": "Other Receivable",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "102015",
+      "currency": null,
+      "id": 17,
+      "name": "Other Debtors",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "103016",
+      "currency": null,
+      "id": 18,
+      "name": "Shipment Insurance",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "103017",
+      "currency": null,
+      "id": 19,
+      "name": "Shipment Documentation Charges",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "103018",
+      "currency": null,
+      "id": 20,
+      "name": "Shipment Other Charges",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "103019",
+      "currency": null,
+      "id": 21,
+      "name": "Handling Difference in Inventory",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "103020",
+      "currency": null,
+      "id": 22,
+      "name": "Items Delivered to Customs",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104020",
+      "currency": null,
+      "id": 23,
+      "name": "Prepaid Expense",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104021",
+      "currency": null,
+      "id": 24,
+      "name": "Prepaid Medical Insurance",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104022",
+      "currency": null,
+      "id": 25,
+      "name": "Prepaid Life Insurance",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104023",
+      "currency": null,
+      "id": 26,
+      "name": "Prepaid Office Rent",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104024",
+      "currency": null,
+      "id": 27,
+      "name": "Prepaid Other Insurance",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104025",
+      "currency": null,
+      "id": 28,
+      "name": "Prepaid License Fees",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104026",
+      "currency": null,
+      "id": 29,
+      "name": "Prepaid Maintenance",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104027",
+      "currency": null,
+      "id": 30,
+      "name": "Prepaid Site Hosting Fees",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104028",
+      "currency": null,
+      "id": 31,
+      "name": "Prepaid Employees Housing",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104029",
+      "currency": null,
+      "id": 32,
+      "name": "Prepaid Schooling Fees",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104030",
+      "currency": null,
+      "id": 33,
+      "name": "Prepaid Consultancy Fees",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104031",
+      "currency": null,
+      "id": 34,
+      "name": "Prepaid Legal Fees",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104032",
+      "currency": null,
+      "id": 35,
+      "name": "Prepaid Sponsorship Fees",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104033",
+      "currency": null,
+      "id": 36,
+      "name": "Prepaid Advertisement Expenses",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104034",
+      "currency": null,
+      "id": 37,
+      "name": "Prepaid Bank Guarantee",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104035",
+      "currency": null,
+      "id": 38,
+      "name": "Other Prepayments",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_prepayments",
+      "active": true,
+      "code": "104036",
+      "currency": null,
+      "id": 39,
+      "name": "Prepaid Finance charge for Loans",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "104037",
+      "currency": null,
+      "id": 40,
+      "name": "Deposit - Office Rent",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "104038",
+      "currency": null,
+      "id": 41,
+      "name": "Deposits - Customs",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "104039",
+      "currency": null,
+      "id": 42,
+      "name": "Deposit to Immigration (Visa)",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "104040",
+      "currency": null,
+      "id": 43,
+      "name": "Deposit Others",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "104041",
+      "currency": null,
+      "id": 44,
+      "name": "VAT Input",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "104043",
+      "currency": null,
+      "id": 45,
+      "name": "Recoverable VAT Input - Reverse Charge",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_fixed",
+      "active": true,
+      "code": "106001",
+      "currency": null,
+      "id": 46,
+      "name": "Leasehold Improvement",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_fixed",
+      "active": true,
+      "code": "106002",
+      "currency": null,
+      "id": 47,
+      "name": "Furniture and Equipment",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_fixed",
+      "active": true,
+      "code": "106003",
+      "currency": null,
+      "id": 48,
+      "name": "Computer Hardware & Software",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_fixed",
+      "active": true,
+      "code": "106004",
+      "currency": null,
+      "id": 49,
+      "name": "Motor Vehicles",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "106005",
+      "currency": null,
+      "id": 50,
+      "name": "Work In Progress",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "106006",
+      "currency": null,
+      "id": 51,
+      "name": "Amortisation on Leasehold Improvement",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_fixed",
+      "active": true,
+      "code": "106007",
+      "currency": null,
+      "id": 52,
+      "name": "Accumulated Depreciation of Furniture & Office Equipment",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_fixed",
+      "active": true,
+      "code": "106008",
+      "currency": null,
+      "id": 53,
+      "name": "Accumulated Depreciation of Computer Hardware & Software",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_fixed",
+      "active": true,
+      "code": "106009",
+      "currency": null,
+      "id": 54,
+      "name": "Accumulated Depreciation of Motor Vehicles",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "106010",
+      "currency": null,
+      "id": 55,
+      "name": "Registration of Trademarks",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "106011",
+      "currency": null,
+      "id": 56,
+      "name": "Computer Card Renewal",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "106012",
+      "currency": null,
+      "id": 57,
+      "name": "Prepaid Employee Expenses",
+      "reconcile": false
+    },
+    {
+      "account_type": "asset_current",
+      "active": true,
+      "code": "131100",
+      "currency": null,
+      "id": 58,
+      "name": "Inventory - Raw Materials",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_payable",
+      "active": true,
+      "code": "201002",
+      "currency": null,
+      "id": 59,
+      "name": "Payables",
+      "reconcile": true
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201003",
+      "currency": null,
+      "id": 60,
+      "name": "Credit Notes to Customers",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201004",
+      "currency": null,
+      "id": 61,
+      "name": "Accrued - Salaries",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201005",
+      "currency": null,
+      "id": 62,
+      "name": "Leave Tickets Provision",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201006",
+      "currency": null,
+      "id": 63,
+      "name": "Leave Days Provision",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201007",
+      "currency": null,
+      "id": 64,
+      "name": "Accrued - Commissions",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201008",
+      "currency": null,
+      "id": 65,
+      "name": "Accrued Salaries Increment",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201009",
+      "currency": null,
+      "id": 66,
+      "name": "Accrued - Staff Bonus",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201010",
+      "currency": null,
+      "id": 67,
+      "name": "Accrued Other Personnel Cost",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201011",
+      "currency": null,
+      "id": 68,
+      "name": "Accrued - Utilities",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201012",
+      "currency": null,
+      "id": 69,
+      "name": "Accrued - Telephone",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201013",
+      "currency": null,
+      "id": 70,
+      "name": "Accrued - Sponsorship",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201014",
+      "currency": null,
+      "id": 71,
+      "name": "Accrued - Audit Fees",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201015",
+      "currency": null,
+      "id": 72,
+      "name": "Accrued - Office Rent",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201016",
+      "currency": null,
+      "id": 73,
+      "name": "Accrued Others",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201017",
+      "currency": null,
+      "id": 74,
+      "name": "VAT Output",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201018",
+      "currency": null,
+      "id": 75,
+      "name": "Deferred income",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201019",
+      "currency": null,
+      "id": 76,
+      "name": "ZAKAT Provision",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201020",
+      "currency": null,
+      "id": 77,
+      "name": "Withholding Tax Payable",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_payable",
+      "active": true,
+      "code": "201022",
+      "currency": null,
+      "id": 78,
+      "name": "GOSI Employee Payable",
+      "reconcile": true
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201030",
+      "currency": null,
+      "id": 79,
+      "name": "Base Tax Received",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_credit_card",
+      "active": true,
+      "code": "201031",
+      "currency": null,
+      "id": 80,
+      "name": "Visa & Master Credit Cards",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_credit_card",
+      "active": true,
+      "code": "201032",
+      "currency": null,
+      "id": 81,
+      "name": "Gateway Credit Cards",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_credit_card",
+      "active": true,
+      "code": "201033",
+      "currency": null,
+      "id": 82,
+      "name": "Manual Visa & Master Cards",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_credit_card",
+      "active": true,
+      "code": "201034",
+      "currency": null,
+      "id": 83,
+      "name": "PayPal Account",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_current",
+      "active": true,
+      "code": "201035",
+      "currency": null,
+      "id": 84,
+      "name": "Outstanding Withholding",
+      "reconcile": true
+    },
+    {
+      "account_type": "liability_non_current",
+      "active": true,
+      "code": "202001",
+      "currency": null,
+      "id": 85,
+      "name": "End of Service Provision",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_non_current",
+      "active": true,
+      "code": "202002",
+      "currency": null,
+      "id": 86,
+      "name": "Reservations",
+      "reconcile": false
+    },
+    {
+      "account_type": "liability_payable",
+      "active": true,
+      "code": "202003",
+      "currency": null,
+      "id": 87,
+      "name": "VAT Payable",
+      "reconcile": true
+    },
+    {
+      "account_type": "liability_payable",
+      "active": true,
+      "code": "202004",
+      "currency": null,
+      "id": 88,
+      "name": "Withholding Tax Payable",
+      "reconcile": true
+    },
+    {
+      "account_type": "expense_direct_cost",
+      "active": true,
+      "code": "400001",
+      "currency": null,
+      "id": 89,
+      "name": "Cost of Goods Sold in Trading",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense_direct_cost",
+      "active": true,
+      "code": "400002",
+      "currency": null,
+      "id": 90,
+      "name": "Cost Of Goods Sold I/C Sales",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400003",
+      "currency": null,
+      "id": 91,
+      "name": "Basic Salary",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400004",
+      "currency": null,
+      "id": 92,
+      "name": "Housing Allowance",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400005",
+      "currency": null,
+      "id": 93,
+      "name": "Transportation Allowance",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400006",
+      "currency": null,
+      "id": 94,
+      "name": "Leave Ticket",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400007",
+      "currency": null,
+      "id": 95,
+      "name": "Leave Salary",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400008",
+      "currency": null,
+      "id": 96,
+      "name": "End Of Service Indemnity",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400009",
+      "currency": null,
+      "id": 97,
+      "name": "Medical Insurance",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400010",
+      "currency": null,
+      "id": 98,
+      "name": "Life Insurance",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400011",
+      "currency": null,
+      "id": 99,
+      "name": "Sales Commission",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400012",
+      "currency": null,
+      "id": 100,
+      "name": "Staff Other Allowances",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400013",
+      "currency": null,
+      "id": 101,
+      "name": "Uniform",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400014",
+      "currency": null,
+      "id": 102,
+      "name": "Visa Expenses",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400015",
+      "currency": null,
+      "id": 103,
+      "name": "Personnel Cost Others",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400016",
+      "currency": null,
+      "id": 104,
+      "name": "Office Rent",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400017",
+      "currency": null,
+      "id": 105,
+      "name": "Warehouse Rent",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400018",
+      "currency": null,
+      "id": 106,
+      "name": "Water & Electricity",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400019",
+      "currency": null,
+      "id": 107,
+      "name": "Other Utility Cahrges",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400020",
+      "currency": null,
+      "id": 108,
+      "name": "Telephone",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400021",
+      "currency": null,
+      "id": 109,
+      "name": "Courrier",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400022",
+      "currency": null,
+      "id": 110,
+      "name": "Website Hosting Fees",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400023",
+      "currency": null,
+      "id": 111,
+      "name": "Others - Communication",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400024",
+      "currency": null,
+      "id": 112,
+      "name": "Air tickets",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400025",
+      "currency": null,
+      "id": 113,
+      "name": "Hotel",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400026",
+      "currency": null,
+      "id": 114,
+      "name": "Meals",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400027",
+      "currency": null,
+      "id": 115,
+      "name": "Per Diem",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400028",
+      "currency": null,
+      "id": 116,
+      "name": "Others",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400029",
+      "currency": null,
+      "id": 117,
+      "name": "Audit Fees",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400030",
+      "currency": null,
+      "id": 118,
+      "name": "Sponsorship Fees",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400031",
+      "currency": null,
+      "id": 119,
+      "name": "Legal fees",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400032",
+      "currency": null,
+      "id": 120,
+      "name": "Trade License Fees",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400033",
+      "currency": null,
+      "id": 121,
+      "name": "Others - Professional Fees",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400034",
+      "currency": null,
+      "id": 122,
+      "name": "Other - Advertising Expenses",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400035",
+      "currency": null,
+      "id": 123,
+      "name": "Write Off Receivables & Payables",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400036",
+      "currency": null,
+      "id": 124,
+      "name": "Write Off Inventory",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400037",
+      "currency": null,
+      "id": 125,
+      "name": "Amortisation of Pre-operating Expenses",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400038",
+      "currency": null,
+      "id": 126,
+      "name": "Cash Shortage",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400039",
+      "currency": null,
+      "id": 127,
+      "name": "Others - Provision & Write-off",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400040",
+      "currency": null,
+      "id": 128,
+      "name": "Insurance",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400041",
+      "currency": null,
+      "id": 129,
+      "name": "Training",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400042",
+      "currency": null,
+      "id": 130,
+      "name": "Maintenance",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400043",
+      "currency": null,
+      "id": 131,
+      "name": "Security & Guard",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400044",
+      "currency": null,
+      "id": 132,
+      "name": "Cleaning",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400045",
+      "currency": null,
+      "id": 133,
+      "name": "Subscriptions",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400046",
+      "currency": null,
+      "id": 134,
+      "name": "Gifts & Donations",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400047",
+      "currency": null,
+      "id": 135,
+      "name": "Kitchen and Buffet Expenses",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400048",
+      "currency": null,
+      "id": 136,
+      "name": "Vehicle Expenses",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400049",
+      "currency": null,
+      "id": 137,
+      "name": "Convoyance Expenses",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400050",
+      "currency": null,
+      "id": 138,
+      "name": "Others - Office Various Expenses",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400051",
+      "currency": null,
+      "id": 139,
+      "name": "Other Bank Charges",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400052",
+      "currency": null,
+      "id": 140,
+      "name": "Loss On Fixed Assets Disposal",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400053",
+      "currency": null,
+      "id": 141,
+      "name": "Loss on Difference on Exchange",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400054",
+      "currency": null,
+      "id": 142,
+      "name": "Disposal of Business Branch",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400055",
+      "currency": null,
+      "id": 143,
+      "name": "Income Tax",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400056",
+      "currency": null,
+      "id": 144,
+      "name": "Previous Year Adjustments Account",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400057",
+      "currency": null,
+      "id": 145,
+      "name": "Other Non Operating Expenses",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400058",
+      "currency": null,
+      "id": 146,
+      "name": "Credit Card Charges",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400059",
+      "currency": null,
+      "id": 147,
+      "name": "Bank Finance & Loan Charges",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400060",
+      "currency": null,
+      "id": 148,
+      "name": "Air Miles Card Charges",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400062",
+      "currency": null,
+      "id": 149,
+      "name": "PayPal Charges",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400063",
+      "currency": null,
+      "id": 150,
+      "name": "Amortization on Leasehold Improvement",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense_depreciation",
+      "active": true,
+      "code": "400064",
+      "currency": null,
+      "id": 151,
+      "name": "Depreciation Of Furniture & Office Equipment",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense_depreciation",
+      "active": true,
+      "code": "400065",
+      "currency": null,
+      "id": 152,
+      "name": "Depreciation Of Computer Hard & Soft",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense_depreciation",
+      "active": true,
+      "code": "400066",
+      "currency": null,
+      "id": 153,
+      "name": "Depreciation Of Motor Vehicles",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400067",
+      "currency": null,
+      "id": 154,
+      "name": "Consultancy Fees",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400068",
+      "currency": null,
+      "id": 155,
+      "name": "Provision for Doubtful Debts",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400069",
+      "currency": null,
+      "id": 156,
+      "name": "Closing Account",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400070",
+      "currency": null,
+      "id": 157,
+      "name": "Depreciation on Right of use asset (IFRS 16)",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400072",
+      "currency": null,
+      "id": 158,
+      "name": "ZAKAT Expense",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400073",
+      "currency": null,
+      "id": 159,
+      "name": "Withholding Tax Expense",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400074",
+      "currency": null,
+      "id": 160,
+      "name": "Salary Deductions",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "400075",
+      "currency": null,
+      "id": 161,
+      "name": "Other Employee Expenses",
+      "reconcile": false
+    },
+    {
+      "account_type": "income",
+      "active": true,
+      "code": "500001",
+      "currency": null,
+      "id": 162,
+      "name": "Sales Account",
+      "reconcile": false
+    },
+    {
+      "account_type": "income",
+      "active": true,
+      "code": "500002",
+      "currency": null,
+      "id": 163,
+      "name": "Sales of I/C",
+      "reconcile": false
+    },
+    {
+      "account_type": "income",
+      "active": true,
+      "code": "500003",
+      "currency": null,
+      "id": 164,
+      "name": "Management Consultancy Fees",
+      "reconcile": false
+    },
+    {
+      "account_type": "income",
+      "active": true,
+      "code": "500004",
+      "currency": null,
+      "id": 165,
+      "name": "Sales from Other Region",
+      "reconcile": false
+    },
+    {
+      "account_type": "income",
+      "active": true,
+      "code": "500005",
+      "currency": null,
+      "id": 166,
+      "name": "Advertising Income",
+      "reconcile": false
+    },
+    {
+      "account_type": "income",
+      "active": true,
+      "code": "500006",
+      "currency": null,
+      "id": 167,
+      "name": "Branding Income",
+      "reconcile": false
+    },
+    {
+      "account_type": "income",
+      "active": true,
+      "code": "500007",
+      "currency": null,
+      "id": 168,
+      "name": "Space Rental Income",
+      "reconcile": false
+    },
+    {
+      "account_type": "income",
+      "active": true,
+      "code": "500008",
+      "currency": null,
+      "id": 169,
+      "name": "Service Income",
+      "reconcile": false
+    },
+    {
+      "account_type": "income",
+      "active": true,
+      "code": "500009",
+      "currency": null,
+      "id": 170,
+      "name": "Interest Revenue",
+      "reconcile": false
+    },
+    {
+      "account_type": "income",
+      "active": true,
+      "code": "500010",
+      "currency": null,
+      "id": 171,
+      "name": "Capital Gain",
+      "reconcile": false
+    },
+    {
+      "account_type": "income",
+      "active": true,
+      "code": "500011",
+      "currency": null,
+      "id": 172,
+      "name": "Gain On Difference Of Exchange",
+      "reconcile": false
+    },
+    {
+      "account_type": "income",
+      "active": true,
+      "code": "500013",
+      "currency": null,
+      "id": 173,
+      "name": "Other Income",
+      "reconcile": false
+    },
+    {
+      "account_type": "income_other",
+      "active": true,
+      "code": "999001",
+      "currency": null,
+      "id": 174,
+      "name": "Cash Difference Gain",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "999002",
+      "currency": null,
+      "id": 175,
+      "name": "Cash Difference Loss",
+      "reconcile": false
+    },
+    {
+      "account_type": "income_other",
+      "active": true,
+      "code": "999997",
+      "currency": null,
+      "id": 176,
+      "name": "Cash Discount Gain",
+      "reconcile": false
+    },
+    {
+      "account_type": "expense",
+      "active": true,
+      "code": "999998",
+      "currency": null,
+      "id": 177,
+      "name": "Cash Discount Loss",
+      "reconcile": false
+    },
+    {
+      "account_type": "equity_unaffected",
+      "active": true,
+      "code": "999999",
+      "currency": null,
+      "id": 178,
+      "name": "Undistributed Profits/Losses",
+      "reconcile": false
+    }
+  ],
+  "total": 178
+}

@@ -1,0 +1,121 @@
+{
+  "boxes": [
+    {
+      "base": 9000.0,
+      "code": "sa_1",
+      "name": "1. Standard rated sales",
+      "number": 1,
+      "tax": 1350.0
+    },
+    {
+      "base": 0.0,
+      "code": "sa_2",
+      "name": "2. Private Healthcare / Private Education / First house sales to citizens",
+      "number": 2,
+      "tax": null
+    },
+    {
+      "base": 0.0,
+      "code": "sa_3",
+      "name": "3. Zero rated domestic sales",
+      "number": 3,
+      "tax": null
+    },
+    {
+      "base": 0.0,
+      "code": "sa_4",
+      "name": "4. Exports",
+      "number": 4,
+      "tax": null
+    },
+    {
+      "base": 0.0,
+      "code": "sa_5",
+      "name": "5. Exempt sales",
+      "number": 5,
+      "tax": null
+    },
+    {
+      "base": 9000.0,
+      "code": "sa_6",
+      "name": "6. Total Sales",
+      "number": 6,
+      "tax": 1350.0
+    },
+    {
+      "base": 4000.0,
+      "code": "sa_7",
+      "name": "7. Standard rated domestic purchases",
+      "number": 7,
+      "tax": 600.0
+    },
+    {
+      "base": 0.0,
+      "code": "sa_8",
+      "name": "8. Imports subject to VAT paid at customs",
+      "number": 8,
+      "tax": 0.0
+    },
+    {
+      "base": 0.0,
+      "code": "sa_9",
+      "name": "9. Imports subject to VAT accounted for through reverse charge mechanism",
+      "number": 9,
+      "tax": 0.0
+    },
+    {
+      "base": 0.0,
+      "code": "sa_10",
+      "name": "10. Zero rated purchases",
+      "number": 10,
+      "tax": null
+    },
+    {
+      "base": 0.0,
+      "code": "sa_11",
+      "name": "11. Exempt purchases",
+      "number": 11,
+      "tax": null
+    },
+    {
+      "base": 4000.0,
+      "code": "sa_12",
+      "name": "12. Total Purchases",
+      "number": 12,
+      "tax": 600.0
+    },
+    {
+      "base": null,
+      "code": "sa_13",
+      "name": "13. Total VAT due for current period",
+      "number": 13,
+      "tax": 750.0
+    },
+    {
+      "base": null,
+      "code": "sa_14",
+      "name": "14. Corrections from previous period (between +- SAR 5000)",
+      "number": 14,
+      "tax": 0.0
+    },
+    {
+      "base": null,
+      "code": "sa_15",
+      "name": "15. VAT credit carried forward from previous period",
+      "number": 15,
+      "tax": 0.0
+    },
+    {
+      "base": null,
+      "code": "sa_16",
+      "name": "16. Net VAT due (or claim)",
+      "number": 16,
+      "tax": 750.0
+    }
+  ],
+  "currency": "SAR",
+  "date_from": "2026-10-01",
+  "date_to": "2026-10-31",
+  "filed": false,
+  "status": "draft_for_review"
+}
