@@ -11,7 +11,7 @@ const { me, refresh } = useMe()
 const state = reactive({ login: '', password: '' })
 const totpState = reactive({ code: '' })
 const pending = ref(false)
-const errorMessage = ref<string | null>(null)
+const errorMessage = ref<string | null>(route.query.reason === 'tenant_suspended' ? t('auth.tenantSuspended') : null)
 const mfaPending = ref(false)
 // Guards the submit button until the client has hydrated: submitting before
 // hydration falls through to a native, unhandled form POST. See
@@ -49,6 +49,7 @@ function validateTotp(value: Partial<typeof totpState>): FormError[] {
 const AUTH_ERROR_KEYS: Record<string, string> = {
   invalid_credentials: 'auth.invalidCredentials',
   missing_credentials: 'auth.loginFailed',
+  tenant_suspended: 'auth.tenantSuspended',
 }
 
 async function submit() {
@@ -77,8 +78,8 @@ async function submitTotp() {
     await $fetch('/api/auth/totp', { method: 'POST', body: { code: totpState.code } })
     await refresh()
     await navigateTo(postLoginPath(me.value, route.query.next))
-  } catch {
-    errorMessage.value = t('auth.totpInvalid')
+  } catch (e: any) {
+    errorMessage.value = t(e?.data?.data?.code === 'tenant_suspended' ? 'auth.tenantSuspended' : 'auth.totpInvalid')
   } finally {
     pending.value = false
   }

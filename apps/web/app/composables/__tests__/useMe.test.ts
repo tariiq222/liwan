@@ -1,7 +1,7 @@
 import { MeSchema } from '@webvue/contracts'
 import { createError } from 'h3'
 import { describe, expect, it } from 'vitest'
-import { isLoggedOutError, isSchemaError } from '../useMe'
+import { isLoggedOutError, isSchemaError, isTenantSuspendedError } from '../useMe'
 
 // A real ZodError, produced the same way `transform` in useMe.ts produces one:
 // parsing a `/api/v1/me` payload that fails schema validation (lang: null).
@@ -30,6 +30,19 @@ describe('isLoggedOutError', () => {
 
   it('treats an error object without a statusCode as a real error, not logged-out', () => {
     expect(isLoggedOutError(new Error('boom'))).toBe(false)
+  })
+})
+
+describe('isTenantSuspendedError', () => {
+  it('recognizes the 403 the API answers after it ended a suspended tenant session', () => {
+    expect(isTenantSuspendedError({ statusCode: 403, data: { code: 'tenant_suspended' } })).toBe(true)
+  })
+
+  it('keeps an ordinary logged-out 403 and other failures apart', () => {
+    expect(isTenantSuspendedError({ statusCode: 403 })).toBe(false)
+    expect(isTenantSuspendedError({ statusCode: 403, data: { code: 'forbidden' } })).toBe(false)
+    expect(isTenantSuspendedError({ statusCode: 500, data: { code: 'tenant_suspended' } })).toBe(false)
+    expect(isTenantSuspendedError(null)).toBe(false)
   })
 })
 

@@ -7,6 +7,13 @@ export function isLoggedOutError(error: unknown): boolean {
   return (error as { statusCode?: number } | null | undefined)?.statusCode === 403
 }
 
+// The tenant is suspended: the API ended this session, so the user is logged out and the
+// login page must say why instead of showing an empty form.
+export function isTenantSuspendedError(error: unknown): boolean {
+  const e = error as { statusCode?: number; data?: { code?: unknown } } | null | undefined
+  return isLoggedOutError(e) && e?.data?.code === 'tenant_suspended'
+}
+
 // A zod failure thrown inside `transform` reaches us wrapped: Nuxt's useAsyncData
 // catches the thrown ZodError and rewraps it with h3's `createError(error)`, which
 // produces an H3Error (statusCode: 500) that preserves the original as `.cause`.
