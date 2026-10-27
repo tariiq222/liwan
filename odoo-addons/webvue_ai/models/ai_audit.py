@@ -10,6 +10,7 @@ from odoo.addons.webvue_ai.models.access_service import AI_USE
 from odoo.addons.webvue_ai.models.tool_registry import TOOL_KINDS
 
 AUDIT_KINDS = ('message', *TOOL_KINDS)
+MONTHLY_MESSAGES = 'ai.messages.monthly'
 AUDIT_RESULTS = ('ok', 'denied', 'failed', 'proposed', 'approved', 'rejected')
 DRAFT_RESULTS = ('proposed', 'approved', 'rejected')
 WIRE_KEYS = frozenset({
@@ -189,13 +190,14 @@ class WebVueAiAudit(models.Model):
         rows = [self._webvue_ai_prepare(values) for values in vals_list]
         messages = sum(row['kind'] == 'message' for row in rows)
         if messages:
-            # The lock serialises writers on the tenant row, but Odoo runs REPEATABLE READ: a sender that
-            # waited here may count from a snapshot older than the winner's commit. The limit can
-            # therefore overshoot by at most the number of concurrent senders (the same bounded pattern
-            # as the platform's quota claims); it is not an exact cap.
             entitlement = self.env['webvue.entitlement.service']
-            entitlement._webvue_profile()._webvue_lock()
-            entitlement.require_within_limit('ai.messages.monthly', self._webvue_ai_count_messages() + messages)
+            if entitlement._webvue_limit_value(MONTHLY_MESSAGES) is not None:
+                # An exact cap. Odoo runs REPEATABLE READ, so a lock alone would let a sender that waited count
+                # from a snapshot older than the winner's commit. Writing the tenant's quota fence before the
+                # count makes such a sender fail serialization instead; Odoo then retries its whole request on
+                # fresh data, which already holds the winner's row. Unlimited tenants skip the fence.
+                entitlement._webvue_profile()._webvue_bump_quota_revision()
+            entitlement.require_within_limit(MONTHLY_MESSAGES, self._webvue_ai_count_messages() + messages)
         return super().create(rows)
 
     @api.model
