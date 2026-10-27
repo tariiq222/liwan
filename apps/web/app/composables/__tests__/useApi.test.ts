@@ -48,14 +48,15 @@ describe('useApi download', () => {
       raw: vi.fn().mockResolvedValue({ _data: blob, headers: new Headers({ 'content-disposition': 'attachment; filename="salaries-2026-10.csv"' }) }),
     })
     const { $download } = useApi()
-    await expect($download('/api/v1/hr/payroll/runs/1/bank-file?profile_id=1')).resolves.toEqual({ blob, filename: 'salaries-2026-10.csv' })
+    await expect($download('/api/v1/hr/payroll/runs/1/bank-file', { method: 'POST', body: { profile_id: 1 } })).resolves.toEqual({ blob, filename: 'salaries-2026-10.csv' })
+    expect((globalThis as any).$fetch.raw).toHaveBeenCalledWith('/api/v1/hr/payroll/runs/1/bank-file', expect.objectContaining({ method: 'POST', body: { profile_id: 1 }, retry: 0 }))
   })
 
   it('reads the structured refusal out of a blob body', async () => {
     const data = new Blob([JSON.stringify({ code: 'missing_iban', message: 'x', details: { employee_ids: [4] } })])
     ;(globalThis as any).$fetch = Object.assign(vi.fn(), { raw: vi.fn().mockRejectedValue({ statusCode: 422, data }) })
     const { $download } = useApi()
-    const error = await $download('/api/v1/hr/payroll/runs/1/bank-file?profile_id=1').catch(value => value)
+    const error = await $download('/api/v1/hr/payroll/runs/1/bank-file', { method: 'POST', body: { profile_id: 1 } }).catch(value => value)
     expect(error).toBeInstanceOf(ApiError)
     expect(error).toMatchObject({ status: 422, code: 'missing_iban', details: { employee_ids: [4] } })
   })

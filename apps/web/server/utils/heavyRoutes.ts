@@ -11,9 +11,10 @@ const HEAVY_ROUTES: ReadonlyArray<{ kind: HeavyKind; pattern: RegExp }> = [
   // Finance bulk posting and depreciation (webvue_finance)
   { kind: 'write', pattern: /^\/api\/v1\/finance\/assets\/compute-depreciation$/ },
   { kind: 'write', pattern: new RegExp(`^/api/v1/finance/(?:entries|invoices|payments)/${ID}/post$`) },
-  // Payroll compute/post (webvue_hr, webvue_hr_finance) and its files and statements (webvue_hr)
+  // Payroll compute/post (webvue_hr, webvue_hr_finance), its kept salary files (a POST) and its GOSI statement (webvue_hr)
   { kind: 'write', pattern: new RegExp(`^/api/v1/hr/payroll/runs/${ID}/(?:compute|post)$`) },
-  { kind: 'read', pattern: new RegExp(`^/api/v1/hr/payroll/runs/${ID}/(?:bank-file|wps-file|gosi-statement)$`) },
+  { kind: 'write', pattern: new RegExp(`^/api/v1/hr/payroll/runs/${ID}/(?:bank-file|wps-file)$`) },
+  { kind: 'read', pattern: new RegExp(`^/api/v1/hr/payroll/runs/${ID}/gosi-statement$`) },
   // Project portfolio reports (webvue_pmo)
   { kind: 'read', pattern: /^\/api\/v1\/reports\/projects\/(?:summary|analytics)$/ },
   // PDF documents (webvue_meetings, webvue_finance)

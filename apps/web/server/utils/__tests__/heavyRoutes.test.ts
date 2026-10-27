@@ -6,7 +6,7 @@ afterEach(() => { vi.unstubAllEnvs(); vi.resetModules() })
 const READS = [
   ...['aged-partner-balance', 'analytic', 'analytic/lines', 'balance-sheet', 'budget-vs-actual', 'cash-flow', 'general-ledger', 'partner-statement', 'profit-loss', 'trial-balance', 'vat', 'vat-return', 'vat-return/items', 'withholding', 'zakat-base']
     .map(name => `/api/v1/finance/reports/${name}`),
-  ...['bank-file', 'wps-file', 'gosi-statement'].map(name => `/api/v1/hr/payroll/runs/12/${name}`),
+  '/api/v1/hr/payroll/runs/12/gosi-statement',
   '/api/v1/reports/projects/summary',
   '/api/v1/reports/projects/analytics',
   '/api/v1/meetings/7/minutes.pdf',
@@ -15,7 +15,7 @@ const READS = [
 const WRITES = [
   '/api/v1/finance/assets/compute-depreciation',
   ...['entries', 'invoices', 'payments'].map(kind => `/api/v1/finance/${kind}/3/post`),
-  ...['compute', 'post'].map(action => `/api/v1/hr/payroll/runs/12/${action}`),
+  ...['compute', 'post', 'bank-file', 'wps-file'].map(action => `/api/v1/hr/payroll/runs/12/${action}`),
 ]
 
 describe('heavyRouteKind', () => {

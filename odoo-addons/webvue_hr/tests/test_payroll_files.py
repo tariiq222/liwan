@@ -76,7 +76,7 @@ class TestPayrollFiles(PayrollCase):
 
     def test_bank_file_generic_csv(self):
         run_id = self._run()
-        res = self.api('GET', f'{RUNS}/{run_id}/bank-file?profile_id={self.generic.id}&value_date=2026-12-01')
+        res = self.api('POST', f'{RUNS}/{run_id}/bank-file', json={'profile_id': self.generic.id, 'value_date': '2026-12-01'})
         self.assertEqual(res.status_code, 200, res.text)
         self.assertEqual(res.headers['Content-Type'], 'text/csv; charset=utf-8')
         self.assertIn('salaries-2026-11.csv', res.headers['Content-Disposition'])
@@ -100,7 +100,7 @@ class TestPayrollFiles(PayrollCase):
         run_id = self._run()
         slip = self.env['hr.payslip.run'].browse(run_id).slip_ids.filtered(lambda row: row.employee_id == nameless)
         self.env['webvue.hr.payslip.payment'].search([('payslip_id', '=', slip.id)]).iban = False
-        res = self.api('GET', f'{RUNS}/{run_id}/bank-file?profile_id={self.generic.id}')
+        res = self.api('POST', f'{RUNS}/{run_id}/bank-file', json={'profile_id': self.generic.id})
         self.assertEqual(res.status_code, 422, res.text)
         body = res.json()
         self.assertEqual(body['code'], 'missing_iban')
@@ -110,7 +110,7 @@ class TestPayrollFiles(PayrollCase):
         zero = self.make_employee('Zero Net', country='EG')
         self.set_compensation(zero, 5000, iban=None)
         run_id = self._run(deduction_of=zero)
-        res = self.api('GET', f'{RUNS}/{run_id}/bank-file?profile_id={self.generic.id}')
+        res = self.api('POST', f'{RUNS}/{run_id}/bank-file', json={'profile_id': self.generic.id})
         self.assertEqual(res.status_code, 200, res.text)
         names = [row[1] for row in self._rows(res)[1:]]
         self.assertNotIn('Zero Net', names)
@@ -118,7 +118,7 @@ class TestPayrollFiles(PayrollCase):
 
     def test_wps_totals_rule_holds_for_every_line(self):
         run_id = self._run()
-        res = self.api('GET', f'{RUNS}/{run_id}/wps-file?profile_id={self.wps.id}')
+        res = self.api('POST', f'{RUNS}/{run_id}/wps-file', json={'profile_id': self.wps.id})
         self.assertEqual(res.status_code, 200, res.text)
         rows = self._rows(res)
         self.assertEqual(rows[0], self.wps.column_ids.sorted('sequence').mapped('label'))
@@ -139,7 +139,7 @@ class TestPayrollFiles(PayrollCase):
         zero = self.make_employee('Zero Net', country='EG')
         self.set_compensation(zero, 5000, iban=None)
         run_id = self._run(deduction_of=zero)
-        res = self.api('GET', f'{RUNS}/{run_id}/wps-file?profile_id={self.wps.id}')
+        res = self.api('POST', f'{RUNS}/{run_id}/wps-file', json={'profile_id': self.wps.id})
         self.assertEqual(res.status_code, 200, res.text)
         rows = {row[0]: row for row in self._rows(res)[1:]}
         self.assertEqual(len(rows), 3)
@@ -153,7 +153,7 @@ class TestPayrollFiles(PayrollCase):
                            (0, 0, {'sequence': 2, 'source': 'net', 'label': 'Net'})],
         })
         run_id = self._run()
-        res = self.api('GET', f'{RUNS}/{run_id}/bank-file?profile_id={profile.id}')
+        res = self.api('POST', f'{RUNS}/{run_id}/bank-file', json={'profile_id': profile.id})
         self.assertEqual(res.status_code, 200, res.text)
         self.assertTrue(res.content.startswith('﻿'.encode()))
         self.assertEqual(self._rows(res, ';')[0], ['Name', 'Net'])
@@ -164,7 +164,7 @@ class TestPayrollFiles(PayrollCase):
         self.assertTrue("\t" in FORMULA_STARTS and "\r" in FORMULA_STARTS)
         self.set_compensation(hostile, 3000, iban=IBAN_TWO)
         run_id = self._run()
-        res = self.api('GET', f'{RUNS}/{run_id}/bank-file?profile_id={self.generic.id}')
+        res = self.api('POST', f'{RUNS}/{run_id}/bank-file', json={'profile_id': self.generic.id})
         self.assertEqual(res.status_code, 200, res.text)
         names = [row[1] for row in self._rows(res)[1:]]
         self.assertIn('\'=HYPERLINK("http://x")', names)
@@ -173,7 +173,7 @@ class TestPayrollFiles(PayrollCase):
     def test_salary_files_are_never_cached_or_sniffed(self):
         run_id = self._run()
         for route, profile in (('bank-file', self.generic), ('wps-file', self.wps)):
-            res = self.api('GET', f'{RUNS}/{run_id}/{route}?profile_id={profile.id}')
+            res = self.api('POST', f'{RUNS}/{run_id}/{route}', json={'profile_id': profile.id})
             self.assertEqual(res.status_code, 200, res.text)
             self.assertEqual(res.headers['Cache-Control'], 'private, no-store', route)
             self.assertEqual(res.headers['X-Content-Type-Options'], 'nosniff', route)
@@ -182,7 +182,7 @@ class TestPayrollFiles(PayrollCase):
         run_id = self._run()
         set_hr_feature(self, 'hr.payroll', False)
         for route, profile in (('bank-file', self.generic), ('wps-file', self.wps)):
-            res = self.api('GET', f'{RUNS}/{run_id}/{route}?profile_id={profile.id}')
+            res = self.api('POST', f'{RUNS}/{run_id}/{route}', json={'profile_id': profile.id})
             self.assertEqual((res.status_code, res.json()['code']), (403, 'feature_not_included'), route)
 
     # --- owner decision 2026-10-26: no salary file is generated while the tenant is read-only -------------
@@ -210,7 +210,7 @@ class TestPayrollFiles(PayrollCase):
             return original(records, run)
         self.patch(export, '_webvue_salary_lines', spy)
         for route, profile in self._file_routes():
-            res = self.api('GET', f'{RUNS}/{run_id}/{route}?profile_id={profile.id}')
+            res = self.api('POST', f'{RUNS}/{run_id}/{route}', json={'profile_id': profile.id})
             self.assertEqual((res.status_code, res.json()['code']), (403, 'tenant_read_only'), route)
             self.assertNotIn(IBAN_ONE, res.text, route)
         self.assertEqual(built, [])
@@ -240,7 +240,7 @@ class TestPayrollFiles(PayrollCase):
         """The same bytes were kept while active: the expired tenant still gets no copy, kept or regenerated."""
         run_id = self._run()
         for route, profile in self._file_routes():
-            self.assertEqual(self.api('GET', f'{RUNS}/{run_id}/{route}?profile_id={profile.id}').status_code, 200)
+            self.assertEqual(self.api('POST', f'{RUNS}/{run_id}/{route}', json={'profile_id': profile.id}).status_code, 200)
         self.assertEqual(self._kept_and_logged(run_id), (2, 2))
         if not self._expire():
             return
@@ -265,7 +265,7 @@ class TestPayrollFiles(PayrollCase):
         profile = self.env.ref('webvue_platform.tenant_profile')
         self._tenant(features={**profile.features, 'storage.limit_mb': 0})
         for route, file_profile in self._file_routes():
-            res = self.api('GET', f'{RUNS}/{run_id}/{route}?profile_id={file_profile.id}')
+            res = self.api('POST', f'{RUNS}/{run_id}/{route}', json={'profile_id': file_profile.id})
             self.assertEqual(res.status_code, 403, res.text)
             self.assertEqual(
                 (res.json()['code'], res.json()['details']),
@@ -279,13 +279,49 @@ class TestPayrollFiles(PayrollCase):
         run_id = self._run()
         for _attempt in range(2):
             for route, profile in self._file_routes():
-                self.assertEqual(self.api('GET', f'{RUNS}/{run_id}/{route}?profile_id={profile.id}').status_code, 200)
+                self.assertEqual(self.api('POST', f'{RUNS}/{run_id}/{route}', json={'profile_id': profile.id}).status_code, 200)
         self.assertEqual(self._kept_and_logged(run_id), (2, 4))
+
+    # --- CSRF: a file download writes, so it is a POST that only a same-site JSON request may make ---------------
+
+    def _unsafe(self, route, headers=None, **kwargs):
+        """A request the way a hostile page could send it: the session cookie rides along, the headers are its own."""
+        path = f'{RUNS}/{self._csrf_run}/{route}'
+        return self.url_open(path, headers=headers or {}, method=kwargs.pop('method', 'POST'), **kwargs)
+
+    def test_a_cross_site_or_non_json_request_is_refused_and_keeps_nothing(self):
+        self._csrf_run = self._run()
+        cases = (
+            ('cross-site JSON', {'Content-Type': 'application/json', 'Sec-Fetch-Site': 'cross-site'}, 403, 'cross_site_request'),
+            ('same-site JSON', {'Content-Type': 'application/json', 'Sec-Fetch-Site': 'same-site'}, 403, 'cross_site_request'),
+            ('form body', {'Content-Type': 'application/x-www-form-urlencoded'}, 415, 'unsupported_media_type'),
+            ('text body', {'Content-Type': 'text/plain'}, 415, 'unsupported_media_type'),
+            ('no content type', {}, 415, 'unsupported_media_type'),
+        )
+        for route, _profile in self._file_routes():
+            for label, headers, status, code in cases:
+                res = self._unsafe(route, headers)
+                self.assertEqual((res.status_code, res.json()['code']), (status, code), f'{route} {label}')
+                self.assertNotIn(IBAN_ONE, res.text)
+        self.assertEqual(self._kept_and_logged(self._csrf_run), (0, 0))
+
+    def test_a_get_request_no_longer_generates_a_file(self):
+        self._csrf_run = self._run()
+        for route, _profile in self._file_routes():
+            self.assertEqual(self._unsafe(route, method='GET').status_code, 405, route)
+        self.assertEqual(self._kept_and_logged(self._csrf_run), (0, 0))
+
+    def test_a_same_origin_json_request_generates_and_keeps_the_file(self):
+        self._csrf_run = self._run()
+        for route, _profile in self._file_routes():
+            res = self._unsafe(route, {'Content-Type': 'application/json', 'Sec-Fetch-Site': 'same-origin'}, data=b'{}')
+            self.assertEqual(res.status_code, 200, f'{route}: {res.text[:200]}')
+        self.assertEqual(self._kept_and_logged(self._csrf_run), (2, 2))
 
     def test_files_need_an_approved_run(self):
         run_id = self._run(approve=False)
         for route, profile in (('bank-file', self.generic), ('wps-file', self.wps)):
-            res = self.api('GET', f'{RUNS}/{run_id}/{route}?profile_id={profile.id}')
+            res = self.api('POST', f'{RUNS}/{run_id}/{route}', json={'profile_id': profile.id})
             self.assertEqual(res.status_code, 403, res.text)
             self.assertEqual(res.json()['code'], 'transition_forbidden')
         res = self.api('GET', f'{RUNS}/{run_id}/gosi-statement')
@@ -293,14 +329,15 @@ class TestPayrollFiles(PayrollCase):
 
     def test_files_need_the_payroll_read_capability_and_the_right_profile_kind(self):
         run_id = self._run()
-        res = self.api('GET', f'{RUNS}/{run_id}/bank-file?profile_id={self.wps.id}')
+        res = self.api('POST', f'{RUNS}/{run_id}/bank-file', json={'profile_id': self.wps.id})
         self.assertEqual((res.status_code, res.json()['field']), (422, 'profile_id'))
-        res = self.api('GET', f'{RUNS}/{run_id}/wps-file?profile_id={self.generic.id}')
+        res = self.api('POST', f'{RUNS}/{run_id}/wps-file', json={'profile_id': self.generic.id})
         self.assertEqual((res.status_code, res.json()['field']), (422, 'profile_id'))
-        self.assertEqual(self.api('GET', f'{RUNS}/{run_id}/bank-file').status_code, 200)
+        self.assertEqual(self.api('POST', f'{RUNS}/{run_id}/bank-file', json={}).status_code, 200)
         self._login(self.no_payroll)
-        for route in ('bank-file', 'wps-file', 'gosi-statement'):
-            self.assertEqual(self.api('GET', f'{RUNS}/{run_id}/{route}').status_code, 403)
+        for route in ('bank-file', 'wps-file'):
+            self.assertEqual(self.api('POST', f'{RUNS}/{run_id}/{route}', json={}).status_code, 403)
+        self.assertEqual(self.api('GET', f'{RUNS}/{run_id}/gosi-statement').status_code, 403)
 
     def test_gosi_statement_totals(self):
         run_id = self._run()
@@ -355,7 +392,7 @@ class TestPayrollFiles(PayrollCase):
         self.officer.company_ids |= other
         self.config.company_ids |= other
         run_id = self._run()
-        res = self.api('GET', f'{RUNS}/{run_id}/bank-file?profile_id={profile.id}')
+        res = self.api('POST', f'{RUNS}/{run_id}/bank-file', json={'profile_id': profile.id})
         self.assertEqual(res.status_code, 404, res.text)
         self._login(self.config)
         self.assertEqual(self.api('DELETE', f'{PROFILES}/{profile.id}', json={'revision': 1}).status_code, 404)

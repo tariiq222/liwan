@@ -19,7 +19,7 @@ const meta = {
     layout: 'fullscreen',
     ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:257', 'ملفات الرواتب في صفحة المسير المعتمد: ملف التحويل البنكي بتاريخ القيمة، وملف حماية الأجور، ورابط كشف التأمينات الاجتماعية.'),
   },
-  args: { profiles, profilesReady: true, pending: null, defaultDate: '2026-11-01', gosiTo: '/hr/payroll/1/gosi' },
+  args: { profiles, profilesReady: true, pending: null, writable: true, defaultDate: '2026-11-01', gosiTo: '/hr/payroll/1/gosi' },
   render: args => ({
     components: { PayrollFileActions, PageContainer },
     setup: () => ({ args }),
@@ -37,3 +37,5 @@ export const DownloadingBank: Story = { name: 'تنزيل الملف البنك�
 export const NoProfiles: Story = { name: 'بلا ملفات تعريف', args: { profiles: [] } }
 
 export const ProfilesUnavailable: Story = { name: 'التنسيقات غير متاحة', args: { profiles: [], profilesReady: false } }
+
+export const ReadOnlyTenant: Story = { name: 'مساحة العمل للقراءة فقط', args: { writable: false } }

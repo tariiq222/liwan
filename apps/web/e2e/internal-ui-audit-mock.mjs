@@ -422,11 +422,20 @@ async function handle(req, res) {
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
     const write = hrPayrollPreviewWrite(method, path, body)
     if (write?.status === 204) { res.writeHead(204); return res.end() }
+    if (write?.file) {
+      res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${write.file.filename}"` })
+      return res.end(write.file.body)
+    }
     if (write) return json(res, write.status, write.body)
   }
 
   if (process.env.MODULE_UI_PREVIEW === '1' && method === 'GET') {
-    if (path === '/api/v1/me') return json(res, 200, { ...ME, appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, moduleUiCapabilities), AI_USE] })
+    if (path === '/api/v1/me') {
+      // A cookie mock_readonly=payroll leaves hr.payroll readable but not writable, like an expired tenant.
+      const readOnlyPayroll = /(?:^|;\s*)mock_readonly=payroll(?:;|$)/.test(req.headers.cookie ?? '')
+      const platform = readOnlyPayroll ? { ...ME.platform, writable_features: ME.platform.writable_features.filter(key => key !== 'hr.payroll') } : ME.platform
+      return json(res, 200, { ...ME, platform, appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, moduleUiCapabilities), AI_USE] })
+    }
     const preview = moduleUiPreviewData(path, url)
     if (preview?.refusal) return json(res, preview.refusal.status, preview.refusal.body)
     if (preview?.file) {
