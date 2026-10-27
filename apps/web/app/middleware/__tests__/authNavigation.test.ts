@@ -9,19 +9,20 @@ function deferred() {
   return { promise, resolve }
 }
 
-function loadGuard(client = true) {
+function loadGuard(client = true, suspended = false) {
   const ready = deferred()
   const notification = deferred()
-  const me = ref<unknown>({ id: 1 })
+  const me = ref<unknown>(suspended ? null : { id: 1 })
   const refresh = vi.fn(async () => { me.value = { id: 2 } })
   const callHook = vi.fn(() => notification.promise)
   const canReachPath = vi.fn(() => true)
   const bindings = {
     defineNuxtRouteMiddleware: (handler: unknown) => handler,
     useNuxtApp: () => ({ $i18n: { t: (key: string) => key }, callHook }),
-    useMe: () => ({ me, error: ref(null), ready: ready.promise, refresh }),
+    useMe: () => ({ me, error: ref(suspended ? { statusCode: 403, data: { code: 'tenant_suspended' } } : null), ready: ready.promise, refresh }),
     canReachPath,
-    isLoggedOutError: () => false,
+    isLoggedOutError: () => suspended,
+    isTenantSuspendedError: () => suspended,
     isSchemaError: () => false,
     createError: (input: object) => Object.assign(new Error(), input),
     navigateTo: vi.fn(),
@@ -66,4 +67,11 @@ it('does not publish a client navigation or refresh identity during SSR', async 
   expect(view.callHook).not.toHaveBeenCalled()
   expect(view.refresh).not.toHaveBeenCalled()
   expect(view.canReachPath).toHaveBeenCalledWith({ id: 1 }, '/projects')
+})
+
+it('sends a session the API ended for a suspended tenant to the login page with the reason', async () => {
+  const view = loadGuard(false, true)
+  view.ready.resolve()
+  await view.guard({ path: '/projects', fullPath: '/projects?q=x' })
+  expect(view.navigateTo).toHaveBeenCalledWith({ path: '/login', query: { reason: 'tenant_suspended' } })
 })

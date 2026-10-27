@@ -22557,6 +22557,15 @@
             "minimum": 0,
             "type": "number"
           },
+          "relationship_type": {
+            "enum": [
+              "employee",
+              "independent_contractor",
+              "consultant",
+              "other_cooperation"
+            ],
+            "type": "string"
+          },
           "transport_allowance": {
             "minimum": 0,
             "type": "number"
@@ -22573,7 +22582,8 @@
           "bank",
           "gosi_number",
           "gosi_registration_date",
-          "nationality"
+          "nationality",
+          "relationship_type"
         ],
         "type": "object"
       },
@@ -22633,6 +22643,15 @@
             "minimum": 0,
             "type": "number"
           },
+          "relationship_type": {
+            "enum": [
+              "employee",
+              "independent_contractor",
+              "consultant",
+              "other_cooperation"
+            ],
+            "type": "string"
+          },
           "transport_allowance": {
             "minimum": 0,
             "type": "number"
@@ -22646,7 +22665,8 @@
           "iban",
           "bank_id",
           "gosi_number",
-          "gosi_registration_date"
+          "gosi_registration_date",
+          "relationship_type"
         ],
         "type": "object"
       },
@@ -27904,6 +27924,16 @@
           "warnings"
         ],
         "type": "object"
+      },
+      "HrPayrollRelationshipSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "employee",
+          "independent_contractor",
+          "consultant",
+          "other_cooperation"
+        ],
+        "type": "string"
       },
       "HrPayrollRevisionSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -51194,6 +51224,46 @@
         }
       }
     },
+    "/api/v1/ai/usage": {
+      "post": {
+        "operationId": "webvue_ai.AiController.record_usage.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "record_usage",
+        "tags": [
+          "webvue_ai"
+        ],
+        "x-webvue": {
+          "addon": "webvue_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiController",
+          "feature_keys": [
+            "registry:webvue.ai.tool.registry"
+          ],
+          "feature_operation": "write",
+          "handler": "record_usage",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/auth/totp": {
       "post": {
         "operationId": "webvue_api.AuthController.totp.post",
@@ -63761,8 +63831,8 @@
       }
     },
     "/api/v1/hr/payroll/runs/{run_id}/bank-file": {
-      "get": {
-        "operationId": "webvue_hr.HrPayrollFilesController.bank_file.get",
+      "post": {
+        "operationId": "webvue_hr.HrPayrollFilesController.bank_file.post",
         "parameters": [
           {
             "in": "path",
@@ -63800,6 +63870,7 @@
           "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "hr",
           "controller": "HrPayrollFilesController",
           "feature_keys": [
@@ -63809,7 +63880,7 @@
           "feature_operation": "write",
           "handler": "bank_file",
           "readonly": false,
-          "route_type": "http"
+          "route_type": "json2"
         }
       }
     },
@@ -64253,8 +64324,8 @@
       }
     },
     "/api/v1/hr/payroll/runs/{run_id}/wps-file": {
-      "get": {
-        "operationId": "webvue_hr.HrPayrollFilesController.wps_file.get",
+      "post": {
+        "operationId": "webvue_hr.HrPayrollFilesController.wps_file.post",
         "parameters": [
           {
             "in": "path",
@@ -64292,6 +64363,7 @@
           "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "hr",
           "controller": "HrPayrollFilesController",
           "feature_keys": [
@@ -64301,7 +64373,7 @@
           "feature_operation": "write",
           "handler": "wps_file",
           "readonly": false,
-          "route_type": "http"
+          "route_type": "json2"
         }
       }
     },

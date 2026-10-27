@@ -116,6 +116,14 @@ class TestPayrollFiles(PayrollCase):
         self.assertNotIn('Zero Net', names)
         self.assertEqual(len(names), 2)
 
+    def test_a_non_employee_relationship_never_blocks_the_salary_files(self):
+        self.env['webvue.hr.compensation'].search([]).write({'relationship_type': 'other_cooperation'})
+        run_id = self._run()
+        for route, profile in (('bank-file', self.generic), ('wps-file', self.wps)):
+            with self.subTest(route=route):
+                res = self.api('POST', f'{RUNS}/{run_id}/{route}', json={'profile_id': profile.id})
+                self.assertEqual(res.status_code, 200, res.text)
+
     def test_wps_totals_rule_holds_for_every_line(self):
         run_id = self._run()
         res = self.api('POST', f'{RUNS}/{run_id}/wps-file', json={'profile_id': self.wps.id})

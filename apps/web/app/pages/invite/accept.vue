@@ -8,7 +8,9 @@ const token = computed(() => (typeof route.query.token === 'string' ? route.quer
 const password = ref('')
 const confirm = ref('')
 const pending = ref(false)
-const state = ref<'form' | 'invalid' | 'unavailable' | 'success'>(token.value ? 'form' : 'invalid')
+const state = ref<'form' | 'invalid' | 'unavailable' | 'accountUnavailable' | 'success'>(token.value ? 'form' : 'invalid')
+// A valid token whose password was refused or whose acceptance is still running keeps the form.
+const formError = ref<'passwordRejected' | 'inProgress' | null>(null)
 const login = ref<string | null>(null)
 const hydrated = useHydrated()
 
@@ -20,12 +22,17 @@ const loginHref = computed(() => (login.value ? { path: '/login', query: { login
 async function submit() {
   if (!canSubmit.value) return
   pending.value = true
+  formError.value = null
   try {
     const res = await $fetch<{ login: string | null }>('/api/invitations/accept', { method: 'POST', body: { token: token.value, password: password.value } })
     login.value = res?.login ?? null
     state.value = 'success'
   } catch (e: any) {
-    state.value = (e?.statusCode ?? e?.status) === 503 ? 'unavailable' : 'invalid'
+    const code = e?.data?.data?.code
+    if (code === 'password_rejected') formError.value = 'passwordRejected'
+    else if (code === 'in_progress') formError.value = 'inProgress'
+    else if (code === 'account_unavailable') state.value = 'accountUnavailable'
+    else state.value = (e?.statusCode ?? e?.status) === 503 ? 'unavailable' : 'invalid'
   } finally {
     password.value = ''
     confirm.value = ''
@@ -51,9 +58,11 @@ async function submit() {
           <li :class="matchOk ? 'text-success' : ''">{{ t('invite.ruleMatch') }}</li>
         </ul>
       </div>
+      <UAlert v-if="formError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="formError === 'inProgress' ? t('invite.inProgressTitle') : t('invite.passwordRejectedTitle')" :description="formError === 'inProgress' ? t('invite.inProgressBody') : t('invite.passwordRejectedBody')" />
       <UButton type="submit" size="lg" class="w-full justify-center" :disabled="!canSubmit" :loading="pending" :label="t('invite.submit')" />
     </form>
     <UAlert v-else-if="state === 'invalid'" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('invite.invalidTitle')" :description="t('invite.invalidBody')" />
+    <UAlert v-else-if="state === 'accountUnavailable'" role="alert" color="error" variant="subtle" icon="i-lucide-user-x" :title="t('invite.accountUnavailableTitle')" :description="t('invite.accountUnavailableBody')" />
     <UAlert v-else-if="state === 'unavailable'" role="alert" color="warning" variant="subtle" icon="i-lucide-cloud-off" :title="t('invite.unavailableTitle')" :description="t('invite.unavailableBody')" />
     <div v-else class="grid gap-4">
       <UAlert role="status" color="success" variant="subtle" icon="i-lucide-circle-check" :title="t('invite.successTitle')" :description="login ? t('invite.successLogin', { login }) : t('invite.successBody')" />

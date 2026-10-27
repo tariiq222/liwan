@@ -20,6 +20,22 @@ export function assertPublicMutationOrigin(event: H3Event, config: AcceptConfig)
   if (!origin || origin !== expected.origin) fail(403, 'cross_site_request', 'Request origin rejected')
 }
 
+// Outcomes the control plane answers identically for every token, or reaches only with a valid
+// one: an unknown, expired or used token is one generic 400 there, and its password-policy check
+// does not depend on the token. Passing these through therefore creates no token oracle.
+// pickAcceptBody below caps the password at the control plane's 256 characters first.
+const ACCEPT_OUTCOMES: Record<string, { status: number; message: string }> = {
+  password_rejected: { status: 422, message: 'Password rejected' },
+  account_unavailable: { status: 409, message: 'Account unavailable' },
+  in_progress: { status: 409, message: 'Acceptance in progress' },
+}
+
+/** The control-plane outcome to pass through for a valid token, or null for every other failure. */
+export function acceptOutcome(status: number, code: unknown): { status: number; code: string; message: string } | null {
+  const outcome = typeof code === 'string' ? ACCEPT_OUTCOMES[code] : undefined
+  return outcome && outcome.status === status ? { code: code as string, ...outcome } : null
+}
+
 /** Strips every field except token and password; returns null when either is not a non-empty string. */
 export function pickAcceptBody(body: unknown): { token: string; password: string } | null {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) return null

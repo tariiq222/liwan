@@ -205,8 +205,14 @@ with a 5xx. It checks the route surface, not bridge-specific fields inside a sid
 the bridge's own tests. Run one locally with the environment of `odoo.sh` plus `ISOLATION_PORT`, for example
 `deploy/ci/odoo-app-standalone.sh webvue_hr` or `deploy/ci/odoo-bridge.sh webvue_tasks_pmo`. The
 control-plane PostgreSQL suites run serially because they share their isolated scratch databases.
-`vendor-admin` has its own prepare, types, tests and build checks. The `image` stage builds and checks
-the deployment image; mock browser tests and RTL stories cover their listed flows, not every possible
+`vendor-admin` has its own prepare, types, tests and build checks. The `image` stage builds every production image
+(Odoo, web, vendor-admin, ai-service, proxy and guard) under owned `webvue-<name>:ci-<run id>` tags. It
+installs the release in the Odoo image and checks it is hardened, starts web, vendor-admin, ai-service
+and guard without external services (web answers `/login`, vendor-admin serves a built static asset because its pages need the control plane, ai-service `/healthz`, guard
+denies an unknown host with 403 and passes its healthcheck) and asserts none runs as root, validates both
+Caddyfiles with the proxy image and checks its rate-limit module (the official Caddy base keeps root), and
+writes each image's tag and content digest to the job summary. It does not scan images for
+vulnerabilities, and the image digests are not published artifacts. Mock browser tests and RTL stories cover their listed flows, not every possible
 real integration. No paid model calls are required.
 
 The `upgrade` stage reports an explicit absence of a compatible release baseline when none exists. That

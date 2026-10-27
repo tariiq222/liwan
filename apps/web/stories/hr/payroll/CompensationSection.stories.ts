@@ -25,6 +25,7 @@ const meta = {
       gosi_number: '123456789',
       gosi_registration_date: '2024-01-01',
       nationality: { id: 186, name: 'السعودية', code: 'SA' },
+      relationship_type: 'employee',
     },
     canManage: true,
     editTo: '/hr/employees/3/compensation',
@@ -40,6 +41,11 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Recorded: Story = { name: 'مسجّلة' }
+
+export const Contractor: Story = {
+  name: 'متعاقد مستقل مع تنبيه',
+  args: { compensation: { ...meta.args.compensation, relationship_type: 'independent_contractor' } },
+}
 
 export const ReadOnly: Story = { name: 'قراءة فقط', args: { canManage: false } }
 

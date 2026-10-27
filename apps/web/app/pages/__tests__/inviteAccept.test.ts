@@ -22,6 +22,11 @@ describe('invite accept page', () => {
     expect(page).toContain("path: '/login'")
     expect(page).not.toMatch(/console\./)
   })
+  it('keeps the form for a refused password or a running acceptance and stops on an unavailable account', () => {
+    for (const code of ['password_rejected', 'in_progress', 'account_unavailable']) expect(page).toContain(`'${code}'`)
+    expect(page).toContain("state === 'accountUnavailable'")
+    expect(page).toMatch(/<form v-if="state === 'form'"[\s\S]*v-if="formError"[\s\S]*<\/form>/)
+  })
   it('uses logical properties only and registers both locales', () => {
     expect(page).not.toMatch(/\b(ml|mr|pl|pr)-\d/)
     const files = discoverLocaleFiles(resolve(root, 'i18n/locales'))
