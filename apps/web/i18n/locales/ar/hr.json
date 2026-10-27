@@ -329,7 +329,10 @@
         "emptyTitle": "لا أرصدة ممنوحة بعد",
         "emptyHint": "امنح موظفًا رصيد إجازة ليظهر هنا.",
         "footer": "عرض {shown} من {total}",
-        "countTag": "لا أرصدة | رصيد واحد | رصيدان | {count} أرصدة | {count} رصيدًا | {count} رصيد"
+        "countTag": "لا أرصدة | رصيد واحد | رصيدان | {count} أرصدة | {count} رصيدًا | {count} رصيد",
+        "revoke": "سحب الرصيد",
+        "revokeConfirm": "سحب رصيد {type} من {employee}؟",
+        "revokeHint": "يُرفض الرصيد ولا يمكن تعديله بعد ذلك. لا يُسحب إذا كانت إجازات معتمدة تستهلك أيامه."
       },
       "requestCancellation": "طلب إلغاء الإجازة",
       "approveCancellation": "اعتماد الإلغاء",

@@ -69,7 +69,7 @@ const MODULES: Record<string, unknown> = {
   '@/composables/useHrEmployees': { useHrEmployee: query, useHrEmployees: query },
   '@/composables/useHrOnboarding': { useHrOnboardingPlans: query, useLaunchHrOnboardingRun: mutation },
   '@/composables/useHrShifts': { useHrShiftSchedules: query, useHrShiftAssignment: query, useHrShiftPeriod: () => () => '' },
-  '@/composables/useHrLeave': { useHrLeaveAllocations: query, useHrLeaveAllocation: query },
+  '@/composables/useHrLeave': { useHrLeaveAllocations: query, useHrLeaveAllocation: query, useRevokeLeaveAllocation: mutation },
   '@/composables/useHrLeaveFormat': { useHrLeaveFormat: () => ({ validity: () => '', days: () => '' }) },
   '@/utils/hrLeaveBadge': { hrLeaveBadge: () => ({ tone: 'neutral', labelKey: 'x' }) },
   '@webvue/ui/app/utils/safeReturnTo': { returnToQuery: () => ({}) },

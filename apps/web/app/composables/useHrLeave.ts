@@ -199,6 +199,20 @@ export function useUpdateLeaveAllocation() {
   })
 }
 
+/** Revoke a grant through hr_holidays' refusal; refused while validated leave still consumes its days. */
+export function useRevokeLeaveAllocation() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: (id: number) =>
+      $api(`/api/v1/hr/leave/allocations/${id}/revoke`, { method: 'POST', body: {}, schema: HrLeaveAllocationSchema }),
+    onSuccess: async (allocation) => {
+      qc.setQueryData(hrLeaveKeys.allocation(allocation.id), allocation)
+      await refreshLeave(qc)
+    },
+  })
+}
+
 /** Cancellation decisions carry the observed aggregate revision and await native execution. */
 export function useCancellationDecision() {
   const qc = useQueryClient()
