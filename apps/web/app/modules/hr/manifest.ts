@@ -137,7 +137,7 @@ const manifest: AppManifest = {
     { pattern: /^\/hr\/offboarding(?:\/|$)/, capability: 'hr.offboarding.read' },
     { pattern: /^\/hr\/assets\/(?:.+\/)?new$/, capability: 'hr.assets.manage' },
     { pattern: /^\/hr\/assets(?:\/|$)/, capability: 'hr.assets.read' },
-    { pattern: /^\/hr\/leave\/allocations\/new$/, capability: 'hr.leave.manage' },
+    { pattern: /^\/hr\/leave\/allocations(?:\/|$)/, capability: 'hr.leave.manage' },
     { pattern: /^\/hr\/leave(?:\/|$)/, capability: 'hr.leave.read', anyCapabilities: ['hr.leave.approve', 'hr.leave.manage'] },
     { pattern: /^\/hr\/reports$/, capability: 'hr.employees.manage' },
     { pattern: /^\/hr\/employees\/[^/]+\/compensation$/, capability: 'hr.payroll.manage', feature: 'hr.payroll' },
@@ -157,7 +157,7 @@ const manifest: AppManifest = {
     if (target === '/hr/recruitment') return path === target || (path.startsWith(`${target}/`) && !path.startsWith('/hr/recruitment/jobs'))
     if (target === '/hr/recruitment/jobs') return path === target || path.startsWith(`${target}/`)
     if (areaTargets.includes(target)) return path === target || path.startsWith(`${target}/`)
-    if (target === '/hr/leave') return path === target || path === '/hr/leave/allocations/new'
+    if (target === '/hr/leave') return path === target || path === '/hr/leave/allocations' || path.startsWith('/hr/leave/allocations/')
     if (target === '/hr/departments') return path === target || (path.startsWith(`${target}/`) && path !== '/hr/departments/new')
     return undefined
   },

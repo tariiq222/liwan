@@ -109,7 +109,8 @@
         "month": "الشهر",
         "number": "الرقم",
         "net": "صافي الراتب"
-      }
+      },
+      "footer": "عرض {shown} من {total}"
     },
     "payslip": {
       "title": "قسيمة راتب",

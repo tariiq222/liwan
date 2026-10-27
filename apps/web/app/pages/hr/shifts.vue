@@ -10,6 +10,7 @@ import {
 } from '@/composables/useHrShifts'
 import { useHrEmployees } from '@/composables/useHrEmployees'
 import ShiftAssignmentTable from '@/components/hr/shifts/ShiftAssignmentTable.vue'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const ALL = '__all__'
 
@@ -108,6 +109,10 @@ const createTo = computed(() => canManage.value && canRead.value
   ? { path: '/hr/shifts/new', query: listQuery.value, ...(route.hash ? { hash: route.hash } : {}) }
   : undefined)
 const schedulesTo = computed(() => ({ path: '/hr/shifts/schedules', query: listQuery.value, ...(route.hash ? { hash: route.hash } : {}) }))
+
+function assignmentTo(assignment: HrShiftAssignment) {
+  return { path: `/hr/shifts/assignments/${assignment.id}`, query: returnToQuery(route.fullPath) }
+}
 
 const removing = ref<HrShiftAssignment | null>(null)
 const removeError = ref('')
@@ -216,6 +221,7 @@ async function confirmRemove() {
             :caption="t('hrShifts.title')"
             :loading="source.isLoading.value"
             :can-manage="canManage"
+            :row-to="assignmentTo"
             @remove="removing = $event"
             @retry="source.refetch"
           />

@@ -11,6 +11,7 @@ import {
   type HrShiftSettingsPatch,
   type HrShiftAssignment,
   type HrShiftAssignmentCreate,
+  type HrShiftAssignmentPatch,
   type HrShiftSchedule,
   type HrShiftScheduleCreate,
   type HrShiftSchedulePatch,
@@ -43,6 +44,7 @@ export const hrShiftKeys = {
   schedules: (params: HrShiftScheduleListParams) => ['hr', 'shifts', 'schedules', params] as const,
   schedule: (id: number) => ['hr', 'shifts', 'schedule', id] as const,
   assignments: (params: HrShiftAssignmentListParams) => ['hr', 'shifts', 'assignments', params] as const,
+  assignment: (id: number) => ['hr', 'shifts', 'assignment', id] as const,
   mine: ['hr', 'shifts', 'me'] as const,
   settings: ['hr', 'shifts', 'settings'] as const,
 }
@@ -64,6 +66,17 @@ export function hrShiftAssignmentQuery(params: HrShiftAssignmentListParams) {
     on_date: params.on_date ?? undefined,
     limit: params.limit,
     offset: params.offset,
+  }
+}
+
+/** The date range of an assignment as words; either end may be open. */
+export function useHrShiftPeriod() {
+  const { t } = useI18n()
+  return (row: Pick<HrShiftAssignment, 'date_start' | 'date_end'>) => {
+    if (row.date_start && row.date_end) return t('hrShifts.range', { from: row.date_start, to: row.date_end })
+    if (row.date_start) return t('hrShifts.rangeFrom', { from: row.date_start })
+    if (row.date_end) return t('hrShifts.rangeUntil', { to: row.date_end })
+    return t('hrShifts.rangeOpen')
   }
 }
 
@@ -103,6 +116,16 @@ export function useHrShiftAssignments(params: MaybeRefOrGetter<HrShiftAssignment
       query: hrShiftAssignmentQuery(toValue(params)),
       schema: HrShiftAssignmentListSchema,
     }),
+  })
+}
+
+export function useHrShiftAssignment(id: MaybeRefOrGetter<number | null>) {
+  const { $api } = useApi()
+  const { can } = useAccess()
+  return useQuery({
+    queryKey: computed(() => hrShiftKeys.assignment(toValue(id) ?? 0)),
+    enabled: computed(() => !!toValue(id) && can('hr.shifts.read')),
+    queryFn: () => $api(`/api/v1/hr/shifts/assignments/${toValue(id)}`, { schema: HrShiftAssignmentSchema }),
   })
 }
 
@@ -164,6 +187,19 @@ export function useCreateHrShiftAssignment() {
     mutationFn: (body: HrShiftAssignmentCreate) =>
       $api('/api/v1/hr/shifts/assignments', { method: 'POST', body, schema: HrShiftAssignmentSchema }),
     onSuccess: () => refreshShifts(qc),
+  })
+}
+
+export function useUpdateHrShiftAssignment() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: number; patch: HrShiftAssignmentPatch }) =>
+      $api(`/api/v1/hr/shifts/assignments/${id}`, { method: 'PATCH', body: patch, schema: HrShiftAssignmentSchema }),
+    onSuccess: async (assignment) => {
+      qc.setQueryData(hrShiftKeys.assignment(assignment.id), assignment)
+      await refreshShifts(qc)
+    },
   })
 }
 

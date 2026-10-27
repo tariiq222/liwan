@@ -26,6 +26,7 @@ from odoo.addons.webvue_hr.serializers.hr_leave import (
     dump_leave_type,
     dump_settings,
     parse_allocation,
+    parse_allocation_patch,
     parse_cancel_reason,
     parse_cancellation_action,
     parse_leave_request,
@@ -138,6 +139,23 @@ def _current_leave(leave_id):
     if not leave:
         raise MissingError(request.env._('hr.leave %(id)s does not exist', id=leave_id))
     return leave
+
+
+def _allocation_domain():
+    """Allocations whose employee belongs to a company where the caller manages leave."""
+    service = request.env['webvue.access.service']
+    manage_ids = set(service._webvue_operation_capability_company_ids('hr.leave.manage'))
+    return Domain('employee_company_id', 'in', sorted(manage_ids & set(service._webvue_scoped_company_ids())))
+
+
+def _current_allocation(allocation_id):
+    """A managed allocation; one outside the caller's managed companies is a 404."""
+    allocation = request.env['hr.leave.allocation'].search(
+        Domain('id', '=', int(allocation_id)) & _allocation_domain(), limit=1,
+    )
+    if not allocation:
+        raise MissingError(request.env._('hr.leave.allocation %(id)s does not exist', id=allocation_id))
+    return allocation
 
 
 class HrLeaveController(http.Controller):
@@ -357,8 +375,52 @@ class HrLeaveController(http.Controller):
             'number_of_days': vals['number_of_days'],
             'date_from': vals['date_from'],
             'date_to': vals['date_to'] or False,
-            'notes': vals['notes'],
         })
         if allocation.state != 'validate':
             allocation.action_approve()
         return request.make_json_response(dump_allocation(allocation), status=201)
+
+    @http.route('/api/v1/hr/leave/allocations', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', operation='read')
+    @requires_capability('hr.leave.manage')
+    def list_allocations(self, **_):
+        args = request.httprequest.args
+        limit, offset = parse_page(args)
+        domain = _allocation_domain()
+        if args.get('employee_id'):
+            domain &= Domain('employee_id', '=', parse_positive_int(args['employee_id'], 'employee_id'))
+        Allocation = request.env['hr.leave.allocation']
+        allocations = Allocation.search(domain, order='date_from desc, id desc', limit=limit, offset=offset)
+        return {'items': [dump_allocation(row) for row in allocations], 'total': Allocation.search_count(domain)}
+
+    @http.route('/api/v1/hr/leave/allocations/<int:allocation_id>', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', operation='read')
+    @requires_capability('hr.leave.manage')
+    def get_allocation(self, allocation_id, **_):
+        return dump_allocation(_current_allocation(allocation_id))
+
+    @http.route('/api/v1/hr/leave/allocations/<int:allocation_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    @requires_feature('hr.enabled', operation='write')
+    @requires_capability('hr.leave.manage')
+    def update_allocation(self, allocation_id, **payload):
+        """Correct a grant's days or validity, never one's own and never a refused one.
+
+        ``number_of_days_display`` is written on every edit: hr_holidays checks that a grant
+        still covers the days already taken only when that field is written, and a shorter
+        validity can leave taken days uncovered as surely as fewer days can.
+        """
+        allocation = _current_allocation(allocation_id)
+        if allocation.employee_id.user_id == request.env.user:
+            raise ApiError(403, 'forbidden', 'an allocation cannot be changed by its own employee')
+        if allocation.state == 'refuse':
+            raise ApiError(422, 'invalid', 'a refused allocation cannot be changed')
+        vals = parse_allocation_patch(payload, allocation)
+        # Both day fields go together: number_of_days alone skips that check, and the display
+        # field alone recomputes number_of_days from its unstored cache value.
+        vals.setdefault('number_of_days', allocation.number_of_days)
+        vals['number_of_days_display'] = vals['number_of_days']
+        allocation.write(vals)
+        return dump_allocation(allocation)

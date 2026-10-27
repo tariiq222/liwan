@@ -1,9 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import date
+from datetime import date, timedelta
 
 from odoo.tests import new_test_user, tagged
 
 from .common import WebVueHrCase
+
+ALLOCATION_KEYS = {'id', 'employee', 'leave_type', 'number_of_days', 'date_from', 'date_to', 'state'}
 
 
 @tagged('post_install', '-at_install', 'webvue')
@@ -82,3 +84,105 @@ class TestLeaveAllocationControls(WebVueHrCase):
             res = self._grant(employee, days=99)
             self.assertEqual(res.status_code, 403, res.text)
             self.assertEqual(self._allocations(employee), 0)
+
+    # --- list, read and edit -----------------------------------------------------------
+
+    def _granted(self, employee, days=5):
+        self.authenticate('alloc_peer', 'alloc_peer_pass_123')
+        res = self._grant(employee, days=days)
+        self.assertEqual(res.status_code, 201, res.text)
+        return res.json()['id']
+
+    def test_manager_lists_reads_and_edits_an_allocation(self):
+        allocation_id = self._granted(self.staff)
+        self.authenticate('alloc_mgr', 'alloc_mgr_pass_123')
+        listed = self.api('GET', f'/api/v1/hr/leave/allocations?employee_id={self.staff.id}&limit=1')
+        self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertEqual(listed.json()['total'], 1)
+        self.assertEqual([item['id'] for item in listed.json()['items']], [allocation_id])
+        self.assertEqual(set(listed.json()['items'][0]), ALLOCATION_KEYS)
+        one = self.api('GET', f'/api/v1/hr/leave/allocations/{allocation_id}')
+        self.assertEqual((one.status_code, one.json()['number_of_days']), (200, 5.0))
+
+        valid_to = (date.today() + timedelta(days=90)).isoformat()
+        patched = self.api('PATCH', f'/api/v1/hr/leave/allocations/{allocation_id}', {
+            'number_of_days': 8, 'date_to': valid_to,
+        })
+        self.assertEqual(patched.status_code, 200, patched.text)
+        self.assertEqual((patched.json()['number_of_days'], patched.json()['date_to']), (8.0, valid_to))
+        self.assertEqual(patched.json()['state'], 'validate')
+        allocation = self.env['hr.leave.allocation'].browse(allocation_id)
+        self.assertEqual(allocation.number_of_days, 8.0)
+        cleared = self.api('PATCH', f'/api/v1/hr/leave/allocations/{allocation_id}', {'date_to': None})
+        self.assertEqual((cleared.status_code, cleared.json()['date_to']), (200, None))
+
+    def test_allocation_patch_is_validated(self):
+        allocation_id = self._granted(self.staff)
+        self.authenticate('alloc_mgr', 'alloc_mgr_pass_123')
+        path = f'/api/v1/hr/leave/allocations/{allocation_id}'
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
+        for body, field in (
+            ({}, None),
+            ({'number_of_days': 0}, 'number_of_days'),
+            ({'number_of_days': True}, 'number_of_days'),
+            ({'date_to': yesterday}, 'date_to'),
+            ({'date_from': None}, 'date_from'),
+            ({'employee_id': self.no_account.id}, 'employee_id'),
+            ({'leave_type_id': self.annual.id}, 'leave_type_id'),
+        ):
+            res = self.api('PATCH', path, body)
+            self.assertEqual(res.status_code, 422, (body, res.text))
+            self.assertEqual(res.json().get('field'), field, body)
+        self.assertEqual(self.env['hr.leave.allocation'].browse(allocation_id).number_of_days, 5.0)
+
+    def test_manager_cannot_edit_their_own_allocation(self):
+        allocation_id = self._granted(self.manager_employee)
+        self.authenticate('alloc_mgr', 'alloc_mgr_pass_123')
+        res = self.api('PATCH', f'/api/v1/hr/leave/allocations/{allocation_id}', {'number_of_days': 50})
+        self.assertEqual((res.status_code, res.json()['code']), (403, 'forbidden'))
+        self.assertEqual(self.env['hr.leave.allocation'].browse(allocation_id).number_of_days, 5.0)
+
+    def test_edit_cannot_drop_below_the_days_already_taken(self):
+        allocation_id = self._granted(self.staff, days=5)
+        start = date.today() + timedelta(days=7 - date.today().weekday())
+        leave = self.env['hr.leave'].create({
+            'employee_id': self.staff.id, 'holiday_status_id': self.annual.id,
+            'request_date_from': start, 'request_date_to': start + timedelta(days=2),
+        })
+        leave.action_approve()
+        self.assertEqual(leave.state, 'validate')
+        self.authenticate('alloc_mgr', 'alloc_mgr_pass_123')
+        res = self.api('PATCH', f'/api/v1/hr/leave/allocations/{allocation_id}', {'number_of_days': 1})
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(self.env['hr.leave.allocation'].browse(allocation_id).number_of_days, 5.0)
+        # A validity that ends before the taken days leaves them uncovered just the same.
+        res = self.api('PATCH', f'/api/v1/hr/leave/allocations/{allocation_id}', {
+            'date_to': (start - timedelta(days=1)).isoformat(),
+        })
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertFalse(self.env['hr.leave.allocation'].browse(allocation_id).date_to)
+
+    def test_allocation_routes_need_the_manage_capability(self):
+        allocation_id = self._granted(self.no_account)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        for method, path, body in (
+            ('GET', '/api/v1/hr/leave/allocations', None),
+            ('GET', f'/api/v1/hr/leave/allocations/{allocation_id}', None),
+            ('PATCH', f'/api/v1/hr/leave/allocations/{allocation_id}', {'number_of_days': 99}),
+        ):
+            res = self.api(method, path, body)
+            self.assertEqual((res.status_code, res.json()['code']), (403, 'forbidden'), path)
+
+    def test_another_company_allocation_is_a_404(self):
+        other_company = self.env['res.company'].create({'name': 'Allocation Other Company'})
+        other_employee = self.env['hr.employee'].create({'name': 'Elsewhere', 'company_id': other_company.id})
+        foreign = self.env['hr.leave.allocation'].create({
+            'employee_id': other_employee.id, 'holiday_status_id': self.annual.id,
+            'number_of_days': 3, 'date_from': date.today(),
+        })
+        self.authenticate('alloc_mgr', 'alloc_mgr_pass_123')
+        path = f'/api/v1/hr/leave/allocations/{foreign.id}'
+        self.assertEqual(self.api('GET', path).status_code, 404)
+        self.assertEqual(self.api('PATCH', path, {'number_of_days': 9}).status_code, 404)
+        listed = self.api('GET', '/api/v1/hr/leave/allocations').json()
+        self.assertNotIn(foreign.id, {item['id'] for item in listed['items']})

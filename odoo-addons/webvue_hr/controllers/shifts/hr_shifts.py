@@ -297,6 +297,13 @@ class HrShiftController(http.Controller):
             })
         return dump_assignment(row)
 
+    @http.route('/api/v1/hr/shifts/assignments/<int:assignment_id>', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.shifts', operation='read')
+    @requires_capability('hr.shifts.read')
+    def get_assignment(self, assignment_id, **_):
+        return dump_assignment(_current_assignment(assignment_id))
+
     @http.route('/api/v1/hr/shifts/assignments/<int:assignment_id>', type='json2', auth='user', methods=['PATCH'])
     @api_handler
     @requires_feature('hr.enabled', 'hr.shifts', operation='write')

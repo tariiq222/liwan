@@ -169,6 +169,7 @@ const listQuery = computed(() => {
 })
 const createTo = computed(() => canRequest.value ? { path: '/account/leave/new', query: listQuery.value, ...(route.hash ? { hash: route.hash } : {}) } : undefined)
 const allocateTo = computed(() => ({ path: '/hr/leave/allocations/new', query: listQuery.value, ...(route.hash ? { hash: route.hash } : {}) }))
+const allocationsTo = { path: '/hr/leave/allocations' }
 </script>
 
 <template>
@@ -182,6 +183,7 @@ const allocateTo = computed(() => ({ path: '/hr/leave/allocations/new', query: l
     :kpi-toggle="props.personal && ready"
   >
     <template v-if="canAllocate" #actions>
+      <UButton color="neutral" variant="ghost" icon="i-lucide-wallet" :to="allocationsTo" :disabled="!hydrated" :label="t('hr.leave.allocation.listTitle')" data-testid="hr-leave-allocations" />
       <UButton color="neutral" variant="outline" icon="i-lucide-calendar-plus" :to="allocateTo" :disabled="!hydrated" :label="t('hr.leave.allocate')" data-testid="hr-leave-allocate" />
     </template>
 

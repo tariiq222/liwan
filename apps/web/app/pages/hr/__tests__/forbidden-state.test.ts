@@ -23,6 +23,9 @@ const PAGES: [file: string, capability: string, description?: string][] = [
   ['employees/[employeeId]/edit.vue', 'hr.employees.manage'],
   ['employees/[employeeId]/compensation.vue', 'hr.payroll.manage', 'hrPayroll.compensation.forbidden'],
   ['leave/allocations/new.vue', 'hr.leave.manage'],
+  ['leave/allocations/index.vue', 'hr.leave.manage'],
+  ['leave/allocations/[allocationId].vue', 'hr.leave.manage'],
+  ['shifts/assignments/[assignmentId].vue', 'hr.shifts.read'],
   ['offboarding/new.vue', 'hr.offboarding.manage', 'hrOffboarding.errors.forbidden'],
   ['offboarding/plans/new.vue', 'hr.offboarding.manage', 'hrOffboarding.errors.forbidden'],
   ['onboarding/new.vue', 'hr.onboarding.manage', 'hrOnboarding.errors.forbidden'],
@@ -65,7 +68,11 @@ const MODULES: Record<string, unknown> = {
   '@/composables/useHrDepartments': { useHrDepartment: query, useHrDepartments: query },
   '@/composables/useHrEmployees': { useHrEmployee: query, useHrEmployees: query },
   '@/composables/useHrOnboarding': { useHrOnboardingPlans: query, useLaunchHrOnboardingRun: mutation },
-  '@/composables/useHrShifts': { useHrShiftSchedules: query },
+  '@/composables/useHrShifts': { useHrShiftSchedules: query, useHrShiftAssignment: query, useHrShiftPeriod: () => () => '' },
+  '@/composables/useHrLeave': { useHrLeaveAllocations: query, useHrLeaveAllocation: query },
+  '@/composables/useHrLeaveFormat': { useHrLeaveFormat: () => ({ validity: () => '', days: () => '' }) },
+  '@/utils/hrLeaveBadge': { hrLeaveBadge: () => ({ tone: 'neutral', labelKey: 'x' }) },
+  '@webvue/ui/app/utils/safeReturnTo': { returnToQuery: () => ({}) },
 }
 
 /** The Nuxt auto-imports these pages call. */

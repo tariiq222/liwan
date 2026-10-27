@@ -429,6 +429,13 @@ class TestHrShifts(WebVueHrCase):
         self.assertEqual(set(detail.json()['attendances'][0]), ATTENDANCE_KEYS)
         assignments = self.api('GET', '/api/v1/hr/shifts/assignments')
         self.assertEqual(assignments.status_code, 200, assignments.text)
+        row = self._assignment(self.worker, date_start=date(2027, 3, 1), date_end=date(2027, 3, 31))
+        one = self.api('GET', f'/api/v1/hr/shifts/assignments/{row.id}')
+        self.assertEqual(one.status_code, 200, one.text)
+        self.assertEqual(set(one.json()), ASSIGNMENT_KEYS)
+        self.assertEqual((one.json()['date_start'], one.json()['date_end']), ('2027-03-01', '2027-03-31'))
+        denied = self.api('PATCH', f'/api/v1/hr/shifts/assignments/{row.id}', {'date_end': '2027-04-30'})
+        self.assertEqual((denied.status_code, denied.json()['code']), (403, 'forbidden'))
         refused = self.api('POST', '/api/v1/hr/shifts/assignments', {
             'employee_id': self.worker.id, 'schedule_id': self.schedule.id,
         })
@@ -456,6 +463,7 @@ class TestHrShifts(WebVueHrCase):
         self.assertEqual(self.api('PATCH', hidden, {'name': 'Stolen'}).status_code, 404)
         self.assertEqual(self.api('POST', f'{hidden}/archive', {}).status_code, 404)
         assignment = f'/api/v1/hr/shifts/assignments/{self.other_assignment.id}'
+        self.assertEqual(self.api('GET', assignment).status_code, 404)
         self.assertEqual(self.api('PATCH', assignment, {'date_end': '2027-01-01'}).status_code, 404)
         self.assertEqual(self.api('DELETE', assignment).status_code, 404)
         self.assertEqual(self.api('GET', '/api/v1/hr/shifts/schedules').status_code, 200)

@@ -109,7 +109,8 @@
         "month": "Month",
         "number": "Number",
         "net": "Net pay"
-      }
+      },
+      "footer": "Showing {shown} of {total}"
     },
     "payslip": {
       "title": "Payslip",

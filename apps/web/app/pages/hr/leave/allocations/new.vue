@@ -5,7 +5,7 @@ import LeaveAllocationForm from '@/components/hr/LeaveAllocationForm.vue'
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
-const sourcePaths = useRecordListPaths(['/hr/leave'])
+const sourcePaths = useRecordListPaths(['/hr/leave', '/hr/leave/allocations'])
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 function saved() { void navigateTo(backTo.value, { replace: true }) }
 </script>
