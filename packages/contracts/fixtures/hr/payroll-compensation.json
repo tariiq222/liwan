@@ -19,5 +19,6 @@
     "name": "Saudi Arabia"
   },
   "other_allowance": 0.0,
+  "relationship_type": "employee",
   "transport_allowance": 1000.0
 }
