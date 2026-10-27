@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from 'pg'
 import { transaction } from '../db.js'
 import { nextOrderState, type EffectReceipt } from '@webvue/commercial-contracts'
 import { activateBranches, archiveBranches, listBranches } from './branches.js'
-import { claimOutbox, completeOutbox, failOutbox } from './outbox.js'
+import { claimOutbox, completeOutbox, deferOutbox, failOutbox, releaseOutbox, type OutboxRow } from './outbox.js'
 import { recordFulfillmentFailure } from './settlements.js'
 import { enqueueReconfigureJob } from '../shared/job-store.js'
 import type { Config } from '../config.js'
@@ -41,6 +41,13 @@ export type FulfillmentAuthority = {
   commercial_valid_until_revision: number
 }
 export type SubscriptionReceipt = EffectReceipt & { database?: string; modules_installed?: string[]; root_company_id?: number; archived_branch_ids?: string[]; roles_not_granted?: boolean; roles_not_granted_reason?: 'no_admin_login' | 'admin_not_found' | 'roles_missing' }
+
+/** Needs a human to read Odoo back: no credit note, the operator settles the money. */
+const INTERVENTION_CODES = ['stale_target', 'observed_mismatch', 'provision_needs_intervention']
+/** Retrying cannot change the outcome: the order fails and a credit note is recorded. */
+const PERMANENT_CODES = ['renewal_missing', 'order_not_found', 'enrollment_base_catalog_missing', 'enrollment_link_conflict', 'idempotency_conflict', 'shared_replay_forbidden']
+/** 1 minute doubling to a 60 minute cap: about four hours before a transient error becomes permanent. */
+export const FULFILLMENT_MAX_ATTEMPTS = 10
 
 /** Receipt application is atomic with branch activation and the commercial revision. */
 export async function applyReceipt(pool: Pool, input: { order_id: string; receipt: SubscriptionReceipt }) {
@@ -81,23 +88,26 @@ export async function applyReceipt(pool: Pool, input: { order_id: string; receip
     [randomUUID(), order.id, effect.rows[0].operation_id, receipt, receipt.observed_entitlement_digest])
     return { applied: true, replay: false }
   }) } catch(error) {
-    if(error instanceof Error && ['observed_mismatch','stale_target'].includes(error.message))await failFulfillment(pool,{order_id:input.order_id,code:error.message})
+    if(error instanceof Error && INTERVENTION_CODES.includes(error.message))await failFulfillment(pool,{order_id:input.order_id,code:error.message})
     throw error
   }
 }
 
 export async function failFulfillment(pool: Pool, input: { order_id: string; code: string }) {
-  return transaction(pool, async client => {
-    const found = await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [input.order_id])
-    const order = found.rows[0]
-    if (!order) throw new Error('order_not_found')
-    if (order.fulfillment_state === 'applied') return
-    const started = order.fulfillment_state === 'queued' ? nextOrderState(order, { type: 'fulfillment_started' }) : order
-    const type = ['stale_target', 'observed_mismatch'].includes(input.code) ? 'fulfillment_needs_intervention' : 'fulfillment_failed'
-    const next = nextOrderState(started, { type })
-    await client.query('UPDATE orders SET fulfillment_state=$2 WHERE id=$1', [order.id, next.fulfillment_state])
-    if(type==='fulfillment_failed' && order.payment_state==='paid')await recordFulfillmentFailure(client,{order_id:order.id,reason:input.code,actor:'commercial-fulfillment'})
-  })
+  return transaction(pool, client => failFulfillmentOn(client, input))
+}
+
+/** Caller owns the transaction. Idempotent: a finished order is left as it is, a credit note is recorded once. */
+export async function failFulfillmentOn(client: PoolClient, input: { order_id: string; code: string }) {
+  const found = await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [input.order_id])
+  const order = found.rows[0]
+  if (!order) throw new Error('order_not_found')
+  if (['applied', 'needs_intervention'].includes(order.fulfillment_state)) return
+  const started = order.fulfillment_state === 'queued' ? nextOrderState(order, { type: 'fulfillment_started' }) : order
+  const type = INTERVENTION_CODES.includes(input.code) ? 'fulfillment_needs_intervention' : 'fulfillment_failed'
+  const next = nextOrderState(started, { type })
+  await client.query('UPDATE orders SET fulfillment_state=$2 WHERE id=$1', [order.id, next.fulfillment_state])
+  if(type==='fulfillment_failed' && order.payment_state==='paid')await recordFulfillmentFailure(client,{order_id:order.id,reason:input.code,actor:'commercial-fulfillment'})
 }
 
 /** Worker-only runtime configuration; omit actor to use paid-subscription service authority.
@@ -114,14 +124,21 @@ async function enrollNewOrder(pool: Pool, orderId: string, runtime?: EnrollmentR
     const sub = (await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE', [customerId])).rows[0]
     const order = (await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [orderId])).rows[0]
     if (!['paid','not_required'].includes(order.payment_state) || order.cancelled) throw Error('order_not_released')
+    if (['failed','needs_intervention'].includes(order.fulfillment_state)) return null
     if (order.kind !== 'new') return null
     if (sub.tenant_id) {
       const incomplete=await client.query('SELECT 1 FROM shared_onboardings WHERE request_id=$1 AND job_id IS NULL',[customer.enrollment_request_id])
       if(!incomplete.rowCount)return null
     }
     if (sub.target_revision_id !== order.target_revision_id) throw Error('stale_target')
-    if (!customer.admin_login) return { reason: 'enrollment_admin_missing' } as const
+    // A reserved onboarding replays from its own stored row: a vendor edit of the customer in between
+    // must not change the digest the first attempt registered.
+    const stored = customer.enrollment_request_id ? (await client.query(`SELECT o.admin_name,o.admin_login,t.name,t.catalog_version,t.catalog_tier
+      FROM shared_onboardings o JOIN tenants t ON t.id=o.control_tenant_id WHERE o.request_id=$1`, [customer.enrollment_request_id])).rows[0] : undefined
+    if (!stored && !customer.admin_login) return { reason: 'enrollment_admin_missing' } as const
     if (!runtime) return { reason: 'enrollment_runtime_missing' } as const
+    if (stored) return { input: { request_id: customer.enrollment_request_id as string, name: stored.name, admin_name: stored.admin_name, admin_login: stored.admin_login,
+      catalog_version: stored.catalog_version, catalog_tier: stored.catalog_tier, reason: `Enroll paid subscription ${sub.id}` }, customerId, subscriptionId: sub.id }
     const snapshot = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [order.target_revision_id])).rows[0].snapshot
     const catalog = (await client.query(`SELECT r.catalog_version,e.solution FROM catalog_releases r JOIN catalog_entries e ON e.version=r.catalog_version
       WHERE r.id=$1 AND e.status='published' FOR SHARE OF r,e`, [snapshot.entitlement.catalog_release_id])).rows[0]
@@ -140,7 +157,8 @@ async function enrollNewOrder(pool: Pool, orderId: string, runtime?: EnrollmentR
     await client.query('SELECT id FROM customers WHERE id=$1 FOR UPDATE',[reservation.customerId])
     const sub=(await client.query('SELECT tenant_id,target_revision_id FROM subscriptions WHERE id=$1 FOR UPDATE',[reservation.subscriptionId])).rows[0]
     const order=(await client.query('SELECT payment_state,cancelled,target_revision_id FROM orders WHERE id=$1 FOR UPDATE',[orderId])).rows[0]
-    if (!['paid','not_required'].includes(order.payment_state) || order.cancelled || sub.target_revision_id!==order.target_revision_id) throw Error('order_not_released')
+    if (!['paid','not_required'].includes(order.payment_state) || order.cancelled) throw Error('order_not_released')
+    if (sub.target_revision_id!==order.target_revision_id) throw Error('stale_target')
     if (sub.tenant_id && sub.tenant_id!==tenant.tenant_id) throw Error('enrollment_link_conflict')
     await client.query('UPDATE customers SET tenant_id=$2 WHERE id=$1 AND (tenant_id IS NULL OR tenant_id=$2)',[reservation.customerId,tenant.tenant_id])
     if(!sub.tenant_id)await client.query('UPDATE subscriptions SET tenant_id=$2,revision=revision+1 WHERE id=$1',[reservation.subscriptionId,tenant.tenant_id])
@@ -148,6 +166,35 @@ async function enrollNewOrder(pool: Pool, orderId: string, runtime?: EnrollmentR
   })
   return null
 }
+/** Terminal step in one transaction: outbox row, then order (the main path's lock order), then the row is marked failed. */
+export async function failEnqueueTerminally(pool: Pool, row: OutboxRow, code: string) {
+  await transaction(pool,async client=>{
+    const pending=await client.query("SELECT id FROM commercial_outbox WHERE id=$1 AND status='pending' FOR UPDATE",[row.id])
+    if(!pending.rowCount)return
+    if(code!=='order_not_found')await failFulfillmentOn(client,{order_id:row.aggregate_id,code})
+    await failOutbox(client,row.id,code)
+  })
+}
+
+async function handleEnqueueFailure(pool: Pool, row: OutboxRow, code: string) {
+  const result={order_id:row.aggregate_id,reason:code}
+  if(code==='order_not_released'){
+    // Refunded or cancelled: refund_pending owns the money, the order is left alone.
+    await failOutbox(pool,row.id,code)
+    return result
+  }
+  if(INTERVENTION_CODES.includes(code)||PERMANENT_CODES.includes(code)){
+    await failEnqueueTerminally(pool,row,code)
+    return result
+  }
+  if(row.attempts+1>=FULFILLMENT_MAX_ATTEMPTS){
+    await failEnqueueTerminally(pool,row,`retries_exhausted: ${code}`)
+    return result
+  }
+  await deferOutbox(pool,row.id,code)
+  return result
+}
+
 export async function processFulfillmentOutbox(pool: Pool, options: { limit?: number; enrollment?: EnrollmentRuntime } = {}) {
   const limit=options.limit??20
   if (!Number.isSafeInteger(limit) || limit<1 || limit>1000) throw Error('limit_invalid')
@@ -166,17 +213,27 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
           WHERE o.id=$1 FOR UPDATE OF o,s`,[row.aggregate_id])
         const order=found.rows[0]
         if(!order)throw Error('order_not_found')
+        if(['failed','needs_intervention'].includes(order.fulfillment_state)){
+          // Finished orders get no more work.
+          await failOutbox(client,row.id,`order_${order.fulfillment_state}`)
+          return {order_id:order.id as string,reason:`order_${order.fulfillment_state}`}
+        }
         if(!order.tenant_id){
           const reason=enrollment?.reason??'tenant_required'
           await client.query("UPDATE commercial_outbox SET payload=payload||jsonb_build_object('reason','tenant_required','enrollment_reason',$2::text) WHERE id=$1",[row.id,reason])
+          await releaseOutbox(client,row.id)
           return {order_id:order.id as string,reason}
         }
+        // A provision job that needs an operator never becomes ready by itself: stop waiting.
+        const stuck=await client.query("SELECT 1 FROM shared_onboardings o JOIN shared_jobs j ON j.id=o.job_id WHERE o.control_tenant_id=$1 AND j.state='needs_intervention'",[order.tenant_id])
+        if(stuck.rowCount)throw Error('provision_needs_intervention')
         const readiness=await client.query(`SELECT 1 FROM shared_onboardings o JOIN tenants t ON t.id=o.control_tenant_id
           LEFT JOIN shared_jobs j ON j.id=o.job_id WHERE o.control_tenant_id=$1
           AND (t.status<>'active' OR o.stage<>'active' OR j.state IS DISTINCT FROM 'verified'
           OR j.payload_digest IS DISTINCT FROM o.job_digest OR j.receipt->>'payloadDigest' IS DISTINCT FROM o.job_digest)`,[order.tenant_id])
         if(readiness.rowCount){
           await client.query("UPDATE commercial_outbox SET payload=payload||jsonb_build_object('reason','enrollment_pending') WHERE id=$1",[row.id])
+          await releaseOutbox(client,row.id)
           return {order_id:order.id as string,reason:'enrollment_pending'}
         }
         if(!['paid','not_required'].includes(order.payment_state) || order.cancelled)throw Error('order_not_released')
@@ -219,9 +276,16 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
       if(result)results.push(result)
     }catch(error){
       const code=error instanceof Error?error.message:'fulfillment_enqueue_failed'
-      if(code==='stale_target')await failFulfillment(pool,{order_id:row.aggregate_id,code})
-      await failOutbox(pool,row.id,code)
-      results.push({order_id:row.aggregate_id,reason:code})
+      try{results.push(await handleEnqueueFailure(pool,row,code))}
+      catch(handlingError){
+        // One bad row must not stop the batch; its lease expires and it is claimed again.
+        // The cause is logged and kept on the row so the operator can read it.
+        const detail=`${code}; ${handlingError instanceof Error?`${handlingError.name}: ${handlingError.message}`:String(handlingError)}`.slice(0,300)
+        console.error(`[control-plane] fulfillment failure handling failed for outbox ${row.id}: ${detail}`)
+        await pool.query("UPDATE commercial_outbox SET payload=payload||jsonb_build_object('error',$2::text) WHERE id=$1 AND status='pending'",[row.id,`failure_handling_failed: ${detail}`])
+          .catch(e=>console.error(`[control-plane] could not record failure cause for outbox ${row.id}: ${e instanceof Error?e.message:String(e)}`))
+        results.push({order_id:row.aggregate_id,reason:'failure_handling_failed'})
+      }
     }
   }
   return results

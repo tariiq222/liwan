@@ -130,3 +130,12 @@ it('registers the users.limit administrator floor in version twenty-three once',
   const g=fixture([...applied,23]); await migrate(g.pool)
   expect(g.query.mock.calls.map(([s])=>s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(23)')
 })
+it('registers the outbox retry columns in version twenty-eight once', async () => {
+  const applied = Array.from({length:27}, (_, i) => i+1)
+  const f=fixture(applied); await migrate(f.pool)
+  const sql=f.query.mock.calls.map(([s])=>s)
+  expect(sql.filter(s=>s==='INSERT INTO schema_migrations(version) VALUES(28)')).toHaveLength(1)
+  expect(sql.some(s=>s.includes('ADD COLUMN next_attempt_at timestamptz'))).toBe(true)
+  const g=fixture([...applied,28]); await migrate(g.pool)
+  expect(g.query.mock.calls.map(([s])=>s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(28)')
+})
