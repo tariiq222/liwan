@@ -9,7 +9,7 @@ import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import { formatDate, localIsoDay } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { HR_PAYSLIP_PAGE_SIZE, fetchAllHrPayslips, hrPayslipsQuery } from '@/composables/useHrPayrollRuns'
-import { hasFeature } from '@/modules/registry'
+import { payrollFilesWritable } from '@/utils/payrollFilesWritable'
 import { hrPayrollFileRequest } from '@/composables/useHrPayrollFiles'
 import { eosProvisionErrorMessage, payrollErrorMessage, payrollWarningText } from '@/utils/payrollErrors'
 import { saveBlob } from '@/utils/saveBlob'
@@ -49,7 +49,7 @@ const { $api, $download } = useApi()
 const { can } = useAccess()
 const { me } = useMe()
 // The salary files are kept server-side, so they are writes: a read-only tenant is refused, and the buttons say so first.
-const filesWritable = computed(() => hasFeature(me.value, 'hr.enabled', true) && hasFeature(me.value, 'hr.payroll', true))
+const filesWritable = computed(() => payrollFilesWritable(me.value))
 const posting = usePostHrPayrollRun(() => runId.value ?? 0)
 const payment = useRecordHrPayrollPayment(() => runId.value ?? 0)
 const provision = usePostHrEosProvision()

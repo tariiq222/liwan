@@ -385,6 +385,16 @@ test.describe('payroll salary files', () => {
     expect(files).toEqual([])
   })
 
+  test('a /me without the platform policy fails closed: file buttons disabled and no request', async ({ page }) => {
+    await page.context().addCookies([{ name: 'mock_readonly', value: 'no-policy', url: process.env.E2E_BASE_URL ?? 'http://localhost:3000' }])
+    const files: string[] = []
+    page.on('request', request => { if (/\/(bank|wps)-file$/.test(request.url())) files.push(request.method()) })
+    await open(page, '/hr/payroll/1', 'مسير رواتب أكتوبر 2026')
+    await expect(page.getByTestId('hr-payroll-download-bank')).toBeDisabled()
+    await expect(page.getByTestId('hr-payroll-download-wps')).toBeDisabled()
+    expect(files).toEqual([])
+  })
+
   test('a writable tenant sends the bank file as a POST and shows no read-only note', async ({ page }) => {
     expect((await page.request.post('/api/v1/__mock/reset-payroll', { data: { ibansComplete: true } })).status()).toBe(200)
     const methods: string[] = []

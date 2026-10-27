@@ -431,10 +431,15 @@ async function handle(req, res) {
 
   if (process.env.MODULE_UI_PREVIEW === '1' && method === 'GET') {
     if (path === '/api/v1/me') {
-      // A cookie mock_readonly=payroll leaves hr.payroll readable but not writable, like an expired tenant.
-      const readOnlyPayroll = /(?:^|;\s*)mock_readonly=payroll(?:;|$)/.test(req.headers.cookie ?? '')
+      // mock_readonly=payroll leaves hr.payroll readable but not writable, like an expired tenant;
+      // mock_readonly=no-policy drops the whole platform policy (the fail-closed case).
+      const cookie = req.headers.cookie ?? ''
+      const readOnlyPayroll = /(?:^|;\s*)mock_readonly=payroll(?:;|$)/.test(cookie)
+      const noPolicy = /(?:^|;\s*)mock_readonly=no-policy(?:;|$)/.test(cookie)
+      const base = { ...ME }
+      if (noPolicy) delete base.platform
       const platform = readOnlyPayroll ? { ...ME.platform, writable_features: ME.platform.writable_features.filter(key => key !== 'hr.payroll') } : ME.platform
-      return json(res, 200, { ...ME, platform, appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, moduleUiCapabilities), AI_USE] })
+      return json(res, 200, { ...base, ...(noPolicy ? {} : { platform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, moduleUiCapabilities), AI_USE] })
     }
     const preview = moduleUiPreviewData(path, url)
     if (preview?.refusal) return json(res, preview.refusal.status, preview.refusal.body)
