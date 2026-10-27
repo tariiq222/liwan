@@ -309,7 +309,7 @@ jobs:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'image')
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 60
     services:
       postgres:
         image: postgres:16
