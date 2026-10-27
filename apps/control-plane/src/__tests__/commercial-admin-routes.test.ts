@@ -7,6 +7,7 @@ import { migrate } from '../db.js'
 import { routesB } from '../commercial/routes-b.js'
 import { getSubscription } from '../commercial/subscriptions.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
+import { fixedReturnOrigin } from '../commercial/return-origin.js'
 
 const suite = url ? describe : describe.skip
 suite('vendor customer listing and cancellation HTTP boundary', () => {
@@ -170,7 +171,7 @@ suite('vendor customer listing and cancellation HTTP boundary', () => {
       VALUES($1,$2,$3,$4,'initial','SAR',2,100,0,100,'2026-01-01','2026-02-01')`, [invoice, f.customer, f.subscription, f.id])
     await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,status)
       VALUES($1,$2,$3,'simulator','simulator',100,'SAR',2,'unknown')`, [randomUUID(), f.id, invoice])
-    await expect(call('POST', `/orders/${f.id}/cancel`, { reason: 'Customer changed selection' }, caps, { adapter: new SimulatorAdapter(), allowedOrigin: 'http://webvue.test' })).rejects.toMatchObject({ status: 409, code: 'payment_reconciliation_required' })
+    await expect(call('POST', `/orders/${f.id}/cancel`, { reason: 'Customer changed selection' }, caps, { adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('http://webvue.test') })).rejects.toMatchObject({ status: 409, code: 'payment_reconciliation_required' })
     expect((await pool.query('SELECT cancelled FROM orders WHERE id=$1', [f.id])).rows[0].cancelled).toBe(false)
     expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE subject=$1 AND action='order.cancelled'", [f.id])).rows[0].n).toBe(0)
   })

@@ -20,6 +20,7 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/(customers|invoices|quotes)(/${SEGMENT})?$`),
   /^\/v1\/commercial\/(attention|catalog\/releases|clients|policies|customer-terms|customer-quotes|orders|analytics)$/,
   new RegExp(`^/v1/commercial/orders/${SEGMENT}/(cancel|payment-attempts)$`),
+  new RegExp(`^/v1/commercial/invoice-adjustments/${SEGMENT}/refund$`),
   new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}(/(branches|usage))?$`),
   /^\/v1\/admin\/(me|accounts)$/,
   /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|reset)$/,

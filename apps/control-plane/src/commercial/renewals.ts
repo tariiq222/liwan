@@ -7,8 +7,9 @@ import { loadQuoteSources } from './quotes.js'
 import { policyWire } from './policies.js'
 import { issueInvoiceFromQuote } from './invoices.js'
 import { orderView } from './orders.js'
-import { digestOf } from './lifecycle.js'
-import { assertReturnOrigin, createPaymentAttempt, paymentReturnUrls } from './payments.js'
+import { CommercialHttpError, digestOf } from './lifecycle.js'
+import { createPaymentAttempt, paymentReturnUrls } from './payments.js'
+import type { ReturnOrigin } from './return-origin.js'
 import { enqueueOutbox } from './outbox.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 
@@ -29,15 +30,27 @@ export async function onRenewalPaid(client: PoolClient, order_id: string) {
     WHERE id=$1 AND state IN ('active','past_due','suspended') AND (state<>'active' OR grace_ends_at IS NOT NULL)`, [renewal.subscription_id])
 }
 
-export async function generateRenewals(pool: Pool, { now = new Date(), adapter, allowedOrigin }: {
-  now?: Date; adapter: PaymentAdapter; allowedOrigin: string
+/**
+ * Generates every due renewal. Each customer's return origin is resolved before anything is written, so a
+ * customer without a usable one is skipped untouched (it is picked up again once fixed) while the rest are
+ * processed; the run then fails with `return_url_forbidden` so the skip is never silent.
+ */
+export async function generateRenewals(pool: Pool, { now = new Date(), adapter, returnOrigin, subscription_id }: {
+  now?: Date; adapter: PaymentAdapter; returnOrigin: ReturnOrigin; subscription_id?: string
 }) {
-  assertReturnOrigin(allowedOrigin)
   const today = riyadhDate(now)
-  const candidates = (await pool.query(`SELECT id FROM subscriptions WHERE state IN ('active','past_due')
-    AND applied_revision_id IS NOT NULL AND renewal_at <= $1::date ORDER BY id`, [today])).rows
+  const candidates = (await pool.query(`SELECT id,customer_id FROM subscriptions WHERE state IN ('active','past_due')
+    AND applied_revision_id IS NOT NULL AND renewal_at <= $1::date AND ($2::uuid IS NULL OR id=$2) ORDER BY id`, [today, subscription_id ?? null])).rows
+  let unusableOrigins = 0
   const generated: ReturnType<typeof orderView>[] = []
   for (const candidate of candidates) {
+    let origin: string
+    try { origin = await returnOrigin(candidate.customer_id) }
+    catch (error) {
+      if ((error as { code?: string }).code !== 'return_url_forbidden') throw error
+      unusableOrigins++
+      continue
+    }
     const result = await transaction(pool, async client => {
       const sub = (await client.query('SELECT * FROM subscriptions WHERE id=$1 FOR UPDATE', [candidate.id])).rows[0]
       if (!['active','past_due'].includes(sub.state) || !sub.applied_revision_id || !sub.renewal_at || date(sub.renewal_at)>today) return null
@@ -84,7 +97,7 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       try { activeToken = (await adapter.getToken(sub.provider_token_ref)).active } catch { /* use hosted payment instead */ }
     }
     if (!activeToken) {
-      await createPaymentAttempt(pool,{order_id:order.id,customer_id:sub.customer_id,adapter,allowedOrigin})
+      await createPaymentAttempt(pool,{order_id:order.id,customer_id:sub.customer_id,adapter,returnOrigin:async()=>origin})
       continue
     }
     const attemptId = randomUUID()
@@ -95,7 +108,7 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
     })
     try {
       const event = await adapter.chargeToken({given_id:order.id,token:sub.provider_token_ref,amount:invoice.total,
-        description:`WebVue renewal ${order.id}`,callback_url:paymentReturnUrls(allowedOrigin,attemptId)})
+        description:`WebVue renewal ${order.id}`,callback_url:paymentReturnUrls(origin,attemptId)})
       // A charge response only identifies the attempt; settlement requires provider lookup.
       await pool.query("UPDATE payment_attempts SET provider_ref=$2,status=CASE WHEN status='created' THEN 'pending' ELSE status END,updated_at=now() WHERE id=$1", [attemptId,event.provider_ref])
     } catch {
@@ -103,6 +116,7 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       // The committed invoice/order survive; uncertain charges must be reconciled, never blindly retried.
     }
   }
+  if (unusableOrigins) throw new CommercialHttpError('return_url_forbidden', 422)
   return generated
 }
 

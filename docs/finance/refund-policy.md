@@ -19,10 +19,15 @@ automatic refund path in this phase.
 1. Find the invoice in the vendor-admin invoice page: a pending credit note is shown on it.
 2. Confirm the cause (runbook section 4.1) and that the customer was not provisioned.
 3. Refund the amount through the payment provider's dashboard. Nothing is refunded automatically.
-4. Record the refund outside the system until the console action below exists.
+4. On the same invoice page choose "Record refund" on the pending credit note and enter the provider's refund
+   reference and a reason. This needs `vendor.billing.manage` (roles `owner` and `finance`) and a fresh step-up.
+   The note becomes `refunded` with the reference, the recording account and the time, and an
+   `invoice.credit_refunded` audit event is written. The action moves no money. Repeating it with the same
+   reference returns the recorded note; a different reference on a closed note is refused (`credit_note_not_pending`).
+   The invoice stays `credit_pending` (issued invoices are immutable): read the credit note's status, not the
+   invoice's.
 
 ## Known gaps
 
-- No console action closes a pending credit note, so it stays `pending` after the money is returned.
 - `payment.intervention` outbox rows are written but not consumed by any worker.
 - The retry budget is fixed in code (10 attempts, 1 to 60 minutes); it is not a customer setting.

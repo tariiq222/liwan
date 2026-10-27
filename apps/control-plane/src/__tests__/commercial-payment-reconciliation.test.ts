@@ -6,6 +6,7 @@ import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { PaymentError } from '../commercial/payment-adapter.js'
 import { createPaymentAttempt, handleProviderEvent, reconcileUnknownAttempts } from '../commercial/payments.js'
 import { url } from './commercial-helpers.js'
+import { fixedReturnOrigin } from '../commercial/return-origin.js'
 
 const suite = url ? describe : describe.skip
 suite('bounded authoritative payment reconciliation on PostgreSQL', () => {
@@ -26,7 +27,7 @@ suite('bounded authoritative payment reconciliation on PostgreSQL', () => {
       await c.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
         VALUES($1,$2,$3,$4,'initial','SAR',2,10000,1500,11500,'2026-01-01','2026-02-01',now())`, [invoice, customer, subscription, order])
     })
-    const attempt = await createPaymentAttempt(pool, { order_id: order, customer_id: customer, adapter, allowedOrigin: 'https://webvue.test' })
+    const attempt = await createPaymentAttempt(pool, { order_id: order, customer_id: customer, adapter, returnOrigin: fixedReturnOrigin('https://webvue.test') })
     await pool.query("UPDATE payment_attempts SET created_at=$2,updated_at=$2 WHERE id=$1", [attempt.id, new Date(now.getTime() - 600_000)])
     return { adapter, attempt, order, invoice }
   }
@@ -72,10 +73,12 @@ suite('bounded authoritative payment reconciliation on PostgreSQL', () => {
     expect(await state(f.order)).toMatchObject({ payment_state: 'awaiting_payment', cancelled: false })
     expect((await pool.query('SELECT status,provider_ref FROM payment_attempts WHERE id=$1', [f.attempt.id])).rows[0]).toEqual({ status: 'unknown', provider_ref: null })
   })
-  it('retains failed-order guards after authoritative cancellation rather than releasing the accepted target', async () => {
+  it('keeps the order payable but unreleased after an authoritative provider cancellation', async () => {
     const f = await fixture()
     await f.adapter.cancelAttempt(f.attempt.provider_ref)
     expect(await reconcileUnknownAttempts(pool, f.adapter, options)).toEqual([{ id: f.attempt.id, outcome: 'accepted' }])
-    expect(await state(f.order)).toEqual({ payment_state: 'failed', fulfillment_state: 'not_started', cancelled: false })
+    expect(await state(f.order)).toEqual({ payment_state: 'awaiting_payment', fulfillment_state: 'not_started', cancelled: false })
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1', [f.attempt.id])).rows[0].status).toBe('canceled')
+    expect((await pool.query("SELECT count(*)::int AS n FROM commercial_outbox WHERE aggregate_id=$1", [f.order])).rows[0].n).toBe(0)
   })
 })

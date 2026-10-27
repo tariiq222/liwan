@@ -7,6 +7,7 @@ import { CommercialHttpError, iso } from './lifecycle.js'
 import { assertReturnUrl, toBytes, type AdapterHeaders, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
 import { confirmEvent } from './moyasar-adapter.js'
 import { enqueueOutbox } from './outbox.js'
+import type { ReturnOrigin } from './return-origin.js'
 import { onRenewalPaid } from './renewals.js'
 
 export function paymentAttemptView(row: any) {
@@ -15,9 +16,10 @@ export function paymentAttemptView(row: any) {
     amount: { minor: Number(row.amount_minor), currency: row.currency, exponent: row.exponent },
     created_at: iso(row.created_at), updated_at: iso(row.updated_at) }
 }
-/** The single return origin is the first WEBVUE_PAYMENT_RETURN_ORIGINS entry. Per-tenant origins in shared mode are a separate ticket. */
+/** A return origin is one concrete origin (never a wildcard allowlist entry); `return-origin.ts` picks it per customer. */
 export function assertReturnOrigin(allowedOrigin: string) {
   let origin: string
+  if (allowedOrigin.includes('*')) throw new CommercialHttpError('return_url_forbidden', 422)
   try { origin = new URL(allowedOrigin).origin } catch { throw new CommercialHttpError('return_url_forbidden', 422) }
   if (allowedOrigin !== origin) throw new CommercialHttpError('return_url_forbidden', 422)
   // The same rules the provider adapter applies to the final URL (scheme, credentials, origin), so an
@@ -42,8 +44,15 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
   const order = (await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [found.order_id])).rows[0]
   const attempt = (await client.query('SELECT * FROM payment_attempts WHERE provider=$1 AND provider_ref=$2 FOR UPDATE', [event.provider, event.provider_ref])).rows[0]
   if (!matches(attempt, event)) return 'rejected'
+  // A provider cancel or expiry is not a payment failure: nobody was charged and the invoice cannot be paid
+  // any more, so the order stays `awaiting_payment` and the customer can start a new attempt. Only a decline
+  // (`failed`) moves the order to `failed`.
+  if (event.status === 'canceled') {
+    const closed = await client.query("UPDATE payment_attempts SET status='canceled',updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown')", [attempt.id])
+    return closed.rowCount ? 'accepted' : 'ignored'
+  }
   const type = event.status === 'succeeded' ? 'payment_succeeded' : event.status === 'refunded' ? 'payment_refunded'
-    : event.status === 'failed' || event.status === 'canceled' ? 'payment_failed' : 'payment_pending'
+    : event.status === 'failed' ? 'payment_failed' : 'payment_pending'
   const next = nextOrderState(order as OrderStateInput, { type })
   if (next.ignored) return 'ignored'
   await client.query('UPDATE orders SET payment_state=$2,fulfillment_state=$3 WHERE id=$1', [order.id, next.payment_state, next.fulfillment_state])
@@ -66,7 +75,7 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
       if (inserted) await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
         [randomUUID(),'system','payment.intervention',order.id,reason,JSON.stringify({ attempt_id: attempt.id, event_id: event.event_id })])
     }
-  } else if (event.status === 'failed' || event.status === 'canceled') {
+  } else if (event.status === 'failed') {
     await client.query("UPDATE payment_attempts SET status='failed',updated_at=now() WHERE id=$1", [attempt.id])
   }
   return 'accepted'
@@ -123,11 +132,14 @@ export async function lookup(pool: Pool, adapter: PaymentAdapter, row: any) {
   return outcome
 }
 
-export async function createPaymentAttempt(pool: Pool, input: { order_id: string; customer_id: string; adapter: PaymentAdapter; allowedOrigin: string }) {
+/** A hosted invoice is created with this lifetime; past it, a live attempt may already be unpayable at the provider. */
+const ATTEMPT_LIFETIME_MS = 30 * 60_000
+
+export async function createPaymentAttempt(pool: Pool, input: { order_id: string; customer_id: string; adapter: PaymentAdapter; returnOrigin: ReturnOrigin }) {
   // The id is fixed before the reservation so an unusable origin fails before any write.
   const attemptId = randomUUID()
-  const url = paymentReturnUrls(input.allowedOrigin, attemptId)
-  const reservation = await transaction(pool, async client => {
+  const url = paymentReturnUrls(await input.returnOrigin(input.customer_id), attemptId)
+  const reserve = () => transaction(pool, async client => {
     const order = (await client.query('SELECT * FROM orders WHERE id=$1 AND customer_id=$2 FOR UPDATE', [input.order_id,input.customer_id])).rows[0]
     if (!order) throw new CommercialHttpError('not_found', 404)
     if (order.payment_state !== 'awaiting_payment' || order.cancelled) throw new CommercialHttpError('payment_not_awaiting', 409)
@@ -139,6 +151,13 @@ export async function createPaymentAttempt(pool: Pool, input: { order_id: string
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [attemptId,order.id,invoice.id,input.adapter.provider,input.adapter.mode,order.id,invoice.total_minor,invoice.currency,invoice.exponent])).rows[0]
     return { row, fresh: true }
   })
+  let reservation = await reserve()
+  // An invoice older than its lifetime may have expired unseen: ask the provider first, so an expired one is
+  // closed (the order stays payable) and this call starts a fresh attempt instead of handing back a dead link.
+  if (!reservation.fresh && reservation.row.status !== 'unknown' && Date.now() - new Date(reservation.row.created_at).getTime() >= ATTEMPT_LIFETIME_MS) {
+    await lookup(pool, input.adapter, reservation.row)
+    reservation = await reserve()
+  }
   if (!reservation.fresh) {
     if (reservation.row.status === 'unknown') await lookup(pool, input.adapter, reservation.row)
     return paymentAttemptView((await pool.query('SELECT * FROM payment_attempts WHERE id=$1', [reservation.row.id])).rows[0])
@@ -147,7 +166,7 @@ export async function createPaymentAttempt(pool: Pool, input: { order_id: string
   try {
     const created = await input.adapter.createAttempt({ attempt_id: row.id,order_id: row.order_id,
       amount: { minor: Number(row.amount_minor),currency: row.currency,exponent: row.exponent }, description: `WebVue order ${row.order_id}`,
-      success_url: url, back_url: url, callback_url: url, expires_at: new Date(Date.now()+30*60_000).toISOString() })
+      success_url: url, back_url: url, callback_url: url, expires_at: new Date(Date.now()+ATTEMPT_LIFETIME_MS).toISOString() })
     const updated = await pool.query(`UPDATE payment_attempts SET provider_ref=$2,redirect_url=$3,
       status=CASE WHEN status='created' THEN 'redirected' ELSE status END,updated_at=now() WHERE id=$1 RETURNING *`, [row.id,created.provider_ref,created.redirect_url])
     return paymentAttemptView(updated.rows[0])

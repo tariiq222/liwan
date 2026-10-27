@@ -12,6 +12,7 @@ import { createPaymentAttempt, handleProviderEvent } from '../commercial/payment
 import { applyReceipt } from '../commercial/fulfillment.js'
 import { listBranches } from '../commercial/branches.js'
 import { applyDunning } from '../commercial/renewals.js'
+import { fixedReturnOrigin } from '../commercial/return-origin.js'
 const suite = url ? describe : describe.skip
 suite('commercial B1 atomic orders', () => {
   const pool = new Pool({ connectionString: url, max: 8 })
@@ -58,7 +59,7 @@ suite('commercial B1 atomic orders', () => {
     const firstQuote = await createQuoteForCustomer(pool, { customer_id:id, request:request() })
     const input = accept(firstQuote), first = await acceptQuote(pool, input, vendor)
     const adapter = new SimulatorAdapter()
-    const attempt = await createPaymentAttempt(pool, { order_id:first.order.id, customer_id:id, adapter, allowedOrigin:'https://webvue.test' })
+    const attempt = await createPaymentAttempt(pool, { order_id:first.order.id, customer_id:id, adapter, returnOrigin: fixedReturnOrigin('https://webvue.test') })
     if (initialPayment === 'failed') {
       adapter.settle(attempt.provider_ref, 'failed')
       expect(await handleProviderEvent(pool, {provider:'simulator',adapter,rawBody:adapter.webhookBody(attempt.provider_ref),headers:{}})).toEqual({status:200,outcome:'accepted'})

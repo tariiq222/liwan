@@ -21,3 +21,7 @@ export const operationStatusBadge = (status: string): StatusBadgeEntry => status
 const ATTEMPT: Record<string, StatusTone> = { created: 'info', redirected: 'info', pending: 'info', succeeded: 'success', failed: 'destructive', canceled: 'destructive', unknown: 'neutral' }
 const ATTEMPT_MAP = entries(ATTEMPT, value => `vendor.invoices.attemptStatus.${value}`)
 export const paymentAttemptBadge = (status: string): StatusBadgeEntry => statusBadgeEntry(ATTEMPT_MAP, status)
+
+const ADJUSTMENT: Record<string, StatusTone> = { pending: 'warning', applied: 'info', refunded: 'success', void: 'neutral' }
+const ADJUSTMENT_MAP = entries(ADJUSTMENT, value => `vendor.invoices.adjustmentStatus.${value}`)
+export const adjustmentStatusBadge = (status: string): StatusBadgeEntry => statusBadgeEntry(ADJUSTMENT_MAP, status)

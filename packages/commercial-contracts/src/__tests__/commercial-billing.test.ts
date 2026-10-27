@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { invoiceSchema, paymentAttemptSchema, paymentEventRecordSchema, adjustmentSchema } from '../commercial/index.js'
+import { invoiceSchema, paymentAttemptSchema, paymentEventRecordSchema, adjustmentSchema, refundCreditNoteRequestSchema } from '../commercial/index.js'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const sar = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
@@ -7,6 +7,8 @@ const line = { key: 'base', kind: 'base', timing: 'now', description: 'x', quant
 const inv = { id: 'i', number: 'INV-1', customer_id: 'c', subscription_id: 's', order_id: 'o', kind: 'initial', status: 'issued', currency: 'SAR', lines: [line],
   subtotal: sar(10000), tax: sar(1500), total: sar(11500), period_start: '2026-10-01', period_end: '2026-10-31', issued_at: 'x', due_at: null, paid_at: null,
   tax_label: 'VAT 15% exclusive', official_tax_invoice: false }
+
+const note = { id: 'a', invoice_id: 'i', customer_id: 'c', kind: 'credit_note', reason: 'late activation', amount: sar(500), created_at: 'x', created_by: 'v', refund_reference: null, refunded_at: null, refunded_by: null }
 
 describe('invoice', () => {
   it('parses; never an official tax invoice', () => {
@@ -20,7 +22,20 @@ describe('invoice', () => {
     expect(invoiceSchema.safeParse({ ...inv, number: null }).success).toBe(false)
   })
   it('adjustments are separate documents', () => {
-    expect(adjustmentSchema.safeParse({ id: 'a', invoice_id: 'i', customer_id: 'c', kind: 'credit_note', reason: 'late activation', amount: sar(500), status: 'pending', created_at: 'x', created_by: 'v' }).success).toBe(true)
+    expect(adjustmentSchema.safeParse({ ...note, status: 'pending' }).success).toBe(true)
+  })
+  it('refund details exist exactly when the note is refunded', () => {
+    const refund = { refund_reference: 'MOY-REF-1', refunded_at: '2026-10-27T10:00:00.000Z', refunded_by: 'account:7' }
+    expect(adjustmentSchema.safeParse({ ...note, status: 'refunded', ...refund }).success).toBe(true)
+    expect(adjustmentSchema.safeParse({ ...note, status: 'refunded' }).success).toBe(false)
+    expect(adjustmentSchema.safeParse({ ...note, status: 'pending', ...refund }).success).toBe(false)
+    expect(adjustmentSchema.safeParse({ ...note, status: 'refunded', ...refund, refunded_by: null }).success).toBe(false)
+  })
+  it('the refund request needs a reference and a reason, and nothing else', () => {
+    const ok = { external_reference: 'MOY-REF-1', reason: 'Refunded in the provider dashboard' }
+    expect(refundCreditNoteRequestSchema.parse({ ...ok, external_reference: '  MOY-REF-1  ' }).external_reference).toBe('MOY-REF-1')
+    for (const bad of [{ ...ok, external_reference: 'ab' }, { ...ok, reason: 'no' }, { ...ok, external_reference: 'x'.repeat(201) }, { ...ok, reason: 'x'.repeat(1001) }, { ...ok, amount: 1 }, { reason: ok.reason }, { external_reference: ok.external_reference }])
+      expect(refundCreditNoteRequestSchema.safeParse(bad).success).toBe(false)
   })
 })
 describe('payment records', () => {

@@ -69,12 +69,27 @@ export interface PaymentAdapter {
 
 const LOCAL_HOST = /^(localhost|127\.0\.0\.1|[^/]+\.test)$/i
 
+/**
+ * An allowlist entry is an exact origin, or `scheme://*.suffix[:port]` for every host below a suffix that has
+ * at least two labels (so `https://*.com` matches nothing).
+ */
+export function originAllowed(origin: string, allowedOrigins: readonly string[]): boolean {
+  return allowedOrigins.some(entry => {
+    if (entry === origin) return true
+    const wildcard = /^(https?:\/\/)\*\.([a-z0-9-]+(?:\.[a-z0-9-]+)+(?::\d+)?)$/i.exec(entry)
+    if (!wildcard) return false
+    let u: URL
+    try { u = new URL(origin) } catch { return false }
+    return `${u.protocol}//` === wildcard[1]!.toLowerCase() && u.host.endsWith(`.${wildcard[2]!.toLowerCase()}`)
+  })
+}
+
 /** https only, or http for localhost/127.0.0.1/*.test; origin must be allowlisted. */
 export function assertReturnUrl(url: string, allowedOrigins: readonly string[]): string {
   let u: URL
   try { u = new URL(url) } catch { throw new PaymentError('return_url_forbidden', 'unparseable url') }
   const okScheme = u.protocol === 'https:' || (u.protocol === 'http:' && LOCAL_HOST.test(u.hostname))
-  if (!okScheme || u.username || u.password || !allowedOrigins.includes(u.origin))
+  if (!okScheme || u.username || u.password || !originAllowed(u.origin, allowedOrigins))
     throw new PaymentError('return_url_forbidden', u.origin)
   return u.toString()
 }

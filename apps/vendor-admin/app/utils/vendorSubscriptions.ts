@@ -1,5 +1,5 @@
 import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
-import { subscriptionDisplayState, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@webvue/commercial-contracts'
+import { subscriptionDisplayState, type Adjustment, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@webvue/commercial-contracts'
 import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
 import { formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
 import { humanizeId } from '@webvue/ui/app/utils/humanizeId'
@@ -9,7 +9,7 @@ export { subscriptionDisplayState }
 export type VendorCustomer = { id: string; name: string; tenant_id: string | null; commercial_setup_required: boolean; subscription: SubscriptionView | null }
 export type VendorCustomerList = { items: VendorCustomer[]; total: number }
 /** Vendor invoice views carry the customer's name (joined server-side); the customer-facing invoice contract does not. */
-export type VendorInvoice = Invoice & { customer_name: string }
+export type VendorInvoice = Invoice & { customer_name: string; adjustments: Adjustment[] }
 export type VendorInvoiceList = { items: VendorInvoice[]; total: number; summary: { outstanding: Money[] } }
 
 // ---- Filters (URL-backed) ----
@@ -117,7 +117,13 @@ export function vendorInvoiceLineViews(lines: Invoice['lines'], t: (key: string)
     }
   })
 }
-export const isCreditRelated = (i: Pick<Invoice, 'status' | 'kind'>) => i.status === 'credit_pending' || i.kind === 'adjustment'
+
+/** Recording a refund: the reference and reason are required and bounded like the server's contract. */
+export const validRefundDraft = (d: { reference: string; reason: string }) =>
+  d.reference.trim().length >= 3 && d.reference.trim().length <= 200 && d.reason.trim().length >= 3 && d.reason.trim().length <= 1000
+export function refundErrorKey(cause: unknown): string {
+  return commercialFailure(cause).code === 'credit_note_not_pending' ? 'vendor.invoices.refund.errors.credit_note_not_pending' : commercialErrorKey(cause)
+}
 
 // ---- Errors: routes may not exist yet ----
 export function isNotAvailable(cause: unknown): boolean {

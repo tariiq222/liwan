@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { invoiceSchema, TAX_LABEL, type Invoice, type Money, type Quote } from '@webvue/commercial-contracts'
+import { adjustmentSchema, invoiceSchema, TAX_LABEL, type Adjustment, type Invoice, type Money, type Quote } from '@webvue/commercial-contracts'
 
 export type InvoiceView = Invoice
 /** Vendor-console view: the customer-facing invoice plus the customer's name (never sent to customers). */
-export type VendorInvoiceView = InvoiceView & { customer_name: string }
+export type VendorInvoiceView = InvoiceView & { customer_name: string; adjustments: Adjustment[] }
 export type VendorInvoiceSummary = { outstanding: Money[] }
 type Q = Pick<Pool, 'query'>
 
@@ -12,11 +12,10 @@ const d = (v: unknown): string => (v instanceof Date ? v.toISOString().slice(0, 
 const ts = (v: unknown): string | null => (v == null ? null : v instanceof Date ? v.toISOString() : String(v))
 const num = (v: unknown): number => Number(v)
 
-export function invoiceView(row: any, lines: any[], adjustments: any[] = []): InvoiceView {
+export function invoiceView(row: any, lines: any[]): InvoiceView {
   const cur = row.currency as string
   const ex = num(row.exponent)
   const money = (minor: unknown) => ({ currency: cur, exponent: ex, minor: num(minor) })
-  void adjustments
   return invoiceSchema.parse({
     id: row.id, number: row.number ?? null, customer_id: row.customer_id, subscription_id: row.subscription_id,
     order_id: row.order_id ?? null, kind: row.kind, status: row.status, currency: cur,
@@ -67,15 +66,24 @@ export async function issueInvoiceFromQuote(
     )
     lines.push(r.rows[0])
   }
-  return invoiceView(ins.rows[0], lines, [])
+  return invoiceView(ins.rows[0], lines)
+}
+
+/** One credit/debit note as the vendor console sees it, including the operator-recorded refund. */
+export function adjustmentView(row: any): Adjustment {
+  return adjustmentSchema.parse({
+    id: row.id, invoice_id: row.invoice_id, customer_id: row.customer_id, kind: row.kind, reason: row.reason,
+    amount: { currency: row.currency, exponent: num(row.exponent), minor: num(row.amount_minor) },
+    status: row.status, created_at: ts(row.created_at), created_by: row.created_by,
+    refund_reference: row.refund_reference ?? null, refunded_at: ts(row.refunded_at), refunded_by: row.refunded_by ?? null,
+  })
 }
 
 async function hydrate(pool: Q, rows: any[]): Promise<InvoiceView[]> {
   if (!rows.length) return []
   const ids = rows.map(r => r.id)
   const ls = (await pool.query('SELECT * FROM invoice_lines WHERE invoice_id = ANY($1::uuid[])', [ids])).rows
-  const as = (await pool.query('SELECT * FROM invoice_adjustments WHERE invoice_id = ANY($1::uuid[])', [ids])).rows
-  return rows.map(r => invoiceView(r, ls.filter(l => l.invoice_id === r.id), as.filter(a => a.invoice_id === r.id)))
+  return rows.map(r => invoiceView(r, ls.filter(l => l.invoice_id === r.id)))
 }
 
 type InvoiceFilter = { customer_id?: string; status?: string; limit?: number; offset?: number }
@@ -112,7 +120,8 @@ export async function getInvoice(pool: Q, id: string, { customer_id }: { custome
 
 async function hydrateVendor(pool: Q, rows: any[]): Promise<VendorInvoiceView[]> {
   const views = await hydrate(pool, rows)
-  return views.map((v, i) => ({ ...v, customer_name: rows[i].customer_name as string }))
+  const notes = rows.length ? (await pool.query('SELECT * FROM invoice_adjustments WHERE invoice_id = ANY($1::uuid[]) ORDER BY created_at,id', [rows.map(r => r.id)])).rows : []
+  return views.map((v, i) => ({ ...v, customer_name: rows[i].customer_name as string, adjustments: notes.filter(n => n.invoice_id === v.id).map(adjustmentView) }))
 }
 
 export async function getVendorInvoice(pool: Q, id: string): Promise<VendorInvoiceView | null> {

@@ -7,6 +7,8 @@ import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { generateRenewals, applyDunning, trialEndsAt } from '../commercial/renewals.js'
 import { verifyReturnedAttempt } from '../commercial/payments.js'
+import { CommercialHttpError } from '../commercial/lifecycle.js'
+import { fixedReturnOrigin } from '../commercial/return-origin.js'
 
 const url=process.env.CONTROL_TEST_DATABASE_URL
 if(url && new URL(url).pathname!=='/webvue_control_scratch_payfinal') throw new Error('renewal tests require own scratch DB')
@@ -39,7 +41,7 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,state='active',renewal_at='2026-10-01',revision=revision+1 WHERE id=$1",[order.subscription_id])
     return {customer,id:order.subscription_id}
   }
-  const args=(adapter:SimulatorAdapter)=>({now,adapter,allowedOrigin:'https://webvue.test'})
+  const args=(adapter:SimulatorAdapter)=>({now,adapter,returnOrigin: fixedReturnOrigin('https://webvue.test')})
   it('invoices once across repeated and concurrent generation, uses pinned price despite newer revision',async()=>{
     const s=await subscription()
     // Publish a new revision in the SAME plan family without changing the applied revision.
@@ -59,9 +61,19 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     const count=async()=>(await pool.query("SELECT (SELECT count(*)::int FROM renewals) AS renewals,(SELECT count(*)::int FROM orders WHERE kind='renewal') AS orders,(SELECT count(*)::int FROM invoices) AS invoices")).rows[0]
     const before=await count()
     for(const origin of ['http://billing.example.com','https://user:pw@billing.example.com'])
-      await expect(generateRenewals(pool,{...args(new SimulatorAdapter()),allowedOrigin:origin})).rejects.toMatchObject({status:422,code:'return_url_forbidden'})
+      await expect(generateRenewals(pool,{...args(new SimulatorAdapter()),returnOrigin:fixedReturnOrigin(origin)})).rejects.toMatchObject({status:422,code:'return_url_forbidden'})
     expect(await count()).toEqual(before)
     expect((await pool.query('SELECT state FROM subscriptions WHERE id=$1',[s.id])).rows[0].state).toBe('active')
+  })
+  it('skips only the customer without a usable return origin, renews the others, and still fails the run',async()=>{
+    const skipped=await subscription(),renewed=await subscription()
+    const returnOrigin=async(customer:string)=>{if(customer===skipped.customer)throw new CommercialHttpError('return_url_forbidden',422);return 'https://webvue.test'}
+    await expect(generateRenewals(pool,{now,adapter:new SimulatorAdapter(),returnOrigin})).rejects.toMatchObject({status:422,code:'return_url_forbidden'})
+    const rows=(await pool.query('SELECT subscription_id FROM renewals')).rows.map(r=>r.subscription_id)
+    expect(rows).toEqual([renewed.id])
+    // Fixed later, the skipped customer renews on the next run without a duplicate for the other.
+    await generateRenewals(pool,args(new SimulatorAdapter()))
+    expect((await pool.query('SELECT subscription_id FROM renewals ORDER BY subscription_id')).rows.map(r=>r.subscription_id).sort()).toEqual([renewed.id,skipped.id].sort())
   })
   it('no consent never charges; charge response waits for lookup and paid renewal waits for receipt',async()=>{
     const no=await subscription(),yes=await subscription()

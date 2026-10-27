@@ -10,6 +10,7 @@ import { expireTrials } from '../commercial/trial-expiry.js'
 import { commercialValidUntil } from '../commercial/fulfillment.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { sendTrialNotices } from '../commercial/trial-notices.js'
+import { fixedReturnOrigin, type ReturnOrigin } from '../commercial/return-origin.js'
 
 const suite = url ? describe : describe.skip
 suite('commercial trial', () => {
@@ -81,27 +82,27 @@ suite('commercial trial', () => {
   it('ends a trial by issuing the first renewal invoice', async () => {
     const c = await trialAt(now, -1)
     const adapter = new SimulatorAdapter()
-    await expireTrials(pool, { now, adapter, allowedOrigin: 'https://webvue.test' })
+    await expireTrials(pool, { now, adapter, returnOrigin: fixedReturnOrigin('https://webvue.test') })
     const after = await getSubscription(pool, c.id)
     expect(after.state).toBe('past_due')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
   })
   it('rejects an unusable return origin before ending any trial', async () => {
     const c = await trialAt(now, -1)
-    await expect(expireTrials(pool, { now, adapter: new SimulatorAdapter(), allowedOrigin: 'http://billing.example.com' })).rejects.toMatchObject({ status: 422, code: 'return_url_forbidden' })
+    await expect(expireTrials(pool, { now, adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('http://billing.example.com') })).rejects.toMatchObject({ status: 422, code: 'return_url_forbidden' })
     expect((await getSubscription(pool, c.id)).state).toBe('trialing')
   })
   it('is idempotent across a repeated run', async () => {
     const c = await trialAt(now, -1)
     const adapter = new SimulatorAdapter()
-    const args = { now, adapter, allowedOrigin: 'https://webvue.test' }
+    const args = { now, adapter, returnOrigin: fixedReturnOrigin('https://webvue.test') }
     await expireTrials(pool, args)
     await expireTrials(pool, args)
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
   })
   it('does not end a trial before its end date', async () => {
     const c = await trialAt(now, 2)
-    await expireTrials(pool, { now, adapter: new SimulatorAdapter(), allowedOrigin: 'https://webvue.test' })
+    await expireTrials(pool, { now, adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('https://webvue.test') })
     expect((await getSubscription(pool, c.id)).state).toBe('trialing')
   })
   it('writes each notice threshold exactly once', async () => {
@@ -116,7 +117,7 @@ suite('commercial trial', () => {
     const notice = (await pool.query("SELECT payload FROM commercial_outbox WHERE kind='trial.notice' AND aggregate_id=$1", [subscriptionId])).rows[0]
     expect(notice.payload).toMatchObject({ subscription_id: subscriptionId, days_left: 3 })
   })
-  async function vendorPost(path: string, body: Record<string, unknown>, runtime?: { adapter: SimulatorAdapter; allowedOrigin: string }) {
+  async function vendorPost(path: string, body: Record<string, unknown>, runtime?: { adapter: SimulatorAdapter; returnOrigin: ReturnOrigin }) {
     return routesB(pool, { method: 'POST', pathname: `/v1/commercial${path}`, raw: JSON.stringify(body), issuer: 'trial-test', actor: 1,
       capabilities: ['vendor.subscriptions.manage'], stepUpFresh: true }, new URL(`http://localhost/v1/commercial${path}`), runtime)
   }
@@ -140,7 +141,7 @@ suite('commercial trial', () => {
   it('ends a trial from the console and issues the first invoice', async () => {
     const c = await trialAt(now, 5)
     const sub = await getSubscription(pool, c.id)
-    const response = await vendorPost(`/trials/${sub.id}/end`, { reason: 'customer asked to start now' }, { adapter: new SimulatorAdapter(), allowedOrigin: 'https://webvue.test' })
+    const response = await vendorPost(`/trials/${sub.id}/end`, { reason: 'customer asked to start now' }, { adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('https://webvue.test') })
     expect(response!.status).toBe(200)
     expect((await getSubscription(pool, c.id)).state).toBe('past_due')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
@@ -160,7 +161,7 @@ suite('commercial trial', () => {
     await pool.query(`INSERT INTO subscriptions(id,customer_id,tenant_id,state,renewal_at,applied_revision_id)
       VALUES('00000000-0000-4000-8000-000000000001',$1,$2,'past_due','2026-10-20',$3)`, [third, thirdTenant, otherSub.applied!.id])
     const c = await trialAt(now, 5)
-    const result = await convertTrial(pool, { customer_id: c.id, now, adapter: new SimulatorAdapter(), allowedOrigin: 'https://webvue.test' })
+    const result = await convertTrial(pool, { customer_id: c.id, now, adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('https://webvue.test') })
     expect(result.order).toBeTruthy()
     expect(result.order!.customer_id).toBe(c.id)
     expect(result.attempt?.order_id).toBe(result.order!.id)
