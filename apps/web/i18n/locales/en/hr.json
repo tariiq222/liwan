@@ -178,6 +178,12 @@
       "unarchive": "Restore employee",
       "archiveConfirm": "Archive {name}? They leave the active employee lists and their login account, if any, is disabled.",
       "unarchiveConfirm": "Restore {name}? They return to the active employee lists, and their login account stays disabled until access is granted again.",
+      "exitBlocked": {
+        "title": "This employee cannot be archived yet",
+        "departure_missing": "Record the departure date first.",
+        "custody_open": "Equipment is still assigned to this employee. Return it first.",
+        "settlement_missing": "The final settlement is not confirmed. Confirm it in payroll first."
+      },
       "archiveVendorReadOnly": "Vendor linked employees cannot be archived here.",
       "edit": "Edit employee",
       "accessManagedInSettings": "Sign-in access is managed in System administration.",

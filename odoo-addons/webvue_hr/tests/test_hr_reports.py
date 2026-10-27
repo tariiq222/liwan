@@ -4,7 +4,7 @@ from datetime import timedelta
 from odoo import fields
 from odoo.tests import new_test_user, tagged
 
-from .common import WebVueHrCase
+from .common import WebVueHrCase, make_archivable
 
 SAUDI_ROW_KEYS = {'department', 'total', 'saudi', 'non_saudi', 'unknown', 'saudi_percent'}
 EXPIRING_KEYS = {'kind', 'employee', 'document', 'due_date', 'days_left'}
@@ -83,6 +83,7 @@ class TestHrExpiring(WebVueHrCase):
         self.assertIn(self.far.id, [i['employee']['id'] for i in wide['items'] if i['employee']])
 
     def test_archived_employees_are_left_out(self):
+        make_archivable(self.env, self.soon)
         self.soon._webvue_archive()
         body = self._expiring('?within_days=365').json()
         ids = {item['employee']['id'] for item in body['items'] if item['employee']}
@@ -166,6 +167,7 @@ class TestHrSaudization(WebVueHrCase):
         ):
             Employee.create({'name': name, 'department_id': dept.id, 'country_id': country.id})
         archived = Employee.create({'name': 'Gone', 'department_id': cls.dept_a.id, 'country_id': cls.egypt.id})
+        make_archivable(cls.env, archived)
         archived._webvue_archive()
 
     def _report(self):

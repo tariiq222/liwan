@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import new_test_user, tagged
 
-from .common import WebVueHrCase, set_hr_feature
+from .common import WebVueHrCase, make_archivable, set_hr_feature
 
 EMP_KEYS = {
     'id', 'name', 'job_title', 'department', 'work_email', 'work_phone', 'user_id',
@@ -173,6 +173,7 @@ class TestHrEmployees(WebVueHrCase):
         })
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()['job_title'], 'Senior Analyst')
+        make_archivable(self.env, self.env['hr.employee'].browse(employee_id))
         res = self.api('POST', f'/api/v1/hr/employees/{employee_id}/archive', {})
         self.assertEqual(res.status_code, 200)
         self.assertFalse(res.json()['active'])

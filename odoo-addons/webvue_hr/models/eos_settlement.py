@@ -62,6 +62,23 @@ class WebVueHrPayrollEosSettlement(models.Model):
         return dated or rows.filtered(lambda row: row.state == 'draft')[:1]
 
     @api.model
+    def _webvue_confirmed_employee_ids(self, employees):
+        """Ids of the employees whose current departure has a confirmed settlement, without reading any figure.
+
+        The archive and approval checks run for callers that hold no payroll read capability, and a search they
+        cannot see would read as "no settlement". The query therefore names only the state and the departure date
+        columns of the WebVue table, never an amount.
+        """
+        self.flush_model(['employee_id', 'departure_date', 'state'])
+        self.env.cr.execute(
+            'SELECT employee_id, departure_date FROM webvue_hr_payroll_eos_settlement'
+            " WHERE state = 'confirmed' AND employee_id = ANY(%s)",
+            [employees.ids],
+        )
+        confirmed = set(self.env.cr.fetchall())
+        return {employee.id for employee in employees if (employee.id, employee.departure_date) in confirmed}
+
+    @api.model
     def _webvue_service_start(self, employee):
         """Start of the employee's unbroken service, or False without a contract.
 

@@ -286,6 +286,7 @@
       "notEditable": "Inputs cannot be edited once the run is approved.",
       "compensation_missing": "An employee has no compensation recorded. Record it and compute again.",
       "settlement_missing": "An employee who left has no approved end-of-service settlement. Complete it before approving the run.",
+      "custody_open": "An employee who left still holds equipment. Return it before approving the run.",
       "period_locked": "The accounting period of this action is locked.",
       "missing_cost_center": "One or more departments have no cost center. Set them in the payroll settings.",
       "settings_incomplete": "The payroll accounting settings are incomplete. Complete the journal and accounts in the payroll settings.",

@@ -56,11 +56,13 @@
 
     <!-- Stock restricts base.group_user to the equipment they follow; the assets read
          capability sees every equipment of its companies (the global multi-company rule
-         still applies). -->
+         still applies). The archive and payroll-approval capabilities read it too: the exit
+         check (_webvue_exit_blockers) must see every custody, because a search the rule
+         narrowed would read as "no custody" and let an employee leave holding equipment. -->
     <record id="rule_hr_equipment_assets_read" model="ir.rule">
         <field name="name">webvue assets: read the company equipment</field>
         <field name="model_id" ref="maintenance.model_maintenance_equipment"/>
-        <field name="groups" eval="[Command.link(ref('group_cap_hr_assets_read'))]"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_hr_assets_read')),Command.link(ref('group_cap_hr_employees_archive')),Command.link(ref('group_cap_hr_payroll_approve'))]"/>
         <field name="domain_force">[(1, '=', 1)]</field>
         <field name="perm_read" eval="True"/>
         <field name="perm_write" eval="False"/>

@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import date
+
 from odoo.addons.webvue_api.tests.common import WebVueApiCase
 from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
 
@@ -16,6 +18,20 @@ def set_hr_feature(case, key, enabled=True):
         'features': {**(profile.features or {}), key: enabled},
         'retained_read_features': retained,
     })
+
+
+def make_archivable(env, employees):
+    """Give employees a departure date and a confirmed settlement, so the exit check lets them be archived.
+
+    The settlement row is written directly: these tests are about the archive, not the settlement figures.
+    """
+    for employee in employees:
+        departure = employee.departure_date or date(2026, 11, 30)
+        employee.write({'departure_date': departure})
+        env['webvue.hr.payroll.eos.settlement'].create({
+            'employee_id': employee.id, 'departure_date': departure, 'case': 'resignation', 'state': 'confirmed',
+        })
+    return employees
 
 
 class WebVueHrCase(WebVueApiCase):
