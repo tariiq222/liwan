@@ -11,22 +11,27 @@ from odoo.tests import BaseCase, get_db_name, tagged
 class TestAiQuotaRace(BaseCase):
     """Two real transactions race the tenant quota fence that the monthly AI message cap writes.
 
-    A BaseCase holds no test transaction of its own, so nothing else locks the tenant profile row. The winner
-    goes through the real fence (``_webvue_bump_quota_revision``). The loser, whose snapshot predates the
-    winner's commit, runs the fence's own row lock from a second thread: it cannot use the ORM there because
-    the test runner holds the registry lock. It must fail serialization instead of counting from its stale
-    snapshot; Odoo's request retry then reruns such a sender on fresh data. The only committed effect is one
-    quota revision increment of the scratch database's tenant profile.
+    This proves the PostgreSQL behaviour the fix relies on: once a sender has gone through the real fence
+    (``_webvue_bump_quota_revision``), a concurrent sender whose snapshot predates the winner's commit fails
+    serialization instead of counting from that stale snapshot, and Odoo's request retry reruns it. That
+    ``webvue.ai.audit.create`` writes this fence before it counts is proven by the spy tests in
+    ``test_ai_audit.py``. A BaseCase holds no test transaction, so nothing else locks the tenant profile row; the
+    loser runs the fence's own row lock from a second thread because the test runner holds the registry lock.
+    The committed revision increment is set back afterwards.
     """
 
     def test_a_sender_racing_the_fence_from_an_older_snapshot_fails_serialization(self):
+        # A hard gate, not a skip: committed concurrency tests never touch a development database.
+        if not get_db_name().startswith('webvue_scratch_'):
+            self.fail('Committed concurrency tests require a webvue_scratch_ database.')
         db = sql_db.db_connect(get_db_name())
         winner, loser = db.cursor(), db.cursor()
         outcome = {}
+        profile = api.Environment(winner, SUPERUSER_ID, {}).ref('webvue_platform.tenant_profile')
+        revision = profile.quota_revision
         try:
             for cursor in (winner, loser):
                 cursor.execute("SET lock_timeout = '10s'")
-            profile = api.Environment(winner, SUPERUSER_ID, {}).ref('webvue_platform.tenant_profile')
             loser.execute('SELECT 1')  # the loser's snapshot predates the winner's commit
 
             def race():
@@ -48,4 +53,7 @@ class TestAiQuotaRace(BaseCase):
         finally:
             loser.rollback()
             loser.close()
+            winner.rollback()
+            winner.execute('UPDATE webvue_tenant_profile SET quota_revision = %s WHERE id = %s', [revision, profile.id])
+            winner.commit()
             winner.close()

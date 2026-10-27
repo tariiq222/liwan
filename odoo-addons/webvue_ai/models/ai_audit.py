@@ -195,7 +195,9 @@ class WebVueAiAudit(models.Model):
                 # An exact cap. Odoo runs REPEATABLE READ, so a lock alone would let a sender that waited count
                 # from a snapshot older than the winner's commit. Writing the tenant's quota fence before the
                 # count makes such a sender fail serialization instead; Odoo then retries its whole request on
-                # fresh data, which already holds the winner's row. Unlimited tenants skip the fence.
+                # fresh data, which already holds the winner's row. Unlimited tenants skip the fence. Known limit:
+                # Odoo retries a request five times, so a burst of more concurrent capped messages for one tenant
+                # (or ones racing other quota claims) can still end in a server error; each transaction is short.
                 entitlement._webvue_profile()._webvue_bump_quota_revision()
             entitlement.require_within_limit(MONTHLY_MESSAGES, self._webvue_ai_count_messages() + messages)
         return super().create(rows)
