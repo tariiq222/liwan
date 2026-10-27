@@ -1,0 +1,3365 @@
+{
+  "items": [
+    {
+      "end_datetime": null,
+      "id": 1,
+      "meeting_date": "2026-10-01",
+      "name": "M209",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0268",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 3,
+      "meeting_date": "2026-10-01",
+      "name": "M208",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0267",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 4,
+      "meeting_date": "2026-10-01",
+      "name": "M207",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0266",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 5,
+      "meeting_date": "2026-10-01",
+      "name": "M206",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0265",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 6,
+      "meeting_date": "2026-10-01",
+      "name": "M205",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0264",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 7,
+      "meeting_date": "2026-10-01",
+      "name": "M204",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0263",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 8,
+      "meeting_date": "2026-10-01",
+      "name": "M203",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0262",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 9,
+      "meeting_date": "2026-10-01",
+      "name": "M202",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0261",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 10,
+      "meeting_date": "2026-10-01",
+      "name": "M201",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0260",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 11,
+      "meeting_date": "2026-10-01",
+      "name": "M200",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0259",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 12,
+      "meeting_date": "2026-10-01",
+      "name": "M199",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0258",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 13,
+      "meeting_date": "2026-10-01",
+      "name": "M198",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0257",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 14,
+      "meeting_date": "2026-10-01",
+      "name": "M197",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0256",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 15,
+      "meeting_date": "2026-10-01",
+      "name": "M196",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0255",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 16,
+      "meeting_date": "2026-10-01",
+      "name": "M195",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0254",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 17,
+      "meeting_date": "2026-10-01",
+      "name": "M194",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0253",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 18,
+      "meeting_date": "2026-10-01",
+      "name": "M193",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0252",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 19,
+      "meeting_date": "2026-10-01",
+      "name": "M192",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0251",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 20,
+      "meeting_date": "2026-10-01",
+      "name": "M191",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0250",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 21,
+      "meeting_date": "2026-10-01",
+      "name": "M190",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0249",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 22,
+      "meeting_date": "2026-10-01",
+      "name": "M189",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0248",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 23,
+      "meeting_date": "2026-10-01",
+      "name": "M188",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0247",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 24,
+      "meeting_date": "2026-10-01",
+      "name": "M187",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0246",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 25,
+      "meeting_date": "2026-10-01",
+      "name": "M186",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0245",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 26,
+      "meeting_date": "2026-10-01",
+      "name": "M185",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0244",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 27,
+      "meeting_date": "2026-10-01",
+      "name": "M184",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0243",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 28,
+      "meeting_date": "2026-10-01",
+      "name": "M183",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0242",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 29,
+      "meeting_date": "2026-10-01",
+      "name": "M182",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0241",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 30,
+      "meeting_date": "2026-10-01",
+      "name": "M181",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0240",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 31,
+      "meeting_date": "2026-10-01",
+      "name": "M180",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0239",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 32,
+      "meeting_date": "2026-10-01",
+      "name": "M179",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0238",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 33,
+      "meeting_date": "2026-10-01",
+      "name": "M178",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0237",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 34,
+      "meeting_date": "2026-10-01",
+      "name": "M177",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0236",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 35,
+      "meeting_date": "2026-10-01",
+      "name": "M176",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0235",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 36,
+      "meeting_date": "2026-10-01",
+      "name": "M175",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0234",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 37,
+      "meeting_date": "2026-10-01",
+      "name": "M174",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0233",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 38,
+      "meeting_date": "2026-10-01",
+      "name": "M173",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0232",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 39,
+      "meeting_date": "2026-10-01",
+      "name": "M172",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0231",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 40,
+      "meeting_date": "2026-10-01",
+      "name": "M171",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0230",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 41,
+      "meeting_date": "2026-10-01",
+      "name": "M170",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0229",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 42,
+      "meeting_date": "2026-10-01",
+      "name": "M169",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0228",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 43,
+      "meeting_date": "2026-10-01",
+      "name": "M168",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0227",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 44,
+      "meeting_date": "2026-10-01",
+      "name": "M167",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0226",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 45,
+      "meeting_date": "2026-10-01",
+      "name": "M166",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0225",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 46,
+      "meeting_date": "2026-10-01",
+      "name": "M165",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0224",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 47,
+      "meeting_date": "2026-10-01",
+      "name": "M164",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0223",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 48,
+      "meeting_date": "2026-10-01",
+      "name": "M163",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0222",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 49,
+      "meeting_date": "2026-10-01",
+      "name": "M162",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0221",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 50,
+      "meeting_date": "2026-10-01",
+      "name": "M161",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0220",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 51,
+      "meeting_date": "2026-10-01",
+      "name": "M160",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0219",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 52,
+      "meeting_date": "2026-10-01",
+      "name": "M159",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0218",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 53,
+      "meeting_date": "2026-10-01",
+      "name": "M158",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0217",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 54,
+      "meeting_date": "2026-10-01",
+      "name": "M157",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0216",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 55,
+      "meeting_date": "2026-10-01",
+      "name": "M156",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0215",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 56,
+      "meeting_date": "2026-10-01",
+      "name": "M155",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0214",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 57,
+      "meeting_date": "2026-10-01",
+      "name": "M154",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0213",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 58,
+      "meeting_date": "2026-10-01",
+      "name": "M153",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0212",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 59,
+      "meeting_date": "2026-10-01",
+      "name": "M152",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0211",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 60,
+      "meeting_date": "2026-10-01",
+      "name": "M151",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0210",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 61,
+      "meeting_date": "2026-10-01",
+      "name": "M150",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0209",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 62,
+      "meeting_date": "2026-10-01",
+      "name": "M149",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0208",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 63,
+      "meeting_date": "2026-10-01",
+      "name": "M148",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0207",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 64,
+      "meeting_date": "2026-10-01",
+      "name": "M147",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0206",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 65,
+      "meeting_date": "2026-10-01",
+      "name": "M146",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0205",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 66,
+      "meeting_date": "2026-10-01",
+      "name": "M145",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0204",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 67,
+      "meeting_date": "2026-10-01",
+      "name": "M144",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0203",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 68,
+      "meeting_date": "2026-10-01",
+      "name": "M143",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0202",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 69,
+      "meeting_date": "2026-10-01",
+      "name": "M142",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0201",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 70,
+      "meeting_date": "2026-10-01",
+      "name": "M141",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0200",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 71,
+      "meeting_date": "2026-10-01",
+      "name": "M140",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0199",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 72,
+      "meeting_date": "2026-10-01",
+      "name": "M139",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0198",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 73,
+      "meeting_date": "2026-10-01",
+      "name": "M138",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0197",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 74,
+      "meeting_date": "2026-10-01",
+      "name": "M137",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0196",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 75,
+      "meeting_date": "2026-10-01",
+      "name": "M136",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0195",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 76,
+      "meeting_date": "2026-10-01",
+      "name": "M135",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0194",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 77,
+      "meeting_date": "2026-10-01",
+      "name": "M134",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0193",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 78,
+      "meeting_date": "2026-10-01",
+      "name": "M133",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0192",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 79,
+      "meeting_date": "2026-10-01",
+      "name": "M132",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0191",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 80,
+      "meeting_date": "2026-10-01",
+      "name": "M131",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0190",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 81,
+      "meeting_date": "2026-10-01",
+      "name": "M130",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0189",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 82,
+      "meeting_date": "2026-10-01",
+      "name": "M129",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0188",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 83,
+      "meeting_date": "2026-10-01",
+      "name": "M128",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0187",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 84,
+      "meeting_date": "2026-10-01",
+      "name": "M127",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0186",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 85,
+      "meeting_date": "2026-10-01",
+      "name": "M126",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0185",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 86,
+      "meeting_date": "2026-10-01",
+      "name": "M125",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0184",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 87,
+      "meeting_date": "2026-10-01",
+      "name": "M124",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0183",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 88,
+      "meeting_date": "2026-10-01",
+      "name": "M123",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0182",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 89,
+      "meeting_date": "2026-10-01",
+      "name": "M122",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0181",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 90,
+      "meeting_date": "2026-10-01",
+      "name": "M121",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0180",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 91,
+      "meeting_date": "2026-10-01",
+      "name": "M120",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0179",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 92,
+      "meeting_date": "2026-10-01",
+      "name": "M119",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0178",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 93,
+      "meeting_date": "2026-10-01",
+      "name": "M118",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0177",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 94,
+      "meeting_date": "2026-10-01",
+      "name": "M117",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0176",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 95,
+      "meeting_date": "2026-10-01",
+      "name": "M116",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0175",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 96,
+      "meeting_date": "2026-10-01",
+      "name": "M115",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0174",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 97,
+      "meeting_date": "2026-10-01",
+      "name": "M114",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0173",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 98,
+      "meeting_date": "2026-10-01",
+      "name": "M113",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0172",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 99,
+      "meeting_date": "2026-10-01",
+      "name": "M112",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0171",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 100,
+      "meeting_date": "2026-10-01",
+      "name": "M111",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0170",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 101,
+      "meeting_date": "2026-10-01",
+      "name": "M110",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0169",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 102,
+      "meeting_date": "2026-10-01",
+      "name": "M109",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0168",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 103,
+      "meeting_date": "2026-10-01",
+      "name": "M108",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0167",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 104,
+      "meeting_date": "2026-10-01",
+      "name": "M107",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0166",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 105,
+      "meeting_date": "2026-10-01",
+      "name": "M106",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0165",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 106,
+      "meeting_date": "2026-10-01",
+      "name": "M105",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0164",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 107,
+      "meeting_date": "2026-10-01",
+      "name": "M104",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0163",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 108,
+      "meeting_date": "2026-10-01",
+      "name": "M103",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0162",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 109,
+      "meeting_date": "2026-10-01",
+      "name": "M102",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0161",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 110,
+      "meeting_date": "2026-10-01",
+      "name": "M101",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0160",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 111,
+      "meeting_date": "2026-10-01",
+      "name": "M100",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0159",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 112,
+      "meeting_date": "2026-10-01",
+      "name": "M99",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0158",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 113,
+      "meeting_date": "2026-10-01",
+      "name": "M98",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0157",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 114,
+      "meeting_date": "2026-10-01",
+      "name": "M97",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0156",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 115,
+      "meeting_date": "2026-10-01",
+      "name": "M96",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0155",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 116,
+      "meeting_date": "2026-10-01",
+      "name": "M95",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0154",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 117,
+      "meeting_date": "2026-10-01",
+      "name": "M94",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0153",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 118,
+      "meeting_date": "2026-10-01",
+      "name": "M93",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0152",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 119,
+      "meeting_date": "2026-10-01",
+      "name": "M92",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0151",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 120,
+      "meeting_date": "2026-10-01",
+      "name": "M91",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0150",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 121,
+      "meeting_date": "2026-10-01",
+      "name": "M90",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0149",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 122,
+      "meeting_date": "2026-10-01",
+      "name": "M89",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0148",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 123,
+      "meeting_date": "2026-10-01",
+      "name": "M88",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0147",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 124,
+      "meeting_date": "2026-10-01",
+      "name": "M87",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0146",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 125,
+      "meeting_date": "2026-10-01",
+      "name": "M86",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0145",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 2,
+      "meeting_date": "2026-10-01",
+      "name": "M85",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0144",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 126,
+      "meeting_date": "2026-10-01",
+      "name": "M84",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0143",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 127,
+      "meeting_date": "2026-10-01",
+      "name": "M83",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0142",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 128,
+      "meeting_date": "2026-10-01",
+      "name": "M82",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0141",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 129,
+      "meeting_date": "2026-10-01",
+      "name": "M81",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0140",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 130,
+      "meeting_date": "2026-10-01",
+      "name": "M80",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0139",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 131,
+      "meeting_date": "2026-10-01",
+      "name": "M79",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0138",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 132,
+      "meeting_date": "2026-10-01",
+      "name": "M78",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0137",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 133,
+      "meeting_date": "2026-10-01",
+      "name": "M77",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0136",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 134,
+      "meeting_date": "2026-10-01",
+      "name": "M76",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0135",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 135,
+      "meeting_date": "2026-10-01",
+      "name": "M75",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0134",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 136,
+      "meeting_date": "2026-10-01",
+      "name": "M74",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0133",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 137,
+      "meeting_date": "2026-10-01",
+      "name": "M73",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0132",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 138,
+      "meeting_date": "2026-10-01",
+      "name": "M72",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0131",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 139,
+      "meeting_date": "2026-10-01",
+      "name": "M71",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0130",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 140,
+      "meeting_date": "2026-10-01",
+      "name": "M70",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0129",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 141,
+      "meeting_date": "2026-10-01",
+      "name": "M69",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0128",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 142,
+      "meeting_date": "2026-10-01",
+      "name": "M68",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0127",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 143,
+      "meeting_date": "2026-10-01",
+      "name": "M67",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0126",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 144,
+      "meeting_date": "2026-10-01",
+      "name": "M66",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0125",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 145,
+      "meeting_date": "2026-10-01",
+      "name": "M65",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0124",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 146,
+      "meeting_date": "2026-10-01",
+      "name": "M64",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0123",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 147,
+      "meeting_date": "2026-10-01",
+      "name": "M63",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0122",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 148,
+      "meeting_date": "2026-10-01",
+      "name": "M62",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0121",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 149,
+      "meeting_date": "2026-10-01",
+      "name": "M61",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0120",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 150,
+      "meeting_date": "2026-10-01",
+      "name": "M60",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0119",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 151,
+      "meeting_date": "2026-10-01",
+      "name": "M59",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0118",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 152,
+      "meeting_date": "2026-10-01",
+      "name": "M58",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0117",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 153,
+      "meeting_date": "2026-10-01",
+      "name": "M57",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0116",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 154,
+      "meeting_date": "2026-10-01",
+      "name": "M56",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0115",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 155,
+      "meeting_date": "2026-10-01",
+      "name": "M55",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0114",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 156,
+      "meeting_date": "2026-10-01",
+      "name": "M54",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0113",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 157,
+      "meeting_date": "2026-10-01",
+      "name": "M53",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0112",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 158,
+      "meeting_date": "2026-10-01",
+      "name": "M52",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0111",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 159,
+      "meeting_date": "2026-10-01",
+      "name": "M51",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0110",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 160,
+      "meeting_date": "2026-10-01",
+      "name": "M50",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0109",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 161,
+      "meeting_date": "2026-10-01",
+      "name": "M49",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0108",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 162,
+      "meeting_date": "2026-10-01",
+      "name": "M48",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0107",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 163,
+      "meeting_date": "2026-10-01",
+      "name": "M47",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0106",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 164,
+      "meeting_date": "2026-10-01",
+      "name": "M46",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0105",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 165,
+      "meeting_date": "2026-10-01",
+      "name": "M45",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0104",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 166,
+      "meeting_date": "2026-10-01",
+      "name": "M44",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0103",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 167,
+      "meeting_date": "2026-10-01",
+      "name": "M43",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0102",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 168,
+      "meeting_date": "2026-10-01",
+      "name": "M42",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0101",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 169,
+      "meeting_date": "2026-10-01",
+      "name": "M41",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0100",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 170,
+      "meeting_date": "2026-10-01",
+      "name": "M40",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0099",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 171,
+      "meeting_date": "2026-10-01",
+      "name": "M39",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0098",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 172,
+      "meeting_date": "2026-10-01",
+      "name": "M38",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0097",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 173,
+      "meeting_date": "2026-10-01",
+      "name": "M37",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0096",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 174,
+      "meeting_date": "2026-10-01",
+      "name": "M36",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0095",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 175,
+      "meeting_date": "2026-10-01",
+      "name": "M35",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0094",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 176,
+      "meeting_date": "2026-10-01",
+      "name": "M34",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0093",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 177,
+      "meeting_date": "2026-10-01",
+      "name": "M33",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0092",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 178,
+      "meeting_date": "2026-10-01",
+      "name": "M32",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0091",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 179,
+      "meeting_date": "2026-10-01",
+      "name": "M31",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0090",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 180,
+      "meeting_date": "2026-10-01",
+      "name": "M30",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0089",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 181,
+      "meeting_date": "2026-10-01",
+      "name": "M29",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0088",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 182,
+      "meeting_date": "2026-10-01",
+      "name": "M28",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0087",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 183,
+      "meeting_date": "2026-10-01",
+      "name": "M27",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0086",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 184,
+      "meeting_date": "2026-10-01",
+      "name": "M26",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0085",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 185,
+      "meeting_date": "2026-10-01",
+      "name": "M25",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0084",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 186,
+      "meeting_date": "2026-10-01",
+      "name": "M24",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0083",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 187,
+      "meeting_date": "2026-10-01",
+      "name": "M23",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0082",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 188,
+      "meeting_date": "2026-10-01",
+      "name": "M22",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0081",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 189,
+      "meeting_date": "2026-10-01",
+      "name": "M21",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0080",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 190,
+      "meeting_date": "2026-10-01",
+      "name": "M20",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0079",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 191,
+      "meeting_date": "2026-10-01",
+      "name": "M19",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0078",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 192,
+      "meeting_date": "2026-10-01",
+      "name": "M18",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0077",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 193,
+      "meeting_date": "2026-10-01",
+      "name": "M17",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0076",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 194,
+      "meeting_date": "2026-10-01",
+      "name": "M16",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0075",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 195,
+      "meeting_date": "2026-10-01",
+      "name": "M15",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0074",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 196,
+      "meeting_date": "2026-10-01",
+      "name": "M14",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0073",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 197,
+      "meeting_date": "2026-10-01",
+      "name": "M13",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0072",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 198,
+      "meeting_date": "2026-10-01",
+      "name": "M12",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0071",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 199,
+      "meeting_date": "2026-10-01",
+      "name": "M11",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0070",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 200,
+      "meeting_date": "2026-10-01",
+      "name": "M10",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0069",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 201,
+      "meeting_date": "2026-10-01",
+      "name": "M9",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0068",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 202,
+      "meeting_date": "2026-10-01",
+      "name": "M8",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0067",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 203,
+      "meeting_date": "2026-10-01",
+      "name": "M7",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0066",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 204,
+      "meeting_date": "2026-10-01",
+      "name": "M6",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0065",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 205,
+      "meeting_date": "2026-10-01",
+      "name": "M5",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0064",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 206,
+      "meeting_date": "2026-10-01",
+      "name": "M4",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0063",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 207,
+      "meeting_date": "2026-10-01",
+      "name": "M3",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0062",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 208,
+      "meeting_date": "2026-10-01",
+      "name": "M2",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0061",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 209,
+      "meeting_date": "2026-10-01",
+      "name": "M1",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0060",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    },
+    {
+      "end_datetime": null,
+      "id": 210,
+      "meeting_date": "2026-10-01",
+      "name": "M0",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0059",
+      "series_id": null,
+      "start_datetime": null,
+      "state": "draft"
+    }
+  ],
+  "total": 210
+}

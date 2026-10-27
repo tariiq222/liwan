@@ -1,0 +1,41 @@
+{
+  "items": [
+    {
+      "actor": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "id": 1,
+      "kind": "meeting_completed",
+      "meeting_id": 10,
+      "meeting_name": "Iso meeting Isolation P2",
+      "occurred_at": "2026-01-01T00:00:00Z",
+      "summary": "Meeting state changed to done."
+    },
+    {
+      "actor": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "id": 3,
+      "kind": "meeting_confirmed",
+      "meeting_id": 10,
+      "meeting_name": "Iso meeting Isolation P2",
+      "occurred_at": "2026-01-01T00:00:00Z",
+      "summary": "Meeting state changed to confirmed."
+    },
+    {
+      "actor": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "id": 4,
+      "kind": "meeting_created",
+      "meeting_id": 10,
+      "meeting_name": "Iso meeting Isolation P2",
+      "occurred_at": "2026-01-01T00:00:00Z",
+      "summary": "Meeting created."
+    }
+  ],
+  "total": 3
+}

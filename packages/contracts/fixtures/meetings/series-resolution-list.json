@@ -1,0 +1,59 @@
+{
+  "items": [
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2030-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 1,
+      "meeting_id": 357,
+      "meeting_name": "Paged 4",
+      "name": "Item 357",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Mona"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 3,
+      "meeting_id": 356,
+      "meeting_name": "Paged 3",
+      "name": "Item 356",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Mona"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    }
+  ],
+  "total": 5
+}

@@ -1,0 +1,42 @@
+{
+  "attendees": [
+    {
+      "id": 3,
+      "name": "Sara"
+    }
+  ],
+  "can_edit": false,
+  "id": 1,
+  "location": "",
+  "meeting_url": "",
+  "meetings": [
+    {
+      "end_datetime": null,
+      "id": 4,
+      "meeting_date": "2026-10-27",
+      "name": "Seen",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Mona"
+      },
+      "project_id": null,
+      "reference": "MIN/2026/0047",
+      "series_id": 14,
+      "start_datetime": null,
+      "state": "draft"
+    }
+  ],
+  "name": "Mixed",
+  "open_resolution_count": 0,
+  "organizer": {
+    "id": 2,
+    "name": "Mona"
+  },
+  "overdue_resolution_count": 0,
+  "project": null,
+  "recurrence": "none",
+  "secretary": null,
+  "until_count": null,
+  "until_date": null
+}
