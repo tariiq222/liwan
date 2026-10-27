@@ -408,8 +408,9 @@ class HrLeaveController(http.Controller):
     def update_allocation(self, allocation_id, **payload):
         """Correct a grant's days or validity, never one's own and never a refused one.
 
-        The days go through ``number_of_days_display`` as well: hr_holidays checks that an
-        edit does not drop the grant below the days already taken only when that field is written.
+        ``number_of_days_display`` is written on every edit: hr_holidays checks that a grant
+        still covers the days already taken only when that field is written, and a shorter
+        validity can leave taken days uncovered as surely as fewer days can.
         """
         allocation = _current_allocation(allocation_id)
         if allocation.employee_id.user_id == request.env.user:
@@ -417,7 +418,9 @@ class HrLeaveController(http.Controller):
         if allocation.state == 'refuse':
             raise ApiError(422, 'invalid', 'a refused allocation cannot be changed')
         vals = parse_allocation_patch(payload, allocation)
-        if 'number_of_days' in vals:
-            vals['number_of_days_display'] = vals['number_of_days']
+        # Both day fields go together: number_of_days alone skips that check, and the display
+        # field alone recomputes number_of_days from its unstored cache value.
+        vals.setdefault('number_of_days', allocation.number_of_days)
+        vals['number_of_days_display'] = vals['number_of_days']
         allocation.write(vals)
         return dump_allocation(allocation)

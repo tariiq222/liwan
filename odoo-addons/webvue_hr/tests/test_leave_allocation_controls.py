@@ -155,6 +155,12 @@ class TestLeaveAllocationControls(WebVueHrCase):
         res = self.api('PATCH', f'/api/v1/hr/leave/allocations/{allocation_id}', {'number_of_days': 1})
         self.assertEqual(res.status_code, 422, res.text)
         self.assertEqual(self.env['hr.leave.allocation'].browse(allocation_id).number_of_days, 5.0)
+        # A validity that ends before the taken days leaves them uncovered just the same.
+        res = self.api('PATCH', f'/api/v1/hr/leave/allocations/{allocation_id}', {
+            'date_to': (start - timedelta(days=1)).isoformat(),
+        })
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertFalse(self.env['hr.leave.allocation'].browse(allocation_id).date_to)
 
     def test_allocation_routes_need_the_manage_capability(self):
         allocation_id = self._granted(self.no_account)

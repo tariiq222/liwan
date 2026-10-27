@@ -12,6 +12,7 @@ import LeaveAllocationForm from '@/components/hr/LeaveAllocationForm.vue'
 // already taken (422); the form shows those messages.
 const route = useRoute()
 const { t } = useI18n()
+const { can } = useAccess()
 const hydrated = useHydrated()
 const { validity, days } = useHrLeaveFormat()
 
@@ -33,7 +34,9 @@ async function onSaved() {
 </script>
 
 <template>
+  <SharedForbiddenState v-if="!can('hr.leave.manage')" />
   <SharedRecordPage
+    v-else
     :title="allocation ? t('hr.leave.allocation.recordTitle', { type: allocation.leave_type.name }) : t('hr.leave.allocation.listTitle')"
     :back-to="backTo"
     :back-label="t('hr.leave.allocation.listTitle')"

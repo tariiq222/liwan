@@ -40,7 +40,9 @@ async function onSaved() {
 </script>
 
 <template>
+  <SharedForbiddenState v-if="!can('hr.shifts.read')" />
   <SharedRecordPage
+    v-else
     :title="assignment?.employee.name || t('hrShifts.assignmentTitle')"
     :back-to="backTo"
     :back-label="t('hrShifts.title')"

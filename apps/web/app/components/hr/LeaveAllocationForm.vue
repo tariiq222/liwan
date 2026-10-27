@@ -14,6 +14,9 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 
 const editing = computed(() => !!props.allocation)
+const editHint = computed(() => props.allocation
+  ? t('hr.leave.allocation.editHint', { employee: props.allocation.employee.name, type: props.allocation.leave_type.name })
+  : undefined)
 const types = useHrLeaveTypes(computed(() => !editing.value))
 const employeeSearch = ref('')
 const debouncedSearch = refDebounced(employeeSearch, 250)
@@ -88,11 +91,7 @@ async function submit() {
   <SharedPageState :loading="!editing && types.isLoading.value" :error="editing ? null : types.error.value" :empty="!editing && !types.isLoading.value && !typeOptions.length" :empty-text="t('hr.leave.allocation.noTypes')" @retry="types.refetch">
     <UForm novalidate :state="{ employeeId, leaveTypeId, days, dateFrom, dateTo }" class="webvue-form" method="post" data-testid="hr-leave-allocation-form" @submit="submit">
       <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" />
-      <SharedFormSection
-        panel
-        :title="t('hr.leave.allocation.details')"
-        :description="props.allocation ? t('hr.leave.allocation.editHint', { employee: props.allocation.employee.name, type: props.allocation.leave_type.name }) : undefined"
-      >
+      <SharedFormSection panel :title="t('hr.leave.allocation.details')" :description="editHint">
         <div class="grid gap-4">
           <UFormField v-if="!props.allocation" :label="t('hr.leave.allocation.employee')" name="hr-allocation-employee-search" required :error="employeeError">
             <div class="grid gap-2">

@@ -18,6 +18,9 @@ const hydrated = useHydrated()
 const create = useCreateHrShiftAssignment()
 const update = useUpdateHrShiftAssignment()
 const isPending = computed(() => create.isPending.value || update.isPending.value)
+const sectionHint = computed(() => props.assignment
+  ? t('hrShifts.form.editHint', { employee: props.assignment.employee.name })
+  : t('hrShifts.form.assignmentHint'))
 
 const employeeId = ref<number | null>(props.assignment?.employee.id ?? null)
 const scheduleId = ref<number | null>(props.assignment?.schedule.id ?? null)
@@ -92,11 +95,7 @@ async function submit() {
   <SharedUnsavedChanges :dirty="dirty" />
   <UForm novalidate :state="{ employeeId, scheduleId, dateStart, dateEnd }" class="webvue-form" method="post" data-testid="hr-shift-assignment-form" @submit="submit">
     <UAlert v-if="error && !serverField" role="alert" color="error" variant="subtle" :title="error" />
-    <SharedFormSection
-      panel
-      :title="t('hrShifts.form.assignmentSection')"
-      :description="props.assignment ? t('hrShifts.form.editHint', { employee: props.assignment.employee.name }) : t('hrShifts.form.assignmentHint')"
-    >
+    <SharedFormSection panel :title="t('hrShifts.form.assignmentSection')" :description="sectionHint">
       <div class="grid gap-4">
         <UFormField v-if="!props.assignment" :label="t('hrShifts.form.employee')" name="hr-shift-assignment-employee" required :error="employeeError">
           <USelect
