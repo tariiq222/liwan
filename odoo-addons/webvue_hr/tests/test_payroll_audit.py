@@ -32,6 +32,7 @@ PROFILE = {
 COMPENSATION = {
     'basic_wage': 10000, 'housing_allowance': 2500, 'transport_allowance': 1000, 'other_allowance': 0,
     'iban': NEW_IBAN, 'bank_id': None, 'gosi_number': '123456789', 'gosi_registration_date': '2024-01-01',
+    'relationship_type': 'employee',
 }
 DEPARTURE = date(2026, 11, 30)
 # Also parsed against HR_PAYROLL_AUDIT_ACTIONS by packages/contracts/src/hr/__tests__/payrollAudit.test.ts.

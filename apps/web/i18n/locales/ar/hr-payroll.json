@@ -348,6 +348,15 @@
       "amountInvalid": "أدخل مبلغًا صفرًا أو أكثر.",
       "saved": "تم حفظ التعويضات",
       "saveError": "تعذّر حفظ التعويضات",
+      "relationshipSection": "نوع العلاقة",
+      "relationshipHint": "تصنيف علاقتكم بهذا الشخص قرار منشأتكم، ولا يغيّر الاحتساب.",
+      "relationship": "نوع العلاقة",
+      "relationshipEmployee": "موظف",
+      "relationshipIndependentContractor": "متعاقد مستقل",
+      "relationshipConsultant": "استشاري",
+      "relationshipOtherCooperation": "ترتيب تعاوني آخر",
+      "relationshipWarningTitle": "تحقق من الأثر النظامي لهذا التصنيف",
+      "relationshipWarningBody": "ما زال الاحتساب يطبّق التأمينات وحماية الأجور ومكافأة نهاية الخدمة كما للموظف. نظام العمل يحكم بطبيعة العلاقة الفعلية لا باسم العقد، فراجع التصنيف مع مستشاركم. هذا تنبيه فقط، ولا يمنع المسير ولا الصرف.",
       "formHint": "هذه المبالغ تظهر فقط لمن لديه صلاحية الرواتب."
     },
     "finance": {

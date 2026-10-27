@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import { HrCompensationWriteSchema, type HrCompensation } from '@webvue/contracts'
+import { HrCompensationWriteSchema, type HrCompensation, type HrPayrollRelationship } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { parseMoneyInput } from '@/utils/moneyInput'
@@ -27,13 +27,15 @@ const otherAllowance = ref('')
 const iban = ref('')
 const gosiNumber = ref('')
 const gosiRegistrationDate = ref<string | null>(null)
+const relationshipType = ref<HrPayrollRelationship>('employee')
+const relationshipItems = usePayrollRelationshipItems()
 const savedState = ref('')
 const attempted = ref(false)
 const formError = ref<unknown>(null)
 
 const amountText = (value: number | undefined) => value === undefined ? '' : String(value)
 // A field may hold text or a number (a numeric input emits numbers), so the parse accepts both.
-const state = () => JSON.stringify([basicWage.value, housingAllowance.value, transportAllowance.value, otherAllowance.value, iban.value, gosiNumber.value, gosiRegistrationDate.value])
+const state = () => JSON.stringify([basicWage.value, housingAllowance.value, transportAllowance.value, otherAllowance.value, iban.value, gosiNumber.value, gosiRegistrationDate.value, relationshipType.value])
 const dirty = computed(() => savedState.value !== state())
 
 function seed(record: HrCompensation | null) {
@@ -44,6 +46,7 @@ function seed(record: HrCompensation | null) {
   iban.value = record?.iban ?? ''
   gosiNumber.value = record?.gosi_number ?? ''
   gosiRegistrationDate.value = record?.gosi_registration_date ?? null
+  relationshipType.value = record?.relationship_type ?? 'employee'
   savedState.value = state()
 }
 // A background refetch must not discard unsaved edits: re-seed only a clean form or another employee.
@@ -66,6 +69,7 @@ const body = computed(() => ({
   bank_id: props.compensation?.bank?.id ?? null,
   gosi_number: gosiNumber.value.trim() || null,
   gosi_registration_date: gosiRegistrationDate.value,
+  relationship_type: relationshipType.value,
 }))
 const parsed = computed(() => HrCompensationWriteSchema.safeParse(body.value))
 function invalid(key: keyof typeof body.value) {
@@ -94,8 +98,16 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm :state="{ basicWage, housingAllowance, transportAllowance, otherAllowance, iban, gosiNumber, gosiRegistrationDate }" class="webvue-form" method="post" novalidate data-testid="hr-compensation-form" @submit="submit">
+  <UForm :state="{ relationshipType, basicWage, housingAllowance, transportAllowance, otherAllowance, iban, gosiNumber, gosiRegistrationDate }" class="webvue-form" method="post" novalidate data-testid="hr-compensation-form" @submit="submit">
     <UAlert v-if="showAlert" role="alert" color="error" variant="subtle" :title="t('hrPayroll.compensation.saveError')" :description="errorMessage" />
+    <SharedFormSection panel :title="t('hrPayroll.compensation.relationshipSection')" :description="t('hrPayroll.compensation.relationshipHint')">
+      <div class="webvue-form-grid">
+        <UFormField :label="t('hrPayroll.compensation.relationship')" name="hr-compensation-relationship" required :error="fieldError('relationship_type', t('errors.generic'))">
+          <USelect id="hr-compensation-relationship" v-model="relationshipType" class="w-full" :items="relationshipItems" :disabled="!hydrated || isPending" data-testid="hr-compensation-relationship" />
+        </UFormField>
+      </div>
+      <HrPayrollRelationshipWarning :relationship="relationshipType" />
+    </SharedFormSection>
     <SharedFormSection panel :title="t('hrPayroll.compensation.wageSection')" :description="t('hrPayroll.compensation.wageHint')">
       <div class="webvue-form-grid">
         <UFormField :label="t('hrPayroll.compensation.basicWage')" name="hr-compensation-basic" required :error="fieldError('basic_wage', t('hrPayroll.compensation.basicWageInvalid'))">

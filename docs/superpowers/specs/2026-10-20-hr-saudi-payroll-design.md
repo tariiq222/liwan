@@ -108,6 +108,16 @@ records the payment and exports the WPS file, with no spreadsheet in between.
 - Day rate for absence / unpaid leave / partial month = monthly wage ÷ 30 (my call; a common
   Saudi practice, configurable divisor in the rate settings).
 
+### 6.1a Relationship type (owner decision 2026-10-27, launch blocker B12)
+- Each compensation carries `relationship_type`: employee (default), independent contractor, consultant or
+  other cooperation arrangement. The customer chooses it; WebVue does not classify anyone.
+- The label never changes a calculation: GOSI, WPS and end of service still apply as for an employee until a
+  qualified Saudi reviewer decides per-type effects. Saudi labor law (Articles 2 and 50) looks at the actual
+  relationship, not the contract's name.
+- For any type other than employee the UI shows a non-blocking warning about the GOSI, WPS and end-of-service
+  effects. Nothing about the type blocks a run, its approval or a payment; only objective errors do (a missing
+  IBAN, file totals that do not match).
+
 ### 6.2 GOSI rate table (configuration, not code)
 Dated rows keyed by (insurance branch, nationality class, registration regime) with employee
 % and employer %. Branches: annuities, SANED, occupational hazards. Classes: Saudi registered

@@ -27,7 +27,7 @@ TRACKED_FIELDS = {
     )),
     'webvue.hr.compensation': ((), (
         'basic_wage', 'housing_allowance', 'transport_allowance', 'other_allowance', 'iban', 'bank_id',
-        'gosi_number', 'gosi_registration_date',
+        'gosi_number', 'gosi_registration_date', 'relationship_type',
     )),
     # The lifecycle of a pay month; the entered input amounts are named in the event, never valued.
     'hr.payslip.run': (('webvue_state', 'webvue_approved_by_id', 'webvue_approved_at'), ()),
