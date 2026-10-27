@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
+import { z } from 'zod'
 import { nextOrderState, type OrderStateInput } from '@webvue/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError, iso } from './lifecycle.js'
@@ -14,12 +15,21 @@ export function paymentAttemptView(row: any) {
     amount: { minor: Number(row.amount_minor), currency: row.currency, exponent: row.exponent },
     created_at: iso(row.created_at), updated_at: iso(row.updated_at) }
 }
-export function paymentReturnUrls(allowedOrigin: string, return_path: string) {
-  const origin = new URL(allowedOrigin).origin
-  if (allowedOrigin !== origin || !return_path.startsWith('/') || return_path.startsWith('//') || /[\\\r\n]/.test(return_path))
-    throw new CommercialHttpError('return_url_forbidden', 422)
-  return { returnUrl: assertReturnUrl(origin + return_path, [origin]),
-    callbackUrl: assertReturnUrl(origin + '/api/commercial/payment-callback', [origin]) }
+/** The single return origin is the first WEBVUE_PAYMENT_RETURN_ORIGINS entry. Per-tenant origins in shared mode are a separate ticket. */
+export function assertReturnOrigin(allowedOrigin: string) {
+  let origin: string
+  try { origin = new URL(allowedOrigin).origin } catch { throw new CommercialHttpError('return_url_forbidden', 422) }
+  if (allowedOrigin !== origin) throw new CommercialHttpError('return_url_forbidden', 422)
+  // The same rules the provider adapter applies to the final URL (scheme, credentials, origin), so an
+  // unusable origin fails before any order, invoice or renewal is written.
+  try { assertReturnUrl(`${origin}/`, [origin]) } catch { throw new CommercialHttpError('return_url_forbidden', 422) }
+  return origin
+}
+/** One URL serves success_url, back_url and callback_url; the attempt id is the only thing the browser or provider carries back. */
+export function paymentReturnUrls(allowedOrigin: string, attemptId: string) {
+  const origin = assertReturnOrigin(allowedOrigin)
+  if (!z.uuid().safeParse(attemptId).success) throw new CommercialHttpError('return_url_forbidden', 422)
+  return assertReturnUrl(`${origin}/api/commercial/payment-callback?attempt=${attemptId}`, [origin])
 }
 const matches = (a: any, e: ProviderEvent) => a.provider === e.provider && a.provider_ref === e.provider_ref
   && (!e.attempt_id || e.attempt_id === a.id) && Number(a.amount_minor) === e.amount.minor
@@ -95,7 +105,7 @@ export async function handleProviderEvent(pool: Pool, input: { provider: string;
   })
 }
 
-async function lookup(pool: Pool, adapter: PaymentAdapter, row: any) {
+export async function lookup(pool: Pool, adapter: PaymentAdapter, row: any) {
   if (row.provider !== adapter.provider || row.mode !== adapter.mode) throw new CommercialHttpError('provider_mismatch', 409)
   const event = row.provider_ref ? await adapter.lookupAttempt(row.provider_ref) : await adapter.lookupByAttemptId?.(row.id)
   if (!event) throw new CommercialHttpError('payment_unknown', 503)
@@ -105,11 +115,18 @@ async function lookup(pool: Pool, adapter: PaymentAdapter, row: any) {
     throw new CommercialHttpError('payment_mismatch', 409)
   // Timeout may have lost only the create response, not the provider-side attempt.
   await pool.query('UPDATE payment_attempts SET provider_ref=COALESCE(provider_ref,$2),updated_at=now() WHERE id=$1', [row.id,event.provider_ref])
-  return applyConfirmedEvent(pool, event)
+  const outcome = await applyConfirmedEvent(pool, event)
+  // A pending answer changes nothing in the order, so it would leave an attempt parked as `unknown`
+  // (a cancel that crashed before reaching the provider) unable to be paid or cancelled again.
+  if (event.status === 'pending' && row.status === 'unknown')
+    await pool.query("UPDATE payment_attempts SET status='pending',updated_at=now() WHERE id=$1 AND status='unknown'", [row.id])
+  return outcome
 }
 
-export async function createPaymentAttempt(pool: Pool, input: { order_id: string; customer_id: string; return_path: string; adapter: PaymentAdapter; allowedOrigin: string }) {
-  const urls = paymentReturnUrls(input.allowedOrigin, input.return_path)
+export async function createPaymentAttempt(pool: Pool, input: { order_id: string; customer_id: string; adapter: PaymentAdapter; allowedOrigin: string }) {
+  // The id is fixed before the reservation so an unusable origin fails before any write.
+  const attemptId = randomUUID()
+  const url = paymentReturnUrls(input.allowedOrigin, attemptId)
   const reservation = await transaction(pool, async client => {
     const order = (await client.query('SELECT * FROM orders WHERE id=$1 AND customer_id=$2 FOR UPDATE', [input.order_id,input.customer_id])).rows[0]
     if (!order) throw new CommercialHttpError('not_found', 404)
@@ -119,7 +136,7 @@ export async function createPaymentAttempt(pool: Pool, input: { order_id: string
     const invoice = (await client.query("SELECT * FROM invoices WHERE order_id=$1 AND status='issued' ORDER BY created_at LIMIT 1 FOR UPDATE", [order.id])).rows[0]
     if (!invoice || Number(invoice.total_minor) <= 0) throw new CommercialHttpError('issued_invoice_required', 409)
     const row = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,amount_minor,currency,exponent)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [randomUUID(),order.id,invoice.id,input.adapter.provider,input.adapter.mode,order.id,invoice.total_minor,invoice.currency,invoice.exponent])).rows[0]
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [attemptId,order.id,invoice.id,input.adapter.provider,input.adapter.mode,order.id,invoice.total_minor,invoice.currency,invoice.exponent])).rows[0]
     return { row, fresh: true }
   })
   if (!reservation.fresh) {
@@ -130,7 +147,7 @@ export async function createPaymentAttempt(pool: Pool, input: { order_id: string
   try {
     const created = await input.adapter.createAttempt({ attempt_id: row.id,order_id: row.order_id,
       amount: { minor: Number(row.amount_minor),currency: row.currency,exponent: row.exponent }, description: `WebVue order ${row.order_id}`,
-      success_url: urls.returnUrl, back_url: urls.returnUrl, callback_url: urls.callbackUrl, expires_at: new Date(Date.now()+30*60_000).toISOString() })
+      success_url: url, back_url: url, callback_url: url, expires_at: new Date(Date.now()+30*60_000).toISOString() })
     const updated = await pool.query(`UPDATE payment_attempts SET provider_ref=$2,redirect_url=$3,
       status=CASE WHEN status='created' THEN 'redirected' ELSE status END,updated_at=now() WHERE id=$1 RETURNING *`, [row.id,created.provider_ref,created.redirect_url])
     return paymentAttemptView(updated.rows[0])
@@ -140,12 +157,19 @@ export async function createPaymentAttempt(pool: Pool, input: { order_id: string
   }
 }
 
-/** A browser return is a lookup hint, never evidence of payment. */
-export async function markReturned(pool: Pool, { order_id, adapter }: { order_id: string; adapter: PaymentAdapter }) {
-  const row = (await pool.query('SELECT * FROM payment_attempts WHERE order_id=$1 ORDER BY created_at DESC LIMIT 1', [order_id])).rows[0]
-  if (!row) throw new CommercialHttpError('not_found', 404)
-  await lookup(pool, adapter, row)
-  return paymentAttemptView((await pool.query('SELECT * FROM payment_attempts WHERE id=$1', [row.id])).rows[0])
+/**
+ * A browser or provider return is a lookup hint, never evidence of payment: the provider lookup is the only
+ * evidence, and settlement goes through the existing state machine. The claim throttles repeated returns
+ * (and a flood from one attempt) to one provider lookup per 5 seconds; the reconciler retries a failed lookup.
+ */
+export async function verifyReturnedAttempt(pool: Pool, input: { attempt_id: string; customer_id: string; adapter: PaymentAdapter }) {
+  const owned = await pool.query('SELECT 1 FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE a.id=$1 AND o.customer_id=$2', [input.attempt_id, input.customer_id])
+  if (!owned.rowCount) throw new CommercialHttpError('not_found', 404)
+  const claimed = (await pool.query(`UPDATE payment_attempts SET updated_at=now() WHERE id=$1 AND status IN ('redirected','pending','unknown')
+    AND updated_at < now() - interval '5 seconds' RETURNING *`, [input.attempt_id])).rows[0]
+  if (claimed) { try { await lookup(pool, input.adapter, claimed) } catch { /* the reconciler retries an unresolved lookup */ } }
+  const order = (await pool.query('SELECT o.id,o.payment_state,o.fulfillment_state FROM orders o JOIN payment_attempts a ON a.order_id=o.id WHERE a.id=$1', [input.attempt_id])).rows[0]
+  return { order_id: order.id as string, payment_state: order.payment_state as string, fulfillment_state: order.fulfillment_state as string }
 }
 export type ReconciliationOutcome = 'accepted' | 'ignored' | 'rejected' | 'unknown' | 'mismatch' | 'provider_unavailable' | 'provider_error' | 'lookup_failed'
 

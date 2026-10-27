@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Pool } from 'pg'
+import type { Pool, PoolClient } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
 import { quoteRequestSchema, acceptQuoteRequestSchema } from '@webvue/commercial-contracts'
 import { verifyServiceRequest } from '@webvue/commercial-contracts/server'
@@ -18,7 +18,7 @@ import { bundleWire } from './bundles.js'
 import { getRelease } from './catalog-releases.js'
 import { listBranches, requestedExtraBranches } from './branches.js'
 import { getUsage } from './usage.js'
-import { createPaymentAttempt } from './payments.js'
+import { createPaymentAttempt, verifyReturnedAttempt } from './payments.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 export type PaymentRuntime = {adapter: PaymentAdapter | null; allowedOrigin: string}
 export function needPayment(runtime?: PaymentRuntime): {adapter:PaymentAdapter;allowedOrigin:string} {
@@ -46,11 +46,44 @@ export async function createBranchQuote(pool: Pool, customerId: string, raw: str
   await pool.query('INSERT INTO branch_quote_requests(quote_id,subscription_id,adds,archive,quoted_paid) VALUES($1,$2,$3,$4,$5)',[quote.id,view.id,JSON.stringify(input.add),JSON.stringify(input.archive),Math.max(0,count-current.included_extra_branches)])
   return quote
 }
+/** A shared web signs the registry tenant id; the enabled binding maps it to the control tenant. */
+async function customerForTenant(client: PoolClient, tenant: string) {
+  const tenantId=z.uuid().safeParse(tenant).success?tenant:
+    (await client.query('SELECT control_tenant_id FROM shared_registry_bindings WHERE tenant_id=$1 AND enabled=true',[tenant])).rows[0]?.control_tenant_id
+  if (!tenantId) throw new CommercialHttpError('not_found',404)
+  const customer=await client.query('SELECT id FROM customers WHERE tenant_id=$1',[tenantId])
+  if (!customer.rowCount) throw new CommercialHttpError('not_found',404)
+  return {customerId:customer.rows[0].id as string,tenantId:tenantId as string}
+}
+async function consumeNonce(client: PoolClient, signed: {issuer: string; nonce: string}) {
+  await client.query('DELETE FROM service_nonces WHERE expires_at<now()')
+  const nonce=await client.query("INSERT INTO service_nonces(issuer,nonce,expires_at) VALUES($1,$2,now()+interval '60 seconds') ON CONFLICT DO NOTHING RETURNING nonce",[signed.issuer,signed.nonce])
+  if (!nonce.rowCount) throw new CommercialHttpError('unauthorized',401)
+}
+/**
+ * The web server relays a browser or provider payment return. It signs anonymously (no actor, no principal):
+ * the return only asks for a provider lookup of one attempt and reveals nothing but the order's state.
+ */
+async function paymentReturn(pool: Pool, service: {issuer: string; key: string}, input: CustomerInput, attemptId: string, runtime?: PaymentRuntime) {
+  const tenant=input.headers['x-webvue-tenant']
+  if (typeof tenant !== 'string' || !tenant || tenant.length > 128 || /[\r\n]/.test(tenant)) throw new CommercialHttpError('unauthorized',401)
+  const signed=verifyServiceRequest({method:input.method,path:input.path,body:`webvue-payment-return:${tenant}\n`,headers:input.headers,key:service.key,anonymous:true})
+  if (!signed || signed.issuer !== service.issuer) throw new CommercialHttpError('unauthorized',401)
+  const customer=await transaction(pool,async client=>{await consumeNonce(client,signed);return customerForTenant(client,tenant)})
+  if (!z.uuid().safeParse(attemptId).success) throw new CommercialHttpError('not_found',404)
+  const payment=needPayment(runtime)
+  return {status:200,data:await verifyReturnedAttempt(pool,{attempt_id:attemptId,customer_id:customer.customerId,adapter:payment.adapter})}
+}
 export async function customerHttp(pool: Pool, config: Config, input: CustomerInput, runtime?: PaymentRuntime) {
   const url = new URL(input.path,'http://localhost')
   if (!url.pathname.startsWith('/v1/customer/')) return null
   if (!config.customerCommercialIssuer || !config.customerCommercialServiceKey) throw new CommercialHttpError('not_found',404)
   if (config.customerCommercialServiceKey === config.key || config.customerCommercialIssuer === config.installationId) throw new CommercialHttpError('not_found',404)
+  const returned=/^\/v1\/customer\/payment-returns\/([^/]+)$/.exec(url.pathname)
+  if (returned) {
+    if (input.method !== 'POST') throw new CommercialHttpError('not_found',404)
+    return paymentReturn(pool,{issuer:config.customerCommercialIssuer,key:config.customerCommercialServiceKey},input,returned[1]!,runtime)
+  }
   const header=input.headers['x-webvue-principal']
   if (typeof header !== 'string') throw new CommercialHttpError('unauthorized',401)
   const signed=verifyServiceRequest({method:input.method,path:input.path,body:`webvue-principal:${header}\n${input.raw}`,headers:input.headers,key:config.customerCommercialServiceKey})
@@ -58,16 +91,9 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   const unbound=parseCustomerPrincipal(header,'unbound')
   if (unbound.actor_id !== String(signed.actor)) throw new CommercialHttpError('unauthorized',401)
   const principal=await transaction(pool,async client=>{
-    await client.query('DELETE FROM service_nonces WHERE expires_at<now()')
-    const nonce=await client.query("INSERT INTO service_nonces(issuer,nonce,expires_at) VALUES($1,$2,now()+interval '60 seconds') ON CONFLICT DO NOTHING RETURNING nonce",[signed.issuer,signed.nonce])
-    if (!nonce.rowCount) throw new CommercialHttpError('unauthorized',401)
-    // A shared web signs the registry tenant id; the enabled binding maps it to the control tenant.
-    const tenantId=z.uuid().safeParse(unbound.tenant_id).success?unbound.tenant_id:
-      (await client.query('SELECT control_tenant_id FROM shared_registry_bindings WHERE tenant_id=$1 AND enabled=true',[unbound.tenant_id])).rows[0]?.control_tenant_id
-    if (!tenantId) throw new CommercialHttpError('not_found',404)
-    const customer=await client.query('SELECT id FROM customers WHERE tenant_id=$1',[tenantId])
-    if (!customer.rowCount) throw new CommercialHttpError('not_found',404)
-    return {...parseCustomerPrincipal(header,customer.rows[0].id),tenant_id:tenantId as string}
+    await consumeNonce(client,signed)
+    const resolved=await customerForTenant(client,unbound.tenant_id ?? '')
+    return {...parseCustomerPrincipal(header,resolved.customerId),tenant_id:resolved.tenantId}
   })
   assertNoCustomerIdentity(Object.fromEntries(url.searchParams))
   if(input.raw) { let body:unknown; try{body=JSON.parse(input.raw)}catch{throw new CommercialHttpError('invalid',400,'body')} assertNoCustomerIdentity(body) }
@@ -90,8 +116,8 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if(m==='POST'&&payment){
     requireCapability(principal,'subscription.manage')
     if(!z.uuid().safeParse(payment[1]).success || !(await pool.query('SELECT id FROM orders WHERE id=$1 AND customer_id=$2',[payment[1],customerId])).rowCount)throw new CommercialHttpError('not_found',404)
-    const body=parseBody(input.raw,z.strictObject({return_path:z.string().min(1).max(2048),idempotency_key:z.uuid()}))
-    return {status:201,data:await createPaymentAttempt(pool,{order_id:payment[1]!,customer_id:customerId,return_path:body.return_path,...needPayment(runtime)})}
+    parseBody(input.raw,z.strictObject({idempotency_key:z.uuid()}))
+    return {status:201,data:await createPaymentAttempt(pool,{order_id:payment[1]!,customer_id:customerId,...needPayment(runtime)})}
   }
   if(m==='GET'&&path==='/invoices'){requireCapability(principal,'billing.read');return {status:200,data:await listInvoices(pool,{customer_id:customerId})}}
   const invoice=/^\/invoices\/([^/]+)$/.exec(path)

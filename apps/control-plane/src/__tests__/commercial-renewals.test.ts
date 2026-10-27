@@ -6,7 +6,7 @@ import { acceptQuote } from '../commercial/orders.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { generateRenewals, applyDunning, trialEndsAt } from '../commercial/renewals.js'
-import { markReturned } from '../commercial/payments.js'
+import { verifyReturnedAttempt } from '../commercial/payments.js'
 
 const url=process.env.CONTROL_TEST_DATABASE_URL
 if(url && new URL(url).pathname!=='/webvue_control_scratch_payfinal') throw new Error('renewal tests require own scratch DB')
@@ -39,7 +39,7 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,state='active',renewal_at='2026-10-01',revision=revision+1 WHERE id=$1",[order.subscription_id])
     return {customer,id:order.subscription_id}
   }
-  const args=(adapter:SimulatorAdapter)=>({now,adapter,allowedOrigin:'https://webvue.test',return_path:'/subscription'})
+  const args=(adapter:SimulatorAdapter)=>({now,adapter,allowedOrigin:'https://webvue.test'})
   it('invoices once across repeated and concurrent generation, uses pinned price despite newer revision',async()=>{
     const s=await subscription()
     // Publish a new revision in the SAME plan family without changing the applied revision.
@@ -54,6 +54,15 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     const rows=(await pool.query('SELECT i.total_minor,o.target_revision_id,s.applied_revision_id FROM renewals r JOIN invoices i ON i.id=r.invoice_id JOIN orders o ON o.id=r.order_id JOIN subscriptions s ON s.id=r.subscription_id WHERE r.subscription_id=$1',[s.id])).rows
     expect(rows).toHaveLength(1);expect(rows[0].total_minor).toBe('11500');expect(rows[0].target_revision_id).toBe(rows[0].applied_revision_id)
   })
+  it('rejects an origin the provider would refuse before any renewal write',async()=>{
+    const s=await subscription()
+    const count=async()=>(await pool.query("SELECT (SELECT count(*)::int FROM renewals) AS renewals,(SELECT count(*)::int FROM orders WHERE kind='renewal') AS orders,(SELECT count(*)::int FROM invoices) AS invoices")).rows[0]
+    const before=await count()
+    for(const origin of ['http://billing.example.com','https://user:pw@billing.example.com'])
+      await expect(generateRenewals(pool,{...args(new SimulatorAdapter()),allowedOrigin:origin})).rejects.toMatchObject({status:422,code:'return_url_forbidden'})
+    expect(await count()).toEqual(before)
+    expect((await pool.query('SELECT state FROM subscriptions WHERE id=$1',[s.id])).rows[0].state).toBe('active')
+  })
   it('no consent never charges; charge response waits for lookup and paid renewal waits for receipt',async()=>{
     const no=await subscription(),yes=await subscription()
     await pool.query('UPDATE subscriptions SET provider_token_ref=$2,revision=revision+1 WHERE id=$1',[no.id,'token'])
@@ -65,7 +74,10 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     const renewal=(await pool.query('SELECT o.id,o.payment_state,a.status FROM orders o JOIN payment_attempts a ON a.order_id=o.id WHERE o.subscription_id=$1 AND o.kind=\'renewal\'',[yes.id])).rows[0]
     expect(renewal).toMatchObject({payment_state:'awaiting_payment',status:'pending'})
     expect((await pool.query('SELECT status FROM renewals WHERE subscription_id=$1',[yes.id])).rows[0].status).toBe('charging')
-    await markReturned(pool,{order_id:renewal.id,adapter})
+    const attempt=(await pool.query('SELECT id FROM payment_attempts WHERE order_id=$1',[renewal.id])).rows[0]
+    await pool.query("UPDATE payment_attempts SET updated_at=now()-interval '10 seconds' WHERE id=$1",[attempt.id])
+    expect(charge.mock.calls[0]![0].callback_url).toBe(`https://webvue.test/api/commercial/payment-callback?attempt=${attempt.id}`)
+    await verifyReturnedAttempt(pool,{attempt_id:attempt.id,customer_id:yes.customer,adapter})
     const paid=(await pool.query("SELECT state,renewal_at::text FROM subscriptions WHERE id=$1",[yes.id])).rows[0]
     expect(paid).toEqual({state:'active',renewal_at:'2026-10-01'})
     expect((await pool.query('SELECT status FROM renewals WHERE subscription_id=$1',[yes.id])).rows[0].status).toBe('paid')

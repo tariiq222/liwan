@@ -8,7 +8,7 @@ import { policyWire } from './policies.js'
 import { issueInvoiceFromQuote } from './invoices.js'
 import { orderView } from './orders.js'
 import { digestOf } from './lifecycle.js'
-import { createPaymentAttempt, paymentReturnUrls } from './payments.js'
+import { assertReturnOrigin, createPaymentAttempt, paymentReturnUrls } from './payments.js'
 import { enqueueOutbox } from './outbox.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 
@@ -29,10 +29,10 @@ export async function onRenewalPaid(client: PoolClient, order_id: string) {
     WHERE id=$1 AND state IN ('active','past_due','suspended') AND (state<>'active' OR grace_ends_at IS NOT NULL)`, [renewal.subscription_id])
 }
 
-export async function generateRenewals(pool: Pool, { now = new Date(), adapter, allowedOrigin, return_path }: {
-  now?: Date; adapter: PaymentAdapter; allowedOrigin: string; return_path: string
+export async function generateRenewals(pool: Pool, { now = new Date(), adapter, allowedOrigin }: {
+  now?: Date; adapter: PaymentAdapter; allowedOrigin: string
 }) {
-  const urls = paymentReturnUrls(allowedOrigin, return_path)
+  assertReturnOrigin(allowedOrigin)
   const today = riyadhDate(now)
   const candidates = (await pool.query(`SELECT id FROM subscriptions WHERE state IN ('active','past_due')
     AND applied_revision_id IS NOT NULL AND renewal_at <= $1::date ORDER BY id`, [today])).rows
@@ -84,7 +84,7 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       try { activeToken = (await adapter.getToken(sub.provider_token_ref)).active } catch { /* use hosted payment instead */ }
     }
     if (!activeToken) {
-      await createPaymentAttempt(pool,{order_id:order.id,customer_id:sub.customer_id,return_path,adapter,allowedOrigin})
+      await createPaymentAttempt(pool,{order_id:order.id,customer_id:sub.customer_id,adapter,allowedOrigin})
       continue
     }
     const attemptId = randomUUID()
@@ -95,7 +95,7 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
     })
     try {
       const event = await adapter.chargeToken({given_id:order.id,token:sub.provider_token_ref,amount:invoice.total,
-        description:`WebVue renewal ${order.id}`,callback_url:urls.callbackUrl})
+        description:`WebVue renewal ${order.id}`,callback_url:paymentReturnUrls(allowedOrigin,attemptId)})
       // A charge response only identifies the attempt; settlement requires provider lookup.
       await pool.query("UPDATE payment_attempts SET provider_ref=$2,status=CASE WHEN status='created' THEN 'pending' ELSE status END,updated_at=now() WHERE id=$1", [attemptId,event.provider_ref])
     } catch {
