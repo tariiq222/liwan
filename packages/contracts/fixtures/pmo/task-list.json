@@ -1,0 +1,190 @@
+{
+  "items": [
+    {
+      "allowed_transitions": [
+        "waiting",
+        "done",
+        "cancelled"
+      ],
+      "assignees": [
+        {
+          "id": 4,
+          "name": "Sara"
+        }
+      ],
+      "attachment_count": 0,
+      "can_approve": false,
+      "can_write": true,
+      "date_deadline": "2026-01-01T00:00:00Z",
+      "days_remaining": -3,
+      "description_excerpt": "",
+      "id": 1,
+      "is_closed": false,
+      "is_overdue": true,
+      "name": "Overdue task",
+      "personal_stage": {
+        "id": 3,
+        "name": "Inbox"
+      },
+      "priority": "1",
+      "project": {
+        "id": 2,
+        "name": "Erada Portal"
+      },
+      "stage": null,
+      "state": "in_progress",
+      "subtask_count": 0,
+      "subtask_done_count": 0,
+      "tags": []
+    },
+    {
+      "allowed_transitions": [
+        "waiting",
+        "done",
+        "cancelled"
+      ],
+      "assignees": [
+        {
+          "id": 4,
+          "name": "Sara"
+        }
+      ],
+      "attachment_count": 0,
+      "can_approve": false,
+      "can_write": true,
+      "date_deadline": "2026-01-01T00:00:00Z",
+      "days_remaining": 1162,
+      "description_excerpt": "",
+      "id": 5,
+      "is_closed": false,
+      "is_overdue": false,
+      "name": "Sooner",
+      "personal_stage": {
+        "id": 3,
+        "name": "Inbox"
+      },
+      "priority": "0",
+      "project": {
+        "id": 2,
+        "name": "Erada Portal"
+      },
+      "stage": null,
+      "state": "in_progress",
+      "subtask_count": 0,
+      "subtask_done_count": 0,
+      "tags": []
+    },
+    {
+      "allowed_transitions": [
+        "waiting",
+        "done",
+        "cancelled"
+      ],
+      "assignees": [
+        {
+          "id": 4,
+          "name": "Sara"
+        }
+      ],
+      "attachment_count": 0,
+      "can_approve": false,
+      "can_write": true,
+      "date_deadline": "2026-01-01T00:00:00Z",
+      "days_remaining": 1313,
+      "description_excerpt": "",
+      "id": 6,
+      "is_closed": false,
+      "is_overdue": false,
+      "name": "Later",
+      "personal_stage": {
+        "id": 3,
+        "name": "Inbox"
+      },
+      "priority": "1",
+      "project": {
+        "id": 2,
+        "name": "Erada Portal"
+      },
+      "stage": null,
+      "state": "in_progress",
+      "subtask_count": 0,
+      "subtask_done_count": 0,
+      "tags": []
+    },
+    {
+      "allowed_transitions": [
+        "waiting",
+        "done",
+        "cancelled"
+      ],
+      "assignees": [
+        {
+          "id": 4,
+          "name": "Sara"
+        }
+      ],
+      "attachment_count": 0,
+      "can_approve": false,
+      "can_write": true,
+      "date_deadline": null,
+      "days_remaining": null,
+      "description_excerpt": "",
+      "id": 7,
+      "is_closed": false,
+      "is_overdue": false,
+      "name": "Undated",
+      "personal_stage": {
+        "id": 3,
+        "name": "Inbox"
+      },
+      "priority": "1",
+      "project": {
+        "id": 2,
+        "name": "Erada Portal"
+      },
+      "stage": null,
+      "state": "in_progress",
+      "subtask_count": 0,
+      "subtask_done_count": 0,
+      "tags": []
+    },
+    {
+      "allowed_transitions": [
+        "waiting",
+        "done",
+        "cancelled"
+      ],
+      "assignees": [
+        {
+          "id": 4,
+          "name": "Sara"
+        }
+      ],
+      "attachment_count": 0,
+      "can_approve": false,
+      "can_write": true,
+      "date_deadline": null,
+      "days_remaining": null,
+      "description_excerpt": "",
+      "id": 8,
+      "is_closed": false,
+      "is_overdue": false,
+      "name": "Undated too",
+      "personal_stage": {
+        "id": 3,
+        "name": "Inbox"
+      },
+      "priority": "0",
+      "project": {
+        "id": 2,
+        "name": "Erada Portal"
+      },
+      "stage": null,
+      "state": "in_progress",
+      "subtask_count": 0,
+      "subtask_done_count": 0,
+      "tags": []
+    }
+  ],
+  "total": 5
+}

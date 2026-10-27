@@ -1,0 +1,4007 @@
+{
+  "can_create": false,
+  "can_list_archived": false,
+  "items": [
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 1,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 000",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 3,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 001",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 4,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 002",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 5,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 003",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 6,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 004",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 7,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 005",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 8,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 006",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 9,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 007",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 10,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 008",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 11,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 009",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 12,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 010",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 13,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 011",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 14,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 012",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 15,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 013",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 16,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 014",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 17,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 015",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 18,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 016",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 19,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 017",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 20,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 018",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 21,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 019",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 22,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 020",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 23,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 021",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 24,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 022",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 25,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 023",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 26,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 024",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 27,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 025",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 28,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 026",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 29,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 027",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 30,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 028",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 31,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 029",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 32,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 030",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 33,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 031",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 34,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 032",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 35,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 033",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 36,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 034",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 37,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 035",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 38,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 036",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 39,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 037",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 40,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 038",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 41,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 039",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 42,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 040",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 43,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 041",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 44,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 042",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 45,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 043",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 46,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 044",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 47,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 045",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 48,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 046",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 49,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 047",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 50,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 048",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 51,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 049",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 52,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 050",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 53,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 051",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 54,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 052",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 55,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 053",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 56,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 054",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 57,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 055",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 58,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 056",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 59,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 057",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 60,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 058",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 61,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 059",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 62,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 060",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 63,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 061",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 64,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 062",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 65,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 063",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 66,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 064",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 67,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 065",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 68,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 066",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 69,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 067",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 70,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 068",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 71,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 069",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 72,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 070",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 73,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 071",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 74,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 072",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 75,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 073",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 76,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 074",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 77,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 075",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 78,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 076",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 79,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 077",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 80,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 078",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 81,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 079",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 82,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 080",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 83,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 081",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 84,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 082",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 85,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 083",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 86,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 084",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 87,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 085",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 88,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 086",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 89,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 087",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 90,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 088",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 91,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 089",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 92,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 090",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 93,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 091",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 94,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 092",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 95,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 093",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 96,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 094",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 97,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 095",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 98,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 096",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 99,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 097",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 100,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 098",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 101,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 099",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 102,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 100",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 103,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 101",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 104,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 102",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 105,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 103",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 106,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 104",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 107,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 105",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 108,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 106",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 109,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 107",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 110,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 108",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 111,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 109",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 112,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 110",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 113,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 111",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 114,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 112",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 115,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 113",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 116,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 114",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 117,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 115",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 118,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 116",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 119,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 117",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 120,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 118",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 121,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 119",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 122,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 120",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 123,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 121",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 124,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 122",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 125,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 123",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 126,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 124",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 127,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 125",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 128,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 126",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 129,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 127",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 130,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 128",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 131,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 129",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 132,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 130",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 133,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 131",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 134,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 132",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 135,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 133",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 136,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 134",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 137,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 135",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 138,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 136",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 139,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 137",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 140,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 138",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 141,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 139",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 142,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 140",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 143,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 141",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 144,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 142",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 145,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 143",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 146,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 144",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 147,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 145",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 148,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 146",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 149,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 147",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 150,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 148",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 151,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 149",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 152,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 150",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 153,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 151",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 154,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 152",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 155,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 153",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 156,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 154",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 157,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 155",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 158,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 156",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 159,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 157",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 160,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 158",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 161,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 159",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 162,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 160",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 163,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 161",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 164,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 162",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 165,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 163",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 166,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 164",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 167,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 165",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 168,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 166",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 169,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 167",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 170,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 168",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 171,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 169",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 172,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 170",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 173,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 171",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 174,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 172",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 175,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 173",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 176,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 174",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 177,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 175",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 178,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 176",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 179,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 177",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 180,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 178",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 181,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 179",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 182,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 180",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 183,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 181",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 184,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 182",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 185,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 183",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 186,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 184",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 187,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 185",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 188,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 186",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 189,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 187",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 190,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 188",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 191,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 189",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 192,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 190",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 193,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 191",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 194,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 192",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 195,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 193",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 196,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 194",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 197,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 195",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 198,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 196",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 199,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 197",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 200,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 198",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    },
+    {
+      "active": true,
+      "allowed_actions": [
+        "read"
+      ],
+      "can_manage": false,
+      "charter_state": "draft",
+      "closed_task_count": 0,
+      "date_end": null,
+      "id": 201,
+      "manager": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "name": "WP4 Bulk 199",
+      "phase": "initiating",
+      "progress": 0,
+      "status": null,
+      "task_count": 0
+    }
+  ],
+  "total": 201
+}

@@ -1,0 +1,222 @@
+{
+  "age_days": 0,
+  "allocated_hours": 0.0,
+  "allowed_actions": [
+    "read",
+    "write"
+  ],
+  "allowed_transitions": [
+    "waiting",
+    "done",
+    "cancelled"
+  ],
+  "assignees": [
+    {
+      "id": 4,
+      "name": "Sara"
+    }
+  ],
+  "attachment_count": 2,
+  "attachments": [
+    {
+      "id": 9,
+      "mimetype": "text/plain",
+      "name": "one.txt",
+      "url": "/api/v1/tasks/1073/attachments/2687/download"
+    },
+    {
+      "id": 10,
+      "mimetype": "text/plain",
+      "name": "two.txt",
+      "url": "/api/v1/tasks/1073/attachments/2688/download"
+    }
+  ],
+  "can_approve": false,
+  "can_manage_dependencies": false,
+  "can_write": true,
+  "completion_approver": null,
+  "completion_blocked_reason": null,
+  "completion_pending": false,
+  "completion_policy": "none",
+  "completion_return_note": null,
+  "completion_revision": 0,
+  "created_at": "2026-01-01T00:00:00Z",
+  "cycle_days": null,
+  "date_deadline": null,
+  "days_remaining": null,
+  "deliverables": [],
+  "depends_on": [],
+  "description_excerpt": "",
+  "description_html": "",
+  "id": 1,
+  "is_closed": false,
+  "is_overdue": false,
+  "milestone": null,
+  "name": "Parent",
+  "personal_stage": {
+    "id": 3,
+    "name": "Inbox"
+  },
+  "planned_start": null,
+  "priority": "0",
+  "project": {
+    "id": 2,
+    "name": "Erada Portal"
+  },
+  "stage": null,
+  "state": "in_progress",
+  "subtask_count": 4,
+  "subtask_done_count": 2,
+  "subtasks": [
+    {
+      "allowed_transitions": [
+        "waiting",
+        "done",
+        "cancelled"
+      ],
+      "assignees": [
+        {
+          "id": 4,
+          "name": "Sara"
+        }
+      ],
+      "attachment_count": 0,
+      "can_approve": false,
+      "can_write": true,
+      "date_deadline": null,
+      "days_remaining": null,
+      "description_excerpt": "",
+      "id": 5,
+      "is_closed": false,
+      "is_overdue": false,
+      "name": "Open",
+      "personal_stage": {
+        "id": 3,
+        "name": "Inbox"
+      },
+      "priority": "0",
+      "project": {
+        "id": 2,
+        "name": "Erada Portal"
+      },
+      "stage": null,
+      "state": "in_progress",
+      "subtask_count": 0,
+      "subtask_done_count": 0,
+      "tags": []
+    },
+    {
+      "allowed_transitions": [
+        "in_progress",
+        "waiting",
+        "done"
+      ],
+      "assignees": [
+        {
+          "id": 4,
+          "name": "Sara"
+        }
+      ],
+      "attachment_count": 0,
+      "can_approve": false,
+      "can_write": true,
+      "date_deadline": null,
+      "days_remaining": null,
+      "description_excerpt": "",
+      "id": 6,
+      "is_closed": true,
+      "is_overdue": false,
+      "name": "Cancelled",
+      "personal_stage": {
+        "id": 3,
+        "name": "Inbox"
+      },
+      "priority": "0",
+      "project": {
+        "id": 2,
+        "name": "Erada Portal"
+      },
+      "stage": null,
+      "state": "cancelled",
+      "subtask_count": 0,
+      "subtask_done_count": 0,
+      "tags": []
+    },
+    {
+      "allowed_transitions": [
+        "in_progress",
+        "waiting",
+        "cancelled"
+      ],
+      "assignees": [
+        {
+          "id": 4,
+          "name": "Sara"
+        }
+      ],
+      "attachment_count": 0,
+      "can_approve": false,
+      "can_write": true,
+      "date_deadline": null,
+      "days_remaining": null,
+      "description_excerpt": "",
+      "id": 7,
+      "is_closed": true,
+      "is_overdue": false,
+      "name": "Done B",
+      "personal_stage": {
+        "id": 3,
+        "name": "Inbox"
+      },
+      "priority": "0",
+      "project": {
+        "id": 2,
+        "name": "Erada Portal"
+      },
+      "stage": null,
+      "state": "done",
+      "subtask_count": 0,
+      "subtask_done_count": 0,
+      "tags": []
+    },
+    {
+      "allowed_transitions": [
+        "in_progress",
+        "waiting",
+        "cancelled"
+      ],
+      "assignees": [
+        {
+          "id": 4,
+          "name": "Sara"
+        }
+      ],
+      "attachment_count": 0,
+      "can_approve": false,
+      "can_write": true,
+      "date_deadline": null,
+      "days_remaining": null,
+      "description_excerpt": "",
+      "id": 8,
+      "is_closed": true,
+      "is_overdue": false,
+      "name": "Done A",
+      "personal_stage": {
+        "id": 3,
+        "name": "Inbox"
+      },
+      "priority": "0",
+      "project": {
+        "id": 2,
+        "name": "Erada Portal"
+      },
+      "stage": null,
+      "state": "done",
+      "subtask_count": 0,
+      "subtask_done_count": 0,
+      "tags": []
+    }
+  ],
+  "tags": [],
+  "updated_at": "2026-01-01T00:00:00Z"
+}

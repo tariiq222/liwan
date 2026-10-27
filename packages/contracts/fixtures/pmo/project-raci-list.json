@@ -1,0 +1,18 @@
+{
+  "can_manage": true,
+  "items": [
+    {
+      "id": 1,
+      "role": "A",
+      "stakeholder": {
+        "id": 3,
+        "name": "Sponsor"
+      },
+      "task": {
+        "id": 2,
+        "name": "Governance task"
+      }
+    }
+  ],
+  "total": 1
+}

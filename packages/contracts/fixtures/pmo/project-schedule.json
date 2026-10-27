@@ -1,0 +1,55 @@
+{
+  "can_manage": false,
+  "milestones": [],
+  "project_id": 819,
+  "tasks": [
+    {
+      "dependency_ids": [],
+      "end": "2026-10-24",
+      "id": 1,
+      "milestone_id": null,
+      "name": "Overdue task",
+      "start": null,
+      "state": "in_progress"
+    },
+    {
+      "dependency_ids": [],
+      "end": null,
+      "id": 2,
+      "milestone_id": null,
+      "name": "Done task",
+      "start": null,
+      "state": "done"
+    },
+    {
+      "dependency_ids": [],
+      "end": null,
+      "id": 3,
+      "milestone_id": null,
+      "name": "Someone else",
+      "start": null,
+      "state": "in_progress"
+    },
+    {
+      "dependency_ids": [],
+      "end": null,
+      "id": 4,
+      "milestone_id": null,
+      "name": "Visible predecessor",
+      "start": null,
+      "state": "in_progress"
+    },
+    {
+      "dependency_ids": [
+        1006
+      ],
+      "end": null,
+      "id": 5,
+      "milestone_id": null,
+      "name": "Dependency target",
+      "start": null,
+      "state": "in_progress"
+    }
+  ],
+  "total": 5
+}

@@ -1,0 +1,121 @@
+{
+  "active": true,
+  "allow_task_dependencies": false,
+  "allowed_actions": [
+    "read",
+    "write",
+    "archive"
+  ],
+  "can_manage": true,
+  "charter": {
+    "amount": null,
+    "approval_required": false,
+    "approved_at": null,
+    "approved_by": null,
+    "assumptions": "",
+    "authority": "still",
+    "benefits": "",
+    "budget_state": "unknown",
+    "can_review": false,
+    "closure": "",
+    "code": "PRJ-000013",
+    "constraints": "",
+    "currency": {
+      "decimal_places": 2,
+      "id": 7,
+      "name": "USD",
+      "symbol": "$"
+    },
+    "deliverables": [],
+    "exclusions": "",
+    "high_level_requirements": "",
+    "objectives": [],
+    "owning_unit": {
+      "id": 8,
+      "name": "PMO Office"
+    },
+    "priority": null,
+    "rationale": "",
+    "return_note": "",
+    "scope": "",
+    "sponsor": null,
+    "state": "draft",
+    "submitted_at": null,
+    "submitted_by": null,
+    "success": "",
+    "type": {
+      "charter_steps": [
+        "justification",
+        "scope",
+        "schedule",
+        "budget",
+        "risks"
+      ],
+      "id": 7,
+      "name": "تقني"
+    }
+  },
+  "charter_state": "draft",
+  "closed_task_count": 0,
+  "completion_approval": "none",
+  "completion_approver": null,
+  "date_end": null,
+  "date_start": null,
+  "description_html": "",
+  "followers_count": 1,
+  "id": 1,
+  "manager": {
+    "id": 2,
+    "name": "Mona"
+  },
+  "milestone_count": 0,
+  "name": "Refs",
+  "phase": "initiating",
+  "phase_state": {
+    "current": "initiating",
+    "next": "planning",
+    "next_checks": [
+      {
+        "key": "charter_approved",
+        "ok": false
+      }
+    ],
+    "previous": null
+  },
+  "privacy_visibility": "employees",
+  "progress": 0,
+  "stages": [
+    {
+      "fold": false,
+      "id": 3,
+      "name": "جديد",
+      "sequence": 10,
+      "task_count": 0
+    },
+    {
+      "fold": false,
+      "id": 4,
+      "name": "قيد التنفيذ",
+      "sequence": 20,
+      "task_count": 0
+    },
+    {
+      "fold": false,
+      "id": 5,
+      "name": "مراجعة",
+      "sequence": 30,
+      "task_count": 0
+    },
+    {
+      "fold": true,
+      "id": 6,
+      "name": "منجز",
+      "sequence": 40,
+      "task_count": 0
+    }
+  ],
+  "status": null,
+  "tags": [],
+  "task_count": 0,
+  "updated_at": "v2"
+}

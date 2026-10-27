@@ -333,6 +333,8 @@ class TestMeetingSeries(WebVueMeetingsCase):
         ids = [row['id'] for row in body['meetings']]
         self.assertIn(visible.id, ids)
         self.assertNotIn(hidden.id, ids)
+        listed = self.api('GET', '/api/v1/meeting-series').json()
+        self.assertIn(series.id, [row['id'] for row in listed['items']])
 
     def test_month_window_returns_more_than_200(self):
         Meeting = self.env['webvue.meeting.minute']
