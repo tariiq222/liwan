@@ -10,6 +10,7 @@ import * as VueRouter from 'vue-router'
 import { afterEach, describe, expect, it } from 'vitest'
 import { sharedFile } from '@webvue/ui/test/helpers/renderShared'
 import { saveErrorMessage } from '../../../../utils/formFeedback'
+import { rootedNode } from '../../../../../tests/hostNode'
 
 interface HostNode {
   type: string
@@ -17,8 +18,9 @@ interface HostNode {
   parent: HostNode | null
   props: Record<string, unknown>
   text: string
+  getRootNode(): unknown
 }
-const node = (type = 'root', text = ''): HostNode => ({ type, text, children: [], parent: null, props: {} })
+const node = (type = 'root', text = ''): HostNode => rootedNode({ type, text, children: [], parent: null, props: {} })
 const renderer = Vue.createRenderer<HostNode, HostNode>({
   patchProp: (el, key, _old, value) => { el.props[key] = value },
   insert(child, parent, anchor) {

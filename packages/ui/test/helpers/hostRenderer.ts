@@ -9,10 +9,23 @@ export interface HostNode {
   props: Record<string, unknown>
   text?: string
   type?: string
+  getRootNode(): HostNode
+}
+
+// RouterView compares the rendered element's root with the app container's root
+// (Node.getRootNode) before it reports a settled route, so every node answers it.
+const hostNodeMethods = {
+  getRootNode(this: HostNode): HostNode {
+    return this.parent ? this.parent.getRootNode() : this
+  },
+}
+
+function hostNode(fields: Omit<HostNode, 'getRootNode'>): HostNode {
+  return Object.assign(Object.create(hostNodeMethods) as HostNode, fields)
 }
 
 export function createHostNode(type = 'root'): HostNode {
-  return { type, children: [], parent: null, props: {} }
+  return hostNode({ type, children: [], parent: null, props: {} })
 }
 
 export const hostRenderer = createRenderer<HostNode, HostNode>({
@@ -32,8 +45,8 @@ export const hostRenderer = createRenderer<HostNode, HostNode>({
     child.parent = null
   },
   createElement: type => createHostNode(type),
-  createText: text => ({ text, children: [], parent: null, props: {} }),
-  createComment: text => ({ text, type: 'comment', children: [], parent: null, props: {} }),
+  createText: text => hostNode({ text, children: [], parent: null, props: {} }),
+  createComment: text => hostNode({ text, type: 'comment', children: [], parent: null, props: {} }),
   setText(node, text) { node.text = text },
   setElementText(node, text) { node.text = text; node.children = [] },
   parentNode: node => node.parent,
@@ -43,7 +56,7 @@ export const hostRenderer = createRenderer<HostNode, HostNode>({
   },
   querySelector: () => null,
   setScopeId: () => {},
-  cloneNode: node => ({ ...node, children: [...node.children], props: { ...node.props }, parent: null }),
+  cloneNode: node => hostNode({ ...node, children: [...node.children], props: { ...node.props }, parent: null }),
   insertStaticContent(content, parent, anchor) {
     const node = createHostNode('static')
     node.text = content
