@@ -60,6 +60,17 @@ For `openrouter`, `AI_MODEL` is the OpenRouter model id (`vendor/model`).
   3. one test in `tests/test_providers.py` (the registry-driven tests already check that it builds without network and that the key rule holds);
   4. one row in the Providers table above.
 
+## Run naming and usage events
+
+`POST /v1/runs` names its run through exactly one of `new_run_id` (a new run, `^r_[0-9a-f]{24}$`, chosen by the caller; 409 when taken)
+and `run_id` (continues a finished run); anything else is 422.
+
+Before each provider attempt the stream carries `model_call` (`call_id`, `kind` `plan|title`, `provider`, `model`, `called_at`) and after it
+`model_usage` (`call_id`, `outcome` `ok|failed|retried|aborted`, `input_tokens`, `output_tokens`, null when the provider reported none). The
+Nuxt server consumes both and never relays them to the browser. The provider SDKs are built with `max_retries=0`; the service retries a plan
+call itself, up to 3 attempts (0.5 s then 1 s apart, inside the run deadline), only for a 408/409/429/5xx answer or a connection error.
+Titles are never retried.
+
 ## Service token
 
 When `AI_SERVICE_TOKEN` is set, every route except `GET /healthz` requires the header `X-WebVue-Service-Token` to equal it

@@ -1,4 +1,4 @@
-import { AiAuditRequestSchema, AiDraftPayloadSchema, AiEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema } from '../index'
+import { AI_USAGE_BATCH_MAX, AiAuditRequestSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageBatchSchema, AiUsageRecordSchema, AiUsageRowSchema } from '../index'
 
 const READ = {
   name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'مهامي', en: 'My tasks' },
@@ -75,5 +75,44 @@ describe('WebVue AI contracts', () => {
       { message: 'x', context: { page: 'project', id: '12' } }, { message: 'x', context: { page: 'project', id: 1.5 } }, { message: 'x', context: { page: 'p', extra: 1 } },
       'text', null, [],
     ]) expect(AiStartRequestSchema.safeParse(bad).success, JSON.stringify(bad)).toBe(false)
+  })
+})
+
+describe('WebVue AI usage contracts', () => {
+  const call = { call_id: 'ab12cd34ef56ab78', kind: 'plan', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }
+  const usage = { call_id: 'ab12cd34ef56ab78', outcome: 'ok', input_tokens: 120, output_tokens: 7 }
+  const record = { conversation_id: 'r_1', kind: 'plan', provider: 'openrouter', model: 'm', outcome: 'ok', input_tokens: 1, output_tokens: 2, called_at: '2026-10-27T10:00:00+03:00' }
+
+  it('parses a model_call and rejects loose ids, providers, models and offsets', () => {
+    expect(AiModelCallEventSchema.parse(call).kind).toBe('plan')
+    for (const bad of [{ call_id: 'AB12' }, { kind: 'other' }, { provider: 'Open AI' }, { model: '' }, { model: 'a'.repeat(129) }, { model: 'a\nb' }, { called_at: '2026-10-27T10:00:00' }, { extra: 1 }]) {
+      expect(() => AiModelCallEventSchema.parse({ ...call, ...bad })).toThrow()
+    }
+  })
+
+  it('pairs the token counts and bounds them', () => {
+    expect(AiModelUsageEventSchema.parse(usage).output_tokens).toBe(7)
+    expect(AiModelUsageEventSchema.parse({ ...usage, outcome: 'aborted', input_tokens: null, output_tokens: null }).input_tokens).toBeNull()
+    for (const bad of [{ output_tokens: null }, { input_tokens: null }, { input_tokens: -1 }, { input_tokens: 1.5 }, { output_tokens: 100_000_001 }, { outcome: 'lost' }]) {
+      expect(() => AiModelUsageEventSchema.parse({ ...usage, ...bad })).toThrow()
+    }
+    expect(() => AiUsageRecordSchema.parse({ ...record, input_tokens: null })).toThrow()
+  })
+
+  it('keeps the model events out of the browser stream', () => {
+    expect(() => AiEventSchema.parse({ event: 'model_call', data: call })).toThrow()
+    expect(() => AiEventSchema.parse({ event: 'model_usage', data: usage })).toThrow()
+  })
+
+  it('batches 1 to 64 records and answers with the stored rows', () => {
+    expect(AI_USAGE_BATCH_MAX).toBe(64)
+    expect(AiUsageBatchSchema.parse({ items: [record] }).items).toHaveLength(1)
+    expect(() => AiUsageBatchSchema.parse({ items: [] })).toThrow()
+    expect(() => AiUsageBatchSchema.parse({ items: Array.from({ length: 65 }, () => record) })).toThrow()
+    expect(AiUsageBatchSchema.parse({ items: Array.from({ length: 64 }, () => record) }).items).toHaveLength(64)
+    expect(() => AiUsageRecordSchema.parse({ ...record, conversation_id: '' })).toThrow()
+    expect(() => AiUsageRecordSchema.parse({ ...record, conversation_id: 'x'.repeat(65) })).toThrow()
+    expect(AiUsageRowSchema.parse({ ...record, id: 5 }).id).toBe(5)
+    expect(AiUsageBatchResponseSchema.parse({ items: [{ ...record, id: 5 }], total: 1 }).total).toBe(1)
   })
 })

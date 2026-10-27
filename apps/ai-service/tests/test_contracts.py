@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from webvue_ai_service.contracts import ResumeRequest, RunRequest, ToolSpec
+from webvue_ai_service.contracts import ModelCallEvent, ModelUsageEvent, ResumeRequest, RunRequest, ToolSpec
 
 READ_TOOL = {
     "name": "pmo.list_my_tasks",
@@ -29,7 +29,7 @@ def run_request(**overrides):
     body = {
         "tenant": "t1", "user_ref": "42", "locale": "ar", "message": "وش مهامي؟",
         "context": None, "tools": [READ_TOOL, DRAFT_TOOL],
-        "limits": {"max_steps": 12, "max_tool_calls": 8, "timeout_seconds": 120},
+        "limits": {"max_steps": 12, "max_tool_calls": 8, "timeout_seconds": 120}, "new_run_id": "r_" + "ab" * 12,
     }
     body.update(overrides)
     return RunRequest.model_validate(body)
@@ -114,3 +114,30 @@ def test_tool_result_data_is_capped_at_200_kb():
     with pytest.raises(ValidationError, match="exceeds"):
         ResumeRequest.model_validate({"call_id": "c_1", "result": {"ok": True, "data": {"blob": "x" * (200 * 1024)}}})
     ResumeRequest.model_validate({"call_id": "c_1", "result": {"ok": True, "data": {"blob": "x" * 1000}}})
+
+
+def test_a_request_names_exactly_one_run():
+    for overrides in ({"new_run_id": None}, {"run_id": "r_" + "cd" * 12}):
+        with pytest.raises(ValidationError):
+            run_request(**overrides)
+    assert run_request(new_run_id=None, run_id="r_" + "cd" * 12).run_id == "r_" + "cd" * 12
+
+
+def test_a_new_run_id_has_the_service_shape():
+    for bad in ("r_abc", "R_" + "ab" * 12, "r_" + "zz" * 12, "r_" + "ab" * 13):
+        with pytest.raises(ValidationError):
+            run_request(new_run_id=bad)
+
+
+def test_model_events_are_strict_and_pair_their_tokens():
+    call = {"call_id": "ab" * 8, "kind": "plan", "provider": "openrouter", "model": "anthropic/claude-sonnet-4.5", "called_at": "2026-10-27T10:00:00Z"}
+    assert ModelCallEvent.model_validate(call).kind == "plan"
+    for bad in ({"kind": "other"}, {"provider": "Open AI"}, {"model": ""}, {"model": "a\nb"}, {"call_id": "xyz"}, {"called_at": "2026-10-27T10:00:00"}, {"extra": 1}):
+        with pytest.raises(ValidationError):
+            ModelCallEvent.model_validate({**call, **bad})
+    usage = {"call_id": "ab" * 8, "outcome": "ok", "input_tokens": 3, "output_tokens": 5}
+    assert ModelUsageEvent.model_validate(usage).output_tokens == 5
+    assert ModelUsageEvent.model_validate({**usage, "input_tokens": None, "output_tokens": None}).input_tokens is None
+    for bad in ({"output_tokens": None}, {"input_tokens": -1}, {"outcome": "lost"}, {"output_tokens": 100_000_001}):
+        with pytest.raises(ValidationError):
+            ModelUsageEvent.model_validate({**usage, **bad})

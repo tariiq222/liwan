@@ -1,7 +1,7 @@
 import { createEventStream, getRouterParam } from 'h3'
 import { AiRunStatusSchema } from '@webvue/contracts'
-import { auditFailedEvent, doneEvent, executeTool, logFailure, relay, resumeFailedEvent, settle, tryAudit } from '../../../../utils/ai/pump'
-import { serviceFetch } from '../../../../utils/ai/upstream'
+import { auditFailedEvent, doneEvent, executeTool, relay, resumeFailedEvent, settle, tryAudit } from '../../../../utils/ai/pump'
+import { logFailure, serviceFetch } from '../../../../utils/ai/upstream'
 import { runSession } from '../../../../utils/ai/session'
 import type { ToolResult } from '../../../../utils/ai/executor'
 
@@ -73,5 +73,5 @@ export default defineEventHandler(async (event) => {
     logFailure('resume after the write failed', error)
     return settle(createEventStream(event), [...(auditFailed ? [auditFailedEvent()] : []), resumeFailedEvent(), doneEvent('failed')])
   }
-  return relay(event, session, createEventStream(event), response, { auditFailed, shielded: wroteAlready, preface: toolResultEvent ?? undefined })
+  return relay(event, session, createEventStream(event), response, { runId: id, auditFailed, shielded: wroteAlready, preface: toolResultEvent ?? undefined })
 })

@@ -67,6 +67,44 @@ export const AiEventSchema = z.discriminatedUnion('event', [
 ])
 export type AiEvent = z.infer<typeof AiEventSchema>
 
+/**
+ * Provider usage. `model_call` and `model_usage` go from the AI service to the Nuxt server only (they are not part of
+ * `AiEventSchema`, which is the browser stream); the Nuxt server then reports the pairs to Odoo in batches.
+ */
+export const AI_USAGE_BATCH_MAX = 64
+export const AiModelCallKindSchema = z.enum(['plan', 'title'])
+export const AiModelCallOutcomeSchema = z.enum(['ok', 'failed', 'retried', 'aborted'])
+const AiCallIdSchema = z.string().regex(/^[0-9a-f]{16}$/)
+const AiProviderNameSchema = z.string().regex(/^[a-z][a-z0-9_-]{0,31}$/)
+const AiModelNameSchema = z.string().min(1).max(128).refine(value => !/[\u0000-\u001f\u007f]/.test(value), 'no control characters')
+const AiTokenCountSchema = z.number().int().nonnegative().max(100_000_000).nullable()
+const tokensComeInPairs = (value: { input_tokens: number | null, output_tokens: number | null }) => (value.input_tokens === null) === (value.output_tokens === null)
+const TOKENS_IN_PAIRS = { message: 'input_tokens and output_tokens are both set or both null', path: ['output_tokens'] }
+
+export const AiModelCallEventSchema = z.object({
+  call_id: AiCallIdSchema, kind: AiModelCallKindSchema, provider: AiProviderNameSchema, model: AiModelNameSchema,
+  called_at: z.iso.datetime({ offset: true }),
+}).strict()
+export type AiModelCallEvent = z.infer<typeof AiModelCallEventSchema>
+export const AiModelUsageEventSchema = z.object({
+  call_id: AiCallIdSchema, outcome: AiModelCallOutcomeSchema, input_tokens: AiTokenCountSchema, output_tokens: AiTokenCountSchema,
+}).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS)
+export type AiModelUsageEvent = z.infer<typeof AiModelUsageEventSchema>
+
+const AiUsageFields = {
+  conversation_id: z.string().min(1).max(64), kind: AiModelCallKindSchema, provider: AiProviderNameSchema, model: AiModelNameSchema,
+  outcome: AiModelCallOutcomeSchema, input_tokens: AiTokenCountSchema, output_tokens: AiTokenCountSchema, called_at: z.iso.datetime({ offset: true }),
+}
+/** One provider attempt as `POST /api/v1/ai/usage` records it. */
+export const AiUsageRecordSchema = z.object(AiUsageFields).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS)
+export type AiUsageRecord = z.infer<typeof AiUsageRecordSchema>
+export const AiUsageBatchSchema = z.object({ items: z.array(AiUsageRecordSchema).min(1).max(AI_USAGE_BATCH_MAX) }).strict()
+export type AiUsageBatch = z.infer<typeof AiUsageBatchSchema>
+export const AiUsageRowSchema = z.object({ id: z.number().int().positive(), ...AiUsageFields }).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS)
+export type AiUsageRow = z.infer<typeof AiUsageRowSchema>
+export const AiUsageBatchResponseSchema = z.object({ items: z.array(AiUsageRowSchema), total: z.number().int().nonnegative() }).strict()
+export type AiUsageBatchResponse = z.infer<typeof AiUsageBatchResponseSchema>
+
 export const AiRunStatusSchema = z.object({
   run_id: z.string(),
   status: AiRunStatusValueSchema,

@@ -8,9 +8,9 @@ import pytest
 import uvicorn
 from langgraph.checkpoint.memory import InMemorySaver
 
-from tests.fake_openai import FAKE_TITLE, LEGAL_NAME, create_fake_openai, text_turn, tool_turn
-from tests.test_service import BODY, HEADERS, parse_sse
-from webvue_ai_service import graph
+from tests.fake_openai import FAKE_TITLE, LEGAL_NAME, create_fake_openai, failure_turn, text_turn, tool_turn
+from tests.test_service import BODY, HEADERS, fresh, parse_sse
+from webvue_ai_service import graph, usage
 from webvue_ai_service.providers import build_chat_model
 from webvue_ai_service.service import create_app
 from webvue_ai_service.settings import Settings
@@ -58,7 +58,7 @@ def tool_names(request_body):
 async def test_dotted_tool_name_goes_out_legal_and_comes_back_dotted_with_parsed_arguments(serve_fake):
     fake, base_url = serve_fake([tool_turn("pmo__list_my_tasks", {"limit": 5}, "call_a1")])
     async with service_client(base_url) as client:
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
     assert fake.state.rejected == []
     assert tool_names(fake.state.requests[0]) == ["pmo__list_my_tasks", "pmo__draft_project"]
     request = dict(events)["tool_request"]
@@ -69,7 +69,7 @@ async def test_dotted_tool_name_goes_out_legal_and_comes_back_dotted_with_parsed
 async def test_resume_streams_tokens_and_the_answer_string_and_sends_a_valid_follow_up(serve_fake):
     fake, base_url = serve_fake([tool_turn("pmo__list_my_tasks", {"limit": 5}, "call_a1"), text_turn("عندك مهمة واحدة: تقرير")])
     async with service_client(base_url) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "call_a1", "result": TASKS}, headers=HEADERS)).text)
         assert [item["title"] for item in (await client.get("/v1/runs", headers=HEADERS)).json()["items"]] == [FAKE_TITLE]
     tokens = [data["text"] for name, data in events if name == "token"]
@@ -86,7 +86,7 @@ async def test_resume_streams_tokens_and_the_answer_string_and_sends_a_valid_fol
 async def test_a_continuation_after_the_tool_limit_passes_the_providers_message_order_rules(serve_fake):
     fake, base_url = serve_fake([tool_turn("pmo__list_my_tasks", {}, f"call_{i}") for i in range(1, 4)] + [text_turn("من جديد")])
     async with service_client(base_url) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         for call in ("call_1", "call_2"):
             events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": call, "result": {"ok": True, "data": {}}}, headers=HEADERS)).text)
         assert events[-1][1] == {"status": "limit_reached"}
@@ -100,7 +100,7 @@ async def test_a_continuation_after_the_tool_limit_passes_the_providers_message_
 async def test_openrouter_sends_the_bearer_legal_tool_names_and_attribution_headers(serve_fake):
     fake, base_url = serve_fake([tool_turn("pmo__list_my_tasks", {"limit": 5}, "call_a1")])
     async with service_client(base_url, "openrouter", AI_OPENROUTER_REFERER="https://webvue.example", AI_OPENROUTER_TITLE="WebVue") as client:
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
     assert fake.state.rejected == [] and events[-1][1] == {"status": "waiting_tool"}
     assert tool_names(fake.state.requests[0]) == ["pmo__list_my_tasks", "pmo__draft_project"]
     headers = fake.state.headers[0]
@@ -111,14 +111,14 @@ async def test_openrouter_sends_the_bearer_legal_tool_names_and_attribution_head
 async def test_openrouter_without_attribution_variables_sends_neither_header(serve_fake):
     fake, base_url = serve_fake([text_turn("تمام")])
     async with service_client(base_url, "openrouter") as client:
-        await client.post("/v1/runs", json=BODY, headers=HEADERS)
+        await client.post("/v1/runs", json=fresh(), headers=HEADERS)
     assert fake.state.rejected == [] and "http-referer" not in fake.state.headers[0] and "x-title" not in fake.state.headers[0]
 
 
 async def test_every_tool_name_the_service_sends_is_legal(serve_fake):
     fake, base_url = serve_fake([text_turn("تمام")])
     async with service_client(base_url) as client:
-        await client.post("/v1/runs", json=BODY, headers=HEADERS)
+        await client.post("/v1/runs", json=fresh(), headers=HEADERS)
     assert fake.state.rejected == [] and all(LEGAL_NAME.match(name) for name in tool_names(fake.state.requests[0]))
 
 
@@ -126,7 +126,7 @@ async def test_the_fake_would_catch_the_dotted_name_bug(serve_fake, monkeypatch)
     monkeypatch.setattr(graph, "encode_tool_name", lambda name: name)  # the earlier bug: dotted names sent as they are
     fake, base_url = serve_fake([text_turn("never reached")])
     async with service_client(base_url) as client:
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
     assert events[-1][1] == {"status": "failed"} and "error" in dict(events)
     assert len(fake.state.rejected) == 1 and "function.name" in fake.state.rejected[0]
 
@@ -156,3 +156,23 @@ async def test_the_fake_answers_400_in_the_openai_error_shape_for_what_the_real_
     error = response.json()["error"]
     assert error["type"] == "invalid_request_error" and needle in error["message"] + str(error["param"])
     assert fake.state.requests == []
+
+
+async def test_each_plan_attempt_is_one_http_request_and_its_usage_comes_from_the_stream(serve_fake, monkeypatch):
+    monkeypatch.setattr(usage, "BACKOFF_SECONDS", (0.0, 0.0))
+    fake, base_url = serve_fake([failure_turn(429), failure_turn(503), text_turn("تمام")])
+    async with service_client(base_url) as client:
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
+    assert fake.state.attempts == 3 and len(fake.state.requests) == 1  # the SDK adds no retry of its own (max_retries=0)
+    usages = [data for name, data in events if name == "model_usage"]
+    assert [item["outcome"] for item in usages] == ["retried", "retried", "ok", "ok"]  # three plan attempts, then the title
+    assert (usages[2]["input_tokens"], usages[2]["output_tokens"]) == (10, 5) and (usages[3]["input_tokens"], usages[3]["output_tokens"]) == (10, 5)
+    assert events[-1][1] == {"status": "done"}
+
+
+async def test_a_provider_400_is_one_request_and_a_failed_call(serve_fake):
+    fake, base_url = serve_fake([failure_turn(400)])
+    async with service_client(base_url) as client:
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
+    assert fake.state.attempts == 1
+    assert [data["outcome"] for name, data in events if name == "model_usage"] == ["failed"] and events[-1][1] == {"status": "failed"}

@@ -5,7 +5,8 @@ test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Isolated synthetic API only')
 const mockOdoo = process.env.NUXT_ODOO_URL ?? `http://127.0.0.1:${process.env.MOCK_PORT ?? 4498}`
 type AuditRow = { conversation_id: string; kind: string; result: string; tool_name: string | null; attested: boolean; approved: { id: number } | null }
 const allAudit = async (page: Page): Promise<AuditRow[]> => (await (await page.request.get(`${mockOdoo}/__mock/ai-audit`)).json()).items
-// The first message of a run is audited before the service names the run, so its row carries `pending`, not the run id.
+type UsageRow = { conversation_id: string; kind: string; outcome: string; input_tokens: number | null }
+const allUsage = async (page: Page): Promise<UsageRow[]> => (await (await page.request.get(`${mockOdoo}/__mock/ai-usage`)).json()).items
 const auditSince = async (page: Page, before: number) => (await allAudit(page)).slice(before)
 const runIdOf = (page: Page) => new URL(page.url()).searchParams.get('run')!
 
@@ -37,6 +38,11 @@ test.describe('WebVue AI on the mock stack', () => {
     await expect(page.getByTestId('ai-record').first().getByRole('link')).toBeVisible()
     await expect(page).toHaveURL(/\/ai\?run=r_/)
     expect((await auditSince(page, before)).map(row => [row.kind, row.result, row.tool_name])).toEqual([['message', 'ok', null], ['read', 'ok', 'pmo.list_my_tasks']])
+    // The server names a new run itself, so its first message is audited under the run id (never `pending`) and its provider calls are reported under it.
+    const runId = runIdOf(page)
+    expect(runId).toMatch(/^r_[0-9a-f]{24}$/)
+    expect((await auditSince(page, before)).map(row => row.conversation_id)).toEqual([runId, runId])
+    expect((await allUsage(page)).filter(row => row.conversation_id === runId).map(row => [row.kind, row.outcome])).toEqual([['plan', 'ok'], ['plan', 'ok'], ['title', 'ok']])
   })
 
   test('a project request opens the real create page prefilled and needs the attestation', async ({ page }) => {

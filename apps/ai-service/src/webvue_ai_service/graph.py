@@ -12,12 +12,14 @@ from typing import Annotated, Any, Literal, TypedDict
 import jsonschema
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.types import interrupt
 
 from webvue_ai_service.contracts import RunContext, RunRequest, ToolResult, ToolSpec, encode_tool_name
 from webvue_ai_service.prompts import system_prompt, tool_summary
+from webvue_ai_service.usage import ModelIdentity, invoke_planned
 
 
 class AgentState(TypedDict):
@@ -110,7 +112,7 @@ def invalid_arguments(args: Any, schema: dict[str, Any]) -> str | None:
     return None
 
 
-def build_graph(model: BaseChatModel, checkpointer):
+def build_graph(model: BaseChatModel, checkpointer, identity: ModelIdentity):
     bound = model.bind_tools  # resolved per call so tests may swap tools per run
 
     async def plan(state: AgentState) -> dict[str, Any]:
@@ -120,7 +122,7 @@ def build_graph(model: BaseChatModel, checkpointer):
         context = RunContext.model_validate(state["context"]) if state["context"] else None
         prompt = SystemMessage(system_prompt(state["locale"], specs, context))
         history = [message for message in state["messages"] if not isinstance(message, SystemMessage)]
-        response = await bound(_openai_tools(state["tools"])).ainvoke([prompt, *history])
+        response = await invoke_planned(bound(_openai_tools(state["tools"])), [prompt, *history], identity, get_stream_writer())
         return {"messages": [response], "steps": state["steps"] + 1}
 
     def route_after_plan(state: AgentState) -> Literal["request_tool", "answer", "__end__"]:

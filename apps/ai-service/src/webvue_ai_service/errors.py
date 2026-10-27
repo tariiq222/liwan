@@ -15,6 +15,18 @@ def is_provider_error(error: BaseException) -> bool:
     return isinstance(error, OSError) or any(cls.__module__.split(".")[0] in PROVIDER_MODULES for cls in type(error).__mro__)
 
 
+TRANSIENT_STATUSES = {408, 409, 429}
+CONNECTION_ERRORS = {"APIConnectionError", "ConnectError", "ConnectTimeout"}  # SDK and httpx names; a timeout is a connection error in both SDKs
+
+
+def is_transient_provider_error(error: BaseException) -> bool:
+    """Whether a provider failure is worth another attempt: a 408/409/429/5xx answer or a connection that could not be made."""
+    status = getattr(error, "status_code", None)
+    if isinstance(status, int):
+        return status in TRANSIENT_STATUSES or status >= 500
+    return any(cls.__name__ in CONNECTION_ERRORS and cls.__module__.split(".")[0] in PROVIDER_MODULES for cls in type(error).__mro__)
+
+
 def client_error(error: BaseException) -> dict[str, str]:
     """The ``error`` event payload: a fixed message plus the class name, never the exception text."""
     provider = is_provider_error(error)

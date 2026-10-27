@@ -7,7 +7,7 @@ import httpx
 from langgraph.checkpoint.memory import InMemorySaver
 
 from tests.fakes import ScriptedChatModel, ai_text
-from tests.test_service import BODY, HEADERS, SETTINGS
+from tests.test_service import HEADERS, SETTINGS, fresh
 from webvue_ai_service.service import create_app
 from webvue_ai_service.store import MemoryRunStore
 
@@ -30,8 +30,8 @@ async def test_drained_generation_stays_closed_after_restart_and_another_generat
     async with client(store, checkpoints, "old-ai") as restarted, client(store, checkpoints, "new-ai") as new:
         status = (await restarted.get("/internal/release/readiness", headers=ADMIN)).json()
         assert status["drained"] and not status["accepting"]
-        assert (await restarted.post("/v1/runs", json=BODY, headers=OWNER)).status_code == 503
-        assert (await new.post("/v1/runs", json=BODY, headers=OWNER)).status_code == 200
+        assert (await restarted.post("/v1/runs", json=fresh(), headers=OWNER)).status_code == 503
+        assert (await new.post("/v1/runs", json=fresh(), headers=OWNER)).status_code == 200
         ready = (await new.get("/internal/release/readiness", headers=ADMIN)).json()
         assert status["state_id"] == ready["state_id"]
         assert re.fullmatch("state_[a-f0-9]{32}", ready["state_id"])
@@ -72,7 +72,7 @@ async def test_admission_is_counted_before_waiting_for_persisted_generation_gate
 
     store.generation_draining = paused_gate
     async with client(store, checkpoints, "old-ai") as http:
-        starting = asyncio.create_task(http.post("/v1/runs", json=BODY, headers=OWNER))
+        starting = asyncio.create_task(http.post("/v1/runs", json=fresh(), headers=OWNER))
         await asyncio.wait_for(entered.wait(), 5)
         draining = (await http.post("/internal/release/drain", headers=ADMIN)).json()
         assert draining["local_requests"] == 1 and draining["drained"] is False

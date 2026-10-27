@@ -5,7 +5,7 @@ import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
-from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
+from tests.fakes import IDENTITY, ScriptedChatModel, ai_text, ai_tool_call, new_id
 from tests.test_contracts import DRAFT_TOOL, READ_TOOL
 from webvue_ai_service.contracts import RunRequest, ToolResult
 from webvue_ai_service.graph import build_graph, initial_state, run_config, text_of
@@ -13,8 +13,8 @@ from webvue_ai_service.graph import build_graph, initial_state, run_config, text
 
 def make(responses):
     model = ScriptedChatModel(responses)
-    graph = build_graph(model, InMemorySaver())
-    request = RunRequest.model_validate({
+    graph = build_graph(model, InMemorySaver(), IDENTITY)
+    request = RunRequest.model_validate({"new_run_id": new_id(),
         "tenant": "t1", "user_ref": "42", "locale": "ar", "message": "وش مهامي؟", "context": None,
         "tools": [READ_TOOL, DRAFT_TOOL], "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60},
     })
@@ -117,7 +117,7 @@ async def test_provider_failure_marks_the_run_failed():
         def _next(self, messages):
             raise ConnectionError("provider down")
 
-    graph = build_graph(Exploding(responses=[]), InMemorySaver())
+    graph = build_graph(Exploding(responses=[]), InMemorySaver(), IDENTITY)
     _, _, request = make([])
     with pytest.raises(ConnectionError):
         await graph.ainvoke(initial_state(request), config("r8"))
@@ -145,8 +145,8 @@ async def test_a_provider_name_that_is_not_in_the_encoded_map_is_an_unknown_tool
 async def test_error_only_loops_stop_at_max_steps_not_at_the_graph_recursion_limit():
     responses = [ai_tool_call("pmo__nothing", {}, f"c_{i}") for i in range(40)]
     model = ScriptedChatModel(responses)
-    graph = build_graph(model, InMemorySaver())
-    request = RunRequest.model_validate({
+    graph = build_graph(model, InMemorySaver(), IDENTITY)
+    request = RunRequest.model_validate({"new_run_id": new_id(),
         "tenant": "t1", "user_ref": "42", "locale": "ar", "message": "؟", "context": None, "tools": [READ_TOOL],
         "limits": {"max_steps": 30, "max_tool_calls": 2, "timeout_seconds": 60},
     })

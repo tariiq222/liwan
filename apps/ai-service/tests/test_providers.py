@@ -77,3 +77,15 @@ async def test_scripted_model_replays_and_streams():
     assert "".join(chunks) == "تم"
     with pytest.raises(RuntimeError, match="script exhausted"):
         await model.ainvoke([HumanMessage("again")])
+
+
+@pytest.mark.parametrize("name", sorted(REGISTRY))
+def test_the_sdks_never_retry_on_their_own_so_the_service_reports_every_attempt(name):
+    model = build_chat_model(settings(name, AI_API_KEY="k"))
+    if name != "ollama":  # the Ollama client has no retries
+        assert model.max_retries == 0
+
+
+@pytest.mark.parametrize("name", ["openai", "openrouter"])
+def test_openai_compatible_builds_ask_for_the_usage_chunk_of_a_stream(name):
+    assert build_chat_model(settings(name, AI_API_KEY="k")).stream_usage is True

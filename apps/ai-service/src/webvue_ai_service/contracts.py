@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any, Literal
 
 import jsonschema
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 ToolKind = Literal["read", "write_light", "draft"]
 # One compatibility contract for ai_runs, graph state and claimed tool-result semantics.
@@ -17,6 +17,10 @@ PAGE_NAME = r"^[a-z][a-z_-]{0,39}$"
 MAX_TOOLS = 100
 MAX_RESULT_BYTES = 200 * 1024
 RUN_TITLE_MAX_CHARS = 80
+NEW_RUN_ID = r"^r_[0-9a-f]{24}$"
+CALL_ID = r"^[0-9a-f]{16}$"
+PROVIDER_NAME = r"^[a-z][a-z0-9_-]{0,31}$"
+MODEL_NAME = r"^[^\x00-\x1f\x7f]{1,128}$"
 RUN_STATUSES = ("running", "executing", "waiting_tool", "waiting_user", "done", "failed", "limit_reached")
 RunStatusValue = Literal["running", "executing", "waiting_tool", "waiting_user", "done", "failed", "limit_reached"]
 
@@ -89,7 +93,15 @@ class RunRequest(Strict):
     context: RunContext | None = None
     tools: list[ToolSpec] = Field(max_length=MAX_TOOLS)
     limits: Limits
-    run_id: str | None = None
+    run_id: str | None = None  # continues this run
+    new_run_id: str | None = Field(default=None, pattern=NEW_RUN_ID)  # starts a run under the caller's id
+
+    @model_validator(mode="after")
+    def _names_one_run(self) -> RunRequest:
+        if (self.run_id is None) == (self.new_run_id is None):
+            msg = "send exactly one of run_id (continue a run) and new_run_id (start one)"
+            raise ValueError(msg)
+        return self
 
     @model_validator(mode="after")
     def _tool_names_are_unique(self) -> RunRequest:
@@ -192,3 +204,33 @@ class RunPatch(Strict):
 class RunList(Strict):
     items: list[RunSummary]
     total: int
+
+
+ModelCallKind = Literal["plan", "title"]
+ModelCallOutcome = Literal["ok", "failed", "retried", "aborted"]
+
+
+class ModelCallEvent(Strict):
+    """``model_call``: a provider attempt is about to start (service to the Nuxt server only, never to the browser)."""
+
+    call_id: str = Field(pattern=CALL_ID)
+    kind: ModelCallKind
+    provider: str = Field(pattern=PROVIDER_NAME)
+    model: str = Field(pattern=MODEL_NAME)
+    called_at: AwareDatetime
+
+
+class ModelUsageEvent(Strict):
+    """``model_usage``: how the attempt ``call_id`` ended; both token counts are set, or both are null."""
+
+    call_id: str = Field(pattern=CALL_ID)
+    outcome: ModelCallOutcome
+    input_tokens: int | None = Field(ge=0, le=100_000_000)
+    output_tokens: int | None = Field(ge=0, le=100_000_000)
+
+    @model_validator(mode="after")
+    def _tokens_come_in_pairs(self) -> ModelUsageEvent:
+        if (self.input_tokens is None) != (self.output_tokens is None):
+            msg = "input_tokens and output_tokens are both set or both null"
+            raise ValueError(msg)
+        return self

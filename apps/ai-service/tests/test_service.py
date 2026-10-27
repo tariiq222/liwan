@@ -9,7 +9,17 @@ import pytest
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
-from tests.fakes import FailingChatModel, RenamingChatModel, ScriptedChatModel, SlowChatModel, SlowTitleChatModel, ai_blocks, ai_text, ai_tool_call
+from tests.fakes import (
+    FailingChatModel,
+    RenamingChatModel,
+    ScriptedChatModel,
+    SlowChatModel,
+    SlowTitleChatModel,
+    ai_blocks,
+    ai_text,
+    ai_tool_call,
+    new_id,
+)
 from tests.test_contracts import DRAFT_TOOL, READ_TOOL
 from webvue_ai_service import service
 from webvue_ai_service.service import create_app
@@ -21,6 +31,11 @@ BODY = {
     "tenant": "t1", "user_ref": "42", "locale": "ar", "message": "وش مهامي؟", "context": {"page": "project", "id": 1},
     "tools": [READ_TOOL, DRAFT_TOOL], "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60},
 }
+
+
+def fresh(body=BODY):
+    """``body`` as the request that starts a new run: each call carries its own run id."""
+    return {**body, "new_run_id": new_id()}
 
 
 def parse_sse(text: str):
@@ -47,7 +62,7 @@ def client_factory():
 
 async def test_run_streams_a_tool_request_then_resumes_to_an_answer(client_factory):
     async with client_factory([ai_tool_call("pmo__list_my_tasks", {"limit": 5}, "c_1"), ai_text("عندك مهمة: تقرير")]) as client:
-        response = await client.post("/v1/runs", json=BODY, headers=HEADERS)
+        response = await client.post("/v1/runs", json=fresh(), headers=HEADERS)
         assert response.status_code == 200 and response.headers["content-type"].startswith("text/event-stream")
         events = parse_sse(response.text)
         assert events[0][0] == "run" and events[0][1]["run_id"].startswith("r_")
@@ -64,7 +79,7 @@ async def test_run_streams_a_tool_request_then_resumes_to_an_answer(client_facto
         resumed = await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": True, "data": {"items": [{"id": 5, "name": "تقرير"}], "total": 1}}}, headers=HEADERS)
         events = parse_sse(resumed.text)
         names = [name for name, _ in events]
-        assert "token" in names and names[-2:] == ["answer", "done"]
+        assert "token" in names and names[-4:] == ["answer", "model_call", "model_usage", "done"]
         answer = dict(events)["answer"]
         assert answer["text"] == "عندك مهمة: تقرير" and answer["records"] == [{"type": "task", "id": 5, "label": "تقرير"}]
         assert events[-1][1] == {"status": "done"}
@@ -74,14 +89,14 @@ async def test_run_streams_a_tool_request_then_resumes_to_an_answer(client_facto
 async def test_the_answer_lists_only_the_returned_records_it_names(client_factory):
     rows = {"ok": True, "data": {"items": [{"id": 5, "name": "تقرير"}, {"id": 6, "name": "ميزانية"}], "total": 2}}
     async with client_factory([ai_tool_call("pmo__list_my_tasks", {"limit": 5}, "c_1"), ai_text("المتأخرة هي **تقرير** فقط")]) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": rows}, headers=HEADERS)).text)
         assert dict(events)["answer"]["records"] == [{"type": "task", "id": 5, "label": "تقرير"}]
 
 
 async def test_write_and_draft_requests_wait_for_the_user(client_factory):
     async with client_factory([ai_tool_call("pmo__draft_project", {"name": "بوابة"}, "c_1"), ai_text("ألغيت")]) as client:
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
         assert events[-1][1] == {"status": "waiting_user"}
         run_id = events[0][1]["run_id"]
         resumed = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": False, "decision": "rejected"}}, headers=HEADERS)).text)
@@ -90,7 +105,7 @@ async def test_write_and_draft_requests_wait_for_the_user(client_factory):
 
 async def test_resume_with_a_wrong_call_id_is_409_and_changes_nothing(client_factory):
     async with client_factory([ai_tool_call("pmo__list_my_tasks", {}, "c_1"), ai_text("x")]) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         response = await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_other", "result": {"ok": True, "data": {}}}, headers=HEADERS)
         assert response.status_code == 409
         assert (await client.get(f"/v1/runs/{run_id}", headers=HEADERS)).json()["pending"]["call_id"] == "c_1"
@@ -98,14 +113,14 @@ async def test_resume_with_a_wrong_call_id_is_409_and_changes_nothing(client_fac
 
 async def test_another_tenant_or_user_cannot_see_or_resume_the_run(client_factory):
     async with client_factory([ai_tool_call("pmo__list_my_tasks", {}, "c_1")]) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         for headers in ({"X-WebVue-Tenant": "t2", "X-WebVue-User": "42"}, {"X-WebVue-Tenant": "t1", "X-WebVue-User": "7"}):
             assert (await client.get(f"/v1/runs/{run_id}", headers=headers)).status_code == 404
             assert (await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": True, "data": {}}}, headers=headers)).status_code == 404
 
 
 async def start(client, message, headers=HEADERS):
-    body = {**BODY, "message": message, "tenant": headers["X-WebVue-Tenant"], "user_ref": headers["X-WebVue-User"]}
+    body = fresh({**BODY, "message": message, "tenant": headers["X-WebVue-Tenant"], "user_ref": headers["X-WebVue-User"]})
     return parse_sse((await client.post("/v1/runs", json=body, headers=headers)).text)[0][1]["run_id"]
 
 
@@ -135,7 +150,7 @@ async def test_the_run_list_needs_the_owner_headers(client_factory):
 async def test_a_stale_executing_run_is_listed_as_failed():
     store = MemoryRunStore()
     async with make_client(ScriptedChatModel([]), store) as client:
-        record = await store.create("t1", "42", "كتابة")
+        record = await store.create(new_id(), "t1", "42", "كتابة")
         record.status = EXECUTING
         record.updated_at -= timedelta(seconds=service.STALE_AFTER_SECONDS + 1)
         assert (await client.get("/v1/runs", headers=HEADERS)).json()["items"][0]["status"] == "failed"
@@ -143,16 +158,16 @@ async def test_a_stale_executing_run_is_listed_as_failed():
 
 async def test_headers_must_match_the_body(client_factory):
     async with client_factory([ai_text("x")]) as client:
-        response = await client.post("/v1/runs", json=BODY, headers={"X-WebVue-Tenant": "t9", "X-WebVue-User": "42"})
+        response = await client.post("/v1/runs", json=fresh(), headers={"X-WebVue-Tenant": "t9", "X-WebVue-User": "42"})
         assert response.status_code == 422
-        response = await client.post("/v1/runs", json=BODY)
+        response = await client.post("/v1/runs", json=fresh())
         assert response.status_code == 422
 
 
 async def test_limit_reached_is_an_event_and_a_status(client_factory):
     responses = [ai_tool_call("pmo__list_my_tasks", {}, f"c_{i}") for i in range(1, 4)]
     async with client_factory(responses) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         for call in ("c_1", "c_2"):
             events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": call, "result": {"ok": True, "data": {"items": [], "total": 0}}}, headers=HEADERS)).text)
         assert ("limit_reached", {"limit": "max_tool_calls"}) in events
@@ -171,7 +186,7 @@ async def test_provider_failure_streams_an_error_and_the_run_can_be_reused(clien
     model = Exploding(responses=[ai_text("boom"), ai_text("رجعت")])
     app = create_app(model, MemoryRunStore(), InMemorySaver(), settings)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai") as client:
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
         run_id = events[0][1]["run_id"]
         assert ("error", {"code": "provider_unavailable", "message": "The AI provider is unavailable: ConnectionError"}) in events
         assert events[-1][1] == {"status": "failed"}
@@ -199,7 +214,7 @@ async def test_block_list_content_streams_tokens_and_answers_with_a_string():
     plan = AIMessage(content=[{"type": "text", "text": "سأقرأ"}, {"type": "tool_use", "id": "c_1", "name": "pmo__list_my_tasks", "input": {}}],
                      tool_calls=[{"name": "pmo__list_my_tasks", "args": {}, "id": "c_1", "type": "tool_call"}])
     async with make_client(ScriptedChatModel([plan, ai_blocks("عندك ", "مهمة")])) as client:
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
         run_id = events[0][1]["run_id"]
         assert events[-1][1] == {"status": "waiting_tool"}
         events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json=RESUME_C1, headers=HEADERS)).text)
@@ -213,7 +228,7 @@ async def test_block_list_content_streams_tokens_and_answers_with_a_string():
 async def test_a_dropped_client_never_leaves_the_run_running():
     started, store = asyncio.Event(), MemoryRunStore()
     async with make_client(SlowChatModel([], started=started), store) as client:
-        task = asyncio.create_task(client.post("/v1/runs", json=BODY, headers=HEADERS))
+        task = asyncio.create_task(client.post("/v1/runs", json=fresh(), headers=HEADERS))
         await asyncio.wait_for(started.wait(), 5)
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
@@ -229,7 +244,7 @@ async def test_a_dropped_client_never_leaves_the_run_running():
 async def test_a_dropped_client_after_the_tool_request_keeps_the_run_resumable():
     store = MemoryRunStore()
     async with make_client(ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1"), ai_text("x")]), store) as client:
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
         assert events[-1][1] == {"status": "waiting_tool"}
         assert store.records[events[0][1]["run_id"]].status == "waiting_tool"
 
@@ -237,7 +252,7 @@ async def test_a_dropped_client_after_the_tool_request_keeps_the_run_resumable()
 async def test_two_concurrent_resumes_of_one_call_run_the_model_once():
     model = ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1"), ai_text("تم")])
     async with make_client(model) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         before = len(model.calls)
         first, second = await asyncio.gather(*(client.post(f"/v1/runs/{run_id}/resume", json=RESUME_C1, headers=HEADERS) for _ in range(2)))
         assert sorted([first.status_code, second.status_code]) == [200, 409]
@@ -247,7 +262,7 @@ async def test_two_concurrent_resumes_of_one_call_run_the_model_once():
 async def test_two_concurrent_continuations_of_a_finished_run_start_one_turn():
     model = ScriptedChatModel([ai_text("أول"), ai_text("ثاني"), ai_text("ثالث")])
     async with make_client(model) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         before = len(model.calls)
         again = {**BODY, "run_id": run_id, "message": "وبعدين؟"}
         first, second = await asyncio.gather(*(client.post("/v1/runs", json=again, headers=HEADERS) for _ in range(2)))
@@ -257,7 +272,7 @@ async def test_two_concurrent_continuations_of_a_finished_run_start_one_turn():
 
 async def test_continuing_a_waiting_run_is_409():
     async with make_client(ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1")])) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         assert (await client.post("/v1/runs", json={**BODY, "run_id": run_id}, headers=HEADERS)).status_code == 409
 
 
@@ -265,7 +280,7 @@ async def test_a_run_continues_cleanly_after_the_tool_limit_stopped_it():
     responses = [ai_tool_call("pmo__list_my_tasks", {}, f"c_{i}") for i in range(1, 4)] + [ai_text("من جديد")]
     model = ScriptedChatModel(responses)
     async with make_client(model) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         for call in ("c_1", "c_2"):
             events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": call, "result": {"ok": True, "data": {}}}, headers=HEADERS)).text)
         assert events[-1][1] == {"status": "limit_reached"}
@@ -280,7 +295,7 @@ async def test_a_run_continues_cleanly_after_the_tool_limit_stopped_it():
 async def test_a_continued_run_takes_the_new_tools_locale_and_context():
     model = ScriptedChatModel([ai_text("أول"), ai_text("second")])
     async with make_client(model) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         new = {**BODY, "run_id": run_id, "locale": "en", "message": "and now?", "tools": [DRAFT_TOOL], "context": {"page": "task", "id": 9}}
         await client.post("/v1/runs", json=new, headers=HEADERS)
         system = [m for m in model.calls[-1] if m.type == "system"]
@@ -293,7 +308,7 @@ async def test_a_continued_run_takes_the_new_tools_locale_and_context():
 async def test_error_events_carry_a_fixed_message_and_the_class_never_the_exception_text(caplog):
     caplog.set_level(logging.INFO)
     async with make_client(FailingChatModel([], error=ConnectionError(LEAKY))) as client:
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
     [error] = [data for name, data in events if name == "error"]
     assert error == {"code": "provider_unavailable", "message": "The AI provider is unavailable: ConnectionError"}
     for secret in ("sk-secret", "u:pw@h", "postgresql://"):
@@ -303,13 +318,13 @@ async def test_error_events_carry_a_fixed_message_and_the_class_never_the_except
 
 async def test_a_non_provider_failure_is_internal():
     async with make_client(FailingChatModel([], error=KeyError(LEAKY))) as client:
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
     assert ("error", {"code": "internal", "message": "The AI service hit an internal error: KeyError"}) in events
 
 
 async def test_a_provider_timeout_is_a_failure_not_the_run_timeout():
     async with make_client(FailingChatModel([], error=TimeoutError("read timeout"))) as client:
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
     assert [name for name, _ in events if name == "limit_reached"] == []
     assert events[-1][1] == {"status": "failed"} and events[-2][1]["code"] == "provider_unavailable"
 
@@ -318,7 +333,7 @@ async def test_the_run_timeout_is_a_limit_not_an_error(monkeypatch):
     real_timeout = asyncio.timeout
     monkeypatch.setattr(service.asyncio, "timeout", lambda _seconds: real_timeout(0.05))
     async with make_client(SlowChatModel([])) as client:
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
     assert ("limit_reached", {"limit": "timeout"}) in events and events[-1][1] == {"status": "limit_reached"}
 
 
@@ -329,8 +344,8 @@ async def listed_titles(client, archived=False):
 async def test_the_first_answer_names_the_conversation_before_the_stream_ends():
     model = ScriptedChatModel([ai_text("عندك مهمة واحدة")], title_responses=[ai_text("«مهامي المفتوحة».")])
     async with make_client(model) as client:
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
-        assert [name for name, _ in events][-2:] == ["answer", "done"] and events[-1][1] == {"status": "done"}
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
+        assert [name for name, _ in events][-4:] == ["answer", "model_call", "model_usage", "done"] and events[-1][1] == {"status": "done"}
         assert await listed_titles(client) == ["مهامي المفتوحة"]  # already there when the page refetches after the stream
         run_id = events[0][1]["run_id"]
         thread = (await client.get(f"/v1/runs/{run_id}", headers=HEADERS)).json()["messages"]
@@ -343,7 +358,7 @@ async def test_the_first_answer_names_the_conversation_before_the_stream_ends():
 async def test_a_run_that_answers_after_a_tool_result_is_named_once_from_its_first_exchange():
     model = ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1"), ai_text("تم")], title_responses=[ai_text("مهامي")])
     async with make_client(model) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         assert model.title_calls == [] and await listed_titles(client) == ["وش مهامي؟"]  # no answer yet: the provisional title stays
         await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": True, "data": {}}}, headers=HEADERS)
         assert await listed_titles(client) == ["مهامي"] and len(model.title_calls) == 1
@@ -352,7 +367,7 @@ async def test_a_run_that_answers_after_a_tool_result_is_named_once_from_its_fir
 async def test_a_later_turn_never_renames_the_conversation():
     model = ScriptedChatModel([ai_text("أول"), ai_text("ثان")], title_responses=[ai_text("عنوان أول"), ai_text("عنوان ثان")])
     async with make_client(model) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         await client.post("/v1/runs", json={**BODY, "run_id": run_id, "message": "كمّل"}, headers=HEADERS)
         assert await listed_titles(client) == ["عنوان أول"] and len(model.title_calls) == 1
 
@@ -366,14 +381,14 @@ async def test_a_title_the_user_set_is_never_overwritten_not_even_while_the_titl
 
     model = RenamingChatModel([ai_text("جواب")], title_responses=[ai_text("عنوان النموذج")], on_title=user_renames)
     async with make_client(model, store) as client:
-        await client.post("/v1/runs", json=BODY, headers=HEADERS)
+        await client.post("/v1/runs", json=fresh(), headers=HEADERS)
         assert await listed_titles(client) == ["عنواني"]
 
 
 async def test_a_title_that_takes_too_long_keeps_the_provisional_title_and_is_logged(monkeypatch, caplog):
     monkeypatch.setattr(service, "TITLE_TIMEOUT_SECONDS", 0.05)
     async with make_client(SlowTitleChatModel([ai_text("جواب")])) as client:
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
         assert dict(events)["answer"]["text"] == "جواب" and events[-1][1] == {"status": "done"}
         assert await listed_titles(client) == ["وش مهامي؟"]
     assert "could not be titled: TimeoutError" in caplog.text
@@ -382,7 +397,7 @@ async def test_a_title_that_takes_too_long_keeps_the_provisional_title_and_is_lo
 async def test_a_failing_title_call_keeps_the_provisional_title_and_is_logged_without_secrets(caplog):
     caplog.set_level(logging.WARNING)
     async with make_client(ScriptedChatModel([ai_text("جواب")])) as client:  # no title scripted: the title call raises
-        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
         assert events[-1][1] == {"status": "done"} and await listed_titles(client) == ["وش مهامي؟"]
     assert "could not be titled: RuntimeError: title script exhausted" in caplog.text
 
@@ -391,7 +406,7 @@ async def test_a_failing_title_call_keeps_the_provisional_title_and_is_logged_wi
 async def test_an_unusable_title_reply_keeps_the_provisional_title_and_is_logged(reply, caplog):
     caplog.set_level(logging.WARNING)
     async with make_client(ScriptedChatModel([ai_text("جواب")], title_responses=[ai_text(reply)])) as client:
-        await client.post("/v1/runs", json=BODY, headers=HEADERS)
+        await client.post("/v1/runs", json=fresh(), headers=HEADERS)
         assert await listed_titles(client) == ["وش مهامي؟"]
     assert "no usable title" in caplog.text
 
@@ -399,7 +414,7 @@ async def test_an_unusable_title_reply_keeps_the_provisional_title_and_is_logged
 async def test_a_failed_or_limited_turn_is_not_titled():
     model = FailingChatModel([], error=RuntimeError("boom"), title_responses=[ai_text("لا")])
     async with make_client(model) as client:
-        await client.post("/v1/runs", json=BODY, headers=HEADERS)
+        await client.post("/v1/runs", json=fresh(), headers=HEADERS)
         assert await listed_titles(client) == ["وش مهامي؟"] and model.title_calls == []
 
 
@@ -440,7 +455,7 @@ async def test_archiving_a_waiting_run_changes_neither_its_status_nor_its_lease_
     store = MemoryRunStore()
     model = ScriptedChatModel([ai_tool_call("pmo__draft_project", {"name": "بوابة"}, "c_1"), ai_text("ألغيت")])
     async with make_client(model, store) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         record = store.records[run_id]
         before = (record.status, record.lease, record.updated_at, record.pending_call_id)
         assert before[0] == "waiting_user"
@@ -480,7 +495,7 @@ async def test_patch_is_for_the_owner_only(client_factory):
 
 async def test_patch_does_not_shadow_the_other_run_routes(client_factory):
     async with client_factory([ai_tool_call("pmo__list_my_tasks", {}, "c_1"), ai_text("تم")]) as client:
-        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         assert (await client.patch(f"/v1/runs/{run_id}", json={"title": "اسم"}, headers=HEADERS)).status_code == 200
         assert (await client.get(f"/v1/runs/{run_id}", headers=HEADERS)).json()["status"] == "waiting_tool"
         resumed = await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": True, "data": {}}}, headers=HEADERS)

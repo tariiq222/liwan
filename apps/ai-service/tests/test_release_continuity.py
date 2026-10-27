@@ -5,7 +5,7 @@ import httpx
 from langgraph.checkpoint.memory import InMemorySaver
 
 from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
-from tests.test_service import BODY, HEADERS, RESUME_C1, SETTINGS, parse_sse
+from tests.test_service import HEADERS, RESUME_C1, SETTINGS, fresh, parse_sse
 from webvue_ai_service.service import create_app
 from webvue_ai_service.store import MemoryRunStore
 
@@ -31,13 +31,13 @@ async def test_drain_blocks_new_work_but_allows_claimed_effect_to_settle_across_
     old = create_app(ScriptedChatModel([ai_tool_call("pmo__draft_project", {"name": "x"}, "c_1")]), store, checkpoints, settings)
     new = create_app(ScriptedChatModel([ai_text("تم")]), store, checkpoints, replace(settings, generation_id="new-ai"))
     async with client(old) as a, client(new) as b:
-        run_id = parse_sse((await a.post("/v1/runs", json=BODY, headers=OWNER)).text)[0][1]["run_id"]
+        run_id = parse_sse((await a.post("/v1/runs", json=fresh(), headers=OWNER)).text)[0][1]["run_id"]
         path = f"/v1/runs/{run_id}"
         assert (await a.post(path + "/claim", json={"call_id": "c_1"}, headers=OWNER)).status_code == 200
         draining = await a.post("/internal/release/drain", headers=ADMIN)
         assert draining.status_code == 200
         assert draining.json()["drained"] is False and draining.json()["active_runs"] == 1
-        assert (await a.post("/v1/runs", json=BODY, headers=OWNER)).status_code == 503
+        assert (await a.post("/v1/runs", json=fresh(), headers=OWNER)).status_code == 503
         assert (await a.post(path + "/claim", json={"call_id": "c_1"}, headers=OWNER)).status_code == 503
         assert (await b.post(path + "/claim", json={"call_id": "c_1"}, headers=OWNER)).status_code == 409
         await b.post("/internal/release/drain", headers=ADMIN)
@@ -52,7 +52,7 @@ async def test_an_incompatible_bff_state_version_is_refused_before_any_run_is_cr
     store = MemoryRunStore()
     app = create_app(ScriptedChatModel([ai_text("x")]), store, InMemorySaver(), SETTINGS)
     async with client(app) as http:
-        response = await http.post("/v1/runs", json=BODY, headers={**HEADERS, "x-webvue-ai-state-version": "future"})
+        response = await http.post("/v1/runs", json=fresh(), headers={**HEADERS, "x-webvue-ai-state-version": "future"})
         assert response.status_code == 503
         assert store.records == {}
 
@@ -67,7 +67,7 @@ async def test_active_stream_and_its_settlement_prevent_retirement():
     store = MemoryRunStore()
     app = create_app(SlowChatModel([], started=started), store, InMemorySaver(), replace(SETTINGS, service_token=TOKEN, generation_id="old-ai"))
     async with client(app) as http:
-        call = asyncio.create_task(http.post("/v1/runs", json=BODY, headers=OWNER))
+        call = asyncio.create_task(http.post("/v1/runs", json=fresh(), headers=OWNER))
         await asyncio.wait_for(started.wait(), 5)
         evidence = (await http.post("/internal/release/drain", headers=ADMIN)).json()
         assert evidence["drained"] is False and evidence["running"] == 1 and evidence["local_requests"] == 1
@@ -84,7 +84,7 @@ async def test_automatic_pending_read_remains_in_drain_until_its_existing_result
     app = create_app(ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1"), ai_text("تم"), ai_text("عنوان")]), store,
                      InMemorySaver(), replace(SETTINGS, service_token=TOKEN, generation_id="old-ai"))
     async with client(app) as http:
-        run_id = parse_sse((await http.post("/v1/runs", json=BODY, headers=OWNER)).text)[0][1]["run_id"]
+        run_id = parse_sse((await http.post("/v1/runs", json=fresh(), headers=OWNER)).text)[0][1]["run_id"]
         evidence = (await http.post("/internal/release/drain", headers=ADMIN)).json()
         assert evidence["drained"] is False and evidence["pending_reads"] == 1
         response = await http.post(f"/v1/runs/{run_id}/resume", json=RESUME_C1, headers=OWNER)
