@@ -8,6 +8,7 @@ import { createHooks } from 'hookable'
 import { PROJECT_STATUSES } from '@webvue/contracts'
 import { expect, it } from 'vitest'
 import { parseReportStatus } from '../../utils/projectFinance'
+import { rootedNode } from '../../../tests/hostNode'
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 function gate() {
@@ -43,7 +44,7 @@ async function mountDashboard(auth: (to: RouteLocationNormalized) => unknown | P
     { path: '/projects/dashboard', component: Dashboard },
     { path: '/projects/:id', component: Blank }, { path: '/tasks', component: Blank },
   ] })
-  const node = () => ({ children: [] as any[], parent: null as any })
+  const node = () => rootedNode({ children: [] as any[], parent: null as any })
   const renderer = Vue.createRenderer<any, any>({
     patchProp() {}, insert(child, parent) { child.parent = parent; parent.children.push(child) },
     remove(child) { if (child.parent) child.parent.children = child.parent.children.filter((n: any) => n !== child) },

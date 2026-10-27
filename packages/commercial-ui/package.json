@@ -15,7 +15,7 @@
     "@vue/compiler-sfc": "^3.5.42",
     "@vue/server-renderer": "^3.5.42",
     "typescript": "^5.9.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   },
   "peerDependencies": {
     "@nuxtjs/i18n": "^10.6.0",
