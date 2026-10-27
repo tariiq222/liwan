@@ -157,7 +157,7 @@ export function useChatAttachments(id: MaybeRefOrGetter<number | undefined>, off
   })
 }
 
-export function useChatRecipients(q: MaybeRefOrGetter<string>, offset: MaybeRefOrGetter<number> = 0) {
+export function useChatRecipients(q: MaybeRefOrGetter<string>, offset: MaybeRefOrGetter<number> = 0, active: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const qc = useQueryClient()
   const userId = currentUserId()
@@ -168,7 +168,7 @@ export function useChatRecipients(q: MaybeRefOrGetter<string>, offset: MaybeRefO
       query: { q: toValue(q) || undefined, limit: CHAT_PAGE_SIZE, offset: toValue(offset) },
       schema: ChatRecipientListSchema,
     }),
-    enabled: computed(() => import.meta.client && Boolean(userId.value)),
+    enabled: computed(() => import.meta.client && Boolean(userId.value) && toValue(active)),
     throwOnError: (error) => {
       applyChatAccessFailure(qc, userId.value, error)
       return false
