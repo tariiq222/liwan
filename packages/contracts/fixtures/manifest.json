@@ -1039,6 +1039,22 @@
       "route": "/api/v1/hr/shifts/settings",
       "status": 200,
       "schema": "HrShiftSettingsSchema"
+    },
+    {
+      "name": "meetings/meeting-version-detail",
+      "addon": "webvue_meetings",
+      "method": "GET",
+      "route": "/api/v1/meetings/{id}/versions/{id}",
+      "status": 200,
+      "schema": "MeetingVersionSchema"
+    },
+    {
+      "name": "meetings/series-event-list",
+      "addon": "webvue_meetings",
+      "method": "GET",
+      "route": "/api/v1/meeting-series/{id}/events",
+      "status": 200,
+      "schema": "MeetingEventListSchema"
     }
   ]
 }

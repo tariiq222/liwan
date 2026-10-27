@@ -1,0 +1,26 @@
+{
+  "actor": {
+    "id": 2,
+    "name": "OdooBot"
+  },
+  "captured_at": "2026-01-01T00:00:00Z",
+  "id": 1,
+  "number": 1,
+  "snapshot": {
+    "agenda": "<p>Isolation agenda</p>",
+    "attendees": [],
+    "captured_at": "2026-01-01T00:00:00Z",
+    "end_datetime": "2026-01-01T00:00:00Z",
+    "location": "",
+    "meeting_date": "2026-01-12",
+    "minutes": "<p>Isolation minutes</p>",
+    "name": "Iso meeting Isolation P1",
+    "organizer": {
+      "id": 3,
+      "name": "Iso"
+    },
+    "resolutions": [],
+    "secretary": null,
+    "start_datetime": "2026-01-01T00:00:00Z"
+  }
+}
