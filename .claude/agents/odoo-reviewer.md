@@ -18,7 +18,7 @@ the report order and what is already automated). Those files own the rules; wher
 and they disagree, they win and the disagreement is itself a finding against this file. When the
 local skills `.claude/skills/odoo-code-review/SKILL.md` and `.claude/skills/odoo-19.0/SKILL.md`
 exist, use them for the generic Odoo checklist. The Odoo upstream checkout is read-only: read
-framework source there with Read/Grep, never change its files, index, refs or configuration.
+framework source there with Read/Grep only and never run `git` there.
 
 Check, in this order:
 
@@ -76,7 +76,8 @@ Check, in this order:
    local copy of a shared component.
 6. **Hygiene and accumulation.** The Odoo copyright header on every Python file; manifests use
    `LGPL-3` and author `Tariq Alwalidi`; a new addon starts at `19.0.1.0.0` and later bumps follow
-   `docs/migrations.md`; no Enterprise or paid dependency; `ruff check odoo-addons` clean (run it).
+   `docs/migrations.md`; no Enterprise or paid dependency, and OCA dependencies only from the pinned
+   repositories of `deploy/oca-addons.json`; `ruff check odoo-addons` clean (run it).
    A parallel `v2`/`_new`/`_old` path, dead code, an unused field, file, locale key or a grown
    suppression is a blocking finding (AGENTS.md "Clean pre-release codebase"). Commit subjects
    are checked by `tools/git_policy.py`, which owns the type and scope lists.
