@@ -78,6 +78,14 @@ class TestPayrollRuns(PayrollCase):
         self.assertEqual(res.status_code, 200, res.text)
         return run['id']
 
+    def test_a_non_employee_relationship_never_blocks_compute_or_approval(self):
+        self.env['webvue.hr.compensation'].search([]).write({'relationship_type': 'independent_contractor'})
+        run = self._created_run()
+        self.assertEqual(self._post(self.officer, run['id'], 'compute').status_code, 200)
+        res = self._post(self.approver, run['id'], 'approve')
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json()['state'], 'approved')
+
     def test_run_state_machine(self):
         run = self._created_run()
         self.assertEqual(run['state'], 'draft')

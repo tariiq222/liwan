@@ -1,4 +1,4 @@
-import { assertPublicMutationOrigin, pickAcceptBody } from '../../utils/invitation-accept'
+import { acceptOutcome, assertPublicMutationOrigin, pickAcceptBody } from '../../utils/invitation-accept'
 import { customerControlBase } from '../../utils/customer-commercial'
 
 // Public route: the control-plane endpoint is unauthenticated, so no service signature.
@@ -25,6 +25,8 @@ export default defineEventHandler(async (event) => {
     return { login: typeof login === 'string' ? login : null }
   } catch (cause: any) {
     const status = Number(cause?.statusCode ?? cause?.response?.status)
+    const outcome = acceptOutcome(status, cause?.data?.code)
+    if (outcome) throw createError({ statusCode: outcome.status, data: { code: outcome.code, message: outcome.message } })
     if (status >= 400 && status < 500) throw createError({ statusCode: 400, data: { code: 'invalid_invitation', message: 'Invalid invitation' } })
     throw createError({ statusCode: 503, data: { code: 'unavailable', message: 'Service unavailable' } })
   }

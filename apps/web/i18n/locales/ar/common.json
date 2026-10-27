@@ -118,6 +118,7 @@
     "continue": "متابعة",
     "signInToContinue": "سجّل الدخول للمتابعة",
     "invalidCredentials": "بيانات الدخول غير صحيحة",
+    "tenantSuspended": "اشتراك شركتك موقوف حاليًا، لذلك لا يمكن تسجيل الدخول. تواصل مع مسؤول شركتك.",
     "loginFailed": "تعذّر تسجيل الدخول",
     "usernameRequired": "أدخل اسم المستخدم",
     "passwordRequired": "أدخل كلمة المرور",

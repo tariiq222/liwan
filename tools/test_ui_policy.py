@@ -196,6 +196,14 @@ class UiPolicyTest(unittest.TestCase):
         unknown = {"dependencies": {"left-pad": "1.0.0"}}
         self.assertIn("dependency needs review: left-pad", self.errors({vendor: json.dumps(unknown)}))
 
+    def test_only_the_recorded_reviewed_version_change_passes(self):
+        self.base[MANIFEST] = json.dumps({"dependencies": {"vue": "3", "nuxt": "^4.5.2"}})
+        manifest = lambda nuxt: {MANIFEST: json.dumps({"dependencies": {"vue": "3", "@nuxt/ui": "4.11.1", "nuxt": nuxt}})}
+        self.assertEqual(policy.REVIEWED_VERSIONS["nuxt"], "^4.6.2")
+        self.assertNotIn("dependency version needs review: nuxt", self.errors(manifest("^4.5.2")))
+        self.assertNotIn("dependency version needs review: nuxt", self.errors(manifest("^4.6.2")))
+        self.assertIn("dependency version needs review: nuxt", self.errors(manifest("^4.6.3")))
+
     def test_theme_literals_and_local_roots_fail_but_tokens_pass(self):
         for source in ('<style>.x { color: #123456; }</style>',
                        '<div class="bg-red-500"/>', '<div class="bg-[#abc]"/>',
