@@ -1,0 +1,110 @@
+{
+  "lines": [
+    {
+      "branches": {
+        "annuities": {
+          "employee": 135.0,
+          "employer": 135.0
+        },
+        "hazards": {
+          "employee": 0.0,
+          "employer": 30.0
+        },
+        "saned": {
+          "employee": 11.25,
+          "employer": 11.25
+        }
+      },
+      "contributory_wage": 1500.0,
+      "employee": {
+        "id": 1,
+        "name": "Poor Hand"
+      },
+      "employee_amount": 146.25,
+      "employer_amount": 176.25,
+      "gosi_number": "",
+      "nationality_class": "saudi_before_2024"
+    },
+    {
+      "branches": {
+        "annuities": {
+          "employee": 4050.0,
+          "employer": 4050.0
+        },
+        "hazards": {
+          "employee": 0.0,
+          "employer": 900.0
+        },
+        "saned": {
+          "employee": 337.5,
+          "employer": 337.5
+        }
+      },
+      "contributory_wage": 45000.0,
+      "employee": {
+        "id": 2,
+        "name": "Rich Hand"
+      },
+      "employee_amount": 4387.5,
+      "employer_amount": 5287.5,
+      "gosi_number": "",
+      "nationality_class": "saudi_before_2024"
+    },
+    {
+      "branches": {
+        "annuities": {
+          "employee": 0.0,
+          "employer": 0.0
+        },
+        "hazards": {
+          "employee": 0.0,
+          "employer": 150.0
+        },
+        "saned": {
+          "employee": 0.0,
+          "employer": 0.0
+        }
+      },
+      "contributory_wage": 7500.0,
+      "employee": {
+        "id": 3,
+        "name": "Second Hand"
+      },
+      "employee_amount": 0.0,
+      "employer_amount": 150.0,
+      "gosi_number": "",
+      "nationality_class": "non_saudi"
+    },
+    {
+      "branches": {
+        "annuities": {
+          "employee": 1125.0,
+          "employer": 1125.0
+        },
+        "hazards": {
+          "employee": 0.0,
+          "employer": 250.0
+        },
+        "saned": {
+          "employee": 93.75,
+          "employer": 93.75
+        }
+      },
+      "contributory_wage": 12500.0,
+      "employee": {
+        "id": 4,
+        "name": "أحمد الغامدي"
+      },
+      "employee_amount": 1218.75,
+      "employer_amount": 1468.75,
+      "gosi_number": "",
+      "nationality_class": "saudi_before_2024"
+    }
+  ],
+  "month": "2026-11",
+  "totals": {
+    "contributory_wage": 66500.0,
+    "employee_amount": 5752.5,
+    "employer_amount": 7082.5
+  }
+}

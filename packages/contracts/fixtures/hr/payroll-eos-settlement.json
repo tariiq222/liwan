@@ -1,0 +1,18 @@
+{
+  "award": 6266.44,
+  "case": "resignation",
+  "departure_date": "2027-06-30",
+  "departure_mismatch": false,
+  "employee": {
+    "id": 2,
+    "name": "Eos Leaver"
+  },
+  "eos_wage": 10500.0,
+  "id": 1,
+  "leave_amount": 4375.0,
+  "leave_days": 12.5,
+  "open_deductions": 0.0,
+  "service_years": 3.5808,
+  "state": "draft",
+  "total": 10641.44
+}

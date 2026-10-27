@@ -671,6 +671,374 @@
       "route": "/api/v1/finance/invoices/{id}/zatca",
       "status": 200,
       "schema": "FinanceZatcaSubmissionSchema"
+    },
+    {
+      "name": "hr/department-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/departments",
+      "status": 200,
+      "schema": "HrDepartmentListSchema"
+    },
+    {
+      "name": "hr/department-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/departments/{id}",
+      "status": 200,
+      "schema": "HrDepartmentSchema"
+    },
+    {
+      "name": "hr/asset-category-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/assets/categories",
+      "status": 200,
+      "schema": "HrAssetCategoryListSchema"
+    },
+    {
+      "name": "hr/equipment-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/assets/equipment/{id}",
+      "status": 200,
+      "schema": "HrEquipmentSchema"
+    },
+    {
+      "name": "hr/my-equipment-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/assets/me",
+      "status": 200,
+      "schema": "HrEquipmentListSchema"
+    },
+    {
+      "name": "hr/me",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/me",
+      "status": 200,
+      "schema": "HrEmployeeSchema"
+    },
+    {
+      "name": "hr/leave-type-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/leave/types",
+      "status": 200,
+      "schema": "HrLeaveTypeListSchema"
+    },
+    {
+      "name": "hr/leave-balance-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/leave/balances",
+      "status": 200,
+      "schema": "HrLeaveBalanceListSchema"
+    },
+    {
+      "name": "hr/leave-request-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/leave/requests",
+      "status": 200,
+      "schema": "HrLeaveListSchema"
+    },
+    {
+      "name": "hr/leave-request-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/leave/requests/{id}",
+      "status": 200,
+      "schema": "HrLeaveSchema"
+    },
+    {
+      "name": "hr/my-leave-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/leave/me/{id}",
+      "status": 200,
+      "schema": "HrLeaveSchema"
+    },
+    {
+      "name": "hr/leave-settings",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/leave/settings",
+      "status": 200,
+      "schema": "HrLeaveSettingsSchema"
+    },
+    {
+      "name": "hr/saudization",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/saudization",
+      "status": 200,
+      "schema": "HrSaudizationSchema"
+    },
+    {
+      "name": "hr/departure-reason-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/offboarding/reasons",
+      "status": 200,
+      "schema": "HrDepartureReasonListSchema"
+    },
+    {
+      "name": "hr/departure-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/offboarding/departures",
+      "status": 200,
+      "schema": "HrDepartureListSchema"
+    },
+    {
+      "name": "hr/departure-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/offboarding/departures/{id}",
+      "status": 200,
+      "schema": "HrDepartureSchema"
+    },
+    {
+      "name": "hr/onboarding-plan-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/onboarding/plans",
+      "status": 200,
+      "schema": "HrActivityPlanListSchema"
+    },
+    {
+      "name": "hr/onboarding-plan-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/onboarding/plans/{id}",
+      "status": 200,
+      "schema": "HrActivityPlanSchema"
+    },
+    {
+      "name": "hr/onboarding-run-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/onboarding/runs",
+      "status": 200,
+      "schema": "HrPlanRunListSchema"
+    },
+    {
+      "name": "hr/onboarding-run-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/onboarding/runs/{id}",
+      "status": 200,
+      "schema": "HrPlanRunDetailSchema"
+    },
+    {
+      "name": "hr/offboarding-plan-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/offboarding/plans",
+      "status": 200,
+      "schema": "HrActivityPlanListSchema"
+    },
+    {
+      "name": "hr/offboarding-plan-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/offboarding/plans/{id}",
+      "status": 200,
+      "schema": "HrActivityPlanSchema"
+    },
+    {
+      "name": "hr/offboarding-run-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/offboarding/runs",
+      "status": 200,
+      "schema": "HrPlanRunListSchema"
+    },
+    {
+      "name": "hr/offboarding-run-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/offboarding/runs/{id}",
+      "status": 200,
+      "schema": "HrPlanRunDetailSchema"
+    },
+    {
+      "name": "hr/payroll-audit-event-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/payroll/audit-events",
+      "status": 200,
+      "schema": "HrPayrollAuditEventListSchema"
+    },
+    {
+      "name": "hr/payroll-compensation",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/payroll/compensation/{id}",
+      "status": 200,
+      "schema": "HrCompensationSchema"
+    },
+    {
+      "name": "hr/payroll-eos-case-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/payroll/eos-cases",
+      "status": 200,
+      "schema": "HrEosCaseMapListSchema"
+    },
+    {
+      "name": "hr/payroll-my-payslip-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/payroll/payslips/mine",
+      "status": 200,
+      "schema": "HrMyPayslipListSchema"
+    },
+    {
+      "name": "hr/payroll-my-payslip-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/payroll/payslips/mine/{id}",
+      "status": 200,
+      "schema": "HrPayslipSchema"
+    },
+    {
+      "name": "hr/payroll-payslip-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/payroll/runs/{id}/payslips/{id}",
+      "status": 200,
+      "schema": "HrPayslipSchema"
+    },
+    {
+      "name": "hr/payroll-gosi-rate-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/payroll/gosi-rates",
+      "status": 200,
+      "schema": "HrGosiRateListSchema"
+    },
+    {
+      "name": "hr/payroll-bank-profile-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/payroll/bank-profiles",
+      "status": 200,
+      "schema": "HrBankProfileListSchema"
+    },
+    {
+      "name": "hr/payroll-gosi-statement",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/payroll/runs/{id}/gosi-statement",
+      "status": 200,
+      "schema": "HrGosiStatementSchema"
+    },
+    {
+      "name": "hr/payroll-eos-estimate",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/payroll/eos/{id}/estimate",
+      "status": 200,
+      "schema": "HrEosEstimateSchema"
+    },
+    {
+      "name": "hr/payroll-eos-settlement",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/payroll/eos/{id}/settlement",
+      "status": 200,
+      "schema": "HrSettlementSchema"
+    },
+    {
+      "name": "hr/applicant-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/recruitment/applicants",
+      "status": 200,
+      "schema": "HrApplicantListSchema"
+    },
+    {
+      "name": "hr/applicant-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/recruitment/applicants/{id}",
+      "status": 200,
+      "schema": "HrApplicantSchema"
+    },
+    {
+      "name": "hr/job-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/recruitment/jobs",
+      "status": 200,
+      "schema": "HrRecruitmentJobListSchema"
+    },
+    {
+      "name": "hr/job-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/recruitment/jobs/{id}",
+      "status": 200,
+      "schema": "HrRecruitmentJobSchema"
+    },
+    {
+      "name": "hr/recruitment-stage-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/recruitment/stages",
+      "status": 200,
+      "schema": "HrRecruitmentStageListSchema"
+    },
+    {
+      "name": "hr/refuse-reason-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/recruitment/refuse-reasons",
+      "status": 200,
+      "schema": "HrRecruitmentRefuseReasonListSchema"
+    },
+    {
+      "name": "hr/shift-schedule-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/shifts/schedules",
+      "status": 200,
+      "schema": "HrShiftScheduleListSchema"
+    },
+    {
+      "name": "hr/shift-schedule-detail",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/shifts/schedules/{id}",
+      "status": 200,
+      "schema": "HrShiftScheduleSchema"
+    },
+    {
+      "name": "hr/shift-assignment-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/shifts/assignments",
+      "status": 200,
+      "schema": "HrShiftAssignmentListSchema"
+    },
+    {
+      "name": "hr/my-shift-assignment-list",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/shifts/me",
+      "status": 200,
+      "schema": "HrShiftAssignmentListSchema"
+    },
+    {
+      "name": "hr/shift-settings",
+      "addon": "webvue_hr",
+      "method": "GET",
+      "route": "/api/v1/hr/shifts/settings",
+      "status": 200,
+      "schema": "HrShiftSettingsSchema"
     }
   ]
 }

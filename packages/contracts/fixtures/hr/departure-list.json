@@ -1,0 +1,23 @@
+{
+  "items": [
+    {
+      "active": true,
+      "clearance": {
+        "done": 0,
+        "run_id": 15,
+        "total": 2
+      },
+      "departure_date": "2026-11-30",
+      "description": "استقالة شخصية",
+      "employee": {
+        "id": 1,
+        "name": "Leaving Employee"
+      },
+      "reason": {
+        "id": 2,
+        "name": "Resigned"
+      }
+    }
+  ],
+  "total": 1
+}

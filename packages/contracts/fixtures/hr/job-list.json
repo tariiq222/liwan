@@ -1,0 +1,26 @@
+{
+  "items": [
+    {
+      "active": false,
+      "application_count": 0,
+      "department": {
+        "id": 2,
+        "name": "Engineering"
+      },
+      "description": "",
+      "id": 1,
+      "name": "Backend Engineer",
+      "no_of_recruitment": 2
+    },
+    {
+      "active": true,
+      "application_count": 0,
+      "department": null,
+      "description": "",
+      "id": 3,
+      "name": "Designer",
+      "no_of_recruitment": 1
+    }
+  ],
+  "total": 2
+}

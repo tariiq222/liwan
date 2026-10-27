@@ -1,0 +1,149 @@
+{
+  "items": [
+    {
+      "branch": "annuities",
+      "date_from": "2031-01-01",
+      "employee_rate": 9.0,
+      "employer_rate": 9.0,
+      "id": 1,
+      "nationality_class": "gcc",
+      "revision": 1,
+      "shared": false,
+      "wage_max": 45000.0,
+      "wage_min": 1500.0
+    },
+    {
+      "branch": "hazards",
+      "date_from": "2000-01-01",
+      "employee_rate": 0.0,
+      "employer_rate": 2.0,
+      "id": 2,
+      "nationality_class": "non_saudi",
+      "revision": 1,
+      "shared": true,
+      "wage_max": 45000.0,
+      "wage_min": 1500.0
+    },
+    {
+      "branch": "annuities",
+      "date_from": "2000-01-01",
+      "employee_rate": 9.0,
+      "employer_rate": 9.0,
+      "id": 3,
+      "nationality_class": "saudi_before_2024",
+      "revision": 1,
+      "shared": true,
+      "wage_max": 45000.0,
+      "wage_min": 1500.0
+    },
+    {
+      "branch": "hazards",
+      "date_from": "2000-01-01",
+      "employee_rate": 0.0,
+      "employer_rate": 2.0,
+      "id": 4,
+      "nationality_class": "saudi_before_2024",
+      "revision": 1,
+      "shared": true,
+      "wage_max": 45000.0,
+      "wage_min": 1500.0
+    },
+    {
+      "branch": "saned",
+      "date_from": "2000-01-01",
+      "employee_rate": 0.75,
+      "employer_rate": 0.75,
+      "id": 5,
+      "nationality_class": "saudi_before_2024",
+      "revision": 1,
+      "shared": true,
+      "wage_max": 45000.0,
+      "wage_min": 1500.0
+    },
+    {
+      "branch": "annuities",
+      "date_from": "2028-07-01",
+      "employee_rate": 11.0,
+      "employer_rate": 11.0,
+      "id": 6,
+      "nationality_class": "saudi_from_2024",
+      "revision": 1,
+      "shared": true,
+      "wage_max": 45000.0,
+      "wage_min": 1500.0
+    },
+    {
+      "branch": "annuities",
+      "date_from": "2027-07-01",
+      "employee_rate": 10.5,
+      "employer_rate": 10.5,
+      "id": 7,
+      "nationality_class": "saudi_from_2024",
+      "revision": 1,
+      "shared": true,
+      "wage_max": 45000.0,
+      "wage_min": 1500.0
+    },
+    {
+      "branch": "annuities",
+      "date_from": "2026-07-01",
+      "employee_rate": 10.0,
+      "employer_rate": 10.0,
+      "id": 8,
+      "nationality_class": "saudi_from_2024",
+      "revision": 1,
+      "shared": true,
+      "wage_max": 45000.0,
+      "wage_min": 1500.0
+    },
+    {
+      "branch": "annuities",
+      "date_from": "2025-07-01",
+      "employee_rate": 9.5,
+      "employer_rate": 9.5,
+      "id": 9,
+      "nationality_class": "saudi_from_2024",
+      "revision": 1,
+      "shared": true,
+      "wage_max": 45000.0,
+      "wage_min": 1500.0
+    },
+    {
+      "branch": "annuities",
+      "date_from": "2024-07-03",
+      "employee_rate": 9.0,
+      "employer_rate": 9.0,
+      "id": 10,
+      "nationality_class": "saudi_from_2024",
+      "revision": 1,
+      "shared": true,
+      "wage_max": 45000.0,
+      "wage_min": 1500.0
+    },
+    {
+      "branch": "hazards",
+      "date_from": "2024-07-03",
+      "employee_rate": 0.0,
+      "employer_rate": 2.0,
+      "id": 11,
+      "nationality_class": "saudi_from_2024",
+      "revision": 1,
+      "shared": true,
+      "wage_max": 45000.0,
+      "wage_min": 1500.0
+    },
+    {
+      "branch": "saned",
+      "date_from": "2024-07-03",
+      "employee_rate": 0.75,
+      "employer_rate": 0.75,
+      "id": 12,
+      "nationality_class": "saudi_from_2024",
+      "revision": 1,
+      "shared": true,
+      "wage_max": 45000.0,
+      "wage_min": 1500.0
+    }
+  ],
+  "total": 12
+}

@@ -1,0 +1,105 @@
+{
+  "items": [
+    {
+      "can_approve": false,
+      "can_approve_cancellation": false,
+      "can_cancel": false,
+      "can_refuse": false,
+      "can_refuse_cancellation": false,
+      "can_request_cancellation": false,
+      "can_withdraw": true,
+      "cancellation": null,
+      "cancellation_policy": "manager_approval",
+      "date_from": "2026-06-01",
+      "date_to": "2026-06-02",
+      "employee": {
+        "id": 2,
+        "name": "Branch own leave employee"
+      },
+      "id": 1,
+      "leave_type": {
+        "id": 3,
+        "name": "Isolation Leave P1"
+      },
+      "notes": "",
+      "number_of_days": 2.0,
+      "state": "confirm"
+    },
+    {
+      "can_approve": true,
+      "can_approve_cancellation": false,
+      "can_cancel": false,
+      "can_refuse": true,
+      "can_refuse_cancellation": false,
+      "can_request_cancellation": false,
+      "can_withdraw": false,
+      "cancellation": null,
+      "cancellation_policy": "manager_approval",
+      "date_from": "2026-05-04",
+      "date_to": "2026-05-05",
+      "employee": {
+        "id": 5,
+        "name": "Isolation Employee P2"
+      },
+      "id": 4,
+      "leave_type": {
+        "id": 6,
+        "name": "Isolation Leave P2"
+      },
+      "notes": "",
+      "number_of_days": 2.0,
+      "state": "confirm"
+    },
+    {
+      "can_approve": true,
+      "can_approve_cancellation": false,
+      "can_cancel": false,
+      "can_refuse": true,
+      "can_refuse_cancellation": false,
+      "can_request_cancellation": false,
+      "can_withdraw": false,
+      "cancellation": null,
+      "cancellation_policy": "manager_approval",
+      "date_from": "2026-05-04",
+      "date_to": "2026-05-05",
+      "employee": {
+        "id": 8,
+        "name": "Isolation Employee P1"
+      },
+      "id": 7,
+      "leave_type": {
+        "id": 3,
+        "name": "Isolation Leave P1"
+      },
+      "notes": "",
+      "number_of_days": 2.0,
+      "state": "confirm"
+    },
+    {
+      "can_approve": true,
+      "can_approve_cancellation": false,
+      "can_cancel": false,
+      "can_refuse": true,
+      "can_refuse_cancellation": false,
+      "can_request_cancellation": false,
+      "can_withdraw": false,
+      "cancellation": null,
+      "cancellation_policy": "manager_approval",
+      "date_from": "2026-05-04",
+      "date_to": "2026-05-05",
+      "employee": {
+        "id": 1,
+        "name": "Isolation Employee P"
+      },
+      "id": 9,
+      "leave_type": {
+        "id": 10,
+        "name": "Isolation Leave P"
+      },
+      "notes": "",
+      "number_of_days": 2.0,
+      "state": "confirm"
+    }
+  ],
+  "total": 4
+}

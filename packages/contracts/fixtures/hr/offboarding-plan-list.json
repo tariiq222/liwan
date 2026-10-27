@@ -1,0 +1,88 @@
+{
+  "items": [
+    {
+      "active": true,
+      "department": null,
+      "id": 1,
+      "name": "Offboarding",
+      "steps": [
+        {
+          "delay_count": 0,
+          "delay_from": "before_plan_date",
+          "delay_unit": "days",
+          "id": 2,
+          "responsible": null,
+          "responsible_type": "manager",
+          "summary": "Organize knowledge transfer inside the team"
+        },
+        {
+          "delay_count": 0,
+          "delay_from": "before_plan_date",
+          "delay_unit": "days",
+          "id": 3,
+          "responsible": null,
+          "responsible_type": "manager",
+          "summary": "Take Back HR Materials"
+        }
+      ]
+    },
+    {
+      "active": true,
+      "department": null,
+      "id": 4,
+      "name": "Own offboarding plan",
+      "steps": [
+        {
+          "delay_count": 0,
+          "delay_from": "before_plan_date",
+          "delay_unit": "days",
+          "id": 5,
+          "responsible": null,
+          "responsible_type": "manager",
+          "summary": "Collect the laptop"
+        }
+      ]
+    },
+    {
+      "active": true,
+      "department": {
+        "id": 7,
+        "name": "Plan Dept"
+      },
+      "id": 6,
+      "name": "Pinned shared check",
+      "steps": [
+        {
+          "delay_count": 0,
+          "delay_from": "before_plan_date",
+          "delay_unit": "days",
+          "id": 8,
+          "responsible": null,
+          "responsible_type": "manager",
+          "summary": "Pin step"
+        }
+      ]
+    },
+    {
+      "active": true,
+      "department": {
+        "id": 10,
+        "name": "Ofb Free"
+      },
+      "id": 9,
+      "name": "Shared offboarding plan",
+      "steps": [
+        {
+          "delay_count": 0,
+          "delay_from": "before_plan_date",
+          "delay_unit": "days",
+          "id": 4,
+          "responsible": null,
+          "responsible_type": "manager",
+          "summary": "Shared step"
+        }
+      ]
+    }
+  ],
+  "total": 4
+}

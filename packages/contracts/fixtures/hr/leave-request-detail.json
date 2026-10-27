@@ -1,0 +1,38 @@
+{
+  "can_approve": false,
+  "can_approve_cancellation": false,
+  "can_cancel": false,
+  "can_refuse": false,
+  "can_refuse_cancellation": false,
+  "can_request_cancellation": false,
+  "can_withdraw": false,
+  "cancellation": {
+    "id": 4,
+    "initiator": {
+      "id": 5,
+      "name": "Sara"
+    },
+    "reason": "",
+    "requested_at": "2026-01-01 00:00:00",
+    "review_reason": null,
+    "reviewed_at": null,
+    "reviewer": null,
+    "revision": 1,
+    "state": "pending"
+  },
+  "cancellation_policy": "manager_only",
+  "date_from": "2026-11-30",
+  "date_to": "2026-11-30",
+  "employee": {
+    "id": 2,
+    "name": "Cancellation employee"
+  },
+  "id": 1,
+  "leave_type": {
+    "id": 3,
+    "name": "Cancellation test"
+  },
+  "notes": "",
+  "number_of_days": 1.0,
+  "state": "validate"
+}

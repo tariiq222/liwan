@@ -1,0 +1,13 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "name": "Laptops"
+    },
+    {
+      "id": 2,
+      "name": "Shared Tools"
+    }
+  ],
+  "total": 2
+}

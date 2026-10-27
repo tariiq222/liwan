@@ -1,0 +1,37 @@
+{
+  "items": [
+    {
+      "case": "termination",
+      "departure_reason": {
+        "id": 1,
+        "name": "Fired"
+      },
+      "revision": 0
+    },
+    {
+      "case": "resignation",
+      "departure_reason": {
+        "id": 2,
+        "name": "Resigned"
+      },
+      "revision": 0
+    },
+    {
+      "case": null,
+      "departure_reason": {
+        "id": 3,
+        "name": "Retired"
+      },
+      "revision": 0
+    },
+    {
+      "case": null,
+      "departure_reason": {
+        "id": 4,
+        "name": "Revision retired"
+      },
+      "revision": 0
+    }
+  ],
+  "total": 4
+}

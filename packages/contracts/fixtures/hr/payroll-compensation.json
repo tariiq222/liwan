@@ -1,0 +1,23 @@
+{
+  "bank": {
+    "id": 2,
+    "name": "Al Rajhi Test Bank"
+  },
+  "basic_wage": 10000.0,
+  "employee": {
+    "id": 1,
+    "name": "Layla Target"
+  },
+  "fixed_wage": 13500.0,
+  "gosi_number": "123456789",
+  "gosi_registration_date": "2024-01-01",
+  "housing_allowance": 2500.0,
+  "iban": "SA0380000000608010167519",
+  "nationality": {
+    "code": "SA",
+    "id": 3,
+    "name": "Saudi Arabia"
+  },
+  "other_allowance": 0.0,
+  "transport_allowance": 1000.0
+}

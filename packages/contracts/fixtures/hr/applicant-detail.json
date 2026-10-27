@@ -1,0 +1,28 @@
+{
+  "active": true,
+  "applied_on": "2026-01-01T00:00:00Z",
+  "availability": null,
+  "department": {
+    "id": 3,
+    "name": "Branch recruitment department"
+  },
+  "email_from": "",
+  "employee": {
+    "id": 5,
+    "name": "Branch recruitment employee"
+  },
+  "id": 1,
+  "job": {
+    "id": 2,
+    "name": "Branch recruitment position"
+  },
+  "partner_name": "Branch recruitment applicant",
+  "partner_phone": "",
+  "priority": "0",
+  "refuse_reason": null,
+  "stage": {
+    "id": 4,
+    "name": "New"
+  },
+  "status": "ongoing"
+}
