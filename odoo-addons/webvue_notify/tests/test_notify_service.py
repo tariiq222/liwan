@@ -99,6 +99,29 @@ class TestNotifyService(NotifyProbe, TransactionCase):
         self.assertEqual(self.env['mail.message'].sudo().search_count([('webvue_notification_key', '=', key)]), 1)
 
     @mute_logger('odoo.sql_db')
+    def test_an_ordinary_actor_delivers_a_keyed_row_once(self):
+        """The key precheck and the inbox row run in the actor's own environment: an internal
+        user who is not a superuser delivers one row to another recipient, and a repeated key
+        creates nothing, whether the precheck sees the earlier row or the unique index refuses it."""
+        key = f'probe-actor:{self.sources[0].id}:{self.other.partner_id.id}'
+        service = self.service.with_user(self.reader)
+        self.assertFalse(service.env.su)
+        first = service._webvue_deliver(
+            'res.partner', self.sources[0].id, 'probe_ping', self.other.partner_id, 'From reader', key=key,
+        )
+        self.assertEqual(len(first), 1)
+        self.assertEqual(first.notification_ids.res_partner_id, self.other.partner_id)
+        self.assertEqual(first.notification_ids.author_id, self.reader.partner_id)
+        self.assertFalse(service._webvue_deliver(
+            'res.partner', self.sources[0].id, 'probe_ping', self.other.partner_id, 'Again', key=key,
+        ))
+        self.patch(type(self.service), '_webvue_key_taken', lambda model, key: False)
+        self.assertFalse(service._webvue_deliver(
+            'res.partner', self.sources[0].id, 'probe_ping', self.other.partner_id, 'Raced', key=key,
+        ))
+        self.assertEqual(self.env['mail.message'].sudo().search_count([('webvue_notification_key', '=', key)]), 1)
+
+    @mute_logger('odoo.sql_db')
     def test_a_concurrent_duplicate_key_is_skipped(self):
         key = f'probe-race:{self.reader.partner_id.id}'
         self._deliver(self.sources[0], self.reader.partner_id, key=key)

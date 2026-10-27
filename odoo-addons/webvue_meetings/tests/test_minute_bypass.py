@@ -70,6 +70,18 @@ class TestBypass(WebVueMeetingEngineCase):
             meeting.with_user(self.manager).write({"active": False})
         self.assertTrue(meeting.exists())
 
+    def test_manager_cannot_delete_reopened_meeting_with_minutes_versions(self):
+        """The finalized-version count in unlink runs in the deleting manager's environment:
+        a Meeting Manager reads the versions, so a reopened meeting that already produced one
+        is still refused and kept."""
+        meeting, _resolution = self._approved_meeting()
+        meeting.with_user(self.manager).write({"state": "draft"})
+        Version = self.env["webvue.meeting.minutes.version"]
+        self.assertTrue(Version.with_user(self.manager).search_count([("meeting_id", "=", meeting.id)]))
+        with self.assertRaisesRegex(AccessError, "finalized minutes versions"):
+            meeting.with_user(self.manager).unlink()
+        self.assertTrue(meeting.exists())
+
     def test_cannot_schedule_calendar_on_locked_meeting(self):
         # Without start/end no calendar event is auto-linked on create (and done needs them), so cancel locks it.
         meeting = self._create_meeting(start_datetime=False, end_datetime=False)

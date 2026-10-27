@@ -232,6 +232,9 @@ class TestDeadlineDigest(WebVuePmoCase):
         self.assertTrue(cron.active)
         self.assertEqual((cron.interval_number, cron.interval_type), (1, 'hours'))
         self.assertIn('_webvue_run_deadline_notifications()', cron.code)
+        # The scans of every company, project and task run unelevated: the cron
+        # user is the superuser, whose environment already bypasses the rules.
+        self.assertEqual(cron.user_id, self.env.ref('base.user_root'))
 
     def test_partial_follower_revocation_does_not_leak_digest_count(self):
         follower = new_test_user(

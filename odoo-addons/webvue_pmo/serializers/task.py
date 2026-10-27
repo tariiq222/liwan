@@ -258,8 +258,10 @@ def _parse_personal_stage(value, key):
         stage_id = int(value)
     except (TypeError, ValueError) as e:
         raise ApiError(422, 'invalid', "personal_stage_type_id must be a personal stage id", field=key) from e
-    stage = request.env['project.task.type'].sudo().browse(stage_id).exists()
-    if not stage or stage.user_id.id != request.env.uid:
+    stage = request.env['project.task.type'].with_context(active_test=False).search([
+        ('id', '=', stage_id), ('user_id', '=', request.env.uid),
+    ], limit=1)
+    if not stage:
         raise ApiError(422, 'invalid', "personal_stage_type_id must be one of your own personal stages", field=key)
     return stage.id
 
@@ -267,19 +269,19 @@ def _parse_personal_stage(value, key):
 def _parse_stage(task, value, key):
     """Coerce + authorise a project stage id: it must be one of the task's project's stages.
 
-    Browsed in sudo, mirroring `_parse_personal_stage`: a foreign *personal* stage id
-    (user_id set, no project_ids) passes `exists()` (raw SQL, ignores ir.rule) but then
-    reading `stage.project_ids` in the caller's own env hits `task_type_visibility_rule`
-    and raises AccessError instead of the contracted 422 — an existence oracle to boot.
-    The `task.project_id in stage.project_ids` membership test is the real authorization
-    here; `task` was already access-checked before parse_task_vals runs.
+    Searched in the caller's own environment with the project in the domain: a foreign
+    *personal* stage id (user_id set, no project_ids), hidden by `task_type_visibility_rule`,
+    is simply not found, so it answers the contracted 422 instead of an AccessError (403, an
+    existence oracle). `task` was already access-checked before parse_task_vals runs.
     """
     try:
         stage_id = int(value)
     except (TypeError, ValueError) as e:
         raise ApiError(422, 'invalid', "stage_id must be one of the project's stage ids", field=key) from e
-    stage = request.env['project.task.type'].sudo().browse(stage_id).exists()
-    if not stage or task.project_id not in stage.project_ids:
+    stage = request.env['project.task.type'].with_context(active_test=False).search([
+        ('id', '=', stage_id), ('project_ids', 'in', task.project_id.ids),
+    ], limit=1)
+    if not stage:
         raise ApiError(422, 'invalid', "stage_id must be one of the project's stage ids", field=key)
     return stage.id
 
@@ -287,7 +289,7 @@ def _parse_stage(task, value, key):
 def _parse_milestone(task, value, key):
     """Coerce + authorise a milestone id: it must belong to the task's own project.
 
-    Browsed in sudo, mirroring `_parse_stage`: a milestone belonging to another,
+    Browsed in sudo: a milestone belonging to another,
     unreadable project (e.g. `privacy_visibility='followers'`) passes `exists()`
     (raw SQL, ignores ir.rule) but then reading `milestone.project_id` in the
     caller's own env hits `milestone_visibility_rule` and raises AccessError

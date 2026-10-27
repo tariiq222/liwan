@@ -2065,6 +2065,113 @@
         ],
         "type": "object"
       },
+      "AiModelCallEventSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "call_id": {
+            "pattern": "^[0-9a-f]{16}$",
+            "type": "string"
+          },
+          "called_at": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "plan",
+              "title"
+            ],
+            "type": "string"
+          },
+          "model": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "provider": {
+            "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call_id",
+          "kind",
+          "provider",
+          "model",
+          "called_at"
+        ],
+        "type": "object"
+      },
+      "AiModelCallKindSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "plan",
+          "title"
+        ],
+        "type": "string"
+      },
+      "AiModelCallOutcomeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "ok",
+          "failed",
+          "retried",
+          "aborted"
+        ],
+        "type": "string"
+      },
+      "AiModelUsageEventSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "call_id": {
+            "pattern": "^[0-9a-f]{16}$",
+            "type": "string"
+          },
+          "input_tokens": {
+            "anyOf": [
+              {
+                "maximum": 100000000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outcome": {
+            "enum": [
+              "ok",
+              "failed",
+              "retried",
+              "aborted"
+            ],
+            "type": "string"
+          },
+          "output_tokens": {
+            "anyOf": [
+              {
+                "maximum": 100000000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "call_id",
+          "outcome",
+          "input_tokens",
+          "output_tokens"
+        ],
+        "type": "object"
+      },
       "AiRecordRefSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -2755,6 +2862,354 @@
           "items",
           "total",
           "limits"
+        ],
+        "type": "object"
+      },
+      "AiUsageBatchResponseSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "called_at": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                  "type": "string"
+                },
+                "conversation_id": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "input_tokens": {
+                  "anyOf": [
+                    {
+                      "maximum": 100000000,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "enum": [
+                    "plan",
+                    "title"
+                  ],
+                  "type": "string"
+                },
+                "model": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "outcome": {
+                  "enum": [
+                    "ok",
+                    "failed",
+                    "retried",
+                    "aborted"
+                  ],
+                  "type": "string"
+                },
+                "output_tokens": {
+                  "anyOf": [
+                    {
+                      "maximum": 100000000,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "provider": {
+                  "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "conversation_id",
+                "kind",
+                "provider",
+                "model",
+                "outcome",
+                "input_tokens",
+                "output_tokens",
+                "called_at"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "AiUsageBatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "called_at": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                  "type": "string"
+                },
+                "conversation_id": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "input_tokens": {
+                  "anyOf": [
+                    {
+                      "maximum": 100000000,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "enum": [
+                    "plan",
+                    "title"
+                  ],
+                  "type": "string"
+                },
+                "model": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "outcome": {
+                  "enum": [
+                    "ok",
+                    "failed",
+                    "retried",
+                    "aborted"
+                  ],
+                  "type": "string"
+                },
+                "output_tokens": {
+                  "anyOf": [
+                    {
+                      "maximum": 100000000,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "provider": {
+                  "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "conversation_id",
+                "kind",
+                "provider",
+                "model",
+                "outcome",
+                "input_tokens",
+                "output_tokens",
+                "called_at"
+              ],
+              "type": "object"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "AiUsageRecordSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "called_at": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "type": "string"
+          },
+          "conversation_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "input_tokens": {
+            "anyOf": [
+              {
+                "maximum": 100000000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "enum": [
+              "plan",
+              "title"
+            ],
+            "type": "string"
+          },
+          "model": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "ok",
+              "failed",
+              "retried",
+              "aborted"
+            ],
+            "type": "string"
+          },
+          "output_tokens": {
+            "anyOf": [
+              {
+                "maximum": 100000000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider": {
+            "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "kind",
+          "provider",
+          "model",
+          "outcome",
+          "input_tokens",
+          "output_tokens",
+          "called_at"
+        ],
+        "type": "object"
+      },
+      "AiUsageRowSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "called_at": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "type": "string"
+          },
+          "conversation_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "input_tokens": {
+            "anyOf": [
+              {
+                "maximum": 100000000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "enum": [
+              "plan",
+              "title"
+            ],
+            "type": "string"
+          },
+          "model": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "ok",
+              "failed",
+              "retried",
+              "aborted"
+            ],
+            "type": "string"
+          },
+          "output_tokens": {
+            "anyOf": [
+              {
+                "maximum": 100000000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider": {
+            "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "conversation_id",
+          "kind",
+          "provider",
+          "model",
+          "outcome",
+          "input_tokens",
+          "output_tokens",
+          "called_at"
         ],
         "type": "object"
       },

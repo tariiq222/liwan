@@ -12,7 +12,7 @@ class WebVuePlatformIrBinary(models.AbstractModel):
             xmlid=xmlid, res_model=res_model, res_id=res_id,
             access_token=access_token, field=field,
         )
-        service = self.env['webvue.entitlement.service'].sudo()
+        service = self.env['webvue.entitlement.service']
         user = self.env.user
         if service._webvue_session_forbidden(user):
             msg = 'tenant_suspended'

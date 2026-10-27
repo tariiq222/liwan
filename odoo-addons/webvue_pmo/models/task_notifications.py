@@ -162,7 +162,7 @@ class ProjectTaskNotifications(models.Model):
     @api.model
     def _webvue_run_deadline_notifications(self, now=None):
         now = now or fields.Datetime.now()
-        companies = self.env['res.company'].sudo().search([], order='id')
+        companies = self.env['res.company'].search([], order='id')
         for company in companies:
             self.with_company(company)._webvue_run_deadline_notifications_for_company(now)
         return True
@@ -185,7 +185,7 @@ class ProjectTaskNotifications(models.Model):
                 ('date_deadline', '>=', window_start),
                 ('date_deadline', '<=', window_end),
             ]
-            for batch in _webvue_iter_records(self.sudo(), domain):
+            for batch in _webvue_iter_records(self, domain):
                 for task in batch:
                     for user in task._webvue_internal_users():
                         tz_name = user.tz or 'UTC'
@@ -218,15 +218,16 @@ class ProjectTaskNotifications(models.Model):
     @api.model
     def _webvue_run_overdue_digest(self, now):
         company = self.env.company
-        # Documented notification sudo: the cron scans current-company rows,
-        # then live visibility is re-checked as each manager before delivery.
+        # The cron runs as base.user_root (superuser), so it scans every
+        # current-company row; live visibility is re-checked as each manager
+        # before delivery.
         project_domain = [
             ('active', '=', True),
             ('company_id', '=', company.id),
             ('user_id', '!=', False),
         ]
         by_manager = {}
-        for batch in _webvue_iter_records(self.env['project.project'].sudo(), project_domain):
+        for batch in _webvue_iter_records(self.env['project.project'], project_domain):
             for project in batch:
                 manager = project.user_id
                 if not manager or not manager.active or manager.share:
@@ -235,7 +236,7 @@ class ProjectTaskNotifications(models.Model):
                     continue
                 grouped = by_manager.get(manager.id)
                 by_manager[manager.id] = project if grouped is None else grouped | project
-        Task = self.env['project.task'].sudo()
+        Task = self.env['project.task']
         for manager_id, manager_projects in by_manager.items():
             manager = self.env['res.users'].browse(manager_id)
             local_now = self._webvue_user_local_now(manager, now)

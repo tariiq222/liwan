@@ -26,8 +26,10 @@ class WebVueNotifyService(models.AbstractModel):
     create/unlink access gates. The three recipient-owned reader helpers
     retain elevation for the measured same-transaction flush/SQL-ordering
     issue in ``mail.message._search``, not a ``mail.notification`` read ACL.
-    The idempotency precheck and ``mail.notification`` create elevations are
-    measured unnecessary and remain pending scoped removal. Every elevated
+    The idempotency precheck and the ``mail.notification`` create run in the
+    actor's environment: the unique ``webvue_notification_key`` index and the
+    ``IntegrityError`` handler guarantee single delivery, and the actor is the
+    creator of the linked message. Every elevated
     reader is restricted to the current partner; source visibility is
     checked in the caller's environment by the owning application.
     """
@@ -37,7 +39,7 @@ class WebVueNotifyService(models.AbstractModel):
 
     @api.model
     def _webvue_key_taken(self, key):
-        return bool(self.env['mail.message'].sudo().search_count(
+        return bool(self.env['mail.message'].search_count(
             [('webvue_notification_key', '=', key)], limit=1,
         ))
 
@@ -88,7 +90,7 @@ class WebVueNotifyService(models.AbstractModel):
                         'body': plaintext2html(body),
                         'partner_ids': [(4, partner.id)],
                     })
-                    self.env['mail.notification'].sudo().create({
+                    self.env['mail.notification'].create({
                         'author_id': message.author_id.id,
                         'mail_message_id': message.id,
                         'notification_status': 'sent',

@@ -16,6 +16,7 @@ class TestTenantQuotas(TransactionCase):
             cls.env['webvue.feature.registry']._webvue_installed_module_ids(),
         )
         cls.service = cls.env['webvue.entitlement.service'].sudo()
+        cls.employee = new_test_user(cls.env, login='quota_employee', groups='webvue_core.group_employee')
 
     def _operator(self):
         return self.record.with_context(**{OPERATOR_CONTEXT: True})
@@ -50,3 +51,24 @@ class TestTenantQuotas(TransactionCase):
     def test_branch_usage_counts_active_branches(self):
         active = self.env['webvue.tenant.branch'].search_count([('state', '=', 'active')])
         self.assertEqual(self.service._webvue_count_usage('branches.extra_limit'), active)
+
+    def test_ordinary_user_attachment_moves_the_storage_quota_unelevated(self):
+        """The attachment hooks call the entitlement service in the caller's environment; the
+        service elevates its own tenant-profile read, so an employee still claims and releases storage."""
+        revision = self.record.quota_revision
+        attachment = self.env['ir.attachment'].with_user(self.employee).create({
+            'name': 'employee.txt', 'raw': b'x' * 10, 'mimetype': 'text/plain',
+        })
+        self.assertGreater(self.record.quota_revision, revision)
+        revision = self.record.quota_revision
+        attachment.write({'raw': b'y' * 20})
+        self.assertGreater(self.record.quota_revision, revision)
+        revision = self.record.quota_revision
+        attachment.unlink()
+        self.assertGreater(self.record.quota_revision, revision)
+        self._operator().write({'features': {**self.record.features, 'storage.limit_mb': 0}})
+        with self.assertRaises(WebVueAccessRule) as error:
+            self.env['ir.attachment'].with_user(self.employee).create({
+                'name': 'refused.txt', 'raw': b'x' * 10, 'mimetype': 'text/plain',
+            })
+        self.assertEqual(error.exception.details['limit_key'], 'storage.limit_mb')

@@ -25,7 +25,7 @@ class AuthController(http.Controller):
             raise ApiError(422, 'invalid_code_format', "Invalid authentication code format")
 
         user = request.env['res.users'].browse(pre_uid)
-        service = request.env['webvue.entitlement.service'].sudo()
+        service = request.env['webvue.entitlement.service']
         try:
             service._webvue_assert_login_allowed(user)
         except WebVueTenantSuspended:

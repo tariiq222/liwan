@@ -300,18 +300,23 @@ cross-addon links.
 - `webvue_hr`, `webvue_tasks`, `webvue_operations` and their bridges have no `sudo()` path.
   `webvue_pmo` uses it only for the documented manager-write,
   charter-approval (approval fields only, through `_webvue_write_sudo` with its own whitelist, after the manager or sponsor check), policy/config, display-lookup, integer-count, completion-status and notification
-  cron/candidate cases, each after the caller's authorization check: the project copy-create policy, the stage and milestone
-  task counts, the `res.company` scan and the project/task scans of the deadline and overdue crons, the settings and legacy
-  `ir.config_parameter` policy writes, the project-type provisioning seed, the task serializers' project, milestone and
-  stage display and id lookups, the timeline tracking-value reads, and the charter and completion reviewer-eligibility
+  candidate cases, each after the caller's authorization check: the project copy-create policy, the stage and milestone
+  task counts, the settings and legacy
+  `ir.config_parameter` policy writes, the project-type provisioning seed (a system administrator who creates a
+  company need not hold the employee ACL on `webvue.project.type`), the task serializers' project and milestone
+  display lookups and milestone id lookup, the timeline tracking-value reads, and the charter and completion reviewer-eligibility
   company reads. Its milestone-bounds validators carry no elevation at all, and
   that is deliberate: Odoo's `_validate_fields` runs every `@api.constrains` method on `self.sudo()`
   ("run constrains just as sudoed computed-stored fields"), so a `sudo()` written inside a constraint
-  cannot change what it reads and was only noise. Never add one there.
-  `webvue_platform` uses it only for the entitlement service's tenant-profile read, the user quota delta, the pre-login
-  suspension gates, the attachment storage-quota accounting, the binary image route and the pre-session request
-  authentication guard — all blocked by the system-only `access_webvue_tenant_profile_system` row, which no ordinary user
-  or public route may hold. The installed-module probe no longer elevates: `base_install_request` (auto-installed,
+  cannot change what it reads and was only noise. Never add one there. The deadline and overdue crons and the
+  project quota claims carry none either: the cron runs as `base.user_root`, and the entitlement service elevates
+  its own tenant-profile read. The milestone routes, task-create milestone check and stage id checks look the
+  reference up with `search` in the caller's environment, so a reference hidden by a record rule answers 422.
+  `webvue_platform` uses it only for the entitlement service's tenant-profile read, blocked by the system-only
+  `access_webvue_tenant_profile_system` row, which no ordinary user or public route may hold. Its callers (the user quota
+  delta, the pre-login suspension gates, the attachment storage-quota accounting, the binary image route and the
+  pre-session request authentication guard) call the service unelevated: the service raises its own read, and its
+  other reads (the support group, the user and storage counts) are raw SQL. The installed-module probe no longer elevates: `base_install_request` (auto-installed,
   depends `mail`) grants `base.group_user` read on `ir.module.module`, so the ACL never blocked it.
   `webvue_core` uses it only for the company-partner existence check, which Odoo's `res_company_rule_employee` hides and
   `active_test=False` must still see.
@@ -324,10 +329,11 @@ cross-addon links.
   elevation for the measured same-transaction flush/SQL-ordering issue in `mail.message._search`; the recorded
   cold reads miss rows without it, and after flush their results agree. These are not `mail.notification`
   read-ACL failures. Elevated reader domains remain restricted to the current partner, and `_webvue_domain`
-  refuses `env.su`. The idempotency precheck and `mail.notification` create elevations are measured unnecessary and
-  remain recorded for scoped removal.
+  refuses `env.su`. The idempotency precheck and the `mail.notification` create carry no elevation: the unique key
+  index guarantees single delivery and the actor creates the linked message.
   `webvue_meetings` uses it only for its server-controlled minutes, snapshot,
-  version and event records, the company-wide organizer-overlap check, the
+  version and event records (the finalized-version count that refuses a delete reads unelevated), the
+  company-wide organizer-overlap check, the
   existence check of the minutes linked to a calendar event (read only, access is
   rechecked by the caller) and the recipient-owned bell candidates. It does not
   elevate the meeting-manager group lookup or the follower allow-list: tests
@@ -342,14 +348,13 @@ cross-addon links.
   after the `finance.zatca.manage` / `finance.zatca.submit` capability and current-company checks,
   in the sandbox api mode only (ZATCA onboarding is sandbox-only in this phase, so production invoicing for real
   tenants is a release blocker until the preprod/prod policy is approved).
-  `webvue_api` uses it in `controllers/common.py`, for the per-request entitlement
-  guard that every `/api/v1` call passes, and for the single company-ownership
+  `webvue_api` uses it in `controllers/common.py` only for the single company-ownership
   read in `get_record`, before any access check, so another company's record answers the
   same 404 not-found as a missing one instead of a 403 that leaks its existence; in
   `controllers/branding.py`, for the one tenant-profile read behind the public
   `/api/v1/branding` route, which has no session to authorize it; in
-  `controllers/auth.py` and `serializers/user.py`, for the entitlement service's
-  suspension and self-service checks; and in `controllers/commercial.py`, for the
+  `serializers/user.py`, for the entitlement service's self-service checks; and in
+  `controllers/commercial.py`, for the
   tenant-profile mode read that answers the commercial routes. Each of those reads a
   platform service or singleton, never an application record.
   Do not add

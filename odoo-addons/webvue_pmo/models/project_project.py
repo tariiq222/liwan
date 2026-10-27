@@ -269,7 +269,7 @@ class ProjectProject(models.Model):
                 self._webvue_check_create_requirements(vals)
             prepared.append(vals)
         if prepared:
-            self.env['webvue.entitlement.service'].sudo()._webvue_claim_projects(len(prepared))
+            self.env['webvue.entitlement.service']._webvue_claim_projects(len(prepared))
         projects = super().create(prepared)
         if not bootstrap:
             for project in projects:
@@ -332,11 +332,11 @@ class ProjectProject(models.Model):
         if restored:
             inactive = self.filtered(lambda project: not project.active)
             if inactive:
-                self.env['webvue.entitlement.service'].sudo()._webvue_claim_projects(len(inactive))
+                self.env['webvue.entitlement.service']._webvue_claim_projects(len(inactive))
         elif archived:
             active = self.filtered(lambda project: project.active)
             if active:
-                self.env['webvue.entitlement.service'].sudo()._webvue_claim_projects(-len(active))
+                self.env['webvue.entitlement.service']._webvue_claim_projects(-len(active))
         content = set(vals) & REVISION_CONTENT_FIELDS
         result = self._webvue_write_vals(vals)
         if content and self.ids:

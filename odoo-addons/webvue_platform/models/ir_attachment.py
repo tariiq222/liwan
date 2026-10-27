@@ -27,7 +27,7 @@ class WebVuePlatformIrAttachment(models.Model):
     def create(self, vals_list):
         extra = sum(self._webvue_vals_bytes(vals) for vals in vals_list)
         if extra:
-            self.env['webvue.entitlement.service'].sudo()._webvue_claim_storage(extra)
+            self.env['webvue.entitlement.service']._webvue_claim_storage(extra)
         return super().create(vals_list)
 
     def write(self, vals):
@@ -36,12 +36,12 @@ class WebVuePlatformIrAttachment(models.Model):
             new_size = self._webvue_vals_bytes(vals)
             extra = sum(new_size - attachment.file_size for attachment in self)
         if extra:
-            self.env['webvue.entitlement.service'].sudo()._webvue_claim_storage(extra)
+            self.env['webvue.entitlement.service']._webvue_claim_storage(extra)
         return super().write(vals)
 
     def unlink(self):
         size = sum(self.mapped('file_size'))
         result = super().unlink()
         if size:
-            self.env['webvue.entitlement.service'].sudo()._webvue_claim_storage(-size)
+            self.env['webvue.entitlement.service']._webvue_claim_storage(-size)
         return result
