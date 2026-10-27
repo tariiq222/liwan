@@ -1,0 +1,6629 @@
+{
+  "attention": [],
+  "attention_project_count": 0,
+  "overdue_task_count": 0,
+  "project_count": 201,
+  "projects": [
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 359,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 2,
+        "name": "Analytics scope 000",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 360,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 3,
+        "name": "Analytics scope 001",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 361,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 4,
+        "name": "Analytics scope 002",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 362,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 5,
+        "name": "Analytics scope 003",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 363,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 6,
+        "name": "Analytics scope 004",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 364,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 7,
+        "name": "Analytics scope 005",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 365,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 8,
+        "name": "Analytics scope 006",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 366,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 9,
+        "name": "Analytics scope 007",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 367,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 10,
+        "name": "Analytics scope 008",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 368,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 11,
+        "name": "Analytics scope 009",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 369,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 12,
+        "name": "Analytics scope 010",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 370,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 13,
+        "name": "Analytics scope 011",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 371,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 14,
+        "name": "Analytics scope 012",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 372,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 15,
+        "name": "Analytics scope 013",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 373,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 16,
+        "name": "Analytics scope 014",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 374,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 17,
+        "name": "Analytics scope 015",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 375,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 18,
+        "name": "Analytics scope 016",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 376,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 19,
+        "name": "Analytics scope 017",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 377,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 20,
+        "name": "Analytics scope 018",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 378,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 21,
+        "name": "Analytics scope 019",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 379,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 22,
+        "name": "Analytics scope 020",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 380,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 23,
+        "name": "Analytics scope 021",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 381,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 24,
+        "name": "Analytics scope 022",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 382,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 25,
+        "name": "Analytics scope 023",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 383,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 26,
+        "name": "Analytics scope 024",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 384,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 27,
+        "name": "Analytics scope 025",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 385,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 28,
+        "name": "Analytics scope 026",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 386,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 29,
+        "name": "Analytics scope 027",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 387,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 30,
+        "name": "Analytics scope 028",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 388,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 31,
+        "name": "Analytics scope 029",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 389,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 32,
+        "name": "Analytics scope 030",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 390,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 33,
+        "name": "Analytics scope 031",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 391,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 34,
+        "name": "Analytics scope 032",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 392,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 35,
+        "name": "Analytics scope 033",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 393,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 36,
+        "name": "Analytics scope 034",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 394,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 37,
+        "name": "Analytics scope 035",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 395,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 38,
+        "name": "Analytics scope 036",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 396,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 39,
+        "name": "Analytics scope 037",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 397,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 40,
+        "name": "Analytics scope 038",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 398,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 41,
+        "name": "Analytics scope 039",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 399,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 42,
+        "name": "Analytics scope 040",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 400,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 43,
+        "name": "Analytics scope 041",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 401,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 44,
+        "name": "Analytics scope 042",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 402,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 45,
+        "name": "Analytics scope 043",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 403,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 46,
+        "name": "Analytics scope 044",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 404,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 47,
+        "name": "Analytics scope 045",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 405,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 48,
+        "name": "Analytics scope 046",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 406,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 49,
+        "name": "Analytics scope 047",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 407,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 50,
+        "name": "Analytics scope 048",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 408,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 51,
+        "name": "Analytics scope 049",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 409,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 52,
+        "name": "Analytics scope 050",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 410,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 53,
+        "name": "Analytics scope 051",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 411,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 54,
+        "name": "Analytics scope 052",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 412,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 55,
+        "name": "Analytics scope 053",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 413,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 56,
+        "name": "Analytics scope 054",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 414,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 57,
+        "name": "Analytics scope 055",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 415,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 58,
+        "name": "Analytics scope 056",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 416,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 59,
+        "name": "Analytics scope 057",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 417,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 60,
+        "name": "Analytics scope 058",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 418,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 61,
+        "name": "Analytics scope 059",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 419,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 62,
+        "name": "Analytics scope 060",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 420,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 63,
+        "name": "Analytics scope 061",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 421,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 64,
+        "name": "Analytics scope 062",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 422,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 65,
+        "name": "Analytics scope 063",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 423,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 66,
+        "name": "Analytics scope 064",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 424,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 67,
+        "name": "Analytics scope 065",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 425,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 68,
+        "name": "Analytics scope 066",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 426,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 69,
+        "name": "Analytics scope 067",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 427,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 70,
+        "name": "Analytics scope 068",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 428,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 71,
+        "name": "Analytics scope 069",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 429,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 72,
+        "name": "Analytics scope 070",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 430,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 73,
+        "name": "Analytics scope 071",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 431,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 74,
+        "name": "Analytics scope 072",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 432,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 75,
+        "name": "Analytics scope 073",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 433,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 76,
+        "name": "Analytics scope 074",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 434,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 77,
+        "name": "Analytics scope 075",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 435,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 78,
+        "name": "Analytics scope 076",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 436,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 79,
+        "name": "Analytics scope 077",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 437,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 80,
+        "name": "Analytics scope 078",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 438,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 81,
+        "name": "Analytics scope 079",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 439,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 82,
+        "name": "Analytics scope 080",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 440,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 83,
+        "name": "Analytics scope 081",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 441,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 84,
+        "name": "Analytics scope 082",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 442,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 85,
+        "name": "Analytics scope 083",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 443,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 86,
+        "name": "Analytics scope 084",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 444,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 87,
+        "name": "Analytics scope 085",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 445,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 88,
+        "name": "Analytics scope 086",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 446,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 89,
+        "name": "Analytics scope 087",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 447,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 90,
+        "name": "Analytics scope 088",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 448,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 91,
+        "name": "Analytics scope 089",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 449,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 92,
+        "name": "Analytics scope 090",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 450,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 93,
+        "name": "Analytics scope 091",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 451,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 94,
+        "name": "Analytics scope 092",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 452,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 95,
+        "name": "Analytics scope 093",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 453,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 96,
+        "name": "Analytics scope 094",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 454,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 97,
+        "name": "Analytics scope 095",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 455,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 98,
+        "name": "Analytics scope 096",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 456,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 99,
+        "name": "Analytics scope 097",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 457,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 100,
+        "name": "Analytics scope 098",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 458,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 101,
+        "name": "Analytics scope 099",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 459,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 102,
+        "name": "Analytics scope 100",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 460,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 103,
+        "name": "Analytics scope 101",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 461,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 104,
+        "name": "Analytics scope 102",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 462,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 105,
+        "name": "Analytics scope 103",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 463,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 106,
+        "name": "Analytics scope 104",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 464,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 107,
+        "name": "Analytics scope 105",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 465,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 108,
+        "name": "Analytics scope 106",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 466,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 109,
+        "name": "Analytics scope 107",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 467,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 110,
+        "name": "Analytics scope 108",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 468,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 111,
+        "name": "Analytics scope 109",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 469,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 112,
+        "name": "Analytics scope 110",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 470,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 113,
+        "name": "Analytics scope 111",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 471,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 114,
+        "name": "Analytics scope 112",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 472,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 115,
+        "name": "Analytics scope 113",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 473,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 116,
+        "name": "Analytics scope 114",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 474,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 117,
+        "name": "Analytics scope 115",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 475,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 118,
+        "name": "Analytics scope 116",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 476,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 119,
+        "name": "Analytics scope 117",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 477,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 120,
+        "name": "Analytics scope 118",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 478,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 121,
+        "name": "Analytics scope 119",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 479,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 122,
+        "name": "Analytics scope 120",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 480,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 123,
+        "name": "Analytics scope 121",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 481,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 124,
+        "name": "Analytics scope 122",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 482,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 125,
+        "name": "Analytics scope 123",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 483,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 126,
+        "name": "Analytics scope 124",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 484,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 127,
+        "name": "Analytics scope 125",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 485,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 128,
+        "name": "Analytics scope 126",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 486,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 129,
+        "name": "Analytics scope 127",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 487,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 130,
+        "name": "Analytics scope 128",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 488,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 131,
+        "name": "Analytics scope 129",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 489,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 132,
+        "name": "Analytics scope 130",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 490,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 133,
+        "name": "Analytics scope 131",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 491,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 134,
+        "name": "Analytics scope 132",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 492,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 135,
+        "name": "Analytics scope 133",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 493,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 136,
+        "name": "Analytics scope 134",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 494,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 137,
+        "name": "Analytics scope 135",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 495,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 138,
+        "name": "Analytics scope 136",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 496,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 139,
+        "name": "Analytics scope 137",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 497,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 140,
+        "name": "Analytics scope 138",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 498,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 141,
+        "name": "Analytics scope 139",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 499,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 142,
+        "name": "Analytics scope 140",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 500,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 143,
+        "name": "Analytics scope 141",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 501,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 144,
+        "name": "Analytics scope 142",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 502,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 145,
+        "name": "Analytics scope 143",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 503,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 146,
+        "name": "Analytics scope 144",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 504,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 147,
+        "name": "Analytics scope 145",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 505,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 148,
+        "name": "Analytics scope 146",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 506,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 149,
+        "name": "Analytics scope 147",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 507,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 150,
+        "name": "Analytics scope 148",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 508,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 151,
+        "name": "Analytics scope 149",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 509,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 152,
+        "name": "Analytics scope 150",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 510,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 153,
+        "name": "Analytics scope 151",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 511,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 154,
+        "name": "Analytics scope 152",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 512,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 155,
+        "name": "Analytics scope 153",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 513,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 156,
+        "name": "Analytics scope 154",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 514,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 157,
+        "name": "Analytics scope 155",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 515,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 158,
+        "name": "Analytics scope 156",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 516,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 159,
+        "name": "Analytics scope 157",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 517,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 160,
+        "name": "Analytics scope 158",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 518,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 161,
+        "name": "Analytics scope 159",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 519,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 162,
+        "name": "Analytics scope 160",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 520,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 163,
+        "name": "Analytics scope 161",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 521,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 164,
+        "name": "Analytics scope 162",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 522,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 165,
+        "name": "Analytics scope 163",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 523,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 166,
+        "name": "Analytics scope 164",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 524,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 167,
+        "name": "Analytics scope 165",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 525,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 168,
+        "name": "Analytics scope 166",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 526,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 169,
+        "name": "Analytics scope 167",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 527,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 170,
+        "name": "Analytics scope 168",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 528,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 171,
+        "name": "Analytics scope 169",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 529,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 172,
+        "name": "Analytics scope 170",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 530,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 173,
+        "name": "Analytics scope 171",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 531,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 174,
+        "name": "Analytics scope 172",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 532,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 175,
+        "name": "Analytics scope 173",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 533,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 176,
+        "name": "Analytics scope 174",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 534,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 177,
+        "name": "Analytics scope 175",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 535,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 178,
+        "name": "Analytics scope 176",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 536,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 179,
+        "name": "Analytics scope 177",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 537,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 180,
+        "name": "Analytics scope 178",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 538,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 181,
+        "name": "Analytics scope 179",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 539,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 182,
+        "name": "Analytics scope 180",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 540,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 183,
+        "name": "Analytics scope 181",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 541,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 184,
+        "name": "Analytics scope 182",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 542,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 185,
+        "name": "Analytics scope 183",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 543,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 186,
+        "name": "Analytics scope 184",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 544,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 187,
+        "name": "Analytics scope 185",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 545,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 188,
+        "name": "Analytics scope 186",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 546,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 189,
+        "name": "Analytics scope 187",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 547,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 190,
+        "name": "Analytics scope 188",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 548,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 191,
+        "name": "Analytics scope 189",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 549,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 192,
+        "name": "Analytics scope 190",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 550,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 193,
+        "name": "Analytics scope 191",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 551,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 194,
+        "name": "Analytics scope 192",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 552,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 195,
+        "name": "Analytics scope 193",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 553,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 196,
+        "name": "Analytics scope 194",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 554,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 197,
+        "name": "Analytics scope 195",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 555,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 198,
+        "name": "Analytics scope 196",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 556,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 199,
+        "name": "Analytics scope 197",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 557,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 200,
+        "name": "Analytics scope 198",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 558,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 201,
+        "name": "Analytics scope 199",
+        "status": null
+      },
+      "task_count": 0
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 559,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 202,
+        "name": "Analytics scope 200",
+        "status": null
+      },
+      "task_count": 0
+    }
+  ],
+  "recent_projects": [
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 559,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 202,
+        "name": "Analytics scope 200",
+        "status": null
+      },
+      "task_count": 0,
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 558,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 201,
+        "name": "Analytics scope 199",
+        "status": null
+      },
+      "task_count": 0,
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 557,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 200,
+        "name": "Analytics scope 198",
+        "status": null
+      },
+      "task_count": 0,
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 556,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 199,
+        "name": "Analytics scope 197",
+        "status": null
+      },
+      "task_count": 0,
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "closed_task_count": 0,
+      "finance": {
+        "actual": 0.0,
+        "actual_account": null,
+        "actual_source": "manual",
+        "budget_count": 0,
+        "can_choose_actual_account": false,
+        "can_read_actual_lines": false,
+        "charter_estimate": null,
+        "currency": {
+          "decimal_places": 2,
+          "id": 1,
+          "name": "USD",
+          "symbol": "$"
+        },
+        "expense_count": 0,
+        "over_budget": false,
+        "planned": null,
+        "project_id": 555,
+        "remaining": null,
+        "utilization_percent": null
+      },
+      "overdue_task_count": 0,
+      "progress": 0,
+      "project": {
+        "id": 198,
+        "name": "Analytics scope 196",
+        "status": null
+      },
+      "task_count": 0,
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "status_counts": [
+    {
+      "count": 201,
+      "status": null
+    }
+  ],
+  "totals": [
+    {
+      "actual": 0.0,
+      "budgeted_project_count": 0,
+      "currency": {
+        "decimal_places": 2,
+        "id": 1,
+        "name": "USD",
+        "symbol": "$"
+      },
+      "over_budget_count": 0,
+      "planned": 0.0,
+      "project_count": 201,
+      "remaining": 0.0
+    }
+  ]
+}

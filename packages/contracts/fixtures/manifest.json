@@ -1103,6 +1103,142 @@
       "route": "/api/v1/notifications",
       "status": 200,
       "schema": "NotificationListSchema"
+    },
+    {
+      "name": "pmo/charter-defaults",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/project-charter/defaults",
+      "status": 200,
+      "schema": "ProjectCharterDefaultsSchema"
+    },
+    {
+      "name": "pmo/charter-catalog-owning-units",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/project-charter/catalogs/owning-units",
+      "status": 200,
+      "schema": "ProjectCharterReferenceListSchema"
+    },
+    {
+      "name": "pmo/charter-catalog-types",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/project-charter/catalogs/types",
+      "status": 200,
+      "schema": "ProjectCharterReferenceListSchema"
+    },
+    {
+      "name": "pmo/project-finance-list",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects/{id}/finance",
+      "status": 200,
+      "schema": "FinanceEntryListSchema"
+    },
+    {
+      "name": "pmo/project-finance-summary",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects/{id}/finance/summary",
+      "status": 200,
+      "schema": "FinanceSummarySchema"
+    },
+    {
+      "name": "pmo/project-actual-line-list",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects/{id}/finance/actual-lines",
+      "status": 200,
+      "schema": "ActualLineListSchema"
+    },
+    {
+      "name": "pmo/project-stakeholder-detail",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects/{id}/stakeholders/{id}",
+      "status": 200,
+      "schema": "ProjectStakeholderSchema"
+    },
+    {
+      "name": "pmo/project-register-detail",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects/{id}/register/{id}",
+      "status": 200,
+      "schema": "ProjectRegisterSchema"
+    },
+    {
+      "name": "pmo/report-project-summary",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/reports/projects/summary",
+      "status": 200,
+      "schema": "ProjectDashboardSummarySchema"
+    },
+    {
+      "name": "pmo/report-project-analytics",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/reports/projects/analytics",
+      "status": 200,
+      "schema": "ProjectDashboardAnalyticsSchema"
+    },
+    {
+      "name": "pmo/project-settings",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/settings/projects",
+      "status": 200,
+      "schema": "ProjectSettingsSchema"
+    },
+    {
+      "name": "pmo/project-create-defaults",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/settings/projects/create-defaults",
+      "status": 200,
+      "schema": "ProjectCreateDefaultsSchema"
+    },
+    {
+      "name": "pmo/task-archived-list",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/tasks/archived",
+      "status": 200,
+      "schema": "TaskListSchema"
+    },
+    {
+      "name": "pmo/task-attachment-list",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/tasks/{id}/attachments",
+      "status": 200,
+      "schema": "TaskAttachmentListSchema"
+    },
+    {
+      "name": "pmo/task-dependency-list",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/tasks/{id}/dependencies",
+      "status": 200,
+      "schema": "DependencyListSchema"
+    },
+    {
+      "name": "pmo/task-dependency-candidate-list",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/tasks/{id}/dependencies/candidates",
+      "status": 200,
+      "schema": "DependencyCandidateListSchema"
+    },
+    {
+      "name": "pmo/notification-digest-detail",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/notification-digests/{id}",
+      "status": 200,
+      "schema": "NotificationDigestDetailSchema"
     }
   ]
 }

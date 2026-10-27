@@ -1,0 +1,8 @@
+{
+  "currency": {
+    "decimal_places": 2,
+    "id": 1,
+    "name": "USD",
+    "symbol": "$"
+  }
+}

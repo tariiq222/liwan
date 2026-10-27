@@ -1,0 +1,14 @@
+{
+  "items": [
+    {
+      "amount": 12.5,
+      "date": "2030-01-15",
+      "id": 1,
+      "label": "Paper",
+      "partner": null,
+      "record": null,
+      "reference": "BILL/1"
+    }
+  ],
+  "total": 1
+}

@@ -1,0 +1,5 @@
+{
+  "default_manager_id": 361,
+  "require_end_date_on_create": true,
+  "require_manager_on_create": true
+}
