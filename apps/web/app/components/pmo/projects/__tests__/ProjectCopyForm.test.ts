@@ -12,7 +12,7 @@ const arMessages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../.
 const enMessages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../../../i18n/locales/en/projects.json'), 'utf8'))
 
 class ApiError extends Error {
-  constructor(public status: number, public code = 'http_error', message = `HTTP ${status}`) { super(message) }
+  constructor(public status: number, public code = 'http_error', message = `HTTP ${status}`, public field?: string, public details?: Record<string, unknown>) { super(message) }
 }
 
 const messages: Record<string, any> = { ar: arMessages, en: enMessages }
@@ -106,7 +106,7 @@ describe('ProjectCopyForm', () => {
     const view = load()
     view.mutationError.value = new ApiError(403)
     expect(view.state.submitError.value).toBe(arMessages.projects.copy.forbidden)
-    view.mutationError.value = new ApiError(403, 'feature_not_included', 'Plan limit reached')
+    view.mutationError.value = new ApiError(403, 'feature_not_included', 'Plan limit reached', undefined, { reason: 'limit' })
     expect(view.state.submitError.value).toBe('Plan limit reached')
     view.mutationError.value = new ApiError(403, 'forbidden', 'No access')
     expect(view.state.submitError.value).toBe(arMessages.projects.copy.forbidden)
