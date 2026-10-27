@@ -60,9 +60,10 @@ describe('chat stays on the conversation layout', () => {
     expect(existsSync(resolve(app, 'pages/chat/[id]/info.vue'))).toBe(false)
   })
 
-  it('the composer keeps its draft and mentions as models', () => {
+  it('the composer keeps its draft as a model and derives the mentions from the text at send time', () => {
     const source = read('components/chat/MessageComposer.vue')
     expect(source).toContain("defineModel<string>('draft'")
-    expect(source).toContain("defineModel<number[]>('mentionIds'")
+    expect(source).not.toContain('mentionIds\'')
+    expect(source).toContain('mentionIdsInText(body')
   })
 })

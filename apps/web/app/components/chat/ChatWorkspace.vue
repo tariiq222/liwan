@@ -9,6 +9,7 @@ import MessageComposer from '@/components/chat/MessageComposer.vue'
 import { ApiError } from '@/composables/useApi'
 import { applyChatAccessFailure, chatKeys } from '@/composables/useChat'
 import { chatTypingEvent } from '@/composables/useBus'
+import { chatDrafts } from '@/utils/chatDrafts'
 import { isFatalChatStatus, parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
 import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
 import type { ChatMessage } from '@webvue/contracts'
@@ -30,11 +31,12 @@ const { data: conversations } = useChatConversations(() => routeState.value)
 // True once any conversation exists or a filter/search is active, so «no conversations yet» only shows for a truly empty inbox.
 const hasConversations = computed(() => (conversations.value?.total ?? 0) > 0 || routeState.value.q !== '' || routeState.value.filter !== 'all')
 const denied = ref(false)
+const deniedStatus = ref(404)
 const pendingBody = ref('')
 const replyTo = ref<ChatMessage | null>(null)
-// Keep the draft owned by the conversation while its thread is hidden behind info.
+// Keep the draft owned by the conversation while its thread is hidden behind info. The text is also kept per
+// conversation in sessionStorage, so leaving a conversation and coming back restores it; a successful send clears it.
 const draft = ref('')
-const mentionIds = ref<number[]>([])
 const messageQuery = ref('')
 const showMessageSearch = ref(false)
 function toggleMessageSearch() {
@@ -56,12 +58,21 @@ const typingLabel = computed(() => {
   return t('chat.typing', { name: event.userName || data.value?.name || '' })
 })
 
-watch(() => props.conversationId, () => {
+function restoreDraft() {
+  draft.value = me.value?.id && props.conversationId ? chatDrafts.get(me.value.id, props.conversationId) : ''
+}
+// Restored after mount so the server-rendered and first client render agree (storage is client-only).
+onMounted(restoreDraft)
+watch(draft, (text) => {
+  if (hydrated.value && me.value?.id && props.conversationId) chatDrafts.set(me.value.id, props.conversationId, text)
+})
+watch(() => props.conversationId, (id, previous) => {
+  // The old conversation keeps what was typed (the draft watcher stored it); the new one shows its own.
+  if (previous && me.value?.id) chatDrafts.set(me.value.id, previous, draft.value)
+  restoreDraft()
   denied.value = false
   pendingBody.value = ''
   replyTo.value = null
-  draft.value = ''
-  mentionIds.value = []
   messageQuery.value = ''
   showMessageSearch.value = false
   qc.cancelQueries({ queryKey: chatKeys.root(me.value?.id) })
@@ -70,6 +81,7 @@ watch(() => props.conversationId, () => {
 watch(error, (value) => {
   if (value instanceof ApiError && isFatalChatStatus(value.status)) {
     denied.value = true
+    deniedStatus.value = value.status
     pendingBody.value = ''
     applyChatAccessFailure(qc, me.value?.id, value)
   }
@@ -77,6 +89,7 @@ watch(error, (value) => {
 
 function onDenied() {
   denied.value = true
+  deniedStatus.value = 403
   pendingBody.value = ''
   applyChatAccessFailure(qc, me.value?.id, new ApiError(403, 'forbidden', 'forbidden'))
 }
@@ -151,7 +164,8 @@ function updateRoute(next: ChatListRoute) {
         <template v-else>
           <!-- The one page heading when no thread header is shown. -->
           <h1 class="sr-only">{{ t('chat.title') }}</h1>
-          <EmptyState :title="t('chat.unavailable')" />
+          <SharedForbiddenState v-if="deniedStatus === 403" :description="t('chat.unavailable')" />
+          <SharedNotFoundState v-else class="m-4" :back-to="{ path: '/chat', query: listQuery }" :back-label="t('chat.title')" />
         </template>
       </div>
     </template>
@@ -159,7 +173,6 @@ function updateRoute(next: ChatListRoute) {
     <template v-if="composerOpen" #composer>
       <MessageComposer
         v-model:draft="draft"
-        v-model:mention-ids="mentionIds"
         :conversation-id="props.conversationId!"
         :reply-to="replyTo"
         @update:pending="pendingBody = $event"

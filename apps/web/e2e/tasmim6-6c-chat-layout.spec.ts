@@ -151,11 +151,11 @@ test.describe('Plan 6c: the chat workspace', () => {
     })
 
 
-    test('switching conversations clears the previous draft, mentions and message search', async ({ page }) => {
+    test("switching conversations keeps each conversation's own draft and clears the message search", async ({ page }) => {
       const sent = await mockChat(page, { second: true })
       await open(page, '/chat/42')
       await composer(page).fill('@')
-      await page.locator('form.webvue-chat-composer').getByRole('button', { name: 'سارة', exact: true }).click()
+      await page.locator('form.webvue-chat-composer').getByRole('option', { name: 'سارة', exact: true }).click()
       await page.getByTestId('chat-thread-header').getByRole('button', { name: 'بحث في الرسائل' }).click()
       await page.getByPlaceholder('بحث في الرسائل').fill('رسالة')
       await page.getByTestId('chat-list').getByRole('link', { name: /محادثة أخرى/ }).click()
@@ -167,7 +167,7 @@ test.describe('Plan 6c: the chat workspace', () => {
       await expect.poll(() => sent).toEqual([{ conversationId: 43, payload: { body: 'رسالة للمحادثة الجديدة' } }])
       await page.getByTestId('chat-list').getByRole('link', { name: /محادثة تجريبية/ }).click()
       await expect(page).toHaveURL(/\/chat\/42/)
-      await expect(composer(page)).toHaveValue('')
+      await expect(composer(page)).toHaveValue('@سارة ')
     })
 
     test('an unknown panel segment is a 404', async ({ page }) => {
@@ -207,7 +207,7 @@ test.describe('Plan 6c: the chat workspace', () => {
       const sent = await mockChat(page)
       await open(page, '/chat/42')
       await composer(page).fill('مسودة على الهاتف @')
-      await page.locator('form.webvue-chat-composer').getByRole('button', { name: 'سارة', exact: true }).click()
+      await page.locator('form.webvue-chat-composer').getByRole('option', { name: 'سارة', exact: true }).click()
       await expect(composer(page)).toHaveValue('مسودة على الهاتف @سارة ')
       await infoButton(page).click()
       await expect(page.locator('[data-template="conversation-info"]')).toBeVisible()
