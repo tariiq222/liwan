@@ -131,9 +131,12 @@ describe('dedicated release authentication transport', () => {
     expect(response.headers.getSetCookie()).toEqual([])
   })
 
-  it('legacy dedicated logout keeps its existing best-effort behavior', async () => {
+  it('unbound logout fails when Odoo does not destroy the session', async () => {
     vi.stubEnv('WEBVUE_RELEASE_ROUTES_DIR', '')
     failure = true
-    expect((await request('/logout')).status).toBe(204)
+    const response = await request('/logout')
+    expect(response.status).toBe(502)
+    expect((await response.json())).toMatchObject({ statusCode: 502, statusMessage: 'logout_failed' })
+    expect(response.headers.getSetCookie()).toEqual([])
   })
 })
