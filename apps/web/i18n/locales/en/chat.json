@@ -81,6 +81,8 @@
   "online": "Online",
   "offline": "Offline",
   "actionFailed": "The action could not be completed.",
+  "readOnly": "Read-only subscription",
+  "readOnlyDescription": "You can read conversations; sending and editing need an active subscription.",
   "newAction": "New",
   "newDirect": "Conversation",
   "newChannelTitle": "New channel",

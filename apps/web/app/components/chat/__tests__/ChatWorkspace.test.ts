@@ -5,7 +5,7 @@ import { ApiError } from '../../../composables/useApi'
 import { createChatDrafts } from '../../../utils/chatDrafts'
 import { isFatalChatStatus } from '../../../utils/chatState'
 
-function open(store: Map<string, string>, conversationId: number, error: Vue.Ref<unknown> = Vue.ref(null)) {
+function open(store: Map<string, string>, conversationId: number, error: Vue.Ref<unknown> = Vue.ref(null), writable = true) {
   const storage = { get length() { return store.size }, key: (i: number) => [...store.keys()][i] ?? null, getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) }
   const query = (data: unknown) => ({ data: Vue.ref(data), error, isLoading: Vue.ref(false), refetch: vi.fn() })
   const bindings = {
@@ -13,6 +13,7 @@ function open(store: Map<string, string>, conversationId: number, error: Vue.Ref
     useMe: () => ({ me: Vue.ref({ id: 1 }) }), useEscapeBack: () => {}, useChatConversation: () => query({ name: 'G', type: 'group' }), useChatConversations: () => query({ total: 1, items: [] }),
     chatDrafts: createChatDrafts(() => storage), chatKeys: { root: () => ['chat'] }, applyChatAccessFailure: vi.fn(), chatTypingEvent: Vue.ref(null),
     isFatalChatStatus, parseChatListRoute: () => ({ q: '', filter: 'all', offset: 0 }), serializeChatListRoute: () => ({}), avatarProps: () => ({}),
+    useChatWritable: () => Vue.computed(() => writable),
     EmptyState: {}, ChatInfoPanel: {}, ConversationList: {}, MessageHistory: {}, MessageComposer: {},
   }
   return load('app/components/chat/ChatWorkspace.vue', { conversationId }, true, { bindings })
@@ -46,5 +47,15 @@ describe('ChatWorkspace', () => {
     expect(view.state.deniedStatus.value).toBe(404)
     expect(view.state.composerOpen.value).toBe(false)
     view.stop()
+  })
+
+  it('reports the tenant as read-only so no composer or message action is offered', async () => {
+    const writing = await open(new Map(), 5)
+    expect(writing.state.writable.value).toBe(true)
+    writing.stop()
+
+    const reading = await open(new Map(), 5, Vue.ref(null), false)
+    expect(reading.state.writable.value).toBe(false)
+    reading.stop()
   })
 })

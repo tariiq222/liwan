@@ -15,6 +15,7 @@ import {
   type ChatMessageSend,
   type ChatMessageUpdate,
 } from '@webvue/contracts'
+import { hasFeature } from '../modules/registry'
 import { ApiError } from './useApi'
 import {
   CHAT_PAGE_SIZE,
@@ -38,6 +39,16 @@ export const chatKeys = {
 function currentUserId() {
   const { me } = useMe()
   return computed(() => me.value?.id)
+}
+
+/**
+ * Whether this tenant may still write to chat. A read-only tenant (an expired subscription, or
+ * `chat.enabled` kept only as a retained read feature) answers every write route with a 403, so the
+ * composer and the message actions must not be offered at all.
+ */
+export function useChatWritable() {
+  const { me } = useMe()
+  return computed(() => hasFeature(me.value, 'chat.enabled', true))
 }
 
 function errorStatus(error: unknown): number | undefined {

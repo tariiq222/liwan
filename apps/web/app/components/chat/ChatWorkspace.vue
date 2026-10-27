@@ -7,7 +7,7 @@ import ConversationList from '@/components/chat/ConversationList.vue'
 import MessageHistory from '@/components/chat/MessageHistory.vue'
 import MessageComposer from '@/components/chat/MessageComposer.vue'
 import { ApiError } from '@/composables/useApi'
-import { applyChatAccessFailure, chatKeys } from '@/composables/useChat'
+import { applyChatAccessFailure, chatKeys, useChatWritable } from '@/composables/useChat'
 import { chatTypingEvent } from '@/composables/useBus'
 import { chatDrafts } from '@/utils/chatDrafts'
 import { isFatalChatStatus, parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
@@ -30,6 +30,7 @@ const { data, error } = useChatConversation(() => props.conversationId)
 const { data: conversations } = useChatConversations(() => routeState.value)
 // True once any conversation exists or a filter/search is active, so «no conversations yet» only shows for a truly empty inbox.
 const hasConversations = computed(() => (conversations.value?.total ?? 0) > 0 || routeState.value.q !== '' || routeState.value.filter !== 'all')
+const writable = useChatWritable()
 const denied = ref(false)
 const deniedStatus = ref(404)
 const pendingBody = ref('')
@@ -154,6 +155,7 @@ function updateRoute(next: ChatListRoute) {
         <MessageHistory
           v-if="composerOpen"
           :conversation-id="props.conversationId!"
+          :writable="writable"
           :pending-body="pendingBody"
           :peer-seen-message-id="data?.peer_seen_message_id"
           :direct="data?.type === 'direct'"
@@ -172,11 +174,23 @@ function updateRoute(next: ChatListRoute) {
 
     <template v-if="composerOpen" #composer>
       <MessageComposer
+        v-if="writable"
         v-model:draft="draft"
         :conversation-id="props.conversationId!"
         :reply-to="replyTo"
         @update:pending="pendingBody = $event"
         @clear-reply="replyTo = null"
+      />
+      <!-- A read-only tenant keeps the whole thread readable; every write route would answer 403. -->
+      <UAlert
+        v-else
+        class="m-2"
+        color="neutral"
+        variant="subtle"
+        icon="i-lucide-eye"
+        data-testid="chat-read-only"
+        :title="t('chat.readOnly')"
+        :description="t('chat.readOnlyDescription')"
       />
     </template>
 
