@@ -100,6 +100,8 @@ apps/web/storybook-static/
 # Local agent tool state (the plugin may name its state dir .agent-teams-<project>)
 .agent-teams*/
 .dsh-auto/
+.council/
+.project-council/
 /.codex/
 /.agents/
 /.dsh/

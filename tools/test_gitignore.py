@@ -21,6 +21,7 @@ class GitignoreTests(unittest.TestCase):
             '.scratch/plan.md', '.worktrees/task/source.ts', '.runtime/odoo.log',
             '.agent-teams/team/team.json', '.agent-teams-webvue/team/team.json',
             '.agent-teams-anyproject/inbox/member.jsonl',
+            '.council/audit-r1/R0-inventory.md', '.project-council/state.json',
             'apps/web/.nuxt/tsconfig.json', 'node_modules/example/index.js',
             'apps/web/test-results/trace.zip', 'apps/web/coverage/index.html',
         ])
