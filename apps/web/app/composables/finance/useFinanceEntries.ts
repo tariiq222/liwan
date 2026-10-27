@@ -6,6 +6,7 @@ import {
   JournalEntryDetailSchema,
   JournalEntryListSchema,
   type JournalEntryCreate,
+  type JournalEntryPatch,
 } from '@webvue/contracts'
 import type { EntryListParams } from '@/components/finance/accounting/entryListParams'
 
@@ -58,6 +59,12 @@ function useEntryWrite<T, R>(request: (input: T) => Promise<R>) {
 export function useCreateJournalEntry() {
   const { $api } = useApi()
   return useEntryWrite((body: JournalEntryCreate) => $api('/api/v1/finance/entries', { method: 'POST', body, schema: JournalEntryDetailSchema }))
+}
+
+export function usePatchJournalEntry() {
+  const { $api } = useApi()
+  return useEntryWrite(({ id, body }: { id: number; body: JournalEntryPatch }) =>
+    $api(`/api/v1/finance/entries/${id}`, { method: 'PATCH', body, schema: JournalEntryDetailSchema }))
 }
 
 export function useDeleteJournalEntry() {

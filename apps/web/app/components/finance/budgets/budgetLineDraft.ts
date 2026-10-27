@@ -1,6 +1,6 @@
-import type { FinanceBudgetLineCreate } from '@webvue/contracts'
+import type { FinanceBudgetDetail, FinanceBudgetLine, FinanceBudgetLineCreate, FinanceBudgetLinePatch } from '@webvue/contracts'
 
-/** The add-line form as typed: the amount stays a string until it is validated. */
+/** The line form as typed: the amount stays a string until it is validated. */
 export interface BudgetLineDraft {
   accountId: number | null
   amount: string
@@ -17,6 +17,15 @@ export interface BudgetLineErrors {
 }
 
 export const emptyBudgetLine = (): BudgetLineDraft => ({ accountId: null, amount: '', label: '', dateFrom: null, dateTo: null })
+
+/** The form of a stored line, to edit it. */
+export const budgetLineDraftFrom = (line: FinanceBudgetLine): BudgetLineDraft => ({
+  accountId: line.account.id,
+  amount: String(line.amount),
+  label: line.label,
+  dateFrom: line.date_from,
+  dateTo: line.date_to,
+})
 
 /** A typed amount: a finite number of zero or more, else NaN. */
 function amountOf(value: string): number {
@@ -44,5 +53,19 @@ export function buildBudgetLine(draft: BudgetLineDraft): FinanceBudgetLineCreate
     ...(label ? { label } : {}),
     ...(draft.dateFrom ? { date_from: draft.dateFrom } : {}),
     ...(draft.dateTo ? { date_to: draft.dateTo } : {}),
+  }
+}
+
+/**
+ * The edit body: account, amount and label always (an emptied label clears), and the period, which falls back to the
+ * budget's when a date is cleared. The line's cost center is not on the form and stays as it is.
+ */
+export function buildBudgetLinePatch(draft: BudgetLineDraft, budget: Pick<FinanceBudgetDetail, 'date_from' | 'date_to'>): FinanceBudgetLinePatch {
+  return {
+    account_id: draft.accountId!,
+    amount: amountOf(draft.amount),
+    label: draft.label.trim(),
+    date_from: draft.dateFrom ?? budget.date_from,
+    date_to: draft.dateTo ?? budget.date_to,
   }
 }

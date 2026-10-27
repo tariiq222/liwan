@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import { useCreateJournalEntry, useFinanceGeneralJournals } from '@/composables/finance/useFinanceEntries'
+import { useCreateJournalEntry, useFinanceGeneralJournals, usePatchJournalEntry } from '@/composables/finance/useFinanceEntries'
 import Money from '../invoices/Money.vue'
 import PartnerPicker from '../invoices/PartnerPicker.vue'
 import AccountPicker from '../AccountPicker.vue'
@@ -8,6 +8,7 @@ import { financeErrorMessage } from '../financeErrors'
 import { entryErrorKey } from './entryErrors'
 import {
   buildEntryCreate,
+  buildEntryPatch,
   emptyEntryDraft,
   entryBalanced,
   entryDraftDirty,
@@ -18,16 +19,23 @@ import {
   type EntryFormDraft,
 } from './entryLines'
 
-// The editor of a new manual entry: the header, then the debit and credit lines with their running totals. Amounts
-// stay as typed until validated; the server has the last word on the period lock and the balance.
-defineProps<{ backTo: RouteLocationRaw }>()
-const emit = defineEmits<{ saved: [id: number] }>()
+// The editor of a manual entry: the create panel (a new draft) and the record page's edit mode (a draft's header and
+// lines; changed lines replace the draft's lines). Amounts stay as typed until validated; the server has the last word
+// on the period lock and the balance.
+const props = defineProps<{
+  backTo: RouteLocationRaw
+  /** The draft being edited; omitted when a new entry is created. */
+  recordId?: number
+  initial?: EntryFormDraft
+}>()
+const emit = defineEmits<{ saved: [id: number]; cancel: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const create = useCreateJournalEntry()
+const patch = usePatchJournalEntry()
 const journals = useFinanceGeneralJournals()
 
-const baseline = emptyEntryDraft()
+const baseline = props.initial ?? emptyEntryDraft()
 const draft = reactive<EntryFormDraft>(structuredClone(toRaw(baseline)))
 const attempted = ref(false)
 const saved = ref(false)
@@ -39,7 +47,7 @@ const totals = computed(() => entryTotals(draft.lines))
 const balanced = computed(() => entryBalanced(totals.value))
 const journalItems = computed(() => (journals.data.value?.items ?? []).map(journal => ({ value: journal.id, label: journal.name })))
 const currency = computed(() => journals.data.value?.items.find(journal => journal.id === draft.journalId)?.currency)
-const pending = computed(() => create.isPending.value)
+const pending = computed(() => create.isPending.value || patch.isPending.value)
 
 function addLine() { draft.lines.push(newEntryLine()) }
 function removeLine(index: number) { if (draft.lines.length > 2) draft.lines.splice(index, 1) }
@@ -49,8 +57,14 @@ async function submit() {
   attempted.value = true
   error.value = ''
   if (hasEntryErrors(errors.value)) return
+  if (props.recordId && !dirty.value) {
+    emit('saved', props.recordId)
+    return
+  }
   try {
-    const record = await create.mutateAsync(buildEntryCreate(draft))
+    const record = props.recordId
+      ? await patch.mutateAsync({ id: props.recordId, body: buildEntryPatch(draft, baseline) })
+      : await create.mutateAsync(buildEntryCreate(draft))
     saved.value = true
     await nextTick()
     emit('saved', record.id)
@@ -129,8 +143,9 @@ async function submit() {
     <SharedFormActions>
       <span class="text-xs text-muted">{{ t('financeAccounting.form.requiredHint') }}</span>
       <div class="ms-auto flex flex-wrap items-center gap-2">
-        <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-        <UButton type="submit" color="primary" :disabled="!hydrated || pending" :loading="pending" :label="t('financeAccounting.form.createDraft')" data-testid="finance-entry-submit" />
+        <UButton v-if="recordId" type="button" color="neutral" variant="outline" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" />
+        <UButton v-else type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
+        <UButton type="submit" color="primary" :disabled="!hydrated || pending" :loading="pending" :label="recordId ? t('app.save') : t('financeAccounting.form.createDraft')" data-testid="finance-entry-submit" />
       </div>
     </SharedFormActions>
   </UForm>

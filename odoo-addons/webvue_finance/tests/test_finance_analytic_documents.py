@@ -290,6 +290,24 @@ class TestFinanceAnalyticEntries(EntryCase):
         patched = self.api('PATCH', f'{ENTRIES}/{entry["id"]}', json={'lines': self.distributed_body({})['lines']}).json()
         self.assertEqual([line['analytic_distribution'] for line in patched['lines']], [[], []])
 
+    def test_an_edited_draft_sends_its_lines_back_with_the_split_it_read(self):
+        # The draft editor rebuilds every line from the record, its split included, and replaces the lines.
+        entry = self.create_entry(self.distributed_body({str(self.riyadh.id): 60, str(self.jeddah.id): 40}))
+        lines = [
+            {
+                'account_id': line['account']['id'],
+                'name': line['name'],
+                **({'debit': 300} if line['debit'] else {'credit': 300}),
+                **({'analytic_distribution': {str(share['account']['id']): share['percent'] for share in line['analytic_distribution']}}
+                   if line['analytic_distribution'] else {}),
+            }
+            for line in entry['lines']
+        ]
+        patched = self.api('PATCH', f'{ENTRIES}/{entry["id"]}', json={'ref': 'EDIT', 'lines': lines})
+        self.assertEqual(patched.status_code, 200, patched.text)
+        shares = {line['account']['id']: [share['percent'] for share in line['analytic_distribution']] for line in patched.json()['lines']}
+        self.assertEqual((patched.json()['amount_total'], shares[self.expense.id], shares[self.income.id]), (300, [60, 40], []))
+
     def test_a_posted_entry_reports_an_expense_per_cost_center(self):
         entry = self.create_entry(self.distributed_body({str(self.riyadh.id): 80, str(self.jeddah.id): 20}))
         self.post_entry(entry['id'])

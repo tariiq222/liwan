@@ -10,6 +10,7 @@ import {
   type FinanceBudgetCreate,
   type FinanceBudgetDistribute,
   type FinanceBudgetLineCreate,
+  type FinanceBudgetLinePatch,
 } from '@webvue/contracts'
 import type { BudgetListParams } from '@/components/finance/budgets/budgetListParams'
 
@@ -76,6 +77,18 @@ export function useCreateFinanceBudgetLine() {
   const { $api } = useApi()
   return useBudgetWrite(({ id, body }: { id: number; body: FinanceBudgetLineCreate }) =>
     $api(`/api/v1/finance/budgets/${id}/lines`, { method: 'POST', body, schema: FinanceBudgetLineSchema }))
+}
+
+export function usePatchFinanceBudgetLine() {
+  const { $api } = useApi()
+  return useBudgetWrite(({ budgetId, lineId, body }: { budgetId: number; lineId: number; body: FinanceBudgetLinePatch }) =>
+    $api(`/api/v1/finance/budgets/${budgetId}/lines/${lineId}`, { method: 'PATCH', body, schema: FinanceBudgetLineSchema }))
+}
+
+export function useDeleteFinanceBudgetLine() {
+  const { $api } = useApi()
+  return useBudgetWrite(({ budgetId, lineId }: { budgetId: number; lineId: number }) =>
+    $api(`/api/v1/finance/budgets/${budgetId}/lines/${lineId}`, { method: 'DELETE' }))
 }
 
 /** One account's budget split between cost centers, as one line each; the answer is the new lines. */

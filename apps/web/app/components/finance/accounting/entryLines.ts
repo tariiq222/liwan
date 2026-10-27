@@ -1,4 +1,4 @@
-import type { JournalEntryCreate, JournalEntryLineInput } from '@webvue/contracts'
+import type { JournalEntryCreate, JournalEntryDetail, JournalEntryLine, JournalEntryLineInput, JournalEntryPatch } from '@webvue/contracts'
 
 /** One line of the editor as typed: amounts stay strings until they are validated. */
 interface EntryLineDraft {
@@ -8,6 +8,12 @@ interface EntryLineDraft {
   name: string
   debit: string
   credit: string
+  /**
+   * The stored analytic split of an edited line and the account it was stored with, sent back as it is while the line
+   * keeps that account (`{}` keeps a line without a split). Null on a new line, or once the account changed: the key is
+   * then left out and Odoo's distribution models may apply.
+   */
+  analytic: { accountId: number; split: Record<string, number> } | null
 }
 
 export interface EntryFormDraft {
@@ -34,7 +40,7 @@ const cents = (value: number) => Math.round(value * 100)
 
 let nextKey = 1
 export function newEntryLine(): EntryLineDraft {
-  return { key: nextKey++, accountId: null, partnerId: null, name: '', debit: '', credit: '' }
+  return { key: nextKey++, accountId: null, partnerId: null, name: '', debit: '', credit: '', analytic: null }
 }
 
 export function emptyEntryDraft(): EntryFormDraft {
@@ -97,6 +103,7 @@ function linePayload(line: EntryLineDraft): JournalEntryLineInput {
     ...(line.partnerId ? { partner_id: line.partnerId } : {}),
     name: line.name.trim(),
     ...(debit > 0 ? { debit } : { credit }),
+    ...(line.analytic && line.analytic.accountId === line.accountId ? { analytic_distribution: line.analytic.split } : {}),
   }
 }
 
@@ -110,7 +117,49 @@ export function buildEntryCreate(draft: EntryFormDraft): JournalEntryCreate {
   }
 }
 
+/** The request split of a stored line: one percent per analytic account, `{}` when the line has none. */
+function analyticOf(line: JournalEntryLine): Record<string, number> {
+  const split: Record<string, number> = {}
+  for (const share of line.analytic_distribution) split[String(share.account.id)] = (split[String(share.account.id)] ?? 0) + share.percent
+  return split
+}
+
+const typedAmount = (value: number) => value > 0 ? String(value) : ''
+
+/** The editor of a draft entry, filled from the record: its header and every line as stored. */
+export function entryDraftFromRecord(entry: JournalEntryDetail): EntryFormDraft {
+  return {
+    journalId: entry.journal.id,
+    date: entry.date,
+    ref: entry.ref,
+    lines: entry.lines.map(line => ({
+      key: nextKey++,
+      accountId: line.account.id,
+      partnerId: line.partner?.id ?? null,
+      name: line.name,
+      debit: typedAmount(line.debit),
+      credit: typedAmount(line.credit),
+      analytic: { accountId: line.account.id, split: analyticOf(line) },
+    })),
+  }
+}
+
+const flatLines = (draft: EntryFormDraft) => JSON.stringify(draft.lines.map(({ key: _key, ...line }) => line))
+
+/**
+ * The edit body: the header always, with an emptied reference sent as `''` so it clears. The lines are sent only when
+ * they changed, because a body with `lines` replaces every line of the draft.
+ */
+export function buildEntryPatch(draft: EntryFormDraft, initial: EntryFormDraft): JournalEntryPatch {
+  const { lines, ...header } = buildEntryCreate(draft)
+  return {
+    ...header,
+    ref: draft.ref.trim(),
+    ...(flatLines(draft) !== flatLines(initial) ? { lines } : {}),
+  }
+}
+
 export function entryDraftDirty(draft: EntryFormDraft, initial: EntryFormDraft): boolean {
-  const flat = (value: EntryFormDraft) => JSON.stringify({ ...value, lines: value.lines.map(({ key: _key, ...line }) => line) })
+  const flat = (value: EntryFormDraft) => JSON.stringify({ ...value, lines: flatLines(value) })
   return flat(draft) !== flat(initial)
 }

@@ -49,6 +49,9 @@ export function useEntryRecord() {
   })
 
   const confirming = ref<EntryConfirmation | null>(null)
+  const editing = ref(false)
+  // A draft posted elsewhere while it is open here leaves edit mode, so the posted entry's actions come back.
+  watch(() => actions.value?.edit, canEdit => { if (!canEdit) editing.value = false })
   const actionError = ref('')
   const transition = useFinanceEntryTransition()
   const removal = useDeleteJournalEntry()
@@ -77,6 +80,11 @@ export function useEntryRecord() {
   }
 
   function ask(kind: EntryConfirmation) { confirming.value = kind }
+  function edit() {
+    confirming.value = null
+    actionError.value = ''
+    editing.value = true
+  }
   const menu = computed(() => {
     const set = actions.value
     if (!set) return []
@@ -118,6 +126,9 @@ export function useEntryRecord() {
     hydrated,
     confirming,
     confirmation,
+    editing,
+    edit,
+    backTo,
     actionError,
     ask,
     applyConfirmation,
