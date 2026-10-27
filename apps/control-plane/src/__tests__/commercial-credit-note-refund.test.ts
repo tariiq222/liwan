@@ -59,6 +59,13 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
     expect((await row(f.note)).refund_reference).toBe('MOY-REFUND-77')
     expect(await audits(f.note)).toHaveLength(1)
   })
+  it('refuses a refund reference that already closed another credit note', async () => {
+    const one = await failedOrder(), two = await failedOrder()
+    await call(one.note, ok)
+    await expect(call(two.note, ok)).rejects.toMatchObject({ status: 409, code: 'refund_reference_in_use' })
+    expect((await row(two.note)).status).toBe('pending'); expect(await audits(two.note)).toHaveLength(0)
+    await expect(call(two.note, { ...ok, external_reference: 'MOY-REFUND-78' })).resolves.toMatchObject({ status: 200 })
+  })
   it('lets exactly one of two concurrent different references win', async () => {
     const f = await failedOrder()
     const results = await Promise.allSettled([call(f.note, { ...ok, external_reference: 'MOY-A-111' }), call(f.note, { ...ok, external_reference: 'MOY-B-222' })])

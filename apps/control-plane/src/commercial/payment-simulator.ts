@@ -127,10 +127,13 @@ export class SimulatorAdapter implements PaymentAdapter {
   }
 
   async lookupAttempt(ref: string): Promise<ProviderEvent> {
-    const charge = [...this.charges.values()].find(event => event.provider_ref === ref)
-    if (charge) return { ...charge, event_id: `sim_lookup_${ref}_${charge.status}` }
-    const a = this.need(ref)
+    const a = this.need(ref) // like the real invoice endpoint, a token charge's payment id is unknown here
     return { ...this.eventFor(a, a.status), event_id: `sim_lookup_${a.ref}_${a.status}` }
+  }
+  async lookupPayment(paymentId: string): Promise<ProviderEvent> {
+    const charge = [...this.charges.values()].find(event => event.payment_id === paymentId)
+    if (!charge) throw new PaymentError('not_found', paymentId)
+    return { ...charge, event_id: `sim_lookup_${paymentId}_${charge.status}` }
   }
   async lookupByAttemptId(attemptId: string): Promise<ProviderEvent | null> {
     const a = this.byAttempt.get(attemptId)

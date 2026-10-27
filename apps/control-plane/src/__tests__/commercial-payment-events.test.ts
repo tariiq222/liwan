@@ -140,7 +140,7 @@ suite('simulated payment settlement on live PostgreSQL', () => {
   })
   it('a live attempt older than the invoice lifetime is looked up first, so an expired one is replaced',async () => {
     const f=await fixture(),first=await createPaymentAttempt(pool,f.input)
-    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '31 minutes' WHERE id=$1",[first.id])
+    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '31 minutes',updated_at=now()-interval '31 minutes' WHERE id=$1",[first.id])
     f.adapter.settle(first.provider_ref,'canceled') // expired at the provider; no webhook arrived
     const next=await createPaymentAttempt(pool,f.input)
     expect(next.id).not.toBe(first.id)
@@ -149,13 +149,71 @@ suite('simulated payment settlement on live PostgreSQL', () => {
   })
   it('a stale attempt the provider still reports pending is returned, never duplicated',async () => {
     const f=await fixture(),first=await createPaymentAttempt(pool,f.input),create=vi.spyOn(f.adapter,'createAttempt')
-    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '31 minutes' WHERE id=$1",[first.id])
+    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '31 minutes',updated_at=now()-interval '31 minutes' WHERE id=$1",[first.id])
     expect((await createPaymentAttempt(pool,f.input)).id).toBe(first.id)
     expect(create).not.toHaveBeenCalled()
   })
+  it('throttles the stale lookup to one per 5 seconds and never turns a failing lookup into an error',async()=>{
+    const f=await fixture(),first=await createPaymentAttempt(pool,f.input),lookup=vi.spyOn(f.adapter,'lookupAttempt')
+    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '31 minutes',updated_at=now()-interval '31 minutes' WHERE id=$1",[first.id])
+    lookup.mockRejectedValueOnce(new Error('provider down'))
+    expect((await createPaymentAttempt(pool,f.input)).id).toBe(first.id) // the failure is swallowed
+    expect(lookup).toHaveBeenCalledTimes(1)
+    expect((await createPaymentAttempt(pool,f.input)).id).toBe(first.id)
+    expect(lookup).toHaveBeenCalledTimes(1) // claimed within the last 5 seconds: no second provider call
+    await pool.query("UPDATE payment_attempts SET updated_at=now()-interval '10 seconds' WHERE id=$1",[first.id])
+    await createPaymentAttempt(pool,f.input)
+    expect(lookup).toHaveBeenCalledTimes(2)
+  })
+  it('records a late success of a cancelled attempt after another attempt paid as a duplicate charge, not silently',async()=>{
+    const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
+    f.adapter.settle(a.provider_ref,'canceled');await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))
+    const b=await createPaymentAttempt(pool,f.input)
+    f.adapter.settle(b.provider_ref);await deliver(f.adapter,f.adapter.webhookBody(b.provider_ref))
+    expect(await state(f.order_id)).toMatchObject({payment_state:'paid'})
+    f.adapter.settle(a.provider_ref) // the first invoice was in fact paid after all
+    expect(await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))).toEqual({status:200,outcome:'accepted'})
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[a.id])).rows[0].status).toBe('succeeded')
+    expect(await counts(f.order_id)).toEqual({payments:2,outbox:1}) // one fulfillment, two charges
+    const audit=(await pool.query("SELECT metadata FROM audit_events WHERE action='payment.duplicate_charge' AND subject=$1",[f.order_id])).rows
+    expect(audit).toHaveLength(1);expect(audit[0].metadata).toMatchObject({attempt_id:a.id})
+    expect((await pool.query("SELECT payload FROM commercial_outbox WHERE kind='reconcile.refund' AND aggregate_id=$1",[f.order_id])).rows[0].payload).toMatchObject({duplicate:true,attempt_id:a.id})
+    const refund=vi.spyOn(f.adapter,'refund')
+    expect(await processRefundOutbox(pool,f.adapter)).toBe(1)
+    const notes=(await pool.query('SELECT kind,status,amount_minor,reason FROM invoice_adjustments WHERE invoice_id=$1',[f.invoice])).rows
+    expect(notes).toEqual([{kind:'credit_note',status:'pending',amount_minor:'11500',reason:`duplicate payment — manual review (attempt ${a.id})`}])
+    expect(refund).not.toHaveBeenCalled()
+    expect(await state(f.order_id)).toMatchObject({payment_state:'paid',fulfillment_state:'queued'})
+    // A redelivery of the same duplicate adds nothing.
+    await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref));await processRefundOutbox(pool,f.adapter)
+    expect((await pool.query('SELECT count(*)::int AS n FROM invoice_adjustments WHERE invoice_id=$1',[f.invoice])).rows[0].n).toBe(1)
+    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='payment.duplicate_charge' AND subject=$1",[f.order_id])).rows[0].n).toBe(1)
+  })
+  it('cancels the live attempt at the provider when an earlier cancelled attempt turns out to be paid',async()=>{
+    const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
+    await pool.query("UPDATE payment_attempts SET status='canceled' WHERE id=$1",[a.id]) // closed locally, still payable at the provider
+    const b=await createPaymentAttempt(pool,f.input)
+    expect(b.id).not.toBe(a.id)
+    f.adapter.settle(a.provider_ref)
+    await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))
+    expect(await state(f.order_id)).toMatchObject({payment_state:'paid'})
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[b.id])).rows[0].status).toBe('canceled')
+    expect((await f.adapter.lookupAttempt(b.provider_ref)).status).toBe('canceled')
+    expect(await counts(f.order_id)).toEqual({payments:1,outbox:1})
+  })
+  it('leaves a sibling the provider could not cancel live for the reconciler',async()=>{
+    const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
+    await pool.query("UPDATE payment_attempts SET status='canceled' WHERE id=$1",[a.id])
+    const b=await createPaymentAttempt(pool,f.input)
+    vi.spyOn(f.adapter,'cancelAttempt').mockRejectedValue(new Error('provider down'))
+    f.adapter.settle(a.provider_ref)
+    await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref))
+    expect(await state(f.order_id)).toMatchObject({payment_state:'paid'})
+    expect((await pool.query('SELECT status FROM payment_attempts WHERE id=$1',[b.id])).rows[0].status).toBe('redirected')
+  })
   it('a stale attempt that was in fact paid settles the order instead of starting a second charge',async () => {
     const f=await fixture(),first=await createPaymentAttempt(pool,f.input),create=vi.spyOn(f.adapter,'createAttempt')
-    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '31 minutes' WHERE id=$1",[first.id])
+    await pool.query("UPDATE payment_attempts SET created_at=now()-interval '31 minutes',updated_at=now()-interval '31 minutes' WHERE id=$1",[first.id])
     f.adapter.settle(first.provider_ref)
     await expect(createPaymentAttempt(pool,f.input)).rejects.toMatchObject({status:409,code:'payment_not_awaiting'})
     expect(create).not.toHaveBeenCalled()

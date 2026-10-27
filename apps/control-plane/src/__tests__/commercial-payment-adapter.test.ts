@@ -89,6 +89,17 @@ describe('MoyasarAdapter', () => {
     expect(await code(confirmEvent(mk({}, [inv({ currency: 'USD' })]).a, ev))).toBe('event_mismatch')
     expect(await code(confirmEvent(mk({}, [inv({ id: 'inv_2' })]).a, ev))).toBe('event_mismatch')
   })
+  it('confirms a token charge through the payment endpoint, never the invoice endpoint', async () => {
+    const pay = { id: 'pay_9', status: 'paid', amount: 5000, currency: 'SAR' }
+    const r = mk({}, [pay])
+    const ev = r.a.verifyEvent(hook({ data: { id: 'pay_9', status: 'paid', amount: 5000, currency: 'SAR' } }), {})
+    expect(ev.provider_ref).toBe('pay_9')
+    expect((await confirmEvent(r.a, ev, { tokenCharge: true })).status).toBe('succeeded')
+    expect(r.calls.map(c => c.url)).toEqual(['https://api.moyasar.com/v1/payments/pay_9'])
+    expect(await code(confirmEvent(mk({}, [{ ...pay, amount: 1 }]).a, ev, { tokenCharge: true }))).toBe('event_mismatch')
+    // Without the marker the same event is looked up as an invoice, which does not exist for a payment id.
+    expect(await code(confirmEvent(mk({}, [{ http: 404 }]).a, ev))).toBe('not_found')
+  })
   it('refund and chargeToken shapes', async () => {
     const r = mk({}, [{ id: 'pay_1', status: 'refunded', amount: 5000, refunded: 2000, currency: 'SAR' }])
     const out = await r.a.refund('pay_1', { currency: 'SAR', exponent: 2, minor: 2000 })

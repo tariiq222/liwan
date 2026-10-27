@@ -210,8 +210,10 @@ export class MoyasarAdapter implements PaymentAdapter {
 }
 
 /** Authoritative re-check of a verified webhook; returns provider-fetched state. */
-export async function confirmEvent(adapter: PaymentAdapter, event: ProviderEvent): Promise<ProviderEvent> {
-  const auth = await adapter.lookupAttempt(event.provider_ref)
+export async function confirmEvent(adapter: PaymentAdapter, event: ProviderEvent, options: { tokenCharge?: boolean } = {}): Promise<ProviderEvent> {
+  // A token charge is identified by its payment id; only the payment endpoint knows it.
+  if (options.tokenCharge && !adapter.lookupPayment) throw new PaymentError('not_found', 'payment lookup unsupported')
+  const auth = options.tokenCharge ? await adapter.lookupPayment!(event.provider_ref) : await adapter.lookupAttempt(event.provider_ref)
   if (auth.provider !== adapter.provider || event.provider !== adapter.provider
     || auth.merchant_account !== adapter.merchantAccount || event.merchant_account !== adapter.merchantAccount
     || auth.live !== (adapter.mode === 'live') || event.live !== (adapter.mode === 'live')

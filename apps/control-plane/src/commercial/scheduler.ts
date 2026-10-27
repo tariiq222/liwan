@@ -64,8 +64,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   const USAGE_RETRY_MS = 30_000
   let usageRun: Promise<void> | undefined
   const billingMs = posInt(env.WEBVUE_COMMERCIAL_BILLING_INTERVAL_SEC, 3600) * 1000
-  // Invitation links use the first configured origin; payment returns resolve one origin per customer.
-  const origin = (env.WEBVUE_PAYMENT_RETURN_ORIGINS ?? '').split(',')[0]?.trim() ?? ''
+  // Payment returns and invitation links both resolve one origin per customer (the tenant's own host in shared mode).
   const returnOrigin = returnOriginFromEnv(pool, env) ?? unusableReturnOrigin
   let ticks = 0
   let lastBilling: number | undefined
@@ -93,7 +92,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       })
       if (o.mailAdapter) {
         const mail = o.mailAdapter
-        await job('invitation.send', () => sendInvitationOutbox(pool, { mail, origin, smtpHost: env.WEBVUE_MAIL_SMTP_HOST }))
+        await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.WEBVUE_MAIL_SMTP_HOST }))
         await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail }))
       }
       if (ticks % reconcileEvery === 0) {

@@ -24,8 +24,14 @@ automatic refund path in this phase.
    The note becomes `refunded` with the reference, the recording account and the time, and an
    `invoice.credit_refunded` audit event is written. The action moves no money. Repeating it with the same
    reference returns the recorded note; a different reference on a closed note is refused (`credit_note_not_pending`).
-   The invoice stays `credit_pending` (issued invoices are immutable): read the credit note's status, not the
-   invoice's.
+   The invoice stays `credit_pending` (issued invoices are immutable), so the **credit note's status is
+   authoritative**: the invoice status alone does not say whether money is still owed. The console invoice filter
+   `credit_pending` therefore also lists invoices whose credit notes are already `refunded`; open the invoice to see
+   which notes are still pending. A reference can be recorded on one credit note only (`refund_reference_in_use`, 409).
+5. A second successful charge on an order that is already paid (for example an expired link that was paid late)
+   is never ignored: the attempt is marked `succeeded`, a `payment.duplicate_charge` audit event is written and a
+   pending credit note for that attempt's amount is created (reason "duplicate payment — manual review"). Refund it
+   through steps 3 and 4. When an attempt pays an order, its other open attempts are cancelled at the provider.
 
 ## Known gaps
 

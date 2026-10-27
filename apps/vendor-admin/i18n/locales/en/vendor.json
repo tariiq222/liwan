@@ -1114,7 +1114,8 @@
         "at": "Recorded",
         "by": "Recorded by",
         "errors": {
-          "credit_note_not_pending": "This credit note is no longer pending. The page shows its current state."
+          "credit_note_not_pending": "This credit note is no longer pending. The page shows its current state.",
+          "refund_reference_in_use": "This refund reference is already recorded on another credit note."
         }
       },
       "immutable": "An issued invoice is never edited; corrections are separate documents.",

@@ -61,6 +61,8 @@ export interface PaymentAdapter {
   verifyEvent(rawBody: Uint8Array, headers: AdapterHeaders): ProviderEvent
   lookupAttempt(providerRef: string): Promise<ProviderEvent>
   lookupByAttemptId?(attemptId: string): Promise<ProviderEvent | null>
+  /** Looks up a direct (token) charge by its payment id; invoice lookups cannot see those. */
+  lookupPayment?(paymentId: string): Promise<ProviderEvent>
   cancelAttempt?(providerRef: string): Promise<void>
   refund(paymentRef: string, amount?: Money): Promise<RefundResult>
   chargeToken(input: ChargeTokenInput): Promise<ProviderEvent>

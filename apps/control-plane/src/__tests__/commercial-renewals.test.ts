@@ -89,7 +89,10 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     const attempt=(await pool.query('SELECT id FROM payment_attempts WHERE order_id=$1',[renewal.id])).rows[0]
     await pool.query("UPDATE payment_attempts SET updated_at=now()-interval '10 seconds' WHERE id=$1",[attempt.id])
     expect(charge.mock.calls[0]![0].callback_url).toBe(`https://webvue.test/api/commercial/payment-callback?attempt=${attempt.id}`)
+    expect((await pool.query('SELECT token_charge FROM payment_attempts WHERE id=$1',[attempt.id])).rows[0].token_charge).toBe(true)
+    const byInvoice=vi.spyOn(adapter,'lookupAttempt'),byPayment=vi.spyOn(adapter,'lookupPayment')
     await verifyReturnedAttempt(pool,{attempt_id:attempt.id,customer_id:yes.customer,adapter})
+    expect(byPayment).toHaveBeenCalledTimes(1);expect(byInvoice).not.toHaveBeenCalled() // a payment id is not an invoice id
     const paid=(await pool.query("SELECT state,renewal_at::text FROM subscriptions WHERE id=$1",[yes.id])).rows[0]
     expect(paid).toEqual({state:'active',renewal_at:'2026-10-01'})
     expect((await pool.query('SELECT status FROM renewals WHERE subscription_id=$1',[yes.id])).rows[0].status).toBe('paid')

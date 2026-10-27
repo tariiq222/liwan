@@ -54,7 +54,20 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
   const type = event.status === 'succeeded' ? 'payment_succeeded' : event.status === 'refunded' ? 'payment_refunded'
     : event.status === 'failed' ? 'payment_failed' : 'payment_pending'
   const next = nextOrderState(order as OrderStateInput, { type })
-  if (next.ignored) return 'ignored'
+  if (next.ignored) {
+    // A confirmed charge for an attempt that did not pay an order that is already paid (or refund-bound) is a
+    // second charge: record it, and queue a credit note for the operator instead of silently ignoring money.
+    if (event.status === 'succeeded' && attempt.status !== 'succeeded' && ['paid', 'refund_pending', 'refunded'].includes(order.payment_state)) {
+      await client.query("UPDATE payment_attempts SET status='succeeded',updated_at=now() WHERE id=$1", [attempt.id])
+      const reason = 'Duplicate payment on an already paid order — manual refund'
+      const inserted = await enqueueOutbox(client, { kind: 'reconcile.refund', aggregate_id: order.id, dedupe_key: event.event_id,
+        payload: { order_id: order.id, attempt_id: attempt.id, payment_id: event.payment_id, event_id: event.event_id, duplicate: true } })
+      if (inserted) await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+        [randomUUID(),'system','payment.duplicate_charge',order.id,reason,JSON.stringify({ attempt_id: attempt.id, event_id: event.event_id, payment_id: event.payment_id })])
+      return 'accepted'
+    }
+    return 'ignored'
+  }
   await client.query('UPDATE orders SET payment_state=$2,fulfillment_state=$3 WHERE id=$1', [order.id, next.payment_state, next.fulfillment_state])
   if (event.status === 'succeeded') {
     await client.query("UPDATE payment_attempts SET status='succeeded',updated_at=now() WHERE id=$1", [attempt.id])
@@ -94,14 +107,15 @@ export async function handleProviderEvent(pool: Pool, input: { provider: string;
       || !['pending','succeeded','failed','refunded','canceled'].includes(event.status)
       || !Number.isSafeInteger(event.amount.minor) || event.amount.minor < 0) throw new Error('invalid_event')
   } catch { return { status: 401, outcome: 'rejected' as const } }
-  return transaction(pool, async client => {
+  const result = await transaction(pool, async client => {
     const id = randomUUID()
     const inserted = await client.query(`INSERT INTO payment_events(id,provider,provider_event_id,status,amount_minor,currency,exponent,verified,confirmed,outcome)
       VALUES($1,$2,$3,$4,$5,$6,$7,true,false,'accepted') ON CONFLICT DO NOTHING RETURNING id`,
     [id,event.provider,event.event_id,event.status,event.amount.minor,event.amount.currency,event.amount.exponent])
     if (!inserted.rowCount) return { status: 200, outcome: 'duplicate' as const }
     let confirmed: ProviderEvent
-    try { confirmed = await confirmEvent(input.adapter, event) } catch (e) {
+    const tokenCharge = (await client.query('SELECT token_charge FROM payment_attempts WHERE provider=$1 AND provider_ref=$2', [event.provider, event.provider_ref])).rows[0]?.token_charge === true
+    try { confirmed = await confirmEvent(input.adapter, event, { tokenCharge }) } catch (e) {
       if ((e as { code?: string }).code !== 'event_mismatch') throw e // transient fetch failure rolls back for redelivery
       await client.query("UPDATE payment_events SET outcome='rejected',reason='event_mismatch' WHERE id=$1", [id])
       return { status: 200, outcome: 'rejected' as const }
@@ -110,13 +124,35 @@ export async function handleProviderEvent(pool: Pool, input: { provider: string;
     await client.query(`UPDATE payment_events SET confirmed=true,outcome=$2,reason=$3,
       attempt_id=(SELECT id FROM payment_attempts WHERE provider=$4 AND provider_ref=$5) WHERE id=$1`,
     [id,outcome === 'rejected' ? 'rejected' : 'accepted',outcome === 'rejected' ? 'attempt_mismatch' : null,event.provider,event.provider_ref])
-    return { status: 200, outcome }
+    return { status: 200, outcome, paid: outcome === 'accepted' && confirmed.status === 'succeeded' ? confirmed : null }
   })
+  if ('paid' in result && result.paid) await closeSiblingAttempts(pool, input.adapter, result.paid)
+  return { status: result.status, outcome: result.outcome }
+}
+
+/**
+ * Once an attempt paid its order, any other attempt of that order must not stay payable. The provider call runs
+ * after the settlement commit; one that fails is left for the reconciler, and a later success on it is recorded
+ * as a duplicate charge (never ignored).
+ */
+async function closeSiblingAttempts(pool: Pool, adapter: PaymentAdapter, paid: ProviderEvent) {
+  const siblings = (await pool.query(`SELECT s.* FROM payment_attempts a JOIN payment_attempts s ON s.order_id=a.order_id AND s.id<>a.id
+    WHERE a.provider=$1 AND a.provider_ref=$2 AND a.status='succeeded' AND s.status IN ('created','redirected','pending','unknown')`,
+  [paid.provider, paid.provider_ref])).rows
+  for (const sibling of siblings) {
+    if (!sibling.provider_ref || sibling.provider !== adapter.provider || sibling.mode !== adapter.mode || !adapter.cancelAttempt) continue
+    try {
+      await adapter.cancelAttempt(sibling.provider_ref)
+      await pool.query("UPDATE payment_attempts SET status='canceled',updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown')", [sibling.id])
+    } catch { /* the reconciler looks it up again */ }
+  }
 }
 
 export async function lookup(pool: Pool, adapter: PaymentAdapter, row: any) {
   if (row.provider !== adapter.provider || row.mode !== adapter.mode) throw new CommercialHttpError('provider_mismatch', 409)
-  const event = row.provider_ref ? await adapter.lookupAttempt(row.provider_ref) : await adapter.lookupByAttemptId?.(row.id)
+  // A token charge has a payment id, not an invoice: the invoice endpoint would answer 404 for it.
+  const event = row.token_charge ? (row.provider_ref ? await adapter.lookupPayment?.(row.provider_ref) : null)
+    : row.provider_ref ? await adapter.lookupAttempt(row.provider_ref) : await adapter.lookupByAttemptId?.(row.id)
   if (!event) throw new CommercialHttpError('payment_unknown', 503)
   if (event.provider !== adapter.provider || event.merchant_account !== adapter.merchantAccount || event.live !== (adapter.mode === 'live')
     || (event.attempt_id && event.attempt_id !== row.id) || (row.provider_ref && event.provider_ref !== row.provider_ref)
@@ -125,6 +161,7 @@ export async function lookup(pool: Pool, adapter: PaymentAdapter, row: any) {
   // Timeout may have lost only the create response, not the provider-side attempt.
   await pool.query('UPDATE payment_attempts SET provider_ref=COALESCE(provider_ref,$2),updated_at=now() WHERE id=$1', [row.id,event.provider_ref])
   const outcome = await applyConfirmedEvent(pool, event)
+  if (outcome === 'accepted' && event.status === 'succeeded') await closeSiblingAttempts(pool, adapter, event)
   // A pending answer changes nothing in the order, so it would leave an attempt parked as `unknown`
   // (a cancel that crashed before reaching the provider) unable to be paid or cancelled again.
   if (event.status === 'pending' && row.status === 'unknown')
@@ -154,9 +191,15 @@ export async function createPaymentAttempt(pool: Pool, input: { order_id: string
   let reservation = await reserve()
   // An invoice older than its lifetime may have expired unseen: ask the provider first, so an expired one is
   // closed (the order stays payable) and this call starts a fresh attempt instead of handing back a dead link.
+  // At most one provider lookup per 5 seconds per attempt (the claim), and a failed lookup never blocks the
+  // customer: the existing attempt is returned and the reconciler retries.
   if (!reservation.fresh && reservation.row.status !== 'unknown' && Date.now() - new Date(reservation.row.created_at).getTime() >= ATTEMPT_LIFETIME_MS) {
-    await lookup(pool, input.adapter, reservation.row)
-    reservation = await reserve()
+    const claimed = (await pool.query("UPDATE payment_attempts SET updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending') AND updated_at < now() - interval '5 seconds' RETURNING *", [reservation.row.id])).rows[0]
+    if (claimed) {
+      let looked = true
+      try { await lookup(pool, input.adapter, claimed) } catch { looked = false /* the existing attempt is returned below */ }
+      if (looked) reservation = await reserve()
+    }
   }
   if (!reservation.fresh) {
     if (reservation.row.status === 'unknown') await lookup(pool, input.adapter, reservation.row)

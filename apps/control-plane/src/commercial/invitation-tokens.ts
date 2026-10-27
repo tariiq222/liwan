@@ -42,7 +42,7 @@ export function isAllowedInvitationOrigin(origin: string): boolean {
   } catch {
     return false;
   }
-  if (u.username || u.password) return false;
+  if (u.username || u.password || u.hostname.includes("*")) return false;
   const host = u.hostname;
   if (u.protocol === "https:") return true;
   if (u.protocol === "http:") {

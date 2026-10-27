@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
 import { enqueueOutbox, claimOutbox, completeOutbox, failOutbox } from './outbox.js'
+import type { ReturnOrigin } from './return-origin.js'
 import { buildInvitationUrl, createInvitationToken, hashToken, invitationExpiry, renderInvitationEmail } from './invitation-tokens.js'
 import { isLocalCapture, type MailAdapter } from './mail-adapter.js'
 
@@ -47,16 +48,16 @@ export async function onSubscriptionActivated(pool: Pool, subscription_id: strin
   return issueInvitation(pool, { customer_id: s.customer_id, tenant_id: s.tenant_id, admin_login: s.admin_login, ttl_seconds: opts.ttl_seconds ?? 72 * 3600 })
 }
 
-export async function sendInvitationOutbox(pool: Pool, o: { mail: MailAdapter; origin: string; smtpHost?: string; limit?: number }) {
+export async function sendInvitationOutbox(pool: Pool, o: { mail: MailAdapter; returnOrigin: ReturnOrigin; smtpHost?: string; limit?: number }) {
   let sent = 0, failed = 0
   for (const row of await claimOutbox(pool, [INVITATION_KIND], o.limit ?? 20)) {
     const { invitation_id, token } = row.payload as { invitation_id: string; token?: string }
     try {
       const q = await pool.query(
-        `SELECT i.admin_login, c.name FROM admin_invitations i JOIN customers c ON c.id=i.customer_id
+        `SELECT i.admin_login, i.customer_id, c.name FROM admin_invitations i JOIN customers c ON c.id=i.customer_id
          WHERE i.id=$1 AND i.consumed_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > now()`, [invitation_id])
       if (!q.rows[0] || !token) { await completeOutbox(pool, row.id); continue } // superseded/expired: nothing to send
-      const mail = renderInvitationEmail({ companyName: q.rows[0].name, url: buildInvitationUrl(o.origin, token) })
+      const mail = renderInvitationEmail({ companyName: q.rows[0].name, url: buildInvitationUrl(await o.returnOrigin(q.rows[0].customer_id), token) })
       const message_id = `${invitation_id}@webvue`
       const res = await o.mail.send({ to: q.rows[0].admin_login, ...mail, message_id })
       const status = o.smtpHost && isLocalCapture(o.smtpHost) ? 'local_capture' : 'sent'
