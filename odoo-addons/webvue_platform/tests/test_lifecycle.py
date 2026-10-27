@@ -82,3 +82,5 @@ class TestTenantLifecycle(HttpCase):
         denied = self._authenticate('admin', 'admin')
         body = denied.json()
         self.assertTrue(body.get('error') or body.get('result', {}).get('uid') in (False, None), denied.text)
+        # A refused support user gets the plain refusal, never the tenant-suspended name.
+        self.assertFalse(body['error']['data']['name'].endswith('.WebVueTenantSuspended'), denied.text)
