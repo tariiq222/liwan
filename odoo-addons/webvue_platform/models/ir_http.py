@@ -83,7 +83,7 @@ class WebVuePlatformIrHttp(models.AbstractModel):
         has_user = bool(user) and not user._is_public()
         exempt = path in SESSION_ALLOWLIST or path.startswith(SESSION_PREFIXES + API_PREFIXES)
         if has_user and not exempt:
-            service = request.env['webvue.entitlement.service'].sudo()
+            service = request.env['webvue.entitlement.service']
             if service._webvue_session_forbidden(user):
                 request.session.logout(keep_db=True)
                 raise AccessDenied()

@@ -6,7 +6,7 @@ class WebVuePlatformResUsers(models.Model):
     _inherit = 'res.users'
 
     def _webvue_user_quota_delta(self, vals_list=None, records=None, write_vals=None):
-        service = self.env['webvue.entitlement.service'].sudo()
+        service = self.env['webvue.entitlement.service']
         excluded = set(service._webvue_excluded_user_ids())
         delta = 0
         if vals_list:
@@ -46,5 +46,5 @@ class WebVuePlatformResUsers(models.Model):
     def _login(self, credential, user_agent_env):
         auth_info = super()._login(credential, user_agent_env)
         user = self.browse(auth_info['uid'])
-        self.env['webvue.entitlement.service'].sudo()._webvue_assert_login_allowed(user)
+        self.env['webvue.entitlement.service']._webvue_assert_login_allowed(user)
         return auth_info

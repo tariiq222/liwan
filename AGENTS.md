@@ -308,10 +308,11 @@ cross-addon links.
   that is deliberate: Odoo's `_validate_fields` runs every `@api.constrains` method on `self.sudo()`
   ("run constrains just as sudoed computed-stored fields"), so a `sudo()` written inside a constraint
   cannot change what it reads and was only noise. Never add one there.
-  `webvue_platform` uses it only for the entitlement service's tenant-profile read, the user quota delta, the pre-login
-  suspension gates, the attachment storage-quota accounting, the binary image route and the pre-session request
-  authentication guard — all blocked by the system-only `access_webvue_tenant_profile_system` row, which no ordinary user
-  or public route may hold. The installed-module probe no longer elevates: `base_install_request` (auto-installed,
+  `webvue_platform` uses it only for the entitlement service's tenant-profile read, blocked by the system-only
+  `access_webvue_tenant_profile_system` row, which no ordinary user or public route may hold. Its callers (the user quota
+  delta, the pre-login suspension gates, the attachment storage-quota accounting, the binary image route and the
+  pre-session request authentication guard) call the service unelevated: the service raises its own read, and its
+  other reads (the support group, the user and storage counts) are raw SQL. The installed-module probe no longer elevates: `base_install_request` (auto-installed,
   depends `mail`) grants `base.group_user` read on `ir.module.module`, so the ACL never blocked it.
   `webvue_core` uses it only for the company-partner existence check, which Odoo's `res_company_rule_employee` hides and
   `active_test=False` must still see.

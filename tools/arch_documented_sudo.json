@@ -60,22 +60,6 @@
       "count": 1,
       "reason": "webvue_platform tenant-profile lookup: `self.env['webvue.tenant.profile'].sudo().search([], limit=2)`; blocked by odoo-addons/webvue_platform/security/ir.model.access.csv:2 `access_webvue_tenant_profile_system` (base.group_system only), with no group_user or public row; the service answers every caller including the public routes, and a read grant would expose the tenant's commercial policy and terminology to all users."
     },
-    "odoo-addons/webvue_platform/models/ir_attachment.py": {
-      "count": 3,
-      "reason": "webvue_platform attachment storage-quota accounting: `self.env['webvue.entitlement.service'].sudo()._webvue_claim_storage(extra)` in create (:30), write (:39) and unlink (:46); blocked by the same system-only `access_webvue_tenant_profile_system` row on the tenant profile the service writes; an attachment may be uploaded or removed by a user who holds no grant on the commercial quota record, so the counter moves elevated after the caller's own attachment access check."
-    },
-    "odoo-addons/webvue_platform/models/ir_binary.py": {
-      "count": 1,
-      "reason": "webvue_platform binary/image route: `self.env['webvue.entitlement.service'].sudo()` in `_find_record`; blocked by the system-only `access_webvue_tenant_profile_system` row on `webvue.tenant.profile`, and the caller may be the public user on an image route; the entitlement lifecycle read cannot be authorized from the request environment."
-    },
-    "odoo-addons/webvue_platform/models/ir_http.py": {
-      "count": 1,
-      "reason": "webvue_platform request authentication guard: `request.env['webvue.entitlement.service'].sudo()` in `_authenticate_explicit`; blocked by the system-only tenant-profile ACL; it runs before session establishment to decide whether a suspended tenant may keep a session, so there is no caller environment that could authorize reading the tenant profile."
-    },
-    "odoo-addons/webvue_platform/models/res_users.py": {
-      "count": 2,
-      "reason": "webvue_platform user quota and login gate: `self.env['webvue.entitlement.service'].sudo()` in `_webvue_user_quota_delta` (:9) and `self.env['webvue.entitlement.service'].sudo()._webvue_assert_login_allowed(user)` in `_login` (:49); blocked by the system-only `access_webvue_tenant_profile_system` row on `webvue.tenant.profile`, with the login path running pre-login; the quota counter and the suspension decision concern the tenant's commercial record, which no user may read."
-    },
     "odoo-addons/webvue_pmo/controllers/milestones.py": {
       "count": 1,
       "reason": "webvue_pmo milestone id validation: `request.env['project.milestone'].sudo().browse(int(mid)).exists()` in `_milestone_of`; blocked by /Users/tariq/code/odoo/addons/project/security/project_security.xml:319-330 `milestone_visibility_rule`, so reading `m.project_id` unelevated raises AccessError and turns the contracted 422 into a 403 existence oracle; the route is reached after the caller's own project check, and the id must be validated uniformly."
