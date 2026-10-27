@@ -21,9 +21,13 @@ const recipientQ = ref('')
 const leaving = ref(false)
 const busy = ref(false)
 const { data: conversation } = useChatConversation(conversationId)
-const { data: members } = useChatMembers(conversationId, memberOffset)
-const { data: attachments } = useChatAttachments(conversationId, fileOffset)
-const { data: recipients } = useChatRecipients(recipientQ)
+const { data: members, isLoading: membersLoading, error: membersError, refetch: refetchMembers } = useChatMembers(conversationId, memberOffset)
+const { data: attachments, isLoading: attachmentsLoading, error: attachmentsError, refetch: refetchAttachments } = useChatAttachments(conversationId, fileOffset)
+// People are listed only once something is typed, and never the ones already in the conversation.
+const searching = computed(() => recipientQ.value.trim().length > 0)
+const { data: recipients } = useChatRecipients(() => recipientQ.value.trim(), 0, searching)
+const memberIds = computed(() => new Set(members.value?.items.map(member => member.id)))
+const candidates = computed(() => searching.value ? (recipients.value?.items ?? []).filter(person => !memberIds.value.has(person.id)) : [])
 const { mutateAsync: patch } = usePatchConversation(conversationId)
 const { mutateAsync: addMembers } = useAddChatMembers(conversationId)
 const { mutateAsync: leave } = useLeaveConversation(conversationId)
@@ -109,30 +113,28 @@ async function confirmLeave() {
       />
     </SharedRecordSection>
     <SharedRecordSection variant="list" :title="t('chat.members')">
-      <template v-if="members?.items.length">
-        <div v-for="member in members.items" :key="member.id" class="flex items-center gap-3 p-3 text-start">
+      <SharedPageState :loading="membersLoading || !hydrated" :error="membersError" :empty="!members?.items.length" :empty-text="t('chat.noMembers')" @retry="refetchMembers()">
+        <div v-for="member in members?.items" :key="member.id" class="flex items-center gap-3 p-3 text-start">
           <UAvatar v-bind="avatarProps(member.name, member.id)" size="md" />
           <span class="min-w-0 flex-1 truncate">{{ member.name }}{{ member.im_status === 'online' ? ` · ${t('chat.online')}` : '' }}</span>
         </div>
-      </template>
-      <p v-else class="p-3 text-sm text-muted">{{ t('chat.noMembers') }}</p>
+      </SharedPageState>
       <div v-if="pagesFor(members?.total) > 1" class="p-3"><SharedPagination :page="pageFor(memberOffset)" :pages="pagesFor(members?.total)" @update:page="memberOffset = offsetFor($event, members?.total)" /></div>
       <div v-if="canManage" class="grid gap-2 p-3">
         <UFormField :label="t('chat.addMember')" name="recipientSearch">
           <UInput v-model="recipientQ" class="w-full" :placeholder="t('chat.recipientSearch')" :disabled="!hydrated || busy" />
         </UFormField>
-        <ul v-if="recipients?.items.length" class="max-h-40 divide-y divide-default overflow-y-auto rounded-control ring ring-default">
-          <li v-for="person in recipients.items" :key="person.id">
+        <ul v-if="candidates.length" class="max-h-40 divide-y divide-default overflow-y-auto rounded-control ring ring-default">
+          <li v-for="person in candidates" :key="person.id">
             <UButton type="button" color="neutral" variant="ghost" class="w-full justify-start rounded-none px-3 py-2 text-start" :disabled="!hydrated || busy" :label="person.name" @click="add(person.id)" />
           </li>
         </ul>
       </div>
     </SharedRecordSection>
     <SharedRecordSection variant="list" :title="t('chat.attachments')">
-      <template v-if="attachments?.items.length">
-        <div v-for="attachment in attachments.items" :key="attachment.id" class="p-3"><ChatAttachment :attachment="attachment" /></div>
-      </template>
-      <p v-else class="p-3 text-sm text-muted">{{ t('chat.noAttachments') }}</p>
+      <SharedPageState :loading="attachmentsLoading || !hydrated" :error="attachmentsError" :empty="!attachments?.items.length" :empty-text="t('chat.noAttachments')" @retry="refetchAttachments()">
+        <div v-for="attachment in attachments?.items" :key="attachment.id" class="p-3"><ChatAttachment :attachment="attachment" /></div>
+      </SharedPageState>
       <div v-if="pagesFor(attachments?.total) > 1" class="p-3"><SharedPagination :page="pageFor(fileOffset)" :pages="pagesFor(attachments?.total)" @update:page="fileOffset = offsetFor($event, attachments?.total)" /></div>
     </SharedRecordSection>
     <div v-if="canLeave" class="grid gap-3">

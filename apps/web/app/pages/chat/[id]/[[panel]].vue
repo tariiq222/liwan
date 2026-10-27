@@ -7,11 +7,17 @@ definePageMeta({
   key: route => `chat-${String(route.params.id)}`,
   validate: route => route.params.panel === undefined || route.params.panel === '' || route.params.panel === 'info',
 })
+const { t } = useI18n()
 const route = useRoute()
 const conversationId = computed(() => Number(route.params.id))
 const infoOpen = computed(() => route.params.panel === 'info')
+const validId = computed(() => Number.isSafeInteger(conversationId.value) && conversationId.value > 0)
 </script>
 
 <template>
-  <ChatWorkspace v-if="Number.isSafeInteger(conversationId) && conversationId > 0" :conversation-id="conversationId" :info-open="infoOpen" />
+  <ChatWorkspace v-if="validId" :conversation-id="conversationId" :info-open="infoOpen" />
+  <SharedPageContainer v-else width="list" data-testid="chat-not-found">
+    <SharedPageHeader :title="t('chat.title')" back-to="/chat" :back-label="t('chat.title')" />
+    <SharedNotFoundState back-to="/chat" :back-label="t('chat.title')" />
+  </SharedPageContainer>
 </template>

@@ -88,6 +88,14 @@
   "createChannel": "إنشاء القناة",
   "needDirectRecipient": "اختر شخصًا واحدًا لبدء المحادثة.",
   "needGroupRecipients": "اختر شخصين على الأقل لإنشاء مجموعة.",
-  "needChannelName": "أدخل اسم القناة."
+  "needChannelName": "أدخل اسم القناة.",
+  "yesterday": "أمس",
+  "mentionPeople": "أشخاص للإشارة إليهم",
+  "removeAttachment": "إزالة {name}",
+  "attachmentErrors": {
+    "type": "نوع الملف غير مدعوم. اختر PDF أو صورة أو نصًا أو DOCX أو XLSX.",
+    "empty": "الملف فارغ.",
+    "tooLarge": "حجم الملف يتجاوز 10 ميغابايت."
+  }
   }
 }

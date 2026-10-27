@@ -23,6 +23,7 @@ async function renderLogout(fetch: ReturnType<typeof vi.fn>) {
   const navigate = vi.fn()
   const addToast = vi.fn()
   const clearAiSessionState = vi.fn()
+  const clearChatDrafts = vi.fn()
   let click!: () => Promise<void>
   const UButton = Vue.defineComponent({
     inheritAttrs: false, props: { label: String },
@@ -44,10 +45,11 @@ async function renderLogout(fetch: ReturnType<typeof vi.fn>) {
       '@/components/account/PasswordForm.vue': { __esModule: true, default: container },
       '@tanstack/vue-query': { useQueryClient: () => ({ cancelQueries, clear }) },
       '@/utils/aiDraft': { clearAiSessionState },
+      '@/utils/chatDrafts': { clearChatDrafts },
       '@/composables/useAiConversation': { useAiConversation },
     },
   })
-  return { click, conversation, clear, navigate, addToast, clearAiSessionState }
+  return { click, conversation, clear, navigate, addToast, clearAiSessionState, clearChatDrafts }
 }
 
 it('clears the shared assistant conversation on successful logout before identity refresh completes', async () => {
@@ -57,6 +59,7 @@ it('clears the shared assistant conversation on successful logout before identit
   expect(fetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', body: {} })
   expect(page.conversation.currentRunId.value).toBeNull()
   expect(page.clear).toHaveBeenCalledTimes(1)
+  expect(page.clearChatDrafts).toHaveBeenCalledTimes(1)
   expect(page.navigate).toHaveBeenCalledWith('/login')
 })
 
