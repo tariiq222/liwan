@@ -164,7 +164,8 @@
       "invalid_state": "This action cannot be done right now.",
       "pdf_unavailable": "Could not generate the PDF right now. Try again shortly.",
       "commercial_unavailable": "This service is not available in this edition.",
-      "feature_not_included": "This feature is not included in your plan."
+      "feature_not_included": "This feature is not included in your plan.",
+      "tenant_suspended": "Your company’s subscription is suspended, so this session has ended. Contact your company administrator."
     }
   },
   "account": {

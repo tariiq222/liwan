@@ -47,6 +47,23 @@ class TestTenantLifecycle(HttpCase):
         wrong = self._authenticate('lifecycle_emp', 'not-the-password')
         self.assertFalse(wrong.json()['error']['data']['name'].endswith('.WebVueTenantSuspended'), wrong.text)
 
+    def test_suspension_mid_session_refuses_a_write_once_and_ends_the_session(self):
+        self.authenticate('lifecycle_emp', 'lifecycle_emp_pass_123')
+        self.assertEqual(self.url_open('/api/v1/me').status_code, 200)
+        self._operator().write({'status': 'suspended'})
+        write = self.url_open(
+            '/api/v1/me/appearance', method='PATCH',
+            json={'mode': 'dark'},
+            headers={'Content-Type': 'application/json'},
+        )
+        self.assertEqual(write.status_code, 403)
+        self.assertEqual(write.json()['code'], 'tenant_suspended')
+        # The refusal ended the session: the next request is anonymous and does not learn the
+        # tenant state, which only an authenticated session may be told.
+        after = self.url_open('/api/v1/me')
+        self.assertNotEqual(after.status_code, 200)
+        self.assertNotIn('tenant_suspended', after.text)
+
     def test_expired_tenant_allows_login_and_password_but_not_appearance(self):
         expiry = {'valid_until': datetime.now(timezone.utc).date() - timedelta(days=1)}
         independent = self.record.commercial_mode == 'non_saas'

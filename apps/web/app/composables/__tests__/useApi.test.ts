@@ -174,3 +174,51 @@ describe('localized server refusals', () => {
     expect(error).toMatchObject({ status: 502, code: 'http_error', message: 'Bad Gateway' })
   })
 })
+
+describe('useApi tenant suspension', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    vi.stubGlobal('window', {})
+    vi.stubGlobal('useI18n', () => ({ t: (key: string) => key, te: () => false, locale: { value: 'ar' } }))
+    ;(globalThis as any).useRequestHeaders = vi.fn().mockReturnValue({})
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    delete (globalThis as any).$fetch
+    delete (globalThis as any).useRequestHeaders
+  })
+
+  it('reports the suspension once and reads every later session refusal as the suspension', async () => {
+    const { useApi: freshUseApi } = await import('../useApi')
+    const { onTenantSuspension } = await import('../../utils/tenantSuspension')
+    const listener = vi.fn()
+    onTenantSuspension(listener)
+    ;(globalThis as any).$fetch = vi.fn()
+      .mockRejectedValueOnce({ statusCode: 403, data: { code: 'tenant_suspended', message: 'this tenant is suspended' } })
+      .mockRejectedValueOnce({ statusCode: 403, data: { data: { code: 'session_required', message: 'A valid session is required.' } } })
+      .mockRejectedValueOnce({ statusCode: 404, data: { code: 'not_found', message: 'x' } })
+    const { $api } = freshUseApi()
+    const first = await $api('/api/v1/projects').catch(value => value)
+    const second = await $api('/api/v1/tasks').catch(value => value)
+    const unrelated = await $api('/api/v1/tasks/9').catch(value => value)
+    expect(first).toMatchObject({ status: 403, code: 'tenant_suspended', message: 'errors.codes.tenant_suspended' })
+    expect(second).toMatchObject({ status: 403, code: 'tenant_suspended', message: 'errors.codes.tenant_suspended' })
+    expect(unrelated).toMatchObject({ status: 404, code: 'not_found' })
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('detects a first suspension that the Nitro admission wraps in its H3 envelope', async () => {
+    const { useApi: freshUseApi } = await import('../useApi')
+    const { onTenantSuspension } = await import('../../utils/tenantSuspension')
+    const listener = vi.fn()
+    onTenantSuspension(listener)
+    ;(globalThis as any).$fetch = vi.fn().mockRejectedValueOnce({
+      statusCode: 403,
+      data: { statusCode: 403, statusMessage: 'Forbidden', data: { code: 'tenant_suspended', message: 'This tenant is suspended.' } },
+    })
+    const { $api } = freshUseApi()
+    const refusal = await $api('/api/v1/projects').catch(value => value)
+    expect(refusal).toMatchObject({ status: 403, code: 'tenant_suspended', message: 'errors.codes.tenant_suspended' })
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+})

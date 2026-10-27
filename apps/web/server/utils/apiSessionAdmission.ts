@@ -10,8 +10,9 @@ import { createError, getCookie, type H3Event } from 'h3'
 const verified = new Map<string, number>()
 const pending = new Map<string, { check: Promise<void>, consumers: number }>()
 // Sessions the upstream definitively rejected. A forged-cookie flood costs one probe per
-// key per window instead of one per request. Unavailable outcomes are never recorded.
-const rejected = new Map<string, number>()
+// key per window instead of one per request. Unavailable outcomes are never recorded. A suspension
+// keeps its reason for the window, so requests racing the first refusal still name it.
+const rejected = new Map<string, { until: number, suspended: boolean }>()
 const MAX_VERIFIED = 512
 const MAX_REJECTED = 128
 const TTL_MS = 15_000
@@ -35,9 +36,9 @@ const required = () => createError({ statusCode: 403, data: { code: 'session_req
 const suspended = () => createError({ statusCode: 403, data: { code: 'tenant_suspended', message: 'This tenant is suspended.' } })
 const busy = () => createError({ statusCode: 429, data: { code: 'session_admission_busy', message: 'Session validation is busy. Try again shortly.' } })
 
-function remember(cache: Map<string, number>, max: number, key: string, ttl: number) {
+function remember<T>(cache: Map<string, T>, max: number, key: string, value: T) {
   if (cache.size >= max) cache.delete(cache.keys().next().value!)
-  cache.set(key, Date.now() + ttl)
+  cache.set(key, value)
 }
 
 function acquireLane(): Promise<void> {
@@ -82,7 +83,8 @@ export async function requireApiSession(event: H3Event, upstream: string, bindin
   const key = createHash('sha256').update(JSON.stringify([upstream, identityBinding, session])).digest('hex')
   if ((verified.get(key) ?? 0) > Date.now()) return
   verified.delete(key)
-  if ((rejected.get(key) ?? 0) > Date.now()) throw required()
+  const refusal = rejected.get(key)
+  if (refusal && refusal.until > Date.now()) throw refusal.suspended ? suspended() : required()
   rejected.delete(key)
   const existing = pending.get(key)
   if (existing) {
@@ -134,8 +136,11 @@ export async function requireApiSession(event: H3Event, upstream: string, bindin
         request.end()
       })
       if (valid === 'unavailable') throw unavailable()
-      if (valid !== true) { remember(rejected, MAX_REJECTED, key, REJECTED_TTL_MS); throw valid === 'suspended' ? suspended() : required() }
-      remember(verified, MAX_VERIFIED, key, TTL_MS)
+      if (valid !== true) {
+        remember(rejected, MAX_REJECTED, key, { until: Date.now() + REJECTED_TTL_MS, suspended: valid === 'suspended' })
+        throw valid === 'suspended' ? suspended() : required()
+      }
+      remember(verified, MAX_VERIFIED, key, Date.now() + TTL_MS)
     } finally { releaseLane() }
   })()
   const entry = { check, consumers: 1 }
