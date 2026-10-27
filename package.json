@@ -12,6 +12,7 @@
     "lint": "npm -w apps/web run lint && ruff check odoo-addons",
     "test:odoo": "python3 -B tools/odoo_test.py",
     "check:fast": "python3 -B tools/check_fast.py",
+    "check:audit": "npm audit --omit=dev --audit-level=high && npm audit --audit-level=critical",
     "check:semgrep": "python3 -B tools/semgrep_gate.py",
     "review:jev": "node tools/jev_review.mjs",
     "test:rtl": "npm -w apps/web run test:rtl",
