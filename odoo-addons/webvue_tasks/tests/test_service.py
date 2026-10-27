@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import SUPERUSER_ID
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
 
@@ -208,7 +208,8 @@ class TestMyTaskService(WebVueTasksCase):
     def test_transitions_and_allowed_actions(self):
         t = self.service(self.alice)._create_task({'name': 'a'})
         self.assertEqual(self.service(self.alice)._allowed_actions(t),
-                         {'write': True, 'done': True, 'reopen': False, 'cancel': True, 'convert': False})
+                         {'write': True, 'done': True, 'reopen': False, 'cancel': True, 'convert': False,
+                          'archive': False, 'unarchive': False})
         t = self.service(self.alice)._transition(t, 'done')
         self.assertEqual(t.state, '1_done')
         self.assertTrue(self.service(self.alice)._allowed_actions(t)['reopen'])
@@ -225,7 +226,8 @@ class TestMyTaskService(WebVueTasksCase):
         task = service._transition(task, 'cancel')
         self.assertEqual(task.state, '1_canceled')
         self.assertEqual(service._allowed_actions(task),
-                         {'write': True, 'done': False, 'reopen': True, 'cancel': False, 'convert': False})
+                         {'write': True, 'done': False, 'reopen': True, 'cancel': False, 'convert': False,
+                          'archive': True, 'unarchive': False})
         self.assertApiError(422, 'invalid', service._transition, task, 'done')
         self.assertApiError(422, 'invalid', service._transition, task, 'cancel')
         task = service._transition(task, 'reopen')
@@ -255,7 +257,8 @@ class TestMyTaskService(WebVueTasksCase):
         service = self.service(self.alice)
         self.assertTrue(task.with_user(self.alice).has_access('write'))
         self.assertEqual(service._allowed_actions(task), {
-            'write': True, 'done': True, 'reopen': False, 'cancel': True, 'convert': False})
+            'write': True, 'done': True, 'reopen': False, 'cancel': True, 'convert': False,
+            'archive': False, 'unarchive': False})
         task = service._update_task(task, {'name': 'renamed'})
         self.assertEqual(task.name, 'renamed')
         self.assertEqual(service._transition(task, 'done').state, '1_done')
@@ -286,7 +289,8 @@ class TestMyTaskService(WebVueTasksCase):
         project_task = self.env['project.task'].create(
             {'name': 'pt', 'project_id': project.id, 'user_ids': [Command.set([self.alice.id])]})
         self.assertEqual(self.service(self.alice)._allowed_actions(project_task), {
-            'write': False, 'done': False, 'reopen': False, 'cancel': False, 'convert': False})
+            'write': False, 'done': False, 'reopen': False, 'cancel': False, 'convert': False,
+            'archive': False, 'unarchive': False})
 
     def test_update(self):
         task = self.create(self.alice, 'a', priority='high')
@@ -404,6 +408,92 @@ class TestMyTaskService(WebVueTasksCase):
         # a stranger sees nothing of it
         self.assertEqual(self.list_ids(self.carol), set())
         self.assertEqual(self.list_ids(self.carol, closed=True), set())
+
+    # archive
+
+    def closed_task(self, user, name='done one', action='done'):
+        service = self.service(user)
+        return service._transition(self.create(user, name), action)
+
+    def archived_ids(self, user, **kwargs):
+        return self.list_ids(user, archived=True, **kwargs)
+
+    def test_archive_hides_a_closed_task_from_every_list_and_restore_brings_it_back(self):
+        service = self.service(self.alice)
+        for action in ('done', 'cancel'):
+            with self.subTest(action=action):
+                task = self.closed_task(self.alice, action=action)
+                self.assertEqual(self.list_ids(self.alice, closed=True) & {task.id}, {task.id})
+                archived = service._archive(task, archive=True)
+                self.assertFalse(archived.active)
+                self.assertEqual(self.list_ids(self.alice, closed=True) & {task.id}, set())
+                self.assertEqual(self.list_ids(self.alice) & {task.id}, set())
+                self.assertEqual(self.archived_ids(self.alice), {task.id})
+                # still readable by id (so it can be restored), and offers only the restore
+                self.assertEqual(service._get_personal(task.id), task)
+                actions = service._allowed_actions(task)
+                self.assertEqual([key for key, value in actions.items() if value], ['unarchive'])
+                restored = service._archive(task, archive=False)
+                self.assertTrue(restored.active)
+                self.assertEqual(self.list_ids(self.alice, closed=True) & {task.id}, {task.id})
+                self.assertEqual(self.archived_ids(self.alice), set())
+                self.assertTrue(service._allowed_actions(task)['archive'])
+
+    def test_archive_keeps_comments_attachments_and_subtasks(self):
+        service = self.service(self.alice)
+        task = self.create(self.alice, 'parent')
+        child = self.create(self.alice, 'child', parent_id=task.id)
+        task.with_user(self.alice).message_post(body='kept')
+        self.env['ir.attachment'].with_user(self.alice).create({
+            'name': 'a.txt', 'res_model': 'project.task', 'res_id': task.id, 'raw': b'x'})
+        service._transition(task, 'done')
+        service._archive(task, archive=True)
+        self.assertTrue(task.exists() and child.exists())
+        self.assertEqual(child.webvue_parent_id, task)
+        self.assertTrue(task.message_ids.filtered(lambda message: 'kept' in (message.body or '')))
+        self.assertTrue(self.env['ir.attachment'].search_count([('res_model', '=', 'project.task'), ('res_id', '=', task.id)]))
+
+    def test_archive_is_for_closed_tasks_only(self):
+        service = self.service(self.alice)
+        task = self.create(self.alice, 'still open')
+        self.assertApiError(422, 'invalid', service._archive, task, archive=True, field='action')
+        self.assertFalse(service._allowed_actions(task)['archive'])
+        self.assertTrue(task.active)
+
+    def test_archived_task_is_read_only_until_restored(self):
+        service = self.service(self.alice)
+        task = self.closed_task(self.alice)
+        service._archive(task, archive=True)
+        self.assertApiError(422, 'invalid', service._archive, task, archive=True, field='action')
+        self.assertApiError(422, 'invalid', service._update_task, task, {'name': 'x'}, field='action')
+        self.assertApiError(422, 'invalid', service._transition, task, 'reopen', field='action')
+        self.assertApiError(422, 'invalid', self.service(self.alice)._create_task, {'name': 'c', 'parent_id': task.id}, field='parent_id')
+        self.assertFalse(task.active)
+        self.assertApiError(422, 'invalid', service._archive, self.create(self.alice, 'live'), archive=False, field='action')
+
+    def test_archive_needs_write_and_visibility(self):
+        task = self.closed_task(self.alice)
+        self.assertApiError(404, 'not_found', self.service(self.carol)._archive, task, archive=True)
+        reader = self._managed_user('tasks_archive_reader', ['tasks.tasks.read'])
+        mine = self.service(self.alice)._create_task({'name': 'shared', 'assignees': [self.alice.id, reader.id]})
+        self.service(self.alice)._transition(mine, 'done')
+        self.assertApiError(403, 'forbidden', self.service(reader)._archive, mine, archive=True)
+        self.assertTrue(mine.active)
+
+    def test_an_assignee_may_archive_and_restore(self):
+        task = self.service(self.alice)._create_task({'name': 'shared', 'assignees': [self.alice.id, self.bob.id]})
+        self.service(self.bob)._transition(task, 'done')
+        self.service(self.bob)._archive(task, archive=True)
+        self.assertEqual(self.archived_ids(self.alice), {task.id})
+        self.assertEqual(self.archived_ids(self.bob), {task.id})
+        self.assertEqual(self.archived_ids(self.carol), set())
+        self.service(self.alice)._archive(task, archive=False)
+
+    def test_archive_never_unlinks(self):
+        task = self.closed_task(self.alice)
+        self.service(self.alice)._archive(task, archive=True)
+        with self.assertRaises(AccessError):
+            task.with_user(self.alice).unlink()
 
     def test_list_search_sort_and_paging(self):
         late = self.create(self.alice, 'Zeta', date_deadline='2026-12-31')

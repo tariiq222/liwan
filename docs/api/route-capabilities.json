@@ -3094,14 +3094,17 @@
     "GET /api/v1/tags": {
       "addon": "webvue_pmo",
       "auth": "user",
-      "capability_keys": [],
-      "capability_match": null,
-      "capability_source": "none",
+      "capability_keys": [
+        "pmo.projects.read",
+        "pmo.tasks.read"
+      ],
+      "capability_match": "any",
+      "capability_source": "decorator",
       "feature_keys": [
         "pmo.enabled"
       ],
       "handler": "list_tags",
-      "no_capability_reason": "ACL on project.tags plus the pmo.enabled feature only; tags have no capability key."
+      "no_capability_reason": null
     },
     "GET /api/v1/tasks": {
       "addon": "webvue_pmo",
@@ -6075,6 +6078,18 @@
       "handler": "create_my_task",
       "no_capability_reason": null
     },
+    "POST /api/v1/my-tasks/{task_id}/archive": {
+      "addon": "webvue_tasks",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "tasks.enabled"
+      ],
+      "handler": "archive_my_task",
+      "no_capability_reason": null
+    },
     "POST /api/v1/my-tasks/{task_id}/attachments": {
       "addon": "webvue_tasks",
       "auth": "user",
@@ -6156,6 +6171,18 @@
         "tasks.enabled"
       ],
       "handler": "reopen_my_task",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/my-tasks/{task_id}/unarchive": {
+      "addon": "webvue_tasks",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "tasks.enabled"
+      ],
+      "handler": "unarchive_my_task",
       "no_capability_reason": null
     },
     "POST /api/v1/notifications/read-all": {

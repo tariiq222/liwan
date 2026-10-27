@@ -41,6 +41,20 @@ class TestPersonalTaskThroughPmoRoutes(TasksRoutesCase):
         self.refused('tasks_bob', 'POST', f'{PMO}/{self.task.id}/archive')
         self.assertTrue(self.fresh().active)
 
+    def test_only_the_my_tasks_archive_archives_a_personal_task(self):
+        path = f'{BASE}/{self.task.id}'
+        self.ok('tasks_alice', 'POST', f'{path}/done')
+        self.ok('tasks_alice', 'POST', f'{path}/archive')
+        self.assertFalse(self.fresh().active)
+        # the marker is gone with the write: PMO's own routes and the ORM still refuse
+        status, payload = self.call('tasks_alice', 'POST', f'{PMO}/{self.task.id}/unarchive')
+        self.assertIn(status, (*REFUSED, 404), payload)
+        with self.assertRaises(AccessError):
+            self.task.with_user(self.alice).write({'active': True})
+        self.assertFalse(self.fresh().active)
+        self.ok('tasks_alice', 'POST', f'{path}/unarchive')
+        self.assertTrue(self.fresh().active)
+
     def test_pmo_patch_cannot_set_a_stage_or_tags(self):
         stage = self.env['project.task.type'].create({'name': 'Doing'})
         tag = self.env['project.tags'].create({'name': 'Hot'})

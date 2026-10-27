@@ -133,12 +133,6 @@
         "webvue_pmo/controllers/timeline.py:thread_tasks",
         "webvue_pmo/controllers/timeline.py:timeline"
       ]
-    },
-    {
-      "reason": "ACL on project.tags plus the pmo.enabled feature only; tags have no capability key.",
-      "routes": [
-        "webvue_pmo/controllers/tags.py:list_tags"
-      ]
     }
   ],
   "no_api_handler": [

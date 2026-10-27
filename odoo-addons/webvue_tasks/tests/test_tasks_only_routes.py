@@ -21,7 +21,7 @@ DETAIL_KEYS = {
     'id', 'name', 'description', 'state', 'priority', 'date_deadline', 'assignees', 'creator',
     'parent', 'is_subtask', 'subtasks', 'attachment_count', 'created_at', 'updated_at', 'allowed_actions',
 }
-ACTION_KEYS = {'write', 'done', 'reopen', 'cancel', 'convert'}
+ACTION_KEYS = {'write', 'done', 'reopen', 'cancel', 'convert', 'archive', 'unarchive'}
 
 
 @tagged('post_install', '-at_install', 'webvue', 'webvue_tasks')

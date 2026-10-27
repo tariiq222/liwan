@@ -1,21 +1,23 @@
 {
   "allowed_actions": {
+    "archive": false,
     "cancel": true,
     "convert": false,
     "done": true,
     "reopen": false,
+    "unarchive": false,
     "write": true
   },
   "assignees": [
     {
       "id": 2,
       "name": "Alice",
-      "user_id": 481
+      "user_id": 490
     },
     {
       "id": 3,
       "name": "tasks_only_http (base.group_user)",
-      "user_id": 488
+      "user_id": 497
     }
   ],
   "attachment_count": 1,
@@ -23,7 +25,7 @@
   "creator": {
     "id": 3,
     "name": "tasks_only_http (base.group_user)",
-    "user_id": 488
+    "user_id": 497
   },
   "date_deadline": "2026-01-01T00:00:00Z",
   "description": "book flights",

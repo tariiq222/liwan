@@ -3,7 +3,7 @@ import type { PersonalTaskState } from '@webvue/contracts'
 import type { MyTaskListParams } from '@/composables/useMyTasks'
 import { firstQuery } from './routeQuery'
 
-export const MY_TASK_TABS = ['open', 'closed'] as const
+export const MY_TASK_TABS = ['open', 'closed', 'archived'] as const
 export const MY_TASK_SCOPES = ['all', 'assigned', 'created'] as const
 export const MY_TASK_SORTS = ['deadline', 'created', 'name'] as const
 export const MY_TASK_PAGE_SIZE = 50
@@ -42,6 +42,7 @@ export function parseListState(query: LocationQuery | LocationQueryRaw): MyTaskL
 export function toListParams(state: MyTaskListState): MyTaskListParams {
   return {
     closed: state.tab === 'closed',
+    archived: state.tab === 'archived' ? true : undefined,
     scope: state.scope === 'all' ? undefined : state.scope,
     sort: state.sort === DEFAULTS.sort ? undefined : state.sort,
     q: state.q.trim() || undefined,

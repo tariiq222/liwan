@@ -54,6 +54,9 @@ def _flag(args, field, allowed):
 
 def _list_params(args):
     closed = _flag(args, 'closed', {'0', '1'}) == '1'
+    archived = _flag(args, 'archived', {'0', '1'}) == '1'
+    if archived and closed:
+        _invalid('closed and archived are exclusive', 'archived')
     assigned = _flag(args, 'assigned', {'me'}) is not None
     created = _flag(args, 'created', {'me'}) is not None
     if not assigned and not created:
@@ -62,6 +65,7 @@ def _list_params(args):
     offset = _digits(args['offset'], 'offset', minimum=0) if 'offset' in args else 0
     return {
         'closed': closed,
+        'archived': archived,
         'assigned': assigned,
         'created': created,
         'q': (args.get('q') or '').strip() or None,
@@ -153,3 +157,20 @@ class MyTasksController(http.Controller):
     @requires_feature('tasks.enabled', operation='write')
     def cancel_my_task(self, task_id, **_):
         return self._transition(task_id, 'cancel')
+
+    def _archive(self, task_id, archive):
+        _require('tasks.tasks.write')
+        task = request.env['webvue.my.task.service']._archive(_task_for(task_id), archive=archive)
+        return dump_personal_task(task)
+
+    @http.route('/api/v1/my-tasks/<int:task_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('tasks.enabled', operation='write')
+    def archive_my_task(self, task_id, **_):
+        return self._archive(task_id, True)
+
+    @http.route('/api/v1/my-tasks/<int:task_id>/unarchive', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('tasks.enabled', operation='write')
+    def unarchive_my_task(self, task_id, **_):
+        return self._archive(task_id, False)

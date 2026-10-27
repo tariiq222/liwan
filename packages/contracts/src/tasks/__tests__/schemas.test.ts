@@ -13,7 +13,7 @@ import {
 } from '../index'
 
 const PERSON = { id: 2, name: 'x', user_id: 2 }
-const ACTIONS = { write: true, done: true, reopen: false, cancel: true, convert: false }
+const ACTIONS = { write: true, done: true, reopen: false, cancel: true, convert: false, archive: false, unarchive: false }
 const DETAIL = {
   id: 1, name: 'a', description: '', state: 'open', priority: 'normal', date_deadline: null,
   assignees: [], creator: PERSON, parent: null, is_subtask: false, subtasks: [], attachment_count: 0,

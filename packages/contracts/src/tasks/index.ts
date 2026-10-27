@@ -15,6 +15,9 @@ export const PersonalTaskActionsSchema = z.object({
   reopen: z.boolean(),
   cancel: z.boolean(),
   convert: z.boolean(),
+  // Archive withdraws a done or cancelled task from the lists; unarchive restores it. Never a delete.
+  archive: z.boolean(),
+  unarchive: z.boolean(),
 }).strict()
 
 // Detail shape: returned by every personal task read and write.

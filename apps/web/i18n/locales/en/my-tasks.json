@@ -7,7 +7,8 @@
       "countTag": "{count} task | {count} tasks",
       "tabs": {
         "open": "Open",
-        "closed": "Closed"
+        "closed": "Closed",
+        "archived": "Archived"
       },
       "filters": {
         "all": "All",
@@ -21,6 +22,7 @@
         "open": "No open tasks. Start by adding a new task.",
         "search": "No tasks match your search.",
         "closed": "No closed tasks yet.",
+        "archived": "No archived tasks.",
         "scope": "No tasks in this scope. Try showing all.",
         "page": "No visible results on this page."
       },
@@ -35,6 +37,7 @@
       "overdue": "Overdue",
       "loadError": "Could not load the requested tasks. Showing the last loaded results; try again.",
       "closedHint": "Includes completed and cancelled tasks.",
+      "archivedHint": "Done and cancelled tasks you archived. Restore one to bring it back to Closed.",
       "tableView": "Table view",
       "cardView": "Card view"
     },
@@ -71,7 +74,8 @@
     "state": {
       "open": "Open",
       "done": "Done",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "archived": "Archived"
     },
     "detail": {
       "description": "Description",
@@ -94,7 +98,9 @@
       "reopen": "Reopen",
       "cancel": "Cancel task",
       "edit": "Edit",
-      "more": "More"
+      "more": "More",
+      "archive": "Archive",
+      "unarchive": "Restore"
     },
     "cancelConfirm": {
       "title": "Cancel this task?",

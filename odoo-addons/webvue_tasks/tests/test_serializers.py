@@ -25,7 +25,7 @@ LIST_KEYS = {
     'id', 'name', 'state', 'priority', 'date_deadline', 'assignees', 'source', 'project', 'href',
 }
 COMMENT_KEYS = {'id', 'body', 'author', 'created_at'}
-ACTION_KEYS = {'write', 'done', 'reopen', 'cancel', 'convert'}
+ACTION_KEYS = {'write', 'done', 'reopen', 'cancel', 'convert', 'archive', 'unarchive'}
 GOLDEN = (
     Path(__file__).resolve().parents[3]
     / 'packages/contracts/src/tasks/__tests__/personal-task.golden.json'
@@ -78,6 +78,7 @@ class TestTaskSerializers(WebVueTasksCase):
             'updated_at': '2026-10-13T09:15:00Z',
             'allowed_actions': {
                 'write': True, 'done': True, 'reopen': False, 'cancel': True, 'convert': False,
+                'archive': False, 'unarchive': False,
             },
         }
         detail = dump_personal_task(task)
