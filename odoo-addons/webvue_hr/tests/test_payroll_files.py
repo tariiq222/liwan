@@ -298,43 +298,50 @@ class TestPayrollFiles(PayrollCase):
         EMPTY body with a wrong or missing media type; nonempty payloads are covered by the next test.
         """
         self._csrf_run = self._run()
-        cases = (
-            ('cross-site JSON', {'Content-Type': 'application/json', 'Sec-Fetch-Site': 'cross-site'}, 403, 'cross_site_request'),
-            ('same-site JSON', {'Content-Type': 'application/json', 'Sec-Fetch-Site': 'same-site'}, 403, 'cross_site_request'),
-            ('empty body, form type', {'Content-Type': 'application/x-www-form-urlencoded'}, 415, 'unsupported_media_type'),
-            ('empty body, text type', {'Content-Type': 'text/plain'}, 415, 'unsupported_media_type'),
-            ('no content type', {}, 415, 'unsupported_media_type'),
+        json_type = 'application/json'
+        cases = (  # (label, request headers, expected status, expected response media type, expected code)
+            ('cross-site JSON', {'Content-Type': json_type, 'Sec-Fetch-Site': 'cross-site'}, 403, json_type, 'cross_site_request'),
+            ('same-site JSON', {'Content-Type': json_type, 'Sec-Fetch-Site': 'same-site'}, 403, json_type, 'cross_site_request'),
+            ('empty body, form type', {'Content-Type': 'application/x-www-form-urlencoded'}, 415, json_type, 'unsupported_media_type'),
+            ('empty body, text type', {'Content-Type': 'text/plain'}, 415, json_type, 'unsupported_media_type'),
+            ('no content type', {}, 415, json_type, 'unsupported_media_type'),
         )
         for route, _profile in self._file_routes():
-            for label, headers, status, code in cases:
+            for label, headers, status, media_type, code in cases:
                 res = self._unsafe(route, headers)
-                self.assertEqual((res.status_code, res.json()['code']), (status, code), f'{route} {label}')
+                self.assertEqual(
+                    (res.status_code, res.headers['Content-Type'].split(';')[0], res.json()['code']),
+                    (status, media_type, code), f'{route} {label}',
+                )
                 self.assertNotIn(IBAN_ONE, res.text)
         self.assertEqual(self._kept_and_logged(self._csrf_run), (0, 0))
 
     def test_a_real_non_json_payload_is_rejected_by_the_framework_and_keeps_nothing(self):
         """Nonempty urlencoded, text and multipart bodies never reach the controller.
 
-        Measured, not promised: the framework answers ``415`` as ``text/html`` with no structured ``code``. The
-        invariant that matters is asserted: no file row, no audit event, no attachment, and no IBAN in the answer.
-        A malformed JSON body is a framework ``400`` (``could not parse the body as json``) before the controller.
+        Measured, not promised: the framework answers ``415`` as ``text/html`` with no structured ``code``. A
+        malformed JSON body is a framework ``400`` answered as ``application/json`` by ``Json2Dispatcher.handle_error``.
+        Each case carries its status and response media type, both asserted on the same response. The invariant that
+        matters holds on every case: no file row, no audit event, no attachment, and no IBAN in the answer.
         """
         self._csrf_run = self._run()
         boundary = 'webvueboundary'
         multipart = (f'--{boundary}\r\nContent-Disposition: form-data; name="profile_id"\r\n\r\n1\r\n--{boundary}--\r\n').encode()
-        payloads = (
-            ('urlencoded', {'Content-Type': 'application/x-www-form-urlencoded'}, b'profile_id=1&value_date=2026-10-31', 415),
-            ('text/plain', {'Content-Type': 'text/plain'}, b'profile_id=1', 415),
-            ('multipart', {'Content-Type': f'multipart/form-data; boundary={boundary}'}, multipart, 415),
-            ('malformed JSON', {'Content-Type': 'application/json'}, b'{"profile_id": ', 400),
+        html, json_type = 'text/html', 'application/json'
+        payloads = (  # (label, request headers, body, expected status, expected response media type)
+            ('urlencoded', {'Content-Type': 'application/x-www-form-urlencoded'}, b'profile_id=1&value_date=2026-10-31', 415, html),
+            ('text/plain', {'Content-Type': 'text/plain'}, b'profile_id=1', 415, html),
+            ('multipart', {'Content-Type': f'multipart/form-data; boundary={boundary}'}, multipart, 415, html),
+            ('malformed JSON', {'Content-Type': json_type}, b'{"profile_id": ', 400, json_type),
         )
         for route, _profile in self._file_routes():
-            for label, headers, data, status in payloads:
+            for label, headers, data, status, media_type in payloads:
                 res = self._unsafe(route, headers, data=data)
-                self.assertEqual(res.status_code, status, f'{route} {label}: {res.text[:200]}')
+                self.assertEqual(
+                    (res.status_code, res.headers['Content-Type'].split(';')[0]),
+                    (status, media_type), f'{route} {label}: {res.text[:200]}',
+                )
                 self.assertNotIn(IBAN_ONE, res.text)
-            res = self._unsafe(route, {'Content-Type': 'text/plain'}, data=b'profile_id=1')
-            self.assertTrue(res.headers['Content-Type'].startswith('text/html'), route)
         self.assertEqual(self._kept_and_logged(self._csrf_run), (0, 0))
         self.assertEqual(self.env['ir.attachment'].search_count([('res_model', '=', 'webvue.hr.payroll.file')]), 0)
 
