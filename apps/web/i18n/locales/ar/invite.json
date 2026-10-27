@@ -13,7 +13,7 @@
     "unavailableTitle": "الخدمة غير متاحة حاليًا",
     "unavailableBody": "حاول مرة أخرى بعد قليل.",
     "passwordRejectedTitle": "كلمة المرور مرفوضة",
-    "passwordRejectedBody": "اختر كلمة مرور أقوى وأعد المحاولة.",
+    "passwordRejectedBody": "لم تُقبل كلمة المرور. اختر كلمة مرور أخرى تحقق القواعد وأعد المحاولة.",
     "inProgressTitle": "جارٍ تفعيل حسابك",
     "inProgressBody": "انتظر قليلًا ثم أعد المحاولة.",
     "accountUnavailableTitle": "لا يمكن تفعيل هذا الحساب",

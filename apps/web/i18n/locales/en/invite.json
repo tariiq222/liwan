@@ -13,7 +13,7 @@
     "unavailableTitle": "The service is currently unavailable",
     "unavailableBody": "Please try again shortly.",
     "passwordRejectedTitle": "Password rejected",
-    "passwordRejectedBody": "Choose a stronger password and try again.",
+    "passwordRejectedBody": "The password was not accepted. Choose another one that meets the rules and try again.",
     "inProgressTitle": "Your account is being activated",
     "inProgressBody": "Wait a moment, then try again.",
     "accountUnavailableTitle": "This account cannot be activated",
