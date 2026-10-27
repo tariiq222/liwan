@@ -2,12 +2,16 @@
 import math
 
 from odoo.addons.webvue_api.controllers.common import ApiError, parse_positive_int
-from odoo.addons.webvue_hr.models.hr_compensation import normalize_iban
+from odoo.addons.webvue_hr.models.hr_compensation import (
+    RELATIONSHIP_TYPES,
+    normalize_iban,
+)
 from odoo.addons.webvue_hr.serializers.assets.common import ref, reject_unknown
 from odoo.addons.webvue_hr.serializers.dates import parse_optional_date
 
 AMOUNT_FIELDS = ('basic_wage', 'housing_allowance', 'transport_allowance', 'other_allowance')
-COMPENSATION_FIELDS = (*AMOUNT_FIELDS, 'iban', 'bank_id', 'gosi_number', 'gosi_registration_date')
+COMPENSATION_FIELDS = (*AMOUNT_FIELDS, 'iban', 'bank_id', 'gosi_number', 'gosi_registration_date', 'relationship_type')
+RELATIONSHIP_KEYS = frozenset(key for key, _label in RELATIONSHIP_TYPES)
 
 
 def dump_compensation(record):
@@ -22,6 +26,7 @@ def dump_compensation(record):
         'gosi_number': record.gosi_number or None,
         'gosi_registration_date': record.gosi_registration_date.isoformat() if record.gosi_registration_date else None,
         'nationality': {'id': country.id, 'name': country.name, 'code': country.code} if country else None,
+        'relationship_type': record.relationship_type,
     }
 
 
@@ -56,4 +61,8 @@ def parse_compensation(payload):
         raise ApiError(422, 'invalid', 'gosi_number must be a string', field='gosi_number')
     vals['gosi_number'] = (gosi or '').strip() or False
     vals['gosi_registration_date'] = parse_optional_date(payload['gosi_registration_date'], 'gosi_registration_date')
+    relationship = payload['relationship_type']
+    if relationship not in RELATIONSHIP_KEYS:
+        raise ApiError(422, 'invalid', 'relationship_type is not a known relationship', field='relationship_type')
+    vals['relationship_type'] = relationship
     return vals

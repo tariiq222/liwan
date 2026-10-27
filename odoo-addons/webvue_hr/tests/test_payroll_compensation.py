@@ -8,13 +8,14 @@ from odoo.addons.webvue_hr.serializers.payroll.compensation import parse_compens
 
 COMPENSATION_KEYS = {
     'employee', 'basic_wage', 'housing_allowance', 'transport_allowance', 'other_allowance',
-    'fixed_wage', 'iban', 'bank', 'gosi_number', 'gosi_registration_date', 'nationality',
+    'fixed_wage', 'iban', 'bank', 'gosi_number', 'gosi_registration_date', 'nationality', 'relationship_type',
 }
 SALARY_KEYS = {'basic_wage', 'housing_allowance', 'iban', 'gosi_number', 'compensation', 'wage'}
 VALID_IBAN = 'SA0380000000608010167519'
 PUT_BODY = {
     'basic_wage': 10000, 'housing_allowance': 2500, 'transport_allowance': 1000, 'other_allowance': 0,
     'iban': VALID_IBAN, 'bank_id': None, 'gosi_number': '123456789', 'gosi_registration_date': '2024-01-01',
+    'relationship_type': 'employee',
 }
 
 
@@ -180,3 +181,17 @@ class TestPayrollCompensation(PayrollCase):
         self.assertEqual(res.status_code, 200, res.text)
         self._login(self.reader)
         self.assertEqual(self._get().json()['bank'], {'id': bank.id, 'name': 'Al Rajhi Test Bank'})
+
+    def test_relationship_type_is_the_customers_choice(self):
+        self._login(self.manager)
+        res = self._put({**PUT_BODY, 'relationship_type': 'unknown'})
+        self.assertEqual((res.status_code, res.json()['field']), (422, 'relationship_type'))
+        for relationship in ('independent_contractor', 'consultant', 'other_cooperation', 'employee'):
+            with self.subTest(relationship=relationship):
+                res = self._put({**PUT_BODY, 'relationship_type': relationship})
+                self.assertEqual(res.status_code, 200, res.text)
+                self.assertEqual(res.json()['relationship_type'], relationship)
+        self.assertEqual(
+            self.env['webvue.hr.compensation'].create({'employee_id': self.make_employee('Default').id, 'basic_wage': 1})
+            .relationship_type, 'employee',
+        )

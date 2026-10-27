@@ -6,6 +6,9 @@ import { HrRefSchema } from './ref'
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const amount = z.number().min(0)
 
+// The customer's own classification of the relationship; it never changes a calculation or blocks a run.
+export const HrPayrollRelationshipSchema = z.enum(['employee', 'independent_contractor', 'consultant', 'other_cooperation'])
+
 export const HrCompensationNationalitySchema = z.object({
   id: z.number().int().positive(),
   name: z.string(),
@@ -24,6 +27,7 @@ export const HrCompensationSchema = z.object({
   gosi_number: z.string().nullable(),
   gosi_registration_date: isoDate.nullable(),
   nationality: HrCompensationNationalitySchema.nullable(),
+  relationship_type: HrPayrollRelationshipSchema,
 }).strict()
 
 // A write sends every field; the fixed wage and the nationality are derived by the server.
@@ -36,8 +40,10 @@ export const HrCompensationWriteSchema = z.object({
   bank_id: z.number().int().positive().nullable(),
   gosi_number: z.string().nullable(),
   gosi_registration_date: isoDate.nullable(),
+  relationship_type: HrPayrollRelationshipSchema,
 }).strict()
 
+export type HrPayrollRelationship = z.infer<typeof HrPayrollRelationshipSchema>
 export type HrCompensation = z.infer<typeof HrCompensationSchema>
 export type HrCompensationWrite = z.infer<typeof HrCompensationWriteSchema>
 
