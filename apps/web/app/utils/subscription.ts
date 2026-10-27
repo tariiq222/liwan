@@ -143,9 +143,10 @@ export type OrderOutcome = 'applied' | 'cancelled' | 'awaiting_payment' | 'payme
 
 /** What the customer should see for an order, whether it is still open or already closed. */
 export function orderOutcome(order: Pick<Order, 'payment_state' | 'fulfillment_state'> & { cancelled?: boolean }): OrderOutcome {
+  // A refund can follow activation and leaves fulfillment_state as it was, so the payment outcome wins.
+  if (order.payment_state === 'refund_pending' || order.payment_state === 'refunded') return 'refund'
   if (order.fulfillment_state === 'applied') return 'applied'
   if (order.fulfillment_state === 'failed' || order.fulfillment_state === 'needs_intervention') return 'activation_failed'
-  if (order.payment_state === 'refund_pending' || order.payment_state === 'refunded') return 'refund'
   if (order.cancelled) return 'cancelled'
   if (order.payment_state === 'failed') return 'payment_failed'
   if (order.payment_state === 'awaiting_payment') return 'awaiting_payment'

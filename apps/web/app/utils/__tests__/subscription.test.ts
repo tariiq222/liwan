@@ -87,6 +87,9 @@ describe('order outcome on the payment return page', () => {
     expect(orderOutcome({ payment_state: 'paid', fulfillment_state: 'applied' })).toBe('applied')
     expect(orderOutcome({ payment_state: 'awaiting_payment', fulfillment_state: 'not_started', cancelled: true })).toBe('cancelled')
     expect(orderOutcome({ payment_state: 'paid', fulfillment_state: 'applied', cancelled: false })).toBe('applied')
+    // A refund after activation or after a failed activation keeps fulfillment_state; the refund is what counts.
+    expect(orderOutcome({ payment_state: 'refunded', fulfillment_state: 'applied' })).toBe('refund')
+    expect(orderOutcome({ payment_state: 'refund_pending', fulfillment_state: 'failed' })).toBe('refund')
   })
 })
 describe('subscription dates', () => {
