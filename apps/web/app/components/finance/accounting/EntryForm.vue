@@ -57,6 +57,10 @@ async function submit() {
   attempted.value = true
   error.value = ''
   if (hasEntryErrors(errors.value)) return
+  if (props.recordId && !dirty.value) {
+    emit('saved', props.recordId)
+    return
+  }
   try {
     const record = props.recordId
       ? await patch.mutateAsync({ id: props.recordId, body: buildEntryPatch(draft, baseline) })

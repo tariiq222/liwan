@@ -125,8 +125,8 @@ describe('editing a draft', () => {
     const draft = entryDraftFromRecord(stored)
     expect(draft).toMatchObject({ journalId: 5, date: '2026-10-01', ref: 'ADJ-1' })
     expect(draft.lines.map(({ key: _key, ...line }) => line)).toEqual([
-      { accountId: 11, partnerId: null, name: 'Rent', debit: '250', credit: '', analytic: { 40: 60, 41: 40 } },
-      { accountId: 12, partnerId: 3, name: 'Bank', debit: '', credit: '250', analytic: null },
+      { accountId: 11, partnerId: null, name: 'Rent', debit: '250', credit: '', analytic: { accountId: 11, split: { 40: 60, 41: 40 } } },
+      { accountId: 12, partnerId: 3, name: 'Bank', debit: '', credit: '250', analytic: { accountId: 12, split: {} } },
     ])
     expect(hasEntryErrors(validateEntryDraft(draft))).toBe(false)
     expect(entryDraftDirty(entryDraftFromRecord(stored), draft)).toBe(false)
@@ -142,7 +142,7 @@ describe('editing a draft', () => {
     expect(JournalEntryPatchSchema.safeParse(body).success).toBe(true)
   })
 
-  it('replaces every line, analytic split included, once a line changed', () => {
+  it('replaces every line with its stored split, `{}` keeping a line without one, once a line changed', () => {
     const initial = entryDraftFromRecord(stored)
     const draft = structuredClone(initial)
     draft.lines[0]!.debit = '300'
@@ -150,8 +150,18 @@ describe('editing a draft', () => {
     const body = buildEntryPatch(draft, initial)
     expect(body.lines).toEqual([
       { account_id: 11, name: 'Rent', debit: 300, analytic_distribution: { 40: 60, 41: 40 } },
-      { account_id: 12, partner_id: 3, name: 'Bank', credit: 300 },
+      { account_id: 12, partner_id: 3, name: 'Bank', credit: 300, analytic_distribution: {} },
     ])
     expect(JournalEntryPatchSchema.safeParse(body).success).toBe(true)
+  })
+
+  it('drops the stored split of a line moved to another account, and a new line sends none', () => {
+    const initial = entryDraftFromRecord(stored)
+    const draft = structuredClone(initial)
+    draft.lines[0]!.accountId = 13
+    draft.lines.push({ ...newEntryLine(), accountId: 14, name: 'Fee', credit: '0' })
+    const lines = buildEntryPatch(draft, initial).lines!
+    expect(lines[0]).not.toHaveProperty('analytic_distribution')
+    expect(lines[2]).not.toHaveProperty('analytic_distribution')
   })
 })

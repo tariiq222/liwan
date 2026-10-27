@@ -8,8 +8,12 @@ interface EntryLineDraft {
   name: string
   debit: string
   credit: string
-  /** The stored analytic split of an edited line, sent back as it is; null on a new line (Odoo's models may apply). */
-  analytic: Record<string, number> | null
+  /**
+   * The stored analytic split of an edited line and the account it was stored with, sent back as it is while the line
+   * keeps that account (`{}` keeps a line without a split). Null on a new line, or once the account changed: the key is
+   * then left out and Odoo's distribution models may apply.
+   */
+  analytic: { accountId: number; split: Record<string, number> } | null
 }
 
 export interface EntryFormDraft {
@@ -99,7 +103,7 @@ function linePayload(line: EntryLineDraft): JournalEntryLineInput {
     ...(line.partnerId ? { partner_id: line.partnerId } : {}),
     name: line.name.trim(),
     ...(debit > 0 ? { debit } : { credit }),
-    ...(line.analytic ? { analytic_distribution: line.analytic } : {}),
+    ...(line.analytic && line.analytic.accountId === line.accountId ? { analytic_distribution: line.analytic.split } : {}),
   }
 }
 
@@ -113,9 +117,8 @@ export function buildEntryCreate(draft: EntryFormDraft): JournalEntryCreate {
   }
 }
 
-/** The request split of a stored line: one percent per analytic account, or null when the line has none. */
-function analyticOf(line: JournalEntryLine): Record<string, number> | null {
-  if (!line.analytic_distribution.length) return null
+/** The request split of a stored line: one percent per analytic account, `{}` when the line has none. */
+function analyticOf(line: JournalEntryLine): Record<string, number> {
   const split: Record<string, number> = {}
   for (const share of line.analytic_distribution) split[String(share.account.id)] = (split[String(share.account.id)] ?? 0) + share.percent
   return split
@@ -136,7 +139,7 @@ export function entryDraftFromRecord(entry: JournalEntryDetail): EntryFormDraft 
       name: line.name,
       debit: typedAmount(line.debit),
       credit: typedAmount(line.credit),
-      analytic: analyticOf(line),
+      analytic: { accountId: line.account.id, split: analyticOf(line) },
     })),
   }
 }
