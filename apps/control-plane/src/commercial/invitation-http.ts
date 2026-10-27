@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { Pool } from 'pg'
 import { CommercialHttpError } from './lifecycle.js'
 import { parseBody, need, type CommercialInput } from './http.js'
-import { acceptInvitation, issueInvitation, InvitationError, MIN_PASSWORD_LENGTH, MAX_TOKEN_LENGTH, type SetPassword } from './invitations.js'
+import { acceptInvitation, isInvitationUsable, issueInvitation, InvitationError, MIN_PASSWORD_LENGTH, MAX_TOKEN_LENGTH, type SetPassword } from './invitations.js'
 
 const DEFAULT_TTL = 72 * 3600
 
@@ -16,10 +16,18 @@ const INVITATION_ERRORS: Record<string, [string, number]> = {
   busy: ['in_progress', 409],
 }
 
+/** Public: POST /v1/invitations/check {token} -> {usable}. Read-only, one constant shape for unknown, malformed, expired, used and revoked tokens, so it reveals nothing accept would not. */
+async function invitationCheck(pool: Pool, raw: string) {
+  let token: unknown
+  try { token = (JSON.parse(raw) as { token?: unknown }).token } catch { token = null }
+  return { status: 200, data: { usable: await isInvitationUsable(pool, token) } }
+}
+
 /** Public: POST /v1/invitations/accept {token,password}. No vendor auth. An unknown, expired or used token is one generic 400 (no token oracle); only a valid token can reach the 409/422/503 effect outcomes. Caller should rate-limit by IP. Returns null when route does not match. */
 export async function invitationPublicHttp(pool: Pool, i: { method: string; pathname: string; raw: string; setPassword?: SetPassword }) {
-  if (i.pathname !== '/v1/invitations/accept') return null
+  if (i.pathname !== '/v1/invitations/accept' && i.pathname !== '/v1/invitations/check') return null
   if (i.method !== 'POST') throw new CommercialHttpError('not_found', 404)
+  if (i.pathname === '/v1/invitations/check') return invitationCheck(pool, i.raw)
   let body: { token: string; password: string }
   try { body = parseBody(i.raw, z.strictObject({ token: z.string().min(20).max(MAX_TOKEN_LENGTH), password: z.string().min(MIN_PASSWORD_LENGTH) })) }
   catch { throw new CommercialHttpError('invalid_invitation', 400) }

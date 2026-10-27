@@ -334,7 +334,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       if (!path.startsWith('/v1/')) throw new ApiError(404, 'not_found', 'Endpoint not found')
       const url = new URL(path, 'http://localhost')
       const pathname = url.pathname
-      if (pathname === '/v1/invitations/accept') {
+      if (pathname === '/v1/invitations/accept' || pathname === '/v1/invitations/check') {
         if (method !== 'POST') return respond(res, 404, { code: 'not_found', message: 'Endpoint not found' })
         const now = Date.now()
         if (now >= invitationCleanupAt) {
@@ -342,7 +342,8 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
           invitationCleanupAt = now + 60000
         }
         // Do not trust caller-supplied forwarding headers for this public limit.
-        const ip = req.socket.remoteAddress ?? 'unknown'
+        // accept and check count separately so a page-load check never uses up the accept budget.
+        const ip = `${pathname}|${req.socket.remoteAddress ?? 'unknown'}`
         let attempt = invitationAttempts.get(ip)
         if (!attempt || attempt.expiresAt <= now) {
           attempt = { count: 0, expiresAt: now + 60000 }

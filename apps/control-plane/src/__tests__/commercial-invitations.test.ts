@@ -6,6 +6,7 @@ import { acceptInvitation, issueInvitation, sendInvitationOutbox, InvitationErro
 import { isAllowedInvitationOrigin } from '../commercial/invitation-tokens.js'
 import { invitationHttp } from '../commercial/invitation-http.js'
 import { SmtpMailAdapter, type MailAdapter, type MailMessage } from '../commercial/mail-adapter.js'
+import { createApp } from '../http.js'
 import { fixedReturnOrigin, tenantReturnOrigin } from '../commercial/return-origin.js'
 
 const d = url ? describe : describe.skip
@@ -162,6 +163,45 @@ d('admin invitations', () => {
     expect((await first).status).toBe(200)
     expect(set).toHaveLength(0)
   }, 20000)
+  const check = async (token: unknown) => (await invitationHttp(pool, { method: 'POST', pathname: '/v1/invitations/check', raw: JSON.stringify({ token }), issuer: 'i', actor: 1, capabilities: [] }))!
+  it('check answers usable only for a live invitation and one identical shape otherwise, with no side effects', async () => {
+    await issue(); await sendInvitationOutbox(pool, { mail, returnOrigin: fixedReturnOrigin('https://app.webvue.test') }); const token = tokenOf()
+    const before = JSON.stringify((await pool.query('SELECT * FROM admin_invitations')).rows)
+    expect(await check(token)).toEqual({ status: 200, data: { usable: true } })
+    expect(await check(token)).toEqual({ status: 200, data: { usable: true } })
+    expect(JSON.stringify((await pool.query('SELECT * FROM admin_invitations')).rows)).toBe(before)
+    const unusable = { status: 200, data: { usable: false } }
+    expect(await check('z'.repeat(43))).toEqual(unusable)
+    expect(await check('short')).toEqual(unusable)
+    expect(await check(undefined)).toEqual(unusable)
+    await pool.query("UPDATE admin_invitations SET expires_at=now() - interval '1 second'")
+    expect(await check(token)).toEqual(unusable)
+    await pool.query("UPDATE admin_invitations SET expires_at=now() + interval '1 hour', revoked_at=now()")
+    expect(await check(token)).toEqual(unusable)
+    await pool.query('UPDATE admin_invitations SET revoked_at=NULL')
+    await acceptInvitation(pool, { token, password: PW, setPassword })
+    expect(await check(token)).toEqual(unusable)
+  })
+  it('check rejects non-POST and malformed bodies without a token oracle', async () => {
+    await expect(invitationHttp(pool, { method: 'GET', pathname: '/v1/invitations/check', raw: '', issuer: 'i', actor: 1, capabilities: [] })).rejects.toMatchObject({ status: 404 })
+    expect(await invitationHttp(pool, { method: 'POST', pathname: '/v1/invitations/check', raw: 'not json', issuer: 'i', actor: 1, capabilities: [] })).toEqual({ status: 200, data: { usable: false } })
+  })
+  it('check over HTTP is rate limited per client and does not spend the accept budget', async () => {
+    const config = { installationId: 'inv-check', key: 'vendor-test-key-'.repeat(4), customerCommercialIssuer: 'i', customerCommercialServiceKey: 'customer-test-key-'.repeat(4),
+      inventoryPath: '', repositoryRoot: '', python: 'python3', stateDir: '' }
+    const server = createApp(pool, config).listen(0, '127.0.0.1')
+    await new Promise<void>(resolve => server.once('listening', resolve))
+    try {
+      const addr = server.address(); if (!addr || typeof addr === 'string') throw Error('missing address')
+      const post = (path: string, body: unknown) => fetch(`http://127.0.0.1:${addr.port}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+      const statuses: number[] = []
+      for (let n = 0; n < 11; n++) statuses.push((await post('/v1/invitations/check', { token: 'q'.repeat(43) })).status)
+      expect(statuses.slice(0, 10)).toEqual(Array(10).fill(200))
+      const limited = await post('/v1/invitations/check', { token: 'q'.repeat(43) })
+      expect(statuses[10]).toBe(429); expect(limited.status).toBe(429)
+      expect((await post('/v1/invitations/accept', { token: 'q'.repeat(43), password: PW })).status).toBe(400)
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
+  })
   const port = process.env.WEBVUE_MAILPIT_SMTP_PORT, api = process.env.WEBVUE_MAILPIT_API_PORT
   ;(port && api ? it : it.skip)('Mailpit integration', async () => {
     await issue()

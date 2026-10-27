@@ -44,3 +44,11 @@ export function pickAcceptBody(body: unknown): { token: string; password: string
   if (token.length > 512 || password.length > 256) return null
   return { token, password }
 }
+
+/** Strips every field except token; returns null when it is not a non-empty string of bounded length. */
+export function pickCheckBody(body: unknown): { token: string } | null {
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) return null
+  const { token } = body as Record<string, unknown>
+  if (typeof token !== 'string' || !token || token.length > 512) return null
+  return { token }
+}
