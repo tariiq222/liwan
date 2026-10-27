@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/vue-query'
 import type { HrBankProfile, HrBankProfileWrite } from '@webvue/contracts'
 import { hrPayrollKeys } from '../useHrPayrollCompensation'
-import { deleteHrBankProfile, hrPayrollFileUrl, saveHrBankProfile } from '../useHrPayrollFiles'
+import { deleteHrBankProfile, hrPayrollFileRequest, saveHrBankProfile } from '../useHrPayrollFiles'
 
 const profile = { id: 4, name: 'ملف' } as HrBankProfile
 const body = {
@@ -16,13 +16,14 @@ const body = {
 } satisfies HrBankProfileWrite
 
 describe('payroll salary files', () => {
-  it('builds the bank file url with the profile and the value date', () => {
-    expect(hrPayrollFileUrl(7, 'bank', { profileId: 1, valueDate: '2026-12-01' }))
-      .toBe('/api/v1/hr/payroll/runs/7/bank-file?profile_id=1&value_date=2026-12-01')
+  it('builds the bank file POST with the profile and the value date in the body', () => {
+    expect(hrPayrollFileRequest(7, 'bank', { profileId: 1, valueDate: '2026-12-01' }))
+      .toEqual({ path: '/api/v1/hr/payroll/runs/7/bank-file', method: 'POST', body: { profile_id: 1, value_date: '2026-12-01' } })
   })
 
-  it('builds the WPS file url without a value date', () => {
-    expect(hrPayrollFileUrl(7, 'wps', { profileId: 2 })).toBe('/api/v1/hr/payroll/runs/7/wps-file?profile_id=2')
+  it('builds the WPS file POST without a value date', () => {
+    expect(hrPayrollFileRequest(7, 'wps', { profileId: 2 }))
+      .toEqual({ path: '/api/v1/hr/payroll/runs/7/wps-file', method: 'POST', body: { profile_id: 2 } })
   })
 })
 

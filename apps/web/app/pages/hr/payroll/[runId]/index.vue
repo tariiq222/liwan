@@ -9,7 +9,8 @@ import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import { formatDate, localIsoDay } from '@webvue/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { HR_PAYSLIP_PAGE_SIZE, fetchAllHrPayslips, hrPayslipsQuery } from '@/composables/useHrPayrollRuns'
-import { hrPayrollFileUrl } from '@/composables/useHrPayrollFiles'
+import { payrollFilesWritable } from '@/utils/payrollFilesWritable'
+import { hrPayrollFileRequest } from '@/composables/useHrPayrollFiles'
 import { eosProvisionErrorMessage, payrollErrorMessage, payrollWarningText } from '@/utils/payrollErrors'
 import { saveBlob } from '@/utils/saveBlob'
 import { formatPayrollMonth, payrollRunStateTone } from '@/utils/payrollFormat'
@@ -46,6 +47,9 @@ const transitions = useHrPayrollRunTransition(() => runId.value ?? 0)
 const patchInputs = usePatchHrPayslipInputs(() => runId.value ?? 0)
 const { $api, $download } = useApi()
 const { can } = useAccess()
+const { me } = useMe()
+// The salary files are kept server-side, so they are writes: a read-only tenant is refused, and the buttons say so first.
+const filesWritable = computed(() => payrollFilesWritable(me.value))
 const posting = usePostHrPayrollRun(() => runId.value ?? 0)
 const payment = useRecordHrPayrollPayment(() => runId.value ?? 0)
 const provision = usePostHrEosProvision()
@@ -79,7 +83,8 @@ async function downloadFile(file: { kind: 'bank' | 'wps'; profileId: number; val
   failure.value = null
   downloading.value = file.kind
   try {
-    const { blob, filename } = await $download(hrPayrollFileUrl(runId.value, file.kind, file))
+    const request = hrPayrollFileRequest(runId.value, file.kind, file)
+    const { blob, filename } = await $download(request.path, request)
     saveBlob(blob, filename ?? `${file.kind === 'bank' ? 'salaries' : 'wps'}-${run.value?.month ?? runId.value}.csv`)
   } catch (error) {
     await nameRefusedEmployees(error, runId.value)
@@ -261,6 +266,7 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
         :profiles="profiles.data.value?.items ?? []"
         :profiles-ready="!!profiles.data.value"
         :pending="downloading"
+        :writable="filesWritable"
         :default-date="localIsoDay()"
         :gosi-to="recordChildTo(`/hr/payroll/${run.id}/gosi`, route.query, sourcePaths, route.hash)"
         @download="downloadFile"

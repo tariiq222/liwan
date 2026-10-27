@@ -76,10 +76,10 @@ class TestHrPayrollCompanyIsolation(CompanyIsolationCase):
                 }),
             }
 
-    def assert_hidden_every_way(self, path, hidden_company):
+    def assert_hidden_every_way(self, path, hidden_company, method='GET'):
         # api_forged names the hidden COMPANY in cids (cookie, query) and the body context, never a record id.
         self.assertNotEqual(hidden_company.id, self.iso_user.company_id.id, 'forgery must name another company')
-        for response in self.api_forged('GET', path, hidden_company.id):
+        for response in self.api_forged(method, path, hidden_company.id, json={} if method == 'POST' else None):
             self.assertEqual(response.status_code, 404, f'{path} must stay hidden: {response.text[:200]}')
             self.assertEqual(response.json()['code'], 'not_found', path)
 
@@ -127,14 +127,14 @@ class TestHrPayrollCompanyIsolation(CompanyIsolationCase):
             for tag in ('p', 'p2', 'c'):
                 run = self.recs[tag]['run']
                 before = File.search_count([])
-                self.assert_hidden_every_way(f'{RUN.format(run.id)}/{kind}', self.by_tag[tag])
+                self.assert_hidden_every_way(f'{RUN.format(run.id)}/{kind}', self.by_tag[tag], method='POST')
                 self.assertEqual(File.search_count([]), before, f'{kind} of {tag} must keep no file')
 
     def test_salary_files_of_the_current_company_are_served(self):
         self.env_in(self.company_p1)
         run = self.recs['p1']['run']
         for kind in ('bank-file', 'wps-file'):
-            response = self.api('GET', f'{RUN.format(run.id)}/{kind}')
+            response = self.api('POST', f'{RUN.format(run.id)}/{kind}', json={})
             self.assertEqual(response.status_code, 200, f'{kind}: {response.text[:200]}')
             self.assertIn('text/csv', response.headers['Content-Type'])
 

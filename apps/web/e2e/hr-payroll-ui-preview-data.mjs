@@ -241,7 +241,6 @@ export function hrPayrollPreviewData(route, url) {
   if (section === 'posting-preview' && state.previewError) return { refusal: { status: 422, body: { code: 'missing_cost_center', message: 'a department has no cost center' } } }
   if (section === 'posting-preview') return state.finance && run.state === 'approved' ? postingPreview(run) : undefined
   if (section === 'gosi-statement') return fixedRun(run) ?? gosiStatement(run)
-  if (section === 'bank-file' || section === 'wps-file') return fixedRun(run) ?? salaryFile(run, section)
   if (section !== 'payslips') return undefined
   if (slipId) {
     const slip = run.slips.find(item => item.id === Number(slipId))
@@ -429,6 +428,10 @@ export function hrPayrollPreviewWrite(method, route, body) {
     if (!actionsOf(run).includes('cancel')) return { status: 403, body: { code: 'transition_forbidden', message: 'the run cannot be cancelled' } }
     state.runs = state.runs.filter(item => item !== run)
     return { status: 204, body: '' }
+  }
+  if (method === 'POST' && (section === 'bank-file' || section === 'wps-file')) {
+    const answer = fixedRun(run) ?? salaryFile(run, section)
+    return answer.refusal ?? answer
   }
   if (method === 'POST' && section === 'compute') {
     if (!actionsOf(run).includes('compute')) return { status: 403, body: { code: 'transition_forbidden', message: 'the run cannot be computed' } }
