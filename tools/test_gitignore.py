@@ -29,7 +29,7 @@ class GitignoreTests(unittest.TestCase):
         self.check_paths(False, [
             '.env.example', 'apps/web/.env.example', 'deploy/.env.example',
             '.env.sample', '.env.template', '.github/workflows/ci.yml',
-            '.claude/settings.json', '.claude/agents/frontend-theme.md',
+            '.claude/settings.json', '.claude/agents/frontend-theme.md', '.claude/agents/odoo-reviewer.md',
             '.claude/scripts/guard-bash.sh', '.claude/scripts/session-start.sh',
             '.claude/skills/e2e/SKILL.md', '.claude/skills/e2e/references/cli.md',
             'apps/control-plane/src/schema_tenants.sql', 'tools/fixtures/example.json',
