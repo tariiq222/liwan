@@ -43,8 +43,9 @@ class TestTenantLifecycle(HttpCase):
         self.assertEqual(blocked.status_code, 403)
         self.assertEqual(blocked.json()['code'], 'tenant_suspended')
         login = self._authenticate('lifecycle_emp', 'lifecycle_emp_pass_123')
-        body = login.json()
-        self.assertTrue(body.get('error') or body.get('result', {}).get('uid') in (False, None))
+        self.assertTrue(login.json()['error']['data']['name'].endswith('.WebVueTenantSuspended'), login.text)
+        wrong = self._authenticate('lifecycle_emp', 'not-the-password')
+        self.assertFalse(wrong.json()['error']['data']['name'].endswith('.WebVueTenantSuspended'), wrong.text)
 
     def test_expired_tenant_allows_login_and_password_but_not_appearance(self):
         expiry = {'valid_until': datetime.now(timezone.utc).date() - timedelta(days=1)}
