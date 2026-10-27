@@ -1,6 +1,7 @@
 """Infrastructure SQL guards never operate on Odoo business tables."""
 import unittest
-from .postgres import validate_runtime_role, fence_runtime, runtime_role_fixture
+from .backup import Deadline
+from .postgres import validate_runtime_role, fence_runtime, fence_writers, writer_grants, runtime_role_fixture
 
 
 class Cursor:
@@ -9,9 +10,11 @@ class Cursor:
     def __exit__(self, *args): pass
     def execute(self, sql, args=()):
         self.connection.commands.append((sql, args))
-        self.sql = sql
+        self.sql, self.args = sql, args
         if 'pg_terminate_backend' in sql: self.connection.idle = []
     def fetchone(self):
+        if 'pg_stat_activity' in self.sql:  # session counts and pg_terminate_backend
+            return (self.connection.active,) if 'count(*)' in self.sql else (True,)
         if 'SELECT EXISTS (SELECT 1 FROM pg_database WHERE' in self.sql: return (self.connection.database_exists,)
         if 'FROM pg_roles WHERE' in self.sql: return self.connection.flags
         if 'aclexplode' in self.sql: return (self.connection.public,)
@@ -20,7 +23,20 @@ class Cursor:
         if 'count(*)' in self.sql: return (self.connection.active,)
         return (True,)
     def fetchall(self):
+        if 'has_database_privilege' in self.sql:
+            return [(role, self.connection.grants[role]) for role in self.args[1] if role in self.connection.grants]
         if 'pg_stat_activity' in self.sql: return list(self.connection.idle)
+        if 'pg_auth_members' in self.sql:  # transitive members of the authorized principals
+            found, pending = [], [(role, role) for role in self.args[0]]
+            while pending:
+                role, via = pending.pop()
+                for member in self.connection.members.get(role, []):
+                    found.append((member, 'member_of:' + via)); pending.append((member, via))
+            return found
+        if 'aclexplode' in self.sql and 'pg_database' in self.sql:
+            return [(role, 'connect') for role in self.connection.connect_principals]
+        if 'datdba' in self.sql: return [(role, 'owner') for role in self.connection.owner_principals]
+        if 'pg_class' in self.sql: return [(role, 'write') for role in self.connection.write_principals]
         return []
 
 
@@ -29,10 +45,20 @@ class Connection:
         self.flags, self.active, self.idle, self.commands = flags, active, idle, []
         self.public = self.owner = self.member = False
         self.database_exists = True
+        self.grants = {'pool_old': True, 'pool_new': True}
+        self.connect_principals = ['pool_old', 'pool_new', 'admin_role']
+        self.write_principals = ['pool_old', 'pool_new']
+        self.owner_principals = []
+        self.members = {}
     def cursor(self): return Cursor(self)
     def commit(self): pass
     def rollback(self): pass
     def close(self): pass
+
+
+def backup_binding(**overrides):
+    return {'tenantId': 'a', 'database': 'tenant_a', 'fence': 2, 'gateClosed': True,
+            'admittedWriters': 0, **overrides}
 
 
 class PostgresTests(unittest.TestCase):
@@ -88,6 +114,108 @@ class PostgresTests(unittest.TestCase):
         self.assertIn('NOCREATEDB', sql)
         self.assertIn('ON ALL SEQUENCES IN SCHEMA public', sql)
         self.assertNotIn('SUPERUSER LOGIN', sql)
+
+    def test_release_swap_grants_candidate_and_backup_window_denies_every_writer(self):
+        # The release fence legitimately admits the candidate generation; the
+        # backup window must deny both, so a candidate cannot write during the dump.
+        connection = Connection()
+        swapped = fence_runtime(backup_binding(), 'pool_old', 'pool_new', lambda db: connection, deadline_seconds=0)
+        self.assertTrue(swapped['fenced'])
+        self.assertIn('GRANT CONNECT', connection.commands[-1][0])
+        connection.commands.clear()
+        window = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db, **_: connection,
+                               allowed_principals=('admin_role',), deadline=Deadline(30), drain_seconds=0)
+        self.assertTrue(window['fenced'])
+        self.assertEqual(window['deniedWriters'], ['pool_old', 'pool_new'])
+        self.assertEqual(window['writerConnections'], 0)
+        sql = '\n'.join(command for command, _ in connection.commands)
+        self.assertIn('REVOKE CONNECT ON DATABASE "tenant_a" FROM "pool_old"', sql)
+        self.assertIn('REVOKE CONNECT ON DATABASE "tenant_a" FROM "pool_new"', sql)
+        self.assertNotIn('GRANT CONNECT', sql)
+
+    def test_unsupported_writer_principal_refuses_before_any_effect(self):
+        connection = Connection(); connection.connect_principals = ['pool_old', 'pool_new', 'stray_writer']
+        result = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db, **_: connection,
+                               allowed_principals=('admin_role',), deadline=Deadline(30), drain_seconds=0)
+        self.assertFalse(result['fenced'])
+        self.assertEqual(result['reason'], 'unsupported_writer_principal')
+        self.assertEqual(result['principals'], ['stray_writer'])
+        effects = [command for command, _ in connection.commands if command.startswith(('REVOKE', 'GRANT')) or 'pg_terminate_backend' in command]
+        self.assertFalse(effects)
+
+    def test_login_inheriting_a_declared_writer_refuses_the_window(self):
+        # An undeclared login that is a member of a declared writer keeps the
+        # inherited table privileges after the CONNECT revocation; its idle
+        # session must never be accepted as fenced.
+        connection = Connection(idle=[(21,)])
+        connection.members = {'pool_old': ['stray_group'], 'stray_group': ['stray_login']}
+        result = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db, **_: connection,
+                               allowed_principals=('admin_role',), deadline=Deadline(30), drain_seconds=0)
+        self.assertFalse(result['fenced'])
+        self.assertEqual(result['reason'], 'unsupported_writer_principal')
+        self.assertEqual(result['principals'], ['stray_group', 'stray_login'])
+        effects = [command for command, _ in connection.commands if command.startswith(('REVOKE', 'GRANT')) or 'pg_terminate_backend' in command]
+        self.assertFalse(effects)
+
+    def test_writer_sessions_include_logins_that_are_members_of_a_writer(self):
+        connection = Connection(idle=[(12,)])
+        fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db, **_: connection,
+                      allowed_principals=('admin_role',), deadline=Deadline(30), drain_seconds=0)
+        session_queries = [command for command, _ in connection.commands if 'pg_stat_activity' in command and 'usename' in command]
+        self.assertTrue(session_queries)
+        for command in session_queries:
+            self.assertIn('pg_auth_members', command)
+            self.assertNotIn('usename = ANY', command)
+
+    def test_unverifiable_writer_authority_refuses_the_window(self):
+        connection = Connection()
+        original = Cursor.fetchall
+        def broken(self):
+            if 'aclexplode' in self.sql: raise RuntimeError('catalog unavailable')
+            return original(self)
+        Cursor.fetchall = broken
+        try:
+            result = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db, **_: connection, deadline=Deadline(30), drain_seconds=0)
+        finally:
+            Cursor.fetchall = original
+        self.assertFalse(result['fenced'])
+        self.assertEqual(result['reason'], 'writer_authority_unverifiable')
+
+    def test_active_writer_transaction_is_waited_for_and_never_killed(self):
+        connection = Connection(active=1, idle=[(12,)])
+        result = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db, **_: connection,
+                               allowed_principals=('admin_role',), deadline=Deadline(30), drain_seconds=0)
+        self.assertFalse(result['fenced'])
+        self.assertEqual(result['reason'], 'active_transactions')
+        sql = '\n'.join(command for command, _ in connection.commands)
+        self.assertIn('REVOKE CONNECT ON DATABASE "tenant_a" FROM "pool_new"', sql)
+        self.assertNotIn('pg_terminate_backend', sql)
+        self.assertNotIn('GRANT CONNECT', sql)
+
+    def test_idle_sessions_of_every_writer_role_are_retired(self):
+        connection = Connection(idle=[(12,), (13,)])
+        result = fence_writers(backup_binding(), ('pool_old', 'pool_new'), lambda db, **_: connection,
+                               allowed_principals=('admin_role',), deadline=Deadline(30), drain_seconds=0)
+        self.assertTrue(result['fenced'])
+        terminate = [args for command, args in connection.commands if 'pg_terminate_backend' in command]
+        self.assertEqual(len(terminate), 2)
+        for _, database, roles in terminate:
+            self.assertEqual(database, 'tenant_a')
+            self.assertEqual(roles, ['pool_old', 'pool_new'])
+
+    def test_writer_roles_must_be_a_closed_unique_identifier_set(self):
+        connection = Connection()
+        for roles in [(), ('pool_old', 'pool_old'), ('pool_old', 'bad role'), 'pool_old']:
+            with self.subTest(roles=roles), self.assertRaises(ValueError):
+                fence_writers(backup_binding(), roles, lambda db, **_: connection, deadline=Deadline(30))
+        self.assertFalse(connection.commands)
+
+    def test_writer_grants_reports_durable_admission_per_role(self):
+        connection = Connection(); connection.grants = {'pool_old': True, 'pool_new': False}
+        self.assertEqual(writer_grants(connection, ('pool_old', 'pool_new'), 'tenant_a'),
+                         {'pool_old': True, 'pool_new': False})
+        connection.grants = {}
+        with self.assertRaises(ValueError): writer_grants(connection, ('pool_old',), 'tenant_a')
 
 
 if __name__ == '__main__': unittest.main()

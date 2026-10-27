@@ -22,6 +22,7 @@ from urllib.error import HTTPError
 from .backup import capture_tenant, restore_tenant
 from .engine import ReleaseEngine
 from .manifest import manifest_digest
+from .migrate import MARKER as OBSERVATION
 from .odoo_gateway import MARKER, OdooBookingGateway
 from .postgres import fence_runtime
 from .runtime import LocalRuntime
@@ -100,11 +101,13 @@ class RuntimeTests(unittest.TestCase):
             (path / filename).write_bytes(b'existing-tenant-data')
         self.runtime = LocalRuntime(self.state,self.config,role_inspector=lambda container,expected,**kwargs:{'ready':True,'dbUser':expected['dbUser']},classifier=lambda *_:{'ready':True},inventory_inspector=lambda _:None)
 
-    def target(self, *, readiness_status=200, asset_status=200, identity=None, user=None, attachment=b'existing-tenant-data'):
+    def target(self, *, readiness_status=200, asset_status=200, identity=None, user=None, attachment=b'existing-tenant-data', guard=None):
         requests = []
 
         def respond(path, headers):
             requests.append((path, dict(headers)))
+            if guard and path == '/_webvue/release-status':
+                return 200, guard()
             if path == '/_webvue/release-readiness':
                 if headers.get('X-WebVue-Release-Probe') != 't' * 40:
                     return 403, {}
@@ -363,6 +366,71 @@ class RuntimeTests(unittest.TestCase):
                             'targetFilestore': str(target), 'recoverySource': source})
         self.assertEqual(len(commands), 1)
         self.assertFalse(target.exists())
+
+    def test_maintenance_release_drives_quiesce_capture_migrate_verify_to_verified(self):
+        # The real ReleaseEngine and LocalRuntime: only PostgreSQL, the stock Odoo
+        # process boundary and pg_dump are seams. Backup-only writer-window rules
+        # must never reach this path (it failed before pg_dump on b4ad4a100).
+        release = {**manifest(), 'mode': 'tenant_maintenance', 'upgradeModules': ['webvue_core'],
+                   'moduleVersions': {'webvue_core': '19.0.1.0.0'}, 'affectedServices': ['odoo']}
+        self.manifest = release
+        store = self.root / self.binding['database']
+        store.mkdir()
+        (store / 'attachment').write_bytes(b'existing-tenant-data')
+        tenant = self.config['tenants']['tenant_a']
+        tenant['filestorePath'] = str(store)
+        self.config['migration'] = {'expectedProfile': {'status': 'active'}, 'sourceIdentity': {'treeDigest': 'tree'}}
+        statements, dumps = [], []
+
+        def pg_dump(argv, **kwargs):
+            dumps.append(argv)
+            Path(argv[argv.index('--file') + 1]).write_bytes(b'release-dump')
+            return subprocess.CompletedProcess(argv, 0, '', '')
+
+        self.config['backup'] = {'image': release['images']['odoo'], 'pgDump': '/usr/bin/true', 'runner': pg_dump}
+
+        class Cursor:
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def execute(self, sql, args=()): self.sql = sql; statements.append(sql)
+            def fetchone(self):
+                if 'FROM pg_database WHERE' in self.sql: return (True,)
+                if 'FROM pg_roles WHERE' in self.sql: return (True, False, False, False, False, False)
+                if 'count(*)' in self.sql: return (0,)
+                return (False,)
+            def fetchall(self): return []
+
+        class Connection:
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def cursor(self): return Cursor()
+            def commit(self): pass
+            def rollback(self): pass
+            def close(self): pass
+
+        def odoo(argv, config, *, input=None, read_only=False):
+            if input is None: return ''
+            return OBSERVATION + json.dumps({'database': self.binding['database'], 'moduleStatesReady': True, 'readOnly': True,
+                                             'moduleVersions': dict(release['moduleVersions']), 'profile': {'status': 'active'}})
+
+        marker = self.state.routes / 'tenant_a.maintenance'
+        server, _ = self.target(guard=lambda: {**self.state.route('tenant_a'), 'maintenance': marker.exists()})
+        request = {'requestId': 'release_one', 'manifestDigest': manifest_digest(release), 'approvedMode': 'tenant_maintenance',
+                   'tenantIds': ['tenant_a'], 'expectedRoutes': {'tenant_a': 1}, 'targetPool': 'green'}
+        with server as url, patch('deploy.releases.migrate._local', return_value=(['odoo'], [])), \
+                patch('deploy.releases.migrate._run', side_effect=odoo):
+            self.config['guardUrl'] = url
+            self.config['pools']['green'].update(webUrl=url, odooUrl=url)
+            self.runtime.connector = lambda _: Connection()
+            self.runtime.inspector = lambda *_: {'ready': True}
+            receipt = ReleaseEngine(self.state, self.runtime).apply(request, release)
+        self.assertEqual(receipt['stage'], 'verified')
+        self.assertEqual(len(dumps), 1)
+        backup = self.state.root / 'backups' / 'tenant_a' / '1'
+        self.assertTrue(json.loads((backup / 'receipt.json').read_text())['hashes'])
+        self.assertIn('GRANT CONNECT ON DATABASE "webvue_scratch_runtime_a" TO "runtime_green"', statements)
+        self.assertEqual(self.state.route('tenant_a')['poolId'], 'green')
+        self.assertFalse(marker.exists())
 
     def test_postgres_retirement_counts_only_old_role_while_maintenance_counts_all(self):
         class Connection:

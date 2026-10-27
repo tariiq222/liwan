@@ -29,11 +29,11 @@ class RuntimeIdentityTests(unittest.TestCase):
                           'Path': '/opt/venv/bin/python', 'Args': ['/opt/webvue/shared/launch_odoo.py', '--max-cron-threads=0'],
                           'Mounts': [{'Type': 'bind', 'Source': str(self.config), 'Destination': '/etc/odoo/odoo.conf', 'RW': False}]}
         self.image = {'Id': self.container['Image'], 'RepoDigests': [self.expected['image']]}
-        self.mounted = SECRET; self.commands = []
+        self.mounted = SECRET; self.commands = []; self.timeouts = []; self.call_cost = 0; self.clock = [0.0]
 
     def runner(self, argv, **kwargs):
-        self.commands.append(argv)
-        self.assertEqual(kwargs['timeout'], 10); self.assertTrue(kwargs['capture_output']); self.assertTrue(kwargs['check'])
+        self.commands.append(argv); self.timeouts.append(kwargs['timeout']); self.clock[0] += self.call_cost
+        self.assertTrue(kwargs['capture_output']); self.assertTrue(kwargs['check'])
         if argv == ['docker', 'inspect', 'blue-odoo']:
             value = json.dumps([self.container]).encode()
         elif argv == ['docker', 'image', 'inspect', self.container['Image']]:
@@ -52,6 +52,25 @@ class RuntimeIdentityTests(unittest.TestCase):
         from .runtime_identity import RuntimeIdentityError
         with self.assertRaisesRegex(RuntimeIdentityError, '^odoo_runtime_identity_rejected$'):
             self.inspect(expected, **options)
+
+    def test_release_inspection_keeps_the_fixed_ten_second_bound(self):
+        self.inspect()
+        self.assertEqual(self.timeouts, [10, 10, 10])
+
+    def test_backup_inspection_gives_each_docker_call_only_what_is_left(self):
+        from .backup import Deadline
+        self.call_cost = 3
+        self.inspect(deadline=Deadline(12, lambda: self.clock[0]))
+        self.assertEqual(self.timeouts, [10, 9, 6])  # inspect, image inspect, exec cat
+
+    def test_backup_inspection_past_the_budget_dispatches_nothing_more(self):
+        from .backup import Deadline
+        self.call_cost = 2
+        with self.assertRaisesRegex(ValueError, '^backup_deadline_exceeded$') as error:
+            self.inspect(deadline=Deadline(1, lambda: self.clock[0]))
+        self.assertIsNone(error.exception.__context__)
+        self.assertEqual(self.commands, [['docker', 'inspect', 'blue-odoo']])
+        self.assertEqual(self.timeouts, [1])
 
     def test_realistic_inspect_binds_actual_role_host_config_and_immutable_image_without_secret_output(self):
         result = self.inspect()
@@ -226,6 +245,7 @@ class RuntimeIdentityTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeIdentityError, '^odoo_runtime_identity_rejected$') as error:
             inspect_odoo_runtime('blue-odoo', self.expected, runner=fail)
         self.assertNotIn('private', str(error.exception))
+        self.assertIsNone(error.exception.__context__)
 
 
 if __name__ == '__main__': unittest.main()

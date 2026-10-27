@@ -95,15 +95,12 @@ def main(argv=None):
     try:
         if args.action == 'backup-current':
             from .backup_operation import backup_current
-            from .backup import validate_backup
             state = ReleaseState(local_path(args.state, directory=True))
             binding = document(args.binding)
             runtime = LocalRuntime(state, document(args.runtime))
             output = canonical_path(args.output)
-            def verify_capture(result):
-                if not validate_backup(result['path'])['valid']:
-                    raise ValueError('backup_validation_failed')
-            result = backup_current(state, runtime, binding, args.request_id, output, verify_capture)
+            # backup_current validates the capture itself, inside its one budget.
+            result = backup_current(state, runtime, binding, args.request_id, output)
             print(json.dumps(result, sort_keys=True))
             return 0
         if args.action == 'bundle-prepare':

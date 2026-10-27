@@ -3,6 +3,7 @@
 Only explicit scratch bindings are accepted. Runtime containers are inspected;
 source subprocess migrations are reported as local-source evidence, never image proof.
 """
+from contextlib import contextmanager
 import hashlib
 import json
 from pathlib import Path
@@ -12,12 +13,13 @@ import re
 from urllib.request import Request, HTTPRedirectHandler, build_opener
 from urllib.parse import urlsplit
 
-from .backup import capture_tenant, _path
+from .backup import Deadline, capture_tenant, capture_window, validate_window, _path
+from .bounded_http import get_json
 from .manifest import load_manifest, manifest_digest
 from .migrate import migrate_tenant, verify_tenant
 from .runtime_identity import inspect_odoo_runtime
 from .source_gate import verify_sources, snapshot_digest
-from .postgres import fence_runtime, validate_runtime_role, identifier
+from .postgres import WRITER_LOGINS, bounded_connection, fence_runtime, fence_writers, validate_runtime_role, identifier, writer_grants
 from .state import ReleaseConflict, atomic_json, name, safe_directory
 
 
@@ -28,6 +30,26 @@ def digest(value):
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs):
         return None
+
+
+CONTAINER_ID = re.compile(r'[a-f0-9]{64}')
+
+
+def _budget(deadline):
+    """Keyword passed to Docker inspectors on backup paths only; release calls stay unchanged."""
+    return {} if deadline is None else {'deadline': deadline}
+
+
+def _docker(argv, deadline, cap, **options):
+    """One Docker CLI call: ``cap`` seconds, or only what is left of ``deadline``,
+    recomputed at dispatch; a spent budget refuses before the call and a timeout
+    past it reports the overrun."""
+    try:
+        return subprocess.run(argv, check=True, capture_output=True,
+                              timeout=cap if deadline is None else deadline.remaining(cap), **options)
+    except subprocess.TimeoutExpired:
+        if deadline is not None: deadline.remaining()
+        raise
 
 
 class LocalRuntime:
@@ -45,11 +67,11 @@ class LocalRuntime:
         self.proofs = {}
         self.classifications = {}
 
-    def _connect(self, database):
+    def _connect(self, database, **options):
         import psycopg2
         pg = self.config['postgres']
         return psycopg2.connect(dbname=database, host=pg['host'], port=pg['port'], user=pg['adminUser'],
-                               **({'passfile': pg['passfile']} if pg.get('passfile') else {}))
+                               **({'passfile': pg['passfile']} if pg.get('passfile') else {}), **options)
 
     def _tenant(self, binding):
         if not binding['database'].startswith('webvue_scratch_'):
@@ -62,22 +84,25 @@ class LocalRuntime:
     def _role(self, binding, pool):
         return self._tenant(binding)['roles'][name(pool)]
 
-    def _inspect_inventory(self, pool):
+    def _inspect_inventory(self, pool, deadline=None):
         config = self.config['pools'][pool]
         declared = [*config['containers'].values(), *(job['container'] for job in config['cronRuntimes'])]
         if len(declared) != len(set(declared)): raise ReleaseConflict('duplicate_runtime_ownership')
-        observed = subprocess.run(['docker','ps','--all','--filter','label=webvue.pool='+name(pool),'--format','{{.Names}}'],
-                                  check=True,capture_output=True,text=True,timeout=10).stdout.splitlines()
+        observed = _docker(['docker','ps','--all','--filter','label=webvue.pool='+name(pool),'--format','{{.Names}}'],
+                           deadline, 10, text=True).stdout.splitlines()
         if set(observed) != set(declared): raise ReleaseConflict('runtime_inventory_mismatch')
 
-    def _bind_role(self,binding,pool,*,candidate=False):
+    def _bind_role(self,binding,pool,*,candidate=False,deadline=None):
+        """With ``deadline`` (backup window only) every Docker call it makes gets only
+        what is left; release callers pass none and keep the fixed per-call bounds."""
         config=self.config['pools'][pool]
-        self.inventory_inspector(pool)
+        budget=_budget(deadline)
+        self.inventory_inspector(pool,**budget)
         matches=[job for job in config['cronRuntimes'] if job['databases']==[binding['database']]]
         if self.config.get('jobsRequired',True) and len(matches)!=1:
             raise ReleaseConflict('tenant_cron_ownership_missing')
         expected={**config['odooRuntime'],'poolId':pool,'dbUser':self._role(binding,pool)}
-        proof=self.role_inspector(config['containers']['odoo'],expected)
+        proof=self.role_inspector(config['containers']['odoo'],expected,**budget)
         if proof.get('ready') is not True or proof.get('dbUser')!=expected['dbUser']:
             raise ReleaseConflict('runtime_role_binding_unverified')
         # Every declared cron is bound separately; a stopped cron is allowed only
@@ -86,14 +111,15 @@ class LocalRuntime:
             cron_expected={**cron['identity'],'poolId':pool,'dbUser':expected['dbUser']}
             if cron['databases'] != [binding['database']]:
                 continue
-            observed=self.role_inspector(cron['container'],cron_expected,cron_databases=cron['databases'],allow_stopped=True)
+            observed=self.role_inspector(cron['container'],cron_expected,cron_databases=cron['databases'],allow_stopped=True,**budget)
             if observed.get('ready') is not True or observed.get('dbUser')!=expected['dbUser']:
                 raise ReleaseConflict('cron_role_binding_unverified')
             if candidate and observed.get('running') is True:
                 raise ReleaseConflict('candidate_cron_must_be_stopped')
         return proof
 
-    def _guard(self, binding):
+    def _guard_request(self, binding):
+        """The release-status URL and headers of the tenant's guard."""
         config = self._tenant(binding)
         url = self.config['guardUrl']
         parsed = urlsplit(url)
@@ -103,11 +129,30 @@ class LocalRuntime:
         if len(token) < 32: raise ValueError('guard_token_rejected')
         headers = {'Host': config['host'], 'X-WebVue-Proxy-Token': token,
                    'X-WebVue-Tenant-Revision': str(binding['registryRevision'])}
-        with build_opener(NoRedirect()).open(Request(url.rstrip('/') + '/_webvue/release-status', headers=headers), timeout=10) as response:
+        return url.rstrip('/') + '/_webvue/release-status', headers
+
+    def _guard(self, binding):
+        url, headers = self._guard_request(binding)
+        with build_opener(NoRedirect()).open(Request(url, headers=headers), timeout=10) as response:
             return json.load(response)
+
+    def _guard_within(self, binding, deadline):
+        """Backup guard read: connect, request, status, headers and body all end by ``deadline``."""
+        url, headers = self._guard_request(binding)
+        return get_json(url, headers, deadline)
 
     def acknowledge(self, binding, route, maintenance=False):
         observed = self._guard(binding)
+        return {**observed, 'ready': all(observed.get(k) == route[k] for k in ('routeRevision','fence','poolId','releaseId'))
+                and observed.get('maintenance') is maintenance}
+
+    def acknowledge_within(self, binding, route, maintenance, deadline):
+        """Backup guard acknowledgement on ``deadline``: the whole HTTP exchange gets
+        only what is left (each socket operation at most the usual 10 s), so a
+        trickled or endless answer cannot outlive it, and an answer obtained past
+        it is refused."""
+        observed = self._guard_within(binding, deadline)
+        deadline.remaining()
         return {**observed, 'ready': all(observed.get(k) == route[k] for k in ('routeRevision','fence','poolId','releaseId'))
                 and observed.get('maintenance') is maintenance}
 
@@ -123,6 +168,117 @@ class LocalRuntime:
             if item.get('tenantId') != binding['tenantId']: raise ReleaseConflict('release_lease_invalid')
             if old is None or item.get('poolId') in (None,'pending',old['poolId']): leases.append(item)
         return leases
+
+    def _owned_cron_jobs(self,binding,pool):
+        jobs=[job for job in self.config['pools'][pool]['cronRuntimes'] if job['databases']==[binding['database']]]
+        if self.config.get('jobsRequired',True) and len(jobs)!=1:
+            raise ReleaseConflict('tenant_cron_ownership_missing')
+        return jobs
+
+    def _cron_expected(self,binding,pool,job):
+        return {**job['identity'],'poolId':pool,'dbUser':self._role(binding,pool)}
+
+    def _owned_cron_state(self,binding,pool):
+        """Observe the inspected container id and running/stopped of every owned cron
+        before the backup touches it."""
+        observed={}
+        for job in self._owned_cron_jobs(binding,pool):
+            if job['container'] in observed: raise ReleaseConflict('duplicate_runtime_ownership')
+            proof=self._inspect_cron(binding,pool,job)
+            observed[job['container']]={'containerId':proof['containerId'],'running':proof['running']}
+        return observed
+
+    def _inspect_cron(self,binding,pool,job,container_id=None,deadline=None):
+        """One owned cron's identity; with ``container_id`` it must be that exact container.
+
+        A same-name replacement passes image/config/role checks but is not the
+        container whose state was recorded, so it refuses instead of being started
+        or stopped. With ``deadline`` every Docker inspect/exec gets only what is left.
+        """
+        expected=self._cron_expected(binding,pool,job)
+        proof=self.role_inspector(job['container'],expected,cron_databases=job['databases'],allow_stopped=True,**_budget(deadline))
+        if (proof.get('ready') is not True or proof.get('dbUser')!=expected['dbUser'] or type(proof.get('running')) is not bool
+                or not isinstance(proof.get('containerId'),str) or not CONTAINER_ID.fullmatch(proof['containerId'])):
+            raise ReleaseConflict('cron_role_binding_unverified')
+        if container_id is not None and proof['containerId']!=container_id:
+            raise ReleaseConflict('cron_container_replaced')
+        return proof
+
+    def _set_cron(self,binding,pool,job,container_id,running,deadline):
+        """Start or stop exactly the recorded container id, then prove the result on it.
+
+        Every inspect and the start/stop take what is left of ``deadline`` at their
+        own dispatch, so nothing starts once the budget is spent.
+        """
+        if self._inspect_cron(binding,pool,job,container_id,deadline)['running'] is not running:
+            _docker(['docker','start' if running else 'stop',container_id],deadline,30)
+        if self._inspect_cron(binding,pool,job,container_id,deadline)['running'] is not running:
+            raise ReleaseConflict('tenant_cron_start_unverified' if running else 'old_cron_stop_unverified')
+        deadline.remaining()
+
+    def _stop_owned_cron(self,binding,pool,previous,deadline):
+        """Backup window: stop only the recorded owned crons, by their recorded ids,
+        each Docker call capped by what is left of ``deadline``."""
+        jobs=self._recorded_cron_jobs(binding,pool,previous)
+        for container,job in jobs.items():
+            self._set_cron(binding,pool,job,previous[container]['containerId'],False,deadline)
+        deadline.remaining()
+
+    def _recorded_cron_jobs(self,binding,pool,previous):
+        jobs={job['container']:job for job in self._owned_cron_jobs(binding,pool)}
+        # An empty owned set is valid only when the operator topology owns no cron
+        # (jobsRequired=False); _owned_cron_jobs already refuses a missing required one.
+        if (not isinstance(previous,dict) or set(jobs)!=set(previous)
+                or any(not isinstance(item,dict) or set(item)!={'containerId','running'} or type(item['running']) is not bool
+                       or not isinstance(item['containerId'],str) or not CONTAINER_ID.fullmatch(item['containerId'])
+                       for item in previous.values())):
+            raise ReleaseConflict('cron_identity_changed')
+        return jobs
+
+    def _writer_roles(self, binding):
+        """Every role the tenant's pools may write with, from the operator config.
+
+        A writer the operator did not declare cannot be fenced, so the window
+        refuses instead of protecting a subset of the real writers.
+        """
+        roles = self._tenant(binding).get('roles')
+        if not isinstance(roles, dict) or not roles: raise ReleaseConflict('runtime_writer_roles_missing')
+        try:
+            names = [identifier(role) for role in roles.values()]
+        except ValueError:
+            raise ReleaseConflict('runtime_writer_roles_invalid') from None
+        if len(set(names)) != len(names): raise ReleaseConflict('runtime_writer_roles_duplicate')
+        return tuple(sorted(roles.values()))
+
+    def _allowed_principals(self):
+        """Closed operator allowance: only the isolation admin and configured principals."""
+        allowed = [*(self.config.get('backup', {}).get('allowedPrincipals') or [])]
+        admin = self.config.get('postgres', {}).get('adminUser')
+        if admin: allowed.append(admin)
+        return tuple(allowed)
+
+    def _drain_backup_leases(self, binding, deadline):
+        # The lease wait is capped by drainSeconds and by what is left of the budget.
+        drain_end = deadline.clock() + deadline.remaining(min(30, self.config.get('drainSeconds', 30)))
+        while self._leases(binding):
+            if deadline.clock() >= drain_end:
+                deadline.remaining()  # an overrun reports the overrun, not an undrained lease
+                raise ReleaseConflict('release_writers_not_drained')
+            time.sleep(min(0.05, max(0, drain_end - deadline.clock())))
+
+    def _fence_backup_writers(self, binding, route, previous, deadline):
+        self._drain_backup_leases(binding, deadline)
+        roles = self._writer_roles(binding)
+        self._bind_role(binding, route['poolId'], deadline=deadline)
+        deadline.remaining()
+        if self._role(binding, route['poolId']) not in roles:
+            raise ReleaseConflict('runtime_writer_roles_incomplete')
+        result = fence_writers({**binding,'fence':route['fence'],'gateClosed':True,'admittedWriters':0,'transactionScope':'tenant'},
+            roles, self.connector, deadline=deadline, allowed_principals=self._allowed_principals(),
+            drain_seconds=self.config.get('drainSeconds',30))
+        if result.get('fenced') is not True: raise ReleaseConflict(result.get('reason','fence_failed'))
+        self._stop_owned_cron(binding,route['poolId'],previous['cron'],deadline)
+        return {**binding,**result,'gateClosed':True,'admittedWriters':0}
 
     def _fence(self, binding, route, *, gate_closed):
         deadline=time.monotonic()+min(30,self.config.get('drainSeconds',30))
@@ -161,6 +317,20 @@ class LocalRuntime:
         self.proofs[binding['tenantId']] = proof
         return proof
 
+    def fence_backup(self, binding, route, previous, deadline):
+        """Backup-only writer window; release and migrate keep ``quiesce``.
+
+        ``previous`` is the durable intent: the owned crons it recorded are stopped
+        by their recorded container ids only. ``deadline`` is the caller's budget,
+        never renewed: the guard ACK, lease drain, admin connection, every fence
+        statement and the cron stop get only what is left of it.
+        """
+        if not self.state.routes.joinpath(binding['tenantId'] + '.maintenance').is_file():
+            raise ReleaseConflict('maintenance_barrier_missing')
+        if not self.acknowledge_within(binding,route,True,deadline)['ready']: raise ReleaseConflict('release_guard_ack_missing')
+        previous = self._previous_state(binding, route, previous)
+        return self._fence_backup_writers(binding,route,previous,deadline)
+
     def _recheck(self, binding):
         route = self.state.route(binding['tenantId'])
         if not self.state.routes.joinpath(binding['tenantId'] + '.maintenance').is_file() or self._leases(binding):
@@ -172,24 +342,151 @@ class LocalRuntime:
                 if cursor.fetchone()[0]: raise ReleaseConflict('old_connections_remain')
         return self.proofs[binding['tenantId']]
 
+    @contextmanager
+    def _window_connection(self, database, deadline):
+        """Admin transaction on ``bounded_connection``: connect and every statement get
+        only what is left of ``deadline``; always closed, including after an overrun
+        while connecting (a driver connection's own context manager only ends the
+        transaction)."""
+        with bounded_connection(self.connector, database, deadline) as connection, connection:
+            yield connection
+
+    def _recheck_window(self, binding, deadline):
+        """Window evidence: gate closed, every declared writer denied, nothing running.
+
+        Each connection and statement gets only the time left on ``deadline``.
+        """
+        route = self.state.route(binding['tenantId'])
+        if not self.state.routes.joinpath(binding['tenantId'] + '.maintenance').is_file() or self._leases(binding):
+            raise ReleaseConflict('maintenance_gate_changed')
+        roles = self._writer_roles(binding)
+        with self._window_connection(binding['database'], deadline) as connection:
+            with connection.cursor() as cursor:
+                # An idle session of a role that is a member of a declared writer keeps the
+                # inherited table privileges after the CONNECT revocation, so it counts too.
+                cursor.execute(f"SELECT (SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND pid<>pg_backend_pid() AND (usename IN {WRITER_LOGINS} OR state<>'idle' OR xact_start IS NOT NULL)) + (SELECT count(*) FROM pg_prepared_xacts WHERE database=%s)",
+                    (binding['database'],list(roles),binding['database']))
+                if cursor.fetchone()[0]: raise ReleaseConflict('writer_reconnect_observed')
+            try:
+                grants = writer_grants(connection, roles, binding['database'])
+            except ValueError:
+                deadline.remaining()  # an overrun is reported as the overrun
+                raise ReleaseConflict('writer_admission_unverified') from None
+        deadline.remaining()
+        if any(grants[role] is not False for role in roles):
+            raise ReleaseConflict('writer_admission_open')
+        return {**binding,'fence':route['fence'],'gateClosed':True,'admittedWriters':0,
+                'activeTransactions':0,'oldConnections':0,'transactionScope':'tenant',
+                'writerConnections':0,'deniedWriters':list(roles)}
+
     def prepare_backup(self, binding, route):
+        """Inspect every declared writer and return the previous state to persist.
+
+        Read-only: the caller stores the result durably before the first effect so
+        an interruption restores exactly the previous admission and cron state.
+        """
         if self.config['targetPool'] == route['poolId']:
             raise ReleaseConflict('backup_fence_role_missing')
         self._bind_role(binding, route['poolId'])
         self._bind_role(binding, self.config['targetPool'], candidate=True)
         if self.config['backup']['image'] != self.config['pools'][route['poolId']]['odooRuntime']['image']:
             raise ReleaseConflict('backup_source_image_mismatch')
+        roles = self._writer_roles(binding)
+        if any(self._role(binding,pool) not in roles for pool in (route['poolId'], self.config['targetPool'])):
+            raise ReleaseConflict('runtime_writer_roles_incomplete')
+        try:
+            with self.connector(binding['database']) as connection:
+                grants = writer_grants(connection, roles, binding['database'])
+        except ValueError:
+            raise ReleaseConflict('backup_writer_grants_unverified') from None
+        return {'version':2,'tenantId':binding['tenantId'],'database':binding['database'],
+            'filestore':binding.get('filestore'),'registryRevision':binding['registryRevision'],
+            'releaseId':route['releaseId'],'poolId':route['poolId'],'routeRevision':route['routeRevision'],
+            'fence':route['fence'],'image':self.config['backup']['image'],
+            'roles':list(roles),'grants':grants,'cron':self._owned_cron_state(binding,route['poolId'])}
 
-    def resume_backup(self, binding, route):
+    def _previous_state(self, binding, route, previous):
+        if not isinstance(previous, dict) or previous.get('version') != 2:
+            raise ReleaseConflict('backup_previous_state_invalid')
+        roles = list(self._writer_roles(binding))
+        if (previous.get('tenantId') != binding['tenantId'] or previous.get('database') != binding['database']
+                or previous.get('fence') != route['fence'] or previous.get('routeRevision') != route['routeRevision']
+                or previous.get('releaseId') != route['releaseId'] or previous.get('poolId') != route['poolId']
+                or previous.get('roles') != roles or set(previous.get('grants') or {}) != set(roles)):
+            raise ReleaseConflict('backup_previous_state_mismatch')
+        self._recorded_cron_jobs(binding, route['poolId'], previous.get('cron'))
+        return previous
+
+    def backup_deadline(self):
+        """The one absolute budget of a backup-current operation, from its first effect
+        through the guard ACK, writer fence, capture, final validation, finalize,
+        resume and final ACK; never renewed."""
+        return Deadline(self.config['backup'].get('totalDeadlineSeconds', 600))
+
+    def recovery_deadline(self):
+        """A separate bounded budget for one recovery step: a later same-id
+        reconciliation, or the fail-closed re-fence after a failure. A fresh one per
+        step, so an exhausted capture budget never skips the fail-closed cleanup."""
+        return Deadline(self.config['backup'].get('timeoutSeconds', 120))
+
+    def resume_backup(self, binding, route, previous, deadline):
+        """Reopen the previous state after a finished window on what is left of the
+        operation budget; the window must still be intact."""
         if self.state.route(binding['tenantId']) != route:
             raise ReleaseConflict('backup_route_changed')
-        self._recheck(binding)
-        restored = fence_runtime({**binding,'fence':route['fence'],'gateClosed':True,'admittedWriters':0},
-            self._role(binding,self.config['targetPool']),self._role(binding,route['poolId']),self.connector,
-            deadline_seconds=self.config.get('drainSeconds',30))
-        if restored.get('fenced') is not True:raise ReleaseConflict('backup_resume_unverified')
-        self.activate_jobs(binding,route)
-        return {'ready':True}
+        previous = self._previous_state(binding, route, previous)
+        self._recheck_window(binding, deadline)
+        return self._restore_previous(binding, route, previous, deadline)
+
+    def _restore_previous(self, binding, route, previous, deadline):
+        # Every recorded cron must still be the recorded container before any writer reopens.
+        pool = route['poolId']
+        for container, job in self._recorded_cron_jobs(binding, pool, previous['cron']).items():
+            self._inspect_cron(binding, pool, job, previous['cron'][container]['containerId'], deadline)
+        restored = [role for role in previous['roles'] if previous['grants'][role] is True]
+        with self._window_connection(binding['database'], deadline) as connection:
+            with connection.cursor() as cursor:
+                for role in restored:
+                    cursor.execute(f'GRANT CONNECT ON DATABASE {identifier(binding["database"])} TO {identifier(role)}')
+            connection.commit()
+        jobs = self._restore_previous_cron(binding, route['poolId'], previous['cron'], deadline)
+        return {'ready':True,'restoredWriters':restored,'cron':jobs}
+
+    def _restore_previous_cron(self, binding, pool, previous, deadline):
+        jobs = self._recorded_cron_jobs(binding, pool, previous)
+        for container, job in jobs.items():
+            recorded = previous[container]
+            if recorded['running']:
+                self._set_cron(binding, pool, job, recorded['containerId'], True, deadline)
+            elif self._inspect_cron(binding, pool, job, recorded['containerId'], deadline)['running'] is not False:
+                # A cron the operator had stopped stays stopped; a backup never starts one.
+                raise ReleaseConflict('previous_cron_state_unverified')
+        deadline.remaining()
+        return previous
+
+    def reconcile_backup(self, binding, route, previous, deadline):
+        """Finish an interrupted backup by restoring the previous state only.
+
+        Valid from any stage, including a crash before the fence took effect.
+        Never captures again and never opens a principal that was closed before:
+        a writer admitted now that was not admitted before means the fence was
+        lost and the window stays closed for the operator. ``deadline`` is the
+        caller's reconciliation budget, which also bounds the barrier removal and
+        the final guard ACK after this returns.
+        """
+        if self.state.route(binding['tenantId']) != route:
+            raise ReleaseConflict('backup_route_changed')
+        previous = self._previous_state(binding, route, previous)
+        try:
+            with self._window_connection(binding['database'], deadline) as connection:
+                grants = writer_grants(connection, previous['roles'], binding['database'])
+        except ValueError as error:
+            if str(error) == 'backup_deadline_exceeded': raise
+            deadline.remaining()  # writer_grants hides an overrun behind its own refusal
+            raise ReleaseConflict('backup_fence_unverified') from None
+        if any(grants[role] is True for role in previous['roles'] if previous['grants'][role] is not True):
+            raise ReleaseConflict('backup_fence_lost')
+        return self._restore_previous(binding, route, previous, deadline)
 
     def capture_into(self, binding, proof, output):
         tenant = self._tenant(binding)
@@ -197,6 +494,21 @@ class LocalRuntime:
                   'filestorePath':tenant['filestorePath'],'recheck':self._recheck}
         receipt = capture_tenant({**binding,'fence':proof['fence']},proof,config)
         return {**receipt,'digest':digest(receipt),'path':str(output)}
+
+    def capture_backup(self, binding, proof, output, deadline):
+        """Backup-current capture inside the writer window on the operation budget."""
+        tenant = self._tenant(binding)
+        config = {**self.config['backup'], 'mode':'local','outputDir':str(output),
+                  'filestorePath':tenant['filestorePath'],'recheck':self._recheck_window}
+        receipt = capture_window({**binding,'fence':proof['fence']},proof,config,deadline)
+        return {**receipt,'digest':digest(receipt),'path':str(output)}
+
+    @staticmethod
+    def validate_capture(result, deadline):
+        """Final artifact validation, bounded by the operation budget, of exactly this capture."""
+        receipt = validate_window(result['path'], deadline)
+        if digest(receipt) != result['digest']: raise ValueError('backup_validation_failed')
+        return receipt
 
     def capture(self, binding, proof):
         output = self.state.root/'backups'/binding['tenantId']/str(proof['fence'])
@@ -360,11 +672,9 @@ class LocalRuntime:
 
     def activate_jobs(self,binding,current):
         pool=current['poolId']
-        jobs=[job for job in self.config['pools'][pool]['cronRuntimes'] if job['databases']==[binding['database']]]
-        if self.config.get('jobsRequired',True) and len(jobs)!=1:
-            raise ReleaseConflict('tenant_cron_ownership_missing')
+        jobs=self._owned_cron_jobs(binding,pool)
         for job in jobs:
-            expected={**job['identity'],'poolId':pool,'dbUser':self._role(binding,pool)}
+            expected=self._cron_expected(binding,pool,job)
             before=self.role_inspector(job['container'],expected,cron_databases=job['databases'],allow_stopped=True)
             if before.get('running') is not True:
                 subprocess.run(['docker','start',name(job['container'])],capture_output=True,check=True,timeout=30)
