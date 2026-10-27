@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "approved_at": null,
+      "employee_count": 2,
+      "id": 1,
+      "month": "2026-11",
+      "state": "computed",
+      "totals": {
+        "deductions": 1950.0,
+        "gosi_employee": 1950.0,
+        "gosi_employer": 2350.0,
+        "gross": 21000.0,
+        "net": 19050.0
+      }
+    }
+  ],
+  "total": 1
+}
