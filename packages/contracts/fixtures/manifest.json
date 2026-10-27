@@ -175,6 +175,182 @@
       "route": "/api/v1/hr/payroll/settings",
       "status": 200,
       "schema": "HrPayrollSettingsSchema"
+    },
+    {
+      "name": "pmo/project-list",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects",
+      "status": 200,
+      "schema": "ProjectListSchema"
+    },
+    {
+      "name": "pmo/project-detail",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects/{id}",
+      "status": 200,
+      "schema": "ProjectDetailSchema"
+    },
+    {
+      "name": "pmo/project-schedule",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects/{id}/schedule",
+      "status": 200,
+      "schema": "ProjectScheduleSchema"
+    },
+    {
+      "name": "pmo/project-stakeholder-list",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects/{id}/stakeholders",
+      "status": 200,
+      "schema": "ProjectStakeholderListSchema"
+    },
+    {
+      "name": "pmo/project-raci-list",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects/{id}/raci",
+      "status": 200,
+      "schema": "ProjectRaciListSchema"
+    },
+    {
+      "name": "pmo/project-register-list",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/projects/{id}/register",
+      "status": 200,
+      "schema": "ProjectRegisterListSchema"
+    },
+    {
+      "name": "pmo/task-list",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/tasks",
+      "status": 200,
+      "schema": "TaskListSchema"
+    },
+    {
+      "name": "pmo/task-detail",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/tasks/{id}",
+      "status": 200,
+      "schema": "TaskDetailSchema"
+    },
+    {
+      "name": "pmo/task-summary",
+      "addon": "webvue_pmo",
+      "method": "GET",
+      "route": "/api/v1/tasks/summary",
+      "status": 200,
+      "schema": "TaskSummarySchema"
+    },
+    {
+      "name": "meetings/meeting-list",
+      "addon": "webvue_meetings",
+      "method": "GET",
+      "route": "/api/v1/meetings",
+      "status": 200,
+      "schema": "MeetingListSchema"
+    },
+    {
+      "name": "meetings/meeting-detail",
+      "addon": "webvue_meetings",
+      "method": "GET",
+      "route": "/api/v1/meetings/{id}",
+      "status": 200,
+      "schema": "MeetingDetailSchema"
+    },
+    {
+      "name": "meetings/meeting-version-list",
+      "addon": "webvue_meetings",
+      "method": "GET",
+      "route": "/api/v1/meetings/{id}/versions",
+      "status": 200,
+      "schema": "MeetingVersionListSchema"
+    },
+    {
+      "name": "meetings/meeting-event-list",
+      "addon": "webvue_meetings",
+      "method": "GET",
+      "route": "/api/v1/meetings/{id}/events",
+      "status": 200,
+      "schema": "MeetingEventListSchema"
+    },
+    {
+      "name": "meetings/followup-resolution-list",
+      "addon": "webvue_meetings",
+      "method": "GET",
+      "route": "/api/v1/meetings/resolutions",
+      "status": 200,
+      "schema": "MeetingFollowupListSchema"
+    },
+    {
+      "name": "meetings/series-list",
+      "addon": "webvue_meetings",
+      "method": "GET",
+      "route": "/api/v1/meeting-series",
+      "status": 200,
+      "schema": "MeetingSeriesListSchema"
+    },
+    {
+      "name": "meetings/series-detail",
+      "addon": "webvue_meetings",
+      "method": "GET",
+      "route": "/api/v1/meeting-series/{id}",
+      "status": 200,
+      "schema": "MeetingSeriesDetailSchema"
+    },
+    {
+      "name": "meetings/series-resolution-list",
+      "addon": "webvue_meetings",
+      "method": "GET",
+      "route": "/api/v1/meeting-series/{id}/resolutions",
+      "status": 200,
+      "schema": "MeetingSeriesResolutionListSchema"
+    },
+    {
+      "name": "operations/process-list",
+      "addon": "webvue_operations",
+      "method": "GET",
+      "route": "/api/v1/operations/processes",
+      "status": 200,
+      "schema": "OperationProcessListSchema"
+    },
+    {
+      "name": "operations/request-list",
+      "addon": "webvue_operations",
+      "method": "GET",
+      "route": "/api/v1/operations/requests",
+      "status": 200,
+      "schema": "OperationRequestListSchema"
+    },
+    {
+      "name": "operations/request-detail",
+      "addon": "webvue_operations",
+      "method": "GET",
+      "route": "/api/v1/operations/requests/{id}",
+      "status": 200,
+      "schema": "OperationRequestSchema"
+    },
+    {
+      "name": "tasks/my-task-list",
+      "addon": "webvue_tasks",
+      "method": "GET",
+      "route": "/api/v1/my-tasks",
+      "status": 200,
+      "schema": "MyTaskListPageSchema"
+    },
+    {
+      "name": "tasks/my-task-summary",
+      "addon": "webvue_tasks",
+      "method": "GET",
+      "route": "/api/v1/my-tasks/summary",
+      "status": 200,
+      "schema": "MyTaskSummarySchema"
     }
   ]
 }

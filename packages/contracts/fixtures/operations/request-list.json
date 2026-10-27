@@ -1,0 +1,45 @@
+{
+  "items": [
+    {
+      "created_at": "2026-01-01T00:00:00Z",
+      "cycle": 1,
+      "execution_count": 0,
+      "id": 1,
+      "name": "Laptop request",
+      "process": {
+        "id": 2,
+        "name": "Personal service"
+      },
+      "process_revision": 2,
+      "purpose": "employee",
+      "requester": {
+        "id": 3,
+        "name": "Sara",
+        "user_id": 211
+      },
+      "revision": 1,
+      "state": "pending"
+    },
+    {
+      "created_at": "2026-01-01T00:00:00Z",
+      "cycle": 1,
+      "execution_count": 0,
+      "id": 4,
+      "name": "Laptop request",
+      "process": {
+        "id": 2,
+        "name": "Expense approval"
+      },
+      "process_revision": 1,
+      "purpose": "work",
+      "requester": {
+        "id": 3,
+        "name": "Sara",
+        "user_id": 211
+      },
+      "revision": 1,
+      "state": "pending"
+    }
+  ],
+  "total": 2
+}

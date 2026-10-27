@@ -1,0 +1,100 @@
+{
+  "agenda": "",
+  "attendees": [
+    {
+      "id": 3,
+      "name": "History reader"
+    }
+  ],
+  "can_edit": false,
+  "can_manage": false,
+  "end_datetime": "2026-01-01T00:00:00Z",
+  "id": 1,
+  "location": "",
+  "meeting_date": "2026-09-08",
+  "meeting_url": "",
+  "minutes": "<p>Reviewed</p>",
+  "minutes_snapshot": {
+    "agenda": "",
+    "attendees": [
+      {
+        "id": 3,
+        "name": "History reader"
+      }
+    ],
+    "captured_at": "2026-01-01T00:00:00Z",
+    "end_datetime": "2026-01-01T00:00:00Z",
+    "location": "",
+    "meeting_date": "2026-09-08",
+    "minutes": "<p>Reviewed</p>",
+    "name": "Open review",
+    "organizer": {
+      "id": 2,
+      "name": "Mona"
+    },
+    "resolutions": [
+      {
+        "deadline": "2026-09-12",
+        "execution_period": "",
+        "id": 4,
+        "meeting_name": "Open review",
+        "name": "Shared item",
+        "priority": "0",
+        "project": null,
+        "responsible": {
+          "id": 3,
+          "name": "History reader"
+        },
+        "result": "",
+        "state": "open"
+      }
+    ],
+    "secretary": null,
+    "start_datetime": "2026-01-01T00:00:00Z"
+  },
+  "name": "Open review",
+  "open_resolution_count": 1,
+  "organizer": {
+    "id": 2,
+    "name": "Mona"
+  },
+  "previous_resolutions": [],
+  "project": null,
+  "project_id": null,
+  "reference": "MIN/2026/0026",
+  "resolutions": [
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "edit_result"
+      ],
+      "can_edit_decision": false,
+      "can_update_execution": true,
+      "deadline": "2026-09-12",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 4,
+      "name": "Shared item",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 3,
+        "name": "History reader"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    }
+  ],
+  "secretary": null,
+  "series": {
+    "id": 5,
+    "name": "Restricted series"
+  },
+  "series_id": 11,
+  "start_datetime": "2026-01-01T00:00:00Z",
+  "state": "done",
+  "write_date": "2026-01-01T00:00:00Z"
+}

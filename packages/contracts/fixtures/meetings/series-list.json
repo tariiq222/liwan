@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "name": "Mixed",
+      "open_resolution_count": 0,
+      "organizer": {
+        "id": 2,
+        "name": "Mona"
+      },
+      "overdue_resolution_count": 0,
+      "project": null,
+      "recurrence": "none",
+      "until_count": null,
+      "until_date": null
+    }
+  ],
+  "total": 1
+}

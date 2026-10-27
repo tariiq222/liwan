@@ -1,0 +1,77 @@
+{
+  "items": [
+    {
+      "description": "Process private description",
+      "execution_kind": "approval",
+      "id": 1,
+      "name": "Published 1",
+      "purpose": "work",
+      "revision": 1,
+      "state": "published",
+      "steps": [
+        {
+          "name": "Confidential stage",
+          "reviewer_ids": [
+            225
+          ],
+          "reviewers": [
+            {
+              "id": 2,
+              "name": "ops_branch_reviewer (base.group_user,base.group_allow_export)",
+              "user_id": 225
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "description": "Process private description",
+      "execution_kind": "approval",
+      "id": 3,
+      "name": "Published 36",
+      "purpose": "work",
+      "revision": 1,
+      "state": "published",
+      "steps": [
+        {
+          "name": "Confidential stage",
+          "reviewer_ids": [
+            225
+          ],
+          "reviewers": [
+            {
+              "id": 2,
+              "name": "ops_branch_reviewer (base.group_user,base.group_allow_export)",
+              "user_id": 225
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "description": "Unpublished description",
+      "execution_kind": "approval",
+      "id": 4,
+      "name": "Unpublished 1",
+      "purpose": "work",
+      "revision": 1,
+      "state": "draft",
+      "steps": [
+        {
+          "name": "Unpublished stage",
+          "reviewer_ids": [
+            225
+          ],
+          "reviewers": [
+            {
+              "id": 2,
+              "name": "ops_branch_reviewer (base.group_user,base.group_allow_export)",
+              "user_id": 225
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "total": 3
+}

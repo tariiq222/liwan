@@ -191,7 +191,8 @@
       "downloadBank": "Download bank file",
       "downloadWps": "Download WPS file",
       "noProfiles": "No file profiles. Add them in the payroll settings.",
-      "profilesError": "The file profiles could not be loaded."
+      "profilesError": "The file profiles could not be loaded.",
+      "readOnly": "The workspace is read-only, so salary files cannot be generated now. Renew the subscription or contact support."
     },
     "gosiStatement": {
       "title": "GOSI statement",

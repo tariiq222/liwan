@@ -17,11 +17,11 @@ const PAYROLL_PATH = '/api/v1/hr/payroll'
 const PROFILES_PATH = `${PAYROLL_PATH}/bank-profiles`
 const FILE_ROUTES = { bank: 'bank-file', wps: 'wps-file' } as const
 
-/** The route of the bank or WPS file of a fixed run; the value date is the bank file's only. */
-export function hrPayrollFileUrl(runId: number, kind: 'bank' | 'wps', params: { profileId: number; valueDate?: string }): string {
-  const query = new URLSearchParams({ profile_id: String(params.profileId) })
-  if (params.valueDate) query.set('value_date', params.valueDate)
-  return `${PAYROLL_PATH}/runs/${runId}/${FILE_ROUTES[kind]}?${query}`
+/** The POST of the bank or WPS file of a fixed run (it keeps the file, so it is a write); the value date is the bank file's only. */
+export function hrPayrollFileRequest(runId: number, kind: 'bank' | 'wps', params: { profileId: number; valueDate?: string }) {
+  const body: { profile_id: number; value_date?: string } = { profile_id: params.profileId }
+  if (params.valueDate) body.value_date = params.valueDate
+  return { path: `${PAYROLL_PATH}/runs/${runId}/${FILE_ROUTES[kind]}`, method: 'POST', body } as const
 }
 
 export type HrBankProfileSave = { id?: undefined; body: HrBankProfileWrite } | { id: number; body: HrBankProfilePatch }

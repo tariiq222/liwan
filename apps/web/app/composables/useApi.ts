@@ -83,11 +83,15 @@ export function useApi() {
     return new ApiError(status, 'http_error', message)
   }
 
-  /** A file route: the raw body and the file name the server chose. A refusal is the same ApiError `$api` throws. */
-  async function $download(path: string): Promise<{ blob: Blob; filename: string | null }> {
+  /** A file route: the raw body and the file name the server chose. A refusal is the same ApiError `$api` throws.
+   * A file that is kept server-side is a JSON POST (`{ method: 'POST', body }`), never a GET. */
+  async function $download(path: string, opts: { method?: string; body?: unknown } = {}): Promise<{ blob: Blob; filename: string | null }> {
     try {
       const response = await $fetch.raw<Blob>(path, {
         responseType: 'blob',
+        method: (opts.method ?? 'GET') as any,
+        body: opts.body as any,
+        ...(opts.method && opts.method !== 'GET' ? { retry: 0 } : {}),
         headers: /^\/api\/v1\/[a-zA-Z0-9_/-]+$/.test(path.split('?')[0] ?? '') && !path.includes('..') ? { ...headers, ...trustedHeaders } : {},
       })
       return { blob: response._data as Blob, filename: contentDispositionFilename(response.headers.get('content-disposition')) }

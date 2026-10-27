@@ -1,0 +1,2705 @@
+{
+  "items": [
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 1,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 104",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 3,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 103",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 4,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 102",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 5,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 101",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 6,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 100",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 7,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 099",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 8,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 098",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 9,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 097",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 10,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 096",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 11,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 095",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 12,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 094",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 13,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 093",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 14,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 092",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 15,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 091",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 16,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 090",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 17,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 089",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 18,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 088",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 19,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 087",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 20,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 086",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 21,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 085",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 22,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 084",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 23,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 083",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 24,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 082",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 25,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 081",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 26,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 080",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 27,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 079",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 28,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 078",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 29,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 077",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 30,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 076",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 31,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 075",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 32,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 074",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 33,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 073",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 34,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 072",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 35,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 071",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 36,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 070",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 37,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 069",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 38,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 068",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 39,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 067",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 40,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 066",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 41,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 065",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 42,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 064",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 43,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 063",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 44,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 062",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 45,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 061",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 46,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 060",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 47,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 059",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 48,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 058",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 49,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 057",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 50,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 056",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 51,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 055",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 52,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 054",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 53,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 053",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 54,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 052",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 2,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 051",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 55,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 050",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 56,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 049",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 57,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 048",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 58,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 047",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 59,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 046",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 60,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 045",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 61,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 044",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 62,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 043",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 63,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 042",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 64,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 041",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 65,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 040",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 66,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 039",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 67,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 038",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 68,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 037",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 69,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 036",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 70,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 035",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 71,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 034",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 72,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 033",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 73,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 032",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 74,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 031",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 75,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 030",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 76,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 029",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 77,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 028",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 78,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 027",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 79,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 026",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 80,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 025",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 81,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 024",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 82,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 023",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 83,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 022",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 84,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 021",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 85,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 020",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 86,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 019",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 87,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 018",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 88,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 017",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 89,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 016",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 90,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 015",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 91,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 014",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 92,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 013",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 93,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 012",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 94,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 011",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 95,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 010",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 96,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 009",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 97,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 008",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 98,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 007",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 99,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 006",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    },
+    {
+      "allowed_actions": [
+        "start",
+        "complete",
+        "cancel",
+        "edit_result"
+      ],
+      "can_edit_decision": true,
+      "can_update_execution": true,
+      "deadline": "2020-01-01",
+      "execution_period": "",
+      "execution_state": "open",
+      "id": 100,
+      "meeting_id": 16,
+      "meeting_name": "Global followup source",
+      "name": "Followup 005",
+      "priority": "0",
+      "project": null,
+      "responsible": {
+        "id": 2,
+        "name": "Sara"
+      },
+      "result": "",
+      "state": "open",
+      "task_id": null,
+      "task_linked": false
+    }
+  ],
+  "total": 105
+}

@@ -1,0 +1,73 @@
+{
+  "items": [
+    {
+      "actor": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "captured_at": "2026-01-01T00:00:00Z",
+      "id": 1,
+      "number": 2,
+      "snapshot": {
+        "agenda": "",
+        "attendees": [],
+        "captured_at": "2026-01-01T00:00:00Z",
+        "end_datetime": null,
+        "location": "",
+        "meeting_date": "2026-09-09",
+        "minutes": "",
+        "minutes_form": {
+          "approver_name": "",
+          "approver_title": "",
+          "chairperson": "",
+          "closing": "",
+          "opening": "Second",
+          "topics": []
+        },
+        "name": "Workspace review",
+        "organizer": {
+          "id": 3,
+          "name": "Sara"
+        },
+        "resolutions": [],
+        "secretary": null,
+        "start_datetime": null
+      }
+    },
+    {
+      "actor": {
+        "id": 2,
+        "name": "OdooBot"
+      },
+      "captured_at": "2026-01-01T00:00:00Z",
+      "id": 4,
+      "number": 1,
+      "snapshot": {
+        "agenda": "",
+        "attendees": [],
+        "captured_at": "2026-01-01T00:00:00Z",
+        "end_datetime": null,
+        "location": "",
+        "meeting_date": "2026-09-09",
+        "minutes": "",
+        "minutes_form": {
+          "approver_name": "",
+          "approver_title": "",
+          "chairperson": "",
+          "closing": "",
+          "opening": "First",
+          "topics": []
+        },
+        "name": "Workspace review",
+        "organizer": {
+          "id": 3,
+          "name": "Sara"
+        },
+        "resolutions": [],
+        "secretary": null,
+        "start_datetime": null
+      }
+    }
+  ],
+  "total": 2
+}
