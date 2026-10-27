@@ -11,7 +11,8 @@ from pathlib import Path
 import ci_scope
 
 ALL = ci_scope.STAGES
-SHARED = ('static', 'control-plane', 'vendor-admin', 'e2e-mock', 'rtl-stories')
+SHARED = ('static', 'control-plane', 'vendor-admin', 'image', 'e2e-mock', 'rtl-stories')
+WEB = ('static', 'control-plane', 'image', 'e2e-mock', 'rtl-stories')
 
 
 class StagesForTest(unittest.TestCase):
@@ -36,10 +37,10 @@ class StagesForTest(unittest.TestCase):
                      '.claude/scripts/session-start.sh'):
             self.assert_stages(path, ('static',))
         self.assert_stages('ruff.toml', ('static', 'ai-service'))
-        self.assert_stages('apps/web/app/pages/index.vue', ('static', 'control-plane', 'e2e-mock', 'rtl-stories'))
-        self.assert_stages('apps/vendor-admin/pages/index.vue', ('static', 'vendor-admin'))
+        self.assert_stages('apps/web/app/pages/index.vue', WEB)
+        self.assert_stages('apps/vendor-admin/pages/index.vue', ('static', 'vendor-admin', 'image'))
         self.assert_stages('apps/control-plane/src/http.ts', ('static', 'control-plane'))
-        self.assert_stages('apps/ai-service/src/app.py', ('static', 'ai-service'))
+        self.assert_stages('apps/ai-service/src/app.py', ('static', 'ai-service', 'image'))
         for path in ('packages/ui/app/a.vue', 'packages/commercial-ui/app/a.vue',
                      'packages/commercial-contracts/src/a.ts'):
             self.assert_stages(path, SHARED)
@@ -57,9 +58,9 @@ class StagesForTest(unittest.TestCase):
             self.assertEqual(ci_scope.matching_rule(path)[0], ci_scope.UNMAPPED)
 
     def test_root_only_patterns_do_not_match_nested_files(self):
-        self.assert_stages('apps/web/package.json', ('static', 'control-plane', 'e2e-mock', 'rtl-stories'))
-        self.assert_stages('apps/web/.npmrc', ('static', 'control-plane', 'e2e-mock', 'rtl-stories'))
-        self.assert_stages('apps/web/.gitignore', ('static', 'control-plane', 'e2e-mock', 'rtl-stories'))
+        self.assert_stages('apps/web/package.json', WEB)
+        self.assert_stages('apps/web/.npmrc', WEB)
+        self.assert_stages('apps/web/.gitignore', WEB)
 
     def test_unmapped_path_runs_all_twelve(self):
         for path in ('plans/roadmap.txt', 'scripts/verify.py', 'packages/new-pkg/a.ts',
@@ -69,7 +70,7 @@ class StagesForTest(unittest.TestCase):
 
     def test_mixed_paths_take_the_union_in_pipeline_order(self):
         self.assertEqual(ci_scope.stages_for(['apps/vendor-admin/a.ts', 'apps/ai-service/a.py', 'docs/a.md']),
-                         ('static', 'ai-service', 'vendor-admin'))
+                         ('static', 'ai-service', 'vendor-admin', 'image'))
 
     def test_one_full_path_makes_the_whole_change_full(self):
         self.assertEqual(ci_scope.stages_for(['docs/a.md', 'odoo-addons/x/a.py']), ALL)
@@ -155,7 +156,7 @@ class ChangedPathsTest(unittest.TestCase):
         text = out.getvalue()
         self.assertIn('docs/keep.md  <-  *.md', text)
         self.assertIn('apps/ai-service/a.py  <-  apps/ai-service/*', text)
-        self.assertIn('2 of 12 stages: static, ai-service', text)
+        self.assertIn('3 of 12 stages: static, ai-service, image', text)
 
     def test_preview_ignores_changes_base_made_after_the_branch_left_it(self):
         self.git('switch', '-qc', 'task')
@@ -179,7 +180,7 @@ class ChangedPathsTest(unittest.TestCase):
         self.write('apps/ai-service/a.py', 'x\n')
         head = self.commit()
         self.assertEqual(self.run_main('--base', self.base, '--commit', head, '--stages'),
-                         '["static", "ai-service"]\n')
+                         '["static", "ai-service", "image"]\n')
 
     def test_full_selects_every_stage_without_a_base(self):
         self.assertEqual(json.loads(self.run_main('--full', '--stages')), list(ALL))

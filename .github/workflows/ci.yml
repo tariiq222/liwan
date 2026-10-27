@@ -309,7 +309,8 @@ jobs:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'image')
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # Six image builds and smoke checks, then six Trivy scans (one database download); 60 left no room for the scans.
+    timeout-minutes: 75
     services:
       postgres:
         image: postgres:16

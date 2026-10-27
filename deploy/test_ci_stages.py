@@ -61,6 +61,11 @@ if args[:1] == ['inspect']: print('true')
 if args[:1] == ['exec'] and joined.endswith('id -u'): print(10001)
 if args[:1] == ['exec'] and 'unknown.invalid' in joined: print(403)
 if args[:2] == ['image', 'inspect']: print('sha256:' + args[-1])
+if args[:1] == ['run'] and any(a.startswith('aquasec/trivy:') for a in args):
+    # TRIVY_FAKE maps an image tag to {"exit": code, "report": trivy json}; an unlisted image is clean.
+    plan = json.loads(os.environ.get('TRIVY_FAKE', '{}')).get(args[-1], {})
+    print(json.dumps(plan.get('report', {'Results': []})))
+    sys.exit(plan.get('exit', 0))
 ''')
         self.fake('psql', '''
 if 'webvue_tasks_pmo' in ' '.join(args) and "SELECT state" in ' '.join(args): print('installed')
@@ -282,6 +287,69 @@ if 'deploy/restore_verify.py' in args:
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
         self.assertIn('| webvue-guard:ci-123 |', summary.read_text())
         self.assertNotIn('| Image |', process.stdout)
+
+    def trivy_report(self, severity, count=1):
+        return {'Results': [{'Vulnerabilities': [
+            {'VulnerabilityID': 'CVE-2099-%d' % n, 'PkgName': 'libfake', 'InstalledVersion': '1.0',
+             'FixedVersion': '1.1', 'Severity': severity} for n in range(count)]}]}
+
+    def trivy_runs(self):
+        calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
+        return [x for x in calls if x[:2] == ['docker', 'run'] and any(a.startswith('aquasec/trivy:') for a in x)]
+
+    def test_image_gate_scans_every_image_with_the_pinned_scanner_and_reports_counts(self):
+        self.environment['TRIVY_FAKE'] = json.dumps({'webvue-web:ci-123': {'report': self.trivy_report('HIGH', 2)}})
+        summary = self.root / 'summary.md'
+        self.environment['GITHUB_STEP_SUMMARY'] = str(summary)
+        process = self.execute('image')
+        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+        runs = self.trivy_runs()
+        tags = ['webvue-%s:ci-123' % n for n in ('odoo', 'web', 'vendor-admin', 'ai-service', 'proxy', 'guard')]
+        self.assertEqual([x[-1] for x in runs], tags)
+        for run in runs:
+            with self.subTest(image=run[-1]):
+                self.assertEqual(run[run.index('--name') + 1], 'webvue-ci-123-trivy')
+                scanner = next(a for a in run if a.startswith('aquasec/trivy:'))
+                self.assertRegex(scanner, r'^aquasec/trivy:\d+\.\d+\.\d+@sha256:[0-9a-f]{64}$')
+                self.assertIn('/var/run/docker.sock:/var/run/docker.sock', run)
+                self.assertEqual(run[run.index('--severity') + 1], 'HIGH,CRITICAL')
+                self.assertIn('--ignore-unfixed', run)
+                self.assertEqual(run[run.index('--exit-code') + 1], '0')
+        self.assertIn(['docker', 'volume', 'rm', '-f', 'webvue-ci-123-trivy-cache'], [
+            json.loads(line) for line in self.calls.read_text().splitlines()])
+        text = summary.read_text()
+        self.assertIn('| webvue-web:ci-123 | 0 | 2 |', text)
+        self.assertIn('| webvue-guard:ci-123 | 0 | 0 |', text)
+        self.assertIn('webvue-web:ci-123: HIGH CVE-2099-0 libfake 1.0 -> fixed in 1.1', process.stderr)
+
+    def test_image_gate_fails_on_a_critical_finding_after_scanning_every_image(self):
+        self.environment['TRIVY_FAKE'] = json.dumps({'webvue-web:ci-123': {'report': self.trivy_report('CRITICAL')}})
+        process = self.execute('image')
+        self.assertNotEqual(process.returncode, 0)
+        self.assertIn('webvue-web:ci-123 has 1 CRITICAL vulnerabilities with a fix available', process.stderr)
+        self.assertIn('| webvue-web:ci-123 | 1 | 0 |', process.stdout)
+        self.assertEqual(len(self.trivy_runs()), 6)
+
+    def test_image_gate_fails_with_a_message_when_the_scanner_errors(self):
+        self.environment['TRIVY_FAKE'] = json.dumps({'webvue-proxy:ci-123': {'exit': 1, 'report': {}}})
+        process = self.execute('image')
+        self.assertNotEqual(process.returncode, 0)
+        self.assertIn('webvue-proxy:ci-123 scan failed: trivy exited with an error', process.stderr)
+        self.assertIn('| webvue-proxy:ci-123 | scan error | scan error |', process.stdout)
+        self.assertEqual(len(self.trivy_runs()), 6)
+
+    def test_image_gate_fails_when_the_scanner_report_is_unreadable(self):
+        self.fake('docker', """
+joined = ' '.join(args)
+if args[:1] == ['inspect']: print('true')
+if args[:1] == ['exec'] and joined.endswith('id -u'): print(10001)
+if args[:1] == ['exec'] and 'unknown.invalid' in joined: print(403)
+if args[:2] == ['image', 'inspect']: print('sha256:' + args[-1])
+if args[:1] == ['run'] and any(a.startswith('aquasec/trivy:') for a in args): print('not json')
+""")
+        process = self.execute('image')
+        self.assertNotEqual(process.returncode, 0)
+        self.assertIn('scan failed: unreadable trivy report', process.stderr)
 
 
 class TestVendorAdminStage(unittest.TestCase):
