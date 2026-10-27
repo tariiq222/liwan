@@ -5920,6 +5920,20 @@
       "handler": "create_series",
       "no_capability_reason": null
     },
+    "POST /api/v1/meeting-series/{series_id}/cancel": {
+      "addon": "webvue_meetings",
+      "auth": "user",
+      "capability_keys": [
+        "meetings.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "meetings.enabled"
+      ],
+      "handler": "cancel_series",
+      "no_capability_reason": null
+    },
     "POST /api/v1/meeting-series/{series_id}/occurrences": {
       "addon": "webvue_meetings",
       "auth": "user",

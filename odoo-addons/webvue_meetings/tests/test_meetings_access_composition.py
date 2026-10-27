@@ -15,9 +15,11 @@ RULES = (
     'rule_resolution_editors_write', 'rule_resolution_managers_write',
 )
 # (read, write, create, unlink) per capability group on each meeting model.
+# Nobody holds unlink on minutes and resolutions: cancel is the remove action and finalized minutes are
+# immutable, so no API route deletes them. The `unlink` overrides stay as ORM-level defence.
 ACL = {
     'group_cap_meetings_read': (True, True, True, False),
-    'group_cap_meetings_manage': (True, True, True, True),
+    'group_cap_meetings_manage': (True, True, True, False),
 }
 
 

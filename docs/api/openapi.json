@@ -36544,6 +36544,9 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "active": {
+            "type": "boolean"
+          },
           "attendees": {
             "items": {
               "additionalProperties": false,
@@ -36813,6 +36816,7 @@
           "id",
           "name",
           "recurrence",
+          "active",
           "until_date",
           "until_count",
           "organizer",
@@ -36831,6 +36835,9 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "active": {
+            "type": "boolean"
+          },
           "id": {
             "maximum": 9007199254740991,
             "minimum": -9007199254740991,
@@ -36931,6 +36938,7 @@
           "id",
           "name",
           "recurrence",
+          "active",
           "until_date",
           "until_count",
           "organizer",
@@ -36948,6 +36956,9 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "active": {
+                  "type": "boolean"
+                },
                 "id": {
                   "maximum": 9007199254740991,
                   "minimum": -9007199254740991,
@@ -37048,6 +37059,7 @@
                 "id",
                 "name",
                 "recurrence",
+                "active",
                 "until_date",
                 "until_count",
                 "organizer",
@@ -66607,6 +66619,59 @@
           ],
           "feature_operation": "write",
           "handler": "patch_series",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/meeting-series/{series_id}/cancel": {
+      "post": {
+        "operationId": "webvue_meetings.MeetingSeriesController.cancel_series.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "series_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "cancel_series",
+        "tags": [
+          "webvue_meetings"
+        ],
+        "x-webvue": {
+          "addon": "webvue_meetings",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "MeetingSeriesController",
+          "feature_keys": [
+            "meetings.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "cancel_series",
           "readonly": false,
           "route_type": "json2"
         }

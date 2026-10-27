@@ -198,6 +198,8 @@ export const MeetingSeriesListItemSchema = z.object({
   id: z.number().int(),
   name: z.string(),
   recurrence: z.enum(['none', 'weekly', 'biweekly', 'monthly']),
+  // False once the series is ended: it stays listed, takes no new meeting.
+  active: z.boolean(),
   until_date: z.string().nullable(),
   until_count: z.number().int().nullable(),
   organizer: MeetingPersonSchema.nullable(),

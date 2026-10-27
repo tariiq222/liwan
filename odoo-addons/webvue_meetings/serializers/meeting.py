@@ -290,6 +290,7 @@ def dump_series(series, *, detail=False, counts=None):
         'id': series.id,
         'name': series.name,
         'recurrence': series.recurrence,
+        'active': series.active,
         'until_date': str(series.until_date) if series.until_date else None,
         'until_count': series.until_count or None,
         'organizer': dump_person(series.organizer_id),

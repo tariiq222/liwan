@@ -246,6 +246,7 @@ const series = {
   id: 1,
   name: 'اجتماعات متابعة التحول الرقمي',
   recurrence: 'monthly',
+  active: true,
   until_date: '2026-12-31',
   until_count: null,
   organizer: PERSON,

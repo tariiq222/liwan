@@ -200,6 +200,7 @@ class WebVueMeetingMinute(models.Model):
         if not series:
             return
         self._webvue_check_series_link(series)
+        series._webvue_assert_open()
         series.check_access('read')
         for field, value in series._webvue_extra_meeting_defaults().items():
             if value:
@@ -264,6 +265,8 @@ class WebVueMeetingMinute(models.Model):
             if not series:
                 raise ValidationError(self.env._('The meeting series does not exist.'))
             self._webvue_check_series_link(series)
+            if any(meeting.series_id != series for meeting in self):
+                series._webvue_assert_open()
             series.check_access('read')
         previous = {meeting.id: meeting._webvue_participant_users() for meeting in self}
         previous_state = {meeting.id: meeting.state for meeting in self}

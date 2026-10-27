@@ -157,11 +157,12 @@ describe('meeting series boundaries', () => {
 
   it('parses nonempty series list and detail responses', () => {
     const row = {
-      id: 1, name: 'Committee', recurrence: 'weekly', until_count: 3, until_date: null,
+      id: 1, name: 'Committee', recurrence: 'weekly', active: true, until_count: 3, until_date: null,
       organizer: { id: 2, name: 'Organizer' }, project: null,
       open_resolution_count: 2, overdue_resolution_count: 1,
     }
     expect(MeetingSeriesListSchema.parse({ items: [row], total: 51 }).total).toBe(51)
+    expect(MeetingSeriesListSchema.parse({ items: [{ ...row, active: false }], total: 1 }).items[0]?.active).toBe(false)
     expect(MeetingSeriesDetailSchema.parse({
       ...row, location: 'Room', meeting_url: '', secretary: null,
       attendees: [{ id: 3, name: 'Member' }], meetings: [{ ...ITEM, series_id: 1 }], can_edit: true,

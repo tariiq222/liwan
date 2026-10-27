@@ -64,7 +64,8 @@ class MeetingSeriesController(http.Controller):
             domain += request.env['webvue.meeting.links']._webvue_project_domain(
                 parse_positive_int(args.get('project_id'), 'project_id'),
             )
-        Series = request.env['webvue.meeting.series']
+        # Ended series stay listed (flagged `active: false`) so they can still be found.
+        Series = request.env['webvue.meeting.series'].with_context(active_test=False)
         records = Series.search(domain, order='name, id', limit=limit, offset=offset)
         counts = projected_resolution_counts(records.meeting_ids)
         return {
@@ -156,6 +157,15 @@ class MeetingSeriesController(http.Controller):
                 raise ApiError(422, 'invalid', 'end_datetime must be after start_datetime', field='end_datetime')
             series.action_generate_occurrences(start, end)
         return request.make_json_response(dump_series(series, detail=True), status=201)
+
+    @http.route('/api/v1/meeting-series/<int:series_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('meetings.enabled', operation='write')
+    def cancel_series(self, series_id, **_):
+        require_capabilities('meetings.read')
+        series = get_record('webvue.meeting.series', series_id)
+        series.action_cancel_series()
+        return dump_series(series, detail=True)
 
     @http.route('/api/v1/meeting-series/<int:series_id>/occurrences', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

@@ -105,12 +105,16 @@ class TestMeetingSecurity(WebVueMeetingEngineCase):
         self.assertNotEqual(copy.calendar_event_id, meeting.calendar_event_id)
         self.assertNotEqual(copy.reference, meeting.reference)
 
-    def test_batch_unlink_requires_manager(self):
+    def test_nobody_but_the_system_can_unlink_a_meeting(self):
+        """The manage ACL has no unlink: cancel is the remove action, the unlink override is only ORM defence."""
         first = self._create_meeting()
         second = self._create_meeting(name="Second")
         with self.assertRaises(AccessError):
             (first | second).with_user(self.organizer).unlink()
-        (first | second).with_user(self.manager).unlink()
+        with self.assertRaises(AccessError):
+            (first | second).with_user(self.manager).unlink()
+        self.assertTrue((first | second).exists())
+        (first | second).sudo().unlink()
         self.assertFalse(first.exists())
 
     def test_command_create_resolution_denied_for_attendee(self):
