@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # CI stage: build every production image; install the release in the Odoo one and assert it is hardened;
-# smoke-check the others without external services; record each image digest.
+# smoke-check the others without external services; scan every image for vulnerabilities; record each image digest.
 # The Postgres service container is published on the runner, so the containers use the host network.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -9,6 +9,9 @@ IMAGE="webvue-odoo:ci-${GITHUB_RUN_ID}"
 IMAGE_CONTAINER="webvue-ci-${GITHUB_RUN_ID}-image"
 CHECK_CONTAINER="webvue-ci-${GITHUB_RUN_ID}-check"
 IMAGE_ROOT="$(mktemp -d)"
+# Trivy 0.75.0 (published 2026-10-01), pinned by tag and by the digest of its multi-arch index.
+TRIVY_IMAGE="aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa"
+TRIVY_CACHE="webvue-ci-${GITHUB_RUN_ID}-trivy-cache"
 # name:Dockerfile:context for every production image besides Odoo (built, smoke-checked, digest recorded).
 OTHER_IMAGES=(
   "web:apps/web/Dockerfile:."
@@ -20,7 +23,8 @@ OTHER_IMAGES=(
 tag_of() { printf 'webvue-%s:ci-%s' "$1" "$GITHUB_RUN_ID"; }
 container_of() { printf 'webvue-ci-%s-%s' "$GITHUB_RUN_ID" "$1"; }
 cleanup() {
-  docker rm -fv "$IMAGE_CONTAINER" "$CHECK_CONTAINER" >/dev/null 2>&1 || true
+  docker rm -fv "$IMAGE_CONTAINER" "$CHECK_CONTAINER" "$(container_of trivy)" >/dev/null 2>&1 || true
+  docker volume rm -f "$TRIVY_CACHE" >/dev/null 2>&1 || true
   docker rmi -f "$IMAGE" >/dev/null 2>&1 || true
   for entry in "${OTHER_IMAGES[@]}"; do
     docker rm -fv "$(container_of "${entry%%:*}")" >/dev/null 2>&1 || true
@@ -99,11 +103,60 @@ for caddyfile in deploy/Caddyfile deploy/shared/Caddyfile; do
 done
 docker run --rm --name "$(container_of proxy)" "$(tag_of proxy)" sh -c 'caddy list-modules | grep -q http.handlers.rate_limit'
 
-# Record every image's tag and content digest.
+ALL_IMAGES=("$IMAGE" "$(tag_of web)" "$(tag_of vendor-admin)" "$(tag_of ai-service)" "$(tag_of proxy)" "$(tag_of guard)")
+
+# Scan one image with Trivy (through its official container and the Docker socket; the vulnerability database
+# lives in an owned volume so it downloads once). Findings with no fix available are ignored. Every HIGH and
+# CRITICAL finding is listed on stderr; stdout carries "<critical> <high>". A scanner error (database download,
+# timeout, unreadable report) is a failure with its own message, never a pass.
+scan_image() {
+  local tag="$1" report="$IMAGE_ROOT/trivy.json"
+  docker run --rm --name "$(container_of trivy)" -v /var/run/docker.sock:/var/run/docker.sock \
+    -v "$TRIVY_CACHE:/root/.cache/trivy" "$TRIVY_IMAGE" image --quiet --scanners vuln --timeout 15m \
+    --format json --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 "$tag" > "$report" \
+    || { echo "$tag scan failed: trivy exited with an error (vulnerability database download or scan error)" >&2; return 1; }
+  python3 - "$report" "$tag" <<'PY' || { echo "$tag scan failed: unreadable trivy report" >&2; return 1; }
+import json, sys
+
+report, tag = sys.argv[1:3]
+with open(report) as handle:
+    document = json.load(handle)
+counts = {'CRITICAL': 0, 'HIGH': 0}
+for result in document.get('Results') or []:
+    for finding in result.get('Vulnerabilities') or []:
+        severity = finding.get('Severity')
+        if severity in counts:
+            counts[severity] += 1
+            print(f"{tag}: {severity} {finding.get('VulnerabilityID')} {finding.get('PkgName')} "
+                  f"{finding.get('InstalledVersion')} -> fixed in {finding.get('FixedVersion')}", file=sys.stderr)
+print(counts['CRITICAL'], counts['HIGH'])
+PY
+}
+
+# CRITICAL findings with a fix fail the stage; HIGH ones are reported only. Scan every image before failing.
+scan_failed=0
+scan_rows=""
+for image in "${ALL_IMAGES[@]}"; do
+  if counts="$(scan_image "$image")"; then
+    read -r critical high <<< "$counts"
+    scan_rows+="$(printf '| %s | %s | %s |\n' "$image" "$critical" "$high")"$'\n'
+    if [ "$critical" -gt 0 ]; then
+      echo "$image has $critical CRITICAL vulnerabilities with a fix available" >&2
+      scan_failed=1
+    fi
+  else
+    scan_rows+="$(printf '| %s | scan error | scan error |\n' "$image")"$'\n'
+    scan_failed=1
+  fi
+done
+
+# Record every image's tag and content digest, and the scan counts.
 summary() {
   printf '| Image | Digest |\n| --- | --- |\n'
-  for image in "$IMAGE" "$(tag_of web)" "$(tag_of vendor-admin)" "$(tag_of ai-service)" "$(tag_of proxy)" "$(tag_of guard)"; do
+  for image in "${ALL_IMAGES[@]}"; do
     printf '| %s | %s |\n' "$image" "$(docker image inspect --format '{{.Id}}' "$image")"
   done
+  printf '\nVulnerability scan (Trivy 0.75.0, fixable findings only):\n\n| Scanned image | CRITICAL | HIGH |\n| --- | --- | --- |\n%s' "$scan_rows"
 }
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then summary >> "$GITHUB_STEP_SUMMARY"; else summary; fi
+[ "$scan_failed" -eq 0 ] || { echo "image scan failed: a CRITICAL fixable vulnerability or a scanner error (see above)" >&2; exit 1; }

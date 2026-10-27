@@ -211,8 +211,15 @@ installs the release in the Odoo image and checks it is hardened, starts web, ve
 and guard without external services (web answers `/login`, vendor-admin serves a built static asset because its pages need the control plane, ai-service `/healthz`, guard
 denies an unknown host with 403 and passes its healthcheck) and asserts none runs as root, validates both
 Caddyfiles with the proxy image and checks its rate-limit module (the official Caddy base keeps root), and
-writes each image's tag and content digest to the job summary. It does not scan images for
-vulnerabilities, and the image digests are not published artifacts. Mock browser tests and RTL stories cover their listed flows, not every possible
+writes each image's tag and content digest to the job summary. After the smoke checks it scans all six
+images with Trivy 0.75.0 (the official `aquasec/trivy` container, pinned by tag and digest, run against the
+Docker socket) for vulnerabilities that have a fix available: any CRITICAL finding fails the stage, HIGH findings
+are listed in the job log and counted in the summary without failing, and a scanner error (for example the
+vulnerability database download) fails the stage with a message instead of passing. All images are scanned before
+the stage fails. The scan covers OS and language packages known to the Trivy database at run time, not the
+application code, and it does not allowlist anything. The image digests are not published artifacts. A change under
+`apps/web`, `apps/vendor-admin`, `apps/ai-service`, `packages/ui`, `packages/commercial-ui` or
+`packages/commercial-contracts` selects the `image` stage because those images build from them. Mock browser tests and RTL stories cover their listed flows, not every possible
 real integration. No paid model calls are required.
 
 The `upgrade` stage reports an explicit absence of a compatible release baseline when none exists. That
