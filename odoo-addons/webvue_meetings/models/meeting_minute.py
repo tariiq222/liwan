@@ -361,7 +361,7 @@ class WebVueMeetingMinute(models.Model):
         return super().copy(default)
 
     def unlink(self):
-        version_count = self.env['webvue.meeting.minutes.version'].sudo().search_count([
+        version_count = self.env['webvue.meeting.minutes.version'].search_count([
             ('meeting_id', 'in', self.ids),
         ])
         if version_count:

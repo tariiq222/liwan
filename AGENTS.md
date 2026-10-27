@@ -332,7 +332,8 @@ cross-addon links.
   refuses `env.su`. The idempotency precheck and the `mail.notification` create carry no elevation: the unique key
   index guarantees single delivery and the actor creates the linked message.
   `webvue_meetings` uses it only for its server-controlled minutes, snapshot,
-  version and event records, the company-wide organizer-overlap check, the
+  version and event records (the finalized-version count that refuses a delete reads unelevated), the
+  company-wide organizer-overlap check, the
   existence check of the minutes linked to a calendar event (read only, access is
   rechecked by the caller) and the recipient-owned bell candidates. It does not
   elevate the meeting-manager group lookup or the follower allow-list: tests
