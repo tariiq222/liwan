@@ -1,9 +1,5 @@
 {
   "cases": {
-    "odoo-addons/webvue_api/controllers/auth.py": {
-      "count": 1,
-      "reason": "webvue_api login/session gate: `request.env['webvue.entitlement.service'].sudo()` in the pre-login suspension check; blocked by odoo-addons/webvue_platform/security/ir.model.access.csv:2 `access_webvue_tenant_profile_system` (base.group_system only) on `webvue.tenant.profile`; the route is auth='public' and runs before a session exists, so no caller environment can authorize the tenant-profile read."
-    },
     "odoo-addons/webvue_api/controllers/branding.py": {
       "count": 1,
       "reason": "webvue_api public branding: `request.env['webvue.tenant.profile'].sudo().search([], limit=1)`; blocked by the same system-only `access_webvue_tenant_profile_system` row; the `/api/v1/branding` route is auth='public' with no session to authorize it."
@@ -13,8 +9,8 @@
       "reason": "webvue_api commercial surface: `request.env['webvue.tenant.profile'].sudo().search([], limit=1)`; blocked by the system-only tenant-profile ACL; the commercial routes answer the tenant's commercial mode for anonymous and self-service callers, which hold no grant on the profile."
     },
     "odoo-addons/webvue_api/controllers/common.py": {
-      "count": 2,
-      "reason": "webvue_api shared plumbing. (1) `request.env['webvue.entitlement.service'].sudo()._webvue_guard_api()` runs for every `/api/v1` request; blocked by the system-only `access_webvue_tenant_profile_system` row on `webvue.tenant.profile`, which no API caller may hold. (2) `record.sudo().company_id` in `get_record`: the pinned current-company rules (for example odoo-addons/webvue_pmo/security/webvue_pmo_rules.xml:8 `rule_project_current_company`) raise AccessError before the comparison, so the company-ownership read is elevated to answer another company's record with the identical 404 not-found instead of a 403 that leaks its existence, before any access check (owner approved 2026-10-22)."
+      "count": 1,
+      "reason": "webvue_api shared plumbing: `record.sudo().company_id` in `get_record`: the pinned current-company rules (for example odoo-addons/webvue_pmo/security/webvue_pmo_rules.xml:8 `rule_project_current_company`) raise AccessError before the comparison, so the company-ownership read is elevated to answer another company's record with the identical 404 not-found instead of a 403 that leaks its existence, before any access check (owner approved 2026-10-22). The per-request entitlement guard `_webvue_guard_api()` runs unelevated: the service raises its own tenant-profile read (entitlement_service.py:35)."
     },
     "odoo-addons/webvue_api/serializers/user.py": {
       "count": 1,

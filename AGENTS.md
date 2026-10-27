@@ -343,14 +343,13 @@ cross-addon links.
   after the `finance.zatca.manage` / `finance.zatca.submit` capability and current-company checks,
   in the sandbox api mode only (ZATCA onboarding is sandbox-only in this phase, so production invoicing for real
   tenants is a release blocker until the preprod/prod policy is approved).
-  `webvue_api` uses it in `controllers/common.py`, for the per-request entitlement
-  guard that every `/api/v1` call passes, and for the single company-ownership
+  `webvue_api` uses it in `controllers/common.py` only for the single company-ownership
   read in `get_record`, before any access check, so another company's record answers the
   same 404 not-found as a missing one instead of a 403 that leaks its existence; in
   `controllers/branding.py`, for the one tenant-profile read behind the public
   `/api/v1/branding` route, which has no session to authorize it; in
-  `controllers/auth.py` and `serializers/user.py`, for the entitlement service's
-  suspension and self-service checks; and in `controllers/commercial.py`, for the
+  `serializers/user.py`, for the entitlement service's self-service checks; and in
+  `controllers/commercial.py`, for the
   tenant-profile mode read that answers the commercial routes. Each of those reads a
   platform service or singleton, never an application record.
   Do not add

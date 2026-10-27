@@ -7,6 +7,7 @@ from odoo.tests import get_db_name, tagged
 
 from .common import WebVueApiCase
 from odoo.addons.auth_totp.models.totp import TOTP as auth_TOTP
+from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 
 @tagged('post_install', '-at_install', 'webvue')
@@ -65,3 +66,14 @@ class TestTotp(WebVueApiCase):
         res = self.api('POST', '/api/v1/auth/totp', {'code': 'abc'})
         self.assertEqual(res.status_code, 422)
         self.assertEqual(res.json()['code'], 'invalid_code_format')
+
+    def test_totp_refused_when_tenant_suspended_after_password_step(self):
+        """The public TOTP route asks the entitlement service in the public environment; the
+        service elevates its own tenant-profile read, so a suspension still refuses the login."""
+        self._authenticate()
+        profile = self.env.ref('webvue_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'status': 'suspended'})
+        with patch.object(auth_TOTP, 'match', return_value=999999999):
+            res = self.api('POST', '/api/v1/auth/totp', {'code': '123456'})
+        self.assertEqual(res.status_code, 403, res.text)
+        self.assertEqual(res.json()['code'], 'tenant_suspended')

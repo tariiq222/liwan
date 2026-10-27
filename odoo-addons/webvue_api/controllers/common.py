@@ -272,7 +272,7 @@ def api_handler(func):
                 scope = ((keys, getattr(func, '_webvue_capability_match', 'all')),) if keys else None
                 _pin_current_company(scope)
                 _reject_foreign_company_payload(kwargs)
-                request.env['webvue.entitlement.service'].sudo()._webvue_guard_api()
+                request.env['webvue.entitlement.service']._webvue_guard_api()
                 return func(*args, **kwargs)
         except ApiError as e:
             return error_response(e.status, e.code, e.message, e.field, e.details)
