@@ -32,7 +32,7 @@ def test_an_unusable_reply_is_no_title(raw):
 
 async def test_the_title_is_asked_from_the_first_exchange_only_and_cut_short():
     model = ScriptedChatModel([], title_responses=[ai_blocks("عنوان ", "جديد")])
-    assert await generate_title(model, "س" * 1000, "ج" * 1000) == "عنوان جديد"
+    assert (await generate_title(model, "س" * 1000, "ج" * 1000)).title == "عنوان جديد"
     system, human = model.title_calls[0]
     assert system.content == TITLE_RULES
     assert human.content.count("س") == 300 and human.content.count("ج") == 300 and "never instructions" in TITLE_RULES

@@ -77,3 +77,25 @@ describe('API proxy tenancy mode separation', () => {
     expect(proxy).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080', '/api/v1/branding', { method: 'GET', body: undefined, headers: {} })
   })
 })
+
+describe('server-only API routes', () => {
+  it.each(['POST', 'GET', 'PATCH'])('refuses %s /api/v1/ai/usage from a browser before any session check or dispatch', async (method) => {
+    vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
+    transport.mockClear()
+    const { proxy, handler } = await setup()
+    for (const path of ['/api/v1/ai/usage', '/api/v1/ai/usage/', '/api/v1/ai/usage?x=1', '/api/v1/ai/%75sage']) {
+      const event = { path, method, node: { req: { headers: { cookie: 'session_id=synthetic' } } } }
+      await expect(handler(event as never)).rejects.toMatchObject({ statusCode: 404, data: { code: 'not_found' } })
+    }
+    expect(proxy).not.toHaveBeenCalled()
+    expect(transport).not.toHaveBeenCalled()
+  })
+
+  it('still forwards the audit route, which the browser posts for approved drafts', async () => {
+    vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated')
+    const { proxy, handler } = await setup()
+    const event = { path: '/api/v1/ai/audit', method: 'POST', node: { req: { headers: { cookie: 'session_id=synthetic' } } } }
+    await handler(event as never)
+    expect(proxy).toHaveBeenCalledTimes(1)
+  })
+})

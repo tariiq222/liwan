@@ -35,6 +35,7 @@ from webvue_ai_service.settings import GENERATION_ID, Settings, SettingsError
 from webvue_ai_service.sse import format_event
 from webvue_ai_service.store import ACTIVE, EXECUTING, RunRecord, RunStore, is_stale, open_state
 from webvue_ai_service.titles import TITLE_TIMEOUT_SECONDS, generate_title, title_from
+from webvue_ai_service.usage import ModelIdentity, call_event, new_call_id, usage_event
 
 log = logging.getLogger("webvue_ai_service")
 WAITING = ("waiting_tool", "waiting_user", "executing")  # what a resume may answer: a claimed write call is still waiting for its result
@@ -43,6 +44,11 @@ FINISHED = ("done", "failed", "limit_reached")
 # an 'executing' one is settled-unknown (its write may have run) and is never retried.
 STALE_AFTER_SECONDS = 600 + 60
 RUN_LIST_LIMIT = 50
+
+
+def _pair(event: dict[str, Any]) -> tuple[str, Any]:
+    """A usage event as ``(sse name, payload)``."""
+    return event["event"], event["data"]
 
 
 def waiting_status(kind: str) -> str:
@@ -76,7 +82,8 @@ def owner(x_webvue_tenant: str = Header(...), x_webvue_user: str = Header(...)) 
 def create_app(model, store: RunStore, checkpointer, settings: Settings) -> FastAPI:
     if settings.generation_id is not None and not GENERATION_ID.fullmatch(settings.generation_id):
         raise SettingsError("AI_GENERATION_ID", "AI_GENERATION_ID is invalid")
-    graph = build_graph(model, checkpointer)
+    identity = ModelIdentity(settings.provider, settings.model)
+    graph = build_graph(model, checkpointer, identity)
     app = FastAPI(title="WebVue AI service", docs_url=None, redoc_url=None)
 
     def require_service_token(x_webvue_service_token: Annotated[str, Header()] = "") -> None:
@@ -203,38 +210,58 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
 
     app.state.drain = drain
 
-    async def name_run(run_id: str, messages: list) -> None:
-        """Replace the provisional title with a model-written one after the first answer; best effort, never blocks the run's outcome."""
+    def log_title_failure(run_id: str, error: Exception) -> None:
+        detail = redact(str(error), (settings.api_key, settings.database_url))
+        log.warning("run %s could not be titled: %s: %s", run_id, type(error).__name__, detail)
+
+    async def name_run(run_id: str, messages: list) -> AsyncIterator[bytes]:
+        """Replace the provisional title with a model-written one after the first answer; best effort, never blocks the run's outcome.
+
+        The title call is reported like the plan calls: ``model_call`` before it, ``model_usage`` after it (``aborted`` on its timeout).
+        """
         humans = [m for m in messages if isinstance(m, HumanMessage)]
         answer = next((m for m in reversed(messages) if isinstance(m, AIMessage) and text_of(m.content)), None)
         record = await store.get(run_id)
         if len(humans) != 1 or answer is None or record is None or record.title_locked:
             return
+        call_id = new_call_id()
+        yield format_event(*_pair(call_event(call_id, "title", identity)))
+        outcome, generated = "ok", None
+        timeout = asyncio.timeout(TITLE_TIMEOUT_SECONDS)
         try:
-            title = await asyncio.wait_for(generate_title(model, text_of(humans[0].content), text_of(answer.content)), TITLE_TIMEOUT_SECONDS)
-            if title is None:
-                log.warning("run %s: the model returned no usable title; keeping the provisional one", run_id)
-            else:
-                await store.set_generated_title(run_id, title)
+            async with timeout:
+                generated = await generate_title(model, text_of(humans[0].content), text_of(answer.content))
         except Exception as error:  # noqa: BLE001 - a missing title is not a failed run: the provisional title stays, the cause is logged
-            detail = redact(str(error), (settings.api_key, settings.database_url))
-            log.warning("run %s could not be titled: %s: %s", run_id, type(error).__name__, detail)
+            outcome = "aborted" if isinstance(error, TimeoutError) and timeout.expired() else "failed"
+            log_title_failure(run_id, error)
+        yield format_event(*_pair(usage_event(call_id, outcome, generated.tokens if generated else (None, None))))
+        if generated is None:
+            return
+        if generated.title is None:
+            log.warning("run %s: the model returned no usable title; keeping the provisional one", run_id)
+            return
+        try:
+            await store.set_generated_title(run_id, generated.title)
+        except Exception as error:  # noqa: BLE001 - same: the title is best effort
+            log_title_failure(run_id, error)
 
     async def stream(run_id: str, lease: str | None, graph_input: Any, limits: dict[str, int]) -> AsyncIterator[bytes]:
         # ``decided`` is assigned BEFORE the event that announces it is yielded: a client that vanishes while that event is sent
         # closes the generator at the yield, and the run must already carry its outcome.
         decided: tuple[str, str | None] | None = None
-        config = run_config(run_id, limits["max_steps"])
         deadline = asyncio.timeout(limits["timeout_seconds"])
+        config = run_config(run_id, limits["max_steps"], deadline.when())
         try:
             yield format_event("run", {"run_id": run_id})
-            async with deadline, contextlib.aclosing(graph.astream(graph_input, config, stream_mode=["messages", "updates"])) as events:
+            async with deadline, contextlib.aclosing(graph.astream(graph_input, config, stream_mode=["messages", "updates", "custom"])) as events:
                 async for mode, payload in events:
                     if mode == "messages":
                         chunk, meta = payload
                         text = text_of(chunk.content) if meta.get("langgraph_node") == "plan" else ""
                         if text and not getattr(chunk, "tool_calls", None):
                             yield format_event("token", {"text": text})
+                    elif mode == "custom":  # the plan node's model_call / model_usage
+                        yield format_event(*_pair(payload))
                     elif mode == "updates" and "__interrupt__" in payload:
                         value = payload["__interrupt__"][0].value
                         decided = (waiting_status(value["kind"]), value["call_id"])
@@ -250,7 +277,9 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
                     decided = ("done", None)
                     answer_text = text_of(last.content) if last else ""
                     yield format_event("answer", {"text": answer_text, "records": records_from_results(values["results"], answer_text)})
-                    await name_run(run_id, values["messages"])  # after the answer is on the wire, before the stream ends: the list refetch sees it
+                    # After the answer is on the wire, before the stream ends: the list refetch sees the title.
+                    async for event in name_run(run_id, values["messages"]):
+                        yield event
         except Exception as error:  # noqa: BLE001 - every failure must reach the client as an event, without its text
             if isinstance(error, TimeoutError) and deadline.expired():  # the run's deadline; a provider's own TimeoutError is a failure
                 decided = ("limit_reached", None)
@@ -275,7 +304,7 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
     async def start_run(request: RunRequest, who: Annotated[Owner, Depends(owner)]) -> StreamingResponse:
         if request.tenant != who.tenant or request.user_ref != who.user_ref:
             raise HTTPException(422, "tenant/user headers must match the body")
-        if request.run_id:
+        if request.run_id is not None:
             record = await owned_run(request.run_id, who)
             state = await graph.aget_state(run_config(record.run_id, 1))
             if pending_of(state) is not None and not stale_executing(record):  # a stale claimed write is answered by the new message
@@ -286,7 +315,9 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
             replies = interrupted_replies(state.values.get("messages", []))
             graph_input: Any = {"messages": [*replies, HumanMessage(request.message)], **request_state(request)}
         else:
-            record = await store.create(who.tenant, who.user_ref, title_from(request.message))
+            record = await store.create(request.new_run_id, who.tenant, who.user_ref, title_from(request.message))
+            if record is None:
+                raise HTTPException(409, "a run with this new_run_id already exists")
             lease, graph_input = record.lease, initial_state(request)
         return sse(stream(record.run_id, lease, graph_input, request.limits.model_dump()))
 

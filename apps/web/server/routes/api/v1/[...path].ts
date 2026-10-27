@@ -13,6 +13,10 @@ const PUBLIC_API_METHODS = new Map<string, readonly string[]>([
   ['/api/v1/auth/totp', ['POST']],
 ])
 
+// Routes only this server may call (Nuxt writes them to Odoo directly, never through this proxy): a browser must not forge them.
+// The provider usage ledger is one: its rows come from the AI service's own stream.
+const SERVER_ONLY_API_PATHS = new Set(['/api/v1/ai/usage'])
+
 // SSR and browser calls to /api/v1/** both land here. The target is read from
 // runtime config per request, so the container's NUXT_ODOO_URL applies at boot
 // rather than whatever host the image happened to be built on.
@@ -22,6 +26,7 @@ export default defineEventHandler(async (event) => {
   // What is classified is exactly what Odoo receives: Odoo decodes escapes and ignores one trailing slash.
   const path = canonicalApiPath(event.path)
   const apiPath = path.split('?')[0] ?? path
+  if (SERVER_ONLY_API_PATHS.has(apiPath)) throw createError({ statusCode: 404, data: { code: 'not_found', message: 'Not found' } })
   const publicMethods = PUBLIC_API_METHODS.get(apiPath)
   if (publicMethods && !publicMethods.includes(event.method)) {
     setResponseHeader(event, 'allow', publicMethods.join(', '))

@@ -48,6 +48,11 @@ def text_turn(text: str) -> dict[str, Any]:
     return {"text": text}
 
 
+def failure_turn(status: int) -> dict[str, Any]:
+    """The provider answers this attempt with an HTTP error instead of a stream."""
+    return {"status": status}
+
+
 SCENARIOS: dict[str, list[dict[str, Any]]] = {
     "list_my_tasks": [tool_turn("pmo__list_my_tasks", {"limit": 5}, "call_fake_1"), text_turn("هذه مهامك المفتوحة الآن")],
 }
@@ -167,6 +172,7 @@ def create_fake_openai(scenario: list[dict[str, Any]]) -> FastAPI:
     app.state.headers = []
     app.state.rejected = []
     app.state.title_requests = []
+    app.state.attempts = 0  # every HTTP request of a plan attempt, scripted failures included
     turns = list(scenario)
 
     @app.post("/v1/chat/completions", response_model=None)
@@ -188,11 +194,14 @@ def create_fake_openai(scenario: list[dict[str, Any]]) -> FastAPI:
         if is_title_request(body["messages"]):  # a title request is answered apart: it is not a turn of the scenario
             app.state.title_requests.append(body)
             return StreamingResponse(stream_turn(MODEL, text_turn(FAKE_TITLE), usage), media_type="text/event-stream")
-        app.state.requests.append(body)
-        app.state.headers.append(dict(request.headers))
+        app.state.attempts += 1
         if not turns:
             return error(500, "the fake's scenario is exhausted", code="server_error")
         turn = turns.pop(0)
+        if "status" in turn:
+            return error(turn["status"], "scripted failure", code="server_error")
+        app.state.requests.append(body)
+        app.state.headers.append(dict(request.headers))
         if "tool_call" in turn and turn["tool_call"]["name"] not in names:
             return error(500, f"scripted tool {turn['tool_call']['name']!r} is not among the request's tools {names}", code="server_error")
         return StreamingResponse(stream_turn(MODEL, turn, usage), media_type="text/event-stream")

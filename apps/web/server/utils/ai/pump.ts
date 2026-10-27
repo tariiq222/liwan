@@ -1,7 +1,8 @@
 import { isError, type createEventStream, type H3Event } from 'h3'
 import type { AiAuditRequest, AiTool } from '@webvue/contracts'
 import { buildToolRequest, toolError, toolResultFromUpstream, type ToolResult } from './executor'
-import { clientSignal, forwardUpstream, odooJson, readSse, serviceFetch, type SignalOption } from './upstream'
+import { clientSignal, forwardUpstream, logFailure, odooJson, readSse, serviceFetch, type SignalOption } from './upstream'
+import { createUsageLedger, type UsageLedger } from './usage'
 import type { RunSession } from './session'
 
 export type ExecutableKind = 'read' | 'write_light'
@@ -11,11 +12,6 @@ export type ToolCall = { call_id: string; tool: string; input: Record<string, un
 export async function audit(event: H3Event, body: AiAuditRequest, signal?: SignalOption): Promise<void> {
   const receipt = await odooJson(event, 'POST', '/api/v1/ai/audit', { body, signal })
   if (receipt.status !== 200) forwardUpstream(receipt)
-}
-
-/** Server-side log of a failure: the class name only, never a message that could carry Odoo or service details. */
-export function logFailure(what: string, error: unknown): void {
-  console.error(`[webvue-ai] ${what}: ${(error as object | null)?.constructor?.name ?? 'unknown'}`)
 }
 
 /** Audit one row without ever throwing; returns whether Odoo recorded it. */
@@ -82,22 +78,34 @@ const push = (stream: EventStream, name: string, data: unknown) => stream.push({
 
 type EventStream = ReturnType<typeof createEventStream>
 type Action = { kind: 'read'; call: ToolCall & { summary_ar: string; summary_en: string } } | { kind: 'unknown'; call: ToolCall; message: string }
-/** `shielded`: a claimed write was executed, so the service stream is read to its end even when the browser is gone (silently).
+/** `runId`: the run this stream belongs to (named by this server for a new run, taken from the route for a resume); the service must echo it.
+ * `shielded`: a claimed write was executed, so the service stream is read to its end even when the browser is gone (silently).
  * `preface`: one event the stream opens with (the result of a read the server ran again). */
-export type PumpOptions = { auditFailed?: boolean; shielded?: boolean; preface?: { event: string; data: string } }
+export type PumpOptions = { runId: string; auditFailed?: boolean; shielded?: boolean; preface?: { event: string; data: string } }
+
+/** The events of one service stream that concern the browser: the provider usage events are taken out first (counted even when the browser is gone), and the attempts left open when the stream ends are closed. */
+async function* serviceEvents(response: Response, usage: UsageLedger): AsyncGenerator<[string, any]> {
+  try {
+    for await (const [name, data] of readSse(response)) if (!usage.observe(name, data)) yield [name, data]
+  } finally {
+    usage.endStream()
+  }
+}
 
 /**
  * Relays the service stream to the browser. A tool_request the server must answer (a read, or a call the catalog does not back)
  * is acted on only after that service stream delivered its `done` and the reader was cancelled, so the service has saved its
  * waiting state before the resume arrives. Every stream ends with exactly one `done`; a failed audit shows up as `audit_failed`
  * just before it. When the browser is gone nothing more is executed or resumed; a shielded stream is still read to its end,
- * without pushing, so the run settles.
+ * without pushing, so the run settles. The provider attempts the service reports (`model_call`, `model_usage`) are counted even
+ * then, never relayed, and gathered in `usage`; `relay` sends them to Odoo once the browser stream is closed, so the report never
+ * keeps the browser waiting.
  */
-export async function pumpRun(event: H3Event, session: RunSession, stream: EventStream, response: Response, options: PumpOptions = {}): Promise<void> {
+export async function pumpRun(event: H3Event, session: RunSession, stream: EventStream, response: Response, options: PumpOptions, usage: UsageLedger): Promise<void> {
   const gone = clientSignal(event)
+  const { runId } = options
   if (options.preface) await stream.push(options.preface)
   let auditFailed = options.auditFailed ?? false
-  let runId = ''
   let announced = false
   let finalDone: unknown = { status: 'failed' }
   let next: Response | null = response
@@ -105,13 +113,13 @@ export async function pumpRun(event: H3Event, session: RunSession, stream: Event
     const current: Response = next
     next = null
     let action: Action | null = null
-    for await (const [name, data] of readSse(current)) {
+    for await (const [name, data] of serviceEvents(current, usage)) {
       if (gone.aborted) {
         if (options.shielded) continue
         return
       }
       if (name === 'run') {
-        runId = data.run_id
+        if (data.run_id !== runId) throw createError({ statusCode: 502, data: { code: 'ai_upstream', message: 'AI service answered for another run' } })
         // A resumed service stream announces the run again; the browser hears it once.
         if (announced) continue
         announced = true
@@ -161,8 +169,9 @@ export function settle(stream: EventStream, events: { event: string; data: strin
 }
 
 /** Starts the pump in the background and returns the stream response; errors reach the browser as an `error` event followed by `done`. */
-export function relay(event: H3Event, session: RunSession, stream: EventStream, response: Response, options: PumpOptions = {}) {
-  pumpRun(event, session, stream, response, options)
+export function relay(event: H3Event, session: RunSession, stream: EventStream, response: Response, options: PumpOptions) {
+  const usage = createUsageLedger()
+  pumpRun(event, session, stream, response, options, usage)
     .catch(async (error) => {
       if (clientSignal(event).aborted) { logFailure('stream after disconnect failed', error); return }
       try {
@@ -172,5 +181,7 @@ export function relay(event: H3Event, session: RunSession, stream: EventStream, 
     })
     .finally(() => stream.close())
     .catch(error => logFailure('stream close failed', error))
+    // The browser stream is closed before the usage report, so a slow or failing Odoo write never holds the UI busy.
+    .finally(() => usage.flush(event, options.runId))
   return stream.send()
 }
