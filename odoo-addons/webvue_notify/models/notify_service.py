@@ -21,13 +21,15 @@ class WebVueNotifyService(models.AbstractModel):
     """Bell rows: a ``mail.message`` flagged ``webvue_notification`` plus one inbox
     ``mail.notification`` per recipient.
 
-    Documented elevated operations (AGENTS.md, R7): delivery creates the
-    message and its inbox row as superuser, because the recipient, not the
-    actor, owns the row; reads are elevated because a user cannot read other
-    partners' ``mail.notification`` rows, so every elevated search carries
-    ``res_partner_id = current partner`` in its domain, and the owning
-    application's branch decides, in the caller's environment, which sources
-    the caller may still read.
+    Documented elevations are recorded in ``tools/arch_documented_sudo.json``.
+    The ``mail.message`` delivery environment bypasses stock source-document
+    create/unlink access gates. The three recipient-owned reader helpers
+    retain elevation for the measured same-transaction flush/SQL-ordering
+    issue in ``mail.message._search``, not a ``mail.notification`` read ACL.
+    The idempotency precheck and ``mail.notification`` create elevations are
+    measured unnecessary and remain pending scoped removal. Every elevated
+    reader is restricted to the current partner; source visibility is
+    checked in the caller's environment by the owning application.
     """
     _name = 'webvue.notify.service'
     _description = 'WebVue notification service'
