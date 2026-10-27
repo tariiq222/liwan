@@ -88,6 +88,7 @@
   "createChannel": "إنشاء القناة",
   "needDirectRecipient": "اختر شخصًا واحدًا لبدء المحادثة.",
   "needGroupRecipients": "اختر شخصين على الأقل لإنشاء مجموعة.",
-  "needChannelName": "أدخل اسم القناة."
+  "needChannelName": "أدخل اسم القناة.",
+  "yesterday": "أمس"
   }
 }

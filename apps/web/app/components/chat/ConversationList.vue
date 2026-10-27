@@ -2,8 +2,8 @@
 import { useMediaQuery } from '@vueuse/core'
 import EmptyState from '@webvue/ui/app/components/shared/feedback/EmptyState.vue'
 import { ApiError } from '@/composables/useApi'
-import { formatTime } from '@webvue/ui/app/utils/formatDate'
 import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
+import { chatListTime } from '@/utils/chatTime'
 import { CHAT_PAGE_SIZE, isFatalChatStatus, nextListOffset, serializeChatListRoute, type ChatFilter, type ChatListRoute } from '@/utils/chatState'
 
 const props = defineProps<{
@@ -22,7 +22,7 @@ const noConversations = computed(() => hydrated.value && !isLoading.value && !is
 const showStartEmpty = computed(() => noConversations.value && !isDesktop.value)
 const quietEmpty = computed(() => noConversations.value && isDesktop.value)
 const q = ref(props.routeState.q)
-const timeFmt = { format: (value: Date) => formatTime(value) }
+const timeLabel = (value: string | null) => chatListTime(value, { locale: locale.value, yesterday: t('chat.yesterday') })
 const listQuery = computed(() => serializeChatListRoute(props.routeState))
 const createItems = computed(() => [
   { label: t('chat.newDirect'), icon: 'i-lucide-message-circle', to: { path: '/chat/new', query: { ...listQuery.value, kind: 'direct' } } },
@@ -30,6 +30,10 @@ const createItems = computed(() => [
   { label: t('chat.channel'), icon: 'i-lucide-hash', to: { path: '/chat/new', query: { ...listQuery.value, kind: 'channel' } } },
 ])
 watch(() => props.routeState.q, value => { q.value = value })
+// Clearing the box resets the results; any other change waits for Enter.
+watch(q, (value) => {
+  if (!value && props.routeState.q) applySearch()
+})
 watch(error, (value) => {
   if (value instanceof ApiError && isFatalChatStatus(value.status)) emit('denied')
 })
@@ -124,7 +128,7 @@ function conversationTo(id: number) {
             <span class="min-w-0 flex-1">
               <span class="flex items-center justify-between gap-2">
                 <span class="truncate font-medium">{{ item.name }}{{ item.muted ? ` · ${t('chat.muted')}` : '' }}</span>
-                <time v-if="item.last_message_at" class="webvue-chat-list-time" :class="{ 'text-brand-link': item.unread_count }">{{ timeFmt.format(new Date(item.last_message_at)) }}</time>
+                <time v-if="item.last_message_at" class="webvue-chat-list-time" :class="{ 'text-brand-link': item.unread_count }">{{ timeLabel(item.last_message_at) }}</time>
               </span>
               <span class="flex items-center justify-between gap-2">
                 <span class="truncate text-sm text-muted">{{ item.last_message_preview || t(`chat.${item.type}`) }}</span>

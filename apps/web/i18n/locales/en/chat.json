@@ -88,6 +88,7 @@
   "createChannel": "Create channel",
   "needDirectRecipient": "Choose one person to start the conversation.",
   "needGroupRecipients": "Choose at least two people to create a group.",
-  "needChannelName": "Enter the channel name."
+  "needChannelName": "Enter the channel name.",
+  "yesterday": "Yesterday"
   }
 }
