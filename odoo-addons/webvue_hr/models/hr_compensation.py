@@ -6,6 +6,15 @@ from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
 SAUDI_IBAN = re.compile(r'SA\d{22}')
+# How the customer classifies its relationship with the person paid. The customer decides it, not
+# WebVue: the label never changes a calculation and never blocks a run, approval or payment; the UI
+# only warns about its GOSI, WPS and end-of-service effects (owner decision 2026-10-27, B12).
+RELATIONSHIP_TYPES = [
+    ('employee', 'Employee'),
+    ('independent_contractor', 'Independent contractor'),
+    ('consultant', 'Consultant'),
+    ('other_cooperation', 'Other cooperation arrangement'),
+]
 
 
 def normalize_iban(value):
@@ -52,6 +61,7 @@ class WebVueHrCompensation(models.Model):
     bank_id = fields.Many2one('res.bank')
     gosi_number = fields.Char()
     gosi_registration_date = fields.Date()
+    relationship_type = fields.Selection(RELATIONSHIP_TYPES, required=True, default='employee')
 
     _employee_unique = models.Constraint(
         'UNIQUE(employee_id)', 'an employee has one compensation record',

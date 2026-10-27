@@ -13,7 +13,7 @@ import { parseMoneyInput } from '../../../utils/moneyInput'
 const filename = resolve(import.meta.dirname, '../payroll/CompensationForm.vue')
 const record = {
   employee: { id: 3, name: 'ليلى' }, basic_wage: 8000, housing_allowance: 2000, transport_allowance: 500, other_allowance: 0,
-  fixed_wage: 10500, iban: 'SA0380000000608010167519', bank: { id: 4, name: 'بنك' }, gosi_number: null, gosi_registration_date: null, nationality: null,
+  fixed_wage: 10500, iban: 'SA0380000000608010167519', bank: { id: 4, name: 'بنك' }, gosi_number: null, gosi_registration_date: null, nationality: null, relationship_type: 'employee',
 }
 
 function load(props: { employeeId: number; compensation: typeof record | null }) {
@@ -28,6 +28,7 @@ function load(props: { employeeId: number; compensation: typeof record | null })
     _defineComponent: Vue.defineComponent, computed: Vue.computed, ref: Vue.ref, watch: Vue.watch,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: vi.fn() }),
     useSaveHrCompensation: () => ({ mutateAsync: save, isPending: Vue.ref(false) }),
+    usePayrollRelationshipItems: () => Vue.computed(() => []),
     HrCompensationWriteSchema, ApiError, saveErrorMessage, parseMoneyInput,
   }
   const component = new Function(...Object.keys(bindings), code)(...Object.values(bindings))
@@ -43,9 +44,16 @@ describe('CompensationForm amounts', () => {
     await state.submit()
     expect(save).toHaveBeenCalledWith({
       basic_wage: 8500, housing_allowance: 2500, transport_allowance: 500, other_allowance: 0,
-      iban: 'SA0380000000608010167519', bank_id: 4, gosi_number: null, gosi_registration_date: null,
+      iban: 'SA0380000000608010167519', bank_id: 4, gosi_number: null, gosi_registration_date: null, relationship_type: 'employee',
     })
     expect(emit).toHaveBeenCalledWith('saved', expect.anything())
+  })
+
+  it('submits the relationship the customer chose, whatever it is', async () => {
+    const { state, save } = load({ employeeId: 3, compensation: record })
+    state.relationshipType.value = 'consultant'
+    await state.submit()
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ relationship_type: 'consultant' }))
   })
 
   it('reads Arabic-Indic digits and the Arabic decimal mark', async () => {

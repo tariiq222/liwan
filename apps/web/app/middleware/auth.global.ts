@@ -20,6 +20,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     if (me.value) return navigateTo('/')
     return
   }
+  if (!me.value && isTenantSuspendedError(error.value)) return navigateTo({ path: '/login', query: { reason: 'tenant_suspended' } })
   if (!me.value) return navigateTo({ path: '/login', query: to.fullPath === '/' ? {} : { next: to.fullPath } })
   if (!canReachPath(me.value, to.path)) throw createError({ statusCode: 403, statusMessage: $i18n.t('errors.forbidden') })
 })

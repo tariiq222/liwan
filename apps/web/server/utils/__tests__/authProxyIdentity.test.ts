@@ -11,6 +11,7 @@ let url: string
 let upstreamUrl: string
 let calls: http.IncomingHttpHeaders[] = []
 let configuredHeader = 'x-webvue-client-ip'
+let authenticateAnswer: object = { result: { uid: 7 } }
 
 beforeAll(async () => {
   // Supply Nitro's auto-imports only; H3 request/response handling and the wire are real.
@@ -25,7 +26,7 @@ beforeAll(async () => {
     req.resume()
     res.setHeader('content-type', 'application/json')
     res.setHeader('set-cookie', 'session_id=synthetic-wire-session; HttpOnly; Path=/')
-    res.end(req.url === '/web/session/authenticate' ? JSON.stringify({ result: { uid: 7 } }) : '{}')
+    res.end(req.url === '/web/session/authenticate' ? JSON.stringify(authenticateAnswer) : '{}')
   })
   await new Promise<void>(resolve => upstream.listen(0, '127.0.0.1', resolve))
   upstreamUrl = `http://127.0.0.1:${(upstream.address() as { port: number }).port}`
@@ -37,7 +38,7 @@ beforeAll(async () => {
   url = `http://127.0.0.1:${(app.address() as { port: number }).port}`
 })
 
-beforeEach(() => { vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated'); calls = []; configuredHeader = 'x-webvue-client-ip' })
+beforeEach(() => { vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated'); calls = []; configuredHeader = 'x-webvue-client-ip'; authenticateAnswer = { result: { uid: 7 } } })
 afterEach(() => vi.unstubAllEnvs())
 afterAll(async () => {
   for (const server of [app, upstream]) {
@@ -133,4 +134,22 @@ it.each(['/login', '/totp'])('shared %s preserves tenant authority without trust
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
+})
+
+describe('login refusal codes', () => {
+  const refused = (name: string) => ({ error: { code: 200, message: 'Odoo Server Error', data: { name, message: 'Access Denied' } } })
+
+  it('names a suspended tenant only for the error Odoo raises after valid credentials', async () => {
+    authenticateAnswer = refused('odoo.addons.webvue_platform.models.entitlement_service.WebVueTenantSuspended')
+    const response = await request('/login')
+    expect(response.status).toBe(403)
+    expect(await response.json()).toMatchObject({ data: { code: 'tenant_suspended' } })
+  })
+
+  it('keeps every other refusal a generic invalid_credentials', async () => {
+    authenticateAnswer = refused('odoo.exceptions.AccessDenied')
+    const response = await request('/login')
+    expect(response.status).toBe(401)
+    expect(await response.json()).toMatchObject({ data: { code: 'invalid_credentials' } })
+  })
 })
