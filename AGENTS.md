@@ -318,7 +318,7 @@ cross-addon links.
   `webvue_chat` uses it for the two `mail.message.reaction` paths — the toggle after `_webvue_member_channel`
   proved the caller's membership, and the reaction aggregation of an already-authorized message — both blocked
   by `mail.message.reaction` being system-only in Odoo (owner decision 2026-10-25: authorized).
-  `webvue_notify` uses sudo for bell delivery and recipient-owned bell reads. The `mail.message` environment in
+  `webvue_notify` uses it for bell delivery and recipient-owned bell reads. The `mail.message` environment in
   `_webvue_deliver` bypasses the stock create/unlink document-access gates: create may be allowed by following the
   source, while unlink requires source write/create access. The three recipient-owned reader helpers retain
   elevation for the measured same-transaction flush/SQL-ordering issue in `mail.message._search`; the recorded
