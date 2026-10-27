@@ -8,9 +8,13 @@ const orderId = computed(() => String(route.query.order ?? ''))
 // Read-only: this page only calls GET subscription. A refresh can never create an order or payment attempt.
 const { data: loaded, error, pending, refresh } = await useAsyncData(() => `subscription:status:${orderId.value}`, async () => {
   const sub = await api.subscription()
-  // The order read is best effort: when it fails the page falls back to the subscription's open order.
-  const read = orderId.value ? await api.order(orderId.value).catch(() => null) : null
-  return { sub, read }
+  // A 404 means the order is not this customer's; any other read failure is reported, never shown as settled.
+  let read: Awaited<ReturnType<typeof api.order>> | null = null
+  let readFailed = false
+  if (orderId.value) {
+    try { read = await api.order(orderId.value) } catch (e: any) { readFailed = (e?.statusCode ?? e?.status) !== 404 }
+  }
+  return { sub, read, readFailed }
 }, { immediate: allowed.value, watch: [orderId] })
 const data = computed(() => loaded.value?.sub ?? null)
 // Without ?order follow the open order. With ?order prefer the read (any state); else the open order if it is that one.
@@ -22,11 +26,20 @@ const order = computed(() => {
 const outcome = computed(() => (order.value ? orderOutcome(order.value) : null))
 const display = computed(() => (data.value ? subscriptionDisplayState(data.value) : null))
 // Only when the read failed and the order is no longer open: its result is unknown, which is not a failure.
-const settled = computed(() => !!data.value && !order.value && Boolean(orderId.value))
+const readFailed = computed(() => !order.value && Boolean(loaded.value?.readFailed))
+const settled = computed(() => !!data.value && !order.value && Boolean(orderId.value) && !readFailed.value)
 const canRetry = computed(() => (outcome.value === 'awaiting_payment' || outcome.value === 'payment_failed') && can('subscription.manage'))
-// Poll while activation or payment confirmation is in flight.
+// Poll while activation or payment confirmation is in flight, one request at a time, for at most POLL_LIMIT_MS.
+const POLL_INTERVAL_MS = 5000
+const POLL_LIMIT_MS = 5 * 60 * 1000
 let timer: ReturnType<typeof setInterval> | undefined
-onMounted(() => { timer = setInterval(() => { if (outcome.value === 'processing' || outcome.value === 'awaiting_payment') void refresh() }, 5000) })
+onMounted(() => {
+  const stopAt = Date.now() + POLL_LIMIT_MS
+  timer = setInterval(() => {
+    if (Date.now() > stopAt) return clearInterval(timer)
+    if (!pending.value && (outcome.value === 'processing' || outcome.value === 'awaiting_payment')) void refresh()
+  }, POLL_INTERVAL_MS)
+})
 onBeforeUnmount(() => clearInterval(timer))
 const OUTCOME_COLOR = { applied: 'success', processing: 'info', awaiting_payment: 'warning', cancelled: 'neutral', payment_failed: 'error', activation_failed: 'error', refund: 'error' } as const
 const payBusy = ref(false); const payError = ref<string | undefined>()
@@ -59,6 +72,7 @@ definePageMeta({ middleware: 'customer-commercial' })
             <SharedPropertyRow :label="t('subscription.status.payment')" :value="t(`subscription.status.payments.${order.payment_state}`)" />
             <SharedPropertyRow :label="t('subscription.status.fulfillment')" :value="t(`subscription.status.fulfillments.${order.fulfillment_state}`)" />
           </SharedPropertiesPanel>
+          <UAlert v-else-if="readFailed" color="error" variant="subtle" role="alert" data-testid="order-read-error" :title="t('subscription.status.readError')" />
           <p v-else-if="settled" class="text-sm text-muted" role="status" data-testid="order-settled">{{ t('subscription.status.settled') }}</p>
           <p v-else class="text-sm text-muted" role="status" data-testid="order-empty">{{ t('subscription.status.empty') }}</p>
           <UAlert v-if="payError" color="error" variant="subtle" role="alert" :title="payError" />
