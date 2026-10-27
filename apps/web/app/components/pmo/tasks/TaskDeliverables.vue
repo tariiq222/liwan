@@ -6,7 +6,7 @@ import { useUpdateTask } from '@/composables/useTasks'
 const props = defineProps<{ task: TaskDetail }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const { mutateAsync, isPending } = useUpdateTask()
+const { mutateAsync, isPending } = useUpdateTask({ notifyErrors: false })
 const saving = ref(false)
 const error = ref<string | null>(null)
 

@@ -9,7 +9,7 @@ import { useTaskSummary, type TaskListParams } from '@/composables/useTasks'
 const props = defineProps<{ params: TaskListParams }>()
 const { t } = useI18n()
 const paramsRef = computed(() => props.params)
-const { data } = useTaskSummary(paramsRef)
+const { data, isError, error, refetch } = useTaskSummary(paramsRef)
 
 const sharesApply = computed(() => kpiSharesApply(props.params))
 const percent = (count: number) => sharesApply.value && data.value && data.value.total > 0 ? Math.round((count / data.value.total) * 100) : undefined
@@ -25,5 +25,6 @@ const tiles = computed<KpiTile[]>(() => data.value ? [
 </script>
 
 <template>
-  <SharedKpiStrip :tiles="tiles" :loading="!data" :label="t('tasks.kpi.label')" data-testid="task-kpi-strip" />
+  <SharedErrorState v-if="isError && !data" :error="error" data-testid="task-kpi-error" @retry="refetch()" />
+  <SharedKpiStrip v-else :tiles="tiles" :loading="!data" :label="t('tasks.kpi.label')" data-testid="task-kpi-strip" />
 </template>

@@ -7,7 +7,7 @@ import { useProjectSummary, type ProjectSummaryFilters } from '@/composables/use
 // the count only. Not interactive.
 const props = defineProps<{ filters: ProjectSummaryFilters }>()
 const { t } = useI18n()
-const { data } = useProjectSummary(() => props.filters)
+const { data, isError, error, refetch } = useProjectSummary(() => props.filters)
 
 const sharesApply = computed(() => !props.filters.status)
 const percent = (count: number) => sharesApply.value && data.value && data.value.project_count > 0 ? Math.round((count / data.value.project_count) * 100) : undefined
@@ -30,5 +30,6 @@ const tiles = computed<KpiTile[]>(() => {
 </script>
 
 <template>
-  <SharedKpiStrip :tiles="tiles" :loading="!data" :label="t('projects.kpi.label')" data-testid="project-kpi-strip" />
+  <SharedErrorState v-if="isError && !data" :error="error" data-testid="project-kpi-error" @retry="refetch()" />
+  <SharedKpiStrip v-else :tiles="tiles" :loading="!data" :label="t('projects.kpi.label')" data-testid="project-kpi-strip" />
 </template>

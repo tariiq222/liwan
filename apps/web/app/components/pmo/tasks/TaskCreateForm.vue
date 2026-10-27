@@ -22,7 +22,7 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const { data: projects } = useProjects()
 const { mutateAsync, isPending } = useCreateTask()
-const { mutateAsync: moveToStage } = useUpdateTask()
+const { mutateAsync: moveToStage } = useUpdateTask({ notifyErrors: false })
 const { mutateAsync: transition } = useTransitionTask()
 const toast = useToast()
 
