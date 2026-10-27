@@ -1,0 +1,288 @@
+{
+  "items": [
+    {
+      "active": false,
+      "amount": 15.0,
+      "amount_type": "percent",
+      "id": 1,
+      "name": "15% PH PE HS",
+      "price_include": false,
+      "tax_account": {
+        "id": 2,
+        "name": "201017 VAT Output"
+      },
+      "type_tax_use": "sale",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": 0.0,
+      "amount_type": "percent",
+      "id": 3,
+      "name": "0% ITP",
+      "price_include": false,
+      "tax_account": null,
+      "type_tax_use": "sale",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": 0.0,
+      "amount_type": "percent",
+      "id": 4,
+      "name": "0% S IPT",
+      "price_include": false,
+      "tax_account": null,
+      "type_tax_use": "sale",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": 0.0,
+      "amount_type": "percent",
+      "id": 5,
+      "name": "0% QT",
+      "price_include": false,
+      "tax_account": null,
+      "type_tax_use": "sale",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": 0.0,
+      "amount_type": "percent",
+      "id": 6,
+      "name": "0% GPT",
+      "price_include": false,
+      "tax_account": null,
+      "type_tax_use": "sale",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": 0.0,
+      "amount_type": "percent",
+      "id": 7,
+      "name": "0% MME",
+      "price_include": false,
+      "tax_account": null,
+      "type_tax_use": "sale",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": 0.0,
+      "amount_type": "percent",
+      "id": 8,
+      "name": "0% QM",
+      "price_include": false,
+      "tax_account": null,
+      "type_tax_use": "sale",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": 0.0,
+      "amount_type": "percent",
+      "id": 9,
+      "name": "0% PE",
+      "price_include": false,
+      "tax_account": null,
+      "type_tax_use": "sale",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": 0.0,
+      "amount_type": "percent",
+      "id": 10,
+      "name": "0% PH",
+      "price_include": false,
+      "tax_account": null,
+      "type_tax_use": "sale",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": 0.0,
+      "amount_type": "percent",
+      "id": 11,
+      "name": "0% IT G",
+      "price_include": false,
+      "tax_account": null,
+      "type_tax_use": "sale",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": 0.0,
+      "amount_type": "percent",
+      "id": 12,
+      "name": "0% EXT FS",
+      "price_include": false,
+      "tax_account": null,
+      "type_tax_use": "sale",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": 0.0,
+      "amount_type": "percent",
+      "id": 13,
+      "name": "0% EXT LI",
+      "price_include": false,
+      "tax_account": null,
+      "type_tax_use": "sale",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": 0.0,
+      "amount_type": "percent",
+      "id": 14,
+      "name": "0% EXT RE",
+      "price_include": false,
+      "tax_account": null,
+      "type_tax_use": "sale",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": 0.0,
+      "amount_type": "percent",
+      "id": 15,
+      "name": "0%",
+      "price_include": false,
+      "tax_account": null,
+      "type_tax_use": "sale",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": -5.0,
+      "amount_type": "percent",
+      "id": 16,
+      "name": "5% WH R D",
+      "price_include": false,
+      "tax_account": {
+        "id": 17,
+        "name": "201020 Withholding Tax Payable"
+      },
+      "type_tax_use": "purchase",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": -5.0,
+      "amount_type": "percent",
+      "id": 18,
+      "name": "5% WH AT AF MF D",
+      "price_include": false,
+      "tax_account": {
+        "id": 17,
+        "name": "201020 Withholding Tax Payable"
+      },
+      "type_tax_use": "purchase",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": -5.0,
+      "amount_type": "percent",
+      "id": 19,
+      "name": "5% WH TC ICS D",
+      "price_include": false,
+      "tax_account": {
+        "id": 17,
+        "name": "201020 Withholding Tax Payable"
+      },
+      "type_tax_use": "purchase",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": -5.0,
+      "amount_type": "percent",
+      "id": 20,
+      "name": "5% WH D D",
+      "price_include": false,
+      "tax_account": {
+        "id": 17,
+        "name": "201020 Withholding Tax Payable"
+      },
+      "type_tax_use": "purchase",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": -5.0,
+      "amount_type": "percent",
+      "id": 21,
+      "name": "5% WH IL IRP D",
+      "price_include": false,
+      "tax_account": {
+        "id": 17,
+        "name": "201020 Withholding Tax Payable"
+      },
+      "type_tax_use": "purchase",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": -15.0,
+      "amount_type": "percent",
+      "id": 22,
+      "name": "15% WH R D",
+      "price_include": false,
+      "tax_account": {
+        "id": 17,
+        "name": "201020 Withholding Tax Payable"
+      },
+      "type_tax_use": "purchase",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": -15.0,
+      "amount_type": "percent",
+      "id": 23,
+      "name": "15% WH O D",
+      "price_include": false,
+      "tax_account": {
+        "id": 17,
+        "name": "201020 Withholding Tax Payable"
+      },
+      "type_tax_use": "purchase",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": -20.0,
+      "amount_type": "percent",
+      "id": 24,
+      "name": "20% WH MF D",
+      "price_include": false,
+      "tax_account": {
+        "id": 17,
+        "name": "201020 Withholding Tax Payable"
+      },
+      "type_tax_use": "purchase",
+      "used": false
+    },
+    {
+      "active": false,
+      "amount": 5.0,
+      "amount_type": "percent",
+      "id": 25,
+      "name": "VAT 5% special",
+      "price_include": false,
+      "tax_account": {
+        "id": 26,
+        "name": "201990 VAT test account"
+      },
+      "type_tax_use": "sale",
+      "used": false
+    }
+  ],
+  "total": 23
+}

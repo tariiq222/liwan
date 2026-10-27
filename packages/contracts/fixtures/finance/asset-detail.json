@@ -1,0 +1,93 @@
+{
+  "code": "",
+  "currency": "SAR",
+  "date_remove": null,
+  "date_start": "2024-01-01",
+  "depreciation_base": 12000.0,
+  "id": 1,
+  "lines": [
+    {
+      "amount": 12000.0,
+      "date": "2024-01-01",
+      "depreciated_value": 0.0,
+      "entry": null,
+      "id": 3,
+      "posted": false,
+      "remaining_value": 0.0,
+      "type": "create"
+    },
+    {
+      "amount": 2400.0,
+      "date": "2024-12-31",
+      "depreciated_value": 0.0,
+      "entry": {
+        "id": 5,
+        "name": "TA/2024/12/0001 (Meeting table - 10/1)"
+      },
+      "id": 4,
+      "posted": true,
+      "remaining_value": 9600.0,
+      "type": "depreciate"
+    },
+    {
+      "amount": 2400.0,
+      "date": "2025-12-31",
+      "depreciated_value": 2400.0,
+      "entry": {
+        "id": 7,
+        "name": "TA/2025/12/0002 (Meeting table - 10/2)"
+      },
+      "id": 6,
+      "posted": true,
+      "remaining_value": 7200.0,
+      "type": "depreciate"
+    },
+    {
+      "amount": 2400.0,
+      "date": "2026-12-31",
+      "depreciated_value": 4800.0,
+      "entry": null,
+      "id": 8,
+      "posted": false,
+      "remaining_value": 4800.0,
+      "type": "depreciate"
+    },
+    {
+      "amount": 2400.0,
+      "date": "2027-12-31",
+      "depreciated_value": 7200.0,
+      "entry": null,
+      "id": 9,
+      "posted": false,
+      "remaining_value": 2400.0,
+      "type": "depreciate"
+    },
+    {
+      "amount": 2400.0,
+      "date": "2028-12-31",
+      "depreciated_value": 9600.0,
+      "entry": null,
+      "id": 10,
+      "posted": false,
+      "remaining_value": 0.0,
+      "type": "depreciate"
+    }
+  ],
+  "method": "linear",
+  "method_number": 5,
+  "method_period": "year",
+  "method_time": "year",
+  "name": "Meeting table",
+  "note": "",
+  "partner": null,
+  "profile": {
+    "id": 2,
+    "name": "Furniture 5 years"
+  },
+  "prorata": false,
+  "purchase_value": 12000.0,
+  "salvage_value": 0.0,
+  "state": "open",
+  "value_depreciated": 4800.0,
+  "value_residual": 7200.0
+}

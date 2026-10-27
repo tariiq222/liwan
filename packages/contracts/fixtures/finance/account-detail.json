@@ -1,0 +1,9 @@
+{
+  "account_type": "asset_fixed",
+  "active": true,
+  "code": "106002",
+  "currency": null,
+  "id": 1,
+  "name": "Furniture and Equipment",
+  "reconcile": false
+}

@@ -1,0 +1,45 @@
+{
+  "items": [
+    {
+      "active": true,
+      "code": "",
+      "id": 1,
+      "name": "Jeddah",
+      "plan": {
+        "id": 2,
+        "name": "Branches"
+      }
+    },
+    {
+      "active": true,
+      "code": "RYD",
+      "id": 3,
+      "name": "Riyadh",
+      "plan": {
+        "id": 2,
+        "name": "Branches"
+      }
+    },
+    {
+      "active": true,
+      "code": "",
+      "id": 4,
+      "name": "Alpha",
+      "plan": {
+        "id": 3,
+        "name": "Projects 2026"
+      }
+    },
+    {
+      "active": true,
+      "code": "",
+      "id": 5,
+      "name": "Madinah",
+      "plan": {
+        "id": 3,
+        "name": "Projects 2026"
+      }
+    }
+  ],
+  "total": 4
+}

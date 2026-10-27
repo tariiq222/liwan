@@ -1,0 +1,85 @@
+{
+  "items": [
+    {
+      "account": {
+        "id": 3,
+        "name": "102011 Accounts Receivable"
+      },
+      "amount_residual": 50.0,
+      "date": "2026-10-18",
+      "entry": "INV/2026/00004",
+      "exact": true,
+      "id": 1,
+      "label": "INV/2026/00004",
+      "partner": {
+        "id": 2,
+        "name": "Riyadh Supplies"
+      }
+    },
+    {
+      "account": {
+        "id": 6,
+        "name": "101003 Outstanding Receipts"
+      },
+      "amount_residual": 400.0,
+      "date": "2026-10-19",
+      "entry": "PBNK1/2026/00001",
+      "exact": false,
+      "id": 4,
+      "label": "Manual Payment: INV/2026/00001",
+      "partner": {
+        "id": 5,
+        "name": "Al Noor Trading"
+      }
+    },
+    {
+      "account": {
+        "id": 3,
+        "name": "102011 Accounts Receivable"
+      },
+      "amount_residual": 230.0,
+      "date": "2026-10-18",
+      "entry": "INV/2026/00003",
+      "exact": false,
+      "id": 7,
+      "label": "INV/2026/00003",
+      "partner": {
+        "id": 2,
+        "name": "Riyadh Supplies"
+      }
+    },
+    {
+      "account": {
+        "id": 3,
+        "name": "102011 Accounts Receivable"
+      },
+      "amount_residual": 115.0,
+      "date": "2026-10-18",
+      "entry": "INV/2026/00002",
+      "exact": false,
+      "id": 8,
+      "label": "INV/2026/00002",
+      "partner": {
+        "id": 2,
+        "name": "Riyadh Supplies"
+      }
+    },
+    {
+      "account": {
+        "id": 3,
+        "name": "102011 Accounts Receivable"
+      },
+      "amount_residual": 750.0,
+      "date": "2026-10-18",
+      "entry": "INV/2026/00001",
+      "exact": false,
+      "id": 9,
+      "label": "INV/2026/00001",
+      "partner": {
+        "id": 5,
+        "name": "Al Noor Trading"
+      }
+    }
+  ],
+  "total": 5
+}

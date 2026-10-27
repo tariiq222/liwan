@@ -1,0 +1,14 @@
+{
+  "active": true,
+  "amount": 5.0,
+  "amount_type": "percent",
+  "id": 1,
+  "name": "VAT 5% special",
+  "price_include": false,
+  "tax_account": {
+    "id": 2,
+    "name": "201990 VAT test account"
+  },
+  "type_tax_use": "sale",
+  "used": false
+}

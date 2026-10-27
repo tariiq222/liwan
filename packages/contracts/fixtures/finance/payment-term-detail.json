@@ -1,0 +1,20 @@
+{
+  "active": true,
+  "id": 1,
+  "lines": [
+    {
+      "delay_type": "days_after",
+      "nb_days": 0,
+      "value": "percent",
+      "value_amount": 50.0
+    },
+    {
+      "delay_type": "days_after",
+      "nb_days": 30,
+      "value": "percent",
+      "value_amount": 50.0
+    }
+  ],
+  "name": "50% now, 50% in 30 days",
+  "shared": false
+}

@@ -1,0 +1,12 @@
+{
+  "active": true,
+  "code": "BRS",
+  "currency": "SAR",
+  "default_account": {
+    "id": 2,
+    "name": "500001 Sales Account"
+  },
+  "id": 1,
+  "name": "Branch sales",
+  "type": "sale"
+}

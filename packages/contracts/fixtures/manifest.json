@@ -351,6 +351,326 @@
       "route": "/api/v1/my-tasks/summary",
       "status": 200,
       "schema": "MyTaskSummarySchema"
+    },
+    {
+      "name": "finance/account-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/accounts",
+      "status": 200,
+      "schema": "FinanceAccountListSchema"
+    },
+    {
+      "name": "finance/account-detail",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/accounts/{id}",
+      "status": 200,
+      "schema": "FinanceAccountSchema"
+    },
+    {
+      "name": "finance/journal-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/journals",
+      "status": 200,
+      "schema": "FinanceJournalListSchema"
+    },
+    {
+      "name": "finance/journal-detail",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/journals/{id}",
+      "status": 200,
+      "schema": "FinanceJournalSchema"
+    },
+    {
+      "name": "finance/tax-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/taxes",
+      "status": 200,
+      "schema": "FinanceTaxListSchema"
+    },
+    {
+      "name": "finance/tax-detail",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/taxes/{id}",
+      "status": 200,
+      "schema": "FinanceTaxSchema"
+    },
+    {
+      "name": "finance/payment-term-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/payment-terms",
+      "status": 200,
+      "schema": "FinancePaymentTermListSchema"
+    },
+    {
+      "name": "finance/payment-term-detail",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/payment-terms/{id}",
+      "status": 200,
+      "schema": "FinancePaymentTermSchema"
+    },
+    {
+      "name": "finance/analytic-plan-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/analytic-plans",
+      "status": 200,
+      "schema": "FinanceAnalyticPlanListSchema"
+    },
+    {
+      "name": "finance/analytic-plan-detail",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/analytic-plans/{id}",
+      "status": 200,
+      "schema": "FinanceAnalyticPlanSchema"
+    },
+    {
+      "name": "finance/analytic-account-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/analytic-accounts",
+      "status": 200,
+      "schema": "FinanceAnalyticAccountListSchema"
+    },
+    {
+      "name": "finance/analytic-account-detail",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/analytic-accounts/{id}",
+      "status": 200,
+      "schema": "FinanceAnalyticAccountSchema"
+    },
+    {
+      "name": "finance/asset-profile-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/asset-profiles",
+      "status": 200,
+      "schema": "FinanceAssetProfileListSchema"
+    },
+    {
+      "name": "finance/asset-profile-detail",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/asset-profiles/{id}",
+      "status": 200,
+      "schema": "FinanceAssetProfileSchema"
+    },
+    {
+      "name": "finance/asset-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/assets",
+      "status": 200,
+      "schema": "FinanceAssetListSchema"
+    },
+    {
+      "name": "finance/asset-detail",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/assets/{id}",
+      "status": 200,
+      "schema": "FinanceAssetDetailSchema"
+    },
+    {
+      "name": "finance/bank-statement-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/bank-statements",
+      "status": 200,
+      "schema": "FinanceBankStatementListSchema"
+    },
+    {
+      "name": "finance/bank-statement-detail",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/bank-statements/{id}",
+      "status": 200,
+      "schema": "FinanceBankStatementDetailSchema"
+    },
+    {
+      "name": "finance/audit-event-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/audit-events",
+      "status": 200,
+      "schema": "FinanceAuditEventListSchema"
+    },
+    {
+      "name": "finance/reconcile-proposal-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/bank-statement-lines/{id}/reconcile-proposals",
+      "status": 200,
+      "schema": "FinanceReconcileProposalListSchema"
+    },
+    {
+      "name": "finance/analytic-report",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/reports/analytic",
+      "status": 200,
+      "schema": "FinanceAnalyticReportSchema"
+    },
+    {
+      "name": "finance/analytic-report-line-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/reports/analytic/lines",
+      "status": 200,
+      "schema": "FinanceAnalyticReportLineListSchema"
+    },
+    {
+      "name": "finance/report-cash-flow",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/reports/cash-flow",
+      "status": 200,
+      "schema": "FinanceCashFlowSchema"
+    },
+    {
+      "name": "finance/report-profit-loss",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/reports/profit-loss",
+      "status": 200,
+      "schema": "FinanceProfitLossSchema"
+    },
+    {
+      "name": "finance/report-balance-sheet",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/reports/balance-sheet",
+      "status": 200,
+      "schema": "FinanceBalanceSheetSchema"
+    },
+    {
+      "name": "finance/report-zakat-base",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/reports/zakat-base",
+      "status": 200,
+      "schema": "FinanceZakatBaseSchema"
+    },
+    {
+      "name": "finance/report-withholding",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/reports/withholding",
+      "status": 200,
+      "schema": "FinanceWithholdingSummarySchema"
+    },
+    {
+      "name": "finance/report-vat-return",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/reports/vat-return",
+      "status": 200,
+      "schema": "FinanceVatReturnSchema"
+    },
+    {
+      "name": "finance/report-vat-return-item-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/reports/vat-return/items",
+      "status": 200,
+      "schema": "FinanceVatReturnItemListSchema"
+    },
+    {
+      "name": "finance/report-trial-balance",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/reports/trial-balance",
+      "status": 200,
+      "schema": "FinanceTrialBalanceSchema"
+    },
+    {
+      "name": "finance/report-general-ledger",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/reports/general-ledger",
+      "status": 200,
+      "schema": "FinanceGeneralLedgerSchema"
+    },
+    {
+      "name": "finance/report-aged-partner-balance",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/reports/aged-partner-balance",
+      "status": 200,
+      "schema": "FinanceAgedPartnerBalanceSchema"
+    },
+    {
+      "name": "finance/report-partner-statement",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/reports/partner-statement",
+      "status": 200,
+      "schema": "FinancePartnerStatementSchema"
+    },
+    {
+      "name": "finance/closing-preview",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/fiscal-years/{year}/closing-preview",
+      "status": 200,
+      "schema": "FinanceClosingPreviewSchema"
+    },
+    {
+      "name": "finance/country-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/countries",
+      "status": 200,
+      "schema": "LookupListSchema"
+    },
+    {
+      "name": "finance/country-state-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/countries/{id}/states",
+      "status": 200,
+      "schema": "LookupListSchema"
+    },
+    {
+      "name": "finance/zakat-adjustment-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/zakat/adjustments",
+      "status": 200,
+      "schema": "FinanceZakatAdjustmentListSchema"
+    },
+    {
+      "name": "finance/zakat-review-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/zakat/reviews",
+      "status": 200,
+      "schema": "FinanceZakatReviewListSchema"
+    },
+    {
+      "name": "finance/zatca-document-list",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/zatca/documents",
+      "status": 200,
+      "schema": "FinanceZatcaWaitingDocumentListSchema"
+    },
+    {
+      "name": "finance/invoice-zatca",
+      "addon": "webvue_finance",
+      "method": "GET",
+      "route": "/api/v1/finance/invoices/{id}/zatca",
+      "status": 200,
+      "schema": "FinanceZatcaSubmissionSchema"
     }
   ]
 }

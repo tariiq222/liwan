@@ -1,0 +1,33 @@
+{
+  "items": [
+    {
+      "base": 103800.0,
+      "credential": "SOCPA 12345",
+      "current": true,
+      "date_to": "2026-12-31",
+      "id": 1,
+      "note": "",
+      "reviewed_at": "2026-01-01T00:00:00Z",
+      "reviewer": {
+        "id": 2,
+        "name": "Finance Manager"
+      },
+      "zakat_due": 2675.64
+    },
+    {
+      "base": 103900.0,
+      "credential": "SOCPA 12345",
+      "current": false,
+      "date_to": "2026-12-31",
+      "id": 3,
+      "note": "Checked against the ledger",
+      "reviewed_at": "2026-01-01T00:00:00Z",
+      "reviewer": {
+        "id": 2,
+        "name": "Finance Manager"
+      },
+      "zakat_due": 2678.21
+    }
+  ],
+  "total": 2
+}

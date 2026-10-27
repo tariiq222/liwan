@@ -1,0 +1,66 @@
+{
+  "blockers": [
+    {
+      "code": "account_not_closable",
+      "details": {
+        "account_ids": [
+          8307
+        ]
+      },
+      "message": "archived accounts or accounts in a foreign currency hold a balance"
+    }
+  ],
+  "date_from": "2025-01-01",
+  "date_to": "2025-12-31",
+  "journal": {
+    "id": 1,
+    "name": "Tax Adjustments"
+  },
+  "lines": [
+    {
+      "account": {
+        "code": "400003",
+        "id": 3,
+        "name": "Basic Salary"
+      },
+      "credit": 6000.0,
+      "debit": 0.0
+    },
+    {
+      "account": {
+        "code": "500001",
+        "id": 4,
+        "name": "Sales Account"
+      },
+      "credit": 0.0,
+      "debit": 10000.0
+    },
+    {
+      "account": {
+        "code": "599901",
+        "id": 5,
+        "name": "USD expenses"
+      },
+      "credit": 37.5,
+      "debit": 0.0
+    },
+    {
+      "account": {
+        "code": "999999",
+        "id": 2,
+        "name": "Undistributed Profits/Losses"
+      },
+      "credit": 3962.5,
+      "debit": 0.0
+    }
+  ],
+  "result": 3962.5,
+  "retained_earnings_account": {
+    "code": "999999",
+    "id": 2,
+    "name": "Undistributed Profits/Losses"
+  },
+  "total_credit": 10000.0,
+  "total_debit": 10000.0,
+  "year": 2025
+}
