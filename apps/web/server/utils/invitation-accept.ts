@@ -36,12 +36,15 @@ export function acceptOutcome(status: number, code: unknown): { status: number; 
   return outcome && outcome.status === status ? { code: code as string, ...outcome } : null
 }
 
+/** Longest invitation token the proxy forwards; the control plane caps it lower and answers longer ones as unusable. */
+const MAX_TOKEN_LENGTH = 512
+
 /** Strips every field except token and password; returns null when either is not a non-empty string. */
 export function pickAcceptBody(body: unknown): { token: string; password: string } | null {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) return null
   const { token, password } = body as Record<string, unknown>
   if (typeof token !== 'string' || typeof password !== 'string' || !token || !password) return null
-  if (token.length > 512 || password.length > 256) return null
+  if (token.length > MAX_TOKEN_LENGTH || password.length > 256) return null
   return { token, password }
 }
 
@@ -49,6 +52,6 @@ export function pickAcceptBody(body: unknown): { token: string; password: string
 export function pickCheckBody(body: unknown): { token: string } | null {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) return null
   const { token } = body as Record<string, unknown>
-  if (typeof token !== 'string' || !token || token.length > 512) return null
+  if (typeof token !== 'string' || !token || token.length > MAX_TOKEN_LENGTH) return null
   return { token }
 }

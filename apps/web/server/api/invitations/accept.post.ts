@@ -27,7 +27,8 @@ export default defineEventHandler(async (event) => {
     const status = Number(cause?.statusCode ?? cause?.response?.status)
     const outcome = acceptOutcome(status, cause?.data?.code)
     if (outcome) throw createError({ statusCode: outcome.status, data: { code: outcome.code, message: outcome.message } })
-    if (status >= 400 && status < 500) throw createError({ statusCode: 400, data: { code: 'invalid_invitation', message: 'Invalid invitation' } })
+    // A rate-limited accept says nothing about the token: it is a temporary outage, so the form and Retry stay.
+    if (status >= 400 && status < 500 && status !== 429) throw createError({ statusCode: 400, data: { code: 'invalid_invitation', message: 'Invalid invitation' } })
     throw createError({ statusCode: 503, data: { code: 'unavailable', message: 'Service unavailable' } })
   }
 })
