@@ -193,7 +193,7 @@ const canAddOccurrence = computed(() => {
 const cancelSeries = useCancelMeetingSeries()
 const confirmingEnd = ref(false)
 const endError = ref('')
-const canEndSeries = computed(() => query.data.value?.can_edit === true && query.data.value.active)
+const canEndSeries = computed(() => query.data.value?.can_end === true)
 // An unsaved occurrence would be dropped when the ended series closes its form, so the editor saves or discards it first.
 function requestEndSeries() {
   endError.value = occurrenceDirty.value ? t('meetingsUx.endSeriesUnsaved') : ''

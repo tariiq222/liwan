@@ -220,6 +220,8 @@ export const MeetingSeriesDetailSchema = MeetingSeriesListItemSchema.extend({
   attendees: z.array(MeetingPersonSchema),
   meetings: z.array(MeetingListItemSchema),
   can_edit: z.boolean().optional(),
+  // The server's answer to "may this caller end the series now": editor, active, and manager or nothing upcoming.
+  can_end: z.boolean().optional(),
 }).strip()
 
 export const MeetingSeriesCreateSchema = z.object({

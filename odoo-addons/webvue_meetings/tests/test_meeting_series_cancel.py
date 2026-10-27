@@ -97,11 +97,15 @@ class TestMeetingSeriesCancel(WebVueMeetingsCase):
     def test_non_manager_organizer_ends_only_a_series_with_nothing_to_cancel(self):
         series = self._series(self.employee)
         meeting = self._meeting(series, 5)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        detail = self.api('GET', f'/api/v1/meeting-series/{series.id}').json()
+        self.assertEqual((detail['can_edit'], detail['can_end']), (True, False))
         response = self._cancel(series, 'api_emp')
         self.assertEqual(response.status_code, 403, response.text)
         self.assertTrue(series.active)
         self.assertEqual(meeting.state, 'draft')
         meeting.action_cancel()
+        self.assertIs(self.api('GET', f'/api/v1/meeting-series/{series.id}').json()['can_end'], True)
         self.assertEqual(self._cancel(series, 'api_emp').status_code, 200)
         self.assertFalse(series.active)
 

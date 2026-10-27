@@ -36571,6 +36571,9 @@
           "can_edit": {
             "type": "boolean"
           },
+          "can_end": {
+            "type": "boolean"
+          },
           "id": {
             "maximum": 9007199254740991,
             "minimum": -9007199254740991,
