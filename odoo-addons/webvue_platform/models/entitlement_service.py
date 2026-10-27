@@ -21,6 +21,14 @@ FORBIDDEN_TERM_CHARS = frozenset('{}@|')
 FORBIDDEN_TERM_SEGMENTS = frozenset({'__proto__', 'constructor', 'prototype'})
 
 
+class WebVueTenantSuspended(AccessDenied):
+    """Login refused because the tenant is suspended.
+
+    Raised only after the credentials were verified, so it reveals nothing to a caller
+    without a valid password; the web login maps its class name to `tenant_suspended`.
+    """
+
+
 class WebVueEntitlementService(models.AbstractModel):
     _name = 'webvue.entitlement.service'
     _description = 'WebVue entitlement service'
@@ -80,7 +88,7 @@ class WebVueEntitlementService(models.AbstractModel):
         if self._webvue_is_support_user(user) and not self._webvue_support_login_allowed(user):
             raise AccessDenied()
         if self._webvue_effective_state() == 'suspended' and not self._webvue_support_login_allowed(user):
-            raise AccessDenied()
+            raise WebVueTenantSuspended()
         return True
 
     @api.model

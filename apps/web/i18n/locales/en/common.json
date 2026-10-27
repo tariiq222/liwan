@@ -118,6 +118,7 @@
     "continue": "Continue",
     "signInToContinue": "Sign in to continue",
     "invalidCredentials": "Invalid credentials",
+    "tenantSuspended": "Your company’s subscription is suspended, so sign-in is unavailable. Contact your company administrator.",
     "loginFailed": "Sign-in failed",
     "usernameRequired": "Enter your username",
     "passwordRequired": "Enter your password",
