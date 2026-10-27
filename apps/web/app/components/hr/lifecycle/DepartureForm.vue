@@ -107,7 +107,12 @@ async function submit() {
         plan_id: planId.value,
       })
     formError.value = null
-    if (!props.departure) {
+    if (props.departure) {
+      // The server normalizes the fields (a trimmed description): the saved record is the new baseline.
+      departureDate.value = departure.departure_date
+      reasonId.value = departure.reason?.id ?? null
+      description.value = departure.description
+    } else {
       saved.value = true
       await nextTick()
     }

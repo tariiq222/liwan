@@ -47,10 +47,7 @@ def dump_departure(employee, clearance_run):
 
 def clearance_done(run):
     """Whether every step of RUN is complete; a run without steps is not cleared."""
-    if not run:
-        return False
-    activities = run_activities(run)
-    return bool(activities) and all(activity.state == 'done' for activity in activities)
+    return bool(run) and run._webvue_is_done()
 
 
 def parse_departure_create(payload):

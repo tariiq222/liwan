@@ -54,7 +54,8 @@
       "assetsLink": "Employee assets",
       "heldAssets": "The employee still holds {count} unreturned asset | The employee still holds {count} unreturned assets",
       "registered": "Departure registered",
-      "noReason": "No reason recorded"
+      "noReason": "No reason recorded",
+      "startClearance": "Start clearance"
     },
     "form": {
       "name": "Plan name",

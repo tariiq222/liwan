@@ -18,7 +18,7 @@ def _reject_unknown(payload, allowed):
 
 def run_activities(run):
     """The checklist activities of a run, archived (done) ones included, deadline first."""
-    return run.with_context(active_test=False).activity_ids.sorted(
+    return run._webvue_activities().sorted(
         lambda activity: (activity.date_deadline, activity.id),
     )
 
@@ -28,11 +28,11 @@ def _progress(run):
     return activities, len(activities.filtered(lambda activity: activity.state == 'done'))
 
 
-def run_state(run, done, total):
+def run_state(run):
     """The stored cancellation, else the state the checklist derives."""
     if run.state == 'cancelled':
         return 'cancelled'
-    return 'done' if total and done == total else 'open'
+    return 'done' if run._webvue_is_done() else 'open'
 
 
 def _cancellation(run):
@@ -56,7 +56,7 @@ def dump_run(run):
         'launched_by': ref(run.launched_by_id),
         'done': done,
         'total': total,
-        'state': run_state(run, done, total),
+        'state': run_state(run),
         'cancellation': _cancellation(run),
     }
 
