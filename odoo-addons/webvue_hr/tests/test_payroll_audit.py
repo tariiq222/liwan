@@ -32,7 +32,7 @@ PROFILE = {
 COMPENSATION = {
     'basic_wage': 10000, 'housing_allowance': 2500, 'transport_allowance': 1000, 'other_allowance': 0,
     'iban': NEW_IBAN, 'bank_id': None, 'gosi_number': '123456789', 'gosi_registration_date': '2024-01-01',
-    'relationship_type': 'employee',
+    'relationship_type': 'consultant',
 }
 DEPARTURE = date(2026, 11, 30)
 # Also parsed against HR_PAYROLL_AUDIT_ACTIONS by packages/contracts/src/hr/__tests__/payrollAudit.test.ts.
@@ -143,8 +143,11 @@ class TestPayrollAudit(PayrollCase):
     def test_compensation_put_records_field_names_without_wage_or_iban(self):
         self._call(self.officer, 'PUT', f'/api/v1/hr/payroll/compensation/{self.leaver.id}', COMPENSATION)
         event = self._only_event('compensation_changed', self.officer)
-        self.assertLessEqual({'basic_wage', 'housing_allowance', 'iban', 'gosi_number'}, set(self._changes(event)))
-        self.assertTrue(all(values == (False, False) for values in self._changes(event).values()))
+        changes = self._changes(event)
+        self.assertLessEqual({'basic_wage', 'housing_allowance', 'iban', 'gosi_number'}, set(changes))
+        # Who reclassified the relationship, and to what, stays answerable; pay data stays name-only.
+        self.assertEqual(changes.pop('relationship_type'), ('employee', 'consultant'))
+        self.assertTrue(all(values == (False, False) for values in changes.values()))
         values = self._all_values()
         for secret in (IBAN, NEW_IBAN, '8000', '10000', '123456789'):
             self.assertFalse(any(secret in value for value in values), secret)

@@ -25,9 +25,11 @@ TRACKED_FIELDS = {
         'departure_date', 'case', 'service_years', 'eos_wage', 'award', 'leave_days', 'leave_amount',
         'open_deductions', 'total', 'state',
     )),
-    'webvue.hr.compensation': ((), (
+    # The relationship type is the customer's own classification, not pay data: who set it and to what is the
+    # record B12 needs, so its values are kept.
+    'webvue.hr.compensation': (('relationship_type',), (
         'basic_wage', 'housing_allowance', 'transport_allowance', 'other_allowance', 'iban', 'bank_id',
-        'gosi_number', 'gosi_registration_date', 'relationship_type',
+        'gosi_number', 'gosi_registration_date',
     )),
     # The lifecycle of a pay month; the entered input amounts are named in the event, never valued.
     'hr.payslip.run': (('webvue_state', 'webvue_approved_by_id', 'webvue_approved_at'), ()),
