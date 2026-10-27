@@ -51,6 +51,15 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
     const closed = await client.query("UPDATE payment_attempts SET status='canceled',updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown')", [attempt.id])
     return closed.rowCount ? 'accepted' : 'ignored'
   }
+  // Only the attempt that paid the order may move it. A refund (or any other event) of a recorded duplicate
+  // charge belongs to that attempt alone: audit it and leave the order, its fulfillment and its invoice untouched.
+  // The duplicate's pending credit note is left for the operator action, which records the refund reference.
+  if (order.paid_attempt_id && order.paid_attempt_id !== attempt.id && event.status === 'refunded') {
+    const logged = await client.query("SELECT 1 FROM audit_events WHERE action='payment.duplicate_refunded' AND subject=$1 AND metadata->>'attempt_id'=$2", [order.id, attempt.id])
+    if (!logged.rowCount) await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+      [randomUUID(),'system','payment.duplicate_refunded',order.id,'Duplicate payment refunded at the provider',JSON.stringify({ attempt_id: attempt.id, event_id: event.event_id, payment_id: event.payment_id })])
+    return 'accepted'
+  }
   const type = event.status === 'succeeded' ? 'payment_succeeded' : event.status === 'refunded' ? 'payment_refunded'
     : event.status === 'failed' ? 'payment_failed' : 'payment_pending'
   const next = nextOrderState(order as OrderStateInput, { type })
@@ -71,6 +80,7 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
   await client.query('UPDATE orders SET payment_state=$2,fulfillment_state=$3 WHERE id=$1', [order.id, next.payment_state, next.fulfillment_state])
   if (event.status === 'succeeded') {
     await client.query("UPDATE payment_attempts SET status='succeeded',updated_at=now() WHERE id=$1", [attempt.id])
+    await client.query('UPDATE orders SET paid_attempt_id=$2 WHERE id=$1 AND paid_attempt_id IS NULL', [order.id, attempt.id])
     await client.query("UPDATE invoices SET status='paid',paid_at=COALESCE(paid_at,now()) WHERE id=$1 AND status='issued'", [attempt.invoice_id])
     if (next.reconcile) {
       await enqueueOutbox(client, { kind: 'reconcile.refund', aggregate_id: order.id, dedupe_key: event.event_id,
@@ -144,15 +154,25 @@ async function closeSiblingAttempts(pool: Pool, adapter: PaymentAdapter, paid: P
     try {
       await adapter.cancelAttempt(sibling.provider_ref)
       await pool.query("UPDATE payment_attempts SET status='canceled',updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown')", [sibling.id])
-    } catch { /* the reconciler looks it up again */ }
+    } catch (error) {
+      // The invoice stays payable until it expires; a payment on it later is recorded by the duplicate-charge path,
+      // and the reconciler cancels it once it looks the attempt up again.
+      console.error(`[payments] could not cancel sibling attempt ${sibling.id} (${(error as { code?: string })?.code ?? (error as Error)?.constructor?.name ?? 'error'})`)
+    }
   }
 }
 
 export async function lookup(pool: Pool, adapter: PaymentAdapter, row: any) {
   if (row.provider !== adapter.provider || row.mode !== adapter.mode) throw new CommercialHttpError('provider_mismatch', 409)
   // A token charge has a payment id, not an invoice: the invoice endpoint would answer 404 for it.
-  const event = row.token_charge ? (row.provider_ref ? await adapter.lookupPayment?.(row.provider_ref) : null)
-    : row.provider_ref ? await adapter.lookupAttempt(row.provider_ref) : await adapter.lookupByAttemptId?.(row.id)
+  let event: ProviderEvent | null | undefined
+  try {
+    event = row.token_charge ? (row.provider_ref ? await adapter.lookupPayment?.(row.provider_ref) : null)
+      : row.provider_ref ? await adapter.lookupAttempt(row.provider_ref) : await adapter.lookupByAttemptId?.(row.id)
+  } catch (error) {
+    if (row.token_charge && (error as { code?: string }).code === 'not_found' && await closeMissingTokenCharge(pool, row)) return 'ignored' as const
+    throw error
+  }
   if (!event) throw new CommercialHttpError('payment_unknown', 503)
   if (event.provider !== adapter.provider || event.merchant_account !== adapter.merchantAccount || event.live !== (adapter.mode === 'live')
     || (event.attempt_id && event.attempt_id !== row.id) || (row.provider_ref && event.provider_ref !== row.provider_ref)
@@ -166,7 +186,31 @@ export async function lookup(pool: Pool, adapter: PaymentAdapter, row: any) {
   // (a cancel that crashed before reaching the provider) unable to be paid or cancelled again.
   if (event.status === 'pending' && row.status === 'unknown')
     await pool.query("UPDATE payment_attempts SET status='pending',updated_at=now() WHERE id=$1 AND status='unknown'", [row.id])
+  // A hosted invoice that is still payable while another attempt already paid the order must not stay payable.
+  if (event.status === 'pending' && !row.token_charge && row.provider_ref && adapter.cancelAttempt
+    && (await pool.query('SELECT 1 FROM orders WHERE id=$1 AND paid_attempt_id IS NOT NULL AND paid_attempt_id<>$2', [row.order_id, row.id])).rowCount) {
+    try {
+      await adapter.cancelAttempt(row.provider_ref)
+      await pool.query("UPDATE payment_attempts SET status='canceled',updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown')", [row.id])
+    } catch (error) { console.error(`[payments] could not cancel attempt ${row.id} of a paid order (${(error as { code?: string })?.code ?? 'error'})`) }
+  }
   return outcome
+}
+
+/** A token charge the provider says does not exist never charged anyone, so it no longer blocks a new attempt. */
+const MISSING_CHARGE_GRACE_MS = 60 * 60_000
+async function closeMissingTokenCharge(pool: Pool, row: any): Promise<boolean> {
+  // Before the charge response arrived the reference is only our own order id, which proves nothing by itself:
+  // wait out a grace period (the response may simply have been lost) before declaring it missing.
+  const unproven = !row.provider_ref || row.provider_ref === row.order_id
+  if (unproven && Date.now() - new Date(row.created_at).getTime() < MISSING_CHARGE_GRACE_MS) return false
+  return transaction(pool, async client => {
+    const closed = await client.query("UPDATE payment_attempts SET status='failed',updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown') RETURNING id", [row.id])
+    if (!closed.rowCount) return false
+    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+      [randomUUID(),'system','payment.token_charge_missing',row.order_id,'The provider has no such token charge; the attempt was closed',JSON.stringify({ attempt_id: row.id, provider_ref: row.provider_ref })])
+    return true
+  })
 }
 
 /** A hosted invoice is created with this lifetime; past it, a live attempt may already be unpayable at the provider. */
@@ -201,8 +245,11 @@ export async function createPaymentAttempt(pool: Pool, input: { order_id: string
       if (looked) reservation = await reserve()
     }
   }
+  if (!reservation.fresh && reservation.row.status === 'unknown') {
+    await lookup(pool, input.adapter, reservation.row)
+    reservation = await reserve() // a closed attempt (missing token charge) no longer blocks a new one
+  }
   if (!reservation.fresh) {
-    if (reservation.row.status === 'unknown') await lookup(pool, input.adapter, reservation.row)
     return paymentAttemptView((await pool.query('SELECT * FROM payment_attempts WHERE id=$1', [reservation.row.id])).rows[0])
   }
   const row = reservation.row

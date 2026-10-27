@@ -12,3 +12,9 @@ CREATE UNIQUE INDEX invoice_adjustments_refund_reference ON invoice_adjustments(
 
 -- A direct token charge has a provider payment id (not an invoice id), so it must be looked up as a payment.
 ALTER TABLE payment_attempts ADD COLUMN token_charge boolean NOT NULL DEFAULT false;
+
+-- The attempt that paid the order is the only one whose later events may move the order (a duplicate charge
+-- that is refunded must not refund the order). Existing paid orders take their earliest succeeded attempt.
+ALTER TABLE orders ADD COLUMN paid_attempt_id uuid REFERENCES payment_attempts(id);
+UPDATE orders o SET paid_attempt_id = (SELECT a.id FROM payment_attempts a WHERE a.order_id=o.id AND a.status='succeeded' ORDER BY a.updated_at,a.id LIMIT 1)
+WHERE o.payment_state IN ('paid','refund_pending','refunded');
