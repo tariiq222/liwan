@@ -20,6 +20,22 @@ SECRET_FRAGMENTS = ('password', 'passwd', 'token', 'secret', 'apikey', 'authoriz
 NUL = '\x00'
 MAX_JSON_DEPTH = 8
 MAX_JSON_BYTES = 32 * 1024
+MAX_CONVERSATION_ID = 64
+CONVERSATION_ID_MESSAGE = (
+    f'conversation_id must be a non-empty string of at most {MAX_CONVERSATION_ID} characters, without NUL'
+)
+
+
+def is_conversation_id(value):
+    return isinstance(value, str) and 0 < len(value) <= MAX_CONVERSATION_ID and NUL not in value
+
+
+def raise_invalid(env, field, message, code='invalid'):
+    """Raise the ``ValidationError`` that the route maps to a 422 carrying ``field`` and ``code``."""
+    error = ValidationError(env._('%(message)s', message=message))
+    error.webvue_field = field
+    error.webvue_code = code
+    raise error
 
 
 def is_secret_key(key):
@@ -88,10 +104,7 @@ class WebVueAiAudit(models.Model):
 
     @api.model
     def _webvue_ai_invalid(self, field, message, code='invalid'):
-        error = ValidationError(self.env._('%(message)s', message=message))
-        error.webvue_field = field
-        error.webvue_code = code
-        raise error
+        raise_invalid(self.env, field, message, code)
 
     @api.model
     def _webvue_ai_json(self, field, value):
@@ -124,8 +137,8 @@ class WebVueAiAudit(models.Model):
             field = sorted(unknown)[0]
             self._webvue_ai_invalid(field, f'field {field!r} is not accepted', code='unknown_field')
         conversation_id = values.get('conversation_id')
-        if not isinstance(conversation_id, str) or not conversation_id or len(conversation_id) > 64 or NUL in conversation_id:
-            invalid('conversation_id', 'conversation_id must be a non-empty string of at most 64 characters, without NUL')
+        if not is_conversation_id(conversation_id):
+            invalid('conversation_id', CONVERSATION_ID_MESSAGE)
         kind = values.get('kind')
         if not isinstance(kind, str) or kind not in AUDIT_KINDS:
             invalid('kind', f'kind must be one of {AUDIT_KINDS}')
