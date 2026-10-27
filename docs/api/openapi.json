@@ -4368,6 +4368,9 @@
                 "can_manage": {
                   "type": "boolean"
                 },
+                "can_remove_members": {
+                  "type": "boolean"
+                },
                 "id": {
                   "exclusiveMinimum": 0,
                   "maximum": 9007199254740991,
@@ -4455,7 +4458,8 @@
                 "notifications",
                 "peer_seen_message_id",
                 "im_status",
-                "can_manage"
+                "can_manage",
+                "can_remove_members"
               ],
               "type": "object"
             },
@@ -4506,6 +4510,9 @@
         "additionalProperties": false,
         "properties": {
           "can_manage": {
+            "type": "boolean"
+          },
+          "can_remove_members": {
             "type": "boolean"
           },
           "id": {
@@ -4595,7 +4602,8 @@
           "notifications",
           "peer_seen_message_id",
           "im_status",
-          "can_manage"
+          "can_manage",
+          "can_remove_members"
         ],
         "type": "object"
       },
@@ -4771,6 +4779,45 @@
                   "maximum": 9007199254740991,
                   "type": "integer"
                 },
+                "notice": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "member_removed",
+                          "type": "string"
+                        },
+                        "user": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991,
+                              "type": "integer"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "user"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "parent": {
                   "anyOf": [
                     {
@@ -4858,7 +4905,8 @@
                 "edited",
                 "pinned",
                 "starred",
-                "reactions"
+                "reactions",
+                "notice"
               ],
               "type": "object"
             },
@@ -4873,6 +4921,39 @@
         "required": [
           "items",
           "total"
+        ],
+        "type": "object"
+      },
+      "ChatMessageNoticeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "member_removed",
+            "type": "string"
+          },
+          "user": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "type",
+          "user"
         ],
         "type": "object"
       },
@@ -5041,6 +5122,45 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
+          "notice": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "member_removed",
+                    "type": "string"
+                  },
+                  "user": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "type",
+                  "user"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "parent": {
             "anyOf": [
               {
@@ -5128,7 +5248,8 @@
           "edited",
           "pinned",
           "starred",
-          "reactions"
+          "reactions",
+          "notice"
         ],
         "type": "object"
       },

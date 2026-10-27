@@ -123,6 +123,10 @@
     "odoo-addons/webvue_pmo/models/res_company.py": {
       "count": 1,
       "reason": "webvue_pmo project-type provisioning seed: `Type = self.env['webvue.project.type'].sudo().with_context(active_test=False)` in `_webvue_seed_project_types`; blocked by odoo-addons/webvue_pmo/security/ir.model.access.csv `access_webvue_project_type_*`, which grants only webvue_core.group_employee and the PMO capability groups: core `res.company.create` admits only a system administrator, who need not hold those groups, and the seed must also see archived seed rows (`active_test=False`) to stay idempotent. Measured: without the elevation test_system_admin_without_employee_group_seeds_a_new_company fails with AccessError on webvue.project.type (audit V3 row 1 had judged it unnecessary; its probe admin was an employee)."
+    },
+    "odoo-addons/webvue_chat/models/chat_service.py": {
+      "count": 1,
+      "reason": "webvue_chat group member removal: `channel.sudo()._action_unfollow(partner=member.partner_id, post_leave_message=False)` in `_webvue_remove_member` (models/chat_service.py), after `_webvue_member_channel` proved the caller's membership and the method checked `channel.channel_type == 'group'` and `channel.create_uid == self.env.user`. Blocked by addons/mail/security/mail_security.xml `ir_rule_discuss_channel_member_is_self_all`, which lets a user write or unlink only their own `discuss.channel.member` row (`is_self`), and stock Odoo offers no route that removes another member. Scope is one member row (and its follower entry) of a group the caller created; the notice is posted unelevated by the caller."
     }
   }
 }

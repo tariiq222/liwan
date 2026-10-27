@@ -16,8 +16,8 @@ async function open(page: Page, path: string) {
 }
 const fitsWidth = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
 
-const conversation = { id: 42, type: 'group', name: 'محادثة تجريبية', unread_count: 0, last_message_at: '2026-09-09T10:00:00Z', last_message_preview: 'رسالة ثانية', member_count: 2, muted: false, notifications: null, peer_seen_message_id: null, im_status: null, can_manage: true }
-const message = (id: number, body: string) => ({ id, conversation_id: 42, author: { id: 7, name: 'سارة' }, body, created_at: '2026-09-09T10:00:00Z', attachments: [], parent: null, edited: false, pinned: false, starred: false, reactions: [] })
+const conversation = { id: 42, type: 'group', name: 'محادثة تجريبية', unread_count: 0, last_message_at: '2026-09-09T10:00:00Z', last_message_preview: 'رسالة ثانية', member_count: 2, muted: false, notifications: null, peer_seen_message_id: null, im_status: null, can_manage: true, can_remove_members: false }
+const message = (id: number, body: string) => ({ id, conversation_id: 42, author: { id: 7, name: 'سارة' }, body, created_at: '2026-09-09T10:00:00Z', attachments: [], parent: null, edited: false, pinned: false, starred: false, reactions: [], notice: null })
 const json = (route: Route, status: number, body: unknown) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 
 type Mode = { messages: number; send: number }

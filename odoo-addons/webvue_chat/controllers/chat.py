@@ -27,6 +27,7 @@ from odoo.addons.webvue_chat.serializers.chat import (
     dump_member,
     dump_message,
     dump_user_ref,
+    message_notice,
 )
 
 MUTE_UNTIL = datetime(9999, 12, 31, 23, 59, 59)
@@ -208,6 +209,8 @@ class ChatController(http.Controller):
         message = service._webvue_channel_message(channel, message_id)
         if message.author_id != request.env.user.partner_id:
             raise ApiError(403, 'forbidden', 'only the message author can edit it')
+        if message_notice(message):
+            raise ApiError(422, 'invalid', 'a conversation notice cannot be edited')
         body = payload['body']
         channel._message_update_content(
             message, body=plaintext2html(body) if body.strip() else '',
@@ -330,20 +333,7 @@ class ChatController(http.Controller):
         _reject_extra(payload, frozenset())
         service = self._service()
         channel = service._webvue_member_channel(conversation_id)
-        if channel.channel_type == 'chat':
-            raise ApiError(403, 'forbidden', 'direct chats cannot remove members')
-        if user_id != request.env.uid:
-            raise ApiError(403, 'forbidden', 'only the member can leave')
-        partner = service._webvue_resolve_user_partners([user_id], include_self=True)
-        member = channel.channel_member_ids.filtered(lambda item: item.partner_id.id == partner.id)
-        if not member:
-            raise ApiError(404, 'not_found', 'member does not exist')
-        if channel.channel_type == 'group' and channel.member_count <= 2:
-            raise ApiError(422, 'invalid', 'a group must keep at least two members')
-        before = channel.channel_member_ids.partner_id.ids
-        channel._action_unfollow(partner=member.partner_id)
-        service._webvue_notify_channel(channel, 'members_updated', before)
-        return {'left': True}
+        return dump_conversation(service._webvue_remove_member(channel, user_id))
 
     @http.route(
         '/api/v1/chat/conversations/<int:conversation_id>/leave',

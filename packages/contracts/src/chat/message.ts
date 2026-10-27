@@ -25,6 +25,11 @@ export const ChatMessageReactionSchema = z.object({
   me: z.boolean(),
 }).strict()
 
+export const ChatMessageNoticeSchema = z.object({
+  type: z.literal('member_removed'),
+  user: ChatUserRefSchema,
+}).strict()
+
 export const ChatMessageSchema = z.object({
   id: z.number().int().positive(),
   conversation_id: z.number().int().positive(),
@@ -37,6 +42,7 @@ export const ChatMessageSchema = z.object({
   pinned: z.boolean(),
   starred: z.boolean(),
   reactions: z.array(ChatMessageReactionSchema),
+  notice: ChatMessageNoticeSchema.nullable(),
 }).strict()
 
 export const ChatMessageListSchema = z.object({
@@ -80,6 +86,7 @@ export const ChatReadSchema = z.object({
 
 export type ChatAttachment = z.infer<typeof ChatAttachmentSchema>
 export type ChatAttachmentList = z.infer<typeof ChatAttachmentListSchema>
+export type ChatMessageNotice = z.infer<typeof ChatMessageNoticeSchema>
 export type ChatMessage = z.infer<typeof ChatMessageSchema>
 export type ChatMessageParent = z.infer<typeof ChatMessageParentSchema>
 export type ChatMessageReaction = z.infer<typeof ChatMessageReactionSchema>

@@ -19,6 +19,7 @@ const fileOffset = ref(0)
 const name = ref('')
 const recipientQ = ref('')
 const leaving = ref(false)
+const removingId = ref<number | null>(null)
 const busy = ref(false)
 const { data: conversation } = useChatConversation(conversationId)
 const { data: members, isLoading: membersLoading, error: membersError, refetch: refetchMembers } = useChatMembers(conversationId, memberOffset)
@@ -31,6 +32,8 @@ const candidates = computed(() => searching.value ? (recipients.value?.items ?? 
 const { mutateAsync: patch } = usePatchConversation(conversationId)
 const { mutateAsync: addMembers } = useAddChatMembers(conversationId)
 const { mutateAsync: leave } = useLeaveConversation(conversationId)
+const { mutateAsync: removeMember } = useRemoveChatMember(conversationId)
+const { me } = useMe()
 
 function seedConversationName(value: typeof conversation.value) {
   const conversationName = value?.name
@@ -46,6 +49,7 @@ const pageFor = (offset: number) => Math.floor(offset / CHAT_PAGE_SIZE) + 1
 const pagesFor = (total: number | undefined) => Math.max(1, Math.ceil((total ?? 0) / CHAT_PAGE_SIZE))
 const offsetFor = (page: number, total: number | undefined) => nextListOffset(0, total ?? 0, (page - 1) * CHAT_PAGE_SIZE)
 const canManage = computed(() => Boolean(conversation.value?.can_manage))
+const canRemoveMember = (memberId: number) => Boolean(conversation.value?.can_remove_members) && memberId !== me.value?.id
 const canLeave = computed(() => conversation.value?.type === 'group' || conversation.value?.type === 'channel')
 
 async function runAction(work: () => Promise<unknown>) {
@@ -86,6 +90,13 @@ async function add(userId: number) {
   })
 }
 
+async function confirmRemove(memberId: number) {
+  await runAction(async () => {
+    await removeMember(memberId)
+    removingId.value = null
+  })
+}
+
 async function confirmLeave() {
   await runAction(async () => {
     await leave()
@@ -114,9 +125,26 @@ async function confirmLeave() {
     </SharedRecordSection>
     <SharedRecordSection variant="list" :title="t('chat.members')">
       <SharedPageState :loading="membersLoading || !hydrated" :error="membersError" :empty="!members?.items.length" :empty-text="t('chat.noMembers')" @retry="refetchMembers()">
-        <div v-for="member in members?.items" :key="member.id" class="flex items-center gap-3 p-3 text-start">
-          <UAvatar v-bind="avatarProps(member.name, member.id)" size="md" />
-          <span class="min-w-0 flex-1 truncate">{{ member.name }}{{ member.im_status === 'online' ? ` · ${t('chat.online')}` : '' }}</span>
+        <div v-for="member in members?.items" :key="member.id" class="grid gap-2 p-3">
+          <div class="flex items-center gap-3 text-start">
+            <UAvatar v-bind="avatarProps(member.name, member.id)" size="md" />
+            <span class="min-w-0 flex-1 truncate">{{ member.name }}{{ member.im_status === 'online' ? ` · ${t('chat.online')}` : '' }}</span>
+            <UButton
+              v-if="canRemoveMember(member.id) && removingId !== member.id"
+              type="button" color="error" variant="ghost" size="sm" icon="i-lucide-user-minus"
+              :disabled="!hydrated || busy" :label="t('chat.removeMember')"
+              :data-testid="`chat-remove-member-${member.id}`"
+              @click="removingId = member.id"
+            />
+          </div>
+          <SharedInlineConfirm
+            v-if="removingId === member.id"
+            :title="t('chat.removeMemberConfirmTitle', { name: member.name })"
+            :confirm-label="t('chat.confirmRemove')"
+            :pending="busy"
+            @confirm="confirmRemove(member.id)"
+            @cancel="removingId = null"
+          />
         </div>
       </SharedPageState>
       <div v-if="pagesFor(members?.total) > 1" class="p-3"><SharedPagination :page="pageFor(memberOffset)" :pages="pagesFor(members?.total)" @update:page="memberOffset = offsetFor($event, members?.total)" /></div>

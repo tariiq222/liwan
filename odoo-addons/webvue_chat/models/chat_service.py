@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from markupsafe import Markup
+
 from odoo import api, models
 from odoo.exceptions import AccessError, MissingError
 from odoo.fields import Domain
@@ -9,6 +11,7 @@ from odoo.addons.webvue_api.controllers.common import ApiError, parse_positive_i
 CHAT_TYPES = ('chat', 'group', 'channel')
 LIST_FILTERS = frozenset({'all', 'unread', 'groups', 'channels', 'starred'})
 MAX_LIMIT = 50
+MEMBER_REMOVED_NOTICE = 'webvue_member_removed'
 
 
 class WebVueChatService(models.AbstractModel):
@@ -312,6 +315,33 @@ class WebVueChatService(models.AbstractModel):
             [('partner_id', 'in', partners.ids)] + self._webvue_eligible_user_domain(include_self=True),
             order='name, id',
         ))
+
+    @api.model
+    def _webvue_remove_member(self, channel, user_id):
+        """The group's creator removes another member and leaves a notice in the conversation."""
+        if channel.channel_type != 'group' or channel.create_uid != self.env.user:
+            raise ApiError(403, 'forbidden', 'only the group creator can remove members')
+        if user_id == self.env.uid:
+            raise ApiError(422, 'invalid', 'leave the conversation instead of removing yourself')
+        user = self.env['res.users'].with_context(active_test=False).browse(user_id).exists()
+        member = channel.channel_member_ids.filtered(lambda item: user and item.partner_id == user.partner_id)
+        if not member:
+            raise ApiError(404, 'not_found', 'member does not exist')
+        if channel.member_count <= 2:
+            raise ApiError(422, 'invalid', 'a group must keep at least two members')
+        before = channel.channel_member_ids.partner_id.ids
+        # sudo: discuss.channel.member - the stock is_self rule lets a member unlink only their own row; the
+        # creator check above is what authorizes removing another member of this group.
+        channel.sudo()._action_unfollow(partner=member.partner_id, post_leave_message=False)
+        channel.message_post(
+            body=Markup('<div class="o_mail_notification" data-oe-type="%s" data-oe-id="%s">%s</div>') % (
+                MEMBER_REMOVED_NOTICE, user.id, user.name,
+            ),
+            message_type='comment',
+            subtype_xmlid='mail.mt_comment',
+        )
+        self._webvue_notify_channel(channel, 'members_updated', before)
+        return channel
 
     @api.model
     def _webvue_channel_attachment(self, channel, attachment_id):

@@ -31,6 +31,7 @@ function msg(id: number): ChatMessage {
     pinned: false,
     starred: false,
     reactions: [],
+    notice: null,
   }
 }
 
