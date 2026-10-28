@@ -28,20 +28,25 @@ class PaymentProvider(models.Model):
     def _webvue_payments_configured(self):
         return all(self._webvue_payments_credentials_present().values())
 
-    def _webvue_payments_webhook_url(self):
+    def _webvue_payments_account_country(self):
+        """The country code of the tenant's merchant account, or ``None`` when the gateway has none."""
         self.ensure_one()
-        return self.get_base_url().rstrip('/') + self._webvue_payments_definition()['webhook_path']
+        definition = self._webvue_payments_definition().get('account_country')
+        return self[definition['field']].code if definition and self[definition['field']] else None
 
-    def _webvue_payments_apply_defaults(self):
-        """Write the fixed WebVue values (e.g. the Paymob account country) that are still empty."""
+    def _webvue_payments_set_account_country(self, code):
+        """Store the merchant account country; stock derives the provider currency from it."""
         self.ensure_one()
-        values = {
-            field: self.env.ref(xmlid).id
-            for field, xmlid in self._webvue_payments_definition()['defaults'].items()
-            if not self[field]
-        }
-        if values:
-            self.write(values)
+        definition = self._webvue_payments_definition()['account_country']
+        country = self.env['res.country'].search([('code', '=', code)], limit=1)
+        self.write({definition['field']: country.id})
+
+    def _webvue_payments_ensure_account_country(self):
+        """Give the merchant account its default country when the tenant has not chosen one."""
+        self.ensure_one()
+        definition = self._webvue_payments_definition().get('account_country')
+        if definition and not self[definition['field']]:
+            self._webvue_payments_set_account_country(definition['default'])
 
     def _webvue_payments_set_state(self, state):
         """Switch between ``disabled``, ``test`` and ``enabled``; only a live provider is published.
@@ -57,11 +62,14 @@ class PaymentProvider(models.Model):
         self.sudo().write({'state': state, 'is_published': state == 'enabled'})
 
     def _webvue_payments_sync(self):
-        """Check the stored keys against the gateway through the stock sync action.
+        """Check the stored keys against the gateway and prepare the account for the current mode.
 
-        :return: ``'synced'`` when every enabled payment method was found on the account,
-            ``'partial'`` when some were not.
+        The stock Paymob action names the merchant's gateway integrations after the mode (test or
+        live), so it must run again after every mode, key or country change.
+
+        :return: ``'synced'``, or ``'methods_missing'`` when the account lacks a payment method
+            the provider needs (stock then leaves the account unprepared).
         """
         self.ensure_one()
         notification = getattr(self, self._webvue_payments_definition()['sync_method'])()
-        return 'partial' if notification['params'].get('type') == 'warning' else 'synced'
+        return 'methods_missing' if notification['params'].get('type') == 'warning' else 'synced'

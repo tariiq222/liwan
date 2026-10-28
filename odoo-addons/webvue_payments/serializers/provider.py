@@ -3,14 +3,18 @@
 
 def dump_provider(provider):
     """Whitelist the wire shape. Credential values never leave the database: only their presence."""
-    present = provider._webvue_payments_credentials_present()
+    country = provider._webvue_payments_definition().get('account_country')
     return {
         'id': provider.id,
         'code': provider.code,
         'name': provider.name,
         'state': provider.state,
-        'credentials': [{'field': field, 'present': value} for field, value in present.items()],
-        'configured': all(present.values()),
+        'credentials': [
+            {'field': field, 'present': present}
+            for field, present in provider._webvue_payments_credentials_present().items()
+        ],
+        'configured': provider._webvue_payments_configured(),
         'methods': provider.payment_method_ids.filtered('active').mapped('code'),
-        'webhook_url': provider._webvue_payments_webhook_url(),
+        'account_country': provider._webvue_payments_account_country(),
+        'account_country_options': list(country['codes']) if country else [],
     }

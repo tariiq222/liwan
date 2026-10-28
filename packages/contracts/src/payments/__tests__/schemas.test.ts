@@ -13,14 +13,15 @@ const PROVIDER = {
   credentials: [{ field: 'paymob_secret_key', present: true }],
   configured: true,
   methods: ['card'],
-  webhook_url: 'https://tenant.example.test/payment/paymob/webhook',
+  account_country: 'SA',
+  account_country_options: ['AE', 'EG', 'OM', 'SA'],
 }
 
 describe('PaymentProviderSchema', () => {
   it('is strict and carries no credential value', () => {
     expect(PaymentProviderSchema.parse(PROVIDER)).toEqual(PROVIDER)
     expect(Object.keys(PaymentProviderSchema.shape).sort()).toEqual(
-      ['code', 'configured', 'credentials', 'id', 'methods', 'name', 'state', 'webhook_url'],
+      ['account_country', 'account_country_options', 'code', 'configured', 'credentials', 'id', 'methods', 'name', 'state'],
     )
     expect(() => PaymentProviderSchema.parse({ ...PROVIDER, paymob_secret_key: 'x' })).toThrow()
     expect(() => PaymentProviderSchema.parse({
@@ -28,10 +29,11 @@ describe('PaymentProviderSchema', () => {
     })).toThrow()
   })
 
-  it('rejects an unknown code or state and a non-url webhook', () => {
+  it('rejects an unknown code or state and a non-ISO account country', () => {
     expect(() => PaymentProviderSchema.parse({ ...PROVIDER, code: 'stripe' })).toThrow()
     expect(() => PaymentProviderSchema.parse({ ...PROVIDER, state: 'paused' })).toThrow()
-    expect(() => PaymentProviderSchema.parse({ ...PROVIDER, webhook_url: '/payment/paymob/webhook' })).toThrow()
+    expect(() => PaymentProviderSchema.parse({ ...PROVIDER, account_country: 'SAU' })).toThrow()
+    expect(PaymentProviderSchema.parse({ ...PROVIDER, account_country: null }).account_country).toBeNull()
   })
 })
 
@@ -43,8 +45,10 @@ describe('PaymentProviderListSchema', () => {
 })
 
 describe('PaymentProviderUpdateSchema', () => {
-  it('accepts a state, credentials or both, and nothing else', () => {
+  it('accepts a state, credentials, an account country or several, and nothing else', () => {
     expect(PaymentProviderUpdateSchema.parse({ state: 'enabled' })).toEqual({ state: 'enabled' })
+    expect(PaymentProviderUpdateSchema.parse({ account_country: 'AE' })).toEqual({ account_country: 'AE' })
+    expect(() => PaymentProviderUpdateSchema.parse({ credentials: {} })).toThrow()
     expect(PaymentProviderUpdateSchema.parse({ credentials: { paymob_api_key: ' k ' } }))
       .toEqual({ credentials: { paymob_api_key: 'k' } })
     expect(() => PaymentProviderUpdateSchema.parse({})).toThrow()
@@ -54,8 +58,10 @@ describe('PaymentProviderUpdateSchema', () => {
 })
 
 describe('PaymentProviderSyncSchema', () => {
-  it('returns the provider and a synced or partial status', () => {
-    expect(PaymentProviderSyncSchema.parse({ provider: PROVIDER, status: 'partial' }).status).toBe('partial')
+  it('returns the provider and a synced or methods_missing status', () => {
+    expect(PaymentProviderSyncSchema.parse({ provider: PROVIDER, status: 'methods_missing' }).status)
+      .toBe('methods_missing')
+    expect(() => PaymentProviderSyncSchema.parse({ provider: PROVIDER, status: 'partial' })).toThrow()
     expect(() => PaymentProviderSyncSchema.parse({ provider: PROVIDER, status: 'failed' })).toThrow()
   })
 })

@@ -18,7 +18,9 @@ export const PaymentProviderSchema = z.object({
   credentials: z.array(PaymentProviderCredentialSchema),
   configured: z.boolean(),
   methods: z.array(z.string().min(1)),
-  webhook_url: z.string().url(),
+  /** Country of the tenant's merchant account (ISO code); it decides the gateway currency. */
+  account_country: z.string().length(2).nullable(),
+  account_country_options: z.array(z.string().length(2)),
 }).strict()
 
 export const PaymentProviderListSchema = z.object({
@@ -26,15 +28,22 @@ export const PaymentProviderListSchema = z.object({
   total: z.number().int().nonnegative(),
 }).strict()
 
-/** PATCH body: switch the mode, enter credentials, or both. Credentials are write-only. */
+/**
+ * PATCH body: switch the mode, enter credentials, choose the account country, or several at once.
+ * Credentials are write-only. While the gateway is on, the server re-checks it in the same request.
+ */
 export const PaymentProviderUpdateSchema = z.object({
   state: PaymentProviderStateSchema.optional(),
-  credentials: z.record(z.string().min(1), z.string().trim().min(1).max(512)).optional(),
-}).strict().refine(body => body.state !== undefined || body.credentials !== undefined, {
-  message: 'state or credentials is required',
+  credentials: z.record(z.string().min(1), z.string().trim().min(1).max(512))
+    .refine(values => Object.keys(values).length > 0, { message: 'enter at least one credential' })
+    .optional(),
+  account_country: z.string().length(2).optional(),
+}).strict().refine(body => Object.keys(body).length > 0, {
+  message: 'state, credentials or account_country is required',
 })
 
-export const PaymentProviderSyncStatusSchema = z.enum(['synced', 'partial'])
+/** `methods_missing`: the gateway account lacks a payment method the provider needs. */
+export const PaymentProviderSyncStatusSchema = z.enum(['synced', 'methods_missing'])
 
 export const PaymentProviderSyncSchema = z.object({
   provider: PaymentProviderSchema,
