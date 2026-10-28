@@ -1,5 +1,5 @@
 import { createError, getProxyRequestHeaders, sendWebResponse, setResponseHeader } from 'h3'
-import { boundedTenantBody, MAX_PUBLIC_MFA_BODY, tenantTransport, legacyTenantResponse, withTenantBody, withTenantResponse } from '../../../utils/tenantTransport'
+import { boundedTenantBody, MAX_PUBLIC_HOOK_BODY, MAX_PUBLIC_MFA_BODY, tenantTransport, legacyTenantResponse, withTenantBody, withTenantResponse } from '../../../utils/tenantTransport'
 import { tenantUpstreamHeaders } from '../../../utils/tenantRequest'
 import { requireApiSession } from '../../../utils/apiSessionAdmission'
 import { canonicalApiPath } from '../../../utils/apiPath'
@@ -7,12 +7,18 @@ import { heavyRouteKind } from '../../../utils/heavyRoutes'
 import { HEAVY_TIMEOUT } from '../../../utils/upstreamDeadlines'
 import { forwardPublicApi, isPublicApiPath, MAX_PUBLIC_API_BODY, PUBLIC_API_NAMESPACE_METHODS } from '../../../utils/publicApi'
 
-// Two auth='public' routes outside the public namespace, both part of the login flow: login-page
-// branding and the MFA confirmation (which needs the pre-login session cookie). Everything under
-// the public namespace is public too, without cookies; everything else requires a session cookie.
+// The auth='public' routes outside the public namespace: login-page branding, the MFA
+// confirmation (which needs the pre-login session cookie) and the WhatsApp webhook (Meta signs
+// every POST with HMAC; Odoo verifies it). Everything under the public namespace is public too,
+// without cookies; everything else requires a session cookie.
 const PUBLIC_API_METHODS = new Map<string, readonly string[]>([
   ['/api/v1/branding', ['GET', 'HEAD']],
   ['/api/v1/auth/totp', ['POST']],
+  ['/api/v1/inbox/hooks/whatsapp', ['GET', 'POST']],
+])
+const PUBLIC_BODY_LIMITS = new Map<string, number>([
+  ['/api/v1/auth/totp', MAX_PUBLIC_MFA_BODY],
+  ['/api/v1/inbox/hooks/whatsapp', MAX_PUBLIC_HOOK_BODY],
 ])
 
 // Routes only this server may call (Nuxt writes them to Odoo directly, never through this proxy): a browser must not forge them.
@@ -44,7 +50,7 @@ export default defineEventHandler(async (event) => {
   const heavy = heavyKind ? { timeoutMs: HEAVY_TIMEOUT, write: heavyKind === 'write' } : undefined
   const scope = publicMethods ? 'public' : heavy ? 'heavy' : 'session'
   return withTenantBody(event, scope, async () => {
-    const body = await boundedTenantBody(event, apiPath === '/api/v1/auth/totp' ? MAX_PUBLIC_MFA_BODY : publicNamespace ? MAX_PUBLIC_API_BODY : undefined)
+    const body = await boundedTenantBody(event, PUBLIC_BODY_LIMITS.get(apiPath) ?? (publicNamespace ? MAX_PUBLIC_API_BODY : undefined))
     if (publicNamespace) return withTenantResponse(event, scope, async () => sendWebResponse(event, await forwardPublicApi(event, odooUrl, path, { method: event.method, body })))
     return withTenantResponse(event, scope, async () => Object.keys(headers).length
       ? sendWebResponse(event, await tenantTransport(event, odooUrl, path, { method: event.method, body, heavy }))

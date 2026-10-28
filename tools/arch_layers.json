@@ -15,6 +15,7 @@
     "webvue_operations": 4,
     "webvue_documents": 4,
     "webvue_appointments": 4,
+    "webvue_inbox": 4,
     "webvue_meetings_pmo": 5,
     "webvue_tasks_pmo": 5,
     "webvue_pmo_ai": 5,
@@ -155,6 +156,14 @@
       ],
       "pages": [
         "appointments"
+      ]
+    },
+    "inbox": {
+      "components": [
+        "inbox"
+      ],
+      "pages": [
+        "inbox"
       ]
     }
   },

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="webvue_inbox_settings_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.settings: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_settings"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_department_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.department: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_department"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_tag_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.tag: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_tag"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_canned_reply_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.canned.reply: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_canned_reply"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_contact_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.contact: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_contact"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_contact_identity_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.contact.identity: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_contact_identity"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_conversation_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.conversation: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_conversation"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_message_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.message: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_message"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="webvue_inbox_template_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.template: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_template"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- Channels and events: group rules, so the webhook identity (no company membership beyond its
+         home company, no capability) is not bound by the staff company rule. The hook rule is
+         unrestricted by record, so a webhook reaches the channels of every company; what the hook may
+         do is fixed by its ACL rows (read channel, create event). Both models name their company field
+         owner_company_id, which keeps them out of webvue_core's per-request company fence. -->
+    <record id="webvue_inbox_channel_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.channel: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_channel"/>
+        <field name="domain_force">[('owner_company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[Command.link(ref('group_cap_inbox_conversations_read')), Command.link(ref('group_cap_inbox_channels_manage'))]"/>
+    </record>
+    <record id="webvue_inbox_channel_hook_rule" model="ir.rule">
+        <field name="name">webvue.inbox.channel: webhook identity</field>
+        <field name="model_id" ref="model_webvue_inbox_channel"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[Command.link(ref('group_inbox_hook'))]"/>
+    </record>
+    <record id="webvue_inbox_event_company_rule" model="ir.rule">
+        <field name="name">webvue.inbox.event: multi-company</field>
+        <field name="model_id" ref="model_webvue_inbox_event"/>
+        <field name="domain_force">[('owner_company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[Command.link(ref('group_cap_inbox_channels_manage'))]"/>
+    </record>
+    <record id="webvue_inbox_event_hook_rule" model="ir.rule">
+        <field name="name">webvue.inbox.event: webhook identity</field>
+        <field name="model_id" ref="model_webvue_inbox_event"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[Command.link(ref('group_inbox_hook'))]"/>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+</odoo>

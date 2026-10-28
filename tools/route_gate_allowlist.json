@@ -152,6 +152,13 @@
       "routes": [
         "webvue_payments/controllers/hooks.py:gateway_callback"
       ]
+    },
+    {
+      "reason": "WhatsApp webhook (machine to machine): Meta signs every POST with HMAC-SHA256 over the raw body and the GET handshake carries the channel verify token; the route runs as the inactive inbox hook identity that may only read channels and create raw events, so there is no user to hold a capability.",
+      "routes": [
+        "webvue_inbox/controllers/hooks.py:receive",
+        "webvue_inbox/controllers/hooks.py:verify"
+      ]
     }
   ],
   "no_api_handler": [

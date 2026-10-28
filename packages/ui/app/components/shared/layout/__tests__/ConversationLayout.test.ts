@@ -48,7 +48,7 @@ describe('SharedConversationLayout', () => {
 
   it('fills the height under the shell header', async () => {
     const html = await render(true, { hasSelection: false })
-    expect(html).toContain('h-[calc(100svh_-_var(--shell-header-height,0px))]')
+    expect(html).toContain('h-[calc(100svh_-_var(--shell-top,0px))]')
   })
 })
 

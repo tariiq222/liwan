@@ -1,0 +1,18 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from . import (
+    access_service,
+    channel,
+    contact,
+    conversation,
+    entitlement_service,
+    event,
+    feature_registry,
+    inbound_service,
+    ir_http,
+    lists,
+    mail_message,
+    message,
+    notification_types,
+    settings,
+    template,
+)
