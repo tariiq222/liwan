@@ -29,12 +29,16 @@ def _visible_domain():
     return _visibility()._webvue_domain(request.env.user)
 
 
-def _get_opportunity(lead_id):
-    """The opportunity when the caller may read it; 404 for a hidden, foreign or missing one alike."""
-    lead = request.env['crm.lead'].search([('id', '=', lead_id), *_visible_domain()], limit=1)
+def find_opportunity(lead_id):
+    """The opportunity, lost ones included, when the caller may read it.
+
+    404 for a hidden, foreign or missing one alike.
+    """
+    lead = request.env['crm.lead'].with_context(active_test=False).search([('id', '=', lead_id), *_visible_domain()], limit=1)
     if not lead:
         raise ApiError(404, 'not_found', 'Record does not exist')
-    return lead
+    # Back to the normal archive filter: whatever the lead reads or searches next ignores archived records.
+    return lead.with_context(active_test=True)
 
 
 def _filter_domain(filters):
@@ -156,7 +160,8 @@ class CrmOpportunitiesController(http.Controller):
             'phone': _normalized_phone(parsed['phone']),
             'user_id': agent.id,
         }
-        return dump_opportunity(_saved(lambda: request.env['crm.lead'].create(vals)))
+        Lead = request.env['crm.lead'].with_context(mail_auto_subscribe_no_notify=True)
+        return dump_opportunity(_saved(lambda: Lead.create(vals)))
 
     @http.route('/api/v1/crm/opportunities/<int:lead_id>', type='json2', auth='user', methods=['GET'],
                 readonly=False)
@@ -165,7 +170,7 @@ class CrmOpportunitiesController(http.Controller):
     @requires_capability('crm.leads.read')
     def get_opportunity(self, lead_id, **_):
         # Not readonly: the view log, when enabled, records this opening.
-        lead = _get_opportunity(lead_id)
+        lead = find_opportunity(lead_id)
         request.env['webvue.crm.view.log']._webvue_record(lead)
         return dump_opportunity(lead)
 
@@ -175,7 +180,7 @@ class CrmOpportunitiesController(http.Controller):
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.leads.work')
     def patch_opportunity(self, lead_id, **payload):
-        lead = _get_opportunity(lead_id)
+        lead = find_opportunity(lead_id)
         _visibility()._webvue_check_write(lead, request.env.user)
         parsed = parse_opportunity_body(payload, creating=False)
         _check_source(parsed.get('source_id'))

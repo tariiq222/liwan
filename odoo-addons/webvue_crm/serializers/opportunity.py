@@ -60,14 +60,14 @@ def _text(value, field, maximum):
     return text
 
 
-def _id(value, field):
+def parse_id(value, field):
     if type(value) is not int or value <= 0:
         raise ApiError(422, 'invalid', 'must be an id', field=field)
     return value
 
 
-def _id_or_null(value, field):
-    return False if value is None else _id(value, field)
+def parse_id_or_null(value, field):
+    return False if value is None else parse_id(value, field)
 
 
 def _email(value, field):
@@ -101,9 +101,9 @@ def parse_opportunity_body(payload, creating):
         elif name == 'email':
             parsed[name] = _email(value, name)
         elif name == 'stage_id':
-            parsed[name] = _id(value, name)
+            parsed[name] = parse_id(value, name)
         else:
-            parsed[name] = _id_or_null(value, name)
+            parsed[name] = parse_id_or_null(value, name)
     return parsed
 
 

@@ -42,13 +42,15 @@ class WebVueCrmDistribution(models.AbstractModel):
         ``manual`` changes nothing. ``on_import`` assigns ``agent`` (422 unless eligible; no
         agent leaves the leads alone). ``round_robin`` takes the next eligible agent after the
         one who took the previous opportunity. A lead without a company is never assigned.
-        Runs in the caller's environment, as the acting user or as the cron superuser.
+        Each agent who newly receives an opportunity gets the ``crm.assigned`` bell, unless they assigned it
+        themselves. Runs in the caller's environment, as the acting user or as the cron superuser.
         """
         groups = defaultdict(list)
         for lead in leads.filtered('company_id').sorted('id'):
             groups[lead.company_id].append(lead.id)
         for company, ids in groups.items():
-            company_leads = leads.browse(ids)
+            company_leads = leads.browse(ids).with_context(mail_auto_subscribe_no_notify=True)
+            agents_before = {lead.id: lead.user_id for lead in company_leads}
             effective = mode or self.env['webvue.crm.settings'].with_company(company)._webvue_effective()[
                 'distribution_mode'
             ]
@@ -56,6 +58,7 @@ class WebVueCrmDistribution(models.AbstractModel):
                 self._webvue_assign_chosen(company_leads, company, agent)
             elif effective == 'round_robin':
                 self._webvue_assign_round_robin(company_leads, company)
+            company_leads.filtered(lambda lead: lead.user_id != agents_before[lead.id])._webvue_notify_assigned()
 
     @api.model
     def _webvue_assign_chosen(self, leads, company, agent):

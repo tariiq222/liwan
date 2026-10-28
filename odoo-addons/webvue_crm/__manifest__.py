@@ -20,6 +20,7 @@
         'security/crm_rules.xml',
         'data/crm_access_permissions.xml',
         'data/crm_seed.xml',
+        'data/crm_cron.xml',
     ],
     'installable': True,
     'application': False,

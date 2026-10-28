@@ -72,7 +72,7 @@ def _reason_id(value, field):
     return value
 
 
-def _price(value, field):
+def parse_price(value, field):
     if type(value) not in (int, float) or not math.isfinite(value) or not 0 <= value <= PRICE_MAX:
         raise ApiError(422, 'invalid', f'must be a number from 0 to {PRICE_MAX}', field=field)
     return value
@@ -92,7 +92,7 @@ OUTCOME_FIELDS = {
 }
 NAME_FIELDS = {'name': ('name', _name, True)}
 PACKAGE_FIELDS = {
-    'name': ('name', _name, True), 'price': ('list_price', _price, True),
+    'name': ('name', _name, True), 'price': ('list_price', parse_price, True),
     'description': ('description_sale', _description, False),
 }
 

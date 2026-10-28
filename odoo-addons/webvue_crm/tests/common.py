@@ -60,11 +60,32 @@ class WebVueCrmCase(WebVueApiCase):
         })
 
     @classmethod
-    def set_visibility(cls, mode, company=None, **extra):
+    def set_settings(cls, company=None, **values):
         company = company or cls.company
         Settings = cls.env['webvue.crm.settings']
         row = Settings.search([('company_id', '=', company.id)])
         if row:
-            row.write({'visibility': mode, **extra})
+            row.write(values)
         else:
-            Settings.create({'company_id': company.id, 'visibility': mode, **extra})
+            Settings.create({'company_id': company.id, **values})
+
+    @classmethod
+    def set_visibility(cls, mode, company=None, **extra):
+        cls.set_settings(company, visibility=mode, **extra)
+
+    @classmethod
+    def make_package(cls, price=1000.0, name='Package'):
+        return cls.env['product.template'].create({'name': name, 'list_price': price, 'webvue_crm_package': True})
+
+    def bell_rows(self, user, lead, kind):
+        """The bell messages of ``kind`` about ``lead`` addressed to ``user``."""
+        return self.env['mail.message'].search([
+            ('model', '=', 'crm.lead'), ('res_id', '=', lead.id), ('webvue_notification_kind', '=', kind),
+            ('partner_ids', 'in', user.partner_id.id),
+        ])
+
+    def assignment_mails(self, lead):
+        """Stock "you have been assigned" messages about ``lead``."""
+        return self.env['mail.message'].search([
+            ('model', '=', 'crm.lead'), ('res_id', '=', lead.id), ('message_type', '=', 'user_notification'),
+        ])
