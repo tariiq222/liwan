@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import re
 
-from odoo import fields, models
+from odoo import api, fields, models
 
 from odoo.addons.webvue_inbox.adapters import whatsapp
 
@@ -58,5 +58,19 @@ class WebVueInboxTemplate(models.Model):
             else:
                 self.create({'channel_id': channel.id, 'company_id': channel.owner_company_id.id,
                              'name': key[0], 'language': key[1], **values})
-        current.filtered(lambda t: (t.name, t.language) not in remote).unlink()
+        removed = current.filtered(lambda t: (t.name, t.language) not in remote)
+        self._webvue_fail_queued_sends(channel, removed)
+        removed.unlink()
         return self.search([('channel_id', '=', channel.id)])
+
+    @api.model
+    def _webvue_fail_queued_sends(self, channel, templates):
+        """Fail the queued replies of templates the provider no longer lists, with a clear error."""
+        removed = {(template.name, template.language) for template in templates}
+        queued = self.env['webvue.inbox.message'].search([
+            ('conversation_id.channel_id', '=', channel.id), ('delivery_state', '=', 'queued'),
+            ('template_name', '!=', False),
+        ])
+        queued.filtered(lambda message: (message.template_name, message.template_language) in removed).write({
+            'delivery_state': 'failed', 'error': self.env._('The template was removed by the provider.'),
+        })

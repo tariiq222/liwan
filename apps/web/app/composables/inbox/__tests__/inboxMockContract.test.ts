@@ -42,6 +42,16 @@ describe('inbox audit mock', () => {
     expect(call('POST', '/api/v1/inbox/conversations/1/messages', { body: 'مرحبا' }).status).toBe(200)
   })
 
+  it('pages messages from the newest, ascending inside a page, like the server', () => {
+    const ids = (query: string) => (call('GET', `/api/v1/inbox/conversations/1/messages?${query}`).body as { items: { id: number }[]; total: number })
+    const newest = ids('limit=3&offset=0')
+    const older = ids('limit=3&offset=3')
+    expect(newest.total).toBe(4)
+    expect(newest.items).toHaveLength(3)
+    expect(older.items).toHaveLength(1)
+    expect(older.items[0]!.id).toBeLessThan(newest.items[0]!.id)
+  })
+
   it('retries only a failed message', () => {
     const failed = (call('GET', '/api/v1/inbox/conversations/2/messages').body as { items: { id: number; delivery_state: string }[] }).items.find(item => item.delivery_state === 'failed')!
     expect(InboxMessageSchema.parse(call('POST', `/api/v1/inbox/messages/${failed.id}/retry`).body).delivery_state).toBe('queued')

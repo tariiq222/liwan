@@ -55,7 +55,7 @@ def dump_messages(messages):
             'direction': message.direction,
             'body': message.body,
             'author': dump_ref(message.author_id),
-            'template_name': message.template_id.name or None,
+            'template_name': message.template_name or None,
             'delivery_state': message.delivery_state,
             'error': message.error or None,
             'attachments': attachments[message.id],

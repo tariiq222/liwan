@@ -3,6 +3,7 @@ from odoo import http
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
+    ApiError,
     api_handler,
     parse_page,
     requires_capability,
@@ -13,6 +14,7 @@ from odoo.addons.webvue_inbox.controllers.helpers import (
     check_fields,
     find_one,
     get_channel,
+    holds,
     no_content,
     parse_provider_id,
     parse_text,
@@ -72,13 +74,20 @@ class ChannelController(http.Controller):
     def list_channels(self, **_):
         limit, offset = parse_page(request.httprequest.args)
         Channel = request.env['webvue.inbox.channel']
-        return {'items': [dump(c) for c in Channel.search([], limit=limit, offset=offset)], 'total': Channel.search_count([])}
+        companies = request.env['webvue.access.service']._webvue_capability_company_ids((MANAGE_CHANNELS,))
+        domain = [('owner_company_id', 'in', companies)]
+        return {
+            'items': [dump(c) for c in Channel.search(domain, limit=limit, offset=offset)],
+            'total': Channel.search_count(domain),
+        }
 
     @http.route('/api/v1/inbox/channels', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('inbox.enabled', operation='write')
     @requires_capability(MANAGE_CHANNELS)
     def create_channel(self, **payload):
+        if not holds(MANAGE_CHANNELS, request.env.company):
+            raise ApiError(403, 'forbidden', f'{MANAGE_CHANNELS} capability is required in the current company')
         values = parse_channel(payload, creating=True)
         with unique_as_invalid('phone_number_id', 'this phone number id is already connected'):
             channel = request.env['webvue.inbox.channel'].create(values)
@@ -88,15 +97,15 @@ class ChannelController(http.Controller):
     @api_handler
     @requires_feature('inbox.enabled', operation='read')
     @requires_capability(MANAGE_CHANNELS)
-    def get_channel(self, channel_id, **_):
-        return dump(get_channel(channel_id))
+    def read_channel(self, channel_id, **_):
+        return dump(get_channel(channel_id, MANAGE_CHANNELS))
 
     @http.route('/api/v1/inbox/channels/<int:channel_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
     @requires_feature('inbox.enabled', operation='write')
     @requires_capability(MANAGE_CHANNELS)
     def patch_channel(self, channel_id, **payload):
-        channel = get_channel(channel_id)
+        channel = get_channel(channel_id, MANAGE_CHANNELS)
         channel.write(parse_channel(payload, creating=False))
         return dump(channel)
 
@@ -105,7 +114,7 @@ class ChannelController(http.Controller):
     @requires_feature('inbox.enabled', operation='write')
     @requires_capability(MANAGE_CHANNELS)
     def delete_channel(self, channel_id, **_):
-        get_channel(channel_id).unlink()
+        get_channel(channel_id, MANAGE_CHANNELS).unlink()
         return no_content()
 
     @http.route('/api/v1/inbox/channels/<int:channel_id>/test', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -113,7 +122,7 @@ class ChannelController(http.Controller):
     @requires_feature('inbox.enabled', operation='write')
     @requires_capability(MANAGE_CHANNELS)
     def test_channel(self, channel_id, **_):
-        channel = get_channel(channel_id)
+        channel = get_channel(channel_id, MANAGE_CHANNELS)
         if channel.state == 'disabled':
             reject('the channel is disabled', 'state')
         try:
@@ -129,7 +138,7 @@ class ChannelController(http.Controller):
     @requires_feature('inbox.enabled', operation='write')
     @requires_capability(MANAGE_CHANNELS)
     def sync_templates(self, channel_id, **_):
-        channel = get_channel(channel_id)
+        channel = get_channel(channel_id, MANAGE_CHANNELS)
         try:
             templates = request.env['webvue.inbox.template']._webvue_sync(channel)
         except whatsapp.ProviderError as error:
@@ -141,7 +150,7 @@ class ChannelController(http.Controller):
     @requires_feature('inbox.enabled', operation='read')
     @requires_capability(READ)
     def list_templates(self, channel_id, **_):
-        channel = get_channel(channel_id)
+        channel = get_channel(channel_id, READ)
         domain = [('channel_id', '=', channel.id), ('status', '=', 'APPROVED')]
         limit, offset = parse_page(request.httprequest.args)
         Template = request.env['webvue.inbox.template']

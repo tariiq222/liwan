@@ -31,8 +31,10 @@ class WebVueInboxMessage(models.Model):
     body = fields.Text(required=True)
     date = fields.Datetime(required=True, default=fields.Datetime.now, index=True)
     author_id = fields.Many2one('res.users', ondelete='set null')
-    template_id = fields.Many2one('webvue.inbox.template', ondelete='set null')
-    # The positional parameters of a template reply; `body` keeps the rendered text.
+    # A template reply keeps the name, language and positional parameters it is sent with (`body` keeps the
+    # rendered text), so it never depends on the synchronised template row still existing and is never sent as text.
+    template_name = fields.Char()
+    template_language = fields.Char()
     template_params = fields.Json()
     provider_message_id = fields.Char(copy=False)
     delivery_state = fields.Selection(
@@ -121,14 +123,17 @@ class WebVueInboxMessage(models.Model):
             raise ValidationError(self.env._('The template is not an approved template of this conversation channel.'))
         if len(params) != template.param_count:
             raise ValidationError(self.env._('The template needs %(count)s parameter(s).', count=template.param_count))
-        return {'template_id': template.id, 'template_params': list(params), 'body': template._webvue_render(params)}
+        return {
+            'template_name': template.name, 'template_language': template.language,
+            'template_params': list(params), 'body': template._webvue_render(params),
+        }
 
     def _webvue_retry(self):
         """Queue a failed outbound message again."""
         if self.direction != 'out' or self.delivery_state != 'failed':
             raise ValidationError(self.env._('Only a failed outbound message can be retried.'))
         self._webvue_require_sendable(self.conversation_id)
-        if not self.template_id:
+        if not self.template_name:
             self._webvue_free_text(self.conversation_id, self.body)
         self.write({
             'delivery_state': 'queued', 'attempts': 0, 'error': False, 'next_attempt_at': fields.Datetime.now(),
@@ -160,13 +165,7 @@ class WebVueInboxMessage(models.Model):
             self._webvue_record_failure(self.env._('The channel is disabled.'), retryable=False)
             return
         try:
-            credentials = conversation.channel_id._webvue_credentials()
-            to = conversation.identity_id.address
-            if self.template_id:
-                provider_id = whatsapp.send_template(
-                    credentials, to, self.template_id.name, self.template_id.language, self.template_params or [])
-            else:
-                provider_id = whatsapp.send_text(credentials, to, self.body)
+            provider_id = self._webvue_provider_send()
         except whatsapp.ProviderError as error:
             self._webvue_record_failure(str(error), error.retryable)
         except UserError as error:
@@ -176,6 +175,16 @@ class WebVueInboxMessage(models.Model):
                 'delivery_state': 'sent', 'provider_message_id': provider_id,
                 'attempts': self.attempts + 1, 'error': False,
             })
+
+    def _webvue_provider_send(self):
+        """Send this message and return the provider message id."""
+        conversation = self.conversation_id
+        credentials = conversation.channel_id._webvue_credentials()
+        to = conversation.identity_id.address
+        if self.template_name:
+            return whatsapp.send_template(
+                credentials, to, self.template_name, self.template_language, self.template_params or [])
+        return whatsapp.send_text(credentials, to, self.body)
 
     def _webvue_record_failure(self, error, retryable):
         attempts = self.attempts + 1

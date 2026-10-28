@@ -4,12 +4,13 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import requests
+import urllib3
 
-from odoo import fields
-from odoo.tests import tagged
+from odoo import Command, fields
+from odoo.tests import new_test_user, tagged
 
 from . import whatsapp_payloads as wa
-from .common import ACCESS_TOKEN, WebVueInboxCase
+from .common import ACCESS_TOKEN, PASSWORD, WebVueInboxCase
 from odoo.addons.webvue_api.tests.common import set_probe_feature
 from odoo.addons.webvue_inbox.adapters import whatsapp
 
@@ -227,7 +228,7 @@ class TestSendRules(WebVueInboxCase):
         template = self.env['webvue.inbox.template'].create({
             'channel_id': self.channel.id, 'name': 't', 'language': 'ar', 'status': 'APPROVED', 'body': 'x', 'param_count': 0,
         })
-        templated = self.failed_message(late, template_id=template.id, template_params=[])
+        templated = self.failed_message(late, template_name=template.name, template_language='ar', template_params=[])
         self.login(self.agent)
         self.assertError(self.api('POST', f'/api/v1/inbox/messages/{free_text.id}/retry'), 422, 'invalid')
         self.assertEqual(self.api('POST', f'/api/v1/inbox/messages/{templated.id}/retry').status_code, 200)
@@ -296,3 +297,120 @@ class TestRetentionExtras(WebVueInboxCase):
         self.assertFalse(stale.exists())
         self.assertTrue(fresh.exists())
         self.assertFalse(self.env['mail.message'].search_count([('webvue_inbox_conversation_id', '=', old.id)]))
+
+
+@tagged('post_install', '-at_install', 'webvue')
+class TestChannelCapabilityScope(WebVueInboxCase):
+    """A manager of a child company only never reaches the current company's channels."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.child = cls.env['res.company'].create({'name': 'Inbox child company', 'parent_id': cls.env.company.id})
+        cls.child_channel = cls.make_channel(phone_id='800000000001', owner_company_id=cls.child.id)
+        cls.child_manager = new_test_user(
+            cls.env, login='inbox_child_manager', password=PASSWORD, name='Child manager',
+            groups='base.group_user', company_id=cls.env.company.id,
+            company_ids=[Command.set((cls.env.company | cls.child).ids)],
+        )
+        cls.env['webvue.access.assignment'].create({
+            'user_id': cls.child_manager.id, 'company_id': cls.child.id,
+            'role_id': cls.env.ref('webvue_inbox.role_inbox_manager').id,
+        })
+
+    def test_parent_channels_are_not_found_for_every_channel_route(self):
+        self.login(self.child_manager)
+        base = f'/api/v1/inbox/channels/{self.channel.id}'
+        for method, path, body in (
+            ('GET', base, None), ('PATCH', base, {'name': 'hijack'}), ('DELETE', base, None),
+            ('POST', f'{base}/test', None), ('POST', f'{base}/templates/sync', None),
+        ):
+            self.assertError(self.api(method, path, body), 404, 'not_found')
+        self.assertEqual(self.reload(self.channel).name, 'Main WhatsApp')
+        self.assertTrue(self.channel.exists())
+
+    def test_the_list_and_create_are_scoped_to_companies_where_the_capability_is_held(self):
+        self.login(self.child_manager)
+        listed = self.get('/api/v1/inbox/channels').json()
+        ids = [row['id'] for row in listed['items']]
+        self.assertNotIn(self.channel.id, ids)
+        self.assertEqual((self.child_channel.id in ids, listed['total'] == len(ids)), (True, True))
+        created = self.api('POST', '/api/v1/inbox/channels', {
+            'name': 'New', 'kind': 'whatsapp', 'phone_number_id': '800000000002',
+            'business_account_id': '800000000003', 'access_token': 'x' * 20, 'app_secret': 'y' * 20,
+        })
+        self.assertError(created, 403, 'forbidden')
+
+    def test_the_manager_of_the_current_company_still_manages_it(self):
+        self.login(self.manager)
+        self.assertEqual(self.get(f'/api/v1/inbox/channels/{self.channel.id}').status_code, 200)
+        self.assertNotIn(self.child_channel.id, [c['id'] for c in self.get('/api/v1/inbox/channels').json()['items']])
+
+
+@tagged('post_install', '-at_install', 'webvue')
+class TestTemplateRemovalAndMediaStreams(WebVueInboxCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.conversation = cls.make_conversation()
+
+    def queued_template_reply(self, template):
+        return self.env['webvue.inbox.message'].create({
+            'conversation_id': self.conversation.id, 'direction': 'out', 'body': 'Hi Sara', 'delivery_state': 'queued',
+            'template_name': template.name, 'template_language': template.language, 'template_params': ['Sara'],
+            'next_attempt_at': fields.Datetime.now() - timedelta(seconds=1),
+        })
+
+    def test_sync_fails_queued_replies_of_a_removed_template_instead_of_degrading_them(self):
+        template = self.env['webvue.inbox.template'].create({
+            'channel_id': self.channel.id, 'name': 'gone', 'language': 'ar', 'status': 'APPROVED', 'body': 'Hi', 'param_count': 0,
+        })
+        queued = self.queued_template_reply(template)
+        sent = self.queued_template_reply(template)
+        sent.delivery_state = 'sent'
+        with patch.object(whatsapp, 'list_templates', return_value=[]):
+            self.env['webvue.inbox.template']._webvue_sync(self.channel)
+        self.assertFalse(template.exists())
+        self.assertEqual((queued.delivery_state, queued.error), ('failed', 'The template was removed by the provider.'))
+        self.assertEqual(sent.delivery_state, 'sent')
+        with patch.object(requests, 'request') as request:
+            self.env['webvue.inbox.message']._webvue_run_outbox()
+        self.assertEqual(request.call_count, 0)
+
+    def test_a_template_reply_is_sent_by_its_stored_name_never_as_text(self):
+        message = self.env['webvue.inbox.message'].create({
+            'conversation_id': self.conversation.id, 'direction': 'out', 'body': 'Hi Sara', 'delivery_state': 'queued',
+            'template_name': 'vanished', 'template_language': 'ar', 'template_params': [],
+            'next_attempt_at': fields.Datetime.now() - timedelta(seconds=1),
+        })
+        with patch.object(whatsapp, 'send_text') as send_text, \
+                patch.object(whatsapp, 'send_template', return_value='wamid.T9') as send_template:
+            self.env['webvue.inbox.message']._webvue_run_outbox()
+        self.assertEqual((send_text.call_count, send_template.call_args.args[2:]), (0, ('vanished', 'ar', [])))
+        self.assertEqual(message.delivery_state, 'sent')
+
+    def test_a_free_text_message_is_still_sent(self):
+        message = self.env['webvue.inbox.message'].create({
+            'conversation_id': self.conversation.id, 'direction': 'out', 'body': 'plain', 'delivery_state': 'queued',
+            'next_attempt_at': fields.Datetime.now() - timedelta(seconds=1),
+        })
+        with patch.object(whatsapp, 'send_text', return_value='wamid.PLAIN') as send:
+            self.env['webvue.inbox.message']._webvue_run_outbox()
+        self.assertEqual((send.call_count, message.delivery_state), (1, 'sent'))
+
+    def test_a_media_stream_failure_keeps_the_message_with_an_attachment_error(self):
+        for failure in (urllib3.exceptions.ProtocolError('cut'), urllib3.exceptions.ReadTimeoutError(None, 'u', 'slow'),
+                        requests.ConnectionError('reset'), OSError('io')):
+            stream = MagicMock(status_code=200)
+            stream.raw.read.side_effect = failure
+            answers = [provider_response(200, {'url': 'https://media.example/x', 'mime_type': 'image/jpeg'}), stream]
+            with patch.object(requests, 'request', side_effect=answers):
+                self.env['webvue.inbox.event'].create({
+                    'channel_id': self.channel.id, 'owner_company_id': self.channel.owner_company_id.id,
+                    'payload': json.dumps(wa.inbound_media(provider_id=f'wamid.{type(failure).__name__}')),
+                })
+                self.env['webvue.inbox.event']._webvue_run_events()
+            message = self.env['webvue.inbox.message'].search([('provider_message_id', '=', f'wamid.{type(failure).__name__}')])
+            self.assertEqual((message.body, message.error), ('[image]', f'media download failed: {type(failure).__name__}'))
+            self.assertTrue(stream.close.called)

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { InboxConversationDetail } from '@webvue/contracts'
 import { useInboxCannedReplies, useInboxTemplates, useSendInboxNote, useSendInboxReply } from '@/composables/inbox/useInbox'
+import { inboxDrafts } from '@/composables/inbox/inboxDrafts'
 import { cannedSuggestions, renderTemplateBody, replyWindowOpen } from '@/composables/inbox/inboxWindow'
 
 // Three ways to write: a free-text reply (inside the 24-hour customer-service window), an approved template with its
@@ -10,14 +11,29 @@ const props = defineProps<{ conversation: InboxConversationDetail }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
+const { me } = useMe()
 const mode = ref<'reply' | 'note'>('reply')
-const draft = ref('')
+// Reply and note keep their own text, so switching the mode never loses what was typed.
+const texts = reactive({ reply: '', note: '' })
+const draft = computed({ get: () => texts[mode.value], set: (value: string) => { texts[mode.value] = value } })
 const templateId = ref<number | undefined>(undefined)
 const params = ref<string[]>([])
 const highlighted = ref(0)
 const suggestionsDismissed = ref(false)
 
-const windowOpen = computed(() => replyWindowOpen(props.conversation))
+// The window closes by itself: a clock that ticks only at the expiry keeps the cached computed honest.
+const now = ref(Date.now())
+let expiry: ReturnType<typeof setTimeout> | undefined
+function scheduleExpiry(endsAt: string | null) {
+  clearTimeout(expiry)
+  now.value = Date.now()
+  if (!endsAt) return
+  const remaining = Date.parse(endsAt) - now.value
+  if (remaining > 0) expiry = setTimeout(() => { now.value = Date.now() }, remaining + 50)
+}
+watch(() => props.conversation.reply_window_ends_at, scheduleExpiry, { immediate: true })
+onBeforeUnmount(() => clearTimeout(expiry))
+const windowOpen = computed(() => replyWindowOpen(props.conversation, now.value))
 const templateMode = computed(() => mode.value === 'reply' && !windowOpen.value)
 const conversationId = computed(() => props.conversation.id)
 const { mutateAsync: sendReply, isPending: replying } = useSendInboxReply(conversationId)
@@ -38,7 +54,30 @@ const paramsFilled = computed(() => !selectedTemplate.value || params.value.slic
 const canSend = computed(() => hydrated.value && !sending.value && (templateMode.value ? !!selectedTemplate.value && paramsFilled.value : !!draft.value.trim()))
 
 watch(draft, () => { suggestionsDismissed.value = false; highlighted.value = 0 })
-watch(selectedTemplate, (template) => { params.value = Array.from({ length: template?.param_count ?? 0 }, () => '') })
+// A restored draft keeps its parameters; choosing another template starts them empty.
+watch(selectedTemplate, (template, previous) => {
+  if (previous && template && previous.id !== template.id) params.value = []
+  const count = template?.param_count ?? 0
+  if (params.value.length !== count) params.value = Array.from({ length: count }, (_, index) => params.value[index] ?? '')
+})
+
+// Drafts live per conversation (the workspace keys this component by conversation). Restored after mount so the
+// server-rendered and first client render agree; every change is stored, and a successful send clears what it sent.
+const hydratedDraft = ref(false)
+onMounted(() => {
+  if (me.value?.id) {
+    const stored = inboxDrafts.get(me.value.id, props.conversation.id)
+    texts.reply = stored.reply
+    texts.note = stored.note
+    templateId.value = stored.templateId ?? undefined
+    params.value = stored.params
+  }
+  hydratedDraft.value = true
+})
+watch([() => texts.reply, () => texts.note, templateId, params], () => {
+  if (!hydratedDraft.value || !me.value?.id) return
+  inboxDrafts.set(me.value.id, props.conversation.id, { reply: texts.reply, note: texts.note, templateId: templateId.value ?? null, params: [...params.value] })
+}, { deep: true })
 
 function pickSuggestion(body: string) {
   draft.value = body
@@ -74,12 +113,13 @@ async function submit() {
     if (templateMode.value) {
       await sendReply({ template_id: selectedTemplate.value!.id, params: params.value.slice(0, selectedTemplate.value!.param_count).map(value => value.trim()) })
       templateId.value = undefined
+      params.value = []
     } else if (mode.value === 'note') {
       await sendNote({ body: draft.value.trim() })
-      draft.value = ''
+      texts.note = ''
     } else {
       await sendReply({ body: draft.value.trim() })
-      draft.value = ''
+      texts.reply = ''
     }
   } catch (e) {
     // The draft stays so nothing typed is lost; the server's reason (for example a closed window) is shown.

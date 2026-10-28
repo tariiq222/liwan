@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import requests
+import urllib3
 
 GRAPH_API_VERSION = 'v23.0'
 GRAPH_BASE = 'https://graph.facebook.com'
@@ -209,7 +210,13 @@ def fetch_media(credentials, media_id):
         message = 'malformed provider response'
         raise ProviderError(message, retryable=False)
     response = _call('GET', meta['url'], credentials, stream=True)
-    content = response.raw.read(MAX_MEDIA_BYTES + 1, decode_content=True)
+    try:
+        content = response.raw.read(MAX_MEDIA_BYTES + 1, decode_content=True)
+    except (requests.RequestException, urllib3.exceptions.HTTPError, OSError) as error:
+        message = f'media download failed: {type(error).__name__}'
+        raise ProviderError(message, retryable=True) from None
+    finally:
+        response.close()
     if len(content) > MAX_MEDIA_BYTES:
         message = 'media is too large'
         raise ProviderError(message, retryable=False)

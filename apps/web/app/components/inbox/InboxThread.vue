@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { InboxMessage } from '@webvue/contracts'
-import { INBOX_MESSAGE_STEP, useInboxMessages, useRetryInboxMessage } from '@/composables/inbox/useInbox'
+import { useInboxMessages, useRetryInboxMessage } from '@/composables/inbox/useInbox'
 import { DELIVERY_ICON, inboxDayKey } from '@/composables/inbox/inboxPresentation'
 
 // The message thread of one conversation, oldest first. Inbound messages sit at the start of the line, replies at the
@@ -9,11 +9,8 @@ const props = defineProps<{ conversationId: number; canReply: boolean }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
-const limit = ref(INBOX_MESSAGE_STEP)
-const { data, isLoading, isError, error, refetch, isFetching } = useInboxMessages(() => props.conversationId, limit)
+const { items, isLoading, isError, error, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useInboxMessages(() => props.conversationId)
 const { mutate: retry, isPending: retrying, variables: retryingId } = useRetryInboxMessage(() => props.conversationId)
-const items = computed(() => data.value?.items ?? [])
-const hasOlder = computed(() => (data.value?.total ?? 0) > items.value.length)
 const scroller = ref<HTMLElement | null>(null)
 const timeFormat = computed(() => new Intl.DateTimeFormat(locale.value, { hour: 'numeric', minute: '2-digit' }))
 const dayFormat = computed(() => new Intl.DateTimeFormat(locale.value, { weekday: 'long', day: 'numeric', month: 'long' }))
@@ -41,7 +38,7 @@ watch(newestId, async () => {
 }, { immediate: true, flush: 'post' })
 
 function loadOlder() {
-  limit.value += INBOX_MESSAGE_STEP
+  void fetchNextPage()
 }
 function retryMessage(id: number) {
   retry(id, { onError: e => toast.add({ title: e instanceof Error ? e.message : t('errors.generic'), color: 'error' }) })
@@ -57,8 +54,8 @@ const fileSize = (bytes: number) => bytes >= 1048576 ? `${(bytes / 1048576).toFi
     <SharedLoadingSkeleton v-else-if="isLoading" class="m-4" />
     <SharedEmptyState v-else-if="!items.length" :title="t('inbox.thread.empty')" class="m-4" />
     <div v-else ref="scroller" class="min-h-0 flex-1 overflow-y-auto bg-(--webvue-canvas) px-4 py-2" data-testid="inbox-thread-scroller">
-      <div v-if="hasOlder" class="flex justify-center p-2">
-        <UButton type="button" color="neutral" variant="ghost" size="sm" :disabled="!hydrated || isFetching" :label="t('inbox.thread.loadOlder')" @click="loadOlder" />
+      <div v-if="hasNextPage" class="flex justify-center p-2">
+        <UButton type="button" color="neutral" variant="ghost" size="sm" :disabled="!hydrated || isFetchingNextPage" :label="t('inbox.thread.loadOlder')" @click="loadOlder" />
       </div>
       <ol class="flex flex-col gap-1.5" :aria-label="t('inbox.thread.label')">
         <template v-for="row in rows" :key="row.kind === 'day' ? row.key : row.item.id">
