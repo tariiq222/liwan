@@ -14,8 +14,8 @@ class ResourceBooking(models.Model):
 
     def _webvue_confirms_on_schedule(self):
         """Whether staff scheduling confirms this booking at once: true unless the type's company asks the
-        requester to confirm. An extension point: a bridge may return False to hold a booking until its own
-        condition is met (the payments bridge does until the order is paid) and confirm it itself."""
+        requester to confirm. An extension point a bridge may override: the payments bridge returns True for
+        paying types, and the engine then keeps the booking scheduled until its order is paid."""
         self.ensure_one()
         settings = self.env['webvue.appointment.settings'].search([('company_id', '=', self.type_id.company_id.id)], limit=1)
         return not (settings.requester_confirmation if settings else DEFAULTS['requester_confirmation'])
