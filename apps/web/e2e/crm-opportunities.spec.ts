@@ -132,6 +132,14 @@ test('an unknown or malformed record id shows the not-found state, not a skeleto
   }
 })
 
+test('the details name the package with the company term, price included', async ({ page }) => {
+  await page.goto('/crm/opportunities/5')
+  const details = page.locator('[data-slot="properties-panel"]')
+  await expect(details).toContainText('سعر باقة')
+  await expect(details).toContainText('120')
+  await expect(details).toContainText('108')
+})
+
 test('the mock answers in the contract shapes and refuses like the server', async ({ page }) => {
   const api = page.request
   const list = CrmOpportunityListSchema.parse(await (await api.get('/api/v1/crm/opportunities')).json())

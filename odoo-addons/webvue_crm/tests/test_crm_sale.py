@@ -263,6 +263,15 @@ class TestCrmSale(WebVueCrmCase):
         self.assertEqual(self.env['crm.phonecall'].search_count([('opportunity_id', '=', lead.id)]), 0)
         self.assertEqual(lead.won_status, 'pending')
 
+    def test_a_reason_sent_with_a_lost_outcome_that_has_its_own_overrides_it(self):
+        lead = self.make_lead(self.agent)
+        own = self.env['crm.lost.reason'].create({'name': 'Outcome own reason'})
+        outcome = self.env['webvue.crm.call.outcome'].create({'name': 'Declined', 'effect': 'lost', 'lost_reason_id': own.id})
+        response = self.post(self.agent, lead, 'calls', outcome_id=outcome.id, lost_reason_id=self.reason.id)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['opportunity']['lost_reason']['id'], self.reason.id)
+        self.assertEqual(lead.lost_reason_id, self.reason)
+
     def test_the_reason_of_a_call_is_checked(self):
         lead = self.make_lead(self.agent)
         lost = self.lost_outcome_without_reason()

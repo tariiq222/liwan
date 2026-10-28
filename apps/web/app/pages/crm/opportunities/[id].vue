@@ -199,7 +199,7 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
         <SharedPropertyRow :label="t('crm.opportunities.record.agent')" :value="record.user?.name ?? t('crm.opportunities.tag.pool')" />
         <SharedPropertyRow :label="t('crm.opportunities.record.source')" :value="record.source?.name" />
         <SharedPropertyRow v-if="record.package" :label="term('package', 'one')" :value="record.package.name" />
-        <SharedPropertyRow v-if="record.package" :label="t('crm.opportunities.record.listPrice')" :value="formatPrice(record.list_price)" />
+        <SharedPropertyRow v-if="record.package" :label="t('crm.opportunities.record.listPrice', { term: term('package', 'one') })" :value="formatPrice(record.list_price)" />
         <SharedPropertyRow v-if="record.package" :label="t('crm.opportunities.record.discount')" :value="`${record.discount_percent}%`" />
         <SharedPropertyRow v-if="record.package" :label="t('crm.opportunities.record.finalPrice')" :value="formatPrice(record.final_price)" />
         <SharedPropertyRow v-if="record.lost_reason" :label="t('crm.opportunities.record.lostReason')" :value="record.lost_reason.name" />
