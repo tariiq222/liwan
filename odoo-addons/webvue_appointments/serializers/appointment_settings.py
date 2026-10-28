@@ -10,7 +10,8 @@ from odoo.addons.webvue_appointments.models.appointment_settings import (
     SELF_BOOKING_POLICIES,
 )
 
-SETTING_FIELDS = (*DEFAULTS, 'sector_preset')
+WRITABLE_FIELDS = tuple(DEFAULTS)
+SETTING_FIELDS = (*WRITABLE_FIELDS, 'sector_preset')
 SELECTION_OPTIONS = {
     **{name: tuple(value for value, _label in FIELD_REQUIREMENTS) for name in REQUESTER_FIELDS},
     'self_booking_policy': tuple(value for value, _label in SELF_BOOKING_POLICIES),
@@ -26,7 +27,7 @@ def dump_settings(row):
 
 def parse_settings(payload):
     """Validate a PATCH body into ``{'revision': n, 'values': {...}}``; a preset's values come first."""
-    unknown = sorted(set(payload) - {*SETTING_FIELDS, 'preset', 'revision'})
+    unknown = sorted(set(payload) - {*WRITABLE_FIELDS, 'preset', 'revision'})
     if unknown:
         raise ApiError(422, 'invalid', 'field is not writable', field=unknown[0])
     revision = payload.get('revision')
@@ -37,7 +38,7 @@ def parse_settings(payload):
         if payload['preset'] not in PRESETS:
             raise ApiError(422, 'invalid', 'choose a listed preset', field='preset')
         values.update(PRESETS[payload['preset']], sector_preset=payload['preset'])
-    for name in SETTING_FIELDS:
+    for name in WRITABLE_FIELDS:
         if name in payload:
             values[name] = _parse_value(name, payload[name])
     return {'revision': revision, 'values': values}
@@ -51,9 +52,6 @@ def _parse_value(name, value):
     elif name == 'requester_confirmation':
         if type(value) is not bool:
             raise ApiError(422, 'invalid', 'must be true or false', field=name)
-    elif name == 'sector_preset':
-        if value not in PRESET_KEYS:
-            raise ApiError(422, 'invalid', 'choose a listed preset', field=name)
     elif value not in SELECTION_OPTIONS[name]:
         raise ApiError(422, 'invalid', 'choose one of: %s' % ', '.join(SELECTION_OPTIONS[name]), field=name)
     return value

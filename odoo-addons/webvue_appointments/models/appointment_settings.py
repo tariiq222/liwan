@@ -43,10 +43,12 @@ def _range_check(name):
 class WebVueAppointmentSettings(models.Model):
     """One company's appointment policy, shaped by the tenant from the Appointments settings.
 
-    A setting applies to new bookings and new booking types only; existing bookings and types keep
-    the values they were created with. ``modification_deadline_hours`` is the default engine
-    ``modifications_deadline`` of a new type. Applying a sector preset writes ``sector_preset`` and
-    every preset value in one save; a field sent with the preset overrides the preset's value.
+    Enforced now: ``default_slot_minutes`` and ``modification_deadline_hours`` are the defaults of a
+    new booking type's ``slot_duration`` and ``modifications_deadline``. Not enforced here:
+    ``min_notice_hours``, ``horizon_days``, the requester field policies, ``requester_confirmation``
+    and ``self_booking_policy`` are enforced by the booking routes (tickets 05-07). Existing bookings
+    and types are never changed. Applying a sector preset writes ``sector_preset`` (the last applied
+    preset) and every preset value in one save; a field sent with the preset overrides its value.
     """
 
     _name = 'webvue.appointment.settings'
@@ -85,6 +87,16 @@ class WebVueAppointmentSettings(models.Model):
     def _webvue_current(self):
         self._webvue_require_current_company(*SETTINGS_CAPABILITIES)
         return self.search([('company_id', '=', self.env.company.id)], limit=1)
+
+    @api.model
+    def _webvue_type_defaults(self):
+        """The ``resource.booking.type`` defaults of the current company, from its settings or the declared defaults."""
+        row = self.search([('company_id', '=', self.env.company.id)], limit=1)
+        values = row or DEFAULTS
+        return {
+            'slot_duration': values['default_slot_minutes'] / 60,
+            'modifications_deadline': values['modification_deadline_hours'],
+        }
 
     def check_access(self, operation):
         # Odoo search checks this public hook before applying record rules.

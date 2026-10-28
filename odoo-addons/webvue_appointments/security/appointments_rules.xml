@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Company scope: the engine's two global rules also show company-less rows; WebVue
-         records always have a company, so the rules drop the False alternative. -->
+         records always have a company, so the rules drop the False alternative. The engine
+         declares both rules noupdate, so on upgrade the migration post-sync-company-scope.py
+         writes these same domains (it reads them from this file). -->
     <record id="resource_booking.rule_resource_booking_type_company" model="ir.rule">
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
@@ -22,7 +24,13 @@
     </record>
 
     <!-- Record scope: view sees its own and assigned bookings (the engine's own rule domain);
-         book and manage see every booking of the company. -->
+         book and manage see every booking of the company.
+         WARNING: the book and manage rules are [(1, '=', 1)] and the company rules above follow
+         the user's allowed companies. webvue_core aggregates capability groups across all of a
+         user's companies, so a user holding book in company A also passes this rule for company
+         B's bookings whenever B is the current company at ORM level. Every booking route must
+         therefore check the capability in the current company (requires_capability /
+         _webvue_has_capability(..., company=...)); the ORM rule alone is not the gate. -->
     <record id="rule_resource_booking_view" model="ir.rule">
         <field name="name">Appointments view: own and assigned bookings</field>
         <field name="model_id" ref="resource_booking.model_resource_booking"/>

@@ -2,9 +2,7 @@
 from psycopg2.errors import UniqueViolation
 
 from odoo import api, models
-from odoo.exceptions import ConcurrencyError, LockError
-
-from odoo.addons.webvue_api.controllers.common import ApiError
+from odoo.exceptions import ConcurrencyError
 
 
 class WebVueAppointmentService(models.AbstractModel):
@@ -12,31 +10,28 @@ class WebVueAppointmentService(models.AbstractModel):
     _description = 'Appointment booking service'
 
     @api.model
-    def _webvue_schedule(self, booking, start, combination=None):
-        """Schedule or reschedule ``booking`` while holding the guards of every resource it may use.
+    def _webvue_guard_resources(self, resources):
+        """Serialize the current transaction with every other one that books any of ``resources``.
 
-        With a ``combination`` only its resources are guarded; without one the booking auto-assigns
-        among the combinations of its type, so all of their resources are. A concurrent booking of a
-        guarded resource answers 409; one whose snapshot predates a committed booking fails
-        serialization on the guard row and Odoo's request retry reruns it in a fresh snapshot.
+        ``resource.booking`` calls this before it stores a scheduled booking. The guard rows are locked
+        in id order and waited for. A transaction that waited for a holder which committed fails
+        serialization (REPEATABLE READ), and Odoo's request retry reruns it in a fresh snapshot where
+        the engine's own constraint meets the committed booking.
         """
-        booking.ensure_one()
-        combinations = combination or booking.type_id.combination_rel_ids.combination_id
-        guards = self._webvue_guards(combinations.resource_ids)
-        try:
-            guards.lock_for_update()
-        except LockError as error:
-            raise ApiError(409, 'conflict', 'the resource is being booked by someone else; retry') from error
+        guards = self._webvue_guards(resources)
+        if not guards:
+            return guards
+        # Own table only: a waiting, ordered row lock; the ORM's lock_for_update skips locked rows,
+        # which would refuse two bookings of different resources that share a guard set.
+        self.env.cr.execute(
+            'SELECT id FROM webvue_appointment_resource_guard WHERE id IN %s ORDER BY id FOR UPDATE',
+            [tuple(guards.ids)],
+        )
         guards.invalidate_recordset(['revision'])
         for guard in guards:
             guard.revision += 1
         guards.flush_recordset(['revision'])
-        vals = {'start': start}
-        if combination:
-            vals.update(combination_id=combination.id, combination_auto_assign=False)
-        booking.write(vals)
-        booking.flush_recordset()
-        return booking
+        return guards
 
     @api.model
     def _webvue_guards(self, resources):
@@ -49,9 +44,6 @@ class WebVueAppointmentService(models.AbstractModel):
                     guards |= guard_model.create({'resource_id': resource.id})
             except UniqueViolation as error:
                 # Committed by a concurrent transaction after this snapshot: only a retry can see it.
-                existing = guard_model.search([('resource_id', '=', resource.id)])
-                if not existing:
-                    message = 'concurrent booking guard creation; retry transaction'
-                    raise ConcurrencyError(message) from error
-                guards |= existing
+                message = 'concurrent booking guard creation; retry transaction'
+                raise ConcurrencyError(message) from error
         return guards.sorted('id')

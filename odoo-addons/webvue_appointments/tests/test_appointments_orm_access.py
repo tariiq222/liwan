@@ -71,6 +71,21 @@ class TestAppointmentsOrmAccess(WebVueAppointmentsCase):
         new_type.write({'name': 'Managed again'})
         new_type.unlink()
 
+    def test_manage_reads_resources_but_cannot_change_them(self):
+        # The engine's group_manager ACL on resource.resource is reduced to read: an HR employee's name,
+        # active flag and calendar are related fields of its resource.
+        resource = self.combination.resource_ids
+        self.assertTrue(self._can(self.manager, 'read', resource))
+        self.assertEqual(resource.with_user(self.manager).name, 'Room A')
+        for operation in ('write', 'create', 'unlink'):
+            self.assertFalse(self._can(self.manager, operation, resource), operation)
+        with self.assertRaises(AccessError):
+            resource.with_user(self.manager).write({'active': False})
+        with self.assertRaises(AccessError):
+            self._as(self.manager, 'resource.resource').create({'name': 'Rogue'})
+        with self.assertRaises(AccessError):
+            resource.with_user(self.manager).unlink()
+
     def test_the_outsider_has_no_access(self):
         for record in (self.booking_type, self.combination, self.booking):
             for operation in ('read', 'write', 'create', 'unlink'):

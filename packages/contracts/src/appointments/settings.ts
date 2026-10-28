@@ -41,7 +41,6 @@ export const AppointmentSettingsPatchSchema = z.object({
   national_id_field: AppointmentFieldRequirementSchema,
   notes_field: AppointmentFieldRequirementSchema,
   self_booking_policy: AppointmentSelfBookingPolicySchema,
-  sector_preset: AppointmentSectorPresetSchema,
   preset: AppointmentSectorPresetSchema,
   revision: z.number().int().nonnegative(),
 }).partial().required({ revision: true }).strict()

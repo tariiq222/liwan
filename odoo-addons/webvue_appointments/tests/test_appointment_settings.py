@@ -69,6 +69,37 @@ class TestAppointmentSettings(WebVueAppointmentsCase):
         self.assertEqual((body['default_slot_minutes'], body['horizon_days'], body['email_field']), (60, 14, 'hidden'))
         self.assertEqual(body['modification_deadline_hours'], 48)
 
+    def test_sector_preset_changes_only_through_preset(self):
+        self._as_manager()
+        saved = self.api('PATCH', URL, {'horizon_days': 10, 'revision': 0})
+        self.assertEqual(saved.json()['sector_preset'], 'general')
+        refused = self.api('PATCH', URL, {'sector_preset': 'clinic', 'revision': 1})
+        self.assertEqual((refused.status_code, refused.json()['field']), (422, 'sector_preset'))
+        applied = self.api('PATCH', URL, {'preset': 'clinic', 'revision': 1})
+        self.assertEqual(applied.json()['sector_preset'], 'clinic')
+
+    def test_a_new_type_defaults_from_the_company_settings(self):
+        types = self.env['resource.booking.type']
+        without = types.create({'name': 'Before settings'})
+        self.assertEqual((without.slot_duration, without.modifications_deadline), (0.5, 24))
+        settings = self.env['webvue.appointment.settings'].create({
+            'company_id': self.env.company.id, 'default_slot_minutes': 15, 'modification_deadline_hours': 48,
+        })
+        configured = types.create({'name': 'After settings'})
+        self.assertEqual((configured.slot_duration, configured.modifications_deadline), (0.25, 48))
+        explicit = types.create({'name': 'Explicit', 'slot_duration': 1.0, 'modifications_deadline': 2})
+        self.assertEqual((explicit.slot_duration, explicit.modifications_deadline), (1.0, 2))
+        settings.default_slot_minutes = 60
+        self.assertEqual((configured.slot_duration, without.slot_duration), (0.25, 0.5))
+
+    def test_type_defaults_follow_the_current_company_only(self):
+        other = self.env['res.company'].create({'name': 'Other defaults company'})
+        self.env['webvue.appointment.settings'].create({'company_id': other.id, 'default_slot_minutes': 90})
+        created = self.env['resource.booking.type'].create({'name': 'Own company type'})
+        self.assertEqual(created.slot_duration, 0.5)
+        foreign = self.env['resource.booking.type'].with_company(other).create({'name': 'Other company type'})
+        self.assertEqual(foreign.slot_duration, 1.5)
+
     def test_stale_revision_is_a_409(self):
         self._as_manager()
         self.assertEqual(self.api('PATCH', URL, {'horizon_days': 10, 'revision': 0}).status_code, 200)
@@ -92,6 +123,7 @@ class TestAppointmentSettings(WebVueAppointmentsCase):
             ({'self_booking_policy': 'anyone', 'revision': 0}, 'self_booking_policy'),
             ({'preset': 'bank', 'revision': 0}, 'preset'),
             ({'sector_preset': 'bank', 'revision': 0}, 'sector_preset'),
+            ({'sector_preset': 'clinic', 'revision': 0}, 'sector_preset'),
             ({'mystery': 1, 'revision': 0}, 'mystery'),
             ({'horizon_days': 10}, 'revision'),
             ({'horizon_days': 10, 'revision': True}, 'revision'),
