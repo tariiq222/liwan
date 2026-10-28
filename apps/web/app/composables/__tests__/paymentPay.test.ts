@@ -66,6 +66,7 @@ describe('the start request', () => {
   it('words the refusals the pay page knows and leaves the rest generic', () => {
     expect(startErrorKey({ code: 'not_payable' })).toBe('payments.pay.errors.notPayable')
     expect(startErrorKey({ code: 'payment_unavailable' })).toBe('payments.pay.errors.unavailable')
+    expect(startErrorKey({ code: 'payment_in_progress' })).toBe('payments.pay.errors.inProgress')
     expect(startErrorKey({ code: 'invalid' })).toBeNull()
     expect(startErrorKey(new Error('offline'))).toBeNull()
   })

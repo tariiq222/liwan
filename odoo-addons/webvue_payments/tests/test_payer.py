@@ -81,6 +81,21 @@ class TestPayer(WebVuePayerCase):
             (115.0, 'SAR', self.customer, self.paymob, self.card),
         )
 
+    def test_one_invoice_never_has_two_open_checkouts(self):
+        self.stub_checkout()
+        self.assertEqual(self.start().status_code, 200)
+        again = self.start()
+        self.assertEqual((again.status_code, again.json()['code']), (409, 'payment_in_progress'))
+        self.assertEqual(len(self.invoice.transaction_ids), 1)
+        # A checkout abandoned longer ago than the open window no longer blocks a new one.
+        self.env.cr.execute(
+            "UPDATE payment_transaction SET create_date = (now() at time zone 'UTC') - interval '16 minutes' WHERE id = %s",
+            [self.invoice.transaction_ids.id],
+        )
+        self.env.invalidate_all()
+        self.assertEqual(self.start().status_code, 200)
+        self.assertEqual(len(self.invoice.transaction_ids), 2)
+
     def test_the_payer_cannot_choose_the_amount_or_an_unoffered_method(self):
         self.stub_checkout()
         for field in ('amount', 'partner_id', 'currency_id', 'flow', 'landing_route'):

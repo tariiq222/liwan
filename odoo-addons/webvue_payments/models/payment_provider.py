@@ -64,6 +64,20 @@ class PaymentProvider(models.Model):
             raise AccessError(self.env._("This gateway belongs to another company."))
         self.sudo().write({'state': state, 'is_published': state == 'enabled'})
 
+    def _toggle_post_processing_cron(self):
+        """Keep the payment post-processing cron on while a transaction still waits for it.
+
+        Stock switches the cron off with the last active gateway, but money that arrives after
+        that (a payer who was already on the gateway page) or a post-processing that failed must
+        still be confirmed, recorded and reconciled; the cron is the durable retry.
+        """
+        super()._toggle_post_processing_cron()
+        cron = self.env.ref('payment.cron_post_process_payment_tx', raise_if_not_found=False)
+        if cron and not cron.active and self.env['payment.transaction'].search_count(
+            [('state', 'in', ('authorized', 'done')), ('is_post_processed', '=', False)], limit=1,
+        ):
+            cron.active = True
+
     def _webvue_payments_sync(self):
         """Check the stored keys against the gateway and prepare the account for the current mode.
 

@@ -47,6 +47,7 @@ export function startBody(link: PayLink, option: PaymentOption): PaymentStart {
 const START_ERROR_KEYS: Readonly<Record<string, string>> = {
   not_payable: 'payments.pay.errors.notPayable',
   payment_unavailable: 'payments.pay.errors.unavailable',
+  payment_in_progress: 'payments.pay.errors.inProgress',
 }
 
 /** The locale key of a refused start this page words itself, or null for any other failure (the page then says it generically). */

@@ -11,6 +11,7 @@ from odoo.addons.webvue_api.controllers.common import (
     parse_positive_int,
     requires_feature,
 )
+from odoo.addons.webvue_payments.models.payer_service import CheckoutOpen
 from odoo.addons.webvue_payments.serializers.payer import dump_payable_invoice
 
 FEATURE = 'payments.enabled'
@@ -70,6 +71,8 @@ class PayerController(http.Controller):
             raise ApiError(409, 'not_payable', "this invoice does not need a payment now")
         try:
             redirect = payer._webvue_start(invoice, provider_id, method_id)
+        except CheckoutOpen as error:
+            raise ApiError(409, 'payment_in_progress', str(error)) from error
         except UserError as error:
             raise ApiError(422, 'payment_unavailable', str(error)) from error
         return {'redirect': redirect}

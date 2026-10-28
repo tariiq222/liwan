@@ -1,11 +1,20 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import timedelta
+
 from lxml import html
 
-from odoo import Command, api, models
-from odoo.exceptions import UserError
+from odoo import Command, api, fields, models
+from odoo.exceptions import LockError, UserError
 
 WAITING_STATES = ('pending', 'authorized')
 PAID_STATES = ('paid', 'in_payment')
+# How long a started checkout blocks another one for the same invoice: two open gateway pages
+# could both take the customer's money (two tabs, a retried request, a lost answer).
+OPEN_CHECKOUT = timedelta(minutes=15)
+
+
+class CheckoutOpen(UserError):
+    """Another checkout of this invoice is open or being started right now."""
 
 
 class WebVuePaymentsPayer(models.AbstractModel):
@@ -57,9 +66,21 @@ class WebVuePaymentsPayer(models.AbstractModel):
     def _webvue_start(self, invoice, provider_id, payment_method_id):
         """Create the transaction for the invoice's residual and return the gateway redirect.
 
+        Starts are serialized per invoice: the invoice row is locked, and a checkout started less
+        than ``OPEN_CHECKOUT`` ago blocks a new one, so one invoice never has two gateway pages
+        open at once.
+
         :return: ``{'method', 'url', 'fields'}`` of the stock redirect form.
+        :raise CheckoutOpen: when another start holds the invoice or a recent checkout is open.
         :raise UserError: when the pair is not offered or the gateway refuses to start.
         """
+        try:
+            invoice.lock_for_update(allow_referencing=True)
+        except LockError as error:
+            raise CheckoutOpen(self.env._("A payment of this invoice is already being started.")) from error
+        since = fields.Datetime.now() - OPEN_CHECKOUT
+        if invoice.transaction_ids.filtered(lambda tx: tx.state == 'draft' and tx.create_date >= since):
+            raise CheckoutOpen(self.env._("A payment of this invoice is already open; finish it or try again later."))
         options = {(provider.id, method.id): (provider, method) for provider, method in self._webvue_options(invoice)}
         if (provider_id, payment_method_id) not in options:
             raise UserError(self.env._("This payment method is not available for this invoice."))

@@ -68,6 +68,24 @@ class TestGatewayCallbacks(WebVuePayerCase):
         self.env.invalidate_all()
         self.assertEqual(len(self.env['account.payment'].search([('payment_transaction_id', '=', self.tx.id)])), 1)
 
+    @mute_logger('odoo.addons.webvue_payments.controllers.hooks')
+    def test_a_failed_post_processing_keeps_a_retry_after_the_last_gateway_is_off(self):
+        cron = self.env.ref('payment.cron_post_process_payment_tx')
+        self.paymob.sudo().write({'state': 'disabled', 'is_published': False})
+        self.env.invalidate_all()
+        self.assertFalse(cron.active)
+
+        def failing(transactions):
+            message = 'post-processing failed'
+            raise RuntimeError(message)
+        self.patch(type(self.env['payment.transaction']), '_post_process', failing)
+        payload = self.payload()
+        self.assertEqual(self.post_webhook(payload, self.signature(payload)).status_code, 200)
+        self.env.invalidate_all()
+        self.assertEqual((self.tx.state, self.tx.is_post_processed), ('done', False))
+        self.assertTrue(cron.active, 'the cron must stay on while a transaction waits for it')
+        self.assertTrue(self.env['ir.cron.trigger'].search_count([('cron_id', '=', cron.id)]))
+
     @mute_logger('odoo.addons.payment_paymob.controllers.main', 'odoo.http')
     def test_a_tampered_or_unsigned_webhook_changes_nothing(self):
         payload = self.payload()

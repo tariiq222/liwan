@@ -109,7 +109,8 @@
       "errors": {
         "notPayable": "This invoice cannot be paid now. Reload the page to see its status.",
         "unavailable": "The payment gateway is not available now. Try again in a moment.",
-        "failed": "The payment could not be started. Try again."
+        "failed": "The payment could not be started. Try again.",
+        "inProgress": "A payment of this invoice was started a moment ago on another page. Finish it there, or try again in a quarter of an hour."
       }
     },
     "status": {

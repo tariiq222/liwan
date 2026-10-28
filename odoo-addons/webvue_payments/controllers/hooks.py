@@ -51,8 +51,8 @@ class GatewayCallbackController(http.Controller):
 
         Only the transactions this call changed are touched, and this does not depend on the
         post-processing cron, which stock switches off with the last active gateway. A failure is
-        logged and left to that cron (stock retries for four days); the notification itself stays
-        recorded.
+        logged and handed to that cron, switched back on if needed (stock retries for four days);
+        the notification itself stays recorded.
         """
         for tx in transactions:
             if tx.is_post_processed or tx.state not in ('authorized', 'done'):
@@ -62,3 +62,6 @@ class GatewayCallbackController(http.Controller):
                     tx._post_process()
             except Exception:
                 _logger.exception("Post-processing of payment transaction %s failed; the cron will retry it", tx.reference)
+                # The transaction is elevated by the stock controller that processed it.
+                tx.provider_id._toggle_post_processing_cron()
+                request.env.ref('payment.cron_post_process_payment_tx')._trigger()
