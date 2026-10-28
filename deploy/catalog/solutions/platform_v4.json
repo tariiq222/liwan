@@ -76,6 +76,17 @@
       ]
     },
     {
+      "id": "payments",
+      "name": "Online payments",
+      "description": "The tenant's own payment gateway account, connected from the payments settings page.",
+      "modules": [
+        "webvue_payments"
+      ],
+      "features": [
+        "boolean:payments.enabled"
+      ]
+    },
+    {
       "id": "messaging",
       "name": "Messaging",
       "description": "The member-private chat application.",

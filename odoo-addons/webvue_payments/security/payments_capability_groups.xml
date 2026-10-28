@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="group_cap_payments_providers_manage" model="res.groups"><field name="name">Capability: manage payment gateways</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/></record>
+</odoo>

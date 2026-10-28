@@ -59,6 +59,7 @@ NAMESPACE_HINTS = (
     ("/api/v1/me", "access"),
     ("/api/v1/admin/", "access"),
     ("/api/v1/branding", "common"),
+    ("/api/v1/payments/", "payments"),
 )
 
 

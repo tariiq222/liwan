@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="permission_payments_providers_manage" model="webvue.access.permission">
+        <field name="key">payments.providers.manage</field><field name="domain">payments</field>
+        <field name="resource">providers</field><field name="action">manage</field>
+        <field name="name_ar">إدارة بوابات الدفع</field><field name="name_en">Manage payment gateways</field>
+        <field name="description_ar">ربط حساب الشركة لدى بوابة الدفع وإدخال مفاتيحه وتفعيله</field><field name="description_en">Connect the company's own gateway account, enter its keys and switch it on</field>
+        <field name="group_xmlid">webvue_payments.group_cap_payments_providers_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
+    <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
+         dependencies on install and on every upgrade. -->
+    <function model="webvue.access.service" name="_webvue_configure_permission_dependencies"/>
+    <function model="webvue.access.service" name="_webvue_repair_builtin_role_grants"/>
+</odoo>
