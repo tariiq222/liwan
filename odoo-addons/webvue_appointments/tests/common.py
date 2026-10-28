@@ -20,14 +20,26 @@ class WebVueAppointmentsCase(WebVueApiCase):
             cls.env, login='appointments_manager', password='appointments_manager_pass_123',
             name='Appointments Manager', groups='webvue_core.group_employee',
         )
+        # Staff hold the employee role as well: the engine's slot search reads hr.employee records.
         service._webvue_replace_assignments(cls.manager, [{
-            'role_id': cls.env.ref('webvue_appointments.role_appointments_manager').id,
-            'company_id': company.id,
-        }])
+            'role_id': cls.env.ref(xmlid).id, 'company_id': company.id,
+        } for xmlid in ('webvue_core.role_employee', 'webvue_appointments.role_appointments_manager')])
         cls.booker = new_test_user(
-            cls.env, login='appointments_booker', name='Appointments Booker',
-            groups='webvue_core.group_employee,webvue_appointments.group_cap_appointments_bookings_write',
+            cls.env, login='appointments_booker', password='appointments_booker_pass_123',
+            name='Appointments Booker',
+            groups='webvue_core.group_employee',
         )
+        # No built-in role stops at write, so the booker holds the employee role and a custom booking role.
+        booking_role = cls.env['webvue.access.role'].create({
+            'name_ar': 'حجز المواعيد', 'company_id': company.id,
+            'permission_ids': [(6, 0, cls.env['webvue.access.permission'].search([
+                ('key', 'in', ('appointments.bookings.read', 'appointments.bookings.write')),
+            ]).ids)],
+        })
+        service._webvue_replace_assignments(cls.booker, [
+            {'role_id': cls.env.ref('webvue_core.role_employee').id, 'company_id': company.id},
+            {'role_id': booking_role.id, 'company_id': company.id},
+        ])
         cls.outsider = new_test_user(
             cls.env, login='appointments_outsider', password='appointments_outsider_pass_123',
             name='No Appointments access', groups='base.group_user',
@@ -59,3 +71,28 @@ class WebVueAppointmentsCase(WebVueApiCase):
         booking_type = cls.env['resource.booking.type'].create({'name': 'Foreign', 'company_id': other.id})
         combination = cls._create_combination(other, 'Foreign room')
         return other, booking_type, combination, cls._create_booking(booking_type, combination)
+
+    @classmethod
+    def _create_cross_company_user(cls):
+        """A manager of the main company only whose current company is another one: holds no capability there."""
+        other = cls.env['res.company'].create({'name': 'Appointments current company'})
+        user = new_test_user(
+            cls.env, login='appointments_cross', password='appointments_cross_pass_123',
+            name='Manager of another company', groups='webvue_core.group_employee',
+            company_ids=[(6, 0, [cls.env.company.id, other.id])],
+        )
+        # Assignments are replaced in the user's current company; the user then switches to the other one.
+        cls.env['webvue.access.service']._webvue_replace_assignments(user, [{
+            'role_id': cls.env.ref('webvue_appointments.role_appointments_manager').id,
+            'company_id': cls.env.company.id,
+        }])
+        user.company_id = other
+        return user
+
+    def _assert_forbidden_in_the_current_company(self, requests):
+        """Every ``(method, path, body)`` is refused with 403 for a user who holds the capability only in another company."""
+        self._create_cross_company_user()
+        self.authenticate('appointments_cross', 'appointments_cross_pass_123')
+        for method, path, body in requests:
+            result = self.api(method, path, json=body)
+            self.assertEqual((result.status_code, result.json().get('code')), (403, 'forbidden'), (method, path))
