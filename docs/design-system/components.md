@@ -229,6 +229,14 @@ Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. C
 
 `SharedEmptyState` يدعم `compact` لفراغ داخل قسم قائم. `SharedFileField` يدعم `label` و`showFileName` لرفع فوري من ترويسة قسم؛ الافتراضي يبقى «اختر ملفًا» مع اسم الملف. القصتان المعتمدتان: `apps/web/stories/shared/EmptyState.stories.ts` و`apps/web/stories/shared/FileField.stories.ts`.
 
+## مكونات الدفع الإلكتروني
+
+صفحة إعدادات خدمة الدفع (`/settings/apps/payments`، قدرة `payments.providers.manage`) تعرض بطاقة لكل بوابة دفع يربطها المستأجر بحسابه التاجر. البطاقة لبنة خاصة بالصفحة تعيد استخدام لبنات Storybook المشتركة، والمفاتيح للكتابة فقط: لا قيمة منها تعود من الخادم، وتظهر حالة «محفوظ» لكل مفتاح.
+
+| المكوّن | الوظيفة | القصة | مكونات الأساس |
+| --- | --- | --- | --- |
+| `apps/web/app/components/payments/ProviderCard.vue` | بوابة دفع واحدة: وضع التشغيل (متوقف وتجريبي ومباشر) مع تأكيد مضمّن قبل المباشر، دولة حساب البوابة، مفاتيح بحقول كلمة مرور لا تُملأ أبدًا مع حفظ الحقول المكتوبة فقط، «اختبار الاتصال»، وطرق الدفع المفعّلة؛ أخطاء الخادم تُربط بالحقل الذي سمّاه | — | `SharedRecordSection`, `SharedSegmentedControl`, `SharedInlineConfirm`, `SharedStatusBadge`, `SharedUnsavedChanges`, `UFormField`, `UInput`, `USelect`, `UForm`, `UButton`, `UAlert` |
+
 ## مكونات المالية — المستندات والدفعات
 
 مكونات مستندات المالية (فواتير العملاء والإشعارات الدائنة وفواتير الموردين ومرتجعاتهم) والدفعات؛ محلية لتطبيق المالية وتعيد استخدام لبنات Storybook المشتركة. الصفحات تملك قوالبها (`SharedListPage` و`SharedRecordPage` و`SharedCreatePanel`) وترويساتها من composables بجوار المكونات (`useInvoiceListPage` و`useInvoiceCreatePage` و`useInvoiceRecord` و`usePaymentListPage` و`usePaymentCreatePage`)؛ نوع المستند معامل واحد (`move_type`) لقائمة واحدة ونموذج واحد وسجل واحد، والصلاحيات والحالات من الخادم.

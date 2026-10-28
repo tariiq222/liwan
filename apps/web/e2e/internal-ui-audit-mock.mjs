@@ -6,6 +6,7 @@ import { moduleUiCapabilities, moduleUiPreviewData } from './module-ui-preview-d
 import { hrPayrollPreviewWrite } from './hr-payroll-ui-preview-data.mjs'
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
 import { handleCommercial } from './commercial-mock-routes.mjs'
+import { handlePayments, PAYMENTS_MANAGE } from './payments-mock-routes.mjs'
 import crypto from 'node:crypto'
 import { URL } from 'node:url'
 
@@ -22,7 +23,7 @@ const CAPABILITIES = [
   'hr.departments.read', 'hr.departments.manage', 'documents.items.read', 'documents.items.manage',
   'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage', 'pmo.settings.manage',
   'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write', 'pmo.tasks.approve',
-  'settings.branding.manage', 'settings.company.read', 'settings.company.manage', 'ai.use',
+  'settings.branding.manage', 'settings.company.read', 'settings.company.manage', 'ai.use', PAYMENTS_MANAGE,
 ]
 
 // The HR area sub-features (`hr.<area>`) gate the recruitment, shifts, onboarding, offboarding and assets pages on top of their capabilities.
@@ -36,14 +37,14 @@ const ME = {
   company: { id: 1, name: 'WebVue' },
   modules: ['webvue_chat', 'webvue_hr', 'webvue_documents', 'webvue_pmo'],
   entitlements: {
-    'pmo.enabled': true, 'meetings.enabled': true, 'documents.enabled': true, 'hr.enabled': true, 'finance.enabled': true, 'chat.enabled': true, 'ai.enabled': true,
+    'pmo.enabled': true, 'meetings.enabled': true, 'documents.enabled': true, 'hr.enabled': true, 'finance.enabled': true, 'chat.enabled': true, 'ai.enabled': true, 'payments.enabled': true,
     ...Object.fromEntries(HR_AREA_FEATURES.map(feature => [feature, true])),
     'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, 'meetings.enabled', 'pmo.enabled'],
-    writable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, 'meetings.enabled', 'pmo.enabled'],
+    readable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.enabled'],
+    writable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'finance.enabled', 'hr.enabled', ...HR_AREA_FEATURES, 'meetings.enabled', 'payments.enabled', 'pmo.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }
@@ -382,6 +383,8 @@ async function handle(req, res) {
 
   if (!hasSession(req)) return fail(res, 403, 'forbidden', 'not logged in')
 
+  if (await handlePayments(req, res, path, { json, readBody })) return
+
   // Meetings: the minutes download is an attachment and the series accepts a quick extra occurrence (series 1 / meeting 1 only).
   if (method === 'GET' && match(path, '/api/v1/meetings/:id/minutes.pdf')) {
     res.writeHead(200, { 'content-type': 'application/pdf', 'content-disposition': 'attachment; filename="MTG-001.pdf"', 'cache-control': 'no-store' })
@@ -450,7 +453,7 @@ async function handle(req, res) {
       const base = { ...ME }
       if (noPolicy) delete base.platform
       const platform = readOnlyPayroll ? { ...ME.platform, writable_features: ME.platform.writable_features.filter(key => key !== 'hr.payroll') } : ME.platform
-      return json(res, 200, { ...base, ...(noPolicy ? {} : { platform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, moduleUiCapabilities), AI_USE] })
+      return json(res, 200, { ...base, ...(noPolicy ? {} : { platform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, [...moduleUiCapabilities, PAYMENTS_MANAGE]), AI_USE] })
     }
     const preview = moduleUiPreviewData(path, url)
     if (preview?.refusal) return json(res, preview.refusal.status, preview.refusal.body)
