@@ -372,6 +372,10 @@ cross-addon links.
   stock `payment.provider.write` then archives the provider's saved tokens and toggles its payment
   methods and the payment post-processing cron, all system-only models. The tenant's gateway keys are
   written without elevation (the capability group joins the stock key field's group) and never returned.
+  It also uses it in `models/payer_service.py`, for the anonymous payer of one invoice whose access token
+  the stock portal check already verified: the compatible provider and payment-method lookups and the
+  transaction create, with the invoice's own amount, currency and partner, blocked by the system-only
+  `payment.provider`, `payment.method` and `payment.transaction` ACL rows as in the stock portal.
   `webvue_api` uses it in `controllers/common.py` only for the single company-ownership
   read in `get_record`, before any access check, so another company's record answers the
   same 404 not-found as a missing one instead of a 403 that leaks its existence; in

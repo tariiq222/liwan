@@ -1,0 +1,55 @@
+import {
+  PayableInvoiceSchema,
+  PaymentLinkSchema,
+  PaymentRedirectSchema,
+  PaymentStartSchema,
+} from '../index'
+
+const INVOICE = {
+  id: 11,
+  merchant: 'My Company',
+  number: 'INV/2026/00001',
+  due_date: '2026-11-27',
+  currency: 'SAR',
+  amount_total: 115,
+  amount_due: 115,
+  status: 'payable',
+  options: [{ provider_id: 14, provider: 'Paymob', method_id: 3, method: 'card', method_name: 'Card' }],
+}
+
+describe('PayableInvoiceSchema', () => {
+  it('is strict and carries no partner data', () => {
+    expect(PayableInvoiceSchema.parse(INVOICE)).toEqual(INVOICE)
+    expect(Object.keys(PayableInvoiceSchema.shape).sort()).toEqual(
+      ['amount_due', 'amount_total', 'currency', 'due_date', 'id', 'merchant', 'number', 'options', 'status'],
+    )
+    expect(() => PayableInvoiceSchema.parse({ ...INVOICE, partner: 'Payer' })).toThrow()
+    expect(() => PayableInvoiceSchema.parse({ ...INVOICE, status: 'refunded' })).toThrow()
+  })
+})
+
+describe('PaymentStartSchema', () => {
+  it('accepts only the token and the chosen option, never an amount', () => {
+    const body = { access_token: 'tok', provider_id: 14, payment_method_id: 3 }
+    expect(PaymentStartSchema.parse(body)).toEqual(body)
+    expect(() => PaymentStartSchema.parse({ ...body, amount: 1 })).toThrow()
+    expect(() => PaymentStartSchema.parse({ ...body, access_token: '' })).toThrow()
+  })
+})
+
+describe('PaymentRedirectSchema', () => {
+  it('describes a get or post redirect with string fields', () => {
+    const redirect = { redirect: { method: 'get', url: 'https://ksa.paymob.com/unifiedcheckout/', fields: { publicKey: 'pk' } } }
+    expect(PaymentRedirectSchema.parse(redirect)).toEqual(redirect)
+    expect(() => PaymentRedirectSchema.parse({ redirect: { ...redirect.redirect, method: 'put' } })).toThrow()
+    expect(() => PaymentRedirectSchema.parse({ redirect: { ...redirect.redirect, url: '/relative' } })).toThrow()
+  })
+})
+
+describe('PaymentLinkSchema', () => {
+  it('is a pay-page path with its access token, never an absolute URL', () => {
+    expect(PaymentLinkSchema.parse({ path: '/pay/invoice/11?access_token=ab-12' }).path).toBe('/pay/invoice/11?access_token=ab-12')
+    expect(() => PaymentLinkSchema.parse({ path: 'https://evil.example/pay/invoice/11?access_token=x' })).toThrow()
+    expect(() => PaymentLinkSchema.parse({ path: '/my/invoices/11?access_token=x' })).toThrow()
+  })
+})

@@ -49,7 +49,10 @@ class PaymentProvider(models.Model):
             self._webvue_payments_set_account_country(definition['default'])
 
     def _webvue_payments_set_state(self, state):
-        """Switch between ``disabled``, ``test`` and ``enabled``; only a live provider is published.
+        """Switch between ``disabled``, ``test`` and ``enabled``.
+
+        A provider that is on is published in both modes: payers reach it only through WebVue's
+        token-checked pay page, so a tenant can run a full test payment before going live.
 
         Stock ``write`` on a state change archives the provider's saved tokens, toggles its payment
         methods and the payment post-processing cron, all system-only models. The switch itself is
@@ -59,7 +62,7 @@ class PaymentProvider(models.Model):
         self.env['webvue.access.service']._webvue_require_capability(PROVIDERS_MANAGE)
         if self.company_id != self.env.company:
             raise AccessError(self.env._("This gateway belongs to another company."))
-        self.sudo().write({'state': state, 'is_published': state == 'enabled'})
+        self.sudo().write({'state': state, 'is_published': state != 'disabled'})
 
     def _webvue_payments_sync(self):
         """Check the stored keys against the gateway and prepare the account for the current mode.

@@ -131,6 +131,10 @@
     "odoo-addons/webvue_payments/models/payment_provider.py": {
       "count": 1,
       "reason": "webvue_payments switches one gateway's mode: `self.sudo().write({'state': ..., 'is_published': ...})` in `_webvue_payments_set_state`, after the `payments.providers.manage` capability and the current-company checks in the same method; stock `payment.provider.write` then archives `payment.token` rows, toggles `payment.method.active` and the payment post-processing `ir.cron`, each blocked by the system-only `payment_token_system`, `payment_method_system` and `ir.cron` ACL rows."
+    },
+    "odoo-addons/webvue_payments/models/payer_service.py": {
+      "count": 3,
+      "reason": "webvue_payments serves the anonymous payer of one invoice whose access token the stock portal check (`CustomerPortal._document_check_access`) already verified: `payment.provider.sudo()._get_compatible_providers(...)` and `payment.method.sudo()._get_compatible_payment_methods(...)` list the offered options, and `payment.transaction.sudo().create(...)` records the payment with the invoice's own amount, currency, partner and a compatible provider and method; the public user is blocked by the system-only `payment_provider_system`, `payment_method_system` and `payment_transaction_system` ACL rows, exactly as the stock portal elevates them."
     }
   }
 }

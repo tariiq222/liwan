@@ -131,7 +131,7 @@ class TestPaymentProviders(WebVuePaymentsCase):
         self.assertEqual((accepted.json()['state'], accepted.json()['account_country']), ('test', 'SA'))
         provider = self.fresh()
         self.assertEqual(provider.available_currency_ids.mapped('name'), ['SAR'])
-        self.assertFalse(provider.is_published)
+        self.assertTrue(provider.is_published)
         self.assertIn('card', accepted.json()['methods'])
         live = self.patch_provider({'state': 'enabled'})
         self.assertEqual((live.json()['state'], self.fresh().is_published), ('enabled', True))

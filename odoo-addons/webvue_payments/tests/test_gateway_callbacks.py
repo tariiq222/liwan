@@ -1,0 +1,99 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+import json
+
+from odoo import Command
+from odoo.tests import tagged
+from odoo.tools import mute_logger
+
+from .common import PAYMOB_CREDENTIALS, WebVuePayerCase
+from odoo.addons.payment_paymob.controllers.main import PaymobController
+
+HOOK = '/api/v1/public/payments/hooks/paymob/%s'
+
+
+@tagged('post_install', '-at_install', 'webvue')
+class TestGatewayCallbacks(WebVuePayerCase):
+    """Gateway notifications and returns reach the stock Paymob controller unchanged."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        Transaction = cls.env['payment.transaction']
+        cls.tx = Transaction.create({
+            'provider_id': cls.paymob.id,
+            'payment_method_id': cls.card.id,
+            'reference': Transaction._compute_reference('paymob', invoice_ids=[Command.set(cls.invoice.ids)]),
+            'amount': 115.0,
+            'currency_id': cls.env.ref('base.SAR').id,
+            'partner_id': cls.customer.id,
+            'operation': 'online_redirect',
+            'invoice_ids': [Command.set(cls.invoice.ids)],
+            'provider_reference': '987654',
+        })
+
+    def payload(self, amount_cents=11500):
+        return {'type': 'TRANSACTION', 'obj': {
+            'id': 555001, 'amount_cents': amount_cents, 'created_at': '2026-10-28T10:00:00', 'currency': 'SAR',
+            'error_occured': False, 'has_parent_transaction': False, 'integration_id': 1, 'is_3d_secure': True,
+            'is_auth': False, 'is_capture': False, 'is_refunded': False, 'is_standalone_payment': True,
+            'is_voided': False, 'owner': 1, 'pending': False, 'success': True,
+            'order': {'id': 987654, 'merchant_order_id': self.tx.reference},
+            'source_data': {'pan': '2346', 'sub_type': 'MasterCard', 'type': 'card'},
+            'data': {'message': 'Approved'},
+        }}
+
+    def signature(self, payload):
+        normalized = PaymobController._normalize_response(payload['obj'], None)
+        return PaymobController._compute_signature(normalized, PAYMOB_CREDENTIALS['paymob_hmac_key'])
+
+    def post_webhook(self, payload, signature):
+        return self.url_open(
+            f'{HOOK % "webhook"}?hmac={signature}', data=json.dumps(payload),
+            headers={'Content-Type': 'application/json'},
+        )
+
+    def test_a_signed_webhook_pays_the_invoice_through_stock_post_processing(self):
+        payload = self.payload()
+        response = self.post_webhook(payload, self.signature(payload))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('set-cookie', {key.lower() for key in response.headers})
+        self.env.invalidate_all()
+        self.assertEqual(self.tx.state, 'done')
+        cron = self.env.ref('payment.cron_post_process_payment_tx')
+        self.assertTrue(self.env['ir.cron.trigger'].search_count([('cron_id', '=', cron.id)]))
+        # What the triggered cron runs for each transaction (the cron itself commits, which a test cannot).
+        self.tx._post_process()
+        self.env.invalidate_all()
+        self.assertTrue(self.tx.payment_id)
+        self.assertIn(self.invoice.payment_state, ('in_payment', 'paid'))
+        self.assertEqual(self.api('GET', self.summary_url()).json()['status'], 'paid')
+        again = self.post_webhook(payload, self.signature(payload))
+        self.assertEqual(again.status_code, 200)
+        self.env.invalidate_all()
+        self.assertEqual(len(self.env['account.payment'].search([('payment_transaction_id', '=', self.tx.id)])), 1)
+
+    @mute_logger('odoo.addons.payment_paymob.controllers.main', 'odoo.http')
+    def test_a_tampered_or_unsigned_webhook_changes_nothing(self):
+        payload = self.payload()
+        signature = self.signature(payload)
+        tampered = self.payload(amount_cents=1)
+        self.assertEqual(self.post_webhook(tampered, signature).status_code, 403)
+        unsigned = self.url_open(HOOK % 'webhook', data=json.dumps(payload), headers={'Content-Type': 'application/json'})
+        self.assertEqual(unsigned.status_code, 403)
+        self.env.invalidate_all()
+        self.assertEqual(self.tx.state, 'draft')
+
+    def test_unknown_gateways_and_kinds_are_not_found(self):
+        for path in ('/api/v1/public/payments/hooks/stripe/webhook', HOOK % 'refund', HOOK % 'status'):
+            with self.subTest(path=path):
+                self.assertEqual(self.url_open(path, data='{}', headers={'Content-Type': 'application/json'}).status_code, 404)
+
+    @mute_logger('odoo.addons.payment_paymob.controllers.main')
+    def test_the_return_is_processed_and_answers_no_content(self):
+        payload = self.payload()
+        normalized = PaymobController._normalize_response(payload['obj'], None)
+        query = {**normalized, 'hmac': self.signature(payload)}
+        response = self.url_open(f'{HOOK % "return"}?' + '&'.join(f'{key}={value}' for key, value in query.items()))
+        self.assertEqual(response.status_code, 204)
+        self.env.invalidate_all()
+        self.assertEqual(self.tx.state, 'done')
