@@ -221,6 +221,8 @@
         "lostSubmit": "Close as lost",
         "outcomeRequired": "Choose the call outcome",
         "log": "Call log",
+        "logMore": "Show older calls",
+        "logCount": "Showing {shown} of {total}",
         "logEmpty": "No calls recorded yet",
         "logBy": "by {name}",
         "logNoOutcome": "No outcome",

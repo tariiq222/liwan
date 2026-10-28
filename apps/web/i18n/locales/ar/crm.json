@@ -221,6 +221,8 @@
         "lostSubmit": "إغلاق بالخسارة",
         "outcomeRequired": "اختر نتيجة الاتصال",
         "log": "سجل الاتصالات",
+        "logMore": "عرض اتصالات أقدم",
+        "logCount": "عرض {shown} من {total}",
         "logEmpty": "لا اتصالات مسجلة بعد",
         "logBy": "بواسطة {name}",
         "logNoOutcome": "بلا نتيجة",

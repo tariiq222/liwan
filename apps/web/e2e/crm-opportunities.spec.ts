@@ -156,6 +156,22 @@ test('a losing outcome without a reason sends the reason with the call, which is
   await expect(page.getByTestId('crm-call-log')).toContainText('رقم خاطئ')
 })
 
+test('the call log pages: older calls load on request until the history is complete', async ({ page }) => {
+  await page.goto('/crm/opportunities/8')
+  const log = page.getByTestId('crm-call-log')
+  await expect(log.getByRole('listitem')).toHaveCount(20)
+  await expect(page.getByText('عرض 20 من 45')).toBeVisible()
+  await expect(log).toContainText('محاولة رقم 45')
+  const more = page.getByTestId('crm-call-log-more')
+  await more.click()
+  await expect(log.getByRole('listitem')).toHaveCount(40)
+  await more.click()
+  await expect(log.getByRole('listitem')).toHaveCount(45)
+  await expect(log).toContainText('محاولة رقم 1')
+  await expect(page.getByText('عرض 45 من 45')).toBeVisible()
+  await expect(more).toHaveCount(0)
+})
+
 test('an unknown or malformed record id shows the not-found state, not a skeleton', async ({ page }) => {
   for (const path of ['/crm/opportunities/999', '/crm/opportunities/abc']) {
     await page.goto(path)

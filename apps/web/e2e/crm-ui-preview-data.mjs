@@ -91,6 +91,8 @@ const seedOpportunities = () => {
 const seedCalls = () => ({
   1: [{ id: 1, outcome: { id: 1, name: 'لا يرد' }, note: 'رنّ الهاتف ولم يُجب', duration_minutes: 0, user: mockUserRef(2), created_at: iso(-27) }],
   2: [{ id: 2, outcome: { id: 2, name: 'سيفكر' }, note: 'طلب مهلة حتى نهاية الأسبوع', duration_minutes: 4, user: mockUserRef(2), created_at: iso(-4) }],
+  // A long history, newest first, to exercise the call log's paging.
+  8: Array.from({ length: 45 }, (_, index) => ({ id: 100 + index, outcome: { id: 1, name: 'لا يرد' }, note: `محاولة رقم ${45 - index}`, duration_minutes: 0, user: mockUserRef(4), created_at: iso(-1 - index) })),
 })
 
 let settings = seedSettings()

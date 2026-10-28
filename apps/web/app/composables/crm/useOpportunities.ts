@@ -1,12 +1,14 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
-import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/vue-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/vue-query'
 import {
   CrmCallListSchema,
   CrmCallResultSchema,
   CrmOpportunityListSchema,
   CrmOpportunitySchema,
   type CrmAssignSchema,
+  type CrmCall,
   type CrmCallCreateSchema,
+  type CrmCallList,
   type CrmLostSchema,
   type CrmOpportunity,
   type CrmOpportunityCreate,
@@ -53,14 +55,30 @@ export function useCrmOpportunity(id: MaybeRefOrGetter<number>) {
   })
 }
 
+/** Calls per page of the record's call log. */
+export const CRM_CALL_PAGE = 20
+
+/** The offset of the next older page of calls, or undefined when every call is loaded. */
+export function nextCallOffset(pages: readonly CrmCallList[]): number | undefined {
+  const last = pages.at(-1)
+  if (!last) return undefined
+  const loaded = pages.reduce((sum, page) => sum + page.items.length, 0)
+  return last.items.length > 0 && loaded < last.total ? loaded : undefined
+}
+
+/** The calls of one opportunity, newest first; `fetchNextPage` loads the next older page. */
 export function useCrmCalls(id: MaybeRefOrGetter<number>) {
   const { $api } = useApi()
   const { can } = useAccess()
-  return useQuery({
+  const query = useInfiniteQuery({
     queryKey: computed(() => crmKeys.calls(toValue(id))),
     enabled: computed(() => toValue(id) > 0 && can('crm.leads.read')),
-    queryFn: () => $api(`/api/v1/crm/opportunities/${toValue(id)}/calls`, { query: { limit: 100 }, schema: CrmCallListSchema }),
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => $api(`/api/v1/crm/opportunities/${toValue(id)}/calls`, { query: { limit: CRM_CALL_PAGE, offset: pageParam }, schema: CrmCallListSchema }),
+    getNextPageParam: (_last, pages) => nextCallOffset(pages),
   })
+  const items = computed<CrmCall[]>(() => query.data.value?.pages.flatMap(page => page.items) ?? [])
+  return { ...query, items }
 }
 
 /**
