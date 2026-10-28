@@ -140,6 +140,12 @@ class TestCrmImport(WebVueCrmCase):
         rows = self.intake._webvue_read_rows('x.csv', b'Name;Phone\nSara;0501234567\n')
         self.assertEqual(rows, [{'Name': 'Sara', 'Phone': '0501234567'}])
 
+    def test_quoted_punctuation_does_not_pick_the_delimiter(self):
+        rows = self.intake._webvue_read_rows('x.csv', b'"Customer name, company";Phone\nSara;0501234567\n')
+        self.assertEqual(rows, [{'Customer name, company': 'Sara', 'Phone': '0501234567'}])
+        rows = self.intake._webvue_read_rows('x.csv', b'"Name, first"\tPhone\nSara\t0501234567\n')
+        self.assertEqual(rows, [{'Name, first': 'Sara', 'Phone': '0501234567'}])
+
     def test_windows_arabic_encoding_is_refused_with_a_clear_error(self):
         content = 'الاسم,الهاتف\nسارة,0501234567\n'.encode('cp1256')
         with self.assertRaises(ApiError) as caught:

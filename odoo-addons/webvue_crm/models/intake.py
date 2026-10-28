@@ -88,8 +88,13 @@ def _cell_text(value):
 
 
 def _delimiter(text):
-    first_line = text.partition('\n')[0]
-    return max(CSV_DELIMITERS, key=first_line.count)
+    """The delimiter that splits the header record into the most columns, parsed with CSV quoting rules."""
+    def columns(delimiter):
+        try:
+            return len(next(csv.reader(io.StringIO(text, newline=''), delimiter=delimiter), []))
+        except csv.Error:
+            return 0
+    return max(CSV_DELIMITERS, key=columns)
 
 
 def _header(cells):
