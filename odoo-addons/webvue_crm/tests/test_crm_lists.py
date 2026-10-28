@@ -157,13 +157,35 @@ class TestCrmLists(WebVueCrmCase):
     def test_stage_order_must_list_every_active_stage_once(self):
         self.as_manager()
         ids = self._ids('stages')
-        reordered = list(reversed(ids))
+        reordered = [ids[2], ids[1], ids[0], ids[3]]
         response = self.api('POST', f'{BASE}/stages/order', {'ids': reordered})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual([item['id'] for item in response.json()['items']], reordered)
         self.assertEqual(self._ids('stages'), reordered)
         for bad in (ids[:-1], [*ids, ids[0]], [*ids[:-1], 999999999], 'x'):
             self.assertEqual(self.api('POST', f'{BASE}/stages/order', {'ids': bad}).status_code, 422, bad)
+
+    def test_the_won_stage_cannot_be_first(self):
+        self.as_manager()
+        ids = self._ids('stages')
+        won = self._ref('stage_won')
+        response = self.api('POST', f'{BASE}/stages/order', {'ids': [won.id, *ids[:-1]]})
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'ids'))
+        self.assertEqual(self._ids('stages'), ids)
+        for stage in ids[:-1]:
+            if stage != ids[0]:
+                self.assertEqual(self.api('DELETE', f'{BASE}/stages/{stage}').status_code, 200)
+        first = self._ref('stage_new')
+        self.assertEqual(self.api('PATCH', f'{BASE}/stages/{first.id}', {'is_won': True}).status_code, 422)
+
+    def test_the_last_open_stage_cannot_be_archived(self):
+        self.as_manager()
+        new, contacted, interested = (self._ref(name) for name in ('stage_new', 'stage_contacted', 'stage_interested'))
+        for stage in (new, contacted):
+            self.assertEqual(self.api('DELETE', f'{BASE}/stages/{stage.id}').status_code, 200)
+        response = self.api('DELETE', f'{BASE}/stages/{interested.id}')
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'active'))
+        self.assertTrue(interested.active)
 
     def test_outcome_crud(self):
         self.as_manager()

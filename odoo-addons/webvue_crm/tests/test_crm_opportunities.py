@@ -78,6 +78,7 @@ class TestCrmOpportunities(WebVueCrmCase):
         self.assertFalse(self.env['crm.lead']._webvue_normalize_phone('12', self.company))
         response = self.create(self.agent, phone='12')
         self.assertEqual((response.status_code, response.json()['field']), (422, 'phone'))
+        self.assertEqual(response.json()['details'], {'reason': 'invalid_phone'})
 
     def test_duplicate_across_lost_and_archived_records_is_refused_without_disclosure(self):
         lost = self.make_lead(self.agent2, contact_name='Hidden', phone='+966501234567')
@@ -88,6 +89,7 @@ class TestCrmOpportunities(WebVueCrmCase):
         body = response.json()
         self.assertEqual(body['message'], 'duplicate phone')
         self.assertEqual(body['field'], 'phone')
+        self.assertEqual(body['details'], {'reason': 'duplicate_phone'})
         text = response.text
         for leak in (str(lost.id), self.agent2.name, 'Hidden'):
             self.assertNotIn(leak, text)
@@ -101,6 +103,7 @@ class TestCrmOpportunities(WebVueCrmCase):
             response = self.create(self.agent)
         self.assertEqual(response.status_code, 422)
         self.assertEqual((response.json()['message'], response.json()['field']), ('duplicate phone', 'phone'))
+        self.assertEqual(response.json()['details'], {'reason': 'duplicate_phone'})
         Lead = self.env['crm.lead'].with_context(active_test=False)
         self.assertEqual(Lead.search_count([('phone_sanitized', '=', '+966501234567')]), 1)
 
@@ -142,8 +145,16 @@ class TestCrmOpportunities(WebVueCrmCase):
         self.assertEqual(self.create(self.agent, stage_id=1).json()['field'], 'stage_id')
         response = self.as_agent().api('POST', URL, json={'contact_name': 'Customer'})
         self.assertEqual((response.status_code, response.json()['field']), (422, 'phone'))
-        self.assertEqual(self.create(self.agent, email='not-an-email').json()['field'], 'email')
+        bad_email = self.create(self.agent, email='not-an-email').json()
+        self.assertEqual((bad_email['field'], bad_email['details']), ('email', {'reason': 'invalid_email'}))
         self.assertEqual(self.create(self.agent, source_id=999999).json()['field'], 'source_id')
+
+    def test_create_starts_in_the_first_open_stage_even_when_the_won_stage_sorts_first(self):
+        self.env.ref('webvue_crm.stage_won').sequence = 1
+        self.env.ref('webvue_crm.stage_new').active = False
+        response = self.create(self.agent)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['stage']['id'], self.env.ref('webvue_crm.stage_contacted').id)
 
     # Detail, patch, list
 

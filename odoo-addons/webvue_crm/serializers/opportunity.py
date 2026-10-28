@@ -6,6 +6,10 @@ from odoo.addons.webvue_api.serializers.common import iso
 from odoo.addons.webvue_crm.models.crm_lead import EMAIL_MAX, NAME_MAX
 
 DUPLICATE_PHONE = 'duplicate phone'
+# Stable machine codes in `details.reason` of the 422 on `phone` and `email`; the UI translates them.
+INVALID_PHONE_REASON = 'invalid_phone'
+DUPLICATE_PHONE_REASON = 'duplicate_phone'
+INVALID_EMAIL_REASON = 'invalid_email'
 CREATE_FIELDS = ('contact_name', 'phone', 'email', 'source_id', 'user_id')
 PATCH_FIELDS = ('contact_name', 'phone', 'email', 'source_id', 'stage_id')
 REQUIRED_ON_CREATE = ('contact_name', 'phone')
@@ -74,7 +78,7 @@ def _email(value, field):
         return False
     text = parse_text(value, field, EMAIL_MAX)
     if not email_normalize(text):
-        raise ApiError(422, 'invalid', 'must be an email address', field=field)
+        raise ApiError(422, 'invalid', 'must be an email address', field=field, details={'reason': INVALID_EMAIL_REASON})
     return text
 
 

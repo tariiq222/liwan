@@ -56,6 +56,13 @@ def _stage_one_won():
         raise ApiError(422, 'invalid', 'exactly one active stage must be the won stage', field='is_won')
 
 
+def _stage_open_first(field):
+    """422 unless the first active stage is open: new opportunities start there, so the won stage cannot lead."""
+    first = request.env['crm.stage'].search([], limit=1)
+    if not first or first.is_won:
+        raise ApiError(422, 'invalid', 'the first stage must be an open stage', field=field)
+
+
 def _has_opportunities(stages):
     return bool(request.env['crm.lead'].with_context(active_test=False).search_count([('stage_id', 'in', stages.ids)]))
 
@@ -126,6 +133,7 @@ class CrmListsController(http.Controller):
             raise ApiError(422, 'invalid', 'ids must list every active stage exactly once', field='ids')
         for position, stage in enumerate(stages.browse(ids), start=1):
             stage.sequence = position * SEQUENCE_STEP
+        _stage_open_first('ids')
         return _list(request.env['crm.stage'], [], dump_stage)
 
     @http.route('/api/v1/crm/stages/<int:stage_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -150,6 +158,7 @@ class CrmListsController(http.Controller):
             _unflag_other_won(keep=stage)
         stage.write(vals)
         _stage_one_won()
+        _stage_open_first('is_won' if vals.get('is_won') else 'active')
         return dump_stage(stage)
 
     # Call outcomes

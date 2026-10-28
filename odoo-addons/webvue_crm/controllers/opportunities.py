@@ -13,6 +13,8 @@ from odoo.addons.webvue_api.controllers.common import (
 )
 from odoo.addons.webvue_crm.serializers.opportunity import (
     DUPLICATE_PHONE,
+    DUPLICATE_PHONE_REASON,
+    INVALID_PHONE_REASON,
     dump_opportunity,
     parse_list_filters,
     parse_opportunity_body,
@@ -65,9 +67,9 @@ def _normalized_phone(raw, lead=None):
     Lead = request.env['crm.lead']
     phone = Lead._webvue_normalize_phone(raw, company)
     if not phone:
-        raise ApiError(422, 'invalid', 'invalid phone', field='phone')
+        raise ApiError(422, 'invalid', 'invalid phone', field='phone', details={'reason': INVALID_PHONE_REASON})
     if (not lead or lead.phone_sanitized != phone) and Lead._webvue_find_duplicate(phone, company):
-        raise ApiError(422, 'invalid', DUPLICATE_PHONE, field='phone')
+        raise ApiError(422, 'invalid', DUPLICATE_PHONE, field='phone', details={'reason': DUPLICATE_PHONE_REASON})
     return phone
 
 
@@ -80,7 +82,7 @@ def _saved(operation):
     except UniqueViolation as error:
         if not request.env['crm.lead']._webvue_is_duplicate_phone(error):
             raise
-        raise ApiError(422, 'invalid', DUPLICATE_PHONE, field='phone') from None
+        raise ApiError(422, 'invalid', DUPLICATE_PHONE, field='phone', details={'reason': DUPLICATE_PHONE_REASON}) from None
     return result
 
 
@@ -156,6 +158,7 @@ class CrmOpportunitiesController(http.Controller):
         vals = {
             **_vals(parsed),
             'type': 'opportunity',
+            'stage_id': request.env['crm.lead']._webvue_first_stage().id,
             'company_id': request.env.company.id,
             'phone': _normalized_phone(parsed['phone']),
             'user_id': agent.id,

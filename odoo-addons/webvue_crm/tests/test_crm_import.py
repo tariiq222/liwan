@@ -506,6 +506,12 @@ class TestCrmImport(WebVueCrmCase):
         self.assertEqual(response.json()['unassigned'], 0)
         self.assertTrue(self.env['webvue.crm.rotation'].search([('company_id', '=', self.company.id)]).last_user_id)
 
+    def test_import_starts_in_the_first_open_stage_even_when_the_won_stage_sorts_first(self):
+        self.env.ref('webvue_crm.stage_won').sequence = 1
+        self.env.ref('webvue_crm.stage_new').active = False
+        self.assertEqual(self.commit(csv_bytes('Sara,0501234567')).status_code, 200)
+        self.assertEqual(self.lead_of('+966501234567').stage_id, self.env.ref('webvue_crm.stage_contacted'))
+
     def test_manual_mode_leaves_the_batch_in_the_pool(self):
         response = self.commit(csv_bytes('Sara,0501234567'))
         self.assertEqual(response.json()['unassigned'], 1)
