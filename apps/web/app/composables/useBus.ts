@@ -54,6 +54,10 @@ export function collectChatIds(notifications: BusNotification[]): number[] {
   return collectIds(notifications, 'webvue/chat')
 }
 
+export function collectInboxIds(notifications: BusNotification[]): number[] {
+  return collectIds(notifications, 'webvue/inbox')
+}
+
 // Pure: exponential backoff, 1s doubling up to a 30s ceiling, with +/-20%
 // jitter so many tabs reconnecting after a server bounce don't all land on
 // the same instant. `attempt` is the 0-indexed retry count.
@@ -194,6 +198,9 @@ function invalidateForFrame(notifications: BusNotification[]) {
   }
   if (collectChatIds(notifications).length) {
     queryClient.invalidateQueries({ queryKey: ['chat'] })
+  }
+  if (collectInboxIds(notifications).length) {
+    queryClient.invalidateQueries({ queryKey: ['inbox'] })
   }
 }
 

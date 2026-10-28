@@ -30,7 +30,7 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
     const hash = createHash('sha256'); let bytes = 0; let authText = ''
     req.on('data', chunk => { bytes += chunk.length; hash.update(chunk); if (req.url === '/web/session/authenticate' || req.url === '/api/v1/auth/totp') authText += chunk.toString() })
     req.on('end', () => {
-      const received = { path: req.url!, bytes, digest: hash.digest('hex') }
+      const received = { path: req.url!, bytes, digest: hash.digest('hex'), ...(req.headers['x-hub-signature-256'] ? { signature: req.headers['x-hub-signature-256'] } : {}) }
       calls.push(received)
       const respond = () => {
       res.setHeader('content-type', 'application/json')
@@ -137,6 +137,35 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
     },
   }
 }
+
+// The WhatsApp hook has no session: the signed envelope must reach Odoo byte for byte, since
+// Odoo verifies Meta's HMAC over the raw body, and a body above 1 MiB never reaches the queue.
+it.each(['shared', 'dedicated'] as const)('%s forwards the session-less WhatsApp hook body unchanged', async mode => {
+  const wire = await fixture(mode)
+  try {
+    const envelope = Buffer.from('{"object":"whatsapp_business_account","entry":[]}')
+    const hook = await wire.call('/api/v1/inbox/hooks/whatsapp', envelope, { 'content-type': 'application/json', 'x-hub-signature-256': 'sha256=00' })
+    expect(hook.status).toBe(200)
+    expect(hook.body).toEqual({ path: '/api/v1/inbox/hooks/whatsapp', bytes: envelope.length, digest: createHash('sha256').update(envelope).digest('hex'), signature: 'sha256=00' })
+    expect(wire.calls.map(call => call.path)).toEqual(['/api/v1/inbox/hooks/whatsapp'])
+  } finally { await wire.close() }
+})
+
+it.each(['shared', 'dedicated'] as const)('%s rejects a WhatsApp hook body above 1 MiB before queueing it', async mode => {
+  const wire = await fixture(mode)
+  let upload: http.ClientRequest | undefined
+  try {
+    const result = await new Promise<{ status: number; body: unknown }>((resolve, reject) => {
+      upload = http.request(new URL('/api/v1/inbox/hooks/whatsapp', wire.url), { method: 'POST', headers: { ...wire.headers, 'content-type': 'application/json', 'content-length': String(1024 * 1024 + 1) } }, response => {
+        let text = ''; response.on('data', chunk => { text += chunk }); response.on('end', () => resolve({ status: response.statusCode!, body: JSON.parse(text) }))
+      })
+      upload.on('error', reject); upload.setTimeout(500, () => upload!.destroy(Error('waited_for_oversized_hook_body'))); upload.flushHeaders()
+    })
+    expect(result.status).toBe(413)
+    expect(ApiErrorSchema.parse((result.body as { data: unknown }).data).code).toBe('payload_too_large')
+    expect(wire.calls).toHaveLength(0)
+  } finally { upload?.destroy(); await wire.close() }
+})
 
 // Both declared and chunked overflows must fail before a public MFA body reaches the work queue.
 it.each([
@@ -334,7 +363,7 @@ it.each((['shared', 'dedicated'] as const).flatMap(mode => ['', '/'].map(suffix 
   } finally { await wire.close() }
 })
 
-it.each([['shared', '/api/v1/branding', 'POST', 'GET, HEAD'], ['dedicated', '/api/v1/branding', 'POST', 'GET, HEAD'], ['shared', '/api/v1/auth/totp', 'GET', 'POST'], ['dedicated', '/api/v1/auth/totp', 'GET', 'POST']] as const)('%s public %s refuses unsupported %s before body buffering', async (mode, path, method, allow) => {
+it.each([['shared', '/api/v1/branding', 'POST', 'GET, HEAD'], ['dedicated', '/api/v1/branding', 'POST', 'GET, HEAD'], ['shared', '/api/v1/auth/totp', 'GET', 'POST'], ['dedicated', '/api/v1/auth/totp', 'GET', 'POST'], ['shared', '/api/v1/inbox/hooks/whatsapp', 'PUT', 'GET, POST'], ['dedicated', '/api/v1/inbox/hooks/whatsapp', 'PUT', 'GET, POST']] as const)('%s public %s refuses unsupported %s before body buffering', async (mode, path, method, allow) => {
   const wire = await fixture(mode, true)
   let upload: http.ClientRequest | undefined
   try {
