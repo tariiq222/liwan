@@ -693,6 +693,21 @@ class WebVueAccessService(models.AbstractModel):
             records[key].write({
                 'dependency_ids': [Command.set([records[item].id for item in sorted(required)])],
             })
+        self._webvue_complete_custom_role_dependencies()
+        return True
+
+    @api.model
+    def _webvue_complete_custom_role_dependencies(self):
+        """Add to every custom role the permissions its own permissions now depend on.
+
+        A role saved before a dependency existed would otherwise keep failing for its users and
+        could no longer be saved. Writing the role re-syncs its users' capability groups.
+        """
+        roles = self.env['webvue.access.role'].with_context(active_test=False).search([('type', '=', 'custom')])
+        for role in roles:
+            missing = role.permission_ids.dependency_ids - role.permission_ids
+            if missing:
+                role._webvue_do_write({'permission_ids': [Command.link(permission.id) for permission in missing]})
         return True
 
     @api.model
