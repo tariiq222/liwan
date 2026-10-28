@@ -8,6 +8,8 @@ import { models } from './e2e/models.ts';
 const PERSONA_KEYS = [
   'ceo', 'it_admin', 'hr_manager', 'payroll', 'cfo', 'accountant',
   'auditor', 'pm', 'ops_manager', 'staff1', 'staff2',
+  'users_reader', 'ops_monitor', 'docs_editor', 'fin_reader', 'no_ai', 'payroll_finance', 'no_roles',
+  'jeddah_staff', 'dammam_manager',
 ] as const;
 
 // Jev (TypeSafe System One) gives the assert/waitFor verdicts from the text

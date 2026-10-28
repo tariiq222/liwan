@@ -82,6 +82,15 @@ database. Login is `e2e_<key>`; the credentials are declared in
 | `ops_manager` | لمى السبيعي, مديرة العمليات | العمليات | ceo | employee, operations_manager |
 | `staff1` | يوسف المالكي, مطور برمجيات | تقنية المعلومات | pm | employee |
 | `staff2` | سارة العمري, منسقة عمليات | العمليات | ops_manager | employee |
+| `users_reader` | رامي القرني | تقنية المعلومات | it_admin | employee + custom «قراءة المستخدمين فقط» (`access.users.read`) |
+| `ops_monitor` | دانة الزهراني | العمليات | ops_manager | employee + custom «متابعة العمليات فقط» (`operations.monitoring.read`) |
+| `docs_editor` | تركي البقمي | الموارد البشرية | hr_manager | employee + custom «تحرير المستندات بلا إدارة الوصول» (`documents.items.manage`) |
+| `fin_reader` | أمل الجهني | المالية | cfo | employee + custom «قراءة المدفوعات فقط» (`finance.payments.read`) |
+| `no_ai` | بدر الرشيدي | العمليات | ops_manager | custom «موظف بلا مساعد ذكي» (employee without `ai.use`) |
+| `payroll_finance` | جواهر العنزي | المالية | cfo | employee, payroll_manager, finance_manager |
+| `no_roles` | سعد الحربي | تقنية المعلومات | it_admin | none (internal user without any role) |
+| `jeddah_staff` | وليد الحارثي | branch «فرع جدة» only | — | employee (in the branch) |
+| `dammam_manager` | منيرة الشهري | branch «فرع الدمام» only | — | employee, hr_manager, documents_manager, operations_manager, finance_manager (in the branch) |
 | `admin` | E2E Admin (technical) | — | — | legacy admin groups, used by the older journeys |
 | `employee` | E2E Employee (technical) | — | — | employee |
 
@@ -94,6 +103,11 @@ is reused between runs.
 - Scratch Odoo stack: `npm run e2e:odoo -- e2e/tests/<file>.e2e.ts`. Re-seed with
   `E2E_ODOO_SEED=1`, rebuild with `E2E_ODOO_RESET=1`. Details in
   [docs/testing.md](../../docs/testing.md#4-agentic-e2e).
+- Scheduled jobs do not run on the scratch stack (`max_cron_threads = 0`). Reminder, digest and
+  auto-validation scenarios trigger them with `tools/e2e_cron.py` (see its docstring; `E2E_CRONS`
+  selects jobs by XML id).
+- The two branches are child companies of the root, so «another company» scenarios use a branch
+  persona and its records.
 - Never against `:3000`, `:8069` or the `odoo19` database; test data only.
 - A passing scenario proves the local isolated stack, not staging or production.
 
