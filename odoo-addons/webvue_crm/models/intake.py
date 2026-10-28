@@ -12,11 +12,17 @@ from odoo import api, models
 from odoo.tools import email_normalize, plaintext2html
 
 from odoo.addons.webvue_api.controllers.common import ApiError
+from odoo.addons.webvue_crm.models.crm_lead import EMAIL_MAX, NAME_MAX
 
 MAX_ROWS = 5000
 MAX_BYTES = 5 * 1024 * 1024
-NAME_MAX = 200
-EMAIL_MAX = 254
+# Real spreadsheet XML compresses about 10 to 1, so a workbook within MAX_BYTES unpacks to well under
+# this; a larger declared size is a decompression bomb. The sum is read from the zip directory.
+MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
+# Every record counts, blank or not, so a forged sheet range cannot make the reader walk a million rows.
+MAX_SCAN_ROWS = 4 * MAX_ROWS
+# Customer sheets have a handful of columns; the reader never looks beyond this many.
+MAX_COLUMNS = 50
 PREVIEW_ROW_LIMIT = 100
 CSV_DELIMITERS = ',;\t'
 FIELDS = ('name', 'phone', 'email', 'notes', 'package')
@@ -25,6 +31,8 @@ FILE_EMPTY = 'the file is empty'
 FILE_NO_ROWS = 'the file has no rows'
 FILE_TOO_LARGE = 'the file is larger than 5 MB'
 FILE_TOO_MANY_ROWS = f'the file has more than {MAX_ROWS} rows'
+FILE_TOO_MANY_COLUMNS = f'the file has more than {MAX_COLUMNS} columns'
+FILE_DUPLICATE_HEADER = 'duplicate_header'
 FILE_NOT_UTF8 = 'the file must be saved as UTF-8'
 FILE_BAD_CSV = 'the file is not a valid CSV file'
 FILE_BAD_XLSX = 'the file is not a valid XLSX workbook'
@@ -35,7 +43,19 @@ def _file_error(message):
     return ApiError(422, 'invalid', message, field='file')
 
 
-def _text(value):
+class SourceRow(dict):
+    """A row's text by column header, and ``number``: its row in the source, the header being row 1.
+
+    A spreadsheet row keeps its number when blank rows precede it. A CSV row is the record number, so a
+    quoted cell with a line break is one row, as Excel shows it. Every source of rows hands over these.
+    """
+
+    def __init__(self, number, values):
+        super().__init__(values)
+        self.number = number
+
+
+def _cell_text(value):
     """A cell as text: no decimal point on whole numbers (``501234567.0`` -> ``501234567``)."""
     if value is None:
         return ''
@@ -51,22 +71,42 @@ def _delimiter(text):
     return max(CSV_DELIMITERS, key=first_line.count)
 
 
-def _records(table):
-    """Header-keyed dicts of every non-blank data row; 422 on an empty or oversized table."""
-    table = iter(table)
-    header = next(table, None)
-    if header is None:
+def _header(cells):
+    """The column names of the first record (blank names stay, so positions line up)."""
+    names = [_cell_text(cell) for cell in cells]
+    if not any(names):
         raise _file_error(FILE_EMPTY)
-    names = [_text(cell) for cell in header]
+    if any(names[MAX_COLUMNS:]):
+        raise _file_error(FILE_TOO_MANY_COLUMNS)
+    names = names[:MAX_COLUMNS]
+    named = [name for name in names if name]
+    if len(set(named)) != len(named):
+        raise _file_error(FILE_DUPLICATE_HEADER)
+    return names
+
+
+def _records(table):
+    """The non-blank data rows of ``table`` (an iterable of cell sequences) as ``SourceRow``s.
+
+    422 on an empty, oversized or ambiguous table. Every record read counts toward ``MAX_SCAN_ROWS``.
+    """
+    names = None
     rows = []
-    for cells in table:
-        values = [_text(cell) for cell in cells]
+    for number, cells in enumerate(table, start=1):
+        if number > MAX_SCAN_ROWS:
+            raise _file_error(FILE_TOO_MANY_ROWS)
+        if names is None:
+            names = _header(cells)
+            continue
+        values = [_cell_text(cell) for cell in cells[:MAX_COLUMNS]]
         if not any(values):
             continue
         if len(rows) == MAX_ROWS:
             raise _file_error(FILE_TOO_MANY_ROWS)
         values += [''] * (len(names) - len(values))
-        rows.append({name: value for name, value in zip(names, values, strict=False) if name})
+        rows.append(SourceRow(number, {name: value for name, value in zip(names, values, strict=False) if name}))
+    if names is None:
+        raise _file_error(FILE_EMPTY)
     if not rows:
         raise _file_error(FILE_NO_ROWS)
     return rows
@@ -89,7 +129,7 @@ class WebVueCrmIntake(models.AbstractModel):
         """The data rows of a CSV or XLSX file as ``{column header: text}`` dicts, blank rows dropped.
 
         422 on a file that is too large, has too many rows, is not UTF-8 text or a workbook,
-        or has no data. Row ``n`` of the result is row ``n + 1`` of the file when it has no blank rows.
+        or has no data. Each row knows its number in the file (see ``SourceRow``).
         """
         extension = next((ext for ext in READERS if filename.lower().endswith(ext)), None)
         if extension is None:
@@ -112,11 +152,21 @@ class WebVueCrmIntake(models.AbstractModel):
     @api.model
     def _webvue_read_xlsx(self, content):
         try:
+            with zipfile.ZipFile(io.BytesIO(content)) as archive:
+                unpacked = sum(entry.file_size for entry in archive.infolist())
+        except zipfile.BadZipFile:
+            raise _file_error(FILE_BAD_XLSX) from None
+        if unpacked > MAX_UNCOMPRESSED_BYTES:
+            raise _file_error(FILE_TOO_LARGE)
+        try:
             book = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
         except (zipfile.BadZipFile, InvalidFileException, KeyError, OSError, ValueError):
             raise _file_error(FILE_BAD_XLSX) from None
         try:
-            return _records(book.worksheets[0].iter_rows(values_only=True) if book.worksheets else [])
+            # One column past the limit lets the header check see an extra named column; max_col also
+            # stops a forged sheet range from padding every row to thousands of cells.
+            sheet = book.worksheets[0] if book.worksheets else None
+            return _records(sheet.iter_rows(max_col=MAX_COLUMNS + 1, values_only=True) if sheet else [])
         finally:
             book.close()
 
@@ -153,12 +203,12 @@ class WebVueCrmIntake(models.AbstractModel):
         packages = self._webvue_packages(company) if mapping.get('package') else {}
         seen = set()
         checked = []
-        for number, row in enumerate(rows, start=2):
+        for row in rows:
             vals, reason = self._webvue_row_values(row, mapping, company, packages)
             duplicate = not reason and (vals['phone'] in seen or Lead._webvue_find_duplicate(vals['phone'], company))
             if not reason:
                 seen.add(vals['phone'])
-            checked.append({'row': number, 'vals': vals, 'reason': reason, 'duplicate': duplicate})
+            checked.append({'row': row.number, 'vals': vals, 'reason': reason, 'duplicate': duplicate})
         return checked
 
     @api.model
@@ -207,7 +257,7 @@ class WebVueCrmIntake(models.AbstractModel):
         }
 
     @api.model
-    def _webvue_commit(self, rows, mapping, source, agent, company, user, file_name=''):
+    def _webvue_commit(self, rows, mapping, source, agent, company, user, file_name):
         """Create the new rows as opportunities in the first stage, distribute them, record the batch.
 
         Everything is judged again here. Each opportunity is created in its own savepoint, so a

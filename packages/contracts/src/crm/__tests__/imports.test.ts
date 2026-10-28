@@ -1,5 +1,7 @@
 import {
   CrmImportBatchListSchema,
+  CrmImportFileInfoSchema,
+  CrmImportFileSchema,
   CrmImportMappingCreateSchema,
   CrmImportMappingSchema,
   CrmImportPreviewSchema,
@@ -12,8 +14,9 @@ describe('CrmImportRequestSchema', () => {
   it('needs a mapping or a saved profile', () => {
     const file = { file_name: 'customers.csv', content_base64: 'TmFtZQ==' }
     expect(CrmImportRequestSchema.parse({ ...file, mapping: columns, source_id: 3 }).source_id).toBe(3)
-    expect(CrmImportRequestSchema.parse({ ...file, mapping_profile: 4 }).mapping_profile).toBe(4)
-    expect(() => CrmImportRequestSchema.parse(file)).toThrow()
+    expect(CrmImportRequestSchema.parse({ ...file, mapping_profile: 4, source_id: 3 }).mapping_profile).toBe(4)
+    expect(() => CrmImportRequestSchema.parse({ ...file, source_id: 3 })).toThrow()
+    expect(() => CrmImportRequestSchema.parse({ ...file, mapping: columns })).toThrow()
   })
 
   it('requires name and phone columns and rejects unknown ones', () => {
@@ -53,5 +56,21 @@ describe('import responses', () => {
     const base = { new: 0, duplicate: 1, invalid: 0, invalid_rows: [], duplicate_rows: [2] }
     expect(() => CrmImportPreviewSchema.parse({ ...base, invalid_rows: [{ row: 2, reason: 'other' }] })).toThrow()
     expect(() => CrmImportPreviewSchema.parse({ ...base, existing: [{ id: 9 }] })).toThrow()
+  })
+})
+
+describe('import file routes', () => {
+  it('accepts the columns request and response shapes', () => {
+    const request = { file_name: 'customers.csv', content_base64: 'TmFtZQ==' }
+    expect(CrmImportFileSchema.parse(request)).toEqual(request)
+    expect(() => CrmImportFileSchema.parse({ ...request, source_id: 1 })).toThrow()
+    const info = { columns: ['Name', 'Phone'], rows: 3 }
+    expect(CrmImportFileInfoSchema.parse(info)).toEqual(info)
+    expect(() => CrmImportFileInfoSchema.parse({ ...info, rows: -1 })).toThrow()
+  })
+
+  it('refuses a mapping together with a profile', () => {
+    const file = { file_name: 'customers.csv', content_base64: 'TmFtZQ==' }
+    expect(() => CrmImportRequestSchema.parse({ ...file, mapping: columns, mapping_profile: 4, source_id: 3 })).toThrow()
   })
 })

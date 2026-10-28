@@ -3,9 +3,8 @@ from odoo.tools import email_normalize
 
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_api.serializers.common import iso
+from odoo.addons.webvue_crm.models.crm_lead import EMAIL_MAX, NAME_MAX
 
-NAME_MAX = 200
-EMAIL_MAX = 254
 DUPLICATE_PHONE = 'duplicate phone'
 CREATE_FIELDS = ('contact_name', 'phone', 'email', 'source_id', 'user_id')
 PATCH_FIELDS = ('contact_name', 'phone', 'email', 'source_id', 'stage_id')
@@ -53,7 +52,7 @@ def dump_view(row):
     }
 
 
-def _text(value, field, maximum):
+def parse_text(value, field, maximum):
     text = value.strip() if isinstance(value, str) else ''
     if not text or len(text) > maximum:
         raise ApiError(422, 'invalid', f'must be text of 1 to {maximum} characters', field=field)
@@ -73,7 +72,7 @@ def parse_id_or_null(value, field):
 def _email(value, field):
     if value in (None, ''):
         return False
-    text = _text(value, field, EMAIL_MAX)
+    text = parse_text(value, field, EMAIL_MAX)
     if not email_normalize(text):
         raise ApiError(422, 'invalid', 'must be an email address', field=field)
     return text
@@ -97,7 +96,7 @@ def parse_opportunity_body(payload, creating):
     parsed = {}
     for name, value in payload.items():
         if name in ('contact_name', 'phone'):
-            parsed[name] = _text(value, name, NAME_MAX)
+            parsed[name] = parse_text(value, name, NAME_MAX)
         elif name == 'email':
             parsed[name] = _email(value, name)
         elif name == 'stage_id':

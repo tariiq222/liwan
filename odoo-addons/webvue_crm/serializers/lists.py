@@ -3,8 +3,9 @@ import math
 
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_crm.models.call_outcome import EFFECTS
+from odoo.addons.webvue_crm.models.crm_lead import NAME_MAX
+from odoo.addons.webvue_crm.serializers.opportunity import parse_text
 
-NAME_MAX = 200
 PRICE_MAX = 999_999_999
 
 
@@ -46,10 +47,7 @@ def parse_active_filter(args):
 
 
 def _name(value, field):
-    text = value.strip() if isinstance(value, str) else ''
-    if not text or len(text) > NAME_MAX:
-        raise ApiError(422, 'invalid', f'must be text of 1 to {NAME_MAX} characters', field=field)
-    return text
+    return parse_text(value, field, NAME_MAX)
 
 
 def _boolean(value, field):

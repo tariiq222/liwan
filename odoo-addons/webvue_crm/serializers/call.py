@@ -4,7 +4,7 @@ import math
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_api.serializers.common import iso
 from odoo.addons.webvue_crm.serializers.lists import parse_price
-from odoo.addons.webvue_crm.serializers.opportunity import parse_id
+from odoo.addons.webvue_crm.serializers.opportunity import parse_id, ref
 
 NOTE_MAX = 2000
 DURATION_MAX_MINUTES = 1440
@@ -12,17 +12,13 @@ CALL_FIELDS = ('outcome_id', 'note', 'duration_minutes')
 SALE_FIELDS = ('package_id', 'final_price', 'discount_percent')
 
 
-def _ref(record):
-    return {'id': record.id, 'name': record.display_name} if record else None
-
-
 def dump_call(call):
     return {
         'id': call.id,
-        'outcome': _ref(call.webvue_outcome_id),
+        'outcome': ref(call.webvue_outcome_id),
         'note': call.description or '',
         'duration_minutes': call.duration,
-        'user': _ref(call.user_id),
+        'user': ref(call.user_id),
         'created_at': iso(call.date),
     }
 

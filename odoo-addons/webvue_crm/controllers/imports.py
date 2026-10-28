@@ -17,6 +17,7 @@ from odoo.addons.webvue_crm.serializers.imports import (
     dump_batch,
     dump_mapping,
     mapping_values,
+    parse_file_body,
     parse_import_body,
     parse_profile_body,
 )
@@ -37,10 +38,14 @@ def _profile_columns(profile_id):
 
 
 def _prepare(payload):
-    """The parsed body, its column map and the file's rows."""
+    """The parsed body, the choices that body makes, its column map and the file's rows.
+
+    Preview and import share it, so a preview shows every error the import would.
+    """
     parsed = parse_import_body(payload)
     mapping = parsed['mapping'] or _profile_columns(parsed['mapping_profile'])
-    return parsed, mapping, _intake()._webvue_read_rows(parsed['file_name'], parsed['content'])
+    rows = _intake()._webvue_read_rows(parsed['file_name'], parsed['content'])
+    return parsed, mapping, rows, _source(parsed['source_id']), _agent(parsed['user_id'])
 
 
 def _source(source_id):
@@ -74,17 +79,24 @@ class CrmImportsController(http.Controller):
     @requires_feature(*FEATURES, operation='write')
     @requires_capability(IMPORT)
     def preview_import(self, **payload):
-        _, mapping, rows = _prepare(payload)
+        _, mapping, rows, _, _ = _prepare(payload)
         return _intake()._webvue_preview(rows, mapping, request.env.company)
+
+    @http.route('/api/v1/crm/imports/columns', type='json2', auth='user', methods=['POST'], readonly=True)
+    @api_handler
+    @requires_feature(*FEATURES, operation='write')
+    @requires_capability(IMPORT)
+    def import_columns(self, **payload):
+        parsed = parse_file_body(payload)
+        rows = _intake()._webvue_read_rows(parsed['file_name'], parsed['content'])
+        return {'columns': list(rows[0]), 'rows': len(rows)}
 
     @http.route('/api/v1/crm/imports', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature(*FEATURES, operation='write')
     @requires_capability(IMPORT)
     def create_import(self, **payload):
-        parsed, mapping, rows = _prepare(payload)
-        source = _source(parsed['source_id'])
-        agent = _agent(parsed['user_id'])
+        parsed, mapping, rows, source, agent = _prepare(payload)
         batch = _intake()._webvue_commit(
             rows, mapping, source, agent, request.env.company, request.env.user, file_name=parsed['file_name'],
         )

@@ -7,6 +7,8 @@ from odoo.addons.phone_validation.tools.phone_validation import phone_format
 # Arabic-Indic (U+0660..) and Eastern Arabic-Indic (U+06F0..) digits read as ASCII digits.
 ARABIC_DIGITS = str.maketrans('٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹', '01234567890123456789')
 DEFAULT_COUNTRY = 'base.sa'
+NAME_MAX = 200
+EMAIL_MAX = 254
 
 
 class CrmLead(models.Model):

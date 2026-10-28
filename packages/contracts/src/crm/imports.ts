@@ -37,18 +37,28 @@ export const CrmImportMappingCreateSchema = z.strictObject({
   columns: CrmImportColumnsSchema,
 })
 
-// Send `mapping` or the id of a saved `mapping_profile`; `source_id` is required to import and the
-// agent (`user_id`) only while distribution is "on import". The preview ignores both.
+export const CrmImportFileSchema = z.strictObject({
+  file_name: z.string().trim().min(1).max(NAME_MAX),
+  content_base64: z.string(),
+})
+
+// The header names a file offers for mapping, and how many data rows it holds.
+export const CrmImportFileInfoSchema = z.strictObject({
+  columns: z.array(z.string()),
+  rows: z.number().int().min(0),
+})
+
+// Send `mapping` or the id of a saved `mapping_profile`, not both. `source_id` is required and the
+// agent (`user_id`) only while distribution is "on import"; the preview checks both like the import.
 export const CrmImportRequestSchema = z
   .strictObject({
-    file_name: z.string().trim().min(1).max(NAME_MAX),
-    content_base64: z.string(),
+    ...CrmImportFileSchema.shape,
     mapping: CrmImportColumnsSchema.optional(),
     mapping_profile: z.number().int().positive().nullable().optional(),
-    source_id: z.number().int().positive().nullable().optional(),
+    source_id: z.number().int().positive(),
     user_id: z.number().int().positive().nullable().optional(),
   })
-  .refine((body) => body.mapping !== undefined || !!body.mapping_profile, 'send a mapping or a mapping profile')
+  .refine((body) => (body.mapping !== undefined) !== !!body.mapping_profile, 'send a mapping or a mapping profile, not both')
 
 // Stable machine codes; the UI translates them.
 export const CrmImportInvalidReasonSchema = z.enum([
@@ -86,6 +96,8 @@ export const CrmImportBatchListSchema = z.strictObject({
 })
 
 export type CrmImportColumns = z.infer<typeof CrmImportColumnsSchema>
+export type CrmImportFile = z.infer<typeof CrmImportFileSchema>
+export type CrmImportFileInfo = z.infer<typeof CrmImportFileInfoSchema>
 export type CrmImportMapping = z.infer<typeof CrmImportMappingSchema>
 export type CrmImportMappingList = z.infer<typeof CrmImportMappingListSchema>
 export type CrmImportMappingCreate = z.infer<typeof CrmImportMappingCreateSchema>

@@ -1,6 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import base64
 import io
+import re
+import time
+import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -11,8 +14,14 @@ from odoo.tests import tagged
 from .common import WebVueCrmCase
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_api.tests.common import set_probe_feature
+from odoo.addons.webvue_crm.models.intake import (
+    MAX_BYTES,
+    MAX_COLUMNS,
+    MAX_UNCOMPRESSED_BYTES,
+)
 
 PREVIEW_URL = '/api/v1/crm/imports/preview'
+COLUMNS_URL = '/api/v1/crm/imports/columns'
 IMPORTS_URL = '/api/v1/crm/imports'
 MAPPINGS_URL = '/api/v1/crm/import-mappings'
 DATA = Path(__file__).parent / 'data'
@@ -22,6 +31,38 @@ HEADER = 'Name,Phone\n'
 
 def encoded(content):
     return base64.b64encode(content).decode()
+
+
+def csv_of_size(size):
+    """A valid CSV of exactly ``size`` bytes: customer rows with a long unmapped ``Pad`` column."""
+    head = b'Name,Phone,Pad\n'
+    line = 100_000
+    count, extra = divmod(size - len(head), line)
+    first = b'Sara,0501234567,' + b'x' * (line + extra - 17) + b'\n'
+    other = b'Sara,0501234567,' + b'x' * (line - 17) + b'\n'
+    return head + first + other * (count - 1)
+
+
+def xlsx_bytes(cells, dimension=None, extra=None):
+    """A workbook with ``cells`` ({(row, column): value}); ``dimension`` forges the sheet's declared
+    range and ``extra`` is the byte size of a highly compressible junk member."""
+    book = openpyxl.Workbook()
+    for (row, column), value in cells.items():
+        book.active.cell(row=row, column=column, value=value)
+    buffer = io.BytesIO()
+    book.save(buffer)
+    if dimension is None and extra is None:
+        return buffer.getvalue()
+    out = io.BytesIO()
+    with zipfile.ZipFile(buffer) as source, zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as target:
+        for item in source.infolist():
+            data = source.read(item.filename)
+            if dimension and item.filename == 'xl/worksheets/sheet1.xml':
+                data = re.sub(rb'<dimension ref="[^"]*"/>', f'<dimension ref="{dimension}"/>'.encode(), data)
+            target.writestr(item.filename, data)
+        if extra:
+            target.writestr('docProps/junk.bin', b'\0' * extra)
+    return out.getvalue()
 
 
 def csv_bytes(*rows, header=HEADER):
@@ -105,10 +146,19 @@ class TestCrmImport(WebVueCrmCase):
         self.assertEqual((caught.exception.status, caught.exception.field), (422, 'file'))
 
     def test_size_limit_is_five_megabytes(self):
-        too_big = csv_bytes('Sara,0501234567') + b' ' * (5 * 1024 * 1024)
-        response = self.preview(too_big)
-        self.assertEqual(response.status_code, 422, response.text)
-        self.assertEqual(response.json()['field'], 'file')
+        at_limit = csv_of_size(MAX_BYTES)
+        self.assertEqual(len(at_limit), MAX_BYTES)
+        self.assertEqual(self.preview(at_limit).status_code, 200)
+        # One byte over passes the encoded-length check and is refused after decoding; twice the
+        # limit is refused on its encoded length alone.
+        for content in (csv_of_size(MAX_BYTES + 1), csv_of_size(2 * MAX_BYTES)):
+            with self.subTest(size=len(content)):
+                response = self.preview(content)
+                self.assertEqual(response.status_code, 422, response.text)
+                self.assertEqual(response.json()['field'], 'file')
+        with self.assertRaises(ApiError) as caught:
+            self.intake._webvue_read_rows('x.csv', csv_of_size(MAX_BYTES + 1))
+        self.assertEqual((caught.exception.status, caught.exception.field), (422, 'file'))
 
     def test_unreadable_files_are_refused(self):
         for name, content in (('customers.xlsx', b'not a workbook'), ('customers.txt', b'Name,Phone\n'), ('customers.csv', b''),
@@ -123,6 +173,92 @@ class TestCrmImport(WebVueCrmCase):
         response = self.as_manager().api('POST', PREVIEW_URL, json=body)
         self.assertEqual(response.status_code, 422, response.text)
         self.assertEqual(response.json()['field'], 'content_base64')
+
+    def test_xlsx_with_a_huge_uncompressed_size_is_refused_before_it_is_opened(self):
+        small = xlsx_bytes({(1, 1): 'Name', (1, 2): 'Phone', (2, 1): 'Sara', (2, 2): '0501234567'})
+        self.assertEqual(len(self.intake._webvue_read_rows('x.xlsx', small)), 1)
+        bomb = xlsx_bytes({(1, 1): 'Name', (1, 2): 'Phone', (2, 1): 'Sara', (2, 2): '0501234567'},
+                          extra=MAX_UNCOMPRESSED_BYTES)
+        self.assertLess(len(bomb), MAX_BYTES)
+        with self.assertRaises(ApiError) as caught:
+            self.intake._webvue_read_rows('x.xlsx', bomb)
+        self.assertEqual((caught.exception.status, caught.exception.field), (422, 'file'))
+
+    def test_forged_wide_dimension_does_not_make_the_reader_scan_every_column(self):
+        cells = {(1, 1): 'Name', (1, 2): 'Phone', **{(row, 1): f'Customer {row}' for row in range(2, 4002)},
+                 **{(row, 2): '0501234567' for row in range(2, 4002)}}
+        forged = xlsx_bytes(cells, dimension='A1:XFD1048576')
+        started = time.monotonic()
+        rows = self.intake._webvue_read_rows('x.xlsx', forged)
+        self.assertLess(time.monotonic() - started, 10)
+        self.assertEqual(len(rows), 4000)
+        self.assertEqual(set(rows[0]), {'Name', 'Phone'})
+
+    def test_a_row_far_below_the_data_hits_the_scan_limit(self):
+        cells = {(1, 1): 'Name', (1, 2): 'Phone', (2, 1): 'Sara', (2, 2): '0501234567', (1_000_000, 1): 'Far'}
+        started = time.monotonic()
+        response = self.preview(xlsx_bytes(cells), file_name='x.xlsx')
+        self.assertLess(time.monotonic() - started, 10)
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'file'))
+
+    def test_more_columns_than_the_limit_are_refused(self):
+        header = ','.join(f'Column {number}' for number in range(MAX_COLUMNS + 1))
+        response = self.preview(f'{header}\n'.encode(), mapping={'name': 'Column 0', 'phone': 'Column 1'})
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'file'))
+        xlsx = xlsx_bytes({(1, number + 1): f'Column {number}' for number in range(MAX_COLUMNS + 1)} | {(2, 1): 'x'})
+        response = self.preview(xlsx, file_name='x.xlsx', mapping={'name': 'Column 0', 'phone': 'Column 1'})
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'file'))
+
+    def test_duplicate_headers_are_refused_by_every_route(self):
+        content = b'Name,Phone,Name\nSara,0501234567,Omar\n'
+        sheet = xlsx_bytes({(1, 1): 'Name', (1, 2): 'Phone', (1, 3): 'Name', (2, 1): 'Sara'})
+        for url in (PREVIEW_URL, IMPORTS_URL, COLUMNS_URL):
+            for name, data in (('x.csv', content), ('x.xlsx', sheet)):
+                with self.subTest(url=url, name=name):
+                    body = self.body(data, file_name=name)
+                    if url == COLUMNS_URL:
+                        body = {key: body[key] for key in ('file_name', 'content_base64')}
+                    response = self.as_manager().api('POST', url, json=body)
+                    self.assertEqual(response.status_code, 422, response.text)
+                    self.assertEqual((response.json()['field'], response.json()['message']), ('file', 'duplicate_header'))
+        self.assertFalse(self.lead_of('+966501234567'))
+
+    # Row numbers
+
+    def test_row_numbers_are_source_rows_even_after_a_blank_row(self):
+        self.make_lead(self.agent2, contact_name='Existing', phone='+966501112222')
+        csv_content = csv_bytes('Sara,0501234567', ',', 'Omar,12', 'Huda,0501112222', '', ',', 'Lina,0501234567')
+        sheet = {(1, 1): 'Name', (1, 2): 'Phone', (2, 1): 'Sara', (2, 2): '0501234567', (4, 1): 'Omar', (4, 2): '12',
+                 (5, 1): 'Huda', (5, 2): '0501112222', (8, 1): 'Lina', (8, 2): '0501234567'}
+        for name, content in (('x.csv', csv_content), ('x.xlsx', xlsx_bytes(sheet))):
+            with self.subTest(name=name):
+                body = self.preview(content, file_name=name).json()
+                self.assertEqual(body['invalid_rows'], [{'row': 4, 'reason': 'invalid_phone'}])
+                self.assertEqual(body['duplicate_rows'], [5, 8])
+
+    def test_a_csv_cell_with_a_line_break_is_one_row(self):
+        content = b'Name,Phone\n"Sara\nAl",0501234567\nOmar,12\n'
+        body = self.preview(content).json()
+        self.assertEqual(body['invalid_rows'], [{'row': 3, 'reason': 'invalid_phone'}])
+
+    # Columns
+
+    def test_columns_route_lists_headers_and_counts_rows(self):
+        for name, content in (('x.csv', (DATA / 'customers.csv').read_bytes()), ('x.xlsx', (DATA / 'customers.xlsx').read_bytes())):
+            with self.subTest(name=name):
+                response = self.as_manager().api('POST', COLUMNS_URL, json={'file_name': name, 'content_base64': encoded(content)})
+                self.assertEqual(response.status_code, 200, response.text)
+                self.assertEqual(response.json(), {'columns': ['Name', 'Phone', 'Email', 'Notes', 'Package'], 'rows': 3})
+
+    def test_columns_route_has_the_same_gates_and_limits(self):
+        body = {'file_name': 'x.csv', 'content_base64': encoded(csv_bytes('Sara,0501234567'))}
+        self.assertEqual(self.as_agent().api('POST', COLUMNS_URL, json=body).status_code, 403)
+        bad = self.as_manager().api('POST', COLUMNS_URL, json={**body, 'content_base64': encoded('الاسم\n'.encode('cp1256'))})
+        self.assertEqual((bad.status_code, bad.json()['field']), (422, 'file'))
+        extra = self.as_manager().api('POST', COLUMNS_URL, json={**body, 'source_id': 1})
+        self.assertEqual((extra.status_code, extra.json()['field']), (422, 'source_id'))
+        set_probe_feature(self, key='crm.import', enabled=False)
+        self.assertEqual(self.as_manager().api('POST', COLUMNS_URL, json=body).status_code, 403)
 
     # Preview
 
@@ -262,6 +398,27 @@ class TestCrmImport(WebVueCrmCase):
         retired = self.commit(content)
         self.assertEqual((retired.status_code, retired.json()['field']), (422, 'source_id'))
         self.assertFalse(self.lead_of('+966501234567'))
+
+    def test_preview_reflects_the_errors_of_the_commit(self):
+        content = csv_bytes('Sara,0501234567')
+        body = self.body(content)
+        del body['source_id']
+        missing = self.as_manager().api('POST', PREVIEW_URL, json=body)
+        self.assertEqual((missing.status_code, missing.json()['field']), (422, 'source_id'))
+        wrong_mode = self.preview(content, user_id=self.agent.id)
+        self.assertEqual((wrong_mode.status_code, wrong_mode.json()['field']), (422, 'user_id'))
+        self.set_settings(distribution_mode='on_import')
+        no_agent = self.preview(content)
+        self.assertEqual((no_agent.status_code, no_agent.json()['field']), (422, 'user_id'))
+        self.assertEqual(self.preview(content, user_id=self.agent.id).status_code, 200)
+
+    def test_mapping_and_profile_together_are_refused(self):
+        profile = self.env['webvue.crm.import.mapping'].create({
+            'company_id': self.company.id, 'name': 'Sheet', 'name_column': 'Name', 'phone_column': 'Phone',
+        })
+        for url in (PREVIEW_URL, IMPORTS_URL):
+            response = self.as_manager().api('POST', url, json=self.body(csv_bytes('Sara,0501234567'), mapping_profile=profile.id))
+            self.assertEqual((response.status_code, response.json()['field']), (422, 'mapping_profile'), url)
 
     def test_agent_is_chosen_only_in_on_import_mode(self):
         response = self.commit(csv_bytes('Sara,0501234567'), user_id=self.agent.id)

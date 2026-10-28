@@ -4,14 +4,15 @@ import binascii
 
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_api.serializers.common import iso
-from odoo.addons.webvue_crm.models.intake import (
-    FIELDS,
-    MAX_BYTES,
-    NAME_MAX,
-    REQUIRED_FIELDS,
+from odoo.addons.webvue_crm.models.crm_lead import NAME_MAX
+from odoo.addons.webvue_crm.models.intake import FIELDS, MAX_BYTES, REQUIRED_FIELDS
+from odoo.addons.webvue_crm.serializers.opportunity import (
+    parse_id_or_null,
+    parse_text,
+    ref,
 )
-from odoo.addons.webvue_crm.serializers.opportunity import parse_id_or_null, ref
 
+FILE_FIELDS = ('file_name', 'content_base64')
 IMPORT_FIELDS = ('file_name', 'content_base64', 'mapping', 'source_id', 'user_id', 'mapping_profile')
 PROFILE_FIELDS = ('name', 'columns')
 # Base64 grows the file by a third; anything longer than this cannot decode within the size limit.
@@ -49,13 +50,6 @@ def columns_of(profile):
     return {field: profile[f'{field}_column'] for field in FIELDS if profile[f'{field}_column']}
 
 
-def _text(value, field, maximum=NAME_MAX):
-    text = value.strip() if isinstance(value, str) else ''
-    if not text or len(text) > maximum:
-        raise ApiError(422, 'invalid', f'must be text of 1 to {maximum} characters', field=field)
-    return text
-
-
 def parse_columns(value, field):
     """The column map ``{name, phone, email?, notes?, package?}``; unset optional columns are dropped."""
     if not isinstance(value, dict):
@@ -66,35 +60,51 @@ def parse_columns(value, field):
     missing = [name for name in REQUIRED_FIELDS if name not in value]
     if missing:
         raise ApiError(422, 'invalid', f'{missing[0]} column is required', field=field)
-    return {name: _text(column, field) for name, column in value.items() if column is not None or name in REQUIRED_FIELDS}
+    return {name: parse_text(column, field, NAME_MAX) for name, column in value.items() if column is not None or name in REQUIRED_FIELDS}
 
 
 def parse_profile_body(payload):
-    unknown = sorted(set(payload) - set(PROFILE_FIELDS))
-    if unknown:
-        raise ApiError(422, 'invalid', 'field is not writable', field=unknown[0])
+    _reject_unknown(payload, PROFILE_FIELDS)
     missing = [name for name in PROFILE_FIELDS if name not in payload]
     if missing:
         raise ApiError(422, 'invalid', 'field is required', field=missing[0])
-    return {'name': _text(payload['name'], 'name'), 'columns': parse_columns(payload['columns'], 'columns')}
+    return {'name': parse_text(payload['name'], 'name', NAME_MAX), 'columns': parse_columns(payload['columns'], 'columns')}
+
+
+def _reject_unknown(payload, allowed):
+    unknown = sorted(set(payload) - set(allowed))
+    if unknown:
+        raise ApiError(422, 'invalid', 'field is not writable', field=unknown[0])
+
+
+def _parse_file(payload):
+    for name in FILE_FIELDS:
+        if name not in payload:
+            raise ApiError(422, 'invalid', 'field is required', field=name)
+    return {
+        'file_name': parse_text(payload['file_name'], 'file_name', NAME_MAX),
+        'content': _content(payload['content_base64']),
+    }
+
+
+def parse_file_body(payload):
+    """The file of a columns request: its name and decoded bytes."""
+    _reject_unknown(payload, FILE_FIELDS)
+    return _parse_file(payload)
 
 
 def parse_import_body(payload):
     """Typed values of a preview or import body; ``mapping`` is None when only a profile id came."""
-    unknown = sorted(set(payload) - set(IMPORT_FIELDS))
-    if unknown:
-        raise ApiError(422, 'invalid', 'field is not writable', field=unknown[0])
-    for name in ('file_name', 'content_base64'):
-        if name not in payload:
-            raise ApiError(422, 'invalid', 'field is required', field=name)
+    _reject_unknown(payload, IMPORT_FIELDS)
     parsed = {
-        'file_name': _text(payload['file_name'], 'file_name'),
-        'content': _content(payload['content_base64']),
+        **_parse_file(payload),
         'mapping': parse_columns(payload['mapping'], 'mapping') if payload.get('mapping') is not None else None,
         'source_id': parse_id_or_null(payload.get('source_id'), 'source_id'),
         'user_id': parse_id_or_null(payload.get('user_id'), 'user_id'),
         'mapping_profile': parse_id_or_null(payload.get('mapping_profile'), 'mapping_profile'),
     }
+    if parsed['mapping'] is not None and parsed['mapping_profile']:
+        raise ApiError(422, 'invalid', 'send a mapping or a mapping profile, not both', field='mapping_profile')
     if parsed['mapping'] is None and not parsed['mapping_profile']:
         raise ApiError(422, 'invalid', 'send a mapping or a mapping profile', field='mapping')
     return parsed
