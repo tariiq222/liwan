@@ -81,6 +81,7 @@ function useOpportunityWrite<Body, Result>(request: (id: number, body: Body) => 
       await Promise.all([
         qc.invalidateQueries({ queryKey: [...crmKeys.opportunities, 'list'] }),
         qc.invalidateQueries({ queryKey: crmKeys.calls(id) }),
+        qc.invalidateQueries({ queryKey: crmKeys.dashboardAll }),
       ])
     },
   })
@@ -93,7 +94,7 @@ export function useCreateCrmOpportunity() {
     mutationFn: (body: CrmOpportunityCreate) => $api('/api/v1/crm/opportunities', { method: 'POST', body, schema: CrmOpportunitySchema }),
     onSuccess: async created => {
       qc.setQueryData(crmKeys.opportunity(created.id), created)
-      await qc.invalidateQueries({ queryKey: [...crmKeys.opportunities, 'list'] })
+      await Promise.all([qc.invalidateQueries({ queryKey: [...crmKeys.opportunities, 'list'] }), qc.invalidateQueries({ queryKey: crmKeys.dashboardAll })])
     },
   })
 }

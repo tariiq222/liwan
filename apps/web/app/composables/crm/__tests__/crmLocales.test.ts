@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { CrmImportInvalidReasonSchema } from '@webvue/contracts'
 import arCrm from '../../../../i18n/locales/ar/crm.json'
 import enCrm from '../../../../i18n/locales/en/crm.json'
 
@@ -32,5 +33,13 @@ describe.each([['ar', arCrm], ['en', enCrm]])('%s crm opportunity messages that 
   })
   it('has no key nothing reads', () => {
     expect(opportunities.sale).not.toHaveProperty('package')
+  })
+})
+
+// Every machine reason of an invalid import row has a sentence in both languages; the preview never shows a code.
+describe.each([['ar', arCrm], ['en', enCrm]])('%s crm import reasons', (_locale, messages) => {
+  it('translates every reason the server can send', () => {
+    const reasons = (messages.crm.imports as { reasons: Record<string, string> }).reasons
+    expect(Object.keys(reasons).sort()).toEqual([...CrmImportInvalidReasonSchema.options].sort())
   })
 })

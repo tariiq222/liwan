@@ -97,6 +97,8 @@ let settings = seedSettings()
 let lists = seedLists()
 let opportunities = seedOpportunities()
 let calls = seedCalls()
+let batches = []
+let mappings = []
 
 const dumpSettings = () => ({
   values: settings.values,
@@ -137,6 +139,9 @@ export function crmPreviewData(path, url) {
   // `?active=all` is the settings page (archived rows too); without it only active rows are offered.
   if (list) return listPage(lists[list[1]].filter(row => url.searchParams.get('active') === 'all' || row.active))
   if (path === '/api/v1/crm/opportunities') return page(filterOpportunities(url), url)
+  if (path === '/api/v1/crm/imports') return page(batches, url)
+  if (path === '/api/v1/crm/import-mappings') return page(mappings, url)
+  if (path === '/api/v1/crm/dashboard') return dashboard()
   const record = path.match(/^\/api\/v1\/crm\/opportunities\/(\d+)(\/calls)?$/)
   if (record) {
     const found = opportunities.find(item => item.id === Number(record[1]))
@@ -152,10 +157,14 @@ export function crmPreviewWrite(method, path, body) {
     lists = seedLists()
     opportunities = seedOpportunities()
     calls = seedCalls()
+    batches = []
+    mappings = []
     return { status: 200, body: { reset: true } }
   }
   const opportunityWrite = crmOpportunityWrite(method, path, body)
   if (opportunityWrite) return opportunityWrite
+  const importWrite = crmImportWrite(method, path, body)
+  if (importWrite) return importWrite
   if (method === 'PATCH' && path === '/api/v1/crm/settings') {
     if (body.revision !== settings.revision) return stale
     const values = body.preset ? { ...PRESETS[body.preset], preset: body.preset } : body.values
@@ -277,4 +286,144 @@ function crmOpportunityWrite(method, path, body) {
   const call = { id: Math.max(0, ...Object.values(calls).flat().map(item => item.id)) + 1, outcome: { id: outcome.id, name: outcome.name }, note: body.note ?? '', duration_minutes: body.duration_minutes ?? 0, user: mockUserRef(2), created_at: iso(0) }
   calls[lead.id] = [call, ...(calls[lead.id] ?? [])]
   return { status: 200, body: { call, opportunity: lead } }
+}
+
+// The dashboard of the mock user (id 2): his own block, and the manager block he holds every capability for.
+// Counted from the opportunities, so a call recorded or a record imported in a spec moves the figures.
+function dashboard() {
+  const now = Date.now()
+  const startOfDay = new Date().setHours(0, 0, 0, 0)
+  const due = item => item.status === 'pending' && item.next_call_at !== null && Date.parse(item.next_call_at) <= now
+  const wonThisMonth = rows => {
+    const won = rows.filter(item => item.status === 'won')
+    return { count: won.length, value: won.reduce((sum, item) => sum + item.final_price, 0) }
+  }
+  const mine = opportunities.filter(item => item.user?.id === 2)
+  const open = opportunities.filter(item => item.status === 'pending')
+  const sources = [...lists.sources.map(source => ({ source_id: source.id, name: source.name })), { source_id: null, name: '' }]
+  const agentIds = [...new Set(opportunities.filter(item => item.user).map(item => item.user.id))]
+  const bySource = (source, status) => opportunities.filter(item => (item.source?.id ?? null) === source.source_id && (!status || item.status === status)).length
+  return {
+    agent: {
+      due_now: mine.filter(due).length,
+      new_today: mine.filter(item => Date.parse(item.created_at) >= startOfDay).length,
+      won_this_month: wonThisMonth(mine),
+    },
+    manager: {
+      unassigned: open.filter(item => item.user === null).length,
+      needs_manager: open.filter(item => item.needs_manager).length,
+      due_follow_ups: open.filter(due).length,
+      won_this_month: wonThisMonth(opportunities),
+      conversion_by_source: sources.map(source => ({ ...source, total: bySource(source), won: bySource(source, 'won') })).filter(source => source.total > 0),
+      agents: agentIds.map(id => {
+        const own = opportunities.filter(item => item.user?.id === id)
+        return { user_id: id, name: USER_NAMES[id] ?? `#${id}`, open: own.filter(item => item.status === 'pending').length, won: own.filter(item => item.status === 'won').length, due: own.filter(due).length }
+      }),
+    },
+  }
+}
+
+// ----- imports: a tiny CSV reader and the rules of the intake service (phone, email, duplicates, mapping) -----
+const fileExtension = /\.(csv|xlsx)$/i
+function readRows(body) {
+  const text = Buffer.from(body.content_base64 ?? '', 'base64').toString('utf8').replace(/^﻿/, '')
+  const [header, ...lines] = text.split(/\r?\n/).filter(line => line.trim())
+  if (!header) return undefined
+  const columns = header.split(',').map(cell => cell.trim())
+  return { columns, rows: lines.map(line => Object.fromEntries(line.split(',').map((cell, index) => [columns[index], cell.trim()]))) }
+}
+const phoneDigits = phone => phone.replace(/[\s-]/g, '').replace(/^(\+?966|0)/, '')
+const validPhone = phone => /^(\+?966|0)?5\d{8}$/.test(phone.replace(/[\s-]/g, ''))
+
+function judge(file, mapping) {
+  const seen = new Set(opportunities.map(item => phoneDigits(item.phone)))
+  return file.rows.map((row, index) => {
+    const name = row[mapping.name] ?? ''
+    const phone = row[mapping.phone] ?? ''
+    const email = mapping.email ? (row[mapping.email] ?? '') : ''
+    let reason = null
+    if (!name) reason = 'missing_name'
+    else if (!phone) reason = 'missing_phone'
+    else if (!validPhone(phone)) reason = 'invalid_phone'
+    else if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) reason = 'invalid_email'
+    const duplicate = !reason && seen.has(phoneDigits(phone))
+    if (!reason) seen.add(phoneDigits(phone))
+    return { number: index + 2, name, phone, email, reason, duplicate }
+  })
+}
+
+// Both import routes check what the server checks first: the file, the mapping (or a saved profile), the source, the agent.
+function prepareImport(body) {
+  if (!fileExtension.test(body.file_name ?? '')) return { refused: invalid('file_name', 'the file must be a .csv or .xlsx file') }
+  const file = readRows(body)
+  if (!file) return { refused: invalid('file', 'the file is empty') }
+  if (Boolean(body.mapping) === Boolean(body.mapping_profile)) return { refused: invalid('mapping', 'send a mapping or a mapping profile') }
+  const profile = body.mapping_profile ? mappings.find(item => item.id === body.mapping_profile) : undefined
+  if (body.mapping_profile && !profile) return { refused: { status: 404, body: { code: 'not_found', message: 'Record does not exist' } } }
+  const mapping = body.mapping ?? Object.fromEntries(Object.entries(profile.columns).filter(([, column]) => column))
+  const missing = Object.values(mapping).find(column => !file.columns.includes(column))
+  if (missing) return { refused: invalid('mapping', `column '${missing}' is not in the file`) }
+  if (!lists.sources.some(source => source.id === body.source_id)) return { refused: invalid('source_id', 'an active source is required') }
+  const onImport = settings.values.distribution_mode === 'on_import'
+  if (!onImport && body.user_id) return { refused: invalid('user_id', 'an agent is chosen only when distribution is set to on import') }
+  if (onImport && !body.user_id) return { refused: invalid('user_id', 'choose the agent who takes this batch') }
+  if (onImport && !USER_NAMES[body.user_id]) return { refused: invalid('user_id', 'the chosen agent cannot take opportunities') }
+  return { checked: judge(file, mapping) }
+}
+
+function previewOf(checked) {
+  const bad = checked.filter(item => item.reason)
+  const duplicates = checked.filter(item => item.duplicate)
+  return { new: checked.length - bad.length - duplicates.length, duplicate: duplicates.length, invalid: bad.length, invalid_rows: bad.map(item => ({ row: item.number, reason: item.reason })), duplicate_rows: duplicates.map(item => item.number) }
+}
+
+function commitImport(body, checked) {
+  const agentId = body.user_id ?? (settings.values.distribution_mode === 'round_robin' ? settings.values.distribution_user_ids[0] ?? null : null)
+  const fresh = checked.filter(item => !item.reason && !item.duplicate)
+  let nextId = Math.max(0, ...opportunities.map(item => item.id))
+  for (const item of fresh) {
+    nextId += 1
+    opportunities.unshift({
+      id: nextId, contact_name: item.name, phone: item.phone, email: item.email, stage: ref(lists.stages, firstStage().id), user: mockUserRef(agentId),
+      source: ref(lists.sources, body.source_id), package: null, lost_reason: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0,
+      expected_revenue: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: iso(0),
+    })
+  }
+  const batch = {
+    id: Math.max(0, ...batches.map(item => item.id)) + 1, file_name: body.file_name, user: mockUserRef(2), source: ref(lists.sources, body.source_id),
+    created: fresh.length, duplicate: checked.filter(item => item.duplicate).length, invalid: checked.filter(item => item.reason).length,
+    unassigned: agentId ? 0 : fresh.length, created_at: iso(0),
+  }
+  batches.unshift(batch)
+  return batch
+}
+
+function crmImportWrite(method, path, body) {
+  if (method === 'POST' && path === '/api/v1/crm/imports/columns') {
+    if (!fileExtension.test(body.file_name ?? '')) return invalid('file_name', 'the file must be a .csv or .xlsx file')
+    const file = readRows(body)
+    if (!file) return invalid('file', 'the file is empty')
+    if (!file.rows.length) return invalid('file', 'the file has no rows')
+    return { status: 200, body: { columns: file.columns, rows: file.rows.length } }
+  }
+  if (method === 'POST' && (path === '/api/v1/crm/imports/preview' || path === '/api/v1/crm/imports')) {
+    const prepared = prepareImport(body)
+    if (prepared.refused) return prepared.refused
+    return { status: 200, body: path.endsWith('/preview') ? previewOf(prepared.checked) : commitImport(body, prepared.checked) }
+  }
+  if (method === 'POST' && path === '/api/v1/crm/import-mappings') {
+    if (mappings.some(item => item.name === body.name)) return { status: 409, body: { code: 'conflict', message: 'a mapping profile with this name already exists', field: 'name' } }
+    const { name, phone, email = null, notes = null, package: pack = null } = body.columns
+    const created = { id: Math.max(0, ...mappings.map(item => item.id)) + 1, name: body.name, columns: { name, phone, email, notes, package: pack } }
+    mappings.push(created)
+    return { status: 200, body: created }
+  }
+  const profile = path.match(/^\/api\/v1\/crm\/import-mappings\/(\d+)$/)
+  if (method === 'DELETE' && profile) {
+    const found = mappings.find(item => item.id === Number(profile[1]))
+    if (!found) return { status: 404, body: { code: 'not_found', message: 'Record does not exist' } }
+    mappings = mappings.filter(item => item !== found)
+    return { status: 200, body: found }
+  }
+  return undefined
 }

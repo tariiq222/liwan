@@ -268,6 +268,143 @@
         "forbidden": "You cannot do this on this record.",
         "stage": "A record is not moved to the sold stage here. Use the sale action."
       }
+    },
+    "imports": {
+      "title": "Imports",
+      "new": "Import a file",
+      "empty": "No file has been imported yet.",
+      "results": "{shown} of {total}",
+      "cols": {
+        "file": "File",
+        "date": "Date",
+        "by": "By",
+        "source": "Source",
+        "created": "New",
+        "duplicate": "Duplicate",
+        "invalid": "Invalid",
+        "unassigned": "No agent"
+      },
+      "flow": {
+        "title": "Import a file",
+        "step": "Step {current} of {total}: {name}",
+        "steps": {
+          "upload": "Upload the file",
+          "mapping": "Map the columns",
+          "preview": "Preview"
+        },
+        "upload": {
+          "hint": "A CSV or XLSX file up to 5 MB and 5,000 rows. The first row holds the column headers.",
+          "choose": "Choose a file",
+          "reading": "Reading the file…",
+          "info": "{name}: {columns} columns and {rows} rows"
+        },
+        "mapping": {
+          "hint": "Pick the column that holds each detail. Name and phone are required.",
+          "profile": "Saved mapping",
+          "profileNone": "None (map by hand)",
+          "profilePlaceholder": "Choose a saved mapping",
+          "profileDelete": "Delete the saved mapping",
+          "profileDeleteTitle": "Delete the saved mapping?",
+          "profileDeleteBody": "Earlier imports are not affected.",
+          "profileDeleteConfirm": "Delete",
+          "fields": {
+            "name": "Name",
+            "phone": "Phone",
+            "email": "Email",
+            "notes": "Notes",
+            "package": "{term}"
+          },
+          "column": "Choose a column",
+          "noColumn": "None",
+          "save": "Save this mapping",
+          "saveName": "Saved mapping name",
+          "saveHint": "Reuse it with files that have the same headers.",
+          "source": "Source",
+          "sourcePlaceholder": "Choose a source",
+          "agent": "Agent for the batch",
+          "agentHint": "Takes every imported record.",
+          "agentOptionalHint": "Needed only when distribution is on import.",
+          "agentPlaceholder": "Choose an agent",
+          "required": "Complete the required fields: name, phone and source.",
+          "agentRequired": "Choose the agent for the batch."
+        },
+        "preview": {
+          "new": "New",
+          "duplicate": "Duplicate",
+          "invalid": "Invalid",
+          "invalidTitle": "Invalid rows",
+          "invalidRow": "Row {row}: {reason}",
+          "duplicateTitle": "Duplicate rows (skipped)",
+          "duplicateRows": "Rows: {rows}",
+          "capped": "Only the first {count} are shown.",
+          "nothingNew": "Nothing new to import.",
+          "confirm": "Import {count}",
+          "done": "Imported {count} from {name}."
+        },
+        "next": "Next",
+        "back": "Back"
+      },
+      "reasons": {
+        "missing_name": "The name is empty",
+        "name_too_long": "The name is too long",
+        "missing_phone": "The phone is empty",
+        "invalid_phone": "The phone number is not valid",
+        "invalid_email": "The email is not valid",
+        "unknown_package": "The plan is not known"
+      },
+      "errors": {
+        "forbidden": "You do not have permission to import.",
+        "profileExists": "A saved mapping with this name already exists.",
+        "profileGone": "The saved mapping no longer exists.",
+        "fileType": "The file must be a CSV or XLSX file.",
+        "file": {
+          "tooLarge": "The file is larger than 5 MB.",
+          "tooManyRows": "The file has more than 5,000 rows.",
+          "tooManyColumns": "The file has more than 50 columns.",
+          "duplicateHeader": "Two headers in the first row have the same name. Rename one.",
+          "encoding": "Save the file as UTF-8 and upload it again.",
+          "unreadable": "The file could not be read. Check that it is a valid CSV or XLSX file.",
+          "noRows": "The file is empty or has no data rows."
+        },
+        "mapping": "One of the chosen columns is not in the file.",
+        "source": "Choose a valid source.",
+        "agentRequired": "Choose the agent for the batch.",
+        "agentRefused": "This agent cannot take this batch. An agent is chosen at import only when distribution is set to on import, and the agent must be eligible.",
+        "tooLarge": "The file is larger than 5 MB."
+      }
+    },
+    "dashboard": {
+      "agent": {
+        "title": "Mine",
+        "dueNow": "Calls due now",
+        "newToday": "New today",
+        "wonCount": "My sales this month",
+        "wonValue": "My sales value",
+        "dueTitle": "Call now",
+        "dueEmpty": "No calls due now.",
+        "dueAll": "See everything due",
+        "call": "Call {name}"
+      },
+      "manager": {
+        "title": "Team",
+        "unassigned": "No agent",
+        "needsManager": "Need a manager's decision",
+        "dueFollowUps": "Follow-ups due",
+        "won": "Sales this month",
+        "wonHint": "Worth {value}",
+        "conversionTitle": "Conversion by source",
+        "conversionRow": "{won} of {total}",
+        "noSource": "No source",
+        "conversionEmpty": "No records yet.",
+        "agentsTitle": "Agents",
+        "agentCols": {
+          "agent": "Agent",
+          "open": "Open",
+          "due": "Due",
+          "won": "Won"
+        },
+        "agentsEmpty": "No agent has records."
+      }
     }
   }
 }

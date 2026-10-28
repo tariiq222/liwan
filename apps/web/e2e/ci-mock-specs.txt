@@ -10,3 +10,4 @@ motion-accessibility.spec.ts
 navigation-disclosure.spec.ts
 navigation-system.spec.ts
 crm-opportunities.spec.ts
+crm-imports.spec.ts

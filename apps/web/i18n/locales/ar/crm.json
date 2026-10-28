@@ -268,6 +268,143 @@
         "forbidden": "لا تملك صلاحية هذا الإجراء على هذا السجل.",
         "stage": "لا يُنقل السجل إلى مرحلة البيع من هنا. استخدم إجراء البيع."
       }
+    },
+    "imports": {
+      "title": "الاستيراد",
+      "new": "استيراد ملف",
+      "empty": "لم يُستورد أي ملف بعد.",
+      "results": "{shown} من {total}",
+      "cols": {
+        "file": "الملف",
+        "date": "التاريخ",
+        "by": "بواسطة",
+        "source": "المصدر",
+        "created": "جديد",
+        "duplicate": "مكرر",
+        "invalid": "غير صالح",
+        "unassigned": "بلا مسؤول"
+      },
+      "flow": {
+        "title": "استيراد ملف",
+        "step": "الخطوة {current} من {total}: {name}",
+        "steps": {
+          "upload": "رفع الملف",
+          "mapping": "ربط الأعمدة",
+          "preview": "المعاينة"
+        },
+        "upload": {
+          "hint": "ملف CSV أو XLSX حتى 5 ميغابايت و5000 صف. الصف الأول عناوين الأعمدة.",
+          "choose": "اختر ملفًا",
+          "reading": "جارٍ قراءة الملف…",
+          "info": "{name}: {columns} أعمدة و{rows} صفًا"
+        },
+        "mapping": {
+          "hint": "اختر العمود الذي يحمل كل بيان. الاسم والهاتف مطلوبان.",
+          "profile": "ملف ربط محفوظ",
+          "profileNone": "بدون (ربط يدوي)",
+          "profilePlaceholder": "اختر ملفًا محفوظًا",
+          "profileDelete": "حذف الملف المحفوظ",
+          "profileDeleteTitle": "حذف الملف المحفوظ؟",
+          "profileDeleteBody": "لن يتأثر أي استيراد سابق.",
+          "profileDeleteConfirm": "حذف",
+          "fields": {
+            "name": "الاسم",
+            "phone": "الهاتف",
+            "email": "البريد الإلكتروني",
+            "notes": "الملاحظات",
+            "package": "{term}"
+          },
+          "column": "اختر عمودًا",
+          "noColumn": "بدون",
+          "save": "احفظ هذا الربط",
+          "saveName": "اسم الملف المحفوظ",
+          "saveHint": "يُعاد استخدامه مع ملفات لها العناوين نفسها.",
+          "source": "المصدر",
+          "sourcePlaceholder": "اختر المصدر",
+          "agent": "المسؤول عن الدفعة",
+          "agentHint": "يأخذ كل السجلات المستوردة.",
+          "agentOptionalHint": "يلزم فقط عندما يكون التوزيع عند الاستيراد.",
+          "agentPlaceholder": "اختر المسؤول",
+          "required": "أكمل الحقول المطلوبة: الاسم والهاتف والمصدر.",
+          "agentRequired": "اختر المسؤول عن الدفعة."
+        },
+        "preview": {
+          "new": "جديد",
+          "duplicate": "مكرر",
+          "invalid": "غير صالح",
+          "invalidTitle": "صفوف غير صالحة",
+          "invalidRow": "الصف {row}: {reason}",
+          "duplicateTitle": "صفوف مكررة (تُتخطى)",
+          "duplicateRows": "الصفوف: {rows}",
+          "capped": "تُعرض أول {count} فقط.",
+          "nothingNew": "لا يوجد جديد لاستيراده.",
+          "confirm": "استيراد {count}",
+          "done": "تم استيراد {count} من الملف {name}."
+        },
+        "next": "التالي",
+        "back": "السابق"
+      },
+      "reasons": {
+        "missing_name": "الاسم فارغ",
+        "name_too_long": "الاسم أطول من المسموح",
+        "missing_phone": "الهاتف فارغ",
+        "invalid_phone": "رقم الهاتف غير صالح",
+        "invalid_email": "البريد الإلكتروني غير صالح",
+        "unknown_package": "الباقة غير معروفة"
+      },
+      "errors": {
+        "forbidden": "لا تملك صلاحية الاستيراد.",
+        "profileExists": "يوجد ملف محفوظ بهذا الاسم.",
+        "profileGone": "الملف المحفوظ لم يعد موجودًا.",
+        "fileType": "الملف يجب أن يكون CSV أو XLSX.",
+        "file": {
+          "tooLarge": "الملف أكبر من 5 ميغابايت.",
+          "tooManyRows": "الملف فيه أكثر من 5000 صف.",
+          "tooManyColumns": "الملف فيه أكثر من 50 عمودًا.",
+          "duplicateHeader": "عنوانان في الصف الأول لهما الاسم نفسه. غيّر أحدهما.",
+          "encoding": "احفظ الملف بترميز UTF-8 ثم أعد رفعه.",
+          "unreadable": "تعذّرت قراءة الملف. تأكد أنه CSV أو XLSX سليم.",
+          "noRows": "الملف فارغ أو بلا صفوف بيانات."
+        },
+        "mapping": "أحد الأعمدة المختارة غير موجود في الملف.",
+        "source": "اختر مصدرًا صالحًا.",
+        "agentRequired": "اختر المسؤول عن الدفعة.",
+        "agentRefused": "لا يمكن تعيين هذا المسؤول لهذه الدفعة. التعيين عند الاستيراد يكون فقط عندما يكون التوزيع عند الاستيراد، ويجب أن يكون المسؤول مؤهلًا.",
+        "tooLarge": "حجم الملف أكبر من 5 ميغابايت."
+      }
+    },
+    "dashboard": {
+      "agent": {
+        "title": "عملي",
+        "dueNow": "اتصالات مستحقة الآن",
+        "newToday": "الجديد اليوم",
+        "wonCount": "مبيعاتي هذا الشهر",
+        "wonValue": "قيمة مبيعاتي",
+        "dueTitle": "اتصل الآن",
+        "dueEmpty": "لا اتصالات مستحقة الآن.",
+        "dueAll": "عرض كل المستحق",
+        "call": "اتصل بـ {name}"
+      },
+      "manager": {
+        "title": "الفريق",
+        "unassigned": "بلا مسؤول",
+        "needsManager": "تحتاج قرار المدير",
+        "dueFollowUps": "متابعات مستحقة",
+        "won": "مبيعات هذا الشهر",
+        "wonHint": "بقيمة {value}",
+        "conversionTitle": "التحويل حسب المصدر",
+        "conversionRow": "{won} من {total}",
+        "noSource": "بلا مصدر",
+        "conversionEmpty": "لا سجلات بعد.",
+        "agentsTitle": "المسؤولون",
+        "agentCols": {
+          "agent": "المسؤول",
+          "open": "مفتوح",
+          "due": "مستحق",
+          "won": "مباع"
+        },
+        "agentsEmpty": "لا مسؤولين لديهم سجلات."
+      }
     }
   }
 }
