@@ -55,7 +55,8 @@ class WebVueInboxMessageOutbox(models.Model):
         """The typing indicator (which also marks the newest inbound message read); a failure is only logged."""
         conversation.typing_pending = False
         inbound = conversation._webvue_latest_inbound()
-        if not inbound or fields.Datetime.now() - conversation.typing_requested_at > TYPING_MAX_AGE:
+        if (not inbound or fields.Datetime.now() - conversation.typing_requested_at > TYPING_MAX_AGE
+                or conversation._webvue_replied_since(conversation.typing_requested_at)):
             return
         try:
             whatsapp.mark_read(conversation.channel_id._webvue_credentials(), inbound.provider_message_id, typing=True)

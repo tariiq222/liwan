@@ -70,6 +70,10 @@ class WebVueInboxConversation(models.Model):
         inbound = self.message_ids.filtered(lambda message: message.direction == 'in' and message.provider_message_id)
         return inbound.sorted(lambda message: (message.date, message.id))[-1:]
 
+    def _webvue_replied_since(self, moment):
+        """True when an agent reply was queued at or after `moment`: that reply ends the typing it followed."""
+        return any(message.direction == 'out' and message.date >= moment for message in self.message_ids)
+
     def _webvue_request_read_receipt(self):
         """Queue the read receipt of the newest inbound message; older ones are read with it."""
         self._webvue_latest_inbound()._webvue_request_read_receipt()

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxAttachment, InboxConversationDetail } from '@webvue/contracts'
+import type { InboxAttachment, InboxConversationDetail, InboxReplyCreate } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useInboxCannedReplies, useInboxTemplates, useInboxTyping, useSendInboxNote, useSendInboxReply, useUploadInboxFile } from '@/composables/inbox/useInbox'
 import { INBOX_CAPTION_MAX, INBOX_UPLOAD_ACCEPT, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem } from '@/composables/inbox/inboxAttachments'
@@ -188,13 +188,17 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 // What the reply carries: the open panel, else the uploaded file with the text as its caption, else the text.
-function replyContent() {
-  if (panel.value === 'location') return { location: buildLocation(location.value)! }
-  if (panel.value === 'interactive') return { interactive: buildInteractive(interactive.value)! }
+type FreeFormReply = Exclude<InboxReplyCreate, { template_id: number }>
+
+/** The reply payload and whether it carries the typed text (a location, an interactive message or an audio file does not). */
+function replyContent(): { content: FreeFormReply, usesText: boolean } {
+  if (panel.value === 'location') return { content: { location: buildLocation(location.value)! }, usesText: false }
+  if (panel.value === 'interactive') return { content: { interactive: buildInteractive(interactive.value)! }, usesText: false }
   const caption = draft.value.trim()
   const attachment = upload.value?.attachment
-  if (attachment) return { attachment_id: attachment.id, ...(caption && inboxAcceptsCaption(attachment.mimetype) ? { caption } : {}) }
-  return { body: caption }
+  if (!attachment) return { content: { body: caption }, usesText: true }
+  const withCaption = !!caption && inboxAcceptsCaption(attachment.mimetype)
+  return { content: { attachment_id: attachment.id, ...(withCaption ? { caption } : {}) }, usesText: withCaption }
 }
 
 async function submit() {
@@ -208,8 +212,10 @@ async function submit() {
       await sendNote({ body: draft.value.trim() })
       texts.note = ''
     } else {
-      await sendReply({ ...replyContent(), ...(props.replyTo ? { reply_to_id: props.replyTo.id } : {}) })
-      texts.reply = ''
+      const { content, usesText } = replyContent()
+      await sendReply({ ...content, ...(props.replyTo ? { reply_to_id: props.replyTo.id } : {}) })
+      // Text that was not part of the sent message stays as the draft.
+      if (usesText) texts.reply = ''
       panel.value = null
       discardUpload()
       emit('update:replyTo', null)

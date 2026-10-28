@@ -253,6 +253,26 @@ class TestMessagingOutbox(WebVueInboxCase):
         self.run_outbox(mocked)
         self.assertEqual((mocked.call_count, self.conversation.typing_pending), (0, False))
 
+    def reply_at(self, seconds_ago):
+        return self.env['webvue.inbox.message'].create({
+            'conversation_id': self.conversation.id, 'direction': 'out', 'body': 'done',
+            'delivery_state': 'sent', 'date': fields.Datetime.now() - timedelta(seconds=seconds_ago),
+        })
+
+    def test_a_reply_sent_after_the_typing_request_cancels_it(self):
+        self.request_typing(age_seconds=5)
+        self.reply_at(seconds_ago=1)
+        mocked = MagicMock()
+        self.run_outbox(mocked)
+        self.assertEqual((mocked.call_count, self.conversation.typing_pending), (0, False))
+
+    def test_typing_requested_after_the_last_reply_is_still_sent(self):
+        self.reply_at(seconds_ago=10)
+        self.request_typing(age_seconds=1)
+        mocked = MagicMock(return_value=response(200, {'success': True}))
+        self.run_outbox(mocked)
+        self.assertEqual(mocked.call_count, 1)
+
     def test_a_failed_typing_call_is_not_retried(self):
         self.request_typing()
         mocked = MagicMock(return_value=response(503, {'error': {'message': 'down'}}))

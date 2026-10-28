@@ -186,6 +186,18 @@ describe('InboxComposer', () => {
     expect(state.location.value.latitude).toBe('')
   })
 
+  it('keeps typed text that a location reply did not carry', async () => {
+    const { state, sendReply, inboxDrafts } = mountComposer('2026-10-28T20:00:00Z')
+    state.draft.value = 'نص لم يُرسل'
+    state.togglePanel('location')
+    state.location.value = { ...emptyLocationDraft(), latitude: '24.7', longitude: '46.6' }
+    await state.submit()
+    expect(sendReply).toHaveBeenCalledWith({ location: expect.objectContaining({ latitude: 24.7 }) })
+    await Vue.nextTick()
+    expect(state.draft.value).toBe('نص لم يُرسل')
+    expect(inboxDrafts.get(3, 5).reply).toBe('نص لم يُرسل')
+  })
+
   it('sends an interactive message only when it respects the limits, and keeps it as a draft', async () => {
     const { state, sendReply, inboxDrafts } = mountComposer('2026-10-28T20:00:00Z')
     state.togglePanel('interactive')

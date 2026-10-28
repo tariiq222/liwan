@@ -49,7 +49,9 @@ function retryMessage(id: number) {
   retry(id, { onError: e => toast.add({ title: e instanceof Error ? e.message : t('errors.generic'), color: 'error' }) })
 }
 const loadedIds = computed(() => new Set(items.value.map(item => item.id)))
-const canAct = (item: InboxMessage) => props.canReply && props.windowOpen && item.direction !== 'note'
+// Only a message WhatsApp knows can be quoted or reacted to: every inbound one, and an outbound one once sent.
+const PROVIDER_STATES = new Set<InboxMessage['delivery_state']>(['received', 'sent', 'delivered', 'read'])
+const canAct = (item: InboxMessage) => props.canReply && props.windowOpen && item.direction !== 'note' && PROVIDER_STATES.has(item.delivery_state)
 
 function quote(item: InboxMessage) {
   emit('reply', { id: item.id, preview: (item.body || t(`inbox.kinds.${item.kind}`)).slice(0, 80) })
