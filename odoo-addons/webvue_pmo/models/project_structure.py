@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Project stages, followers and milestones for project.project."""
 from odoo import fields, models
+from odoo.exceptions import AccessError
 
 from .project_charter import WebVueCharterState
 from .project_constants import _not_empty
@@ -26,6 +27,17 @@ class ProjectProject(models.Model):
         # passed _webvue_check_manage first.
         return self.env['project.task.type'].sudo()
 
+    def _webvue_writable_stages(self, stages):
+        """The elevated stages, once the caller may change them for every project they belong to.
+
+        A stage linked to several projects changes in all of them, so only a manager of any
+        project (the group rule) may rename, fold or reorder it.
+        """
+        elevated = self._webvue_stages_sudo().browse(stages.ids)
+        if any(len(stage.project_ids) > 1 for stage in elevated) and not self._webvue_is_manager():
+            raise AccessError(self.env._("This stage is shared with other projects; only a PMO manager can change it."))
+        return elevated
+
     def _webvue_add_stage(self, name, fold=False):
         self._webvue_check_manage()
         last = max(self.type_ids.mapped('sequence'), default=0)
@@ -39,7 +51,7 @@ class ProjectProject(models.Model):
         if stage not in self.type_ids:
             msg = "stage does not belong to this project"
             raise ValueError(msg)
-        self._webvue_stages_sudo().browse(stage.id).write({k: v for k, v in vals.items() if k in ('name', 'fold')})
+        self._webvue_writable_stages(stage).write({k: v for k, v in vals.items() if k in ('name', 'fold')})
         return stage
 
     def _webvue_reorder_stages(self, ids):
@@ -47,9 +59,9 @@ class ProjectProject(models.Model):
         if sorted(ids) != sorted(self.type_ids.ids):
             msg = "ids must be a permutation of the project's stage ids"
             raise ValueError(msg)
-        Stage = self._webvue_stages_sudo()
+        writable = self._webvue_writable_stages(self.type_ids)
         for i, stage_id in enumerate(ids):
-            Stage.browse(stage_id).write({'sequence': (i + 1) * 10})
+            writable.browse(stage_id).write({'sequence': (i + 1) * 10})
         return self.type_ids.sorted(lambda s: (s.sequence, s.id))
 
     def _webvue_delete_stage(self, stage):

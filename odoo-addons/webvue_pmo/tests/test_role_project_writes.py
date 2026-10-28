@@ -75,3 +75,18 @@ class TestRoleProjectWrites(TransactionCase):
             self.owned.with_user(self.staff)._webvue_add_stage('Nope')
         with self.assertRaises(AccessError):
             self.env['project.project'].with_user(self.staff)._webvue_create_from_policy('Nope')
+
+    def test_a_shared_stage_is_changed_only_by_a_pmo_manager(self):
+        other = self.env['project.project'].create({'name': 'Other', 'company_id': self.env.company.id})
+        shared = self.owned.type_ids[:1]
+        shared.write({'project_ids': [(4, other.id)]})
+        as_owner = self.owned.with_user(self.owner)
+        with self.assertRaises(AccessError):
+            as_owner._webvue_update_stage(shared, {'name': 'Renamed for all'})
+        with self.assertRaises(AccessError):
+            as_owner._webvue_reorder_stages(list(reversed(self.owned.type_ids.ids)))
+        self.assertEqual(shared.name, 'Todo')
+        self.owned.with_user(self.pmo_manager)._webvue_update_stage(shared, {'name': 'Renamed for all'})
+        self.assertEqual(shared.name, 'Renamed for all')
+        as_owner._webvue_delete_stage(shared)
+        self.assertEqual((shared.exists(), shared.project_ids), (shared, other))
