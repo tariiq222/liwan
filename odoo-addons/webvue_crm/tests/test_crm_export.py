@@ -72,7 +72,7 @@ class TestCrmExport(WebVueCrmCase):
     def test_row_values(self):
         row = next(row for row in self.rows(self.manager) if row[0] == 'Own customer')
         self.assertEqual(row[1:8], [
-            '+966501000001', 'own@example.com', 'New', 'CRM Exporter', 'Export source', 'Gold', '450.0',
+            '\t+966501000001', 'own@example.com', 'New', 'CRM Exporter', 'Export source', 'Gold', '450.0',
         ])
         self.assertRegex(row[8], r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$')
 
@@ -123,3 +123,12 @@ class TestCrmExport(WebVueCrmCase):
         values = {row[0] for row in self.rows(self.manager)[1:]}
         self.assertTrue({"'=SUM(A1)", "'+1", "'-1", "'@cmd", "'\tx"} <= values)
         self.assertFalse(any(re.match(r'^[=+\-@\t\r]', value) for value in values))
+
+    def test_a_phone_keeps_its_plus_in_a_spreadsheet_and_nothing_else_runs(self):
+        # A leading tab keeps Excel from reading "+9665..." as a number; only digits follow the plus.
+        phones = {row[0]: row[1] for row in self.rows(self.manager)[1:]}
+        self.assertEqual(phones['Own customer'], '\t+966501000001')
+        for index, raw in enumerate(('=SUM(A1)', '+1;=cmd', '@cmd', '-966501000009')):
+            self.make_lead(self.agent, contact_name=f'Raw {index}', phone=raw)
+        phones = {row[0]: row[1] for row in self.rows(self.manager)[1:]}
+        self.assertEqual([phones[f'Raw {index}'] for index in range(4)], ["'=SUM(A1)", "'+1;=cmd", "'@cmd", "'-966501000009"])

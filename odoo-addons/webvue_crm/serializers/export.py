@@ -7,7 +7,7 @@ from odoo.addons.webvue_api.serializers.common import iso
 
 COLUMNS = ('name', 'phone', 'email', 'stage', 'agent', 'source', 'package', 'final_price', 'created')
 FORMULA_PREFIXES = ('=', '+', '-', '@', '\t', '\r')
-E164 = re.compile(r'\+\d{6,15}')
+E164 = re.compile(r'\+[0-9]{6,15}')
 
 
 def _safe(value):
@@ -16,8 +16,11 @@ def _safe(value):
 
 
 def _phone(value):
-    """A phone in international form is only digits after its plus sign, so it runs nothing."""
-    return value if E164.fullmatch(value) else _safe(value)
+    """A phone in international form is only digits after its plus sign, so it runs nothing.
+
+    A leading tab keeps a spreadsheet from reading it as a number and dropping the plus sign.
+    """
+    return f'\t{value}' if E164.fullmatch(value) else _safe(value)
 
 
 def export_row(lead):
