@@ -1,4 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import date, datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
+
 from odoo import http
 from odoo.http import request
 from odoo.tools import email_normalize
@@ -378,6 +381,23 @@ class AccessAdminRolesController(http.Controller):
         return vals
 
 
+def _audit_bound(value, key, end):
+    """The UTC moment a `from`/`to` filter names: a day (in the user's timezone, `to` inclusive) or an ISO datetime."""
+    try:
+        day = date.fromisoformat(value)
+    except ValueError:
+        day = None
+    if day:
+        zone = ZoneInfo(request.env.user.tz or request.env.company.partner_id.tz or 'UTC')
+        start = datetime.combine(day + timedelta(days=1) if end else day, time.min, zone)
+        return start.astimezone(timezone.utc).replace(tzinfo=None) - (timedelta(microseconds=1) if end else timedelta())
+    try:
+        moment = datetime.fromisoformat(value)
+    except ValueError:
+        raise ApiError(422, 'invalid', f'{key} must be a date (YYYY-MM-DD) or an ISO 8601 datetime', field=key) from None
+    return moment.astimezone(timezone.utc).replace(tzinfo=None) if moment.tzinfo else moment
+
+
 class AccessAdminAuditController(http.Controller):
 
     @http.route('/api/v1/admin/access-log', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -386,10 +406,11 @@ class AccessAdminAuditController(http.Controller):
         request.env['webvue.access.service']._webvue_require_capability('access.audit.read')
         filters, limit, offset = parse_query({'from', 'to', 'actor_id', 'target_type', 'target_id', 'action', 'limit', 'offset'})
         domain = [('company_id', '=', request.env.company.id)]
-        mappings = {'from': ('create_date', '>='), 'to': ('create_date', '<='), 'action': ('action', '=')}
-        for key, (field, operator) in mappings.items():
+        for key, operator in (('from', '>='), ('to', '<=')):
             if filters.get(key):
-                domain.append((field, operator, filters[key]))
+                domain.append(('create_date', operator, _audit_bound(filters[key], key, end=key == 'to')))
+        if filters.get('action'):
+            domain.append(('action', '=', filters['action']))
         for key in ('actor_id', 'target_id'):
             if filters.get(key):
                 domain.append((key, '=', parse_positive_int(filters[key], key)))

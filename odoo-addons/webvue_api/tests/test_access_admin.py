@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import timedelta
+
 from odoo.exceptions import AccessError
 from odoo.http import root
 from odoo.tests import new_test_user, tagged
@@ -428,3 +430,20 @@ class TestAccessAdminAudit(WebVueApiCase):
         unknown = self.api('GET', '/api/v1/admin/access-log?unknown=1')
         self.assertEqual((unknown.status_code, unknown.json()['code']), (400, 'unsupported_filter'))
         self.assertEqual(self.api('DELETE', f'/api/v1/admin/access-log/{self.event.id}').status_code, 405)
+
+    def test_audit_date_filters(self):
+        # #174: a bad date answered 500; a day names the whole day; an ISO datetime with Z is accepted.
+        self.authenticate('audit_api_admin', 'audit_api_admin_pass_123')
+        for query in ('from=garbage', 'to=2026-99-99', 'from=2026-10-28T25:00:00'):
+            with self.subTest(query=query):
+                response = self.api('GET', f'/api/v1/admin/access-log?{query}')
+                self.assertEqual((response.status_code, response.json()['code']), (422, 'invalid'), response.text)
+                self.assertEqual(response.json()['field'], query.split('=')[0])
+        self.admin.tz = 'UTC'
+        day = self.event.create_date.date().isoformat()
+
+        def ids(query):
+            return [item['id'] for item in self.api('GET', f'/api/v1/admin/access-log?{query}').json()['items']]
+        self.assertIn(self.event.id, ids(f'from={day}&to={day}'))
+        self.assertIn(self.event.id, ids(f'from={self.event.create_date.isoformat()}Z'))
+        self.assertNotIn(self.event.id, ids(f'to={self.event.create_date.date() - timedelta(days=1)}'))
