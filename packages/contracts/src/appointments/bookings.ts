@@ -19,7 +19,10 @@ export const AppointmentBookingRowSchema = z.object({
   requester_name: z.string(),
 }).strict()
 
-/** A booking in detail: the row plus the requester's contact data, national id and notes. */
+/**
+ * A booking in detail: the row plus the requester, national id and notes. The requester's phone and email and the
+ * national id are null for a caller who only reads, and the national id is also null while the company hides that field.
+ */
 export const AppointmentBookingSchema = AppointmentBookingRowSchema.extend({
   requester: z.object({
     id: positiveId,
@@ -52,7 +55,7 @@ export const AppointmentBookingListQuerySchema = z.object({
 /** A new requester, created as a partner of the current company; phone and email follow the company's field policies. */
 export const AppointmentRequesterSchema = z.object({
   name: z.string().min(1).max(255),
-  phone: z.string().max(32).nullable(),
+  phone: z.string().min(5).max(32).regex(/^\+?[0-9 ()-]+$/).nullable(),
   email: z.string().max(255).nullable(),
 }).partial({ phone: true, email: true }).strict()
 

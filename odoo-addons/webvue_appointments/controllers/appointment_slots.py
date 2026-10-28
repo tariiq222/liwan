@@ -15,6 +15,7 @@ from odoo.addons.webvue_api.controllers.common import (
 from odoo.addons.webvue_appointments.controllers.records import (
     WRITE_CAPABILITY,
     get_company_record,
+    offered_combination,
 )
 from odoo.addons.webvue_appointments.serializers.appointment_settings import (
     dump_settings,
@@ -43,7 +44,7 @@ class AppointmentSlotController(http.Controller):
         first, last, combination_id = parse_slot_query(
             request.httprequest.args, now.astimezone(tz).date(), settings['horizon_days'],
         )
-        combination = self._combination(booking_type, combination_id)
+        combination = offered_combination(booking_type, combination_id)
         # The engine's public slot search on an unsaved booking, anchored to the type's calendar days.
         booking = request.env['resource.booking'].new({
             'type_id': booking_type.id, 'combination_id': combination.id or False,
@@ -57,12 +58,3 @@ class AppointmentSlotController(http.Controller):
         starts = sorted(start.astimezone(UTC) for day_slots in slots.values() for start in day_slots)
         items = [dump_slot(start, start + duration) for start in starts if start >= earliest]
         return {'items': items, 'total': len(items)}
-
-    @staticmethod
-    def _combination(booking_type, combination_id):
-        combinations = booking_type.combination_rel_ids.combination_id.filtered('active')
-        if combination_id is None:
-            return request.env['resource.booking.combination']
-        if combination_id not in combinations.ids:
-            raise ApiError(422, 'invalid', 'the type does not offer this combination', field='combination_id')
-        return request.env['resource.booking.combination'].browse(combination_id)

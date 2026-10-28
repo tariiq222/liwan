@@ -75,6 +75,14 @@ class AppointmentResourceController(http.Controller):
     @requires_capability(MANAGE_CAPABILITY)
     def archive_resource(self, resource_id, **_):
         resource = self._material(resource_id)
+        # combination.resource_ids hides archived resources, so the engine would treat a combination left
+        # with none of them as free at all hours.
+        combinations = request.env['resource.booking.combination'].search([('resource_ids', 'in', resource.ids)])
+        if combinations:
+            raise ApiError(
+                422, 'invalid', 'the resource is used by the combination(s): %s' % ', '.join(combinations.mapped('name')),
+                field='resource_id',
+            )
         resource.write({'active': False})
         return dump_resource(resource)
 

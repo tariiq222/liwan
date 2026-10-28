@@ -46,6 +46,34 @@ class TestAppointmentCombinations(WebVueAppointmentsCase):
         self.assertIn(created.id, {row['id'] for row in self.api('GET', COMBINATIONS + '?active=false').json()['items']})
         self.assertTrue(self.api('POST', path + '/unarchive').json()['active'])
 
+    def test_a_combination_a_type_still_offers_cannot_be_archived(self):
+        combination = self.env['resource.booking.combination'].create({
+            'company_id': self.env.company.id, 'resource_ids': [(6, 0, self.room.ids)],
+        })
+        booking_type = self.env['resource.booking.type'].create({
+            'name': 'Linked type', 'combination_rel_ids': [(0, 0, {'combination_id': combination.id})],
+        })
+        self.env.flush_all()
+        self._manager()
+        path = '%s/%d/archive' % (COMBINATIONS, combination.id)
+        result = self.api('POST', path)
+        self.assertEqual((result.status_code, result.json()['code'], result.json()['field']), (422, 'invalid', 'combination_id'))
+        self.assertIn('Linked type', result.json()['message'])
+        self.assertTrue(combination.active)
+        # Removing it from the type first lets the combination go.
+        type_path = '/api/v1/appointments/types/%d' % booking_type.id
+        self.assertEqual(self.api('PATCH', type_path, json={'combination_ids': []}).status_code, 200)
+        self.assertEqual(self.api('POST', path).status_code, 200)
+
+    def test_a_combination_lists_its_archived_resources(self):
+        combination = self.env['resource.booking.combination'].create({
+            'company_id': self.env.company.id, 'resource_ids': [(6, 0, self.room.ids)],
+        })
+        self.room.active = False
+        self.env.flush_all()
+        self._manager()
+        self.assertEqual(self.api('GET', '%s/%d' % (COMBINATIONS, combination.id)).json()['resource_ids'], self.room.ids)
+
     def test_invalid_bodies_are_422_and_foreign_ids_are_not_accepted(self):
         other = self._foreign_company_records()[0]
         foreign_resource = self.env['resource.resource'].create({'name': 'Foreign', 'company_id': other.id})

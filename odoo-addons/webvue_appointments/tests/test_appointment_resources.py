@@ -72,6 +72,21 @@ class TestAppointmentResources(WebVueAppointmentsCase):
         self.assertIn(self.room.id, {row['id'] for row in self.api('GET', RESOURCES + '?active=false').json()['items']})
         self.assertTrue(self.api('POST', path + '/unarchive').json()['active'])
 
+    def test_a_resource_of_an_active_combination_cannot_be_archived(self):
+        combination = self.env['resource.booking.combination'].create({
+            'company_id': self.env.company.id, 'resource_ids': [(6, 0, self.room.ids)],
+        })
+        self.env.flush_all()
+        self._manager()
+        result = self.api('POST', '%s/%d/archive' % (RESOURCES, self.room.id))
+        self.assertEqual((result.status_code, result.json()['code'], result.json()['field']), (422, 'invalid', 'resource_id'))
+        self.assertIn(combination.name, result.json()['message'])
+        self.assertTrue(self.room.active)
+        # An archived combination no longer uses the resource.
+        combination.active = False
+        self.env.flush_all()
+        self.assertEqual(self.api('POST', '%s/%d/archive' % (RESOURCES, self.room.id)).status_code, 200)
+
     def test_another_company_resource_is_not_found(self):
         foreign = self.env['resource.resource'].create({
             'name': 'Foreign room', 'resource_type': 'material', 'company_id': self._foreign_company_records()[0].id,

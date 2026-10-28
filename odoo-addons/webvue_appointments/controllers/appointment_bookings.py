@@ -2,8 +2,8 @@
 from contextlib import contextmanager
 from datetime import UTC, datetime, time, timedelta
 
-from odoo import http
-from odoo.exceptions import ConcurrencyError, ValidationError
+from odoo import fields, http
+from odoo.exceptions import ValidationError
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
@@ -14,10 +14,12 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.webvue_appointments.controllers.records import (
+    MANAGE_CAPABILITY,
     READ_CAPABILITY,
     WRITE_CAPABILITY,
     company_records,
     get_company_booking,
+    offered_combination,
 )
 from odoo.addons.webvue_appointments.serializers.appointment_booking import (
     booking_values,
@@ -28,6 +30,7 @@ from odoo.addons.webvue_appointments.serializers.appointment_booking import (
     parse_booking_query,
     parse_booking_schedule,
     requester_values,
+    within_deadline,
 )
 from odoo.addons.webvue_appointments.serializers.appointment_settings import (
     dump_settings,
@@ -42,7 +45,7 @@ class AppointmentBookingController(http.Controller):
 
     Scheduling writes ``start`` (and ``combination_id``) on the booking in the caller's environment:
     ``resource.booking`` takes the per-resource guard itself. A slot the engine refuses and a lost
-    guard race answer 409 ``conflict``. With ``requester_confirmation`` on, a booking that staff
+    refusal answers 409 ``conflict``; a lost guard race (``ConcurrencyError``) propagates so Odoo replays the request. With ``requester_confirmation`` on, a booking that staff
     create with a start or schedule stays ``scheduled`` until ``/confirm``; with it off, staff
     scheduling confirms it at once. Every route checks its capability in the current company and
     looks the booking up inside it (the ORM write rules are company-blind).
@@ -70,7 +73,7 @@ class AppointmentBookingController(http.Controller):
     @requires_feature('appointments.enabled', operation='read')
     @requires_capability(READ_CAPABILITY)
     def get_booking(self, booking_id, **_):
-        return dump_booking(get_company_booking(booking_id))
+        return self._detail(get_company_booking(booking_id), self._settings())
 
     @http.route('/api/v1/appointments/bookings', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -80,7 +83,7 @@ class AppointmentBookingController(http.Controller):
         settings = self._settings()
         parsed = parse_booking_create(payload, settings, datetime.now(UTC))
         booking_type = company_records('resource.booking.type', [parsed['type_id']], 'type_id')
-        combination = self._combination(booking_type, parsed['combination_id'])
+        combination = offered_combination(booking_type, parsed['combination_id'])
         partner = self._requester(parsed, settings)
         values = {
             'type_id': booking_type.id,
@@ -89,13 +92,14 @@ class AppointmentBookingController(http.Controller):
             **self._combination_values(combination),
         }
         if parsed['start']:
+            self._require_combination_links(booking_type)
             values['start'] = parsed['start']
             with self._conflicts():
                 booking = request.env[BOOKING].create(values)
             self._confirm_unless_requester_does(booking, settings)
         else:
             booking = request.env[BOOKING].create(values)
-        return dump_booking(booking)
+        return self._detail(booking, settings)
 
     @http.route('/api/v1/appointments/bookings/<int:booking_id>/schedule', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -107,11 +111,12 @@ class AppointmentBookingController(http.Controller):
         parsed = parse_booking_schedule(payload, settings, datetime.now(UTC))
         self._require_open(booking)
         self._require_modifiable(booking, 'start')
-        combination = self._combination(booking.type_id, parsed['combination_id'])
+        self._require_combination_links(booking.type_id)
+        combination = offered_combination(booking.type_id, parsed['combination_id'])
         with self._conflicts():
             booking.write({'start': parsed['start'], **self._combination_values(combination)})
         self._confirm_unless_requester_does(booking, settings)
-        return dump_booking(booking)
+        return self._detail(booking, settings)
 
     @http.route('/api/v1/appointments/bookings/<int:booking_id>/confirm', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -122,7 +127,7 @@ class AppointmentBookingController(http.Controller):
         if booking.state != 'scheduled':
             raise ApiError(422, 'invalid', 'only a scheduled booking can be confirmed')
         booking.action_confirm()
-        return dump_booking(booking)
+        return self._detail(booking, self._settings())
 
     @http.route('/api/v1/appointments/bookings/<int:booking_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -133,7 +138,7 @@ class AppointmentBookingController(http.Controller):
         self._require_open(booking)
         self._require_modifiable(booking, None)
         booking.action_cancel()
-        return dump_booking(booking)
+        return self._detail(booking, self._settings())
 
     @staticmethod
     def _settings():
@@ -158,18 +163,12 @@ class AppointmentBookingController(http.Controller):
         return domain
 
     @staticmethod
-    def _combination(booking_type, combination_id):
-        """The chosen combination (empty when none was sent, so the engine auto-assigns); it must belong to the type."""
-        Combination = request.env['resource.booking.combination']
-        if combination_id is None:
-            return Combination
-        if combination_id not in booking_type.combination_rel_ids.combination_id.filtered('active').ids:
-            raise ApiError(422, 'invalid', 'the type does not offer this combination', field='combination_id')
-        return Combination.browse(combination_id)
-
-    @staticmethod
     def _combination_values(combination):
-        """A chosen combination is kept as is (a taken slot is a conflict), so it turns auto-assign off."""
+        """A pinned combination is kept as is (a taken slot is a conflict), so it turns auto-assign off.
+
+        Without one the booking keeps its setting: a new booking auto-assigns, and a reschedule keeps the
+        combination or auto-assignment it already has.
+        """
         if not combination:
             return {}
         return {'combination_id': combination.id, 'combination_auto_assign': False}
@@ -194,10 +193,32 @@ class AppointmentBookingController(http.Controller):
             raise ApiError(422, 'invalid', 'the booking is canceled')
 
     @staticmethod
-    def _require_modifiable(booking, field):
-        """The engine's modification deadline (its manager bypass is inside ``is_modifiable``)."""
-        if booking.meeting_id and not booking.is_modifiable:
+    def _require_combination_links(booking_type):
+        if not booking_type.combination_rel_ids:
+            raise ApiError(422, 'invalid', 'the type offers no combination to schedule on', field='type_id')
+
+    @staticmethod
+    def _has_capability(key):
+        return request.env['webvue.access.service']._webvue_has_capability(request.env.user, key, company=request.env.company)
+
+    def _is_modifiable(self, booking):
+        """Past the modification deadline only a manager of the current company may still modify a booking.
+
+        The engine's own ``is_modifiable`` bypasses for ``group_manager``, which aggregates across companies.
+        """
+        return self._has_capability(MANAGE_CAPABILITY) or within_deadline(booking, fields.Datetime.now())
+
+    def _require_modifiable(self, booking, field):
+        if booking.meeting_id and not self._is_modifiable(booking):
             raise ApiError(422, 'invalid', 'the modification deadline of this booking has passed', field=field)
+
+    def _detail(self, booking, settings):
+        return dump_booking(
+            booking,
+            is_modifiable=self._is_modifiable(booking),
+            sees_contact=self._has_capability(WRITE_CAPABILITY),
+            national_id_hidden=settings['national_id_field'] == 'hidden',
+        )
 
     @staticmethod
     def _confirm_unless_requester_does(booking, settings):
@@ -207,10 +228,9 @@ class AppointmentBookingController(http.Controller):
     @staticmethod
     @contextmanager
     def _conflicts():
-        """The engine's refusal of a slot and a lost resource-guard race are both a 409."""
+        """The engine's refusal of a slot is a 409. A lost resource-guard race is not caught here: its
+        ``ConcurrencyError`` propagates so Odoo's request retry replays the request."""
         try:
             yield
         except ValidationError as error:
             raise ApiError(409, 'conflict', 'the slot is not available') from error
-        except ConcurrencyError as error:
-            raise ApiError(409, 'conflict', 'another booking is using this resource, try again') from error

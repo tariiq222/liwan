@@ -31,7 +31,8 @@ MINUTES_PER_HOUR = 60
 MAX_NOTES_LENGTH = 2000
 MAX_NATIONAL_ID_LENGTH = 32
 UTC_TIMESTAMP = re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z')
-PHONE = re.compile(r'\+?[0-9 ()\-]{5,32}')
+PHONE = re.compile(r'\+?[0-9 ()\-]+')
+PHONE_LENGTH = (5, 32)
 TRUE_FALSE = ('true', 'false')
 CREATE_FIELDS = ('type_id', 'combination_id', 'requester_id', 'requester', 'national_id', 'notes', 'start')
 REQUESTER_FIELDS = ('name', 'phone', 'email')
@@ -60,18 +61,34 @@ def dump_booking_rows(bookings):
     return [dump_booking_row(booking) for booking in bookings]
 
 
-def dump_booking(booking):
-    """The detail shape: the row plus the requester's contact data, national id and notes."""
+def within_deadline(booking, now):
+    """Whether ``now`` (naive UTC) is not past the type's modification deadline, with no manager bypass.
+
+    The engine's ``is_modifiable`` computes the same rule but bypasses it for ``group_manager``, a group
+    that aggregates across companies, so the controller adds its own current-company bypass.
+    """
+    if not booking.start:
+        return True
+    return now <= booking.start - timedelta(hours=booking.type_id.modifications_deadline)
+
+
+def dump_booking(booking, *, is_modifiable, sees_contact, national_id_hidden):
+    """The detail shape: the row plus the requester, national id, notes and whether the caller may modify it.
+
+    The requester's phone, email and the national id are only for callers who book (``sees_contact``); the
+    national id is also withheld while the company policy hides that field.
+    """
     requester = booking.partner_ids[:1]
     return {
         **dump_booking_row(booking),
         'requester': {
             'id': requester.id, 'name': requester.name or '',
-            'phone': requester.phone or None, 'email': requester.email or None,
+            'phone': (requester.phone or None) if sees_contact else None,
+            'email': (requester.email or None) if sees_contact else None,
         },
-        'national_id': booking.webvue_requester_national_id or None,
+        'national_id': (booking.webvue_requester_national_id or None) if sees_contact and not national_id_hidden else None,
         'notes': html2plaintext(booking.description).strip() or None if booking.description else None,
-        'is_modifiable': booking.is_modifiable,
+        'is_modifiable': is_modifiable,
     }
 
 
@@ -177,7 +194,7 @@ def parse_notes(value, field):
 
 def _parse_phone(value, field):
     value = parse_text(value, field)
-    if not PHONE.fullmatch(value):
+    if not PHONE_LENGTH[0] <= len(value) <= PHONE_LENGTH[1] or not PHONE.fullmatch(value):
         raise ApiError(422, 'invalid', 'must be a phone number', field=field)
     return value
 

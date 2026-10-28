@@ -10,11 +10,15 @@ WRITABLE_FIELDS = ('resource_ids', 'forced_calendar_id')
 
 
 def dump_combination(combination):
-    """Whitelist the wire shape of a resource.booking.combination."""
+    """Whitelist the wire shape of a resource.booking.combination.
+
+    ``resource_ids`` lists archived resources too: the field hides them by default, which would show a
+    combination whose resources were all archived as empty.
+    """
     return {
         'id': combination.id,
         'name': combination.name,
-        'resource_ids': combination.resource_ids.ids,
+        'resource_ids': combination.with_context(active_test=False).resource_ids.ids,
         'forced_calendar_id': combination.forced_calendar_id.id or None,
         'active': combination.active,
     }

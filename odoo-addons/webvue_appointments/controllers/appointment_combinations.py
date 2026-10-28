@@ -3,6 +3,7 @@ from odoo import http
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
+    ApiError,
     api_handler,
     parse_page,
     requires_capability,
@@ -69,6 +70,15 @@ class AppointmentCombinationController(http.Controller):
     @requires_capability(MANAGE_CAPABILITY)
     def archive_combination(self, combination_id, **_):
         combination = get_company_record(COMBINATION, combination_id)
+        # The engine's availability search follows every type link row, archived combinations included.
+        types = request.env['resource.booking.type.combination.rel'].search([
+            ('combination_id', '=', combination.id),
+        ]).type_id
+        if types:
+            raise ApiError(
+                422, 'invalid', 'the combination is still offered by the type(s): %s' % ', '.join(types.mapped('name')),
+                field='combination_id',
+            )
         combination.write({'active': False})
         return dump_combination(combination)
 

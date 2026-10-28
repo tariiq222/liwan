@@ -29,7 +29,8 @@ def get_company_booking(booking_id):
     ])
     if not found:
         raise MissingError(request.env._('Record does not exist'))
-    # Browse in the plain environment: the engine's combination search must not see archived records.
+    # Browse in the plain environment so active_test=False does not leak into the engine's own searches
+    # (many2one reads ignore active_test; the engine's combination and slot searches do not).
     return Booking.browse(found.ids)
 
 
@@ -47,3 +48,13 @@ def company_domain(args):
     if flag not in ('true', 'false'):
         raise ApiError(422, 'invalid', 'must be true or false', field='active')
     return [('company_id', '=', request.env.company.id), ('active', '=', flag == 'true')]
+
+
+def offered_combination(booking_type, combination_id):
+    """The active combination ``booking_type`` offers, or an empty one when ``combination_id`` is None; 422 otherwise."""
+    Combination = request.env['resource.booking.combination']
+    if combination_id is None:
+        return Combination
+    if combination_id not in booking_type.combination_rel_ids.combination_id.filtered('active').ids:
+        raise ApiError(422, 'invalid', 'the type does not offer this combination', field='combination_id')
+    return Combination.browse(combination_id)

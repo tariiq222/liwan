@@ -258,6 +258,17 @@ describe('AppointmentBooking schemas', () => {
     expect(() => AppointmentBookingCreateSchema.parse({ type_id: 1, requester_id: 3, company_id: 1 })).toThrow()
   })
 
+  it('a requester phone is 5 to 32 phone characters, like the server', () => {
+    const create = (phone: string) => AppointmentBookingCreateSchema.parse({ type_id: 1, requester: { name: 'Sara', phone } })
+    expect(create('+' + '1'.repeat(31)).requester?.phone).toHaveLength(32)
+    for (const bad of ['+' + '1'.repeat(32), '1234', 'abc12345']) expect(() => create(bad)).toThrow()
+  })
+
+  it('read-only callers get null contact fields', () => {
+    const hidden = { ...BOOKING, requester: { id: 9, name: 'Sara', phone: null, email: null }, national_id: null }
+    expect(AppointmentBookingSchema.parse(hidden)).toEqual(hidden)
+  })
+
   it('schedule needs a UTC start', () => {
     expect(AppointmentBookingScheduleSchema.parse({ start: '2026-11-02T09:00:00Z', combination_id: 4 })).toEqual({
       start: '2026-11-02T09:00:00Z', combination_id: 4,

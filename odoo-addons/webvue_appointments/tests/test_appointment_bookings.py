@@ -1,9 +1,14 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import UTC, datetime, timedelta
 
-from odoo.tests import tagged
+from odoo.exceptions import ConcurrencyError, ValidationError
+from odoo.tests import new_test_user, tagged
 
 from .common import WebVueAppointmentsCase
+from odoo.addons.webvue_api.controllers.common import ApiError
+from odoo.addons.webvue_appointments.controllers.appointment_bookings import (
+    AppointmentBookingController,
+)
 
 BOOKINGS = '/api/v1/appointments/bookings'
 UTC_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
@@ -330,6 +335,104 @@ class TestAppointmentBookings(WebVueAppointmentsCase):
         self._login('manager')
         result = self.api('POST', '%s/%d/cancel' % (BOOKINGS, booking['id']))
         self.assertEqual((result.status_code, result.json()['state']), (200, 'canceled'), result.text)
+
+    def test_the_deadline_bypass_needs_manage_in_the_current_company(self):
+        """Manage held only in another company does not lift the deadline, although the engine's group does."""
+        self._settings(min_notice_hours=0)
+        other = self.env['res.company'].create({'name': 'Deadline other company'})
+        user = new_test_user(
+            self.env, login='appointments_split', password='appointments_split_pass_123', name='Split roles',
+            groups='webvue_core.group_employee', company_ids=[(6, 0, [self.env.company.id, other.id])],
+        )
+        booking_role = self.env['webvue.access.role'].search([('name_ar', '=', 'حجز المواعيد')], limit=1)
+        service = self.env['webvue.access.service']
+        service._webvue_replace_assignments(user, [
+            {'role_id': self.env.ref('webvue_core.role_employee').id, 'company_id': self.env.company.id},
+            {'role_id': booking_role.id, 'company_id': self.env.company.id},
+        ])
+        # Assignments are replaced in the user's current company: switch there, grant manage, switch back.
+        main = self.env.company
+        user.company_id = other
+        service._webvue_replace_assignments(user, [{
+            'role_id': self.env.ref('webvue_appointments.role_appointments_manager').id, 'company_id': other.id,
+        }])
+        user.company_id = main
+        self.assertTrue(user.has_group('resource_booking.group_manager'))
+        booking = self._scheduled()
+        self.booking_type.modifications_deadline = 24 * 30
+        self.env.flush_all()
+        self.authenticate('appointments_split', 'appointments_split_pass_123')
+        self.assertFalse(self.api('GET', '%s/%d' % (BOOKINGS, booking['id'])).json()['is_modifiable'])
+        near = (datetime.now(UTC) + timedelta(hours=1)).strftime(UTC_FORMAT)
+        self._error(self.api('POST', '%s/%d/schedule' % (BOOKINGS, booking['id']), json={'start': near}), 422, 'invalid', 'start')
+        self._error(self.api('POST', '%s/%d/cancel' % (BOOKINGS, booking['id'])), 422, 'invalid')
+
+    def test_only_a_refused_slot_is_a_conflict_a_lost_guard_race_propagates_for_the_retry(self):
+        conflicts = AppointmentBookingController._conflicts
+        race, taken = 'race', 'slot taken'
+        with self.assertRaises(ConcurrencyError), conflicts():
+            raise ConcurrencyError(race)
+        with self.assertRaises(ApiError) as refused, conflicts():
+            raise ValidationError(taken)
+        self.assertEqual((refused.exception.status, refused.exception.code), (409, 'conflict'))
+
+    def test_refused_archives_keep_slots_taken_and_auto_assign_working(self):
+        booking = self._scheduled(combination_id=self.combination.id)
+        self._login('manager')
+        resource = self.combination.resource_ids
+        resource.resource_type = 'material'
+        self.env.flush_all()
+        archived = self.api('POST', '/api/v1/appointments/resources/%d/archive' % resource.id)
+        self._error(archived, 422, 'invalid', 'resource_id')
+        archived = self.api('POST', '/api/v1/appointments/combinations/%d/archive' % self.combination.id)
+        self._error(archived, 422, 'invalid', 'combination_id')
+        self._login()
+        self.assertNotIn(booking['start'], [item['start'] for item in self._slot_items(self.combination.id)])
+        again = self._create({**self._sara(), 'start': booking['start']})
+        self._error(again, 409, 'conflict')
+
+    def _slot_items(self, combination_id):
+        today = datetime.now(UTC).date()
+        path = '/api/v1/appointments/types/%d/slots?from=%s&to=%s&combination_id=%d' % (
+            self.booking_type.id, today + timedelta(days=2), today + timedelta(days=9), combination_id,
+        )
+        return self.api('GET', path).json()['items']
+
+    def test_a_type_without_combinations_cannot_be_scheduled(self):
+        self._login()
+        bare = self.env['resource.booking.type'].create({'name': 'No resources', 'duration': 0.5})
+        self.env.flush_all()
+        body = {'type_id': bare.id, **self._sara()}
+        start = self._slots()[0]
+        self._error(self.api('POST', BOOKINGS, json={**body, 'start': start}), 422, 'invalid', 'type_id')
+        pending = self.api('POST', BOOKINGS, json=body)
+        self.assertEqual(pending.status_code, 200, pending.text)
+        self._error(self.api('POST', '%s/%d/schedule' % (BOOKINGS, pending.json()['id']), json={'start': start}), 422, 'invalid', 'type_id')
+
+    def test_contact_fields_are_for_callers_who_book(self):
+        self._settings(national_id_field='optional')
+        self.employee.partner_id.write({'phone': '+966500000004', 'email': 'emp@example.com'})
+        booking = self._create_booking_for(self.employee.partner_id)
+        booking.webvue_requester_national_id = '1234567890'
+        self.env.flush_all()
+        path = '%s/%d' % (BOOKINGS, booking.id)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        reader = self.api('GET', path).json()
+        self.assertEqual((reader['requester']['phone'], reader['requester']['email'], reader['national_id']), (None, None, None))
+        self.assertEqual(reader['requester']['name'], self.employee.partner_id.name)
+        self._login()
+        booker = self.api('GET', path).json()
+        self.assertEqual(
+            (booker['requester']['phone'], booker['requester']['email'], booker['national_id']),
+            ('+966500000004', 'emp@example.com', '1234567890'),
+        )
+
+    def test_a_hidden_national_id_policy_hides_a_stored_id(self):
+        booking = self._create_booking_for(self.employee.partner_id)
+        booking.webvue_requester_national_id = '1234567890'
+        self.env.flush_all()
+        self._login()
+        self.assertIsNone(self.api('GET', '%s/%d' % (BOOKINGS, booking.id)).json()['national_id'])
 
     # --- access ---
 
