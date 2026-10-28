@@ -23,6 +23,17 @@ function trialOrderKey(customerId: string) {
 export async function startTrial(pool: Pool, input: { customer_id: string; request: unknown; principal: Principal; now?: Date }) {
   const now = input.now ?? new Date()
   const request = quoteRequestSchema.omit({ subscription_id: true }).parse(input.request)
+  // The digest covers the start request, not a fresh quote id, so the same start resent replays its order. The
+  // lookup runs before a new quote is built: once the trial has started (or its tenant is provisioned) that quote
+  // would be refused, and a resent start must still answer with its order.
+  const key = trialOrderKey(input.customer_id)
+  const digest = digestOf(request)
+  const replay = async (client: Pick<Pool, 'query'>) => {
+    const started = (await client.query('SELECT * FROM orders WHERE customer_id=$1 AND idempotency_key=$2', [input.customer_id, key])).rows[0]
+    return started?.request_digest === digest ? { order: orderView(started), replay: true } : null
+  }
+  const earlier = await replay(pool)
+  if (earlier) return { ...earlier, subscription: await getSubscription(pool, input.customer_id) }
   const plan = (await pool.query('SELECT trial_days FROM plan_revisions WHERE id=$1', [request.plan_revision_id])).rows[0]
   if (!plan) throw new CommercialHttpError('plan_missing', 404)
   if (!plan.trial_days) throw new CommercialHttpError('trial_disabled', 422)
@@ -30,14 +41,13 @@ export async function startTrial(pool: Pool, input: { customer_id: string; reque
   const built = await buildQuote(pool, { customer_id: input.customer_id, request: { ...request, effective_date: today } }, now)
   const endsAt = trialEndsAt(plan.trial_days, now)
   const trialQuote = redigest({ ...built, due_now: { ...built.due_now, minor: 0 }, next_renewal_at: riyadhDate(new Date(endsAt)) })
-  const acceptInput = acceptQuoteRequestSchema.parse({ quote_id: trialQuote.id, expected_subscription_revision: 0, idempotency_key: trialOrderKey(input.customer_id) })
-  // The digest covers the start request, not the fresh quote id, so the same start resent replays its order.
-  const digest = digestOf(request)
+  const acceptInput = acceptQuoteRequestSchema.parse({ quote_id: trialQuote.id, expected_subscription_revision: 0, idempotency_key: key })
   const result = await transaction(pool, async client => {
     const customer = (await client.query('SELECT * FROM customers WHERE id=$1 FOR UPDATE', [input.customer_id])).rows[0]
     if (!customer) throw new CommercialHttpError('not_found', 404)
-    const started = (await client.query('SELECT * FROM orders WHERE customer_id=$1 AND idempotency_key=$2', [input.customer_id, acceptInput.idempotency_key])).rows[0]
-    if (started?.request_digest === digest) return { order: orderView(started), replay: true }
+    // A concurrent identical start that committed while this one waited on the customer lock.
+    const concurrent = await replay(client)
+    if (concurrent) return concurrent
     if (customer.trial_used_at) throw new CommercialHttpError('trial_already_used', 409)
     const existing = (await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE', [input.customer_id])).rows[0]
     if (existing?.applied_revision_id) throw new CommercialHttpError('trial_not_available', 409)

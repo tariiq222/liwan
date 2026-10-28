@@ -29,7 +29,8 @@ suite('fulfillment enqueue retry on scratch PostgreSQL', () => {
     if (opts.invoice !== false) await pool.query("INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end) VALUES($1,$2,$3,$4,'initial','paid','SAR',2,100,15,115,'2026-01-01','2027-01-01')", [randomUUID(), customer, subscription, order])
     return { customer, subscription, order, target }
   }
-  const run = () => processFulfillmentOutbox(pool, { enrollment })
+  // The outbox is shared by every suite on this database: claim the whole backlog so each test reaches its own order.
+  const run = () => processFulfillmentOutbox(pool, { limit: 1000, enrollment })
   const row = async (order: string) => (await pool.query('SELECT status,attempts,next_attempt_at > now() AS waiting,payload FROM commercial_outbox WHERE aggregate_id=$1', [order])).rows[0]
   const orderState = async (order: string) => (await pool.query('SELECT fulfillment_state FROM orders WHERE id=$1', [order])).rows[0].fulfillment_state
   const notes = async (order: string) => (await pool.query("SELECT a.status FROM invoice_adjustments a JOIN invoices i ON i.id=a.invoice_id WHERE i.order_id=$1 AND a.kind='credit_note'", [order])).rows

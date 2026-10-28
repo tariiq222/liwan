@@ -70,6 +70,17 @@ suite('commercial trial', () => {
     await expect(startTrial(pool, { customer_id: c.id, request: { ...request(), requested_users: 4 }, principal: c.principal, now }))
       .rejects.toMatchObject({ code: 'trial_already_used' })
   })
+  it('replays a resent customer start after the trial order was fulfilled', async () => {
+    const c = await newCustomer()
+    // The customer page sends the revision it saw (0); the start itself moves the subscription past it.
+    const body = { ...request(), expected_subscription_revision: 0 }
+    const first = await startTrial(pool, { customer_id: c.id, request: body, principal: c.principal, now })
+    await pool.query('UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,revision=revision+1 WHERE customer_id=$1', [c.id])
+    await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE customer_id=$1", [c.id])
+    const resent = await startTrial(pool, { customer_id: c.id, request: body, principal: c.principal, now })
+    expect(resent).toMatchObject({ replay: true, order: { id: first.order.id }, subscription: { state: 'trialing' } })
+    expect((await pool.query('SELECT 1 FROM orders WHERE customer_id=$1', [c.id])).rowCount).toBe(1)
+  })
   async function onlyTrial(customerId: string) {
     await pool.query("UPDATE subscriptions SET state='past_due',revision=revision+1 WHERE state='trialing' AND customer_id<>$1", [customerId])
   }

@@ -41,7 +41,8 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     await pool.query("INSERT INTO commercial_branches(id,subscription_id,name,kind,billing,state,order_id) VALUES($1,$2,'Old extra','extra','paid','active',$3)",[archive,subscription,order])
     return { customer, subscription, order, target, entitlement,archive }
   }
-  const process = () => processFulfillmentOutbox(pool, { enrollment: { config } })
+  // The outbox is shared by every suite on this database: claim the whole backlog so each test reaches its own order.
+  const process = () => processFulfillmentOutbox(pool, { limit: 1000, enrollment: { config } })
   it.each(['paid', 'not_required'])('links one %s new enrollment and waits for verified activation before reconfigure', async payment => {
     const s = await seed(true, payment)
     expect(await process()).toContainEqual({ order_id: s.order, reason: 'enrollment_pending' })
