@@ -3,6 +3,7 @@
 The repository uses [e2e](https://e2e.tester.army/docs) alongside Playwright and Vitest.
 Tests live in `e2e/tests/*.e2e.ts`, configuration in `e2e.config.ts`, and model construction in `e2e/models.ts`.
 The current script and isolation contracts are documented in [testing.md](testing.md#4-agentic-e2e).
+The scenario register and personas are in [e2e/scenarios](../e2e/scenarios/README.md).
 
 ## Run / التشغيل
 
