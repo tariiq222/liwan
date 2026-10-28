@@ -34,7 +34,8 @@ export default defineNuxtPlugin({
         if (identity.me.value) return // still signed in: a genuine permission error
         clearChatDrafts()
         const current = router.currentRoute.value
-        if (current.path === '/login') return
+        // Login (guest) and the public pages (pay page, invitation) have no session to lose.
+        if (current.meta.access) return
         // A suspension reported while `me` was re-checked owns the redirect and its reason.
         if (isTenantSuspended()) return
         await navigateTo({ path: '/login', query: { next: current.fullPath } })

@@ -32,7 +32,7 @@ function loadGuard(client = true, suspended = false) {
     .replaceAll('import.meta.client', String(client))
     .replace('export default', 'return')
   const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-  const guard = new Function(...Object.keys(bindings), code)(...Object.values(bindings)) as (to: { path: string; fullPath: string }) => Promise<unknown>
+  const guard = new Function(...Object.keys(bindings), code)(...Object.values(bindings)) as (to: { path: string; fullPath: string; meta?: { access?: string } }) => Promise<unknown>
   return { ...bindings, guard, ready, notification, refresh, callHook, canReachPath }
 }
 
@@ -74,4 +74,24 @@ it('sends a session the API ended for a suspended tenant to the login page with 
   view.ready.resolve()
   await view.guard({ path: '/projects', fullPath: '/projects?q=x' })
   expect(view.navigateTo).toHaveBeenCalledWith({ path: '/login', query: { reason: 'tenant_suspended' } })
+})
+
+it('opens a public page without waiting for, or depending on, the identity', async () => {
+  const view = loadGuard(true, true)
+  await view.guard({ path: '/pay/invoice/7', fullPath: '/pay/invoice/7?access_token=x', meta: { access: 'public' } })
+  expect(view.callHook).not.toHaveBeenCalled()
+  expect(view.navigateTo).not.toHaveBeenCalled()
+})
+
+it('sends a signed-in visitor of a guest page home and lets a signed-out one stay', async () => {
+  const signedIn = loadGuard()
+  signedIn.notification.resolve()
+  signedIn.ready.resolve()
+  await signedIn.guard({ path: '/login', fullPath: '/login', meta: { access: 'guest' } })
+  expect(signedIn.navigateTo).toHaveBeenCalledWith('/')
+  const signedOut = loadGuard(true, true)
+  signedOut.notification.resolve()
+  signedOut.ready.resolve()
+  await signedOut.guard({ path: '/login', fullPath: '/login', meta: { access: 'guest' } })
+  expect(signedOut.navigateTo).not.toHaveBeenCalled()
 })

@@ -123,6 +123,9 @@ export default defineNuxtConfig({
     // Retired customer URLs keep working: permanent redirects that carry the query string along.
     '/archived-tasks': { redirect: { to: '/tasks?scope=archived', statusCode: 301 } },
     '/reports': { redirect: { to: '/projects/dashboard', statusCode: 301 } },
+    // The pay pages carry a document's access token in their address: never send it as a referrer
+    // (to the gateway or any other origin) and never keep the page in a shared cache.
+    '/pay/**': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
     // Keep future security/cache rules outside this proxy-only spread.
     ...(shared ? {} : {
     // The only stock routes left (ir.http guard in webvue_platform): session, assets and images.

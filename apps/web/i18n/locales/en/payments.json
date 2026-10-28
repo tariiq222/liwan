@@ -65,6 +65,81 @@
       "syncFailed": "The gateway could not be reached or refused the keys. Check the keys and try again.",
       "methodsMissing": "Your gateway account does not turn on a payment method WebVue needs. Turn it on in the gateway dashboard, then try again.",
       "invalid": "Invalid value. Check that you copied the whole key."
+    },
+    "pay": {
+      "title": "Pay invoice",
+      "statusTitle": "Payment status",
+      "amountDue": "Amount due",
+      "merchant": "Issued by",
+      "number": "Invoice number",
+      "dueDate": "Due date",
+      "total": "Invoice total",
+      "chooseMethod": "Choose how to pay",
+      "submit": "Pay now",
+      "redirecting": "Taking you to the payment page…",
+      "secure": "You will go to the gateway's secure payment page to complete the payment.",
+      "retry": "Try again",
+      "refresh": "Refresh status",
+      "states": {
+        "paid": {
+          "title": "This invoice is paid",
+          "body": "Thank you. We received the payment and nothing more is needed."
+        },
+        "processing": {
+          "title": "Payment is being confirmed",
+          "body": "We received the payment request and are waiting for the gateway to confirm it. This can take a few minutes, and you can close this page."
+        },
+        "notPayable": {
+          "title": "This invoice cannot be paid now",
+          "body": "Contact the invoice issuer to find out why."
+        },
+        "noOptions": {
+          "title": "Online payment is not available for this invoice at the moment",
+          "body": "Contact the invoice issuer."
+        },
+        "invalidLink": {
+          "title": "The payment link is not valid",
+          "body": "The link is wrong or has expired. Ask the invoice issuer for a new link."
+        },
+        "unavailable": {
+          "title": "The invoice could not be loaded",
+          "body": "A temporary problem occurred. Try again in a moment."
+        }
+      },
+      "errors": {
+        "notPayable": "This invoice cannot be paid now. Reload the page to see its status.",
+        "unavailable": "The payment gateway is not available now. Try again in a moment.",
+        "failed": "The payment could not be started. Try again.",
+        "inProgress": "A payment of this invoice was started a moment ago on another page. Finish it there, or try again in a quarter of an hour."
+      }
+    },
+    "status": {
+      "confirming": {
+        "title": "Checking the payment result",
+        "body": "This can take a few moments. Keep this page open."
+      },
+      "notPaid": {
+        "title": "The payment was not made",
+        "body": "We did not receive a payment result. If it did not complete, you can try again."
+      },
+      "backToPay": "Back to the payment page",
+      "tryAgain": "Try paying again"
+    },
+    "returned": {
+      "title": "Payment result received",
+      "alertTitle": "You can close this page",
+      "body": "To see the invoice status, open the payment link you received again."
+    },
+    "link": {
+      "action": "Payment link",
+      "copied": "Payment link copied",
+      "copiedHint": "Send it to the customer so they can pay the invoice without an account.",
+      "copyFailed": "Could not copy automatically. Copy the link by hand",
+      "failed": "The payment link could not be created",
+      "errors": {
+        "notPayable": "This invoice cannot be paid by link. Make sure it is posted and has an amount due.",
+        "noGateway": "Switch a payment gateway to live first."
+      }
     }
   }
 }
