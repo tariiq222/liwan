@@ -127,6 +127,10 @@
     "odoo-addons/webvue_chat/models/chat_service.py": {
       "count": 1,
       "reason": "webvue_chat group member removal: `channel.sudo()._action_unfollow(partner=member.partner_id, post_leave_message=False)` in `_webvue_remove_member` (models/chat_service.py), after `_webvue_member_channel` proved the caller's membership and the method checked `channel.channel_type == 'group'` and `channel.create_uid == self.env.user`. Blocked by addons/mail/security/mail_security.xml `ir_rule_discuss_channel_member_is_self_all`, which lets a user write or unlink only their own `discuss.channel.member` row (`is_self`), and stock Odoo offers no route that removes another member. Scope is one member row (and its follower entry) of a group the caller created; the notice is posted unelevated by the caller."
+    },
+    "odoo-addons/webvue_payments/models/payment_provider.py": {
+      "count": 1,
+      "reason": "webvue_payments switches one gateway's mode: `self.sudo().write({'state': ..., 'is_published': ...})` in `_webvue_payments_set_state`, after the `payments.providers.manage` capability and the current-company checks in the same method; stock `payment.provider.write` then archives `payment.token` rows, toggles `payment.method.active` and the payment post-processing `ir.cron`, each blocked by the system-only `payment_token_system`, `payment_method_system` and `ir.cron` ACL rows."
     }
   }
 }

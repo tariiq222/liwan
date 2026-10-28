@@ -367,6 +367,11 @@ cross-addon links.
   after the `finance.zatca.manage` / `finance.zatca.submit` capability and current-company checks,
   in the sandbox api mode only (ZATCA onboarding is sandbox-only in this phase, so production invoicing for real
   tenants is a release blocker until the preprod/prod policy is approved).
+  `webvue_payments` uses it only in `models/payment_provider.py`, to switch one gateway's mode
+  (disabled, test, live) after the `payments.providers.manage` capability and current-company checks:
+  stock `payment.provider.write` then archives the provider's saved tokens and toggles its payment
+  methods and the payment post-processing cron, all system-only models. The tenant's gateway keys are
+  written without elevation (the capability group joins the stock key field's group) and never returned.
   `webvue_api` uses it in `controllers/common.py` only for the single company-ownership
   read in `get_record`, before any access check, so another company's record answers the
   same 404 not-found as a missing one instead of a 403 that leaks its existence; in
