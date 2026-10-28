@@ -25,11 +25,7 @@ class TestFinanceMonthCycle(WebVueFinanceCase):
         cls.fresh = cls._fresh_company_manager('Finance Month Cycle', LOGIN, PASSWORD)
 
     def call(self, method, path, body=None, status=200):
-        if path.startswith('/setup/'):
-            user = self.env['res.users'].sudo().search([('login', '=', LOGIN)], limit=1)
-            result = self.setup_api(method, f'{API}{path}', user=user, company=self.fresh, json=body)
-        else:
-            result = self.api(method, f'{API}{path}', json=body)
+        result = self.api(method, f'{API}{path}', json=body)
         self.assertEqual(result.status_code, status, f'{method} {path}: {result.text}')
         return result.json()
 
@@ -46,7 +42,6 @@ class TestFinanceMonthCycle(WebVueFinanceCase):
         VAT return: box 1 base 9000 tax 1350, box 7 base 4000 tax 600, net VAT 750; cash: opening 50000, closing 50975.
         """
         self.authenticate(LOGIN, PASSWORD)
-        self.call('POST', '/setup/chart', {})
         zatca = self.env.ref('l10n_sa_edi.edi_sa_zatca')
         self.env['account.journal'].search([('company_id', '=', self.fresh.id)]).edi_format_ids = [Command.unlink(zatca.id)]
         Account = self.env['account.account'].with_company(self.fresh)

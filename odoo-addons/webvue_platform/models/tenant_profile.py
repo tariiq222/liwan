@@ -12,6 +12,13 @@ from odoo.addons.webvue_platform.models.entitlement_service import (
 
 _logger = logging.getLogger(__name__)
 
+# WebVue's accounting baseline. The root company is Saudi before `product` and `account`
+# install, so stock creates its default pricelists in SAR and loads the `sa` chart and its
+# VAT taxes (`account/models/ir_module.py`, `IrModuleModule.write`). This module's install
+# hook runs first: Odoo installs modules by dependency depth and it depends on `webvue_core` only.
+BASELINE_COUNTRY = 'base.sa'
+BASELINE_CURRENCY = 'base.SAR'
+
 
 class WebVueTenantProfile(models.Model):
     _name = 'webvue.tenant.profile'
@@ -135,6 +142,14 @@ class WebVueTenantProfile(models.Model):
         })
         self._webvue_ensure_xmlid(profile)
         return profile
+
+    def _webvue_apply_accounting_baseline(self):
+        """Make the root company Saudi (country and currency) before accounting installs."""
+        self.ensure_one()
+        self.root_company_id.write({
+            'country_id': self.env.ref(BASELINE_COUNTRY).id,
+            'currency_id': self.env.ref(BASELINE_CURRENCY).id,
+        })
 
     @api.model
     def _webvue_policy_initialized(self, profile=None):

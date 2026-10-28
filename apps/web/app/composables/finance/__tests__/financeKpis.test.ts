@@ -28,10 +28,10 @@ describe('finance overview tiles', () => {
 describe('finance setup steps', () => {
   it('marks a step done once the server no longer lists it as a blocker, in the order a user fixes them', () => {
     const steps = financeSetupSteps({ blockers: ['company_registry_missing', 'zatca_not_onboarded'] })
-    expect(steps.map(step => step.code)).toEqual(['chart_not_loaded', 'vat_15_tax_missing', 'company_vat_missing', 'company_registry_missing', 'company_address_incomplete', 'zatca_not_onboarded'])
+    expect(steps.map(step => step.code)).toEqual(['vat_15_tax_missing', 'company_vat_missing', 'company_registry_missing', 'company_address_incomplete', 'zatca_not_onboarded'])
     expect(steps.filter(step => !step.done).map(step => step.code)).toEqual(['company_registry_missing', 'zatca_not_onboarded'])
-    expect(financeSetupProgress({ blockers: ['company_registry_missing', 'zatca_not_onboarded'] })).toEqual({ done: 4, total: 6 })
-    expect(financeSetupProgress({ blockers: [] })).toEqual({ done: 6, total: 6 })
+    expect(financeSetupProgress({ blockers: ['company_registry_missing', 'zatca_not_onboarded'] })).toEqual({ done: 3, total: 5 })
+    expect(financeSetupProgress({ blockers: [] })).toEqual({ done: 5, total: 5 })
   })
 })
 

@@ -30,6 +30,7 @@
         'data/finance_access_permissions.xml',
         'data/finance_mis_reports.xml',
     ],
+    'post_init_hook': 'post_init_hook',
     'installable': True,
     'application': False,
 }
