@@ -1,4 +1,4 @@
-import { canReachPath } from '@/utils/accessPolicy'
+import { appRootFallback, canReachPath } from '@/utils/accessPolicy'
 export default defineNuxtRouteMiddleware(async (to) => {
   // A public page needs no identity at all, so it must not depend on /api/v1/me answering.
   if (to.meta?.access === 'public') return
@@ -23,5 +23,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
   if (!me.value && isTenantSuspendedError(error.value)) return navigateTo({ path: '/login', query: { reason: 'tenant_suspended' } })
   if (!me.value) return navigateTo({ path: '/login', query: to.fullPath === '/' ? {} : { next: to.fullPath } })
+  const fallback = appRootFallback(me.value, to.path)
+  if (fallback) return navigateTo(fallback, { replace: true })
   if (!canReachPath(me.value, to.path)) throw createError({ statusCode: 403, statusMessage: $i18n.t('errors.forbidden') })
 })

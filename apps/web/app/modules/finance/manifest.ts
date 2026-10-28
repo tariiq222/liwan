@@ -113,6 +113,7 @@ const manifest: AppManifest = {
     { path: '/finance/budgets', capability: 'finance.budgets.read' },
     { path: '/finance/assets', capability: 'finance.assets.read' },
     { path: '/finance/reports/trial-balance', capability: 'finance.statements.read' },
+    { path: '/finance/reports/vat', capability: 'finance.reports.read' },
   ],
   routeCapabilities: [
     { pattern: /^\/finance\/partners\/(new|[^/]+\/edit)$/, capability: 'finance.partners.manage' },
