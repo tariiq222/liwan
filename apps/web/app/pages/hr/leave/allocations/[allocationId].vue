@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { owningListBack } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
-import { useHrLeaveAllocation } from '@/composables/useHrLeave'
+import { useHrLeaveAllocation, useRevokeLeaveAllocation } from '@/composables/useHrLeave'
 import { useHrLeaveFormat } from '@/composables/useHrLeaveFormat'
 import { hrLeaveBadge } from '@/utils/hrLeaveBadge'
 import LeaveAllocationForm from '@/components/hr/LeaveAllocationForm.vue'
@@ -9,7 +9,8 @@ import LeaveAllocationForm from '@/components/hr/LeaveAllocationForm.vue'
 // One granted leave balance. Its days and validity are corrected in place (the /new panel is
 // the only create route); the employee and the leave type identify the grant and stay as they are.
 // The server refuses an edit of one's own grant (403), of a refused one and one below the days
-// already taken (422); the form shows those messages.
+// already taken (422); the form shows those messages. Revoking asks inline first and is refused
+// while validated leave still consumes the grant's days.
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
@@ -36,6 +37,20 @@ const viewTo = computed(() => {
 function startEditing() {
   if (!hydrated.value) return
   void router.push({ path: route.path, query: { ...route.query, edit: '1' }, ...(route.hash ? { hash: route.hash } : {}) })
+}
+
+const revoking = ref(false)
+const revokeError = ref('')
+const { mutateAsync: revoke, isPending: revokePending } = useRevokeLeaveAllocation()
+async function confirmRevoke() {
+  if (!allocation.value || !hydrated.value || revokePending.value) return
+  revokeError.value = ''
+  try {
+    await revoke(allocation.value.id)
+    revoking.value = false
+  } catch (cause) {
+    revokeError.value = cause instanceof ApiError ? cause.message : t('errors.generic')
+  }
 }
 
 async function onSaved() {
@@ -76,7 +91,31 @@ async function onSaved() {
         :to="viewTo"
         data-testid="hr-allocation-cancel"
       />
+      <UButton
+        v-if="!editing"
+        color="error"
+        variant="outline"
+        icon="i-lucide-undo-2"
+        :disabled="!hydrated"
+        :label="t('hr.leave.allocation.revoke')"
+        data-testid="hr-allocation-revoke"
+        @click="revoking = true"
+      />
     </template>
+
+    <UAlert v-if="revokeError" role="alert" color="error" variant="subtle" :title="revokeError" data-testid="hr-allocation-revoke-error" />
+    <SharedInlineConfirm
+      v-if="revoking && allocation && editable && !editing"
+      :title="t('hr.leave.allocation.revokeConfirm', { type: allocation.leave_type.name, employee: allocation.employee.name })"
+      :description="t('hr.leave.allocation.revokeHint')"
+      :confirm-label="t('hr.leave.allocation.revoke')"
+      :cancel-label="t('app.back')"
+      :pending="revokePending"
+      :disabled="!hydrated"
+      color="error"
+      @confirm="confirmRevoke"
+      @cancel="revoking = false"
+    />
 
     <template v-if="allocation && editing">
       <LeaveAllocationForm :allocation="allocation" :back-to="viewTo" @saved="onSaved" />

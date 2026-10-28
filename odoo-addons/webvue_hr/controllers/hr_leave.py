@@ -158,6 +158,16 @@ def _current_allocation(allocation_id):
     return allocation
 
 
+def _changeable_allocation(allocation_id):
+    """A managed allocation the caller may change: never one's own, never a refused one."""
+    allocation = _current_allocation(allocation_id)
+    if allocation.employee_id.user_id == request.env.user:
+        raise ApiError(403, 'forbidden', 'an allocation cannot be changed by its own employee')
+    if allocation.state == 'refuse':
+        raise ApiError(422, 'invalid', 'a refused allocation cannot be changed')
+    return allocation
+
+
 class HrLeaveController(http.Controller):
 
     @http.route('/api/v1/hr/leave/me/<int:leave_id>', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -412,15 +422,26 @@ class HrLeaveController(http.Controller):
         still covers the days already taken only when that field is written, and a shorter
         validity can leave taken days uncovered as surely as fewer days can.
         """
-        allocation = _current_allocation(allocation_id)
-        if allocation.employee_id.user_id == request.env.user:
-            raise ApiError(403, 'forbidden', 'an allocation cannot be changed by its own employee')
-        if allocation.state == 'refuse':
-            raise ApiError(422, 'invalid', 'a refused allocation cannot be changed')
+        allocation = _changeable_allocation(allocation_id)
         vals = parse_allocation_patch(payload, allocation)
         # Both day fields go together: number_of_days alone skips that check, and the display
         # field alone recomputes number_of_days from its unstored cache value.
         vals.setdefault('number_of_days', allocation.number_of_days)
         vals['number_of_days_display'] = vals['number_of_days']
         allocation.write(vals)
+        return dump_allocation(allocation)
+
+    @http.route('/api/v1/hr/leave/allocations/<int:allocation_id>/revoke', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('hr.enabled', operation='write')
+    @requires_capability('hr.leave.manage')
+    def revoke_allocation(self, allocation_id, **payload):
+        """Withdraw a grant through stock hr_holidays' refusal.
+
+        Refusing writes ``state``, so hr_holidays refuses (422) a revoke that would leave
+        validated leave without the days it already consumed.
+        """
+        _require_no_fields(payload)
+        allocation = _changeable_allocation(allocation_id)
+        allocation.action_refuse()
         return dump_allocation(allocation)

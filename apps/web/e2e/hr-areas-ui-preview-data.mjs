@@ -143,9 +143,9 @@ const runStep = (id, summary, assignee, date_deadline, state, can_complete) => (
 })
 const planRun = (id, employee, plan, plan_date, steps) => {
   const done = steps.filter(step => step.state === 'done').length
-  return { id, employee, plan: { id: plan.id, name: plan.name }, plan_date, launched_by: AHMAD, done, total: steps.length, state: done === steps.length ? 'done' : 'open', steps }
+  return { id, employee, plan: { id: plan.id, name: plan.name }, plan_date, launched_by: AHMAD, done, total: steps.length, state: done === steps.length ? 'done' : 'open', cancellation: null, can_cancel: done !== steps.length, steps }
 }
-const runSummary = ({ steps: _steps, ...run }) => run
+const runSummary = ({ steps: _steps, can_cancel: _canCancel, ...run }) => run
 
 const onboardingPlans = [
   { id: 1, name: 'تهيئة الموظفين الجدد', department: OPS, active: true, steps: [planStep(1, 'تجهيز الحساب والبريد', 'manager', 0), planStep(2, 'جولة تعريفية بالفريق', 'employee', 2), planStep(3, 'مراجعة الأسبوع الأول', 'manager', 1, 'weeks')] },

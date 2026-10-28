@@ -8,7 +8,7 @@ from .common import WebVueHrCase, set_hr_feature
 
 DEPARTURE_KEYS = {'employee', 'active', 'departure_date', 'reason', 'description', 'clearance'}
 CLEARANCE_KEYS = {'run_id', 'done', 'total'}
-RUN_KEYS = {'id', 'employee', 'plan', 'plan_date', 'launched_by', 'done', 'total', 'state'}
+RUN_KEYS = {'id', 'employee', 'plan', 'plan_date', 'launched_by', 'done', 'total', 'state', 'cancellation'}
 MANAGER_KEYS = (
     'hr.employees.read', 'hr.employees.manage',
     'hr.offboarding.read', 'hr.offboarding.manage',
@@ -131,7 +131,7 @@ class TestHrOffboarding(WebVueHrCase):
         run_id = body['clearance']['run_id']
         detail = self.api('GET', f'/api/v1/hr/offboarding/runs/{run_id}')
         self.assertEqual(detail.status_code, 200, detail.text)
-        self.assertEqual(set(detail.json()), RUN_KEYS | {'steps'})
+        self.assertEqual(set(detail.json()), RUN_KEYS | {'steps', 'can_cancel'})
         self.assertEqual(detail.json()['state'], 'open')
         steps = detail.json()['steps']
         self.assertTrue(all(step['can_complete'] for step in steps))
@@ -266,3 +266,35 @@ class TestHrOffboarding(WebVueHrCase):
             item['employee']['id']
             for item in self.api('GET', '/api/v1/hr/offboarding/departures').json()['items']
         })
+
+    def test_a_cancelled_clearance_is_no_clearance_and_ones_own_is_refused(self):
+        self._as_manager()
+        body = self._register().json()
+        run_id = body['clearance']['run_id']
+        cancelled = self.api('POST', f'/api/v1/hr/offboarding/runs/{run_id}/cancel', json={'reason': 'wrong plan'})
+        self.assertEqual(cancelled.status_code, 200, cancelled.text)
+        self.assertEqual(cancelled.json()['state'], 'cancelled')
+        departure = self.api('GET', f'/api/v1/hr/offboarding/departures/{self.employee_record.id}').json()
+        self.assertIsNone(departure['clearance']['run_id'])
+
+        own = self.env['webvue.hr.plan.run'].create({
+            'employee_id': self.own_employee.id, 'plan_id': self.plan.id, 'plan_date': DEPARTURE_DATE,
+        })
+        refused = self.api('POST', f'/api/v1/hr/offboarding/runs/{own.id}/cancel', json={'reason': 'mine'})
+        self.assertEqual((refused.status_code, refused.json()['code']), (403, 'forbidden'))
+        self.assertEqual(own.state, 'open')
+
+    def test_cancelling_the_latest_clearance_does_not_restore_an_older_one(self):
+        self._as_manager()
+        body = self._register().json()
+        older = self.env['webvue.hr.plan.run'].browse(body['clearance']['run_id'])
+        older.with_context(active_test=False).activity_ids.action_feedback(feedback='done')
+        newer = self.env['webvue.hr.plan.run'].create({
+            'employee_id': self.employee_record.id, 'plan_id': self.plan.id, 'plan_date': '2099-01-01',
+        })
+        cancelled = self.api('POST', f'/api/v1/hr/offboarding/runs/{newer.id}/cancel', json={'reason': 'wrong plan'})
+        self.assertEqual(cancelled.status_code, 200, cancelled.text)
+        departure = self.api('GET', f'/api/v1/hr/offboarding/departures/{self.employee_record.id}').json()
+        self.assertIsNone(departure['clearance']['run_id'])
+        cleared = self.api('GET', '/api/v1/hr/offboarding/departures?cleared=true').json()
+        self.assertNotIn(self.employee_record.id, {item['employee']['id'] for item in cleared['items']})

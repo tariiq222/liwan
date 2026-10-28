@@ -186,3 +186,57 @@ class TestLeaveAllocationControls(WebVueHrCase):
         self.assertEqual(self.api('PATCH', path, {'number_of_days': 9}).status_code, 404)
         listed = self.api('GET', '/api/v1/hr/leave/allocations').json()
         self.assertNotIn(foreign.id, {item['id'] for item in listed['items']})
+
+    # --- revoke --------------------------------------------------------------------------
+
+    def test_manager_revokes_an_allocation_once(self):
+        allocation_id = self._granted(self.staff)
+        self.authenticate('alloc_mgr', 'alloc_mgr_pass_123')
+        path = f'/api/v1/hr/leave/allocations/{allocation_id}/revoke'
+        revoked = self.api('POST', path, {})
+        self.assertEqual(revoked.status_code, 200, revoked.text)
+        self.assertEqual(set(revoked.json()), ALLOCATION_KEYS)
+        self.assertEqual(revoked.json()['state'], 'refuse')
+        self.assertEqual(self.env['hr.leave.allocation'].browse(allocation_id).state, 'refuse')
+        again = self.api('POST', path, {})
+        self.assertEqual((again.status_code, again.json()['code']), (422, 'invalid'))
+        edit = self.api('PATCH', f'/api/v1/hr/leave/allocations/{allocation_id}', {'number_of_days': 9})
+        self.assertEqual(edit.status_code, 422, edit.text)
+        stray = self.api('POST', f'/api/v1/hr/leave/allocations/{self._granted(self.no_account)}/revoke', {'reason': 'x'})
+        self.assertEqual((stray.status_code, stray.json().get('field')), (422, 'reason'))
+
+    def test_revoke_is_refused_for_ones_own_and_without_the_capability(self):
+        own = self._granted(self.manager_employee)
+        self.authenticate('alloc_mgr', 'alloc_mgr_pass_123')
+        refused = self.api('POST', f'/api/v1/hr/leave/allocations/{own}/revoke', {})
+        self.assertEqual((refused.status_code, refused.json()['code']), (403, 'forbidden'))
+        other = self._granted(self.staff)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        denied = self.api('POST', f'/api/v1/hr/leave/allocations/{other}/revoke', {})
+        self.assertEqual((denied.status_code, denied.json()['code']), (403, 'forbidden'))
+        for allocation_id in (own, other):
+            self.assertEqual(self.env['hr.leave.allocation'].browse(allocation_id).state, 'validate')
+
+    def test_revoke_cannot_strand_leave_already_taken(self):
+        allocation_id = self._granted(self.staff, days=5)
+        start = date.today() + timedelta(days=7 - date.today().weekday())
+        leave = self.env['hr.leave'].create({
+            'employee_id': self.staff.id, 'holiday_status_id': self.annual.id,
+            'request_date_from': start, 'request_date_to': start + timedelta(days=2),
+        })
+        leave.action_approve()
+        self.authenticate('alloc_mgr', 'alloc_mgr_pass_123')
+        res = self.api('POST', f'/api/v1/hr/leave/allocations/{allocation_id}/revoke', {})
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(self.env['hr.leave.allocation'].browse(allocation_id).state, 'validate')
+
+    def test_another_company_allocation_cannot_be_revoked(self):
+        other_company = self.env['res.company'].create({'name': 'Revoke Other Company'})
+        other_employee = self.env['hr.employee'].create({'name': 'Far Away', 'company_id': other_company.id})
+        foreign = self.env['hr.leave.allocation'].create({
+            'employee_id': other_employee.id, 'holiday_status_id': self.annual.id,
+            'number_of_days': 3, 'date_from': date.today(),
+        })
+        self.authenticate('alloc_mgr', 'alloc_mgr_pass_123')
+        res = self.api('POST', f'/api/v1/hr/leave/allocations/{foreign.id}/revoke', {})
+        self.assertEqual(res.status_code, 404, res.text)

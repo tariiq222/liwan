@@ -329,7 +329,10 @@
         "emptyTitle": "No balances granted yet",
         "emptyHint": "Grant an employee a leave balance to see it here.",
         "footer": "Showing {shown} of {total}",
-        "countTag": "{count} balance | {count} balances"
+        "countTag": "{count} balance | {count} balances",
+        "revoke": "Revoke balance",
+        "revokeConfirm": "Revoke the {type} balance of {employee}?",
+        "revokeHint": "The balance is refused and can no longer be edited. It is not revoked while approved leave uses its days."
       },
       "requestCancellation": "Request cancellation",
       "approveCancellation": "Approve cancellation",

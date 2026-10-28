@@ -439,7 +439,7 @@ class TestHrOffboardingPlans(WebVueHrCase):
         response = self._launch(plan_date='2026-11-02')
         self.assertEqual(response.status_code, 201, response.text)
         run = response.json()
-        self.assertEqual(set(run), RUN_KEYS | {'steps'})
+        self.assertEqual(set(run), RUN_KEYS | {'steps', 'can_cancel'})
         self.assertEqual(run['employee'], {'id': self.employee_record.id, 'name': self.employee_record.name})
         self.assertEqual(run['plan'], {'id': self.plan.id, 'name': self.plan.name})
         self.assertEqual(run['launched_by'], {'id': self.manager.id, 'name': self.manager.name})

@@ -14,7 +14,7 @@ const requirePatchField = (value: object) => Object.keys(value).length > 0
 export const HrPlanResponsibleTypeSchema = z.enum(['manager', 'coach', 'employee', 'other'])
 export const HrPlanDelayUnitSchema = z.enum(['days', 'weeks', 'months'])
 export const HrPlanDelayFromSchema = z.enum(['before_plan_date', 'after_plan_date'])
-export const HrPlanRunStateSchema = z.enum(['open', 'done'])
+export const HrPlanRunStateSchema = z.enum(['open', 'done', 'cancelled'])
 export const HrPlanRunStepStateSchema = z.enum(['planned', 'today', 'overdue', 'done'])
 
 // A plan step: one activity template of a mail.activity.plan.
@@ -79,6 +79,13 @@ export const HrActivityPlanPatchSchema = z.object({
   steps: z.array(HrPlanStepInputSchema).min(1).optional(),
 }).strict().refine(requirePatchField, { message: 'At least one field is required' })
 
+// Who cancelled a run launched by mistake, when and why; null while the run is not cancelled.
+export const HrPlanRunCancellationSchema = z.object({
+  by: HrRefSchema,
+  on: z.iso.datetime(),
+  reason: z.string().min(1),
+}).strict()
+
 // One launch of a plan on one employee: the run, without its checklist.
 export const HrPlanRunSchema = z.object({
   id: z.number().int().positive(),
@@ -89,6 +96,7 @@ export const HrPlanRunSchema = z.object({
   done: z.number().int().nonnegative(),
   total: z.number().int().nonnegative(),
   state: HrPlanRunStateSchema,
+  cancellation: HrPlanRunCancellationSchema.nullable(),
 }).strict()
 
 export const HrPlanRunListSchema = z.object({
@@ -108,6 +116,7 @@ export const HrPlanRunStepSchema = z.object({
 
 export const HrPlanRunDetailSchema = HrPlanRunSchema.extend({
   steps: z.array(HrPlanRunStepSchema),
+  can_cancel: z.boolean(),
 }).strict()
 
 export const HrPlanRunCreateSchema = z.object({
@@ -120,6 +129,10 @@ export const HrPlanStepDoneSchema = z.object({
   feedback: z.string().optional(),
 }).strict()
 
+export const HrPlanRunCancelSchema = z.object({
+  reason: z.string().trim().min(1),
+}).strict()
+
 export type HrPlanResponsibleType = z.infer<typeof HrPlanResponsibleTypeSchema>
 export type HrPlanDelayUnit = z.infer<typeof HrPlanDelayUnitSchema>
 export type HrPlanDelayFrom = z.infer<typeof HrPlanDelayFromSchema>
@@ -129,9 +142,12 @@ export type HrActivityPlan = z.infer<typeof HrActivityPlanSchema>
 export type HrActivityPlanList = z.infer<typeof HrActivityPlanListSchema>
 export type HrActivityPlanCreate = z.infer<typeof HrActivityPlanCreateSchema>
 export type HrActivityPlanPatch = z.infer<typeof HrActivityPlanPatchSchema>
+export type HrPlanRunState = z.infer<typeof HrPlanRunStateSchema>
 export type HrPlanRun = z.infer<typeof HrPlanRunSchema>
 export type HrPlanRunList = z.infer<typeof HrPlanRunListSchema>
 export type HrPlanRunStep = z.infer<typeof HrPlanRunStepSchema>
 export type HrPlanRunDetail = z.infer<typeof HrPlanRunDetailSchema>
 export type HrPlanRunCreate = z.infer<typeof HrPlanRunCreateSchema>
 export type HrPlanStepDone = z.infer<typeof HrPlanStepDoneSchema>
+export type HrPlanRunCancellation = z.infer<typeof HrPlanRunCancellationSchema>
+export type HrPlanRunCancel = z.infer<typeof HrPlanRunCancelSchema>

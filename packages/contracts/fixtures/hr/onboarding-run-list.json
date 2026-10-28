@@ -1,6 +1,7 @@
 {
   "items": [
     {
+      "cancellation": null,
       "done": 0,
       "employee": {
         "id": 2,

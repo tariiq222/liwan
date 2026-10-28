@@ -1,8 +1,16 @@
 <script setup lang="ts">
+import RunCancel from '@/components/hr/lifecycle/RunCancel.vue'
 import RunSteps from '@/components/hr/lifecycle/RunSteps.vue'
 import DepartureForm from '@/components/hr/lifecycle/DepartureForm.vue'
 import EosSettlementSection from '@/components/hr/payroll/EosSettlementSection.vue'
-import { useCompleteHrOffboardingStep, useHrDeparture, useHrOffboardingRun } from '@/composables/useHrOffboarding'
+import {
+  useCancelHrOffboardingRun,
+  useCompleteHrOffboardingStep,
+  useHrDeparture,
+  useHrOffboardingPlans,
+  useHrOffboardingRun,
+  useLaunchHrOffboardingRun,
+} from '@/composables/useHrOffboarding'
 import { ApiError } from '@/composables/useApi'
 import { payrollErrorMessage } from '@/utils/payrollErrors'
 import type { HrEosCase, HrSettlementWrite } from '@webvue/contracts'
@@ -11,6 +19,7 @@ const NAMESPACE = 'hrOffboarding'
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
+const hydrated = useHydrated()
 const employeeId = computed(() => Number(route.params.employeeId))
 const validId = computed(() => Number.isSafeInteger(employeeId.value) && employeeId.value > 0)
 const query = useHrDeparture(computed(() => validId.value ? employeeId.value : null))
@@ -32,6 +41,33 @@ async function complete(stepId: number, feedback?: string) {
   if (!clearanceId.value || isPending.value) return
   try {
     await completeStep({ runId: clearanceId.value, stepId, feedback })
+    stepError.value = null
+  } catch (error) {
+    stepError.value = error
+  }
+}
+// A clearance launched with the wrong plan is cancelled; the departure then has no clearance until the
+// manager starts the right plan here.
+const { mutateAsync: cancelRun, isPending: cancelling } = useCancelHrOffboardingRun()
+const canManage = computed(() => can('hr.offboarding.manage'))
+const clearancePlans = useHrOffboardingPlans({ active: 'true', limit: 200, offset: 0 }, computed(() => canManage.value && !!departure.value && !clearanceId.value))
+const clearancePlanOptions = computed(() => (clearancePlans.data.value?.items ?? []).map(plan => ({ value: String(plan.id), label: plan.name })))
+const clearancePlanId = ref<number | null>(null)
+const { mutateAsync: launchRun, isPending: launching } = useLaunchHrOffboardingRun()
+async function startClearance() {
+  if (!departure.value || !clearancePlanId.value || launching.value) return
+  try {
+    await launchRun({ employee_id: departure.value.employee.id, plan_id: clearancePlanId.value })
+    clearancePlanId.value = null
+    stepError.value = null
+  } catch (error) {
+    stepError.value = error
+  }
+}
+async function cancelClearance(reason: string) {
+  if (!clearanceId.value || cancelling.value) return
+  try {
+    await cancelRun({ runId: clearanceId.value, reason })
     stepError.value = null
   } catch (error) {
     stepError.value = error
@@ -116,8 +152,35 @@ async function confirmEos() {
     </SharedIdentityCard>
     <SharedRecordSection v-if="departure" :title="t(`${NAMESPACE}.departures.clearance`)">
       <UAlert v-if="stepError" role="alert" color="error" variant="subtle" :title="t(`${NAMESPACE}.form.saveError`)" />
-      <SharedPageState v-else-if="!clearanceId" :empty="true" :empty-text="t(`${NAMESPACE}.run.noSteps`)" />
-      <RunSteps v-else-if="clearance.data.value" :run="clearance.data.value" :namespace="NAMESPACE" :pending="isPending" @complete="complete" />
+      <template v-else-if="!clearanceId">
+        <SharedPageState :empty="true" :empty-text="t(`${NAMESPACE}.run.noSteps`)" />
+        <div v-if="canManage" class="flex flex-wrap items-end gap-2" data-testid="hr-clearance-launch">
+          <UFormField class="min-w-56 flex-1" :label="t(`${NAMESPACE}.form.clearancePlan`)" name="hr-clearance-plan">
+            <USelect
+              id="hr-clearance-plan"
+              class="w-full"
+              :model-value="clearancePlanId ? String(clearancePlanId) : undefined"
+              :items="clearancePlanOptions"
+              :loading="clearancePlans.isLoading.value"
+              :disabled="!hydrated || launching"
+              @update:model-value="clearancePlanId = $event ? Number($event) : null"
+            />
+          </UFormField>
+          <UButton
+            color="primary"
+            icon="i-lucide-list-checks"
+            :disabled="!hydrated || !clearancePlanId || launching"
+            :loading="launching"
+            :label="t(`${NAMESPACE}.departures.startClearance`)"
+            data-testid="hr-clearance-start"
+            @click="startClearance"
+          />
+        </div>
+      </template>
+      <template v-else-if="clearance.data.value">
+        <RunSteps :run="clearance.data.value" :namespace="NAMESPACE" :pending="isPending" @complete="complete" />
+        <RunCancel :run="clearance.data.value" :namespace="NAMESPACE" :pending="cancelling" @confirm="cancelClearance" />
+      </template>
     </SharedRecordSection>
     <EosSettlementSection
       v-if="departure && canReadPayroll && settlementQuery.data.value !== undefined"

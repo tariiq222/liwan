@@ -26,11 +26,12 @@ from odoo.addons.webvue_api.controllers.common import (
 from odoo.addons.webvue_hr.serializers.lifecycle.run import (
     dump_run,
     dump_run_detail,
+    parse_run_cancel,
     parse_run_create,
     parse_step_done,
 )
 
-RUN_STATES = ('open', 'done')
+RUN_STATES = ('open', 'done', 'cancelled')
 
 
 def _list_runs(area):
@@ -69,11 +70,23 @@ def _detail(area, run):
 def _complete_step(area, run_id, activity_id, payload):
     run, activity = _run_step(area, run_id, activity_id)
     _require_step_decision(area, run, activity)
+    if run.state == 'cancelled':
+        raise ApiError(422, 'invalid', 'this plan run is cancelled', field='step')
     vals = parse_step_done(payload)
     if activity.state == 'done':
         raise ApiError(422, 'invalid', 'this step is already done', field='step')
     activity.action_feedback(feedback=vals['feedback'] or False)
     return _detail(area, _run(area, run_id))
+
+
+def _cancel(area, run_id, payload):
+    """Cancel a run launched by mistake; an offboarding manager never cancels their own clearance."""
+    run = _run(area, run_id)
+    if area == OFFBOARDING:
+        _reject_self_decision(run.employee_id)
+    # A done or already cancelled run is a model ValidationError, which api_handler answers 422.
+    run.action_cancel(parse_run_cancel(payload)['reason'])
+    return _detail(area, run)
 
 
 def _parse_state(value):
@@ -107,6 +120,13 @@ class HrLifecycleRunController(http.Controller):
         _require('hr.onboarding.read')
         return _detail(ONBOARDING, _run(ONBOARDING, run_id))
 
+    @http.route('/api/v1/hr/onboarding/runs/<int:run_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.onboarding', operation='write')
+    def cancel_onboarding_run(self, run_id, **payload):
+        _require('hr.onboarding.manage')
+        return _cancel(ONBOARDING, run_id, payload)
+
     @http.route('/api/v1/hr/onboarding/runs/<int:run_id>/steps/<int:activity_id>/done', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('hr.enabled', 'hr.onboarding', operation='write')
@@ -134,6 +154,13 @@ class HrLifecycleRunController(http.Controller):
     def get_offboarding_run(self, run_id):
         _require('hr.offboarding.read')
         return _detail(OFFBOARDING, _run(OFFBOARDING, run_id))
+
+    @http.route('/api/v1/hr/offboarding/runs/<int:run_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.offboarding', operation='write')
+    def cancel_offboarding_run(self, run_id, **payload):
+        _require('hr.offboarding.manage')
+        return _cancel(OFFBOARDING, run_id, payload)
 
     @http.route('/api/v1/hr/offboarding/runs/<int:run_id>/steps/<int:activity_id>/done', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

@@ -33,7 +33,7 @@ const columns = computed<TableColumn<HrPlanRun>[]>(() => [
   column('state', t(`${props.namespace}.runs.state`), WIDTH.state),
 ])
 function stateTone(run: HrPlanRun) {
-  return run.state === 'done' ? 'success' : 'info'
+  return run.state === 'done' ? 'success' : run.state === 'cancelled' ? 'neutral' : 'info'
 }
 </script>
 

@@ -7,7 +7,7 @@ from .common import WebVueHrCase, set_hr_feature
 
 PLAN_KEYS = {'id', 'name', 'department', 'active', 'steps'}
 STEP_KEYS = {'id', 'summary', 'responsible_type', 'responsible', 'delay_count', 'delay_unit', 'delay_from'}
-RUN_KEYS = {'id', 'employee', 'plan', 'plan_date', 'launched_by', 'done', 'total', 'state'}
+RUN_KEYS = {'id', 'employee', 'plan', 'plan_date', 'launched_by', 'done', 'total', 'state', 'cancellation'}
 RUN_STEP_KEYS = {'id', 'summary', 'assignee', 'date_deadline', 'state', 'date_done', 'can_complete'}
 # Launching a plan posts a message on the employee, so the launcher also needs
 # the employee management capability the engine's follower write requires.
@@ -168,7 +168,7 @@ class TestHrOnboarding(WebVueHrCase):
     def test_launch_records_the_run_and_the_checklist(self):
         self._as_manager()
         run = self._launch()
-        self.assertEqual(set(run), RUN_KEYS | {'steps'})
+        self.assertEqual(set(run), RUN_KEYS | {'steps', 'can_cancel'})
         self.assertEqual((run['done'], run['total'], run['state']), (0, 1, 'open'))
         self.assertEqual(run['plan_date'], '2026-11-02')
         self.assertEqual(run['employee'], {'id': self.employee_record.id, 'name': self.employee_record.name})
@@ -181,7 +181,7 @@ class TestHrOnboarding(WebVueHrCase):
 
         detail = self.api('GET', f"/api/v1/hr/onboarding/runs/{run['id']}")
         self.assertEqual(detail.status_code, 200, detail.text)
-        self.assertEqual(set(detail.json()), RUN_KEYS | {'steps'})
+        self.assertEqual(set(detail.json()), RUN_KEYS | {'steps', 'can_cancel'})
         self.assertEqual(detail.json()['steps'][0]['id'], run['steps'][0]['id'])
 
         listing = self.api('GET', '/api/v1/hr/onboarding/runs?state=open')
@@ -394,3 +394,76 @@ class TestHrOnboarding(WebVueHrCase):
         self.assertEqual(listed[shared.id], {'id': free.id, 'name': 'Onb Free'})
         one = self.api('GET', f'/api/v1/hr/onboarding/plans/{shared.id}').json()
         self.assertEqual(one['department'], {'id': free.id, 'name': 'Onb Free'})
+
+    # --- cancelling a run launched by mistake ------------------------------------------
+
+    def _two_step_run(self):
+        """A run whose first step is done and whose second is still open."""
+        plan = self.env['mail.activity.plan'].create({
+            'name': 'Two steps', 'res_model': 'hr.employee', 'hr_purpose': 'onboarding',
+            'company_id': self.company.id,
+        })
+        for summary in ('Issue the badge', 'Open the mailbox'):
+            self.env['mail.activity.plan.template'].create({
+                'plan_id': plan.id, 'summary': summary, 'activity_type_id': self.env.ref(TODO).id,
+                'responsible_type': 'manager', 'delay_count': 0, 'delay_unit': 'days',
+                'delay_from': 'before_plan_date',
+            })
+        self._as_manager()
+        run = self._launch(plan)
+        first = run['steps'][0]['id']
+        done = self.api('POST', f"/api/v1/hr/onboarding/runs/{run['id']}/steps/{first}/done", json={})
+        self.assertEqual(done.status_code, 200, done.text)
+        return run, first
+
+    def test_manager_cancels_a_run_and_keeps_its_done_steps(self):
+        run, done_step = self._two_step_run()
+        open_step = next(step['id'] for step in run['steps'] if step['id'] != done_step)
+        record = self.env['webvue.hr.plan.run'].browse(run['id'])
+        notes_before = len(self.employee_record.message_ids)
+        self.assertTrue(run['can_cancel'])
+
+        cancelled = self.api('POST', f"/api/v1/hr/onboarding/runs/{run['id']}/cancel", json={'reason': ' wrong employee '})
+        self.assertEqual(cancelled.status_code, 200, cancelled.text)
+        body = cancelled.json()
+        self.assertEqual(set(body), RUN_KEYS | {'steps', 'can_cancel'})
+        self.assertEqual(body['state'], 'cancelled')
+        self.assertFalse(body['can_cancel'])
+        self.assertEqual(body['cancellation']['by'], {'id': self.manager.id, 'name': self.manager.name})
+        self.assertEqual(body['cancellation']['reason'], 'wrong employee')
+        self.assertTrue(body['cancellation']['on'].endswith('Z'))
+        # The open step is gone from the assignees' lists; the done one stays as history.
+        self.assertEqual([step['id'] for step in body['steps']], [done_step])
+        self.assertFalse(record.env['mail.activity'].with_context(active_test=False).browse(open_step).exists())
+        self.assertEqual((body['done'], body['total']), (1, 1))
+        self.assertEqual(len(self.employee_record.message_ids), notes_before + 1)
+        self.assertIn('wrong employee', self.employee_record.message_ids[0].body)
+
+        listed = self.api('GET', '/api/v1/hr/onboarding/runs?state=cancelled').json()
+        self.assertIn(run['id'], {item['id'] for item in listed['items']})
+        self.assertNotIn(run['id'], {item['id'] for item in self.api('GET', '/api/v1/hr/onboarding/runs?state=done').json()['items']})
+        again = self.api('POST', f"/api/v1/hr/onboarding/runs/{run['id']}/cancel", json={'reason': 'again'})
+        self.assertEqual((again.status_code, again.json()['code']), (422, 'invalid'))
+
+    def test_a_done_run_is_not_cancelled_and_a_reason_is_required(self):
+        self._as_manager()
+        run = self._launch()
+        missing = self.api('POST', f"/api/v1/hr/onboarding/runs/{run['id']}/cancel", json={'reason': '  '})
+        self.assertEqual((missing.status_code, missing.json()['field']), (422, 'reason'))
+        unknown = self.api('POST', f"/api/v1/hr/onboarding/runs/{run['id']}/cancel", json={'reason': 'x', 'state': 'open'})
+        self.assertEqual((unknown.status_code, unknown.json()['field']), (422, 'state'))
+        step_id = run['steps'][0]['id']
+        self.api('POST', f"/api/v1/hr/onboarding/runs/{run['id']}/steps/{step_id}/done", json={})
+        done = self.api('POST', f"/api/v1/hr/onboarding/runs/{run['id']}/cancel", json={'reason': 'late'})
+        self.assertEqual((done.status_code, done.json()['code']), (422, 'invalid'))
+        self.assertEqual(self.env['webvue.hr.plan.run'].browse(run['id']).state, 'open')
+
+    def test_cancel_needs_the_manage_capability(self):
+        self._as_manager()
+        run = self._launch()
+        self._as_reader()
+        detail = self.api('GET', f"/api/v1/hr/onboarding/runs/{run['id']}")
+        self.assertFalse(detail.json()['can_cancel'])
+        denied = self.api('POST', f"/api/v1/hr/onboarding/runs/{run['id']}/cancel", json={'reason': 'mine'})
+        self.assertEqual((denied.status_code, denied.json()['code']), (403, 'forbidden'))
+        self.assertEqual(self.env['webvue.hr.plan.run'].browse(run['id']).state, 'open')

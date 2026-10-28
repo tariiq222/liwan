@@ -15,7 +15,8 @@ const employees = useHrEmployees({ limit: 200, offset: 0 })
 const plans = useHrOnboardingPlans({ active: 'true', limit: 200, offset: 0 }, computed(() => can('hr.onboarding.read')))
 // «Start onboarding» after a hire arrives here with the new employee already chosen.
 const queryEmployeeId = Number(route.query.employee_id)
-const employeeId = ref<number | null>(Number.isSafeInteger(queryEmployeeId) && queryEmployeeId > 0 ? queryEmployeeId : null)
+const initialEmployeeId = Number.isSafeInteger(queryEmployeeId) && queryEmployeeId > 0 ? queryEmployeeId : null
+const employeeId = ref<number | null>(initialEmployeeId)
 const planId = ref<number | null>(null)
 const planDate = ref<string | null>(null)
 const employeeError = ref<string>()
@@ -25,6 +26,9 @@ const planOptions = computed(() => (plans.data.value?.items ?? []).map(plan => (
 const { mutateAsync: launch, isPending } = useLaunchHrOnboardingRun()
 const sourcePaths = useRecordListPaths(['/hr/onboarding'])
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
+// The draft is what the user chose beyond the prefilled employee; it is released just before the launch navigates.
+const launched = ref(false)
+const dirty = computed(() => !launched.value && Boolean(planId.value || planDate.value || employeeId.value !== initialEmployeeId))
 let submitting = false
 async function submit() {
   if (!can('hr.onboarding.manage') || !hydrated.value || isPending.value || submitting) return
@@ -36,6 +40,8 @@ async function submit() {
   try {
     const run = await launch({ employee_id: employeeId.value, plan_id: planId.value, plan_date: planDate.value ?? undefined })
     formError.value = null
+    launched.value = true
+    await nextTick()
     await navigateTo({ path: `/hr/onboarding/${run.id}` }, { replace: true })
   } catch (error) {
     formError.value = error
@@ -45,6 +51,7 @@ async function submit() {
 
 <template>
   <SharedCreatePanel :title="t(`${NAMESPACE}.runs.new`)" :back-to="backTo">
+    <SharedUnsavedChanges :dirty="dirty" />
     <SharedForbiddenState v-if="!can('hr.onboarding.manage')" :description="t(`${NAMESPACE}.errors.forbidden`)" />
     <UForm v-else :state="{ employeeId, planId, planDate }" class="webvue-form" method="post" :loading-auto="false" novalidate @submit="submit">
       <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t(`${NAMESPACE}.form.saveError`)" :description="errorMessage" />

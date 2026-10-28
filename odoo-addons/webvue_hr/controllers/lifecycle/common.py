@@ -128,7 +128,11 @@ def _launch_run(area, employee, plan, plan_date=None):
 
 
 def _clearance_runs():
-    """{employee id: latest offboarding run} of the current company."""
+    """{employee id: latest offboarding run} of the current company.
+
+    The latest run is chosen before its state counts: when it is cancelled the employee has
+    no clearance until a new run starts, rather than an older checklist's clearance coming back.
+    """
     runs = request.env['webvue.hr.plan.run'].search([
         ('company_id', 'in', request.env.companies.ids),
         ('plan_id.hr_purpose', '=', OFFBOARDING),
@@ -136,4 +140,4 @@ def _clearance_runs():
     latest = {}
     for run in runs:
         latest.setdefault(run.employee_id.id, run)
-    return latest
+    return {employee_id: run for employee_id, run in latest.items() if run.state == 'open'}

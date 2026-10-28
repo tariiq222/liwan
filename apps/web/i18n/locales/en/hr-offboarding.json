@@ -54,7 +54,8 @@
       "assetsLink": "Employee assets",
       "heldAssets": "The employee still holds {count} unreturned asset | The employee still holds {count} unreturned assets",
       "registered": "Departure registered",
-      "noReason": "No reason recorded"
+      "noReason": "No reason recorded",
+      "startClearance": "Start clearance"
     },
     "form": {
       "name": "Plan name",
@@ -108,7 +109,8 @@
       "done": "Done",
       "planned": "Planned",
       "today": "Today",
-      "overdue": "Overdue"
+      "overdue": "Overdue",
+      "cancelled": "Cancelled"
     },
     "errors": {
       "forbidden": "You may not access offboarding.",
@@ -116,6 +118,13 @@
     },
     "footer": {
       "results": "Showing {shown} of {total}"
+    },
+    "cancel": {
+      "action": "Cancel plan",
+      "confirm": "Cancel the \"{plan}\" plan of {employee}?",
+      "reason": "Reason for cancelling",
+      "hint": "Open steps are removed; done steps stay on record.",
+      "cancelledBy": "Cancelled by {name} on {on}"
     }
   }
 }
