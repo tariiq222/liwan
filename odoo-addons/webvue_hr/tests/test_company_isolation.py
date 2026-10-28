@@ -44,7 +44,6 @@ LISTS = (
     ('/api/v1/hr/recruitment/jobs', 'job'),
     ('/api/v1/hr/recruitment/applicants', 'applicant'),
     ('/api/v1/hr/onboarding/runs', 'onboarding_run'),
-    ('/api/v1/hr/offboarding/runs', 'offboarding_run'),
     ('/api/v1/hr/payroll/runs', 'payroll_run'),
     ('/api/v1/hr/assets/equipment', 'equipment'),
 )
