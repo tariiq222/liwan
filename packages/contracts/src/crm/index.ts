@@ -1,0 +1,15 @@
+import { z } from 'zod'
+
+export const CrmCapabilityKeySchema = z.enum([
+  'crm.leads.read',
+  'crm.leads.work',
+  'crm.leads.assign',
+  'crm.leads.import',
+  'crm.leads.export',
+  'crm.discount.approve',
+  'crm.settings.read',
+  'crm.settings.manage',
+  'crm.audit.read',
+])
+
+export type CrmCapabilityKey = z.infer<typeof CrmCapabilityKeySchema>

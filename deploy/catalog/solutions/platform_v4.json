@@ -131,6 +131,19 @@
       "features": [
         "boolean:documents.enabled"
       ]
+    },
+    {
+      "id": "crm",
+      "name": "CRM",
+      "description": "The CRM application.",
+      "modules": [
+        "webvue_crm"
+      ],
+      "features": [
+        "boolean:crm.enabled",
+        "boolean:crm.import",
+        "boolean:crm.export"
+      ]
     }
   ]
 }
