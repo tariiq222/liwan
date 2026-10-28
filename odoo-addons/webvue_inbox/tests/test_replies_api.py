@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import base64
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -7,6 +8,10 @@ from odoo.tests import tagged
 
 from .common import MESSAGE_KEYS, WebVueInboxCase
 from .media_samples import MP4, OGG, PDF, PNG
+from odoo.addons.webvue_api.serializers.attachment import (
+    MAX_ATTACHMENT_BYTES,
+    MAX_ENCODED_CHARS,
+)
 from odoo.addons.webvue_inbox.adapters import media_rules, whatsapp
 
 BUTTONS = {'type': 'buttons', 'body': 'Pick one', 'header': None, 'footer': None, 'buttons': [
@@ -40,12 +45,13 @@ class TestRepliesApi(WebVueInboxCase):
     def reply(self, payload, conversation=None):
         return self.api('POST', self.path('/messages', conversation), payload)
 
-    def upload(self, name='a.png', data=PNG, mimetype='image/png', conversation=None):
-        return self.url_open(self.path('/uploads', conversation), files={'file': (name, data, mimetype)}, method='POST')
+    def upload(self, name='a.png', content=PNG, mimetype='image/png', conversation=None, **overrides):
+        payload = {'name': name, 'mimetype': mimetype, 'data': base64.b64encode(content).decode(), **overrides}
+        return self.api('POST', self.path('/uploads', conversation), payload)
 
     def uploaded_id(self, **kwargs):
         response = self.upload(**kwargs)
-        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.status_code, 201, response.text)
         return response.json()['id']
 
     def last_message(self):
@@ -55,7 +61,7 @@ class TestRepliesApi(WebVueInboxCase):
 
     def test_upload_stores_an_attachment_of_the_conversation_and_returns_its_shape(self):
         response = self.upload()
-        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.status_code, 201, response.text)
         body = response.json()
         self.assertEqual(set(body), {'id', 'name', 'mimetype', 'size'})
         self.assertEqual((body['name'], body['mimetype'], body['size']), ('a.png', 'image/png', len(PNG)))
@@ -70,23 +76,32 @@ class TestRepliesApi(WebVueInboxCase):
             ('notes.txt', b'plain notes', 'text/plain', 'text/plain'),
         ):
             response = self.upload(name, data, mimetype)
-            self.assertEqual((response.status_code, response.json().get('mimetype')), (200, expected), name)
+            self.assertEqual((response.status_code, response.json().get('mimetype')), (201, expected), name)
 
     def test_upload_refuses_types_whatsapp_does_not_accept(self):
         self.assertError(self.upload('run.exe', b'MZ\x90\x00' + b'\x00' * 32, 'application/x-msdownload'), 422, 'invalid')
         self.assertError(self.upload('pic.gif', b'GIF89a' + b'\x00' * 32, 'image/gif'), 422, 'invalid')
         self.assertError(self.upload('fake.png', b'not an image at all', 'image/png'), 422, 'invalid')
         self.assertError(self.upload('empty.txt', b'', 'text/plain'), 422, 'invalid')
-        self.assertError(self.url_open(self.path('/uploads'), data={'other': 'x'}, method='POST'), 422, 'invalid')
+
+    def test_upload_validates_the_body(self):
+        for bad in (
+            {'data': '!!not base64!!'}, {'data': ''}, {'data': 5}, {'name': ''}, {'name': '../a.png'}, {'name': 'a/b.png'},
+            {'name': 'x' * 256}, {'mimetype': ''}, {'mimetype': 5}, {'extra': 1},
+        ):
+            self.assertError(self.upload(**bad), 422, 'invalid')
+        self.assertError(self.api('POST', self.path('/uploads'), {'name': 'a.png'}), 422, 'invalid')
 
     def test_upload_enforces_the_size_limit_of_each_kind(self):
         too_big_image = PNG + b'\x00' * media_rules.IMAGE_MAX_BYTES
         self.assertError(self.upload('big.png', too_big_image, 'image/png'), 413, 'payload_too_large')
+        oversized = {'name': 'a.png', 'mimetype': 'image/png', 'data': 'A' * (MAX_ENCODED_CHARS + 4)}
+        self.assertError(self.api('POST', self.path('/uploads'), oversized), 413, 'payload_too_large')
         with patch.dict(media_rules.MAX_BYTES, {'audio': 10}):
             self.assertError(self.upload('long.ogg', OGG, 'audio/ogg'), 413, 'payload_too_large')
         self.assertEqual(
             (media_rules.IMAGE_MAX_BYTES, media_rules.VIDEO_MAX_BYTES, media_rules.AUDIO_MAX_BYTES, media_rules.DOCUMENT_MAX_BYTES),
-            (5 * 1024 * 1024, 15 * 1024 * 1024, 15 * 1024 * 1024, 15 * 1024 * 1024),
+            (5 * 1024 * 1024, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_BYTES),
         )
 
     def test_upload_needs_the_reply_capability_and_a_visible_conversation(self):
@@ -95,12 +110,12 @@ class TestRepliesApi(WebVueInboxCase):
         self.login(self.reader_only)
         self.assertError(self.upload(), 403, 'forbidden')
         self.login(self.agent)
-        self.assertError(self.url_open('/api/v1/inbox/conversations/999999999/uploads', files={'file': ('a.png', PNG, 'image/png')}, method='POST'), 404, 'not_found')
+        self.assertError(self.upload(conversation=self.env['webvue.inbox.conversation'].browse(999999999)), 404, 'not_found')
         self.settings.visibility_policy = 'assigned_only'
         self.assertError(self.upload(), 404, 'not_found')
 
     def test_upload_works_after_the_window_closed(self):
-        self.assertEqual(self.upload(conversation=self.late).status_code, 200)
+        self.assertEqual(self.upload(conversation=self.late).status_code, 201)
 
     def test_stale_uploads_are_purged_by_maintenance(self):
         upload_id = self.uploaded_id()
@@ -142,7 +157,7 @@ class TestRepliesApi(WebVueInboxCase):
 
     def test_attachment_without_caption_uses_the_placeholder_and_each_kind_is_detected(self):
         for name, data, mimetype, kind in (('d.pdf', PDF, 'application/pdf', 'document'), ('v.mp4', MP4, 'video/mp4', 'video'), ('a.ogg', OGG, 'audio/ogg', 'audio')):
-            body = self.reply({'attachment_id': self.uploaded_id(name=name, data=data, mimetype=mimetype)}).json()
+            body = self.reply({'attachment_id': self.uploaded_id(name=name, content=data, mimetype=mimetype)}).json()
             self.assertEqual((body['kind'], body['body']), (kind, f'[{kind}]'))
 
     def test_attachment_rules(self):
@@ -152,7 +167,7 @@ class TestRepliesApi(WebVueInboxCase):
         self.assertEqual(self.reply({'attachment_id': attachment_id}).status_code, 200)
         self.assertError(self.reply({'attachment_id': attachment_id}), 422, 'invalid')
         self.assertError(self.reply({'attachment_id': 999999999}), 422, 'invalid')
-        audio_id = self.uploaded_id(name='a.ogg', data=OGG, mimetype='audio/ogg')
+        audio_id = self.uploaded_id(name='a.ogg', content=OGG, mimetype='audio/ogg')
         self.assertError(self.reply({'attachment_id': audio_id, 'caption': 'no captions on audio'}), 422, 'invalid')
 
     def test_location_reply(self):
@@ -190,6 +205,7 @@ class TestRepliesApi(WebVueInboxCase):
             {**BUTTONS, 'buttons': [{'id': 'a', 'title': 'a title longer than twenty'}]},
             {**CTA, 'url': 'http://example.com'},
             {**CTA, 'url': 'javascript:alert(1)'},
+            {**CTA, 'url': 'https://[broken'},
             {**CTA, 'display_text': ''},
             {**BUTTONS, 'body': 'x' * 1025},
             {**BUTTONS, 'unknown': 1},
@@ -308,6 +324,15 @@ class TestRepliesApi(WebVueInboxCase):
         triggers = self.env['ir.cron.trigger'].search_count([])
         self.reply({'body': 'now'})
         self.assertEqual(self.env['ir.cron.trigger'].search_count([]), triggers + 1)
+
+    def test_a_reader_without_reply_clears_unread_but_queues_no_receipt(self):
+        inbound = self.conversation.message_ids[0]
+        inbound.provider_message_id = 'wamid.READER'
+        self.conversation.unread = True
+        self.login(self.reader_only)
+        self.assertEqual(self.api('POST', self.path('/read')).status_code, 204)
+        self.reload(self.conversation, inbound)
+        self.assertEqual((self.conversation.unread, inbound.read_receipt), (False, False))
 
     def test_read_queues_one_receipt_for_the_latest_inbound_message(self):
         older = self.conversation.message_ids[0]

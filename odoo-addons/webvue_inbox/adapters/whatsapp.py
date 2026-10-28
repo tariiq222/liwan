@@ -24,6 +24,7 @@ TEXT_KINDS = frozenset({'text', 'location', 'contacts'})
 REPLY_TYPES = frozenset({'interactive', 'button'})
 SIGNATURE_PREFIX = 'sha256='
 ERROR_TEXT_LENGTH = 200
+LOCATION_TEXT_LENGTH = 1000
 
 
 @dataclass(frozen=True)
@@ -119,11 +120,15 @@ def _number(value):
         return None
 
 
+def _clip(value):
+    return str(value)[:LOCATION_TEXT_LENGTH] if value else None
+
+
 def _location(block):
     latitude, longitude = _number(block.get('latitude')), _number(block.get('longitude'))
     if latitude is None or longitude is None or not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
         return None
-    return Location(latitude, longitude, block.get('name') or None, block.get('address') or None)
+    return Location(latitude, longitude, _clip(block.get('name')), _clip(block.get('address')))
 
 
 def _contacts_text(raw):

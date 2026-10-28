@@ -138,8 +138,12 @@ def parse_list_rows(value):
 def parse_cta_url(value):
     value = parse_object(value, 'interactive', SHARED_INTERACTIVE_KEYS | {'display_text', 'url'}, ('display_text', 'url'))
     url = parse_string(value['url'], 'url', MAX_CTA_URL)
-    parts = urlsplit(url)
-    if parts.scheme != 'https' or not parts.netloc or any(char.isspace() for char in url):
+    try:
+        parts = urlsplit(url)
+        valid = parts.scheme == 'https' and parts.hostname and not any(char.isspace() for char in url)
+    except ValueError:
+        valid = False
+    if not valid:
         reject('url must be an https address', 'url')
     return {'cta_display_text': parse_string(value['display_text'], 'display_text', MAX_BUTTON_TITLE), 'cta_url': url}
 

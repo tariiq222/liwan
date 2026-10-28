@@ -168,12 +168,17 @@ class TestMessagingOutbox(WebVueInboxCase):
         self.run_outbox(mocked)
         self.assertEqual(mocked.call_args.kwargs['json']['reaction'], {'message_id': 'wamid.R', 'emoji': ''})
 
-    def test_a_reaction_is_retried_then_withdrawn(self):
+    def test_a_reaction_backs_off_between_attempts_then_is_withdrawn(self):
         message = self.reacted()
         mocked = MagicMock(return_value=response(503, {'error': {'message': 'down'}}))
-        for attempt in range(1, 5):
+        for attempt, minutes in enumerate((1, 2, 4, 8), start=1):
+            before = fields.Datetime.now()
             self.run_outbox(mocked)
             self.assertEqual((message.agent_reaction_pending, message.reaction_attempts, message.agent_reaction), (True, attempt, '👍'))
+            self.assertAlmostEqual((message.reaction_next_attempt_at - before).total_seconds(), minutes * 60, delta=5)
+            self.run_outbox(mocked)
+            self.assertEqual(message.reaction_attempts, attempt, 'a run before the backoff ends does not try again')
+            message.reaction_next_attempt_at = fields.Datetime.now() - timedelta(seconds=1)
         self.run_outbox(mocked)
         self.assertEqual((message.agent_reaction_pending, message.agent_reaction), (False, False))
 
@@ -194,15 +199,31 @@ class TestMessagingOutbox(WebVueInboxCase):
         self.run_outbox(mocked)
         self.assertEqual(mocked.call_count, 1)
 
-    def test_a_read_receipt_is_retried_then_given_up(self):
+    def test_a_read_receipt_backs_off_between_attempts_then_is_given_up(self):
         inbound = self.conversation.message_ids[0]
         inbound.write({'provider_message_id': 'wamid.RCPT2', 'read_receipt': 'pending'})
         mocked = MagicMock(return_value=response(503, {'error': {'message': 'down'}}))
-        for attempt in range(1, 5):
+        for attempt, minutes in enumerate((1, 2, 4, 8), start=1):
+            before = fields.Datetime.now()
             self.run_outbox(mocked)
             self.assertEqual((inbound.read_receipt, inbound.receipt_attempts), ('pending', attempt))
+            self.assertAlmostEqual((inbound.receipt_next_attempt_at - before).total_seconds(), minutes * 60, delta=5)
+            self.run_outbox(mocked)
+            self.assertEqual(inbound.receipt_attempts, attempt)
+            inbound.receipt_next_attempt_at = fields.Datetime.now() - timedelta(seconds=1)
         self.run_outbox(mocked)
         self.assertEqual(inbound.read_receipt, 'failed')
+
+    def test_a_manual_retry_uploads_the_file_again(self):
+        message = self.queue_file()
+        self.run_outbox(MagicMock(side_effect=[response(200, {'id': 'media-old'}), response(400, {'error': {'message': 'refused'}})]))
+        self.assertEqual((message.delivery_state, message.media_id), ('failed', 'media-old'))
+        message._webvue_retry()
+        self.assertFalse(message.media_id)
+        mocked = MagicMock(side_effect=[response(200, {'id': 'media-new'}), response(200, {'messages': [{'id': 'wamid.AGAIN'}]})])
+        self.run_outbox(mocked)
+        self.assertEqual([path for _method, path, _kwargs in self.calls(mocked)], ['media', 'messages'])
+        self.assertEqual(message.media_id, 'media-new')
 
     def request_typing(self, age_seconds=0):
         inbound = self.conversation.message_ids[0]

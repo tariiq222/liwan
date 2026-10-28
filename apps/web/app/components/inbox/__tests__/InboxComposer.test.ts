@@ -4,7 +4,7 @@ import ts from 'typescript'
 import * as Vue from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInboxDrafts, emptyInboxDraft } from '../../../composables/inbox/inboxDrafts'
-import { INBOX_UPLOAD_ACCEPT, inboxFileSize, inboxUploadProblem } from '../../../composables/inbox/inboxAttachments'
+import { INBOX_CAPTION_MAX, INBOX_UPLOAD_ACCEPT, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem } from '../../../composables/inbox/inboxAttachments'
 import { buildInteractive, emptyInteractiveDraft } from '../../../composables/inbox/inboxInteractive'
 import { buildLocation, emptyLocationDraft } from '../../../composables/inbox/inboxLocation'
 import { cannedSuggestions, renderTemplateBody, replyWindowOpen } from '../../../composables/inbox/inboxWindow'
@@ -28,16 +28,13 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>())
   const unmounting: Array<() => void> = []
   const templatesEnabled = Vue.ref(false)
   const notifyTyping = vi.fn()
-  const uploadInboxFile = vi.fn(async (_id: number, file: { name: string; size: number; type: string }, onProgress: (fraction: number) => void) => {
-    onProgress(0.5)
-    return { id: 41, name: file.name, mimetype: file.type, size: file.size }
-  })
+  const uploadInboxFile = vi.fn(async (file: { name: string; size: number; type: string }) => ({ id: 41, name: file.name, mimetype: file.type, size: file.size }))
   const emitted: Array<[string, unknown]> = []
   const bindings = {
     _defineComponent: Vue.defineComponent, _unref: Vue.unref, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed, watch: Vue.watch,
     onMounted: (fn: () => void) => mounted.push(fn), onBeforeUnmount: (fn: () => void) => unmounting.push(fn),
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: vi.fn() }), useMe: () => ({ me: Vue.ref({ id: 3 }) }),
-    ApiError, useInboxTyping: () => notifyTyping, uploadInboxFile, INBOX_UPLOAD_ACCEPT, inboxFileSize, inboxUploadProblem, emptyInboxDraft,
+    ApiError, useInboxTyping: () => notifyTyping, useUploadInboxFile: () => ({ mutateAsync: uploadInboxFile }), INBOX_CAPTION_MAX, INBOX_UPLOAD_ACCEPT, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem, emptyInboxDraft,
     buildInteractive, emptyInteractiveDraft, buildLocation, emptyLocationDraft,
     inboxDrafts, cannedSuggestions, renderTemplateBody, replyWindowOpen,
     useSendInboxReply: () => ({ mutateAsync: sendReply, isPending: Vue.ref(false) }), useSendInboxNote: () => ({ mutateAsync: sendNote, isPending: Vue.ref(false) }),
@@ -135,7 +132,11 @@ describe('InboxComposer', () => {
     expect(uploadInboxFile).not.toHaveBeenCalled()
     expect(state.upload.value).toBeNull()
     expect(state.uploadError.value).toBe('inbox.composer.upload.tooLarge')
-    await state.onFilePicked(file('ok.pdf', 'application/pdf', 15 * 1048576))
+    await state.onFilePicked(file('ok.pdf', 'application/pdf', 10 * 1048576))
+    expect(state.uploadError.value).toBe('')
+    await state.onFilePicked(file('big.pdf', 'application/pdf', 10 * 1048576 + 1))
+    expect(state.uploadError.value).toBe('inbox.composer.upload.tooLarge')
+    await state.onFilePicked(file('ok.pdf', 'application/pdf', 10 * 1048576))
     expect(state.uploadError.value).toBe('')
   })
 
@@ -145,7 +146,7 @@ describe('InboxComposer', () => {
     state.draft.value = 'تفضل'
     expect(state.quoted.value).toEqual({ id: 9, preview: 'السؤال' })
     await state.onFilePicked(file('خطة.pdf', 'application/pdf', 2048))
-    expect(uploadInboxFile).toHaveBeenCalledWith(5, expect.objectContaining({ name: 'خطة.pdf' }), expect.any(Function))
+    expect(uploadInboxFile).toHaveBeenCalledWith(expect.objectContaining({ name: 'خطة.pdf' }))
     expect(state.canSend.value).toBe(true)
     await state.submit()
     expect(sendReply).toHaveBeenCalledWith({ attachment_id: 41, caption: 'تفضل', reply_to_id: 9 })
@@ -212,19 +213,43 @@ describe('InboxComposer', () => {
     expect(reopened.state.location.value.latitude).toBe('10')
   })
 
-  it('reports typing only while writing a reply inside the window', async () => {
-    const open = mountComposer('2026-10-28T20:00:00Z')
-    open.state.draft.value = 'م'
+  const key = (value: string) => ({ key: value, ctrlKey: false, metaKey: false, shiftKey: false, isComposing: false, preventDefault: () => {} }) as unknown as KeyboardEvent
+
+  it('reports typing only on real keystrokes in a reply, never for a restored draft', async () => {
+    const first = mountComposer('2026-10-28T20:00:00Z')
+    first.state.draft.value = 'مسودة'
     await Vue.nextTick()
-    expect(open.notifyTyping).toHaveBeenCalledTimes(1)
-    open.state.mode.value = 'note'
-    open.state.draft.value = 'ملاحظة'
-    await Vue.nextTick()
-    expect(open.notifyTyping).toHaveBeenCalledTimes(1)
+    const reopened = mountComposer('2026-10-28T20:00:00Z', first.store)
+    expect(reopened.state.draft.value).toBe('مسودة')
+    expect(reopened.notifyTyping).not.toHaveBeenCalled()
+    expect(first.notifyTyping).not.toHaveBeenCalled()
+    reopened.state.onKeydown(key('م'))
+    expect(reopened.notifyTyping).toHaveBeenCalledTimes(1)
+    reopened.state.onKeydown(key('Shift'))
+    reopened.state.onKeydown(key('ArrowLeft'))
+    expect(reopened.notifyTyping).toHaveBeenCalledTimes(1)
+    reopened.state.mode.value = 'note'
+    reopened.state.onKeydown(key('a'))
+    expect(reopened.notifyTyping).toHaveBeenCalledTimes(1)
     const closed = mountComposer(null)
-    closed.state.texts.reply = 'م'
-    await Vue.nextTick()
+    closed.state.onKeydown(key('a'))
     expect(closed.notifyTyping).not.toHaveBeenCalled()
+  })
+
+  it('takes no caption on audio and keeps a file caption within 1024 characters', async () => {
+    const { state, sendReply } = mountComposer('2026-10-28T20:00:00Z')
+    await state.onFilePicked(file('note.ogg', 'audio/ogg', 2048))
+    expect(state.captionAllowed.value).toBe(false)
+    state.draft.value = 'تعليق'
+    await state.submit()
+    expect(sendReply).toHaveBeenLastCalledWith({ attachment_id: 41 })
+    await state.onFilePicked(file('plan.pdf', 'application/pdf', 2048))
+    expect(state.captionAllowed.value).toBe(true)
+    state.draft.value = 'ت'.repeat(INBOX_CAPTION_MAX + 1)
+    expect(state.captionTooLong.value).toBe(true)
+    expect(state.canSend.value).toBe(false)
+    state.draft.value = 'ت'.repeat(INBOX_CAPTION_MAX)
+    expect(state.canSend.value).toBe(true)
   })
 
   it('does not quote a message when a template is sent', async () => {

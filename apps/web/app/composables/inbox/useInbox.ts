@@ -2,6 +2,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   InboxAgentListSchema,
+  InboxAttachmentSchema,
   InboxCannedReplyListSchema,
   InboxContactSchema,
   InboxConversationDetailSchema,
@@ -17,6 +18,7 @@ import {
   type InboxReplyCreate,
 } from '@webvue/contracts'
 import { inboxListQuery, type InboxListRoute } from './inboxListRoute'
+import { fileToBase64 } from '../../utils/attachmentFile'
 import { createTypingNotifier } from './inboxTyping'
 
 // Every key starts with 'inbox', so the bus handler's invalidation of ['inbox'] (type 'webvue/inbox') refreshes them all.
@@ -165,6 +167,18 @@ export function useSendInboxNote(id: MaybeRefOrGetter<number>) {
   return useMutation({
     mutationFn: (body: InboxNoteCreate) => $api(`/api/v1/inbox/conversations/${toValue(id)}/notes`, { method: 'POST', body, schema: InboxMessageSchema }),
     onSuccess: refresh,
+  })
+}
+
+/** Uploads one file to a conversation as base64 JSON; the answer is what the reply then sends by id. */
+export function useUploadInboxFile(conversationId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: async (file: File) => $api(`/api/v1/inbox/conversations/${toValue(conversationId)}/uploads`, {
+      method: 'POST',
+      body: { name: file.name, mimetype: file.type || 'application/octet-stream', data: await fileToBase64(file) },
+      schema: InboxAttachmentSchema,
+    }),
   })
 }
 

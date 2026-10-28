@@ -24,12 +24,17 @@ class WebVueInboxMessageOutbox(models.Model):
             ('next_attempt_at', '<=', fields.Datetime.now()),
         ], order='next_attempt_at, id', limit=OUTBOX_BATCH)
         process_each(due, lambda message: message._webvue_deliver(), self._webvue_unexpected_failure)
-        reactions = self.search([('agent_reaction_pending', '=', True)], limit=OUTBOX_BATCH)
+        now = fields.Datetime.now()
+        reactions = self.search([
+            ('agent_reaction_pending', '=', True), '|', ('reaction_next_attempt_at', '=', False), ('reaction_next_attempt_at', '<=', now),
+        ], limit=OUTBOX_BATCH)
         process_each(
             reactions, lambda message: message._webvue_send_reaction(),
             lambda message, _error: message._webvue_reaction_failed(retryable=True),
         )
-        receipts = self.search([('read_receipt', '=', 'pending')], limit=OUTBOX_BATCH)
+        receipts = self.search([
+            ('read_receipt', '=', 'pending'), '|', ('receipt_next_attempt_at', '=', False), ('receipt_next_attempt_at', '<=', now),
+        ], limit=OUTBOX_BATCH)
         process_each(
             receipts, lambda message: message._webvue_send_read_receipt(),
             lambda message, _error: message._webvue_receipt_failed(retryable=True),
@@ -123,7 +128,7 @@ class WebVueInboxMessageOutbox(models.Model):
             values['delivery_state'] = 'failed'
         self.write(values)
 
-    # reactions and read receipts: sent from the same cron, retried on every run up to MAX_ATTEMPTS
+    # reactions and read receipts: sent from the same cron, retried with the message backoff up to MAX_ATTEMPTS
 
     def _webvue_send_reaction(self):
         self.ensure_one()
@@ -137,16 +142,13 @@ class WebVueInboxMessageOutbox(models.Model):
         except UserError:
             self._webvue_reaction_failed(retryable=False)
         else:
-            self.write({'agent_reaction_pending': False, 'reaction_attempts': 0})
+            self.write({'agent_reaction_pending': False, 'reaction_attempts': 0, 'reaction_next_attempt_at': False})
             self.conversation_id._webvue_notify_bus()
 
     def _webvue_reaction_failed(self, retryable):
-        """Count a failed attempt; a reaction that cannot be delivered is withdrawn instead of shown as sent."""
-        attempts = self.reaction_attempts + 1
-        if retryable and attempts < MAX_ATTEMPTS:
-            self.reaction_attempts = attempts
-        else:
-            self.write({'agent_reaction': False, 'agent_reaction_pending': False, 'reaction_attempts': 0})
+        """Back off after a failed attempt; a reaction that cannot be delivered is withdrawn instead of shown as sent."""
+        if self._webvue_signal_gave_up('reaction_attempts', 'reaction_next_attempt_at', retryable):
+            self.write({'agent_reaction': False, 'agent_reaction_pending': False})
             self.conversation_id._webvue_notify_bus()
 
     def _webvue_send_read_receipt(self):
@@ -159,11 +161,23 @@ class WebVueInboxMessageOutbox(models.Model):
         except UserError:
             self._webvue_receipt_failed(retryable=False)
         else:
-            self.write({'read_receipt': 'sent', 'receipt_attempts': 0})
+            self.write({'read_receipt': 'sent', 'receipt_attempts': 0, 'receipt_next_attempt_at': False})
 
     def _webvue_receipt_failed(self, retryable):
-        attempts = self.receipt_attempts + 1
+        if self._webvue_signal_gave_up('receipt_attempts', 'receipt_next_attempt_at', retryable):
+            self.read_receipt = 'failed'
+
+    def _webvue_signal_gave_up(self, attempts_field, next_field, retryable):
+        """Count a failed attempt of a reaction or receipt and schedule the next one with the message backoff.
+
+        Returns True when the signal is given up (not retryable, or out of attempts).
+        """
+        attempts = self[attempts_field] + 1
         if retryable and attempts < MAX_ATTEMPTS:
-            self.receipt_attempts = attempts
-        else:
-            self.write({'read_receipt': 'failed', 'receipt_attempts': 0})
+            self.write({
+                attempts_field: attempts,
+                next_field: fields.Datetime.now() + relativedelta(minutes=BACKOFF_MINUTES[attempts - 1]),
+            })
+            return False
+        self.write({attempts_field: 0, next_field: False})
+        return True

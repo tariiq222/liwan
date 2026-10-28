@@ -102,7 +102,7 @@
       "attach": "إرفاق ملف",
       "captionPlaceholder": "أضف تعليقًا على الملف (اختياري)",
       "removeFile": "إزالة الملف",
-      "uploading": "جارٍ رفع {name}",
+      "uploading": "جارٍ الرفع…",
       "replyingTo": "ردًا على",
       "quotedMedia": "مرفق",
       "cancelReplyTo": "إلغاء الرد على الرسالة",
@@ -150,7 +150,9 @@
         "displayText": "نص الزر",
         "url": "الرابط",
         "urlHelp": "رابط آمن يبدأ بـ https"
-      }
+      },
+      "captionTooLong": "التعليق على الملف لا يتجاوز {max} حرفًا. اختصره لإرسال الملف.",
+      "audioNoCaption": "لا يسمح واتساب بتعليق على الملف الصوتي."
     },
     "panel": {
       "title": "بيانات العميل والمحادثة",

@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
-import { INBOX_FILE_MAX_BYTES, INBOX_IMAGE_MAX_BYTES, inboxFileSize, inboxUploadProblem } from '../inboxAttachments'
+import { INBOX_CAPTION_MAX, INBOX_FILE_MAX_BYTES, INBOX_IMAGE_MAX_BYTES, INBOX_UPLOAD_ACCEPT, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem } from '../inboxAttachments'
 import { buildInteractive, emptyInteractiveDraft, interactiveRowCount, normalizeInteractiveDraft } from '../inboxInteractive'
 import { buildLocation, emptyLocationDraft, locationMapUrl } from '../inboxLocation'
 import { createTypingNotifier } from '../inboxTyping'
 
 describe('inbox upload limits', () => {
-  it('caps images at 5 MB and every other file at 15 MiB', () => {
+  it('caps images at 5 MB and every other file at 10 MiB', () => {
     expect(inboxUploadProblem({ type: 'image/png', size: INBOX_IMAGE_MAX_BYTES })).toBeNull()
     expect(inboxUploadProblem({ type: 'image/png', size: INBOX_IMAGE_MAX_BYTES + 1 })).toEqual({ reason: 'tooLarge', limitMb: 5 })
     expect(inboxUploadProblem({ type: 'video/mp4', size: INBOX_FILE_MAX_BYTES })).toBeNull()
-    expect(inboxUploadProblem({ type: 'application/pdf', size: INBOX_FILE_MAX_BYTES + 1 })).toEqual({ reason: 'tooLarge', limitMb: 15 })
+    expect(inboxUploadProblem({ type: 'application/pdf', size: INBOX_FILE_MAX_BYTES + 1 })).toEqual({ reason: 'tooLarge', limitMb: 10 })
   })
 
   it('refuses empty files and media types WhatsApp does not take, and treats any other type as a document', () => {
@@ -18,6 +18,13 @@ describe('inbox upload limits', () => {
     expect(inboxUploadProblem({ type: 'audio/wav', size: 10 })).toEqual({ reason: 'unsupported' })
     expect(inboxUploadProblem({ type: '', size: 10 })).toBeNull()
     expect(inboxUploadProblem({ type: 'application/vnd.ms-excel', size: 10 })).toBeNull()
+  })
+
+  it('offers no type the server rejects and takes no caption on audio', () => {
+    expect(INBOX_UPLOAD_ACCEPT).not.toContain('csv')
+    expect(inboxAcceptsCaption('audio/ogg')).toBe(false)
+    expect(inboxAcceptsCaption('image/png')).toBe(true)
+    expect(INBOX_CAPTION_MAX).toBe(1024)
   })
 
   it('formats sizes', () => {

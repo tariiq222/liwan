@@ -102,7 +102,7 @@
       "attach": "Attach a file",
       "captionPlaceholder": "Add a caption for the file (optional)",
       "removeFile": "Remove the file",
-      "uploading": "Uploading {name}",
+      "uploading": "Uploading…",
       "replyingTo": "Replying to",
       "quotedMedia": "Attachment",
       "cancelReplyTo": "Cancel replying to the message",
@@ -150,7 +150,9 @@
         "displayText": "Button text",
         "url": "Link",
         "urlHelp": "A secure link starting with https"
-      }
+      },
+      "captionTooLong": "A file caption is at most {max} characters. Shorten it to send the file.",
+      "audioNoCaption": "WhatsApp does not allow a caption on an audio file."
     },
     "panel": {
       "title": "Customer and conversation",

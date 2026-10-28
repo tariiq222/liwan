@@ -142,6 +142,14 @@ export const InboxMessageSchema = z.object({
 
 export const InboxMessageListSchema = list(InboxMessageSchema)
 
+// An agent file is uploaded first, as base64 JSON like every WebVue attachment (json2, same-origin only), then
+// sent with {attachment_id}. Images up to 5 MB, video, audio and documents up to 10 MB (the platform cap).
+export const InboxUploadCreateSchema = z.object({
+  name: z.string().min(1).max(255),
+  mimetype: z.string().min(1).max(128),
+  data: z.string().min(1),
+}).strict()
+
 const ReplyTo = { reply_to_id: Id.optional() }
 
 // A reply is free text, a file uploaded first through /uploads (with an optional caption), a location or an
@@ -273,6 +281,7 @@ export type InboxMessageKind = z.infer<typeof InboxMessageKindSchema>
 export type InboxLocation = z.infer<typeof InboxLocationSchema>
 export type InboxInteractive = z.infer<typeof InboxInteractiveSchema>
 export type InboxReaction = z.infer<typeof InboxReactionSchema>
+export type InboxUploadCreate = z.infer<typeof InboxUploadCreateSchema>
 export type InboxNoteCreate = z.infer<typeof InboxNoteCreateSchema>
 export type InboxContactPatch = z.infer<typeof InboxContactPatchSchema>
 export type InboxCannedReply = z.infer<typeof InboxCannedReplySchema>

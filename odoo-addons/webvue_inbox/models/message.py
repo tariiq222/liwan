@@ -48,6 +48,7 @@ class WebVueInboxMessage(models.Model):
     agent_reaction = fields.Char()
     agent_reaction_pending = fields.Boolean(default=False, index=True)
     reaction_attempts = fields.Integer(default=0)
+    reaction_next_attempt_at = fields.Datetime()
     latitude = fields.Float(digits=(9, 6))
     longitude = fields.Float(digits=(9, 6))
     location_name = fields.Char()
@@ -68,6 +69,7 @@ class WebVueInboxMessage(models.Model):
     # Read receipt of an inbound message: set to `pending` when an agent opens the conversation.
     read_receipt = fields.Selection([('pending', 'Pending'), ('sent', 'Sent'), ('failed', 'Failed')], copy=False, index=True)
     receipt_attempts = fields.Integer(default=0)
+    receipt_next_attempt_at = fields.Datetime()
     delivery_state = fields.Selection(
         [('received', 'Received'), ('queued', 'Queued'), ('sent', 'Sent'),
          ('delivered', 'Delivered'), ('read', 'Read'), ('failed', 'Failed')],
@@ -210,6 +212,7 @@ class WebVueInboxMessage(models.Model):
             self._webvue_require_window(self.conversation_id)
         self.write({
             'delivery_state': 'queued', 'attempts': 0, 'error': False, 'next_attempt_at': fields.Datetime.now(),
+            'media_id': False,
         })
         self._webvue_wake_outbox()
 
@@ -222,7 +225,8 @@ class WebVueInboxMessage(models.Model):
         self._webvue_require_sendable(conversation)
         self._webvue_require_window(conversation)
         if (self.agent_reaction or '') != emoji or self.agent_reaction_pending:
-            self.write({'agent_reaction': emoji or False, 'agent_reaction_pending': True, 'reaction_attempts': 0})
+            self.write({'agent_reaction': emoji or False, 'agent_reaction_pending': True, 'reaction_attempts': 0,
+                        'reaction_next_attempt_at': False})
             self._webvue_wake_outbox()
 
     def _webvue_request_read_receipt(self):

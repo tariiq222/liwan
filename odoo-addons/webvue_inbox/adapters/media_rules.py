@@ -3,15 +3,14 @@
 
 Pure rules over a mimetype and a size, shared by the upload route and the reply validation. The image
 limit is Meta's; the other limits sit below Meta's (16 MB audio and video, 100 MB documents) because every
-request through the platform edge is capped at 16 MiB, multipart overhead included.
+upload is a base64 JSON body, capped like every WebVue attachment.
 """
-MIB = 1024 * 1024
-IMAGE_MAX_BYTES = 5 * MIB
-VIDEO_MAX_BYTES = 15 * MIB
-AUDIO_MAX_BYTES = 15 * MIB
-DOCUMENT_MAX_BYTES = 15 * MIB
-# The largest file of any kind: a request body above it plus multipart overhead is refused unread.
-LARGEST_UPLOAD_BYTES = max(IMAGE_MAX_BYTES, VIDEO_MAX_BYTES, AUDIO_MAX_BYTES, DOCUMENT_MAX_BYTES)
+from odoo.addons.webvue_api.serializers.attachment import MAX_ATTACHMENT_BYTES
+
+IMAGE_MAX_BYTES = 5 * 1024 * 1024
+VIDEO_MAX_BYTES = MAX_ATTACHMENT_BYTES
+AUDIO_MAX_BYTES = MAX_ATTACHMENT_BYTES
+DOCUMENT_MAX_BYTES = MAX_ATTACHMENT_BYTES
 
 GENERIC_MIMETYPE = 'application/octet-stream'
 # Types whose bytes carry a recognisable signature: the sniffed content decides, never the client's label.

@@ -157,11 +157,12 @@ class ConversationController(http.Controller):
     @requires_feature('inbox.enabled', operation='write')
     @requires_capability(READ)
     def mark_read(self, conversation_id, **_):
-        """Clear the unread flag and queue the read receipt; the UI calls this when it opens a conversation."""
+        """Clear the unread flag and, for an agent who can reply, queue the read receipt; the UI calls this when it opens a conversation."""
         conversation = visible_conversation(conversation_id)
         if conversation.unread:
             conversation.unread = False
-        conversation._webvue_request_read_receipt()
+        if request.env['webvue.access.service']._webvue_has_capability(request.env.user, REPLY):
+            conversation._webvue_request_read_receipt()
         return no_content()
 
     @http.route('/api/v1/inbox/conversations/<int:conversation_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)

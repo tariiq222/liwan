@@ -200,16 +200,17 @@ const kindOfMimetype = mimetype => {
   return family in GENERIC_MEDIA && GENERIC_MEDIA[family].includes(mimetype) ? family : 'document'
 }
 
-// Same refusals as the upload route: unsupported media type 422, over the cap 413 (images 5 MB, others 15 MiB).
+// Same refusals as the upload route: unsupported media type 422, over the cap 413 (images 5 MB, others 10 MiB), created 201.
 function upload(conv, body) {
-  const file = body.__upload
-  if (!file) return fail(422, 'invalid', 'file is required', 'file')
-  const family = file.mimetype.split('/')[0]
-  if (family in GENERIC_MEDIA && !GENERIC_MEDIA[family].includes(file.mimetype)) return fail(422, 'invalid', 'نوع الملف غير مدعوم', 'file')
-  if (file.size > (family === 'image' ? 5 : 15) * MIB) return fail(413, 'payload_too_large', 'الملف أكبر من الحد المسموح')
-  const attachment = { id: state.ids.upload++, name: file.name, mimetype: file.mimetype, size: file.size }
+  const { name, mimetype, data } = body
+  if (!name || !mimetype || !data) return fail(422, 'invalid', 'name, mimetype and data are required')
+  const family = mimetype.split('/')[0]
+  if (family in GENERIC_MEDIA && !GENERIC_MEDIA[family].includes(mimetype)) return fail(422, 'invalid', 'نوع الملف غير مدعوم', 'mimetype')
+  const size = Math.floor(data.length * 3 / 4) - (data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0)
+  if (size > (family === 'image' ? 5 : 10) * MIB) return fail(413, 'payload_too_large', 'الملف أكبر من الحد المسموح')
+  const attachment = { id: state.ids.upload++, name, mimetype, size }
   state.uploads.set(attachment.id, { conversationId: conv.id, attachment })
-  return ok(attachment)
+  return { status: 201, body: attachment }
 }
 
 function interactiveProblem(interactive) {
@@ -235,6 +236,7 @@ function reply(conv, body) {
   if ('attachment_id' in body) {
     const held = state.uploads.get(body.attachment_id)
     if (!held || held.conversationId !== conv.id) return fail(422, 'invalid', 'المرفق غير موجود في هذه المحادثة', 'attachment_id')
+    if (body.caption && held.attachment.mimetype.startsWith('audio/')) return fail(422, 'invalid', 'لا يسمح بتعليق على ملف صوتي', 'caption')
     state.uploads.delete(body.attachment_id)
     return ok(appendMessage(conv, { kind: kindOfMimetype(held.attachment.mimetype), body: body.caption ?? '', attachments: [held.attachment], reply_to: quoted }))
   }
