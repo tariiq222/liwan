@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.tests import tagged
+from odoo.tests import new_test_user, tagged
 
 from odoo.addons.webvue_crm.models.access_service import AGENT_PERMISSIONS, PERMISSIONS
 from odoo.addons.webvue_crm.tests.common import WebVueCrmCase
@@ -63,3 +63,10 @@ class TestCrmAccessComposition(WebVueCrmCase):
         self.assertFalse(self.agent.has_group('sales_team.group_sale_salesman_all_leads'))
         self.assertTrue(self.manager.has_group('sales_team.group_sale_salesman_all_leads'))
         self.assertFalse(self.outsider.has_group('sales_team.group_sale_salesman'))
+
+    def test_vendor_support_shortcut_grants_no_crm_key(self):
+        support = new_test_user(
+            self.env, login='crm_support', groups='webvue_core.group_vendor_support',
+            company_id=self.company.id,
+        )
+        self.assertFalse(self.capabilities_of(support) & CRM_KEYS)
