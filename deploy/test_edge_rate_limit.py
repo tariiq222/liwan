@@ -24,7 +24,7 @@ DOCKERFILE = ROOT / 'deploy' / 'proxy' / 'Dockerfile'
 COMPOSE = ROOT / 'deploy' / 'docker-compose.yml'
 
 DEDICATED_ZONES = ('webvue_auth', 'webvue_api', 'webvue_odoo', 'webvue_web')
-ZONES = ('webvue_auth', 'webvue_api', 'webvue_odoo_image', 'webvue_odoo', 'webvue_web')
+ZONES = ('webvue_auth', 'webvue_api', 'webvue_public_appointments_ip', 'webvue_public_appointments_path', 'webvue_odoo_image', 'webvue_odoo', 'webvue_web')
 SHARED_CADDYFILE = ROOT / 'deploy' / 'shared' / 'Caddyfile'
 CADDY_IMAGE_REPOSITORY = 'webvue-caddy-test'
 DOCKER_UNAVAILABLE = ('cannot connect to the docker daemon', 'is the docker daemon running',
@@ -49,6 +49,9 @@ SHARED_ZONE_CASES = (
     ('/api/auth/login', {'webvue_auth'}),
     ('/web/image/res.company/1/logo', {'webvue_odoo_image'}),
     ('/api/v1/me', {'webvue_api'}),
+    ('/api/v1/public/appointments/bookings/7/slots', {
+        'webvue_api', 'webvue_public_appointments_ip', 'webvue_public_appointments_path',
+    }),
     ('/', {'webvue_web'}),
 )
 

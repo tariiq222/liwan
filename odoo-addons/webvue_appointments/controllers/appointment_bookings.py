@@ -1,9 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from contextlib import contextmanager
 from datetime import UTC, datetime, time, timedelta
 
 from odoo import fields, http
-from odoo.exceptions import ValidationError
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
@@ -18,8 +16,12 @@ from odoo.addons.webvue_appointments.controllers.records import (
     READ_CAPABILITY,
     WRITE_CAPABILITY,
     company_records,
+    confirm_on_schedule,
     get_company_booking,
     offered_combination,
+    require_combination_links,
+    require_open_booking,
+    slot_conflicts,
 )
 from odoo.addons.webvue_appointments.serializers.appointment_booking import (
     booking_values,
@@ -44,8 +46,8 @@ class AppointmentBookingController(http.Controller):
     """Staff booking routes over the engine's public methods.
 
     Scheduling writes ``start`` (and ``combination_id``) on the booking in the caller's environment:
-    ``resource.booking`` takes the per-resource guard itself. A slot the engine refuses and a lost
-    refusal answers 409 ``conflict``; a lost guard race (``ConcurrencyError``) propagates so Odoo replays the request. With ``requester_confirmation`` on, a booking that staff
+    ``resource.booking`` takes the per-resource guard itself. A slot the engine refuses answers 409
+    ``conflict``; a lost guard race (``ConcurrencyError``) propagates so Odoo replays the request. With ``requester_confirmation`` on, a booking that staff
     create with a start or schedule stays ``scheduled`` until ``/confirm``; with it off, staff
     scheduling confirms it at once. Every route checks its capability in the current company and
     looks the booking up inside it (the ORM write rules are company-blind).
@@ -92,11 +94,11 @@ class AppointmentBookingController(http.Controller):
             **self._combination_values(combination),
         }
         if parsed['start']:
-            self._require_combination_links(booking_type)
+            require_combination_links(booking_type)
             values['start'] = parsed['start']
-            with self._conflicts():
+            with slot_conflicts():
                 booking = request.env[BOOKING].create(values)
-            self._confirm_on_schedule(booking)
+            confirm_on_schedule(booking)
         else:
             booking = request.env[BOOKING].create(values)
         return self._detail(booking, settings)
@@ -109,13 +111,13 @@ class AppointmentBookingController(http.Controller):
         booking = get_company_booking(booking_id)
         settings = self._settings()
         parsed = parse_booking_schedule(payload, settings, datetime.now(UTC))
-        self._require_open(booking)
+        require_open_booking(booking)
         self._require_modifiable(booking, 'start')
-        self._require_combination_links(booking.type_id)
+        require_combination_links(booking.type_id)
         combination = offered_combination(booking.type_id, parsed['combination_id'])
-        with self._conflicts():
+        with slot_conflicts():
             booking.write({'start': parsed['start'], **self._combination_values(combination)})
-        self._confirm_on_schedule(booking)
+        confirm_on_schedule(booking)
         return self._detail(booking, settings)
 
     @http.route('/api/v1/appointments/bookings/<int:booking_id>/confirm', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -135,10 +137,24 @@ class AppointmentBookingController(http.Controller):
     @requires_capability(WRITE_CAPABILITY)
     def cancel_booking(self, booking_id, **_):
         booking = get_company_booking(booking_id)
-        self._require_open(booking)
+        require_open_booking(booking)
         self._require_modifiable(booking, None)
         booking.action_cancel()
         return self._detail(booking, self._settings())
+
+    @http.route('/api/v1/appointments/bookings/<int:booking_id>/invitation', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('appointments.enabled', operation='write')
+    @requires_capability(WRITE_CAPABILITY)
+    def invite_booking(self, booking_id, **_):
+        """The requester's page path, with the booking's access token (made when missing).
+
+        The answer is a path, not a URL: the browser that shows it knows the tenant's public origin.
+        Sending it is not done here.
+        """
+        booking = get_company_booking(booking_id)
+        require_open_booking(booking)
+        return {'path': booking.get_portal_url()}
 
     @staticmethod
     def _settings():
@@ -188,16 +204,6 @@ class AppointmentBookingController(http.Controller):
         return partner
 
     @staticmethod
-    def _require_open(booking):
-        if booking.state == 'canceled':
-            raise ApiError(422, 'invalid', 'the booking is canceled')
-
-    @staticmethod
-    def _require_combination_links(booking_type):
-        if not booking_type.combination_rel_ids:
-            raise ApiError(422, 'invalid', 'the type offers no combination to schedule on', field='type_id')
-
-    @staticmethod
     def _has_capability(key):
         return request.env['webvue.access.service']._webvue_has_capability(request.env.user, key, company=request.env.company)
 
@@ -219,18 +225,3 @@ class AppointmentBookingController(http.Controller):
             sees_contact=self._has_capability(WRITE_CAPABILITY),
             national_id_hidden=settings['national_id_field'] == 'hidden',
         )
-
-    @staticmethod
-    def _confirm_on_schedule(booking):
-        if booking._webvue_confirms_on_schedule():
-            booking.action_confirm()
-
-    @staticmethod
-    @contextmanager
-    def _conflicts():
-        """The engine's refusal of a slot is a 409. A lost resource-guard race is not caught here: its
-        ``ConcurrencyError`` propagates so Odoo's request retry replays the request."""
-        try:
-            yield
-        except ValidationError as error:
-            raise ApiError(409, 'conflict', 'the slot is not available') from error

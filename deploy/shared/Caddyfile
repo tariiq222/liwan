@@ -29,6 +29,26 @@
 				window 1m
 				ipv6_prefix 64
 			}
+			# An invited requester's token routes have no session to throttle: one budget per client
+			# address, and one per request path (a booking and its route), so a single token cannot
+			# be guessed from many addresses.
+			zone webvue_public_appointments_ip {
+				match {
+					path /api/v1/public/appointments/*
+				}
+				key {client_ip}
+				events 60
+				window 1m
+				ipv6_prefix 64
+			}
+			zone webvue_public_appointments_path {
+				match {
+					path /api/v1/public/appointments/*
+				}
+				key {http.request.uri.path}
+				events 30
+				window 1m
+			}
 			# F5: ACL-checked image bytes keep their own limited budget so avatar
 			# grids cannot starve the rest of the Odoo-routed traffic.
 			zone webvue_odoo_image {
