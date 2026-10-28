@@ -76,7 +76,7 @@ class TestClassification(unittest.TestCase):
     def provision_fixture(self):
         deploy = self.root / 'deploy'
         deploy.mkdir()
-        for name in ('provision.sh', 'classification.py', 'seed_branding.py', 'seed_legacy_policy.py'):
+        for name in ('provision.sh', 'classification.py', 'seed_branding.py', 'seed_legacy_policy.py', 'seed_public_origin.py'):
             shutil.copy(ROOT / 'deploy' / name, deploy / name)
         config = self.root / 'odoo-addons/webvue_platform'
         config.mkdir(parents=True)
@@ -101,8 +101,9 @@ if 'docker-compose.classification.yml' in args:
     path = pathlib.Path(os.environ['WEBVUE_CLASSIFICATION_FILE'])
     record['snapshot'] = json.loads(path.read_text())
     record['path'] = str(path)
-if 'psql' in args:
+if 'psql' in args or 'shell' in args:
     record['stdin'] = sys.stdin.read()
+    record['domain'] = os.environ.get('DOMAIN')
 with open(os.environ['DOCKER_LOG'], 'a') as f:
     f.write(json.dumps(record) + '\\n')
 ''')
@@ -150,6 +151,45 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertIn('FROM PUBLIC', sql)
         self.assertIn('FROM webvue_ai', sql)
         self.assertNotIn(self.data['database'], sql)
+
+    def origin_records(self):
+        records = [json.loads(line) for line in (self.root / 'docker.log').read_text().splitlines()]
+        return records, [index for index, record in enumerate(records)
+                         if '_webvue_set_public_origin' in record.get('stdin', '')]
+
+    def test_provision_pins_the_public_origin_before_serving(self):
+        deploy, env = self.provision_fixture()
+        result = subprocess.run(['bash', str(deploy / 'provision.sh'), 'test.invalid', self.data['database']],
+                                env=env, text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        records, pinned = self.origin_records()
+        self.assertEqual(len(pinned), 1)
+        record = records[pinned[0]]
+        self.assertEqual(record['domain'], 'test.invalid')
+        self.assertIn('DOMAIN', record['args'][record['args'].index('-e') + 1])
+        self.assertLess(max(i for i, r in enumerate(records) if 'snapshot' in r), pinned[0])
+        self.assertEqual(records[-1]['args'], ['compose', 'up', '-d'])
+
+    def test_a_domain_change_repins_only_the_public_origin(self):
+        deploy, env = self.provision_fixture()
+        (deploy / 'data').mkdir()
+        (deploy / 'data/odoo.conf').write_text('[options]\n')
+        result = subprocess.run(['bash', str(deploy / 'provision.sh'), '--public-origin', 'erp.customer.sa', self.data['database']],
+                                env=env, text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        records, pinned = self.origin_records()
+        self.assertEqual(pinned, [0])
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]['domain'], 'erp.customer.sa')
+        self.assertIn(self.data['database'], records[0]['args'])
+
+    def test_a_domain_change_needs_a_provisioned_environment(self):
+        deploy, env = self.provision_fixture()
+        result = subprocess.run(['bash', str(deploy / 'provision.sh'), '--public-origin', 'erp.customer.sa', self.data['database']],
+                                env=env, text=True, capture_output=True, check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('provision', result.stderr)
+        self.assertFalse((self.root / 'docker.log').exists())
 
     def test_invalid_provision_never_calls_docker(self):
         deploy, env = self.provision_fixture()

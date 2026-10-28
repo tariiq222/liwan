@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import logging
+import re
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
@@ -18,6 +19,12 @@ _logger = logging.getLogger(__name__)
 # hook runs first: Odoo installs modules by dependency depth and it depends on `webvue_core` only.
 BASELINE_COUNTRY = 'base.sa'
 BASELINE_CURRENCY = 'base.SAR'
+# Stock builds absolute links (payment return and webhook URLs, mail links) from `web.base.url`
+# and rewrites it from the request root at every administrator sign-in unless
+# `web.base.url.freeze` is set; behind WebVue's edge that root is never the public host.
+PUBLIC_HOST_PATTERN = re.compile(
+    r'(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+',
+)
 
 
 class WebVueTenantProfile(models.Model):
@@ -150,6 +157,19 @@ class WebVueTenantProfile(models.Model):
             'country_id': self.env.ref(BASELINE_COUNTRY).id,
             'currency_id': self.env.ref(BASELINE_CURRENCY).id,
         })
+
+    def _webvue_set_public_origin(self, host):
+        """Pin `web.base.url` to the tenant's https host and freeze it (trusted operator only).
+
+        The host's owner calls it at provisioning and at every host change: the dedicated
+        `DOMAIN`, the shared routing registry host.
+        """
+        self._webvue_require_operator()
+        if not isinstance(host, str) or not PUBLIC_HOST_PATTERN.fullmatch(host):
+            raise ValidationError(self.env._('The public host must be a lowercase DNS name.'))
+        params = self.env['ir.config_parameter']
+        params.set_param('web.base.url', f'https://{host}')
+        params.set_param('web.base.url.freeze', True)
 
     @api.model
     def _webvue_policy_initialized(self, profile=None):

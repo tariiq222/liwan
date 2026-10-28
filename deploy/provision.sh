@@ -5,6 +5,9 @@
 #   deploy/provision.sh --stage-only
 #     Stages branding.json + its logo into data/seed and exits — no docker,
 #     no DOMAIN/DB_NAME required. Used to exercise stage_branding() in isolation.
+#   deploy/provision.sh --public-origin app.customer.sa customerdb
+#     After a DOMAIN change of a provisioned environment: pins the database's public
+#     origin (web.base.url) to https://<domain> again and exits.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -54,6 +57,19 @@ if [ "${1:-}" = "--stage-only" ]; then
   exit 0
 fi
 
+# Stock Odoo builds absolute links (payment return and webhook URLs, mail links) from
+# web.base.url; the tenant's public origin is pinned to the domain and frozen.
+set_public_origin() {
+  docker compose run --rm -T -e DOMAIN -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" odoo \
+    shell -d "$DB_NAME" --no-http < seed_public_origin.py
+}
+
+MODE=provision
+if [ "${1:-}" = "--public-origin" ]; then
+  MODE=public-origin
+  shift
+fi
+
 # .env first, then the positional arguments: the domain and the database name are
 # arguments to this script, so they must override whatever the environment carries.
 set -a; source .env; set +a
@@ -61,6 +77,14 @@ DOMAIN="${1:?usage: provision.sh <domain> <db name>}"
 DB_NAME="${2:?usage: provision.sh <domain> <db name>}"
 [[ "$DB_NAME" =~ ^[a-zA-Z0-9_]+$ ]] || { echo "db name must be [a-zA-Z0-9_]+" >&2; exit 1; }
 export DOMAIN DB_NAME
+
+if [ "$MODE" = public-origin ]; then
+  [ -f data/odoo.conf ] || { echo "provision: data/odoo.conf missing; provision $DB_NAME first" >&2; exit 1; }
+  export ODOO_COMMIT="$(cat "$PWD/odoo/ODOO_COMMIT")"
+  export WEBVUE_IMAGE_TAG="${WEBVUE_IMAGE_TAG:?set WEBVUE_IMAGE_TAG to the running image tag}"
+  set_public_origin
+  exit 0
+fi
 
 for var in DB_PASSWORD ODOO_ADMIN_PASSWORD VENDOR_PASSWORD; do
   eval "value=\${$var:-}"
@@ -108,6 +132,7 @@ docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$
   shell -d "$DB_NAME" --no-http < data/seed/seed_legacy_policy.py
 docker compose run --rm -T -e VENDOR_PASSWORD -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_branding.py
+set_public_origin
 # WebVue AI's database role must not connect to a customer database. Postgres grants CONNECT on a
 # new database to PUBLIC, so close it for the tenant database just created. A no-op when the
 # webvue_ai role does not exist (deployments without AI); a real error still stops provisioning.

@@ -30,6 +30,8 @@ from tools.catalog_check import TEST_ONLY_MODULES
 from tools.webvue_cli.module_closure import REPO_ADDONS
 
 MODULE_ID = re.compile(r'(?:webvue|customer)_[a-z0-9_]+')
+# The routed tenant host (`t<id>.<domain suffix>`), the same DNS name the routing registry accepts.
+TENANT_HOST = re.compile(r'(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+')
 MAX_OUTPUT = 65536
 
 class EffectError(ValueError):
@@ -86,6 +88,12 @@ def validate_modules(value):
             or not all(MODULE_ID.fullmatch(name) and name not in TEST_ONLY_MODULES
                        and (REPO_ADDONS / name / '__manifest__.py').is_file() for name in value)):
         raise EffectError('modules_invalid')
+    return value
+
+
+def validate_host(value):
+    if not isinstance(value, str) or not TENANT_HOST.fullmatch(value):
+        raise EffectError('host_invalid')
     return value
 
 
@@ -189,6 +197,7 @@ class Runner:
             raise EffectError('operation_unavailable')
         if request['job']['operation'] == 'provision':
             validate_modules(request['job']['policy']['modules'])
+            validate_host(request.get('host'))
         self.root = Path(config['stateDir'])
         self.reservation = self.root / 'reservations' / (self.database + '.json')
         self.credential = self.root / 'credentials' / (self.database + '.json')
@@ -372,11 +381,12 @@ class Runner:
 
     def admin_script(self, secret, *, snapshot):
         values = {'database': self.database, 'name': self.request['admin']['name'], 'login': self.request['admin']['login'],
-                  'companyName': self.request['companyName']}
+                  'companyName': self.request['companyName'], 'host': self.request['host']}
         prefix = 'import json\nvalues = json.loads(' + repr(json.dumps(values)) + ')\nsecret = ' + repr(secret) + '\nsnapshot = ' + repr(snapshot) + '\n'
         return prefix + '''
 result = {'verified': False}
 try:
+    from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
     if snapshot:
         env.cr.rollback()
         env.cr.execute('SET TRANSACTION READ ONLY')
@@ -392,6 +402,8 @@ try:
         assert admin.login == 'admin'
         admin._webvue_access_write({'login': values['login'], 'name': values['name']}, 'access.users.update')
         profile.root_company_id.write({'name': values['companyName']})
+        # Stock builds payment return/webhook and mail links from web.base.url: pin it to the routed host.
+        profile.with_context(**{OPERATOR_CONTEXT: True})._webvue_set_public_origin(values['host'])
         for key in keys:
             role = env['webvue.access.role'].search([('key', '=', key)], limit=1)
             assert role
@@ -419,6 +431,8 @@ try:
     assert users >= 1 and (limit is None or users <= limit)
     assert admin.login == values['login'] and admin.name == values['name']
     assert profile.root_company_id.name == values['companyName']
+    params = env['ir.config_parameter']
+    assert params.get_param('web.base.url') == 'https://' + values['host'] and params.get_param('web.base.url.freeze')
     assigned = env['webvue.access.assignment'].search([('user_id', '=', admin.id), ('company_id', '=', profile.root_company_id.id)]).mapped('role_id.key')
     assert set(keys) <= set(assigned)
     env.cr.execute('SELECT password FROM res_users WHERE id=%s', [admin.id])

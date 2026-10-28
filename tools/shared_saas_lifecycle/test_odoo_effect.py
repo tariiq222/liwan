@@ -47,8 +47,12 @@ class PackageAdministratorScriptTests(unittest.TestCase):
     This verifies package and catalog provisioning and fail-closed readback, not ORM or
     actual quota semantics; the parent owns fresh isolated Odoo acceptance.
     """
-    def run_script(self, *, package=True, snapshot=False, support=True, count=None, limit=None):
+    HOST = 't' + 'c' * 32 + '.example.test'
+
+    def run_script(self, *, package=True, snapshot=False, support=True, count=None, limit=None, origin=None):
         writes = []
+        # A snapshot reads what an earlier apply pinned; `origin` states another value on purpose.
+        params = {'web.base.url': origin or 'https://' + self.HOST, 'web.base.url.freeze': 'True'} if snapshot else {}
         roles = {'existing_customer_role'}
         company = SimpleNamespace(id=1, name='Company')
         company.write = lambda values: (writes.append(('company', values)), setattr(company, 'name', values['name']))
@@ -88,6 +92,12 @@ class PackageAdministratorScriptTests(unittest.TestCase):
             def mapped(self, path):
                 assert path == 'role_id.key'
                 return sorted(roles)
+            def with_context(self, **context):
+                assert context == {'operator-context': True}
+                return self
+            def _webvue_set_public_origin(self, host):
+                writes.append(('origin', host))
+                params.update({'web.base.url': 'https://' + host, 'web.base.url.freeze': 'True'})
 
         class Assignments:
             def search(self, domain):
@@ -126,6 +136,8 @@ class PackageAdministratorScriptTests(unittest.TestCase):
                     )
                 if model == 'webvue.access.role':
                     return SimpleNamespace(search=lambda domain, limit=None: SimpleNamespace(id=domain[0][2]))
+                if model == 'ir.config_parameter':
+                    return SimpleNamespace(get_param=params.get)
                 raise AssertionError(model)
             def ref(self, xmlid):
                 if xmlid == 'base.user_admin':
@@ -141,11 +153,14 @@ class PackageAdministratorScriptTests(unittest.TestCase):
         runner = object.__new__(odoo_effect.Runner)
         runner.database = Cursor.dbname
         runner.request = {'admin': {'name': 'Customer administrator', 'login': 'customer@example.test'},
-                          'companyName': 'Company', 'job': {'policy': {'modules': ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_hr']}}}
+                          'companyName': 'Company', 'host': self.HOST,
+                          'job': {'policy': {'modules': ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_hr']}}}
         if package:
             runner.request['job']['packageAuthority'] = {'schemaVersion': 2}
         output = io.StringIO()
-        with contextlib.redirect_stdout(output):
+        platform = SimpleNamespace(OPERATOR_CONTEXT='operator-context')
+        with unittest.mock.patch.dict('sys.modules', {'odoo.addons.webvue_platform.models.entitlement_service': platform}), \
+                contextlib.redirect_stdout(output):
             exec(compile(runner.admin_script('known-secret', snapshot=snapshot), '<generated-admin>', 'exec'), {'env': Environment()})
         result = json.loads(output.getvalue().strip().removeprefix('WEBVUE_SHARED_ADMIN:'))
         return result, writes, admin, roles
@@ -153,7 +168,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
     def test_admin_script_reads_roles_from_the_entitlement_not_modules(self):
         script = object.__new__(odoo_effect.Runner)
         script.database = 'webvue_scratch_' + 'a' * 32
-        script.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C',
+        script.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C', 'host': 'a.example.test',
                           'job': {'policy': {'modules': ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_hr']}}}
         text = script.admin_script('known-secret', snapshot=False)
         self.assertIn('_webvue_entitled_admin_roles()', text)
@@ -179,6 +194,25 @@ class PackageAdministratorScriptTests(unittest.TestCase):
         result, writes, _admin, _roles = self.run_script(snapshot=True, support=False, count=1)
         self.assertEqual(result, {'verified': True, 'uid': 2})
         self.assertEqual(writes, [])
+
+    def test_apply_pins_the_routed_host_as_the_frozen_public_origin(self):
+        result, writes, _admin, _roles = self.run_script()
+        self.assertEqual(result, {'verified': True, 'uid': 2})
+        self.assertIn(('origin', self.HOST), writes)
+        self.assertLess(writes.index(('origin', self.HOST)), writes.index(('commit',)))
+
+    def test_snapshot_refuses_a_public_origin_that_is_not_the_routed_host(self):
+        for origin in ('https://' + self.HOST + '.other.test', 'http://' + self.HOST, 'https://webvue_scratch_' + 'a' * 32):
+            with self.subTest(origin=origin):
+                result, writes, _admin, _roles = self.run_script(snapshot=True, support=False, count=1, origin=origin)
+                self.assertEqual(result, {'verified': False})
+                self.assertEqual(writes, [])
+
+    def test_a_provision_request_needs_a_routed_host(self):
+        for host in (None, '', 'Tenant.example.test', 'tenant', 'tenant.example.test/x', 'https://tenant.example.test'):
+            with self.subTest(host=host), self.assertRaises(odoo_effect.EffectError):
+                odoo_effect.validate_host(host)
+        self.assertEqual(odoo_effect.validate_host(self.HOST), self.HOST)
 
     def test_catalog_apply_treats_first_admin_as_counted_customer(self):
         # A commercial tenant provisioned from the catalog (no package authority)
@@ -212,7 +246,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
     def test_admin_script_has_no_package_branch(self):
         runner = object.__new__(odoo_effect.Runner)
         runner.database = 'webvue_scratch_' + 'a' * 32
-        runner.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C', 'job': {'policy': {}}}
+        runner.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C', 'host': 'a.example.test', 'job': {'policy': {}}}
         text = runner.admin_script('known-secret', snapshot=False)
         self.assertNotIn('packageAdmin', text)
 
@@ -230,7 +264,7 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
                   'stateDir': '/synthetic/state', 'domainSuffix': 'example.test'}
         database = 'webvue_scratch_' + 'a' * 32
         digest = 'b' * 64
-        request = {'action': 'observe', 'config': config,
+        request = {'action': 'observe', 'config': config, 'host': 'tenant.example.test',
                    'job': {'operation': 'provision',
                            'binding': {'database': database, 'filestore': database},
                            'policy': {'schema_version': 1, 'channel': 'control_plane',
