@@ -48,6 +48,11 @@ class WebVuePayerCase(WebVuePaymentsCase):
             'state': 'enabled',
             'is_published': True,
         })
+        # A tenant's company carries the Saudi chart, whose sales journals send ZATCA e-invoices; these
+        # invoices are posted through a journal that is not onboarded (the ZATCA tests of finance onboard one).
+        zatca = cls.env.ref('l10n_sa_edi.edi_sa_zatca', raise_if_not_found=False)
+        if zatca:
+            cls.env['account.journal'].search([('company_id', '=', cls.env.company.id)]).edi_format_ids = [Command.unlink(zatca.id)]
         cls.customer = cls.env['res.partner'].create({'name': 'Payer customer', 'email': 'payer@example.test'})
         cls.invoice = cls.customer_invoice()
         cls.invoice._portal_ensure_token()

@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import Command
 from odoo.tests import TransactionCase, tagged
 
 
@@ -28,9 +29,12 @@ class TestTenantAccountingBaseline(TransactionCase):
             with self.subTest(tax=tax.type_tax_use):
                 self.assertEqual((tax.amount_type, tax.amount, tax.company_id), ('percent', 15, self.company))
 
-    def test_pricelists_are_in_saudi_riyal(self):
+    def test_the_default_pricelist_stock_creates_is_in_saudi_riyal(self):
+        # Stock creates a company's default pricelist when pricelists are turned on, in the company currency.
+        self.env.user.group_ids = [Command.link(self.env.ref('product.group_product_pricelist').id)]
+        self.company._activate_or_create_pricelists()
         Pricelist = self.env['product.pricelist'].with_context(active_test=False)
-        existing = Pricelist.search([('company_id', 'in', [self.company.id, False])])
-        self.assertEqual(existing.currency_id, self.sar if existing else self.env['res.currency'])
-        self.assertEqual(self.company._get_default_pricelist_vals()['currency_id'], self.sar.id)
+        pricelists = Pricelist.search([('company_id', '=', self.company.id)])
+        self.assertTrue(pricelists)
+        self.assertEqual(pricelists.currency_id, self.sar)
         self.assertEqual(Pricelist.with_company(self.company).create({'name': 'Walk-in'}).currency_id, self.sar)

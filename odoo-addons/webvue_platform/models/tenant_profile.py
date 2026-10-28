@@ -13,9 +13,9 @@ from odoo.addons.webvue_platform.models.entitlement_service import (
 
 _logger = logging.getLogger(__name__)
 
-# WebVue's accounting baseline. The root company is Saudi before `product` and `account`
-# install, so stock creates its default pricelists in SAR and loads the `sa` chart and its
-# VAT taxes (`account/models/ir_module.py`, `IrModuleModule.write`). This module's install
+# WebVue's accounting baseline. The root company is Saudi before `account` installs, so stock
+# loads the `sa` chart and its VAT taxes (`account/models/ir_module.py`, `IrModuleModule.write`)
+# and every pricelist stock creates later takes the SAR company currency. This module's install
 # hook runs first: Odoo installs modules by dependency depth and it depends on `webvue_core` only.
 BASELINE_COUNTRY = 'base.sa'
 BASELINE_CURRENCY = 'base.SAR'
