@@ -45,6 +45,7 @@ services:
       HOST: db
       USER: odoo
       PASSWORD: "${DB_PASSWORD}"
+      WEBVUE_INBOX_SECRET_KEY: "${WEBVUE_INBOX_SECRET_KEY:-}"
     volumes:
       - ./data/odoo.conf:/etc/odoo/odoo.conf:ro
       - odoo_data:/var/lib/odoo

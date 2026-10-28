@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Inactive on purpose: nobody can sign in as it and it is not a seat (the user quota counts
+         active internal users only). The webhook controller switches its request environment to it. -->
+    <record id="user_inbox_hook" model="res.users">
+        <field name="name">Customer Inbox webhook</field>
+        <field name="login">webvue_inbox_hook</field>
+        <field name="active" eval="False"/>
+        <field name="company_id" ref="base.main_company"/>
+        <field name="company_ids" eval="[Command.set([ref('base.main_company')])]"/>
+        <field name="group_ids" eval="[Command.set([ref('group_inbox_hook')])]"/>
+    </record>
+</odoo>

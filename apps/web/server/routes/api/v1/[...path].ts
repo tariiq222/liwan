@@ -1,16 +1,22 @@
 import { createError, getProxyRequestHeaders, sendWebResponse, setResponseHeader } from 'h3'
-import { boundedTenantBody, MAX_PUBLIC_MFA_BODY, tenantTransport, legacyTenantResponse, withTenantBody, withTenantResponse } from '../../../utils/tenantTransport'
+import { boundedTenantBody, MAX_PUBLIC_HOOK_BODY, MAX_PUBLIC_MFA_BODY, tenantTransport, legacyTenantResponse, withTenantBody, withTenantResponse } from '../../../utils/tenantTransport'
 import { tenantUpstreamHeaders } from '../../../utils/tenantRequest'
 import { requireApiSession } from '../../../utils/apiSessionAdmission'
 import { canonicalApiPath } from '../../../utils/apiPath'
 import { heavyRouteKind } from '../../../utils/heavyRoutes'
 import { HEAVY_TIMEOUT } from '../../../utils/upstreamDeadlines'
 
-// The only /api/v1 routes Odoo serves with auth='public': login-page branding
-// and the MFA confirmation. Everything else requires a session cookie.
+// The only /api/v1 routes Odoo serves with auth='public': login-page branding, the
+// MFA confirmation and the WhatsApp webhook (Meta signs every POST with HMAC; Odoo
+// verifies it). Everything else requires a session cookie.
 const PUBLIC_API_METHODS = new Map<string, readonly string[]>([
   ['/api/v1/branding', ['GET', 'HEAD']],
   ['/api/v1/auth/totp', ['POST']],
+  ['/api/v1/inbox/hooks/whatsapp', ['GET', 'POST']],
+])
+const PUBLIC_BODY_LIMITS = new Map<string, number>([
+  ['/api/v1/auth/totp', MAX_PUBLIC_MFA_BODY],
+  ['/api/v1/inbox/hooks/whatsapp', MAX_PUBLIC_HOOK_BODY],
 ])
 
 // Routes only this server may call (Nuxt writes them to Odoo directly, never through this proxy): a browser must not forge them.
@@ -41,7 +47,7 @@ export default defineEventHandler(async (event) => {
   const heavy = heavyKind ? { timeoutMs: HEAVY_TIMEOUT, write: heavyKind === 'write' } : undefined
   const scope = publicMethods ? 'public' : heavy ? 'heavy' : 'session'
   return withTenantBody(event, scope, async () => {
-    const body = await boundedTenantBody(event, apiPath === '/api/v1/auth/totp' ? MAX_PUBLIC_MFA_BODY : undefined)
+    const body = await boundedTenantBody(event, PUBLIC_BODY_LIMITS.get(apiPath))
     return withTenantResponse(event, scope, async () => Object.keys(headers).length
       ? sendWebResponse(event, await tenantTransport(event, odooUrl, path, { method: event.method, body, heavy }))
       : sendWebResponse(event, await legacyTenantResponse(event, odooUrl, path, { method: event.method, body, headers: getProxyRequestHeaders(event, { host: false }), heavy })))

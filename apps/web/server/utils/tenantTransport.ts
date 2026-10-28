@@ -8,6 +8,9 @@ import { HEAVY_TIMEOUT, UPSTREAM_TIMEOUT } from './upstreamDeadlines'
 const MAX_REQUEST = 16 * 1024 * 1024
 // Public MFA carries a single code field; both entry points share this wire budget.
 export const MAX_PUBLIC_MFA_BODY = 1024
+/** A provider webhook delivery (the inbox WhatsApp hook) is a small JSON envelope; media arrives by reference. */
+export const MAX_PUBLIC_HOOK_BODY = 1024 * 1024
+const WHATSAPP_HOOK_PATH = '/api/v1/inbox/hooks/whatsapp'
 const MAX_RESPONSE = 32 * 1024 * 1024
 /** Admission gate to the fixed operator upstreams. Odoo serves one request per worker process,
  * and an idle keep-alive connection would pin a worker, so each request uses its own connection
@@ -198,6 +201,9 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
     const value = options.headers?.[name] ?? getHeader(event, name)
     if (value) headers[name] = value
   }
+  // A provider webhook carries its HMAC signature over the raw body; Odoo verifies it, so it passes to that route only.
+  const signature = path.split('?')[0] === WHATSAPP_HOOK_PATH ? getHeader(event, 'x-hub-signature-256') : undefined
+  if (signature) headers['x-hub-signature-256'] = signature
   const cookie = options.headers?.cookie ?? getHeader(event, 'cookie')
   if (cookie) headers.cookie = cookie
   if (body) headers['content-length'] = String(Buffer.byteLength(body))

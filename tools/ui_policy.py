@@ -604,7 +604,7 @@ def theme_errors(current: dict[str, str]) -> list[str]:
 # Every internal page sits in one of the approved shells, and the width
 # vocabulary lives in CSS classes rather than ad-hoc max-width utilities.
 PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage', 'webvue-page-width-form',
-               'ChatWorkspace', 'TaskDetailPage',
+               'ChatWorkspace', 'InboxWorkspace', 'TaskDetailPage',
                # Application-owned reusable pages compose the approved shared shells.
                'HrLeaveList', 'HrLeaveRecord', 'RequestCreate', 'RequestRecord', 'RequestEdit',
                # The Plan 4 page templates are shells themselves (each wraps SharedPageContainer).
