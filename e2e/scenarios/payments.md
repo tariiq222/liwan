@@ -1,0 +1,117 @@
+# Payments (online payment by link)
+
+Pages: `/settings/apps/payments` (staff), `/pay/invoice/[id]`, `/pay/invoice/[id]/status`,
+`/pay/returned` (public, no account). Owner: `webvue_payments` (rank-3 shared service). The tenant is
+its own merchant: it connects its own Paymob account and WebVue never holds tenant money. Staff routes
+sit under `/api/v1/payments`; the payer and the gateway use the public namespace `/api/v1/public/payments`
+(owner decision D3: `auth='public'`, no session, authorized by the invoice access token or the gateway
+signature). The gateway calls `/payment/paymob/webhook` and returns the payer to `/payment/paymob/return`
+on the tenant host; the Nuxt route `server/routes/payment/[code]/[kind].ts` relays them to the hooks route.
+Personas and status values: [README](README.md).
+
+Capability note: `payments.providers.manage` (sensitive) and `payments.links.manage` are held by the
+built-in `system_admin` role only, so `it_admin` is the staff persona for gateway settings. Creating a
+link also needs read access to the invoice, so it is run by a custom role holding `payments.links.manage`
+with `finance.invoices.read`-level access, or by `it_admin` when the invoice is readable. The feature
+switch is `payments.enabled`.
+
+Token note: the Covers column names the hooks route for both methods; the Scenario column says which.
+Quoted API errors are server messages and codes. The payer pages show their own Arabic text.
+
+## Gateway settings page
+
+| ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| PAY-01 | System admin opens payment settings | it_admin | `/settings/apps/payments` shows «الدفع الإلكتروني» with the Paymob card: state badge, mode control (متوقف, تجريبي, مباشر), country select, four key inputs each with «محفوظ» or «غير مُدخل», test-connection button, and the active methods | `page /settings/apps/payments` `GET /api/v1/payments/providers` `cap payments.providers.manage` | planned | Stock data gives the root company a Paymob row |
+| PAY-02 | Company with no offered gateway | dammam_manager | Section empty state «لا توجد بوابات دفع متاحة لشركتك.» and no error | `page /settings/apps/payments` | planned | Provider rows are per company; a branch has none |
+| PAY-03 | User without the capability opens the page | cfo | The settings has no payments part; the page shows the forbidden state; list API answers 403 `forbidden` «payments.providers.manage capability is required» | `page /settings/apps/payments` `cap payments.providers.manage` | planned | Repeat with accountant, staff1 and no_roles |
+| PAY-04 | Custom role holds only `payments.providers.manage` | custom role (payments.providers.manage) | The role may be created (sensitive capability, custom role allowed); the user opens the page and manages the gateway but cannot create links | `page /settings/apps/payments` `cap payments.providers.manage` `cap payments.links.manage` | planned | |
+| PAY-05 | Payments feature off | it_admin | The settings page entry is hidden; list answers 403 `feature_not_included` | `GET /api/v1/payments/providers` | planned | |
+| PAY-06 | Read-only or suspended tenant | it_admin | The list reads; every write (PATCH, sync) answers 403 `tenant_read_only` or `tenant_suspended` and the controls fail with an error | `PATCH /api/v1/payments/providers/<id>` | planned | `tools/e2e_tenant_state.py` |
+| PAY-07 | List API shape and key handling | api | `{items, total}`; each item has `id`, `code`, `name`, `state`, `credentials` as `{field, present}` pairs, `configured`, `methods`, `account_country`, `account_country_options`; no key value appears anywhere | `GET /api/v1/payments/providers` | planned | Never echoes a key |
+| PAY-08 | Enter all four keys | it_admin | The inputs are password type; after saving, toast «تم حفظ المفاتيح», inputs are cleared, badges become «محفوظ», the placeholder says to leave empty to keep; no key text is in the response or the DOM | `PATCH /api/v1/payments/providers/<id>` | planned | Inspect the network response and the page text |
+| PAY-09 | Change one key only | it_admin | Only the typed field is sent (trimmed); blank inputs leave saved keys; the others stay «محفوظ» | `PATCH /api/v1/payments/providers/<id>` | planned | |
+| PAY-10 | Invalid credentials bodies | api | `credentials` not an object or empty: 422 `invalid` «credentials must be a non-empty object»; unknown key: 422 `unknown_field` «credential 'x' is not accepted» field `credentials.x`; blank or over 512 characters: 422 `invalid` «a credential is a non-empty text» | `PATCH /api/v1/payments/providers/<id>` | planned | In the UI the refusal is shown on the named input |
+| PAY-11 | Invalid top-level fields | api | Unknown field: 422 `unknown_field` «field 'x' is not writable»; empty body: 422 `invalid` «no fields to update»; state outside disabled, test, enabled: 422 `invalid` «state must be one of disabled, test, enabled» | `PATCH /api/v1/payments/providers/<id>` | planned | |
+| PAY-12 | Turn on test mode with all keys | it_admin | Mode switches at once, the gateway check runs in the same request, toast «تم تغيير وضع التشغيل», badge «تجريبي», methods list shows the synced methods | `PATCH /api/v1/payments/providers/<id>` | planned | Needs a reachable Paymob sandbox or the mocked sync; record which |
+| PAY-13 | Go live asks first | it_admin | Choosing «مباشر» shows the inline confirm «تفعيل الدفع المباشر؟»; cancel keeps the old mode; confirm switches to live and publishes the gateway | `PATCH /api/v1/payments/providers/<id>` | planned | No dialog; inline confirm only |
+| PAY-14 | Test or live without all keys | it_admin | The modes تجريبي and مباشر are disabled with the hint «لتفعيل الوضع التجريبي أو المباشر…»; API answers 422 `provider_not_configured` «enter every credential first» with `field` `credentials.<first missing>` | `PATCH /api/v1/payments/providers/<id>` | planned | |
+| PAY-15 | Gateway refuses the keys | it_admin | 422 `provider_sync_failed` «the gateway could not confirm the account», UI text «تعذّر الاتصال بالبوابة أو رفضت المفاتيح…»; the gateway's own text is never shown or logged | `PATCH /api/v1/payments/providers/<id>` | planned | Typed keys stay in the inputs for another try |
+| PAY-16 | A failed check keeps nothing of the update | it_admin | After PAY-15 (and after `methods_missing`) the mode, country and keys read back as before the request | `PATCH /api/v1/payments/providers/<id>` | planned | The code relies on the request rollback; verify it with a second GET |
+| PAY-17 | Account lacks a payment method | it_admin | 422 `methods_missing` «the gateway account lacks a payment method this gateway needs»; UI «حسابك لدى البوابة لا يفعّل طريقة دفع…» | `PATCH /api/v1/payments/providers/<id>` | planned | |
+| PAY-18 | Change the account country | it_admin | The select offers the codes in `account_country_options` (Saudi Arabia first by default); choosing one saves and re-checks the gateway while on; an unlisted code answers 422 `invalid` «account_country must be one of …» | `PATCH /api/v1/payments/providers/<id>` | planned | |
+| PAY-19 | Switch live back to test or off | it_admin | The state changes and the gateway is no longer offered to payers (see PAY-45); turning off skips the gateway check | `PATCH /api/v1/payments/providers/<id>` | planned | |
+| PAY-20 | Test connection button states | it_admin | Disabled with hint when keys are unsaved («احفظ المفاتيح أولًا…»), incomplete, or the gateway is off («شغّل الوضع التجريبي أو المباشر…»); with a live or test gateway it shows «الاتصال سليم» | `POST /api/v1/payments/providers/<id>/sync` | planned | |
+| PAY-21 | Sync API outcomes | api | 200 `{provider, status}` with `synced` or `methods_missing`; disabled gateway: 422 `provider_disabled` «switch the gateway to test or live first» field `state`; missing keys: 422 `provider_not_configured`; failure: 422 `provider_sync_failed` | `POST /api/v1/payments/providers/<id>/sync` | planned | |
+| PAY-22 | Another company's provider and unknown id | api | PATCH and sync answer 404 `not_found` «Record does not exist» for a provider of another company, a missing id, and a provider code WebVue does not offer; the two cases are indistinguishable | `PATCH /api/v1/payments/providers/<id>` `POST /api/v1/payments/providers/<id>/sync` | planned | Use a branch admin against the root provider id |
+| PAY-23 | Staff without the capability calls the writes | staff1 | PATCH and sync answer 403 `forbidden`; no mode or key changes | `PATCH /api/v1/payments/providers/<id>` `POST /api/v1/payments/providers/<id>/sync` `cap payments.providers.manage` | planned | |
+| PAY-24 | Mode change needs the capability inside the elevated write | api | The elevated state write re-checks capability and company; a PATCH in a company where the caller lacks the capability does not switch the mode | `PATCH /api/v1/payments/providers/<id>` | planned | `_webvue_payments_set_state` |
+| PAY-25 | Gateway keys are not logged | api | After a sync with a failing gateway, the Odoo log has the provider and error class only, and no key, token or request text | `POST /api/v1/payments/providers/<id>/sync` | planned | Read the scratch Odoo log; `const.py` also masks `api_key` and `token` |
+
+## Payment link
+
+| ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| PAY-26 | Create a link for a posted customer invoice with a live gateway | it_admin | On the invoice page the «رابط الدفع» button copies the link and toasts «تم نسخ رابط الدفع»; API answers `{path}` like `/pay/invoice/<id>?access_token=…` | `POST /api/v1/payments/links` `cap payments.links.manage` | planned | The button is on the finance invoice page |
+| PAY-27 | Link is stable | it_admin | Asking twice for the same invoice answers the same path and token | `POST /api/v1/payments/links` | planned | |
+| PAY-28 | No live gateway | it_admin | 422 `no_gateway` «switch a payment gateway to live first»; UI «فعّل بوابة دفع في الوضع المباشر أولًا.»; a gateway in test mode also counts as none | `POST /api/v1/payments/links` | planned | |
+| PAY-29 | Invoice that cannot be paid | it_admin | Draft, cancelled, fully paid or zero-residual invoice: 409 `not_payable` «this invoice does not need a payment now»; the button is hidden for paid and non-posted invoices | `POST /api/v1/payments/links` | planned | |
+| PAY-30 | Not a customer invoice | api | A vendor bill, credit note or journal entry id: 422 `invalid` «only a customer invoice can be paid by link» field `invoice_id` | `POST /api/v1/payments/links` | planned | |
+| PAY-31 | Body validation | api | Missing, zero, negative, float or text `invoice_id`: 422 `invalid`; an extra field such as `amount`: 422 `unknown_field` «field 'amount' is not accepted» | `POST /api/v1/payments/links` | planned | |
+| PAY-32 | Invoice of another company or missing id | api | 404 `not_found` «Record does not exist» | `POST /api/v1/payments/links` | planned | Branch admin with a root invoice id |
+| PAY-33 | User without `payments.links.manage` | cfo | Button hidden; API answers 403 `forbidden`; a finance manager does not get the capability from finance roles | `POST /api/v1/payments/links` `cap payments.links.manage` | planned | |
+| PAY-34 | Custom role with links but no invoice access | custom role (payments.links.manage) | An invoice the user cannot read answers 403 or 404, never a link; minting the token is a write on the invoice, check it does not fail with a raw error | `POST /api/v1/payments/links` | decision | Doubt: `controllers/links.py:35` calls `_portal_ensure_token` unelevated; confirm the outcome for a reader without write on invoices |
+| PAY-35 | Payments feature off or tenant read-only | it_admin | Button hidden; API answers 403 `feature_not_included` or `tenant_read_only` | `POST /api/v1/payments/links` | planned | |
+| PAY-36 | Customer email and portal links open the pay page | accountant | The customer-facing `access_url` of a customer invoice is `/pay/invoice/<id>` (the closed Odoo portal path is never used) | `page /pay/invoice/[id]` | planned | `models/account_move.py` |
+
+## Public pay page
+
+| ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| PAY-37 | Payer opens a valid link | visitor | No login, no WebVue shell; header shows the tenant name and logo and «دفع الفاتورة»; amount due with currency (Latin digits), issuer, invoice number, due date, and the radio list of methods with the provider name; button «ادفع الآن» | `page /pay/invoice/[id]` `GET /api/v1/public/payments/invoices/<id>` | planned | |
+| PAY-38 | GET answer shape | api | Only `id`, `merchant`, `number`, `due_date`, `currency`, `amount_total`, `amount_due`, `status` and `options`; no partner name, address, email or internal id; no cookie is set | `GET /api/v1/public/payments/invoices/<id>` | planned | `serializers/payer.py` |
+| PAY-39 | Partially paid invoice | visitor | The amount due is the residual and a «إجمالي الفاتورة» row shows the total | `page /pay/invoice/[id]` | planned | |
+| PAY-40 | Missing, malformed or wrong token | visitor | The page shows «رابط الدفع غير صالح» with no request for a missing or malformed token (spaces, over 128 characters, non-numeric id); a wrong token answers 404 `not_found` «Record does not exist» and the same page | `page /pay/invoice/[id]` `GET /api/v1/public/payments/invoices/<id>` | planned | |
+| PAY-41 | Token of another invoice | visitor | Invoice A's token on invoice B's id answers the same 404 as a missing invoice | `GET /api/v1/public/payments/invoices/<id>` | planned | |
+| PAY-42 | Draft, vendor bill and credit note | visitor | A valid-looking id and token for a draft invoice, a vendor bill or a credit note is the same 404 as a missing one | `GET /api/v1/public/payments/invoices/<id>` | planned | |
+| PAY-43 | Expired link | visitor | The invalid-link page shows | `page /pay/invoice/[id]` | decision | The server has no token expiry; the text says «انتهت صلاحيته». Only a regenerated token invalidates a link. Owner decision needed |
+| PAY-44 | Paid invoice | visitor | Status `paid`; the page shows «تم سداد هذه الفاتورة» with no pay button | `page /pay/invoice/[id]` | planned | |
+| PAY-45 | No payable option | visitor | With the gateway in test mode or off, status `payable` with empty options shows «الدفع الإلكتروني غير متاح حاليًا لهذه الفاتورة» | `page /pay/invoice/[id]` | planned | Only `enabled` gateways are offered |
+| PAY-46 | Invoice not payable | visitor | A cancelled or zero-residual invoice shows «لا يمكن دفع هذه الفاتورة الآن» | `page /pay/invoice/[id]` | planned | |
+| PAY-47 | Payment already in progress | visitor | A pending, authorized or done-not-posted transaction gives status `processing`: «الدفع قيد التأكيد» and a refresh button | `page /pay/invoice/[id]` | planned | |
+| PAY-48 | Payments feature off | visitor | GET answers 403 `feature_not_included`; the page shows «تعذّر تحميل الفاتورة» with retry, not the invalid-link page | `GET /api/v1/public/payments/invoices/<id>` | planned | Only 404 is treated as an invalid link |
+| PAY-49 | Backend error | visitor | A 5xx shows «تعذّر تحميل الفاتورة» and the retry button reloads | `page /pay/invoice/[id]` | planned | |
+| PAY-50 | Start a payment | visitor | Clicking «ادفع الآن» answers `{redirect: {method, url, fields}}`; the button shows «جارٍ تحويلك…», a return cookie is written, and the browser goes to the https gateway page | `POST /api/v1/public/payments/invoices/<id>/transactions` | planned | The gateway page is the sandbox; stop at the redirect |
+| PAY-51 | Amount and currency come from the invoice only | api | A body with `amount`, `currency_id`, `partner_id` or any extra field answers 422 `unknown_field` «field 'x' is not accepted»; the created transaction carries the invoice residual, its currency and its partner | `POST /api/v1/public/payments/invoices/<id>/transactions` | planned | Check the transaction in Odoo |
+| PAY-52 | Start with a wrong token | api | 404 `not_found` «Record does not exist» in the body token; no transaction is created | `POST /api/v1/public/payments/invoices/<id>/transactions` | planned | The token travels in the body here, not the query |
+| PAY-53 | Start body validation | api | Missing or non-integer `provider_id` or `payment_method_id`: 422 `invalid`; a pair not among the offered ones (a test-mode provider, a provider of another company, a method not compatible): 422 `payment_unavailable` «This payment method is not available for this invoice.» | `POST /api/v1/public/payments/invoices/<id>/transactions` | planned | |
+| PAY-54 | Start on a paid or not payable invoice | api | 409 `not_payable` «this invoice does not need a payment now»; the page tells the payer and reloads the invoice | `POST /api/v1/public/payments/invoices/<id>/transactions` | planned | |
+| PAY-55 | Second checkout while one is open | visitor | A second start within 15 minutes of an open draft transaction answers 409 `payment_in_progress`; the page says it started in another page and to try after a quarter hour | `POST /api/v1/public/payments/invoices/<id>/transactions` | planned | Two tabs, or a double click |
+| PAY-56 | Gateway cannot start the payment | visitor | 422 `payment_unavailable` «The payment gateway could not start the payment.»; the page shows «بوابة الدفع غير متاحة الآن…» | `POST /api/v1/public/payments/invoices/<id>/transactions` | planned | Wrong or revoked keys in test |
+| PAY-57 | Start with the feature off or the tenant read-only | api | 403 `feature_not_included` or `tenant_read_only`; the read of the invoice still works while retained reads are allowed | `POST /api/v1/public/payments/invoices/<id>/transactions` | planned | |
+| PAY-58 | Back from the gateway restores a busy page | visitor | Browser back from the gateway re-enables the button and refreshes the invoice | `page /pay/invoice/[id]` | planned | `pageshow` handler |
+| PAY-59 | Public routes carry no session | api | Calls with a staff session cookie are treated as anonymous: the public routes answer the same, set no cookie, and an invoice still needs its token for a signed-in admin | `GET /api/v1/public/payments/invoices/<id>` | planned | The Nuxt proxy drops cookies both ways |
+
+## Gateway callbacks and return
+
+| ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| PAY-60 | Valid signed webhook (POST) | gateway | The relay forwards the call, stock verifies the HMAC, the transaction becomes done, the invoice is paid and reconciled in the same request, and the answer is an empty acknowledgement | `POST /api/v1/public/payments/hooks/<id>/<id>` | planned | Build the signed body with the tenant's HMAC key; do not call the real gateway |
+| PAY-61 | Invalid signature | gateway | The stock check refuses (403); the transaction stays unpaid and nothing is recorded | `POST /api/v1/public/payments/hooks/<id>/<id>` | planned | |
+| PAY-62 | Replay of the same valid notification | gateway | The second call is accepted but changes nothing: no second payment entry, state stays done | `POST /api/v1/public/payments/hooks/<id>/<id>` | planned | |
+| PAY-63 | Amount or currency mismatch | gateway | A signed payload with another amount moves the transaction to error, not paid; a second identical bad notification also stays rejected | `POST /api/v1/public/payments/hooks/<id>/<id>` | planned | `models/payment_transaction.py` |
+| PAY-64 | Unknown transaction reference | gateway | Acknowledged with an empty answer; nothing is created | `POST /api/v1/public/payments/hooks/<id>/<id>` | planned | |
+| PAY-65 | Unknown provider code or kind | gateway | `/payment/other/webhook` and `/payment/paymob/other` answer 404 `not_found`; a code with bad characters answers 404 | `POST /api/v1/public/payments/hooks/<id>/<id>` | planned | |
+| PAY-66 | Wrong method on the relay | gateway | GET /payment/paymob/webhook and POST /payment/paymob/return answer 405 with an `Allow` header | `GET /api/v1/public/payments/hooks/<id>/<id>` | planned | The Odoo route itself lists GET and POST for both kinds; Nuxt narrows it |
+| PAY-67 | Oversize callback body | gateway | A body over 64 KB is refused by the relay and never reaches Odoo | `POST /api/v1/public/payments/hooks/<id>/<id>` | planned | |
+| PAY-68 | Webhook while payments is switched off | gateway | The notification is still processed and the money recorded (no feature gate) | `POST /api/v1/public/payments/hooks/<id>/<id>` | planned | Documented in `tools/route_gate_allowlist.json` |
+| PAY-69 | Post-processing failure is retried | gateway | If confirming the payment fails, the notification stays recorded, the failure is logged and the cron retries it | `POST /api/v1/public/payments/hooks/<id>/<id>` | planned | Force a failure by locking the invoice |
+| PAY-70 | Payer returns with the cookie | visitor | GET /payment/paymob/return redirects (303) to `/pay/invoice/<id>/status?access_token=…` and removes the return cookie | `GET /api/v1/public/payments/hooks/<id>/<id>` `page /pay/invoice/[id]/status` | planned | |
+| PAY-71 | Forged return does not mark anything paid | visitor | A return call without a valid gateway signature changes no transaction and still redirects the payer to the status page, which reads the real state | `GET /api/v1/public/payments/hooks/<id>/<id>` | planned | The redirect is issued whatever Odoo did |
+| PAY-72 | Return without the cookie | visitor | Redirect (303) to `/pay/returned`: «تم استلام نتيجة الدفع» and «يمكنك إغلاق هذه الصفحة» | `page /pay/returned` | planned | Another browser, cookie expired or deleted |
+| PAY-73 | Status page after payment | visitor | Shows «حالة الدفع» with the invoice summary; while payable it shows «نتحقق من نتيجة الدفع» and re-reads every 3 seconds; once confirmed shows «تم سداد هذه الفاتورة» | `page /pay/invoice/[id]/status` | planned | |
+| PAY-74 | Status page when payment never arrives | visitor | After one minute the page shows «لم يتم الدفع» and «حاول الدفع مرة أخرى» leading back to the pay page with the token | `page /pay/invoice/[id]/status` | planned | |
+| PAY-75 | Status page other states | visitor | `processing` shows «الدفع قيد التأكيد»; `not_payable` shows «لا يمكن دفع هذه الفاتورة الآن»; a bad link shows «رابط الدفع غير صالح»; a backend error shows retry | `page /pay/invoice/[id]/status` | planned | |
+| PAY-76 | Return page is public and plain | visitor | `/pay/returned` needs no token, shows no invoice data and no WebVue navigation | `page /pay/returned` | planned | |
+| PAY-77 | Payment is visible to staff | accountant | After PAY-60 the invoice shows as paid and a payment entry exists on the invoice page | `GET /api/v1/public/payments/invoices/<id>` | planned | Cross-check with finance invoice and payment list |
+| PAY-78 | Mode change takes the gateway away from payers | it_admin | After going back to test or off, an open pay page that reloads shows no options (PAY-45) and a start with the old pair answers 422 `payment_unavailable` | `POST /api/v1/public/payments/invoices/<id>/transactions` | planned | |

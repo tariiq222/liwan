@@ -29,6 +29,7 @@ import uuid
 from pathlib import Path
 
 import oca_addons
+import test_slot
 
 REPO = Path(__file__).resolve().parents[1]
 ODOO_ROOT = Path(os.environ.get('ODOO_ROOT', '/Users/tariq/code/odoo'))
@@ -474,6 +475,12 @@ def main(argv=None):
         return 0
 
     signal.signal(signal.SIGTERM, _on_sigterm)
+    with test_slot.hold('odoo_test ' + ','.join(sorted(selected))):
+        return run_tests(args, pg, cache, template, release, merge_base, addons_dir, known, selected)
+
+
+def run_tests(args, pg, cache, template, release, merge_base, addons_dir, known, selected):
+    """Clone the template, update ``selected`` and their closure, run their tests and drop the clone."""
     scratch = Path(tempfile.mkdtemp(prefix='webvue-odoo-test-'))
     (scratch / 'data').mkdir()
     database = require_scratch('webvue_scratch_run_' + uuid.uuid4().hex[:10])

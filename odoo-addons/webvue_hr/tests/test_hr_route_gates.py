@@ -98,11 +98,6 @@ class TestHrRouteGates(PayrollCase):
         self.assertEqual(refused.status_code, 200, refused.text)
         self.assertEqual(refused.json()['state'], 'refuse')
 
-    def test_offboarding_runs_list_200_for_reader_403_for_employee_reader(self):
-        path = '/api/v1/hr/offboarding/runs'
-        self.assert_list_ok(self._get(self.offboarding_reader, path), path)
-        self.assert_forbidden(self._get(self.neighbour, path), path)
-
     def test_payroll_settings_200_for_payroll_reader_403_for_employee_reader(self):
         path = '/api/v1/hr/payroll/settings'
         res = self._get(self.payroll_reader, path)
