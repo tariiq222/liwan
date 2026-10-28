@@ -212,21 +212,21 @@ describe('projects dashboard navigation', () => {
   })
 })
 
-const crm: AppManifest = {
-  id: 'crm',
-  feature: 'crm.enabled',
-  routePrefixes: ['/crm'],
-  rail: [{ id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/crm', order: 60 }],
+const pilot: AppManifest = {
+  id: 'pilot',
+  feature: 'pilot.enabled',
+  routePrefixes: ['/pilot'],
+  rail: [{ id: 'pilot', labelKey: 'nav.pilot', icon: 'i-lucide-handshake', to: '/pilot', order: 60 }],
   nav: [
-    { to: '/crm', labelKey: 'nav.crmLeads', icon: 'i-lucide-handshake', shortcut: 'j', capability: 'crm.leads.read' },
-    { to: '/crm/deals', labelKey: 'nav.crmDeals', icon: 'i-lucide-banknote', shortcut: 'd', capability: 'crm.deals.read' },
+    { to: '/pilot', labelKey: 'nav.pilotLeads', icon: 'i-lucide-handshake', shortcut: 'j', capability: 'pilot.leads.read' },
+    { to: '/pilot/deals', labelKey: 'nav.pilotDeals', icon: 'i-lucide-banknote', shortcut: 'd', capability: 'pilot.deals.read' },
   ],
-  contextLinks: () => [{ id: 'new-lead', labelKey: 'nav.newLead', icon: 'i-lucide-plus', to: '/crm/leads/new', capability: 'crm.leads.create', pinned: true }],
+  contextLinks: () => [{ id: 'new-lead', labelKey: 'nav.newLead', icon: 'i-lucide-plus', to: '/pilot/leads/new', capability: 'pilot.leads.create', pinned: true }],
 }
-const crmIdentity = {
+const pilotIdentity = {
   role: 'employee',
-  capabilities: ['crm.leads.read', 'crm.leads.create', 'crm.deals.read'],
-  platform: { readable_features: ['crm.enabled'], writable_features: ['crm.enabled'] },
+  capabilities: ['pilot.leads.read', 'pilot.leads.create', 'pilot.deals.read'],
+  platform: { readable_features: ['pilot.enabled'], writable_features: ['pilot.enabled'] },
 }
 
 describe('navigation built from app manifests', () => {
@@ -250,31 +250,31 @@ describe('navigation built from app manifests', () => {
     }
   })
   it('shows a new application in the rail, nav, sidebar and active module with no foundation edit', () => {
-    withManifests([...appManifests, crm], () => {
-      expect(useNav(crmIdentity).map(item => [item.to, item.group, item.module])).toEqual([['/', undefined, 'home'], ['/crm', 'crm', 'crm'], ['/crm/deals', 'crm', 'crm']])
-      expect(shellModuleList().map(module => module.id)).toContain('crm')
-      expect(visibleShellModules(crmIdentity).map(module => module.id)).toEqual(['home', 'crm'])
-      expect(activeShellModule('/crm/deals/4')).toBe('crm')
-      expect(contextLinksForModule('crm', crmIdentity).map(link => link.id)).toEqual(['new-lead'])
-      expect(featureForRailModule('crm')).toBe('crm.enabled')
+    withManifests([...appManifests, pilot], () => {
+      expect(useNav(pilotIdentity).map(item => [item.to, item.group, item.module])).toEqual([['/', undefined, 'home'], ['/pilot', 'pilot', 'pilot'], ['/pilot/deals', 'pilot', 'pilot']])
+      expect(shellModuleList().map(module => module.id)).toContain('pilot')
+      expect(visibleShellModules(pilotIdentity).map(module => module.id)).toEqual(['home', 'pilot'])
+      expect(activeShellModule('/pilot/deals/4')).toBe('pilot')
+      expect(contextLinksForModule('pilot', pilotIdentity).map(link => link.id)).toEqual(['new-lead'])
+      expect(featureForRailModule('pilot')).toBe('pilot.enabled')
     })
-    expect(activeShellModule('/crm')).toBeNull()
-    expect(useNav(crmIdentity).map(item => item.to)).toEqual(['/'])
-    expect(shellModuleList().map(module => module.id)).not.toContain('crm')
+    expect(activeShellModule('/pilot')).toBeNull()
+    expect(useNav(pilotIdentity).map(item => item.to)).toEqual(['/'])
+    expect(shellModuleList().map(module => module.id)).not.toContain('pilot')
   })
   it('hides a new application whose feature is closed and treats unknown rail modules as gated', () => {
-    withManifests([...appManifests, crm], () => {
-      const closed = { ...crmIdentity, platform: { readable_features: ['hr.enabled'], writable_features: [] } }
+    withManifests([...appManifests, pilot], () => {
+      const closed = { ...pilotIdentity, platform: { readable_features: ['hr.enabled'], writable_features: [] } }
       expect(useNav(closed).map(item => item.to)).toEqual(['/'])
       expect(featureForRailModule('nope')).toBeUndefined()
       expect(featureForRailModule('settings')).toBeNull()
     })
   })
   it('hides an internal-access item whose rail module no manifest declares', () => {
-    const ghost: AppManifest = { ...crm, nav: [{ to: '/crm/ghost', labelKey: 'nav.ghost', icon: 'i-lucide-ghost', shortcut: '', capability: 'webvue.internal', module: 'ghost' }] }
+    const ghost: AppManifest = { ...pilot, nav: [{ to: '/pilot/ghost', labelKey: 'nav.ghost', icon: 'i-lucide-ghost', shortcut: '', capability: 'webvue.internal', module: 'ghost' }] }
     withManifests([...appManifests, ghost], () => {
       expect(featureForRailModule('ghost')).toBeUndefined()
-      expect(useNav(crmIdentity).map(item => item.to)).not.toContain('/crm/ghost')
+      expect(useNav(pilotIdentity).map(item => item.to)).not.toContain('/pilot/ghost')
     })
   })
 

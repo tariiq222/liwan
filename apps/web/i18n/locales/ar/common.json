@@ -110,7 +110,8 @@
     "finance": "المالية",
     "viewAll": "عرض الكل",
     "listOf": "قائمة {name}",
-    "overview": "نظرة عامة"
+    "overview": "نظرة عامة",
+    "crm": "العملاء"
   },
   "auth": {
     "username": "اسم المستخدم",

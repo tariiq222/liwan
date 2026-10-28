@@ -110,7 +110,8 @@
     "finance": "Finance",
     "viewAll": "View all",
     "listOf": "{name} list",
-    "overview": "Overview"
+    "overview": "Overview",
+    "crm": "CRM"
   },
   "auth": {
     "username": "Username",

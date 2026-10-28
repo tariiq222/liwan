@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The opportunity visibility policy (spec "Visibility, enforced on the server").
+         Global rules (no group) are AND-ed with every other rule, so the stock "Personal Leads"
+         and all-leads group rules can never widen what WebVue allows. Capability groups are the
+         union over all the user's companies, so every branch is scoped to the companies where the
+         user holds crm.leads.read (no CRM capability in a company means no CRM data there, own
+         opportunities included). The mode is read from the opportunity's company settings inside
+         the query; a company without a settings row reads as the default `own`. Unassigned
+         opportunities pass only for crm.leads.assign holders. models/visibility.py
+         `_webvue_domain` and `_webvue_check_write` are the Python mirror; keep them in step. -->
+    <record id="rule_crm_lead_visibility_read" model="ir.rule">
+        <field name="name">webvue CRM opportunities: visibility policy (read)</field>
+        <field name="model_id" ref="crm.model_crm_lead"/>
+        <field name="domain_force">[
+            ('company_id', 'in', user.webvue_crm_read_company_ids.ids),
+            '|', '|', '|',
+            ('user_id', '=', user.id),
+            ('company_id', 'in', user.webvue_crm_assign_company_ids.ids),
+            '&amp;', ('user_id', '!=', False), ('company_id.webvue_crm_settings_ids.visibility', '=', 'all'),
+            '&amp;', ('company_id.webvue_crm_settings_ids.visibility', '=', 'team'),
+            ('user_id.crm_team_member_ids', 'any', [
+                ('active', '=', True),
+                ('crm_team_id.active', '=', True),
+                ('crm_team_id.company_id', 'in', company_ids + [False]),
+                ('crm_team_id.crm_team_member_ids', 'any', [('active', '=', True), ('user_id', '=', user.id)]),
+            ]),
+        ]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_crm_lead_visibility_write" model="ir.rule">
+        <field name="name">webvue CRM opportunities: own where the user reads CRM, or any where they may assign (write)</field>
+        <field name="model_id" ref="crm.model_crm_lead"/>
+        <field name="domain_force">[
+            ('company_id', 'in', user.webvue_crm_read_company_ids.ids),
+            '|', ('user_id', '=', user.id), ('company_id', 'in', user.webvue_crm_assign_company_ids.ids),
+        ]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+    <!-- Neutralises the stock "Personal Leads" narrowing for CRM readers (group rules are OR-ed),
+         so the global policy above is the one that decides in every mode. Create keeps the stock
+         group rules: an agent creates own opportunities, an assigner any. -->
+    <record id="rule_crm_lead_policy_decides" model="ir.rule">
+        <field name="name">webvue CRM opportunities: the global visibility policy decides</field>
+        <field name="model_id" ref="crm.model_crm_lead"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_crm_leads_read'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <!-- A call is visible where its opportunity is, and changed only by the agent of the opportunity
+         or an assigner. Stock grants every employee read access to all calls; these global rules
+         narrow it. Rules are evaluated in an elevated environment, so the `any` below does not
+         inherit the opportunity rules: it repeats the read rule above verbatim. Keep them in step. -->
+    <record id="rule_crm_phonecall_visibility_read" model="ir.rule">
+        <field name="name">webvue CRM calls: visible with their opportunity (read)</field>
+        <field name="model_id" ref="crm_phonecall.model_crm_phonecall"/>
+        <field name="domain_force">[
+            ('company_id', 'in', company_ids),
+            ('opportunity_id', 'any', [
+                ('company_id', 'in', user.webvue_crm_read_company_ids.ids),
+                '|', '|', '|',
+                ('user_id', '=', user.id),
+                ('company_id', 'in', user.webvue_crm_assign_company_ids.ids),
+                '&amp;', ('user_id', '!=', False), ('company_id.webvue_crm_settings_ids.visibility', '=', 'all'),
+                '&amp;', ('company_id.webvue_crm_settings_ids.visibility', '=', 'team'),
+                ('user_id.crm_team_member_ids', 'any', [
+                    ('active', '=', True),
+                    ('crm_team_id.active', '=', True),
+                    ('crm_team_id.company_id', 'in', company_ids + [False]),
+                    ('crm_team_id.crm_team_member_ids', 'any', [('active', '=', True), ('user_id', '=', user.id)]),
+                ]),
+            ]),
+        ]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_crm_phonecall_visibility_write" model="ir.rule">
+        <field name="name">webvue CRM calls: the agent of the opportunity, or an assigner (write)</field>
+        <field name="model_id" ref="crm_phonecall.model_crm_phonecall"/>
+        <field name="domain_force">[
+            ('company_id', 'in', user.webvue_crm_read_company_ids.ids),
+            '|', ('opportunity_id.user_id', '=', user.id), ('company_id', 'in', user.webvue_crm_assign_company_ids.ids),
+        ]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <record id="rule_webvue_crm_view_log_company" model="ir.rule">
+        <field name="name">webvue CRM view log: current company</field>
+        <field name="model_id" ref="model_webvue_crm_view_log"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_webvue_crm_view_log_own_create" model="ir.rule">
+        <field name="name">webvue CRM view log: a reader logs only their own opening</field>
+        <field name="model_id" ref="model_webvue_crm_view_log"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_crm_leads_read'))]"/>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="rule_webvue_crm_import_batch_company" model="ir.rule">
+        <field name="name">webvue CRM import batches: current company</field>
+        <field name="model_id" ref="model_webvue_crm_import_batch"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_webvue_crm_import_mapping_company" model="ir.rule">
+        <field name="name">webvue CRM import mapping profiles: current company</field>
+        <field name="model_id" ref="model_webvue_crm_import_mapping"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

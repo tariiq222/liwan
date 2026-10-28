@@ -46,6 +46,19 @@ class TestEntitlements(TransactionCase):
     def _release_boolean_keys(self):
         return set().union(*self.APP_BOOLEANS.values())
 
+    FOUNDATION_OWNERS = {'webvue_core', 'webvue_platform', 'webvue_api'}
+
+    def _owned_by_later_applications(self, keys):
+        """True when every key belongs to an application added after this test's fixed set.
+
+        Such an application registers its own ``<app>.enabled`` and may add sub-features;
+        no foundation addon and none of the fixed applications owns a key outside the set.
+        """
+        owners = {item['key']: item['owner'] for item in self.features._webvue_feature_definitions()}
+        return all(
+            owners[key] not in self.FOUNDATION_OWNERS | set(self.APP_BOOLEANS) for key in keys
+        )
+
     # Owners of today's capabilities; an application added later owns more.
     RELEASE_CAPABILITY_OWNERS = {'webvue_core', 'webvue_hr', 'webvue_pmo', 'webvue_meetings'}
 
@@ -89,7 +102,7 @@ class TestEntitlements(TransactionCase):
         # Empty (unset) when no application is installed, as on the foundation alone.
         retained = set(self.record.retained_read_features or [])
         self.assertEqual(retained & self._release_boolean_keys(), flags)
-        self.assertTrue(all(key.endswith('.enabled') for key in retained - flags))
+        self.assertTrue(self._owned_by_later_applications(retained - flags))
         if self._installed_apps() == set(self.APP_BOOLEANS):
             self.assertEqual(retained & self._release_boolean_keys(), self._release_boolean_keys())
         first_revision = self.record.policy_revision
@@ -215,7 +228,7 @@ class TestEntitlements(TransactionCase):
         self.assertLessEqual(module_map, installed_modules | release)
         booleans = set(self.features._webvue_boolean_keys())
         self.assertEqual(booleans & self._release_boolean_keys(), self._installed_boolean_keys())
-        self.assertTrue(all(key.endswith('.enabled') for key in booleans - self._release_boolean_keys()))
+        self.assertTrue(self._owned_by_later_applications(booleans - self._release_boolean_keys()))
         limits = {'users.limit', 'storage.limit_mb', 'branches.extra_limit'}
         if 'webvue_pmo' in apps:
             limits.add('projects.max_projects')
