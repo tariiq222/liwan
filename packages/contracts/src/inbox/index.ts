@@ -69,27 +69,94 @@ export const InboxAttachmentSchema = z.object({
   size: z.number().int().nonnegative(),
 }).strict()
 
+// What a message carries. Inbound media, location and contacts arrive from the customer; an agent may send
+// text, media, a location, an interactive message or a template.
+export const InboxMessageKindSchema = z.enum([
+  'text', 'image', 'video', 'audio', 'document', 'sticker', 'location', 'contacts', 'interactive', 'template', 'unsupported',
+])
+
+export const InboxLocationSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  name: z.string().max(1000).nullable(),
+  address: z.string().max(1000).nullable(),
+}).strict()
+
+const InteractiveText = {
+  body: z.string().min(1).max(1024),
+  header: z.string().min(1).max(60).nullable(),
+  footer: z.string().min(1).max(60).nullable(),
+}
+const OptionId = z.string().min(1).max(200)
+
+// The WhatsApp interactive messages an agent may send: up to three reply buttons, a list of up to ten
+// rows in sections, or one call-to-action URL button. The limits are Meta's.
+export const InboxInteractiveSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('buttons'),
+    ...InteractiveText,
+    buttons: z.array(z.object({ id: OptionId, title: z.string().min(1).max(20) }).strict()).min(1).max(3),
+  }).strict(),
+  z.object({
+    type: z.literal('list'),
+    ...InteractiveText,
+    button: z.string().min(1).max(20),
+    sections: z.array(z.object({
+      title: z.string().min(1).max(24).nullable(),
+      rows: z.array(z.object({
+        id: OptionId,
+        title: z.string().min(1).max(24),
+        description: z.string().min(1).max(72).nullable(),
+      }).strict()).min(1).max(10),
+    }).strict()).min(1).max(10)
+      .refine(sections => sections.reduce((total, section) => total + section.rows.length, 0) <= 10, 'a list holds at most 10 rows'),
+  }).strict(),
+  z.object({
+    type: z.literal('cta_url'),
+    ...InteractiveText,
+    display_text: z.string().min(1).max(20),
+    url: z.url({ protocol: /^https$/ }),
+  }).strict(),
+])
+
 export const InboxMessageSchema = z.object({
   id: Id,
   direction: InboxDirectionSchema,
+  kind: InboxMessageKindSchema,
   body: z.string(),
   author: InboxRefSchema.nullable(),
   template_name: z.string().nullable(),
   delivery_state: InboxDeliveryStateSchema,
   error: z.string().nullable(),
   attachments: z.array(InboxAttachmentSchema),
+  // The message this one answers (WhatsApp context), with a short preview of its text.
+  reply_to: z.object({ id: Id, preview: z.string() }).strict().nullable(),
+  // One reaction per side: the customer's emoji and the agent's emoji on this message.
+  reactions: z.object({ customer: z.string().nullable(), agent: z.string().nullable() }).strict(),
+  location: InboxLocationSchema.nullable(),
+  // An outbound interactive message as sent; an inbound reply to one carries the chosen option.
+  interactive: InboxInteractiveSchema.nullable(),
+  selected_option: z.object({ id: z.string(), title: z.string() }).strict().nullable(),
   created_at: UtcDateTime,
 }).strict()
 
 export const InboxMessageListSchema = list(InboxMessageSchema)
 
-// A reply is either free text (inside the window) or an approved template with its
-// positional body parameters (any time). The server answers 422 `invalid` for free
-// text once the window has closed.
+const ReplyTo = { reply_to_id: Id.optional() }
+
+// A reply is free text, a file uploaded first through /uploads (with an optional caption), a location or an
+// interactive message — all only inside the customer-service window — or an approved template at any time.
+// The server answers 422 `invalid` for a free-form reply once the window has closed.
 export const InboxReplyCreateSchema = z.union([
-  z.object({ body: z.string().min(1).max(4096) }).strict(),
+  z.object({ body: z.string().min(1).max(4096), ...ReplyTo }).strict(),
+  z.object({ attachment_id: Id, caption: z.string().min(1).max(1024).optional(), ...ReplyTo }).strict(),
+  z.object({ location: InboxLocationSchema, ...ReplyTo }).strict(),
+  z.object({ interactive: InboxInteractiveSchema, ...ReplyTo }).strict(),
   z.object({ template_id: Id, params: z.array(z.string().max(1024)).max(20) }).strict(),
 ])
+
+// The agent's reaction on a message; an empty string removes it.
+export const InboxReactionSchema = z.object({ emoji: z.string().max(16) }).strict()
 
 export const InboxNoteCreateSchema = z.object({ body: z.string().min(1).max(4096) }).strict()
 
@@ -202,6 +269,10 @@ export type InboxAttachment = z.infer<typeof InboxAttachmentSchema>
 export type InboxMessage = z.infer<typeof InboxMessageSchema>
 export type InboxMessageList = z.infer<typeof InboxMessageListSchema>
 export type InboxReplyCreate = z.infer<typeof InboxReplyCreateSchema>
+export type InboxMessageKind = z.infer<typeof InboxMessageKindSchema>
+export type InboxLocation = z.infer<typeof InboxLocationSchema>
+export type InboxInteractive = z.infer<typeof InboxInteractiveSchema>
+export type InboxReaction = z.infer<typeof InboxReactionSchema>
 export type InboxNoteCreate = z.infer<typeof InboxNoteCreateSchema>
 export type InboxContactPatch = z.infer<typeof InboxContactPatchSchema>
 export type InboxCannedReply = z.infer<typeof InboxCannedReplySchema>
