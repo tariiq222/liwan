@@ -322,6 +322,10 @@ The specs use 60s test and 15s expect timeouts for a loaded machine.
 The runner is `e2e` (config: `e2e.config.ts`, models: `e2e/models.ts`, tests:
 `e2e/tests/*.e2e.ts`).
 
+The register of end-user scenarios, with the personas and the status of each scenario
+(planned, manual, automated, failing, gap), is [e2e/scenarios](../e2e/scenarios/README.md).
+A test that covers a scenario cites its ID in the title and updates its row in the same change.
+
 - `npm run e2e` runs all tests, `npm run e2e:smoke` runs the smoke test, and
   `npm run e2e -- e2e/tests/<file>.e2e.ts` runs one file. All args are forwarded to
   `e2e run`.
@@ -349,9 +353,10 @@ The runner is `e2e` (config: `e2e.config.ts`, models: `e2e/models.ts`, tests:
   through `PGPASSWORD`.
   - First run creates the database: installs every release module, then
     `tools/e2e_seed.py` (through `odoo-bin shell`) opens the full entitlement policy
-    (`pmo.enabled` and the other keys) and creates the test accounts `e2e_admin` and
-    `e2e_employee` (credentials declared in `e2e.config.ts`, override with
-    `E2E_USER_<NAME>_PASSWORD`). Expect about 40 s on a warm machine, more on a cold one; a
+    (`pmo.enabled` and the other keys), creates the test accounts `e2e_admin` and
+    `e2e_employee`, and builds the demo company with its role personas (`e2e_ceo`,
+    `e2e_hr_manager`, `e2e_staff1`, ...; credentials declared in `e2e.config.ts`, override
+    with `E2E_USER_<NAME>_PASSWORD`). Expect about 40 s on a warm machine, more on a cold one; a
     failed create drops the half-built database. Later runs reuse it (about 25 s of
     startup).
   - `E2E_ODOO_RESET=1` drops and recreates it; `E2E_ODOO_UPDATE=1` runs `-u` and re-seeds. `E2E_ODOO_SEED=1` only re-runs the seed on the existing database (the seed is idempotent).
