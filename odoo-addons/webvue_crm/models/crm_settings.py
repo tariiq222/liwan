@@ -35,7 +35,7 @@ def term_gender_field(term):
 
 
 DEFAULTS = {
-    'preset': 'general',
+    'preset': 'phone_packages',
     'followup_attempts': 2,
     'followup_interval_hours': 24,
     'after_attempts': 'lost',

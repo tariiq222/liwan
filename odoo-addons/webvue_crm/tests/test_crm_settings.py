@@ -38,7 +38,7 @@ class TestCrmSettings(WebVueCrmCase):
         self.assertFalse(values['view_log_enabled'])
         self.assertFalse(values['discount_allowed'])
         self.assertEqual(values['discount_max_percent'], 0)
-        self.assertEqual(values['preset'], 'general')
+        self.assertEqual(values['preset'], 'phone_packages')
         self.assertEqual(values['terms']['customer'], {
             'ar': {'singular': 'عميل', 'plural': 'عملاء'},
             'en': {'singular': 'customer', 'plural': 'customers'},

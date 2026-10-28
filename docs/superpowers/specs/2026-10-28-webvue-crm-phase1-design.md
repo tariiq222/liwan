@@ -133,7 +133,7 @@ type (R6).
 - **Settings** = `webvue.crm.settings`, one row per company (unique `company_id`, `revision` for
   optimistic concurrency), following `webvue.hr.shift.settings`. A missing row reads defaults at
   revision 0 without writing.
-- **Import batch** = `webvue.crm.import.batch` (company, user, file name, source, counts, state) and
+- **Import batch** = `webvue.crm.import.batch` (company, user, file name, source, counts) and
   **mapping profile** = `webvue.crm.import.mapping` (company, name, column map). The file itself is not
   kept after processing.
 - **View log** = `webvue.crm.view.log` (company, user, opportunity, datetime); written only while the
@@ -147,7 +147,7 @@ its allowed options, so an assistant can read and propose settings.
 
 | Group | Field | Default |
 | --- | --- | --- |
-| Preset | `preset` (`general`, `phone_packages`) | `general` |
+| Preset | `preset` (`general`, `phone_packages`) | `phone_packages` |
 | Terms | `term_customer`, `term_opportunity`, `term_package`: each `{singular, plural, gender}` per language | عميل/عملاء/m, فرصة/فرص/f, باقة/باقات/f |
 | Follow-up | `followup_attempts` (0–10) | 2 |
 | | `followup_interval_hours` (1–720) | 24 |
@@ -173,7 +173,7 @@ preset never rewrites them. *(Claude's call.)* Phase 1 ships `general` (follow-u
 
 The terms setting feeds the locale layer: CRM strings that mention a term use an ICU message with the
 term's singular/plural and gender (Arabic agreement such as "حالة جديدة"), so a renamed term reads
-correctly. Terms change display only.
+correctly. Terms change display only. Agents without `crm.settings.read` read them through `GET /terms`.
 
 ### Capabilities and roles
 
@@ -232,7 +232,8 @@ Settings changes apply to future scheduling only; already scheduled times are no
 ### Sale flow
 
 "Sold" (or a `won` outcome) opens an inline form: package (required), final price prefilled from the
-package, optional discount. The server rejects a discount when `discount_allowed` is false, and a
+package, discount. The discount is derived from the package and final prices; a declared percentage
+that does not match them is rejected. The server rejects a discount when `discount_allowed` is false, and a
 discount above `discount_max_percent` unless the caller holds `crm.discount.approve`. On success the
 opportunity moves to the won stage, `expected_revenue` equals the final price, pending follow-ups are
 cleared.
@@ -274,10 +275,10 @@ Follow-ups and recycled opportunities follow the rule in the follow-up engine.
   `POST /opportunities`, `GET/PATCH /opportunities/<id>`, `POST /opportunities/<id>/calls`,
   `POST /opportunities/<id>/won`, `POST /opportunities/<id>/lost`, `POST /opportunities/<id>/reopen`,
   `POST /opportunities/<id>/assign`.
-- `POST /imports/preview`, `POST /imports`, `GET /imports`, mapping profiles CRUD.
+- `POST /imports/columns`, `POST /imports/preview`, `POST /imports`, `GET /imports`, mapping profiles CRUD.
 - `GET /export` (CSV of the caller's visible list, `crm.leads.export`).
 - `GET /dashboard`.
-- `GET/PATCH /settings` (revision CAS, 409 on stale) and CRUD for stages, outcomes, lost reasons,
+- `GET/PATCH /settings` (revision CAS, 409 on stale), `GET /terms` (the company terms for agents) and CRUD for stages, outcomes, lost reasons,
   sources, packages.
 - `GET /audit/views` (`crm.audit.read`).
 - Zod contracts in `packages/contracts/src/crm/` mirror every serializer exactly.
