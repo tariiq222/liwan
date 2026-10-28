@@ -13,3 +13,4 @@ export const AppointmentTypeListSchema = z.object({
 
 export type AppointmentType = z.infer<typeof AppointmentTypeSchema>
 export type AppointmentTypeList = z.infer<typeof AppointmentTypeListSchema>
+export * from './settings'
