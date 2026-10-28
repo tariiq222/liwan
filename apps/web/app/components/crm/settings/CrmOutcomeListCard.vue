@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { committedName } from '@/utils/crmListRename'
 import { CrmOutcomeSchema, type CrmOutcome } from '@webvue/contracts'
 import { useCrmListEditor, useCrmLostReasons, useCrmOutcomes } from '@/composables/crm/useCrmLists'
 
@@ -30,8 +31,8 @@ async function add() {
   if (name && await editor.add({ name, effect: newEffect.value })) newName.value = ''
 }
 function rename(row: CrmOutcome, event: Event) {
-  const name = (event.target as HTMLInputElement).value.trim()
-  if (name && name !== row.name) void editor.change(row.id, { name })
+  const name = committedName(event, row.name)
+  if (name) void editor.change(row.id, { name })
 }
 const setReason = (row: CrmOutcome, value: string) => editor.change(row.id, { lost_reason_id: value === NO_REASON ? null : Number(value) })
 </script>

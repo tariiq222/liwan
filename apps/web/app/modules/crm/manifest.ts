@@ -40,7 +40,7 @@ const manifest: AppManifest = {
   ],
   bell: {
     capabilities: ['crm.leads.read'],
-    kinds: ['crm.assigned', 'crm.followup_due'].map(kind => ({ kind, href: row => `/crm/opportunities/${row.opportunity_id}` })),
+    kinds: ['crm.assigned', 'crm.followup_due'].map(kind => ({ kind, href: row => (typeof row.opportunity_id === 'number' ? `/crm/opportunities/${row.opportunity_id}` : null) })),
   },
 }
 export default manifest

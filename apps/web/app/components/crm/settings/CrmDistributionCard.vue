@@ -34,11 +34,7 @@ const members = computed({
       <USelect id="distribution-mode" v-model="draft.distribution_mode" class="w-full" :items="modeItems" :disabled="locked" />
     </UFormField>
     <UFormField :label="t('crm.settings.distribution.members')" name="distribution-members" :help="t('crm.settings.distribution.membersHint')">
-      <!-- The names resolve from the people list in the browser, so the server cannot render them: the picker mounts there. -->
-      <ClientOnly>
-        <SharedPersonPicker id="distribution-members" v-model="members" multiple value-key="user_id" :disabled="locked" />
-        <template #fallback><USkeleton class="h-9 w-full" /></template>
-      </ClientOnly>
+      <SharedPersonPicker id="distribution-members" v-model="members" multiple value-key="user_id" :known="props.settings.distribution_users" :disabled="locked" />
     </UFormField>
   </CrmSettingsCard>
 </template>

@@ -41,13 +41,19 @@ def dump_terms(effective):
     }
 
 
-def dump_settings(effective, revision):
-    """The settings wire shape: values (terms nested), the allowed options and the revision."""
+def dump_settings(effective, revision, users):
+    """The settings wire shape: values (terms nested), the allowed options, the revision and the names of the
+    distribution agents (`users` is their recordset; the names are read here, never stored)."""
     values = {name: effective[name] for name in (
         'preset', *SCALAR_FIELDS, 'distribution_user_ids',
     )}
     values['terms'] = dump_terms(effective)
-    return {'values': values, 'options': dump_options(), 'revision': revision}
+    return {
+        'values': values,
+        'distribution_users': [{'id': user.id, 'name': user.name} for user in users],
+        'options': dump_options(),
+        'revision': revision,
+    }
 
 
 def dump_options():

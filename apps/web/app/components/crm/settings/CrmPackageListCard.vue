@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { committedName } from '@/utils/crmListRename'
 import { CrmPackageSchema, type CrmPackage } from '@webvue/contracts'
 import { useCrmListEditor, useCrmPackages } from '@/composables/crm/useCrmLists'
 import { useCrmTerms } from '@/composables/crm/useCrmTerms'
@@ -18,8 +19,8 @@ async function add() {
   if (name && await editor.add({ name, price: draft.price, description: draft.description.trim() })) Object.assign(draft, { name: '', price: 0, description: '' })
 }
 function rename(row: CrmPackage, event: Event) {
-  const name = (event.target as HTMLInputElement).value.trim()
-  if (name && name !== row.name) void editor.change(row.id, { name })
+  const name = committedName(event, row.name)
+  if (name) void editor.change(row.id, { name })
 }
 function describe(row: CrmPackage, event: Event) {
   const description = (event.target as HTMLInputElement).value.trim()

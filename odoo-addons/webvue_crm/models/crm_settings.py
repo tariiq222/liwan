@@ -22,7 +22,7 @@ RANGES = {
 TERM_DEFAULTS = {
     'customer': {'ar': ('عميل', 'عملاء'), 'en': ('customer', 'customers'), 'gender': 'm'},
     'opportunity': {'ar': ('فرصة', 'فرص'), 'en': ('opportunity', 'opportunities'), 'gender': 'f'},
-    'package': {'ar': ('باقة', 'باقات'), 'en': ('package', 'packages'), 'gender': 'f'},
+    'package': {'ar': ('باقة', 'باقات'), 'en': ('plan', 'plans'), 'gender': 'f'},
 }
 
 

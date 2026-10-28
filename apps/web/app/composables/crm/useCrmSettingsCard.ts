@@ -20,8 +20,8 @@ interface CardOptions<Draft> {
 const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value))
 
 /**
- * The draft of one settings card: it keeps the revision it was made from, saves only its own fields with that
- * revision, and on a 409 locks until the manager reloads, so a stale draft never overwrites newer settings.
+ * The draft of one settings card: it saves only its own fields with the latest shared revision, and on a 409
+ * (a change made elsewhere) locks until the manager reloads, so a stale draft never overwrites newer settings.
  */
 export function useCrmSettingsCard<Draft>(options: CardOptions<Draft>) {
   const { t } = useI18n()
@@ -51,7 +51,9 @@ export function useCrmSettingsCard<Draft>(options: CardOptions<Draft>) {
     failure.value = null
     saving.value = true
     try {
-      adopt(await saveSettings({ revision: baseline.value.revision, ...options.toPatch(draft.value) }))
+      adopt(// The latest revision the page knows, not the one this draft started from: another card's save in this tab
+      // must not make this card conflict. A change made elsewhere is not in the shared query, so it still answers 409.
+      await saveSettings({ revision: options.settings().revision, ...options.toPatch(draft.value) }))
     } catch (error) {
       failure.value = error
     } finally {

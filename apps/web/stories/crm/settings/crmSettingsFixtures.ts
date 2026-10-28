@@ -11,7 +11,7 @@ export const crmSettings: CrmSettings = {
     recycle_after_days: 30,
     recycle_cycles: 1,
     distribution_mode: 'round_robin',
-    distribution_user_ids: [],
+    distribution_user_ids: [3, 4],
     visibility: 'own',
     view_log_enabled: false,
     discount_allowed: true,
@@ -19,9 +19,10 @@ export const crmSettings: CrmSettings = {
     terms: {
       customer: { ar: { singular: 'عميل', plural: 'عملاء' }, en: { singular: 'customer', plural: 'customers' }, gender: 'm' },
       opportunity: { ar: { singular: 'فرصة', plural: 'فرص' }, en: { singular: 'opportunity', plural: 'opportunities' }, gender: 'f' },
-      package: { ar: { singular: 'باقة', plural: 'باقات' }, en: { singular: 'package', plural: 'packages' }, gender: 'f' },
+      package: { ar: { singular: 'باقة', plural: 'باقات' }, en: { singular: 'plan', plural: 'plans' }, gender: 'f' },
     },
   },
+  distribution_users: [{ id: 3, name: 'ليلى الحربي' }, { id: 4, name: 'خالد الشمري' }],
   options: {
     preset: ['general', 'phone_packages'],
     after_attempts: ['lost', 'manager'],

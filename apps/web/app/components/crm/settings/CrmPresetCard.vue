@@ -12,6 +12,8 @@ const { draft, shell, save, reload } = useCrmSettingsCard({
   reload: () => props.reloadSettings(),
 })
 const confirming = ref(false)
+// Choosing the current preset again (or a reload) leaves nothing to confirm.
+watch(() => shell.value.dirty, dirty => { if (!dirty) confirming.value = false })
 const locked = computed(() => !hydrated.value || !props.canEdit || shell.value.saving || shell.value.reloading)
 const labels = computed<Record<CrmPreset, { label: string; hint: string }>>(() => ({
   general: { label: t('crm.settings.preset.general'), hint: t('crm.settings.preset.generalHint') },

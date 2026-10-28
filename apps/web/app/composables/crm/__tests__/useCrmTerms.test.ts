@@ -35,7 +35,8 @@ describe('crm terms', () => {
   it('picks the singular or plural word', () => {
     expect(termWord(DEFAULT_CRM_TERMS, 'package', 'one', 'ar')).toBe('باقة')
     expect(termWord(DEFAULT_CRM_TERMS, 'package', 'other', 'ar')).toBe('باقات')
-    expect(termWord(DEFAULT_CRM_TERMS, 'package', 'other', 'en')).toBe('packages')
+    expect(termWord(DEFAULT_CRM_TERMS, 'package', 'other', 'en')).toBe('plans')
+    expect(termWord(DEFAULT_CRM_TERMS, 'package', 'one', 'en')).toBe('plan')
   })
 
   it.each([
@@ -45,6 +46,8 @@ describe('crm terms', () => {
     [3, 'other', 'other'],
     [11, 'one', 'other'],
     [99, 'one', 'other'],
+    [100, 'one', 'other'],
+    [101, 'one', 'other'],
   ] as const)('counts %i as %s in Arabic and %s in English', (count, arabic, english) => {
     expect(termFormForCount(count, 'ar')).toBe(arabic)
     expect(termFormForCount(count, 'en')).toBe(english)

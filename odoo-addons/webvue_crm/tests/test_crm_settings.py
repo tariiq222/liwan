@@ -33,6 +33,7 @@ class TestCrmSettings(WebVueCrmCase):
         self.assertEqual(values['recycle_cycles'], 1)
         self.assertEqual(values['distribution_mode'], 'round_robin')
         self.assertEqual(values['distribution_user_ids'], [])
+        self.assertEqual(body['distribution_users'], [])
         self.assertEqual(values['visibility'], 'own')
         self.assertFalse(values['view_log_enabled'])
         self.assertFalse(values['discount_allowed'])
@@ -45,7 +46,7 @@ class TestCrmSettings(WebVueCrmCase):
         })
         self.assertEqual(values['terms']['opportunity']['ar'], {'singular': 'فرصة', 'plural': 'فرص'})
         self.assertEqual(values['terms']['opportunity']['gender'], 'f')
-        self.assertEqual(values['terms']['package']['en'], {'singular': 'package', 'plural': 'packages'})
+        self.assertEqual(values['terms']['package']['en'], {'singular': 'plan', 'plural': 'plans'})
         self.assertEqual(values['terms']['package']['gender'], 'f')
         self.assertFalse(self._rows())
 
@@ -149,9 +150,9 @@ class TestCrmSettings(WebVueCrmCase):
         terms = body['values']['terms']
         self.assertEqual(terms['customer'], CUSTOMER_TERM)
         self.assertEqual(terms['opportunity']['ar'], {'singular': 'فرصة', 'plural': 'فرص'})
-        partial = {'revision': 1, 'values': {'terms': {'package': {'en': {'plural': 'plans'}}}}}
+        partial = {'revision': 1, 'values': {'terms': {'package': {'en': {'plural': 'tiers'}}}}}
         terms = self.api('PATCH', URL, partial).json()['values']['terms']
-        self.assertEqual(terms['package']['en'], {'singular': 'package', 'plural': 'plans'})
+        self.assertEqual(terms['package']['en'], {'singular': 'plan', 'plural': 'tiers'})
         self.assertEqual(terms['customer'], CUSTOMER_TERM)
 
     def test_invalid_terms_are_422(self):
@@ -175,7 +176,13 @@ class TestCrmSettings(WebVueCrmCase):
         ids = [self.agent.id, self.agent2.id]
         body = self.api('PATCH', URL, {'revision': 0, 'values': {'distribution_user_ids': ids}}).json()
         self.assertEqual(sorted(body['values']['distribution_user_ids']), sorted(ids))
+        self.assertEqual(
+            sorted(body['distribution_users'], key=lambda user: user['id']),
+            sorted([{'id': self.agent.id, 'name': self.agent.name}, {'id': self.agent2.id, 'name': self.agent2.name}], key=lambda user: user['id']),
+        )
+        self.assertEqual(sorted(user['id'] for user in self.api('GET', URL).json()['distribution_users']), sorted(ids))
         cleared = self.api('PATCH', URL, {'revision': 1, 'values': {'distribution_user_ids': []}}).json()
+        self.assertEqual(cleared['distribution_users'], [])
         self.assertEqual(cleared['values']['distribution_user_ids'], [])
         for bad in ([999999999], 'x', [True], [self.agent.id, self.agent.id + 10**6]):
             response = self.api('PATCH', URL, {'revision': 2, 'values': {'distribution_user_ids': bad}})

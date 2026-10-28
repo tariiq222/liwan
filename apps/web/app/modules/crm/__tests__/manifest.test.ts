@@ -45,6 +45,12 @@ describe('crm manifest', () => {
     expect(settingsPartForPath('/settings/apps/crm')?.part.capability).toBe('crm.settings.read')
   })
 
+  it('has no bell target when the row carries no opportunity id', () => {
+    for (const kind of ['crm.assigned', 'crm.followup_due']) {
+      expect(bellKindFor(kind)?.href({ id: 3, kind, title: 'Mona' }), kind).toBeNull()
+    }
+  })
+
   it('opens an opportunity from both bell kinds', () => {
     for (const kind of ['crm.assigned', 'crm.followup_due']) {
       expect(bellKindFor(kind)?.href({ id: 3, kind, opportunity_id: 17, title: 'Mona' }), kind).toBe('/crm/opportunities/17')

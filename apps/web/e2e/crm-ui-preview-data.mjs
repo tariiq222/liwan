@@ -20,7 +20,7 @@ const seedSettings = () => ({
     terms: {
       customer: { ar: { singular: 'عميل', plural: 'عملاء' }, en: { singular: 'customer', plural: 'customers' }, gender: 'm' },
       opportunity: { ar: { singular: 'فرصة', plural: 'فرص' }, en: { singular: 'opportunity', plural: 'opportunities' }, gender: 'f' },
-      package: { ar: { singular: 'باقة', plural: 'باقات' }, en: { singular: 'package', plural: 'packages' }, gender: 'f' },
+      package: { ar: { singular: 'باقة', plural: 'باقات' }, en: { singular: 'plan', plural: 'plans' }, gender: 'f' },
     },
   },
 })
@@ -70,7 +70,13 @@ const seedLists = () => ({
 let settings = seedSettings()
 let lists = seedLists()
 
-const dumpSettings = () => ({ values: settings.values, options: OPTIONS, revision: settings.revision })
+const USER_NAMES = { 2: 'Admin', 3: 'ليلى الحربي', 4: 'خالد الشمري' }
+const dumpSettings = () => ({
+  values: settings.values,
+  distribution_users: settings.values.distribution_user_ids.map(id => ({ id, name: USER_NAMES[id] ?? `#${id}` })),
+  options: OPTIONS,
+  revision: settings.revision,
+})
 const listPage = rows => ({ items: rows, total: rows.length })
 const stale = { status: 409, body: { code: 'conflict', message: 'CRM settings changed; reload before saving' } }
 const merge = (base, patch) => Object.fromEntries(Object.entries(base).map(([key, value]) => [

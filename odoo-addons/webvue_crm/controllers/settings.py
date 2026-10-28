@@ -26,9 +26,7 @@ class CrmSettingsController(http.Controller):
     @requires_feature('crm.enabled', operation='read')
     @requires_capability('crm.settings.read')
     def get_settings(self, **_):
-        model = request.env['webvue.crm.settings']
-        row = model._webvue_current()
-        return dump_settings(model._webvue_effective(), row.revision if row else 0)
+        return _dump_current()
 
     @http.route('/api/v1/crm/terms', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
@@ -60,8 +58,15 @@ class CrmSettingsController(http.Controller):
                     model.create({**vals, 'company_id': request.env.company.id})
         except UniqueViolation as error:
             raise ApiError(409, 'conflict', STALE) from error
-        row = model._webvue_current()
-        return dump_settings(model._webvue_effective(), row.revision)
+        return _dump_current()
+
+
+def _dump_current():
+    model = request.env['webvue.crm.settings']
+    row = model._webvue_current()
+    effective = model._webvue_effective()
+    users = request.env['res.users'].browse(effective['distribution_user_ids'])
+    return dump_settings(effective, row.revision if row else 0, users)
 
 
 def _existing_company_users(user_ids):

@@ -54,8 +54,12 @@ export const CrmSettingsOptionsSchema = z.object({
   discount_max_percent: RangeSchema,
 })
 
+export const CrmDistributionUserSchema = z.object({ id: z.number().int(), name: z.string() })
+
 export const CrmSettingsSchema = z.object({
   values: CrmSettingsValuesSchema,
+  // The names of `values.distribution_user_ids`, resolved at read time; a patch still carries ids only.
+  distribution_users: z.array(CrmDistributionUserSchema),
   options: CrmSettingsOptionsSchema,
   revision: z.number().int().min(0),
 })

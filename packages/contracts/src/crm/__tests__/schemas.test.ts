@@ -48,7 +48,7 @@ const settings = {
     recycle_after_days: 30,
     recycle_cycles: 1,
     distribution_mode: 'round_robin',
-    distribution_user_ids: [],
+    distribution_user_ids: [3],
     visibility: 'own',
     view_log_enabled: false,
     discount_allowed: false,
@@ -56,9 +56,10 @@ const settings = {
     terms: {
       customer: term(['عميل', 'عملاء'], ['customer', 'customers'], 'm'),
       opportunity: term(['فرصة', 'فرص'], ['opportunity', 'opportunities'], 'f'),
-      package: term(['باقة', 'باقات'], ['package', 'packages'], 'f'),
+      package: term(['باقة', 'باقات'], ['plan', 'plans'], 'f'),
     },
   },
+  distribution_users: [{ id: 3, name: 'Agent' }],
   options: {
     preset: ['general', 'phone_packages'],
     after_attempts: ['lost', 'manager'],
@@ -77,6 +78,12 @@ const settings = {
 describe('CrmSettingsSchema', () => {
   it('accepts the default settings payload', () => {
     expect(CrmSettingsSchema.parse(settings)).toEqual(settings)
+  })
+
+  it('carries the names of the distribution agents next to the values', () => {
+    const { distribution_users: _names, ...withoutNames } = settings
+    expect(() => CrmSettingsSchema.parse(withoutNames)).toThrow()
+    expect(() => CrmSettingsSchema.parse({ ...settings, distribution_users: [{ id: 3 }] })).toThrow()
   })
 
   it('rejects an out-of-range value and an unknown enum option', () => {

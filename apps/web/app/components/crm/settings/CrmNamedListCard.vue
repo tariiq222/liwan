@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { committedName } from '@/utils/crmListRename'
 import { CrmLostReasonSchema, CrmSourceSchema, type CrmLostReason, type CrmSource } from '@webvue/contracts'
 import { useCrmListEditor, useCrmLostReasons, useCrmSources } from '@/composables/crm/useCrmLists'
 
@@ -19,8 +20,8 @@ async function add() {
   if (name && await editor.add({ name })) newName.value = ''
 }
 function rename(row: CrmLostReason | CrmSource, event: Event) {
-  const name = (event.target as HTMLInputElement).value.trim()
-  if (name && name !== row.name) void editor.change(row.id, { name })
+  const name = committedName(event, row.name)
+  if (name) void editor.change(row.id, { name })
 }
 </script>
 

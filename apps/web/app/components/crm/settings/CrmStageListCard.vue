@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { committedName } from '@/utils/crmListRename'
 import { CrmStageSchema, type CrmStage } from '@webvue/contracts'
 import { useCrmListEditor, useCrmStages, useReorderCrmStages } from '@/composables/crm/useCrmLists'
 import { saveErrorMessage } from '@/utils/formFeedback'
@@ -22,8 +23,8 @@ async function add() {
   if (name && await editor.add({ name })) newName.value = ''
 }
 function rename(row: CrmStage, event: Event) {
-  const name = (event.target as HTMLInputElement).value.trim()
-  if (name && name !== row.name) void editor.change(row.id, { name })
+  const name = committedName(event, row.name)
+  if (name) void editor.change(row.id, { name })
 }
 async function move(id: number, step: -1 | 1) {
   const ids = [...activeIds.value]

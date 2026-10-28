@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { CrmSettingsTermsSchema, type CrmSettingsTerms } from '@webvue/contracts'
+import { arabicPluralRule } from '../../../i18n/pluralRules'
 import { crmKeys } from './crmKeys'
 
 export type CrmTermKey = keyof CrmSettingsTerms
@@ -11,7 +12,7 @@ export type CrmTermGender = 'm' | 'f'
 export const DEFAULT_CRM_TERMS: CrmSettingsTerms = {
   customer: { ar: { singular: 'عميل', plural: 'عملاء' }, en: { singular: 'customer', plural: 'customers' }, gender: 'm' },
   opportunity: { ar: { singular: 'فرصة', plural: 'فرص' }, en: { singular: 'opportunity', plural: 'opportunities' }, gender: 'f' },
-  package: { ar: { singular: 'باقة', plural: 'باقات' }, en: { singular: 'package', plural: 'packages' }, gender: 'f' },
+  package: { ar: { singular: 'باقة', plural: 'باقات' }, en: { singular: 'plan', plural: 'plans' }, gender: 'f' },
 }
 
 /**
@@ -26,13 +27,18 @@ export function termWord(terms: CrmSettingsTerms, key: CrmTermKey, form: CrmTerm
   return terms[key][language][FORM_FIELD[form]]
 }
 
+// Positions of the CLDR Arabic categories in `arabicPluralRule` (zero | one | two | few | many | other) whose counted noun is plural.
+const ARABIC_PLURAL_CATEGORIES: ReadonlySet<number> = new Set([0, 2, 3])
+const ARABIC_CATEGORY_COUNT = 6
+
 /**
- * The form a counted noun takes. Arabic counts 1 and 11-99 with the singular («١١ عميلاً»); 0, 2 and 3-10 take the plural.
- * English uses the singular for exactly one.
+ * The form a counted noun takes. Arabic counts 1, 11-99 and 100 or more with the singular («١١ عميلاً», «١٠٠ عميل»);
+ * 0, 2 and 3-10 take the plural. English uses the singular for exactly one. The Arabic categories come from the
+ * shared plural rule of the locale layer.
  */
 export function termFormForCount(count: number, language: 'ar' | 'en'): CrmTermForm {
-  const category = new Intl.PluralRules(language).select(Math.abs(count))
-  return category === 'one' || (language === 'ar' && category === 'many') ? 'one' : 'other'
+  if (language === 'ar') return ARABIC_PLURAL_CATEGORIES.has(arabicPluralRule(count, ARABIC_CATEGORY_COUNT)) ? 'other' : 'one'
+  return new Intl.PluralRules('en').select(Math.abs(count)) === 'one' ? 'one' : 'other'
 }
 
 /**
