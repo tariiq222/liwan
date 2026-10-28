@@ -36,19 +36,19 @@ Reading this file:
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| SAAS-01 | Prospect signs up on a public page and verifies the email | prospect | Tenant requested without a vendor | `page /login` | gap | No `/register`, no email verification |
+| SAAS-01 | Prospect signs up on a public page and verifies the email | prospect | Tenant requested without a vendor | `page /login` | gap | #141; No `/register`, no email verification |
 | SAAS-02 | Vendor creates a customer on a zero-priced or trial plan | vendor owner | Customer, quote and order created; order `not_required` | `vendor /customers/new` | planned | Detail in SAAS-80 to SAAS-96 |
 | SAAS-03 | Provisioning finishes | worker | Tenant enabled; first admin holds the entitled roles and is not vendor support | `vendor /tenants/[id]` | planned | |
 | SAAS-04 | Admin accepts the invitation and sets a password | new admin | Signs in at `/login`; used or expired token refused | `page /invite/accept`, `page /login` | planned | Detail in SAAS-60 to SAAS-72 |
-| SAAS-05 | Vendor resends the invitation | vendor owner | New link sent | `vendor /customers/[id]` | gap | API exists, no vendor console button |
-| SAAS-06 | First-run setup after the first login | new admin | Guided setup | `page /` | gap | No onboarding wizard; company profile at `/settings/company` |
+| SAAS-05 | Vendor resends the invitation | vendor owner | New link sent | `vendor /customers/[id]` | gap | #144; API exists, no vendor console button |
+| SAAS-06 | First-run setup after the first login | new admin | Guided setup | `page /` | gap | #142; No onboarding wizard; company profile at `/settings/company` |
 | SAAS-07 | Admin adds staff with roles | new admin | Staff sign in with their roles (ACC-03) | `page /login` | planned | Users are created with a password; no email invitation for staff (gap) |
 | SAAS-08 | Create one user beyond `users.limit` | new admin | Refused with a clear message | `page /subscription` | planned | Detail in SAAS-200 to SAAS-203 |
 | SAAS-09 | Subscription summary, usage and invoices | new admin | Values match the control plane | `page /subscription`, `page /subscription/invoices` | planned | |
 | SAAS-10 | Upgrade and downgrade: quote, order, status page | new admin | Entitlements change after fulfilment | `page /subscription/change`, `page /subscription/status` | planned | |
 | SAAS-11 | Start a trial on a plan with `trial_days`; convert it | new admin | Countdown shown; conversion creates an order | `page /subscription` | planned | |
 | SAAS-12 | Vendor extends or ends a trial | vendor owner | Needs step-up; tenant follows the new end | `vendor /customers/[id]` | planned | |
-| SAAS-13 | Paid first order through Moyasar test mode or the simulator | vendor + prospect | Payment, then provisioning | `vendor /invoices/[id]` | gap | No UI path to pay before a tenant exists |
+| SAAS-13 | Paid first order through Moyasar test mode or the simulator | vendor + prospect | Payment, then provisioning | `vendor /invoices/[id]` | gap | #143; No UI path to pay before a tenant exists |
 | SAAS-14 | Tenant suspended | vendor owner | Sign-in refused with the suspension message | `page /login` | planned | See SAAS-210: nothing in the control plane sets the tenant profile to suspended |
 | SAAS-15 | Tenant read-only | vendor owner | Reads work, writes refused with a clear message | `page /subscription` | planned | Read-only is the expired state, see SAAS-211 |
 | SAAS-16 | Plan without an application | staff | Application hidden everywhere (PLT-10) | `page /apps` | planned | |
@@ -131,10 +131,10 @@ Reading this file:
 | SAAS-73 | Too many attempts from one address | prospect | 11th check or accept within a minute: 429 `rate_limited`; the page treats it as temporary, not as invalid | `page /invite/accept` | planned | Accept and check count separately; more than 4 in flight: 503 |
 | SAAS-74 | Cross-site or non-JSON request | visitor | 403 `cross_site_request` / 415; body over 8 KiB (accept) or 2 KiB (check): 413 | `page /invite/accept` | planned | `assertPublicMutationOrigin` |
 | SAAS-75 | Invitation email | new admin | Email in the customer's language with the link on the customer's own host; status `sent` or `local_capture`; token scrubbed from the outbox afterwards | `page /invite/accept` | planned | SMTP capture needed |
-| SAAS-76 | Email send fails | vendor operator | Invitation `delivery_status=failed`, outbox failure recorded; no resend button (see SAAS-05) | `vendor /customers/[id]` | gap | |
+| SAAS-76 | Email send fails | vendor operator | Invitation `delivery_status=failed`, outbox failure recorded; no resend button (see SAAS-05) | `vendor /customers/[id]` | gap | #144 |
 | SAAS-77 | Vendor resend through the API | vendor owner | 202 `{id, expires_at, delivery_status: queued}`; TTL 300 s to 7 days; customer without a tenant: 409 `not_ready`; no admin login: 422 `admin_login`; unknown customer 404; needs `vendor.subscriptions.manage` | `vendor /customers/[id]` | planned | cp POST /v1/commercial/customers/{id}/invitations; API-level only |
 | SAAS-78 | Invited admin signs in | new admin | Lands on `/` with the roles the plan entitles | `page /login`, `page /` | planned | |
-| SAAS-79 | Staff accounts of the customer | new admin | No invitation flow: the admin creates the user with a password (ACC-03) | `page /login` | gap | |
+| SAAS-79 | Staff accounts of the customer | new admin | No invitation flow: the admin creates the user with a password (ACC-03) | `page /login` | gap | #145 |
 
 ## Vendor console: customers
 
@@ -166,7 +166,7 @@ Reading this file:
 | SAAS-103 | Change refusals | customer success | Change pending: 409 `subscription_change_pending`; stale revision 409 `revision_conflict`; expired quote 422 `quote_expired`; plan not sellable 422; cadence change 422 `cadence_change_unsupported`; downgrade below usage 422 `downgrade_below_usage`; usage sample missing 409 `usage_unavailable`; same idempotency key with other body 409 `idempotency_conflict` | `vendor /customers/[id]/change` | planned | |
 | SAAS-104 | Tenant page for a workspace without a customer | vendor owner | Tabs summary, workspace, operations | `vendor /tenants/[id]` | planned | |
 | SAAS-105 | Tenant page for a workspace that has a customer | vendor owner | Redirects (replace) to `/customers/{id}?tab=workspace` or `operations` | `vendor /tenants/[id]`, `vendor /customers/[id]` | planned | `tenant-customer` middleware |
-| SAAS-106 | Vendor creates the order but nobody can pay it | vendor owner | Paid-plan order stays `awaiting_payment`; see SAAS-13 | `vendor /customers/[id]` | gap | The vendor payment-attempt route exists (cp POST /v1/commercial/orders/{id}/payment-attempts) but no page calls it |
+| SAAS-106 | Vendor creates the order but nobody can pay it | vendor owner | Paid-plan order stays `awaiting_payment`; see SAAS-13 | `vendor /customers/[id]` | gap | #143; The vendor payment-attempt route exists (cp POST /v1/commercial/orders/{id}/payment-attempts) but no page calls it |
 | SAAS-107 | Operator without any vendor role | vendor operator | 403 `forbidden` «Vendor account holds no role» | `vendor /overview` | planned | |
 
 ## Vendor console: plans, bundles, catalog
@@ -266,10 +266,10 @@ Reading this file:
 | SAAS-192 | Branches list | it_admin | Included and extra branches with state; add button only with `branches.manage` | `page /subscription/branches` | planned | |
 | SAAS-193 | Add branches | it_admin | Names (1 to 200), review quote, accept, pay if due; duplicate name 409 `branch_name_taken`; mixed add and archive 422 `mixed_branch_change_unsupported`; no subscription 409 `subscription_required` | `page /subscription/branches/new` | planned | Beyond `branches.extra_limit`: 422 `downgrade_below_usage` or a quote refusal |
 | SAAS-194 | Branches page as a reader | hr_manager | Read-only text; add page shows forbidden | `page /subscription/branches/new` | planned | |
-| SAAS-195 | Archive a branch | it_admin | Expected: customer can archive an extra branch | `page /subscription/branches` | gap | The branch-quote API accepts `archive`, but no page offers it |
+| SAAS-195 | Archive a branch | it_admin | Expected: customer can archive an extra branch | `page /subscription/branches` | gap | #146; The branch-quote API accepts `archive`, but no page offers it |
 | SAAS-196 | Invoice list | it_admin | Own invoices only; empty text; needs `billing.read`, else forbidden | `page /subscription/invoices` | planned | |
 | SAAS-197 | Invoice detail | it_admin | Lines with quantity and free/paid, total in SAR; another customer's or malformed id: 404 | `page /subscription/invoices/[id]` | planned | |
-| SAAS-198 | Customer cancels an unpaid order | it_admin | Expected: customer can cancel before paying | `page /subscription/status` | gap | The control plane lets a customer with `subscription.manage` cancel, but the web proxy allow-list has no cancel route and no page |
+| SAAS-198 | Customer cancels an unpaid order | it_admin | Expected: customer can cancel before paying | `page /subscription/status` | gap | #146; The control plane lets a customer with `subscription.manage` cancel, but the web proxy allow-list has no cancel route and no page |
 | SAAS-199 | Forged identity or unknown route through the proxy | it_admin | Keys such as tenant_id, customer_id, capabilities, principal in query or body: 400 `forbidden_field`; unknown route or `..`: 404; non-JSON 415; wrong origin 403 `cross_site_request`; missing or wrong CSRF 403 `csrf_failed`; body over 64 KiB 413; more than 20 changes a minute 429 `rate_limited` | `page /subscription` | planned | `customer-commercial.ts` |
 
 ## Quotas, expiry, suspension and non_saas
@@ -286,14 +286,14 @@ Reading this file:
 | SAAS-207 | Limit race | it_admin | Two concurrent creates at the last seat: exactly one succeeds (tenant profile row lock) | `page /subscription` | planned | |
 | SAAS-208 | Plan changes the limits | it_admin | New limits apply after fulfilment, not before | `page /subscription/status` | planned | |
 | SAAS-209 | Feature off versus limit reached | it_admin | `details.reason` is `feature` or `limit` so the UI can tell them apart | `page /subscription` | planned | |
-| SAAS-210 | Dunning suspends the subscription | vendor owner | Plan with `auto_suspend`: after the grace period the subscription state becomes `suspended` and the customer shows `inactive`; expected the tenant's sign-in is refused | `vendor /customers/[id]` | gap | Only the control-plane subscription state changes (`renewals.ts:135`); no code pushes `status=suspended` to the tenant profile, so users keep working |
+| SAAS-210 | Dunning suspends the subscription | vendor owner | Plan with `auto_suspend`: after the grace period the subscription state becomes `suspended` and the customer shows `inactive`; expected the tenant's sign-in is refused | `vendor /customers/[id]` | gap | #147; Only the control-plane subscription state changes (`renewals.ts:135`); no code pushes `status=suspended` to the tenant profile, so users keep working |
 | SAAS-211 | Expired commercial end date | staff1 | After `commercial_valid_until` passes the tenant is read-only: reads work, writes answer 403 `tenant_read_only` «this tenant is read-only» | `page /subscription` | planned | Date set from trial end plus grace (`commercialExpiryDate`) |
 | SAAS-212 | Suspended tenant API | staff1 | Every `/api/v1` call 403 `tenant_suspended`; session ended; only password change and TOTP calls stay writable | `page /login` | planned | |
 | SAAS-213 | Vendor support access on a suspended tenant | vendor operator | Support users may sign in only when `support_access_enabled`; then writes are `tenant_read_only` | `page /login` | planned | |
 | SAAS-214 | Binary images of a suspended tenant | visitor | Image route refuses | `page /login` | planned | `ir_binary.py` |
 | SAAS-215 | Trial ends without payment | it_admin | Subscription goes past due, first invoice issued; after grace the tenant turns read-only | `page /subscription` | planned | |
 | SAAS-216 | Failed activation | it_admin | Status card «تعذّر تفعيل الطلب» and, when paid, a pending credit note for the vendor | `page /subscription/status` | planned | Needs-intervention codes: stale_target, observed_mismatch, provision_needs_intervention |
-| SAAS-217 | Vendor suspends or reactivates a tenant by hand | vendor owner | Expected: a console action with reason | `vendor /tenants/[id]` | gap | No such action; `tenant.entitle` carries features only |
+| SAAS-217 | Vendor suspends or reactivates a tenant by hand | vendor owner | Expected: a console action with reason | `vendor /tenants/[id]` | gap | #147; No such action; `tenant.entitle` carries features only |
 | SAAS-218 | Stale downgrade usage | vendor owner | Downgrade needs a usage sample younger than 15 minutes; collector paused while a shared job runs | `vendor /customers/[id]/change` | planned | |
 | SAAS-230 | `non_saas` build: subscription page | admin | `/subscription` answers 404 (commercial off); no nav entry | `page /subscription` | planned | `customer-commercial` middleware |
 | SAAS-231 | `non_saas` build: commercial API | admin | `/api/commercial/v1/*` answers 404 | `page /subscription/status` | planned | |

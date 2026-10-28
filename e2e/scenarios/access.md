@@ -34,7 +34,7 @@ lists it in Covers; the registered surfaces are checked by `python3 -B tools/e2e
 | ACC-13 | Vendor support user is untouchable | it_admin | Refused `protected_user` | `POST /api/v1/admin/users/<id>/password` | planned |  |
 | ACC-14 | System admin manages access but cannot write HR or project records | it_admin | HR and project write actions absent or refused | `cap access.users.assign_roles` | automated | `e2e/tests/access-matrix.e2e.ts`: it_admin refused on /hr/employees/new and /projects/new |
 | ACC-15 | Access log lists every change and cannot be edited | it_admin | Events listed with actor and time; no edit path | `page /settings/team/access-log` `GET /api/v1/admin/access-log` `cap access.audit.read` | planned |  |
-| ACC-16 | Built-in role descriptions in Arabic | it_admin | Arabic text next to Arabic names | `page /settings/team/roles` `GET /api/v1/admin/roles` | fail | Known bug, `e2e/tests/bugs/roles-builtin-descriptions-english.e2e.ts` |
+| ACC-16 | Built-in role descriptions in Arabic | it_admin | Arabic text next to Arabic names | `page /settings/team/roles` `GET /api/v1/admin/roles` | fail | #139; Known bug, `e2e/tests/bugs/roles-builtin-descriptions-english.e2e.ts` |
 | ACC-17 | Company profile and logo | it_admin | Name and logo shown in the shell and on the login page | `page /settings/company` `PATCH /api/v1/admin/company` `POST /api/v1/admin/company/logo` `GET /api/v1/branding` `cap settings.company.manage` | planned |  |
 | ACC-18 | Create a branch (child company) and move a user to it | it_admin | Branch user sees branch data only | `page /settings/team/branches` `PATCH /api/v1/admin/users/<id>/branches` | planned |  |
 | ACC-19 | Branch access mode `isolated` / `delegated` / `inherited` | it_admin | Each mode exposes exactly what it describes | `GET /api/v1/admin/access/branches` `PATCH /api/v1/admin/access/branches` | planned | Mode is read-only in the UI today |
@@ -226,7 +226,7 @@ lists it in Covers; the registered surfaces are checked by `python3 -B tools/e2e
 | ACC-165 | Read-only view for a user without the edit action | custom role (access.users.read) | Roles shown with «للقراءة فقط»; no save button | `page /settings/team/users/[id]` | planned |  |
 | ACC-166 | Unsaved changes guard | it_admin | Leaving with changed checkboxes asks to confirm | `page /settings/team/users/[id]/access` | planned |  |
 | ACC-167 | Role change takes effect and is audited | it_admin | The target's next request shows the new applications; log entry `user.roles_changed` | `PATCH /api/v1/admin/users/<id>/access` `GET /api/v1/admin/access-log` | planned |  |
-| ACC-168 | Locale message for `self_access_change` and `role_disabled` | it_admin | Arabic message shown | `PATCH /api/v1/admin/users/<id>/access` | gap | access.errors in ar/access.json has no key for these codes; the raw code is displayed |
+| ACC-168 | Locale message for `self_access_change` and `role_disabled` | it_admin | Arabic message shown | `PATCH /api/v1/admin/users/<id>/access` | gap | #140; access.errors in ar/access.json has no key for these codes; the raw code is displayed |
 
 ## Account security: reset password, disable, reactivate (`/settings/team/users/[id]/security`)
 
@@ -243,7 +243,7 @@ lists it in Covers; the registered surfaces are checked by `python3 -B tools/e2e
 | ACC-177 | Reset for the vendor support user | it_admin | 403 `protected_user` | `POST /api/v1/admin/users/<id>/password` | planned |  |
 | ACC-178 | Reset with a stale version | it_admin | 409 `conflict` | `POST /api/v1/admin/users/<id>/password` | planned |  |
 | ACC-179 | Reset a user of another company | it_admin | 404 `not_found` | `POST /api/v1/admin/users/<id>/password` | planned |  |
-| ACC-180 | Reset own password through the admin route | it_admin | Allowed by the code (no self check); own session outcome to be confirmed | `POST /api/v1/admin/users/<id>/password` | decision | no `self_access_change` guard on reset; owner to confirm |
+| ACC-180 | Reset own password through the admin route | it_admin | Allowed by the code (no self check); own session outcome to be confirmed | `POST /api/v1/admin/users/<id>/password` | decision | private security advisory GHSA-9xq5-v9r4-xfxc; no `self_access_change` guard on reset; owner to confirm |
 | ACC-181 | Disable with inline confirmation | it_admin | Confirmation «أكد إيقاف الوصول عن {name}.»; user cannot sign in; open sessions end; list shows stopped; log `user.disabled` | `page /settings/team/users/[id]/security` `POST /api/v1/admin/users/<id>/disable` `cap access.users.disable` | planned |  |
 | ACC-182 | Disable own account | it_admin | 422 `self_access_change` | `POST /api/v1/admin/users/<id>/disable` | planned |  |
 | ACC-183 | Disable the last access administrator | it_admin | 409 `last_access_admin` | `POST /api/v1/admin/users/<id>/disable` | planned | see ACC-12 |
@@ -251,13 +251,13 @@ lists it in Covers; the registered surfaces are checked by `python3 -B tools/e2e
 | ACC-185 | Disable with a stale version | it_admin | 409 `conflict`; page asks to reload | `POST /api/v1/admin/users/<id>/disable` | planned |  |
 | ACC-186 | Disable without the capability | staff1 | 403 `forbidden` | `POST /api/v1/admin/users/<id>/disable` `cap access.users.disable` | planned |  |
 | ACC-187 | Disable frees a package seat | it_admin | The active-user count drops and a new user can be created at the limit | `POST /api/v1/admin/users/<id>/disable` | planned | saas limits |
-| ACC-188 | Disable an already-disabled user | it_admin | Route accepts it and writes another `user.disabled` event; the page hides the button | `POST /api/v1/admin/users/<id>/disable` | decision | no inactive guard in _webvue_disable_user |
+| ACC-188 | Disable an already-disabled user | it_admin | Route accepts it and writes another `user.disabled` event; the page hides the button | `POST /api/v1/admin/users/<id>/disable` | decision | #159; no inactive guard in _webvue_disable_user |
 | ACC-189 | Reactivate with a new password | it_admin | Password required (hint «يتطلب كلمة مرور جديدة.»); user signs in with it; roles are unchanged; log `user.reactivated` | `page /settings/team/users/[id]/security` `POST /api/v1/admin/users/<id>/reactivate` | planned |  |
 | ACC-190 | Reactivate with a weak password | it_admin | 422 `weak_password` | `POST /api/v1/admin/users/<id>/reactivate` | planned |  |
 | ACC-191 | Reactivate an account whose employee is archived | it_admin | 409 `employee_archived` | `POST /api/v1/admin/users/<id>/reactivate` | planned | see ACC-23 |
 | ACC-192 | Reactivate with the package at its user limit | it_admin | 403 `feature_not_included` | `POST /api/v1/admin/users/<id>/reactivate` | planned |  |
 | ACC-193 | Reactivate with a stale version | it_admin | 409 `conflict` | `POST /api/v1/admin/users/<id>/reactivate` | planned |  |
-| ACC-194 | Reactivate an already-active user | it_admin | Route overwrites the password and logs `user.reactivated` for an active user, so `access.users.disable` alone can set another user's password | `POST /api/v1/admin/users/<id>/reactivate` | decision | access_service.py `_webvue_reactivate_user` has no inactive check; the UI hides the button |
+| ACC-194 | Reactivate an already-active user | it_admin | Route overwrites the password and logs `user.reactivated` for an active user, so `access.users.disable` alone can set another user's password | `POST /api/v1/admin/users/<id>/reactivate` | decision | private security advisory GHSA-9xq5-v9r4-xfxc; access_service.py `_webvue_reactivate_user` has no inactive check; the UI hides the button |
 | ACC-195 | Reactivate without the capability | staff1 | 403 `forbidden` | `POST /api/v1/admin/users/<id>/reactivate` | planned |  |
 | ACC-196 | Security page for another company's user | it_admin | Not-found state | `page /settings/team/users/[id]/security` | planned |  |
 | ACC-197 | Action buttons stay locked while a request runs | it_admin | Buttons disabled during pending mutation; no double submission | `page /settings/team/users/[id]/security` | planned |  |
@@ -304,7 +304,7 @@ lists it in Covers; the registered surfaces are checked by `python3 -B tools/e2e
 | ACC-228 | Unknown permission key | it_admin | 422 `invalid` «unknown permission» | `POST /api/v1/admin/roles` | planned |  |
 | ACC-229 | Duplicate permissions in the payload | it_admin | 422 `invalid` «permissions must be unique» | `POST /api/v1/admin/roles` | planned |  |
 | ACC-230 | Role with no permissions | it_admin | Allowed; assigned users hold only the employee baseline | `POST /api/v1/admin/roles` | planned |  |
-| ACC-231 | Duplicate role name | it_admin | Accepted (no uniqueness check on names) | `POST /api/v1/admin/roles` | decision | two custom roles can share one name; owner to confirm |
+| ACC-231 | Duplicate role name | it_admin | Accepted (no uniqueness check on names) | `POST /api/v1/admin/roles` | decision | #159; two custom roles can share one name; owner to confirm |
 | ACC-232 | Missing or unknown payload field | it_admin | 422 `invalid` naming the field | `POST /api/v1/admin/roles` | planned |  |
 | ACC-233 | Unsaved changes guard on the create panel | it_admin | Typing then leaving asks for confirmation | `page /settings/team/roles/new` | planned |  |
 | ACC-234 | Clone a built-in role from the form | it_admin | Name prefilled «… - نسخة», description and allowed permissions copied; sensitive ones dropped | `page /settings/team/roles/new` `POST /api/v1/admin/roles/<id>/clone` | planned |  |
@@ -373,7 +373,7 @@ lists it in Covers; the registered surfaces are checked by `python3 -B tools/e2e
 | ACC-287 | A failed request writes no event | it_admin | A refused disable (for example `last_access_admin`) leaves the log unchanged | `page /settings/team/access-log` | planned | api_handler rolls the request back |
 | ACC-288 | Events never contain secrets | it_admin | After create and reset, no event holds a password, token or hash in before/after | `page /settings/team/access-log/[id]` | planned | `sensitive_audit_key` guard |
 | ACC-289 | Log entries for each access action | it_admin | Create, roles change, disable, reactivate, reset, role create/update/disable/enable/delete each appear once with the right Arabic label | `page /settings/team/access-log` | planned | see Audit catalog |
-| ACC-290 | Company profile, branding and maintenance changes are not in the log | it_admin | Expected: an event for each change, or a documented choice that they are not access events | `page /settings/team/access-log` | decision | no `_webvue_log` call in company/branding/maintenance writes; `company` target type is used only by branch policy |
+| ACC-290 | Company profile, branding and maintenance changes are not in the log | it_admin | Expected: an event for each change, or a documented choice that they are not access events | `page /settings/team/access-log` | decision | #159; no `_webvue_log` call in company/branding/maintenance writes; `company` target type is used only by branch policy |
 
 ## Branch access policy (`/settings/team/branches`, `/api/v1/admin/access/branches`)
 
@@ -396,7 +396,7 @@ lists it in Covers; the registered surfaces are checked by `python3 -B tools/e2e
 | ACC-305 | Unsaved changes guard | it_admin | Leaving with an edited mode or roles asks to confirm | `page /settings/team/branches` | planned |  |
 | ACC-306 | Cache clearing after a policy change | it_admin | The affected user sees the new reach at the next request without signing in again | `PATCH /api/v1/admin/access/branches` | planned |  |
 | ACC-307 | Branch policy writes without the capabilities | staff1 | 403 `forbidden` | `PATCH /api/v1/admin/access/branches` | planned |  |
-| ACC-308 | Branch creation from the customer UI | it_admin | Administrator can create a branch company |  | gap | no page or route creates a branch; `res.company` create is limited to Odoo system administrators |
+| ACC-308 | Branch creation from the customer UI | it_admin | Administrator can create a branch company |  | gap | #155; no page or route creates a branch; `res.company` create is limited to Odoo system administrators |
 
 ## User branch delegation (`/settings/team/users/[id]/branches`)
 
@@ -445,9 +445,9 @@ lists it in Covers; the registered surfaces are checked by `python3 -B tools/e2e
 | ACC-344 | Archive an employee who has an account | hr_manager | Linked account disabled and sessions revoked; log `employee.archived_access_disabled` with the employee id |  | planned | hr.employees.archive; see ACC-22 |
 | ACC-345 | Archive the employee linked to own account | hr_manager | Refused `self_access_change`; employee not archived |  | planned |  |
 | ACC-346 | Archive the employee of the last access administrator | hr_manager | Refused 409 `last_access_admin` |  | planned |  |
-| ACC-347 | Archive an employee whose account is already disabled | hr_manager | Archive succeeds; check whether a duplicate event is written |  | decision | _webvue_disable_employee_account has no inactive guard |
+| ACC-347 | Archive an employee whose account is already disabled | hr_manager | Archive succeeds; check whether a duplicate event is written |  | decision | #159; _webvue_disable_employee_account has no inactive guard |
 | ACC-348 | Employee archive without `access.users.read` for the actor | hr_manager | Archive still disables the account (check uses `hr.employees.archive`) |  | planned |  |
-| ACC-349 | Candidates expose HR data under account-grant rights | it_admin | Names, departments and work emails are returned to a holder of `access.users.grant` without `hr.employees.read` | `GET /api/v1/admin/employee-accounts/candidates` | decision | raw SQL below the HR ACLs by design; owner to confirm |
+| ACC-349 | Candidates expose HR data under account-grant rights | it_admin | Names, departments and work emails are returned to a holder of `access.users.grant` without `hr.employees.read` | `GET /api/v1/admin/employee-accounts/candidates` | decision | private security advisory GHSA-9xq5-v9r4-xfxc; raw SQL below the HR ACLs by design; owner to confirm |
 
 ## Company profile (`/settings/company`, `/api/v1/admin/company`)
 
@@ -604,7 +604,7 @@ lists it in Covers; the registered surfaces are checked by `python3 -B tools/e2e
 
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| ACC-476 | Affected user is told about access changes | staff1 | When an administrator changes roles, resets the password or disables the account, no bell notification or mail reaches the user today |  | decision | no `_webvue_deliver` call in the access flows; owner to decide whether the user should be notified |
+| ACC-476 | Affected user is told about access changes | staff1 | When an administrator changes roles, resets the password or disables the account, no bell notification or mail reaches the user today |  | decision | #159; no `_webvue_deliver` call in the access flows; owner to decide whether the user should be notified |
 | ACC-477 | Audit catalog: user.granted | it_admin | Written once on create and employee grant, target user, `after.active` true | `GET /api/v1/admin/access-log` | planned |  |
 | ACC-478 | Audit catalog: user.roles_changed | it_admin | Written only when assignments differ; before/after hold role id, key and scope | `GET /api/v1/admin/access-log` | planned |  |
 | ACC-479 | Audit catalog: user.disabled / user.reactivated / user.password_reset | it_admin | One event each with the before/after state; reset records `sessions_revoked` | `GET /api/v1/admin/access-log` | planned |  |

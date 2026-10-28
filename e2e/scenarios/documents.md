@@ -100,7 +100,7 @@ API errors quoted below are the server messages; the UI shows its own Arabic tex
 | DOC-72 | Upload validation on the server | hr_manager | 422 for a name with `/` or `\`, invalid base64, empty data, over 10 MB, disallowed type (`file type is not allowed`; only text, pdf, png, jpeg, docx, xlsx are accepted by content), unknown field | `POST /api/v1/documents/<id>/files` | planned | The sniffed content decides the type |
 | DOC-73 | Upload without expected revision or with a stale one | hr_manager | 422 field `expected_revision`; stale answers 409 and the page reloads with «تغيّر المستند وتم تحميل آخر نسخة…» | `POST /api/v1/documents/<id>/files` | planned | |
 | DOC-74 | Upload by a reader or to an archived document | staff1, hr_manager | 403 | `POST /api/v1/documents/<id>/files` | planned | |
-| DOC-75 | Upload a file with a name that already exists | hr_manager | Verify the outcome (reject or rename); expected to be refused with a clear error rather than overwrite | `POST /api/v1/documents/<id>/files` | decision | Not decided in code; the DMS layer may reject a duplicate name |
+| DOC-75 | Upload a file with a name that already exists | hr_manager | Verify the outcome (reject or rename); expected to be refused with a clear error rather than overwrite | `POST /api/v1/documents/<id>/files` | decision | #161; Not decided in code; the DMS layer may reject a duplicate name |
 | DOC-76 | List files | staff1 | Files ordered by name; `q` filters; paging 50; response carries the current revision | `GET /api/v1/documents/<id>/files` | planned | |
 | DOC-77 | Files list with a stale `revision` query | hr_manager | 409 `conflict` | `GET /api/v1/documents/<id>/files` | planned | |
 | DOC-78 | Archived files are hidden from non-archivers | staff1 | Archived file is absent for readers and visible with the badge «المؤرشفة» for archivers | `GET /api/v1/documents/<id>/files` | planned | |
@@ -133,7 +133,7 @@ API errors quoted below are the server messages; the UI shows its own Arabic tex
 | DOC-99 | Archived document for a reader | staff1 | Direct link answers 404; absent from the list even with a grant | `GET /api/v1/documents/<id>` | planned | Archive holders still read it |
 | DOC-100 | Archive without archive capability or editor grant | custom role (documents.items.manage) | 403 | `POST /api/v1/documents/<id>/archive` | planned | |
 | DOC-101 | Archive or restore with a stale or missing revision | hr_manager | 409 `conflict` / 422 field `expected_revision` | `POST /api/v1/documents/<id>/restore` | planned | |
-| DOC-102 | Archive an already archived document through the API | hr_manager | Doubtful: accepted again and the revision grows; the UI offers only the valid action | `POST /api/v1/documents/<id>/archive` | decision | `models/document.py:_webvue_set_active` does not compare with the current state |
+| DOC-102 | Archive an already archived document through the API | hr_manager | Doubtful: accepted again and the revision grows; the UI offers only the valid action | `POST /api/v1/documents/<id>/archive` | decision | #161; `models/document.py:_webvue_set_active` does not compare with the current state |
 | DOC-103 | Archived documents keep their files and grants | hr_manager | After restore files and grants are unchanged | `POST /api/v1/documents/<id>/restore` | planned | |
 
 ## Visibility and grants

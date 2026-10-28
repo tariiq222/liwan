@@ -166,7 +166,7 @@ Every finance route is gated by the `finance.enabled` feature (403 `feature_not_
 | FIN-107 | Credit note list with filters like invoices | accountant | Title "إشعارات دائنة"; empty "لا توجد إشعارات دائنة بعد." | `page /finance/sales/credit-notes` | planned | |
 | FIN-108 | Create a draft credit note for a customer | accountant | Saved as `out_refund` draft; customer picker | `page /finance/sales/credit-notes/new` | planned | |
 | FIN-109 | Credit note record: post, cancel, reset, delete like an invoice | cfo | Same state machine and refusals | `page /finance/sales/credit-notes/[id]` | planned | |
-| FIN-110 | Create a credit note from a posted invoice so it is linked to it | cfo | A draft credit note with `reversed_entry` pointing to the invoice and copied lines | `POST /api/v1/finance/invoices` | gap | No route reverses an invoice and the serializer has no origin field; FIN-06 expects the link (only debit notes are linked) |
+| FIN-110 | Create a credit note from a posted invoice so it is linked to it | cfo | A draft credit note with `reversed_entry` pointing to the invoice and copied lines | `POST /api/v1/finance/invoices` | gap | #148; No route reverses an invoice and the serializer has no origin field; FIN-06 expects the link (only debit notes are linked) |
 | FIN-111 | ZATCA state of a posted Saudi credit note | cfo | Submit / retry offered as for an invoice | `GET /api/v1/finance/invoices/<id>/zatca` | planned | `out_refund` is in the ZATCA sale move types |
 
 ## Vendor bills (`/finance/purchases/bills`) and vendor refunds (`/finance/purchases/refunds`)
@@ -178,7 +178,7 @@ Every finance route is gated by the `finance.enabled` feature (403 `feature_not_
 | FIN-114 | Bill: vendor reference `ref` and due date | accountant | Saved on the draft; search by `ref` finds it | `PATCH /api/v1/finance/invoices/<id>` | planned | |
 | FIN-115 | Bill record: post (cfo), cancel, reset, delete | cfo | Same rules as invoices; accountant cannot post | `page /finance/purchases/bills/[id]` | planned | |
 | FIN-116 | Bill: the Post button never raises ZATCA errors | cfo | A purchase document is not a sale document, so `zatca_not_onboarded` never applies | `POST /api/v1/finance/invoices/<id>/post` | planned | |
-| FIN-117 | Bill takes its due date from a payment term | accountant | Due date follows the term | `GET /api/v1/finance/payment-terms` | gap | The invoice body has no payment-term key (see the payment terms section) |
+| FIN-117 | Bill takes its due date from a payment term | accountant | Due date follows the term | `GET /api/v1/finance/payment-terms` | gap | #149; The invoice body has no payment-term key (see the payment terms section) |
 | FIN-118 | Vendor refund list, create, record | accountant | Title "مرتجعات الموردين"; empty "لا توجد مرتجعات موردين بعد." | `page /finance/purchases/refunds` `page /finance/purchases/refunds/new` `page /finance/purchases/refunds/[id]` | planned | |
 | FIN-119 | Vendor refund received money: register payment direction is inbound | cfo | Payment form defaults to receipt | `page /finance/purchases/refunds/[id]` | planned | `in_refund` direction inbound |
 | FIN-120 | Debit note on a bill | cfo | Draft debit note linked to the bill | `POST /api/v1/finance/invoices/<id>/debit-note` | planned | |
@@ -431,7 +431,7 @@ month up to today; a report that ends on a day (`period: end`) sends only `date_
 | FIN-324 | Report with no data in the period | auditor | "لا توجد بيانات في هذه الفترة." | `page /finance/reports/[id]` | planned | |
 | FIN-325 | KPI tiles on a report follow the server totals and hide with the KPI toggle | auditor | Tiles match table totals | `page /finance/reports/[id]` | planned | |
 | FIN-326 | Report sidebar group: 13 links, each shown only with its capability | accountant | Accountant sees 12 (no zakat base); auditor sees all 13 (it holds analytic.read and budgets.read) | `cap finance.reports.read` `cap finance.statements.read` `cap finance.analytic.read` `cap finance.budgets.read` | planned | |
-| FIN-327 | Export or print any report (CSV, XLSX, PDF) | auditor | A downloadable copy of the figures on screen | `GET /api/v1/finance/reports/trial-balance` | gap | No report route or page action exports; FIN-14 says "exports" |
+| FIN-327 | Export or print any report (CSV, XLSX, PDF) | auditor | A downloadable copy of the figures on screen | `GET /api/v1/finance/reports/trial-balance` | gap | #150; No report route or page action exports; FIN-14 says "exports" |
 | FIN-328 | Reports use only the current company and company currency | cfo | Other company's figures never included; partner statement groups by document currency | `GET /api/v1/finance/reports/vat` | planned | |
 
 ## Zakat
@@ -520,7 +520,7 @@ month up to today; a report that ends on a day (`period: end`) sends only `date_
 | FIN-398 | Edit a company term | cfo | Lines replaced | `PATCH /api/v1/finance/payment-terms/<id>` | planned | |
 | FIN-399 | Edit, archive or restore a term shared by every company (from the chart) | cfo | 422 `shared_record` "cannot be changed here" | `POST /api/v1/finance/payment-terms/<id>/archive` | planned | Same refusal for edit and unarchive |
 | FIN-400 | Archive and restore an own term | cfo | Toggles the archived list | `POST /api/v1/finance/payment-terms/<id>/unarchive` | planned | |
-| FIN-401 | Apply a payment term to an invoice or bill | accountant | Due date follows the term | `GET /api/v1/finance/payment-terms` | gap | The invoice body has no payment-term key (`EDITABLE_FIELDS` in serializers/invoice.py), so the terms configured here have no consumer in Finance |
+| FIN-401 | Apply a payment term to an invoice or bill | accountant | Due date follows the term | `GET /api/v1/finance/payment-terms` | gap | #149; The invoice body has no payment-term key (`EDITABLE_FIELDS` in serializers/invoice.py), so the terms configured here have no consumer in Finance |
 | FIN-402 | Payment terms read by accountant and auditor, write refused | accountant | List readable; API writes 403 | `cap finance.payment_terms.read` `cap finance.payment_terms.manage` | planned | |
 | FIN-403 | Asset profiles page: list, archived toggle | cfo | Inline editor | `page /settings/apps/finance/asset-profiles` `GET /api/v1/finance/asset-profiles` | planned | |
 | FIN-404 | Asset profile detail | cfo | Accounts, journal, method, periods | `GET /api/v1/finance/asset-profiles/<id>` | planned | |
@@ -607,7 +607,7 @@ month up to today; a report that ends on a day (`period: end`) sends only `date_
 | FIN-465 | Audit empty | auditor | "لا توجد أحداث في السجل بعد." | `page /settings/apps/finance/audit` | planned | |
 | FIN-466 | Each action writes one event: invoice posted, entry posted, payment posted, chart loaded, year closed, ZATCA onboarded and submitted | cfo | One row per action with record and company | `GET /api/v1/finance/audit-events` | planned | |
 | FIN-467 | Audit rows are immutable | cfo | No route or page can edit or delete a row | `GET /api/v1/finance/audit-events` | planned | `audit_is_immutable` |
-| FIN-468 | Audit coverage of payment cancel / reset, asset create / validate / compute, budget changes, analytic and partner changes | cfo | Each logs an event, or the owner decides they do not | `GET /api/v1/finance/audit-events` | decision | No audit action exists for them (audit_event.py selection) |
+| FIN-468 | Audit coverage of payment cancel / reset, asset create / validate / compute, budget changes, analytic and partner changes | cfo | Each logs an event, or the owner decides they do not | `GET /api/v1/finance/audit-events` | decision | #166; No audit action exists for them (audit_event.py selection) |
 | FIN-469 | Accountant opens the audit page | accountant | Forbidden; API 403 | `cap finance.audit.read` | planned | |
 
 ## Capability matrix

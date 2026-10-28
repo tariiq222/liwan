@@ -14,7 +14,7 @@ Code checked 2026-10-28. Refusal codes are the ones the code raises; a UI string
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | PLT-01 | Login page shows the company name and logo | visitor | Company branding | `page /login` | manual 2026-10-28 | Title «شركة نخبة الأعمال للتقنية» |
-| PLT-02 | Unauthenticated visitor lands on login | visitor | `/login` | `page /login` | fail | `e2e/tests/smoke.e2e.ts`; 2026-10-28 run failed only because the default agent model is paid-only |
+| PLT-02 | Unauthenticated visitor lands on login | visitor | `/login` | `page /login` | fail | #133; `e2e/tests/smoke.e2e.ts`; 2026-10-28 run failed only because the default agent model is paid-only |
 | PLT-13 | Correct username and password | staff1 | Session cookie set, lands on `/` (first reachable page when the identity has no capability list) | `page /login`, `page /` | planned | `postLoginPath` in `app/utils/accessPolicy.ts` |
 | PLT-14 | Wrong password for an existing user | staff1 | Alert «بيانات الدخول غير صحيحة» (Nuxt POST /api/auth/login answers 401 `invalid_credentials`), still on `/login`, no session cookie | `page /login` | planned | |
 | PLT-15 | Unknown username | visitor | Same alert and same 401 as a wrong password; nothing tells the two apart | `page /login` | planned | `server/api/auth/login.post.ts` |
@@ -35,7 +35,7 @@ Code checked 2026-10-28. Refusal codes are the ones the code raises; a UI string
 | PLT-30 | Sign out from the account settings (button «تسجيل الخروج») | staff1 | Odoo session destroyed, cookie dropped (204); protected pages send the user to `/login` | `page /login` | planned | `server/api/auth/logout.post.ts` |
 | PLT-31 | Sign out while Odoo is unreachable | staff1 | 502 `logout_failed`; the browser cookie is kept (fail closed), the user is told it failed | `page /login` | planned | |
 | PLT-32 | Login or logout POST that is cross-site or not JSON | visitor | 403 `cross_site_request` / 415 `unsupported_media_type`; no cookie set | `page /login` | planned | `server/utils/same-site.ts`; API-level check |
-| PLT-33 | Many wrong passwords in a row | visitor | Expected policy: lockout or delay | `page /login` | decision | No throttle or lockout found in `apps/web/server` or `webvue_platform`; the edge may enforce one. Owner to decide |
+| PLT-33 | Many wrong passwords in a row | visitor | Expected policy: lockout or delay | `page /login` | decision | private security advisory GHSA-9xq5-v9r4-xfxc; No throttle or lockout found in `apps/web/server` or `webvue_platform`; the edge may enforce one. Owner to decide |
 | PLT-34 | Signed-out visit to `/invite/accept` | visitor | Opens without a session (the middleware skips it) | `page /invite/accept` | planned | Detail in SAAS-60 to SAAS-70 |
 | PLT-35 | Session expires while a form is open | staff1 | Next request 401 `unauthorized`; the user is sent to `/login?next=` the current page and the draft guard still protects unsaved input | `page /login` | planned | |
 
@@ -138,7 +138,7 @@ Kinds registered in `webvue.notify.registry`: `tasks.assigned` (feature `tasks.e
 | PLT-122 | Meeting row hidden without `meetings.read` or after cancelling the series | staff1 | Row not listed | `GET /api/v1/notifications` | planned | `readable_active_meeting_ids` |
 | PLT-123 | PMO task row hidden when the project is archived or the user lost read | staff1 | Row not listed, not counted | `GET /api/v1/notifications` | planned | `readable_active_task_ids` |
 | PLT-124 | Same event delivered twice | staff1 | One row (idempotent delivery key) | `GET /api/v1/notifications` | planned | Unique index on `webvue_notification_key` |
-| PLT-125 | A kind without a serializer | staff1 | Not reachable through the UI: a registered kind with no owner serializer raises a server error | `GET /api/v1/notifications` | decision | `WebVueNotifyRegistry._webvue_notify_dump` raises `ValueError`; confirm a guard test exists for every registered kind |
+| PLT-125 | A kind without a serializer | staff1 | Not reachable through the UI: a registered kind with no owner serializer raises a server error | `GET /api/v1/notifications` | decision | #167; `WebVueNotifyRegistry._webvue_notify_dump` raises `ValueError`; confirm a guard test exists for every registered kind |
 
 ## Notification actions
 
@@ -181,7 +181,7 @@ Kinds registered in `webvue.notify.registry`: `tasks.assigned` (feature `tasks.e
 | PLT-162 | `q` filter | staff1 | Case-insensitive match on the name; empty `q` returns everyone | `GET /api/v1/people` | planned | Arabic names too |
 | PLT-163 | Invalid `limit` | staff1 | 422 `invalid` «limit and offset must be non-negative integers», field `limit` | `GET /api/v1/people` | planned | |
 | PLT-164 | Excluded people | staff1 | Archived users, portal or public users and users of another company are never listed | `GET /api/v1/people` | planned | `_webvue_people_domain` |
-| PLT-165 | Vendor support accounts | it_admin | Expected: a vendor support user is not offered as a colleague | `GET /api/v1/people` | decision | The domain does not exclude `webvue_core.group_vendor_support` users, although user counting does (`webvue_directory/models/directory.py:27`, `entitlement_service.py` `_webvue_excluded_user_ids`). Owner to confirm |
+| PLT-165 | Vendor support accounts | it_admin | Expected: a vendor support user is not offered as a colleague | `GET /api/v1/people` | decision | private security advisory GHSA-9xq5-v9r4-xfxc; The domain does not exclude `webvue_core.group_vendor_support` users, although user counting does (`webvue_directory/models/directory.py:27`, `entitlement_service.py` `_webvue_excluded_user_ids`). Owner to confirm |
 | PLT-166 | Used by an assignee field | staff1 | Typing in the assignee field of a task, project or meeting shows the same list; choosing sends the user id | `GET /api/v1/people` | planned | |
 | PLT-167 | No application that picks people is entitled | staff1 | 403 `feature_not_included` | `GET /api/v1/people` | planned | `_webvue_directory_feature_keys` is empty until applications register |
 | PLT-168 | Read-only tenant | staff1 | Still works (read gate) | `GET /api/v1/people` | planned | |
@@ -276,7 +276,7 @@ employee role (`webvue_ai/models/access_service.py`); entitlements `ai.enabled` 
 | PLT-248 | Run API errors | staff1 | Service 404: 404 `not_found`; other upstream failure: 502 `ai_upstream`; run answered for another run id: 502 | `page /ai` | planned | |
 | PLT-249 | Arabic and English answers | staff1 | The run uses the `webvue-locale` cookie (`runLocale`) | `page /ai` | planned | |
 | PLT-250 | Assistant sheet in the header | staff1 | Same conversation, block «في هذه الصفحة الآن» (hide/show), empty text «لا شيء يحتاج انتباهك في هذه الصفحة.»; context chip names the current page | `page /ai` | planned | One of the four overlay exceptions in DESIGN.md |
-| PLT-251 | Starter «ما اجتماعاتي القادمة؟» | staff1 | Expected: the assistant can answer from meetings | `page /ai` | gap | The starter is static (`utils/aiSuggestions.ts`) but no meetings tool is registered; only `pmo.*` tools exist, so tasks personal, HR, finance and meetings have none |
+| PLT-251 | Starter «ما اجتماعاتي القادمة؟» | staff1 | Expected: the assistant can answer from meetings | `page /ai` | gap | #157; The starter is static (`utils/aiSuggestions.ts`) but no meetings tool is registered; only `pmo.*` tools exist, so tasks personal, HR, finance and meetings have none |
 | PLT-252 | Assistant never acts without confirmation | staff1 | No write tool runs without an approved card; drafts write nothing | `page /ai` | planned | Note on the page: «يقترح ويوضّح فقط...» |
 
 ## Feature switches, locale and layout
@@ -297,4 +297,4 @@ employee role (`webvue_ai/models/access_service.py`); entitlements `ai.enabled` 
 | PLT-268 | Phone width on search, apps and assistant | staff1 | No horizontal scroll; filters collapse | `page /search`, `page /apps`, `page /ai` | planned | |
 | PLT-269 | Keyboard use | staff1 | Row navigation in `/notifications` and `/search` works with the arrow keys; focus visible; dialogs trap focus | `page /notifications` | planned | `useRowNavigation` |
 | PLT-270 | Unknown page | staff1 | «الصفحة غير موجودة» with «العودة إلى الصفحة الرئيسية» | `page /` | planned | `errors.pageNotFoundTitle` |
-| PLT-271 | Rail link accessible names match their visible labels | staff1 | Screen readers and voice control announce the same name the rail shows | `page /` | fail | Found 2026-10-28 by `e2e/tests/access-matrix.e2e.ts`: «الموظفين» is announced «الموارد البشرية» and «المساعد» «WebVue AI» (`packages/ui/app/components/shell/ModuleRail.vue:43` uses `labelKey` for `aria-label`); WCAG 2.5.3 label in name |
+| PLT-271 | Rail link accessible names match their visible labels | staff1 | Screen readers and voice control announce the same name the rail shows | `page /` | fail | #137; Found 2026-10-28 by `e2e/tests/access-matrix.e2e.ts`: «الموظفين» is announced «الموارد البشرية» and «المساعد» «WebVue AI» (`packages/ui/app/components/shell/ModuleRail.vue:43` uses `labelKey` for `aria-label`); WCAG 2.5.3 label in name |

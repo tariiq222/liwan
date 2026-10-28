@@ -97,6 +97,13 @@ is reused between runs.
 - Never against `:3000`, `:8069` or the `odoo19` database; test data only.
 - A passing scenario proves the local isolated stack, not staging or production.
 
+## Problems found
+
+Every `fail`, `gap` and `decision` row names its GitHub issue (`#132`) in the notes; security
+findings are tracked in a private security advisory instead, never in a public issue. Fixes
+wait until the whole register has been run once; then each issue is fixed, its scenarios are
+run again and their rows updated.
+
 ## Adding or changing a scenario
 
 1. Add or edit the row in the application's file (new ID at the end of its prefix), with
