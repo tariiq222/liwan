@@ -18,8 +18,8 @@ class AppointmentTypeController(http.Controller):
     @requires_feature('appointments.enabled', operation='read')
     def list_types(self, **_):
         service = request.env['webvue.access.service']
-        if not service._webvue_has_capability(request.env.user, 'appointments.view'):
-            raise ApiError(403, 'forbidden', 'appointments.view capability is required')
+        if not service._webvue_has_capability(request.env.user, 'appointments.bookings.read'):
+            raise ApiError(403, 'forbidden', 'appointments.bookings.read capability is required')
         limit, offset = parse_page(request.httprequest.args)
         BookingType = request.env['resource.booking.type']
         domain = [('company_id', '=', request.env.company.id)]

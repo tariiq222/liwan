@@ -12,7 +12,7 @@ class WebVueAppointmentsCase(WebVueApiCase):
         super().setUpClass()
         service = cls.env['webvue.access.service']
         company = cls.env.company
-        # The built-in employee role grants appointments.view and the sync adds its group.
+        # The built-in employee role grants appointments.bookings.read and the sync adds its group.
         service._webvue_replace_assignments(cls.employee, [{
             'role_id': cls.env.ref('webvue_core.role_employee').id, 'company_id': company.id,
         }])
@@ -26,7 +26,7 @@ class WebVueAppointmentsCase(WebVueApiCase):
         }])
         cls.booker = new_test_user(
             cls.env, login='appointments_booker', name='Appointments Booker',
-            groups='webvue_core.group_employee,webvue_appointments.group_cap_appointments_book',
+            groups='webvue_core.group_employee,webvue_appointments.group_cap_appointments_bookings_write',
         )
         cls.outsider = new_test_user(
             cls.env, login='appointments_outsider', password='appointments_outsider_pass_123',

@@ -6,12 +6,12 @@ const manifest: AppManifest = {
   routePrefixes: ['/appointments'],
   rail: [{ id: 'appointments', labelKey: 'appointments.title', icon: 'i-lucide-calendar-clock', to: '/appointments', order: 80 }],
   nav: [
-    { to: '/appointments', labelKey: 'appointments.nav.types', icon: 'i-lucide-calendar-clock', shortcut: 'd', capability: 'appointments.view' },
+    { to: '/appointments', labelKey: 'appointments.nav.types', icon: 'i-lucide-calendar-clock', shortcut: 'd', capability: 'appointments.bookings.read' },
   ],
   contextLinks: () => [
-    { id: 'appointments-types', labelKey: 'appointments.nav.types', icon: 'i-lucide-calendar-clock', to: '/appointments', capability: 'appointments.view' },
+    { id: 'appointments-types', labelKey: 'appointments.nav.types', icon: 'i-lucide-calendar-clock', to: '/appointments', capability: 'appointments.bookings.read' },
   ],
-  landing: [{ path: '/appointments', capability: 'appointments.view' }],
-  routeCapabilities: [{ pattern: /^\/appointments(?:\/|$)/, capability: 'appointments.view' }],
+  landing: [{ path: '/appointments', capability: 'appointments.bookings.read' }],
+  routeCapabilities: [{ pattern: /^\/appointments(?:\/|$)/, capability: 'appointments.bookings.read' }],
 }
 export default manifest

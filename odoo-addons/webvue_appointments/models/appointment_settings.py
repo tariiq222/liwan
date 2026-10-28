@@ -2,7 +2,7 @@
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
 
-SETTINGS_CAPABILITIES = ('appointments.view', 'appointments.book', 'appointments.manage')
+SETTINGS_CAPABILITIES = ('appointments.bookings.read', 'appointments.bookings.write', 'appointments.bookings.manage')
 FIELD_REQUIREMENTS = (('required', 'Required'), ('optional', 'Optional'), ('hidden', 'Hidden'))
 SELF_BOOKING_POLICIES = (('invite_only', 'Invite only'), ('open', 'Open'))
 SECTOR_PRESETS = (('general', 'General'), ('clinic', 'Clinic'), ('services', 'Services'))
@@ -112,14 +112,14 @@ class WebVueAppointmentSettings(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         if not self.env.is_superuser():
-            self._webvue_require_current_company('appointments.manage')
+            self._webvue_require_current_company('appointments.bookings.manage')
             if any(vals.get('company_id') != self.env.company.id for vals in vals_list):
                 raise AccessError(self.env._('appointment settings belong to the current company'))
         return super().create(vals_list)
 
     def write(self, vals):
         if not self.env.is_superuser():
-            self._webvue_require_current_company('appointments.manage')
+            self._webvue_require_current_company('appointments.bookings.manage')
             if any(row.company_id != self.env.company for row in self) or (
                 'company_id' in vals and vals['company_id'] != self.env.company.id
             ):

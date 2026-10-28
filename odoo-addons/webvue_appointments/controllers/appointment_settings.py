@@ -23,19 +23,19 @@ class AppointmentSettingsController(http.Controller):
     @http.route('/api/v1/appointments/settings', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('appointments.enabled', operation='read')
-    @requires_capability('appointments.view', 'appointments.book', 'appointments.manage', match='any')
+    @requires_capability('appointments.bookings.read', 'appointments.bookings.write', 'appointments.bookings.manage', match='any')
     def get_settings(self, **_):
         return dump_settings(request.env['webvue.appointment.settings']._webvue_current())
 
     @http.route('/api/v1/appointments/settings', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
     @requires_feature('appointments.enabled', operation='write')
-    @requires_capability('appointments.manage')
+    @requires_capability('appointments.bookings.manage')
     def patch_settings(self, **payload):
         parsed = parse_settings(payload)
         revision = parsed['revision']
         model = request.env['webvue.appointment.settings']
-        model._webvue_require_current_company('appointments.manage')
+        model._webvue_require_current_company('appointments.bookings.manage')
         row = model._webvue_current()
         if revision != (row.revision if row else 0):
             raise ApiError(409, 'conflict', STALE_MESSAGE)

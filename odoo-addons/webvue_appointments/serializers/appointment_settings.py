@@ -35,7 +35,7 @@ def parse_settings(payload):
         raise ApiError(422, 'invalid', 'revision must be a nonnegative integer', field='revision')
     values = {}
     if 'preset' in payload:
-        if payload['preset'] not in PRESETS:
+        if not isinstance(payload['preset'], str) or payload['preset'] not in PRESETS:
             raise ApiError(422, 'invalid', 'choose a listed preset', field='preset')
         values.update(PRESETS[payload['preset']], sector_preset=payload['preset'])
     for name in WRITABLE_FIELDS:
