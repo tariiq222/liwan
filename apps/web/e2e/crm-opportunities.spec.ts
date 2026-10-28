@@ -50,6 +50,20 @@ test('list, due filter, no-answer call, then a sale', async ({ page }) => {
   await expect(page.getByTestId('crm-call-form')).toHaveCount(0)
 })
 
+test('the status filter finds won and lost opportunities, which the default list leaves out', async ({ page }) => {
+  await page.goto('/crm/opportunities')
+  await expect(page.getByRole('link', { name: 'أحمد العتيبي' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'ريم السبيعي' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'فهد الحربي' })).toHaveCount(0)
+  await page.getByTestId('crm-filter-status').click()
+  await page.getByRole('option', { name: 'خاسرة' }).click()
+  await expect(page).toHaveURL(/status=lost/)
+  await expect(page.getByRole('link', { name: 'ريم السبيعي' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'أحمد العتيبي' })).toHaveCount(0)
+  await page.goto('/crm/opportunities?status=won')
+  await expect(page.getByRole('link', { name: 'فهد الحربي' })).toBeVisible()
+})
+
 test('the board lists the four stages and the stage filter survives back navigation', async ({ page }) => {
   await page.goto('/crm/opportunities?view=board')
   for (const id of [1, 2, 3, 4]) await expect(page.getByTestId(`crm-board-column-${id}`)).toBeVisible()

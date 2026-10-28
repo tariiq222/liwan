@@ -43,9 +43,16 @@ def find_opportunity(lead_id):
     return lead.with_context(active_test=True)
 
 
-def filter_domain(filters):
+STATUS_WON_STATUS = {'open': 'pending', 'won': 'won', 'lost': 'lost'}
+
+
+def filter_domain(filters, default_status='open'):
+    """The domain of the list filters; ``status`` (open, won, lost or all) falls back to ``default_status``."""
     domain = [(name, '=', filters[name]) for name in ('stage_id', 'user_id', 'source_id') if name in filters]
     now = fields.Datetime.now()
+    status = filters.get('status', default_status)
+    if status != 'all':
+        domain.append(('won_status', '=', STATUS_WON_STATUS[status]))
     if 'due' in filters:
         domain += [('webvue_next_call_at', '<=', now)] if filters['due'] else [
             '|', ('webvue_next_call_at', '=', False), ('webvue_next_call_at', '>', now),
@@ -139,9 +146,11 @@ class CrmOpportunitiesController(http.Controller):
     @requires_capability('crm.leads.read')
     def list_opportunities(self, **_):
         args = request.httprequest.args
-        domain = [*visible_domain(), *filter_domain(parse_list_filters(args))]
+        filters = parse_list_filters(args)
+        domain = [*visible_domain(), *filter_domain(filters)]
         limit, offset = parse_page(args)
-        Lead = request.env['crm.lead']
+        # Lost opportunities are archived, so they are searched with the archive filter off.
+        Lead = request.env['crm.lead'].with_context(active_test=filters.get('status') not in ('lost', 'all'))
         return {
             'items': [dump_opportunity(lead) for lead in Lead.search(domain, limit=limit, offset=offset, order=ORDER)],
             'total': Lead.search_count(domain),

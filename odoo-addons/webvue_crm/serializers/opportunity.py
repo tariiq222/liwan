@@ -15,6 +15,7 @@ PATCH_FIELDS = ('contact_name', 'phone', 'email', 'source_id', 'stage_id')
 REQUIRED_ON_CREATE = ('contact_name', 'phone')
 BOOLEAN_FILTERS = ('due', 'unassigned', 'needs_manager')
 ID_FILTERS = ('stage_id', 'user_id', 'source_id')
+STATUS_FILTERS = ('open', 'won', 'lost', 'all')
 
 
 def ref(record):
@@ -111,7 +112,7 @@ def parse_opportunity_body(payload, creating):
 
 
 def parse_list_filters(args):
-    """Typed list filters from the query string: ids, booleans and the search text ``q``."""
+    """Typed list filters from the query string: ids, booleans, ``status`` and the search text ``q``."""
     filters = {}
     for name in ID_FILTERS:
         if name in args:
@@ -124,6 +125,10 @@ def parse_list_filters(args):
             if args[name] not in ('true', 'false'):
                 raise ApiError(422, 'invalid', 'must be true or false', field=name)
             filters[name] = args[name] == 'true'
+    if 'status' in args:
+        if args['status'] not in STATUS_FILTERS:
+            raise ApiError(422, 'invalid', 'must be open, won, lost or all', field='status')
+        filters['status'] = args['status']
     if args.get('q'):
         filters['q'] = args['q'].strip()[:NAME_MAX]
     return filters

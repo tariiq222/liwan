@@ -37,6 +37,7 @@ const recordTo = (item: CrmOpportunity) => ({ path: `${CRM_LIST_PATH}/${item.id}
 const ALL = 'all'
 const stageItems = computed(() => [{ value: ALL, label: t('crm.opportunities.list.allStages') }, ...(stages.data.value?.items ?? []).map(stage => ({ value: String(stage.id), label: stage.name }))])
 const sourceItems = computed(() => [{ value: ALL, label: t('crm.opportunities.list.allSources') }, ...(sources.data.value?.items ?? []).map(source => ({ value: String(source.id), label: source.name }))])
+const statusItems = computed(() => ['open', 'won', 'lost', 'all'].map(value => ({ value, label: t(`crm.opportunities.list.status.${value}`) })))
 const choice = (value: unknown) => (value === ALL || value === undefined || value === null ? undefined : String(value))
 const agent = computed({
   get: () => filters.value.user_id ?? null,
@@ -51,7 +52,7 @@ const unassigned = flag('unassigned')
 const needsManager = flag('needs_manager')
 function clearFilters() {
   search.value = ''
-  void update({ q: undefined, stage_id: undefined, source_id: undefined, user_id: undefined, due: undefined, unassigned: undefined, needs_manager: undefined, page: undefined })
+  void update({ q: undefined, stage_id: undefined, source_id: undefined, user_id: undefined, due: undefined, unassigned: undefined, needs_manager: undefined, status: undefined, page: undefined })
 }
 
 const columns = computed<TableColumn<CrmOpportunity>[]>(() => [
@@ -75,6 +76,7 @@ const statusTone = (item: CrmOpportunity) => (item.status === 'won' ? 'success' 
         </template>
         <USelect class="w-full md:w-44" :model-value="String(filters.stage_id ?? ALL)" :items="stageItems" :aria-label="t('crm.opportunities.list.stage')" :disabled="!hydrated" @update:model-value="value => update({ stage_id: choice(value), page: undefined })" />
         <USelect class="w-full md:w-44" :model-value="String(filters.source_id ?? ALL)" :items="sourceItems" :aria-label="t('crm.opportunities.list.source')" :disabled="!hydrated" @update:model-value="value => update({ source_id: choice(value), page: undefined })" />
+        <USelect class="w-full md:w-40" :model-value="filters.status ?? 'open'" :items="statusItems" :aria-label="t('crm.opportunities.list.statusFilter')" :disabled="!hydrated" data-testid="crm-filter-status" @update:model-value="value => update({ status: value === 'open' ? undefined : String(value), page: undefined })" />
         <SharedPersonPicker v-if="canAssign" v-model="agent" value-key="user_id" class="w-full md:w-52" :placeholder="t('crm.opportunities.list.agentPicker')" :aria-label="t('crm.opportunities.list.agent')" :disabled="!hydrated" />
         <USwitch v-model="due" :label="t('crm.opportunities.list.due')" :disabled="!hydrated" data-testid="crm-filter-due" />
         <template v-if="canAssign">

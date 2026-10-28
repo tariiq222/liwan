@@ -1,8 +1,10 @@
 import type { CrmOpportunity, CrmOpportunityFilters, CrmStage } from '@webvue/contracts'
 
 export const CRM_LIST_PATH = '/crm/opportunities'
-const LIST_QUERY_KEYS = ['q', 'stage_id', 'user_id', 'source_id', 'due', 'unassigned', 'needs_manager', 'view', 'page'] as const
+const LIST_QUERY_KEYS = ['q', 'stage_id', 'user_id', 'source_id', 'due', 'unassigned', 'needs_manager', 'status', 'view', 'page'] as const
 const FLAG_FILTERS = ['due', 'unassigned', 'needs_manager'] as const
+// `open` is the server default, so only the other choices are kept in the address.
+const LIST_STATUSES = ['won', 'lost', 'all'] as const
 const ID_FILTERS = ['stage_id', 'user_id', 'source_id'] as const
 
 type Query = Record<string, unknown>
@@ -22,6 +24,8 @@ export function opportunityFilters(query: Query): CrmOpportunityFilters {
     if (id) filters[key] = id
   }
   for (const key of FLAG_FILTERS) if (first(query[key]) === '1') filters[key] = true
+  const status = first(query.status)
+  if (LIST_STATUSES.some(value => value === status)) filters.status = status as (typeof LIST_STATUSES)[number]
   const text = first(query.q)
   if (typeof text === 'string' && text.trim()) filters.q = text.trim().slice(0, 200)
   return filters

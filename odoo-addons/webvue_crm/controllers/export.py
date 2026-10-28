@@ -26,7 +26,7 @@ class CrmExportController(http.Controller):
     @requires_capability('crm.leads.export')
     def export_opportunities(self, **_):
         """Every opportunity the caller reads (open, won and lost) that the list filters keep."""
-        domain = [*visible_domain(), *filter_domain(parse_list_filters(request.httprequest.args))]
+        domain = [*visible_domain(), *filter_domain(parse_list_filters(request.httprequest.args), default_status='all')]
         leads = request.env['crm.lead'].with_context(active_test=False).search(domain, order=ORDER)
         filename = f'crm-opportunities-{fields.Date.context_today(leads)}.csv'
         return request.make_response(export_csv(leads), headers=[

@@ -201,6 +201,27 @@ class TestCrmOpportunities(WebVueCrmCase):
         response = manager.api('GET', f'{URL}?due=maybe')
         self.assertEqual((response.status_code, response.json()['field']), (422, 'due'))
 
+    def test_list_status_filter_defaults_to_open_and_finds_won_and_lost(self):
+        open_lead = self.make_lead(self.agent, contact_name='Open')
+        won = self.make_lead(self.agent, contact_name='Won')
+        won.action_set_won()
+        lost = self.make_lead(self.agent, contact_name='Lost')
+        lost.action_set_lost()
+        manager = self.as_manager()
+
+        def ids(query=''):
+            items = manager.api('GET', f'{URL}{query}').json()['items']
+            return {item['id'] for item in items} & {open_lead.id, won.id, lost.id}
+
+        self.assertEqual(ids(), {open_lead.id})
+        self.assertEqual(ids('?status=open'), {open_lead.id})
+        self.assertEqual(ids('?status=won'), {won.id})
+        self.assertEqual(ids('?status=lost'), {lost.id})
+        self.assertEqual(ids('?status=all'), {open_lead.id, won.id, lost.id})
+        response = manager.api('GET', f'{URL}?status=maybe')
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'status'))
+        self.assertEqual(self.as_agent().api('GET', f'{URL}?status=lost').json()['total'] >= 1, True)
+
     # View log
 
     def test_view_log_is_written_only_when_enabled(self):

@@ -147,6 +147,8 @@
         "allSources": "كل المصادر",
         "agent": "المسؤول",
         "agentPicker": "اختر المسؤول",
+        "statusFilter": "الحالة",
+        "status": { "open": "مفتوحة", "won": "مُباعة", "lost": "خاسرة", "all": "الكل" },
         "due": "المتابعة المستحقة",
         "unassigned": "بلا مسؤول",
         "needsManager": "تحتاج قرار المدير",

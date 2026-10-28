@@ -62,6 +62,9 @@ export const CrmOpportunityPatchSchema = z
   .partial()
   .refine((body) => Object.keys(body).length > 0, 'nothing to change')
 
+// `open` is the server's default: pending opportunities only. Lost ones are archived, so `lost` and `all` reach them.
+export const CrmOpportunityListStatusSchema = z.enum(['open', 'won', 'lost', 'all'])
+
 export const CrmOpportunityFiltersSchema = z.strictObject({
   stage_id: z.number().int().positive().optional(),
   user_id: z.number().int().positive().optional(),
@@ -69,6 +72,7 @@ export const CrmOpportunityFiltersSchema = z.strictObject({
   due: z.boolean().optional(),
   unassigned: z.boolean().optional(),
   needs_manager: z.boolean().optional(),
+  status: CrmOpportunityListStatusSchema.optional(),
   q: z.string().max(NAME_MAX).optional(),
 })
 

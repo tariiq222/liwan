@@ -125,7 +125,9 @@ function filterOpportunities(url) {
   const param = name => url.searchParams.get(name)
   const q = (param('q') ?? '').trim().toLowerCase()
   const now = Date.now()
-  return opportunities.filter(item => item.active
+  const status = param('status') ?? 'open'
+  return opportunities.filter(item => (status === 'all' || (status === 'open' ? item.status === 'pending' : item.status === status))
+    && (status === 'lost' || status === 'all' || item.active)
     && (!param('stage_id') || item.stage?.id === Number(param('stage_id')))
     && (!param('user_id') || item.user?.id === Number(param('user_id')))
     && (!param('source_id') || item.source?.id === Number(param('source_id')))

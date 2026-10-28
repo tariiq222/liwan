@@ -147,6 +147,8 @@
         "allSources": "All sources",
         "agent": "Agent",
         "agentPicker": "Choose an agent",
+        "statusFilter": "Status",
+        "status": { "open": "Open", "won": "Won", "lost": "Lost", "all": "All" },
         "due": "Follow-up due",
         "unassigned": "No agent",
         "needsManager": "Needs a manager",

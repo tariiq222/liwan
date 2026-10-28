@@ -8,6 +8,14 @@ describe('opportunityFilters', () => {
   it('ignores bad ids, other flag values and empty text', () => {
     expect(opportunityFilters({ stage_id: 'x', source_id: '-1', due: '0', needs_manager: 'yes', q: '   ' })).toEqual({})
   })
+  it('keeps the won, lost and all statuses, and drops open and anything else', () => {
+    expect(opportunityFilters({ status: 'lost' })).toEqual({ status: 'lost' })
+    expect(opportunityFilters({ status: ['won'] })).toEqual({ status: 'won' })
+    expect(opportunityFilters({ status: 'all' })).toEqual({ status: 'all' })
+    expect(opportunityFilters({ status: 'open' })).toEqual({})
+    expect(opportunityFilters({ status: 'x' })).toEqual({})
+    expect(opportunityListLocation({ status: 'lost', page: '2' })).toBe('/crm/opportunities?status=lost&page=2')
+  })
   it('counts every active filter', () => {
     expect(activeFilterCount({ stage_id: '1', due: '1', page: '3', view: 'board' })).toBe(2)
   })

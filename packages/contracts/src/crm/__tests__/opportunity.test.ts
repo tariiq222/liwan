@@ -1,5 +1,6 @@
 import {
   CrmOpportunityCreateSchema,
+  CrmOpportunityFiltersSchema,
   CrmOpportunityListSchema,
   CrmOpportunityPatchSchema,
   CrmOpportunityWriteReasonSchema,
@@ -70,5 +71,10 @@ describe('CrmOpportunityWriteReasonSchema', () => {
   it('lists the codes of a refused phone or email', () => {
     expect(CrmOpportunityWriteReasonSchema.options).toEqual(['invalid_phone', 'duplicate_phone', 'invalid_email'])
     expect(() => CrmOpportunityWriteReasonSchema.parse('duplicate phone')).toThrow()
+  })
+
+  it('filters the list by status: open, won, lost or all', () => {
+    for (const status of ['open', 'won', 'lost', 'all']) expect(CrmOpportunityFiltersSchema.parse({ status })).toEqual({ status })
+    expect(() => CrmOpportunityFiltersSchema.parse({ status: 'pending' })).toThrow()
   })
 })
