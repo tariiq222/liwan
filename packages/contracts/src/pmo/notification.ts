@@ -1,6 +1,8 @@
 import { z } from 'zod'
-import { IDENTIFIER_PATTERN } from '../access'
 import { TaskSchema } from './task'
+
+// A registered kind: snake_case words, optionally dotted by application (`tasks.assigned`, `crm.assigned`).
+const NOTIFICATION_KIND_PATTERN = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/
 
 export const TaskNotificationKindSchema = z.enum(['assignment', 'comment', 'mention', 'deadline', 'tasks.assigned'])
 export const ProjectNotificationKindSchema = z.enum(['charter_review', 'charter_approved', 'charter_returned'])
@@ -105,7 +107,7 @@ const KNOWN_NOTIFICATION_KINDS: ReadonlySet<string> = new Set(NotificationKindSc
  */
 export const UnknownNotificationSchema = z.object({
   id: z.number().int().positive(),
-  kind: z.string().regex(IDENTIFIER_PATTERN).refine(
+  kind: z.string().regex(NOTIFICATION_KIND_PATTERN).refine(
     (kind) => !KNOWN_NOTIFICATION_KINDS.has(kind),
     { message: 'a known notification kind must match its own shape' },
   ),
