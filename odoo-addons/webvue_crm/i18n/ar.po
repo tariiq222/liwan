@@ -1,0 +1,80 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* webvue_crm
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"Last-Translator: WebVue\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. module: webvue_crm
+#: model:crm.stage,name:webvue_crm.stage_new
+msgid "New"
+msgstr "جديد"
+
+#. module: webvue_crm
+#: model:crm.stage,name:webvue_crm.stage_contacted
+msgid "Contacted"
+msgstr "تم التواصل"
+
+#. module: webvue_crm
+#: model:crm.stage,name:webvue_crm.stage_interested
+msgid "Interested"
+msgstr "مهتم"
+
+#. module: webvue_crm
+#: model:crm.stage,name:webvue_crm.stage_won
+msgid "Won"
+msgstr "تم البيع"
+
+#. module: webvue_crm
+#: model:crm.lost.reason,name:webvue_crm.lost_reason_attempts_exhausted
+msgid "Contact attempts exhausted"
+msgstr "انتهت محاولات التواصل"
+
+#. module: webvue_crm
+#: model:webvue.crm.call.outcome,name:webvue_crm.outcome_no_answer
+msgid "No answer"
+msgstr "لم يرد"
+
+#. module: webvue_crm
+#: model:webvue.crm.call.outcome,name:webvue_crm.outcome_thinking
+msgid "Will think about it"
+msgstr "سيفكر"
+
+#. module: webvue_crm
+#: model:webvue.crm.call.outcome,name:webvue_crm.outcome_call_later
+msgid "Asked to call later"
+msgstr "طلب الاتصال لاحقًا"
+
+#. module: webvue_crm
+#: model:webvue.crm.call.outcome,name:webvue_crm.outcome_sold
+msgid "Sold"
+msgstr "تم البيع"
+
+#. module: webvue_crm
+#: model:webvue.crm.call.outcome,name:webvue_crm.outcome_not_interested
+msgid "Not interested"
+msgstr "غير مهتم"
+
+#. module: webvue_crm
+#: model:webvue.crm.call.outcome,name:webvue_crm.outcome_wrong_number
+msgid "Wrong number"
+msgstr "رقم خاطئ"
+
+#. module: webvue_crm
+#. odoo-python
+#: code:addons/webvue_crm/models/call_outcome.py:0
+msgid "Only a lost outcome can carry a lost reason."
+msgstr "لا يمكن ربط سبب الخسارة إلا بنتيجة من نوع خسارة."
+
+#. module: webvue_crm
+#. odoo-python
+#: code:addons/webvue_crm/models/call_outcome.py:0
+msgid "The lost reason of an outcome must be active."
+msgstr "يجب أن يكون سبب الخسارة في النتيجة مفعّلًا."
