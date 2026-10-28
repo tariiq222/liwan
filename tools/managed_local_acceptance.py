@@ -57,7 +57,7 @@ def main():
     images = {}
     for key, tag in {'odoo': 'webvue-acceptance-odoo:d780862e',
                      'web': 'webvue-acceptance-web:d780862e',
-                     'proxy': 'caddy:2.11.4', 'db': 'postgres:16'}.items():
+                     'proxy': 'caddy:2.11.7', 'db': 'postgres:16'}.items():
         code, output, _ = runner(['docker', 'image', 'inspect', tag])
         if code:
             sys.exit('local image unavailable')
