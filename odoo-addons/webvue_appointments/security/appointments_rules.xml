@@ -23,6 +23,18 @@
         <field name="domain_force">[('company_id', '=', company_id)]</field>
     </record>
 
+    <!-- Resources: the manage capability writes and creates material resources (rooms, devices) only.
+         Employee resources belong to HR; the rule has no read or unlink part, so reading stays open and
+         deleting stays denied by the ACL. -->
+    <record id="rule_resource_resource_material_manage" model="ir.rule">
+        <field name="name">Appointments manage: material resources only</field>
+        <field name="model_id" ref="resource.model_resource_resource"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_appointments_bookings_manage'))]"/>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="domain_force">[('resource_type', '=', 'material')]</field>
+    </record>
+
     <!-- Record scope: view sees its own and assigned bookings (the engine's own rule domain);
          book and manage see every booking of the company.
          WARNING: the book and manage rules are [(1, '=', 1)] and the company rules above follow
