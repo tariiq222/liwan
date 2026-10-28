@@ -49,17 +49,18 @@ describe('gateway callback relay', () => {
     }
   })
 
-  it('passes a refused return through instead of redirecting', async () => {
+  it('still sends the payer to the status page when Odoo refuses the return', async () => {
     forward.mockResolvedValue(new Response('', { status: 403 }))
     await relay('paymob', 'return', { method: 'GET', cookie: 'webvue_pay_return=7.tok' })
-    expect(h3.sendWebResponse).toHaveBeenCalledTimes(1)
-    expect(h3.sendRedirect).not.toHaveBeenCalled()
+    expect(h3.sendWebResponse).not.toHaveBeenCalled()
+    expect(h3.sendRedirect).toHaveBeenCalledWith(expect.anything(), '/pay/invoice/7/status?access_token=tok', 303)
   })
 
   it('refuses unknown kinds, malformed codes and wrong methods before reaching Odoo', async () => {
     await expect(relay('paymob', 'refund')).rejects.toMatchObject({ statusCode: 404 })
     await expect(relay('Pay-Mob', 'webhook')).rejects.toMatchObject({ statusCode: 404 })
     await expect(relay('paymob', 'webhook', { method: 'GET' })).rejects.toMatchObject({ statusCode: 405 })
+    await expect(relay('paymob', 'return', { method: 'POST' })).rejects.toMatchObject({ statusCode: 405 })
     expect(forward).not.toHaveBeenCalled()
   })
 })

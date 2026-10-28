@@ -3,7 +3,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../useApi'
 import { usePaymentLinkAction } from '../usePaymentLinks'
 
-const mocks = vi.hoisted(() => ({ api: vi.fn(), toast: vi.fn(), writeText: vi.fn(), can: vi.fn() }))
+const mocks = vi.hoisted(() => ({ api: vi.fn(), toast: vi.fn(), writeText: vi.fn(), can: vi.fn(), writable: vi.fn(), feature: vi.fn() }))
+vi.mock('@/utils/accessPolicy', () => ({ canReach: (_identity: unknown, capability: string) => mocks.can(capability) }))
+vi.mock('@/modules/registry', () => ({
+  canUse: (_identity: unknown, capability: string, write: boolean) => mocks.writable(capability, write),
+  hasFeature: (_identity: unknown, feature: string, write: boolean) => mocks.feature(feature, write),
+}))
 vi.mock('@tanstack/vue-query', async original => ({
   ...await original<object>(),
   useMutation: (options: { mutationFn: (input: number) => Promise<unknown> }) => ({ mutateAsync: options.mutationFn, isPending: ref(false) }),
@@ -20,12 +25,14 @@ const MESSAGES: Record<string, string> = {
   'errors.generic': 'حدث خطأ',
 }
 
-function setup(invoice: unknown = OWING, capable = true) {
+function setup(invoice: unknown = OWING, capable = true, featureOpen = true) {
   mocks.can.mockImplementation((capability: string) => capable && capability === 'payments.links.manage')
+  mocks.writable.mockImplementation((_capability: string, write: boolean) => write)
+  mocks.feature.mockImplementation((feature: string, write: boolean) => featureOpen && feature === 'payments.enabled' && write)
+  vi.stubGlobal('useMe', () => ({ me: ref({ id: 1 }) }))
   vi.stubGlobal('useApi', () => ({ $api: mocks.api }))
   vi.stubGlobal('useI18n', () => ({ t: (key: string) => MESSAGES[key] ?? key }))
   vi.stubGlobal('useToast', () => ({ add: mocks.toast }))
-  vi.stubGlobal('useAccess', () => ({ can: mocks.can }))
   vi.stubGlobal('window', { location: { origin: 'https://acme.webvue.example' } })
   vi.stubGlobal('navigator', { clipboard: { writeText: mocks.writeText } })
   return usePaymentLinkAction(() => invoice as never)
@@ -45,6 +52,11 @@ describe('usePaymentLinkAction', () => {
     expect(setup(OWING, false).offered.value).toBe(false)
     expect(setup({ ...OWING, payment_state: 'paid', amount_residual: 0 }).offered.value).toBe(false)
     expect(setup(null).offered.value).toBe(false)
+  })
+
+  it('is not offered while the payments feature is closed for writing', () => {
+    expect(setup(OWING, true, false).offered.value).toBe(false)
+    expect(mocks.feature).toHaveBeenCalledWith('payments.enabled', true)
   })
 
   it('creates the link for the invoice, copies its address on the browser\'s own origin and says so', async () => {

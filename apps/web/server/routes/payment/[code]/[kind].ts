@@ -8,7 +8,9 @@ import { forwardPublicApi } from '../../../utils/publicApi'
 // query, body, content type) to the one Odoo dispatch route, which hands them to the stock
 // provider controller. No guard layer opens a /payment path of its own.
 const CODE = /^[a-z][a-z0-9_]{0,31}$/
-const METHODS: Record<string, readonly string[]> = { webhook: ['POST'], return: ['GET', 'POST'] }
+// Returns are GET navigations: a cross-site POST would not carry the SameSite=Lax return cookie, and
+// the internal hop to Odoo accepts JSON bodies only. A gateway that returns by POST needs its own decision.
+const METHODS: Record<string, readonly string[]> = { webhook: ['POST'], return: ['GET'] }
 const MAX_CALLBACK_BODY = 64 * 1024
 
 const notFound = () => createError({ statusCode: 404, data: { code: 'not_found', message: 'Not found' } })
@@ -29,10 +31,11 @@ export default defineEventHandler(async (event) => {
     const body = await boundedTenantBody(event, MAX_CALLBACK_BODY)
     return withTenantResponse(event, 'public', async () => {
       const response = await forwardPublicApi(event, odooUrl, path, { method: event.method, body })
-      if (kind === 'webhook' || !response.ok) return sendWebResponse(event, response)
+      if (kind === 'webhook') return sendWebResponse(event, response)
       await response.body?.cancel()
-      // The payer is back from the gateway page: send them to the status page of the invoice they
-      // were paying, which the pay page remembered before leaving.
+      // The payer is back from the gateway page, whatever Odoo made of the return (a refused return
+      // changes nothing): send them to the status page of the invoice they were paying, which reads
+      // the real state from the server. The pay page remembered the invoice before leaving.
       const back = decodePayReturn(getCookie(event, PAY_RETURN_COOKIE))
       deleteCookie(event, PAY_RETURN_COOKIE, { path: PAY_RETURN_COOKIE_PATH })
       const target = back

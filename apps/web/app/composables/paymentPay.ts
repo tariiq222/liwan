@@ -62,7 +62,7 @@ export function payReturnCookie(link: PayLink, secure: boolean): string {
 /** The gateway's address; the browser is only ever sent to a web page, whatever the server's text says. */
 export function gatewayUrl(redirect: GatewayRedirect): URL {
   const url = new URL(redirect.url)
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new Error('The gateway redirect must be a web address')
+  if (url.protocol !== 'https:') throw new Error('The gateway redirect must be a secure web address')
   return url
 }
 

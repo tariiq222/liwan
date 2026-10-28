@@ -2,7 +2,12 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation } from '@tanstack/vue-query'
 import { PaymentLinkSchema } from '@webvue/contracts'
 import { ApiError } from './useApi'
+import { canReach } from '@/utils/accessPolicy'
+import { canUse, hasFeature } from '@/modules/registry'
 import { canOfferPaymentLink, paymentLinkErrorKey, paymentLinkUrl, type PaymentLinkInvoice } from './paymentLinks'
+
+const LINKS_MANAGE = 'payments.links.manage'
+const PAYMENTS_FEATURE = 'payments.enabled'
 
 /** Create the link a customer pays an invoice by. The same invoice always answers its same link. */
 export function useCreatePaymentLink() {
@@ -20,9 +25,15 @@ export function useCreatePaymentLink() {
 export function usePaymentLinkAction(invoice: MaybeRefOrGetter<PaymentLinkInvoice | null | undefined>) {
   const { t } = useI18n()
   const toast = useToast()
-  const { can } = useAccess()
+  const { me } = useMe()
   const create = useCreatePaymentLink()
-  const offered = computed(() => can('payments.links.manage') && canOfferPaymentLink(toValue(invoice)))
+  // Creating a link writes (it may mint the invoice's token): it needs the capability usable for
+  // writing and the payments feature open for writing, as the server checks.
+  const offered = computed(() => {
+    const identity = me.value
+    return canReach(identity, LINKS_MANAGE) && canUse(identity, LINKS_MANAGE, true)
+      && hasFeature(identity, PAYMENTS_FEATURE, true) && canOfferPaymentLink(toValue(invoice))
+  })
 
   function failureText(error: unknown): string {
     const key = paymentLinkErrorKey(error)
