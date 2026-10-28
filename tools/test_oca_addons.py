@@ -142,14 +142,17 @@ class PinFileTest(unittest.TestCase):
         for part in oca_addons.image_path().split(','):
             self.assertTrue(part.startswith('/opt/oca/'))
 
-    def test_python_requirements_are_satisfied_by_the_odoo_requirements_file(self):
+    def test_python_requirements_are_satisfied_by_the_odoo_requirements_files(self):
         data = json.loads(oca_addons.PINS.read_text(encoding='utf-8'))
-        text = (oca_addons.REPO / 'deploy' / 'odoo' / 'requirements-python312-linux.txt').read_text(encoding='utf-8')
-        pinned = {re.split(r'[=<>~!\[ ;]', line, maxsplit=1)[0].lower().replace('_', '-')
-                  for line in text.splitlines() if line.strip() and not line.startswith('#')}
-        for item in data['python_requirements']:
-            for package in item['packages']:
-                self.assertIn(package.lower().replace('_', '-'), pinned, '%s needs %s' % (item['module'], package))
+        for requirements in ('deploy/odoo/requirements-python312-linux.txt',
+                             'deploy/security/requirements-python312-macos.txt'):
+            text = (oca_addons.REPO / requirements).read_text(encoding='utf-8')
+            pinned = {re.split(r'[=<>~!\[ ;]', line, maxsplit=1)[0].lower().replace('_', '-')
+                      for line in text.splitlines() if line.strip() and not line.startswith('#')}
+            for item in data['python_requirements']:
+                for package in item['packages']:
+                    self.assertIn(package.lower().replace('_', '-'), pinned,
+                                  '%s: %s needs %s' % (requirements, item['module'], package))
 
 
 class FetchRetryTest(unittest.TestCase):

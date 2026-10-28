@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
     'name': 'webvue Appointments',
-    'summary': 'webvue platform: the Appointments application — /api/v1/appointments records',
+    'summary': 'webvue platform: the Appointments application — /api/v1/appointments/types',
     'version': '19.0.1.0.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
@@ -15,7 +15,6 @@
     'depends': ['webvue_api', 'resource_booking'],
     'data': [
         'security/appointments_capability_groups.xml',
-        'security/appointments_rules.xml',
         'security/ir.model.access.csv',
         'data/appointments_access_permissions.xml',
     ],

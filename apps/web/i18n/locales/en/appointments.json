@@ -1,9 +1,10 @@
 {
   "appointments": {
     "title": "Appointments",
-    "empty": "No records yet",
+    "empty": "No appointment types yet",
+    "duration": "{count} min",
     "nav": {
-      "records": "Records"
+      "types": "Appointment types"
     }
   }
 }

@@ -1,14 +1,15 @@
 import { z } from 'zod'
 
-export const AppointmentsRecordSchema = z.object({
+export const AppointmentTypeSchema = z.object({
   id: z.number().int().positive(),
   name: z.string(),
+  duration_minutes: z.number().int().positive(),
 }).strict()
 
-export const AppointmentsRecordListSchema = z.object({
-  items: z.array(AppointmentsRecordSchema),
+export const AppointmentTypeListSchema = z.object({
+  items: z.array(AppointmentTypeSchema),
   total: z.number().int().nonnegative(),
 }).strict()
 
-export type AppointmentsRecord = z.infer<typeof AppointmentsRecordSchema>
-export type AppointmentsRecordList = z.infer<typeof AppointmentsRecordListSchema>
+export type AppointmentType = z.infer<typeof AppointmentTypeSchema>
+export type AppointmentTypeList = z.infer<typeof AppointmentTypeListSchema>

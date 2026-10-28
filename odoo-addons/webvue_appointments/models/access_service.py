@@ -1,10 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
-PERMISSIONS = frozenset({'appointments.records.read', 'appointments.records.manage'})
-EMPLOYEE_PERMISSIONS = frozenset({'appointments.records.read'})
+PERMISSIONS = frozenset({'appointments.types.read', 'appointments.types.manage'})
+EMPLOYEE_PERMISSIONS = frozenset({'appointments.types.read'})
 PERMISSION_DEPENDENCIES = {
-    'appointments.records.manage': {'appointments.records.read'},
+    'appointments.types.manage': {'appointments.types.read'},
 }
 
 

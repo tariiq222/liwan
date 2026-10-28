@@ -5,7 +5,7 @@ from odoo.addons.webvue_api.tests.common import WebVueApiCase
 
 
 class WebVueAppointmentsCase(WebVueApiCase):
-    """The shared webvue_api fixture plus a Appointments manager user and one record."""
+    """The shared webvue_api fixture plus an Appointments manager user and one booking type."""
 
     @classmethod
     def setUpClass(cls):
@@ -22,4 +22,4 @@ class WebVueAppointmentsCase(WebVueApiCase):
             cls.env, login='appointments_outsider', password='appointments_outsider_pass_123',
             name='No Appointments access', groups='base.group_user',
         )
-        cls.record = cls.env['webvue.appointments.record'].create({'name': 'First record'})
+        cls.booking_type = cls.env['resource.booking.type'].create({'name': 'Consultation', 'duration': 0.5})

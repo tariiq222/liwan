@@ -41,8 +41,8 @@ class TestAppointmentsAccessComposition(TransactionCase):
         self.assertTrue(self._keys('webvue_core.role_vendor_support') >= PERMISSIONS)
 
     def test_manage_depends_on_read(self):
-        manage = self.Permission.search([('key', '=', 'appointments.records.manage')])
-        self.assertEqual(manage.dependency_ids.mapped('key'), ['appointments.records.read'])
+        manage = self.Permission.search([('key', '=', 'appointments.types.manage')])
+        self.assertEqual(manage.dependency_ids.mapped('key'), ['appointments.types.read'])
 
     def test_legacy_groups_still_grant_capabilities(self):
         manager = new_test_user(self.env, login='appointments_comp_manager', groups='webvue_appointments.group_appointments_manager')

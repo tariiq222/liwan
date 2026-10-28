@@ -1,2 +1,2 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from . import access_service, appointments_record, feature_registry
+from . import access_service, feature_registry

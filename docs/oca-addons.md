@@ -78,12 +78,15 @@ is the only module of OCA/hr that is installed.
 `resource_booking` (OCA/calendar) is the booking engine of `webvue_appointments` (owner decision
 2026-10-28): booking types, availability calendars, resource combinations, computed states and the
 `calendar.event` of each booking. Its portal pages (`/my/bookings/...`) stay closed by the
-`webvue_platform` guard; WebVue serves its own routes. Its scheduling check is a Python constraint
-without a lock, so concurrent bookings of one slot must be serialized by `webvue_appointments`.
+`webvue_platform` guard. `webvue_appointments` currently lists booking types
+(`GET /api/v1/appointments/types`); the booking routes are not implemented yet. The engine's
+scheduling check is a Python constraint without a lock, and a measured two-transaction probe
+double-booked one slot, so the booking routes must serialize scheduling per resource combination
+before they ship.
 
 | OCA module (repository) | Used for |
 |---|---|
-| `resource_booking` (calendar) | appointment types, slots, resource combinations and booking states of `webvue_appointments` |
+| `resource_booking` (calendar) | booking types of `webvue_appointments` today; slots, combinations and booking states once the booking routes exist |
 | `web_calendar_slot_duration` (web) | backend calendar-view dependency of `resource_booking`; no WebVue use |
 
 `calendar_public_holiday` (calendar) and the other OCA/web modules are in the pinned repositories but unused;
