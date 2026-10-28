@@ -335,8 +335,8 @@ cross-addon links.
   `access_webvue_tenant_profile_system` row, which no ordinary user or public route may hold. Its callers (the user quota
   delta, the pre-login suspension gates, the attachment storage-quota accounting, the binary image route and the
   pre-session request authentication guard) call the service unelevated: the service raises its own read, and its
-  other reads (the support group, the user and storage counts) are raw SQL. The installed-module probe no longer elevates: `base_install_request` (auto-installed,
-  depends `mail`) grants `base.group_user` read on `ir.module.module`, so the ACL never blocked it.
+  other reads (the support group, the user and storage counts) are raw SQL. The installed-module probe carries no elevation of its own: it reads the
+  stock cached `ir.module.module._installed()` map, which serves every caller, including the public user of a feature-gated public route.
   `webvue_core` uses it only for the company-partner existence check, which Odoo's `res_company_rule_employee` hides and
   `active_test=False` must still see.
   `webvue_chat` uses it for the two `mail.message.reaction` paths — the toggle after `_webvue_member_channel`
