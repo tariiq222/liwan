@@ -9,15 +9,15 @@ import { isContextLinkActive } from '../../composables/useShellNavigation'
 import { appCommands } from '../surfaces'
 import { SHELL_RESERVED_KEYS } from '@webvue/ui/app/composables/shortcuts/keymap'
 
-const crm: AppManifest = {
-  id: 'crm',
-  feature: 'crm.enabled',
-  routePrefixes: ['/crm'],
-  rail: [{ id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/crm', order: 60 }],
+const pilot: AppManifest = {
+  id: 'pilot',
+  feature: 'pilot.enabled',
+  routePrefixes: ['/pilot'],
+  rail: [{ id: 'pilot', labelKey: 'nav.pilot', icon: 'i-lucide-handshake', to: '/pilot', order: 60 }],
   nav: [],
-  landing: [{ path: '/crm', capability: 'crm.leads.read' }],
-  routeCapabilities: [{ pattern: /^\/crm\/leads\/new$/, capability: 'crm.leads.create' }],
-  bell: { capabilities: ['crm.leads.read'] },
+  landing: [{ path: '/pilot', capability: 'pilot.leads.read' }],
+  routeCapabilities: [{ pattern: /^\/pilot\/leads\/new$/, capability: 'pilot.leads.create' }],
+  bell: { capabilities: ['pilot.leads.read'] },
 }
 
 describe('app manifests', () => {
@@ -119,35 +119,35 @@ describe('app manifests', () => {
 
   describe('a manifest registered for a new application', () => {
     const identity = {
-      capabilities: ['crm.leads.read', 'crm.leads.create'],
-      platform: { readable_features: ['crm.enabled'], writable_features: ['crm.enabled'] },
+      capabilities: ['pilot.leads.read', 'pilot.leads.create'],
+      platform: { readable_features: ['pilot.enabled'], writable_features: ['pilot.enabled'] },
     }
-    const withoutCrm = { ...identity, platform: { readable_features: ['hr.enabled'], writable_features: [] } }
+    const withoutPilot = { ...identity, platform: { readable_features: ['hr.enabled'], writable_features: [] } }
 
     it('is unknown to the policy until registered', () => {
-      expect(manifestForPath('/crm')).toBeNull()
-      expect(featureForPath('/crm')).toBeNull()
-      expect(requiredCapabilityForPath('/crm')).toBeNull()
+      expect(manifestForPath('/pilot')).toBeNull()
+      expect(featureForPath('/pilot')).toBeNull()
+      expect(requiredCapabilityForPath('/pilot')).toBeNull()
     })
     it('gates its routes by its feature, capability and landing', () => {
-      withManifests([...appManifests, crm], () => {
-        expect(manifestForPath('/crm/leads/3')?.id).toBe('crm')
-        expect(featureForPath('/crm/leads/new')).toBe('crm.enabled')
-        expect(requiredCapabilityForPath('/crm/leads/new')).toBe('crm.leads.create')
-        expect(requiredCapabilityForPath('/crm')).toBe('crm.leads.read')
-        expect(canReach(identity, 'crm.leads.read', '/crm')).toBe(true)
-        expect(canReach(withoutCrm, 'crm.leads.read', '/crm')).toBe(false)
-        expect(hasFeature(withoutCrm, featureForPath('/crm'))).toBe(false)
-        expect(firstAllowedPath(identity)).toBe('/crm')
-        expect(postLoginPath(identity, '/crm')).toBe('/crm')
-        expect(postLoginPath(withoutCrm, '/crm')).toBe('/')
+      withManifests([...appManifests, pilot], () => {
+        expect(manifestForPath('/pilot/leads/3')?.id).toBe('pilot')
+        expect(featureForPath('/pilot/leads/new')).toBe('pilot.enabled')
+        expect(requiredCapabilityForPath('/pilot/leads/new')).toBe('pilot.leads.create')
+        expect(requiredCapabilityForPath('/pilot')).toBe('pilot.leads.read')
+        expect(canReach(identity, 'pilot.leads.read', '/pilot')).toBe(true)
+        expect(canReach(withoutPilot, 'pilot.leads.read', '/pilot')).toBe(false)
+        expect(hasFeature(withoutPilot, featureForPath('/pilot'))).toBe(false)
+        expect(firstAllowedPath(identity)).toBe('/pilot')
+        expect(postLoginPath(identity, '/pilot')).toBe('/pilot')
+        expect(postLoginPath(withoutPilot, '/pilot')).toBe('/')
         expect(hasCapability(identity, 'webvue.notifications')).toBe(true)
         expect(canUse(identity, 'webvue.notifications')).toBe(true)
-        expect(canUse(withoutCrm, 'webvue.notifications')).toBe(false)
+        expect(canUse(withoutPilot, 'webvue.notifications')).toBe(false)
       })
     })
     it('gates a claimed prefix that has no capability rule by the application feature', () => {
-      const erp: AppManifest = { ...crm, id: 'erp', feature: 'erp.enabled', routePrefixes: ['/erp', '/erp-extra'], landing: [], routeCapabilities: [], bell: undefined }
+      const erp: AppManifest = { ...pilot, id: 'erp', feature: 'erp.enabled', routePrefixes: ['/erp', '/erp-extra'], landing: [], routeCapabilities: [], bell: undefined }
       const open = { capabilities: [], platform: { readable_features: ['erp.enabled'], writable_features: ['erp.enabled'] } }
       const closed = { capabilities: [], platform: { readable_features: ['hr.enabled'], writable_features: [] } }
       withManifests([...appManifests, erp], () => {
@@ -158,31 +158,31 @@ describe('app manifests', () => {
       })
     })
     it('registers its settings page: the page owns its subtree for capability, feature and landing', () => {
-      const withSettings: AppManifest = { ...crm, settings: { id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/settings/apps/crm', parts: [{ id: 'pipeline', labelKey: 'crm.settings', icon: 'i-lucide-handshake', capability: 'crm.settings.manage' }] } }
-      const admin = { capabilities: ['crm.settings.manage'], platform: { readable_features: ['crm.enabled'], writable_features: ['crm.enabled'] } }
+      const withSettings: AppManifest = { ...pilot, settings: { id: 'pilot', labelKey: 'nav.pilot', icon: 'i-lucide-handshake', to: '/settings/apps/pilot', parts: [{ id: 'pipeline', labelKey: 'pilot.settings', icon: 'i-lucide-handshake', capability: 'pilot.settings.manage' }] } }
+      const admin = { capabilities: ['pilot.settings.manage'], platform: { readable_features: ['pilot.enabled'], writable_features: ['pilot.enabled'] } }
       const off = { ...admin, platform: { readable_features: ['hr.enabled'], writable_features: [] } }
-      expect(requiredCapabilityForPath('/settings/apps/crm')).toBeNull()
+      expect(requiredCapabilityForPath('/settings/apps/pilot')).toBeNull()
       withManifests([...appManifests, withSettings], () => {
-        expect(requiredCapabilityForPath('/settings/apps/crm/stages/3')).toBe('crm.settings.manage')
-        expect(featureForPath('/settings/apps/crm')).toBe('crm.enabled')
-        expect(requiredCapabilityForPath('/settings/apps/crm-other')).toBeNull()
-        expect(canReachPath(admin, '/settings/apps/crm/stages')).toBe(true)
-        expect(canReachPath(off, '/settings/apps/crm')).toBe(false)
-        expect(canReachPath({ capabilities: [] }, '/settings/apps/crm')).toBe(false)
-        expect(firstAllowedPath(admin)).toBe('/settings/apps/crm')
-        expect(allNavItems().find(item => item.to === '/settings/apps/crm#pipeline')).toMatchObject({ module: 'settings', group: 'settings', shortcut: '' })
+        expect(requiredCapabilityForPath('/settings/apps/pilot/stages/3')).toBe('pilot.settings.manage')
+        expect(featureForPath('/settings/apps/pilot')).toBe('pilot.enabled')
+        expect(requiredCapabilityForPath('/settings/apps/pilot-other')).toBeNull()
+        expect(canReachPath(admin, '/settings/apps/pilot/stages')).toBe(true)
+        expect(canReachPath(off, '/settings/apps/pilot')).toBe(false)
+        expect(canReachPath({ capabilities: [] }, '/settings/apps/pilot')).toBe(false)
+        expect(firstAllowedPath(admin)).toBe('/settings/apps/pilot')
+        expect(allNavItems().find(item => item.to === '/settings/apps/pilot#pipeline')).toMatchObject({ module: 'settings', group: 'settings', shortcut: '' })
       })
     })
     it('refuses a nested withManifests', () => {
-      withManifests([crm], () => {
+      withManifests([pilot], () => {
         expect(() => withManifests([], () => 1)).toThrow(/already active/)
-        expect(manifestForPath('/crm')?.id).toBe('crm')
+        expect(manifestForPath('/pilot')?.id).toBe('pilot')
       })
-      expect(manifestForPath('/crm')).toBeNull()
+      expect(manifestForPath('/pilot')).toBeNull()
     })
     it('is removed again afterwards, even when the callback throws', () => {
-      expect(() => withManifests([crm], () => { throw new Error('boom') })).toThrow('boom')
-      expect(manifestForPath('/crm')).toBeNull()
+      expect(() => withManifests([pilot], () => { throw new Error('boom') })).toThrow('boom')
+      expect(manifestForPath('/pilot')).toBeNull()
       expect(manifestForPath('/hr')?.id).toBe('hr')
     })
   })
