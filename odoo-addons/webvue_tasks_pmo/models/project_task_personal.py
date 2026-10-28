@@ -115,6 +115,8 @@ class ProjectTaskPersonal(models.Model):
         """
         personal = self.filtered('webvue_personal') if not self.env.su else self.browse()
         if personal and not personal._webvue_in_convert_scope():
+            if not personal._webvue_in_archive_scope() and not all(personal.mapped('active')):
+                raise AccessError(self.env._('An archived personal task is read-only until it is restored.'))
             allowed = PERSONAL_WRITE_FIELDS | ({'active'} if personal._webvue_in_archive_scope() else set())
             if set(vals) - allowed:
                 raise AccessError(self.env._('A personal task only takes its own fields.'))

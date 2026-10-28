@@ -381,6 +381,22 @@ class TestMyTasksRoutes(TasksRoutesCase):
         self.assertIn(task_id, ids('?closed=1'))
         self.assertEqual(ids('?archived=1'), set())
 
+    def test_an_archived_subtask_is_found_and_restored_through_the_archived_list(self):
+        parent = self.create_as('tasks_alice', name='Parent')
+        child = self.ok('tasks_alice', 'POST', BASE, {'name': 'Child', 'parent_id': parent['id']})
+        self.ok('tasks_alice', 'POST', self.task_path(child['id'], '/done'))
+        self.ok('tasks_alice', 'POST', self.task_path(child['id'], '/archive'))
+        # gone from the parent's detail, present in the archived list with its detail link
+        self.assertEqual(self.ok('tasks_alice', 'GET', self.task_path(parent['id']))['subtasks'], [])
+        rows = self.ok('tasks_alice', 'GET', f'{BASE}?archived=1')['items']
+        self.assertEqual([(row['id'], row['href']) for row in rows], [(child['id'], f'/my-tasks/{child["id"]}')])
+        restored = self.ok('tasks_alice', 'POST', self.task_path(child['id'], '/unarchive'))
+        self.assertTrue(restored['is_subtask'])
+        self.assertEqual([sub['id'] for sub in self.ok('tasks_alice', 'GET', self.task_path(parent['id']))['subtasks']], [child['id']])
+        self.assertEqual(self.ok('tasks_alice', 'GET', f'{BASE}?archived=1')['items'], [])
+        # a restored sub-task stays out of the top-level lists
+        self.assertNotIn(child['id'], {row['id'] for row in self.ok('tasks_alice', 'GET', f'{BASE}?closed=1')['items']})
+
     def test_archive_of_an_open_or_archived_task_is_422(self):
         open_id = self.create_as('tasks_alice')['id']
         self.assertError(self.call('tasks_alice', 'POST', self.task_path(open_id, '/archive')), 422, 'invalid', 'action')

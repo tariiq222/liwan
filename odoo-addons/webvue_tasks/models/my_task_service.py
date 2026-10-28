@@ -149,13 +149,15 @@ class WebVueMyTaskService(models.AbstractModel):
         links = self.env['webvue.task.links']
         personal = Domain([
             ('webvue_personal', '=', True),
-            ('webvue_parent_id', '=', False),
             ('create_uid', '!=', self.env.ref('base.user_root').id),
         ])
         if archived:
+            # Archived sub-tasks are listed too: the parent's detail leaves inactive children out, so
+            # this list is the only place to find and restore one.
             domain = personal & Domain('active', '=', False)
         else:
-            domain = Domain.OR([personal, Domain(links._webvue_project_task_domain(uid))])
+            domain = Domain.OR([personal & Domain('webvue_parent_id', '=', False),
+                                Domain(links._webvue_project_task_domain(uid))])
         scopes = []
         if assigned:
             scopes.append(Domain('user_ids', 'in', [uid]))

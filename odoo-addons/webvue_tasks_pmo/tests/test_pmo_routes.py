@@ -55,6 +55,23 @@ class TestPersonalTaskThroughPmoRoutes(TasksRoutesCase):
         self.ok('tasks_alice', 'POST', f'{path}/unarchive')
         self.assertTrue(self.fresh().active)
 
+    def test_pmo_routes_cannot_change_or_reopen_an_archived_personal_task(self):
+        path = f'{BASE}/{self.task.id}'
+        self.ok('tasks_alice', 'POST', f'{path}/done')
+        self.ok('tasks_alice', 'POST', f'{path}/archive')
+        self.refused_or_missing('tasks_alice', 'PATCH', f'{PMO}/{self.task.id}', {'name': 'edited'})
+        self.refused_or_missing('tasks_alice', 'POST', f'{PMO}/{self.task.id}/transition', {'state': 'in_progress'})
+        with self.assertRaises(AccessError):
+            self.task.with_user(self.alice).write({'name': 'edited'})
+        with self.assertRaises(AccessError):
+            self.task.with_user(self.alice).write({'state': '01_in_progress'})
+        task = self.fresh()
+        self.assertEqual((task.name, task.state, task.active), ('Mine', '1_done', False))
+
+    def refused_or_missing(self, login, method, path, body=None):
+        status, payload = self.call(login, method, path, body)
+        self.assertIn(status, (*REFUSED, 404), payload)
+
     def test_pmo_patch_cannot_set_a_stage_or_tags(self):
         stage = self.env['project.task.type'].create({'name': 'Doing'})
         tag = self.env['project.tags'].create({'name': 'Hot'})
