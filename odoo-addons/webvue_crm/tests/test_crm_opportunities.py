@@ -156,6 +156,19 @@ class TestCrmOpportunities(WebVueCrmCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()['stage']['id'], self.env.ref('webvue_crm.stage_contacted').id)
 
+    def test_create_skips_a_new_stage_that_became_the_won_stage(self):
+        self.env.ref('webvue_crm.stage_new').is_won = True
+        self.env.ref('webvue_crm.stage_won').is_won = False
+        contacted = self.env.ref('webvue_crm.stage_contacted')
+        contacted.sequence = 0
+        response = self.create(self.agent)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['stage']['id'], contacted.id)
+        lead = self.env['crm.lead'].browse(response.json()['id'])
+        lead.active = False
+        lead._webvue_restart()
+        self.assertEqual(lead.stage_id, contacted)
+
     # Detail, patch, list
 
     def test_patch_changes_whitelisted_fields_and_rechecks_the_phone(self):

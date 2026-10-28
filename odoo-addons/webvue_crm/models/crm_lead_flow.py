@@ -94,7 +94,9 @@ class CrmLeadFlow(models.Model):
         """The stage a restarted opportunity starts in: the seeded "new" stage while active, else the
         first open (not won) stage by sequence."""
         new = self.env.ref('webvue_crm.stage_new', raise_if_not_found=False)
-        return new if new and new.active else self.env['crm.stage'].search([('is_won', '=', False)], limit=1)
+        if new and new.active and not new.is_won:
+            return new
+        return self.env['crm.stage'].search([('is_won', '=', False)], limit=1)
 
     def _webvue_restart(self, cycles=0):
         """Back to the first stage with a fresh attempt count, for the same agent when still eligible.
