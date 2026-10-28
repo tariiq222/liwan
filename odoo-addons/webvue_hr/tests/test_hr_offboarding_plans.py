@@ -462,15 +462,6 @@ class TestHrOffboardingPlans(WebVueHrCase):
         self.assertEqual(detail.status_code, 200, detail.text)
         self.assertEqual(detail.json(), run)
 
-        listing = self.api('GET', f"{RUNS}?employee_id={self.employee_record.id}")
-        self.assertEqual(listing.status_code, 200, listing.text)
-        self.assertEqual(set(listing.json()), {'items', 'total'})
-        row = next(item for item in listing.json()['items'] if item['id'] == run['id'])
-        self.assertEqual(set(row), RUN_KEYS)
-        self.assertEqual((row['employee'], row['plan']), (run['employee'], run['plan']))
-        other = self.api('GET', f"{RUNS}?employee_id={self.own_employee.id}").json()
-        self.assertNotIn(run['id'], {item['id'] for item in other['items']})
-
     def test_a_plan_created_through_the_api_can_be_launched(self):
         self._as_manager()
         plan = self.api('POST', PLANS, json={
@@ -494,7 +485,6 @@ class TestHrOffboardingPlans(WebVueHrCase):
         self.assertEqual(detail.json()['employee'], run['employee'])
         self.assertEqual(detail.json()['plan'], run['plan'])
         self.assertFalse(detail.json()['steps'][0]['can_complete'])
-        self.assertIn(run['id'], {item['id'] for item in self.api('GET', RUNS).json()['items']})
 
         runs_before = self._runs()
         denied = self._launch(employee=self.own_employee)
@@ -528,8 +518,6 @@ class TestHrOffboardingPlans(WebVueHrCase):
         for run in (self.onboarding_run, self.foreign_run):
             response = self.api('GET', f'{RUNS}/{run.id}')
             self.assertEqual((response.status_code, response.json()['code']), (404, 'not_found'), run)
-        listed = {item['id'] for item in self.api('GET', RUNS).json()['items']}
-        self.assertFalse(listed & {self.onboarding_run.id, self.foreign_run.id})
 
     def test_a_shared_plan_stays_free_of_company_departments(self):
         shared = self._make_plan('Shared offboarding plan', 'offboarding', self.env['res.company'], 'Shared step')

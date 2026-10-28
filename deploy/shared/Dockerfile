@@ -1,5 +1,5 @@
 # Build context MUST be the repository root. Select dedicated startup with a Compose command override.
-FROM node:24.21.0-alpine
+FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --chown=node:node deploy/shared/guard.mjs deploy/shared/start.mjs deploy/shared/healthcheck.mjs ./deploy/shared/
