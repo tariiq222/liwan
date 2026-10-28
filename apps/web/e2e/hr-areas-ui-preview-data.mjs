@@ -206,6 +206,8 @@ function offboardingData(route, url) {
     const raw = route.slice('/api/v1/hr/offboarding/departures/'.length)
     return departures.find(row => String(row.employee.id) === raw)
   }
+  // Offboarding has no runs list: the departures register carries each employee's clearance.
+  if (route === '/api/v1/hr/offboarding/runs') return undefined
   return lifecycleData('offboarding', offboardingPlans, offboardingRuns, route, url)
 }
 
