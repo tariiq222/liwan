@@ -27,6 +27,7 @@ SIGNATURE_HEADER = 'X-Hub-Signature-256'
 # Verified when no channel matches, so a known and an unknown phone number id take the same time.
 UNMATCHED_SECRET = 'webvue-inbox-unmatched'
 TOO_LARGE = 'webhook body is too large'
+HANDSHAKE_PARAMS = ('hub.mode', 'hub.verify_token', 'hub.challenge')
 
 
 def reject_webhook():
@@ -71,6 +72,10 @@ class WhatsAppHookController(http.Controller):
     @requires_feature(WHATSAPP_FEATURE, operation='read')
     def verify(self, **_):
         args = request.httprequest.args
+        # A handshake without Meta's parameters is a malformed request, refused before any channel is read.
+        missing = next((name for name in HANDSHAKE_PARAMS if not args.get(name)), None)
+        if missing:
+            raise ApiError(400, 'invalid', f'{missing} is required', field=missing)
         env = request.env
         channels = env['webvue.inbox.channel'].search([('kind', '=', 'whatsapp'), ('state', '!=', 'disabled')])
         token = args.get('hub.verify_token', '').encode()

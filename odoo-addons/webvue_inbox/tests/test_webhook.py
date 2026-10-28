@@ -34,6 +34,10 @@ class TestWhatsAppWebhook(WebVueInboxCase):
         self.assertError(self.verify('wrong-token'), 403, 'forbidden')
         self.assertError(self.verify(self.channel.verify_token, mode='unsubscribe'), 403, 'forbidden')
 
+    def test_a_handshake_without_meta_parameters_is_400_invalid(self):
+        self.assertError(self.url_open(HOOK), 400, 'invalid')
+        self.assertError(self.url_open(f'{HOOK}?hub.mode=subscribe&hub.challenge=1'), 400, 'invalid')
+
     def test_a_disabled_channel_does_not_verify(self):
         self.channel.state = 'disabled'
         self.assertError(self.verify(self.channel.verify_token), 403, 'forbidden')
