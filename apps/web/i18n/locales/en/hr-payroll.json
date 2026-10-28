@@ -74,6 +74,7 @@
     "warnings": {
       "title": "Warnings to review",
       "compensation_missing": "{name}: no compensation recorded, so they are left out of the computation.",
+      "contract_missing": "{name}: has compensation but no running contract this month, so they are left out of the computation. Check the contract start date.",
       "missing_iban": "{name}: no IBAN recorded, and every positive net needs one. Complete the IBAN in the compensation before approving.",
       "missing_iban_snapshot": "{name}: the payment data snapshot taken when this run was approved is incomplete, so the transfer file cannot be created. Changing the IBAN in the compensation now will not change this run. Contact the payroll administrator or support for a documented correction.",
       "unmapped_department": "{name}: their department has no cost center, so the cost goes to the default cost center or none."

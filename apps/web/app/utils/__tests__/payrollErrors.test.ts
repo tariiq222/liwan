@@ -194,6 +194,13 @@ describe('payrollWarningText', () => {
     expect(payrollWarningText({ code: 'new_code', employee: { id: 3, name: 'ليلى' } }, 'computed', t, te)).toBe('new_code: ليلى')
   })
 
+  it('warns of an employee with compensation but no running contract', () => {
+    const warning = { code: 'contract_missing', employee: { id: 5, name: 'سارة' } }
+    expect(payrollWarningText(warning, 'computed', t, te)).toBe(interpolate(arPayroll.warnings.contract_missing, { name: 'سارة' }))
+    expect(arPayroll.warnings.contract_missing).toContain('تاريخ بداية عقده')
+    expect(enPayroll.warnings.contract_missing).toContain('contract start date')
+  })
+
   it('has the same warning keys in ar and en', () => {
     expect(Object.keys(arPayroll.warnings).sort()).toEqual(Object.keys(enPayroll.warnings).sort())
   })
