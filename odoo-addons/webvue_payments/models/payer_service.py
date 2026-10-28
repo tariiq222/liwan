@@ -10,11 +10,36 @@ WAITING_STATES = ('pending', 'authorized')
 # How long a started checkout blocks another one for the same document: two open gateway pages
 # could both take the customer's money (two tabs, a retried request, a lost answer).
 OPEN_CHECKOUT = timedelta(minutes=15)
+# How long a payment the gateway reported as pending or authorized still counts as on its way; after
+# that the gateway is not expected to settle it, and a late settlement makes the refund due.
+SETTLE_WINDOW = timedelta(days=1)
+# How long stock keeps retrying the post-processing of a received payment (payment_transaction.py,
+# ``_cron_post_process``); after that nothing records it on its document any more.
+POST_PROCESS_RETRIES = timedelta(days=4)
+# A received payment not recorded on its document after this long needs a person (spec 5.2).
+STUCK_AFTER = timedelta(hours=1)
 
 
-def payment_on_its_way(transactions):
-    """Whether one of ``transactions`` is paid or being paid and not recorded on its document yet."""
-    return any(tx.state in WAITING_STATES or (tx.state == 'done' and not tx.is_post_processed) for tx in transactions)
+def _unrecorded(tx):
+    return tx.state == 'done' and not tx.is_post_processed
+
+
+def payment_on_its_way(transactions, now):
+    """Whether one of ``transactions`` is paid or being paid and may still be recorded on its document.
+
+    A pending or authorized payment counts for ``SETTLE_WINDOW``; a received one that is not
+    recorded yet counts while stock still retries its post-processing.
+    """
+    return any(
+        (tx.state in WAITING_STATES and tx.last_state_change >= now - SETTLE_WINDOW)
+        or (_unrecorded(tx) and tx.last_state_change >= now - POST_PROCESS_RETRIES)
+        for tx in transactions
+    )
+
+
+def payment_stuck(transactions, now):
+    """Whether money was received but has not been recorded on its document for ``STUCK_AFTER``."""
+    return any(_unrecorded(tx) and tx.last_state_change < now - STUCK_AFTER for tx in transactions)
 
 
 def checkout_open(transactions, since):
@@ -30,8 +55,8 @@ class WebVuePaymentsPayer(models.AbstractModel):
     """What an anonymous payer may do with one payable document once its access token is checked.
 
     A payable document is a posted customer invoice (``account.move``) or an online order
-    (``sale.order``); each answers ``_webvue_pay_state``, ``_webvue_pay_amount`` and
-    ``_webvue_pay_link``. The caller (a public route) has already verified the token with the stock
+    (``sale.order``); each answers ``_webvue_is_pay_document``, ``_webvue_payment_recordable``,
+    ``_webvue_pay_state``, ``_webvue_pay_amount`` and ``_webvue_pay_link``. The caller (a public route) has already verified the token with the stock
     portal check, which returns the document elevated. Every value here comes from that document
     and the tenant's providers, never from the payer: the amount is the document's, the partner is
     the document's, and the provider and method must be among the compatible ones.
@@ -44,7 +69,7 @@ class WebVuePaymentsPayer(models.AbstractModel):
     def _webvue_status(self, document):
         """``paid``, ``processing`` (a payment is on its way), ``payable`` or ``not_payable``."""
         state = document._webvue_pay_state()
-        if state != 'paid' and payment_on_its_way(document.transaction_ids):
+        if state != 'paid' and payment_on_its_way(document.transaction_ids, fields.Datetime.now()):
             return 'processing'
         return state
 

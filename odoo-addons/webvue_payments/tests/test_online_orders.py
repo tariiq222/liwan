@@ -2,12 +2,18 @@
 from datetime import timedelta
 
 from odoo import Command, fields
+from odoo.exceptions import LockError, UserError
 from odoo.tests import tagged
+from odoo.tools import mute_logger
 
 from .common import WebVueOrderCase
 from .test_payer import CHECKOUT, OPTION_KEYS
 from odoo.addons.webvue_api.tests.common import set_probe_feature
-from odoo.addons.webvue_payments.models.order_service import NoGateway, NotPayable
+from odoo.addons.webvue_payments.models.order_service import (
+    NoGateway,
+    NotInvoiceable,
+    NotPayable,
+)
 
 ORDER_KEYS = {'id', 'merchant', 'number', 'expires_at', 'currency', 'amount_total', 'amount_due', 'status', 'options'}
 
@@ -107,7 +113,7 @@ class TestOnlineOrders(WebVueOrderCase):
         self.assertEqual((refused.status_code, refused.json()['code']), (409, 'not_payable'))
         fresh = self.online_order()
         staff_order = self.env['sale.order'].create({'partner_id': self.customer.id})
-        self.env['sale.order']._webvue_cron_expire_unpaid()
+        self.expire()
         self.assertEqual((order.state, fresh.state, staff_order.state), ('cancel', 'draft', 'draft'))
 
     def test_the_cron_spares_an_order_whose_payment_is_on_its_way(self):
@@ -116,7 +122,7 @@ class TestOnlineOrders(WebVueOrderCase):
         self.paymob_transaction(115.0, sale_order_ids=[Command.set(open_checkout.ids)])
         self.paymob_transaction(115.0, sale_order_ids=[Command.set(waiting.ids)])._set_pending()
         (open_checkout | waiting).webvue_payment_deadline = fields.Datetime.now() - timedelta(minutes=1)
-        self.env['sale.order']._webvue_cron_expire_unpaid()
+        self.expire()
         self.assertEqual((open_checkout.state, waiting.state), ('draft', 'draft'))
         # Once the open checkout is older than the open window, the order is cancelled after all.
         self.env.cr.execute(
@@ -124,7 +130,7 @@ class TestOnlineOrders(WebVueOrderCase):
             [open_checkout.transaction_ids.id],
         )
         self.env.invalidate_all()
-        self.env['sale.order']._webvue_cron_expire_unpaid()
+        self.expire()
         self.assertEqual((open_checkout.state, waiting.state), ('cancel', 'draft'))
 
     def test_a_payment_after_cancellation_is_recorded_and_the_refund_is_due(self):
@@ -155,3 +161,102 @@ class TestOnlineOrders(WebVueOrderCase):
         set_probe_feature(self, key='payments.enabled', enabled=False)
         self.assertEqual(self.summary(order).status_code, 403)
         self.assertEqual(self.start(order).status_code, 403)
+
+
+@tagged('post_install', '-at_install', 'webvue')
+class TestOnlineOrderMoney(WebVueOrderCase):
+    """Money is never left in limbo: a payment that is not recorded, a stale pending one, refunds and overpayments."""
+
+    def past_deadline(self, order):
+        order.webvue_payment_deadline = fields.Datetime.now() - timedelta(minutes=1)
+        return order
+
+    def test_a_received_payment_that_is_not_recorded_holds_the_order_then_needs_a_person(self):
+        order = self.past_deadline(self.online_order())
+        tx = self.paymob_transaction(115.0, sale_order_ids=[Command.set(order.ids)])
+        tx._process('paymob', self.paymob_notification(tx, 11500))
+        self.assertEqual((tx.state, tx.is_post_processed), ('done', False))
+        service = self.env['webvue.payments.service']
+        self.expire()
+        self.assertEqual(order.state, 'draft')
+        self.assertFalse(service._webvue_summary(order)['needs_attention'])
+        self.age(tx, hours=2)
+        self.assertTrue(service._webvue_summary(order)['needs_attention'])
+        # Once stock stops retrying the post-processing, the order is released and the money is due back.
+        self.age(tx, days=4)
+        self.expire()
+        summary = service._webvue_summary(order)
+        self.assertEqual((order.state, summary['status'], summary['refund_due']), ('cancel', 'cancelled', True))
+
+    def test_a_payment_left_pending_releases_the_order_after_a_day(self):
+        order = self.past_deadline(self.online_order())
+        tx = self.paymob_transaction(115.0, sale_order_ids=[Command.set(order.ids)])
+        tx._set_pending()
+        self.expire()
+        self.assertEqual(order.state, 'draft')
+        self.age(tx, days=1, minutes=1)
+        self.expire()
+        self.assertEqual(order.state, 'cancel')
+
+    def test_one_failing_order_does_not_hold_the_others_back(self):
+        failing, other = self.past_deadline(self.online_order()), self.past_deadline(self.online_order())
+        SaleOrder = type(self.env['sale.order'])
+        cancel = SaleOrder._action_cancel
+
+        def action_cancel(orders):
+            if failing in orders:
+                msg = 'cancel failed'
+                raise ValueError(msg)
+            return cancel(orders)
+        self.patch(SaleOrder, '_action_cancel', action_cancel)
+        with mute_logger('odoo.addons.webvue_payments.models.sale_order'):
+            self.expire()
+        self.assertEqual((failing.state, other.state), ('draft', 'cancel'))
+
+    def test_an_order_whose_checkout_is_being_started_is_left_to_the_next_run(self):
+        order = self.past_deadline(self.online_order())
+
+        def locked(records, allow_referencing=False):
+            msg = 'locked'
+            raise LockError(msg)
+        self.patch(type(order), 'lock_for_update', locked)
+        self.expire()
+        self.assertEqual(order.state, 'draft')
+
+    def test_a_refund_settles_what_a_cancelled_order_kept_and_an_overpayment_is_due_back(self):
+        service = self.env['webvue.payments.service']
+        cancelled = self.online_order()
+        service._webvue_request_cancel(cancelled)
+        tx = self.pay(cancelled, 115.0)
+        self.assertTrue(service._webvue_summary(cancelled)['refund_due'])
+        tx._create_child_transaction(115.0, is_refund=True)._set_done()
+        self.assertFalse(service._webvue_summary(cancelled)['refund_due'])
+        paid_twice = self.online_order()
+        self.pay(paid_twice, 115.0)
+        self.assertFalse(service._webvue_summary(paid_twice)['refund_due'])
+        self.pay(paid_twice, 115.0)
+        self.assertTrue(service._webvue_summary(paid_twice)['refund_due'])
+
+    def test_without_a_sales_journal_no_pay_link_is_offered(self):
+        self.env['account.journal'].search([('company_id', '=', self.env.company.id), ('type', '=', 'sale')]).active = False
+        order = self.online_order()
+        with self.assertRaises(NotInvoiceable):
+            self.env['webvue.payments.service']._webvue_payment_path(order)
+        self.assertEqual(self.env['webvue.payments.payer']._webvue_status(order), 'not_payable')
+        self.env['ir.config_parameter'].sudo().set_param('sale.automatic_invoice', 'False')
+        self.assertEqual(self.env['webvue.payments.payer']._webvue_status(order), 'payable')
+
+    def test_without_invoice_when_paid_a_paid_order_is_confirmed_without_an_invoice(self):
+        self.env['ir.config_parameter'].sudo().set_param('sale.automatic_invoice', 'False')
+        order = self.online_order()
+        tx = self.pay(order, 115.0)
+        self.assertEqual((order.state, order.invoice_ids, bool(tx.payment_id)), ('sale', self.env['account.move'], True))
+
+    def test_a_line_is_added_only_to_an_open_online_order(self):
+        service = self.env['webvue.payments.service']
+        staff_order = self.env['sale.order'].create({'partner_id': self.customer.id})
+        paid = self.online_order()
+        self.pay(paid, 115.0)
+        for order in (staff_order, paid):
+            with self.subTest(order=order.name), self.assertRaises(UserError):
+                service._webvue_add_line(order, self.service)

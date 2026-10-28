@@ -10,6 +10,10 @@ MANAGE_CAPABILITY = 'appointments.bookings.manage'
 PAYMENTS_FEATURE = 'payments.enabled'
 
 
+class PriceRequired(UserError):
+    """A booking type was asked to take online payment before it has a price."""
+
+
 class ResourceBookingType(models.Model):
     _inherit = 'resource.booking.type'
 
@@ -55,7 +59,7 @@ class ResourceBookingType(models.Model):
     def _webvue_set_payment(self, online_payment=None, deposit_percent=None, price=None):
         """Change how this type is paid online; ``price`` sets the list price of its product, created on first use.
 
-        :raise UserError: when the type would take online payment without a price.
+        :raise PriceRequired: when the type would take online payment without a price.
         """
         self.ensure_one()
         if not self.env['webvue.access.service']._webvue_has_capability(
@@ -67,7 +71,7 @@ class ResourceBookingType(models.Model):
         if price is not None:
             product = self._webvue_price_product(product, price)
         elif mode != 'none' and not product:
-            raise UserError(self.env._("Set the price of this booking type before it takes online payment."))
+            raise PriceRequired(self.env._("Set the price of this booking type before it takes online payment."))
         values = {'webvue_online_payment': mode}
         if deposit_percent is not None:
             values['webvue_deposit_percent'] = deposit_percent

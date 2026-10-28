@@ -386,7 +386,8 @@ cross-addon links.
   user holds no sales rights): order and line create with server values only (no price or amount
   parameter), stock `_action_cancel`, the payment summary and the pay link of an authorized document,
   every returned record unelevated; and in `models/payments_settings.py`, for the one whitelisted
-  tenant-wide stock parameter `sale.automatic_invoice`, after the `payments.settings.manage` check.
+  tenant-wide stock parameter `sale.automatic_invoice`: read by the server when it decides, and written
+  only after the `payments.settings.manage` check in the tenant's root company.
   `webvue_appointments_payments` uses it only in `models/resource_booking_type.py`, for the product
   that sells a paying booking type: its price (and its creation, named after the type and linked to it)
   after the `appointments.bookings.manage` check in the type's company, and the name sync after the

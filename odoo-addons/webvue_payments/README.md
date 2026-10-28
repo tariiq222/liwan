@@ -24,6 +24,21 @@ cancelled by a cron every five minutes through stock `_action_cancel`; an order 
 way, or a checkout opened in the last 15 minutes, waits for a later run. A payment that arrives after
 cancellation is recorded and makes the refund due; it is never refused or refunded automatically.
 
+Money is never left in limbo. A payment the gateway reported as pending or authorized holds its
+order for a day; a received payment whose recording on the order keeps failing holds it while stock
+retries (four days) and is shown as needing attention after an hour; after that the order is
+released and the money is due back. No pay link is offered for an order that could not be invoiced
+once paid (invoice when paid on, and no sales journal in the company).
+
+## Install footprint
+
+`sale` brings the stock modules that auto-install with it and the applications already present:
+`sale_crm` (with `crm`), `sale_edi_ubl`, `sale_sms` and `spreadsheet_dashboard_sale`. They add
+fields and backend views only; WebVue uses none of them. The bridge
+`webvue_appointments_payments` installs itself when a database is created or when appointments or
+payments is installed into one that has the other; on a database that already has both, install it
+explicitly (`-i webvue_appointments_payments`).
+
 ## Routes
 
 Settings, behind `payments.enabled` and `payments.settings.manage` (granted to `system_admin`):

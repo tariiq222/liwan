@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import math
+
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_api.serializers.common import iso
 from odoo.addons.webvue_appointments_payments.models.resource_booking_type import (
@@ -8,6 +10,8 @@ from odoo.addons.webvue_appointments_payments.models.resource_booking_type impor
 
 ONLINE_PAYMENT_OPTIONS = tuple(value for value, _label in ONLINE_PAYMENTS)
 TYPE_PAYMENT_FIELDS = {'online_payment', 'deposit_percent', 'price'}
+# The highest price a booking type takes, in the company currency: a bound against a mistyped amount.
+MAX_PRICE = 1_000_000
 
 
 def dump_type_payment(booking_type):
@@ -40,8 +44,8 @@ def parse_type_payment(payload):
         values['deposit_percent'] = percent
     if 'price' in payload:
         price = payload['price']
-        if type(price) not in (int, float) or price <= 0:
-            raise ApiError(422, 'invalid', 'must be a positive amount', field='price')
+        if type(price) not in (int, float) or not math.isfinite(price) or not 0 < price <= MAX_PRICE:
+            raise ApiError(422, 'invalid', 'must be a positive amount up to %d' % MAX_PRICE, field='price')
         values['price'] = float(price)
     return values
 
@@ -49,5 +53,8 @@ def parse_type_payment(payload):
 def dump_booking_payment(payment):
     """The payment facts of a booking's online order, or ``status: none`` for a booking without one."""
     if payment is None:
-        return {'status': 'none', 'refund_due': False, 'currency': None, 'amount_total': None, 'amount_due': None, 'expires_at': None}
+        return {
+            'status': 'none', 'refund_due': False, 'needs_attention': False,
+            'currency': None, 'amount_total': None, 'amount_due': None, 'expires_at': None,
+        }
     return {**payment, 'expires_at': iso(payment['expires_at'])}

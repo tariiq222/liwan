@@ -39,12 +39,17 @@ class WebVuePaidBookingCase(WebVueOrderCase, WebVueAppointmentsCase):
             'partner_ids': [Command.set(self.customer.ids)],
         })
         if scheduled:
-            now = fields.Datetime.context_timestamp(booking, fields.Datetime.now())
-            slots = booking._get_available_slots(now, now + timedelta(days=14))
-            first = min(start for day in slots.values() for start in day)
-            booking.start = first.astimezone(UTC).replace(tzinfo=None)
-            if booking._webvue_confirms_on_schedule():
-                booking.action_confirm()
+            self.schedule(booking)
+        return booking
+
+    def schedule(self, booking):
+        """Put ``booking`` on its first free slot and confirm it when scheduling confirms, as the schedule route does."""
+        now = fields.Datetime.context_timestamp(booking, fields.Datetime.now())
+        slots = booking._get_available_slots(now, now + timedelta(days=14))
+        first = min(start for day in slots.values() for start in day)
+        booking.start = first.astimezone(UTC).replace(tzinfo=None)
+        if booking._webvue_confirms_on_schedule():
+            booking.action_confirm()
         return booking
 
     def order_of(self, booking):

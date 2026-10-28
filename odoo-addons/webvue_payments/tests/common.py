@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import timedelta
+
 from odoo import Command
 from odoo.tests import new_test_user
 
@@ -130,6 +132,20 @@ class WebVueOrderCase(WebVuePayerCase):
         tx._process('paymob', self.paymob_notification(tx, round(amount * 100)))
         tx._post_process()
         return tx
+
+    def expire(self):
+        """Run the expiry cron; its per-order commits are no-ops inside the test transaction."""
+        self.patch(type(self.env['ir.cron']), '_commit_progress', lambda cron, processed=0, **_: float('inf'))
+        self.env['sale.order']._webvue_cron_expire_unpaid()
+
+    def age(self, transactions, **delta):
+        """Move the last state change of ``transactions`` back by ``delta`` (``timedelta`` keywords)."""
+        self.env.flush_all()
+        self.env.cr.execute(
+            "UPDATE payment_transaction SET last_state_change = last_state_change - %s WHERE id IN %s",
+            [timedelta(**delta), tuple(transactions.ids)],
+        )
+        self.env.invalidate_all()
 
     def order_url(self, order, suffix=''):
         return f'/api/v1/public/payments/orders/{order.id}{suffix}'

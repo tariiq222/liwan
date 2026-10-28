@@ -2,6 +2,8 @@
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
+from .payer_service import payment_stuck
+
 OPEN_STATES = ('draft', 'sent')
 
 
@@ -11,6 +13,10 @@ class NotPayable(UserError):
 
 class NoGateway(UserError):
     """No live gateway can take this document's payment."""
+
+
+class NotInvoiceable(UserError):
+    """A payment of the document could not be recorded: it is not invoiceable as the tenant set it up."""
 
 
 class WebVuePaymentsService(models.AbstractModel):
@@ -76,12 +82,15 @@ class WebVuePaymentsService(models.AbstractModel):
         """The payment facts of one online order, for the staff of the application selling through it.
 
         ``status`` is the payer's status, or ``cancelled``; ``expires_at`` is the payment deadline.
+        ``needs_attention``: money was received but has not been recorded on the order for an hour
+        (its post-processing keeps failing), so a person must look at it.
         """
         order = order.sudo()
         cancelled = order.state == 'cancel'
         return {
             'status': 'cancelled' if cancelled else self.env['webvue.payments.payer']._webvue_status(order),
             'refund_due': order._webvue_refund_due(),
+            'needs_attention': payment_stuck(order.transaction_ids, fields.Datetime.now()),
             'currency': order.currency_id.name,
             'amount_total': order.amount_total,
             'amount_due': 0.0 if cancelled else order._webvue_pay_amount(),
@@ -95,10 +104,13 @@ class WebVuePaymentsService(models.AbstractModel):
         The answer is a path, not a URL: the browser that shows it knows the tenant's public origin,
         which the server cannot always tell behind the edge.
 
+        :raise NotInvoiceable: when a payment of the document could not be recorded.
         :raise NotPayable: when nothing is to be paid now.
         :raise NoGateway: when no live gateway can take the payment.
         """
         document = document.sudo()
+        if not document._webvue_payment_recordable():
+            raise NotInvoiceable(self.env._("Set up the sales journal in Finance before customers pay online orders."))
         if document._webvue_pay_state() != 'payable':
             raise NotPayable(self.env._("Nothing needs to be paid now."))
         if not self.env['webvue.payments.payer']._webvue_options(document):

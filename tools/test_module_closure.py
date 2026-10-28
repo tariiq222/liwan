@@ -100,6 +100,16 @@ class RealManifestClosureTest(unittest.TestCase):
                 {'webvue_a', 'webvue_b', 'webvue_c', 'webvue_glue', 'webvue_after'},
             )
             self.assertEqual(module_closure.install_closure([root], ['webvue_a']), {'webvue_a'})
+            (Path(root) / 'webvue_always').mkdir()
+            (Path(root) / 'webvue_always' / '__manifest__.py').write_text("{'depends': ['webvue_b'], 'auto_install': []}")
+            (Path(root) / 'webvue_tuple').mkdir()
+            (Path(root) / 'webvue_tuple' / '__manifest__.py').write_text("{'depends': ['webvue_a', 'webvue_c'], 'auto_install': ('webvue_a',)}")
+            # An empty trigger list installs the module with any selection, as Odoo does (here it brings webvue_b,
+            # which completes the triggers of webvue_glue); a tuple is a trigger list.
+            self.assertEqual(
+                module_closure.install_closure([root], ['webvue_a']),
+                {'webvue_a', 'webvue_always', 'webvue_b', 'webvue_glue', 'webvue_tuple', 'webvue_c', 'webvue_after'},
+            )
             (Path(root) / 'webvue_bad').mkdir()
             (Path(root) / 'webvue_bad' / '__manifest__.py').write_text("{'depends': ['webvue_a'], 'auto_install': ['webvue_b']}")
             with self.assertRaises(module_closure.ClosureError):

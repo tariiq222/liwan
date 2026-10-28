@@ -1,16 +1,30 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import timedelta
+
+from odoo import fields
 from odoo.tests import tagged
 
 from .common import WebVuePaidBookingCase
+from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_api.tests.common import set_probe_feature
+from odoo.addons.webvue_appointments_payments.serializers.booking_payment import (
+    parse_type_payment,
+)
 
 TYPE_PAYMENT_KEYS = {'online_payment', 'deposit_percent', 'price', 'currency'}
-BOOKING_PAYMENT_KEYS = {'status', 'refund_due', 'currency', 'amount_total', 'amount_due', 'expires_at'}
+BOOKING_PAYMENT_KEYS = {'status', 'refund_due', 'needs_attention', 'currency', 'amount_total', 'amount_due', 'expires_at'}
+BOOKINGS = '/api/v1/appointments/bookings'
 
 
 @tagged('post_install', '-at_install', 'webvue')
 class TestBookingPaymentRoutes(WebVuePaidBookingCase):
     """Staff set how a type is paid, read a booking's payment and get its pay link to send to the customer."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # The booking routes ask an existing requester for the contact fields the company requires.
+        cls.customer.phone = '+966500000009'
 
     def type_url(self, booking_type=None):
         return f'/api/v1/appointments/types/{(booking_type or self.paid_type).id}/payment'
@@ -37,12 +51,19 @@ class TestBookingPaymentRoutes(WebVuePaidBookingCase):
             ({'deposit_percent': 100}, 'deposit_percent'),
             ({'price': 0}, 'price'),
             ({'price': '10'}, 'price'),
+            ({'price': 1_000_001}, 'price'),
             ({'product_id': 1}, 'product_id'),
             ({}, 'online_payment'),
         ):
             with self.subTest(field=field):
                 response = self.api('PATCH', self.type_url(), json=payload)
                 self.assertEqual((response.status_code, response.json()['field']), (422, field))
+
+    def test_a_price_that_is_not_a_real_amount_is_refused(self):
+        # An HTTP client cannot even send these (JSON has no NaN or Infinity), but Python's JSON reader accepts them.
+        for price in (float('nan'), float('inf')):
+            with self.subTest(price=price), self.assertRaises(ApiError):
+                parse_type_payment({'price': price})
 
     def test_only_a_manager_changes_how_a_type_is_paid(self):
         self.authenticate('appointments_booker', 'appointments_booker_pass_123')
@@ -84,3 +105,36 @@ class TestBookingPaymentRoutes(WebVuePaidBookingCase):
         self.assertEqual(self.api('POST', self.booking_url(booking, '/link'), json={}).status_code, 403)
         self.assertEqual(self.api('PATCH', self.type_url(), json={'price': 120}).status_code, 403)
         self.assertEqual(self.api('GET', self.booking_url(booking)).status_code, 200)
+
+    def first_slot(self, booking_type=None):
+        today = fields.Date.today()
+        path = '/api/v1/appointments/types/%d/slots?from=%s&to=%s' % (
+            (booking_type or self.paid_type).id, today + timedelta(days=2), today + timedelta(days=9),
+        )
+        return self.api('GET', path).json()['items'][0]['start']
+
+    def test_a_paid_booking_through_the_booking_routes(self):
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
+        created = self.api('POST', BOOKINGS, json={
+            'type_id': self.paid_type.id, 'requester_id': self.customer.id, 'start': self.first_slot(),
+        })
+        self.assertEqual((created.status_code, created.json()['state']), (200, 'scheduled'), created.text)
+        booking = self.env['resource.booking'].browse(created.json()['id'])
+        order = self.order_of(booking)
+        self.assertEqual(self.api('GET', self.booking_url(booking)).json()['status'], 'payable')
+        self.pay(order, order.amount_total)
+        self.assertEqual(self.api('GET', f'{BOOKINGS}/{booking.id}').json()['state'], 'confirmed')
+        cancelled = self.api('POST', f'{BOOKINGS}/{booking.id}/cancel', json={})
+        self.assertEqual(cancelled.status_code, 200, cancelled.text)
+        payment = self.api('GET', self.booking_url(booking)).json()
+        self.assertEqual((order.state, payment['status'], payment['refund_due']), ('cancel', 'cancelled', True))
+
+    def test_scheduling_an_invitation_through_the_route_opens_its_order(self):
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
+        pending = self.api('POST', BOOKINGS, json={'type_id': self.paid_type.id, 'requester_id': self.customer.id})
+        self.assertEqual((pending.status_code, pending.json()['state']), (200, 'pending'), pending.text)
+        booking_id = pending.json()['id']
+        self.assertEqual(self.api('GET', f'{BOOKINGS}/{booking_id}/payment').json()['status'], 'none')
+        scheduled = self.api('POST', f'{BOOKINGS}/{booking_id}/schedule', json={'start': self.first_slot()})
+        self.assertEqual((scheduled.status_code, scheduled.json()['state']), (200, 'scheduled'), scheduled.text)
+        self.assertEqual(self.api('GET', f'{BOOKINGS}/{booking_id}/payment').json()['status'], 'payable')

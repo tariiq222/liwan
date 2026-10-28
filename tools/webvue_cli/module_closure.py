@@ -30,7 +30,9 @@ def _owned(name):
 def _read_manifest(addons_paths, module):
     """``(webvue dependencies, other dependencies, auto_install)`` of ``module``.
 
-    ``auto_install`` is False, True, or the list of dependencies that trigger it.
+    ``auto_install`` is None (never) or the set of dependencies that trigger it: ``True`` means all of
+    them and an iterable names some of them, as Odoo reads a manifest (``odoo/modules/module.py``).
+    An empty set means always.
     """
     for directory in addons_paths:
         manifest = Path(directory) / module / '__manifest__.py'
@@ -43,11 +45,15 @@ def _read_manifest(addons_paths, module):
                 raise ClosureError(module) from None
             if not isinstance(depends, list) or any(type(dep) is not str for dep in depends):
                 raise ClosureError(module)
-            if isinstance(auto, list) and not set(auto) <= set(depends):
-                raise ClosureError(module)
+            if isinstance(auto, (list, tuple, set, frozenset)):
+                triggers = set(auto)
+                if not triggers <= set(depends):
+                    raise ClosureError(module)
+            else:
+                triggers = set(depends) if auto else None
             owned = [dep for dep in depends if _owned(dep)]
             other = [dep for dep in depends if not _owned(dep)]
-            return owned, other, auto if isinstance(auto, list) else bool(auto)
+            return owned, other, triggers
     raise ClosureError(module)
 
 
@@ -85,11 +91,10 @@ def install_closure(addons_paths, selected):
             if name in manifests:
                 continue
             try:
-                owned_deps, other_deps, auto = _read_manifest(paths, name)
+                _owned_deps, _other_deps, auto = _read_manifest(paths, name)
             except ClosureError:
                 continue
-            triggers = auto if isinstance(auto, list) else (owned_deps + other_deps if auto else [])
-            if triggers and all(dep in manifests if _owned(dep) else dep in required for dep in triggers):
+            if auto is not None and all(dep in manifests if _owned(dep) else dep in required for dep in auto):
                 resolve([name])
                 changed = True
     return set(manifests)

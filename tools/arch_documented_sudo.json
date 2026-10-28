@@ -154,7 +154,7 @@
     },
     "odoo-addons/webvue_payments/models/payments_settings.py": {
       "count": 2,
-      "reason": "webvue_payments reads and writes the one tenant-wide stock parameter `sale.automatic_invoice` (invoice and post a paid online order at once, owner decision D4): `ir.config_parameter.sudo().get_param(...)` in `_webvue_invoice_when_paid` and `.sudo().set_param(...)` in `_webvue_set_invoice_when_paid`, each after the `payments.settings.manage` capability check in the current company in the same method, for that single whitelisted key; blocked by the system-only `ir.config_parameter` ACL row."
+      "reason": "webvue_payments reads and writes the one tenant-wide stock parameter `sale.automatic_invoice` (invoice and post a paid online order at once, owner decision D4): `ir.config_parameter.sudo().get_param(...)` in `_webvue_invoices_when_paid`, which the server reads when it decides whether a paid order can be recorded (a boolean, no capability needed to know it), and `.sudo().set_param(...)` in `_webvue_set_invoice_when_paid`, after the `payments.settings.manage` capability check in the tenant's root company in the same method, since the value applies to every company; both touch that single whitelisted key and are blocked by the system-only `ir.config_parameter` ACL row."
     }
   }
 }

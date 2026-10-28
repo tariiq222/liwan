@@ -11,7 +11,11 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.webvue_payments.models.access_service import LINKS_MANAGE
-from odoo.addons.webvue_payments.models.order_service import NoGateway, NotPayable
+from odoo.addons.webvue_payments.models.order_service import (
+    NoGateway,
+    NotInvoiceable,
+    NotPayable,
+)
 
 FEATURE = 'payments.enabled'
 
@@ -20,6 +24,8 @@ def payment_path(document):
     """The pay-page path of an authorized document, with the service refusals as API errors."""
     try:
         return request.env['webvue.payments.service']._webvue_payment_path(document)
+    except NotInvoiceable as error:
+        raise ApiError(422, 'not_invoiceable', str(error)) from error
     except NotPayable as error:
         raise ApiError(409, 'not_payable', str(error)) from error
     except NoGateway as error:

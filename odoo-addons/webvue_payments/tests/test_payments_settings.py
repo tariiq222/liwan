@@ -58,6 +58,25 @@ class TestPaymentsSettings(WebVueOrderCase):
         self.assertEqual(self.patch(revision=0, invoice_when_paid=False).status_code, 403)
         self.assertEqual(self.env['ir.config_parameter'].sudo().get_param(AUTOMATIC_INVOICE), 'True')
 
+    def test_only_a_manager_of_the_root_company_changes_invoicing_for_the_whole_tenant(self):
+        root = self.env['webvue.entitlement.service']._webvue_profile().root_company_id
+        other = self.env['res.company'].create({'name': 'Second payments company'})
+        user = new_test_user(
+            self.env, login='payments_other', password='payments_other_pass_123', groups='webvue_core.group_employee',
+            company_ids=[(6, 0, [root.id, other.id])], company_id=other.id,
+        )
+        self.env['webvue.access.service']._webvue_replace_assignments(user, [{
+            'role_id': self.env.ref('webvue_core.role_system_admin').id, 'company_id': other.id,
+        }])
+        self.authenticate('payments_other', 'payments_other_pass_123')
+        refused = self.patch(revision=0, invoice_when_paid=False)
+        self.assertEqual(refused.status_code, 403)
+        self.assertEqual(self.env['ir.config_parameter'].sudo().get_param(AUTOMATIC_INVOICE), 'True')
+        own = self.patch(revision=0, unpaid_order_expiry_minutes=20)
+        self.assertEqual((own.status_code, own.json()['unpaid_order_expiry_minutes']), (200, 20))
+        self.assertEqual(self.env['webvue.payments.settings']._webvue_for(other).unpaid_order_expiry_minutes, 20)
+        self.assertFalse(self.env['webvue.payments.settings']._webvue_for(root))
+
     def test_a_closed_feature_refuses_the_settings_routes(self):
         self.login_admin()
         set_probe_feature(self, key='payments.enabled', enabled=False)

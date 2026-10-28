@@ -63,15 +63,24 @@ class TestPaidBooking(WebVuePaidBookingCase):
 
     def test_without_online_payments_a_paying_type_books_without_an_order(self):
         set_probe_feature(self, key='payments.enabled', enabled=False)
+        booking = self.book()
+        self.assertFalse(booking.sale_order_line_id)
+
+    def test_an_invitation_gets_its_order_once_it_is_scheduled(self):
         booking = self.book(scheduled=False)
         self.assertFalse(booking.sale_order_line_id)
+        self.schedule(booking)
+        order = self.order_of(booking)
+        self.assertEqual((order.state, booking.state, booking._webvue_confirms_on_schedule()), ('draft', 'scheduled', True))
+        self.pay(order, order.amount_total)
+        self.assertEqual(booking.state, 'confirmed')
 
     def test_an_unpaid_booking_is_released_when_its_order_expires(self):
         booking = self.book()
         order = self.order_of(booking)
         self.assertTrue(booking.meeting_id)
         order.webvue_payment_deadline = fields.Datetime.now() - timedelta(minutes=1)
-        self.env['sale.order']._webvue_cron_expire_unpaid()
+        self.expire()
         self.assertEqual((order.state, booking.state, booking.active), ('cancel', 'canceled', False))
         self.assertFalse(booking.meeting_id)
 
@@ -93,9 +102,7 @@ class TestPaidBooking(WebVuePaidBookingCase):
         payment = booking._webvue_payment()
         self.assertEqual((payment['status'], payment['refund_due']), ('cancelled', True))
 
-    def test_a_booking_held_by_an_order_keeps_its_type_and_needs_a_requester(self):
-        booking = self.book(scheduled=False)
+    def test_a_booking_held_by_an_order_keeps_its_type(self):
+        booking = self.book()
         with self.assertRaises(UserError):
             booking.type_id = self.booking_type
-        with self.assertRaises(UserError):
-            self.env['resource.booking'].create({'type_id': self.paid_type.id, 'partner_ids': []})

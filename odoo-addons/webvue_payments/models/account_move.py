@@ -22,6 +22,10 @@ class AccountMove(models.Model):
         self.ensure_one()
         return self.move_type == 'out_invoice' and self.state != 'draft'
 
+    def _webvue_payment_recordable(self):
+        """A posted invoice always records its payment (stock reconciles it)."""
+        return True
+
     def _webvue_pay_state(self):
         """``paid``, ``payable`` or ``not_payable``, before any payment on its way is considered."""
         self.ensure_one()

@@ -29,13 +29,15 @@ export const AppointmentTypePaymentUpdateSchema = z.object({
  * The payment of one booking's online order: the pay-page statuses (`payable`, `processing`, `paid`,
  * `not_payable`) plus `none` (no order: a free type, or a tenant without online payments) and
  * `cancelled` (the order expired or the booking was cancelled). `refund_due`: money was received that
- * must be given back (staff refund it).
+ * must be given back (staff refund it). `needs_attention`: money was received but has not been recorded
+ * on the order for an hour, so a person must look at it.
  */
 export const AppointmentBookingPaymentStatusSchema = z.enum(['none', 'payable', 'processing', 'paid', 'not_payable', 'cancelled'])
 
 export const AppointmentBookingPaymentSchema = z.object({
   status: AppointmentBookingPaymentStatusSchema,
   refund_due: z.boolean(),
+  needs_attention: z.boolean(),
   currency: z.string().length(3).nullable(),
   amount_total: z.number().nullable(),
   amount_due: z.number().nullable(),

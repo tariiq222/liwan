@@ -32,6 +32,7 @@ class WebVuePaymentsSettings(models.Model):
 
     _name = 'webvue.payments.settings'
     _description = 'WebVue payments settings'
+    _webvue_scope = 'company'
 
     company_id = fields.Many2one('res.company', required=True, ondelete='cascade', index=True)
     unpaid_order_expiry_minutes = fields.Integer(required=True, default=DEFAULT_EXPIRY_MINUTES)
@@ -55,20 +56,22 @@ class WebVuePaymentsSettings(models.Model):
         return timedelta(minutes=row.unpaid_order_expiry_minutes if row else DEFAULT_EXPIRY_MINUTES)
 
     @api.model
-    def _webvue_require_manager(self):
-        if not self.env['webvue.access.service']._webvue_has_capability(
-            self.env.user, SETTINGS_MANAGE, company=self.env.company,
-        ):
+    def _webvue_require_tenant_manager(self):
+        """Invoicing a paid order is one value for the whole tenant: only a settings manager of its root company sets it."""
+        root = self.env['webvue.entitlement.service']._webvue_profile().root_company_id
+        if not self.env['webvue.access.service']._webvue_has_capability(self.env.user, SETTINGS_MANAGE, company=root):
             raise AccessError(self.env._('forbidden'))
 
     @api.model
-    def _webvue_invoice_when_paid(self):
-        """Whether stock invoices and posts a paid online order at once (one value for the whole tenant)."""
-        self._webvue_require_manager()
-        # ir.config_parameter is system-only; this reads the one whitelisted key after the capability check.
+    def _webvue_invoices_when_paid(self):
+        """Whether stock invoices and posts a paid online order at once (one value for the whole tenant).
+
+        Read by the server when it decides; no capability is needed to know it.
+        """
+        # ir.config_parameter is system-only; this reads the one whitelisted key.
         return str2bool(self.env['ir.config_parameter'].sudo().get_param(AUTOMATIC_INVOICE, 'False'))
 
     @api.model
     def _webvue_set_invoice_when_paid(self, value):
-        self._webvue_require_manager()
+        self._webvue_require_tenant_manager()
         self.env['ir.config_parameter'].sudo().set_param(AUTOMATIC_INVOICE, 'True' if value else 'False')

@@ -1,6 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
-from odoo.exceptions import UserError
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import (
@@ -15,6 +14,9 @@ from odoo.addons.webvue_appointments.controllers.records import (
     WRITE_CAPABILITY,
     get_company_booking,
     get_company_record,
+)
+from odoo.addons.webvue_appointments_payments.models.resource_booking_type import (
+    PriceRequired,
 )
 from odoo.addons.webvue_appointments_payments.serializers.booking_payment import (
     dump_booking_payment,
@@ -45,7 +47,7 @@ class BookingPaymentController(http.Controller):
         values = parse_type_payment(payload)
         try:
             booking_type._webvue_set_payment(**values)
-        except UserError as error:
+        except PriceRequired as error:
             raise ApiError(422, 'invalid', str(error), field='price') from error
         return dump_type_payment(booking_type)
 

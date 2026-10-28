@@ -24,9 +24,9 @@ describe('AppointmentTypePaymentSchema', () => {
 
 describe('AppointmentBookingPaymentSchema', () => {
   it('describes an order payment or none', () => {
-    const payment = { status: 'payable', refund_due: false, currency: 'SAR', amount_total: 115, amount_due: 115, expires_at: '2026-10-28T12:00:00Z' }
+    const payment = { status: 'payable', refund_due: false, needs_attention: false, currency: 'SAR', amount_total: 115, amount_due: 115, expires_at: '2026-10-28T12:00:00Z' }
     expect(AppointmentBookingPaymentSchema.parse(payment)).toEqual(payment)
-    const none = { status: 'none', refund_due: false, currency: null, amount_total: null, amount_due: null, expires_at: null }
+    const none = { status: 'none', refund_due: false, needs_attention: false, currency: null, amount_total: null, amount_due: null, expires_at: null }
     expect(AppointmentBookingPaymentSchema.parse(none)).toEqual(none)
     expect(() => AppointmentBookingPaymentSchema.parse({ ...payment, status: 'refunded' })).toThrow()
   })
