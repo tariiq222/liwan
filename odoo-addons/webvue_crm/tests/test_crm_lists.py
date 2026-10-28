@@ -134,6 +134,17 @@ class TestCrmLists(WebVueCrmCase):
         lead.unlink()
         self.assertEqual(self.api('DELETE', f'{BASE}/stages/{stage.id}').status_code, 200)
 
+    def test_a_deal_of_another_company_blocks_the_archive_and_the_won_flag_move(self):
+        self.as_manager()
+        contacted, interested = self._ref('stage_contacted'), self._ref('stage_interested')
+        won = self._ref('stage_won')
+        self.make_lead(company=self.other_company, stage_id=contacted.id)
+        self.make_lead(company=self.other_company, stage_id=won.id)
+        self.assertEqual(self.api('DELETE', f'{BASE}/stages/{contacted.id}').status_code, 422)
+        self.assertEqual(self.api('PATCH', f'{BASE}/stages/{interested.id}', {'is_won': True}).status_code, 422)
+        self.assertTrue(contacted.active)
+        self.assertEqual(self.env['crm.stage'].search([('is_won', '=', True)]), won)
+
     def test_retiring_stock_stages_moves_their_leads_and_skips_missing_stages(self):
         stock = self.env.ref('crm.stage_lead1')
         stock.active = True

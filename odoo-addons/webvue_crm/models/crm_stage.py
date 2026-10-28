@@ -19,3 +19,13 @@ class CrmStage(models.Model):
         leads = self.env['crm.lead'].with_context(active_test=False).search([('stage_id', 'in', stock.ids)])
         leads.write({'stage_id': self.env.ref('webvue_crm.stage_new').id})
         stock.write({'active': False})
+
+    def _webvue_has_opportunities(self):
+        """Whether any opportunity of any company (open, won, lost or archived) sits in these stages.
+
+        Stages are tenant-wide, so the answer must not depend on the caller's company or visibility.
+        It is a boolean only: no record, id or agent leaves this method.
+        """
+        return self.env['crm.lead'].sudo().with_context(active_test=False).search_count(
+            [('stage_id', 'in', self.ids)], limit=1,
+        ) > 0

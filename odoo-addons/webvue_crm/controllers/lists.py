@@ -63,14 +63,10 @@ def _stage_open_first(field):
         raise ApiError(422, 'invalid', 'the first stage must be an open stage', field=field)
 
 
-def _has_opportunities(stages):
-    return bool(request.env['crm.lead'].with_context(active_test=False).search_count([('stage_id', 'in', stages.ids)]))
-
-
 def _unflag_other_won(keep=None):
     """Move the won flag off the other won stage; refused while it holds opportunities (their closed deals would reopen)."""
     others = request.env['crm.stage'].search([('is_won', '=', True), ('id', '!=', keep.id if keep else 0)])
-    if _has_opportunities(others):
+    if others._webvue_has_opportunities():
         raise ApiError(422, 'invalid', 'the current won stage still has opportunities', field='is_won')
     others.write({'is_won': False})
 
@@ -152,7 +148,7 @@ class CrmListsController(http.Controller):
 
     @staticmethod
     def _write_stage(stage, vals):
-        if vals.get('active') is False and stage.active and _has_opportunities(stage):
+        if vals.get('active') is False and stage.active and stage._webvue_has_opportunities():
             raise ApiError(422, 'invalid', 'the stage still has opportunities', field='id')
         if vals.get('is_won'):
             _unflag_other_won(keep=stage)
