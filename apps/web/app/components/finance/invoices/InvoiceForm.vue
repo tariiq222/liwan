@@ -106,13 +106,13 @@ async function submit() {
             <UInput v-model="line.name" class="w-full" maxlength="255" :disabled="!hydrated || pending" :aria-label="t('financeDocuments.form.lineAria', { number: index + 1, field: t('financeDocuments.form.lineName') })" />
           </UFormField>
           <UFormField :label="t('financeDocuments.form.quantity')" :name="`finance-line-quantity-${index}`" :error="shown?.lines[index]?.quantity ? t('financeDocuments.form.quantityInvalid') : undefined">
-            <UInput v-model="line.quantity" type="number" min="0" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="t('financeDocuments.form.lineAria', { number: index + 1, field: t('financeDocuments.form.quantity') })" />
+            <UInput v-model="line.quantity" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="t('financeDocuments.form.lineAria', { number: index + 1, field: t('financeDocuments.form.quantity') })" />
           </UFormField>
           <UFormField :label="t('financeDocuments.form.unitPrice')" :name="`finance-line-price-${index}`" :error="shown?.lines[index]?.priceUnit ? t('financeDocuments.form.priceInvalid') : undefined">
-            <UInput v-model="line.priceUnit" type="number" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="t('financeDocuments.form.lineAria', { number: index + 1, field: t('financeDocuments.form.unitPrice') })" />
+            <UInput v-model="line.priceUnit" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="t('financeDocuments.form.lineAria', { number: index + 1, field: t('financeDocuments.form.unitPrice') })" />
           </UFormField>
           <UFormField :label="t('financeDocuments.form.discount')" :name="`finance-line-discount-${index}`" :error="shown?.lines[index]?.discount ? t('financeDocuments.form.discountInvalid') : undefined">
-            <UInput v-model="line.discount" type="number" min="0" max="100" step="any" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="t('financeDocuments.form.lineAria', { number: index + 1, field: t('financeDocuments.form.discount') })" />
+            <UInput v-model="line.discount" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" :aria-label="t('financeDocuments.form.lineAria', { number: index + 1, field: t('financeDocuments.form.discount') })" />
           </UFormField>
           <div class="flex flex-wrap items-center justify-between gap-3 md:col-span-4">
             <USwitch v-model="line.noTax" :label="t('financeDocuments.form.noTax')" :disabled="!hydrated || pending" />
