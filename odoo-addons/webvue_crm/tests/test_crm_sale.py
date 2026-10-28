@@ -72,6 +72,17 @@ class TestCrmSale(WebVueCrmCase):
         self.assertEqual(ok.status_code, 200, ok.text)
         self.assertEqual(ok.json()['discount_percent'], 10)
 
+    def test_a_declared_discount_must_match_the_prices(self):
+        self.set_settings(discount_allowed=True, discount_max_percent=50)
+        lead = self.make_lead(self.agent)
+        for body in ({'discount_percent': 5, 'final_price': 900}, {'discount_percent': 10, 'final_price': 1000},
+                     {'discount_percent': 1, 'final_price': 1200}):
+            response = self.won(self.agent, lead, **body)
+            self.assertEqual(response.status_code, 422, body)
+            self.assertEqual(response.json()['field'], 'discount_percent')
+        ok = self.won(self.agent, lead, final_price=900)
+        self.assertEqual(ok.json()['discount_percent'], 10, 'the stored discount comes from the prices')
+
     def test_an_approver_may_exceed_the_maximum(self):
         self.set_settings(discount_allowed=True, discount_max_percent=10)
         lead = self.make_lead(self.manager)
@@ -112,7 +123,7 @@ class TestCrmSale(WebVueCrmCase):
     def test_reopen_restores_a_lost_opportunity_to_the_first_stage(self):
         lead = self.make_lead(self.agent, webvue_attempt_count=3, webvue_recycle_at=NOW)
         lead.action_set_lost(lost_reason_id=self.reason.id)
-        response = self.post(self.agent, lead, 'reopen')
+        response = self.post(self.manager, lead, 'reopen')
         self.assertEqual(response.status_code, 200, response.text)
         body = response.json()
         self.assertEqual((body['status'], body['active'], body['attempt_count']), ('pending', True, 0))
@@ -121,14 +132,21 @@ class TestCrmSale(WebVueCrmCase):
         self.assertIsNone(body['recycle_at'])
         self.assertEqual(body['user']['id'], self.agent.id)
         self.assertFalse(self.assignment_mails(lead))
+        self.assertEqual(len(self.bell_rows(self.agent, lead, 'crm.assigned')), 1)
+
+    def test_reopen_belongs_to_the_assigners(self):
+        lead = self.make_lead(self.agent)
+        lead.action_set_lost(lost_reason_id=self.reason.id)
+        self.assertEqual(self.post(self.agent, lead, 'reopen').status_code, 403)
+        self.assertFalse(lead.active)
+        self.assertEqual(self.post(self.manager, lead, 'reopen').status_code, 200)
 
     def test_reopen_of_a_pending_opportunity_conflicts(self):
         lead = self.make_lead(self.agent)
-        self.assertEqual(self.post(self.agent, lead, 'reopen').status_code, 409)
+        self.assertEqual(self.post(self.manager, lead, 'reopen').status_code, 409)
 
-    def test_reopen_of_a_flagged_opportunity_needs_a_manager(self):
+    def test_reopen_of_a_flagged_opportunity_starts_a_new_cycle(self):
         lead = self.make_lead(self.agent, webvue_needs_manager=True, webvue_attempt_count=3)
-        self.assertEqual(self.post(self.agent, lead, 'reopen').status_code, 403)
         response = self.post(self.manager, lead, 'reopen')
         self.assertEqual(response.status_code, 200, response.text)
         self.assertFalse(response.json()['needs_manager'])
@@ -142,6 +160,16 @@ class TestCrmSale(WebVueCrmCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertNotEqual(lead.user_id, self.agent)
         self.assertTrue(lead.user_id)
+
+    def test_reopen_picks_the_first_open_stage_when_the_new_stage_is_archived(self):
+        won = self.env.ref('webvue_crm.stage_won')
+        won.sequence = 1
+        self.env.ref('webvue_crm.stage_new').active = False
+        lead = self.make_lead(self.agent, stage_id=self.env.ref('webvue_crm.stage_interested').id)
+        lead.action_set_lost(lost_reason_id=self.reason.id)
+        response = self.post(self.manager, lead, 'reopen')
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['stage']['id'], self.env.ref('webvue_crm.stage_contacted').id)
 
     # Assign
 
@@ -165,6 +193,20 @@ class TestCrmSale(WebVueCrmCase):
             self.assertEqual(self.post(self.manager, lead, 'assign', **body).status_code, 422, body)
         self.assertEqual(self.post(self.manager, self.make_lead(company=self.other_company), 'assign',
                                    user_id=self.agent.id).status_code, 404)
+
+    def test_assign_and_patch_of_a_closed_opportunity_conflict(self):
+        won = self.make_lead(self.agent)
+        self.assertEqual(self.won(self.agent, won).status_code, 200)
+        lost = self.make_lead(self.agent)
+        lost.action_set_lost(lost_reason_id=self.reason.id)
+        for lead in (won, lost):
+            assigned = self.post(self.manager, lead, 'assign', user_id=self.agent2.id)
+            self.assertEqual(assigned.status_code, 409, assigned.text)
+            self.assertEqual(assigned.json()['code'], 'conflict')
+            patched = self.as_user(self.manager).api('PATCH', f'{URL}/{lead.id}', json={'contact_name': 'New'})
+            self.assertEqual(patched.status_code, 409, patched.text)
+            self.assertEqual(lead.user_id, self.agent)
+            self.assertFalse(self.bell_rows(self.agent2, lead, 'crm.assigned'))
 
     # Calls
 

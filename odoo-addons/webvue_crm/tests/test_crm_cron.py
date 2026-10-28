@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
+from odoo import Command
 from odoo.tests import tagged
 
 from .common import WebVueCrmCase
@@ -8,6 +10,7 @@ from .common import WebVueCrmCase
 NOW = datetime(2026, 10, 28, 9, 0, 0)
 DAY = timedelta(days=1)
 NOTIFICATIONS = '/api/v1/notifications'
+FOLLOWUP_LOGGER = 'odoo.addons.webvue_crm.models.followup'
 
 
 @tagged('post_install', '-at_install', 'webvue')
@@ -194,3 +197,78 @@ class TestCrmCron(WebVueCrmCase):
         self.assertEqual(item['opportunity_id'], lead.id)
         self.assertEqual(item['title'], 'Mona')
         self.assertFalse(item['is_read'])
+
+    def test_a_recipient_sees_the_bells_of_every_company_where_they_read(self):
+        user = self._user('crm_bell', 'CRM Bell', 'webvue_crm.role_crm_agent')
+        agent_role = self.env.ref('webvue_crm.role_crm_agent')
+        user.write({'company_ids': [Command.link(self.other_company.id)]})
+        other_assignment = self.env['webvue.access.assignment'].create({
+            'user_id': user.id, 'role_id': agent_role.id, 'company_id': self.other_company.id,
+        })
+        mine = self.make_lead(user)
+        theirs = self.make_lead(user, company=self.other_company)
+        (mine | theirs)._webvue_notify_assigned()
+        self.assertEqual(self.kinds(user), ['crm.assigned', 'crm.assigned'])
+        other_assignment._webvue_access_unlink()
+        self.assertEqual(self.kinds(user), ['crm.assigned'], 'no read in the other company: its bell is gone')
+        self.env['webvue.access.service']._webvue_replace_assignments(user, [])
+        self.assertEqual(self.kinds(user), [])
+
+    # Isolation
+
+    def test_a_failing_lead_does_not_stop_the_other_recycles(self):
+        self.set_settings(self.other_company, distribution_mode='manual')
+        bad = self.lost_for_recycle()
+        sibling = self.lost_for_recycle(self.agent2)
+        theirs = self.make_lead(company=self.other_company, webvue_recycle_at=NOW)
+        theirs.action_set_lost()
+        original = type(bad)._webvue_restart
+
+        def flaky(lead, cycles=0):
+            if lead == bad:
+                msg = 'boom'
+                raise ValueError(msg)
+            return original(lead, cycles)
+
+        with patch.object(type(bad), '_webvue_restart', flaky), self.assertLogs(FOLLOWUP_LOGGER, 'ERROR') as logs:
+            self.Followup._webvue_cron_tick(now=NOW)
+        self.assertFalse(bad.active)
+        self.assertEqual(bad.webvue_cycle, 0)
+        self.assertTrue(sibling.active)
+        self.assertTrue(theirs.active)
+        self.assertIn('boom', '\n'.join(logs.output))
+
+    def test_a_failing_company_does_not_stop_the_other_companies(self):
+        self.set_settings(self.other_company, distribution_mode='manual')
+        mine = self.lost_for_recycle()
+        theirs = self.make_lead(company=self.other_company, webvue_recycle_at=NOW)
+        theirs.action_set_lost()
+        original = type(self.Followup)._webvue_reopen_due_recycles
+
+        def flaky(followup, company, now):
+            if company == self.company:
+                msg = 'boom'
+                raise ValueError(msg)
+            return original(followup, company, now)
+
+        with patch.object(type(self.Followup), '_webvue_reopen_due_recycles', flaky), \
+                self.assertLogs(FOLLOWUP_LOGGER, 'ERROR'):
+            self.Followup._webvue_cron_tick(now=NOW)
+        self.assertFalse(mine.active)
+        self.assertTrue(theirs.active)
+
+    def test_a_failing_bell_does_not_stop_the_others(self):
+        first = self.due_lead()
+        second = self.make_lead(self.agent2, webvue_attempt_count=1, webvue_next_call_at=NOW)
+        original = type(self.Followup)._webvue_ring
+
+        def flaky(followup, lead):
+            if lead == first:
+                msg = 'boom'
+                raise ValueError(msg)
+            return original(followup, lead)
+
+        with patch.object(type(self.Followup), '_webvue_ring', flaky), self.assertLogs(FOLLOWUP_LOGGER, 'ERROR'):
+            self.Followup._webvue_cron_tick(now=NOW)
+        self.assertFalse(self.bell_rows(self.agent, first, 'crm.followup_due'))
+        self.assertEqual(len(self.bell_rows(self.agent2, second, 'crm.followup_due')), 1)

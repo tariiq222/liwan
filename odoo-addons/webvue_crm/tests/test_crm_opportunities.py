@@ -49,6 +49,18 @@ class TestCrmOpportunities(WebVueCrmCase):
         self.assertEqual(body['source'], {'id': self.source.id, 'name': 'Walk-in'})
         self.assertEqual(body['user']['id'], self.agent.id)
 
+    def test_creating_for_another_agent_tells_that_agent_only(self):
+        response = self.create(self.manager, user_id=self.agent2.id)
+        self.assertEqual(response.status_code, 200, response.text)
+        lead = self.env['crm.lead'].browse(response.json()['id'])
+        self.assertEqual(len(self.bell_rows(self.agent2, lead, 'crm.assigned')), 1)
+        self.assertFalse(self.bell_rows(self.manager, lead, 'crm.assigned'))
+        self.assertFalse(self.assignment_mails(lead))
+        mine = self.create(self.agent, phone='0507654321')
+        self.assertEqual(mine.status_code, 200, mine.text)
+        own = self.env['crm.lead'].browse(mine.json()['id'])
+        self.assertFalse(self.bell_rows(self.agent, own, 'crm.assigned'))
+
     def test_phone_is_normalised_from_arabic_digits_and_local_form(self):
         cases = {
             '٠٥٠١٢٣٤٥٦٧': '+966501234567', '۰۵۰۷۶۵۴۳۲۱': '+966507654321', '+966 50 111 2222': '+966501112222',

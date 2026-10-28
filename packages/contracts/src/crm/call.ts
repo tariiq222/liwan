@@ -32,7 +32,7 @@ const saleShape = {
 
 export const CrmSaleSchema = z.strictObject(saleShape)
 
-// The sale fields are sent together, and only with a sold outcome.
+// Any sale field needs the package and the price: the sale is sent whole, and only with a sold outcome.
 export const CrmCallCreateSchema = z
   .strictObject({
     outcome_id: z.number().int().positive(),
@@ -43,8 +43,10 @@ export const CrmCallCreateSchema = z
     discount_percent: saleShape.discount_percent,
   })
   .refine(
-    (body) => (body.package_id === undefined) === (body.final_price === undefined),
-    'package_id and final_price are sent together',
+    (body) =>
+      [body.package_id, body.final_price, body.discount_percent].every((field) => field === undefined) ||
+      (body.package_id !== undefined && body.final_price !== undefined),
+    'a sale needs package_id and final_price',
   )
 
 export const CrmCallResultSchema = z.strictObject({

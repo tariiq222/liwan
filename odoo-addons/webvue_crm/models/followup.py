@@ -4,12 +4,15 @@
 Every time is passed in as ``now`` (default: the database clock), so tests set it explicitly.
 Settings changes apply to future scheduling only: nothing here rewrites a time already stored.
 """
+import logging
+from contextlib import contextmanager
 from datetime import timedelta
 
 from odoo import api, fields, models
 
 from odoo.addons.webvue_api.controllers.common import ApiError
 
+_logger = logging.getLogger(__name__)
 WORK_CAPABILITY = 'crm.leads.work'
 OPEN_DOMAIN = [('active', '=', True), ('type', '=', 'opportunity')]
 
@@ -68,26 +71,39 @@ class WebVueCrmFollowup(models.AbstractModel):
                 'webvue_next_call_at': now + timedelta(hours=settings['followup_interval_hours']),
             })
         elif settings['after_attempts'] == 'manager':
+            newly_flagged = not lead.webvue_needs_manager
             lead.write({'webvue_attempt_count': attempts, 'webvue_next_call_at': False, 'webvue_needs_manager': True})
-            lead._webvue_notify_managers()
+            if newly_flagged:
+                lead._webvue_notify_managers()
         else:
             lead.write({'webvue_attempt_count': attempts})
             lead._webvue_close_lost(self.env.ref('webvue_crm.lost_reason_attempts_exhausted'))
             if settings['recycle_enabled'] and lead.webvue_cycle < settings['recycle_cycles']:
                 lead.webvue_recycle_at = now + timedelta(days=settings['recycle_after_days'])
 
+    @contextmanager
+    def _webvue_isolated(self, what):
+        """Run a step in its own savepoint; a failure is logged with its traceback and the tick goes on."""
+        try:
+            with self.env.cr.savepoint():
+                yield
+        except Exception:
+            _logger.exception('webvue_crm follow-up tick failed for %s', what)
+
     @api.model
     def _webvue_cron_tick(self, now=None):
         """Reopen due recycles, release due follow-ups of agents who can no longer work, ring the bell.
 
         Runs as the cron superuser, company by company, whatever company the environment holds.
+        A failing company or opportunity is rolled back and logged; the others still run.
         """
         now = now or fields.Datetime.now()
         for company in self.env['res.company'].search([]):
             scoped = self.with_company(company)
-            scoped._webvue_reopen_due_recycles(company, now)
-            scoped._webvue_release_webvue_due_follow_ups(company, now)
-            scoped._webvue_ring_webvue_due_follow_ups(company, now)
+            with scoped._webvue_isolated(f'company {company.id}'):
+                scoped._webvue_reopen_due_recycles(company, now)
+                scoped._webvue_release_due_follow_ups(company, now)
+                scoped._webvue_ring_due_follow_ups(company, now)
 
     @api.model
     def _webvue_reopen_due_recycles(self, company, now):
@@ -96,7 +112,8 @@ class WebVueCrmFollowup(models.AbstractModel):
             ('webvue_recycle_at', '<=', now),
         ])
         for lead in leads.with_context(active_test=True):
-            lead._webvue_restart(cycles=1)
+            with self._webvue_isolated(f'recycle of opportunity {lead.id}'):
+                lead._webvue_restart(cycles=1)
 
     @api.model
     def _webvue_due_follow_ups(self, company, now):
@@ -106,7 +123,7 @@ class WebVueCrmFollowup(models.AbstractModel):
         ])
 
     @api.model
-    def _webvue_release_webvue_due_follow_ups(self, company, now):
+    def _webvue_release_due_follow_ups(self, company, now):
         """A due follow-up whose agent can no longer work goes back to the distribution."""
         service = self.env['webvue.access.service']
         released = self._webvue_due_follow_ups(company, now).filtered(
@@ -114,17 +131,23 @@ class WebVueCrmFollowup(models.AbstractModel):
                 lead.user_id, WORK_CAPABILITY, company=company,
             ),
         )
-        released._webvue_release_agent()
-        self.env['webvue.crm.distribution']._webvue_assign(released)
+        for lead in released:
+            with self._webvue_isolated(f'release of opportunity {lead.id}'):
+                lead._webvue_release_agent()
+                self.env['webvue.crm.distribution']._webvue_assign(lead)
 
     @api.model
-    def _webvue_ring_webvue_due_follow_ups(self, company, now):
-        """One ``crm.followup_due`` bell per scheduled time and agent; a rescheduled call rings again."""
-        service = self.env['webvue.notify.service']
+    def _webvue_ring_due_follow_ups(self, company, now):
         for lead in self._webvue_due_follow_ups(company, now):
-            stamp = fields.Datetime.to_string(lead.webvue_next_call_at)
-            partner = lead.user_id.partner_id
-            service._webvue_deliver(
-                'crm.lead', lead.id, 'crm.followup_due', partner, lead.name,
-                key=f'crm-followup-due:{lead.id}:{stamp}:{partner.id}',
-            )
+            with self._webvue_isolated(f'bell of opportunity {lead.id}'):
+                self._webvue_ring(lead)
+
+    @api.model
+    def _webvue_ring(self, lead):
+        """One ``crm.followup_due`` bell per scheduled time and agent; a rescheduled call rings again."""
+        stamp = fields.Datetime.to_string(lead.webvue_next_call_at)
+        partner = lead.user_id.partner_id
+        self.env['webvue.notify.service']._webvue_deliver(
+            'crm.lead', lead.id, 'crm.followup_due', partner, lead.name,
+            key=f'crm-followup-due:{lead.id}:{stamp}:{partner.id}',
+        )

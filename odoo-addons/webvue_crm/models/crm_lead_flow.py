@@ -26,16 +26,21 @@ class CrmLeadFlow(models.Model):
         if not self.active or self.won_status != 'pending':
             raise ApiError(409, 'conflict', 'the opportunity is closed')
 
-    def _webvue_discount(self, package, final_price, declared_percent, user):
-        """The discount the sale really grants, after the company's discount policy.
+    def _webvue_require_assigner(self, user):
+        if not self._webvue_visibility()._webvue_can_assign(user, self.company_id):
+            raise ApiError(403, 'forbidden', f'{ASSIGN_CAPABILITY} capability is required')
 
-        The price decides: a final price under the package price is a discount even when none
-        was declared, so the policy cannot be bypassed by leaving the percentage out.
+    def _webvue_discount(self, package, final_price, declared_percent, user):
+        """The discount the sale grants, derived from the prices alone, after the company's policy.
+
+        A declared percentage must equal it (rounded to two decimals): the stored discount is one
+        fact, the difference between the package price and the final price. ``None`` declares nothing.
         """
-        implied = round((package.list_price - final_price) * 100 / package.list_price, 2) if (
+        discount = round((package.list_price - final_price) * 100 / package.list_price, 2) if (
             final_price < package.list_price
         ) else 0
-        discount = max(declared_percent, implied)
+        if declared_percent is not None and round(declared_percent, 2) != discount:
+            raise ApiError(422, 'invalid', 'the discount does not match the prices', field='discount_percent')
         if not discount:
             return 0
         settings = self.env['webvue.crm.settings'].with_company(self.company_id)._webvue_effective()
@@ -78,11 +83,18 @@ class CrmLeadFlow(models.Model):
     def _webvue_release_agent(self):
         """Take the opportunities back from their agents, to the pool until the distribution assigns them.
 
-        The company is written with the agent: stock recomputes a company-less team's opportunity
-        without an assignee to no company at all.
+        The company is written with the agent: stock blanks the company of an opportunity left
+        without an assignee when its team has no company, or when it has no team and no partner of
+        that company.
         """
         for lead in self.with_context(mail_auto_subscribe_no_notify=True):
             lead.write({'user_id': False, 'company_id': lead.company_id.id})
+
+    def _webvue_first_stage(self):
+        """The stage a restarted opportunity starts in: the seeded "new" stage while active, else the
+        first open (not won) stage by sequence."""
+        new = self.env.ref('webvue_crm.stage_new', raise_if_not_found=False)
+        return new if new and new.active else self.env['crm.stage'].search([('is_won', '=', False)], limit=1)
 
     def _webvue_restart(self, cycles=0):
         """Back to the first stage with a fresh attempt count, for the same agent when still eligible.
@@ -94,7 +106,7 @@ class CrmLeadFlow(models.Model):
         if not self.active:
             self.action_unarchive()
         self.with_context(mail_auto_subscribe_no_notify=True).write({
-            'stage_id': self.env['crm.stage'].search([], limit=1).id,
+            'stage_id': self._webvue_first_stage().id,
             'webvue_cycle': self.webvue_cycle + cycles,
             'webvue_attempt_count': 0,
             'webvue_recycle_at': False,
@@ -110,19 +122,16 @@ class CrmLeadFlow(models.Model):
     def _webvue_reopen(self, user):
         """Reopen a lost opportunity, or the cycle of one waiting for a manager's decision."""
         self.ensure_one()
-        visibility = self._webvue_visibility()
-        visibility._webvue_check_write(self, user)
+        self._webvue_require_assigner(user)
         if self.won_status == 'won' or (self.active and not self.webvue_needs_manager):
             raise ApiError(409, 'conflict', 'only a lost or flagged opportunity can be reopened')
-        if self.webvue_needs_manager and not visibility._webvue_can_assign(user, self.company_id):
-            raise ApiError(403, 'forbidden', f'{ASSIGN_CAPABILITY} capability is required')
         self._webvue_restart()
 
     def _webvue_reassign(self, agent, user):
         """Hand the opportunity to ``agent`` (422 unless eligible) and start its follow-up afresh."""
         self.ensure_one()
-        if not self._webvue_visibility()._webvue_can_assign(user, self.company_id):
-            raise ApiError(403, 'forbidden', f'{ASSIGN_CAPABILITY} capability is required')
+        self._webvue_require_assigner(user)
+        self._webvue_require_open()
         self.env['webvue.crm.distribution']._webvue_assign(self, mode='on_import', agent=agent)
         self.write({'webvue_attempt_count': 0, **CLEARED_FOLLOW_UP})
 

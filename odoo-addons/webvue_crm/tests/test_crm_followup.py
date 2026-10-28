@@ -137,6 +137,15 @@ class TestCrmFollowup(WebVueCrmCase):
         self.assertFalse(self.bell_rows(self.agent, lead, 'crm.followup_due'))
         self.assertFalse(self.bell_rows(self.agent2, lead, 'crm.assigned'))
 
+    def test_a_further_call_on_a_flagged_opportunity_does_not_tell_the_managers_again(self):
+        self.set_settings(after_attempts='manager')
+        lead = self.make_lead(self.agent)
+        last = self.exhaust(lead)
+        self.record(lead, now=last + DAY)
+        self.assertEqual(self.env['crm.phonecall'].search_count([('opportunity_id', '=', lead.id)]), 4)
+        self.assertTrue(lead.webvue_needs_manager)
+        self.assertEqual(len(self.bell_rows(self.manager, lead, 'crm.assigned')), 1)
+
     def test_manager_mode_never_recycles(self):
         self.set_settings(after_attempts='manager')
         lead = self.make_lead(self.agent)

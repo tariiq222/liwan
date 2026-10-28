@@ -63,7 +63,7 @@ class CrmSaleController(http.Controller):
     @http.route(f'{BASE}/reopen', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('crm.enabled', operation='write')
-    @requires_capability('crm.leads.work')
+    @requires_capability('crm.leads.assign')
     def reopen(self, lead_id, **payload):
         if payload:
             raise ApiError(422, 'invalid', 'field is not writable', field=sorted(payload)[0])

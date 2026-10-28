@@ -1,9 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The CRM application's notification kinds in the webvue_notify registry.
 
-No sudo here: a bell row shows only while its opportunity is still readable by the caller,
-in the current company, under the visibility policy. A recipient who lost ``crm.leads.read``,
-or whose opportunity changed hands, sees nothing, whatever rows were delivered to them.
+No sudo here: a bell row shows only while its opportunity is still readable by the caller, in
+the opportunity's own company, under that company's visibility policy. A recipient who lost
+``crm.leads.read`` there, or whose opportunity changed hands, sees nothing, whatever rows were
+delivered to them.
 """
 from odoo import api, models
 from odoo.tools import html2plaintext
@@ -14,14 +15,19 @@ KINDS = ('crm.assigned', 'crm.followup_due')
 
 
 def readable_opportunities(env):
-    """Subquery of the opportunities (lost ones included) the caller reads in the current company.
+    """One subquery per company where the caller reads CRM: its opportunities (lost ones included).
 
-    A ``Query`` (an empty list without read access), so the bell poll never builds an id list.
+    Each is judged in its own company, by the visibility policy of that company: a bell row
+    shows when its opportunity is readable there, whichever company is current. Queries, so the
+    bell poll never builds an id list.
     """
-    Lead = env['crm.lead'].with_context(active_test=False)
-    if not Lead.has_access('read'):
-        return []
-    return Lead._search(env['webvue.crm.visibility']._webvue_domain(env.user))
+    queries = []
+    for company in env.user.company_ids:
+        Lead = env['crm.lead'].with_company(company).with_context(active_test=False)
+        if Lead.has_access('read'):
+            domain = env['webvue.crm.visibility'].with_company(company)._webvue_domain(env.user)
+            queries.append(Lead._search(domain))
+    return queries
 
 
 class WebVueCrmNotificationTypes(models.AbstractModel):
@@ -38,11 +44,14 @@ class WebVueCrmNotificationTypes(models.AbstractModel):
     def _webvue_notify_visible_domain(self):
         return [
             *super()._webvue_notify_visible_domain(),
-            [
-                ('mail_message_id.webvue_notification_kind', 'in', list(KINDS)),
-                ('mail_message_id.model', '=', 'crm.lead'),
-                ('mail_message_id.res_id', 'in', readable_opportunities(self.env)),
-            ],
+            *(
+                [
+                    ('mail_message_id.webvue_notification_kind', 'in', list(KINDS)),
+                    ('mail_message_id.model', '=', 'crm.lead'),
+                    ('mail_message_id.res_id', 'in', opportunities),
+                ]
+                for opportunities in readable_opportunities(self.env)
+            ),
         ]
 
     @api.model

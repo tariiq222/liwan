@@ -161,7 +161,9 @@ class CrmOpportunitiesController(http.Controller):
             'user_id': agent.id,
         }
         Lead = request.env['crm.lead'].with_context(mail_auto_subscribe_no_notify=True)
-        return dump_opportunity(_saved(lambda: Lead.create(vals)))
+        lead = _saved(lambda: Lead.create(vals))
+        lead._webvue_notify_assigned()
+        return dump_opportunity(lead)
 
     @http.route('/api/v1/crm/opportunities/<int:lead_id>', type='json2', auth='user', methods=['GET'],
                 readonly=False)
@@ -182,6 +184,7 @@ class CrmOpportunitiesController(http.Controller):
     def patch_opportunity(self, lead_id, **payload):
         lead = find_opportunity(lead_id)
         _visibility()._webvue_check_write(lead, request.env.user)
+        lead._webvue_require_open()
         parsed = parse_opportunity_body(payload, creating=False)
         _check_source(parsed.get('source_id'))
         if 'stage_id' in parsed:

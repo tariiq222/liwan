@@ -40,7 +40,7 @@ def _reject_unknown(payload, allowed):
 
 
 def _parse_sale(payload):
-    """``package_id``, ``final_price`` and the optional ``discount_percent`` (default 0) of a sale."""
+    """``package_id``, ``final_price`` and the optional ``discount_percent`` (None: derived) of a sale."""
     missing = [name for name in ('package_id', 'final_price') if name not in payload]
     if missing:
         raise ApiError(422, 'invalid', 'field is required', field=missing[0])
@@ -48,7 +48,7 @@ def _parse_sale(payload):
     return {
         'package_id': parse_id(payload['package_id'], 'package_id'),
         'final_price': parse_price(payload['final_price'], 'final_price'),
-        'discount_percent': 0 if discount is None else _number(discount, 'discount_percent', 0, 100),
+        'discount_percent': None if discount is None else _number(discount, 'discount_percent', 0, 100),
     }
 
 
