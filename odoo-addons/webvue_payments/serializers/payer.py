@@ -5,8 +5,8 @@ from odoo import fields
 def dump_payable_invoice(invoice, status, options):
     """What the token holder sees: the merchant, the invoice and how to pay it.
 
-    No partner name, address or internal id beyond the invoice's own, and only the options the
-    payer may choose while the invoice is payable.
+    No partner name, address or internal id beyond the invoice's own. ``options`` are the ones the
+    caller computed for a payable invoice, empty otherwise.
     """
     return {
         'id': invoice.id,
@@ -25,6 +25,6 @@ def dump_payable_invoice(invoice, status, options):
                 'method': method.code,
                 'method_name': method.name,
             }
-            for provider, method in (options if status == 'payable' else ())
+            for provider, method in options
         ],
     }

@@ -29,6 +29,8 @@ class TestPaymentLinks(WebVuePayerCase):
             response.json(), {'path': f'/pay/invoice/{self.invoice.id}?access_token={self.invoice.access_token}'},
         )
         self.assertEqual(self.invoice.access_url, f'/pay/invoice/{self.invoice.id}')
+        credit = self.customer_invoice(move_type='out_refund')
+        self.assertEqual(credit.access_url, f'/my/invoices/{credit.id}')
 
     def test_only_a_payable_customer_invoice_gets_a_link(self):
         self.login_admin()
@@ -45,11 +47,13 @@ class TestPaymentLinks(WebVuePayerCase):
         unknown = self.create_link(self.invoice.id, amount=1)
         self.assertEqual((unknown.status_code, unknown.json()['code']), (422, 'unknown_field'))
 
-    def test_no_link_without_a_switched_on_gateway(self):
-        self.paymob.sudo().write({'state': 'disabled', 'is_published': False})
+    def test_no_link_without_a_live_gateway(self):
         self.login_admin()
-        response = self.create_link(self.invoice.id)
-        self.assertEqual((response.status_code, response.json()['code']), (422, 'no_gateway'))
+        for state in ('test', 'disabled'):
+            with self.subTest(state=state):
+                self.paymob.sudo().write({'state': state, 'is_published': False})
+                response = self.create_link(self.invoice.id)
+                self.assertEqual((response.status_code, response.json()['code']), (422, 'no_gateway'))
 
     def test_an_invoice_the_caller_cannot_read_gets_no_link(self):
         reader = self.env['res.users'].browse(self.admin.id)

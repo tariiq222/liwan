@@ -9,7 +9,7 @@ class AccountMove(models.Model):
 
     def _compute_access_url(self):
         # Customers never open Odoo: the stock /my/invoices page is closed by the WebVue guard, so
-        # every portal link of an invoice (emails, share links) opens the WebVue pay page instead.
+        # every portal link of a customer invoice (emails, share links) opens the WebVue pay page.
         super()._compute_access_url()
-        for move in self.filtered(lambda move: move.is_invoice()):
+        for move in self.filtered(lambda move: move.move_type == 'out_invoice'):
             move.access_url = PAY_PATH % move.id

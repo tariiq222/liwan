@@ -35,7 +35,7 @@ class WebVuePaymentsCase(WebVueApiCase):
 
 
 class WebVuePayerCase(WebVuePaymentsCase):
-    """A switched-on Paymob gateway (test mode, fake keys) and a posted 115 SAR customer invoice."""
+    """A live Paymob gateway (fake keys, no network) and a posted 115 SAR customer invoice."""
 
     @classmethod
     def setUpClass(cls):
@@ -45,7 +45,7 @@ class WebVuePayerCase(WebVuePaymentsCase):
         cls.paymob.sudo().write({
             **PAYMOB_CREDENTIALS,
             'paymob_account_country_id': cls.env.ref('base.sa').id,
-            'state': 'test',
+            'state': 'enabled',
             'is_published': True,
         })
         cls.customer = cls.env['res.partner'].create({'name': 'Payer customer', 'email': 'payer@example.test'})

@@ -1,8 +1,14 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import logging
+
 from werkzeug.exceptions import NotFound
 
 from odoo import http
 from odoo.http import request
+
+from odoo.addons.webvue_payments.models.payment_transaction import PROCESSED, Collector
+
+_logger = logging.getLogger(__name__)
 
 KINDS = ('webhook', 'return')
 
@@ -29,12 +35,30 @@ class GatewayCallbackController(http.Controller):
             raise NotFound()
         rule, args = request.env['ir.http']._match(stock_path)
         params = {**request.httprequest.args.to_dict(), **request.httprequest.form.to_dict()}
+        processed = Collector()
+        request.update_context(**{PROCESSED: processed})
         response = rule.endpoint(**args, **params)
-        # Confirmation, the payment entry and the invoice reconciliation happen in stock
-        # post-processing: run it now instead of waiting for the cron's next round.
-        request.env.ref('payment.cron_post_process_payment_tx')._trigger()
+        self._post_process(processed.items)
         if kind == 'return':
             # Stock redirects the browser to its own status page, which the guard closes; Nuxt
             # sends the payer to the WebVue status page instead.
             return request.make_response('', status=204)
         return response
+
+    @staticmethod
+    def _post_process(transactions):
+        """Confirm, record and reconcile what this call processed, now, as stock's status poll does.
+
+        Only the transactions this call changed are touched, and this does not depend on the
+        post-processing cron, which stock switches off with the last active gateway. A failure is
+        logged and left to that cron (stock retries for four days); the notification itself stays
+        recorded.
+        """
+        for tx in transactions:
+            if tx.is_post_processed or tx.state not in ('authorized', 'done'):
+                continue
+            try:
+                with request.env.cr.savepoint():
+                    tx._post_process()
+            except Exception:
+                _logger.exception("Post-processing of payment transaction %s failed; the cron will retry it", tx.reference)

@@ -52,18 +52,14 @@ class TestGatewayCallbacks(WebVuePayerCase):
             headers={'Content-Type': 'application/json'},
         )
 
-    def test_a_signed_webhook_pays_the_invoice_through_stock_post_processing(self):
+    def test_a_signed_webhook_pays_the_invoice_in_the_same_request(self):
         payload = self.payload()
         response = self.post_webhook(payload, self.signature(payload))
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('set-cookie', {key.lower() for key in response.headers})
         self.env.invalidate_all()
         self.assertEqual(self.tx.state, 'done')
-        cron = self.env.ref('payment.cron_post_process_payment_tx')
-        self.assertTrue(self.env['ir.cron.trigger'].search_count([('cron_id', '=', cron.id)]))
-        # What the triggered cron runs for each transaction (the cron itself commits, which a test cannot).
-        self.tx._post_process()
-        self.env.invalidate_all()
+        self.assertTrue(self.tx.is_post_processed)
         self.assertTrue(self.tx.payment_id)
         self.assertIn(self.invoice.payment_state, ('in_payment', 'paid'))
         self.assertEqual(self.api('GET', self.summary_url()).json()['status'], 'paid')
@@ -80,6 +76,14 @@ class TestGatewayCallbacks(WebVuePayerCase):
         self.assertEqual(self.post_webhook(tampered, signature).status_code, 403)
         unsigned = self.url_open(HOOK % 'webhook', data=json.dumps(payload), headers={'Content-Type': 'application/json'})
         self.assertEqual(unsigned.status_code, 403)
+        self.env.invalidate_all()
+        self.assertEqual(self.tx.state, 'draft')
+
+    def test_a_callback_that_processes_nothing_touches_nothing(self):
+        triggers = self.env['ir.cron.trigger'].search_count([])
+        response = self.url_open(HOOK % 'return')
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(self.env['ir.cron.trigger'].search_count([]), triggers)
         self.env.invalidate_all()
         self.assertEqual(self.tx.state, 'draft')
 

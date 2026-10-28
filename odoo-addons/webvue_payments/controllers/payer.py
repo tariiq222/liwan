@@ -2,6 +2,7 @@
 from odoo import http
 from odoo.exceptions import AccessError, MissingError, UserError
 from odoo.http import request
+from odoo.tools import consteq
 
 from odoo.addons.portal.controllers.portal import CustomerPortal
 from odoo.addons.webvue_api.controllers.common import (
@@ -20,8 +21,9 @@ MAX_TOKEN_LENGTH = 128
 def _invoice_for(invoice_id, token):
     """The customer invoice behind a valid access token; every other case is the same 404.
 
-    The stock portal check compares the token in constant time and returns the invoice
-    elevated. A missing invoice, a wrong token and another kind of entry are indistinguishable.
+    The stock portal check returns the invoice elevated; it skips the token for a caller who may
+    read the invoice anyway, so the token is always compared here too, in constant time. A missing
+    invoice, a wrong token, a draft and another kind of entry are indistinguishable.
     """
     if not isinstance(token, str) or not token or len(token) > MAX_TOKEN_LENGTH:
         raise MissingError(request.env._("Record does not exist"))
@@ -29,7 +31,7 @@ def _invoice_for(invoice_id, token):
         invoice = CustomerPortal()._document_check_access('account.move', invoice_id, access_token=token)
     except (MissingError, AccessError):
         raise MissingError(request.env._("Record does not exist")) from None
-    if invoice.move_type != 'out_invoice':
+    if not consteq(invoice.access_token or '', token) or invoice.move_type != 'out_invoice' or invoice.state == 'draft':
         raise MissingError(request.env._("Record does not exist"))
     return invoice
 

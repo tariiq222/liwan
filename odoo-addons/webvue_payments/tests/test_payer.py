@@ -51,7 +51,10 @@ class TestPayer(WebVuePayerCase):
     def test_every_token_failure_is_the_same_404(self):
         bill = self.customer_invoice(move_type='out_refund')
         bill._portal_ensure_token()
+        draft = self.customer_invoice(post=False)
+        draft._portal_ensure_token()
         responses = [
+            self.api('GET', self.summary_url(draft)),
             self.api('GET', self.summary_url(token='wrong-token')),
             self.api('GET', f'/api/v1/public/payments/invoices/{self.invoice.id}'),
             self.api('GET', f'/api/v1/public/payments/invoices/{self.invoice.id + 100000}?access_token=x'),
@@ -102,6 +105,14 @@ class TestPayer(WebVuePayerCase):
         self.assertEqual((summary['status'], summary['options']), ('paid', []))
         refused = self.start()
         self.assertEqual((refused.status_code, refused.json()['code']), (409, 'not_payable'))
+
+    def test_a_gateway_in_test_mode_is_never_offered_to_a_customer(self):
+        self.paymob.sudo().write({'state': 'test', 'is_published': False})
+        summary = self.api('GET', self.summary_url()).json()
+        self.assertEqual((summary['status'], summary['options']), ('payable', []))
+        refused = self.start()
+        self.assertEqual((refused.status_code, refused.json()['code']), (422, 'payment_unavailable'))
+        self.assertFalse(self.invoice.transaction_ids)
 
     def test_a_closed_feature_refuses_the_payer_routes(self):
         set_probe_feature(self, key='payments.enabled', enabled=False)

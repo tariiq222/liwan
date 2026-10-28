@@ -310,7 +310,11 @@ cross-addon links.
 - Arabic (`ar`) is the default locale and the UI is RTL-first. User-facing
   strings use `$t()`/`t()` and the owning locale namespace.
 - API routes use `type='json2'`, `auth='user'`, explicit methods, and the
-  shared `api_handler`. Return serializer-whitelisted shapes and structured
+  shared `api_handler`. The one exception is the public namespace `/api/v1/public/` (owner decision
+  D3, 2026-10-28): routes for anonymous visitors, `auth='public'` and `save_session=False`, authorized by a
+  per-document access token or a gateway signature, never by a session (the Nuxt proxy forwards them
+  without cookies); gateway callbacks there may be `type='http'`. Each is listed with its reason in
+  `tools/route_gate_allowlist.json`. Return serializer-whitelisted shapes and structured
   errors with a real HTTP status: 403 `forbidden`, 404 `not_found`, and 422
   `invalid` where applicable. Browser traffic uses the session cookie, not a
   bearer token.
@@ -375,7 +379,7 @@ cross-addon links.
   It also uses it in `models/payer_service.py`, for the anonymous payer of one invoice whose access token
   the stock portal check already verified: the compatible provider and payment-method lookups and the
   transaction create, with the invoice's own amount, currency and partner, blocked by the system-only
-  `payment.provider`, `payment.method` and `payment.transaction` ACL rows as in the stock portal.
+  `payment.provider` (read by the method lookup too) and `payment.transaction` ACL rows as in the stock portal.
   `webvue_api` uses it in `controllers/common.py` only for the single company-ownership
   read in `get_record`, before any access check, so another company's record answers the
   same 404 not-found as a missing one instead of a 403 that leaks its existence; in

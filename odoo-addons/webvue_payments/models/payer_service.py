@@ -4,7 +4,6 @@ from lxml import html
 from odoo import Command, api, models
 from odoo.exceptions import UserError
 
-ACTIVE_STATES = ('test', 'enabled')
 WAITING_STATES = ('pending', 'authorized')
 PAID_STATES = ('paid', 'in_payment')
 
@@ -35,13 +34,13 @@ class WebVuePaymentsPayer(models.AbstractModel):
 
     @api.model
     def _webvue_options(self, invoice):
-        """The ``(provider, method)`` pairs the payer may choose, for the tenant's offered and active gateways."""
+        """The ``(provider, method)`` pairs the payer may choose, for the tenant's offered live gateways."""
         codes = set(self.env['webvue.payments.provider.registry']._webvue_provider_map())
         # The payer has no session: the provider ACL is system-only and the stock portal reads it elevated too.
         providers = self.env['payment.provider'].sudo()._get_compatible_providers(
             invoice.company_id.id, invoice.partner_id.id, invoice.amount_residual,
             currency_id=invoice.currency_id.id,
-        ).filtered(lambda provider: provider.code in codes and provider.state in ACTIVE_STATES)
+        ).filtered(lambda provider: provider.code in codes and provider.state == 'enabled')
         if not providers:
             return []
         methods = self.env['payment.method'].sudo()._get_compatible_payment_methods(

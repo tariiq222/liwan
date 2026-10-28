@@ -37,6 +37,6 @@ class PaymentLinkController(http.Controller):
         if not invoice._has_to_be_paid():
             raise ApiError(409, 'not_payable', "this invoice does not need a payment now")
         if not request.env['webvue.payments.payer']._webvue_options(invoice):
-            raise ApiError(422, 'no_gateway', "switch a payment gateway on first")
+            raise ApiError(422, 'no_gateway', "switch a payment gateway to live first")
         invoice._portal_ensure_token()
         return {'path': invoice.get_portal_url()}
