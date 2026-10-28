@@ -91,6 +91,47 @@ test('create panel adds an opportunity and a duplicate phone is refused', async 
   await expect(page.locator('main h1')).toHaveText('منى الجهني')
 })
 
+test('the stage select leaves out the sold stage and the mock refuses it like the server', async ({ page }) => {
+  await page.goto('/crm/opportunities/3')
+  await page.getByTestId('crm-stage-select').click()
+  await expect(page.getByRole('option')).toHaveText(['جديد', 'تم التواصل', 'مهتم'])
+  await page.keyboard.press('Escape')
+  const refused = await page.request.patch('/api/v1/crm/opportunities/3', { data: { stage_id: 4 } })
+  expect(refused.status()).toBe(422)
+  expect(await refused.json()).toMatchObject({ field: 'stage_id' })
+})
+
+test('a conflict refreshes the page to the closed record', async ({ page }) => {
+  await page.goto('/crm/opportunities/3')
+  await expect(page.getByTestId('crm-call-form')).toBeVisible()
+  // Another user closes it while this page is open.
+  expect((await page.request.post('/api/v1/crm/opportunities/3/lost', { data: { lost_reason_id: 1 } })).ok()).toBe(true)
+  await page.getByTestId('crm-call-form').getByRole('combobox').first().click()
+  await page.getByRole('option', { name: 'لا يرد' }).click()
+  await page.getByTestId('crm-call-submit').click()
+  await expect(page.getByTestId('crm-call-form')).toHaveCount(0)
+  await expect(page.getByTestId('crm-reopen')).toBeVisible()
+  await expect(page.getByTestId('crm-failure')).toContainText('تغيّر هذا السجل أو أُغلق')
+})
+
+test('a losing outcome without a reason sends the reason with the call, which is logged', async ({ page }) => {
+  await page.goto('/crm/opportunities/3')
+  await page.getByTestId('crm-call-form').getByRole('combobox').first().click()
+  await page.getByRole('option', { name: 'رقم خاطئ' }).click()
+  await page.getByRole('combobox', { name: /سبب الخسارة/ }).click()
+  await page.getByRole('option', { name: 'غير مهتم' }).click()
+  await page.getByTestId('crm-call-submit').click()
+  await expect(page.getByTestId('crm-reopen')).toBeVisible()
+  await expect(page.getByTestId('crm-call-log')).toContainText('رقم خاطئ')
+})
+
+test('an unknown or malformed record id shows the not-found state, not a skeleton', async ({ page }) => {
+  for (const path of ['/crm/opportunities/999', '/crm/opportunities/abc']) {
+    await page.goto(path)
+    await expect(page.locator('[data-slot="not-found-state"]'), path).toBeVisible()
+  }
+})
+
 test('the mock answers in the contract shapes and refuses like the server', async ({ page }) => {
   const api = page.request
   const list = CrmOpportunityListSchema.parse(await (await api.get('/api/v1/crm/opportunities')).json())

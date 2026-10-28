@@ -12,6 +12,9 @@ describe('crmErrorMessage', () => {
     expect(crmErrorMessage(fail(422, 'phone'), t)).toBe('crm.opportunities.errors.duplicatePhone')
     expect(crmErrorMessage(fail(422, 'discount_percent'), t)).toBe('crm.opportunities.errors.discount')
   })
+  it('names a refused stage on 422', () => {
+    expect(crmErrorMessage(fail(422, 'stage_id'), t)).toBe('crm.opportunities.errors.stage')
+  })
   it('says a discount needs approval only for a sale', () => {
     expect(crmErrorMessage(fail(403), t, { sale: true })).toBe('crm.opportunities.errors.discountApproval')
     expect(crmErrorMessage(fail(403), t)).toBe('crm.opportunities.errors.forbidden')

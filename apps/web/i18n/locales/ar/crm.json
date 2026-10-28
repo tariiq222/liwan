@@ -183,7 +183,7 @@
         "stage": "المرحلة",
         "agent": "المسؤول",
         "source": "المصدر",
-        "listPrice": "سعر الباقة",
+        "listPrice": "سعر {term}",
         "discount": "الخصم",
         "finalPrice": "السعر النهائي",
         "attempts": "محاولات الاتصال",
@@ -217,17 +217,16 @@
         "nextCall": "الاتصال القادم {relative} ({absolute})",
         "lostNeedsReason": "هذه النتيجة تغلق السجل بالخسارة ولا سبب لها. اختر السبب لإغلاقه.",
         "lostSubmit": "إغلاق بالخسارة",
-        "lostNoCallLog": "يُغلق السجل دون تسجيل هذا الاتصال في السجل.",
         "outcomeRequired": "اختر نتيجة الاتصال",
         "log": "سجل الاتصالات",
         "logEmpty": "لا اتصالات مسجلة بعد",
         "logBy": "بواسطة {name}",
         "logNoOutcome": "بلا نتيجة",
-        "logMinutes": "{minutes} د"
+        "logMinutes": "{minutes} د",
+        "noOutcomes": "لا توجد نتائج اتصال بعد. يضيفها المدير من إعدادات هذا التطبيق (نتائج الاتصال)."
       },
       "sale": {
         "title": "بيع {term}",
-        "package": "{term}",
         "packagePlaceholder": "اختر",
         "listPrice": "سعر {term}",
         "finalPrice": "السعر النهائي",
@@ -235,7 +234,7 @@
         "discountHint": "يُحسب من الفرق بين السعر والسعر النهائي.",
         "submit": "تأكيد البيع",
         "sold": "تم البيع",
-        "packageRequired": "اختر الباقة",
+        "packageRequired": "اختر {term}",
         "priceRequired": "أدخل السعر النهائي"
       },
       "lost": {
@@ -266,7 +265,8 @@
         "duplicatePhone": "هذا الهاتف مسجل لدى سجل آخر.",
         "discount": "الخصم غير مسموح أو لا يطابق الأسعار.",
         "discountApproval": "هذا الخصم أعلى من الحد المسموح ويحتاج من يملك صلاحية اعتماد الخصم.",
-        "forbidden": "لا تملك صلاحية هذا الإجراء على هذا السجل."
+        "forbidden": "لا تملك صلاحية هذا الإجراء على هذا السجل.",
+        "stage": "لا يُنقل السجل إلى مرحلة البيع من هنا. استخدم إجراء البيع."
       }
     }
   }

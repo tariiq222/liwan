@@ -38,6 +38,8 @@ export const CrmCallCreateSchema = z
     outcome_id: z.number().int().positive(),
     note: z.string().max(NOTE_MAX).nullable().optional(),
     duration_minutes: z.number().min(0).max(DURATION_MAX_MINUTES).nullable().optional(),
+    // Required by a losing outcome that carries no reason of its own; refused for any other outcome.
+    lost_reason_id: z.number().int().positive().optional(),
     package_id: saleShape.package_id.optional(),
     final_price: saleShape.final_price.optional(),
     discount_percent: saleShape.discount_percent,

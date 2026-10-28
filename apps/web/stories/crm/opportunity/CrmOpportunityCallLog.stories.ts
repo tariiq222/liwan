@@ -6,7 +6,7 @@ import { calls } from './crmOpportunityFixtures'
 const meta = {
   title: 'CRM/CrmOpportunityCallLog',
   component: CrmOpportunityCallLog,
-  parameters: storyContext('apps/web/app/pages/crm/opportunities/[id].vue:166', 'سجل الاتصالات على الفرصة، الأحدث أولًا.'),
+  parameters: storyContext('apps/web/app/pages/crm/opportunities/[id].vue:189', 'سجل الاتصالات على الفرصة، الأحدث أولًا.'),
   args: { calls },
 } satisfies Meta<typeof CrmOpportunityCallLog>
 export default meta

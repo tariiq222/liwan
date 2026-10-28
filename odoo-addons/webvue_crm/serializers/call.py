@@ -8,7 +8,7 @@ from odoo.addons.webvue_crm.serializers.opportunity import parse_id, ref
 
 NOTE_MAX = 2000
 DURATION_MAX_MINUTES = 1440
-CALL_FIELDS = ('outcome_id', 'note', 'duration_minutes')
+CALL_FIELDS = ('outcome_id', 'note', 'duration_minutes', 'lost_reason_id')
 SALE_FIELDS = ('package_id', 'final_price', 'discount_percent')
 
 
@@ -54,7 +54,7 @@ def parse_sale_body(payload):
 
 
 def parse_call_body(payload):
-    """The call (``outcome_id``, ``note``, ``duration_minutes``) and, when sent, its sale (``sale``)."""
+    """The call (``outcome_id``, ``note``, ``duration_minutes``, ``lost_reason_id``) and, when sent, its sale (``sale``)."""
     _reject_unknown(payload, (*CALL_FIELDS, *SALE_FIELDS))
     if 'outcome_id' not in payload:
         raise ApiError(422, 'invalid', 'field is required', field='outcome_id')
@@ -66,6 +66,7 @@ def parse_call_body(payload):
         'outcome_id': parse_id(payload['outcome_id'], 'outcome_id'),
         'note': note or None,
         'duration': None if duration is None else _number(duration, 'duration_minutes', 0, DURATION_MAX_MINUTES),
+        'lost_reason_id': parse_id(payload['lost_reason_id'], 'lost_reason_id') if 'lost_reason_id' in payload else None,
         'sale': _parse_sale(payload) if any(name in payload for name in SALE_FIELDS) else None,
     }
 

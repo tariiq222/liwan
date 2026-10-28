@@ -183,7 +183,7 @@
         "stage": "Stage",
         "agent": "Agent",
         "source": "Source",
-        "listPrice": "Plan price",
+        "listPrice": "{term} price",
         "discount": "Discount",
         "finalPrice": "Final price",
         "attempts": "Call attempts",
@@ -217,17 +217,16 @@
         "nextCall": "Next call {relative} ({absolute})",
         "lostNeedsReason": "This outcome closes the record as lost and has no reason. Choose the reason to close it.",
         "lostSubmit": "Close as lost",
-        "lostNoCallLog": "The record closes without logging this call.",
         "outcomeRequired": "Choose the call outcome",
         "log": "Call log",
         "logEmpty": "No calls recorded yet",
         "logBy": "by {name}",
         "logNoOutcome": "No outcome",
-        "logMinutes": "{minutes} min"
+        "logMinutes": "{minutes} min",
+        "noOutcomes": "There are no call outcomes yet. A manager adds them in this application's settings (Call outcomes)."
       },
       "sale": {
         "title": "Sell a {term}",
-        "package": "{term}",
         "packagePlaceholder": "Choose",
         "listPrice": "{term} price",
         "finalPrice": "Final price",
@@ -235,7 +234,7 @@
         "discountHint": "Worked out from the difference between the price and the final price.",
         "submit": "Confirm the sale",
         "sold": "Sold",
-        "packageRequired": "Choose the plan",
+        "packageRequired": "Choose the {term}",
         "priceRequired": "Enter the final price"
       },
       "lost": {
@@ -266,7 +265,8 @@
         "duplicatePhone": "This phone is already on another record.",
         "discount": "The discount is not allowed or does not match the prices.",
         "discountApproval": "This discount is above the allowed limit and needs someone who can approve discounts.",
-        "forbidden": "You cannot do this on this record."
+        "forbidden": "You cannot do this on this record.",
+        "stage": "A record is not moved to the sold stage here. Use the sale action."
       }
     }
   }

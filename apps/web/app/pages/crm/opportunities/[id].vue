@@ -10,7 +10,8 @@ import { useCrmTerms } from '@/composables/crm/useCrmTerms'
 import { useCrmCalls, useCrmOpportunity, useCrmOpportunityActions } from '@/composables/crm/useOpportunities'
 import { owningListBack } from '@/utils/recordListOrigin'
 import { crmErrorMessage } from '@/utils/crmErrors'
-import { CRM_LIST_PATH, isCallDue, relativeTime } from '@/utils/crmOpportunity'
+import { ApiError } from '@/composables/useApi'
+import { CRM_LIST_PATH, formatPrice, isCallDue, movableStages, relativeTime } from '@/utils/crmOpportunity'
 
 const route = useRoute()
 const router = useRouter()
@@ -23,7 +24,12 @@ const sourcePaths = useRecordListPaths([CRM_LIST_PATH])
 const backTo = computed(() => router.resolve(owningListBack(route.query, sourcePaths.value, route.hash)).fullPath)
 
 const id = computed(() => Number(route.params.id))
+const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0)
+const canRead = computed(() => can('crm.leads.read'))
 const query = useCrmOpportunity(id)
+// An id that is not a record number never loads: it answers like a record that does not exist.
+const loadError = computed(() => (validId.value ? query.error.value : new ApiError(404, 'not_found', t('errors.notFound'))))
+const loading = computed(() => validId.value && query.isPending.value)
 const calls = useCrmCalls(id)
 const stages = useCrmStageChoices()
 const outcomes = useCrmOutcomeChoices()
@@ -52,29 +58,45 @@ const panel = ref<Panel>(null)
 const saleDraft = ref<CrmSaleDraft>({ package_id: null, final_price: null })
 const saleAttempted = ref(false)
 const callFormKey = ref(0)
-const failure = ref<{ error: unknown; sale: boolean } | null>(null)
+// A refusal belongs to the form that sent it and shows there only; one from a page action, or whose form went away
+// (a 409 refreshed the record and the form with it), shows at the top of the page.
+type Origin = 'page' | 'call' | 'sale' | 'lost'
+const failure = ref<{ error: unknown; origin: Origin; sale: boolean } | null>(null)
 const failureText = computed(() => (failure.value ? crmErrorMessage(failure.value.error, t, { sale: failure.value.sale }) : ''))
+const formShown = computed<Record<Origin, boolean>>(() => ({
+  page: false,
+  call: canWork.value && panel.value === null,
+  sale: canWork.value && panel.value === 'sale',
+  lost: canWork.value && panel.value === 'lost',
+}))
+const pageFailure = computed(() => Boolean(failure.value) && !formShown.value[failure.value!.origin])
+const textFor = (origin: Origin) => (failure.value?.origin === origin ? failureText.value : '')
 const recorded = ref('')
+
+function resetSale() {
+  saleDraft.value = { package_id: null, final_price: null }
+  saleAttempted.value = false
+}
 
 function open(next: Panel) {
   panel.value = panel.value === next ? null : next
   failure.value = null
-  saleAttempted.value = false
+  resetSale()
 }
 
-async function run<T>(work: () => Promise<T>, sale = false): Promise<T | undefined> {
+async function run<T>(origin: Origin, work: () => Promise<T>, sale = false): Promise<T | undefined> {
   failure.value = null
   try {
     return await work()
   } catch (error) {
-    failure.value = { error, sale }
+    failure.value = { error, origin, sale }
     return undefined
   }
 }
 
 async function recordCall(draft: CrmCallDraft) {
   recorded.value = ''
-  const result = await run(() => actions.recordCall.mutateAsync({ id: id.value, body: draft }), draft.package_id !== undefined)
+  const result = await run('call', () => actions.recordCall.mutateAsync({ id: id.value, body: draft }), draft.package_id !== undefined)
   if (!result) return
   callFormKey.value++
   const next = result.opportunity.next_call_at
@@ -85,10 +107,9 @@ async function recordCall(draft: CrmCallDraft) {
 }
 
 async function closeLost(lostReasonId: number) {
-  const done = await run(() => actions.lose.mutateAsync({ id: id.value, body: { lost_reason_id: lostReasonId } }))
+  const done = await run('lost', () => actions.lose.mutateAsync({ id: id.value, body: { lost_reason_id: lostReasonId } }))
   if (!done) return
   panel.value = null
-  callFormKey.value++
   toast.add({ title: t('crm.opportunities.lost.done'), color: 'success' })
 }
 
@@ -96,28 +117,30 @@ async function sell() {
   saleAttempted.value = true
   const { package_id, final_price } = saleDraft.value
   if (!package_id || final_price === null) return
-  const done = await run(() => actions.sell.mutateAsync({ id: id.value, body: { package_id, final_price } }), true)
+  const done = await run('sale', () => actions.sell.mutateAsync({ id: id.value, body: { package_id, final_price } }), true)
   if (!done) return
   panel.value = null
+  resetSale()
   toast.add({ title: t('crm.opportunities.sale.sold'), color: 'success' })
 }
 
 async function reopen() {
-  const done = await run(() => actions.reopen.mutateAsync({ id: id.value, body: null }))
+  const done = await run('page', () => actions.reopen.mutateAsync({ id: id.value, body: null }))
+  if (done) resetSale()
   if (done) toast.add({ title: t('crm.opportunities.record.reopened'), color: 'success' })
 }
 
 async function changeStage(value: unknown) {
   const stageId = Number(value)
   if (!stageId || stageId === record.value?.stage?.id) return
-  const done = await run(() => actions.patch.mutateAsync({ id: id.value, body: { stage_id: stageId } }))
+  const done = await run('page', () => actions.patch.mutateAsync({ id: id.value, body: { stage_id: stageId } }))
   if (done) toast.add({ title: t('crm.opportunities.record.stageSaved'), color: 'success' })
 }
 
 const assignee = ref<number | null>(null)
 async function assign() {
   if (!assignee.value) return
-  const done = await run(() => actions.assign.mutateAsync({ id: id.value, body: { user_id: assignee.value! } }))
+  const done = await run('page', () => actions.assign.mutateAsync({ id: id.value, body: { user_id: assignee.value! } }))
   if (!done) return
   assignee.value = null
   toast.add({ title: t('crm.opportunities.record.assigned'), color: 'success' })
@@ -126,12 +149,12 @@ async function assign() {
 const hydrated = useHydrated()
 // Disabled until hydrated, so a first click on the server-rendered page is never lost.
 const busy = computed(() => !hydrated.value || Object.values(actions).some(action => action.isPending.value))
-const stageItems = computed(() => (stages.data.value?.items ?? []).map(stage => ({ value: stage.id, label: stage.name })))
-const price = (value: number) => String(value)
+const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).map(stage => ({ value: stage.id, label: stage.name })))
 </script>
 
 <template>
-  <SharedRecordPage :title="record?.contact_name ?? ''" :tags="headerTags" :back-to="backTo" :back-label="t('crm.opportunities.record.back')" :loading="query.isPending.value" :error="query.error.value" @retry="query.refetch()">
+  <SharedForbiddenState v-if="!canRead" />
+  <SharedRecordPage v-else :title="record?.contact_name ?? ''" :tags="headerTags" :back-to="backTo" :back-label="t('crm.opportunities.record.back')" :loading="loading" :error="loadError" @retry="query.refetch()">
     <template #actions>
       <UButton v-if="canWork" color="neutral" variant="outline" icon="i-lucide-badge-check" :label="t('crm.opportunities.sale.title', { term: term('package', 'one') })" :disabled="busy" data-testid="crm-open-sale" @click="open('sale')" />
       <UButton v-if="canWork" color="neutral" variant="outline" icon="i-lucide-circle-x" :label="t('crm.opportunities.lost.action')" :disabled="busy" data-testid="crm-open-lost" @click="open('lost')" />
@@ -150,19 +173,19 @@ const price = (value: number) => String(value)
     </template>
     <template v-if="record">
       <UAlert v-if="recorded" role="status" color="success" variant="subtle" :description="recorded" data-testid="crm-recorded" />
-      <UAlert v-if="failure && panel === null" role="alert" color="error" variant="subtle" :description="failureText" data-testid="crm-failure" />
-      <CrmOpportunityLostForm v-if="panel === 'lost' && canWork" :reasons="lostReasons.data.value?.items ?? []" :pending="actions.lose.isPending.value" :error="failureText" @confirm="closeLost" @cancel="open('lost')" />
+      <UAlert v-if="pageFailure" role="alert" color="error" variant="subtle" :description="failureText" data-testid="crm-failure" />
+      <CrmOpportunityLostForm v-if="panel === 'lost' && canWork" :reasons="lostReasons.data.value?.items ?? []" :pending="actions.lose.isPending.value" :error="textFor('lost')" @confirm="closeLost" @cancel="open('lost')" />
       <SharedRecordSection v-if="panel === 'sale' && canWork" variant="panel" :title="t('crm.opportunities.sale.title', { term: term('package', 'one') })">
         <div class="grid gap-4">
           <CrmOpportunitySaleForm v-model="saleDraft" :packages="packages.data.value?.items ?? []" :disabled="busy" :show-errors="saleAttempted" />
-          <UAlert v-if="failure" role="alert" color="error" variant="subtle" :description="failureText" />
+          <UAlert v-if="textFor('sale')" role="alert" color="error" variant="subtle" :description="textFor('sale')" />
           <div class="flex justify-end gap-2">
             <UButton color="neutral" variant="outline" :label="t('app.cancel')" @click="open('sale')" />
             <UButton :loading="actions.sell.isPending.value" :disabled="busy" :label="t('crm.opportunities.sale.submit')" data-testid="crm-sale-submit" @click="sell" />
           </div>
         </div>
       </SharedRecordSection>
-      <CrmOpportunityCallForm v-if="canWork && panel === null" :key="callFormKey" :outcomes="outcomes.data.value?.items ?? []" :packages="packages.data.value?.items ?? []" :lost-reasons="lostReasons.data.value?.items ?? []" :pending="actions.recordCall.isPending.value || actions.lose.isPending.value" :error="failure ? failureText : ''" @record="recordCall" @lose="closeLost" />
+      <CrmOpportunityCallForm v-if="canWork && panel === null" :key="callFormKey" :outcomes="outcomes.data.value?.items ?? []" :packages="packages.data.value?.items ?? []" :lost-reasons="lostReasons.data.value?.items ?? []" :pending="actions.recordCall.isPending.value" :error="textFor('call')" @record="recordCall" />
       <CrmOpportunityCallLog :calls="calls.data.value?.items ?? []" />
     </template>
     <template v-if="record" #aside>
@@ -176,9 +199,9 @@ const price = (value: number) => String(value)
         <SharedPropertyRow :label="t('crm.opportunities.record.agent')" :value="record.user?.name ?? t('crm.opportunities.tag.pool')" />
         <SharedPropertyRow :label="t('crm.opportunities.record.source')" :value="record.source?.name" />
         <SharedPropertyRow v-if="record.package" :label="term('package', 'one')" :value="record.package.name" />
-        <SharedPropertyRow v-if="record.package" :label="t('crm.opportunities.record.listPrice')" :value="price(record.list_price)" />
+        <SharedPropertyRow v-if="record.package" :label="t('crm.opportunities.record.listPrice')" :value="formatPrice(record.list_price)" />
         <SharedPropertyRow v-if="record.package" :label="t('crm.opportunities.record.discount')" :value="`${record.discount_percent}%`" />
-        <SharedPropertyRow v-if="record.package" :label="t('crm.opportunities.record.finalPrice')" :value="price(record.final_price)" />
+        <SharedPropertyRow v-if="record.package" :label="t('crm.opportunities.record.finalPrice')" :value="formatPrice(record.final_price)" />
         <SharedPropertyRow v-if="record.lost_reason" :label="t('crm.opportunities.record.lostReason')" :value="record.lost_reason.name" />
         <SharedPropertyRow :label="t('crm.opportunities.record.attempts')" :value="record.attempt_count" />
         <SharedPropertyRow v-if="record.cycle" :label="t('crm.opportunities.record.cycle')" :value="record.cycle" />

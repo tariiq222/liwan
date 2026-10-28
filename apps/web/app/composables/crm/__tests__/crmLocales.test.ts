@@ -22,3 +22,15 @@ describe.each([['ar', arCrm], ['en', enCrm]])('%s crm locale gender variants', (
     expect(variants('m')).toEqual(variants('f'))
   })
 })
+
+// The package is the company's own word: the messages that name it take `{term}`, never a fixed «باقة» / «plan».
+describe.each([['ar', arCrm], ['en', enCrm]])('%s crm opportunity messages that name the package', (_locale, messages) => {
+  const opportunities = messages.crm.opportunities as { sale: Record<string, string>; record: Record<string, string> }
+  it('use the package term', () => {
+    expect(opportunities.sale.packageRequired).toContain('{term}')
+    expect(opportunities.record.listPrice).toContain('{term}')
+  })
+  it('has no key nothing reads', () => {
+    expect(opportunities.sale).not.toHaveProperty('package')
+  })
+})

@@ -52,6 +52,7 @@ const seedLists = () => ({
     { id: 2, name: 'سيفكر', effect: 'follow_up', lost_reason_id: null, active: true },
     { id: 3, name: 'تم البيع', effect: 'won', lost_reason_id: null, active: true },
     { id: 4, name: 'غير مهتم', effect: 'lost', lost_reason_id: 1, active: true },
+    { id: 5, name: 'رقم خاطئ', effect: 'lost', lost_reason_id: null, active: true },
   ],
   'lost-reasons': [
     { id: 1, name: 'غير مهتم', active: true, protected: false },
@@ -235,6 +236,8 @@ function crmOpportunityWrite(method, path, body) {
     if (lead.status !== 'pending') return closed
     if (body.phone && opportunities.some(item => item.id !== lead.id && item.phone === body.phone)) return invalid('phone', 'duplicate phone')
     const { stage_id: stageId, source_id: sourceId, ...plain } = body
+    if (stageId && !lists.stages.some(stage => stage.id === stageId)) return invalid('stage_id', 'stage does not exist')
+    if (stageId && lists.stages.find(stage => stage.id === stageId).is_won) return invalid('stage_id', 'an opportunity is won through the sale action')
     Object.assign(lead, plain)
     if (stageId) lead.stage = ref(lists.stages, stageId)
     if ('source_id' in body) lead.source = ref(lists.sources, sourceId)
@@ -261,11 +264,15 @@ function crmOpportunityWrite(method, path, body) {
   if (!outcome) return invalid('outcome_id', 'outcome does not exist')
   const saleFields = body.package_id !== undefined
   if (saleFields && outcome.effect !== 'won') return invalid('package_id', 'only a sold outcome carries a package')
+  const reasonId = body.lost_reason_id
+  if (reasonId !== undefined && outcome.effect !== 'lost') return invalid('lost_reason_id', 'only a losing outcome carries a reason')
+  if (reasonId !== undefined && !lists['lost-reasons'].some(reason => reason.id === reasonId && reason.active)) return invalid('lost_reason_id', 'lost reason does not exist')
+  if (outcome.effect === 'lost' && !outcome.lost_reason_id && reasonId === undefined) return invalid('lost_reason_id', 'a losing outcome without a reason needs lost_reason_id')
   if (outcome.effect === 'won') {
     if (!saleFields) return invalid('package_id', 'a sold outcome needs a package and a final price')
     const refused = sell(lead, body)
     if (refused) return refused
-  } else if (outcome.effect === 'lost') closeLost(lead, outcome.lost_reason_id)
+  } else if (outcome.effect === 'lost') closeLost(lead, reasonId ?? outcome.lost_reason_id)
   else if (outcome.effect === 'follow_up') followUp(lead)
   const call = { id: Math.max(0, ...Object.values(calls).flat().map(item => item.id)) + 1, outcome: { id: outcome.id, name: outcome.name }, note: body.note ?? '', duration_minutes: body.duration_minutes ?? 0, user: mockUserRef(2), created_at: iso(0) }
   calls[lead.id] = [call, ...(calls[lead.id] ?? [])]

@@ -71,6 +71,11 @@ function useOpportunityWrite<Body, Result>(request: (id: number, body: Body) => 
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, body }: { id: number; body: Body }) => request(id, body),
+    // 409: the record was closed or changed meanwhile. Refetch it and its calls so the page shows the real state.
+    onError: async (error, { id }) => {
+      if ((error as { status?: number }).status !== 409) return
+      await Promise.all([qc.invalidateQueries({ queryKey: crmKeys.opportunity(id) }), qc.invalidateQueries({ queryKey: crmKeys.calls(id) })])
+    },
     onSuccess: async (result, { id }) => {
       qc.setQueryData(crmKeys.opportunity(id), record(result))
       await Promise.all([

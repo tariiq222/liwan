@@ -236,8 +236,46 @@ class TestCrmSale(WebVueCrmCase):
     def test_a_lost_outcome_closes_the_opportunity(self):
         lead = self.make_lead(self.agent)
         outcome = self.env.ref('webvue_crm.outcome_not_interested')
+        outcome.lost_reason_id = self.reason
         response = self.post(self.agent, lead, 'calls', outcome_id=outcome.id)
         self.assertEqual(response.json()['opportunity']['status'], 'lost')
+        self.assertEqual(response.json()['opportunity']['lost_reason']['id'], self.reason.id)
+
+    def lost_outcome_without_reason(self):
+        return self.env['webvue.crm.call.outcome'].create({'name': 'Wrong number', 'effect': 'lost'})
+
+    def test_a_lost_outcome_without_a_reason_takes_the_reason_with_the_call(self):
+        lead = self.make_lead(self.agent)
+        outcome = self.lost_outcome_without_reason()
+        response = self.post(self.agent, lead, 'calls', outcome_id=outcome.id, note='Wrong person', lost_reason_id=self.reason.id)
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertEqual(body['opportunity']['status'], 'lost')
+        self.assertEqual(body['opportunity']['lost_reason'], {'id': self.reason.id, 'name': 'Too expensive'})
+        self.assertEqual(body['call']['outcome']['id'], outcome.id)
+        self.assertEqual(self.env['crm.phonecall'].search_count([('opportunity_id', '=', lead.id)]), 1)
+
+    def test_a_lost_outcome_without_a_reason_refuses_a_call_without_one(self):
+        lead = self.make_lead(self.agent)
+        outcome = self.lost_outcome_without_reason()
+        response = self.post(self.agent, lead, 'calls', outcome_id=outcome.id)
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'lost_reason_id'))
+        self.assertEqual(self.env['crm.phonecall'].search_count([('opportunity_id', '=', lead.id)]), 0)
+        self.assertEqual(lead.won_status, 'pending')
+
+    def test_the_reason_of_a_call_is_checked(self):
+        lead = self.make_lead(self.agent)
+        lost = self.lost_outcome_without_reason()
+        archived = self.env['crm.lost.reason'].create({'name': 'Old', 'active': False})
+        for body in ({'outcome_id': lost.id, 'lost_reason_id': 999999}, {'outcome_id': lost.id, 'lost_reason_id': archived.id},
+                     {'outcome_id': lost.id, 'lost_reason_id': None}, {'outcome_id': lost.id, 'lost_reason_id': 'x'}):
+            response = self.post(self.agent, lead, 'calls', **body)
+            self.assertEqual((response.status_code, response.json()['field']), (422, 'lost_reason_id'), body)
+        follow_up = self.env.ref('webvue_crm.outcome_no_answer')
+        response = self.post(self.agent, lead, 'calls', outcome_id=follow_up.id, lost_reason_id=self.reason.id)
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'lost_reason_id'))
+        self.assertEqual(self.env['crm.phonecall'].search_count([('opportunity_id', '=', lead.id)]), 0)
+        self.assertEqual(lead.won_status, 'pending')
 
     def test_call_validation_and_state(self):
         lead = self.make_lead(self.agent)

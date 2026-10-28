@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { activeFilterCount, derivedDiscountPercent, isCallDue, opportunityFilters, opportunityListLocation, relativeTime, safeCrmReturnTo } from '../crmOpportunity'
+import { activeFilterCount, formatPrice, movableStages, derivedDiscountPercent, isCallDue, opportunityFilters, opportunityListLocation, relativeTime, safeCrmReturnTo } from '../crmOpportunity'
 
 describe('opportunityFilters', () => {
   it('reads ids, flags and the search from the route query', () => {
@@ -54,5 +54,20 @@ describe('relativeTime and isCallDue', () => {
     expect(isCallDue({ status: 'pending', next_call_at: '2026-10-28T11:00:00Z' }, now)).toBe(false)
     expect(isCallDue({ status: 'won', next_call_at: '2026-10-28T09:00:00Z' }, now)).toBe(false)
     expect(isCallDue({ status: 'pending', next_call_at: null }, now)).toBe(false)
+  })
+})
+
+describe('movableStages', () => {
+  it('leaves out the sold stage and the archived ones: a sale goes through the sale action', () => {
+    const stage = (id: number, extra: object = {}) => ({ id, name: `s${id}`, sequence: id, is_won: false, active: true, ...extra })
+    expect(movableStages([stage(1), stage(2, { is_won: true }), stage(3, { active: false }), stage(4)]).map(item => item.id)).toEqual([1, 4])
+  })
+})
+
+describe('formatPrice', () => {
+  it('uses Latin digits, grouping and up to two decimals', () => {
+    expect(formatPrice(1250)).toBe('1,250')
+    expect(formatPrice(108.5)).toBe('108.5')
+    expect(formatPrice(0)).toBe('0')
   })
 })

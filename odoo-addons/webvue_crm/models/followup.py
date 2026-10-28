@@ -22,11 +22,12 @@ class WebVueCrmFollowup(models.AbstractModel):
     _description = 'WebVue CRM follow-up engine'
 
     @api.model
-    def _webvue_record_call(self, lead, outcome, note=None, duration=None, now=None, sale=None):
+    def _webvue_record_call(self, lead, outcome, note=None, duration=None, now=None, sale=None, lost_reason=None):
         """Log a call on ``lead`` and apply its outcome; return the ``crm.phonecall``.
 
         ``sale`` (``package``, ``final_price``, ``discount_percent``, ``user``) is required by a
-        ``won`` outcome. ``duration`` is in minutes.
+        ``won`` outcome. ``lost_reason`` closes a ``lost`` outcome with that reason instead of the outcome's own.
+        ``duration`` is in minutes.
         """
         now = now or fields.Datetime.now()
         lead._webvue_require_open()
@@ -35,7 +36,7 @@ class WebVueCrmFollowup(models.AbstractModel):
                 raise ApiError(422, 'invalid', 'a sold outcome needs a package and a final price', field='package_id')
             lead._webvue_mark_won(sale['package'], sale['final_price'], sale['discount_percent'], sale['user'])
         elif outcome.effect == 'lost':
-            lead._webvue_close_lost(outcome.lost_reason_id)
+            lead._webvue_close_lost(lost_reason or outcome.lost_reason_id)
         elif outcome.effect == 'follow_up':
             self._webvue_schedule(lead, now)
         return self._webvue_log_call(lead, outcome, note, duration, now)

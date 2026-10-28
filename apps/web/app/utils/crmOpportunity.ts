@@ -1,4 +1,4 @@
-import type { CrmOpportunity, CrmOpportunityFilters } from '@webvue/contracts'
+import type { CrmOpportunity, CrmOpportunityFilters, CrmStage } from '@webvue/contracts'
 
 export const CRM_LIST_PATH = '/crm/opportunities'
 const LIST_QUERY_KEYS = ['q', 'stage_id', 'user_id', 'source_id', 'due', 'unassigned', 'needs_manager', 'view', 'page'] as const
@@ -62,3 +62,11 @@ export function relativeTime(iso: string, now: number, locale: string): string {
 /** Whether a call is already due: it has a next-call time that has passed. */
 export const isCallDue = (opportunity: Pick<CrmOpportunity, 'next_call_at' | 'status'>, now: number) =>
   opportunity.status === 'pending' && opportunity.next_call_at !== null && new Date(opportunity.next_call_at).getTime() <= now
+
+/** The stages a record can be moved to by hand: a sale goes through the sale action, so the sold stage is not offered. */
+export const movableStages = (stages: CrmStage[]) => stages.filter(stage => stage.active && !stage.is_won)
+
+const PRICE = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+
+/** A price with Latin digits and grouping, up to two decimals. The CRM API carries no currency, so none is drawn. */
+export const formatPrice = (value: number) => PRICE.format(Number.isFinite(value) ? value : 0)

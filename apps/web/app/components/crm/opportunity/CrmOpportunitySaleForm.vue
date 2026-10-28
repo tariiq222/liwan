@@ -27,7 +27,7 @@ function setPrice(value: number | null | undefined) {
 
 <template>
   <div class="grid gap-4" data-testid="crm-sale-form">
-    <UFormField :label="packageLabel" name="sale-package" required :error="showErrors && !modelValue.package_id ? t('crm.opportunities.sale.packageRequired') : undefined">
+    <UFormField :label="packageLabel" name="sale-package" required :error="showErrors && !modelValue.package_id ? t('crm.opportunities.sale.packageRequired', { term: packageLabel }) : undefined">
       <USelect id="sale-package" class="w-full" :model-value="modelValue.package_id ?? undefined" :items="items" :placeholder="t('crm.opportunities.sale.packagePlaceholder')" :disabled="disabled" @update:model-value="choose" />
     </UFormField>
     <div class="grid gap-4 sm:grid-cols-3">

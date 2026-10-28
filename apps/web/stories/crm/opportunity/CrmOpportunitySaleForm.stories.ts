@@ -6,7 +6,7 @@ import { packages } from './crmOpportunityFixtures'
 const meta = {
   title: 'CRM/CrmOpportunitySaleForm',
   component: CrmOpportunitySaleForm,
-  parameters: storyContext('apps/web/app/pages/crm/opportunities/[id].vue:157', 'حقول البيع: الباقة والسعر النهائي، والخصم يُحسب ولا يُكتب.'),
+  parameters: storyContext('apps/web/app/pages/crm/opportunities/[id].vue:180', 'حقول البيع: الباقة والسعر النهائي، والخصم يُحسب ولا يُكتب.'),
   args: { packages, modelValue: { package_id: null, final_price: null } },
 } satisfies Meta<typeof CrmOpportunitySaleForm>
 export default meta

@@ -52,6 +52,12 @@ describe('call and sale bodies', () => {
     expect(CrmCallCreateSchema.parse({ outcome_id: 4, package_id: 2, final_price: 5, discount_percent: null }).package_id).toBe(2)
   })
 
+  it('takes the reason a losing call carries, as a positive id', () => {
+    expect(CrmCallCreateSchema.parse({ outcome_id: 5, lost_reason_id: 3 }).lost_reason_id).toBe(3)
+    expect(() => CrmCallCreateSchema.parse({ outcome_id: 5, lost_reason_id: 0 })).toThrow()
+    expect(() => CrmCallCreateSchema.parse({ outcome_id: 5, lost_reason_id: null })).toThrow()
+  })
+
   it('bounds the sale', () => {
     expect(CrmSaleSchema.parse({ package_id: 2, final_price: 0, discount_percent: null }).final_price).toBe(0)
     expect(() => CrmSaleSchema.parse({ package_id: 2, final_price: -1 })).toThrow()
