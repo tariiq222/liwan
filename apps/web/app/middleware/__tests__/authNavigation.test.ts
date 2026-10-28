@@ -16,11 +16,13 @@ function loadGuard(client = true, suspended = false) {
   const refresh = vi.fn(async () => { me.value = { id: 2 } })
   const callHook = vi.fn(() => notification.promise)
   const canReachPath = vi.fn(() => true)
+  const appRootFallback = vi.fn((): string | null => null)
   const bindings = {
     defineNuxtRouteMiddleware: (handler: unknown) => handler,
     useNuxtApp: () => ({ $i18n: { t: (key: string) => key }, callHook }),
     useMe: () => ({ me, error: ref(suspended ? { statusCode: 403, data: { code: 'tenant_suspended' } } : null), ready: ready.promise, refresh }),
     canReachPath,
+    appRootFallback,
     isLoggedOutError: () => suspended,
     isTenantSuspendedError: () => suspended,
     isSchemaError: () => false,
@@ -33,7 +35,7 @@ function loadGuard(client = true, suspended = false) {
     .replace('export default', 'return')
   const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
   const guard = new Function(...Object.keys(bindings), code)(...Object.values(bindings)) as (to: { path: string; fullPath: string; meta?: { access?: string } }) => Promise<unknown>
-  return { ...bindings, guard, ready, notification, refresh, callHook, canReachPath }
+  return { ...bindings, guard, ready, notification, refresh, callHook, canReachPath, appRootFallback }
 }
 
 it('publishes the actual client target before readiness and waits for listeners before refreshing identity', async () => {
@@ -94,4 +96,15 @@ it('sends a signed-in visitor of a guest page home and lets a signed-out one sta
   signedOut.ready.resolve()
   await signedOut.guard({ path: '/login', fullPath: '/login', meta: { access: 'guest' } })
   expect(signedOut.navigateTo).not.toHaveBeenCalled()
+})
+
+it('replaces an app root the identity cannot open with its first allowed page', async () => {
+  const view = loadGuard()
+  view.appRootFallback.mockReturnValue('/finance/payments')
+  view.notification.resolve()
+  view.ready.resolve()
+  await view.guard({ path: '/finance', fullPath: '/finance' })
+  expect(view.appRootFallback).toHaveBeenCalledWith({ id: 2 }, '/finance')
+  expect(view.navigateTo).toHaveBeenCalledWith('/finance/payments', { replace: true })
+  expect(view.canReachPath).not.toHaveBeenCalled()
 })
