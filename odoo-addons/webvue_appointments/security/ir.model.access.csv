@@ -8,3 +8,5 @@ access_resource_booking_type_rel_manage,resource.booking.type.combination.rel.ma
 access_resource_booking_view,resource.booking.view,resource_booking.model_resource_booking,group_cap_appointments_view,1,0,0,0
 access_resource_booking_book,resource.booking.book,resource_booking.model_resource_booking,group_cap_appointments_book,1,1,1,0
 access_resource_booking_manage,resource.booking.manage,resource_booking.model_resource_booking,group_cap_appointments_manage,1,1,1,1
+access_appointment_resource_guard_book,webvue.appointment.resource.guard.book,model_webvue_appointment_resource_guard,group_cap_appointments_book,1,1,1,0
+access_appointment_resource_guard_manage,webvue.appointment.resource.guard.manage,model_webvue_appointment_resource_guard,group_cap_appointments_manage,1,1,1,0
