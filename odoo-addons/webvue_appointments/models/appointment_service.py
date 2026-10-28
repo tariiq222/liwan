@@ -8,6 +8,7 @@ from odoo.exceptions import ConcurrencyError
 class WebVueAppointmentService(models.AbstractModel):
     _name = 'webvue.appointment.service'
     _description = 'Appointment booking service'
+    _webvue_scope = 'global'
 
     @api.model
     def _webvue_guard_resources(self, resources):

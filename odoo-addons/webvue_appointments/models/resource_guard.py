@@ -10,6 +10,8 @@ class WebVueAppointmentResourceGuard(models.Model):
     """
     _name = 'webvue.appointment.resource.guard'
     _description = 'Appointment resource guard'
+    # A lock row per resource, not company data: a resource may belong to no company.
+    _webvue_scope = 'global'
 
     resource_id = fields.Many2one('resource.resource', required=True, index=True, ondelete='cascade')
     revision = fields.Integer(default=0, required=True)
