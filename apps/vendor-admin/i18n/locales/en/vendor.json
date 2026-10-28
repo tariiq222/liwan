@@ -808,7 +808,7 @@
         "payload_too_large": "The request is too large.",
         "unauthorized": "Session expired. Sign in again.",
         "vendor_unavailable": "Vendor service is temporarily unavailable. Try later.",
-        "method_not_allowed": "Method not allowed.", "tenant_upgrade_required": "This tenant has not been upgraded and cannot store the commercial expiry. Upgrade the Odoo image, then repeat the action.", "tenant_binding_unavailable": "No enabled tenant binding exists for this subscription, so the trial date cannot be pushed. Fix the binding and repeat.", "trial_order_unavailable": "No applied order is available to attach the date change to. Wait for fulfilment, then repeat."
+        "method_not_allowed": "Method not allowed.", "tenant_upgrade_required": "This tenant has not been upgraded and cannot store the commercial expiry. Upgrade the Odoo image, then repeat the action.", "tenant_binding_unavailable": "No enabled tenant binding exists for this subscription, so the trial date cannot be pushed. Fix the binding and repeat.", "trial_order_unavailable": "No applied order is available to attach the date change to. Wait for fulfilment, then repeat.", "trial_required_first": "A paid first order cannot be placed for a customer with no workspace yet. Start the trial instead; the customer pays from inside their workspace.", "trial_already_used": "This customer has already used their trial.", "trial_not_available": "A trial can only start before the customer has an active subscription.", "trial_disabled": "The selected plan does not offer a trial."
       },
       "keys": {
         "users_limit": "Users",
@@ -823,6 +823,7 @@
     },
     "customers": {
       "trial": {"title": "Trial", "ends": "Ends on", "remaining": "Days remaining", "state": "State", "extend": "Extend trial", "end": "End trial now", "extendHint": "Add days to the trial end. The action is audited.", "endHint": "Ends the trial now and issues the first invoice with a payment link. The action is audited.", "days": "Days", "reason": "Reason", "readOnly": "Changing a trial requires the subscription management capability.", "states": {"trialing": "Trial", "active": "Active", "past_due": "Past due", "suspended": "Suspended", "pending": "Provisioning", "cancelled": "Cancelled"}},
+      "trialStart": {"title": "Start a trial", "hint": "The customer has no subscription yet. A trial creates the workspace and sends the administrator invitation; the customer pays from inside the workspace after the trial.", "plan": "Plan", "cadence": "Billing cadence", "action": "Start {days}-day trial", "noPlans": "No published plan offers a trial."},
       "title": "Customers",
       "search": "Search by client name",
       "empty": "No commercial customers yet.",
@@ -1057,7 +1058,8 @@
         "hostingTitle": "Environment and hosting",
         "catalogTitle": "Catalog",
         "nameTitle": "Customer",
-        "planHint": "Choose the plan the customer subscribes to and its billing cycle."
+        "planHint": "Choose the plan the customer subscribes to and its billing cycle.",
+        "trial": "The customer starts on a {days}-day trial and pays from its own workspace when it ends."
       },
       "pendingActivation": "Awaiting activation"
     },

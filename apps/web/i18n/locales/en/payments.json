@@ -1,0 +1,145 @@
+{
+  "payments": {
+    "title": "Online payments",
+    "providers": {
+      "title": "Payment gateways",
+      "hint": "Connect your own gateway account so your customers' payments go to your account.",
+      "empty": "No payment gateways are available for your company."
+    },
+    "state": {
+      "disabled": "Off",
+      "test": "Test",
+      "enabled": "Live"
+    },
+    "mode": {
+      "label": "Mode",
+      "hint": "Off takes no payments, Test tries the connection without real money, and Live takes your customers' real payments.",
+      "needsKeys": "To turn on Test or Live, enter all the keys and save them first.",
+      "changed": "The mode was changed",
+      "failed": "The mode could not be changed",
+      "liveTitle": "Turn on live payments?",
+      "liveHint": "Your {gateway} account will start taking your customers' real payments.",
+      "liveConfirm": "Yes, turn on live payments"
+    },
+    "country": {
+      "label": "Gateway account country",
+      "hint": "It sets the payment currency of your gateway account.",
+      "changed": "The account country was changed",
+      "failed": "The account country could not be changed"
+    },
+    "credentials": {
+      "title": "Account keys",
+      "hint": "Find them in your {gateway} dashboard. Keys are not shown again after saving; leave a field empty to keep its saved key.",
+      "present": "Saved",
+      "absent": "Not entered",
+      "keep": "Leave empty to keep the saved key",
+      "save": "Save keys",
+      "saved": "The keys were saved",
+      "failed": "The keys could not be saved",
+      "paymob_public_key": "Public key",
+      "paymob_secret_key": "Secret key",
+      "paymob_hmac_key": "HMAC secret",
+      "paymob_api_key": "API key"
+    },
+    "sync": {
+      "action": "Test connection",
+      "saveFirst": "Save the keys first to test the connection with them.",
+      "turnOn": "Turn on Test or Live to test the connection.",
+      "failed": "The connection could not be tested",
+      "synced": {
+        "title": "The connection works",
+        "hint": "The gateway accepted the keys and the payment methods were refreshed from your account."
+      },
+      "methodsMissing": {
+        "title": "The gateway account is missing some payment methods",
+        "hint": "The gateway accepted the keys, but your account there does not turn on a payment method WebVue needs. Turn it on in the gateway dashboard, then test again."
+      }
+    },
+    "methods": {
+      "label": "Active payment methods",
+      "empty": "No payment methods are active yet."
+    },
+    "errors": {
+      "notConfigured": "Enter all the keys and save them first.",
+      "disabled": "The gateway is off. Turn on Test or Live first.",
+      "syncFailed": "The gateway could not be reached or refused the keys. Check the keys and try again.",
+      "methodsMissing": "Your gateway account does not turn on a payment method WebVue needs. Turn it on in the gateway dashboard, then try again.",
+      "invalid": "Invalid value. Check that you copied the whole key."
+    },
+    "pay": {
+      "title": "Pay invoice",
+      "statusTitle": "Payment status",
+      "amountDue": "Amount due",
+      "merchant": "Issued by",
+      "number": "Invoice number",
+      "dueDate": "Due date",
+      "total": "Invoice total",
+      "chooseMethod": "Choose how to pay",
+      "submit": "Pay now",
+      "redirecting": "Taking you to the payment page…",
+      "secure": "You will go to the gateway's secure payment page to complete the payment.",
+      "retry": "Try again",
+      "refresh": "Refresh status",
+      "states": {
+        "paid": {
+          "title": "This invoice is paid",
+          "body": "Thank you. We received the payment and nothing more is needed."
+        },
+        "processing": {
+          "title": "Payment is being confirmed",
+          "body": "We received the payment request and are waiting for the gateway to confirm it. This can take a few minutes, and you can close this page."
+        },
+        "notPayable": {
+          "title": "This invoice cannot be paid now",
+          "body": "Contact the invoice issuer to find out why."
+        },
+        "noOptions": {
+          "title": "Online payment is not available for this invoice at the moment",
+          "body": "Contact the invoice issuer."
+        },
+        "invalidLink": {
+          "title": "The payment link is not valid",
+          "body": "The link is wrong or has expired. Ask the invoice issuer for a new link."
+        },
+        "unavailable": {
+          "title": "The invoice could not be loaded",
+          "body": "A temporary problem occurred. Try again in a moment."
+        }
+      },
+      "errors": {
+        "notPayable": "This invoice cannot be paid now. Reload the page to see its status.",
+        "unavailable": "The payment gateway is not available now. Try again in a moment.",
+        "failed": "The payment could not be started. Try again.",
+        "inProgress": "A payment of this invoice was started a moment ago on another page. Finish it there, or try again in a quarter of an hour."
+      }
+    },
+    "status": {
+      "confirming": {
+        "title": "Checking the payment result",
+        "body": "This can take a few moments. Keep this page open."
+      },
+      "notPaid": {
+        "title": "The payment was not made",
+        "body": "We did not receive a payment result. If it did not complete, you can try again."
+      },
+      "backToPay": "Back to the payment page",
+      "tryAgain": "Try paying again"
+    },
+    "returned": {
+      "title": "Payment result received",
+      "alertTitle": "You can close this page",
+      "body": "To see the invoice status, open the payment link you received again."
+    },
+    "link": {
+      "action": "Payment link",
+      "copied": "Payment link copied",
+      "copiedHint": "Send it to the customer so they can pay the invoice without an account.",
+      "copyFailed": "Could not copy automatically. Copy the link by hand",
+      "failed": "The payment link could not be created",
+      "errors": {
+        "notPayable": "This invoice cannot be paid by link. Make sure it is posted and has an amount due.",
+        "noGateway": "Switch a payment gateway to live first."
+      }
+    }
+  }
+}

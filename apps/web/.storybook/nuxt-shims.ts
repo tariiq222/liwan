@@ -41,12 +41,15 @@ export function useState<T>(key: string, init?: () => T): Ref<T> {
 }
 export function __resetState() { states.clear(); asyncData.clear() }
 
-export function useCookie<T>(name: string, opts: { default?: () => T } = {}): Ref<T> {
+function readCookie<T>(name: string): T | undefined {
   const raw = document.cookie.split('; ').find(c => c.startsWith(`${name}=`))?.slice(name.length + 1)
-  let initial: T | undefined
-  try { initial = raw ? JSON.parse(decodeURIComponent(raw)) : undefined } catch { initial = raw as T }
-  return useState<T>(`cookie:${name}`, () => initial ?? (opts.default?.() as T))
+  try { return raw ? JSON.parse(decodeURIComponent(raw)) : undefined } catch { return raw as T }
 }
+export function useCookie<T>(name: string, opts: { default?: () => T } = {}): Ref<T> {
+  return useState<T>(`cookie:${name}`, () => readCookie<T>(name) ?? (opts.default?.() as T))
+}
+/** Re-reads the browser cookie into the ref useCookie returned. */
+export function refreshCookie(name: string) { useState<unknown>(`cookie:${name}`).value = readCookie(name) }
 
 // --- async data (useFetch key cache used by useMe/useBranding) -------------
 type Entry = { data: Ref<unknown>; error: Ref<unknown>; status: Ref<string>; refresh: () => Promise<void> }

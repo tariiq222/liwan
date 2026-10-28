@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Company scope: the engine's two global rules also show company-less rows; WebVue
+         records always have a company, so the rules drop the False alternative. The engine
+         declares both rules noupdate, so on upgrade the migration post-sync-company-scope.py
+         writes these same domains (it reads them from this file). -->
+    <record id="resource_booking.rule_resource_booking_type_company" model="ir.rule">
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="resource_booking.rule_resource_booking_company" model="ir.rule">
+        <field name="domain_force">[('type_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_resource_booking_combination_company" model="ir.rule">
+        <field name="name">Resource booking combination company rule</field>
+        <field name="model_id" ref="resource_booking.model_resource_booking_combination"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_webvue_appointment_settings_company" model="ir.rule">
+        <field name="name">Appointment settings: current company</field>
+        <field name="model_id" ref="model_webvue_appointment_settings"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">[('company_id', '=', company_id)]</field>
+    </record>
+
+    <!-- Record scope: view sees its own and assigned bookings (the engine's own rule domain);
+         book and manage see every booking of the company.
+         WARNING: the book and manage rules are [(1, '=', 1)] and the company rules above follow
+         the user's allowed companies. webvue_core aggregates capability groups across all of a
+         user's companies, so a user holding book in company A also passes this rule for company
+         B's bookings whenever B is the current company at ORM level. Every booking route must
+         therefore check the capability in the current company (requires_capability /
+         _webvue_has_capability(..., company=...)); the ORM rule alone is not the gate. -->
+    <record id="rule_resource_booking_view" model="ir.rule">
+        <field name="name">Appointments view: own and assigned bookings</field>
+        <field name="model_id" ref="resource_booking.model_resource_booking"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_appointments_bookings_read'))]"/>
+        <field name="domain_force">['|', '|', ('partner_ids', 'child_of', user.partner_id.ids), ('message_partner_ids', 'child_of', user.partner_id.ids), ('combination_id.resource_ids.user_id', 'in', user.ids)]</field>
+    </record>
+    <record id="rule_resource_booking_book" model="ir.rule">
+        <field name="name">Appointments book: every booking of the company</field>
+        <field name="model_id" ref="resource_booking.model_resource_booking"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_appointments_bookings_write'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="rule_resource_booking_manage" model="ir.rule">
+        <field name="name">Appointments manage: every booking of the company</field>
+        <field name="model_id" ref="resource_booking.model_resource_booking"/>
+        <field name="groups" eval="[Command.link(ref('group_cap_appointments_bookings_manage'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+</odoo>

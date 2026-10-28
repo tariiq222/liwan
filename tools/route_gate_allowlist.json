@@ -6,6 +6,12 @@
         "webvue_notify/controllers/notifications.py:mark_all_read",
         "webvue_notify/controllers/notifications.py:mark_read"
       ]
+    },
+    {
+      "reason": "Gateway notifications keep reaching the tenant after it switches payments off: money already on its way must still be recorded and reconciled.",
+      "routes": [
+        "webvue_payments/controllers/hooks.py:gateway_callback"
+      ]
     }
   ],
   "no_capability": [
@@ -132,6 +138,26 @@
         "webvue_pmo/controllers/task_dependencies.py:list_dependencies",
         "webvue_pmo/controllers/timeline.py:thread_tasks",
         "webvue_pmo/controllers/timeline.py:timeline"
+      ]
+    },
+    {
+      "reason": "Anonymous payer of one customer invoice under /api/v1/public/ (auth='public', no session): the invoice's access token, checked by the stock portal check, is the authorization; no capability applies.",
+      "routes": [
+        "webvue_payments/controllers/payer.py:get_invoice",
+        "webvue_payments/controllers/payer.py:start_payment"
+      ]
+    },
+    {
+      "reason": "Server-to-server gateway notification and payer return relayed by Nuxt (auth='public', type='http'): the stock provider controller verifies the gateway signature; no user and no capability exist.",
+      "routes": [
+        "webvue_payments/controllers/hooks.py:gateway_callback"
+      ]
+    },
+    {
+      "reason": "WhatsApp webhook (machine to machine): Meta signs every POST with HMAC-SHA256 over the raw body and the GET handshake carries the channel verify token; the route runs as the inactive inbox hook identity that may only read channels and create raw events, so there is no user to hold a capability.",
+      "routes": [
+        "webvue_inbox/controllers/hooks.py:receive",
+        "webvue_inbox/controllers/hooks.py:verify"
       ]
     }
   ],

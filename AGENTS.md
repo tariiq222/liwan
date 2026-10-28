@@ -155,6 +155,25 @@ Accumulation in code or in the database schema is a defect, not technical debt t
   fix, not customer options to preserve faulty behavior. Deployment secrets and
   infrastructure policies remain in their owning operator/vendor configuration.
 
+### Configurable, sector-flexible applications — owner constitution 2026-10-28
+
+Every application, existing and new, serves many sectors and lets each tenant shape
+it from that application's own settings section, so a tenant gets the options that
+fit it without code changes or a per-customer fork.
+
+- When designing or changing an application, identify the behavior that varies by
+  sector or tenant (stages, optional sub-features, extra fields, value lists such as
+  sources or reasons, visibility policies) and expose it as a setting with a sensible
+  default, under the rules above. Sector presets that set several options at once
+  are encouraged.
+- Settings are explicit and structured (enumerable options, typed values, stated
+  defaults) and readable through the API, because an assistant will recommend
+  settings to each tenant. Do not hide a tenant choice in code or free text.
+- Flexibility stays simple: good defaults, grouped settings, no option that serves
+  no real sector. It never overrides R6 (no customer-name or customer-type
+  condition), tenant isolation or server-enforced authorization; logic for one
+  customer only still belongs in a `customer_<name>_*` overlay.
+
 ## Architecture rules (R1–R10)
 
 Spec: [reference architecture and Git workflow](docs/superpowers/specs/2026-10-05-webvue-reference-architecture-and-git-workflow-design.md).
@@ -291,7 +310,11 @@ cross-addon links.
 - Arabic (`ar`) is the default locale and the UI is RTL-first. User-facing
   strings use `$t()`/`t()` and the owning locale namespace.
 - API routes use `type='json2'`, `auth='user'`, explicit methods, and the
-  shared `api_handler`. Return serializer-whitelisted shapes and structured
+  shared `api_handler`. The one exception is the public namespace `/api/v1/public/` (owner decision
+  D3, 2026-10-28): routes for anonymous visitors, `auth='public'` and `save_session=False`, authorized by a
+  per-document access token or a gateway signature, never by a session (the Nuxt proxy forwards them
+  without cookies); gateway callbacks there may be `type='http'`. Each is listed with its reason in
+  `tools/route_gate_allowlist.json`. Return serializer-whitelisted shapes and structured
   errors with a real HTTP status: 403 `forbidden`, 404 `not_found`, and 422
   `invalid` where applicable. Browser traffic uses the session cookie, not a
   bearer token.
@@ -316,8 +339,8 @@ cross-addon links.
   `access_webvue_tenant_profile_system` row, which no ordinary user or public route may hold. Its callers (the user quota
   delta, the pre-login suspension gates, the attachment storage-quota accounting, the binary image route and the
   pre-session request authentication guard) call the service unelevated: the service raises its own read, and its
-  other reads (the support group, the user and storage counts) are raw SQL. The installed-module probe no longer elevates: `base_install_request` (auto-installed,
-  depends `mail`) grants `base.group_user` read on `ir.module.module`, so the ACL never blocked it.
+  other reads (the support group, the user and storage counts) are raw SQL. The installed-module probe carries no elevation of its own: it reads the
+  stock cached `ir.module.module._installed()` map, which serves every caller, including the public user of a feature-gated public route.
   `webvue_core` uses it only for the company-partner existence check, which Odoo's `res_company_rule_employee` hides and
   `active_test=False` must still see.
   `webvue_chat` uses it for the two `mail.message.reaction` paths — the toggle after `_webvue_member_channel`
@@ -348,6 +371,15 @@ cross-addon links.
   after the `finance.zatca.manage` / `finance.zatca.submit` capability and current-company checks,
   in the sandbox api mode only (ZATCA onboarding is sandbox-only in this phase, so production invoicing for real
   tenants is a release blocker until the preprod/prod policy is approved).
+  `webvue_payments` uses it only in `models/payment_provider.py`, to switch one gateway's mode
+  (disabled, test, live) after the `payments.providers.manage` capability and current-company checks:
+  stock `payment.provider.write` then archives the provider's saved tokens and toggles its payment
+  methods and the payment post-processing cron, all system-only models. The tenant's gateway keys are
+  written without elevation (the capability group joins the stock key field's group) and never returned.
+  It also uses it in `models/payer_service.py`, for the anonymous payer of one invoice whose access token
+  the stock portal check already verified: the compatible provider and payment-method lookups and the
+  transaction create, with the invoice's own amount, currency and partner, blocked by the system-only
+  `payment.provider` (read by the method lookup too) and `payment.transaction` ACL rows as in the stock portal.
   `webvue_api` uses it in `controllers/common.py` only for the single company-ownership
   read in `get_record`, before any access check, so another company's record answers the
   same 404 not-found as a missing one instead of a 403 that leaks its existence; in

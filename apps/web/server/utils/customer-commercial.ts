@@ -120,6 +120,15 @@ export function ensureCsrfCookie(event: H3Event): void {
   setCookie(event, CSRF_COOKIE, randomBytes(24).toString('hex'), { sameSite: 'strict', secure: getRequestURL(event).protocol === 'https:', httpOnly: false, path: '/' })
 }
 
+/** Browser-side token issue: a first read during SSR cannot deliver its Set-Cookie, so the page asks for it before its first mutation. */
+export function issueCsrfCookie(event: H3Event): null {
+  if (!customerCommercialEnabled(useRuntimeConfig(event) as CustomerConfig)) fail(404, 'not_found', 'Not found')
+  ensureCsrfCookie(event)
+  setResponseHeader(event, 'Cache-Control', 'no-store')
+  setResponseStatus(event, 204)
+  return null
+}
+
 const WINDOW_MS = 60_000
 const MAX_MUTATIONS = 20
 const buckets = new Map<string, number[]>()

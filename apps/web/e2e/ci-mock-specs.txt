@@ -9,3 +9,5 @@ settings-navigation-mocked.spec.ts
 motion-accessibility.spec.ts
 navigation-disclosure.spec.ts
 navigation-system.spec.ts
+payments-settings-mocked.spec.ts
+payments-pay-mocked.spec.ts

@@ -77,6 +77,7 @@ const workspaceBadge = computed(() => {
 const retryWorkspaceState = () => Promise.all([refreshTenant(), refreshRecent(), progress.refreshNow()])
 const operationFailed = computed(() => Boolean(recentOperations.value?.some(op => op.status === 'failed' || op.status === 'needs_intervention')))
 const canTerms = computed(() => can('vendor.pricing.manage') && can('vendor.subscriptions.manage'))
+const canStartTrial = computed(() => can('vendor.subscriptions.manage') && (hasWorkspace.value || can('vendor.tenants.manage')) && !view.value?.applied && !view.value?.pending_order)
 const canChange = computed(() => can('vendor.subscriptions.manage') && Boolean(view.value) && !view.value?.pending_order)
 const cancelOpen = ref(false)
 const cancelReason = ref('')
@@ -149,6 +150,7 @@ async function cancelPendingOrder() {
                 </template>
               </template>
             </VendorSubscriptionSummary>
+            <VendorTrialStartPanel v-if="canStartTrial" :customer-id="id" :plans="extra?.plans.value?.items ?? []" class="mt-4" @done="async () => { await refresh(); await refreshExtra() }" />
             <VendorTrialPanel v-if="view?.state === 'trialing'" :subscription="view" class="mt-4" @done="async () => { await refresh(); await refreshExtra() }" />
             <p v-if="view?.pending_order && can('vendor.subscriptions.manage')" class="mt-3 text-sm text-muted">{{ t('vendor.customers.changeBlocked') }}</p>
             <UAlert v-if="cancelFailure" class="mt-3" color="error" variant="subtle" :title="cancelFailure" />

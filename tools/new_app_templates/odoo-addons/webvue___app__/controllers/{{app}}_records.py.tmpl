@@ -5,12 +5,10 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
-    parse_nonneg_int,
+    parse_page,
     requires_feature,
 )
 from odoo.addons.webvue_{{app}}.serializers.{{app}}_record import dump_records
-
-MAX_LIMIT = 200
 
 
 class {{App}}RecordController(http.Controller):
@@ -22,9 +20,7 @@ class {{App}}RecordController(http.Controller):
         service = request.env['webvue.access.service']
         if not service._webvue_has_capability(request.env.user, '{{app}}.records.read'):
             raise ApiError(403, 'forbidden', '{{app}}.records.read capability is required')
-        args = request.httprequest.args
-        limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), MAX_LIMIT)
-        offset = parse_nonneg_int(args.get('offset', 0), 'offset')
+        limit, offset = parse_page(request.httprequest.args)
         Record = request.env['webvue.{{app}}.record']
         domain = [('company_id', '=', request.env.company.id)]
         records = Record.search(domain, limit=limit, offset=offset)

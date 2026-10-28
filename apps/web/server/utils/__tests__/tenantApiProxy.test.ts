@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 const proxyMock = vi.hoisted(() => vi.fn().mockResolvedValue(new Response('{}')))
 const transport = vi.hoisted(() => vi.fn().mockResolvedValue(new Response('{}')))
-vi.mock('../tenantTransport', () => ({ tenantTransport: transport, legacyTenantResponse: proxyMock, MAX_PUBLIC_MFA_BODY: 1024, boundedTenantBody: async () => undefined, withTenantBody: async (_event: unknown, _scope: unknown, run: () => unknown) => run(), withTenantResponse: async (_event: unknown, _scope: unknown, run: () => unknown) => run(), withUpstreamSlot: async (run: (signal: AbortSignal) => unknown) => run(new AbortController().signal) }))
+vi.mock('../tenantTransport', () => ({ tenantTransport: transport, legacyTenantResponse: proxyMock, MAX_PUBLIC_MFA_BODY: 1024, MAX_PUBLIC_HOOK_BODY: 1024 * 1024, boundedTenantBody: async () => undefined, withTenantBody: async (_event: unknown, _scope: unknown, run: () => unknown) => run(), withTenantResponse: async (_event: unknown, _scope: unknown, run: () => unknown) => run(), withUpstreamSlot: async (run: (signal: AbortSignal) => unknown) => run(new AbortController().signal) }))
 vi.mock('../apiSessionAdmission', () => ({ requireApiSession: async (event: { node: { req: { headers: { cookie?: string } } } }) => { if (!event.node.req.headers.cookie) { const error = Object.assign(new Error('session_required'), { statusCode: 403, data: { code: 'session_required' } }); throw error } } }))
 vi.mock('h3', async importOriginal => ({ ...await importOriginal<typeof import('h3')>(), sendWebResponse: vi.fn(), sendProxy: (...args: unknown[]) => proxyMock(...args), getProxyRequestHeaders: () => ({}) }))
 
@@ -97,5 +97,50 @@ describe('server-only API routes', () => {
     const event = { path: '/api/v1/ai/audit', method: 'POST', node: { req: { headers: { cookie: 'session_id=synthetic' } } } }
     await handler(event as never)
     expect(proxy).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('public API namespace', () => {
+  function sharedEvent(path: string, method: string, cookie?: string) {
+    const registry = join(mkdtempSync(join(tmpdir(), 'webvue-proxy-public-')), 'registry.json')
+    writeFileSync(registry, JSON.stringify({ schemaVersion: 1, snapshotRevision: 9, targets: [{ tenantId: 'tenant_a', host: 'alpha.example.test', database: 'db_a', filestore: 'db_a', enabled: true, registryRevision: 3 }] }))
+    const token = 'synthetic-private-token-'.repeat(3)
+    vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared')
+    vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token)
+    vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', registry)
+    const headers: Record<string, string> = { host: 'alpha.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '3' }
+    if (cookie) headers.cookie = cookie
+    return { path, method, node: { req: { headers }, res: { setHeader: vi.fn(), getHeader: vi.fn() } } }
+  }
+
+  it('forwards without a session and without the browser cookie', async () => {
+    transport.mockClear()
+    const event = sharedEvent('/api/v1/public/payments/invoices/7?access_token=t', 'GET', 'session_id=staff')
+    const { handler } = await setup()
+    await handler(event as never)
+    expect(transport).toHaveBeenCalledExactlyOnceWith(event, 'http://guard:8080', '/api/v1/public/payments/invoices/7?access_token=t', { method: 'GET', body: undefined, headers: { cookie: '' } })
+  })
+
+  it('drops any cookie Odoo sets on a public answer', async () => {
+    transport.mockResolvedValueOnce(new Response('{}', { headers: { 'set-cookie': 'session_id=fresh; Path=/' } }))
+    const { sendWebResponse } = await import('h3')
+    const send = vi.mocked(sendWebResponse); send.mockClear()
+    const { handler } = await setup()
+    await handler(sharedEvent('/api/v1/public/payments/invoices/7?access_token=t', 'GET') as never)
+    expect(send.mock.calls[0]![1].headers.get('set-cookie')).toBeNull()
+  })
+
+  it('accepts only GET, HEAD and POST', async () => {
+    transport.mockClear()
+    const { handler } = await setup()
+    await expect(handler(sharedEvent('/api/v1/public/payments/invoices/7', 'PATCH') as never)).rejects.toMatchObject({ statusCode: 405 })
+    expect(transport).not.toHaveBeenCalled()
+  })
+
+  it('does not treat a lookalike prefix as public', async () => {
+    transport.mockClear()
+    const { handler } = await setup()
+    await expect(handler(sharedEvent('/api/v1/publicity', 'GET') as never)).rejects.toMatchObject({ statusCode: 403 })
+    expect(transport).not.toHaveBeenCalled()
   })
 })

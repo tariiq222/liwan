@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { applyChatTyping, chatTypingEvent, collectChatIds, collectTaskIds, nextBackoffDelay, parseBusFrame } from '../useBus'
+import { applyChatTyping, chatTypingEvent, collectChatIds, collectInboxIds, collectTaskIds, nextBackoffDelay, parseBusFrame } from '../useBus'
 import { CHAT_TYPING_MS } from '../../utils/chatState'
 
 describe('parseBusFrame', () => {
@@ -89,6 +89,16 @@ describe('collectChatIds', () => {
       { id: 2, message: { type: 'webvue/task', payload: { id: 7 } } },
       { id: 3, message: { type: 'webvue/chat', payload: { id: 42 } } },
     ])).toEqual([42])
+  })
+})
+
+describe('collectInboxIds', () => {
+  it('collects webvue/inbox conversation ids only', () => {
+    expect(collectInboxIds([
+      { id: 1, message: { type: 'webvue/inbox', payload: { id: 9, event: 'conversation' } } },
+      { id: 2, message: { type: 'webvue/chat', payload: { id: 42 } } },
+      { id: 3, message: { type: 'webvue/inbox', payload: { id: 9 } } },
+    ])).toEqual([9])
   })
 })
 

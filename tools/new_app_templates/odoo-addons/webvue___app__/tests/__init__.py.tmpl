@@ -1,6 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from . import (
-    common,
-    test_{{app}}_access_composition,
-    test_{{app}}_records,
-)
+from odoo.addons.webvue_core.testing import import_all_tests
+
+import_all_tests(__name__)

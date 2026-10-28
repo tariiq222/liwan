@@ -148,3 +148,8 @@ class TestFeatureRegistration(TransactionCase):
         with self.assertLogs(LOGGER, level='WARNING'):
             self.assertFalse(self.record._webvue_register_missing_features())
         self.assertNotIn('zz_probe.enabled', self.record.features)
+
+    def test_the_public_user_sees_the_same_installed_modules(self):
+        """A feature-gated public route (no session) reads the same installed set as a signed-in user."""
+        public = self.env.ref('base.public_user')
+        self.assertEqual(self.features.with_user(public)._webvue_installed_module_ids(), self.apps)

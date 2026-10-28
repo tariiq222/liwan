@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="ir_cron_inbox_process_events" model="ir.cron">
+        <field name="name">webvue inbox: process webhook events</field>
+        <field name="model_id" ref="model_webvue_inbox_event"/>
+        <field name="state">code</field>
+        <field name="code">model._webvue_run_events()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="ir_cron_inbox_send_outbox" model="ir.cron">
+        <field name="name">webvue inbox: send queued replies</field>
+        <field name="model_id" ref="model_webvue_inbox_message"/>
+        <field name="state">code</field>
+        <field name="code">model._webvue_run_outbox()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="ir_cron_inbox_maintenance" model="ir.cron">
+        <field name="name">webvue inbox: close idle conversations and purge expired data</field>
+        <field name="model_id" ref="model_webvue_inbox_conversation"/>
+        <field name="state">code</field>
+        <field name="code">model._webvue_run_maintenance()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>
