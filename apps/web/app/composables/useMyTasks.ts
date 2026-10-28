@@ -15,10 +15,12 @@ import { myTaskKeys } from './myTaskKeys'
 
 type Api = ReturnType<typeof useApi>['$api']
 
-export type MyTaskTransition = 'done' | 'reopen' | 'cancel'
+export type MyTaskTransition = 'done' | 'reopen' | 'cancel' | 'archive' | 'unarchive'
 export interface MyTaskListParams {
   q?: string
   closed?: boolean
+  /** Only the archived personal tasks (exclusive with `closed`). */
+  archived?: boolean
   /** Both roles when omitted. */
   scope?: 'assigned' | 'created'
   sort?: string
@@ -42,6 +44,7 @@ export function myTaskListQuery(p: MyTaskListParams) {
   return {
     q: p.q?.trim() || undefined,
     closed: p.closed ? 1 : 0,
+    archived: p.archived ? 1 : undefined,
     assigned: p.scope === 'assigned' ? 'me' : undefined,
     created: p.scope === 'created' ? 'me' : undefined,
     sort: p.sort || undefined,
@@ -73,7 +76,7 @@ export async function updateMyTask($api: Api, qc: QueryClient, { id, body }: { i
   return replaceDetail(qc, await $api(`/api/v1/my-tasks/${id}`, { method: 'PATCH', body, schema: PersonalTaskSchema }))
 }
 
-// Not optimistic: the cache changes only once the server confirms the transition.
+// Not optimistic: the cache changes only once the server confirms the transition (archive and restore included).
 export async function transitionMyTask($api: Api, qc: QueryClient, { id, action }: { id: number; action: MyTaskTransition }) {
   return replaceDetail(qc, await $api(`/api/v1/my-tasks/${id}/${action}`, { method: 'POST', schema: PersonalTaskSchema }))
 }

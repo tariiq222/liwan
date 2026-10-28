@@ -25,6 +25,9 @@ TRANSITIONS = {
     'cancel': (('01_in_progress',), '1_canceled'),
     'reopen': (CLOSED_STATES, '01_in_progress'),
 }
+# Cursor-local marker minted only by ``_archive``: (uid, company id, ids). A bridge that guards the
+# ``active`` field of a task (webvue_tasks_pmo) opens it for exactly these tasks while the write runs.
+ARCHIVE_MARKER = 'webvue_tasks.archive_scope'
 SORTS = {
     'deadline': 'date_deadline asc nulls last, id asc',
     'created': 'create_date desc, id desc',
@@ -93,11 +96,11 @@ class WebVueMyTaskService(models.AbstractModel):
 
     @api.model
     def _find_personal(self, task_id):
-        """The readable personal task ``task_id`` (empty when absent, unreadable or a project task)."""
+        """The readable personal task ``task_id``, archived or not (empty when absent, unreadable or a project task)."""
         if not _is_id(task_id):
             return self.env['project.task']
         try:
-            return self.env['project.task'].search(
+            return self.env['project.task'].with_context(active_test=False).search(
                 [('id', '=', task_id), ('webvue_personal', '=', True)], limit=1)
         except AccessError:
             return self.env['project.task']
@@ -110,13 +113,19 @@ class WebVueMyTaskService(models.AbstractModel):
         return task
 
     @api.model
-    def _writable_personal(self, task):
-        """Capability, personal-task and write-access checks shared by every mutation."""
+    def _writable_personal(self, task, *, archived=False):
+        """Capability, personal-task and write-access checks shared by every mutation.
+
+        An archived task is read-only until restored: ``archived`` says which side the caller works on
+        (only ``_archive`` passes True, to restore it).
+        """
         self._require('tasks.tasks.write')
         task.ensure_one()
         task = self._personal(task.id)
         if not task.has_access('write'):
             raise ApiError(403, 'forbidden', 'forbidden')
+        if bool(task.active) == archived:
+            _reject('the task is not archived' if archived else 'an archived task must be restored first', 'action')
         return task
 
     @api.model
@@ -131,16 +140,24 @@ class WebVueMyTaskService(models.AbstractModel):
     # list
 
     @api.model
-    def _list_domain(self, *, q, assigned, created, closed=None):
-        """The domain of the unified list; ``closed`` None leaves the open/closed split to the caller."""
+    def _list_domain(self, *, q, assigned, created, closed=None, archived=False):
+        """The domain of the unified list; ``closed`` None leaves the open/closed split to the caller.
+
+        ``archived`` lists the caller's archived personal tasks instead (other applications' tasks never join).
+        """
         uid = self.env.uid
         links = self.env['webvue.task.links']
         personal = Domain([
             ('webvue_personal', '=', True),
-            ('webvue_parent_id', '=', False),
             ('create_uid', '!=', self.env.ref('base.user_root').id),
         ])
-        domain = Domain.OR([personal, Domain(links._webvue_project_task_domain(uid))])
+        if archived:
+            # Archived sub-tasks are listed too: the parent's detail leaves inactive children out, so
+            # this list is the only place to find and restore one.
+            domain = personal & Domain('active', '=', False)
+        else:
+            domain = Domain.OR([personal & Domain('webvue_parent_id', '=', False),
+                                Domain(links._webvue_project_task_domain(uid))])
         scopes = []
         if assigned:
             scopes.append(Domain('user_ids', 'in', [uid]))
@@ -160,12 +177,12 @@ class WebVueMyTaskService(models.AbstractModel):
         return domain & Domain('company_id', 'in', companies)
 
     @api.model
-    def _search_list(self, *, closed, q, assigned, created, sort, limit, offset):
+    def _search_list(self, *, closed, q, assigned, created, sort, limit, offset, archived=False):
         """The unified list: ``(tasks, total)`` of personal tasks plus the bridge's project tasks."""
         self._require('tasks.tasks.read')
         if sort not in SORTS:
             _reject(f'sort must be one of {sorted(SORTS)}', 'sort')
-        domain = self._list_domain(q=q, assigned=assigned, created=created, closed=closed)
+        domain = self._list_domain(q=q, assigned=assigned, created=created, closed=None if archived else closed, archived=archived)
         Task = self.env['project.task']
         limit = max(1, min(limit, MAX_LIMIT))
         tasks = Task.search(domain, order=SORTS[sort], limit=limit, offset=max(0, offset))
@@ -239,6 +256,8 @@ class WebVueMyTaskService(models.AbstractModel):
         parent = self._find_personal(parent_id)
         if not parent or parent.company_id != self.env.company:
             _reject('parent_id must be a readable personal task of this company', 'parent_id')
+        if not parent.active:
+            _reject('parent_id must not be an archived task', 'parent_id')
         if parent.webvue_parent_id:
             _reject('a sub-task cannot have sub-tasks', 'parent_id')
         return parent
@@ -307,20 +326,42 @@ class WebVueMyTaskService(models.AbstractModel):
         return task
 
     @api.model
+    def _archive(self, task, *, archive):
+        """Withdraw a done or cancelled personal task from the lists (``archive``) or restore it.
+
+        A plain ``active`` write in the caller's environment: nothing is deleted, so the comments,
+        attachments and sub-tasks stay with the task. No ``perm_unlink`` is granted anywhere.
+        """
+        task = self._writable_personal(task.with_env(self.env), archived=not archive)
+        if archive and task.state not in CLOSED_STATES:
+            _reject('only a done or cancelled task can be archived', 'action')
+        data = self.env.cr.precommit.data
+        data[ARCHIVE_MARKER] = (self.env.uid, self.env.company.id, frozenset(task.ids))
+        try:
+            task.write({'active': not archive})
+        finally:
+            data.pop(ARCHIVE_MARKER, None)
+        return task
+
+    @api.model
     def _allowed_actions(self, task):
         task = task.with_env(self.env)
         if not (task.has_access('read') and task.webvue_personal):
             # Rows of other applications (the bridge's project tasks) and rows the caller
             # cannot read offer no personal action.
-            return dict.fromkeys(('write', 'done', 'reopen', 'cancel', 'convert'), False)
+            return dict.fromkeys(('write', 'done', 'reopen', 'cancel', 'convert', 'archive', 'unarchive'), False)
         can_write = self._has_capability('tasks.tasks.write') and task.has_access('write')
+        # An archived task is read-only: restoring it is its only action.
+        editable = can_write and task.active
         is_open = task.state == '01_in_progress'
         return {
-            'write': can_write,
-            'done': can_write and is_open,
-            'reopen': can_write and task.state in CLOSED_STATES,
-            'cancel': can_write and is_open,
+            'write': editable,
+            'done': editable and is_open,
+            'reopen': editable and task.state in CLOSED_STATES,
+            'cancel': editable and is_open,
             'convert': bool(
-                can_write and is_open and not task.webvue_parent_id
+                editable and is_open and not task.webvue_parent_id
                 and self.env['webvue.task.links']._webvue_can_convert(task)),
+            'archive': editable and task.state in CLOSED_STATES,
+            'unarchive': can_write and not task.active,
         }

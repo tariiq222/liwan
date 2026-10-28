@@ -22,7 +22,7 @@ function task(over: Partial<PersonalTask> = {}): PersonalTask {
     id: 7, name: 'T', description: '', state: 'open', priority: 'normal', date_deadline: null,
     assignees: [person], creator: person, parent: null, is_subtask: false, subtasks: [], attachment_count: 0,
     created_at: '2026-10-13T00:00:00Z', updated_at: '2026-10-13T00:00:00Z',
-    allowed_actions: { write: true, done: true, reopen: false, cancel: true, convert: true },
+    allowed_actions: { write: true, done: true, reopen: false, cancel: true, convert: true, archive: false, unarchive: false },
     ...over,
   } as PersonalTask
 }
@@ -47,6 +47,7 @@ describe('myTaskListQuery', () => {
     expect(myTaskListQuery({ q: ' x ', closed: true, scope: 'created', limit: 20, offset: 40 })).toMatchObject({
       q: 'x', closed: 1, created: 'me', assigned: undefined, limit: 20, offset: 40,
     })
+    expect(myTaskListQuery({ archived: true })).toMatchObject({ archived: 1, closed: 0 })
     expect(myTaskListQuery({ scope: 'assigned' })).toMatchObject({ assigned: 'me', created: undefined })
   })
 })
@@ -112,6 +113,17 @@ describe('personal task writes', () => {
     resolve(task({ state: 'done' }))
     await pending
     expect((qc.getQueryData(myTaskKeys.detail(7)) as PersonalTask).state).toBe('done')
+  })
+
+  it('archives and restores through the transition endpoints and keeps the server answer', async () => {
+    const qc = new QueryClient()
+    qc.setQueryData(myTaskKeys.detail(7), task({ state: 'done' }))
+    const api = vi.fn().mockResolvedValue(task({ state: 'done', allowed_actions: { ...task().allowed_actions, write: false, unarchive: true } }))
+    await transitionMyTask(api, qc, { id: 7, action: 'archive' })
+    expect(api).toHaveBeenCalledWith('/api/v1/my-tasks/7/archive', expect.objectContaining({ method: 'POST' }))
+    expect((qc.getQueryData(myTaskKeys.detail(7)) as PersonalTask).allowed_actions.unarchive).toBe(true)
+    await transitionMyTask(api, qc, { id: 7, action: 'unarchive' })
+    expect(api).toHaveBeenLastCalledWith('/api/v1/my-tasks/7/unarchive', expect.objectContaining({ method: 'POST' }))
   })
 
   it('leaves the cached detail untouched and the lists valid when a transition fails', async () => {

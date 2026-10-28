@@ -6,6 +6,7 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import (
     ApiError,
     api_handler,
+    requires_capability,
     requires_feature,
 )
 
@@ -21,6 +22,7 @@ class TagController(http.Controller):
     @http.route('/api/v1/tags', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
+    @requires_capability('pmo.projects.read', 'pmo.tasks.read', match='any')
     def list_tags(self, **_):
         q = request.httprequest.args.get('q')
         domain = [('name', 'ilike', q)] if q else []

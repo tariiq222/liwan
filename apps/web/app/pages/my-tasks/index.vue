@@ -196,7 +196,7 @@ function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { 
               </template>
             </FilterBar>
           </div>
-          <p v-if="state.tab === 'closed'" class="text-sm text-muted">{{ t('myTasks.list.closedHint') }}</p>
+          <p v-if="state.tab !== 'open'" class="text-sm text-muted">{{ t(`myTasks.list.${state.tab}Hint`) }}</p>
         </div>
       </template>
 

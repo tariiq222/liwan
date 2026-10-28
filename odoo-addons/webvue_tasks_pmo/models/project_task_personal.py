@@ -4,6 +4,8 @@ from odoo import api, models
 from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Domain
 
+from odoo.addons.webvue_tasks.models.my_task_service import ARCHIVE_MARKER
+
 # The only fields a personal task is created with. Everything else, including
 # the project-flavoured state and stage, stays a PMO project-task field.
 PERSONAL_CREATE_FIELDS = frozenset({
@@ -16,9 +18,9 @@ CONVERT_MARKER = 'webvue_tasks_pmo.convert_scope'
 CONVERT_WRITE_FIELDS = frozenset({'project_id', 'webvue_parent_id', 'parent_id'})
 # What a write of a personal task may carry, whoever sends it (the /my-tasks service or one of
 # PMO's own routes): the personal fields, the three states of a personal task and the date
-# bookkeeping Odoo keeps next to a state change. Stages, tags, milestones, hours, deliverables,
-# archiving and every project-flavoured state stay out, so a PMO route cannot put a personal
-# task in a shape /my-tasks cannot show or restore.
+# bookkeeping Odoo keeps next to a state change. Stages, tags, milestones, hours, deliverables
+# and every project-flavoured state stay out, so a PMO route cannot put a personal task in a
+# shape /my-tasks cannot show or restore. ``active`` joins them only inside the archive scope.
 PERSONAL_WRITE_FIELDS = frozenset({
     'name', 'description', 'date_deadline', 'priority', 'user_ids',
     'state', 'date_end', 'date_last_stage_update', 'date_assign',
@@ -73,15 +75,23 @@ class ProjectTaskPersonal(models.Model):
                     return super()._webvue_projectless_create_allowed(vals_list)
         return True
 
-    def _webvue_in_convert_scope(self):
-        """True while the checked convert runs for exactly these tasks (same caller and company)."""
-        scope = self.env.cr.precommit.data.get(CONVERT_MARKER)
+    def _webvue_in_marker_scope(self, marker):
+        """True while the checked operation that minted ``marker`` runs for exactly these tasks (same caller and company)."""
+        scope = self.env.cr.precommit.data.get(marker)
         return bool(
             scope
             and self.ids
             and scope[:2] == (self.env.uid, self.env.company.id)
             and set(self.ids) <= scope[2],
         )
+
+    def _webvue_in_convert_scope(self):
+        """True while the checked convert runs for exactly these tasks."""
+        return self._webvue_in_marker_scope(CONVERT_MARKER)
+
+    def _webvue_in_archive_scope(self):
+        """True while the checked /my-tasks archive or restore runs for exactly these tasks."""
+        return self._webvue_in_marker_scope(ARCHIVE_MARKER)
 
     def _webvue_extra_write_fields(self):
         """Open the project assignment fields for the tasks of the running convert only.
@@ -105,7 +115,10 @@ class ProjectTaskPersonal(models.Model):
         """
         personal = self.filtered('webvue_personal') if not self.env.su else self.browse()
         if personal and not personal._webvue_in_convert_scope():
-            if set(vals) - PERSONAL_WRITE_FIELDS:
+            if not personal._webvue_in_archive_scope() and not all(personal.mapped('active')):
+                raise AccessError(self.env._('An archived personal task is read-only until it is restored.'))
+            allowed = PERSONAL_WRITE_FIELDS | ({'active'} if personal._webvue_in_archive_scope() else set())
+            if set(vals) - allowed:
                 raise AccessError(self.env._('A personal task only takes its own fields.'))
             if 'state' in vals and vals['state'] not in PERSONAL_STATES:
                 raise AccessError(self.env._('A personal task is open, done or cancelled.'))
@@ -141,10 +154,11 @@ class ProjectTaskPersonal(models.Model):
         return super()._webvue_can_write()
 
     def _webvue_can_archive(self):
-        """A personal task is never archived: no route of /my-tasks could restore it."""
+        """PMO's archive routes never take a personal task: only the checked /my-tasks archive (and its
+        restore) does, inside its own marker scope, and /my-tasks lists the archived tasks back."""
         self.ensure_one()
         if self.webvue_personal:
-            return False
+            return self._webvue_in_archive_scope()
         return super()._webvue_can_archive()
 
     def _webvue_emit_comment_notification(self, message):

@@ -11,7 +11,7 @@ const task: PersonalTask = {
   assignees: [{ id: 5, name: 'سارة', user_id: 5 }, { id: 2, name: 'Admin', user_id: 2 }],
   creator: { id: 2, name: 'Admin', user_id: 2 }, parent: null, is_subtask: false, subtasks: [], attachment_count: 0,
   created_at: '2026-10-01T08:00:00Z', updated_at: '2026-10-01T08:00:00Z',
-  allowed_actions: { write: true, done: true, reopen: false, cancel: true, convert: false },
+  allowed_actions: { write: true, done: true, reopen: false, cancel: true, convert: false, archive: false, unarchive: false },
 }
 
 describe('changedFields', () => {

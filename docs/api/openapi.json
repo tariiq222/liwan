@@ -41644,6 +41644,9 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "archive": {
+            "type": "boolean"
+          },
           "cancel": {
             "type": "boolean"
           },
@@ -41656,6 +41659,9 @@
           "reopen": {
             "type": "boolean"
           },
+          "unarchive": {
+            "type": "boolean"
+          },
           "write": {
             "type": "boolean"
           }
@@ -41665,7 +41671,9 @@
           "done",
           "reopen",
           "cancel",
-          "convert"
+          "convert",
+          "archive",
+          "unarchive"
         ],
         "type": "object"
       },
@@ -41767,6 +41775,9 @@
           "allowed_actions": {
             "additionalProperties": false,
             "properties": {
+              "archive": {
+                "type": "boolean"
+              },
               "cancel": {
                 "type": "boolean"
               },
@@ -41779,6 +41790,9 @@
               "reopen": {
                 "type": "boolean"
               },
+              "unarchive": {
+                "type": "boolean"
+              },
               "write": {
                 "type": "boolean"
               }
@@ -41788,7 +41802,9 @@
               "done",
               "reopen",
               "cancel",
-              "convert"
+              "convert",
+              "archive",
+              "unarchive"
             ],
             "type": "object"
           },
@@ -69096,6 +69112,59 @@
         }
       }
     },
+    "/api/v1/my-tasks/{task_id}/archive": {
+      "post": {
+        "operationId": "webvue_tasks.MyTasksController.archive_my_task.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "archive_my_task",
+        "tags": [
+          "webvue_tasks"
+        ],
+        "x-webvue": {
+          "addon": "webvue_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTasksController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "archive_my_task",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/my-tasks/{task_id}/attachments": {
       "get": {
         "operationId": "webvue_tasks.MyTaskAttachmentsController.list_my_task_attachments.get",
@@ -69633,6 +69702,59 @@
           ],
           "feature_operation": "write",
           "handler": "reopen_my_task",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/my-tasks/{task_id}/unarchive": {
+      "post": {
+        "operationId": "webvue_tasks.MyTasksController.unarchive_my_task.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "unarchive_my_task",
+        "tags": [
+          "webvue_tasks"
+        ],
+        "x-webvue": {
+          "addon": "webvue_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTasksController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "unarchive_my_task",
           "readonly": false,
           "route_type": "json2"
         }

@@ -22,6 +22,9 @@ describe('my-tasks list route state', () => {
   it('maps the state to API params', () => {
     expect(toListParams({ tab: 'closed', scope: 'all', sort: 'deadline', q: ' hi ', offset: 0 }))
       .toEqual({ closed: true, scope: undefined, sort: undefined, q: 'hi', offset: 0 })
+    expect(toListParams({ tab: 'archived', scope: 'all', sort: 'deadline', q: '', offset: 0 }))
+      .toEqual({ closed: false, archived: true, scope: undefined, sort: undefined, q: undefined, offset: 0 })
+    expect(parseListState({ tab: 'archived' }).tab).toBe('archived')
     expect(toListParams({ tab: 'open', scope: 'assigned', sort: 'created', q: '', offset: 0 }))
       .toEqual({ closed: false, scope: 'assigned', sort: 'created', q: undefined, offset: 0 })
   })

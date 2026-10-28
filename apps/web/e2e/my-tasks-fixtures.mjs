@@ -3,8 +3,8 @@
 export const ADMIN = { id: 2, name: 'Admin', user_id: 2 }
 export const SARA = { id: 5, name: 'سارة محمد', user_id: 5 }
 
-const OPEN_ACTIONS = { write: true, done: true, reopen: false, cancel: true, convert: false }
-const CLOSED_ACTIONS = { write: false, done: false, reopen: true, cancel: false, convert: false }
+const OPEN_ACTIONS = { write: true, done: true, reopen: false, cancel: true, convert: false, archive: false, unarchive: false }
+const CLOSED_ACTIONS = { write: false, done: false, reopen: true, cancel: false, convert: false, archive: true, unarchive: false }
 
 export function personalTask(id, overrides = {}) {
   return {

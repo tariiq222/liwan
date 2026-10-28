@@ -82,6 +82,7 @@ const moreAction = ref<HTMLElement | null>(null)
 const secondaryActions = computed(() => {
   const actions = []
   if (task.value?.allowed_actions.convert) actions.push({ label: t('myTasks.convert.title'), icon: 'i-lucide-folder-kanban', onSelect: () => { convertOpen.value = true } })
+  if (task.value?.allowed_actions.archive) actions.push({ label: t('myTasks.actions.archive'), icon: 'i-lucide-archive', disabled: hasDraft.value || pendingElsewhere.value, onSelect: () => { void run('archive') } })
   if (task.value?.allowed_actions.cancel) actions.push({ label: t('myTasks.actions.cancel'), icon: 'i-lucide-ban', color: 'error' as const, disabled: hasDraft.value || pendingElsewhere.value, onSelect: askCancel })
   return actions
 })
@@ -159,11 +160,13 @@ const deadlineText = (value: string | null) => formatCalendarDate(deadlineDay(va
       <span data-testid="my-task-state-live" aria-live="polite" aria-atomic="true">
         <SharedStatusBadge size="sm" data-testid="my-task-state" :tone="STATE_TONE[task.state]" :label="t(`myTasks.state.${task.state}`)" />
       </span>
+      <SharedStatusBadge v-if="task.allowed_actions.unarchive" size="sm" tone="neutral" data-testid="my-task-archived" :label="t('myTasks.state.archived')" />
     </template>
     <template v-if="task" #actions>
       <UButton v-if="task.allowed_actions.write" type="button" color="neutral" variant="outline" icon="i-lucide-pencil" :label="t('myTasks.actions.edit')" :disabled="!hydrated || transitioning || convertPending" :to="editTo" />
       <UButton v-if="task.allowed_actions.done" type="button" data-primary-action icon="i-lucide-check" :label="t('myTasks.actions.done')" :loading="transitioning" :disabled="!hydrated || transitioning || convertPending || hasDraft || pendingElsewhere" @click="run('done')" />
       <UButton v-if="task.allowed_actions.reopen" type="button" data-primary-action color="neutral" variant="outline" icon="i-lucide-rotate-ccw" :label="t('myTasks.actions.reopen')" :loading="transitioning" :disabled="!hydrated || transitioning || convertPending || hasDraft || pendingElsewhere" @click="run('reopen')" />
+      <UButton v-if="task.allowed_actions.unarchive" type="button" data-primary-action data-testid="my-task-unarchive" icon="i-lucide-archive-restore" :label="t('myTasks.actions.unarchive')" :loading="transitioning" :disabled="!hydrated || transitioning || convertPending" @click="run('unarchive')" />
       <div v-if="secondaryActions.length" ref="moreAction">
         <UDropdownMenu :items="secondaryActions" :content="menuContent">
           <UButton type="button" color="neutral" variant="outline" icon="i-lucide-ellipsis" :label="t('myTasks.actions.more')" :disabled="!hydrated || transitioning || convertPending" />

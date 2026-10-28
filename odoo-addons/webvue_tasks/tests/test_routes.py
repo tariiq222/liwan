@@ -356,6 +356,74 @@ class TestMyTasksRoutes(TasksRoutesCase):
             self.call('tasks_alice', 'POST', self.task_path(created['id'], '/done')),
             422, 'invalid', 'action')
 
+    # archive
+
+    def closed_as(self, login, action='done'):
+        created = self.create_as(login)
+        self.ok(login, 'POST', self.task_path(created['id'], f'/{action}'))
+        return created['id']
+
+    def test_archive_and_unarchive_return_the_detail_and_move_the_task_between_tabs(self):
+        task_id = self.closed_as('tasks_alice')
+
+        def ids(query):
+            return {item['id'] for item in self.ok('tasks_alice', 'GET', f'{BASE}{query}')['items']}
+
+        archived = self.ok('tasks_alice', 'POST', self.task_path(task_id, '/archive'))
+        self.assertEqual(archived['id'], task_id)
+        self.assertEqual({key for key, value in archived['allowed_actions'].items() if value}, {'unarchive'})
+        self.assertNotIn(task_id, ids('?closed=1'))
+        self.assertNotIn(task_id, ids(''))
+        self.assertEqual(ids('?archived=1'), {task_id})
+        self.assertEqual(self.ok('tasks_alice', 'GET', self.task_path(task_id))['id'], task_id)
+        restored = self.ok('tasks_alice', 'POST', self.task_path(task_id, '/unarchive'))
+        self.assertTrue(restored['allowed_actions']['archive'])
+        self.assertIn(task_id, ids('?closed=1'))
+        self.assertEqual(ids('?archived=1'), set())
+
+    def test_an_archived_subtask_is_found_and_restored_through_the_archived_list(self):
+        parent = self.create_as('tasks_alice', name='Parent')
+        child = self.ok('tasks_alice', 'POST', BASE, {'name': 'Child', 'parent_id': parent['id']})
+        self.ok('tasks_alice', 'POST', self.task_path(child['id'], '/done'))
+        self.ok('tasks_alice', 'POST', self.task_path(child['id'], '/archive'))
+        # gone from the parent's detail, present in the archived list with its detail link
+        self.assertEqual(self.ok('tasks_alice', 'GET', self.task_path(parent['id']))['subtasks'], [])
+        rows = self.ok('tasks_alice', 'GET', f'{BASE}?archived=1')['items']
+        self.assertEqual([(row['id'], row['href']) for row in rows], [(child['id'], f'/my-tasks/{child["id"]}')])
+        restored = self.ok('tasks_alice', 'POST', self.task_path(child['id'], '/unarchive'))
+        self.assertTrue(restored['is_subtask'])
+        self.assertEqual([sub['id'] for sub in self.ok('tasks_alice', 'GET', self.task_path(parent['id']))['subtasks']], [child['id']])
+        self.assertEqual(self.ok('tasks_alice', 'GET', f'{BASE}?archived=1')['items'], [])
+        # a restored sub-task stays out of the top-level lists
+        self.assertNotIn(child['id'], {row['id'] for row in self.ok('tasks_alice', 'GET', f'{BASE}?closed=1')['items']})
+
+    def test_archive_of_an_open_or_archived_task_is_422(self):
+        open_id = self.create_as('tasks_alice')['id']
+        self.assertError(self.call('tasks_alice', 'POST', self.task_path(open_id, '/archive')), 422, 'invalid', 'action')
+        self.assertError(self.call('tasks_alice', 'POST', self.task_path(open_id, '/unarchive')), 422, 'invalid', 'action')
+        task_id = self.closed_as('tasks_alice', 'cancel')
+        self.ok('tasks_alice', 'POST', self.task_path(task_id, '/archive'))
+        self.assertError(self.call('tasks_alice', 'POST', self.task_path(task_id, '/archive')), 422, 'invalid', 'action')
+        self.assertError(self.call('tasks_alice', 'PATCH', self.task_path(task_id), {'name': 'x'}), 422, 'invalid', 'action')
+        self.assertError(self.call('tasks_alice', 'POST', self.task_path(task_id, '/reopen')), 422, 'invalid', 'action')
+
+    def test_archived_flag_is_validated_and_exclusive_with_closed(self):
+        self.assertError(self.call('tasks_alice', 'GET', f'{BASE}?archived=2'), 422, 'invalid', 'archived')
+        self.assertError(self.call('tasks_alice', 'GET', f'{BASE}?archived=1&closed=1'), 422, 'invalid', 'archived')
+
+    def test_archive_of_a_stranger_or_missing_task_is_404(self):
+        task_id = self.closed_as('tasks_alice')
+        self.assertError(self.call('tasks_carol', 'POST', self.task_path(task_id, '/archive')), 404, 'not_found')
+        self.assertError(self.call('tasks_alice', 'POST', self.task_path(2 ** 31 - 1, '/archive')), 404, 'not_found')
+        self.assertError(self.call('tasks_alice', 'POST', self.task_path(2 ** 31 - 1, '/unarchive')), 404, 'not_found')
+
+    def test_archive_needs_the_write_capability(self):
+        reader = self.managed_user('tasks_archive_readonly', ['tasks.tasks.read'])
+        task_id = self.ok('tasks_alice', 'POST', BASE, {'name': 'x', 'assignees': [reader.id]})['id']
+        self.ok('tasks_alice', 'POST', self.task_path(task_id, '/done'))
+        for suffix in ('/archive', '/unarchive'):
+            self.assertError(self.call('tasks_archive_readonly', 'POST', self.task_path(task_id, suffix)), 403, 'forbidden')
+
     # capabilities
 
     def test_missing_capability_403(self):
