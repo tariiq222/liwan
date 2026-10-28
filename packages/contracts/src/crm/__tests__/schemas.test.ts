@@ -1,5 +1,12 @@
 import {
   CrmCapabilityKeySchema,
+  CrmLostReasonListSchema,
+  CrmOutcomeCreateSchema,
+  CrmOutcomeSchema,
+  CrmPackageCreateSchema,
+  CrmPackageSchema,
+  CrmStagePatchSchema,
+  CrmStageSchema,
   CrmSettingsPatchSchema,
   CrmSettingsSchema,
 } from '../index'
@@ -101,5 +108,21 @@ describe('CrmSettingsPatchSchema', () => {
     expect(() => CrmSettingsPatchSchema.parse({ revision: 0, values: {} })).toThrow()
     expect(() => CrmSettingsPatchSchema.parse({ revision: 0, values: { preset: 'general' } })).toThrow()
     expect(() => CrmSettingsPatchSchema.parse({ revision: 0, values: { followup_attempts: 11 } })).toThrow()
+  })
+})
+
+describe('CRM configurable lists', () => {
+  it('parses the stage, outcome and package shapes the API returns', () => {
+    expect(CrmStageSchema.parse({ id: 1, name: 'New', sequence: 10, is_won: false, active: true }).name).toBe('New')
+    expect(CrmOutcomeSchema.parse({ id: 2, name: 'Sold', effect: 'won', lost_reason_id: null, active: true }).effect).toBe('won')
+    expect(CrmPackageSchema.parse({ id: 3, name: 'Basic', price: 150.5, description: '', active: true }).price).toBe(150.5)
+    expect(CrmLostReasonListSchema.parse({ items: [{ id: 4, name: 'x', active: true, protected: true }], total: 1 }).total).toBe(1)
+  })
+
+  it('rejects an unknown effect, a negative price and an empty patch', () => {
+    expect(() => CrmOutcomeCreateSchema.parse({ name: 'x', effect: 'sold' })).toThrow()
+    expect(() => CrmPackageCreateSchema.parse({ name: 'x', price: -1 })).toThrow()
+    expect(() => CrmStagePatchSchema.parse({})).toThrow()
+    expect(() => CrmStagePatchSchema.parse({ sequence: 3 })).toThrow()
   })
 })

@@ -16,6 +16,7 @@
         'security/ir.model.access.csv',
         'security/crm_settings_rules.xml',
         'data/crm_access_permissions.xml',
+        'data/crm_seed.xml',
     ],
     'installable': True,
     'application': False,
