@@ -16,13 +16,10 @@ import {
   useHrActivityPlans,
   useCancelHrPlanRun,
   useCompleteHrPlanStep,
-  useCreateHrActivityPlan,
   useLaunchHrPlanRun,
   usePatchHrActivityPlan,
   useHrPlanRun,
-  useHrPlanRuns,
   type HrPlanListParams,
-  type HrRunListParams,
 } from './useHrOnboarding'
 
 export type { HrDeparture, HrDepartureList } from '@webvue/contracts'
@@ -59,16 +56,8 @@ export function useHrOffboardingPlan(id: MaybeRefOrGetter<number | null>) {
   return useHrActivityPlan('offboarding', id)
 }
 
-export function useHrOffboardingRuns(params: MaybeRefOrGetter<HrRunListParams>, enabled: MaybeRefOrGetter<boolean> = true) {
-  return useHrPlanRuns('offboarding', params, enabled)
-}
-
 export function useHrOffboardingRun(id: MaybeRefOrGetter<number | null>) {
   return useHrPlanRun('offboarding', id)
-}
-
-export function useCreateHrOffboardingPlan() {
-  return useCreateHrActivityPlan('offboarding')
 }
 
 export function usePatchHrOffboardingPlan() {
