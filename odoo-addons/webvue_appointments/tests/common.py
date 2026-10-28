@@ -25,9 +25,21 @@ class WebVueAppointmentsCase(WebVueApiCase):
             'role_id': cls.env.ref(xmlid).id, 'company_id': company.id,
         } for xmlid in ('webvue_core.role_employee', 'webvue_appointments.role_appointments_manager')])
         cls.booker = new_test_user(
-            cls.env, login='appointments_booker', name='Appointments Booker',
-            groups='webvue_core.group_employee,webvue_appointments.group_cap_appointments_bookings_write',
+            cls.env, login='appointments_booker', password='appointments_booker_pass_123',
+            name='Appointments Booker',
+            groups='webvue_core.group_employee',
         )
+        # No built-in role stops at write, so the booker holds the employee role and a custom booking role.
+        booking_role = cls.env['webvue.access.role'].create({
+            'name_ar': 'حجز المواعيد', 'company_id': company.id,
+            'permission_ids': [(6, 0, cls.env['webvue.access.permission'].search([
+                ('key', 'in', ('appointments.bookings.read', 'appointments.bookings.write')),
+            ]).ids)],
+        })
+        service._webvue_replace_assignments(cls.booker, [
+            {'role_id': cls.env.ref('webvue_core.role_employee').id, 'company_id': company.id},
+            {'role_id': booking_role.id, 'company_id': company.id},
+        ])
         cls.outsider = new_test_user(
             cls.env, login='appointments_outsider', password='appointments_outsider_pass_123',
             name='No Appointments access', groups='base.group_user',

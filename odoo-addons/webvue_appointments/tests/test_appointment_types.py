@@ -152,7 +152,7 @@ class TestAppointmentTypes(WebVueAppointmentsCase):
 
     def test_view_and_book_cannot_change_types(self):
         path = '%s/%d' % (TYPES, self.booking_type.id)
-        for login, password in (('api_emp', 'api_emp_pass_123'), ('appointments_booker', 'appointments_booker')):
+        for login, password in (('api_emp', 'api_emp_pass_123'), ('appointments_booker', 'appointments_booker_pass_123')):
             self.authenticate(login, password)
             for method, url, body in (('POST', TYPES, {'name': 'X'}), ('PATCH', path, {'name': 'Y'}), ('POST', path + '/archive', None)):
                 result = self.api(method, url, json=body)

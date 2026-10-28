@@ -52,27 +52,25 @@ class TestAppointmentResources(WebVueAppointmentsCase):
         body = self.api('PATCH', path, json={'name': 'Scanner 2', 'calendar_id': calendar.id}).json()
         self.assertEqual((body['name'], body['calendar_id']), ('Scanner 2', calendar.id))
 
-    def test_employee_resources_cannot_be_written_through_the_orm_or_the_api(self):
-        user_resource = self.employee_resource.with_user(self.manager)
-        with self.assertRaises(AccessError):
-            user_resource.write({'name': 'Hijacked'})
-        with self.assertRaises(AccessError):
-            user_resource.write({'active': False})
-        with self.assertRaises(AccessError):
-            self.env['resource.resource'].with_user(self.manager).create({'name': 'Fake employee', 'resource_type': 'user'})
-        with self.assertRaises(AccessError):
-            self.room.with_user(self.manager).unlink()
+    def test_employee_resources_are_refused_on_every_write_route(self):
         self._manager()
         path = '%s/%d' % (RESOURCES, self.employee_resource.id)
-        result = self.api('PATCH', path, json={'name': 'Hijacked'})
-        self.assertEqual((result.status_code, result.json()['code']), (403, 'forbidden'))
-        self.assertEqual(self.employee_resource.name, 'Dr Employee')
+        for method, url, body in (
+            ('PATCH', path, {'name': 'Hijacked'}), ('POST', path + '/archive', None), ('POST', path + '/unarchive', None),
+        ):
+            result = self.api(method, url, json=body)
+            self.assertEqual((result.status_code, result.json()['code']), (403, 'forbidden'), url)
+        self.assertEqual((self.employee_resource.name, self.employee_resource.active), ('Dr Employee', True))
+        with self.assertRaises(AccessError):
+            self.room.with_user(self.manager).unlink()
 
-    def test_the_orm_lets_manage_write_and_create_a_material_resource(self):
-        material = self.room.with_user(self.manager)
-        material.write({'name': 'Renamed room'})
-        created = self.env['resource.resource'].with_user(self.manager).create({'name': 'Device', 'resource_type': 'material'})
-        self.assertEqual(created.company_id, self.env.company)
+    def test_manage_archives_and_restores_a_material_resource(self):
+        self._manager()
+        path = '%s/%d' % (RESOURCES, self.room.id)
+        self.assertFalse(self.api('POST', path + '/archive').json()['active'])
+        self.assertNotIn(self.room.id, {row['id'] for row in self.api('GET', RESOURCES).json()['items']})
+        self.assertIn(self.room.id, {row['id'] for row in self.api('GET', RESOURCES + '?active=false').json()['items']})
+        self.assertTrue(self.api('POST', path + '/unarchive').json()['active'])
 
     def test_another_company_resource_is_not_found(self):
         foreign = self.env['resource.resource'].create({
@@ -97,11 +95,14 @@ class TestAppointmentResources(WebVueAppointmentsCase):
     def test_view_cannot_change_resources(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         path = '%s/%d' % (RESOURCES, self.room.id)
-        for method, url, body in (('POST', RESOURCES, {'name': 'X'}), ('PATCH', path, {'name': 'Y'})):
+        for method, url, body in (
+            ('POST', RESOURCES, {'name': 'X'}), ('PATCH', path, {'name': 'Y'}), ('POST', path + '/archive', None),
+        ):
             self.assertEqual(self.api(method, url, json=body).status_code, 403, method)
 
     def test_a_capability_held_in_another_company_is_refused_on_every_resource_route(self):
         path = '%s/%d' % (RESOURCES, self.room.id)
         self._assert_forbidden_in_the_current_company([
             ('GET', RESOURCES, None), ('POST', RESOURCES, {'name': 'X'}), ('PATCH', path, {'name': 'Y'}),
+            ('POST', path + '/archive', None), ('POST', path + '/unarchive', None),
         ])

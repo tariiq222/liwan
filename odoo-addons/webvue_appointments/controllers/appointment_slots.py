@@ -13,7 +13,7 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.webvue_appointments.controllers.records import (
-    READ_CAPABILITY,
+    WRITE_CAPABILITY,
     get_company_record,
 )
 from odoo.addons.webvue_appointments.serializers.appointment_settings import (
@@ -26,11 +26,13 @@ from odoo.addons.webvue_appointments.serializers.appointment_slot import (
 
 
 class AppointmentSlotController(http.Controller):
+    """Slots need the write capability: the engine's conflict check reads other bookings as the caller,
+    and the read rule shows only the caller's own, so a read-only caller would see booked slots as free."""
 
     @http.route('/api/v1/appointments/types/<int:type_id>/slots', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('appointments.enabled', operation='read')
-    @requires_capability(READ_CAPABILITY)
+    @requires_capability(WRITE_CAPABILITY)
     def list_slots(self, type_id, **_):
         booking_type = get_company_record('resource.booking.type', type_id)
         if not booking_type.active:

@@ -5,6 +5,7 @@ from odoo.http import request
 from odoo.addons.webvue_api.controllers.common import ApiError, get_record
 
 READ_CAPABILITY = 'appointments.bookings.read'
+WRITE_CAPABILITY = 'appointments.bookings.write'
 MANAGE_CAPABILITY = 'appointments.bookings.manage'
 
 

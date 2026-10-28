@@ -64,10 +64,36 @@ class AppointmentResourceController(http.Controller):
     @requires_feature('appointments.enabled', operation='write')
     @requires_capability(MANAGE_CAPABILITY)
     def patch_resource(self, resource_id, **payload):
-        resource = get_company_record(RESOURCE, resource_id)
+        resource = self._material(resource_id)
         parsed = parse_resource(payload, creating=False)
         resource.write({**parsed['values'], **self._calendar_values(parsed)})
         return dump_resource(resource)
+
+    @http.route('/api/v1/appointments/resources/<int:resource_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('appointments.enabled', operation='write')
+    @requires_capability(MANAGE_CAPABILITY)
+    def archive_resource(self, resource_id, **_):
+        resource = self._material(resource_id)
+        resource.write({'active': False})
+        return dump_resource(resource)
+
+    @http.route('/api/v1/appointments/resources/<int:resource_id>/unarchive', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('appointments.enabled', operation='write')
+    @requires_capability(MANAGE_CAPABILITY)
+    def unarchive_resource(self, resource_id, **_):
+        resource = self._material(resource_id)
+        resource.write({'active': True})
+        return dump_resource(resource)
+
+    @staticmethod
+    def _material(resource_id):
+        """A material resource of the current company; an employee resource belongs to HR."""
+        resource = get_company_record(RESOURCE, resource_id)
+        if resource.resource_type != 'material':
+            raise ApiError(403, 'forbidden', 'employee resources are managed by HR')
+        return resource
 
     @staticmethod
     def _calendar_values(parsed):

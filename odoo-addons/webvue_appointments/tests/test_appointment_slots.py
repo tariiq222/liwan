@@ -19,7 +19,7 @@ class TestAppointmentSlots(WebVueAppointmentsCase):
         return self.api('GET', path)
 
     def test_a_week_ahead_has_slots_in_the_whitelisted_shape(self):
-        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
         result = self._slots(2, 8)
         self.assertEqual(result.status_code, 200, result.text)
         body = result.json()
@@ -47,7 +47,7 @@ class TestAppointmentSlots(WebVueAppointmentsCase):
         self.assertTrue(starts)
 
     def test_a_combination_filter_must_belong_to_the_type(self):
-        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
         self.assertGreater(self._slots(2, 8, '&combination_id=%d' % self.combination.id).json()['total'], 0)
         unrelated = self._create_combination(self.env.company, 'Unrelated')
         result = self._slots(2, 8, '&combination_id=%d' % unrelated.id)
@@ -55,7 +55,7 @@ class TestAppointmentSlots(WebVueAppointmentsCase):
 
     def test_min_notice_drops_earlier_slots(self):
         self.env['webvue.appointment.settings'].create({'company_id': self.env.company.id, 'min_notice_hours': 720})
-        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
         cutoff = datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=720)
         items = self._slots(0, 45).json()['items']
         self.assertTrue(items)
@@ -64,13 +64,13 @@ class TestAppointmentSlots(WebVueAppointmentsCase):
 
     def test_the_range_may_not_pass_the_horizon(self):
         self.env['webvue.appointment.settings'].create({'company_id': self.env.company.id, 'horizon_days': 5})
-        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
         self.assertEqual(self._slots(0, 4).status_code, 200)
         result = self._slots(0, 10)
         self.assertEqual((result.status_code, result.json()['code'], result.json()['field']), (422, 'invalid', 'to'))
 
     def test_bad_dates_are_422(self):
-        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
         base = '/api/v1/appointments/types/%d/slots' % self.booking_type.id
         for query, field in (
             ('', 'from'), ('?from=2026-13-01&to=2026-13-02', 'from'), ('?from=tomorrow&to=2026-01-02', 'from'),
@@ -81,7 +81,7 @@ class TestAppointmentSlots(WebVueAppointmentsCase):
 
     def test_another_company_type_and_archived_type_have_no_slots(self):
         foreign = self._foreign_company_records()[1]
-        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
         today = datetime.now(UTC).date()
         query = '?from=%s&to=%s' % (today, today)
         self.assertEqual(self.api('GET', '/api/v1/appointments/types/%d/slots%s' % (foreign.id, query)).status_code, 404)
@@ -93,6 +93,10 @@ class TestAppointmentSlots(WebVueAppointmentsCase):
             ('GET', '/api/v1/appointments/types/%d/slots?from=2026-01-01&to=2026-01-02' % self.booking_type.id, None),
         ])
 
-    def test_a_user_without_the_view_capability_gets_403(self):
-        self.authenticate('appointments_outsider', 'appointments_outsider_pass_123')
-        self.assertEqual(self._slots(2, 8).status_code, 403)
+    def test_slots_need_the_write_capability(self):
+        # The read rule hides other people's bookings, so a read-only caller would see booked slots as free.
+        for login, password in (
+            ('api_emp', 'api_emp_pass_123'), ('appointments_outsider', 'appointments_outsider_pass_123'),
+        ):
+            self.authenticate(login, password)
+            self.assertEqual(self._slots(2, 8).status_code, 403, login)
