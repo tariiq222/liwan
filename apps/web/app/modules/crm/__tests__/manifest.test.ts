@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import manifest from '../manifest'
 import { appManifests, manifestForPath, settingsPartForPath } from '../../manifests'
 import { bellKindFor } from '../../surfaces'
-import { requiredCapabilityForPath } from '../../../utils/accessPolicy'
+import { canReachPath, requiredCapabilityForPath } from '../../../utils/accessPolicy'
 
 describe('crm manifest', () => {
   it('is discovered and owns /crm behind crm.enabled', () => {
@@ -23,11 +23,19 @@ describe('crm manifest', () => {
     ['/crm', 'crm.leads.read'],
     ['/crm/opportunities', 'crm.leads.read'],
     ['/crm/opportunities/9', 'crm.leads.read'],
-    ['/crm/opportunities/new', 'crm.leads.work'],
+    ['/crm/opportunities/new', 'crm.leads.read'],
     ['/crm/imports', 'crm.leads.import'],
     ['/crm/imports/new', 'crm.leads.import'],
   ])('requires the capability of %s', (path, capability) => {
     expect(requiredCapabilityForPath(path)).toBe(capability)
+  })
+
+  it('opens the create route to work or assign, and to neither of them otherwise', () => {
+    const reach = (...capabilities: string[]) => canReachPath({ capabilities }, '/crm/opportunities/new')
+    expect(reach('crm.leads.read', 'crm.leads.assign')).toBe(true)
+    expect(reach('crm.leads.read', 'crm.leads.work')).toBe(true)
+    expect(reach('crm.leads.read')).toBe(false)
+    expect(reach('crm.leads.assign')).toBe(false)
   })
 
   it('lists the dashboard, the opportunities and the imports in the nav', () => {

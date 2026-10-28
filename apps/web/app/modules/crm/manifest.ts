@@ -33,7 +33,8 @@ const manifest: AppManifest = {
   ],
   landing: [{ path: '/crm', capability: 'crm.leads.read' }],
   routeCapabilities: [
-    { pattern: /^\/crm\/opportunities\/new$/, capability: 'crm.leads.work' },
+    // Both keys create an opportunity (work for oneself, assign for anyone); the route also needs the read every CRM page needs.
+    { pattern: /^\/crm\/opportunities\/new$/, capability: 'crm.leads.read', anyCapabilities: ['crm.leads.work', 'crm.leads.assign'] },
     { pattern: /^\/crm\/imports\/new$/, capability: 'crm.leads.import' },
     { pattern: /^\/crm\/imports(?:\/|$)/, capability: 'crm.leads.import' },
     { pattern: /^\/crm(?:\/|$)/, capability: 'crm.leads.read' },
