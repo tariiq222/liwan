@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { url, setup, client, monthly, money } from './commercial-helpers.js'
-import { acceptQuote } from '../commercial/orders.js'
+import { startTrial } from '../commercial/trial.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { activateBranches, listBranches } from '../commercial/branches.js'
 import { transaction } from '../db.js'
@@ -119,17 +119,18 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     expect((await pool.query('SELECT count(*)::int AS n FROM invoice_adjustments a JOIN invoices i ON i.id=a.invoice_id WHERE i.order_id=$1', [s.order])).rows[0].n).toBe(0)
     expect((await pool.query('SELECT status FROM commercial_outbox WHERE aggregate_id=$1', [s.order])).rows[0].status).toBe('failed')
   })
-  it('new customer without tenant reserves three extras and enrollment links all pending branches', async () => {
+  it('a new customer trial without tenant reserves three extras and enrollment links all pending branches', async () => {
     const api = client(pool)
-    const draft = await api('POST', '/plans', { name: `New branches ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR', prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [], included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(5000) }], extra_branches_limit: 8, included_users: 3, included_storage_mb: 0, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }], policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
+    const draft = await api('POST', '/plans', { name: `New branches ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR', prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [], included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(5000) }], extra_branches_limit: 8, included_users: 3, included_storage_mb: 0, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }], policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 14, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
     const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason: 'New branches regression' })
     const plan = (await api('POST', `/plans/${draft.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason: 'New branches regression' })).body
     const customer = randomUUID()
     await pool.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)', [customer, 'New branches customer', 'Admin', `${customer}@example.test`])
-    const quote = await createQuoteForCustomer(pool, { customer_id: customer, request: { kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly, requested_extra_branches: 3, requested_users: 3, requested_storage_mb: 0 } })
-    const vendor: any = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage'] }
-    const { order } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() }, vendor)
-    expect(order).toMatchObject({ kind: 'new', payment_state: 'awaiting_payment' })
+    const vendor: any = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage', 'vendor.tenants.manage'] }
+    // In shared mode a tenantless customer's first order is its trial (a paid first order is refused).
+    const { order } = await startTrial(pool, { customer_id: customer, request: { kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly, requested_extra_branches: 3, requested_users: 3, requested_storage_mb: 0 }, principal: vendor })
+    expect(order).toMatchObject({ kind: 'new', payment_state: 'not_required' })
+    const quote = (await pool.query('SELECT payload FROM commercial_quotes WHERE id=$1', [order.quote_id])).rows[0].payload
     const pending = (await pool.query('SELECT id,name,billing,state,tenant_id FROM commercial_branches WHERE subscription_id=$1 ORDER BY name', [order.subscription_id])).rows
     expect(pending.map(({ id, ...branch }) => branch)).toEqual([
       { name: 'Branch 1', billing: 'free_extra', state: 'pending', tenant_id: null },
@@ -139,8 +140,6 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     expect(await listBranches(pool, order.subscription_id)).toMatchObject({ total: 3, hq: 1, free_extra_used: 1, free_extra_allowed: 1, paid: 2 })
     await expect(transaction(pool, c => activateBranches(c, { order_id: order.id, bindings: [{ branch_id: pending[0].id, odoo_company_id: 2 }] }))).rejects.toMatchObject({ code: 'branch_not_pending' })
     await expect(applyReceipt(pool, { order_id: order.id, receipt: { order_id: order.id, tenant_id: customer, target_revision_id: order.target_revision_id, observed_entitlement_digest: quote.entitlement_digest, observed_at: new Date().toISOString(), branch_bindings: [] } })).rejects.toThrow('tenant_required')
-    await pool.query("UPDATE orders SET payment_state='paid' WHERE id=$1", [order.id])
-    await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key) VALUES($1,'fulfillment.enqueue',$2,$3)", [randomUUID(), order.id, order.target_revision_id])
     expect(await process()).toContainEqual({ order_id: order.id, reason: 'enrollment_pending' })
     const tenant = (await pool.query('SELECT tenant_id FROM subscriptions WHERE id=$1', [order.subscription_id])).rows[0].tenant_id
     expect(tenant).toEqual(expect.any(String))

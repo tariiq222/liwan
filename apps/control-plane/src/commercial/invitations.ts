@@ -11,9 +11,8 @@ export const MIN_PASSWORD_LENGTH = 12
 export const MAX_PASSWORD_LENGTH = 256
 export const MAX_TOKEN_LENGTH = 200
 
-/** Sets the tenant admin's own Odoo password. TODO: no Odoo "set admin password to a caller-supplied value"
- *  effect exists yet (odoo_effect.py only provisions a generated credential). Until implemented the default
- *  adapter refuses, so acceptance never fakes success. */
+/** Sets the tenant admin's own Odoo password. Without a configured adapter the default refuses,
+ *  so acceptance never fakes success. */
 export type SetPassword = (input: { tenant_id: string; admin_login: string; password: string; token: string }) => Promise<void>
 export const unimplementedSetPassword: SetPassword = async () => { throw new InvitationError('password_setter_unavailable') }
 
