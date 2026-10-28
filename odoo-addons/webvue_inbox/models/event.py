@@ -18,10 +18,10 @@ class WebVueInboxEvent(models.Model):
     _name = 'webvue.inbox.event'
     _description = 'Customer Inbox webhook event'
     _order = 'id'
-    _webvue_scope = 'company'
+    # Tenant scope with an owning company, for the same reason as the channel: the webhook identity
+    # creates events for channels of any company.
+    _webvue_scope = 'tenant'
 
-    # Named owner_company_id for the same reason as on the channel: the webhook identity creates events
-    # for channels of any company.
     owner_company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade',
                                        default=lambda self: self.env.company)
     channel_id = fields.Many2one('webvue.inbox.channel', required=True, index=True, ondelete='cascade')

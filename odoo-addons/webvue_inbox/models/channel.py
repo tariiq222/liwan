@@ -22,12 +22,14 @@ class WebVueInboxChannel(models.Model):
     _name = 'webvue.inbox.channel'
     _description = 'Customer Inbox channel'
     _order = 'name, id'
-    _webvue_scope = 'company'
+    # Tenant scope: the channel is the tenant's webhook routing record (phone_number_id is unique in
+    # the database) and the webhook resolves it before any company context exists, so it must reach
+    # channels of every company, which webvue_core's per-request company fence (keyed on a field
+    # called company_id) would refuse. Each channel still has an owning company: staff reach only
+    # their companies' channels through the group rule on owner_company_id (security/inbox_rules.xml)
+    # and the per-company capability check in controllers/helpers.py.
+    _webvue_scope = 'tenant'
 
-    # Not named company_id on purpose: the webhook resolves a channel before any tenant context
-    # exists, so it must reach channels of every company, which webvue_core's per-request company
-    # fence (keyed on a field called company_id) would refuse. Staff isolation is the group rule
-    # on this field (security/inbox_rules.xml).
     owner_company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade',
                                        default=lambda self: self.env.company)
     name = fields.Char(required=True)
