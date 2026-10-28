@@ -24,6 +24,9 @@ jobs sign in and work, and requests move between people and applications.
 | [chat.md](chat.md) | Conversations and messages |
 | [operations.md](operations.md) | Process builder and multi-stage requests |
 | [platform.md](platform.md) | Notifications (bell), people picker, assistant, feature switches |
+| [inbox.md](inbox.md) | Customer inbox: conversations, channels (WhatsApp), departments, tags, canned replies, contacts, export |
+| [appointments.md](appointments.md) | Appointments: bookings, types, settings |
+| [payments.md](payments.md) | Payment providers, payment links, the public invoice payer pages and gateway callbacks |
 | [journeys.md](journeys.md) | Journeys that cross applications (requests, approvals, money, people) |
 
 ## Completeness
