@@ -68,8 +68,11 @@ type (R6).
   used unmodified; our additions live in `webvue_crm`). `crm_phonecall` is present on OCA `crm` branch
   19.0 (manifest depends `crm`, `calendar`; checked 2026-10-28 at commit
   `6051e0bfffd1c89b1a52585aaf322b6c2bcff6f2`). `OCA/crm` is added to `deploy/oca-addons.json` pinned to
-  that commit, and to the addons path and deploy images like the other OCA repositories; the owner's
-  standing authorization covers this under `docs/UPDATE_POLICY.md`.
+  that commit, and to the addons path and deploy images like the other OCA repositories. Approval under
+  `docs/UPDATE_POLICY.md`: the owner approved this exact source (repository `OCA/crm`, module
+  `crm_phonecall`, the commit above, impact: one new AGPL-3 OCA repository in the addons path and deploy
+  images) in the conversation of 2026-10-28 by approving this design. Any other commit, module or
+  version change of that source needs a new approval in the conversation.
 - The constitution is the AGENTS.md section "Configurable, sector-flexible applications — owner
   constitution 2026-10-28" (merged by tariiq222/webvue#130).
 - No `sudo()` anywhere in `webvue_crm` (none is expected; document any case per R7 if one is truly
@@ -206,7 +209,10 @@ Sub-features in the registry: `crm.enabled`, `crm.import`, `crm.export`.
 
 1. The agent records a call with an outcome.
 2. `won` → the sale flow below. `lost` → closes as lost with the outcome's reason. `none` → nothing.
-3. `follow_up` → `webvue_attempt_count += 1`. If the count is at most `followup_attempts`,
+3. `follow_up` with `followup_attempts = 0` (follow-up off, as in the `general` preset) → the call is
+   logged and nothing else changes: no attempt count, no scheduling, no exhaustion, no recycle; the
+   opportunity stays open with its agent.
+   `follow_up` with `followup_attempts > 0` → `webvue_attempt_count += 1`. If the count is at most `followup_attempts`,
    `webvue_next_call_at = now + followup_interval_hours`, same agent. Otherwise:
    - `after_attempts = lost`: close as lost with "contact attempts exhausted"; if recycling is on and
      `webvue_cycle < recycle_cycles`, set `webvue_recycle_at = now + recycle_after_days`.
