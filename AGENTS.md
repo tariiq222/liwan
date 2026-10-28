@@ -339,6 +339,7 @@ cross-addon links.
   depends `mail`) grants `base.group_user` read on `ir.module.module`, so the ACL never blocked it.
   `webvue_core` uses it only for the company-partner existence check, which Odoo's `res_company_rule_employee` hides and
   `active_test=False` must still see.
+  `webvue_crm` uses it only for the boolean company-wide duplicate-phone existence check, which returns no record.
   `webvue_chat` uses it for the two `mail.message.reaction` paths — the toggle after `_webvue_member_channel`
   proved the caller's membership, and the reaction aggregation of an already-authorized message — both blocked
   by `mail.message.reaction` being system-only in Odoo (owner decision 2026-10-25: authorized).

@@ -11,10 +11,16 @@ PERMISSIONS = AGENT_PERMISSIONS | {
     'crm.settings.manage',
     'crm.audit.read',
 }
+# Settings managers and importers always hold crm.leads.assign: a settings manager judges stage
+# occupancy over every company opportunity, and an importer assigns the leads it distributes.
 PERMISSION_DEPENDENCIES = {
-    **{key: {'crm.leads.read'} for key in PERMISSIONS - {'crm.leads.read', 'crm.settings.read', 'crm.settings.manage'}},
+    **{
+        key: {'crm.leads.read'}
+        for key in PERMISSIONS - {'crm.leads.read', 'crm.settings.read', 'crm.settings.manage', 'crm.leads.import'}
+    },
+    'crm.leads.import': {'crm.leads.read', 'crm.leads.assign'},
     'crm.settings.read': set(),
-    'crm.settings.manage': {'crm.settings.read'},
+    'crm.settings.manage': {'crm.settings.read', 'crm.leads.assign'},
 }
 
 

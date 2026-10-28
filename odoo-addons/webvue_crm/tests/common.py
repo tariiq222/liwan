@@ -41,3 +41,25 @@ class WebVueCrmCase(WebVueApiCase):
 
     def as_agent(self):
         return self.as_user(self.agent)
+
+    @classmethod
+    def make_lead(cls, user=None, company=None, **vals):
+        """An opportunity created as the superuser; ``user`` None leaves it unassigned."""
+        company = company or cls.company
+        return cls.env['crm.lead'].with_company(company).create({
+            'name': vals.get('contact_name', 'Customer'),
+            'type': 'opportunity',
+            'company_id': company.id,
+            'user_id': user.id if user else False,
+            **vals,
+        })
+
+    @classmethod
+    def set_visibility(cls, mode, company=None, **extra):
+        company = company or cls.company
+        Settings = cls.env['webvue.crm.settings']
+        row = Settings.search([('company_id', '=', company.id)])
+        if row:
+            row.write({'visibility': mode, **extra})
+        else:
+            Settings.create({'company_id': company.id, 'visibility': mode, **extra})

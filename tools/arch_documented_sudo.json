@@ -127,6 +127,10 @@
     "odoo-addons/webvue_chat/models/chat_service.py": {
       "count": 1,
       "reason": "webvue_chat group member removal: `channel.sudo()._action_unfollow(partner=member.partner_id, post_leave_message=False)` in `_webvue_remove_member` (models/chat_service.py), after `_webvue_member_channel` proved the caller's membership and the method checked `channel.channel_type == 'group'` and `channel.create_uid == self.env.user`. Blocked by addons/mail/security/mail_security.xml `ir_rule_discuss_channel_member_is_self_all`, which lets a user write or unlink only their own `discuss.channel.member` row (`is_self`), and stock Odoo offers no route that removes another member. Scope is one member row (and its follower entry) of a group the caller created; the notice is posted unelevated by the caller."
+    },
+    "odoo-addons/webvue_crm/models/crm_lead.py": {
+      "count": 1,
+      "reason": "webvue_crm duplicate-phone existence check: `self.sudo().with_context(active_test=False).search_count([('company_id','=',company.id),('phone_sanitized','=',phone_e164)], limit=1)` in `_webvue_find_duplicate`; blocked by the WebVue visibility global record rule odoo-addons/webvue_crm/security/crm_rules.xml `rule_crm_lead_visibility_read`, which hides other agents' and unassigned opportunities from an agent, plus `active_test` hiding archived lost ones. The spec requires a duplicate to be detected across every opportunity of the company (open, won, lost, archived) without disclosing it, so the method returns only a boolean, never a record, id or agent, and the routes answer the fixed message 'duplicate phone'."
     }
   }
 }

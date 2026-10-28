@@ -50,12 +50,14 @@ class TestCrmAccessComposition(WebVueCrmCase):
             self.assertEqual((role.key, role.type, role.protected), (key, 'built_in', True))
             self.assertEqual(self.env['webvue.access.role'].search_count([('key', '=', key)]), 1)
 
-    def test_every_other_key_requires_read_and_settings_manage_requires_settings_read(self):
+    def test_capability_dependencies(self):
         permissions = self.env['webvue.access.permission'].search([('key', 'in', sorted(CRM_KEYS))])
         by_key = {p.key: set(p.dependency_ids.mapped('key')) for p in permissions}
-        for key in CRM_KEYS - {'crm.leads.read', 'crm.settings.read', 'crm.settings.manage'}:
+        for key in CRM_KEYS - {'crm.leads.read', 'crm.settings.read', 'crm.settings.manage', 'crm.leads.import'}:
             self.assertEqual(by_key[key], {'crm.leads.read'}, key)
-        self.assertEqual(by_key['crm.settings.manage'], {'crm.settings.read'})
+        # A settings manager sees every company opportunity; an importer assigns what it distributes.
+        self.assertEqual(by_key['crm.settings.manage'], {'crm.settings.read', 'crm.leads.assign'})
+        self.assertEqual(by_key['crm.leads.import'], {'crm.leads.read', 'crm.leads.assign'})
         self.assertEqual(by_key['crm.leads.read'], set())
 
     def test_roles_imply_the_stock_sales_groups_that_allow_orm_access(self):
