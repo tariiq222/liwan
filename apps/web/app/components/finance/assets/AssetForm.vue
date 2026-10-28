@@ -41,13 +41,15 @@ async function submit() {
   attempted.value = true
   error.value = ''
   if (hasAssetErrors(errors.value)) return
-  if (props.recordId && !dirty.value) {
+  // A change that only differs in formatting (12000.00, a typed 0 salvage, trailing spaces) builds an empty body: unchanged.
+  const body = props.recordId ? buildAssetUpdate(draft, baseline) : null
+  if (props.recordId && body && Object.keys(body).length === 0) {
     emit('saved', props.recordId)
     return
   }
   try {
     const record = props.recordId
-      ? await update.mutateAsync({ id: props.recordId, body: buildAssetUpdate(draft, baseline) })
+      ? await update.mutateAsync({ id: props.recordId, body: body! })
       : await create.mutateAsync(buildAssetCreate(draft))
     saved.value = true
     await nextTick()

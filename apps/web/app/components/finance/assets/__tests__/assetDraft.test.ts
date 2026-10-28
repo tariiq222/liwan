@@ -80,3 +80,12 @@ describe('editing a draft asset', () => {
     expect(buildAssetUpdate({ ...initial, profileId: 4 }, initial)).toEqual({ profile_id: 4 })
   })
 })
+
+describe('a formatting-only asset edit', () => {
+  it('builds an empty body, so the form treats it as unchanged', () => {
+    const initial = assetDraftFromRecord(stored)
+    const typed = { ...initial, purchaseValue: '12000.00', salvageValue: '0', name: 'Table ', note: 'Boardroom  ' }
+    expect(assetDraftDirty(typed, initial)).toBe(true)
+    expect(buildAssetUpdate(typed, initial)).toEqual({})
+  })
+})

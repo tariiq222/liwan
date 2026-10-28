@@ -39,15 +39,17 @@ def _find_asset(asset_id):
     return asset
 
 
-def _asset_values(parsed):
+def _asset_values(parsed, company=None):
+    """ORM values of the parsed keys; related records are resolved in ``company`` (the session's for a creation)."""
+    company = company or request.env.company
     values = {key: parsed[key] for key in ('name', 'code', 'purchase_value', 'salvage_value', 'date_start', 'note') if key in parsed}
     if 'profile_id' in parsed:
         values['profile_id'] = company_records(
-            'account.asset.profile', [parsed['profile_id']], 'profile_id', [('company_id', '=', request.env.company.id)],
+            'account.asset.profile', [parsed['profile_id']], 'profile_id', [('company_id', '=', company.id)],
         ).id
     if 'partner_id' in parsed:
         values['partner_id'] = parsed['partner_id'] and company_records(
-            'res.partner', [parsed['partner_id']], 'partner_id', company_partners_domain(request.env.company),
+            'res.partner', [parsed['partner_id']], 'partner_id', company_partners_domain(company),
         ).id
     return values
 
@@ -118,7 +120,7 @@ class FinanceAssetController(http.Controller):
             require_salvage_within_purchase(
                 parsed.get('purchase_value', asset.purchase_value), parsed.get('salvage_value', asset.salvage_value),
             )
-        values = _asset_values(parsed)
+        values = _asset_values(parsed, asset.company_id)
         if 'date_start' in values:
             journal = request.env['account.asset.profile'].browse(values.get('profile_id', asset.profile_id.id)).journal_id
             if is_period_locked(values['date_start'], journal, company=asset.company_id):

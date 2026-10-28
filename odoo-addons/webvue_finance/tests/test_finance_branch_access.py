@@ -248,6 +248,21 @@ class TestFinanceBranchAccess(WebVueFinanceCase):
             'method': 'linear', 'method_time': 'year', 'method_number': 5, 'method_period': 'year',
         })
 
+    def test_parent_asset_patch_resolves_profile_and_partner_in_the_asset_owner(self):
+        self._grant_owner_mutations()
+        old_profile = self._branch_asset_profile()
+        new_profile = old_profile.copy({'name': 'Second owner asset profile'})
+        asset = self.env['account.asset'].with_company(self.branch).create({
+            'name': 'Branch desk', 'company_id': self.branch.id, 'profile_id': old_profile.id,
+            'purchase_value': 500, 'date_start': '2026-01-01',
+        })
+        branch_partner = self.env['res.partner'].create({'name': 'Branch vendor', 'company_id': self.branch.id})
+        route = f'/api/v1/finance/assets/{asset.id}'
+        response = self.api('PATCH', route, json={'profile_id': new_profile.id, 'partner_id': branch_partner.id})
+        self.assertEqual(response.status_code, 200, response.text)
+        asset.invalidate_recordset()
+        self.assertEqual((asset.company_id, asset.profile_id, asset.partner_id), (self.branch, new_profile, branch_partner))
+
     def test_branch_asset_profile_validates_references_for_profile_company(self):
         self._grant_owner_mutations()
         profile = self._branch_asset_profile()
