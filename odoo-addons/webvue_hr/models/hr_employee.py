@@ -349,12 +349,16 @@ class WebVueHrResource(models.Model):
             # creating or synchronising a resource. Reject only an actual
             # sensitive transition so those normal writes remain valid while
             # generic resource ORM callers cannot link, unlink, archive, or
-            # restore an employee behind the protected HR actions.
+            # restore an employee behind the protected HR actions. Material
+            # resources (rooms, devices) are not employees and archive freely.
             for resource in self:
                 if 'user_id' in vals and vals['user_id'] != resource.user_id.id:
                     msg = 'employee user access is managed by the access actions'
                     raise AccessError(msg)
-                if 'active' in vals and bool(vals['active']) != bool(resource.active):
+                if (
+                    resource.resource_type == 'user'
+                    and 'active' in vals and bool(vals['active']) != bool(resource.active)
+                ):
                     msg = 'employee activity is managed by the HR actions'
                     raise AccessError(msg)
         return super().write(vals)
