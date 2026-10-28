@@ -11,4 +11,6 @@ from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONT
 profile = env.ref('webvue_platform.tenant_profile').with_context(**{OPERATOR_CONTEXT: True})  # noqa: F821
 profile._webvue_set_public_origin(os.environ['DOMAIN'])
 env.cr.commit()  # noqa: F821
+# A running Odoo caches the parameter; signal the change so it rereads it on its next request.
+env.registry.signal_changes()  # noqa: F821
 print('public origin:', env['ir.config_parameter'].get_param('web.base.url'))  # noqa: F821, T201

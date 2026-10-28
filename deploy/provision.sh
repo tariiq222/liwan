@@ -76,6 +76,9 @@ set -a; source .env; set +a
 DOMAIN="${1:?usage: provision.sh <domain> <db name>}"
 DB_NAME="${2:?usage: provision.sh <domain> <db name>}"
 [[ "$DB_NAME" =~ ^[a-zA-Z0-9_]+$ ]] || { echo "db name must be [a-zA-Z0-9_]+" >&2; exit 1; }
+# The public origin is https://<domain>: a lowercase DNS name, no port, no trailing dot.
+[ "${#DOMAIN}" -le 253 ] && [[ "$DOMAIN" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$ ]] \
+  || { echo "domain must be a lowercase DNS name" >&2; exit 1; }
 export DOMAIN DB_NAME
 
 if [ "$MODE" = public-origin ]; then

@@ -91,8 +91,9 @@ def validate_modules(value):
     return value
 
 
-def validate_host(value):
-    if not isinstance(value, str) or not TENANT_HOST.fullmatch(value):
+def validate_host(value, domain_suffix):
+    if (not isinstance(value, str) or not TENANT_HOST.fullmatch(value)
+            or not value.endswith('.' + domain_suffix)):
         raise EffectError('host_invalid')
     return value
 
@@ -197,7 +198,7 @@ class Runner:
             raise EffectError('operation_unavailable')
         if request['job']['operation'] == 'provision':
             validate_modules(request['job']['policy']['modules'])
-            validate_host(request.get('host'))
+            validate_host(request.get('host'), config['domainSuffix'])
         self.root = Path(config['stateDir'])
         self.reservation = self.root / 'reservations' / (self.database + '.json')
         self.credential = self.root / 'credentials' / (self.database + '.json')
@@ -443,6 +444,8 @@ try:
         env.cr.rollback()
     else:
         env.cr.commit()
+        # The shared server may already cache this database's parameters: signal the pinned origin.
+        env.registry.signal_changes()
 except Exception:
     env.cr.rollback()
 finally:

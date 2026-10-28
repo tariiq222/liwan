@@ -161,8 +161,8 @@ class WebVueTenantProfile(models.Model):
     def _webvue_set_public_origin(self, host):
         """Pin `web.base.url` to the tenant's https host and freeze it (trusted operator only).
 
-        The host's owner calls it at provisioning and at every host change: the dedicated
-        `DOMAIN`, the shared routing registry host.
+        Callers: dedicated provisioning and every `DOMAIN` change (`deploy/seed_public_origin.py`),
+        and the shared provision effect with the tenant's routed host.
         """
         self._webvue_require_operator()
         if not isinstance(host, str) or not PUBLIC_HOST_PATTERN.fullmatch(host):

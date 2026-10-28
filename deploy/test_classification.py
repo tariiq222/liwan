@@ -183,6 +183,16 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertEqual(records[0]['domain'], 'erp.customer.sa')
         self.assertIn(self.data['database'], records[0]['args'])
 
+    def test_a_domain_that_is_not_a_lowercase_dns_name_never_calls_docker(self):
+        deploy, env = self.provision_fixture()
+        for domain in ('localhost', 'App.customer.sa', 'app.customer.sa.', 'app.customer.sa:8443'):
+            with self.subTest(domain=domain):
+                result = subprocess.run(['bash', str(deploy / 'provision.sh'), domain, self.data['database']],
+                                        env=env, text=True, capture_output=True, check=False)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('domain', result.stderr)
+        self.assertFalse((self.root / 'docker.log').exists())
+
     def test_a_domain_change_needs_a_provisioned_environment(self):
         deploy, env = self.provision_fixture()
         result = subprocess.run(['bash', str(deploy / 'provision.sh'), '--public-origin', 'erp.customer.sa', self.data['database']],

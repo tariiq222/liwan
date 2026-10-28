@@ -122,6 +122,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
             su = True
             uid = 1
             cr = Cursor()
+            registry = SimpleNamespace(signal_changes=lambda: writes.append(('signal',)))
             def __getitem__(self, model):
                 if model == 'webvue.tenant.profile':
                     return SimpleNamespace(search=lambda *args, **kwargs: Records([1]))
@@ -200,6 +201,8 @@ class PackageAdministratorScriptTests(unittest.TestCase):
         self.assertEqual(result, {'verified': True, 'uid': 2})
         self.assertIn(('origin', self.HOST), writes)
         self.assertLess(writes.index(('origin', self.HOST)), writes.index(('commit',)))
+        # A running shared server rereads the pinned origin after the commit.
+        self.assertLess(writes.index(('commit',)), writes.index(('signal',)))
 
     def test_snapshot_refuses_a_public_origin_that_is_not_the_routed_host(self):
         for origin in ('https://' + self.HOST + '.other.test', 'http://' + self.HOST, 'https://webvue_scratch_' + 'a' * 32):
@@ -208,11 +211,12 @@ class PackageAdministratorScriptTests(unittest.TestCase):
                 self.assertEqual(result, {'verified': False})
                 self.assertEqual(writes, [])
 
-    def test_a_provision_request_needs_a_routed_host(self):
-        for host in (None, '', 'Tenant.example.test', 'tenant', 'tenant.example.test/x', 'https://tenant.example.test'):
+    def test_a_provision_request_needs_a_host_of_this_runtime(self):
+        for host in (None, '', 'Tenant.example.test', 'tenant', 'tenant.example.test/x', 'https://tenant.example.test',
+                     'tenant.other.test', 'example.test', 'tenant.example.test.evil'):
             with self.subTest(host=host), self.assertRaises(odoo_effect.EffectError):
-                odoo_effect.validate_host(host)
-        self.assertEqual(odoo_effect.validate_host(self.HOST), self.HOST)
+                odoo_effect.validate_host(host, 'example.test')
+        self.assertEqual(odoo_effect.validate_host(self.HOST, 'example.test'), self.HOST)
 
     def test_catalog_apply_treats_first_admin_as_counted_customer(self):
         # A commercial tenant provisioned from the catalog (no package authority)
