@@ -118,6 +118,13 @@ findings are tracked in a private security advisory instead, never in a public i
 wait until the whole register has been run once; then each issue is fixed, its scenarios are
 run again and their rows updated.
 
+## Running the register
+
+The `user-test` skill (`.claude/skills/user-test/SKILL.md`) runs the register end to end: shared
+stack, area agents, tenant-state phase, issues and re-tests. Record outcomes with
+`tools/e2e_scenario_status.py` (stdin `ID<TAB>STATUS<TAB>NOTE`); change plan, limit or
+subscription state only with `tools/e2e_tenant_state.py`, which restores its saved baseline.
+
 ## Adding or changing a scenario
 
 1. Add or edit the row in the application's file (new ID at the end of its prefix), with
