@@ -1,5 +1,14 @@
 {
   "crm": {
+    "bell": {
+      "assigned": "New {term} assigned to you: {name}",
+      "assignedMany": {
+        "m": "{count} {term} assigned to you, first: {name}",
+        "f": "{count} {term} assigned to you, first: {name}"
+      },
+      "followupDue": "Follow-up call due: {name}",
+      "needsManager": "Needs a manager decision: {name}"
+    },
     "nav": {
       "dashboard": "Dashboard",
       "opportunities": "Opportunities",
