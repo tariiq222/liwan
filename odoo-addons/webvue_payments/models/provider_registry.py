@@ -12,7 +12,9 @@ class WebVuePaymentsProviderRegistry(models.AbstractModel):
     only their presence is ever read back. ``account_country`` is the stock field holding the
     country of the tenant's merchant account, its allowed country codes and the default.
     ``sync_method`` is the stock provider action that checks the keys against the gateway and
-    prepares the account for the current mode.
+    prepares the account for the current mode. ``routes`` are the stock callback routes the
+    gateway calls (``webhook``) and sends the payer back to (``return``); WebVue relays them to
+    the stock controllers unchanged.
     """
 
     _name = 'webvue.payments.provider.registry'
@@ -28,6 +30,7 @@ class WebVuePaymentsProviderRegistry(models.AbstractModel):
                     'field': 'paymob_account_country_id', 'codes': tuple(sorted(PAYMOB_COUNTRIES)), 'default': 'SA',
                 },
                 'sync_method': 'action_sync_paymob_payment_methods',
+                'routes': {'webhook': '/payment/paymob/webhook', 'return': '/payment/paymob/return'},
             },
         )
 

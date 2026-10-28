@@ -58,3 +58,83 @@ export type PaymentProviderList = z.infer<typeof PaymentProviderListSchema>
 export type PaymentProviderUpdate = z.infer<typeof PaymentProviderUpdateSchema>
 export type PaymentProviderSyncStatus = z.infer<typeof PaymentProviderSyncStatusSchema>
 export type PaymentProviderSync = z.infer<typeof PaymentProviderSyncSchema>
+
+/** One way the payer may pay: a gateway the tenant switched on and one of its payment methods. */
+export const PaymentOptionSchema = z.object({
+  provider_id: z.number().int().positive(),
+  provider: z.string().min(1),
+  method_id: z.number().int().positive(),
+  method: z.string().min(1),
+  method_name: z.string().min(1),
+}).strict()
+
+export const PayableInvoiceStatusSchema = z.enum(['payable', 'processing', 'paid', 'not_payable'])
+
+/**
+ * What the holder of an invoice's access token sees on the public pay page. No partner name or
+ * address; `options` is empty unless the invoice is payable.
+ */
+export const PayableInvoiceSchema = z.object({
+  id: z.number().int().positive(),
+  merchant: z.string().min(1),
+  number: z.string().min(1),
+  due_date: z.string().nullable(),
+  currency: z.string().length(3),
+  amount_total: z.number(),
+  amount_due: z.number(),
+  status: PayableInvoiceStatusSchema,
+  options: z.array(PaymentOptionSchema),
+}).strict()
+
+/** POST body that starts a payment. The amount, currency and payer always come from the invoice. */
+export const PaymentStartSchema = z.object({
+  access_token: z.string().min(1).max(128),
+  provider_id: z.number().int().positive(),
+  payment_method_id: z.number().int().positive(),
+}).strict()
+
+/** The gateway page the browser must open: navigate for `get`, submit a form for `post`. */
+export const PaymentRedirectSchema = z.object({
+  redirect: z.object({
+    method: z.enum(['get', 'post']),
+    url: z.string().url(),
+    fields: z.record(z.string(), z.string()),
+  }).strict(),
+}).strict()
+
+export const PaymentLinkCreateSchema = z.object({
+  invoice_id: z.number().int().positive(),
+}).strict()
+
+/** A path, not a URL: the browser that shows it knows the tenant's public origin. */
+export const PaymentLinkSchema = z.object({
+  path: z.string().regex(/^\/pay\/invoice\/\d+\?access_token=[\w-]+$/),
+}).strict()
+
+export type PaymentOption = z.infer<typeof PaymentOptionSchema>
+export type PayableInvoiceStatus = z.infer<typeof PayableInvoiceStatusSchema>
+export type PayableInvoice = z.infer<typeof PayableInvoiceSchema>
+export type PaymentStart = z.infer<typeof PaymentStartSchema>
+export type PaymentRedirect = z.infer<typeof PaymentRedirectSchema>
+export type PaymentLinkCreate = z.infer<typeof PaymentLinkCreateSchema>
+export type PaymentLink = z.infer<typeof PaymentLinkSchema>
+
+/**
+ * The payer's way back from the gateway. Before leaving for the gateway page, the pay page stores
+ * `<invoice id>.<access token>` in this cookie (path `/payment`, one hour); the gateway's return
+ * lands on `/payment/<code>/return`, where the server reads it to send the payer to the status page.
+ */
+export const PAY_RETURN_COOKIE = 'webvue_pay_return'
+export const PAY_RETURN_COOKIE_PATH = '/payment'
+export const PAY_RETURN_MAX_AGE_SECONDS = 3600
+const PAY_RETURN_VALUE = /^(\d{1,12})\.([A-Za-z0-9_-]{1,128})$/
+
+export function encodePayReturn(invoiceId: number, accessToken: string): string {
+  return `${invoiceId}.${accessToken}`
+}
+
+/** The invoice id and token of a well-formed cookie value, or null. */
+export function decodePayReturn(value: string | undefined | null): { invoiceId: number; accessToken: string } | null {
+  const match = value ? PAY_RETURN_VALUE.exec(value) : null
+  return match ? { invoiceId: Number(match[1]), accessToken: match[2]! } : null
+}

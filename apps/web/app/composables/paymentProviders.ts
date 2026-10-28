@@ -1,5 +1,6 @@
 import { PaymentProviderStateSchema, type PaymentProvider, type PaymentProviderList, type PaymentProviderState, type PaymentProviderSyncStatus } from '@webvue/contracts'
 import { statusBadgeEntry, type StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
+import { errorKeyFor } from './paymentErrors'
 
 /** The modes a gateway can run in, in the order the mode control shows them: off, sandbox, live. */
 export const PAYMENT_PROVIDER_STATES: readonly PaymentProviderState[] = PaymentProviderStateSchema.options
@@ -64,8 +65,7 @@ const ERROR_KEYS: Readonly<Record<string, string>> = {
 
 /** The locale key of a refusal this page words itself, or null to show the API's own text. */
 export function providerErrorKey(error: unknown): string | null {
-  const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined
-  return typeof code === 'string' && Object.hasOwn(ERROR_KEYS, code) ? ERROR_KEYS[code]! : null
+  return errorKeyFor(error, ERROR_KEYS)
 }
 
 /** How a finished connection test is shown: its alert colour and the locale keys of its title and explanation. */

@@ -244,6 +244,20 @@ class TestPaymentProviders(WebVuePaymentsCase):
         self.env.invalidate_all()
         self.assertFalse(token.active, 'a test/live switch archives the saved tokens of the provider')
 
+    def test_switching_the_last_gateway_off_keeps_the_cron_while_a_payment_waits(self):
+        cron = self.env.ref('payment.cron_post_process_payment_tx')
+        self.paymob.sudo().write({
+            **PAYMOB_CREDENTIALS, 'paymob_account_country_id': self.env.ref('base.sa').id, 'state': 'test',
+        })
+        Transaction = self.env['payment.transaction']
+        Transaction.create({
+            'provider_id': self.paymob.id, 'payment_method_id': self.env.ref('payment.payment_method_card').id,
+            'reference': 'WEBVUE-WAITING', 'amount': 10.0, 'currency_id': self.env.company.currency_id.id,
+            'partner_id': self.employee.partner_id.id, 'state': 'done', 'is_post_processed': False,
+        })
+        self.paymob.sudo().write({'state': 'disabled'})
+        self.assertTrue(cron.active)
+
     def test_the_state_switch_checks_the_capability_and_the_company_itself(self):
         with self.assertRaises(AccessError):
             self.paymob.with_user(self.employee)._webvue_payments_set_state('test')

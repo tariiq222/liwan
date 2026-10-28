@@ -82,10 +82,9 @@ class WebVueFeatureRegistry(models.AbstractModel):
         declared = tuple(self._webvue_module_map())
         if not declared:
             return ()
-        installed = set(self.env['ir.module.module'].search([
-            ('name', 'in', list(declared)),
-            ('state', '=', 'installed'),
-        ]).mapped('name'))
+        # The stock cached map of installed modules: it serves every caller, including the public
+        # user of a feature-gated public route, who has no read access to ir.module.module.
+        installed = self.env['ir.module.module']._installed()
         return tuple(module_id for module_id in sorted(declared) if module_id in installed)
 
     @api.model

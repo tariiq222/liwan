@@ -8,6 +8,14 @@
         <field name="group_xmlid">webvue_payments.group_cap_payments_providers_manage</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
+    <record id="permission_payments_links_manage" model="webvue.access.permission">
+        <field name="key">payments.links.manage</field><field name="domain">payments</field>
+        <field name="resource">links</field><field name="action">manage</field>
+        <field name="name_ar">إنشاء روابط الدفع</field><field name="name_en">Create payment links</field>
+        <field name="description_ar">إنشاء رابط دفع لفاتورة عميل يستطيع المستخدم قراءتها</field><field name="description_en">Create a payment link for a customer invoice the user can read</field>
+        <field name="group_xmlid">webvue_payments.group_cap_payments_links_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
     <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
          dependencies on install and on every upgrade. -->
     <function model="webvue.access.service" name="_webvue_configure_permission_dependencies"/>

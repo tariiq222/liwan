@@ -10,9 +10,10 @@
     # depend on it and react through its hooks; it never reads their data.
     # webvue_api: api_handler/ApiError, the feature gate and WebVueApiCase.
     # payment_paymob: the first supported gateway, used unmodified (it brings payment and
-    # portal). The tenant is its own merchant: its gateway keys live in the stock provider
-    # fields of its own database and are never returned by the API.
-    'depends': ['webvue_api', 'payment_paymob'],
+    # portal). account_payment: a transaction pays a posted invoice and stock post-processing
+    # records and reconciles the payment. The tenant is its own merchant: its gateway keys live
+    # in the stock provider fields of its own database and are never returned by the API.
+    'depends': ['webvue_api', 'payment_paymob', 'account_payment'],
     'data': [
         'security/payments_capability_groups.xml',
         'security/ir.model.access.csv',
