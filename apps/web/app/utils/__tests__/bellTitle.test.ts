@@ -13,6 +13,6 @@ describe('declaredBellTitle', () => {
   })
 
   it('has nothing for a kind no manifest declares', () => {
-    expect(declaredBellTitle({ id: 9, kind: 'sales_order_assigned', title: 'SO-1' }, key => key)).toBeUndefined()
+    expect(declaredBellTitle({ kind: 'sales_order_assigned' }, key => key)).toBeUndefined()
   })
 })
